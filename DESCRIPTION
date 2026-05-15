@@ -19,7 +19,7 @@ Description: Bayesian multilevel unanchored meta-regression (ML-UMR) for
     deliberately mirrors multinma's so users can move between ML-NMR
     and ML-UMR with the same workflow.
 License: GPL-3
-URL: https://github.com/choxos/mlumr
+URL: https://github.com/choxos/mlumr, https://choxos.github.io/mlumr/
 BugReports: https://github.com/choxos/mlumr/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
