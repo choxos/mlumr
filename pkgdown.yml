@@ -1,0 +1,14 @@
+pandoc: 3.8.3
+pkgdown: 2.2.0
+pkgdown_sha: ~
+articles:
+  data-preparation: data-preparation.html
+  introduction: introduction.html
+  mlumr-models: mlumr-models.html
+  model-comparison: model-comparison.html
+  stc-and-naive: stc-and-naive.html
+  worked-example: worked-example.html
+last_built: 2026-05-15T18:29Z
+urls:
+  reference: https://choxos.github.io/mlumr/reference
+  article: https://choxos.github.io/mlumr/articles
