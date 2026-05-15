@@ -1,0 +1,102 @@
+make_predict_fit <- function() {
+  draws <- data.frame(
+    mu_index = c(0, 1),
+    mu_comparator = c(-1, 0),
+    check.names = FALSE
+  )
+  draws[["beta[1]"]] <- c(0.5, 0.5)
+
+  draws[["p_index_index"]] <- c(0.60, 0.70)
+  draws[["p_comparator_index"]] <- c(0.40, 0.50)
+  draws[["p_index_comparator"]] <- c(0.65, 0.75)
+  draws[["p_comparator_comparator"]] <- c(0.45, 0.55)
+
+  draws[["lor_index"]] <- qlogis(draws[["p_index_index"]]) -
+    qlogis(draws[["p_comparator_index"]])
+  draws[["lor_comparator"]] <- qlogis(draws[["p_index_comparator"]]) -
+    qlogis(draws[["p_comparator_comparator"]])
+  draws[["rd_index"]] <- draws[["p_index_index"]] -
+    draws[["p_comparator_index"]]
+  draws[["rd_comparator"]] <- draws[["p_index_comparator"]] -
+    draws[["p_comparator_comparator"]]
+  draws[["rr_index"]] <- draws[["p_index_index"]] /
+    draws[["p_comparator_index"]]
+  draws[["rr_comparator"]] <- draws[["p_index_comparator"]] /
+    draws[["p_comparator_comparator"]]
+
+  structure(
+    list(
+      draws = draws,
+      family = "binomial",
+      link = "logit",
+      model = "spfa",
+      data = list(
+        covariates = "x",
+        ipd = list(data = data.frame(x = c(0, 2))),
+        integration_points = array(c(1, 3), dim = c(1, 2, 1)),
+        index_treatment = "A",
+        comparator_treatment = "B"
+      ),
+      stan_data = list(n_agd = 10L)
+    ),
+    class = c("mlumr_fit", "list")
+  )
+}
+
+
+test_that("predict summarizes response-scale generated quantities", {
+  fit <- make_predict_fit()
+
+  pred <- predict(fit, population = "both", probs = 0.5)
+
+  expect_s3_class(pred, "data.frame")
+  expect_equal(nrow(pred), 4)
+  expect_equal(pred$treatment, c("A", "B", "A", "B"))
+  expect_equal(pred$population, c("Index", "Index", "Comparator", "Comparator"))
+  expect_equal(pred$mean, c(0.65, 0.45, 0.70, 0.50))
+  expect_equal(pred$q50, c(0.65, 0.45, 0.70, 0.50))
+})
+
+
+test_that("predict computes link-scale marginal linear predictors directly", {
+  fit <- make_predict_fit()
+
+  link_draws <- predict(fit, type = "link", summary = FALSE)
+
+  expect_equal(link_draws[["p_index_index"]], c(0.5, 1.5))
+  expect_equal(link_draws[["p_comparator_index"]], c(-0.5, 0.5))
+  expect_equal(link_draws[["p_index_comparator"]], c(1, 2))
+  expect_equal(link_draws[["p_comparator_comparator"]], c(0, 1))
+})
+
+
+test_that("predict validates arguments and draw columns", {
+  fit <- make_predict_fit()
+
+  expect_error(predict.mlumr_fit(list()), "`object` must be an mlumr_fit object")
+  expect_error(predict(fit, population = "i"), "`population` must be one of")
+  expect_error(predict(fit, type = "r"), "`type` must be one of")
+  expect_error(predict(fit, summary = NA), "`summary` must be TRUE or FALSE")
+  expect_error(predict(fit, probs = c(0.5, 0.5)), "`probs` must be unique")
+
+  broken <- fit
+  broken$draws["p_index_index"] <- NULL
+  expect_error(predict(broken), "Missing prediction draw column")
+})
+
+
+test_that("marginal_effects validates inputs and returns labeled effects", {
+  fit <- make_predict_fit()
+
+  me <- marginal_effects(fit, effect = "lor", summary = FALSE)
+  expect_equal(names(me), c("lor_index", "lor_comparator"))
+
+  me_summary <- marginal_effects(fit, effect = "rd", probs = 0.5)
+  expect_equal(me_summary$effect, c("RD", "RD"))
+  expect_equal(me_summary$population, c("Index", "Comparator"))
+
+  expect_error(marginal_effects(fit, effect = c("lor", "rd")),
+               "`effect` must be a single non-missing string")
+  expect_error(marginal_effects(fit, effect = "bad"),
+               "For binomial family")
+})

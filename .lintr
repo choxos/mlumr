@@ -1,0 +1,26 @@
+linters: linters_with_defaults(
+    line_length_linter = line_length_linter(120L),
+    commented_code_linter = NULL,
+    object_length_linter = NULL,
+    object_usage_linter = NULL,
+    object_name_linter = object_name_linter(
+        styles = c("snake_case", "symbols"),
+        regexes = c(
+            "^[A-Z]$",
+            "^[A-Z][A-Za-z0-9_]*$",
+            "^[a-z]+_[A-Z]$",
+            "^[a-z]+(_[a-z]+)*_[A-Z](_[a-z]+)*$",
+            "^lower[.]tail$",
+            "^log[.]p$",
+            "^DIC$",
+            "^pD(_[a-z]+)*$"
+        )
+    )
+  )
+encoding: "UTF-8"
+exclusions: list(
+    "inst/future",
+    "src",
+    "man",
+    "R/stanmodels.R"
+  )

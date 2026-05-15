@@ -1,0 +1,71 @@
+# Tests for prior_sensitivity() — exercises the argument-validation path
+# and the internal .rescale_prior_beta helper. The full refit path calls
+# mlumr() and requires Stan, which is covered by the smoke-level tests in
+# test-mlumr.R; here we stay pure-R so the suite stays fast.
+
+test_that("prior_sensitivity rejects non-mlumr_fit input", {
+  expect_error(prior_sensitivity(list()), "mlumr_fit")
+  expect_error(prior_sensitivity(NULL), "mlumr_fit")
+})
+
+
+test_that("prior_sensitivity rejects invalid prior_beta_scales", {
+  fit <- structure(list(priors = list(beta = prior_normal(0, 2.5))),
+                   class = "mlumr_fit")
+  expect_error(prior_sensitivity(fit, prior_beta_scales = c(-1, 2)),
+               "positive finite")
+  expect_error(prior_sensitivity(fit, prior_beta_scales = c(0, 1)),
+               "positive finite")
+  expect_error(prior_sensitivity(fit, prior_beta_scales = c(NA, 1)),
+               "positive finite")
+  expect_error(prior_sensitivity(fit, prior_beta_scales = "2.5"),
+               "positive finite")
+})
+
+
+test_that("prior_sensitivity errors when priors$beta is missing", {
+  fit <- structure(list(priors = list()), class = "mlumr_fit")
+  expect_error(prior_sensitivity(fit, prior_beta_scales = 2.5),
+               "Original `prior_beta` not found")
+})
+
+
+test_that(".rescale_prior_beta preserves family and replaces scale", {
+  p <- prior_normal(0, 2.5)
+  r <- mlumr:::.rescale_prior_beta(p, new_scale = 5)
+  expect_equal(r$sd, 5)
+  # Mean and distribution preserved
+  expect_equal(r$mean, 0)
+  expect_equal(r$distribution, "normal")
+  # Default tags are stripped
+  expect_null(r$default)
+  expect_null(r$version)
+})
+
+
+test_that(".rescale_prior_beta preserves student_t df", {
+  p <- prior_student_t(df = 5, mean = 0, sd = 2.5)
+  r <- mlumr:::.rescale_prior_beta(p, new_scale = 1)
+  expect_equal(r$sd, 1)
+  expect_equal(r$df, 5)
+  expect_equal(r$distribution, "student_t")
+})
+
+
+test_that(".rescale_prior_beta falls back to normal for exponential input", {
+  # Exponential on beta is not supported at fit time, but the helper
+  # should not blow up if a pathological fit carries one.
+  p <- prior_exponential(rate = 1)
+  r <- mlumr:::.rescale_prior_beta(p, new_scale = 2.5)
+  expect_equal(r$distribution, "normal")
+  expect_equal(r$sd, 2.5)
+})
+
+
+test_that(".rescale_prior_beta rescales per-coefficient priors element-wise", {
+  priors <- list(prior_normal(0, 2.5), prior_normal(0, 1))
+  r <- mlumr:::.rescale_prior_beta(priors, new_scale = 3)
+  expect_length(r, 2L)
+  expect_true(all(vapply(r, function(x) x$sd, numeric(1)) == 3))
+  expect_null(r[[1]]$default)
+})
