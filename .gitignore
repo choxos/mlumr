@@ -109,3 +109,6 @@ _*/
 *.tar
 *.tgz
 docs
+
+# Reporting
+reporting/

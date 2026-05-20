@@ -24,3 +24,4 @@
 ^mlumr_[0-9.]+\.tar\.gz$
 ^\.positai$
 ^tools$
+^reporting$

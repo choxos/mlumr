@@ -45,6 +45,12 @@ interface:
 
 ## Installation
 
+### From CRAN
+
+```r
+install.packages("mlumr")
+```
+
 ### Development version
 
 ```r

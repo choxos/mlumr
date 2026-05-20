@@ -153,12 +153,21 @@ prior_sensitivity <- function(fit,
 #' @keywords internal
 .summarize_sensitivity <- function(fit, scale, probs) {
   draws <- fit$draws
-  delta_names <- intersect(c("delta_index", "delta_comparator"), colnames(draws))
-  if (length(delta_names) == 0L) return(NULL)
+  family <- fit$family %||% "binomial"
+
+  # Family-specific marginal-effect column names in the draws data frame
+  effect_cols <- switch(family,
+    binomial = c("lor_index",   "lor_comparator"),
+    normal   = c("delta_index", "delta_comparator"),
+    poisson  = c("lrr_index",   "lrr_comparator")
+  )
+
+  effect_names <- intersect(effect_cols, colnames(draws))
+  if (length(effect_names) == 0L) return(NULL)
 
   qnames <- paste0("q", round(100 * probs))
 
-  rows <- lapply(delta_names, function(nm) {
+  rows <- lapply(effect_names, function(nm) {
     x <- draws[, nm]
     qs <- stats::quantile(x, probs = probs, names = FALSE)
     row <- data.frame(

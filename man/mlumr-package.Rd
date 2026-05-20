@@ -61,6 +61,7 @@ be compared directly.
 Useful links:
 \itemize{
   \item \url{https://github.com/choxos/mlumr}
+  \item \url{https://choxos.github.io/mlumr/}
   \item Report bugs at \url{https://github.com/choxos/mlumr/issues}
 }
 
