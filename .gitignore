@@ -1,114 +1,22 @@
-# ============================================================================
-# R and RStudio
-# ============================================================================
+# Dependencies and build artifacts (never commit these)
+node_modules/
+dist/
 
-# History
-.Rhistory
-.Rapp.history
+# Generated intermediates
+# produced by `npm run prepare:stan` (scripts/expand-stan.mjs)
+build/
+.vite/
 
-# Session data
-.RData
-.Rdata
-.RDataTmp
-.Ruserdata
+# Local design/reference snapshots, not needed for the deployed app
+legacy/
 
-# Example code from R CMD build
-*-Ex.R
+# Redundant, unused-at-runtime second copy of the WASM bundles. The app loads
+# the bundled copy under src/wasm-assets/ via import.meta.glob; nothing
+# references /wasm/. Keep src/wasm-assets/ (committed) but not this duplicate.
+public/wasm/
 
-# RStudio project metadata
-.Rproj.user/
-
-# R CMD build output
-/*.tar.gz
-
-# R CMD check output
-/*.Rcheck/
-
-# Vignette build output
-vignettes/*.html
-vignettes/*.pdf
-
-# knitr / R Markdown caches
-*_cache/
-/cache/
-*.utf8.md
-*.knit.md
-
-# R environment
-.Renviron
-
-# OAuth tokens (httr)
-.httr-oauth
-
-# pkgdown rendered site
-docs/
-
-# rsconnect deployments
-rsconnect/
-
-# ============================================================================
-# Compiled artifacts (Stan / C++)
-# ============================================================================
-
-*.o
-*.so
-*.dll
-src/*.o
-src/*.so
-src/*.dll
-src/Makevars
-src/Makevars.win
-src/stan_meta_header.hpp
-
-# CmdStan-compiled binaries inside inst/stan (only .stan sources are tracked)
-inst/stan/**
-!inst/stan/*.stan
-!inst/stan/include/
-!inst/stan/include/*.stan
-
-# ============================================================================
-# Operating system
-# ============================================================================
-
+# Local / OS cruft
+*.local
+DEPLOY.md
+_validate_*.ts
 .DS_Store
-Thumbs.db
-ehthumbs.db
-desktop.ini
-
-# ============================================================================
-# Editors and IDEs
-# ============================================================================
-
-# Vim
-*.swp
-*.swo
-*~
-
-# VS Code
-.vscode/
-
-# JetBrains
-.idea/
-
-# Emacs
-\#*\#
-.\#*
-
-# ============================================================================
-# Local development (per-clone; see .git/info/exclude for personal additions)
-# ============================================================================
-
-# Conventional names for local-only working copies
-private/
-scratch/
-wip/
-_*/
-
-# Backup archives
-*.zip
-*.tar
-*.tgz
-docs
-
-# Reporting
-reporting/

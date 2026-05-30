@@ -1,0 +1,62 @@
+# Builds the mlumr browser Vite single-page app from this app-only branch and
+# publishes it at https://choxos.github.io/mlumr/app .
+#
+# How this coexists with the pkgdown site (which owns the gh-pages root):
+#   * pkgdown.yaml deploys docs/ to gh-pages with `clean: false`, so it overlays
+#     the package website and never deletes the /app subtree.
+#   * This workflow deploys ONLY into the gh-pages app/ subfolder
+#     (target-folder: app) with `clean: true`, which is scoped to app/ -- it
+#     purges stale hashed Vite bundles inside app/ but never touches pkgdown's
+#     root files.
+# The single load-bearing guardrail is pkgdown.yaml's `clean: false`; do not
+# change it to `clean: true` or switch to pkgdown::deploy_to_branch() (which
+# defaults to clean = TRUE) or the next docs build would wipe /app.
+name: deploy-app.yaml
+
+on:
+  push:
+    branches: [feature/browser-app]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # push the built app to the gh-pages branch
+
+# Serialize writers to gh-pages to avoid non-fast-forward push failures.
+concurrency:
+  group: gh-pages-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # base is set in vite.config.ts for `command === "build"`; --base is a
+      # redundant guard. Note: `build` runs `tsc && vite build`, so a type error
+      # fails the build before Vite runs.
+      - name: Build (Vite base = /mlumr/app/)
+        run: npm run build -- --base=/mlumr/app/
+
+      # Defense-in-depth: a root .nojekyll already exists (pkgdown re-emits it)
+      # and covers /app, but carry one in the app build too.
+      - name: Add .nojekyll to the app build
+        run: touch dist/.nojekyll
+
+      - name: Deploy to gh-pages/app
+        uses: JamesIves/github-pages-deploy-action@d92aa235d04922e8f08b40ce78cc5442fcfbfa2f # v4.8.0
+        with:
+          branch: gh-pages
+          folder: dist
+          target-folder: app           # confines deploy + clean to /app
+          clean: true                  # purge stale bundles, scoped to /app only
+          commit-message: "Deploy mlumr app to /app [skip ci]"
