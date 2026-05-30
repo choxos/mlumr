@@ -25,3 +25,24 @@
 ^\.positai$
 ^tools$
 ^reporting$
+^data-raw$
+^course$
+^showcases$
+^app$
+^man/figures/logo_backup\.svg$
+# Precompiled vignettes (multinma-style): ship only the rendered .html +
+# .html.asis for the Stan-fitting vignettes; the .Rmd.orig sources, the knitted
+# .Rmd intermediates, the precompile script, helpers, and figures stay in git
+# but out of the CRAN tarball. introduction.Rmd / data-preparation.Rmd remain
+# normal knitr vignettes and are NOT excluded.
+^vignettes/.*\.Rmd\.orig$
+^vignettes/precompile\.R$
+^vignettes/children$
+^vignettes/figure$
+^vignettes/.*_cache$
+^vignettes/binary-outcomes\.Rmd$
+^vignettes/continuous-outcomes\.Rmd$
+^vignettes/count-outcomes\.Rmd$
+^vignettes/survival-outcomes\.Rmd$
+^vignettes/fitting-and-diagnostics\.Rmd$
+^vignettes/choosing-a-method\.Rmd$

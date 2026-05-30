@@ -1,0 +1,22 @@
+# Dependencies and build artifacts (never commit these)
+node_modules/
+dist/
+
+# Generated intermediates
+# produced by `npm run prepare:stan` (scripts/expand-stan.mjs)
+build/
+.vite/
+
+# Local design/reference snapshots, not needed for the deployed app
+legacy/
+
+# Redundant, unused-at-runtime second copy of the WASM bundles. The app loads
+# the bundled copy under src/wasm-assets/ via import.meta.glob; nothing
+# references /wasm/. Keep src/wasm-assets/ (committed) but not this duplicate.
+public/wasm/
+
+# Local / OS cruft
+*.local
+DEPLOY.md
+_validate_*.ts
+.DS_Store
