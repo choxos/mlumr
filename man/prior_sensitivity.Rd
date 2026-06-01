@@ -7,6 +7,7 @@
 prior_sensitivity(
   fit,
   prior_beta_scales = c(0.5, 1, 2.5, 5, 10),
+  prior_beta_comparator_scales = NULL,
   probs = c(0.025, 0.5, 0.975),
   verbose = TRUE,
   ...
@@ -17,6 +18,16 @@ prior_sensitivity(
 
 \item{prior_beta_scales}{Numeric vector of scales for \code{prior_beta}.
 Default \code{c(0.5, 1, 2.5, 5, 10)}.}
+
+\item{prior_beta_comparator_scales}{(Relaxed fits only.) Numeric vector of
+scales for \code{prior_beta_comparator}, same length as \code{prior_beta_scales} and
+paired with it elementwise. If \code{NULL} (default), the comparator prior is
+swept in parallel using \code{prior_beta_scales}. This matters because the
+relaxed index-population estimand is driven by the comparator coefficients,
+so a faithful sensitivity sweep must vary their prior. Whichever scale is
+used is reported in the \code{scale_comparator} column, so a refit that paired,
+say, an index scale of 0.5 with a comparator scale of 2.5 is not labeled
+as though only the index prior had been set. Ignored for SPFA fits.}
 
 \item{probs}{Quantiles for summarizing each posterior
 (default \code{c(0.025, 0.5, 0.975)}).}
@@ -29,31 +40,69 @@ printed summary table.}
 from the original fit.}
 }
 \value{
-A data frame (tibble-style) with one row per
-(scale, population, quantile) combination and columns \code{scale},
-\code{parameter}, \code{mean}, \code{sd}, and the requested quantiles. Side effect:
-prints a summary table at the end.
+A data frame (tibble-style) with one row per prior-scale scenario and
+marginal-effect parameter; the requested quantiles are columns, not rows.
+Columns are \code{scale},
+\code{scale_comparator}, \code{parameter}, \code{effect}, \code{at_time}, \code{mean}, \code{sd}, and the
+requested quantiles. \code{scale} is the scale applied to \code{prior_beta} and
+\code{scale_comparator} the scale applied to \code{prior_beta_comparator} on that
+refit; the latter is present for every relaxed fit, including the default
+case where the two are equal, and is dropped for SPFA fits, which have no
+comparator coefficient prior. \code{effect} names what the summarized draws are and
+\code{at_time} the evaluation time where one applies, so a survival row can
+never be read as a generic log hazard ratio when it is a location contrast
+or is tied to one prediction time. Side effect: prints a summary table at
+the end.
+
+The tracked \code{parameter} and its \strong{scale depend on the outcome family}, so
+the numbers are comparable across \code{scale} rows within one call but not
+directly across families: binomial reports \verb{lor_*} (marginal log odds
+ratio, null = 0); poisson reports \verb{delta_*} (marginal rate ratio,
+null = 1); normal reports \verb{delta_*} (marginal mean difference, null = 0);
+survival reports \verb{delta_*} on the LOG scale (null = 0), which is one of
+three different quantities depending on the fit and is named per row in the
+\code{effect} column: \code{LOG_HR} (proportional hazards, with the evaluation time
+in \code{at_time}), \code{LOG_TR} (AFT with shared shapes under SPFA, a genuine log
+time ratio), or \code{DELTA_ETA} (AFT whose shapes differ, or any relaxed AFT,
+where the contrast is a location difference and not a time ratio). Read the
+\code{effect} and \code{at_time} columns, not just \code{parameter}, to know what a row
+means.
 }
 \description{
 Refit an \code{\link[=mlumr]{mlumr()}} model across a grid of \code{prior_beta} scales (keeping the
 family, mean, and df fixed) and summarize how the posterior for the
 marginal treatment effects (\code{delta_index}, \code{delta_comparator}) moves. This
-is the workflow recommended by Vehtari et al.'s prior-choice wiki for
-judging how much of the posterior is driven by the data versus the prior.
+is a practical way to assess whether the reported posterior summary is
+sensitive to reasonable prior scales. It is not a decomposition of the
+posterior into separate data and prior fractions.
 }
 \details{
 Only the scale of the \code{prior_beta} family is varied; its distribution
 (normal / student_t) and mean are preserved so comparisons are apples to
 apples. \code{prior_intercept} and \code{prior_sigma} are carried through
-unchanged from the original fit. Each value in \code{prior_beta_scales} is
-used as the \strong{absolute} scale for every coefficient at that refit --- if
-the original fit used per-coefficient priors, all coefficients are set
-to the same scale (the sweep is deliberately homogeneous so the grid
-reflects a single level of prior informativeness per refit, not a
-rescaling of existing relative differences). If the original
-\code{prior_beta} used an exponential family, it is swapped for a
-\code{prior_normal(0, scale)} at each grid point since exponential has no
-scale parameter to vary.
+unchanged from the original fit, as are the survival baseline controls
+(\code{n_knots}, \code{mspline_degree}, \code{pred_times}, \code{rmst_horizon}, \code{n_rmst_grid},
+\code{aux_by}) so a survival refit reproduces the original baseline, and the
+design-matrix controls (\code{center}, \code{qr}) so it reproduces the original
+parameterization. The integration points, family, link, and engine come from
+the fit itself. Nothing but the prior scale changes between refits, and
+\code{...} may not override any of the settings above. For relaxed fits the
+comparator prior is swept alongside the index prior (see
+\code{prior_beta_comparator_scales}): by default the two move together, which is a
+single-factor sweep of overall prior informativeness, but supplying
+\code{prior_beta_comparator_scales} pairs a different comparator scale with each
+index scale, and the two scales are then separate factors moved in lockstep
+rather than one. Both are recorded per row (\code{scale} and \code{scale_comparator}),
+so a row is never identified by only half of the prior it was fitted under.
+Each
+value in \code{prior_beta_scales} is used as the \strong{absolute} scale for every
+coefficient at that refit: if the original fit used per-coefficient
+priors, all coefficients are set to the same scale (the sweep is
+deliberately homogeneous so the grid reflects a single level of prior
+informativeness per refit, not a rescaling of existing relative
+differences). If the original \code{prior_beta} used an exponential family, it
+is swapped for a \code{prior_normal(0, scale)} at each grid point since
+exponential has no scale parameter to vary.
 }
 \examples{
 \dontrun{

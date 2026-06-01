@@ -7,8 +7,7 @@
 prior_student_t(df = 5, mean = 0, sd = 2.5, autoscale = FALSE)
 }
 \arguments{
-\item{df}{Degrees of freedom (must be positive). Values in \code{3:7} are
-recommended for logistic-regression coefficients.}
+\item{df}{Degrees of freedom (must be positive).}
 
 \item{mean}{Prior location (default 0).}
 
@@ -21,12 +20,12 @@ A list with components \code{distribution = "student_t"}, \code{df},
 \code{mean}, \code{sd}, \code{autoscale}.
 }
 \description{
-Heavier-tailed alternative to \code{\link[=prior_normal]{prior_normal()}}. For logistic-regression
-coefficients with unit-scale predictors, the Stan community prior-choice
-recommendations suggest Student-t with \code{df} between 3 and 7 as a robust
-weakly informative prior (Gelman et al., 2008).
+Heavier-tailed alternative to \code{\link[=prior_normal]{prior_normal()}}. A Student-t with moderate
+degrees of freedom can be a robust weakly informative starting family, but
+its scale still requires calibration to the link, outcome, and predictor
+scaling.
 }
 \examples{
-# Gelman et al. 2008 recommendation for logistic-regression coefficients
+# A moderately heavy-tailed coefficient prior
 prior_student_t(df = 5, mean = 0, sd = 2.5)
 }

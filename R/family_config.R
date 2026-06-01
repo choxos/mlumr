@@ -22,9 +22,16 @@
 #'   \item{`marginal_effect_vars`}{Generated-quantity column names for each
 #'     effect measure, per population. Expanded in [marginal_effects()].}
 #'   \item{`comp_weight_field`}{Name of the Stan-data field used to
-#'     weight the comparator-population marginal predictions
-#'     (`n_agd` for binomial, `E_agd` for poisson, `NULL` for normal
-#'     = equal weights).}
+#'     weight the comparator-population marginal predictions. Must name
+#'     the same field the family's Stan `generated quantities` block
+#'     weights by, otherwise the R-side link-scale path in
+#'     [predict.mlumr_fit()] would average over a different target
+#'     population than the Stan-side response-scale predictions and
+#'     `marginal_effects()`. Currently `n_agd` (binomial), `E_agd`
+#'     (poisson), `agd_weight` (normal; required sample sizes for multiple rows,
+#'     or one for a single row without `outcome_n`), and `NULL` for survival, whose
+#'     comparator population is the pooled pseudo-IPD rather than a
+#'     weighted mixture of aggregate rows.}
 #' }
 #'
 #' @keywords internal
@@ -55,7 +62,10 @@ family_config <- list(
     marginal_effect_vars = list(
       md = c("delta_index", "delta_comparator")
     ),
-    comp_weight_field    = NULL
+    # The normal Stan models weight the comparator-population marginal by
+    # `agd_weight` (required outcome_n for multiple rows, or one for a single
+    # row), so every marginal path must use the same target weights.
+    comp_weight_field    = "agd_weight"
   ),
   poisson = list(
     stan_prefix          = "mlumr_poisson",
@@ -67,6 +77,29 @@ family_config <- list(
       rr = c("delta_index", "delta_comparator")
     ),
     comp_weight_field    = "E_agd"
+  ),
+  survival = list(
+    # NB stan_prefix is overridden to "mlumr_survival_mspline" in mlumr() for
+    # the flexible-baseline distributions ("mspline", "pexp"); see
+    # .survival_distribution_info().
+    stan_prefix          = "mlumr_survival",
+    predict_prefix       = "surv",
+    link_default         = "log",
+    links                = c("log"),
+    # The raw Stan `delta_*` are log HR (PH) or log time ratios (AFT), but
+    # marginal_effects() exponentiates them to natural-scale `hr` / `tr`
+    # (null 1); the PH-vs-AFT label is resolved per-distribution in the
+    # predict/summary layer. `rmstr` is the natural-scale RMST ratio
+    # (RMST_index / RMST_comparator, null 1), derived from rmst_* draws in
+    # .marginal_effects_survival(); the time-varying marginal log HR (null 0) is
+    # exposed via predict(type = "loghr"). Survival marginal_effects() uses its
+    # own dispatch, so these vars document the column-backed effects.
+    effect_measures      = c("hr", "rmstd", "rmstr"),
+    marginal_effect_vars = list(
+      hr    = c("delta_index", "delta_comparator"),
+      rmstd = c("rmst_diff_index", "rmst_diff_comparator")
+    ),
+    comp_weight_field    = NULL
   )
 )
 

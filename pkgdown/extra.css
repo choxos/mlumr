@@ -1,0 +1,45 @@
+/* mlumr pkgdown polish. Restrained: rhythm + readability + light brand teal,
+   on top of the Bootstrap 5 / bslib theme set in _pkgdown.yml. */
+
+/* Comfortable reading measure and body size on wide screens. */
+@media (min-width: 1200px) {
+  body { font-size: 1.02rem; }
+  main { line-height: 1.65; }
+}
+
+/* Heading rhythm so sections breathe (the long math vignettes need it). */
+h2, .h2 { margin-top: 2.25rem; }
+h3, .h3 { margin-top: 1.75rem; }
+h4, .h4 { margin-top: 1.4rem; }
+
+/* Keep code from wrapping mid-token; quiet the auto-linked function refs. */
+pre code { white-space: pre; }
+pre code a:any-link { text-decoration: none; }
+
+/* Slightly softer, rounded code blocks. */
+pre {
+  border-radius: 0.5rem;
+}
+
+/* Reference-index section headers: a touch of brand teal + a thin rule. */
+.reference-index h2,
+.section-desc + .ref-index h2 {
+  border-bottom: 1px solid rgba(26, 109, 115, 0.18);
+  padding-bottom: 0.3rem;
+}
+
+/* Page table of contents: active item in brand teal. */
+#toc .nav-link.active {
+  color: var(--bs-primary);
+  font-weight: 600;
+}
+
+/* Home-page logo: gentle hover lift. */
+.template-home .row > aside img.logo,
+img.logo {
+  transition: transform 0.15s ease;
+}
+img.logo:hover { transform: translateY(-2px); }
+
+/* Tables in vignettes: subtle zebra + tighter cells for the many kable outputs. */
+.table > :not(caption) > * > * { padding: 0.4rem 0.6rem; }

@@ -1,5 +1,8 @@
 // ML-UMR: Binary outcomes with Relaxed SPFA
-// Bernoulli/binomial likelihood with treatment-specific prognostic factors
+// Bernoulli/binomial likelihood with treatment-specific prognostic factors.
+// The combined (intercepts + treatment-specific covariates) design is supplied
+// as `Xq_*` (raw centered design when qr = 0, scaled thin-QR factor Q when
+// qr = 1); coefficients are recovered as `allbeta = R_inv * beta_tilde`. See R/mlumr.R (.mlumr_qr_design()) for the centering and QR design construction.
 
 functions {
 #include include/priors_functions.stan
@@ -12,7 +15,7 @@ data {
   int<lower=0> n_ipd;
   array[n_ipd] int<lower=0,upper=1> y_ipd;
   int<lower=1> n_cov;
-  matrix[n_ipd, n_cov] X_ipd;
+  matrix[n_ipd, n_cov] X_ipd;            // centered covariates (generated quantities)
 
   // AgD contributes binomial summaries for the comparator treatment.
   int<lower=1> n_agd_rows;
@@ -21,54 +24,76 @@ data {
 
   // Row-specific integration points approximate each AgD covariate distribution.
   int<lower=1> n_int;
-  array[n_agd_rows] matrix[n_int, n_cov] X_int;
+  array[n_agd_rows] matrix[n_int, n_cov] X_int;   // centered covariates (gen. quantities)
+
+  // Combined (intercepts + index/comparator covariates) design and optional QR.
+  int<lower=0,upper=1> qr;               // 1 = sample on the QR scale
+  int<lower=1> nB;                       // design columns = 2 + 2 * n_cov
+  matrix[n_ipd, nB] Xq_ipd;             // design for IPD rows (Q if qr = 1)
+  array[n_agd_rows] matrix[n_int, nB] Xq_int;     // design for AgD integration rows
+  matrix[nB, nB] R_inv;                  // R^{-1} (identity when qr = 0)
 
 #include include/priors_hyperparameters.stan
+
+  // Fully separate prior for beta_comparator: its own family, degrees of
+  // freedom, location and scale, none of them tied to beta_index. Tighten these
+  // to regularize the comparator coefficients, which are identified only
+  // through the AgD likelihood.
+  vector[n_cov] prior_beta_comparator_mean;
+  vector<lower=0>[n_cov] prior_beta_comparator_sd;
+  int<lower=0,upper=1> prior_beta_comparator_dist;
+  real<lower=0> prior_beta_comparator_df;
 
   int<lower=1,upper=3> link;
 }
 
 parameters {
-  // Treatment-specific intercepts encode the baseline treatment contrast.
-  real mu_index;
-  real mu_comparator;
-  // Affine (non-centered) reparameterization: sample on a standardized scale
-  // and recover beta_* in transformed parameters. See priors_functions.stan.
-  vector[n_cov] z_beta_index;
-  vector[n_cov] z_beta_comparator;
-  // NOTE: beta_comparator is identified only through AgD data.
-  // With sparse AgD (few rows), this creates weak identifiability;
-  // use informative priors on beta to regularize.
+  // Combined coefficients on the (QR) sampling scale:
+  // [mu_index, mu_comparator, beta_index, beta_comparator].
+  vector[nB] beta_tilde;
+  // Note: beta_comparator is identified only through AgD data. With sparse AgD
+  // (few rows) this creates weak identifiability; use informative
+  // prior_beta_comparator to regularize.
 }
 
 transformed parameters {
-  // Relaxed SPFA allows treatment-specific prognostic coefficients.
-  vector[n_cov] beta_index      = prior_beta_mean + prior_beta_sd .* z_beta_index;
-  vector[n_cov] beta_comparator = prior_beta_mean + prior_beta_sd .* z_beta_comparator;
-  vector[n_ipd] eta_ipd = mu_index + X_ipd * beta_index;
+  // Recover original-scale coefficients (affine map, no Jacobian needed).
+  vector[nB] allbeta = qr ? R_inv * beta_tilde : beta_tilde;
+  real mu_index = allbeta[1];
+  real mu_comparator = allbeta[2];
+  vector[n_cov] beta_index = segment(allbeta, 3, n_cov);
+  vector[n_cov] beta_comparator = segment(allbeta, 3 + n_cov, n_cov);
+  vector[n_ipd] eta_ipd = Xq_ipd * beta_tilde;
 }
 
 model {
-  // Priors (dispatched on dist code)
+  // Priors on the original-scale parameters.
   target += log_prior_scalar(mu_index, prior_intercept_mean, prior_intercept_sd,
                              prior_intercept_dist, prior_intercept_df);
   target += log_prior_scalar(mu_comparator, prior_intercept_mean, prior_intercept_sd,
                              prior_intercept_dist, prior_intercept_df);
-  target += log_prior_std_vector(z_beta_index, prior_beta_dist, prior_beta_df);
-  target += log_prior_std_vector(z_beta_comparator, prior_beta_dist, prior_beta_df);
+  target += log_prior_vector(beta_index, prior_beta_mean, prior_beta_sd,
+                             prior_beta_dist, prior_beta_df);
+  target += log_prior_vector(beta_comparator, prior_beta_comparator_mean,
+                             prior_beta_comparator_sd, prior_beta_comparator_dist,
+                             prior_beta_comparator_df);
 
-  // The same binary link is used for the IPD likelihood and AgD integration.
-  if (link == 1)
-    y_ipd ~ bernoulli_logit(eta_ipd);
-  else
-    y_ipd ~ bernoulli(inv_link_binary_vec(eta_ipd, link));
+  // IPD likelihood. Keep the fused GLM for the (default) non-QR logit path.
+  if (link == 1) {
+    if (qr)
+      y_ipd ~ bernoulli_logit(eta_ipd);
+    else
+      y_ipd ~ bernoulli_logit_glm(X_ipd, mu_index, beta_index);
+  } else {
+    for (i in 1:n_ipd)
+      target += bernoulli_link_lpmf(y_ipd[i] | eta_ipd[i], link);
+  }
 
   // The binomial AgD likelihood uses average probability, not average linear predictor.
   for (k in 1:n_agd_rows) {
     // Integrate the comparator event probability over the AgD covariates.
-    vector[n_int] p_int = inv_link_binary_vec(mu_comparator + X_int[k] * beta_comparator, link);
-    real p_mean = mean(p_int);
-    r_agd[k] ~ binomial(n_agd[k], p_mean);
+    vector[n_int] eta_int = Xq_int[k] * beta_tilde;
+    target += integrated_binomial_lpmf(r_agd[k] | n_agd[k], eta_int, link);
   }
 }
 
@@ -84,6 +109,14 @@ generated quantities {
   real p_comparator_index;
   real p_index_comparator;
   real p_comparator_comparator;
+  real log_p_index_index;
+  real log_q_index_index;
+  real log_p_comparator_index;
+  real log_q_comparator_index;
+  real log_p_index_comparator;
+  real log_q_index_comparator;
+  real log_p_comparator_comparator;
+  real log_q_comparator_comparator;
   // Effect modification parameters (difference in regression coefficients)
   vector[n_cov] delta_beta;
   vector[n_ipd] log_lik_ipd;
@@ -94,56 +127,59 @@ generated quantities {
 
   // Index population (IPD covariates)
   {
-    vector[n_ipd] p_index_vec = inv_link_binary_vec(eta_ipd, link);
-    vector[n_ipd] p_comparator_vec = inv_link_binary_vec(mu_comparator + X_ipd * beta_comparator, link);
-    p_index_index = mean(p_index_vec);
-    p_comparator_index = mean(p_comparator_vec);
+    vector[n_ipd] eta_comparator = mu_comparator + X_ipd * beta_comparator;
+    log_p_index_index = log_mean_event_binary(eta_ipd, link);
+    log_q_index_index = log_mean_nonevent_binary(eta_ipd, link);
+    log_p_comparator_index = log_mean_event_binary(eta_comparator, link);
+    log_q_comparator_index = log_mean_nonevent_binary(eta_comparator, link);
+    p_index_index = exp(log_p_index_index);
+    p_comparator_index = exp(log_p_comparator_index);
   }
 
   // Comparator population (integration points)
   // AgD rows are weighted by their binomial sample sizes.
   {
-    real p_index_comp_sum = 0;
-    real p_comp_comp_sum = 0;
-    real total_n = 0;
+    vector[n_agd_rows] log_p_idx;
+    vector[n_agd_rows] log_q_idx;
+    vector[n_agd_rows] log_p_cmp;
+    vector[n_agd_rows] log_q_cmp;
+    vector[n_agd_rows] weights;
     for (k in 1:n_agd_rows) {
-      vector[n_int] p_idx_k = inv_link_binary_vec(mu_index + X_int[k] * beta_index, link);
-      vector[n_int] p_cmp_k = inv_link_binary_vec(mu_comparator + X_int[k] * beta_comparator, link);
-      p_index_comp_sum += mean(p_idx_k) * n_agd[k];
-      p_comp_comp_sum += mean(p_cmp_k) * n_agd[k];
-      total_n += n_agd[k];
+      vector[n_int] eta_idx = mu_index + X_int[k] * beta_index;
+      vector[n_int] eta_cmp = mu_comparator + X_int[k] * beta_comparator;
+      log_p_idx[k] = log_mean_event_binary(eta_idx, link);
+      log_q_idx[k] = log_mean_nonevent_binary(eta_idx, link);
+      log_p_cmp[k] = log_mean_event_binary(eta_cmp, link);
+      log_q_cmp[k] = log_mean_nonevent_binary(eta_cmp, link);
+      weights[k] = n_agd[k];
     }
-    p_index_comparator = p_index_comp_sum / total_n;
-    p_comparator_comparator = p_comp_comp_sum / total_n;
+    log_p_index_comparator = log_weighted_mean_exp_vec(log_p_idx, weights);
+    log_q_index_comparator = log_weighted_mean_exp_vec(log_q_idx, weights);
+    log_p_comparator_comparator = log_weighted_mean_exp_vec(log_p_cmp, weights);
+    log_q_comparator_comparator = log_weighted_mean_exp_vec(log_q_cmp, weights);
+    p_index_comparator = exp(log_p_index_comparator);
+    p_comparator_comparator = exp(log_p_comparator_comparator);
   }
 
   // LOR is a marginal odds ratio computed from response-scale population
   // probabilities, not generally a conditional linear-predictor contrast.
-  // safe_logit clips probabilities to [1e-10, 1-1e-10] to avoid infinite
-  // log-odds when probabilities are numerically 0 or 1.
-  lor_index = safe_logit(p_index_index) - safe_logit(p_comparator_index);
-  lor_comparator = safe_logit(p_index_comparator) - safe_logit(p_comparator_comparator);
-  rd_index = p_index_index - p_comparator_index;
-  rd_comparator = p_index_comparator - p_comparator_comparator;
-  // safe_divide clips denominator to 1e-10; for near-zero comparator rates,
-  // RR will be artificially large rather than undefined.
-  rr_index = safe_divide(p_index_index, p_comparator_index);
-  rr_comparator = safe_divide(p_index_comparator, p_comparator_comparator);
+  lor_index = (log_p_index_index - log_q_index_index) -
+              (log_p_comparator_index - log_q_comparator_index);
+  lor_comparator = (log_p_index_comparator - log_q_index_comparator) -
+                   (log_p_comparator_comparator - log_q_comparator_comparator);
+  rd_index = exp_difference(log_p_index_index, log_p_comparator_index);
+  rd_comparator = exp_difference(log_p_index_comparator,
+                                 log_p_comparator_comparator);
+  rr_index = exp(log_p_index_index - log_p_comparator_index);
+  rr_comparator = exp(log_p_index_comparator - log_p_comparator_comparator);
 
   // Pointwise log-likelihoods keep IPD observations and AgD rows separate.
   // This is the contract used by loo(), waic(), and DIC helpers.
-  if (link == 1) {
-    for (i in 1:n_ipd)
-      log_lik_ipd[i] = bernoulli_logit_lpmf(y_ipd[i] | eta_ipd[i]);
-  } else {
-    vector[n_ipd] p_ipd = inv_link_binary_vec(eta_ipd, link);
-    for (i in 1:n_ipd)
-      log_lik_ipd[i] = bernoulli_lpmf(y_ipd[i] | p_ipd[i]);
-  }
+  for (i in 1:n_ipd)
+    log_lik_ipd[i] = bernoulli_link_lpmf(y_ipd[i] | eta_ipd[i], link);
 
   for (k in 1:n_agd_rows) {
-    vector[n_int] p_int = inv_link_binary_vec(mu_comparator + X_int[k] * beta_comparator, link);
-    real p_mean = mean(p_int);
-    log_lik_agd[k] = binomial_lpmf(r_agd[k] | n_agd[k], p_mean);
+    vector[n_int] eta_int = mu_comparator + X_int[k] * beta_comparator;
+    log_lik_agd[k] = integrated_binomial_lpmf(r_agd[k] | n_agd[k], eta_int, link);
   }
 }

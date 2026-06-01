@@ -1,5 +1,17 @@
-// Numerical floor used only for generated-quantity ratios. It prevents
-// division by zero while preserving the posterior draws themselves.
-real safe_divide(real num, real denom) {
-  return num / fmax(denom, 1e-10);
+real log_mean_exp_vec(vector x) {
+  return log_sum_exp(x) - log(num_elements(x));
+}
+
+real log_weighted_mean_exp_vec(vector log_x, vector weights) {
+  return log_sum_exp(log(weights) + log_x) - log_sum_exp(log(weights));
+}
+
+// Difference of two positive quantities represented by their logarithms.
+// This preserves cancellation before returning to the natural scale.
+real exp_difference(real log_x, real log_y) {
+  if (log_x == log_y) return 0;
+  else if (log_x > log_y)
+    return exp(log_x + log1m_exp(log_y - log_x));
+  else
+    return -exp(log_y + log1m_exp(log_x - log_y));
 }

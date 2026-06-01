@@ -1,8 +1,12 @@
 // ML-UMR: Continuous outcomes with SPFA
-// Normal likelihood with shared prognostic factors
+// Normal likelihood with shared prognostic factors.
+// The (intercepts + covariates) design is supplied as `Xq_*` (raw centered
+// design when qr = 0, scaled thin-QR factor Q when qr = 1); coefficients are
+// recovered as `allbeta = R_inv * beta_tilde`. See R/mlumr.R (.mlumr_qr_design()) for the centering and QR design construction.
 
 functions {
 #include include/priors_functions.stan
+#include include/numerical_functions.stan
 }
 
 data {
@@ -10,17 +14,29 @@ data {
   int<lower=0> n_ipd;
   vector[n_ipd] y_ipd;
   int<lower=1> n_cov;
-  matrix[n_ipd, n_cov] X_ipd;
+  matrix[n_ipd, n_cov] X_ipd;            // centered covariates (generated quantities)
 
   // AgD (Comparator treatment)
   // y_agd and se_agd must be on the original outcome scale.
   int<lower=1> n_agd_rows;
   array[n_agd_rows] real y_agd;
-  array[n_agd_rows] real<lower=1e-12> se_agd;
+  array[n_agd_rows] real<lower=0> se_agd;
+  // Target-population weights for the comparator estimand (sample-size weights
+  // when outcome_n is supplied, else all 1 = equal per-row). Separate from the
+  // likelihood's precision weighting; defines which comparator population the
+  // standardized effect targets.
+  vector<lower=0>[n_agd_rows] agd_weight;
 
   // Integration points for AgD
   int<lower=1> n_int;
-  array[n_agd_rows] matrix[n_int, n_cov] X_int;
+  array[n_agd_rows] matrix[n_int, n_cov] X_int;   // centered covariates (gen. quantities)
+
+  // Combined (intercepts + covariates) design and optional QR reparameterization.
+  int<lower=0,upper=1> qr;               // 1 = sample on the QR scale
+  int<lower=1> nB;                       // design columns = 2 + n_cov
+  matrix[n_ipd, nB] Xq_ipd;             // design for IPD rows (Q if qr = 1)
+  array[n_agd_rows] matrix[n_int, nB] Xq_int;     // design for AgD integration rows
+  matrix[nB, nB] R_inv;                  // R^{-1} (identity when qr = 0)
 
 #include include/priors_hyperparameters.stan
 #include include/priors_sigma_hyperparameters.stan
@@ -29,50 +45,53 @@ data {
 }
 
 parameters {
-  real mu_index;
-  real mu_comparator;
-  // Affine (non-centered) reparameterization: see priors_functions.stan.
-  vector[n_cov] z_beta;
+  // Combined coefficients on the (QR) sampling scale: [mu_index, mu_comparator, beta].
+  vector[nB] beta_tilde;
   real<lower=0> sigma;
 }
 
 transformed parameters {
-  // SPFA uses one prognostic coefficient vector for both treatments.
-  // NOTE: SPFA imposes a shared beta across treatments.
-  // Use the relaxed model as a sensitivity analysis if effect modification is plausible.
-  vector[n_cov] beta = prior_beta_mean + prior_beta_sd .* z_beta;
-  vector[n_ipd] theta_ipd;
-
-  // IPD linear predictor
-  theta_ipd = mu_index + X_ipd * beta;
+  // Recover original-scale coefficients (affine map, no Jacobian needed).
+  vector[nB] allbeta = qr ? R_inv * beta_tilde : beta_tilde;
+  real mu_index = allbeta[1];
+  real mu_comparator = allbeta[2];
+  vector[n_cov] beta = segment(allbeta, 3, n_cov);
+  // IPD linear predictor via the (possibly QR-rotated) design.
+  vector[n_ipd] theta_ipd = Xq_ipd * beta_tilde;
 }
 
 model {
-  // Priors (dispatched on dist code)
+  // Priors on the original-scale parameters.
   target += log_prior_scalar(mu_index, prior_intercept_mean, prior_intercept_sd,
                              prior_intercept_dist, prior_intercept_df);
   target += log_prior_scalar(mu_comparator, prior_intercept_mean, prior_intercept_sd,
                              prior_intercept_dist, prior_intercept_df);
-  target += log_prior_std_vector(z_beta, prior_beta_dist, prior_beta_df);
+  target += log_prior_vector(beta, prior_beta_mean, prior_beta_sd,
+                             prior_beta_dist, prior_beta_df);
   // sigma has <lower=0> so normal / student_t become half-*
   target += log_prior_sigma(sigma, prior_sigma_location, prior_sigma_scale,
                             prior_sigma_dist, prior_sigma_df);
 
   // IPD likelihood. For log link, theta is transformed to the outcome scale.
-  if (link == 1)
-    y_ipd ~ normal(theta_ipd, sigma);
-  else
+  // Keep the fused GLM for the (default) non-QR identity-link path.
+  if (link == 1) {
+    if (qr)
+      y_ipd ~ normal(theta_ipd, sigma);
+    else
+      y_ipd ~ normal_id_glm(X_ipd, mu_index, beta, sigma);
+  } else {
     y_ipd ~ normal(exp(theta_ipd), sigma);
+  }
 
   // AgD likelihood matches the reported mean and standard error on the
   // original outcome scale after marginalizing over comparator covariates.
   for (k in 1:n_agd_rows) {
-    vector[n_int] theta_agd_int = mu_comparator + X_int[k] * beta;
+    vector[n_int] theta_agd_int = Xq_int[k] * beta_tilde;
     if (link == 1) {
       real theta_agd_bar = mean(theta_agd_int);
       y_agd[k] ~ normal(theta_agd_bar, se_agd[k]);
     } else {
-      real mu_agd_bar = mean(exp(theta_agd_int));
+      real mu_agd_bar = exp(log_mean_exp_vec(theta_agd_int));
       y_agd[k] ~ normal(mu_agd_bar, se_agd[k]);
     }
   }
@@ -90,6 +109,10 @@ generated quantities {
   real y_comparator_index;
   real y_index_comparator;
   real y_comparator_comparator;
+  real link_y_index_index;
+  real link_y_comparator_index;
+  real link_y_index_comparator;
+  real link_y_comparator_comparator;
 
   // Pointwise log-likelihoods keep IPD observations and AgD rows separate.
   // This is the contract used by loo(), waic(), and DIC helpers.
@@ -104,40 +127,62 @@ generated quantities {
     if (link == 1) {
       y_index_index = mean(y_index_vec);
       y_comparator_index = mean(y_comparator_vec);
+      link_y_index_index = y_index_index;
+      link_y_comparator_index = y_comparator_index;
+      delta_index = y_index_index - y_comparator_index;
     } else {
-      y_index_index = mean(exp(y_index_vec));
-      y_comparator_index = mean(exp(y_comparator_vec));
+      real log_y_index = log_mean_exp_vec(y_index_vec);
+      real log_y_comparator = log_mean_exp_vec(y_comparator_vec);
+      y_index_index = exp(log_y_index);
+      y_comparator_index = exp(log_y_comparator);
+      link_y_index_index = log_y_index;
+      link_y_comparator_index = log_y_comparator;
+      delta_index = exp_difference(log_y_index, log_y_comparator);
     }
   }
 
-  // Marginal predictions in comparator population - equal weights
-  // Equal weighting avoids double-counting with the likelihood (which already
-  // upweights lower-SE studies through the normal density). For single-row
-  // AgD (the most common case), weighting is irrelevant.
+  // Marginal predictions in the comparator population, weighted by `agd_weight`.
+  // The comparator target population is the size-weighted mixture of its AgD
+  // subgroups (sample-size weights for multiple rows; one for a single row), so
+  // splitting one population into two rows does not change the estimand. This
+  // target weighting is deliberately separate from the likelihood's precision
+  // (1/se^2) weighting. For single-row AgD the weight is irrelevant.
   {
-    real y_index_comparator_sum = 0;
-    real y_comparator_comparator_sum = 0;
+    vector[n_agd_rows] row_index;
+    vector[n_agd_rows] row_comparator;
+    vector[n_agd_rows] weights;
 
     for (k in 1:n_agd_rows) {
       vector[n_int] y_idx_k = mu_index + X_int[k] * beta;
       vector[n_int] y_cmp_k = mu_comparator + X_int[k] * beta;
+      weights[k] = agd_weight[k];
 
       if (link == 1) {
-        y_index_comparator_sum += mean(y_idx_k);
-        y_comparator_comparator_sum += mean(y_cmp_k);
+        row_index[k] = mean(y_idx_k);
+        row_comparator[k] = mean(y_cmp_k);
       } else {
-        y_index_comparator_sum += mean(exp(y_idx_k));
-        y_comparator_comparator_sum += mean(exp(y_cmp_k));
+        row_index[k] = log_mean_exp_vec(y_idx_k);
+        row_comparator[k] = log_mean_exp_vec(y_cmp_k);
       }
     }
 
-    y_index_comparator = y_index_comparator_sum / n_agd_rows;
-    y_comparator_comparator = y_comparator_comparator_sum / n_agd_rows;
+    if (link == 1) {
+      y_index_comparator = dot_product(weights, row_index) / sum(weights);
+      y_comparator_comparator = dot_product(weights, row_comparator) /
+                                sum(weights);
+      link_y_index_comparator = y_index_comparator;
+      link_y_comparator_comparator = y_comparator_comparator;
+      delta_comparator = y_index_comparator - y_comparator_comparator;
+    } else {
+      real log_y_index = log_weighted_mean_exp_vec(row_index, weights);
+      real log_y_comparator = log_weighted_mean_exp_vec(row_comparator, weights);
+      y_index_comparator = exp(log_y_index);
+      y_comparator_comparator = exp(log_y_comparator);
+      link_y_index_comparator = log_y_index;
+      link_y_comparator_comparator = log_y_comparator;
+      delta_comparator = exp_difference(log_y_index, log_y_comparator);
+    }
   }
-
-  // Calculate marginal effects (mean differences for continuous outcomes)
-  delta_index = y_index_index - y_comparator_index;
-  delta_comparator = y_index_comparator - y_comparator_comparator;
 
   // Per-observation log-likelihoods
   if (link == 1) {
@@ -156,7 +201,7 @@ generated quantities {
       real theta_agd_bar = mean(theta_agd_int);
       log_lik_agd[k] = normal_lpdf(y_agd[k] | theta_agd_bar, se_agd[k]);
     } else {
-      real mu_agd_bar = mean(exp(theta_agd_int));
+      real mu_agd_bar = exp(log_mean_exp_vec(theta_agd_int));
       log_lik_agd[k] = normal_lpdf(y_agd[k] | mu_agd_bar, se_agd[k]);
     }
   }

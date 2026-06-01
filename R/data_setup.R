@@ -6,12 +6,19 @@
 #' @param treatment Column name for treatment variable
 #' @param outcome Column name for outcome variable. For `family = "binomial"`,
 #'   must be binary (0/1). For `family = "normal"`, any numeric. For
-#'   `family = "poisson"`, non-negative integer counts.
+#'   `family = "poisson"`, non-negative integer counts. Not used (leave `NULL`)
+#'   for `family = "survival"`, which uses `Surv`/`time`/`status` instead.
 #' @param covariates Character vector of covariate column names
-#' @param family Outcome family: `"binomial"`, `"normal"`, or `"poisson"`
+#' @param family Outcome family: `"binomial"`, `"normal"`, `"poisson"`, or
+#'   `"survival"` (time-to-event)
 #' @param exposure Column name for exposure/time-at-risk (required when
 #'   `family = "poisson"`)
 #' @param study Column name for study identifier (optional)
+#' @param Surv For `family = "survival"`, an optional [survival::Surv()] object
+#'   describing the outcome (use for left/interval censoring or delayed entry).
+#' @param time,status,entry_time For `family = "survival"`, character column
+#'   names as an alternative to `Surv` (right-censoring with status `0`/`1`,
+#'   plus optional delayed entry).
 #'
 #' @return An object of class `mlumr_ipd`
 #' @export
@@ -45,14 +52,25 @@
 #'   exposure = "person_years"
 #' )
 #' }
-set_ipd <- function(data, treatment, outcome, covariates,
-                    family = c("binomial", "normal", "poisson"),
-                    exposure = NULL, study = NULL) {
+set_ipd <- function(data, treatment, outcome = NULL, covariates,
+                    family = c("binomial", "normal", "poisson", "survival"),
+                    exposure = NULL, study = NULL,
+                    Surv = NULL, time = NULL, status = NULL, entry_time = NULL) {
 
   family <- match.arg(family)
 
   if (!is.data.frame(data)) {
     stop("`data` must be a data frame", call. = FALSE)
+  }
+
+  if (family == "survival") {
+    return(.set_ipd_survival(data, treatment, covariates, study,
+                             Surv, time, status, entry_time))
+  }
+
+  if (is.null(outcome)) {
+    stop("`outcome` is required for binomial, normal, and poisson families",
+         call. = FALSE)
   }
   .validate_non_empty_data(data, "IPD")
   .validate_required_covariates(covariates, "covariates")
@@ -63,9 +81,9 @@ set_ipd <- function(data, treatment, outcome, covariates,
   .check_required_columns(data, required_cols)
   .validate_ipd_outcome(data, outcome, family, exposure)
   .validate_reserved_internal_names(
-    covariates,
+    c(covariates, treatment, outcome, exposure, study),
     c(".study", ".trt", ".outcome", ".exposure"),
-    "Covariate name(s)"
+    "Column name(s)"
   )
   .validate_ipd_covariates(data, covariates)
   .validate_ipd_finite_columns(data, outcome, exposure, family)
@@ -73,6 +91,7 @@ set_ipd <- function(data, treatment, outcome, covariates,
   data <- .drop_missing_rows(data, required_cols)
   .validate_complete_rows_remain(data, "IPD")
   .warn_constant_ipd_covariates(data, covariates)
+  .warn_collinear_ipd_covariates(data, covariates)
   .validate_single_treatment(data, treatment, "IPD")
   ipd_data <- .standardize_ipd_data(data, treatment, outcome, covariates,
                                     family, exposure, study)
@@ -180,7 +199,18 @@ set_ipd <- function(data, treatment, outcome, covariates,
 #' Validate a data source contains only one treatment
 #' @keywords internal
 .validate_single_treatment <- function(data, treatment, label) {
-  trt_vals <- unique(data[[treatment]])
+  raw <- data[[treatment]]
+  # Reject missing labels: an all-NA column collapses to a single unique value
+  # and would otherwise pass as "one treatment", fitting an unlabeled arm.
+  if (anyNA(raw)) {
+    stop(sprintf("%s treatment column '%s' contains missing (NA) values.",
+                 label, treatment), call. = FALSE)
+  }
+  trt_vals <- unique(raw)
+  if (length(trt_vals) < 1L) {
+    stop(sprintf("%s treatment column '%s' has no values.", label, treatment),
+         call. = FALSE)
+  }
   if (length(trt_vals) > 1L) {
     stop(sprintf("%s should contain a single treatment. Found: %s",
                  label, paste(trt_vals, collapse = ", ")), call. = FALSE)
@@ -280,6 +310,49 @@ set_ipd <- function(data, treatment, outcome, covariates,
   invisible(TRUE)
 }
 
+# Warn when IPD covariates are (near-)linearly dependent. Constant covariates are
+# handled separately by .warn_constant_ipd_covariates(); this catches collinearity
+# among two or more varying covariates, which the constant check cannot see. The
+# threshold is deliberately conservative (condition number of the covariate
+# correlation matrix > 1000, i.e. |pairwise correlation| above ~0.998 for a pair),
+# so it fires only on near-redundant covariates that genuinely weaken
+# identification, not on merely-correlated ones that Stan samples without trouble.
+.warn_collinear_ipd_covariates <- function(data, covariates) {
+  if (length(covariates) < 2L) {
+    return(invisible(TRUE))
+  }
+  x <- data[stats::complete.cases(data[, covariates, drop = FALSE]), covariates,
+            drop = FALSE]
+  sds <- vapply(x, function(col) stats::sd(as.numeric(col)), numeric(1))
+  keep <- is.finite(sds) & sds > 0
+  x <- x[, keep, drop = FALSE]
+  if (ncol(x) < 2L || nrow(x) < ncol(x) + 1L) {
+    return(invisible(TRUE))
+  }
+  cor_mat <- suppressWarnings(stats::cor(data.matrix(x)))
+  if (anyNA(cor_mat)) {
+    return(invisible(TRUE))
+  }
+  ev <- eigen(cor_mat, symmetric = TRUE, only.values = TRUE)$values
+  min_ev <- min(ev)
+  condition_number <- if (min_ev > 0) max(ev) / min_ev else Inf
+  if (condition_number > 1000) {
+    warning(
+      paste(
+        "IPD covariates are highly collinear (condition number",
+        format(round(condition_number), big.mark = ","),
+        "of the covariate correlation matrix):",
+        paste(colnames(x), collapse = ", "),
+        ". Near-linearly-dependent covariates are only weakly identified and can",
+        "cause slow sampling or divergences; consider dropping or combining",
+        "redundant covariates."
+      ),
+      call. = FALSE
+    )
+  }
+  invisible(TRUE)
+}
+
 #' Standardize IPD to mlumr's internal column contract
 #' @keywords internal
 .standardize_ipd_data <- function(data, treatment, outcome, covariates,
@@ -326,8 +399,9 @@ set_ipd <- function(data, treatment, outcome, covariates,
 #' @param data Data frame containing AgD summary statistics
 #' @param treatment Column name for treatment variable
 #' @param family Outcome family: `"binomial"`, `"normal"`, or `"poisson"`
-#' @param outcome_n Column name for sample size (required for binomial,
-#'   optional for normal)
+#' @param outcome_n Column name for sample size. Required for binomial and for
+#'   normal data with multiple mutually exclusive aggregate rows; optional for
+#'   a single normal row.
 #' @param outcome_r Column name for number of events (required for binomial
 #'   and poisson)
 #' @param outcome_mean Column name for mean outcome (required for normal)
@@ -342,6 +416,21 @@ set_ipd <- function(data, treatment, outcome, covariates,
 #' @param study Column name for study identifier (optional)
 #'
 #' @details
+#' **Rows must partition the aggregate sample, not overlap it.** Every row
+#' contributes its own factor to the aggregate likelihood, which multiplies
+#' them as if they came from disjoint sets of patients. That is correct when the
+#' rows are one arm, or a set of mutually exclusive, jointly defined subgroup
+#' cells (for example the four cells of sex crossed with prior therapy). It is
+#' wrong when a publication reports several *overlapping* subgroup tables over
+#' the same participants, as when age bands, sex, and disease severity are each
+#' tabulated separately. Supplying those together counts every patient once per
+#' table, and the posterior becomes correspondingly overconfident: the intervals
+#' shrink because the model believes it has seen several independent studies.
+#' Nothing in the data identifies the overlap, so `set_agd()` cannot detect this
+#' and does not try. Choose one partition of the comparator sample and use only
+#' its rows. See `vignette("subgroup-identification", "mlumr")` for how many
+#' such rows the relaxed model needs.
+#'
 #' **Scale assumptions for `family = "normal"`.** The AgD likelihood is
 #' `y_agd ~ normal(E[exp(eta)], se_agd)` under `link = "log"` and
 #' `y_agd ~ normal(E[eta], se_agd)` under `link = "identity"`. In both
@@ -438,7 +527,8 @@ set_agd <- function(data, treatment,
   .check_required_columns(data, required_cols)
   .validate_single_treatment(data, treatment, "AgD")
   .validate_reserved_internal_names(
-    c(cov_means, cov_sds[!is.na(cov_sds)]),
+    c(cov_means, cov_sds[!is.na(cov_sds)], treatment, study,
+      outcome_n, outcome_r, outcome_mean, outcome_se, outcome_E),
     c(".study", ".trt", ".n", ".r", ".y", ".se", ".E"),
     "Column name(s)"
   )
@@ -575,6 +665,10 @@ set_agd <- function(data, treatment,
     .validate_agd_binomial_outcomes(data[[outcome_r]], data[[outcome_n]])
   } else if (family == "normal") {
     .validate_agd_normal_outcomes(data[[outcome_mean]], data[[outcome_se]])
+    if (nrow(data) > 1L && is.null(outcome_n)) {
+      stop("`outcome_n` is required for multiple normal aggregate rows so ",
+           "they can be combined using population weights.", call. = FALSE)
+    }
     if (!is.null(outcome_n)) {
       .validate_agd_sample_size(data[[outcome_n]])
     }
@@ -875,9 +969,35 @@ combine_data <- function(ipd, agd) {
     stop("Covariates must match between IPD and AgD", call. = FALSE)
   }
 
-  if (length(intersect(ipd$treatment, agd$treatment)) > 0) {
-    warning("IPD and AgD share treatments -- this looks like an anchored comparison",
-            call. = FALSE)
+  shared_trt <- intersect(ipd$treatment, agd$treatment)
+  if (length(shared_trt) > 0) {
+    # An unanchored comparison contrasts two *different* treatments across two
+    # single-arm sources. A shared label makes the two model intercepts describe
+    # the same treatment, so the reported "effect" is a study/population baseline
+    # difference reported as a treatment effect. This cannot be made valid by a
+    # warning; reject it. (When `study` is not supplied the two sides still carry
+    # distinct treatment labels, so this only fires on genuine overlap.)
+    msg <- paste0(
+      "IPD and AgD share treatment label(s): %s. An unanchored comparison ",
+      "requires two distinct treatments (one per source); a shared label would ",
+      "estimate a treatment effect from baseline differences between the ",
+      "studies. Relabel the arms, or use an anchored method for shared-comparator ",
+      "evidence."
+    )
+    stop(sprintf(msg, paste(shared_trt, collapse = ", ")), call. = FALSE)
+  }
+
+  # In an unanchored comparison IPD and AgD come from different studies; a shared
+  # study label is unusual and likely a data-entry error. (When `study` is not
+  # supplied the two sides default to distinct labels, so this only fires on
+  # explicit overlap.)
+  shared_studies <- intersect(unique(ipd$data$.study), unique(agd$data$.study))
+  if (length(shared_studies) > 0) {
+    msg <- paste0(
+      "IPD and AgD share study label(s): %s. An unanchored comparison normally ",
+      "draws IPD and AgD from different studies; check the `study` columns."
+    )
+    warning(sprintf(msg, paste(shared_studies, collapse = ", ")), call. = FALSE)
   }
 
   out <- list(
@@ -904,7 +1024,8 @@ print.mlumr_data <- function(x, ...) {
   family_label <- switch(family,
     binomial = "Binary",
     normal   = "Continuous",
-    poisson  = "Count"
+    poisson  = "Count",
+    survival = "Time-to-event"
   )
 
   cat(sprintf("Unanchored Comparison Data (%s)\n", family_label))
@@ -918,9 +1039,12 @@ print.mlumr_data <- function(x, ...) {
   } else if (family == "normal") {
     cat(sprintf("  Mean outcome = %.3f (SD = %.3f)\n\n",
                 x$ipd$mean_outcome, x$ipd$sd_outcome))
-  } else {
+  } else if (family == "poisson") {
     cat(sprintf("  Total events = %d, Total exposure = %.1f\n\n",
                 x$ipd$total_events, x$ipd$total_exposure))
+  } else {
+    cat(sprintf("  Events = %d (%.1f%%)\n\n",
+                x$ipd$n_events, 100 * x$ipd$n_events / x$ipd$n))
   }
 
   cat("Comparator treatment (AgD):", x$comparator_treatment, "\n")
@@ -933,9 +1057,12 @@ print.mlumr_data <- function(x, ...) {
     cat(sprintf("  Mean outcome = %s, SE = %s\n\n",
                 paste(round(x$agd$y, 3), collapse = ", "),
                 paste(round(x$agd$se, 3), collapse = ", ")))
-  } else {
+  } else if (family == "poisson") {
     cat(sprintf("  Total events = %d, Total exposure = %.1f\n\n",
                 sum(x$agd$n_events), sum(x$agd$total_exposure)))
+  } else {
+    cat(sprintf("  Pseudo-individuals = %d, Events = %d (across %d arm(s))\n\n",
+                x$agd$n_pseudo, x$agd$n_events, x$agd$n_arms))
   }
 
   cat("Covariates (", x$n_covariates, "):",

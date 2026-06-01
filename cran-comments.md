@@ -1,51 +1,129 @@
+## Submission
+
+This is a minor-version update (0.1.0 -> 0.2.0). It adds a time-to-event
+(survival) outcome family, transport of effects and predictions to arbitrary
+target populations, a diagnostic for the identifiability of the relaxed model's
+comparator coefficients, and `plot()` methods on the result objects. See NEWS.md
+for the full list of changes.
+
 ## R CMD check results
 
-Local `R CMD check --as-cran --no-manual mlumr_0.1.0.tar.gz` on macOS
-(aarch64-apple-darwin20, R 4.5) reports:
+`R CMD check --as-cran mlumr_0.2.0.tar.gz` run on the submitted tarball
+(macOS aarch64-apple-darwin23, R 4.6.0, Apple clang 17.0.0) reports:
+
+```
+Status: 2 WARNINGs
+```
 
 * 0 errors
-* 2 warnings (both environmental; see "Environmental notes" below)
-* 1 note (expected: new submission + cmdstanr declared via
-  `Additional_repositories`)
+* 0 notes
+* 2 warnings, both environmental and specific to the submitter's macOS
+  toolchain (detailed below)
 
-No tests fail and no examples error.
+Individually relevant checks from that run:
+
+* `checking for code/documentation mismatches ... OK`
+* `checking Rd \usage sections ... OK`
+* `checking Rd cross-references ... OK`
+* `checking R code for possible problems ... OK`
+* `checking dependencies in R code ... OK`
+* `checking examples ... OK`
+* `checking tests ... OK`
+* `checking re-building of vignette outputs ... OK`
+* `checking files in 'vignettes' ... OK`
+* `checking for left-over files ... OK`
+* `checking data for non-ASCII characters ... OK`
+
+No tests fail and no examples error. The local run sets
+`_R_CHECK_CRAN_INCOMING_REMOTE_=false`, because fetching CRAN's archive
+metadata times out on this connection and aborts the check before it starts;
+every other `--as-cran` check runs normally, and the incoming-feasibility
+checks are performed on submission.
 
 ## Test environments
 
-* local macOS (aarch64-apple-darwin20), R 4.5
+* local macOS (aarch64-apple-darwin23), R 4.6.0 -- the run quoted above
 * planned before release: win-builder (devel and release), R-hub
   (Fedora, Windows Server, Ubuntu Linux)
 
+The GitHub Actions matrix (Ubuntu release/devel/oldrel, macOS, Windows) must be
+green before submission; the results above are from the local tarball check
+only. That matrix runs `--as-cran` with `NOT_CRAN=false` pinned in the job
+environment, so `skip_on_cran()` omits the Stan-fitting tests there exactly as
+it does in a CRAN check. Pinning it is necessary rather than decorative:
+`r-lib/actions/setup-r` exports `NOT_CRAN=true` unless the variable is already
+set, so without the pin those tests would run on every platform and the matrix
+would stop reproducing what CRAN executes.
+
+The Stan-fitting tests are therefore run deliberately, in one dedicated job,
+which sets `NOT_CRAN=true`, runs the whole suite on CmdStan, fails on either a
+failed expectation or a test error, and fails if any test is still skipped for
+the reason "On CRAN". That job finishes with an explicit rstan step, because
+rstan is the package default and the engine CRAN users get: it samples a
+parametric survival SPFA fit, a flexible-baseline fit, and a relaxed fit through
+rstan and checks the draws, diagnostics, marginal effects, and survival
+predictions read back from each. The same suite was reproduced locally against
+the submitted tarball before this submission.
+
 ## Environmental notes (macOS-only warnings)
 
-Two warnings surface only on the submitter's macOS / Apple clang
-toolchain and are not expected to appear on CRAN's build servers:
+Both warnings surface only on the submitter's macOS / Apple clang toolchain and
+are not expected on CRAN's build servers. Neither originates in package code:
 
 * **Stale Homebrew `ld` search path**:
-  `ld: warning: search path '/opt/homebrew/Cellar/r/4.5.1/lib/R/lib' not found`.
-  The submitter previously had a Homebrew-installed R; the path is now
-  stale. The build still completes successfully.
-* **`checkbashisms` script not installed locally**: the macOS toolchain
-  does not ship the Debian `checkbashisms` helper, so R CMD check
-  reports that "a complete check needs the 'checkbashisms' script."
+  `ld: warning: search path '/opt/homebrew/Cellar/r/4.5.1/lib/R/lib' not
+  found`. Left over from a previous Homebrew R installation on this machine;
+  the build completes successfully.
+* **`checkbashisms` script not installed locally**: "A complete check needs the
+  'checkbashisms' script." The macOS toolchain does not ship the Debian helper.
   CRAN's Linux servers run this check normally.
+
+## Installed size
+
+`checking installed package size` is reported as INFO, not a NOTE, on this
+platform:
+
+```
+installed size is 14.7Mb
+sub-directories of 1Mb or more:
+  R      2.0Mb
+  doc    2.1Mb
+  libs   9.7Mb
+```
+
+The source tarball is 1.8Mb. Almost all installed weight is the pre-compiled
+Stan shared objects, and the figure is platform-dependent: Linux builds are
+substantially larger than macOS ones because gcc retains debug symbols that the
+Apple toolchain strips. `src/Makevars` is the stock rstantools-generated file
+with no custom flags; we have deliberately not hand-edited it to add stripping,
+since it is regenerated by `rstantools::rstan_config()` and a custom link step
+would be silently lost on the next regeneration. This is the same trade-off made
+by other Stan-backed CRAN packages (`rstanarm`, `brms`). The `doc` directory is
+2.1Mb because all nine vignettes are pre-rendered (see below).
 
 ## Notes to CRAN reviewers
 
-* This is a new submission.
-* The package embeds six Stan models (binomial / normal / poisson,
-  each with SPFA and relaxed variants). They are compiled at install
-  time via the standard rstantools pipeline; expect several minutes of
-  C++ compilation.
-* `cmdstanr` is listed in `Suggests` with `Additional_repositories:
-  https://stan-dev.r-universe.dev`. This follows the same approach
-  adopted by brms and other Stan-ecosystem packages: cmdstanr is an
-  optional backend, and rstan is the default, CRAN-available engine.
-  Examples, tests, and vignettes do not require cmdstanr; cmdstanr
-  comparison code is skipped unless cmdstanr and CmdStan are available.
+* The package embeds ten Stan models: binomial / normal / poisson
+  (SPFA + relaxed) plus, new in this version, survival in parametric
+  (`mlumr_survival_{spfa,relaxed}`) and flexible-baseline
+  (`mlumr_survival_mspline_{spfa,relaxed}`) forms. They are compiled at install
+  time via the standard rstantools pipeline; expect several minutes of C++
+  compilation (222s on the machine above).
+* New Imports: `splines2` (M-spline bases for the flexible survival baseline)
+  and `survival` (the Cox `naive()` comparison). `flexsurv` (parametric `stc()`
+  G-computation) is in Suggests and used via `requireNamespace()`.
+* `qgamma()`, `pgamma()`, `dgamma()`, `qlogitnorm()`, `plogitnorm()` and
+  `dlogitnorm()` are exported so that covariate marginals can be given by mean
+  and standard deviation inside `add_integration()`. The three gamma functions
+  mask the `stats` versions by design; without `mean`/`sd` they forward to
+  `stats` unchanged, so existing calls behave identically.
+* `cmdstanr` remains in `Suggests` with `Additional_repositories:
+  https://stan-dev.r-universe.dev`; rstan is the default, CRAN-available engine.
+  Examples, tests, and vignettes do not require cmdstanr.
+* Vignettes are pre-built (`R.rsp::asis`): the Stan fits behind them take far
+  longer than a check should (the survival vignette alone is about 80 minutes,
+  and the new `subgroup-identification` vignette runs a 360-fit simulation
+  study), so the rendered HTML is shipped and `checking re-building of vignette
+  outputs` only re-renders the static documents.
 * Developer-only directories and build artifacts are excluded via
-  `.Rbuildignore`; the current source tarball weighs about 380 KB.
-* The installed package is approximately 6.9 MB, dominated by the six
-  Stan-generated shared libraries (5.4 MB in `libs/`). This is in line
-  with other Stan-backed CRAN packages (e.g. `rstanarm`, `brms`) and is
-  the unavoidable consequence of shipping pre-compiled Stan models.
+  `.Rbuildignore`.

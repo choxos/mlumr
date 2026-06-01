@@ -1,0 +1,104 @@
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "@id": "https://github.com/choxos/mlumr",
+  "name": "mlumr",
+  "description": "Bayesian multilevel unanchored meta-regression (ML-UMR) for indirect treatment comparisons using individual patient data (IPD) and aggregate data (AgD). Implements the shared prognostic factor assumption (SPFA) and relaxed SPFA models for binary, continuous, count, and time-to-event (survival) outcomes via Stan, including parametric and flexible M-spline survival baselines, with transport of marginal treatment effects to arbitrary target populations by Bayesian g-computation (covariate-conditional effects are reported at specified profiles, not population-standardized). Also provides simulated treatment comparison (STC) via parametric G-computation and naive unadjusted benchmarks. ML-UMR is an adaptation of the multilevel network meta-regression (ML-NMR) methodology of Phillippo et al. (2020), implemented in the multinma package, to the unanchored disconnected-evidence setting.",
+  "codeRepository": "https://github.com/choxos/mlumr",
+  "url": "https://choxos.github.io/mlumr/",
+  "issueTracker": "https://github.com/choxos/mlumr/issues",
+  "license": "https://spdx.org/licenses/GPL-3.0-only.html",
+  "version": "0.2.0",
+  "softwareVersion": "0.2.0",
+  "programmingLanguage": "R",
+  "runtimePlatform": "R >= 4.0.0",
+  "operatingSystem": "OS Independent",
+  "applicationCategory": "Indirect treatment comparison / evidence synthesis",
+  "developmentStatus": "active",
+  "keywords": [
+    "indirect treatment comparison",
+    "population-adjusted indirect comparison",
+    "network meta-analysis",
+    "health technology assessment",
+    "evidence synthesis",
+    "Bayesian",
+    "Stan",
+    "survival analysis",
+    "multilevel network meta-regression",
+    "R"
+  ],
+  "softwareRequirements": [
+    "R >= 4.0.0",
+    "methods",
+    "stats",
+    "Rcpp",
+    "RcppParallel",
+    "rstan",
+    "rstantools",
+    "randtoolbox",
+    "copula",
+    "splines2",
+    "survival",
+    "ggplot2"
+  ],
+  "author": [
+    {
+      "@type": "Person",
+      "givenName": "Ahmad",
+      "familyName": "Sofi-Mahmudi",
+      "email": "a.sofimahmudi@gmail.com",
+      "@id": "https://orcid.org/0000-0001-6829-0823"
+    },
+    {
+      "@type": "Person",
+      "givenName": "Conor",
+      "familyName": "Chandler",
+      "@id": "https://orcid.org/0000-0002-1365-9002"
+    }
+  ],
+  "maintainer": [
+    {
+      "@type": "Person",
+      "givenName": "Ahmad",
+      "familyName": "Sofi-Mahmudi",
+      "email": "a.sofimahmudi@gmail.com",
+      "@id": "https://orcid.org/0000-0001-6829-0823"
+    }
+  ],
+  "contributor": [
+    {
+      "@type": "Role",
+      "roleName": [
+        "Software",
+        "Methodology",
+        "Validation",
+        "Writing - original draft",
+        "Project administration"
+      ],
+      "url": "https://credit.niso.org/",
+      "schema:author": {
+        "@id": "https://orcid.org/0000-0001-6829-0823",
+        "name": "Ahmad Sofi-Mahmudi"
+      }
+    },
+    {
+      "@type": "Role",
+      "roleName": [
+        "Conceptualization",
+        "Methodology",
+        "Writing - review & editing"
+      ],
+      "url": "https://credit.niso.org/",
+      "schema:author": {
+        "@id": "https://orcid.org/0000-0002-1365-9002",
+        "name": "Conor Chandler"
+      }
+    }
+  ],
+  "relatedLink": [
+    "https://choxos.github.io/mlumr/",
+    "https://CRAN.R-project.org/package=mlumr"
+  ],
+  "isBasedOn": "https://doi.org/10.5281/zenodo.3904454",
+  "referencePublication": "https://doi.org/10.1111/rssa.12579"
+}

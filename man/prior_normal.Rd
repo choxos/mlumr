@@ -36,9 +36,9 @@ The Stan community's prior-choice wiki (Vehtari et al., 2025) describes
 five broad categories, from least to most informative:
 
 \enumerate{
-\item Flat prior — not recommended.
-\item Super-vague proper prior, e.g., \code{normal(0, 1e6)} — not
-recommended.
+\item Flat prior (not recommended).
+\item Super-vague proper prior, e.g., \code{normal(0, 1e6)} (not
+recommended).
 \item Weakly informative, \strong{very weak}, e.g., \code{normal(0, 10)}.
 \item Generic weakly informative, e.g., \code{normal(0, 1)}.
 \item Specific informative, e.g., \code{normal(0.4, 0.2)}.
@@ -50,19 +50,20 @@ models the natural scales are:
 \describe{
 \item{Treatment intercepts}{On the linear-predictor (link) scale. For
 a binary outcome with logit link, the intercept is a baseline log
-odds; \code{normal(0, 10)} spans ±20 log-odds at 95 percent and is
+odds; \code{normal(0, 10)} spans +/-20 log-odds at 95 percent and is
 "very weak". It is the default because the data usually constrain
 the intercept strongly. Tightening to \code{normal(0, 5)} is reasonable
 when the expected event rate is far from the extremes.}
 \item{Regression coefficients (\code{beta})}{On the link scale, per unit
-of covariate. For logistic regression with predictors on unit
-scale, Gelman et al. (2008) and the Stan wiki recommend
-\code{student_t(df, 0, 2.5)} with \code{df} in \code{3:7}, or — as a practical
-approximation — \code{normal(0, 2.5)}. That is the default used by
-\code{\link[=mlumr]{mlumr()}}. Use \code{normal(0, 1)} if you expect small effects (e.g.,
-standardized predictors in a normal-outcome model). If predictors
-are on very different scales, set \code{autoscale = TRUE} so the scale
-is divided by each covariate's SD.}
+of covariate. \code{normal(0, 2.5)} is the package's generic starting value,
+not a universally calibrated default. Gelman et al. (2008) motivate a
+weakly informative Cauchy scale for logistic coefficients after a
+particular predictor scaling; that recommendation does not by itself
+justify this normal prior for every family or covariate scale. Use prior
+predictive checks and subject-matter knowledge to calibrate the scale.
+If predictors are on different scales, \code{autoscale = TRUE} transforms
+both the prior location and scale to preserve the intended prior on the
+contribution of each original-scale covariate.}
 \item{Residual SD (\code{sigma}, normal family only)}{\code{prior_sigma} is
 interpreted as a half-normal via the Stan \verb{<lower=0>} constraint.
 The default \code{normal(0, 2.5)} (i.e., \code{half-normal(0, 2.5)}) is
@@ -74,14 +75,14 @@ Scale to the outcome if it is far from unit scale, or use
 Prior sensitivity is especially important for the relaxed model,
 where \code{beta_comparator} is identified only by the AgD likelihood.
 Run \code{\link[=prior_sensitivity]{prior_sensitivity()}} to quantify how much conclusions move under
-alternative scales; see \code{vignette("mlumr-models")}.
+alternative scales; see \code{vignette("fitting-and-diagnostics")}.
 }
 
 \examples{
 # Default weakly-very-weak intercept prior
 prior_normal(mean = 0, sd = 10)
 
-# Gelman 2008 default for logistic-regression coefficients
+# Package starting value for regression coefficients
 prior_normal(mean = 0, sd = 2.5)
 
 # Autoscaled coefficient prior (dividing 2.5 by each covariate's SD)
@@ -90,7 +91,7 @@ prior_normal(mean = 0, sd = 2.5, autoscale = TRUE)
 \references{
 Gelman, A., Jakulin, A., Pittau, M. G., & Su, Y.-S. (2008). A weakly
 informative default prior distribution for logistic and other
-regression models. \emph{Annals of Applied Statistics}, 2(4), 1360–1383.
+regression models. \emph{Annals of Applied Statistics}, 2(4), 1360-1383.
 
 Vehtari, A. et al. Prior Choice Recommendations (Stan wiki):
 \url{https://github.com/stan-dev/stan/wiki/Prior-Choice-Recommendations}.

@@ -100,11 +100,62 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
   .print_default_tag(priors$beta)
   cat("\n")
 
+  # Comparator regression coefficients (relaxed model only). Stored on the fit
+  # by .mlumr_prior_metadata(); printed so a user who set prior_beta_comparator
+  # can verify the comparator prior actually used.
+  bc <- priors$beta_comparator_resolved
+  if (!is.null(bc)) {
+    bc <- .validate_resolved_beta_prior(bc)
+    cat("Comparator regression coefficients (beta_comparator):\n")
+    means_eq <- length(unique(round(bc$mean, 12))) == 1L
+    sds_eq <- length(unique(round(bc$sd, 12))) == 1L
+    autos_any <- any(bc$autoscale)
+    if (means_eq && sds_eq && !autos_any) {
+      cat(sprintf("  %s applied to all %d covariate(s)\n",
+                  .resolved_prior_broadcast_label(bc, digits), length(bc$mean)))
+    } else {
+      tbl <- data.frame(
+        coefficient = bc$covariate_names,
+        mean = round(bc$mean, digits),
+        scale = round(bc$sd, digits),
+        autoscaled = bc$autoscale,
+        sd_x = round(bc$sd_x, digits),
+        stringsAsFactors = FALSE
+      )
+      cat(sprintf("  Family: %s%s\n", .resolved_prior_family_label(bc$dist),
+                  if (bc$dist == 1L) sprintf(" (df = %g)", bc$df) else ""))
+      print(tbl, row.names = FALSE)
+      if (autos_any) {
+        cat("  (scale = user_scale / sd_x for autoscaled rows)\n")
+      }
+    }
+    if (!isTRUE(bc$user_specified)) {
+      cat("  (defaults to prior_beta above; set prior_beta_comparator to override)\n")
+    }
+    cat("\n")
+  }
+
   # Sigma (normal family only)
   if (!is.null(priors$sigma)) {
     cat("Residual SD (sigma, half-distribution via <lower=0>):\n")
     cat("  ", .format_prior(priors$sigma, digits = digits), "\n", sep = "")
     .print_default_tag(priors$sigma)
+    cat("\n")
+  }
+
+  # Auxiliary shape parameter(s) (survival parametric distributions)
+  if (!is.null(priors$aux)) {
+    cat("Survival auxiliary (aux: shape or scale, half-distribution via <lower=0>):\n")
+    cat("  ", .format_prior(priors$aux, digits = digits), "\n", sep = "")
+    .print_default_tag(priors$aux)
+    cat("\n")
+  }
+
+  # M-spline / piecewise-exponential smoothing SD (survival flexible baseline)
+  if (!is.null(priors$smooth)) {
+    cat("Baseline smoothing SD (sigma_smooth, half-distribution via <lower=0>):\n")
+    cat("  ", .format_prior(priors$smooth, digits = digits), "\n", sep = "")
+    .print_default_tag(priors$smooth)
     cat("\n")
   }
 
@@ -205,7 +256,7 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
     stop("Resolved beta prior metadata is malformed.", call. = FALSE)
   }
   if (!is.numeric(br$dist) || length(br$dist) != 1L ||
-      !is.finite(br$dist)) {
+        !is.finite(br$dist)) {
     stop("Resolved beta prior distribution code is malformed.", call. = FALSE)
   }
   if (!is.numeric(br$df) || length(br$df) != 1L || !is.finite(br$df)) {

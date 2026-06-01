@@ -20,7 +20,7 @@ A list with components \code{distribution = "student_t"}, \code{df = 1},
 \description{
 Cauchy is Student-t with \code{df = 1}; this constructor is a convenience
 wrapper around \code{\link[=prior_student_t]{prior_student_t()}}. It has very heavy tails and should
-be used with care — modern recommendations generally prefer
+be used with care; modern recommendations generally prefer
 \verb{prior_student_t(df in 3:7, ...)} over Cauchy for regression
 coefficients to keep sampling well-behaved (see Piironen & Vehtari on
 the horseshoe; Ghosh et al. 2015).

@@ -9,29 +9,162 @@ marginal_effects(
   population = c("both", "index", "comparator"),
   effect = "all",
   summary = TRUE,
-  probs = c(0.025, 0.5, 0.975)
+  probs = c(0.025, 0.5, 0.975),
+  newdata = NULL,
+  at_time = NULL
 )
 }
 \arguments{
 \item{object}{An \code{mlumr_fit} object}
 
-\item{population}{Which population: \code{"both"}, \code{"index"}, or \code{"comparator"}}
+\item{population}{Which population: \code{"both"} (default), \code{"index"}, or
+\code{"comparator"}. The \strong{index} population is normally the decision-relevant
+target for health technology assessment, since cost-effectiveness models are
+built for the population the decision is about; report it as the primary
+estimand and the comparator population alongside.
+Ignored when \code{newdata} is supplied (the effect is standardized to the
+\code{newdata} target population instead).}
 
 \item{effect}{Which effect measure. For binomial: \code{"all"}, \code{"lor"}, \code{"rd"},
 or \code{"rr"}. For normal: \code{"all"} or \code{"md"} (mean difference). For poisson:
-\code{"all"} or \code{"rr"} (rate ratio).}
+\code{"all"} or \code{"rr"} (rate ratio). For survival: \code{"all"}, \code{"hr"} (hazard ratio
+for PH, time ratio for AFT, natural scale, null 1; \code{"tr"} is an accepted
+alias), \code{"exp_delta_eta"}, \code{"rmstd"} (RMST difference, null 0), or
+\code{"rmstr"} (RMST ratio, natural scale, null 1). Requesting an effect the fit
+cannot produce is an error rather than a differently-named substitute: with
+an AFT distribution and \code{aux_by = ".study"} the study shapes differ, so
+\code{exp(eta_index - eta_comparator)} is not a time ratio and \code{"hr"} / \code{"tr"}
+are rejected in favor of the explicit \code{"exp_delta_eta"}.}
 
 \item{summary}{Return summary (\code{TRUE}) or full draws (\code{FALSE})}
 
 \item{probs}{Quantiles for summary}
+
+\item{newdata}{Optional data frame of covariate profiles defining an arbitrary
+\strong{target population} to transport the effect to (Bayesian g-computation /
+model-based standardization over the supplied covariate distribution, as in
+Chandler & Ishak Eq 9-10). Each row is one individual / covariate profile;
+column names must match the model covariates. When \code{NULL} (default), effects
+are returned for the built-in \code{index} and/or \code{comparator} populations from
+the Stan generated quantities. When supplied, the marginal effect is
+recomputed by averaging model-based predictions over these rows at each
+posterior draw, and \code{population} is ignored. For survival, RMST effects and
+the time-specific target-standardized marginal hazard ratio are available;
+the latter uses \code{at_time} (the first fitted prediction time by default).}
+
+\item{at_time}{Evaluation time for the scalar marginal hazard ratio, for
+proportional-hazards fits whose two studies have different baseline shapes
+(\code{aux_by = ".study"} with a distribution that has a shape parameter, or
+either flexible baseline). Marginal hazard ratios are non-collapsible and
+therefore time-varying, so the scalar is only meaningful with a time
+attached; naming it here makes it an estimand choice instead of a
+consequence of the \code{pred_times} output grid. Snapped to the nearest fitted
+prediction time, with a message when that is not exact. \code{NULL} (default)
+uses the first prediction time, reproducing \verb{delta_*}. An error for a
+shared baseline (where the scalar is the closed-form \code{t -> 0} limit) and
+for AFT fits (whose scalar is a location contrast with no time).}
 }
 \value{
-A data frame
+A data frame. With \code{summary = FALSE} the raw posterior draws are
+returned as a plain data frame (not plottable; plot methods need
+\code{summary = TRUE}); the column names encode the per-family effect scale
+(e.g. poisson \verb{delta_*} is a natural-scale rate ratio, null 1; survival is
+the exponentiated HR/TR). With \code{summary = TRUE} the \code{effect} column names
+the measure; with \code{summary = FALSE} the scale is carried by the draw column
+names themselves (\verb{lor_*}, \verb{rr_*}, \verb{delta_*}, \verb{hr_*} / \verb{tr_*}, \verb{rmst*}).
+For survival, RMST-based rows also carry a \code{horizon} column (the raw-draw
+frame, a \code{horizon} attribute) giving the restriction time the integral runs
+to. RMST at different horizons is a different estimand, so results are only
+comparable across fits when this value matches.
+
+For survival, the summary carries an \code{at_time} column and the raw-draw
+frame an \code{at_time} attribute (one named value per column, \code{NA} for measures
+with no evaluation time), so a time-specific hazard ratio never travels
+without its time.
 }
 \description{
 Extract marginal treatment effects from a fitted ML-UMR model. For
 binomial: log odds ratio, risk difference, risk ratio. For normal:
-mean difference. For poisson: rate ratio.
+mean difference. For poisson: rate ratio. For survival: the hazard ratio
+(proportional-hazards distributions, labeled \code{HR}), the time ratio
+(accelerated-failure-time distributions with one shared shape and one shared
+coefficient vector, labeled \code{TR}), or the exponentiated linear-predictor
+contrast (\code{EXP_DELTA_ETA}, where neither of those holds); all natural-scale,
+null 1, like the poisson rate ratio. Plus the restricted-mean-survival-time
+difference (\code{RMSTD}, null 0) and the RMST ratio (\code{RMSTR}, null 1), both
+reported with the restriction time in a \code{horizon} column. For the
+time-varying log hazard ratio curve (null 0) use \code{predict(type = "loghr")}.
+}
+\details{
+For survival proportional-hazards models the scalar \code{"hr"} (the exponentiated
+\verb{delta_*}) is always a \strong{marginal} quantity, evaluated at one time, and the
+\code{at_time} column records which. It is never a conditional coefficient
+contrast, which is a different estimand and is what \code{\link[=conditional_effects]{conditional_effects()}}
+returns. Three cases:
+\itemize{
+\item \strong{Shared baseline shape, SPFA.} \verb{delta_*} is the marginal log hazard
+ratio in the \code{t -> 0} limit (\code{at_time} is 0). Because SPFA gives both
+treatments the same coefficients, the covariate term cancels and this
+value happens to coincide with the conditional log hazard ratio
+\code{mu_index - mu_comparator}, which IS constant in time and covariates. The
+two agree here; they are still different estimands, and they part company
+at \code{t > 0}, where the marginal ratio drifts as the two arms' surviving
+covariate distributions diverge.
+\item \strong{Shared baseline shape, relaxed.} The coefficients differ by
+treatment, so nothing cancels: \verb{delta_*} is the marginal log hazard ratio
+at \code{t -> 0} only, and is time-varying thereafter.
+\item \strong{Study-specific shape-bearing baseline} (the \code{aux_by = ".study"}
+default). \verb{delta_*} is taken from the time-varying marginal \verb{loghr_*}
+curve at the first prediction time, or at \code{at_time} when supplied.
+}
+Hazard ratios are non-collapsible, so the marginal ratio is time-varying in
+every case above except the degenerate \code{t -> 0} evaluation itself. For the
+full curve use \code{predict(type = "loghr")}. RMST-based effects
+(\code{"rmstd"}, \code{"rmstr"}) are collapsible within a specified population, but
+collapsibility alone does not make them invariant or transportable across
+populations.
+
+For accelerated-failure-time distributions the scalar is
+\code{exp(E_X[eta_index(X)] - E_X[eta_comparator(X)])}, and what that is depends
+on the fit:
+\itemize{
+\item \strong{One shared shape, SPFA} (\code{TR}). The coefficients are shared, so
+\code{eta_index(x) - eta_comparator(x)} is the same constant \code{a} at every
+covariate profile. Every individual's survival time is accelerated by the
+same factor, so the population-standardized curves satisfy
+\code{S_index(t) = S_comparator(t / a)} exactly and this IS a population time
+ratio.
+\item \strong{Otherwise} (\code{EXP_DELTA_ETA}; differing shapes, or the relaxed
+model). The conditional acceleration varies with \code{x}, so it is the
+exponentiated average log ratio: equivalently the conditional time ratio
+at the mean linear predictor, or the geometric mean of the
+profile-specific conditional time ratios. It is \strong{not} generally a time
+ratio between the two standardized survival distributions: there need be
+no single \code{a} with \code{S_index(t) = S_comparator(t / a)} for all \code{t}, and
+different survival quantiles can imply different apparent acceleration
+factors. It is labeled \code{EXP_DELTA_ETA} rather than \code{TR} for that reason.
+}
+Neither carries an evaluation time (\code{at_time} is \code{NA}). For a population
+contrast under differing covariate effects use the RMST-based effects, which
+are collapsible and have no such caveat.
+
+For binomial fits the \code{"lor"} measure is always a logit-scale marginal odds
+ratio computed from response-scale population probabilities, independent of
+the fitted link. So for a \code{probit}/\code{cloglog} fit it is on a different scale
+than \code{\link[=naive]{naive()}} / \code{\link[=stc]{stc()}} \verb{$estimate}, which is the fitted-link (probit /
+cloglog) difference.
+
+\strong{Relaxed-model index-population estimands.} For \code{model = "relaxed"} the
+index-population estimand averages \code{beta_comparator} over the IPD covariate
+distribution, while \code{beta_comparator} is identified only by the (typically
+single) AgD likelihood term and so is integrated outside the support it was
+identified on. The resulting effects are wider and more prior-sensitive than
+the comparator-population estimands (which integrate \code{beta_comparator} over
+the AgD support, consistent with identification). When \code{population} is
+\code{"both"} or \code{"index"} for a relaxed fit, \code{marginal_effects()} emits a
+one-line note recommending the comparator population, tightening
+\code{prior_beta_comparator} (see \code{\link[=mlumr]{mlumr()}}), and running \code{\link[=prior_sensitivity]{prior_sensitivity()}}.
+Suppress the note with \code{options(mlumr.quiet_relaxed_index = TRUE)}.
 }
 \examples{
 \dontrun{
@@ -40,6 +173,9 @@ marginal_effects(fit)
 
 # Only the log odds ratio in the index population
 marginal_effects(fit, population = "index", effect = "lor")
+
+# Transport the effect to an external (e.g. jurisdiction-specific) population
+marginal_effects(fit, newdata = target_population_covariates)
 
 # Full posterior draws rather than summary statistics
 marginal_effects(fit, summary = FALSE)

@@ -1,6 +1,6 @@
 Package: mlumr
 Title: Multilevel Unanchored Meta-Regression for Indirect Treatment Comparisons
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: c(
     person("Ahmad", "Sofi-Mahmudi", , "a.sofimahmudi@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-6829-0823")),
@@ -9,23 +9,27 @@ Authors@R: c(
 Description: Bayesian multilevel unanchored meta-regression (ML-UMR) for
     indirect treatment comparisons using individual patient data (IPD) and
     aggregate data (AgD). Implements shared prognostic factor assumption
-    (SPFA) and relaxed SPFA models for binary, continuous, and count
-    outcomes via 'Stan'. Also
-    provides simulated treatment comparison (STC) via parametric
-    G-computation and naive unadjusted benchmarks. ML-UMR is an
-    adaptation of the ML-NMR methodology (Phillippo et al. 2020,
+    (SPFA) and relaxed SPFA models for binary, continuous, count, and
+    time-to-event (survival) outcomes via 'Stan', including parametric and
+    flexible M-spline survival baselines. Also provides a one-arm simulated
+    treatment comparison (STC) via comparator-population G-computation and
+    naive unadjusted benchmarks. ML-UMR is an adaptation of the ML-NMR
+    methodology (Phillippo et al. 2020,
     <doi:10.1111/rssa.12579>) implemented in the 'multinma' package
-    (GPL-3) to the unanchored two-trial case; the public API
-    deliberately mirrors multinma's so users can move between ML-NMR
-    and ML-UMR with the same workflow.
+    (GPL-3) to the unanchored two-trial case. The public API uses familiar
+    names for data setup, integration and effect summaries, but ML-NMR and
+    ML-UMR specifications and fitted objects are not interchangeable because
+    their evidence structures and models differ.
 License: GPL-3
 URL: https://github.com/choxos/mlumr, https://choxos.github.io/mlumr/
 BugReports: https://github.com/choxos/mlumr/issues
 Encoding: UTF-8
+LazyData: true
+LazyDataCompression: xz
 Roxygen: list(markdown = TRUE)
 Biarch: true
 Depends:
-    R (>= 4.1.0)
+    R (>= 4.0.0)
 Imports:
     methods,
     stats,
@@ -34,7 +38,10 @@ Imports:
     rstan (>= 2.26.0),
     rstantools (>= 2.3.0),
     randtoolbox,
-    copula
+    copula,
+    splines2,
+    survival (>= 3.1-0),
+    ggplot2 (>= 3.3.0)
 LinkingTo:
     BH (>= 1.66.0),
     Rcpp (>= 0.12.0),
@@ -51,9 +58,13 @@ Suggests:
     loo,
     Matrix,
     cmdstanr,
-    withr
+    withr,
+    flexsurv,
+    multinma,
+    ggsurvfit,
+    R.rsp
 Additional_repositories: https://stan-dev.r-universe.dev
 SystemRequirements: GNU make
 Config/testthat/edition: 3
-VignetteBuilder: knitr
-Config/roxygen2/version: 8.0.0
+VignetteBuilder: knitr, R.rsp
+Config/roxygen2/version: 8.1.0

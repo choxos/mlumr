@@ -10,9 +10,9 @@
 #' five broad categories, from least to most informative:
 #'
 #' \enumerate{
-#'   \item Flat prior — not recommended.
-#'   \item Super-vague proper prior, e.g., `normal(0, 1e6)` — not
-#'     recommended.
+#'   \item Flat prior (not recommended).
+#'   \item Super-vague proper prior, e.g., `normal(0, 1e6)` (not
+#'     recommended).
 #'   \item Weakly informative, **very weak**, e.g., `normal(0, 10)`.
 #'   \item Generic weakly informative, e.g., `normal(0, 1)`.
 #'   \item Specific informative, e.g., `normal(0.4, 0.2)`.
@@ -24,19 +24,20 @@
 #' \describe{
 #'   \item{Treatment intercepts}{On the linear-predictor (link) scale. For
 #'     a binary outcome with logit link, the intercept is a baseline log
-#'     odds; `normal(0, 10)` spans ±20 log-odds at 95 percent and is
+#'     odds; `normal(0, 10)` spans +/-20 log-odds at 95 percent and is
 #'     "very weak". It is the default because the data usually constrain
 #'     the intercept strongly. Tightening to `normal(0, 5)` is reasonable
 #'     when the expected event rate is far from the extremes.}
 #'   \item{Regression coefficients (`beta`)}{On the link scale, per unit
-#'     of covariate. For logistic regression with predictors on unit
-#'     scale, Gelman et al. (2008) and the Stan wiki recommend
-#'     `student_t(df, 0, 2.5)` with `df` in `3:7`, or — as a practical
-#'     approximation — `normal(0, 2.5)`. That is the default used by
-#'     [mlumr()]. Use `normal(0, 1)` if you expect small effects (e.g.,
-#'     standardized predictors in a normal-outcome model). If predictors
-#'     are on very different scales, set `autoscale = TRUE` so the scale
-#'     is divided by each covariate's SD.}
+#'     of covariate. `normal(0, 2.5)` is the package's generic starting value,
+#'     not a universally calibrated default. Gelman et al. (2008) motivate a
+#'     weakly informative Cauchy scale for logistic coefficients after a
+#'     particular predictor scaling; that recommendation does not by itself
+#'     justify this normal prior for every family or covariate scale. Use prior
+#'     predictive checks and subject-matter knowledge to calibrate the scale.
+#'     If predictors are on different scales, `autoscale = TRUE` transforms
+#'     both the prior location and scale to preserve the intended prior on the
+#'     contribution of each original-scale covariate.}
 #'   \item{Residual SD (`sigma`, normal family only)}{`prior_sigma` is
 #'     interpreted as a half-normal via the Stan `<lower=0>` constraint.
 #'     The default `normal(0, 2.5)` (i.e., `half-normal(0, 2.5)`) is
@@ -48,7 +49,7 @@
 #' Prior sensitivity is especially important for the relaxed model,
 #' where `beta_comparator` is identified only by the AgD likelihood.
 #' Run [prior_sensitivity()] to quantify how much conclusions move under
-#' alternative scales; see `vignette("mlumr-models")`.
+#' alternative scales; see `vignette("fitting-and-diagnostics")`.
 #'
 #' @param mean Prior mean (default 0).
 #' @param sd Prior standard deviation (default 10). The default matches
@@ -68,7 +69,7 @@
 #' @references
 #' Gelman, A., Jakulin, A., Pittau, M. G., & Su, Y.-S. (2008). A weakly
 #' informative default prior distribution for logistic and other
-#' regression models. *Annals of Applied Statistics*, 2(4), 1360–1383.
+#' regression models. *Annals of Applied Statistics*, 2(4), 1360-1383.
 #'
 #' Vehtari, A. et al. Prior Choice Recommendations (Stan wiki):
 #' <https://github.com/stan-dev/stan/wiki/Prior-Choice-Recommendations>.
@@ -77,7 +78,7 @@
 #' # Default weakly-very-weak intercept prior
 #' prior_normal(mean = 0, sd = 10)
 #'
-#' # Gelman 2008 default for logistic-regression coefficients
+#' # Package starting value for regression coefficients
 #' prior_normal(mean = 0, sd = 2.5)
 #'
 #' # Autoscaled coefficient prior (dividing 2.5 by each covariate's SD)
@@ -97,13 +98,12 @@ prior_normal <- function(mean = 0, sd = 10, autoscale = FALSE) {
 
 #' Specify a Student-t prior
 #'
-#' Heavier-tailed alternative to [prior_normal()]. For logistic-regression
-#' coefficients with unit-scale predictors, the Stan community prior-choice
-#' recommendations suggest Student-t with `df` between 3 and 7 as a robust
-#' weakly informative prior (Gelman et al., 2008).
+#' Heavier-tailed alternative to [prior_normal()]. A Student-t with moderate
+#' degrees of freedom can be a robust weakly informative starting family, but
+#' its scale still requires calibration to the link, outcome, and predictor
+#' scaling.
 #'
-#' @param df Degrees of freedom (must be positive). Values in `3:7` are
-#'   recommended for logistic-regression coefficients.
+#' @param df Degrees of freedom (must be positive).
 #' @param mean Prior location (default 0).
 #' @param sd Prior scale (default 2.5).
 #' @param autoscale See [prior_normal()]. Default `FALSE`.
@@ -113,7 +113,7 @@ prior_normal <- function(mean = 0, sd = 10, autoscale = FALSE) {
 #' @export
 #'
 #' @examples
-#' # Gelman et al. 2008 recommendation for logistic-regression coefficients
+#' # A moderately heavy-tailed coefficient prior
 #' prior_student_t(df = 5, mean = 0, sd = 2.5)
 prior_student_t <- function(df = 5, mean = 0, sd = 2.5, autoscale = FALSE) {
   .validate_prior_number(df, "df", positive = TRUE)
@@ -133,7 +133,7 @@ prior_student_t <- function(df = 5, mean = 0, sd = 2.5, autoscale = FALSE) {
 #'
 #' Cauchy is Student-t with `df = 1`; this constructor is a convenience
 #' wrapper around [prior_student_t()]. It has very heavy tails and should
-#' be used with care — modern recommendations generally prefer
+#' be used with care; modern recommendations generally prefer
 #' `prior_student_t(df in 3:7, ...)` over Cauchy for regression
 #' coefficients to keep sampling well-behaved (see Piironen & Vehtari on
 #' the horseshoe; Ghosh et al. 2015).
@@ -215,6 +215,25 @@ default_prior_beta <- function() {
 #' @export
 default_prior_sigma <- function() {
   .tag_default(prior_normal(mean = 0, sd = 2.5))
+}
+
+#' @rdname default_priors
+#' @export
+#' @details
+#' `default_prior_aux()` and `default_prior_smooth()` apply to the survival
+#' family only. `prior_aux` is a half-normal(0, 2) on the shape/scale
+#' parameter(s) of parametric survival distributions (Weibull/Gompertz/gamma
+#' shape, log-normal sdlog, generalized-gamma shapes). `prior_smooth` is a
+#' half-normal(0, 1) on the random-walk smoothing SD of the M-spline /
+#' piecewise-exponential baseline hazard.
+default_prior_aux <- function() {
+  .tag_default(prior_normal(mean = 0, sd = 2))
+}
+
+#' @rdname default_priors
+#' @export
+default_prior_smooth <- function() {
+  .tag_default(prior_normal(mean = 0, sd = 1))
 }
 
 #' @keywords internal
@@ -434,6 +453,7 @@ stan_prior_fields_beta <- function(prior, n_cov, sd_x = NULL,
       ), call. = FALSE)
     }
     sd_x_safe <- ifelse(sd_x > 0, sd_x, 1)
+    means <- ifelse(autos, means / sd_x_safe, means)
     sds <- ifelse(autos, sds / sd_x_safe, sds)
   }
 

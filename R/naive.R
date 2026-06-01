@@ -2,18 +2,41 @@
 #'
 #' Compute an unadjusted (naive) indirect treatment comparison by comparing
 #' crude outcomes from the IPD and AgD without any covariate adjustment.
-#' Returns treatment effect on the link scale plus absolute predictions
-#' (event probabilities, risk difference, risk ratio) for both populations.
+#' The index outcome remains marginal over the index-study population and the
+#' comparator outcome remains marginal over the comparator population. The
+#' contrast therefore has no single standardized target population. It returns
+#' the link-scale contrast plus the two observed marginal outcomes and available
+#' natural-scale contrasts.
 #'
 #' For binomial outcomes, event-probability intervals use Wald standard errors
-#' and are bounded to `[0, 1]`. For Poisson outcomes, the log-rate contrast
-#' uses a 0.5 continuity correction when an observed event count is zero.
+#' and are bounded to `[0, 1]`. When an observed arm has zero or all events,
+#' transformed effect measures use the boundary-only pseudo-count
+#' `(r + 0.5) / (n + 1)`; the reported crude probabilities remain unchanged.
+#' For Poisson outcomes, the log-rate contrast uses a 0.5 continuity correction
+#' when an observed event count is zero.
+#'
+#' Scale note: `$estimate` (and the binomial `$log_rr`) is on the link / log
+#' scale, where the null is 0. To compare against the natural-scale risk ratio
+#' or rate ratio from [marginal_effects()] (where the null is 1), exponentiate
+#' it (e.g. `exp(result$estimate)`).
 #'
 #' @param data An `mlumr_data` object from [combine_data()]
 #' @param link Link function. For binomial: `"logit"` (default), `"probit"`,
 #'   or `"cloglog"`. For normal/poisson: ignored (identity/log always used).
-#'   If `NULL`, uses the canonical default.
+#'   For survival: ignored (an unadjusted Cox proportional-hazards log hazard
+#'   ratio is returned). The naive Cox benchmark accepts only right-censored /
+#'   event data (optionally with delayed entry); left- or interval-censored data
+#'   (which the Bayesian [mlumr()] model supports) are rejected. If `NULL`, uses
+#'   the canonical default.
 #' @param conf_level Confidence level for the interval (default 0.95)
+#'
+#' @section Normal-family weighting:
+#' Across multiple AgD rows the normal-family comparator mean here is
+#' population weighted using `outcome_n`, matching the Bayesian ML-UMR
+#' comparator-population estimand. `outcome_n` is required when there is more
+#' than one row; a single row has weight one. The comparator-mean variance
+#' combines independent, mutually exclusive strata as `sum(w^2 * se^2)` using
+#' normalized population weights. The same weighting applies to [stc()].
 #'
 #' @return An object of class `mlumr_naive`
 #' @export
@@ -37,6 +60,7 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
     binomial = .naive_binomial(data, ipd, agd, link, conf_level, z),
     normal = .naive_normal(data, ipd, agd, conf_level, z),
     poisson = .naive_poisson(data, ipd, agd, conf_level, z),
+    survival = .naive_survival(data, conf_level, z),
     stop("Unsupported outcome family.", call. = FALSE)
   )
 
@@ -53,28 +77,40 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
 
   n_index <- nrow(ipd)
   n_comparator <- sum(agd$.n)
-  p_index <- bound_probability(mean(ipd$.outcome), n_index)
-  p_comparator <- bound_probability(sum(agd$.r) / n_comparator, n_comparator)
+  p_index <- mean(ipd$.outcome)
+  p_comparator <- sum(agd$.r) / n_comparator
+  p_index_effect <- bound_probability(p_index, n_index)
+  p_comparator_effect <- bound_probability(p_comparator, n_comparator)
 
-  estimate <- link_fun(p_index, link_resolved) -
-    link_fun(p_comparator, link_resolved)
-  se <- sqrt(
-    binomial_link_variance(p_index, n_index, link_resolved) +
-      binomial_link_variance(p_comparator, n_comparator, link_resolved)
-  )
+  estimate <- link_fun(p_index_effect, link_resolved) -
+    link_fun(p_comparator_effect, link_resolved)
 
   p_index_se <- sqrt(p_index * (1 - p_index) / n_index)
-  p_comparator_se <- sqrt(p_comparator * (1 - p_comparator) / n_comparator)
+  row_p <- agd$.r / agd$.n
+  row_w <- .normalize_weights(agd$.n)
+  var_p_comparator <- sum(row_w^2 * row_p * (1 - row_p) / agd$.n)
+  row_p_effect <- bound_probability(row_p, agd$.n)
+  var_p_comparator_effect <- sum(
+    row_w^2 * row_p_effect * (1 - row_p_effect) / agd$.n
+  )
+  var_link_index <- binomial_link_variance(
+    p_index_effect, n_index, link_resolved
+  )
+  var_link_comparator <- link_derivative_response(
+    p_comparator_effect, link_resolved
+  )^2 * var_p_comparator_effect
+  se <- sqrt(var_link_index + var_link_comparator)
+  p_comparator_se <- sqrt(var_p_comparator)
   p_index_ci <- .bounded_wald_interval(p_index, p_index_se, z,
                                        lower = 0, upper = 1)
   p_comparator_ci <- .bounded_wald_interval(p_comparator, p_comparator_se, z,
                                             lower = 0, upper = 1)
   rd <- p_index - p_comparator
   rd_se <- sqrt(p_index_se^2 + p_comparator_se^2)
-  log_rr <- log(p_index) - log(p_comparator)
+  log_rr <- log(p_index_effect) - log(p_comparator_effect)
   log_rr_se <- sqrt(
-    (1 - p_index) / (n_index * p_index) +
-      (1 - p_comparator) / (n_comparator * p_comparator)
+    (1 - p_index_effect) / (n_index * p_index_effect) +
+      var_p_comparator_effect / p_comparator_effect^2
   )
 
   list(
@@ -114,11 +150,20 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
 .naive_normal <- function(data, ipd, agd, conf_level, z) {
   mean_index <- mean(ipd$.outcome)
   n_index <- nrow(ipd)
+  if (n_index < 2L) {
+    stop("The naive normal benchmark needs at least two IPD observations to ",
+         "estimate the index-mean variance; ", n_index, " supplied.",
+         call. = FALSE)
+  }
   var_index <- var(ipd$.outcome) / n_index
 
-  iv_weights <- 1 / (agd$.se^2)
-  mean_comparator <- weighted.mean(agd$.y, iv_weights)
-  var_comparator <- 1 / sum(iv_weights)
+  if (nrow(agd) > 1L && is.null(agd$.n)) {
+    stop("`outcome_n` is required for multiple normal AgD rows.", call. = FALSE)
+  }
+  agd_weights <- agd$.n %||% 1
+  w_norm <- .normalize_weights(agd_weights)
+  mean_comparator <- sum(w_norm * agd$.y)
+  var_comparator <- sum(w_norm^2 * agd$.se^2)
 
   estimate <- mean_index - mean_comparator
   se <- sqrt(var_index + var_comparator)
@@ -141,6 +186,83 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
     mean_comparator_lower = mean_comparator - z * mean_comparator_se,
     mean_comparator_upper = mean_comparator + z * mean_comparator_se,
     n_index = n_index,
+    data = data
+  )
+}
+
+
+#' Naive comparison for survival outcomes
+#'
+#' Unadjusted Cox proportional-hazards log hazard ratio comparing the index IPD
+#' against the reconstructed comparator pseudo-IPD, plus Kaplan-Meier median
+#' survival per arm. Because this benchmark is a right-censored Cox model, left-
+#' and interval-censored records (internal status 2/3) are rejected rather than
+#' collapsed to right-censoring.
+#' @keywords internal
+.naive_survival <- function(data, conf_level, z) {
+  if (!requireNamespace("survival", quietly = TRUE)) {
+    stop("Package 'survival' is required for the naive survival comparison.",
+         call. = FALSE)
+  }
+  ipd <- data$ipd$data
+  pseudo <- data$agd$pseudo_ipd
+
+  # The naive benchmark is a right-censored Cox model. Internal `.status` encodes
+  # 0 = right-censored, 1 = event, 2 = left-censored, 3 = interval-censored. The
+  # Bayesian model (`mlumr()`) handles 2/3, but collapsing them to right-censored
+  # non-events (status != 1) would misrepresent the data (a left-censored record
+  # is known to have failed by its time; an interval-censored record failed within
+  # an interval). Reject them here, matching `stc()` and `geom_km()`, rather than
+  # silently produce an invalid Cox estimate.
+  if (any(c(ipd$.status, pseudo$.status) %in% c(2L, 3L))) {
+    stop("`naive()` fits a right-censored Cox benchmark and does not support ",
+         "left- or interval-censored survival data (internal status 2 or 3). ",
+         "These are supported by the Bayesian model `mlumr()`, but the naive ",
+         "comparison would have to collapse them to right-censored non-events, ",
+         "which misrepresents the data. Restrict the naive comparison to ",
+         "right-censored / event data (status 0/1, optional delayed entry).",
+         call. = FALSE)
+  }
+
+  pooled <- data.frame(
+    time = c(ipd$.time, pseudo$.time),
+    entry = c(ipd$.delay_time, pseudo$.delay_time),
+    event = as.integer(c(ipd$.status, pseudo$.status) == 1L),
+    arm = factor(c(rep("index", nrow(ipd)), rep("comparator", nrow(pseudo))),
+                 levels = c("comparator", "index")),
+    stringsAsFactors = FALSE
+  )
+  has_delay <- any(pooled$entry > 0)
+  surv_obj <- if (has_delay) {
+    survival::Surv(pooled$entry, pooled$time, pooled$event)
+  } else {
+    survival::Surv(pooled$time, pooled$event)
+  }
+
+  cox <- survival::coxph(surv_obj ~ arm, data = pooled)
+  estimate <- unname(stats::coef(cox)[1])
+  se <- sqrt(diag(stats::vcov(cox))[1])
+
+  km <- survival::survfit(surv_obj ~ arm, data = pooled)
+  km_tab <- summary(km)$table
+  med <- if (is.matrix(km_tab)) km_tab[, "median"] else km_tab["median"]
+  med_comparator <- unname(med[grep("comparator", names(med))][1])
+  med_index <- unname(med[grep("index", names(med))][1])
+
+  list(
+    estimate = estimate,
+    log_hr = estimate,
+    se = se,
+    ci_lower = estimate - z * se,
+    ci_upper = estimate + z * se,
+    conf_level = conf_level,
+    family = "survival",
+    median_index = med_index,
+    median_comparator = med_comparator,
+    n_index = nrow(ipd),
+    n_comparator = nrow(pseudo),
+    events_index = sum(ipd$.status == 1L),
+    events_comparator = sum(pseudo$.status == 1L),
     data = data
   )
 }
@@ -170,6 +292,13 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
   log_rate_index_se <- sqrt(1 / events_index_adjusted)
   log_rate_comparator_se <- sqrt(1 / events_comparator_adjusted)
 
+  # Rate difference on the natural (events per unit exposure) scale, the count
+  # analogue of the binomial risk difference. The two arms are independent, so
+  # the variances add.
+  rd <- rate_index - rate_comparator
+  rd_se <- .sqrt_variance(rate_index_se^2 + rate_comparator_se^2,
+                          "poisson rate-difference variance")
+
   list(
     estimate = estimate,
     se = se,
@@ -177,13 +306,22 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
     ci_upper = estimate + z * se,
     conf_level = conf_level,
     family = "poisson",
+    rd = rd,
+    rd_se = rd_se,
+    rd_lower = rd - z * rd_se,
+    rd_upper = rd + z * rd_se,
     rate_index = rate_index,
     rate_index_se = rate_index_se,
-    rate_index_lower = exp(log_rate_index - z * log_rate_index_se),
+    # With zero events the crude point rate is 0; the continuity-corrected
+    # log-rate interval would otherwise place the lower bound above 0 (point
+    # estimate below its own CI). Pin the lower bound to 0 in that case.
+    rate_index_lower = if (events_index == 0) 0 else
+      exp(log_rate_index - z * log_rate_index_se),
     rate_index_upper = exp(log_rate_index + z * log_rate_index_se),
     rate_comparator = rate_comparator,
     rate_comparator_se = rate_comparator_se,
-    rate_comparator_lower = exp(log_rate_comparator - z * log_rate_comparator_se),
+    rate_comparator_lower = if (events_comparator == 0) 0 else
+      exp(log_rate_comparator - z * log_rate_comparator_se),
     rate_comparator_upper = exp(log_rate_comparator + z * log_rate_comparator_se),
     n_index = n_index,
     events_index = events_index,

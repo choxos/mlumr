@@ -7,11 +7,15 @@
 set_ipd(
   data,
   treatment,
-  outcome,
+  outcome = NULL,
   covariates,
-  family = c("binomial", "normal", "poisson"),
+  family = c("binomial", "normal", "poisson", "survival"),
   exposure = NULL,
-  study = NULL
+  study = NULL,
+  Surv = NULL,
+  time = NULL,
+  status = NULL,
+  entry_time = NULL
 )
 }
 \arguments{
@@ -21,16 +25,25 @@ set_ipd(
 
 \item{outcome}{Column name for outcome variable. For \code{family = "binomial"},
 must be binary (0/1). For \code{family = "normal"}, any numeric. For
-\code{family = "poisson"}, non-negative integer counts.}
+\code{family = "poisson"}, non-negative integer counts. Not used (leave \code{NULL})
+for \code{family = "survival"}, which uses \code{Surv}/\code{time}/\code{status} instead.}
 
 \item{covariates}{Character vector of covariate column names}
 
-\item{family}{Outcome family: \code{"binomial"}, \code{"normal"}, or \code{"poisson"}}
+\item{family}{Outcome family: \code{"binomial"}, \code{"normal"}, \code{"poisson"}, or
+\code{"survival"} (time-to-event)}
 
 \item{exposure}{Column name for exposure/time-at-risk (required when
 \code{family = "poisson"})}
 
 \item{study}{Column name for study identifier (optional)}
+
+\item{Surv}{For \code{family = "survival"}, an optional \code{\link[survival:Surv]{survival::Surv()}} object
+describing the outcome (use for left/interval censoring or delayed entry).}
+
+\item{time, status, entry_time}{For \code{family = "survival"}, character column
+names as an alternative to \code{Surv} (right-censoring with status \code{0}/\code{1},
+plus optional delayed entry).}
 }
 \value{
 An object of class \code{mlumr_ipd}

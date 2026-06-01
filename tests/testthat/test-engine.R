@@ -43,11 +43,14 @@ test_that("cmdstanr backend fits a model end-to-end", {
   skip_on_cran()
   skip_if_not_installed("cmdstanr")
   skip_if_not(
-    tryCatch({ cmdstanr::cmdstan_path(); TRUE }, error = function(e) FALSE),
+    tryCatch({
+      cmdstanr::cmdstan_path()
+      TRUE
+    }, error = function(e) FALSE),
     "CmdStan not available"
   )
 
-  set.seed(42)
+  set.seed(2026)
   n <- 50
   x1 <- rbinom(n, 1, 0.5)
   y <- rbinom(n, 1, plogis(-0.5 + 0.8 * x1))
@@ -62,7 +65,7 @@ test_that("cmdstanr backend fits a model end-to-end", {
                          x1 = distr(qbern, prob = x1_mean))
 
   fit <- mlumr(dat, model = "spfa", engine = "cmdstanr",
-               chains = 2, iter = 500, warmup = 250, refresh = 0, seed = 123)
+               chains = 2, iter = 500, warmup = 250, refresh = 0, seed = 2026)
 
   expect_s3_class(fit, "mlumr_fit")
   expect_equal(fit$family, "binomial")
