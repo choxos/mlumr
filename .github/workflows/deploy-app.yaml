@@ -15,7 +15,7 @@ name: deploy-app.yaml
 
 on:
   push:
-    branches: [feature/browser-app]
+    branches: [webapp]
   workflow_dispatch:
 
 permissions:
