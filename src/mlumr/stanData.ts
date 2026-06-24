@@ -11,10 +11,15 @@ import {
 } from "./priors";
 import { sampleSd } from "./stats";
 import { survivalDistInfo } from "./survivalDist";
-import type { Family, LinkName, MlumrData, PriorSpec, StanData, SurvivalOptions } from "./types";
+import type { Family, LinkName, ModelType, MlumrData, PriorSpec, StanData, SurvivalOptions } from "./types";
 
 export type BuildStanDataOptions = {
   link?: LinkName;
+  // SPFA vs relaxed. Selects the covariate design block: the SPFA design has one
+  // shared beta block (nB = 2 + n_cov); the relaxed design has treatment-specific
+  // index and comparator blocks (nB = 2 + 2 * n_cov). Survival ignores this (its
+  // data block is identical across the two variants).
+  model?: ModelType;
   priorIntercept?: PriorSpec;
   priorBeta?: PriorSpec;
   // Relaxed-model comparator-coefficient prior. When omitted, the comparator
@@ -86,7 +91,82 @@ export function buildStanData(data: MlumrData, options: BuildStanDataOptions = {
     });
   }
 
+  // Every v0.2.0 family reads a combined treatment design (Xq_ipd, Xq_int, R_inv,
+  // nB, qr), mirroring the R package's .mlumr_center_covariates() +
+  // .mlumr_qr_design(). The covariates must be centered first: the non-survival
+  // families center here; survival already centered inside addSurvivalData().
+  if (family !== "survival") centerCovariatesPooled(stanData);
+  addCombinedDesign(stanData, options.model ?? "spfa");
+
   return stanData;
+}
+
+/**
+ * Center the covariates on the pooled IPD + integration-grid mean, in place.
+ * xbar_j weights the IPD mean and the integration-grid mean by their row counts.
+ * Mirrors R/mlumr.R .mlumr_center_covariates(). (Survival centers separately,
+ * inside addSurvivalData(), on its single comparator arm.)
+ */
+function centerCovariatesPooled(stanData: StanData): void {
+  const nCov = stanData.n_cov as number;
+  const xIpd = stanData.X_ipd as number[][]; // [n_ipd][n_cov], raw
+  const xInt = stanData.X_int as number[][][]; // [n_agd_rows][n_int][n_cov], raw
+  const nIpd = xIpd.length;
+  const nAgd = xInt.length;
+  const nInt = nAgd > 0 ? xInt[0].length : 0;
+  const nIntRows = nAgd * nInt;
+
+  const xbar = new Array<number>(nCov).fill(0);
+  for (let j = 0; j < nCov; j++) {
+    let sumIpd = 0;
+    for (let i = 0; i < nIpd; i++) sumIpd += xIpd[i][j];
+    let sumInt = 0;
+    for (let k = 0; k < nAgd; k++) {
+      for (let m = 0; m < nInt; m++) sumInt += xInt[k][m][j];
+    }
+    const meanIpd = nIpd > 0 ? sumIpd / nIpd : 0;
+    const meanInt = nIntRows > 0 ? sumInt / nIntRows : 0;
+    xbar[j] = (nIpd * meanIpd + nIntRows * meanInt) / (nIpd + nIntRows);
+  }
+  stanData.X_ipd = xIpd.map((row) => row.map((v, j) => v - xbar[j]));
+  stanData.X_int = xInt.map((arm) => arm.map((row) => row.map((v, j) => v - xbar[j])));
+}
+
+/**
+ * Build the combined treatment-design block every v0.2.0 family expects, from
+ * the (already centered) covariates in stanData. With qr = 0 (the browser never
+ * samples on the QR scale) the design is the raw combined matrix and R_inv is
+ * the identity, so coefficients stay on the original scale.
+ *
+ * The design columns are [I_index, I_comparator, beta block(s)]: IPD rows carry
+ * the index intercept, integration rows the comparator intercept. The shared
+ * (SPFA) design has one beta block; the relaxed design has separate index and
+ * comparator blocks, each zero-padded on the other arm's rows. Survival uses the
+ * identical structure with a single comparator arm (n_agd_rows = 1).
+ *
+ * Mirrors R/mlumr.R .mlumr_qr_design() with qr = FALSE.
+ */
+function addCombinedDesign(stanData: StanData, model: ModelType): void {
+  const nCov = stanData.n_cov as number;
+  const cIpd = stanData.X_ipd as number[][]; // [n_ipd][n_cov], centered
+  const cInt = stanData.X_int as number[][][]; // [n_agd_rows][n_int][n_cov], centered
+
+  const relaxed = model === "relaxed";
+  const nB = relaxed ? 2 + 2 * nCov : 2 + nCov;
+  const zeros = new Array<number>(nCov).fill(0);
+  // IPD rows: index intercept on, comparator off; index beta block carries x.
+  const xqIpd = cIpd.map((row) => (relaxed ? [1, 0, ...row, ...zeros] : [1, 0, ...row]));
+  // Integration rows: comparator intercept on; comparator beta block carries x.
+  const xqInt = cInt.map((arm) => arm.map((row) => (relaxed ? [0, 1, ...zeros, ...row] : [0, 1, ...row])));
+  const rInv = Array.from({ length: nB }, (_, i) =>
+    Array.from({ length: nB }, (_, j) => (i === j ? 1 : 0))
+  );
+
+  stanData.qr = 0;
+  stanData.nB = nB;
+  stanData.Xq_ipd = xqIpd;
+  stanData.Xq_int = xqInt;
+  stanData.R_inv = rInv;
 }
 
 export function stanDataJson(data: StanData): string {

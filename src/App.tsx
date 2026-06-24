@@ -54,6 +54,10 @@ import { runMlumrModel } from "./runtime/runMlumr";
 
 type PreparedState = {
   modelNames: Partial<Record<ModelType, string>>;
+  // Per-model Stan data: the SPFA and relaxed designs differ (nB = 2 + n_cov vs
+  // 2 + 2 * n_cov), so each variant needs its own data. `stanJson` keeps the
+  // first selected variant for the read-only editor preview.
+  stanJsonByModel: Partial<Record<ModelType, string>>;
   stanJson: string;
   notes: string[];
 };
@@ -348,13 +352,18 @@ export function App() {
           link,
           priorSigma: groupToSpec(priors.sigma)
         };
-    const stanData = buildStanData(data, stanDataOptions);
-    const modelNames = Object.fromEntries(
-      selectedModelTypes(model).map((modelType) => [modelType, resolveModelName(family, distribution, modelType)])
-    ) as Partial<Record<ModelType, string>>;
+    const selected = selectedModelTypes(model);
+    const modelNames: Partial<Record<ModelType, string>> = {};
+    const stanJsonByModel: Partial<Record<ModelType, string>> = {};
+    for (const modelType of selected) {
+      modelNames[modelType] = resolveModelName(family, distribution, modelType);
+      // Each variant builds its own design block (SPFA vs relaxed nB differ).
+      stanJsonByModel[modelType] = stanDataJson(buildStanData(data, { ...stanDataOptions, model: modelType }));
+    }
     return {
       modelNames,
-      stanJson: stanDataJson(stanData),
+      stanJsonByModel,
+      stanJson: stanJsonByModel[selected[0]] ?? "",
       notes: [
         `Index: ${data.indexTreatment} (n=${ipdRows.length})`,
         `Comparator: ${data.comparatorTreatment}${
@@ -404,7 +413,8 @@ export function App() {
         setActiveResultModel(modelType);
         setStatus(`loading ${modelType.toUpperCase()}`);
         setLog((prev) => [...prev.slice(-80), `=== ${modelLabel(modelType)} ===`]);
-        const result = await runMlumrModel(modelName, nextPrepared.stanJson, sampling, {
+        const stanJsonForModel = nextPrepared.stanJsonByModel[modelType] ?? nextPrepared.stanJson;
+        const result = await runMlumrModel(modelName, stanJsonForModel, sampling, {
           onStatus: (message) => setStatus(`${modelType.toUpperCase()}: ${message}`),
           onProgress: (message) => setLog((prev) => [...prev.slice(-80), message]),
           onChainProgress: (id, message) =>

@@ -45,6 +45,49 @@ describe("browser mlumr data path", () => {
     expect(stanData.link).toBe(1);
   });
 
+  test.each(["spfa", "relaxed"] as const)("non-survival %s build emits the centered QR design", (variant) => {
+    const example = exampleForFamily("binomial");
+    const data = addIntegration(
+      buildMlumrData("binomial", parseCsv(example.ipdCsv), parseCsv(example.agdCsv), example.mapping),
+      example.covariateSpecs,
+      { nInt: 8 }
+    );
+    const sd = buildStanData(data, { link: "logit", model: variant });
+    const nCov = sd.n_cov as number;
+    const nIpd = sd.n_ipd as number;
+    const expectedNb = variant === "relaxed" ? 2 + 2 * nCov : 2 + nCov;
+
+    expect(sd.qr).toBe(0);
+    expect(sd.nB).toBe(expectedNb);
+
+    const xqIpd = sd.Xq_ipd as number[][];
+    expect(xqIpd).toHaveLength(nIpd);
+    expect(xqIpd[0]).toHaveLength(expectedNb);
+    expect(xqIpd[0][0]).toBe(1); // index intercept on for IPD rows
+    expect(xqIpd[0][1]).toBe(0);
+
+    const xqInt = sd.Xq_int as number[][][];
+    expect(xqInt[0][0]).toHaveLength(expectedNb);
+    expect(xqInt[0][0][0]).toBe(0);
+    expect(xqInt[0][0][1]).toBe(1); // comparator intercept on for integration rows
+
+    const rInv = sd.R_inv as number[][];
+    expect(rInv).toHaveLength(expectedNb);
+    expect(rInv[0][0]).toBe(1);
+    expect(rInv[0][1] ?? 0).toBe(0); // identity when qr = 0
+
+    // Covariates are centered on the pooled IPD + grid mean (n_agd_rows = 1, so
+    // the unweighted total over IPD + integration rows is zero by construction).
+    const xIpd = sd.X_ipd as number[][];
+    const xInt = (sd.X_int as number[][][])[0];
+    for (let j = 0; j < nCov; j++) {
+      let sum = 0;
+      for (const r of xIpd) sum += r[j];
+      for (const r of xInt) sum += r[j];
+      expect(sum / (xIpd.length + xInt.length)).toBeCloseTo(0, 10);
+    }
+  });
+
   test("normal data contains sigma prior and summary fields", () => {
     const example = exampleForFamily("normal");
     const data = addIntegration(
