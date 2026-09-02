@@ -1,70 +1,45 @@
-#' Numerical guards in the Stan models
+#' Numerical evaluation in the Stan models
 #'
-#' `mlumr`'s Stan models clip a few quantities to avoid undefined arithmetic
-#' in `generated quantities`. This page documents the exact behavior so
-#' users can assess when the guard matters for their analysis.
+#' `mlumr` evaluates tail probabilities, marginal means, ratios, and
+#' differences on the log scale where possible. The models do not clip event
+#' probabilities, rates, risk ratios, or rate ratios to finite reporting
+#' bounds.
 #'
-#' @section Guards currently in place:
+#' @section Log-scale calculations:
 #'
 #' \describe{
-#'   \item{`safe_logit(p)` (binomial models)}{Returns
-#'     `logit(clamp(p, 1e-10, 1 - 1e-10))`. The logit and log-odds-ratio
-#'     posterior summaries use this rather than the raw `logit(p)` so that
-#'     finite samples with `p` at the boundaries do not propagate
-#'     `Inf`/`NaN` into the posterior.}
-#'   \item{`safe_divide(num, denom)` (binomial and Poisson models)}{Returns
-#'     `num / max(denom, 1e-10)`. Used for risk ratios and rate ratios to
-#'     avoid division-by-zero when a comparator posterior draw has a
-#'     near-zero mean outcome.}
-#'   \item{Stan `<lower=0>` constraints on `sigma` (normal family)}{Truncate
-#'     the prior to the positive half-line — the reason why
-#'     `prior_sigma = prior_normal(0, 2.5)` is interpreted as a
-#'     half-normal and why [prior_exponential()] is also valid.}
+#'   \item{Binary outcomes}{Event and non-event log probabilities are evaluated
+#'     directly for logit, probit, and complementary log-log links. Aggregate
+#'     probabilities are then formed with `log_sum_exp`, so an extreme but
+#'     finite linear predictor is not first rounded to probability 0 or 1.}
+#'   \item{Log-link outcomes}{Marginal normal means and Poisson rates use
+#'     log-mean-exp calculations. Population weights are normalized on the log
+#'     scale, so multiplying every weight by the same finite constant does not
+#'     change the result.}
+#'   \item{Natural-scale contrasts}{Differences of positive means are evaluated
+#'     from their logarithms before conversion to the natural scale. Ratios are
+#'     evaluated through log contrasts. A mathematically overflowing ratio may
+#'     therefore be `Inf`, and an underflowing natural-scale probability may be
+#'     0, rather than an arbitrary finite replacement. The corresponding
+#'     log-scale quantity remains the preferred diagnostic.}
 #' }
 #'
-#' @section When the guards introduce bias:
+#' @section Structural constraints and roundoff:
 #'
-#' The guards are one-sided: they replace invalid values with extreme but
-#' finite ones rather than with a symmetric distribution. In practice:
+#' Positive model parameters such as the normal residual SD use Stan lower
+#' bounds and therefore truncate their priors to the positive half-line.
 #'
-#' \itemize{
-#'   \item For binomial outcomes with event rates in the range
-#'     `[1e-4, 1 - 1e-4]` the clipped output is indistinguishable from the
-#'     unclipped value at double precision.
-#'   \item For event rates outside that range — or Poisson models with
-#'     expected rates below `1e-4` events per unit exposure — the summary
-#'     of the posterior for LOR, RR, and related ratios may be biased
-#'     toward the clip boundary. The point estimate for the treatment
-#'     effect on the link scale (`delta_index` on log-odds, log-rate, or
-#'     mean-difference scale) is \emph{not} affected since it does not
-#'     go through the guards.
-#'   \item **Direction of `safe_divide` bias.** When the comparator rate
-#'     (the denominator) is smaller than `1e-10`, the ratio is clipped
-#'     to `num / 1e-10`. Because rates and probabilities in mlumr are
-#'     non-negative, the clipped value is always \emph{larger} (more
-#'     positive) than the mathematical limit — so risk ratios and rate
-#'     ratios in near-zero-comparator regimes are \emph{upward-biased},
-#'     never downward. Expect the clipped posterior summary to
-#'     overstate, not understate, the relative treatment effect in
-#'     those draws.
-#'   \item For very-rare-event data, consider reframing the model in terms
-#'     of rates: an event count with exposure via [set_agd()] `family
-#'     = "poisson"` is numerically better behaved than Bernoulli /
-#'     Binomial at extreme probabilities.
-#' }
+#' @section Interpreting extreme draws:
 #'
-#' @section How to diagnose guard activation:
+#' Inspect the log-scale generated quantities when a natural-scale contrast is
+#' zero or infinite. For example, binary models retain marginal log event and
+#' non-event probabilities internally, and Poisson models form log rates before
+#' exponentiation.
+#' An infinite natural-scale ratio can be the correct floating-point
+#' representation of a finite log ratio whose exponential exceeds double
+#' precision; replacing it with a fixed finite number would change the
+#' estimand.
 #'
-#' Posterior draws of `p_*_index` / `p_*_comparator` or `rate_*_*` are
-#' returned by the Stan models and are available in `fit$draws`. If any
-#' posterior draw sits below `5e-10` or above `1 - 5e-10` for binomial
-#' probabilities (respectively below `5e-10` for Poisson rates), the
-#' guards are active for that draw. A quick check:
-#' \preformatted{
-#'   any(fit$draws[, "p_comparator_comparator"] < 5e-10)
-#' }
-#'
-#' @name mlumr-numerical-guards
-#' @aliases safe_logit safe_divide
+#' @name mlumr-numerical-evaluation
 #' @keywords internal
 NULL

@@ -20,10 +20,8 @@
 
 \item{type}{Prediction type: \code{"response"} or \code{"link"}. For \code{"response"}:
 probabilities (binomial), means (normal), or rates (poisson). For
-\code{"link"}: mean linear predictor on the fitted link scale (logit, probit,
-cloglog, log, or identity). The link-scale values are computed directly
-from parameter draws as \code{E[eta]}, not as \code{link(E[g^{-1}(eta)])}, to
-avoid Jensen's inequality bias.}
+\code{"link"}: the fitted link applied to the population-standardized
+response mean, \code{g(E[g^{-1}(eta)])}.}
 
 \item{summary}{Return summary statistics (\code{TRUE}) or full posterior draws (\code{FALSE})}
 
@@ -32,9 +30,8 @@ avoid Jensen's inequality bias.}
 \item{...}{Additional arguments (unused)}
 }
 \value{
-A data frame with predictions. When \code{type = "link"}, values are
-mean linear predictors computed directly from parameter draws (avoiding
-Jensen's inequality bias).
+A data frame with predictions. When \code{type = "link"}, values are on
+the marginal link scale, \code{g(E[g^{-1}(eta)])}.
 }
 \description{
 Generate population-average absolute-outcome predictions in the index and
@@ -50,9 +47,23 @@ over IPD individuals; in the comparator population it is taken over the
 integration points constructed by \code{\link[=add_integration]{add_integration()}} from the AgD
 moments. This is the correct population-average prediction for an
 individual randomly drawn from that population, and it matches what the
-Stan \verb{generated quantities} block computes. For the link scale
-(\code{type = "link"}) the reported value is \code{E[eta]}, a linear functional,
-and the two interpretations coincide.
+Stan \verb{generated quantities} block computes.
+
+\code{type = "link"} reports \code{g(E[g^{-1}(eta)])}: the fitted link applied to
+that same standardized response mean. This is the quantity
+\code{\link[=marginal_effects]{marginal_effects()}} contrasts, so differencing two \code{type = "link"}
+predictions reproduces the reported marginal effect. It is computed from
+the log-scale generated quantities, so it stays finite where the
+natural-scale mean would round to 0 or 1. The identity link makes the two
+definitions agree; logit, probit, cloglog and log separate them.
+
+This is a deliberate divergence from \pkg{multinma}, which keeps the two
+apart: its \code{predict(type = "link")} returns \code{E[eta]} and the marginal
+link-scale contrast lives in \code{marginal_effects(mtype = "link")}. mlumr has
+no conditional population estimand to pair \code{E[eta]} with, since every
+effect it reports is standardized over a population, so it reports the
+marginal link under the one name rather than offering two link scales that
+differ silently.
 }
 \seealso{
 \code{\link[=marginal_effects]{marginal_effects()}} for treatment-effect summaries;
