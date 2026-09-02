@@ -9,8 +9,9 @@ Authors@R: c(
 Description: Bayesian multilevel unanchored meta-regression (ML-UMR) for
     indirect treatment comparisons using individual patient data (IPD) and
     aggregate data (AgD). Implements shared prognostic factor assumption
-    (SPFA) and relaxed SPFA models for binary, continuous, and count
-    outcomes via 'Stan'. Also
+    (SPFA) and relaxed SPFA models for binary, continuous, count, and
+    time-to-event outcomes via 'Stan', the last with parametric and
+    flexible spline baseline hazards. Also
     provides simulated treatment comparison (STC) via parametric
     G-computation and naive unadjusted benchmarks. ML-UMR is an
     adaptation of the ML-NMR methodology (Phillippo et al. 2020,

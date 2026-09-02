@@ -1331,6 +1331,14 @@ mlumr <- function(data,
   } else if (family == "normal") {
     mlumr_message(sprintf("  AgD: %d rows", stan_data$n_agd_rows),
                   verbose = verbose)
+  } else if (family == "survival") {
+    # Survival fell through to the Poisson line, which reads E_agd. That field
+    # is unset here, and sum(NULL) is 0, so a 300-row reconstructed curve was
+    # logged as "1 rows, total exposure = 0.0": a count that is not missing but
+    # wrong, for a quantity a Kaplan-Meier reconstruction does not have.
+    mlumr_message(sprintf("  AgD: %d rows, %d reconstructed pseudo-individuals",
+                          stan_data$n_agd_rows, stan_data$n_agd),
+                  verbose = verbose)
   } else {
     mlumr_message(sprintf("  AgD: %d rows, total exposure = %.1f",
                           stan_data$n_agd_rows, sum(stan_data$E_agd)),
