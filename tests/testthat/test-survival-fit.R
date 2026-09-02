@@ -59,17 +59,10 @@ test_that("survival relaxed model and exponential/gengamma run", {
 
   fit_gg <- fit_survival_test(dat, distribution = "gengamma", iter = 400, warmup = 200)
   expect_s3_class(fit_gg, "mlumr_fit")
-  # The generalized-gamma hazard and log-HR generated quantities are where the
-  # inf - inf cancellation in mean_haz() would surface. Read them off the draws:
-  # this is the layer the model commit ships, and it does not wait for the
-  # prediction layer to be able to catch a non-finite quantity.
-  gq <- names(fit_gg$draws)
-  haz <- gq[grepl("^haz_(index|comparator)_(index|comparator)\\[", gq)]
-  lhr <- gq[grepl("^loghr_(index|comparator)\\[", gq)]
-  expect_true(length(haz) > 0)
-  expect_true(length(lhr) > 0)
-  expect_true(all(vapply(fit_gg$draws[haz], function(x) all(is.finite(x)), logical(1))))
-  expect_true(all(vapply(fit_gg$draws[lhr], function(x) all(is.finite(x)), logical(1))))
+  # generalized-gamma marginal hazard / log-HR generated quantities must be
+  # finite (regression test for the inf - inf cancellation in mean_haz()).
+  expect_true(all(is.finite(predict(fit_gg, type = "hazard")$mean)))
+  expect_true(all(is.finite(predict(fit_gg, type = "loghr")$mean)))
 })
 
 test_that("M-spline and piecewise-exponential survival models fit", {
@@ -101,28 +94,3 @@ test_that("survival LOO consumes the pointwise log-likelihood", {
   expect_true(is.finite(l$estimates["elpd_loo", "Estimate"]))
 })
 
-test_that("survival effects and predictions refuse rather than mislabel", {
-  skip_on_cran()
-  skip_if_not_installed("rstan")
-
-  dat <- sim_survival_data(seed = 2026)
-  fit <- fit_survival_test(dat, distribution = "weibull")
-
-  # `delta_*` is a LOG hazard ratio. The generic marginal_effects() path maps
-  # `hr` onto exactly those columns, so without a guard this call would return
-  # the log HR under the name HR. It must fail instead.
-  expect_error(marginal_effects(fit, effect = "hr"), "prediction layer")
-  expect_error(marginal_effects(fit), "prediction layer")
-  expect_error(predict(fit, type = "response"), "prediction layer")
-
-  # conditional_effects() has the same hazard by a different route:
-  # .conditional_effect_choices() falls through to the Poisson branch, so
-  # `rr` and the "all" default both resolve and would hand back
-  # exp(eta_index - eta_comparator) labeled RR.
-  expect_error(conditional_effects(fit), "prediction layer")
-  expect_error(conditional_effects(fit, effect = "rr"), "prediction layer")
-  expect_error(conditional_predict(fit), "prediction layer")
-
-  # The quantities themselves are present; only the reporting layer is absent.
-  expect_true(all(c("delta_index", "delta_comparator") %in% names(fit$draws)))
-})

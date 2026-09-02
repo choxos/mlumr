@@ -154,6 +154,40 @@
   Kaplan-Meier curve) together with its covariate moments. `combine_data()` and
   `add_integration()` carry the family through.
 
+* **HTA prediction suite** from `predict()` on a survival fit:
+  `type = "survival"`, `"hazard"`, `"cumhaz"`, `"rmst"` (restricted mean
+  survival time), `"median"`, and `"loghr"` (the time-varying marginal log
+  hazard ratio curve, null 0). `predict(type = "median")` carries a
+  `p_not_reached` column reporting the posterior probability that the median is
+  beyond follow-up. `conditional_effects()` / `conditional_predict()` give
+  covariate-conditional contrasts and survival curves.
+
+* **`marginal_effects()` reports natural-scale survival effects** (null 1): the
+  hazard ratio (`HR`) for proportional-hazards distributions, the time ratio
+  (`TR`) for AFT distributions with one shared shape and one shared coefficient
+  vector, or the exponentiated linear-predictor contrast (`EXP_DELTA_ETA`) where
+  neither holds. Plus the RMST difference (`RMSTD`, null 0) and RMST ratio
+  (`RMSTR`).
+
+* **A scalar hazard ratio never travels without its evaluation time.** Marginal
+  hazard ratios are non-collapsible and generally time-varying, so
+  `marginal_effects()` carries an `at_time` column, reported as `0` for the
+  closed-form `t -> 0` limit under a shared baseline shape and as the evaluation
+  time under study-specific shapes. For the whole curve use
+  `predict(type = "loghr")`; the RMST-based effects are collapsible and free of
+  this entirely.
+
+* **RMST results carry their restriction time.** RMST is an integral to a
+  horizon, so results computed to different horizons are different estimands and
+  must not be pooled. `predict(type = "rmst")` and the `RMSTD` / `RMSTR` rows of
+  `marginal_effects()` report a `horizon` column.
+
+* **An effect that is not available is an error, not a substitution.** With an
+  AFT distribution and study-specific shapes, the exponentiated contrast is not
+  a time ratio, and the same applies to any relaxed AFT fit even with shared
+  shapes. An explicit `effect = "hr"` / `"tr"` request stops in these cases and
+  names the alternative rather than returning a differently-named quantity.
+
 * **Parametric and flexible baselines** via the `distribution` argument to
   `mlumr()`:
     - Proportional hazards: `"exponential"`, `"weibull"` (default),

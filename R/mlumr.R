@@ -765,8 +765,27 @@ mlumr <- function(data,
   # its row, so tabulating it recovers the true per-row population.
   if (is.null(w) && identical(family, "survival")) {
     arm <- stan_data$agd_arm
+    # `agd_count` is the per-row multiplicity used by tie aggregation, which
+    # keeps one row per distinct (arm, time, start, delay, status) key. The
+    # population a row represents is then the number of pseudo-individuals it
+    # stands for, not the number of retained rows, so tabulate the arm map
+    # expanded by its multiplicities. Absent tie aggregation every count is one
+    # and this is exactly `tabulate(arm)`. Reading the counts here rather than
+    # requiring the collapse to run after centering is what makes the weights
+    # independent of that ordering: getting it wrong would silently change the
+    # center, and with it the induced raw-scale intercept prior.
+    cnt <- stan_data$agd_count
     w <- if (!is.null(arm) && n_agd_rows >= 1L) {
-      counts <- tabulate(as.integer(arm), nbins = n_agd_rows)
+      arm_int <- as.integer(arm)
+      if (!is.null(cnt)) {
+        if (length(cnt) != length(arm_int) || !all(is.finite(cnt)) ||
+              any(cnt < 1)) {
+          stop("`stan_data$agd_count` must hold one positive multiplicity per ",
+               "retained AgD row.", call. = FALSE)
+        }
+        arm_int <- rep(arm_int, times = as.integer(cnt))
+      }
+      counts <- tabulate(arm_int, nbins = n_agd_rows)
       # A zero means an arm carries no reconstructed pseudo-individuals, which
       # is a data problem rather than a weighting choice. The guard below would
       # quietly revert to equal weights and change the center; say so instead.

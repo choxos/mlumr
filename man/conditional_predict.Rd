@@ -7,7 +7,7 @@
 conditional_predict(
   object,
   newdata = NULL,
-  type = c("response", "link"),
+  type = NULL,
   summary = TRUE,
   probs = c(0.025, 0.5, 0.975)
 )
@@ -19,14 +19,18 @@ conditional_predict(
 means.}
 
 \item{type}{\code{"response"} for probabilities, means, or rates; \code{"link"} for
-the fitted linear-predictor scale.}
+the fitted linear-predictor scale. \code{NULL}, the default, resolves to
+\code{"response"} for binomial, normal and Poisson fits. Ignored for survival
+fits, which return the conditional survival probability S(t | x) at each
+fitted prediction time.}
 
 \item{summary}{Return summary (\code{TRUE}) or full draws (\code{FALSE})}
 
 \item{probs}{Quantiles for summary}
 }
 \value{
-A data frame with predictions for each treatment at each profile
+A data frame with predictions for each treatment at each profile.
+For survival fits there is one row per profile, treatment, and time.
 }
 \description{
 Generate absolute predictions at specific covariate values for both

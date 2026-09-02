@@ -23,7 +23,41 @@ from the IPD as a single reference profile.}
 \item{effect}{Which effect measure. For binomial: \code{"all"}, \code{"link_effect"},
 \code{"rd"}, or \code{"rr"}. For normal: \code{"all"} or \code{"md"}. For Poisson: \code{"all"}
 or \code{"rr"}. The legacy value \code{"lor"} is accepted as an alias for
-\code{"link_effect"} when the fitted link is logit.}
+\code{"link_effect"} when the fitted link is logit.
+
+For \strong{survival}, what is available depends on whether the two studies
+share a baseline, because \code{exp(eta_index - eta_comparator)} is a
+conditional hazard ratio only when the baseline factor cancels:
+\itemize{
+\item \strong{Shared baseline shape} (\code{aux_by = "none"}, or any exponential
+fit, which has no shape to stratify): \code{"hr"} returns the exact
+conditional hazard ratio, labeled \code{"HR"}, for a proportional-hazards
+distribution, and \code{"tr"} the exact time ratio (\code{"TR"}) for an
+accelerated failure time one. The two are different estimands and
+\code{"tr"} is \strong{not} an alias for \code{"hr"}: a proportional-hazards model
+has no constant time ratio and an AFT model has no constant hazard
+ratio, so \code{"tr"} on a PH fit and \code{"hr"} on an AFT fit are both errors
+rather than the other measure returned under the label it does have.
+\item \strong{Study-specific shape-bearing baseline} (\code{aux_by = ".study"},
+the default, with a distribution that has a shape parameter or either
+flexible baseline): an explicit \code{"hr"} / \code{"tr"} request is an
+\strong{error}. The conditional hazard ratio is
+\code{h0_index(t) / h0_comparator(t) * exp(eta_index - eta_comparator)} and
+the baseline ratio does not cancel, so no scalar hazard ratio exists to
+return. Returning the bare exponent under the name \code{hr} would report a
+different estimand than the one requested.
+\item \code{"all"} still works in that case and returns the exponentiated
+linear-predictor contrast under the honest label
+\code{"EXP_ETA_CONTRAST"}, with a warning explaining what it is not. The
+warning is emitted whenever the baseline shapes differ, for
+accelerated failure time models as well as proportional-hazards ones.
+\item The collapsible RMST effects from \code{\link[=marginal_effects]{marginal_effects()}} are
+unaffected and are the recommended alternative.
+\code{predict(type = "loghr")} gives the time-varying hazard ratio
+standardized over a \strong{population}, so it is a marginal quantity and
+not the conditional effect at a supplied covariate profile; it answers
+a different question rather than substituting for this one.
+}}
 
 \item{summary}{Return summary statistics (\code{TRUE}) or full posterior draws
 (\code{FALSE})}
@@ -52,10 +86,19 @@ probability levels. For relaxed models, all conditional effects vary with
 covariate values because the index and comparator treatments have different
 regression coefficients.
 
-The conditional link-scale effect is computed directly as
-\code{eta_index - eta_comparator}. This avoids numerical distortion from
-transforming extreme response-scale probabilities back through the link
-function.
+For binomial / normal / Poisson the conditional link-scale effect is computed
+directly as \code{eta_index - eta_comparator}. This avoids numerical distortion
+from transforming extreme response-scale probabilities back through the link
+function. For \strong{survival} the contrast is reported on the natural scale,
+exponentiated from \code{eta_index - eta_comparator} (null 1, like the rate
+ratio). That exponent is the conditional hazard ratio (or AFT time ratio)
+only when the two studies share a baseline shape; under the stratified
+default it is labeled \code{"EXP_ETA_CONTRAST"} instead, because the baseline
+ratio \code{h0_index(t) / h0_comparator(t)} does not cancel, and for an
+accelerated failure time model because differing shapes add
+quantile-dependent factors. \code{predict(type = "loghr")} gives the time-varying
+log hazard ratio standardized over a population, which is a marginal
+quantity rather than a profile-specific conditional one.
 
 \strong{Conditional vs marginal on non-identity links.} Conditional effects are
 evaluated at a single covariate profile, so there is no averaging over a

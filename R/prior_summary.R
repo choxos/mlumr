@@ -108,6 +108,24 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
     cat("\n")
   }
 
+  # Survival baseline (survival family only). These were stored on the fit but
+  # never shown, so a user who set them had no way to confirm through the
+  # advertised prior-introspection API which prior the model actually used.
+  # `aux` is the parametric shape/scale; `smooth` is the random-walk SD of a
+  # flexible baseline. A fit carries whichever its distribution has.
+  if (!is.null(priors$aux)) {
+    cat("Survival auxiliary (shape / scale, half-distribution via <lower=0>):\n")
+    cat("  ", .format_prior(priors$aux, digits = digits), "\n", sep = "")
+    .print_default_tag(priors$aux)
+    cat("\n")
+  }
+  if (!is.null(priors$smooth)) {
+    cat("Survival baseline smoothing (random-walk SD, half-distribution via <lower=0>):\n")
+    cat("  ", .format_prior(priors$smooth, digits = digits), "\n", sep = "")
+    .print_default_tag(priors$smooth)
+    cat("\n")
+  }
+
   invisible(priors)
 }
 
