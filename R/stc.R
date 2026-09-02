@@ -39,16 +39,14 @@
 #' `mlumr(..., model = "relaxed")` as the primary analysis and use STC as a
 #' sensitivity or benchmarking analysis.
 #'
-#' For binomial outcomes, the comparator-population treatment contrast is
-#' transported to the index population **assuming the treatment contrast is
-#' constant on the fitted link scale** (i.e., no effect modification on that
-#' scale). Under this assumption, the index-population comparator
-#' probability is computed as
-#' `inv_link(link(p_A_index) - (link(p_A_comp) - link(p_B)))`, and its
-#' uncertainty is propagated through the delta method. If effect modification
-#' is expected, fit a Bayesian relaxed model with
-#' `mlumr(..., model = "relaxed")` and use `predict(..., population =
-#' "index")` instead, which does not require this assumption.
+#' The estimand is the comparator-population contrast, and only that. Earlier
+#' versions also reported an index-population effect, obtained by assuming the
+#' treatment difference is constant on the link scale. That constancy is an
+#' extra assumption which is not part of the STC estimand, is not testable from
+#' the available data, and does not hold under effect modification, which is the
+#' situation population adjustment exists to handle. Use [mlumr()], which
+#' standardizes both treatment models and reports both populations without it,
+#' when the index population is the decision target.
 #'
 #' @examples
 #' \dontrun{
@@ -173,10 +171,6 @@ stc <- function(data, link = NULL, conf_level = 0.95) {
     fit, newdata, weights, beta_hat, V, link_resolved,
     p_hat_A_comp, p_B, n_B
   )
-  index_delta <- .stc_binomial_index_delta(
-    fit, ipd, beta_hat, V, link_resolved,
-    p_hat_A_comp, p_B, comp_delta
-  )
 
   estimate <- comp_delta$link_effect
   se <- comp_delta$link_effect_se
@@ -184,17 +178,9 @@ stc <- function(data, link = NULL, conf_level = 0.95) {
   p_hat_A_comp_se <- .sqrt_variance(comp_delta$var_p_A,
                                     "comparator probability variance")
   p_B_se <- sqrt(var_p_B)
-  p_A_index_se <- .sqrt_variance(index_delta$var_p_A,
-                                 "index probability variance")
-  p_B_index_se <- .sqrt_variance(index_delta$var_p_B,
-                                 "index comparator probability variance")
   p_hat_A_comp_ci <- .bounded_wald_interval(p_hat_A_comp, p_hat_A_comp_se, z,
                                             lower = 0, upper = 1)
   p_B_ci <- .bounded_wald_interval(p_B, p_B_se, z, lower = 0, upper = 1)
-  p_A_index_ci <- .bounded_wald_interval(index_delta$p_A, p_A_index_se, z,
-                                         lower = 0, upper = 1)
-  p_B_index_ci <- .bounded_wald_interval(index_delta$p_B, p_B_index_se, z,
-                                         lower = 0, upper = 1)
 
   rd <- p_hat_A_comp - p_B
   se_rd <- .sqrt_variance(comp_delta$var_p_A + var_p_B,
@@ -216,6 +202,7 @@ stc <- function(data, link = NULL, conf_level = 0.95) {
     conf_level = conf_level,
     family = "binomial",
     link = link_resolved,
+    population = "comparator",
     p_hat_index = p_hat_A_comp,
     p_hat_index_se = p_hat_A_comp_se,
     p_hat_index_lower = p_hat_A_comp_ci$lower,
@@ -224,14 +211,6 @@ stc <- function(data, link = NULL, conf_level = 0.95) {
     p_comparator_se = p_B_se,
     p_comparator_lower = p_B_ci$lower,
     p_comparator_upper = p_B_ci$upper,
-    p_index_index = index_delta$p_A,
-    p_index_index_se = p_A_index_se,
-    p_index_index_lower = p_A_index_ci$lower,
-    p_index_index_upper = p_A_index_ci$upper,
-    p_comparator_index = index_delta$p_B,
-    p_comparator_index_se = p_B_index_se,
-    p_comparator_index_lower = p_B_index_ci$lower,
-    p_comparator_index_upper = p_B_index_ci$upper,
     rd = rd,
     rd_se = se_rd,
     rd_lower = rd - z * se_rd,
@@ -276,47 +255,6 @@ stc <- function(data, link = NULL, conf_level = 0.95) {
   )
 }
 
-#' Index-population delta-method terms for binomial STC
-#' @keywords internal
-.stc_binomial_index_delta <- function(fit, ipd, beta_hat, V,
-                                      link_resolved, p_A_comp, p_B_comp,
-                                      comp_delta) {
-  n_ipd <- nrow(ipd)
-  p_A_index <- mean(predict(fit, newdata = ipd, type = "response"))
-  p_A_index <- bound_probability(p_A_index, n_ipd)
-
-  link_effect_comp <- link_fun(p_A_comp, link_resolved) -
-    link_fun(p_B_comp, link_resolved)
-  eta_B_index <- link_fun(p_A_index, link_resolved) - link_effect_comp
-  p_B_index <- inverse_link(eta_B_index, link_resolved)
-  p_B_index <- bound_probability(p_B_index, n_ipd)
-
-  X_ipd_design <- .stc_model_matrix(fit, ipd)
-  eta_ipd <- as.vector(X_ipd_design %*% beta_hat)
-  p_ipd <- inverse_link(eta_ipd, link_resolved)
-  dp_dbeta_ipd <- inverse_link_derivative(eta_ipd, p_ipd, link_resolved)
-  grad_mean <- colMeans(dp_dbeta_ipd * X_ipd_design)
-  var_p_A_index <- .nonnegative_variance(
-    as.numeric(t(grad_mean) %*% V %*% grad_mean),
-    "index probability variance"
-  )
-
-  dg_dp_A <- link_derivative_response(p_A_index, link_resolved)
-  d_inv_link <- inverse_link_derivative(eta_B_index, p_B_index, link_resolved)
-  var_p_B_index <- .nonnegative_variance(
-    (d_inv_link * dg_dp_A)^2 * var_p_A_index +
-      d_inv_link^2 * comp_delta$var_link_effect,
-    "index comparator probability variance"
-  )
-
-  list(
-    p_A = p_A_index,
-    p_B = p_B_index,
-    var_p_A = var_p_A_index,
-    var_p_B = var_p_B_index
-  )
-}
-
 #' Normal-outcome STC estimator
 #' @keywords internal
 .stc_normal <- function(data, fit, ipd, agd, newdata, link_resolved,
@@ -344,7 +282,6 @@ stc <- function(data, link = NULL, conf_level = 0.95) {
                                  "normal STC index variance")
   var_B <- 1 / sum(1 / agd$.se^2)
   se <- .sqrt_variance(var_A + var_B, "normal STC contrast variance")
-  y_hat_A_index <- mean(predict(fit, newdata = ipd, type = "response"))
 
   list(
     estimate = estimate,
@@ -354,11 +291,11 @@ stc <- function(data, link = NULL, conf_level = 0.95) {
     conf_level = conf_level,
     family = "normal",
     link = link_resolved,
+    population = "comparator",
     y_hat_index = y_hat_A,
     y_hat_index_se = sqrt(var_A),
     y_comparator = y_B,
     y_comparator_se = sqrt(var_B),
-    y_hat_index_index = y_hat_A_index,
     glm_fit = fit,
     data = data
   )
@@ -399,8 +336,6 @@ stc <- function(data, link = NULL, conf_level = 0.95) {
     as.numeric(t(grad_rate) %*% V %*% grad_rate),
     "poisson STC rate variance"
   )
-  rate_hat_A_index <- mean(predict(fit, newdata = ipd, type = "response"))
-
   list(
     estimate = estimate,
     se = se,
@@ -409,11 +344,11 @@ stc <- function(data, link = NULL, conf_level = 0.95) {
     conf_level = conf_level,
     family = "poisson",
     link = link_resolved,
+    population = "comparator",
     rate_hat_index = rate_hat_A,
     rate_hat_index_se = sqrt(var_rate_A),
     rate_comparator = rate_B,
     rate_comparator_se = sqrt(rate_B / exposure_B),
-    rate_hat_index_index = rate_hat_A_index,
     events_comparator = events_B,
     exposure_comparator = exposure_B,
     events_comparator_adjusted = events_B_adjusted,

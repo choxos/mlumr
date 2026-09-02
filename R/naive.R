@@ -53,28 +53,48 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
 
   n_index <- nrow(ipd)
   n_comparator <- sum(agd$.n)
-  p_index <- bound_probability(mean(ipd$.outcome), n_index)
-  p_comparator <- bound_probability(sum(agd$.r) / n_comparator, n_comparator)
+  # The reported rate is the observed proportion. The continuity correction is
+  # applied only inside the effect calculation, so a zero-event arm is still
+  # reported as zero events rather than as its corrected surrogate.
+  p_index <- mean(ipd$.outcome)
+  p_comparator <- sum(agd$.r) / n_comparator
+  p_index_effect <- bound_probability(p_index, n_index)
+  p_comparator_effect <- bound_probability(p_comparator, n_comparator)
 
-  estimate <- link_fun(p_index, link_resolved) -
-    link_fun(p_comparator, link_resolved)
-  se <- sqrt(
-    binomial_link_variance(p_index, n_index, link_resolved) +
-      binomial_link_variance(p_comparator, n_comparator, link_resolved)
-  )
+  estimate <- link_fun(p_index_effect, link_resolved) -
+    link_fun(p_comparator_effect, link_resolved)
 
   p_index_se <- sqrt(p_index * (1 - p_index) / n_index)
-  p_comparator_se <- sqrt(p_comparator * (1 - p_comparator) / n_comparator)
+  # Several aggregate rows are strata of one comparator population, not one
+  # binomial sample of size sum(n). The variance of their size-weighted average
+  # proportion is sum(w_k^2 p_k (1 - p_k) / n_k), propagated to the link scale
+  # by the delta method. Both reduce to the previous single-sample formulas when
+  # there is one row.
+  row_p <- agd$.r / agd$.n
+  row_w <- .normalize_weights(agd$.n)
+  var_p_comparator <- sum(row_w^2 * row_p * (1 - row_p) / agd$.n)
+  row_p_effect <- bound_probability(row_p, agd$.n)
+  var_p_comparator_effect <- sum(
+    row_w^2 * row_p_effect * (1 - row_p_effect) / agd$.n
+  )
+  var_link_index <- binomial_link_variance(
+    p_index_effect, n_index, link_resolved
+  )
+  var_link_comparator <- link_derivative_response(
+    p_comparator_effect, link_resolved
+  )^2 * var_p_comparator_effect
+  se <- sqrt(var_link_index + var_link_comparator)
+  p_comparator_se <- sqrt(var_p_comparator)
   p_index_ci <- .bounded_wald_interval(p_index, p_index_se, z,
                                        lower = 0, upper = 1)
   p_comparator_ci <- .bounded_wald_interval(p_comparator, p_comparator_se, z,
                                             lower = 0, upper = 1)
   rd <- p_index - p_comparator
   rd_se <- sqrt(p_index_se^2 + p_comparator_se^2)
-  log_rr <- log(p_index) - log(p_comparator)
+  log_rr <- log(p_index_effect) - log(p_comparator_effect)
   log_rr_se <- sqrt(
-    (1 - p_index) / (n_index * p_index) +
-      (1 - p_comparator) / (n_comparator * p_comparator)
+    (1 - p_index_effect) / (n_index * p_index_effect) +
+      var_p_comparator_effect / p_comparator_effect^2
   )
 
   list(
