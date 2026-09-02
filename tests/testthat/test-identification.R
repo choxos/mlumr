@@ -225,3 +225,18 @@ test_that("a single row comes back centered and scaled, as documented", {
   expect_equal(as.numeric(g$means), 0)
   expect_equal(g$spread, 0)
 })
+
+# ---- identifying the estimand is not identifying the coefficients ----------
+
+test_that("a target profile inside the aggregate row space is reported", {
+  # One aggregate row whose covariate means equal the IPD means identifies
+  # mu_c + m_ipd' beta_c exactly, while separating neither term.
+  expect_true(mlumr:::.target_in_span(matrix(0.5, ncol = 1), 0.5, 1))
+  expect_false(mlumr:::.target_in_span(matrix(0.5, ncol = 1), 0.7, 1))
+  # Two rows that differ span every functional of a one-covariate comparator.
+  expect_true(mlumr:::.target_in_span(matrix(c(0.2, 0.8), ncol = 1), 0.55, 1))
+  # Two covariates, one row: only that row's own profile is pinned down.
+  one <- matrix(c(0.5, 0.5), nrow = 1)
+  expect_true(mlumr:::.target_in_span(one, c(0.5, 0.5), c(1, 1)))
+  expect_false(mlumr:::.target_in_span(one, c(0.5, 0.9), c(1, 1)))
+})

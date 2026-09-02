@@ -21,7 +21,8 @@ Invisibly, a list with \code{n_rows} (aggregate rows), \code{n_distinct}
 ratio of the squared singular-value spectrum, which summarizes how evenly
 the spectral variation is spread across directions; it is not a count of
 identified coefficients), \code{spread}, \code{singular_values}, \code{means} (the scaled, centered
-subgroup mean matrix), \code{diagnostic_scope}, and \code{flagged}: \code{TRUE} for too
+subgroup mean matrix), \code{diagnostic_scope}, \code{target_in_span},
+and \code{flagged}: \code{TRUE} for too
 few rows, otherwise the identity-link screen result, or \code{NA} when nonlinear
 mean-profile geometry is descriptive only.
 }
@@ -62,6 +63,15 @@ profiles from their center along the dominant direction, in IPD standard
 deviations. Neither sees subgroup sample sizes or outcome precision, and a
 result above both cutoffs does not establish identification. Confirm
 conclusions with \code{\link[=prior_sensitivity]{prior_sensitivity()}}.
+
+Identifying every comparator coefficient is sufficient for identifying the
+index-population estimand, not necessary. Under an identity link that
+estimand is \verb{mu_c + m_ipd' beta_c}, one linear functional of the comparator
+parameters, and the aggregate rows pin down every functional in their row
+space. A single row whose covariate means equal the IPD means identifies it
+exactly while separating neither the intercept nor the slope.
+\code{target_in_span} reports that case, so a coefficient verdict is not read as
+one about the estimand.
 
 This diagnostic concerns \code{model = "relaxed"} only. Under SPFA both treatments
 share one coefficient vector, which the IPD identifies, so a single aggregate

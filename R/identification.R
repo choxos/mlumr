@@ -36,6 +36,15 @@
 #' result above both cutoffs does not establish identification. Confirm
 #' conclusions with [prior_sensitivity()].
 #'
+#' Identifying every comparator coefficient is sufficient for identifying the
+#' index-population estimand, not necessary. Under an identity link that
+#' estimand is `mu_c + m_ipd' beta_c`, one linear functional of the comparator
+#' parameters, and the aggregate rows pin down every functional in their row
+#' space. A single row whose covariate means equal the IPD means identifies it
+#' exactly while separating neither the intercept nor the slope.
+#' `target_in_span` reports that case, so a coefficient verdict is not read as
+#' one about the estimand.
+#'
 #' This diagnostic concerns `model = "relaxed"` only. Under SPFA both treatments
 #' share one coefficient vector, which the IPD identifies, so a single aggregate
 #' row is not a problem.
@@ -51,7 +60,8 @@
 #'   ratio of the squared singular-value spectrum, which summarizes how evenly
 #'   the spectral variation is spread across directions; it is not a count of
 #'   identified coefficients), `spread`, `singular_values`, `means` (the scaled, centered
-#'   subgroup mean matrix), `diagnostic_scope`, and `flagged`: `TRUE` for too
+#'   subgroup mean matrix), `diagnostic_scope`, `target_in_span`,
+#'   and `flagged`: `TRUE` for too
 #'   few rows, otherwise the identity-link screen result, or `NA` when nonlinear
 #'   mean-profile geometry is descriptive only.
 #'
@@ -109,6 +119,13 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
     "identity"
   } else {
     "descriptive"
+  }
+  out$target_in_span <- if (out$diagnostic_scope == "identity") {
+    .target_in_span(means, colMeans(as.matrix(data$ipd$data[, covs,
+                                                            drop = FALSE])),
+                    ref_sd)
+  } else {
+    NA
   }
   out$flagged <- if (out$n_distinct < out$n_rows_needed) {
     TRUE
@@ -195,6 +212,40 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
        spread = max(d) / sqrt(nrow(M)),
        singular_values = d,
        means = M)
+}
+
+
+#' Does the target covariate profile lie in the aggregate row space?
+#'
+#' Identifying every comparator coefficient is sufficient for identifying the
+#' index-population estimand, not necessary. Under an identity link that
+#' estimand is `mu_c + m_ipd' beta_c`, one linear functional of the comparator
+#' parameters, and the aggregate rows pin down every functional in their row
+#' space. One aggregate row whose covariate means happen to equal the IPD means
+#' identifies it exactly while separating neither the intercept nor the slope.
+#'
+#' @param profiles Aggregate subgroup mean matrix, rows by covariates.
+#' @param target The target population's covariate means.
+#' @param ref_sd Reference SD per covariate, to condition the comparison.
+#' @return `TRUE`, `FALSE`, or `NA` when it cannot be determined.
+#' @keywords internal
+.target_in_span <- function(profiles, target, ref_sd) {
+  A <- as.matrix(profiles)
+  b <- as.numeric(target)
+  if (!nrow(A) || length(b) != ncol(A)) return(NA)
+  ref_sd <- as.numeric(ref_sd)
+  ref_sd[!is.finite(ref_sd) | ref_sd <= 0] <- 1
+  A <- cbind(1, sweep(A, 2, ref_sd, "/"))
+  b <- c(1, b / ref_sd)
+  if (any(!is.finite(A)) || any(!is.finite(b))) return(NA)
+  # b is a linear combination of the rows of A exactly when t(A) w = b is
+  # solvable. Take the least-squares solution and read the residual: a
+  # rank-deficient system gives NA coefficients, which contribute nothing.
+  qr_at <- qr(t(A))
+  w <- qr.coef(qr_at, b)
+  w[is.na(w)] <- 0
+  resid <- b - drop(t(A) %*% w)
+  max(abs(resid)) <= 1e-8 * max(1, max(abs(b)))
 }
 
 
@@ -319,7 +370,14 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
         "coefficient posterior and prior_sensitivity().\n", sep = "")
   }
 
-  if (isTRUE(x$flagged)) {
+  if (isTRUE(x$flagged) && isTRUE(x$target_in_span)) {
+    cat("\nThe index-population estimand is nonetheless identified. Under an ",
+        "identity link it is one linear functional of the comparator ",
+        "parameters, and the target covariate profile lies in the row space ",
+        "of the aggregate design, so the rows pin it down even where they do ",
+        "not separate the coefficients individually. Statements about ",
+        "individual coefficients remain prior-driven.\n", sep = "")
+  } else if (isTRUE(x$flagged)) {
     cat("\nThe index-population relaxed estimand averages `beta_comparator` ",
         "over the IPD covariates, so it depends on exactly the directions that ",
         "are weak here. Do not substitute the comparator population for the ",
