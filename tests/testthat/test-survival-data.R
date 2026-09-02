@@ -398,3 +398,26 @@ test_that("one arm label cannot cover two studies or two treatments", {
   expect_equal(got$n_arms, 1L)
   expect_equal(got$data$.study, "S1")
 })
+
+test_that("survival data prints as survival data", {
+  # Survival was given a family label and then fell through to the Poisson
+  # branches, which read fields it does not have. sprintf("%d", NULL) is
+  # character(0), so the IPD event line printed nothing; sum(NULL) is 0, so the
+  # comparator reported "Total exposure = 0.0" for a quantity a reconstructed
+  # curve does not have. The existing test matched only "Time-to-event", which
+  # the broken output also satisfied.
+  ipd <- set_ipd(data.frame(trt = "A", x = c(1, 2, 3), t = c(5, 6, 7),
+                            s = c(1, 1, 0)),
+                 "trt", covariates = "x", family = "survival",
+                 time = "t", status = "s")
+  agd <- set_agd_surv(data.frame(trt = "B", t = c(4, 6, 8, 9),
+                                 s = c(1, 1, 1, 0), x_mean = 0.5),
+                      "trt", time = "t", status = "s", cov_means = "x_mean")
+  out <- paste(capture.output(print(combine_data(ipd, agd))), collapse = "\n")
+
+  expect_match(out, "Time-to-event")
+  expect_match(out, "Events = 2 \\(66\\.7%\\), censored = 1")
+  expect_match(out, "Reconstructed pseudo-IPD: 4 row")
+  expect_match(out, "Events = 3 \\(75\\.0%\\), censored = 1")
+  expect_false(grepl("exposure", out, ignore.case = TRUE))
+})

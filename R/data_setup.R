@@ -946,6 +946,14 @@ print.mlumr_data <- function(x, ...) {
   } else if (family == "normal") {
     cat(sprintf("  Mean outcome = %.3f (SD = %.3f)\n\n",
                 x$ipd$mean_outcome, x$ipd$sd_outcome))
+  } else if (family == "survival") {
+    # Survival was given a family label and then left to fall through to the
+    # Poisson branch, which reads fields it does not have. x$ipd$total_events
+    # is NULL, and sprintf("%d", NULL) is character(0), so the event line
+    # printed nothing at all.
+    cat(sprintf("  Events = %d (%.1f%%), censored = %d\n\n",
+                x$ipd$n_events, 100 * x$ipd$n_events / x$ipd$n,
+                x$ipd$n - x$ipd$n_events))
   } else {
     cat(sprintf("  Total events = %d, Total exposure = %.1f\n\n",
                 x$ipd$total_events, x$ipd$total_exposure))
@@ -961,6 +969,13 @@ print.mlumr_data <- function(x, ...) {
     cat(sprintf("  Mean outcome = %s, SE = %s\n\n",
                 paste(round(x$agd$y, 3), collapse = ", "),
                 paste(round(x$agd$se, 3), collapse = ", ")))
+  } else if (family == "survival") {
+    # And here sum(NULL) is 0, so the comparator arm reported a fabricated
+    # "Total exposure = 0.0" that no reconstructed curve ever had.
+    cat(sprintf("  Reconstructed pseudo-IPD: %d row(s)\n", x$agd$n_pseudo))
+    cat(sprintf("  Events = %d (%.1f%%), censored = %d\n\n",
+                x$agd$n_events, 100 * x$agd$n_events / x$agd$n_pseudo,
+                x$agd$n_pseudo - x$agd$n_events))
   } else {
     cat(sprintf("  Total events = %d, Total exposure = %.1f\n\n",
                 sum(x$agd$n_events), sum(x$agd$total_exposure)))
