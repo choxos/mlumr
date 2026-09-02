@@ -1,5 +1,27 @@
 # Tests for link function utilities
 
+test_that("bound_probability corrects only exact boundaries", {
+  expect_equal(bound_probability(0.02, 40), 0.02)
+  expect_equal(bound_probability(0, 40), 0.5 / 41)
+  expect_equal(bound_probability(1, 40), 40.5 / 41)
+  # Out of range is an upstream construction error, not a boundary arm.
+  expect_error(bound_probability(-0.1, 40), "must lie in")
+  expect_error(bound_probability(1.1, 40), "must lie in")
+  expect_true(is.na(bound_probability(NA_real_, 40)))
+})
+
+
+test_that("weighted log mean exp ignores zero-weight entries", {
+  # log(0) is -Inf, and Inf + -Inf is NaN, which would poison the maximum.
+  expect_equal(mlumr:::.weighted_log_mean_exp(c(Inf, 0), c(0, 1)), 0)
+  expect_equal(mlumr:::.weighted_log_mean_exp(c(5, 3), c(0, 2)), 3)
+  expect_equal(
+    mlumr:::.weighted_log_mean_exp(c(2, 3), c(1, 1)),
+    mlumr:::.weighted_log_mean_exp(c(2, 3, 9), c(1, 1, 0))
+  )
+})
+
+
 test_that("bound_probability recycles p and n to a common length", {
   # ifelse() sizes its result by the test, so a scalar p with a vector n
   # silently returned one value instead of one per n.
