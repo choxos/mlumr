@@ -1,5 +1,8 @@
 // ML-UMR: Count outcomes with SPFA
-// Poisson likelihood with shared prognostic factors
+// Poisson likelihood with shared prognostic factors.
+// The (intercepts + covariates) design is supplied as `Xq_*` (raw centered
+// design when qr = 0, scaled thin-QR factor Q when qr = 1); coefficients are
+// recovered as `allbeta = R_inv * beta_tilde`. See R/mlumr.R (.mlumr_qr_design()) for the centering and QR design construction.
 
 functions {
 #include include/priors_functions.stan
@@ -11,19 +14,26 @@ data {
   int<lower=0> n_ipd;
   array[n_ipd] int<lower=0> y_ipd;
   // Exposure is a log offset in the IPD likelihood.
-  vector<lower=1e-12>[n_ipd] E_ipd;
+  vector<lower=0>[n_ipd] E_ipd;
   int<lower=1> n_cov;
-  matrix[n_ipd, n_cov] X_ipd;
+  matrix[n_ipd, n_cov] X_ipd;            // centered covariates (generated quantities)
 
   // AgD (Comparator treatment)
   int<lower=1> n_agd_rows;
   array[n_agd_rows] int<lower=0> r_agd;
   // AgD exposure scales the marginal rate into an expected total count.
-  array[n_agd_rows] real<lower=1e-12> E_agd;
+  array[n_agd_rows] real<lower=0> E_agd;
 
   // Integration points for AgD
   int<lower=1> n_int;
-  array[n_agd_rows] matrix[n_int, n_cov] X_int;
+  array[n_agd_rows] matrix[n_int, n_cov] X_int;   // centered covariates (gen. quantities)
+
+  // Combined (intercepts + covariates) design and optional QR reparameterization.
+  int<lower=0,upper=1> qr;               // 1 = sample on the QR scale
+  int<lower=1> nB;                       // design columns = 2 + n_cov
+  matrix[n_ipd, nB] Xq_ipd;             // design for IPD rows (Q if qr = 1)
+  array[n_agd_rows] matrix[n_int, nB] Xq_int;     // design for AgD integration rows
+  matrix[nB, nB] R_inv;                  // R^{-1} (identity when qr = 0)
 
 #include include/priors_hyperparameters.stan
 
@@ -31,41 +41,41 @@ data {
 }
 
 parameters {
-  real mu_index;
-  real mu_comparator;
-  // Affine (non-centered) reparameterization: see priors_functions.stan.
-  vector[n_cov] z_beta;
+  // Combined coefficients on the (QR) sampling scale: [mu_index, mu_comparator, beta].
+  vector[nB] beta_tilde;
 }
 
 transformed parameters {
-  // SPFA uses one prognostic coefficient vector for both treatments.
-  // NOTE: SPFA imposes a shared beta across treatments.
-  // Use the relaxed model as a sensitivity analysis if effect modification is plausible.
-  vector[n_cov] beta = prior_beta_mean + prior_beta_sd .* z_beta;
-  vector[n_ipd] log_lambda_ipd;
-
-  // IPD log-rate
-  log_lambda_ipd = mu_index + X_ipd * beta + log(E_ipd);
+  // Recover original-scale coefficients (affine map, no Jacobian needed).
+  vector[nB] allbeta = qr ? R_inv * beta_tilde : beta_tilde;
+  real mu_index = allbeta[1];
+  real mu_comparator = allbeta[2];
+  vector[n_cov] beta = segment(allbeta, 3, n_cov);
+  // IPD log-rate: linear predictor via the (possibly QR-rotated) design + offset.
+  vector[n_ipd] log_lambda_ipd = Xq_ipd * beta_tilde + log(E_ipd);
 }
 
 model {
-  // Priors (dispatched on dist code)
+  // Priors on the original-scale parameters.
   target += log_prior_scalar(mu_index, prior_intercept_mean, prior_intercept_sd,
                              prior_intercept_dist, prior_intercept_df);
   target += log_prior_scalar(mu_comparator, prior_intercept_mean, prior_intercept_sd,
                              prior_intercept_dist, prior_intercept_df);
-  target += log_prior_std_vector(z_beta, prior_beta_dist, prior_beta_df);
+  target += log_prior_vector(beta, prior_beta_mean, prior_beta_sd,
+                             prior_beta_dist, prior_beta_df);
 
-  // IPD likelihood
-  y_ipd ~ poisson_log(log_lambda_ipd);
+  // IPD likelihood. Keep the fused GLM for the (default) non-QR path; the
+  // log-exposure offset enters as a per-observation intercept.
+  if (qr)
+    y_ipd ~ poisson_log(log_lambda_ipd);
+  else
+    y_ipd ~ poisson_log_glm(X_ipd, mu_index + log(E_ipd), beta);
 
   // AgD likelihood for total counts after marginalizing over covariates.
   for (k in 1:n_agd_rows) {
-    // AgD log-rate (integrated over covariate distribution) - vectorized with log-sum-exp
-    vector[n_int] log_lambda_agd_int = mu_comparator + X_int[k] * beta;
-    // AgD log-rate integrated over the covariate distribution: log-sum-exp stable.
+    // AgD log-rate (integrated over covariate distribution) - log-sum-exp stable.
+    vector[n_int] log_lambda_agd_int = Xq_int[k] * beta_tilde;
     real log_lambda_agd_bar = log(E_agd[k]) + log_sum_exp(log_lambda_agd_int) - log(n_int);
-
     r_agd[k] ~ poisson_log(log_lambda_agd_bar);
   }
 }
