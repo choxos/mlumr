@@ -50,9 +50,8 @@
 #'   [mlumr()] when one was supplied; when it was left `NULL` it is the default,
 #'   which for a study-stratified flexible baseline is the follow-up both
 #'   studies observed rather than the pooled maximum.
-#'   Plot methods ([plot.mlumr_prediction()]) require
-#'   `summary = TRUE`; with `summary = FALSE` the raw posterior draws are
-#'   returned as a plain data frame.
+#'   The plot methods require `summary = TRUE`; with `summary = FALSE` the raw
+#'   posterior draws are returned as a plain data frame.
 #' @seealso [marginal_effects()] for treatment-effect summaries;
 #'   [conditional_predict()] and [conditional_effects()] for predictions
 #'   at specific covariate profiles.
@@ -211,7 +210,7 @@ predict.mlumr_fit <- function(object,
           log(as.matrix(draws[, cols_c, drop = FALSE]))
       }
       if (!summary) {
-        colnames(lhr) <- sprintf("t_%g", pred_times[sel])
+        colnames(lhr) <- sprintf("t_%.15g", pred_times[sel])
         return(data.frame(population = pop_label(pop), lhr,
                           check.names = FALSE))
       }
@@ -226,6 +225,17 @@ predict.mlumr_fit <- function(object,
 
   # Scalar summaries (RMST, median): one row per treatment x population.
   if (type %in% c("rmst", "median")) {
+    # `times` selects points on a curve. RMST is an integral to the fitted
+    # horizon and the median is read off the whole fitted grid, so neither
+    # consults it. Silently ignoring it let a caller believe they had changed
+    # the horizon or extended the search for S = 0.5 when they had not.
+    if (!is.null(times)) {
+      stop("`times` selects points on a predicted curve, but `type = \"", type,
+           "\"` is a scalar summary of the whole fitted grid and does not use ",
+           "it. RMST integrates to the horizon fixed at fit time, and the ",
+           "median is searched over `pred_times`; change either by refitting.",
+           call. = FALSE)
+    }
     rows <- lapply(seq_len(nrow(cells)), function(i) {
       if (type == "rmst") {
         col <- sprintf("rmst_%s_%s", cells$trt[i], cells$pop[i])
@@ -303,7 +313,7 @@ predict.mlumr_fit <- function(object,
     .require_draw_columns(draws, cols, "survival prediction")
     smat <- as.matrix(draws[, cols, drop = FALSE])
     if (!summary) {
-      colnames(smat) <- sprintf("t_%g", pred_times[sel])
+      colnames(smat) <- sprintf("t_%.15g", pred_times[sel])
       df <- data.frame(treatment = trt_label(cells$trt[i]),
                        population = pop_label(cells$pop[i]),
                        smat, check.names = FALSE)
@@ -449,8 +459,9 @@ predict.mlumr_fit <- function(object,
     "Median survival: up to %.0f%% of posterior draws never reach S = 0.5 on ",
     "the prediction grid (median not reached). The reported mean/SD/quantiles ",
     "are conditional on the median being reached; see the `p_not_reached` ",
-    "column, extend `times` / `pred_times`, or inspect the `summary = FALSE` ",
-    "draws (NA = not reached). Suppress with ",
+    "column, refit with an extended `pred_times` grid (the median is searched ",
+    "over the fitted grid, so `times` does not affect it), or inspect the ",
+    "`summary = FALSE` draws (NA = not reached). Suppress with ",
     "`options(mlumr.quiet_median_not_reached = TRUE)`."
   )
   message(sprintf(msg, 100 * max_p))
@@ -639,6 +650,25 @@ marginal_effects <- function(object,
   effect <- .validate_effect_choice(effect)
   summary <- .validate_summary_flag(summary)
   .validate_probs(probs)
+
+  # `at_time` selects the evaluation time of the scalar marginal hazard ratio.
+  # It means nothing for a family with no time axis, and nothing for an effect
+  # that is an integral to a horizon rather than a value at an instant. Both
+  # were silently ignored, and the RMST case additionally emitted the
+  # "using the nearest fitted time" message, which reads as though the number
+  # reported were taken at that time. Refuse instead of implying it.
+  if (!is.null(at_time)) {
+    if (!identical(object$family %||% "binomial", "survival")) {
+      stop("`at_time` applies to the scalar marginal hazard ratio of a ",
+           "survival fit. Family '", object$family %||% "binomial",
+           "' has no time axis.", call. = FALSE)
+    }
+    if (!effect %in% c("all", "hr", "tr", "exp_delta_eta")) {
+      stop("`at_time` applies to the scalar marginal hazard ratio, not to ",
+           "`effect = \"", effect, "\"`, which is an integral to the RMST ",
+           "horizon rather than a value at one time.", call. = FALSE)
+    }
+  }
 
   # Relaxed-model index-population: beta_comparator is identified only by the
   # AgD likelihood, so averaging it over the IPD covariate distribution

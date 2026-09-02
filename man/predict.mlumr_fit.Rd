@@ -55,9 +55,8 @@ the one actually integrated to. That is the \code{rmst_horizon} given to
 \code{\link[=mlumr]{mlumr()}} when one was supplied; when it was left \code{NULL} it is the default,
 which for a study-stratified flexible baseline is the follow-up both
 studies observed rather than the pooled maximum.
-Plot methods (\code{\link[=plot.mlumr_prediction]{plot.mlumr_prediction()}}) require
-\code{summary = TRUE}; with \code{summary = FALSE} the raw posterior draws are
-returned as a plain data frame.
+The plot methods require \code{summary = TRUE}; with \code{summary = FALSE} the raw
+posterior draws are returned as a plain data frame.
 }
 \description{
 Generate population-average absolute-outcome predictions in the index and
