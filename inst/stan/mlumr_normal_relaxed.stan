@@ -20,6 +20,8 @@ data {
   // y_agd and se_agd must be on the original outcome scale.
   int<lower=1> n_agd_rows;
   array[n_agd_rows] real y_agd;
+  // set_agd() rejects a non-positive standard error, so the normal density
+  // below never sees a zero scale.
   array[n_agd_rows] real<lower=0> se_agd;
 
   // Integration points for AgD
@@ -44,7 +46,9 @@ parameters {
   // Combined coefficients on the (QR) sampling scale:
   // [mu_index, mu_comparator, beta_index, beta_comparator].
   vector[nB] beta_tilde;
-  // Note: beta_comparator is identified only through AgD data.
+  // Note: beta_comparator is identified only through AgD data. With sparse
+  // aggregate evidence, regularize it with an informative prior_beta or use
+  // model = "spfa", which shares one coefficient vector across treatments.
   real<lower=0> sigma;
 }
 

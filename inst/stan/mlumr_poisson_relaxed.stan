@@ -13,7 +13,8 @@ data {
   // IPD (Index treatment)
   int<lower=0> n_ipd;
   array[n_ipd] int<lower=0> y_ipd;
-  // Exposure is a log offset in the IPD likelihood.
+  // Exposure is a log offset in the IPD likelihood. set_ipd() rejects a
+  // non-positive exposure, so log(E_ipd) is always finite here.
   vector<lower=0>[n_ipd] E_ipd;
   int<lower=1> n_cov;
   matrix[n_ipd, n_cov] X_ipd;            // centered covariates (generated quantities)
@@ -22,6 +23,7 @@ data {
   int<lower=1> n_agd_rows;
   array[n_agd_rows] int<lower=0> r_agd;
   // AgD exposure scales the marginal rate into an expected total count.
+  // set_agd() rejects a non-positive exposure, so log(E_agd) is finite.
   array[n_agd_rows] real<lower=0> E_agd;
 
   // Integration points for AgD
@@ -44,7 +46,9 @@ parameters {
   // Combined coefficients on the (QR) sampling scale:
   // [mu_index, mu_comparator, beta_index, beta_comparator].
   vector[nB] beta_tilde;
-  // Note: beta_comparator is identified only through AgD data.
+  // Note: beta_comparator is identified only through AgD data. With sparse
+  // aggregate evidence, regularize it with an informative prior_beta or use
+  // model = "spfa", which shares one coefficient vector across treatments.
 }
 
 transformed parameters {
