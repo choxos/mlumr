@@ -249,7 +249,10 @@
     covariates = covariates,
     family = "survival",
     type = "ipd",
-    n_events = sum(ipd_data$.status == 1L)
+    # Statuses 2 and 3 are left- and interval-censored failures: the event is
+    # known to have occurred, only its time is not. Counting status 1 alone
+    # reported n_events = 0 for a fully interval-censored arm.
+    n_events = sum(ipd_data$.status != 0L)
   )
   class(out) <- c("mlumr_ipd", "list")
   out
@@ -378,7 +381,7 @@ set_agd_surv <- function(data, treatment, Surv = NULL,
     type = "agd",
     n_arms = length(arms),
     n_pseudo = nrow(pseudo_ipd),
-    n_events = sum(pseudo_ipd$.status == 1L)
+    n_events = sum(pseudo_ipd$.status != 0L)
   )
   class(out) <- c("mlumr_agd_surv", "mlumr_agd", "list")
   out

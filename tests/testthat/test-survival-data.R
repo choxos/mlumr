@@ -327,3 +327,22 @@ test_that("a factor entry time is refused on the Surv route too", {
                  Surv = sv, entry_time = "entry")
   expect_equal(got$data$.delay_time, c(0, 10))
 })
+
+test_that("n_events counts every failure, not only the exactly observed ones", {
+  # Status codes are 0 right-censored, 1 exact, 2 left-censored, 3 interval-
+  # censored. Only 0 is a non-event: for 2 and 3 the failure is known to have
+  # happened and only its time is not. Counting status 1 alone reported
+  # n_events = 0 for a fully interval-censored arm.
+  df <- data.frame(trt = "A", x = c(1, 2))
+  iv <- survival::Surv(c(2, 4), c(5, 7), type = "interval2")
+  expect_equal(set_ipd(df, "trt", covariates = "x", family = "survival",
+                       Surv = iv)$n_events, 2L)
+  # Right-censored rows are still not events.
+  rc <- survival::Surv(c(5, 6), c(1, 0))
+  expect_equal(set_ipd(df, "trt", covariates = "x", family = "survival",
+                       Surv = rc)$n_events, 1L)
+  # And the same holds for the reconstructed comparator arm.
+  ad <- data.frame(trt = "B", x_mean = 0.5)[rep(1, 2), ]
+  agd <- set_agd_surv(ad, "trt", Surv = iv, cov_means = "x_mean")
+  expect_equal(agd$n_events, 2L)
+})
