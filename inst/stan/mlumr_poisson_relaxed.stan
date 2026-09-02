@@ -67,7 +67,7 @@ model {
   for (k in 1:n_agd_rows) {
     // AgD log-rate (integrated over covariate distribution) - vectorized with log-sum-exp
     vector[n_int] log_lambda_agd_int = mu_comparator + X_int[k] * beta_comparator;
-    // Use log-sum-exp to avoid overflow: log(mean(exp(x))) = log_sum_exp(x) - log(n)
+    // AgD log-rate integrated over the covariate distribution: log-sum-exp stable.
     real log_lambda_agd_bar = log(E_agd[k]) + log_sum_exp(log_lambda_agd_int) - log(n_int);
 
     r_agd[k] ~ poisson_log(log_lambda_agd_bar);
@@ -84,6 +84,10 @@ generated quantities {
   real rate_comparator_index;
   real rate_index_comparator;
   real rate_comparator_comparator;
+  real log_rate_index_index;
+  real log_rate_comparator_index;
+  real log_rate_index_comparator;
+  real log_rate_comparator_comparator;
 
   // Effect modification parameters (difference in regression coefficients)
   vector[n_cov] delta_beta;
@@ -95,37 +99,36 @@ generated quantities {
 
   // Marginal predictions in index population - vectorized
   {
-    vector[n_ipd] rate_index_vec = exp(mu_index + X_ipd * beta_index);
-    vector[n_ipd] rate_comparator_vec = exp(mu_comparator + X_ipd * beta_comparator);
-
-    rate_index_index = mean(rate_index_vec);
-    rate_comparator_index = mean(rate_comparator_vec);
+    log_rate_index_index = log_mean_exp_vec(mu_index + X_ipd * beta_index);
+    log_rate_comparator_index = log_mean_exp_vec(mu_comparator + X_ipd * beta_comparator);
+    rate_index_index = exp(log_rate_index_index);
+    rate_comparator_index = exp(log_rate_comparator_index);
   }
 
   // Marginal predictions in comparator population - vectorized
   {
-    real rate_index_sum_E = 0;
-    real rate_comparator_sum_E = 0;
-    real total_E = 0;
+    vector[n_agd_rows] log_rate_index_row;
+    vector[n_agd_rows] log_rate_comparator_row;
+    vector[n_agd_rows] exposure;
 
     for (k in 1:n_agd_rows) {
-      vector[n_int] rate_idx_k = exp(mu_index + X_int[k] * beta_index);
-      vector[n_int] rate_cmp_k = exp(mu_comparator + X_int[k] * beta_comparator);
-
-      // Weight by exposure E_agd[k]
-      rate_index_sum_E += mean(rate_idx_k) * E_agd[k];
-      rate_comparator_sum_E += mean(rate_cmp_k) * E_agd[k];
-      total_E += E_agd[k];
+      log_rate_index_row[k] = log_mean_exp_vec(mu_index + X_int[k] * beta_index);
+      log_rate_comparator_row[k] = log_mean_exp_vec(
+        mu_comparator + X_int[k] * beta_comparator);
+      exposure[k] = E_agd[k];
     }
 
-    rate_index_comparator = rate_index_sum_E / total_E;
-    rate_comparator_comparator = rate_comparator_sum_E / total_E;
+    log_rate_index_comparator = log_weighted_mean_exp_vec(log_rate_index_row,
+                                                          exposure);
+    log_rate_comparator_comparator = log_weighted_mean_exp_vec(
+      log_rate_comparator_row, exposure);
+    rate_index_comparator = exp(log_rate_index_comparator);
+    rate_comparator_comparator = exp(log_rate_comparator_comparator);
   }
 
-  // Rate ratio via safe_divide: clips denominator to 1e-10. For near-zero
-  // comparator rates, the ratio will be artificially large rather than undefined.
-  delta_index = safe_divide(rate_index_index, rate_comparator_index);
-  delta_comparator = safe_divide(rate_index_comparator, rate_comparator_comparator);
+  delta_index = exp(log_rate_index_index - log_rate_comparator_index);
+  delta_comparator = exp(log_rate_index_comparator -
+                         log_rate_comparator_comparator);
 
   // Calculate effect modification
   delta_beta = beta_index - beta_comparator;

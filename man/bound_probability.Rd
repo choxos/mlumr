@@ -2,11 +2,13 @@
 % Please edit documentation in R/link_functions.R
 \name{bound_probability}
 \alias{bound_probability}
-\title{Bound probabilities away from 0 and 1}
+\title{Apply a boundary-only binomial continuity correction}
 \usage{
 bound_probability(p, n, min_count = 0.5)
 }
 \description{
-Bound probabilities away from 0 and 1
+At zero or all events, uses the pseudo-count estimate
+\code{(r + min_count) / (n + 2 * min_count)}. Interior probabilities are
+unchanged.
 }
 \keyword{internal}

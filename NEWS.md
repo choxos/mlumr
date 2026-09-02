@@ -1,5 +1,54 @@
 # mlumr 0.1.0.9000 (development version)
 
+## Behavior and validation changes to existing functions
+
+* **Marginal summaries are no longer clipped to finite reporting bounds.** The
+  Stan models previously passed marginal probabilities through `safe_logit()`
+  (clamping to `[1e-10, 1 - 1e-10]`) and ratios through `safe_divide()`
+  (flooring the denominator at `1e-10`). Both helpers are gone. Event and
+  non-event probabilities, marginal means, and rates are now formed on the log
+  scale and the contrasts are built from those logs, so the reported quantity is
+  the mathematical one rather than a finite surrogate. Two consequences: the
+  likelihood is no longer biased by a clamp at extreme linear predictors, and
+  ratios are no longer biased downward. The old `safe_divide()` substituted a
+  denominator LARGER than the true one, so a risk ratio or rate ratio with a
+  near-zero comparator was systematically understated; the log-scale contrast
+  reports it. Working on the log scale also removes most of what used to trigger
+  the clip in the first place, because a marginal probability is no longer
+  rounded to 0 or 1 before the contrast is taken: `lor_*` is finite in cases
+  where `safe_logit()` previously returned its clip boundary. What remains is
+  that a ratio whose true value overflows double precision is now `Inf` rather
+  than a large finite surrogate. That needs only a finite log contrast above
+  `log(.Machine$double.xmax)`, about 709.78, not an infinite linear predictor.
+  Read the log-scale generated quantities when it happens.
+  See `?mlumr-numerical-evaluation`.
+
+* **`predict(type = "link")` reports the marginal link, not the mean linear
+  predictor.** It previously returned `E[eta]`, the average conditional linear
+  predictor. It now returns `g(E[g^-1(eta)])`: the fitted link applied to the
+  population-standardized response mean. Differencing two `type = "link"`
+  predictions therefore gives a contrast on the fitted link scale, which
+  reproduces a reported effect where the two scales coincide (a logit binomial
+  fit's `lor_*`) and needs a transformation elsewhere, since
+  `marginal_effects()` reports on the scale conventional for the family. The two
+  definitions of `type = "link"` agree for the identity link and differ for
+  logit, probit, cloglog, and log. This is a deliberate divergence from `multinma`, which keeps the two
+  apart: its `predict(type = "link")` returns `E[eta]`, and the marginal
+  link-scale contrast lives in `marginal_effects(mtype = "link")`. mlumr has no
+  conditional population estimand to pair `E[eta]` with, since every effect it
+  reports is standardized over a population, so it reports the marginal link
+  under the one name rather than offering two link scales that differ silently.
+
+* **Boundary probabilities use a continuity correction instead of a clamp.**
+  `bound_probability()` previously clamped every input into
+  `[min_count / n, 1 - min_count / n]`. It now leaves interior probabilities
+  untouched and replaces only an observed 0 or 1 with the pseudo-count estimate
+  `(r + min_count) / (n + 2 * min_count)`. For a zero-event arm with
+  `min_count = 0.5` that is `0.5 / (n + 1)` rather than `0.5 / n`, so the link
+  contrast, its standard error, and the risk ratio that `naive()` and `stc()`
+  report for a binomial arm with no events (or no non-events) change slightly.
+  Arms with events on both sides are unaffected.
+
 ## Package logo
 
 * **New hex-sticker logo** using a broken-anchor motif, for the unanchored

@@ -1,0 +1,135 @@
+ℹ Testing mlumr
+mlumr 0.2.0: Bayesian multilevel unanchored meta-regression. GitHub: https://github.com/choxos/mlumr
+✔ | F W  S  OK | Context
+
+⠏ |          0 | centering-invariance                                           
+⠙ |         12 | centering-invariance                                           
+✔ |         13 | centering-invariance
+
+⠏ |          0 | identification                                                 
+⠼ |         15 | identification                                                 
+✔ |         27 | identification
+
+⠏ |          0 | integration                                                    Added 32 integration points for AgD
+Computing correlation matrix from IPD...
+Added 64 integration points for AgD
+Computing correlation matrix from IPD...
+Added 64 integration points for AgD
+Added 64 integration points for AgD
+
+⠹ |         23 | integration                                                    Computing correlation matrix from IPD...
+Added 32 integration points for AgD
+Added 32 integration points for AgD
+Added 64 integration points for AgD
+Computing correlation matrix from IPD...
+Added 64 integration points for AgD
+
+⠋ |         41 | integration                                                    
+✔ |         51 | integration
+
+⠏ |          0 | mlumr-validation                                               
+⠸ |   6     18 | mlumr-validation                                               
+⠇ |   6     23 | mlumr-validation                                               
+⠧ |   6     42 | mlumr-validation                                               
+⠇ |   6     43 | mlumr-validation                                               
+⠏ |   6     44 | mlumr-validation                                               
+✔ |   6     47 | mlumr-validation
+────────────────────────────────────────────────────────────────────────────────
+Warning ('test-mlumr-validation.R:85:3'): check_diagnostics still warns on finite diagnostic problems
+3 iterations hit max treedepth. Consider increasing max_treedepth (currently 10).
+Backtrace:
+    ▆
+ 1. ├─testthat::expect_warning(check_diagnostics(fit), "divergent transitions") at test-mlumr-validation.R:85:3
+ 2. │ └─testthat:::expect_condition_matching_(...)
+ 3. │   └─testthat:::quasi_capture(...)
+ 4. │     ├─testthat (local) .capture(...)
+ 5. │     │ └─base::withCallingHandlers(...)
+ 6. │     └─rlang::eval_bare(quo_get_expr(.quo), quo_get_env(.quo))
+ 7. └─mlumr:::check_diagnostics(fit)
+
+Warning ('test-mlumr-validation.R:85:3'): check_diagnostics still warns on finite diagnostic problems
+Some Rhat values > 1.05 (max = 1.060). Chains have likely not converged.
+Backtrace:
+    ▆
+ 1. ├─testthat::expect_warning(check_diagnostics(fit), "divergent transitions") at test-mlumr-validation.R:85:3
+ 2. │ └─testthat:::expect_condition_matching_(...)
+ 3. │   └─testthat:::quasi_capture(...)
+ 4. │     ├─testthat (local) .capture(...)
+ 5. │     │ └─base::withCallingHandlers(...)
+ 6. │     └─rlang::eval_bare(quo_get_expr(.quo), quo_get_env(.quo))
+ 7. └─mlumr:::check_diagnostics(fit)
+
+Warning ('test-mlumr-validation.R:85:3'): check_diagnostics still warns on finite diagnostic problems
+Some ESS values < 400 (min = 100.0). Consider running more iterations.
+Backtrace:
+    ▆
+ 1. ├─testthat::expect_warning(check_diagnostics(fit), "divergent transitions") at test-mlumr-validation.R:85:3
+ 2. │ └─testthat:::expect_condition_matching_(...)
+ 3. │   └─testthat:::quasi_capture(...)
+ 4. │     ├─testthat (local) .capture(...)
+ 5. │     │ └─base::withCallingHandlers(...)
+ 6. │     └─rlang::eval_bare(quo_get_expr(.quo), quo_get_env(.quo))
+ 7. └─mlumr:::check_diagnostics(fit)
+
+Warning ('test-mlumr-validation.R:87:3'): check_diagnostics still warns on finite diagnostic problems
+Some Rhat values > 1.05 (max = 1.060). Chains have likely not converged.
+Backtrace:
+    ▆
+ 1. ├─testthat::expect_warning(check_diagnostics(fit), "max treedepth") at test-mlumr-validation.R:87:3
+ 2. │ └─testthat:::expect_condition_matching_(...)
+ 3. │   └─testthat:::quasi_capture(...)
+ 4. │     ├─testthat (local) .capture(...)
+ 5. │     │ └─base::withCallingHandlers(...)
+ 6. │     └─rlang::eval_bare(quo_get_expr(.quo), quo_get_env(.quo))
+ 7. └─mlumr:::check_diagnostics(fit)
+
+Warning ('test-mlumr-validation.R:87:3'): check_diagnostics still warns on finite diagnostic problems
+Some ESS values < 400 (min = 100.0). Consider running more iterations.
+Backtrace:
+    ▆
+ 1. ├─testthat::expect_warning(check_diagnostics(fit), "max treedepth") at test-mlumr-validation.R:87:3
+ 2. │ └─testthat:::expect_condition_matching_(...)
+ 3. │   └─testthat:::quasi_capture(...)
+ 4. │     ├─testthat (local) .capture(...)
+ 5. │     │ └─base::withCallingHandlers(...)
+ 6. │     └─rlang::eval_bare(quo_get_expr(.quo), quo_get_env(.quo))
+ 7. └─mlumr:::check_diagnostics(fit)
+
+Warning ('test-mlumr-validation.R:89:3'): check_diagnostics still warns on finite diagnostic problems
+Some ESS values < 400 (min = 100.0). Consider running more iterations.
+Backtrace:
+    ▆
+ 1. ├─testthat::expect_warning(check_diagnostics(fit), "Rhat values > 1.05") at test-mlumr-validation.R:89:3
+ 2. │ └─testthat:::expect_condition_matching_(...)
+ 3. │   └─testthat:::quasi_capture(...)
+ 4. │     ├─testthat (local) .capture(...)
+ 5. │     │ └─base::withCallingHandlers(...)
+ 6. │     └─rlang::eval_bare(quo_get_expr(.quo), quo_get_env(.quo))
+ 7. └─mlumr:::check_diagnostics(fit)
+────────────────────────────────────────────────────────────────────────────────
+
+⠏ |          0 | mspline-identification                                         
+⠇ |   1     18 | mspline-identification                                         
+✔ |   1     30 | mspline-identification
+────────────────────────────────────────────────────────────────────────────────
+Warning ('test-mspline-identification.R:105:5'): stratified survival fits build one basis per study
+Flexible-baseline prediction/RMST times extend beyond the largest time that study observed (4.198); the comparator study's baseline (its follow-up is the shorter one) is extrapolated as constant there, so extrapolated estimates are unreliable. Reduce `pred_times` / `rmst_horizon`.
+Backtrace:
+    ▆
+ 1. └─mlumr (local) build(2L) at test-mspline-identification.R:113:3
+ 2.   └─mlumr:::.build_stan_data_survival(...) at test-mspline-identification.R:105:5
+────────────────────────────────────────────────────────────────────────────────
+
+⠏ |          0 | prior_sensitivity                                              
+⠦ |          7 | prior_sensitivity                                              
+⠧ |         28 | prior_sensitivity                                              
+✔ |         45 | prior_sensitivity
+
+⠏ |          0 | priors                                                         
+⠦ |         17 | priors                                                         
+✔ |         22 | priors
+
+══ Results ═════════════════════════════════════════════════════════════════════
+Duration: 2.4 s
+
+[ FAIL 0 | WARN 7 | SKIP 0 | PASS 235 ]

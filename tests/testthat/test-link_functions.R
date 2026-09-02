@@ -1,5 +1,38 @@
 # Tests for link function utilities
 
+test_that("bound_probability corrects only exact boundaries", {
+  expect_equal(bound_probability(0.02, 40), 0.02)
+  expect_equal(bound_probability(0, 40), 0.5 / 41)
+  expect_equal(bound_probability(1, 40), 40.5 / 41)
+  # Out of range is an upstream construction error, not a boundary arm.
+  expect_error(bound_probability(-0.1, 40), "must lie in")
+  expect_error(bound_probability(1.1, 40), "must lie in")
+  expect_true(is.na(bound_probability(NA_real_, 40)))
+})
+
+
+test_that("weighted log mean exp ignores zero-weight entries", {
+  # log(0) is -Inf, and Inf + -Inf is NaN, which would poison the maximum.
+  expect_equal(mlumr:::.weighted_log_mean_exp(c(Inf, 0), c(0, 1)), 0)
+  expect_equal(mlumr:::.weighted_log_mean_exp(c(5, 3), c(0, 2)), 3)
+  expect_equal(
+    mlumr:::.weighted_log_mean_exp(c(2, 3), c(1, 1)),
+    mlumr:::.weighted_log_mean_exp(c(2, 3, 9), c(1, 1, 0))
+  )
+})
+
+
+test_that("bound_probability recycles p and n to a common length", {
+  # ifelse() sizes its result by the test, so a scalar p with a vector n
+  # silently returned one value instead of one per n.
+  expect_equal(bound_probability(0, c(10, 20, 40)), 0.5 / (c(10, 20, 40) + 1))
+  expect_equal(bound_probability(1, c(10, 20)), (c(10, 20) + 0.5) / (c(10, 20) + 1))
+  expect_length(bound_probability(0, c(10, 20, 40)), 3L)
+  expect_length(bound_probability(c(0, 0.5, 1), 40), 3L)
+  expect_length(bound_probability(0, 40), 1L)
+})
+
+
 test_that("check_link returns correct defaults", {
   expect_equal(check_link("binomial")$link, "logit")
   expect_equal(check_link("binomial")$code, 1L)
@@ -154,7 +187,10 @@ test_that("link helpers reject non-numeric response inputs cleanly", {
 })
 
 test_that("bound_probability validates counts and min_count", {
-  expect_equal(bound_probability(c(0, 0.2, 1), n = 10), c(0.05, 0.2, 0.95))
+  expect_equal(
+    bound_probability(c(0, 0.2, 1), n = 10),
+    c(0.5 / 11, 0.2, 10.5 / 11)
+  )
   expect_error(bound_probability(0.2, n = 0),
                "`n` must contain positive finite values")
   expect_error(bound_probability(0.2, n = Inf),
@@ -163,6 +199,17 @@ test_that("bound_probability validates counts and min_count", {
                "`min_count` must contain positive finite values")
   expect_error(bound_probability(0.2, n = 10, min_count = 6),
                "`min_count` must be no larger than n / 2")
+})
+
+test_that("log-scale differences evaluate only the applicable branch", {
+  log_x <- c(log(0.8), log(0.2), -Inf, 0)
+  log_y <- c(log(0.2), log(0.8), 0, -Inf)
+
+  expect_warning(
+    out <- mlumr:::.exp_difference_logs(log_x, log_y),
+    NA
+  )
+  expect_equal(out, exp(log_x) - exp(log_y), tolerance = 1e-15)
 })
 
 test_that("binomial link derivatives match existing formulas", {
@@ -205,4 +252,55 @@ test_that("mlumr_message respects verbose flag", {
   expect_message(mlumr_message("hidden", verbose = FALSE), NA)
   expect_error(mlumr_message("bad", verbose = NA),
                "`verbose` must be TRUE or FALSE")
+})
+
+test_that("the binary log-probability helpers propagate NA on every link", {
+  # `.binary_log_probs()` gated its cloglog series expansion on `if (any(small))`
+  # with `small <- eta < -18`, and `.binary_link_from_logs()` indexed an
+  # assignment by `log_event <= log(0.5)`. A missing `eta` made the first an
+  # error ("missing value where TRUE/FALSE needed") and the second an illegal
+  # subscript, while the logit branch of both returned NA as it should. Missing
+  # input must propagate, identically, on all three links.
+  eta <- c(NA_real_, -30, 0, 2)
+
+  for (lk in c("logit", "probit", "cloglog")) {
+    lp <- expect_silent(mlumr:::.binary_log_probs(eta, lk))
+    expect_true(is.na(lp$event[1]), info = lk)
+    expect_true(is.na(lp$nonevent[1]), info = lk)
+    expect_true(all(is.finite(lp$event[-1])), info = lk)
+    expect_true(all(is.finite(lp$nonevent[-1])), info = lk)
+
+    back <- expect_silent(
+      mlumr:::.binary_link_from_logs(lp$event, lp$nonevent, lk))
+    expect_true(is.na(back[1]), info = lk)
+    # ...and the non-missing entries still round-trip to the eta they came from.
+    expect_equal(back[-1], eta[-1], tolerance = 1e-6, info = lk)
+  }
+})
+
+test_that(".exp_difference_logs recycles and handles equal logarithms", {
+  ed <- mlumr:::.exp_difference_logs
+  # Unequal lengths used to leave an NA tail: `out` was sized from `log_x` while
+  # the comparisons recycled, so the answer was silently truncated.
+  expect_equal(ed(c(0, log(2)), 0), c(0, 1))
+  expect_equal(ed(0, c(0, log(2))), c(0, -1))
+  # Equal logarithms are exactly zero, including both infinite cases.
+  expect_equal(ed(-Inf, -Inf), 0)
+  expect_equal(ed(Inf, Inf), 0)
+  # Cancellation is done before returning to the natural scale.
+  expect_equal(ed(log(1), log1p(-1e-15)), 1e-15, tolerance = 1e-6)
+  expect_true(is.nan(ed(NA_real_, 0)))
+})
+
+test_that("bound_probability corrects only the boundaries", {
+  # It used to clamp every input into [min_count/n, 1 - min_count/n]. It now
+  # leaves interior probabilities alone and replaces an observed 0 or 1 with the
+  # pseudo-count estimate (r + c) / (n + 2c), which for c = 0.5 and r = 0 is
+  # 0.5 / (n + 1), not 0.5 / n.
+  expect_equal(bound_probability(c(0, 0.2, 1), n = 10),
+               c(0.5 / 11, 0.2, 10.5 / 11))
+  # An interior value below the old clip boundary is no longer moved.
+  expect_equal(bound_probability(0.01, n = 10), 0.01)
+  expect_true(all(bound_probability(c(0, 1), n = 10) > 0))
+  expect_true(all(bound_probability(c(0, 1), n = 10) < 1))
 })
