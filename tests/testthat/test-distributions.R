@@ -228,3 +228,18 @@ test_that("the acceptance check is relative to the target moments", {
   expect_equal(unname(mom[["sd"]]), 4e-4, tolerance = 1e-6)
 })
 
+
+# ---- margin classification -------------------------------------------------
+
+test_that("qlogitnorm is classified as a continuous margin", {
+  # The fallback classifier evaluates the quantile function on 99 points; a
+  # concentrated logit-normal returns 1 at every one of them to machine
+  # precision, so it was labeled binary and handed the binary copula
+  # correlation adjustment.
+  expect_equal(unname(get_distribution_type(x = distr(qlogitnorm, mu = 20,
+                                                      sigma = 0.01))),
+               "continuous")
+  expect_equal(unname(get_distribution_type(x = distr(qlogitnorm, mu = 0,
+                                                      sigma = 1))),
+               "continuous")
+})
