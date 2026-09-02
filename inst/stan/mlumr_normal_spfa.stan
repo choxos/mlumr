@@ -20,6 +20,8 @@ data {
   // y_agd and se_agd must be on the original outcome scale.
   int<lower=1> n_agd_rows;
   array[n_agd_rows] real y_agd;
+  // set_agd() rejects a non-positive standard error, so the normal density
+  // below never sees a zero scale.
   array[n_agd_rows] real<lower=0> se_agd;
 
   // Integration points for AgD

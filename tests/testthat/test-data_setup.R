@@ -1,3 +1,26 @@
+test_that("degenerate exposures and standard errors are rejected at setup", {
+  # The Stan data bounds allow zero; these constructors are what keeps a zero
+  # out, so log(E) and the normal scale are always finite in the models.
+  expect_error(
+    set_ipd(data.frame(trt = "A", y = c(1, 2), e = c(1, 0), x = c(0, 1)),
+            "trt", "y", "x", family = "poisson", exposure = "e"),
+    regexp = "."
+  )
+  expect_error(
+    set_agd(data.frame(trt = "B", r = 5, E = 0, x_mean = 0), "trt",
+            family = "poisson", outcome_r = "r", outcome_E = "E",
+            cov_means = "x_mean"),
+    regexp = "."
+  )
+  expect_error(
+    set_agd(data.frame(trt = "B", y = 1, se = 0, x_mean = 0), "trt",
+            family = "normal", outcome_mean = "y", outcome_se = "se",
+            cov_means = "x_mean"),
+    regexp = "."
+  )
+})
+
+
 test_that("set_ipd validates inputs", {
   df <- data.frame(trt = "A", outcome = c(0, 1, 1, 0), x1 = rnorm(4))
 
