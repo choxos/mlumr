@@ -7,7 +7,8 @@
 .r_log_surv(dist, t, eta, aux, aux2)
 }
 \description{
-Vectorized over posterior draws (\code{eta}, \code{aux}, \code{aux2} are vectors; \code{t} is a
-scalar time).
+Vectorized over posterior draws (\code{eta}, \code{aux}, \code{aux2} are vectors). \code{t} is
+usually a scalar time, but a vector recycled against the draws is also
+supported, which is how the likelihood tests evaluate several times at once.
 }
 \keyword{internal}

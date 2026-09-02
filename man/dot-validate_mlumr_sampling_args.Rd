@@ -2,7 +2,7 @@
 % Please edit documentation in R/mlumr.R
 \name{.validate_mlumr_sampling_args}
 \alias{.validate_mlumr_sampling_args}
-\title{Resolve the sampling seed}
+\title{Validate mlumr() sampler controls before backend dispatch}
 \usage{
 .validate_mlumr_sampling_args(
   chains,
@@ -15,16 +15,6 @@
 )
 }
 \description{
-Precedence: an explicit \code{seed} argument; else a seed drawn from R's RNG when
-the user has set it (e.g. via set.seed()); else a fixed default of 2026.
-Returns \code{list(value, source)} and warns when it falls back to the default, so
-an unseeded run is still reproducible.
+Validate mlumr() sampler controls before backend dispatch
 }
-\keyword{Validate}
-\keyword{backend}
-\keyword{before}
-\keyword{controls}
-\keyword{dispatch}
 \keyword{internal}
-\keyword{mlumr()}
-\keyword{sampler}

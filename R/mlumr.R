@@ -2,7 +2,7 @@
 #'
 #' Fit a Bayesian multilevel unanchored meta-regression model using individual
 #' patient data (IPD) and aggregate data (AgD). Supports binary, continuous,
-#' and count outcomes.
+#' count, and time-to-event outcomes.
 #'
 #' @param data An `mlumr_data` object with integration points (from
 #'   [add_integration()])
@@ -740,7 +740,17 @@ mlumr <- function(data,
   if (is.null(w) && identical(family, "survival")) {
     arm <- stan_data$agd_arm
     w <- if (!is.null(arm) && n_agd_rows >= 1L) {
-      tabulate(as.integer(arm), nbins = n_agd_rows)
+      counts <- tabulate(as.integer(arm), nbins = n_agd_rows)
+      # A zero means an arm carries no reconstructed pseudo-individuals, which
+      # is a data problem rather than a weighting choice. The guard below would
+      # quietly revert to equal weights and change the center; say so instead.
+      if (any(counts <= 0L)) {
+        warning("Some aggregate survival arm(s) have no reconstructed ",
+                "pseudo-individuals, so covariate centering falls back to ",
+                "equal row weights. Check the arm labels on the pseudo-IPD.",
+                call. = FALSE)
+      }
+      counts
     } else {
       stan_data$n_agd
     }
@@ -918,7 +928,8 @@ mlumr <- function(data,
 #' Map `aux_by` onto the Stan `n_strata` switch
 #'
 #' There are only ever two studies in an unanchored comparison, so `".study"`
-#' means 2 and no stratification means 1. Named after multinma's argument so the
+#' means 2 and `"none"` means 1. `NULL` resolves to the `".study"` default and
+#' therefore also gives 2; only `"none"` asks for a single shared stratum. Named after multinma's argument so the
 #' concept transfers, but deliberately not accepting `".trt"`: each study
 #' contributes a single arm here, so stratifying by treatment and by study are
 #' the same thing.
@@ -969,6 +980,19 @@ mlumr <- function(data,
 }
 
 #' Augment the Stan data list with survival-specific arrays
+#'
+#' @param stan_data The partially built Stan data list to add to.
+#' @param data The combined `mlumr_data` object holding the IPD and pseudo-IPD.
+#' @param surv_info Distribution metadata from `.survival_distribution_info()`.
+#' @param pred_times Prediction grid, or `NULL` for the default grid.
+#' @param n_knots Number of internal knots for a flexible baseline.
+#' @param knots Explicit [make_knots()] result, or `NULL` to derive them.
+#' @param rmst_horizon RMST restriction time, or `NULL` for the default.
+#' @param n_rmst_grid Number of RMST integration points.
+#' @param prior_aux Prior on the parametric auxiliary shape parameters.
+#' @param prior_smooth Prior on the flexible-baseline smoothing SD.
+#' @param n_strata Number of baseline strata (1 or 2), from `.resolve_aux_strata()`.
+#' @return `stan_data` with the survival arrays, bases and grids added.
 #' @keywords internal
 .build_stan_data_survival <- function(stan_data, data, surv_info, pred_times,
                                       n_knots, knots = NULL, rmst_horizon,
@@ -1257,14 +1281,6 @@ mlumr <- function(data,
   }
   invisible(TRUE)
 }
-
-#' Resolve the sampling seed
-#'
-#' Precedence: an explicit `seed` argument; else a seed drawn from R's RNG when
-#' the user has set it (e.g. via set.seed()); else a fixed default of 2026.
-#' Returns `list(value, source)` and warns when it falls back to the default, so
-#' an unseeded run is still reproducible.
-#' @keywords internal
 
 #' Validate mlumr() sampler controls before backend dispatch
 #' @keywords internal

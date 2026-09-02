@@ -253,7 +253,7 @@ An object of class \code{mlumr_fit}
 \description{
 Fit a Bayesian multilevel unanchored meta-regression model using individual
 patient data (IPD) and aggregate data (AgD). Supports binary, continuous,
-and count outcomes.
+count, and time-to-event outcomes.
 }
 \details{
 The model assumes that all AgD rows come from the same comparator treatment

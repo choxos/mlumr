@@ -14,7 +14,8 @@ Integer number of baseline strata (1 or 2).
 }
 \description{
 There are only ever two studies in an unanchored comparison, so \code{".study"}
-means 2 and no stratification means 1. Named after multinma's argument so the
+means 2 and \code{"none"} means 1. \code{NULL} resolves to the \code{".study"} default and
+therefore also gives 2; only \code{"none"} asks for a single shared stratum. Named after multinma's argument so the
 concept transfers, but deliberately not accepting \code{".trt"}: each study
 contributes a single arm here, so stratifying by treatment and by study are
 the same thing.
