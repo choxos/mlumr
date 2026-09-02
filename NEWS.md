@@ -56,6 +56,28 @@
   stops with a validation error naming the argument it actually received. Call
   `mlumr()` with named arguments.
 
+* **`naive()` combines multiple aggregate rows as strata.** For binomial data
+  the comparator standard error was computed as though the pooled comparator
+  were a single binomial sample of size `sum(n)`. It is now the variance of the
+  sample-size-weighted average of the row proportions,
+  `sum(w_k^2 * p_k * (1 - p_k) / n_k)` with `w_k = n_k / sum(n)`, propagated to
+  the link scale by the delta method. It reduces exactly to the previous formula
+  for single-row aggregate data. The reported comparator event rate is now the
+  observed proportion; the continuity correction is applied only inside the
+  effect calculation.
+
+* **`stc()` no longer reports an index-population contrast.** For the binomial,
+  normal, and count families `stc()` previously returned an index-population
+  effect alongside the comparator-population one, obtained by assuming the
+  treatment difference is constant on the link scale. That constancy is an extra
+  assumption which is not part of the STC estimand and is not testable from the
+  available data, and it does not hold under effect modification, which is the
+  situation population adjustment exists to handle. `stc()` is now what its
+  design supports: a comparator-population estimand, labeled as such in the
+  returned object. Use `mlumr()`, which standardizes both treatment models and
+  reports both populations without that assumption, when the index population is
+  the decision target.
+
 ## Performance
 
 * The binary, continuous, and count IPD likelihoods now use Stan's fused

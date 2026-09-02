@@ -50,15 +50,14 @@ When clinically meaningful effect modification is plausible, prefer
 \code{mlumr(..., model = "relaxed")} as the primary analysis and use STC as a
 sensitivity or benchmarking analysis.
 
-For binomial outcomes, the comparator-population treatment contrast is
-transported to the index population \strong{assuming the treatment contrast is
-constant on the fitted link scale} (i.e., no effect modification on that
-scale). Under this assumption, the index-population comparator
-probability is computed as
-\code{inv_link(link(p_A_index) - (link(p_A_comp) - link(p_B)))}, and its
-uncertainty is propagated through the delta method. If effect modification
-is expected, fit a Bayesian relaxed model with
-\code{mlumr(..., model = "relaxed")} and use \code{predict(..., population = "index")} instead, which does not require this assumption.
+The estimand is the comparator-population contrast, and only that. Earlier
+versions also reported an index-population effect, obtained by assuming the
+treatment difference is constant on the link scale. That constancy is an
+extra assumption which is not part of the STC estimand, is not testable from
+the available data, and does not hold under effect modification, which is the
+situation population adjustment exists to handle. Use \code{\link[=mlumr]{mlumr()}}, which
+standardizes both treatment models and reports both populations without it,
+when the index population is the decision target.
 }
 \examples{
 \dontrun{
