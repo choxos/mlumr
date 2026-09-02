@@ -11,6 +11,8 @@ mlumr(
   prior_intercept = default_prior_intercept(),
   prior_beta = default_prior_beta(),
   prior_sigma = default_prior_sigma(),
+  center = TRUE,
+  qr = FALSE,
   chains = 4,
   iter = 2000,
   warmup = 1000,
@@ -52,6 +54,24 @@ when predictors are on very different scales.}
 from \code{\link[=default_prior_sigma]{default_prior_sigma()}} (\code{prior_normal(0, 2.5)}, half-normal via
 the Stan \verb{<lower=0>} constraint). \code{\link[=prior_exponential]{prior_exponential()}} is also
 supported for sigma.}
+
+\item{center}{Logical (default \code{TRUE}). Center the covariates about the
+pooled IPD and population-weighted declared AgD means before fitting.
+The likelihood is unchanged after the intercept is transformed with the
+slopes, and centering often improves sampling geometry. Priors specified
+independently on the numerical intercept and slopes are not generally
+invariant to that transformation, so \code{center = TRUE} and \code{FALSE} can imply
+different joint priors even when their likelihoods represent the same
+regression model. Set \code{FALSE} to fit on the raw covariate scale.}
+
+\item{qr}{Logical (default \code{FALSE}). Apply a thin-QR
+reparameterization to the combined (intercepts + covariates) design matrix.
+This decorrelates the design columns for more efficient HMC. The Stan model
+maps the requested priors to the original regression coefficients before
+the QR transform, so this option is intended as a computational
+reparameterization. Useful with many correlated or ill-scaled covariates;
+for the common few-covariate case the default fused-GLM path (with
+\code{center = TRUE}) is usually faster.}
 
 \item{chains}{Number of MCMC chains (default 4)}
 
