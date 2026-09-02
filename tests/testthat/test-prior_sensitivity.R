@@ -69,3 +69,25 @@ test_that(".rescale_prior_beta rescales per-coefficient priors element-wise", {
   expect_true(all(vapply(r, function(x) x$sd, numeric(1)) == 3))
   expect_null(r[[1]]$default)
 })
+
+test_that("prior_sensitivity() omits the survival controls for other families", {
+  # mlumr() rejects `aux_by` for non-survival families using missing(), not a
+  # NULL test, so naming it in the refit call at all breaks every binomial,
+  # normal and Poisson fit. Assert on the argument set the refit would build
+  # rather than paying for a sampling run.
+  body_txt <- paste(deparse(body(prior_sensitivity)), collapse = "\n")
+
+  # The survival-only controls must sit behind a family test.
+  expect_match(body_txt, 'identical\\(fit\\$family, "survival"\\)')
+
+  surv_only <- c("aux_by", "distribution", "n_knots", "knots",
+                 "mspline_degree", "pred_times", "rmst_horizon",
+                 "n_rmst_grid", "prior_aux", "prior_smooth")
+  # Each appears only inside the survival branch: it must not be named in the
+  # unconditional argument list.
+  before <- sub('identical\\(fit\\$family, "survival"\\).*$', "", body_txt)
+  for (a in surv_only) {
+    expect_false(grepl(paste0("\\b", a, "\\s*="), before),
+                 info = paste(a, "is passed unconditionally"))
+  }
+})

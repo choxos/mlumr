@@ -132,7 +132,7 @@ prior_sensitivity <- function(fit,
                           i, length(prior_beta_scales), s),
                   verbose = verbose)
 
-    fit_i <- mlumr(
+    args <- list(
       data = data,
       model = fit$model,
       link = fit$link,
@@ -141,16 +141,6 @@ prior_sensitivity <- function(fit,
       prior_sigma = fit$priors$sigma %||% default_prior_sigma(),
       # A fit that predates these controls was fitted on the raw scale, so the
       # historical behavior, not the current default, is what reproduces it.
-      distribution = fit$distribution,
-      prior_aux    = fit$priors$aux,
-      prior_smooth = fit$priors$smooth,
-      n_knots      = sc$n_knots      %||% 7L,
-      knots        = sc$knots,
-      mspline_degree = .na_to_null(sc$mspline_degree),
-      aux_by       = sc$aux_by       %||% ".study",
-      pred_times   = sc$pred_times,
-      rmst_horizon = sc$rmst_horizon,
-      n_rmst_grid  = sc$n_rmst_grid  %||% 100L,
       center       = mc$center       %||% FALSE,
       qr           = mc$qr           %||% FALSE,
       chains       = sa$chains       %||% 4,
@@ -161,9 +151,30 @@ prior_sensitivity <- function(fit,
       max_treedepth = sa$max_treedepth %||% 15,
       refresh = 0,
       engine = fit$engine,
-      verbose = verbose,
-      ...
+      verbose = verbose
     )
+
+    # The survival controls are only legal arguments for a survival fit, and
+    # mlumr() decides that with missing(), not by testing for NULL. Naming
+    # `aux_by` at all makes it non-missing, so listing these unconditionally
+    # would make prior_sensitivity() fail on every binomial, normal and Poisson
+    # fit. Omit the whole group rather than passing NULL into it.
+    if (identical(fit$family, "survival")) {
+      args <- c(args, list(
+        distribution = fit$distribution,
+        prior_aux    = fit$priors$aux,
+        prior_smooth = fit$priors$smooth,
+        n_knots      = sc$n_knots      %||% 7L,
+        knots        = sc$knots,
+        mspline_degree = .na_to_null(sc$mspline_degree),
+        aux_by       = sc$aux_by       %||% ".study",
+        pred_times   = sc$pred_times,
+        rmst_horizon = sc$rmst_horizon,
+        n_rmst_grid  = sc$n_rmst_grid  %||% 100L
+      ))
+    }
+
+    fit_i <- do.call(mlumr, c(args, list(...)))
 
     results[[i]] <- .summarize_sensitivity(fit_i, scale = s, probs = probs)
   }
@@ -220,7 +231,10 @@ prior_sensitivity <- function(fit,
   effect_cols <- switch(family,
     binomial = c("lor_index",   "lor_comparator"),
     normal   = c("delta_index", "delta_comparator"),
-    poisson  = c("lrr_index",   "lrr_comparator")
+    poisson  = c("lrr_index",   "lrr_comparator"),
+    # Log hazard ratio (PH) or log time ratio (AFT). Reported on the log scale,
+    # like every other family here, so the scales stay comparable across rows.
+    survival = c("delta_index", "delta_comparator")
   )
 
   effect_names <- intersect(effect_cols, colnames(draws))
