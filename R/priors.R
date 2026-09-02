@@ -433,7 +433,13 @@ stan_prior_fields_beta <- function(prior, n_cov, sd_x = NULL,
         paste(bad, collapse = ", ")
       ), call. = FALSE)
     }
+    # Autoscaling states a prior on the coefficient of a covariate measured in
+    # SD units, so recovering it on the original scale divides both the location
+    # and the scale by that covariate's SD. Dividing only the scale would leave
+    # a nonzero prior mean attached to the wrong covariate scale. The default
+    # mean = 0 is unaffected, since 0 / sd is 0.
     sd_x_safe <- ifelse(sd_x > 0, sd_x, 1)
+    means <- ifelse(autos, means / sd_x_safe, means)
     sds <- ifelse(autos, sds / sd_x_safe, sds)
   }
 

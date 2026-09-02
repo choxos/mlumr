@@ -76,6 +76,32 @@ prior_sensitivity <- function(fit,
   }
 
   # Inherit the original sampling args unless overridden by ...
+  # `...` is forwarded to each refit, so it must not carry anything that defines
+  # the model. Sampler and backend controls (chains, iter, adapt_delta, engine)
+  # are still allowed through.
+  dots <- list(...)
+  if (length(dots)) {
+    if (is.null(names(dots)) || any(!nzchar(names(dots)))) {
+      stop("All `...` arguments to prior_sensitivity() must be named.",
+           call. = FALSE)
+    }
+    # Everything that defines the model rather than the sampler. Overriding any
+    # of these would vary a second factor alongside the prior scale, so the
+    # movement in the output could no longer be attributed to the prior.
+    protected <- c("data", "model", "link", "prior_beta",
+                   "prior_intercept", "prior_sigma", "center", "qr")
+    clash <- intersect(names(dots), protected)
+    if (length(clash)) {
+      msg <- paste0(
+        "`...` cannot override the scenario-defining argument(s): %s. ",
+        "prior_sensitivity() sweeps `prior_beta` itself and reuses every other ",
+        "setting from the original fit so the sweep varies one factor only; ",
+        "pass only sampler or backend controls."
+      )
+      stop(sprintf(msg, paste(clash, collapse = ", ")), call. = FALSE)
+    }
+  }
+
   sa <- fit$sampling_args %||% list()
   # Design-matrix controls. A fit made with `center = FALSE` or `qr = TRUE` is a
   # different parameterization, so replaying the defaults here would vary the

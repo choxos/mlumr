@@ -56,6 +56,27 @@
   stops with a validation error naming the argument it actually received. Call
   `mlumr()` with named arguments.
 
+* **`prior_sensitivity()` varies the prior and nothing else.** Every
+  model-defining setting is taken from the original fit and replayed: family,
+  link, the design-matrix controls (`center`, `qr`), the integration points, and
+  the engine and sampler settings. `...` may no longer override any of them, so
+  movement across the sweep is attributable to the prior alone.
+
+* **`verbose = FALSE` now silences the sampler banner too.** cmdstanr writes its
+  "Running MCMC with N chains / Chain k finished in ..." lines to stdout rather
+  than through the condition system, so neither `refresh = 0` nor
+  `suppressMessages()` suppressed them: roughly fifteen lines per fit, which
+  buries the output of any loop over more than a handful of models. `mlumr()`
+  now passes `verbose` through to the backend, and an explicit `show_messages`
+  or `show_exceptions` in `...` still wins.
+
+* **`prior_normal(autoscale = TRUE)` rescales the prior location as well as its
+  scale.** Autoscaling states a prior on the coefficient of a covariate measured
+  in standard-deviation units, so recovering it on the original scale divides
+  both the location and the scale by that covariate's SD. Only the scale was
+  divided before, which left a nonzero prior mean attached to the wrong
+  covariate scale. The default `mean = 0` is unaffected, since `0 / sd` is `0`.
+
 * **`check_integration()` compares correlations on one scale.** The realized
   integration-point correlation was always measured with Pearson while the
   target, when derived from the IPD, defaults to Spearman. The method that
