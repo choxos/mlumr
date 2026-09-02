@@ -116,6 +116,15 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
+      # r-lib/actions/setup-r exports NOT_CRAN=true unless it is already set, so
+      # without this line every skip_on_cran() test would RUN here and this
+      # matrix would stop emulating CRAN: the platform checks would take the
+      # Stan-fitting path that CRAN never takes, and a platform-specific
+      # sampling failure would be reported as a check failure CRAN cannot
+      # reproduce. Setting it false makes these five jobs match what the CRAN
+      # machines actually execute. The Stan tests are run deliberately, once,
+      # by the full-test-suite job below.
+      NOT_CRAN: "false"
 
     steps:
       - uses: actions/checkout@v4
@@ -140,3 +149,77 @@ jobs:
           upload-snapshots: true
           args: 'c("--no-manual", "--as-cran")'
           error-on: '"warning"'
+
+  full-test-suite:
+    name: Full test suite (Stan tests enabled)
+    runs-on: ubuntu-latest
+    # The matrix above pins NOT_CRAN=false so it reproduces CRAN, which means
+    # every skip_on_cran() test is skipped there. That is right for the platform
+    # checks (the Stan fits would blow the CRAN time limit) but it leaves every
+    # test that actually samples unexecuted. This job is the one place they run.
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      NOT_CRAN: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: 'release'
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: |
+            any::testthat
+            any::pkgload
+            stan-dev/cmdstanr
+          needs: check
+
+      - name: Install CmdStan
+        run: cmdstanr::install_cmdstan(cores = 2)
+        shell: Rscript {0}
+
+      - name: Run the full test suite
+        run: |
+          pkgload::load_all(".")
+          options(mlumr.stan_engine = "cmdstanr")
+          res <- testthat::test_dir("tests/testthat", package = "mlumr",
+                                    reporter = "summary", stop_on_failure = FALSE)
+          df <- as.data.frame(res)
+          cat("pass", sum(df$passed), "fail", sum(df$failed),
+              "skip", sum(df$skipped), "\n")
+          # A test that ABORTS is recorded in `error`, not in `failed`, so a
+          # gate that reads only `failed` can pass a run in which a whole file
+          # died. testthat's own success helper requires both to be clear.
+          if (sum(df$failed) > 0 || any(df$error)) {
+            stop(sprintf(
+              "Full test suite failed: %d failed expectation(s), %d test error(s).",
+              sum(df$failed), sum(df$error)))
+          }
+          if (any(df$warning)) {
+            cat("Test warnings were generated; inspect them before release.\n")
+          }
+
+          # The point of this job is that NOT_CRAN=true actually runs the Stan
+          # tests, so a skip whose reason is CRAN means the coverage silently
+          # went away and must fail the job. skip_on_ci() is a separate,
+          # deliberate decoration for the handful of tests that really are too
+          # slow for a runner; list those but do not fail on them.
+          reasons <- unlist(lapply(res, function(f) {
+            vapply(f$results, function(r) {
+              if (inherits(r, "expectation_skip")) conditionMessage(r) else NA_character_
+            }, character(1))
+          }))
+          reasons <- reasons[!is.na(reasons)]
+          if (length(reasons)) {
+            cat("Skipped:\n"); cat(paste0("  ", reasons, collapse = "\n"), "\n")
+          }
+          cran_skips <- grep("On CRAN", reasons, value = TRUE)
+          if (length(cran_skips)) {
+            stop(sprintf(
+              "%d test(s) skipped with reason 'On CRAN' despite NOT_CRAN=true; the Stan suite did not run.",
+              length(cran_skips)))
+          }
+        shell: Rscript {0}
