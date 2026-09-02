@@ -61,14 +61,14 @@ model {
   if (link == 1)
     y_ipd ~ bernoulli_logit(eta_ipd);
   else
-    y_ipd ~ bernoulli(inv_link_binary_vec(eta_ipd, link));
+    for (i in 1:n_ipd)
+      target += bernoulli_link_lpmf(y_ipd[i] | eta_ipd[i], link);
 
   // The binomial AgD likelihood uses average probability, not average linear predictor.
   for (k in 1:n_agd_rows) {
     // Integrate the comparator event probability over the AgD covariates.
-    vector[n_int] p_int = inv_link_binary_vec(mu_comparator + X_int[k] * beta_comparator, link);
-    real p_mean = mean(p_int);
-    r_agd[k] ~ binomial(n_agd[k], p_mean);
+    vector[n_int] eta_int = mu_comparator + X_int[k] * beta_comparator;
+    target += integrated_binomial_lpmf(r_agd[k] | n_agd[k], eta_int, link);
   }
 }
 
@@ -84,6 +84,14 @@ generated quantities {
   real p_comparator_index;
   real p_index_comparator;
   real p_comparator_comparator;
+  real log_p_index_index;
+  real log_q_index_index;
+  real log_p_comparator_index;
+  real log_q_comparator_index;
+  real log_p_index_comparator;
+  real log_q_index_comparator;
+  real log_p_comparator_comparator;
+  real log_q_comparator_comparator;
   // Effect modification parameters (difference in regression coefficients)
   vector[n_cov] delta_beta;
   vector[n_ipd] log_lik_ipd;
@@ -94,56 +102,59 @@ generated quantities {
 
   // Index population (IPD covariates)
   {
-    vector[n_ipd] p_index_vec = inv_link_binary_vec(eta_ipd, link);
-    vector[n_ipd] p_comparator_vec = inv_link_binary_vec(mu_comparator + X_ipd * beta_comparator, link);
-    p_index_index = mean(p_index_vec);
-    p_comparator_index = mean(p_comparator_vec);
+    vector[n_ipd] eta_comparator = mu_comparator + X_ipd * beta_comparator;
+    log_p_index_index = log_mean_event_binary(eta_ipd, link);
+    log_q_index_index = log_mean_nonevent_binary(eta_ipd, link);
+    log_p_comparator_index = log_mean_event_binary(eta_comparator, link);
+    log_q_comparator_index = log_mean_nonevent_binary(eta_comparator, link);
+    p_index_index = exp(log_p_index_index);
+    p_comparator_index = exp(log_p_comparator_index);
   }
 
   // Comparator population (integration points)
   // AgD rows are weighted by their binomial sample sizes.
   {
-    real p_index_comp_sum = 0;
-    real p_comp_comp_sum = 0;
-    real total_n = 0;
+    vector[n_agd_rows] log_p_idx;
+    vector[n_agd_rows] log_q_idx;
+    vector[n_agd_rows] log_p_cmp;
+    vector[n_agd_rows] log_q_cmp;
+    vector[n_agd_rows] weights;
     for (k in 1:n_agd_rows) {
-      vector[n_int] p_idx_k = inv_link_binary_vec(mu_index + X_int[k] * beta_index, link);
-      vector[n_int] p_cmp_k = inv_link_binary_vec(mu_comparator + X_int[k] * beta_comparator, link);
-      p_index_comp_sum += mean(p_idx_k) * n_agd[k];
-      p_comp_comp_sum += mean(p_cmp_k) * n_agd[k];
-      total_n += n_agd[k];
+      vector[n_int] eta_idx = mu_index + X_int[k] * beta_index;
+      vector[n_int] eta_cmp = mu_comparator + X_int[k] * beta_comparator;
+      log_p_idx[k] = log_mean_event_binary(eta_idx, link);
+      log_q_idx[k] = log_mean_nonevent_binary(eta_idx, link);
+      log_p_cmp[k] = log_mean_event_binary(eta_cmp, link);
+      log_q_cmp[k] = log_mean_nonevent_binary(eta_cmp, link);
+      weights[k] = n_agd[k];
     }
-    p_index_comparator = p_index_comp_sum / total_n;
-    p_comparator_comparator = p_comp_comp_sum / total_n;
+    log_p_index_comparator = log_weighted_mean_exp_vec(log_p_idx, weights);
+    log_q_index_comparator = log_weighted_mean_exp_vec(log_q_idx, weights);
+    log_p_comparator_comparator = log_weighted_mean_exp_vec(log_p_cmp, weights);
+    log_q_comparator_comparator = log_weighted_mean_exp_vec(log_q_cmp, weights);
+    p_index_comparator = exp(log_p_index_comparator);
+    p_comparator_comparator = exp(log_p_comparator_comparator);
   }
 
   // LOR is a marginal odds ratio computed from response-scale population
   // probabilities, not generally a conditional linear-predictor contrast.
-  // safe_logit clips probabilities to [1e-10, 1-1e-10] to avoid infinite
-  // log-odds when probabilities are numerically 0 or 1.
-  lor_index = safe_logit(p_index_index) - safe_logit(p_comparator_index);
-  lor_comparator = safe_logit(p_index_comparator) - safe_logit(p_comparator_comparator);
-  rd_index = p_index_index - p_comparator_index;
-  rd_comparator = p_index_comparator - p_comparator_comparator;
-  // safe_divide clips denominator to 1e-10; for near-zero comparator rates,
-  // RR will be artificially large rather than undefined.
-  rr_index = safe_divide(p_index_index, p_comparator_index);
-  rr_comparator = safe_divide(p_index_comparator, p_comparator_comparator);
+  lor_index = (log_p_index_index - log_q_index_index) -
+              (log_p_comparator_index - log_q_comparator_index);
+  lor_comparator = (log_p_index_comparator - log_q_index_comparator) -
+                   (log_p_comparator_comparator - log_q_comparator_comparator);
+  rd_index = exp_difference(log_p_index_index, log_p_comparator_index);
+  rd_comparator = exp_difference(log_p_index_comparator,
+                                 log_p_comparator_comparator);
+  rr_index = exp(log_p_index_index - log_p_comparator_index);
+  rr_comparator = exp(log_p_index_comparator - log_p_comparator_comparator);
 
   // Pointwise log-likelihoods keep IPD observations and AgD rows separate.
   // This is the contract used by loo(), waic(), and DIC helpers.
-  if (link == 1) {
-    for (i in 1:n_ipd)
-      log_lik_ipd[i] = bernoulli_logit_lpmf(y_ipd[i] | eta_ipd[i]);
-  } else {
-    vector[n_ipd] p_ipd = inv_link_binary_vec(eta_ipd, link);
-    for (i in 1:n_ipd)
-      log_lik_ipd[i] = bernoulli_lpmf(y_ipd[i] | p_ipd[i]);
-  }
+  for (i in 1:n_ipd)
+    log_lik_ipd[i] = bernoulli_link_lpmf(y_ipd[i] | eta_ipd[i], link);
 
   for (k in 1:n_agd_rows) {
-    vector[n_int] p_int = inv_link_binary_vec(mu_comparator + X_int[k] * beta_comparator, link);
-    real p_mean = mean(p_int);
-    log_lik_agd[k] = binomial_lpmf(r_agd[k] | n_agd[k], p_mean);
+    vector[n_int] eta_int = mu_comparator + X_int[k] * beta_comparator;
+    log_lik_agd[k] = integrated_binomial_lpmf(r_agd[k] | n_agd[k], eta_int, link);
   }
 }
