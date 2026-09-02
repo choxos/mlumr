@@ -49,6 +49,29 @@
   report for a binomial arm with no events (or no non-events) change slightly.
   Arms with events on both sides are unaffected.
 
+## Performance
+
+* The binary, continuous, and count IPD likelihoods now use Stan's fused
+  **GLM density functions** (`bernoulli_logit_glm`, `normal_id_glm`,
+  `poisson_log_glm`) on their canonical links (logit / identity / log); these
+  carry analytic gradients and are faster than the equivalent `_lpdf` forms.
+  Non-canonical links (probit, cloglog, log-normal) are unchanged. They are
+  statistically equivalent to the 0.1.0 implementation: results match up to
+  Monte Carlo error.
+* Models **center the covariates** by default: the IPD design matrix and the
+  comparator integration grid are shifted to their pooled covariate mean before
+  fitting. This removes an intercept-versus-slope collinearity that, on
+  real-scale covariates (for example age in years), could push the NUTS sampler
+  into very deep (max-treedepth) trajectories and dramatically slow fits. The
+  shift is estimand-invariant for the reported effects (the intercept absorbs
+  it, so all population-standardized contrasts are unchanged) and is applied
+  transparently to `predict()`, `conditional_effects()`, and
+  `conditional_predict()`. It is not prior-invariant: `prior_intercept` then
+  applies to the intercept at the pooled covariate mean, so intercepts and
+  intercept prior-versus-posterior plots are on a different scale from an
+  uncentered fit. `center = FALSE` restores the raw-scale parameterization, and
+  `qr = TRUE` offers a QR-rotated design as an alternative conditioning fix.
+
 ## Package logo
 
 * **New hex-sticker logo** using a broken-anchor motif, for the unanchored
