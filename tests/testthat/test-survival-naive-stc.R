@@ -258,3 +258,39 @@ test_that("the naive effect SE does not depend on how AgD rows are tabulated", {
   expect_equal(one$se, two$se)
   expect_equal(one$rd_se, two$rd_se)
 })
+
+test_that("heterogeneous comparator strata keep their row-level variance", {
+  # The boundary correction must not become a pooled binomial. Two equal strata
+  # at 0.1 and 0.9 have variance sum(w^2 p(1-p)/n) = 9e-4, while the pooled
+  # form p_bar(1 - p_bar)/N gives 2.5e-3 and inflates every interval it feeds.
+  set.seed(2026)
+  ip <- set_ipd(data.frame(trt = "A", x = stats::rnorm(100),
+                           r = c(rep(1, 50), rep(0, 50))),
+                "trt", outcome = "r", covariates = "x", family = "binomial")
+  ag <- set_agd(data.frame(trt = "B", r = c(5, 45), n = c(50, 50),
+                           x_mean = c(0, 0), x_sd = c(1, 1)),
+                "trt", family = "binomial", outcome_r = "r", outcome_n = "n",
+                cov_means = "x_mean", cov_sds = "x_sd",
+                cov_types = "continuous")
+  res <- suppressWarnings(suppressMessages(naive(combine_data(ip, ag))))
+
+  row_level <- sum(c(0.5, 0.5)^2 * c(0.1, 0.9) * c(0.9, 0.1) / 50)
+  expect_equal(res$p_comparator_se^2, row_level, tolerance = 1e-8)
+  expect_lt(res$p_comparator_se^2, 0.5 * 0.5 / 100)   # not the pooled form
+})
+
+test_that("a boundary index arm also keeps its uncertainty", {
+  # p_index_se used the raw proportion, so an all-events IPD arm contributed
+  # no variance and its interval collapsed to a point.
+  set.seed(2026)
+  ip <- set_ipd(data.frame(trt = "A", x = stats::rnorm(60), r = rep(1, 60)),
+                "trt", outcome = "r", covariates = "x", family = "binomial")
+  ag <- set_agd(data.frame(trt = "B", r = 20, n = 100, x_mean = 0, x_sd = 1),
+                "trt", family = "binomial", outcome_r = "r", outcome_n = "n",
+                cov_means = "x_mean", cov_sds = "x_sd",
+                cov_types = "continuous")
+  res <- suppressWarnings(suppressMessages(naive(combine_data(ip, ag))))
+
+  expect_gt(res$p_index_se, 0)
+  expect_gt(res$p_index_upper, res$p_index_lower)
+})

@@ -65,7 +65,10 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
   estimate <- link_fun(p_index_effect, link_resolved) -
     link_fun(p_comparator_effect, link_resolved)
 
-  p_index_se <- sqrt(p_index * (1 - p_index) / n_index)
+  # Same boundary correction as the comparator below: with the raw proportion,
+  # p(1 - p) is 0 for an all-events or no-events IPD arm, so the index arm would
+  # contribute no uncertainty and its interval would collapse to a point.
+  p_index_se <- sqrt(p_index_effect * (1 - p_index_effect) / n_index)
   # Several aggregate rows are strata of one comparator population, not one
   # binomial sample of size sum(n). The variance of their size-weighted average
   # proportion is sum(w_k^2 p_k (1 - p_k) / n_k), propagated to the link scale
@@ -73,17 +76,22 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
   # there is one row.
   row_p <- agd$.r / agd$.n
   row_w <- .normalize_weights(agd$.n)
-  # Evaluate the comparator variance at the POOLED corrected proportion rather
-  # than correcting each row. bound_probability() moves a boundary arm to
-  # min_count / (n + 2 min_count), which depends on that row's n, so the
-  # per-row form made the answer depend on how one aggregate arm was tabulated:
-  # 0/100 corrects to 0.5/101 while 0/50 + 0/50 corrects to 0.5/51 twice, and
-  # the standard error moved by a factor of 1.40 on identical data. The pooled
-  # form depends only on the totals, so it is invariant to that split, and by
-  # concavity it is never anti-conservative relative to the per-row sum. With a
-  # single row, or with equal row proportions, the two coincide exactly.
-  var_p_comparator_effect <-
-    p_comparator_effect * (1 - p_comparator_effect) / n_comparator
+  # Keep the row-level variance, which is what the declared size-weighted
+  # stratified mean actually has, but take the boundary correction from the
+  # POOLED n. bound_probability() moves a boundary row to
+  # min_count / (n + 2 min_count); with each row's own n that made the answer
+  # depend on how one aggregate arm had been tabulated, since 0/100 corrects to
+  # 0.5/101 while 0/50 + 0/50 corrects to 0.5/51 twice. Correcting against the
+  # total leaves interior rows untouched, so heterogeneous strata keep their own
+  # p_k(1 - p_k), and equivalent splits of one arm now agree exactly.
+  #
+  # Collapsing to a single pooled binomial instead would be wrong here: two
+  # equal strata at 0.1 and 0.9 have variance 0.09 / N, while the pooled form
+  # gives 0.25 / N and inflates every interval it feeds.
+  row_p_effect <- bound_probability(row_p, n_comparator)
+  var_p_comparator_effect <- sum(
+    row_w^2 * row_p_effect * (1 - row_p_effect) / agd$.n
+  )
   var_link_index <- binomial_link_variance(
     p_index_effect, n_index, link_resolved
   )

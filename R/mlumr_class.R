@@ -394,8 +394,13 @@ print.mlumr_stc <- function(x, ...) {
 #' @export
 summary.mlumr_stc <- function(object, ...) {
   print.mlumr_stc(object, ...)
-  cat("\nFull GLM summary:\n")
-  print(summary(object$glm_fit))
+  # A survival STC has no GLM behind it, so this footer printed "NULL" under a
+  # "Full GLM summary" heading. print.mlumr_stc already guards its own copy;
+  # the heading moves inside the guard so nothing is announced that is absent.
+  if (!is.null(object$glm_fit)) {
+    cat("\nFull GLM summary:\n")
+    print(summary(object$glm_fit))
+  }
   invisible(object)
 }
 
