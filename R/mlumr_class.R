@@ -126,8 +126,12 @@ summary.mlumr_fit <- function(object, ...) {
     beta_idx <- grep("^beta_(index|comparator)\\[", object$summary$variable)
   }
   if (length(beta_idx) > 0) {
-    print(object$summary[beta_idx, c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")],
-          row.names = FALSE)
+    # Relabel beta[1] as beta[age] for readability. The underlying `variable`
+    # strings in object$summary are untouched, so code indexing by name keeps
+    # working; only this printed copy is relabeled.
+    beta_df <- object$summary[beta_idx,
+                              c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")]
+    print(.label_beta_rows(beta_df, object$data$covariates), row.names = FALSE)
   }
 
   # Marginal effects
