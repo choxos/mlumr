@@ -112,3 +112,8 @@ docs
 
 # Reporting
 reporting/
+
+# Local working directories and generated site assets
+.omo/
+pkgdown/favicon/
+man/figures/logo_backup.svg
