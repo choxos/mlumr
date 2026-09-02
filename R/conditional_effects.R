@@ -73,6 +73,21 @@ conditional_effects <- function(object,
   summary <- .validate_summary_flag(summary)
   .validate_probs(probs)
 
+  # Survival fits have no conditional-effects dispatch yet; it arrives with the
+  # reporting layer. The generic path is not inert without one:
+  # .conditional_effect_choices() falls through to the Poisson branch, so
+  # `effect = "rr"` (and the "all" default) resolve, and the caller is handed
+  # exp(eta_index - eta_comparator) labeled RR. Under a shared PH baseline that
+  # number is a conditional hazard ratio, under AFT a time ratio, and under
+  # differing shapes neither. Refuse rather than pick a name for it.
+  if (identical(object$family %||% "binomial", "survival")) {
+    stop("Conditional effects for survival fits arrive with the prediction ",
+         "layer and are not available from this build. exp(eta_index - ",
+         "eta_comparator) is a conditional hazard ratio only when the two ",
+         "studies share a baseline shape, so it is not reported under a ",
+         "generic name here.", call. = FALSE)
+  }
+
   family <- object$family %||% "binomial"
   cfg_family <- get_family_config(family)
   lnk <- object$link %||% cfg_family$link_default
@@ -326,6 +341,14 @@ conditional_predict <- function(object,
   summary <- .validate_summary_flag(summary)
   .validate_probs(probs)
 
+  # Same reasoning as conditional_effects(): a survival fit has no scalar
+  # `response` at a covariate profile, only curves over the prediction grid.
+  if (identical(object$family %||% "binomial", "survival")) {
+    stop("Conditional predictions for survival fits arrive with the ",
+         "prediction layer and are not available from this build.",
+         call. = FALSE)
+  }
+
   profiles <- .conditional_profiles(object, newdata)
   X <- profiles$X
   n_profiles <- nrow(X)
@@ -386,8 +409,9 @@ conditional_predict <- function(object,
 
 #' Log survival S(t | eta) in R, mirroring the Stan log_surv_scalar()
 #'
-#' Vectorized over posterior draws (`eta`, `aux`, `aux2` are vectors; `t` is a
-#' scalar time).
+#' Vectorized over posterior draws (`eta`, `aux`, `aux2` are vectors). `t` is
+#' usually a scalar time, but a vector recycled against the draws is also
+#' supported, which is how the likelihood tests evaluate several times at once.
 #' @keywords internal
 .r_log_surv <- function(dist, t, eta, aux, aux2) {
   if (dist == 1L) return(-exp(log(t) + eta))
