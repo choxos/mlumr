@@ -181,3 +181,50 @@ test_that("the logit-normal density takes `log` positionally, as dnorm does", {
                base::log(dlogitnorm(0.5, 0, 1)))
 })
 
+
+# ---- moment conversion is exact, not merely convergent ---------------------
+
+test_that("logit-normal moments are integrated accurately for a tight margin", {
+  # The moments used to be integrated over x on (0, 1), where a concentrated
+  # margin is a narrow spike that adaptive quadrature steps over. Because the
+  # objective and its acceptance check both used that rule, the solver
+  # certified a distribution whose SD it had never matched: for this pair it
+  # reported 0.001100 where the truth is 0.001559, 42% low, and
+  # add_integration() then drew points from the wrong distribution.
+  pars <- mlumr:::.lnopt(0.01, 0.0011)
+  expect_false(anyNA(pars))
+  # An independent check that owes nothing to the package's own quadrature.
+  u <- (seq_len(2e6) - 0.5) / 2e6
+  x <- stats::plogis(pars[["mu"]] + pars[["sigma"]] * stats::qnorm(u))
+  expect_equal(mean(x), 0.01, tolerance = 1e-5)
+  expect_equal(sqrt(mean((x - mean(x))^2)), 0.0011, tolerance = 1e-4)
+})
+
+test_that("the moment solver reaches every feasible target it is given", {
+  # A single Nelder-Mead pass reports convergence when its simplex collapses,
+  # which on this objective happens short of the target; restarting until a
+  # pass stops improving fixes it. Sweep the feasible region rather than one
+  # convenient point.
+  for (m in c(0.001, 0.01, 0.1, 0.5, 0.9, 0.99)) {
+    for (f in c(0.05, 0.3, 0.7, 0.9)) {
+      s <- f * sqrt(m * (1 - m))
+      pars <- expect_silent(mlumr:::.lnopt(m, s))
+      mom <- mlumr:::.ln_moments(pars[["mu"]], pars[["sigma"]])
+      expect_equal(unname(mom[["mean"]]), m, tolerance = 1e-6,
+                   info = sprintf("mean = %g, sd = %g", m, s))
+      expect_equal(unname(mom[["sd"]]), s, tolerance = 1e-6,
+                   info = sprintf("mean = %g, sd = %g", m, s))
+    }
+  }
+})
+
+test_that("the acceptance check is relative to the target moments", {
+  # It was absolute at 1e-3, which is larger than either of these targets, so
+  # a solution with mean 0.00147 and SD 0.00139 passed in silence.
+  pars <- mlumr:::.lnopt(5e-4, 4e-4)
+  expect_false(anyNA(pars))
+  mom <- mlumr:::.ln_moments(pars[["mu"]], pars[["sigma"]])
+  expect_equal(unname(mom[["mean"]]), 5e-4, tolerance = 1e-6)
+  expect_equal(unname(mom[["sd"]]), 4e-4, tolerance = 1e-6)
+})
+

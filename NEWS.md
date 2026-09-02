@@ -170,9 +170,14 @@
   than resolved in favor of one of them.
 
   The logit-normal moment reparameterization has no closed form and is solved
-  numerically. The search runs on `log(sigma)` so the scale cannot go negative,
-  starts from the delta-method approximation on the logit scale, and the
-  recovered moments are checked against the target rather than the optimizer's
+  numerically. The moments are integrated over the latent normal variable
+  rather than over `x` on `(0, 1)`, where a concentrated margin is a narrow
+  spike that adaptive quadrature steps over; the search runs on `log(sigma)` so
+  the scale cannot go negative, starts from the delta-method approximation on
+  the logit scale, and repeats until a restart stops improving, because
+  Nelder-Mead reports convergence when its simplex collapses rather than when
+  it has arrived. The recovered moments are then checked against the target,
+  relative to the target rather than absolutely, instead of the optimizer's
   convergence flag being trusted on its own.
 
 ## Example data

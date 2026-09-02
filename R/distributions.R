@@ -237,32 +237,64 @@ qlogitnorm <- function(p, mu = 0, sigma = 1, ..., mean, sd) {
 
 #' Moments of a logit-normal, by numerical integration
 #'
+#' Integrates over the latent normal variable rather than over `x` on `(0, 1)`.
+#' On the `x` scale a concentrated margin is a narrow spike inside the unit
+#' interval and adaptive quadrature steps over it: across a sweep of
+#' `(mu, sigma)` the `x`-scale rule was wrong by up to 100 percent and failed
+#' outright on several, while for `mean = 0.01` and `sd = 0.0011` it reported an
+#' SD of 0.00110 where the true value is 0.00156. Because the objective below
+#' and its acceptance check both used that rule, the solver certified a
+#' distribution whose SD it had never matched, and [add_integration()] then drew
+#' points from it.
+#'
+#' Two details make the latent form exact rather than merely better. The
+#' integrand's only sharp feature is the logistic transition, so the range is
+#' split at `z0 = -mu / sigma`, which puts a panel boundary exactly on it; `z0`
+#' is clamped to the range where the normal weight has any mass, since beyond
+#' that the split would leave the mass in one huge panel. And `abs.tol` is set
+#' to zero: the variance integral is around 1e-11 for a concentrated margin,
+#' far under the default absolute tolerance of 1.2e-4, so the default rule
+#' returned its first crude estimate and declared success.
+#'
 #' Returns `NULL` rather than erroring when the quadrature fails, so the
 #' objective below can penalize an infeasible region instead of aborting the
 #' search.
 #' @keywords internal
 .ln_moments <- function(mu, sigma) {
   if (!is.finite(mu) || !is.finite(sigma) || sigma <= 0) return(NULL)
-  dens <- function(x) dlogitnorm(x, mu = mu, sigma = sigma)
+  z0 <- max(-8, min(8, -mu / sigma))
+  int <- function(f) {
+    stats::integrate(f, -Inf, z0, rel.tol = 1e-11, abs.tol = 0)$value +
+      stats::integrate(f, z0, Inf, rel.tol = 1e-11, abs.tol = 0)$value
+  }
+  g <- function(z) stats::plogis(mu + sigma * z)
   out <- tryCatch({
-    m <- stats::integrate(function(x) x * dens(x), 0, 1)$value
-    v <- stats::integrate(function(x) (x - m)^2 * dens(x), 0, 1)$value
-    if (!is.finite(m) || !is.finite(v) || v < 0) NULL else c(mean = m, sd = sqrt(v))
+    m <- int(function(z) g(z) * stats::dnorm(z))
+    v <- int(function(z) (g(z) - m)^2 * stats::dnorm(z))
+    if (!is.finite(m) || !is.finite(v) || v < 0) {
+      NULL
+    } else {
+      c(mean = m, sd = sqrt(v))
+    }
   }, error = function(e) NULL)
   out
 }
 
-#' Squared distance between a logit-normal's moments and a target
+#' Squared relative distance between a logit-normal's moments and a target
 #'
 #' `est` is `(mu, log sigma)`. Optimizing the log keeps `sigma` strictly
 #' positive without a constrained optimizer; an unconstrained search over
 #' `sigma` itself can step to a negative scale, where the density is `NaN` and
 #' the objective is meaningless.
+#'
+#' The residuals are divided by their targets. An absolute objective is
+#' meaningless for a small margin: at `mean = 0.0005` a solution three times
+#' too large scores 1e-6, which any convergence rule reads as a fit.
 #' @keywords internal
 .lndiff <- function(est, m, s) {
   mom <- .ln_moments(est[[1L]], exp(est[[2L]]))
   if (is.null(mom)) return(.Machine$double.xmax^0.5)
-  (mom[["mean"]] - m)^2 + (mom[["sd"]] - s)^2
+  ((mom[["mean"]] - m) / m)^2 + ((mom[["sd"]] - s) / s)^2
 }
 
 #' Solve for one logit-normal (mu, sigma) from a mean and SD
@@ -271,20 +303,40 @@ qlogitnorm <- function(p, mu = 0, sigma = 1, ..., mean, sd) {
 #' from the target moments themselves, which live on a different scale and make
 #' a poor starting point, and verifies that the recovered moments actually
 #' reproduce the target before returning.
+#'
+#' Nelder-Mead reports convergence when its simplex has collapsed, which on
+#' this objective happens well short of the target: from a single pass, 27 of
+#' 77 mean and SD pairs spanning the feasible region were still off by more
+#' than 1e-6, the worst by 6e-3. Restarting rebuilds the simplex around the
+#' current point, so the search is repeated until a restart no longer improves
+#' the objective. That leaves every one of the 77 within 2e-12, for a mean of
+#' under four passes.
+#'
+#' `tol` is relative to each target moment. It was absolute at 1e-3, which for
+#' `mean = 0.0005, sd = 0.0004` is larger than either target, so the check
+#' accepted a solution with mean 0.00147 and SD 0.00139 in silence.
 #' @keywords internal
-.lnopt <- function(m, s, tol = 1e-3) {
-  start <- c(stats::qlogis(m), log(s / (m * (1 - m))))
-  opt <- stats::optim(start, .lndiff, m = m, s = s,
-                      control = list(reltol = 1e-10, maxit = 1000L))
-  pars <- c(mu = opt$par[[1L]], sigma = exp(opt$par[[2L]]))
-  bad <- opt$convergence != 0
+.lnopt <- function(m, s, tol = 1e-4) {
+  par <- c(stats::qlogis(m), log(s / (m * (1 - m))))
+  prev <- Inf
+  bad <- TRUE
+  for (k in seq_len(8L)) {
+    opt <- stats::optim(par, .lndiff, m = m, s = s,
+                        control = list(reltol = 1e-12, maxit = 2000L))
+    par <- opt$par
+    bad <- opt$convergence != 0
+    if (opt$value >= prev * (1 - 1e-6)) break
+    prev <- opt$value
+  }
+  pars <- c(mu = par[[1L]], sigma = exp(par[[2L]]))
   if (!bad) {
     mom <- .ln_moments(pars[["mu"]], pars[["sigma"]])
     # Convergence of the optimizer is not the same as having hit the target: a
     # flat or penalized region can converge far from it. Check the moments the
     # solution actually implies.
     bad <- is.null(mom) ||
-      abs(mom[["mean"]] - m) > tol || abs(mom[["sd"]] - s) > tol
+      abs(mom[["mean"]] - m) > tol * m ||
+      abs(mom[["sd"]] - s) > tol * s
   }
   if (bad) {
     warning(sprintf(paste0("logit-normal moment matching failed for mean = %g, ",

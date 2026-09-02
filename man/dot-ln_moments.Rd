@@ -7,6 +7,26 @@
 .ln_moments(mu, sigma)
 }
 \description{
+Integrates over the latent normal variable rather than over \code{x} on \verb{(0, 1)}.
+On the \code{x} scale a concentrated margin is a narrow spike inside the unit
+interval and adaptive quadrature steps over it: across a sweep of
+\verb{(mu, sigma)} the \code{x}-scale rule was wrong by up to 100 percent and failed
+outright on several, while for \code{mean = 0.01} and \code{sd = 0.0011} it reported an
+SD of 0.00110 where the true value is 0.00156. Because the objective below
+and its acceptance check both used that rule, the solver certified a
+distribution whose SD it had never matched, and \code{\link[=add_integration]{add_integration()}} then drew
+points from it.
+}
+\details{
+Two details make the latent form exact rather than merely better. The
+integrand's only sharp feature is the logistic transition, so the range is
+split at \code{z0 = -mu / sigma}, which puts a panel boundary exactly on it; \code{z0}
+is clamped to the range where the normal weight has any mass, since beyond
+that the split would leave the mass in one huge panel. And \code{abs.tol} is set
+to zero: the variance integral is around 1e-11 for a concentrated margin,
+far under the default absolute tolerance of 1.2e-4, so the default rule
+returned its first crude estimate and declared success.
+
 Returns \code{NULL} rather than erroring when the quadrature fails, so the
 objective below can penalize an infeasible region instead of aborting the
 search.
