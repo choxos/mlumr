@@ -24,7 +24,9 @@ set_agd(
 
 \item{treatment}{Column name for treatment variable}
 
-\item{family}{Outcome family: \code{"binomial"}, \code{"normal"}, or \code{"poisson"}}
+\item{family}{Outcome family: \code{"binomial"}, \code{"normal"}, or \code{"poisson"}.
+Time-to-event comparator data go to \code{\link[=set_agd_surv]{set_agd_surv()}} instead, which takes
+reconstructed pseudo-IPD rather than a scalar outcome summary.}
 
 \item{outcome_n}{Column name for sample size. Required for binomial. For
 normal, required when there is more than one aggregate row, because the

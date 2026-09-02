@@ -6,12 +6,19 @@
 #' @param treatment Column name for treatment variable
 #' @param outcome Column name for outcome variable. For `family = "binomial"`,
 #'   must be binary (0/1). For `family = "normal"`, any numeric. For
-#'   `family = "poisson"`, non-negative integer counts.
+#'   `family = "poisson"`, non-negative integer counts. Not used (leave `NULL`)
+#'   for `family = "survival"`, which uses `Surv`/`time`/`status` instead.
 #' @param covariates Character vector of covariate column names
-#' @param family Outcome family: `"binomial"`, `"normal"`, or `"poisson"`
+#' @param family Outcome family: `"binomial"`, `"normal"`, `"poisson"`, or
+#'   `"survival"` (time-to-event)
 #' @param exposure Column name for exposure/time-at-risk (required when
 #'   `family = "poisson"`)
 #' @param study Column name for study identifier (optional)
+#' @param Surv For `family = "survival"`, an optional [survival::Surv()] object
+#'   describing the outcome (use for left/interval censoring or delayed entry).
+#' @param time,status,entry_time For `family = "survival"`, character column
+#'   names as an alternative to `Surv` (right-censoring with status `0`/`1`,
+#'   plus optional delayed entry).
 #'
 #' @return An object of class `mlumr_ipd`
 #' @export
@@ -45,14 +52,25 @@
 #'   exposure = "person_years"
 #' )
 #' }
-set_ipd <- function(data, treatment, outcome, covariates,
-                    family = c("binomial", "normal", "poisson"),
-                    exposure = NULL, study = NULL) {
+set_ipd <- function(data, treatment, outcome = NULL, covariates,
+                    family = c("binomial", "normal", "poisson", "survival"),
+                    exposure = NULL, study = NULL,
+                    Surv = NULL, time = NULL, status = NULL, entry_time = NULL) {
 
   family <- match.arg(family)
 
   if (!is.data.frame(data)) {
     stop("`data` must be a data frame", call. = FALSE)
+  }
+
+  if (family == "survival") {
+    return(.set_ipd_survival(data, treatment, covariates, study,
+                             Surv, time, status, entry_time))
+  }
+
+  if (is.null(outcome)) {
+    stop("`outcome` is required for binomial, normal, and poisson families",
+         call. = FALSE)
   }
   .validate_non_empty_data(data, "IPD")
   .validate_required_covariates(covariates, "covariates")
@@ -325,7 +343,9 @@ set_ipd <- function(data, treatment, outcome, covariates,
 #'
 #' @param data Data frame containing AgD summary statistics
 #' @param treatment Column name for treatment variable
-#' @param family Outcome family: `"binomial"`, `"normal"`, or `"poisson"`
+#' @param family Outcome family: `"binomial"`, `"normal"`, or `"poisson"`.
+#'   Time-to-event comparator data go to [set_agd_surv()] instead, which takes
+#'   reconstructed pseudo-IPD rather than a scalar outcome summary.
 #' @param outcome_n Column name for sample size. Required for binomial. For
 #'   normal, required when there is more than one aggregate row, because the
 #'   comparator-population estimand is the size-weighted mixture of those rows
@@ -911,7 +931,8 @@ print.mlumr_data <- function(x, ...) {
   family_label <- switch(family,
     binomial = "Binary",
     normal   = "Continuous",
-    poisson  = "Count"
+    poisson  = "Count",
+    survival = "Time-to-event"
   )
 
   cat(sprintf("Unanchored Comparison Data (%s)\n", family_label))
@@ -925,6 +946,14 @@ print.mlumr_data <- function(x, ...) {
   } else if (family == "normal") {
     cat(sprintf("  Mean outcome = %.3f (SD = %.3f)\n\n",
                 x$ipd$mean_outcome, x$ipd$sd_outcome))
+  } else if (family == "survival") {
+    # Survival was given a family label and then left to fall through to the
+    # Poisson branch, which reads fields it does not have. x$ipd$total_events
+    # is NULL, and sprintf("%d", NULL) is character(0), so the event line
+    # printed nothing at all.
+    cat(sprintf("  Events = %d (%.1f%%), censored = %d\n\n",
+                x$ipd$n_events, 100 * x$ipd$n_events / x$ipd$n,
+                x$ipd$n - x$ipd$n_events))
   } else {
     cat(sprintf("  Total events = %d, Total exposure = %.1f\n\n",
                 x$ipd$total_events, x$ipd$total_exposure))
@@ -940,6 +969,13 @@ print.mlumr_data <- function(x, ...) {
     cat(sprintf("  Mean outcome = %s, SE = %s\n\n",
                 paste(round(x$agd$y, 3), collapse = ", "),
                 paste(round(x$agd$se, 3), collapse = ", ")))
+  } else if (family == "survival") {
+    # And here sum(NULL) is 0, so the comparator arm reported a fabricated
+    # "Total exposure = 0.0" that no reconstructed curve ever had.
+    cat(sprintf("  Reconstructed pseudo-IPD: %d row(s)\n", x$agd$n_pseudo))
+    cat(sprintf("  Events = %d (%.1f%%), censored = %d\n\n",
+                x$agd$n_events, 100 * x$agd$n_events / x$agd$n_pseudo,
+                x$agd$n_pseudo - x$agd$n_events))
   } else {
     cat(sprintf("  Total events = %d, Total exposure = %.1f\n\n",
                 sum(x$agd$n_events), sum(x$agd$total_exposure)))

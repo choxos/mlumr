@@ -54,6 +54,7 @@
 #' @import methods
 #' @import Rcpp
 #' @importFrom rstantools rstan_config
+#' @importFrom survival is.Surv
 #' @importFrom RcppParallel RcppParallelLibs
 #' @importFrom stats as.formula binomial coef complete.cases cor dbinom glm pbinom plogis predict qbinom qlogis qnorm quantile sd setNames var vcov weighted.mean
 ## usethis namespace: end

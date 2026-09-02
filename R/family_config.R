@@ -67,6 +67,34 @@ family_config <- list(
       rr = c("delta_index", "delta_comparator")
     ),
     comp_weight_field    = "E_agd"
+  
+  ),
+  survival = list(
+    # NB stan_prefix is overridden to "mlumr_survival_mspline" in mlumr() for
+    # the flexible-baseline distributions ("mspline", "pexp"); see
+    # .survival_distribution_info().
+    stan_prefix          = "mlumr_survival",
+    predict_prefix       = "surv",
+    link_default         = "log",
+    links                = c("log"),
+    # The raw Stan `delta_*` are log HR (PH) or log time ratios (AFT), but
+    # marginal_effects() exponentiates them to natural-scale `hr` / `tr`
+    # (null 1); the PH-vs-AFT label is resolved per-distribution in the
+    # predict/summary layer. `rmstr` is the natural-scale RMST ratio
+    # (RMST_index / RMST_comparator, null 1), derived from rmst_* draws in
+    # .marginal_effects_survival(); the time-varying marginal log HR (null 0) is
+    # exposed via predict(type = "loghr").
+    effect_measures      = c("hr", "rmstd", "rmstr"),
+    # Deliberately shorter than `effect_measures`, and this is the one family
+    # where the two are not parallel. `rmstr` is a ratio of two draw columns
+    # rather than a column of its own, so it has no entry here and is formed in
+    # the survival branch of marginal_effects(), which dispatches before this
+    # mapping is read. Adding an entry would name columns that do not exist.
+    marginal_effect_vars = list(
+      hr    = c("delta_index", "delta_comparator"),
+      rmstd = c("rmst_diff_index", "rmst_diff_comparator")
+    ),
+    comp_weight_field    = NULL
   )
 )
 
