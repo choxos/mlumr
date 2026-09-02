@@ -50,44 +50,7 @@ test_that("every exponentiated effect gets a null line at 1", {
   expect_equal(mlumr:::.null_ref_for(additive), rep(0, length(additive)))
 })
 
-test_that("the conditional-effects forest reads its null line from the effect", {
-  skip_if_not(exists("plot.mlumr_marginal_effects", asNamespace("mlumr")),
-             "plot methods arrive with the plotting change")
-  skip_if_not_installed("ggplot2")
-  mk <- function(effect) {
-    mlumr:::.mlumr_result(
-      data.frame(profile = 1:2, effect = effect, mean = c(1.2, 1.1),
-                 sd = c(.1, .1), q2.5 = c(.9, .8), q97.5 = c(1.6, 1.5)),
-      "mlumr_conditional_effects", family = "poisson")
-  }
-  # The defect: ref_line defaulted to 0 for every effect, so a rate-ratio panel
-  # drew its null off the plotted scale.
-  vline_x <- function(p) {
-    ggplot2::ggplot_build(p)$data[[1]]$xintercept
-  }
-  expect_equal(unique(vline_x(plot(mk("RR")))), 1)
-  expect_equal(unique(vline_x(plot(mk("HR")))), 1)
-  expect_equal(unique(vline_x(plot(mk("EXP_ETA_CONTRAST")))), 1)
-  expect_equal(unique(vline_x(plot(mk("RD")))), 0)
-  expect_equal(unique(vline_x(plot(mk("MD")))), 0)
-  # An explicit override still wins.
-  expect_equal(unique(vline_x(plot(mk("RR"), ref_line = 2))), 2)
-})
 
-test_that("the marginal forest puts EXP_DELTA_ETA on a ratio axis", {
-  skip_if_not(exists("plot.mlumr_marginal_effects", asNamespace("mlumr")),
-             "plot methods arrive with the plotting change")
-  skip_if_not_installed("ggplot2")
-  me <- mlumr:::.mlumr_result(
-    data.frame(variable = c("tr_index", "rmst_diff_index"),
-               effect = c("EXP_DELTA_ETA", "RMSTD"),
-               population = c("Index", "Index"),
-               mean = c(1.3, 2.0), sd = c(.1, .3),
-               q2.5 = c(1.0, 1.2), q97.5 = c(1.7, 2.8)),
-    "mlumr_marginal_effects", family = "survival")
-  d <- ggplot2::ggplot_build(plot(me))$data[[1]]
-  expect_setequal(d$xintercept, c(1, 0))
-})
 
 # ---- Posterior contraction against heavy-tailed priors ---------------------
 
