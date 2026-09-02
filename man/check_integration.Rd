@@ -42,5 +42,9 @@ pass/warn verdict.
 \description{
 Compare integration results at the current \code{n_int} against a doubled
 resolution to assess numerical accuracy. Large discrepancies indicate
-that \code{n_int} should be increased.
+that \code{n_int} should be increased. Because the Sobol sequence is nested
+(the doubled set contains the current set), this current-vs-doubled
+difference is a convergence heuristic, not an error bound. Agreement between
+the two grids does not establish accuracy for rare discrete margins or for a
+final treatment-effect estimand.
 }

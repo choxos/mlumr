@@ -16,9 +16,16 @@ add_integration(
 \arguments{
 \item{data}{An \code{mlumr_data} object from \code{\link[=combine_data]{combine_data()}}}
 
-\item{n_int}{Number of integration points (default 64, powers of 2 recommended)}
+\item{n_int}{Number of integration points (default 64; use powers of 2).
+More points can improve quasi-Monte Carlo integration of the AgD likelihood
+and comparator-population estimands. Increase it when
+\code{\link[=check_integration]{check_integration()}} shows numerical sensitivity. Wider posterior
+intervals alone indicate neither an inadequate grid nor a need for more
+points. Larger values cost more sampling time.}
 
-\item{cor}{Correlation matrix for covariates. If \code{NULL}, computed from IPD.}
+\item{cor}{Correlation matrix for covariates, on the covariate scale. If
+\code{NULL} (the default) it is estimated from the IPD; see the
+correlation-transport note in Details.}
 
 \item{cor_adjust}{Adjustment method: \code{"spearman"}, \code{"pearson"}, or \code{"none"}}
 
@@ -32,6 +39,50 @@ An \code{mlumr_data} object with integration points added
 \description{
 Generate quasi-Monte Carlo integration points using Sobol sequences and a
 Gaussian copula to account for correlations between covariates in the AgD.
+}
+\details{
+\strong{The correlation structure is assumed to transport.} Published aggregate
+data report marginal covariate summaries (means, SDs, proportions) but never
+the joint distribution, so comparator within-row dependence cannot be
+estimated from the AgD. With \code{cor = NULL} this function estimates one matrix
+from the \strong{index (IPD)} population and applies it as a common within-row
+copula to every comparator subgroup. It is not generally the pooled
+comparator correlation because between-subgroup means also contribute to
+pooled covariance. That assumption is untestable from the data
+at hand and is inherited from ML-NMR (Phillippo et al. 2020); it is
+additional to the shared-prognostic-factor and no-unmeasured-effect-modifier
+assumptions of the unanchored comparison itself, and it should be stated in
+any submission that uses these results.
+
+The levers are: supply \code{cor} directly when an external source (a registry, a
+similar trial, a publication reporting a correlation matrix) gives a better
+estimate for the comparator population; vary it to check sensitivity; and use
+\code{\link[=check_integration]{check_integration()}} to confirm the realized integration points reproduce
+the AgD moments and pairwise correlations you intended. Only the marginal
+moments are pinned by \code{set_agd()}; the dependence structure is your choice.
+
+\code{cor_adjust} controls how the covariate-scale correlation is mapped onto the
+Gaussian copula. The Spearman map is exact for continuous monotone margins;
+the Pearson map is accepted only for Gaussian continuous margins. The
+binary-binary and continuous-binary corrections are prevalence-independent
+heuristics, while the true
+latent-Gaussian correlation for a discrete margin depends on its thresholds.
+Treat the realized association as close to, not equal to, the target, and
+check it with \code{\link[=check_integration]{check_integration()}}, passing the same \code{cor} matrix so the
+realized-versus-target deviation is reported. \code{"none"} passes an explicitly
+supplied latent Gaussian-copula matrix through unchanged and can be used
+with any margins.
+
+Both corrections branch on continuous versus \strong{binary}, and there is no
+branch for a nonbinary discrete margin (a count such as Poisson or negative
+binomial, or an ordered category). Such a covariate is mapped as if it were
+continuous, which understates the attenuation its discreteness causes; and
+because many latent Gaussian correlations induce the same observed ranks,
+there is no unique value to map to in the first place. \code{add_integration()}
+warns when it detects one. A finite Sobol grid approximates both marginal
+moments and dependence. Verify with
+\code{\link[=check_integration]{check_integration()}}, which reports the realized correlation and names the
+scale (\code{cor_method}) it was measured on.
 }
 \examples{
 \dontrun{
