@@ -385,6 +385,23 @@ mlumr <- function(data,
            "baseline hazard, which the other families do not have.",
            call. = FALSE)
     }
+    # The rest of the survival controls were accepted and silently discarded, so
+    # a caller could hand a non-survival fit a prediction grid and get a fit
+    # back that never used it. Those with a NULL default are evidence on their
+    # own; n_knots and n_rmst_grid carry real defaults, so use missing().
+    unused <- c(
+      if (!is.null(mspline_degree)) "mspline_degree",
+      if (!is.null(pred_times)) "pred_times",
+      if (!is.null(rmst_horizon)) "rmst_horizon",
+      if (!missing(n_knots)) "n_knots",
+      if (!missing(n_rmst_grid)) "n_rmst_grid"
+    )
+    if (length(unused)) {
+      stop("`", paste(unused, collapse = "`, `"), "` ",
+           if (length(unused) == 1L) "describes" else "describe",
+           " a survival baseline hazard or its prediction grid, which ",
+           "family = '", family, "' does not have.", call. = FALSE)
+    }
     if (!is.null(prior_aux) || !is.null(prior_smooth)) {
       warning("`prior_aux` / `prior_smooth` are ignored for non-survival families.",
               call. = FALSE)
@@ -570,7 +587,16 @@ mlumr <- function(data,
       n_knots = n_knots,
       knots = if (!is.null(surv_info) && surv_info$kind == "flexible") knots else NULL,
       aux_by = if (family == "survival") aux_by else NULL,
-      mspline_degree = if (!is.null(surv_info)) surv_info$mspline_degree else NULL,
+      # NA for a parametric baseline, and a refit rejects mspline_degree unless
+      # the baseline is flexible. Store the absence as NULL, like `knots` above,
+      # so every reader of surv_controls gets it right rather than only the one
+      # that happens to normalize NA.
+      mspline_degree = if (!is.null(surv_info) &&
+                             surv_info$kind == "flexible") {
+        surv_info$mspline_degree
+      } else {
+        NULL
+      },
       pred_times = stan_data$pred_times,
       rmst_horizon = if (family == "survival")
         max(stan_data$rmst_grid_times) else NULL,
