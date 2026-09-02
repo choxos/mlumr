@@ -95,10 +95,25 @@
   }
   time_vals <- .reject_factor_time(data[[time]], time)
   status_raw <- data[[status]]
-  status_num <- if (is.logical(status_raw)) as.integer(status_raw) else as.numeric(status_raw)
+  # A factor status must be refused outright, not left to the 0/1 check below.
+  # as.numeric() returns level codes, and for a factor with the single level
+  # "0" those codes are all 1: the check sees 1s, passes them, and every
+  # censored record is stored as an event. An arm in which nobody had the event
+  # became an arm in which everybody did, with no warning anywhere.
+  if (is.factor(status_raw)) {
+    stop("`", status, "` is a factor; as.numeric() would use its level codes ",
+         "rather than the values shown, and a single-level factor would map ",
+         "every row to 1. Convert explicitly, e.g. as.numeric(as.character(",
+         status, ")).", call. = FALSE)
+  }
+  status_num <- if (is.logical(status_raw)) {
+    as.integer(status_raw)
+  } else {
+    as.numeric(status_raw)
+  }
   # The column route only supports right-censoring (0 = censored, 1 = event).
-  # Reject anything else so 2/3 censoring codes or factor coercions are not
-  # silently swept to right-censored; direct users to Surv() for left/interval.
+  # Reject anything else so 2/3 censoring codes are not silently swept to
+  # right-censored; direct users to Surv() for left/interval.
   non_na <- status_num[!is.na(status_num)]
   if (length(non_na) > 0L && !all(non_na %in% c(0, 1))) {
     stop("`status` must be 0/1 (or logical) for the column route. For left- or ",

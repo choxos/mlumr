@@ -278,3 +278,34 @@ test_that(".validate_survival_times handles delayed-entry censoring correctly", 
     "interval-censored"
   )
 })
+
+# ---- a status column that as.numeric() would misread ----------------------
+
+test_that("a factor status is refused rather than read as level codes", {
+  # as.numeric() on a factor returns level codes. For the single level "0"
+  # those codes are all 1, so the 0/1 check saw 1s, passed them, and stored
+  # every censored record as an event: an arm in which nobody had the event
+  # became an arm in which everybody did.
+  d <- data.frame(trt = "A", x = c(1, 2, 3), t = c(5, 6, 7),
+                  s = factor(c("0", "0", "0")))
+  expect_error(
+    set_ipd(d, "trt", covariates = "x", family = "survival",
+            time = "t", status = "s"),
+    "level codes")
+  # Two levels were already caught, by a route that happened to work.
+  d2 <- d
+  d2$s <- factor(c("0", "1", "0"))
+  expect_error(
+    set_ipd(d2, "trt", covariates = "x", family = "survival",
+            time = "t", status = "s"),
+    "level codes")
+  # Numeric and logical statuses are untouched.
+  d3 <- d
+  d3$s <- c(0, 0, 0)
+  expect_equal(set_ipd(d3, "trt", covariates = "x", family = "survival",
+                       time = "t", status = "s")$n_events, 0L)
+  d4 <- d
+  d4$s <- c(TRUE, FALSE, TRUE)
+  expect_equal(set_ipd(d4, "trt", covariates = "x", family = "survival",
+                       time = "t", status = "s")$n_events, 2L)
+})
