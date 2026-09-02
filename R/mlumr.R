@@ -625,13 +625,7 @@ mlumr <- function(data,
 #' @return Integer rank, at least 1.
 #' @keywords internal
 .agd_covariate_rank <- function(data) {
-  profiles <- .agd_mean_profiles(data)
-  design <- cbind(1, profiles)
-  rank <- tryCatch(qr(design)$rank, error = function(e) NA_integer_)
-  if (!is.finite(rank)) {
-    return(nrow(data$agd$data))
-  }
-  max(as.integer(rank), 1L)
+  .profile_rank(.agd_mean_profiles(data))
 }
 
 #' Validate mlumr() sampler controls before backend dispatch

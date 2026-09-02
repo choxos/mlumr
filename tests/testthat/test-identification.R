@@ -179,3 +179,18 @@ test_that("rows repeating an integration grid are counted once", {
            agd = list(data = data.frame(trt = rep("B", 5))))),
     5L)
 })
+
+# ---- rank is judged on a scale that can be judged --------------------------
+
+test_that("profile rank survives an offset and fails closed", {
+  # qr() calls a column negligible relative to the norms it is handed, so an
+  # uncentered covariate on a large offset collapses to rank 1.
+  expect_equal(mlumr:::.profile_rank(matrix(1e7 + c(0, 1, 2), ncol = 1)), 2L)
+  expect_equal(mlumr:::.profile_rank(matrix(c(0, 1, 2), ncol = 1)), 2L)
+  # Duplicated profiles carry one direction however many rows there are.
+  expect_equal(mlumr:::.profile_rank(matrix(rep(c(1, 2), each = 3), ncol = 2)), 1L)
+  # A design qr() cannot decompose used to fall back to the aggregate row
+  # count, which is the quantity the rank replaced: a padded table then looked
+  # full rank and suppressed its warning.
+  expect_equal(mlumr:::.profile_rank(matrix(c(NA_real_, 1), ncol = 1)), 0L)
+})

@@ -180,6 +180,32 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 }
 
 
+#' Numerical rank of an aggregate design, on a scale that can be judged
+#'
+#' `qr()` calls a column negligible relative to the norms it is handed, so an
+#' uncentered covariate sitting on a large offset collapses:
+#' `qr(cbind(1, 1e7 + c(0, 1, 2)))$rank` is 1, although the design the model
+#' fits, with covariates centered by default, is plainly rank 2. Centering and
+#' scaling first asks the question about the design being fitted.
+#'
+#' @param profiles Aggregate subgroup mean matrix, rows by covariates.
+#' @return Integer rank, or `0` when the design cannot be decomposed.
+#' @keywords internal
+.profile_rank <- function(profiles) {
+  M <- scale(as.matrix(profiles), center = TRUE, scale = FALSE)
+  sds <- apply(M, 2L, function(z) sqrt(mean(z^2)))
+  sds[!is.finite(sds) | sds <= 0] <- 1
+  M <- sweep(M, 2L, sds, "/")
+  rank <- tryCatch(qr(cbind(1, M))$rank, error = function(e) NA_integer_)
+  # Fail closed. A design qr() cannot decompose, a legacy integration-mean
+  # matrix carrying NA for instance, used to fall back to the aggregate row
+  # count, which is exactly the quantity this rank replaced: a padded table
+  # then looked full rank and suppressed the warning it should have raised.
+  if (!is.finite(rank)) return(0L)
+  max(as.integer(rank), 1L)
+}
+
+
 #' Number of distinct aggregate likelihood profiles
 #'
 #' Mean-profile rank is the right count only where the mean profile is the
