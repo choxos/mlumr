@@ -31,6 +31,9 @@ test_that("survival SPFA recovers the known log hazard ratio at its stated time"
   # follow-up does NOT equal `loghr` (see helper-survival.R), and no test should
   # expect it to.
   s <- fit$summary[fit$summary$variable == "delta_comparator", ]
+  # Name the cause if the variable is absent: a zero-row `s` makes the quantile
+  # lookups zero-length and `&&` then errors about its argument length instead.
+  expect_equal(nrow(s), 1L)
   expect_true(s[["2.5%"]] <= -0.5 && s[["97.5%"]] >= -0.5,
               info = sprintf("delta_comparator 95%% CI = [%.2f, %.2f]",
                              s[["2.5%"]], s[["97.5%"]]))
@@ -105,6 +108,14 @@ test_that("survival effects and predictions refuse rather than mislabel", {
   expect_error(marginal_effects(fit, effect = "hr"), "prediction layer")
   expect_error(marginal_effects(fit), "prediction layer")
   expect_error(predict(fit, type = "response"), "prediction layer")
+
+  # conditional_effects() has the same hazard by a different route:
+  # .conditional_effect_choices() falls through to the Poisson branch, so
+  # `rr` and the "all" default both resolve and would hand back
+  # exp(eta_index - eta_comparator) labeled RR.
+  expect_error(conditional_effects(fit), "prediction layer")
+  expect_error(conditional_effects(fit, effect = "rr"), "prediction layer")
+  expect_error(conditional_predict(fit), "prediction layer")
 
   # The quantities themselves are present; only the reporting layer is absent.
   expect_true(all(c("delta_index", "delta_comparator") %in% names(fit$draws)))

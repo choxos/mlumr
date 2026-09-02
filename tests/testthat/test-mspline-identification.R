@@ -116,6 +116,10 @@ test_that("stratified survival fits build one basis per study", {
   expect_equal(dim(sd2$pred_ibasis_cmp), dim(sd2$pred_ibasis))
   expect_equal(ncol(sd2$lscoef_prior_mean), 2L)
   expect_equal(ncol(sd2$lscoef_weights), 2L)
+  # Matching shapes are not evidence of stratification: sd1 below shows the
+  # shared path produces identical copies at the same dimensions. Assert the
+  # two bases actually differ, which is the thing this test is named for.
+  expect_false(isTRUE(all.equal(sd2$pred_ibasis_cmp, sd2$pred_ibasis)))
 
   # aux_by = "none" keeps one shared basis, so the copies coincide exactly and
   # the shared-baseline model is unchanged.
