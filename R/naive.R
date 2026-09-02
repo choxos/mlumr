@@ -136,9 +136,15 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
   n_index <- nrow(ipd)
   var_index <- var(ipd$.outcome) / n_index
 
-  iv_weights <- 1 / (agd$.se^2)
-  mean_comparator <- weighted.mean(agd$.y, iv_weights)
-  var_comparator <- 1 / sum(iv_weights)
+  # Sample-size weights, not inverse-variance weights. An inverse-variance
+  # average estimates a common mean efficiently, but the estimand here is the
+  # comparator population's mean, which is the size-weighted mixture of its
+  # strata. This matches what the Stan models and stc() target. Both reduce to
+  # the same value for single-row aggregate data.
+  row_w <- if (!is.null(agd$.n)) .normalize_weights(agd$.n) else
+    rep(1 / nrow(agd), nrow(agd))
+  mean_comparator <- sum(row_w * agd$.y)
+  var_comparator <- sum(row_w^2 * agd$.se^2)
 
   estimate <- mean_index - mean_comparator
   se <- sqrt(var_index + var_comparator)

@@ -119,21 +119,22 @@ cases \code{set_agd()} expects \code{outcome_mean} and \code{outcome_se} on the
 geometric. Passing log-scale summaries silently misspecifies the
 likelihood. See \code{\link[=set_agd]{set_agd()}} for details.
 
-\strong{Comparator-population weighting is family-dependent.} Integrated
-marginal predictions in the comparator population (\verb{*_comparator}
-generated quantities) are weighted by:
+\strong{The comparator population is the size-weighted mixture of its aggregate
+rows.} Integrated marginal predictions in the comparator population
+(\verb{*_comparator} generated quantities) weight each row by the population it
+represents:
 \itemize{
-\item \strong{binomial}: \code{n_agd[k]} (AgD sample size), so larger
-AgD rows contribute more to the marginal mean.
-\item \strong{normal}: equal weights across AgD rows (\verb{/ n_agd_rows}),
-reflecting the normal likelihood's treatment of each row as a
-single summary statistic.
-\item \strong{poisson}: \code{E_agd[k]} (AgD exposure), matching the
-rate-based likelihood.
+\item \strong{binomial}: \code{n_agd[k]}, the AgD sample size.
+\item \strong{normal}: \code{agd_weight[k]}, from \code{outcome_n}. This is required for
+more than one aggregate row, and is \code{1} for a single row where the
+weighting is irrelevant.
+\item \strong{poisson}: \code{E_agd[k]}, the AgD exposure.
 }
-Each weighting is natural for the corresponding likelihood; users
-comparing marginal effects across families should be aware they are
-not identically weighted.
+The weights say which population the estimand refers to, and are deliberately
+separate from the likelihood's own precision weighting, which says how much
+each row constrains the parameters. Because the parts of a split subgroup sum
+to the whole, the estimand does not change with how the aggregate evidence
+happens to be tabulated.
 
 \strong{Weakly-identified coefficients in the relaxed model} —
 \code{beta_comparator} is identified only through AgD, so the relaxed

@@ -55,7 +55,7 @@ family_config <- list(
     marginal_effect_vars = list(
       md = c("delta_index", "delta_comparator")
     ),
-    comp_weight_field    = NULL
+    comp_weight_field    = "agd_weight"
   ),
   poisson = list(
     stan_prefix          = "mlumr_poisson",

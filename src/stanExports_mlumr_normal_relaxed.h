@@ -13,129 +13,129 @@ namespace model_mlumr_normal_relaxed_namespace {
 using stan::model::model_base_crtp;
 using namespace stan::math;
 stan::math::profile_map profiles__;
-static constexpr std::array<const char*, 202> locations_array__ =
+static constexpr std::array<const char*, 204> locations_array__ =
   {" (found before start of program)",
-  " (in 'mlumr_normal_relaxed', line 137, column 2 to column 24)",
-  " (in 'mlumr_normal_relaxed', line 141, column 2 to column 22)",
-  " (in 'mlumr_normal_relaxed', line 145, column 2 to column 60)",
-  " (in 'mlumr_normal_relaxed', line 146, column 2 to column 29)",
-  " (in 'mlumr_normal_relaxed', line 147, column 2 to column 34)",
-  " (in 'mlumr_normal_relaxed', line 148, column 2 to column 56)",
-  " (in 'mlumr_normal_relaxed', line 149, column 2 to column 69)",
-  " (in 'mlumr_normal_relaxed', line 151, column 2 to column 48)",
-  " (in 'mlumr_normal_relaxed', line 192, column 2 to column 19)",
-  " (in 'mlumr_normal_relaxed', line 193, column 2 to column 24)",
-  " (in 'mlumr_normal_relaxed', line 195, column 2 to column 21)",
-  " (in 'mlumr_normal_relaxed', line 196, column 2 to column 26)",
-  " (in 'mlumr_normal_relaxed', line 197, column 2 to column 26)",
-  " (in 'mlumr_normal_relaxed', line 198, column 2 to column 31)",
-  " (in 'mlumr_normal_relaxed', line 199, column 2 to column 26)",
-  " (in 'mlumr_normal_relaxed', line 200, column 2 to column 31)",
-  " (in 'mlumr_normal_relaxed', line 201, column 2 to column 31)",
-  " (in 'mlumr_normal_relaxed', line 202, column 2 to column 36)",
-  " (in 'mlumr_normal_relaxed', line 204, column 2 to column 27)",
-  " (in 'mlumr_normal_relaxed', line 207, column 2 to column 28)",
-  " (in 'mlumr_normal_relaxed', line 208, column 2 to column 33)",
-  " (in 'mlumr_normal_relaxed', line 211, column 11 to column 16)",
-  " (in 'mlumr_normal_relaxed', line 211, column 4 to column 62)",
-  " (in 'mlumr_normal_relaxed', line 212, column 11 to column 16)",
-  " (in 'mlumr_normal_relaxed', line 212, column 4 to column 77)",
-  " (in 'mlumr_normal_relaxed', line 220, column 6 to column 55)",
-  " (in 'mlumr_normal_relaxed', line 221, column 6 to column 65)",
-  " (in 'mlumr_normal_relaxed', line 222, column 6 to column 39)",
-  " (in 'mlumr_normal_relaxed', line 223, column 6 to column 49)",
-  " (in 'mlumr_normal_relaxed', line 224, column 6 to column 39)",
-  " (in 'mlumr_normal_relaxed', line 225, column 6 to column 49)",
-  " (in 'mlumr_normal_relaxed', line 226, column 6 to column 66)",
-  " (in 'mlumr_normal_relaxed', line 219, column 11 to line 227, column 5)",
-  " (in 'mlumr_normal_relaxed', line 214, column 6 to column 40)",
-  " (in 'mlumr_normal_relaxed', line 215, column 6 to column 50)",
-  " (in 'mlumr_normal_relaxed', line 216, column 6 to column 41)",
-  " (in 'mlumr_normal_relaxed', line 217, column 6 to column 51)",
-  " (in 'mlumr_normal_relaxed', line 218, column 6 to column 55)",
-  " (in 'mlumr_normal_relaxed', line 213, column 19 to line 219, column 5)",
-  " (in 'mlumr_normal_relaxed', line 213, column 4 to line 227, column 5)",
-  " (in 'mlumr_normal_relaxed', line 210, column 2 to line 228, column 3)",
-  " (in 'mlumr_normal_relaxed', line 234, column 11 to column 21)",
-  " (in 'mlumr_normal_relaxed', line 234, column 4 to column 33)",
-  " (in 'mlumr_normal_relaxed', line 235, column 11 to column 21)",
-  " (in 'mlumr_normal_relaxed', line 235, column 4 to column 38)",
-  " (in 'mlumr_normal_relaxed', line 236, column 11 to column 21)",
-  " (in 'mlumr_normal_relaxed', line 236, column 4 to column 31)",
-  " (in 'mlumr_normal_relaxed', line 238, column 13 to column 18)",
-  " (in 'mlumr_normal_relaxed', line 238, column 6 to column 63)",
-  " (in 'mlumr_normal_relaxed', line 239, column 13 to column 18)",
-  " (in 'mlumr_normal_relaxed', line 239, column 6 to column 73)",
-  " (in 'mlumr_normal_relaxed', line 240, column 6 to column 21)",
-  " (in 'mlumr_normal_relaxed', line 245, column 8 to column 49)",
-  " (in 'mlumr_normal_relaxed', line 246, column 8 to column 54)",
-  " (in 'mlumr_normal_relaxed', line 244, column 13 to line 247, column 7)",
-  " (in 'mlumr_normal_relaxed', line 242, column 8 to column 37)",
-  " (in 'mlumr_normal_relaxed', line 243, column 8 to column 42)",
-  " (in 'mlumr_normal_relaxed', line 241, column 21 to line 244, column 7)",
-  " (in 'mlumr_normal_relaxed', line 241, column 6 to line 247, column 7)",
-  " (in 'mlumr_normal_relaxed', line 237, column 28 to line 248, column 5)",
-  " (in 'mlumr_normal_relaxed', line 237, column 4 to line 248, column 5)",
-  " (in 'mlumr_normal_relaxed', line 257, column 6 to column 71)",
-  " (in 'mlumr_normal_relaxed', line 258, column 6 to column 81)",
-  " (in 'mlumr_normal_relaxed', line 259, column 6 to column 44)",
-  " (in 'mlumr_normal_relaxed', line 260, column 6 to column 54)",
-  " (in 'mlumr_normal_relaxed', line 261, column 6 to column 44)",
-  " (in 'mlumr_normal_relaxed', line 262, column 6 to column 54)",
-  " (in 'mlumr_normal_relaxed', line 263, column 6 to column 71)",
-  " (in 'mlumr_normal_relaxed', line 256, column 11 to line 264, column 5)",
-  " (in 'mlumr_normal_relaxed', line 250, column 6 to column 74)",
-  " (in 'mlumr_normal_relaxed', line 251, column 6 to line 252, column 45)",
-  " (in 'mlumr_normal_relaxed', line 253, column 6 to column 51)",
-  " (in 'mlumr_normal_relaxed', line 254, column 6 to column 61)",
-  " (in 'mlumr_normal_relaxed', line 255, column 6 to column 70)",
-  " (in 'mlumr_normal_relaxed', line 249, column 19 to line 256, column 5)",
-  " (in 'mlumr_normal_relaxed', line 249, column 4 to line 264, column 5)",
-  " (in 'mlumr_normal_relaxed', line 233, column 2 to line 265, column 3)",
-  " (in 'mlumr_normal_relaxed', line 267, column 2 to column 44)",
-  " (in 'mlumr_normal_relaxed', line 273, column 11 to column 16)",
-  " (in 'mlumr_normal_relaxed', line 273, column 4 to column 42)",
-  " (in 'mlumr_normal_relaxed', line 275, column 6 to column 64)",
-  " (in 'mlumr_normal_relaxed', line 274, column 4 to line 275, column 64)",
-  " (in 'mlumr_normal_relaxed', line 272, column 9 to line 276, column 3)",
-  " (in 'mlumr_normal_relaxed', line 271, column 6 to column 67)",
-  " (in 'mlumr_normal_relaxed', line 270, column 4 to line 271, column 67)",
-  " (in 'mlumr_normal_relaxed', line 269, column 17 to line 272, column 3)",
-  " (in 'mlumr_normal_relaxed', line 269, column 2 to line 276, column 3)",
-  " (in 'mlumr_normal_relaxed', line 278, column 11 to column 16)",
-  " (in 'mlumr_normal_relaxed', line 278, column 4 to column 77)",
-  " (in 'mlumr_normal_relaxed', line 283, column 6 to column 61)",
-  " (in 'mlumr_normal_relaxed', line 284, column 6 to column 69)",
-  " (in 'mlumr_normal_relaxed', line 282, column 11 to line 285, column 5)",
-  " (in 'mlumr_normal_relaxed', line 280, column 6 to column 47)",
-  " (in 'mlumr_normal_relaxed', line 281, column 6 to column 72)",
-  " (in 'mlumr_normal_relaxed', line 279, column 19 to line 282, column 5)",
-  " (in 'mlumr_normal_relaxed', line 279, column 4 to line 285, column 5)",
-  " (in 'mlumr_normal_relaxed', line 277, column 26 to line 286, column 3)",
-  " (in 'mlumr_normal_relaxed', line 277, column 2 to line 286, column 3)",
-  " (in 'mlumr_normal_relaxed', line 155, column 2 to line 156, column 71)",
-  " (in 'mlumr_normal_relaxed', line 157, column 2 to line 158, column 71)",
-  " (in 'mlumr_normal_relaxed', line 159, column 2 to line 160, column 61)",
-  " (in 'mlumr_normal_relaxed', line 161, column 2 to line 163, column 44)",
-  " (in 'mlumr_normal_relaxed', line 165, column 2 to line 166, column 62)",
-  " (in 'mlumr_normal_relaxed', line 175, column 4 to column 42)",
-  " (in 'mlumr_normal_relaxed', line 174, column 9 to line 176, column 3)",
-  " (in 'mlumr_normal_relaxed', line 173, column 6 to column 64)",
-  " (in 'mlumr_normal_relaxed', line 171, column 6 to column 39)",
-  " (in 'mlumr_normal_relaxed', line 170, column 4 to line 173, column 64)",
-  " (in 'mlumr_normal_relaxed', line 169, column 17 to line 174, column 3)",
-  " (in 'mlumr_normal_relaxed', line 169, column 2 to line 176, column 3)",
-  " (in 'mlumr_normal_relaxed', line 180, column 11 to column 16)",
-  " (in 'mlumr_normal_relaxed', line 180, column 4 to column 57)",
-  " (in 'mlumr_normal_relaxed', line 185, column 6 to column 61)",
-  " (in 'mlumr_normal_relaxed', line 186, column 6 to column 47)",
-  " (in 'mlumr_normal_relaxed', line 184, column 11 to line 187, column 5)",
-  " (in 'mlumr_normal_relaxed', line 182, column 6 to column 47)",
-  " (in 'mlumr_normal_relaxed', line 183, column 6 to column 50)",
-  " (in 'mlumr_normal_relaxed', line 181, column 19 to line 184, column 5)",
-  " (in 'mlumr_normal_relaxed', line 181, column 4 to line 187, column 5)",
-  " (in 'mlumr_normal_relaxed', line 179, column 26 to line 188, column 3)",
-  " (in 'mlumr_normal_relaxed', line 179, column 2 to line 188, column 3)",
+  " (in 'mlumr_normal_relaxed', line 142, column 2 to column 24)",
+  " (in 'mlumr_normal_relaxed', line 146, column 2 to column 22)",
+  " (in 'mlumr_normal_relaxed', line 150, column 2 to column 60)",
+  " (in 'mlumr_normal_relaxed', line 151, column 2 to column 29)",
+  " (in 'mlumr_normal_relaxed', line 152, column 2 to column 34)",
+  " (in 'mlumr_normal_relaxed', line 153, column 2 to column 56)",
+  " (in 'mlumr_normal_relaxed', line 154, column 2 to column 69)",
+  " (in 'mlumr_normal_relaxed', line 156, column 2 to column 48)",
+  " (in 'mlumr_normal_relaxed', line 197, column 2 to column 19)",
+  " (in 'mlumr_normal_relaxed', line 198, column 2 to column 24)",
+  " (in 'mlumr_normal_relaxed', line 200, column 2 to column 21)",
+  " (in 'mlumr_normal_relaxed', line 201, column 2 to column 26)",
+  " (in 'mlumr_normal_relaxed', line 202, column 2 to column 26)",
+  " (in 'mlumr_normal_relaxed', line 203, column 2 to column 31)",
+  " (in 'mlumr_normal_relaxed', line 204, column 2 to column 26)",
+  " (in 'mlumr_normal_relaxed', line 205, column 2 to column 31)",
+  " (in 'mlumr_normal_relaxed', line 206, column 2 to column 31)",
+  " (in 'mlumr_normal_relaxed', line 207, column 2 to column 36)",
+  " (in 'mlumr_normal_relaxed', line 209, column 2 to column 27)",
+  " (in 'mlumr_normal_relaxed', line 212, column 2 to column 28)",
+  " (in 'mlumr_normal_relaxed', line 213, column 2 to column 33)",
+  " (in 'mlumr_normal_relaxed', line 216, column 11 to column 16)",
+  " (in 'mlumr_normal_relaxed', line 216, column 4 to column 62)",
+  " (in 'mlumr_normal_relaxed', line 217, column 11 to column 16)",
+  " (in 'mlumr_normal_relaxed', line 217, column 4 to column 77)",
+  " (in 'mlumr_normal_relaxed', line 225, column 6 to column 55)",
+  " (in 'mlumr_normal_relaxed', line 226, column 6 to column 65)",
+  " (in 'mlumr_normal_relaxed', line 227, column 6 to column 39)",
+  " (in 'mlumr_normal_relaxed', line 228, column 6 to column 49)",
+  " (in 'mlumr_normal_relaxed', line 229, column 6 to column 39)",
+  " (in 'mlumr_normal_relaxed', line 230, column 6 to column 49)",
+  " (in 'mlumr_normal_relaxed', line 231, column 6 to column 66)",
+  " (in 'mlumr_normal_relaxed', line 224, column 11 to line 232, column 5)",
+  " (in 'mlumr_normal_relaxed', line 219, column 6 to column 40)",
+  " (in 'mlumr_normal_relaxed', line 220, column 6 to column 50)",
+  " (in 'mlumr_normal_relaxed', line 221, column 6 to column 41)",
+  " (in 'mlumr_normal_relaxed', line 222, column 6 to column 51)",
+  " (in 'mlumr_normal_relaxed', line 223, column 6 to column 55)",
+  " (in 'mlumr_normal_relaxed', line 218, column 19 to line 224, column 5)",
+  " (in 'mlumr_normal_relaxed', line 218, column 4 to line 232, column 5)",
+  " (in 'mlumr_normal_relaxed', line 215, column 2 to line 233, column 3)",
+  " (in 'mlumr_normal_relaxed', line 241, column 11 to column 21)",
+  " (in 'mlumr_normal_relaxed', line 241, column 4 to column 33)",
+  " (in 'mlumr_normal_relaxed', line 242, column 11 to column 21)",
+  " (in 'mlumr_normal_relaxed', line 242, column 4 to column 38)",
+  " (in 'mlumr_normal_relaxed', line 243, column 11 to column 21)",
+  " (in 'mlumr_normal_relaxed', line 243, column 4 to column 31)",
+  " (in 'mlumr_normal_relaxed', line 245, column 13 to column 18)",
+  " (in 'mlumr_normal_relaxed', line 245, column 6 to column 63)",
+  " (in 'mlumr_normal_relaxed', line 246, column 13 to column 18)",
+  " (in 'mlumr_normal_relaxed', line 246, column 6 to column 73)",
+  " (in 'mlumr_normal_relaxed', line 247, column 6 to column 33)",
+  " (in 'mlumr_normal_relaxed', line 252, column 8 to column 49)",
+  " (in 'mlumr_normal_relaxed', line 253, column 8 to column 54)",
+  " (in 'mlumr_normal_relaxed', line 251, column 13 to line 254, column 7)",
+  " (in 'mlumr_normal_relaxed', line 249, column 8 to column 37)",
+  " (in 'mlumr_normal_relaxed', line 250, column 8 to column 42)",
+  " (in 'mlumr_normal_relaxed', line 248, column 21 to line 251, column 7)",
+  " (in 'mlumr_normal_relaxed', line 248, column 6 to line 254, column 7)",
+  " (in 'mlumr_normal_relaxed', line 244, column 28 to line 255, column 5)",
+  " (in 'mlumr_normal_relaxed', line 244, column 4 to line 255, column 5)",
+  " (in 'mlumr_normal_relaxed', line 264, column 6 to column 71)",
+  " (in 'mlumr_normal_relaxed', line 265, column 6 to column 81)",
+  " (in 'mlumr_normal_relaxed', line 266, column 6 to column 44)",
+  " (in 'mlumr_normal_relaxed', line 267, column 6 to column 54)",
+  " (in 'mlumr_normal_relaxed', line 268, column 6 to column 44)",
+  " (in 'mlumr_normal_relaxed', line 269, column 6 to column 54)",
+  " (in 'mlumr_normal_relaxed', line 270, column 6 to column 71)",
+  " (in 'mlumr_normal_relaxed', line 263, column 11 to line 271, column 5)",
+  " (in 'mlumr_normal_relaxed', line 257, column 6 to column 74)",
+  " (in 'mlumr_normal_relaxed', line 258, column 6 to line 259, column 45)",
+  " (in 'mlumr_normal_relaxed', line 260, column 6 to column 51)",
+  " (in 'mlumr_normal_relaxed', line 261, column 6 to column 61)",
+  " (in 'mlumr_normal_relaxed', line 262, column 6 to column 70)",
+  " (in 'mlumr_normal_relaxed', line 256, column 19 to line 263, column 5)",
+  " (in 'mlumr_normal_relaxed', line 256, column 4 to line 271, column 5)",
+  " (in 'mlumr_normal_relaxed', line 240, column 2 to line 272, column 3)",
+  " (in 'mlumr_normal_relaxed', line 274, column 2 to column 44)",
+  " (in 'mlumr_normal_relaxed', line 280, column 11 to column 16)",
+  " (in 'mlumr_normal_relaxed', line 280, column 4 to column 42)",
+  " (in 'mlumr_normal_relaxed', line 282, column 6 to column 64)",
+  " (in 'mlumr_normal_relaxed', line 281, column 4 to line 282, column 64)",
+  " (in 'mlumr_normal_relaxed', line 279, column 9 to line 283, column 3)",
+  " (in 'mlumr_normal_relaxed', line 278, column 6 to column 67)",
+  " (in 'mlumr_normal_relaxed', line 277, column 4 to line 278, column 67)",
+  " (in 'mlumr_normal_relaxed', line 276, column 17 to line 279, column 3)",
+  " (in 'mlumr_normal_relaxed', line 276, column 2 to line 283, column 3)",
+  " (in 'mlumr_normal_relaxed', line 285, column 11 to column 16)",
+  " (in 'mlumr_normal_relaxed', line 285, column 4 to column 77)",
+  " (in 'mlumr_normal_relaxed', line 290, column 6 to column 61)",
+  " (in 'mlumr_normal_relaxed', line 291, column 6 to column 69)",
+  " (in 'mlumr_normal_relaxed', line 289, column 11 to line 292, column 5)",
+  " (in 'mlumr_normal_relaxed', line 287, column 6 to column 47)",
+  " (in 'mlumr_normal_relaxed', line 288, column 6 to column 72)",
+  " (in 'mlumr_normal_relaxed', line 286, column 19 to line 289, column 5)",
+  " (in 'mlumr_normal_relaxed', line 286, column 4 to line 292, column 5)",
+  " (in 'mlumr_normal_relaxed', line 284, column 26 to line 293, column 3)",
+  " (in 'mlumr_normal_relaxed', line 284, column 2 to line 293, column 3)",
+  " (in 'mlumr_normal_relaxed', line 160, column 2 to line 161, column 71)",
+  " (in 'mlumr_normal_relaxed', line 162, column 2 to line 163, column 71)",
+  " (in 'mlumr_normal_relaxed', line 164, column 2 to line 165, column 61)",
+  " (in 'mlumr_normal_relaxed', line 166, column 2 to line 168, column 44)",
+  " (in 'mlumr_normal_relaxed', line 170, column 2 to line 171, column 62)",
+  " (in 'mlumr_normal_relaxed', line 180, column 4 to column 42)",
+  " (in 'mlumr_normal_relaxed', line 179, column 9 to line 181, column 3)",
+  " (in 'mlumr_normal_relaxed', line 178, column 6 to column 64)",
+  " (in 'mlumr_normal_relaxed', line 176, column 6 to column 39)",
+  " (in 'mlumr_normal_relaxed', line 175, column 4 to line 178, column 64)",
+  " (in 'mlumr_normal_relaxed', line 174, column 17 to line 179, column 3)",
+  " (in 'mlumr_normal_relaxed', line 174, column 2 to line 181, column 3)",
+  " (in 'mlumr_normal_relaxed', line 185, column 11 to column 16)",
+  " (in 'mlumr_normal_relaxed', line 185, column 4 to column 57)",
+  " (in 'mlumr_normal_relaxed', line 190, column 6 to column 61)",
+  " (in 'mlumr_normal_relaxed', line 191, column 6 to column 47)",
+  " (in 'mlumr_normal_relaxed', line 189, column 11 to line 192, column 5)",
+  " (in 'mlumr_normal_relaxed', line 187, column 6 to column 47)",
+  " (in 'mlumr_normal_relaxed', line 188, column 6 to column 50)",
+  " (in 'mlumr_normal_relaxed', line 186, column 19 to line 189, column 5)",
+  " (in 'mlumr_normal_relaxed', line 186, column 4 to line 192, column 5)",
+  " (in 'mlumr_normal_relaxed', line 184, column 26 to line 193, column 3)",
+  " (in 'mlumr_normal_relaxed', line 184, column 2 to line 193, column 3)",
   " (in 'mlumr_normal_relaxed', line 74, column 2 to column 21)",
   " (in 'mlumr_normal_relaxed', line 75, column 9 to column 14)",
   " (in 'mlumr_normal_relaxed', line 75, column 2 to column 22)",
@@ -148,46 +148,48 @@ static constexpr std::array<const char*, 202> locations_array__ =
   " (in 'mlumr_normal_relaxed', line 81, column 2 to column 31)",
   " (in 'mlumr_normal_relaxed', line 84, column 8 to column 18)",
   " (in 'mlumr_normal_relaxed', line 84, column 2 to column 41)",
-  " (in 'mlumr_normal_relaxed', line 86, column 2 to column 21)",
-  " (in 'mlumr_normal_relaxed', line 87, column 8 to column 18)",
-  " (in 'mlumr_normal_relaxed', line 87, column 27 to column 32)",
-  " (in 'mlumr_normal_relaxed', line 87, column 34 to column 39)",
-  " (in 'mlumr_normal_relaxed', line 87, column 2 to column 47)",
-  " (in 'mlumr_normal_relaxed', line 89, column 2 to column 26)",
-  " (in 'mlumr_normal_relaxed', line 90, column 2 to column 18)",
-  " (in 'mlumr_normal_relaxed', line 91, column 9 to column 14)",
-  " (in 'mlumr_normal_relaxed', line 91, column 16 to column 18)",
-  " (in 'mlumr_normal_relaxed', line 91, column 2 to column 27)",
+  " (in 'mlumr_normal_relaxed', line 89, column 18 to column 28)",
+  " (in 'mlumr_normal_relaxed', line 89, column 2 to column 41)",
+  " (in 'mlumr_normal_relaxed', line 91, column 2 to column 21)",
   " (in 'mlumr_normal_relaxed', line 92, column 8 to column 18)",
   " (in 'mlumr_normal_relaxed', line 92, column 27 to column 32)",
-  " (in 'mlumr_normal_relaxed', line 92, column 34 to column 36)",
-  " (in 'mlumr_normal_relaxed', line 92, column 2 to column 45)",
-  " (in 'mlumr_normal_relaxed', line 93, column 9 to column 11)",
-  " (in 'mlumr_normal_relaxed', line 93, column 13 to column 15)",
-  " (in 'mlumr_normal_relaxed', line 93, column 2 to column 23)",
-  " (in 'mlumr_normal_relaxed', line 110, column 0 to column 26)",
-  " (in 'mlumr_normal_relaxed', line 111, column 0 to column 33)",
-  " (in 'mlumr_normal_relaxed', line 112, column 0 to column 42)",
-  " (in 'mlumr_normal_relaxed', line 113, column 0 to column 33)",
-  " (in 'mlumr_normal_relaxed', line 115, column 7 to column 12)",
-  " (in 'mlumr_normal_relaxed', line 115, column 0 to column 30)",
-  " (in 'mlumr_normal_relaxed', line 116, column 16 to column 21)",
-  " (in 'mlumr_normal_relaxed', line 116, column 0 to column 37)",
-  " (in 'mlumr_normal_relaxed', line 117, column 0 to column 37)",
-  " (in 'mlumr_normal_relaxed', line 118, column 0 to column 28)",
-  " (in 'mlumr_normal_relaxed', line 128, column 0 to column 26)",
-  " (in 'mlumr_normal_relaxed', line 129, column 0 to column 32)",
-  " (in 'mlumr_normal_relaxed', line 130, column 0 to column 38)",
-  " (in 'mlumr_normal_relaxed', line 131, column 0 to column 29)",
-  " (in 'mlumr_normal_relaxed', line 132, column 2 to column 28)",
-  " (in 'mlumr_normal_relaxed', line 137, column 9 to column 11)",
-  " (in 'mlumr_normal_relaxed', line 145, column 9 to column 11)",
-  " (in 'mlumr_normal_relaxed', line 148, column 9 to column 14)",
-  " (in 'mlumr_normal_relaxed', line 149, column 9 to column 14)",
-  " (in 'mlumr_normal_relaxed', line 151, column 9 to column 14)",
-  " (in 'mlumr_normal_relaxed', line 204, column 9 to column 14)",
-  " (in 'mlumr_normal_relaxed', line 207, column 9 to column 14)",
-  " (in 'mlumr_normal_relaxed', line 208, column 9 to column 19)",
+  " (in 'mlumr_normal_relaxed', line 92, column 34 to column 39)",
+  " (in 'mlumr_normal_relaxed', line 92, column 2 to column 47)",
+  " (in 'mlumr_normal_relaxed', line 94, column 2 to column 26)",
+  " (in 'mlumr_normal_relaxed', line 95, column 2 to column 18)",
+  " (in 'mlumr_normal_relaxed', line 96, column 9 to column 14)",
+  " (in 'mlumr_normal_relaxed', line 96, column 16 to column 18)",
+  " (in 'mlumr_normal_relaxed', line 96, column 2 to column 27)",
+  " (in 'mlumr_normal_relaxed', line 97, column 8 to column 18)",
+  " (in 'mlumr_normal_relaxed', line 97, column 27 to column 32)",
+  " (in 'mlumr_normal_relaxed', line 97, column 34 to column 36)",
+  " (in 'mlumr_normal_relaxed', line 97, column 2 to column 45)",
+  " (in 'mlumr_normal_relaxed', line 98, column 9 to column 11)",
+  " (in 'mlumr_normal_relaxed', line 98, column 13 to column 15)",
+  " (in 'mlumr_normal_relaxed', line 98, column 2 to column 23)",
+  " (in 'mlumr_normal_relaxed', line 115, column 0 to column 26)",
+  " (in 'mlumr_normal_relaxed', line 116, column 0 to column 33)",
+  " (in 'mlumr_normal_relaxed', line 117, column 0 to column 42)",
+  " (in 'mlumr_normal_relaxed', line 118, column 0 to column 33)",
+  " (in 'mlumr_normal_relaxed', line 120, column 7 to column 12)",
+  " (in 'mlumr_normal_relaxed', line 120, column 0 to column 30)",
+  " (in 'mlumr_normal_relaxed', line 121, column 16 to column 21)",
+  " (in 'mlumr_normal_relaxed', line 121, column 0 to column 37)",
+  " (in 'mlumr_normal_relaxed', line 122, column 0 to column 37)",
+  " (in 'mlumr_normal_relaxed', line 123, column 0 to column 28)",
+  " (in 'mlumr_normal_relaxed', line 133, column 0 to column 26)",
+  " (in 'mlumr_normal_relaxed', line 134, column 0 to column 32)",
+  " (in 'mlumr_normal_relaxed', line 135, column 0 to column 38)",
+  " (in 'mlumr_normal_relaxed', line 136, column 0 to column 29)",
+  " (in 'mlumr_normal_relaxed', line 137, column 2 to column 28)",
+  " (in 'mlumr_normal_relaxed', line 142, column 9 to column 11)",
+  " (in 'mlumr_normal_relaxed', line 150, column 9 to column 11)",
+  " (in 'mlumr_normal_relaxed', line 153, column 9 to column 14)",
+  " (in 'mlumr_normal_relaxed', line 154, column 9 to column 14)",
+  " (in 'mlumr_normal_relaxed', line 156, column 9 to column 14)",
+  " (in 'mlumr_normal_relaxed', line 209, column 9 to column 14)",
+  " (in 'mlumr_normal_relaxed', line 212, column 9 to column 14)",
+  " (in 'mlumr_normal_relaxed', line 213, column 9 to column 19)",
   " (in 'mlumr_normal_relaxed', line 24, column 7 to column 54)",
   " (in 'mlumr_normal_relaxed', line 23, column 17 to column 57)",
   " (in 'mlumr_normal_relaxed', line 23, column 2 to line 24, column 54)",
@@ -315,12 +317,12 @@ log_prior_scalar(const T0__& x, const T1__& location, const T2__& scale,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 176;
+    current_statement__ = 178;
     if (stan::math::logical_eq(dist, 0)) {
-      current_statement__ = 175;
+      current_statement__ = 177;
       return stan::math::normal_lpdf<false>(x, location, scale);
     } else {
-      current_statement__ = 174;
+      current_statement__ = 176;
       return stan::math::student_t_lpdf<false>(x, df, location, scale);
     }
   } catch (const std::exception& e) {
@@ -360,12 +362,12 @@ log_prior_vector(const T0__& x_arg__, const T1__& location_arg__, const T2__&
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 180;
+    current_statement__ = 182;
     if (stan::math::logical_eq(dist, 0)) {
-      current_statement__ = 179;
+      current_statement__ = 181;
       return stan::math::normal_lpdf<false>(x, location, scale);
     } else {
-      current_statement__ = 178;
+      current_statement__ = 180;
       return stan::math::student_t_lpdf<false>(x, df, location, scale);
     }
   } catch (const std::exception& e) {
@@ -398,17 +400,17 @@ log_prior_sigma(const T0__& sigma, const T1__& location, const T2__& scale,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 186;
+    current_statement__ = 188;
     if (stan::math::logical_eq(dist, 0)) {
-      current_statement__ = 185;
+      current_statement__ = 187;
       return stan::math::normal_lpdf<false>(sigma, location, scale);
     } else {
-      current_statement__ = 184;
+      current_statement__ = 186;
       if (stan::math::logical_eq(dist, 1)) {
-        current_statement__ = 183;
+        current_statement__ = 185;
         return stan::math::student_t_lpdf<false>(sigma, df, location, scale);
       } else {
-        current_statement__ = 182;
+        current_statement__ = 184;
         return stan::math::exponential_lpdf<false>(sigma,
                  stan::math::inv(scale));
       }
@@ -439,12 +441,12 @@ log_prior_std_vector(const T0__& z_arg__, const T1__& dist, const T2__& df,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 190;
+    current_statement__ = 192;
     if (stan::math::logical_eq(dist, 0)) {
-      current_statement__ = 189;
+      current_statement__ = 191;
       return stan::math::std_normal_lpdf<false>(z);
     } else {
-      current_statement__ = 188;
+      current_statement__ = 190;
       return stan::math::student_t_lpdf<false>(z, df, static_cast<double>(0),
                static_cast<double>(1));
     }
@@ -470,7 +472,7 @@ log_mean_exp_vec(const T0__& x_arg__, std::ostream* pstream__) {
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 192;
+    current_statement__ = 194;
     return (stan::math::log_sum_exp(x) -
            stan::math::log(stan::math::num_elements(x)));
   } catch (const std::exception& e) {
@@ -500,7 +502,7 @@ log_weighted_mean_exp_vec(const T0__& log_x_arg__, const T1__& weights_arg__,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 194;
+    current_statement__ = 196;
     return (stan::math::log_sum_exp(
               stan::math::add(stan::math::log(weights), log_x))
            - stan::math::log_sum_exp(stan::math::log(weights)));
@@ -527,18 +529,18 @@ exp_difference(const T0__& log_x, const T1__& log_y, std::ostream* pstream__) {
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 200;
+    current_statement__ = 202;
     if (stan::math::logical_eq(log_x, log_y)) {
-      current_statement__ = 199;
+      current_statement__ = 201;
       return stan::math::promote_scalar<local_scalar_t__>(0);
     } else {
-      current_statement__ = 198;
+      current_statement__ = 200;
       if (stan::math::logical_gt(log_x, log_y)) {
-        current_statement__ = 197;
+        current_statement__ = 199;
         return stan::math::exp((log_x +
                  stan::math::log1m_exp((log_y - log_x))));
       } else {
-        current_statement__ = 196;
+        current_statement__ = 198;
         return -(stan::math::exp((log_y +
                    stan::math::log1m_exp((log_x - log_y)))));
       }
@@ -557,6 +559,7 @@ private:
   int n_agd_rows;
   std::vector<double> y_agd;
   std::vector<double> se_agd;
+  Eigen::Matrix<double,-1,1> agd_weight_data__;
   int n_int;
   std::vector<Eigen::Matrix<double,-1,-1>> X_int;
   int qr;
@@ -579,6 +582,7 @@ private:
   int link;
   Eigen::Map<Eigen::Matrix<double,-1,1>> y_ipd{nullptr, 0};
   Eigen::Map<Eigen::Matrix<double,-1,-1>> X_ipd{nullptr, 0, 0};
+  Eigen::Map<Eigen::Matrix<double,-1,1>> agd_weight{nullptr, 0};
   Eigen::Map<Eigen::Matrix<double,-1,-1>> Xq_ipd{nullptr, 0, 0};
   Eigen::Map<Eigen::Matrix<double,-1,-1>> R_inv{nullptr, 0, 0};
   Eigen::Map<Eigen::Matrix<double,-1,1>> prior_beta_mean{nullptr, 0};
@@ -700,21 +704,46 @@ public:
       current_statement__ = 133;
       stan::math::check_greater_or_equal(function__, "se_agd", se_agd, 0);
       current_statement__ = 134;
+      stan::math::validate_non_negative_index("agd_weight", "n_agd_rows",
+        n_agd_rows);
+      current_statement__ = 135;
+      context__.validate_dims("data initialization", "agd_weight", "double",
+        std::vector<size_t>{static_cast<size_t>(n_agd_rows)});
+      agd_weight_data__ = Eigen::Matrix<double,-1,1>::Constant(n_agd_rows,
+                            std::numeric_limits<double>::quiet_NaN());
+      new (&agd_weight)
+        Eigen::Map<Eigen::Matrix<double,-1,1>>(agd_weight_data__.data(),
+        n_agd_rows);
+      {
+        std::vector<local_scalar_t__> agd_weight_flat__;
+        current_statement__ = 135;
+        agd_weight_flat__ = context__.vals_r("agd_weight");
+        pos__ = 1;
+        for (int sym1__ = 1; sym1__ <= n_agd_rows; ++sym1__) {
+          stan::model::assign(agd_weight, agd_weight_flat__[(pos__ - 1)],
+            "assigning variable agd_weight", stan::model::index_uni(sym1__));
+          pos__ = (pos__ + 1);
+        }
+      }
+      current_statement__ = 135;
+      stan::math::check_greater_or_equal(function__, "agd_weight",
+        agd_weight, 0);
+      current_statement__ = 136;
       context__.validate_dims("data initialization", "n_int", "int",
         std::vector<size_t>{});
       n_int = std::numeric_limits<int>::min();
-      current_statement__ = 134;
+      current_statement__ = 136;
       n_int = context__.vals_i("n_int")[(1 - 1)];
-      current_statement__ = 134;
+      current_statement__ = 136;
       stan::math::check_greater_or_equal(function__, "n_int", n_int, 1);
-      current_statement__ = 135;
+      current_statement__ = 137;
       stan::math::validate_non_negative_index("X_int", "n_agd_rows",
         n_agd_rows);
-      current_statement__ = 136;
-      stan::math::validate_non_negative_index("X_int", "n_int", n_int);
-      current_statement__ = 137;
-      stan::math::validate_non_negative_index("X_int", "n_cov", n_cov);
       current_statement__ = 138;
+      stan::math::validate_non_negative_index("X_int", "n_int", n_int);
+      current_statement__ = 139;
+      stan::math::validate_non_negative_index("X_int", "n_cov", n_cov);
+      current_statement__ = 140;
       context__.validate_dims("data initialization", "X_int", "double",
         std::vector<size_t>{static_cast<size_t>(n_agd_rows),
           static_cast<size_t>(n_int), static_cast<size_t>(n_cov)});
@@ -723,7 +752,7 @@ public:
                   std::numeric_limits<double>::quiet_NaN()));
       {
         std::vector<local_scalar_t__> X_int_flat__;
-        current_statement__ = 138;
+        current_statement__ = 140;
         X_int_flat__ = context__.vals_r("X_int");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
@@ -738,29 +767,29 @@ public:
           }
         }
       }
-      current_statement__ = 139;
+      current_statement__ = 141;
       context__.validate_dims("data initialization", "qr", "int",
         std::vector<size_t>{});
       qr = std::numeric_limits<int>::min();
-      current_statement__ = 139;
+      current_statement__ = 141;
       qr = context__.vals_i("qr")[(1 - 1)];
-      current_statement__ = 139;
+      current_statement__ = 141;
       stan::math::check_greater_or_equal(function__, "qr", qr, 0);
-      current_statement__ = 139;
+      current_statement__ = 141;
       stan::math::check_less_or_equal(function__, "qr", qr, 1);
-      current_statement__ = 140;
+      current_statement__ = 142;
       context__.validate_dims("data initialization", "nB", "int",
         std::vector<size_t>{});
       nB = std::numeric_limits<int>::min();
-      current_statement__ = 140;
-      nB = context__.vals_i("nB")[(1 - 1)];
-      current_statement__ = 140;
-      stan::math::check_greater_or_equal(function__, "nB", nB, 1);
-      current_statement__ = 141;
-      stan::math::validate_non_negative_index("Xq_ipd", "n_ipd", n_ipd);
       current_statement__ = 142;
-      stan::math::validate_non_negative_index("Xq_ipd", "nB", nB);
+      nB = context__.vals_i("nB")[(1 - 1)];
+      current_statement__ = 142;
+      stan::math::check_greater_or_equal(function__, "nB", nB, 1);
       current_statement__ = 143;
+      stan::math::validate_non_negative_index("Xq_ipd", "n_ipd", n_ipd);
+      current_statement__ = 144;
+      stan::math::validate_non_negative_index("Xq_ipd", "nB", nB);
+      current_statement__ = 145;
       context__.validate_dims("data initialization", "Xq_ipd", "double",
         std::vector<size_t>{static_cast<size_t>(n_ipd),
           static_cast<size_t>(nB)});
@@ -771,7 +800,7 @@ public:
         nB);
       {
         std::vector<local_scalar_t__> Xq_ipd_flat__;
-        current_statement__ = 143;
+        current_statement__ = 145;
         Xq_ipd_flat__ = context__.vals_r("Xq_ipd");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= nB; ++sym1__) {
@@ -783,14 +812,14 @@ public:
           }
         }
       }
-      current_statement__ = 144;
+      current_statement__ = 146;
       stan::math::validate_non_negative_index("Xq_int", "n_agd_rows",
         n_agd_rows);
-      current_statement__ = 145;
-      stan::math::validate_non_negative_index("Xq_int", "n_int", n_int);
-      current_statement__ = 146;
-      stan::math::validate_non_negative_index("Xq_int", "nB", nB);
       current_statement__ = 147;
+      stan::math::validate_non_negative_index("Xq_int", "n_int", n_int);
+      current_statement__ = 148;
+      stan::math::validate_non_negative_index("Xq_int", "nB", nB);
+      current_statement__ = 149;
       context__.validate_dims("data initialization", "Xq_int", "double",
         std::vector<size_t>{static_cast<size_t>(n_agd_rows),
           static_cast<size_t>(n_int), static_cast<size_t>(nB)});
@@ -799,7 +828,7 @@ public:
                    std::numeric_limits<double>::quiet_NaN()));
       {
         std::vector<local_scalar_t__> Xq_int_flat__;
-        current_statement__ = 147;
+        current_statement__ = 149;
         Xq_int_flat__ = context__.vals_r("Xq_int");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= nB; ++sym1__) {
@@ -814,11 +843,11 @@ public:
           }
         }
       }
-      current_statement__ = 148;
-      stan::math::validate_non_negative_index("R_inv", "nB", nB);
-      current_statement__ = 149;
-      stan::math::validate_non_negative_index("R_inv", "nB", nB);
       current_statement__ = 150;
+      stan::math::validate_non_negative_index("R_inv", "nB", nB);
+      current_statement__ = 151;
+      stan::math::validate_non_negative_index("R_inv", "nB", nB);
+      current_statement__ = 152;
       context__.validate_dims("data initialization", "R_inv", "double",
         std::vector<size_t>{static_cast<size_t>(nB), static_cast<size_t>(nB)});
       R_inv_data__ = Eigen::Matrix<double,-1,-1>::Constant(nB, nB,
@@ -827,7 +856,7 @@ public:
         Eigen::Map<Eigen::Matrix<double,-1,-1>>(R_inv_data__.data(), nB, nB);
       {
         std::vector<local_scalar_t__> R_inv_flat__;
-        current_statement__ = 150;
+        current_statement__ = 152;
         R_inv_flat__ = context__.vals_r("R_inv");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= nB; ++sym1__) {
@@ -839,48 +868,48 @@ public:
           }
         }
       }
-      current_statement__ = 151;
+      current_statement__ = 153;
       context__.validate_dims("data initialization", "prior_intercept_mean",
         "double", std::vector<size_t>{});
       prior_intercept_mean = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 151;
+      current_statement__ = 153;
       prior_intercept_mean = context__.vals_r("prior_intercept_mean")[(1 -
         1)];
-      current_statement__ = 152;
+      current_statement__ = 154;
       context__.validate_dims("data initialization", "prior_intercept_sd",
         "double", std::vector<size_t>{});
       prior_intercept_sd = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 152;
+      current_statement__ = 154;
       prior_intercept_sd = context__.vals_r("prior_intercept_sd")[(1 - 1)];
-      current_statement__ = 152;
+      current_statement__ = 154;
       stan::math::check_greater_or_equal(function__, "prior_intercept_sd",
         prior_intercept_sd, 0);
-      current_statement__ = 153;
+      current_statement__ = 155;
       context__.validate_dims("data initialization", "prior_intercept_dist",
         "int", std::vector<size_t>{});
       prior_intercept_dist = std::numeric_limits<int>::min();
-      current_statement__ = 153;
+      current_statement__ = 155;
       prior_intercept_dist = context__.vals_i("prior_intercept_dist")[(1 -
         1)];
-      current_statement__ = 153;
+      current_statement__ = 155;
       stan::math::check_greater_or_equal(function__, "prior_intercept_dist",
         prior_intercept_dist, 0);
-      current_statement__ = 153;
+      current_statement__ = 155;
       stan::math::check_less_or_equal(function__, "prior_intercept_dist",
         prior_intercept_dist, 1);
-      current_statement__ = 154;
+      current_statement__ = 156;
       context__.validate_dims("data initialization", "prior_intercept_df",
         "double", std::vector<size_t>{});
       prior_intercept_df = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 154;
+      current_statement__ = 156;
       prior_intercept_df = context__.vals_r("prior_intercept_df")[(1 - 1)];
-      current_statement__ = 154;
+      current_statement__ = 156;
       stan::math::check_greater_or_equal(function__, "prior_intercept_df",
         prior_intercept_df, 0);
-      current_statement__ = 155;
+      current_statement__ = 157;
       stan::math::validate_non_negative_index("prior_beta_mean", "n_cov",
         n_cov);
-      current_statement__ = 156;
+      current_statement__ = 158;
       context__.validate_dims("data initialization", "prior_beta_mean",
         "double", std::vector<size_t>{static_cast<size_t>(n_cov)});
       prior_beta_mean_data__ = Eigen::Matrix<double,-1,1>::Constant(n_cov,
@@ -890,7 +919,7 @@ public:
         n_cov);
       {
         std::vector<local_scalar_t__> prior_beta_mean_flat__;
-        current_statement__ = 156;
+        current_statement__ = 158;
         prior_beta_mean_flat__ = context__.vals_r("prior_beta_mean");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
@@ -900,9 +929,9 @@ public:
           pos__ = (pos__ + 1);
         }
       }
-      current_statement__ = 157;
+      current_statement__ = 159;
       stan::math::validate_non_negative_index("prior_beta_sd", "n_cov", n_cov);
-      current_statement__ = 158;
+      current_statement__ = 160;
       context__.validate_dims("data initialization", "prior_beta_sd",
         "double", std::vector<size_t>{static_cast<size_t>(n_cov)});
       prior_beta_sd_data__ = Eigen::Matrix<double,-1,1>::Constant(n_cov,
@@ -912,7 +941,7 @@ public:
         n_cov);
       {
         std::vector<local_scalar_t__> prior_beta_sd_flat__;
-        current_statement__ = 158;
+        current_statement__ = 160;
         prior_beta_sd_flat__ = context__.vals_r("prior_beta_sd");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
@@ -922,93 +951,93 @@ public:
           pos__ = (pos__ + 1);
         }
       }
-      current_statement__ = 158;
+      current_statement__ = 160;
       stan::math::check_greater_or_equal(function__, "prior_beta_sd",
         prior_beta_sd, 0);
-      current_statement__ = 159;
+      current_statement__ = 161;
       context__.validate_dims("data initialization", "prior_beta_dist",
         "int", std::vector<size_t>{});
       prior_beta_dist = std::numeric_limits<int>::min();
-      current_statement__ = 159;
+      current_statement__ = 161;
       prior_beta_dist = context__.vals_i("prior_beta_dist")[(1 - 1)];
-      current_statement__ = 159;
+      current_statement__ = 161;
       stan::math::check_greater_or_equal(function__, "prior_beta_dist",
         prior_beta_dist, 0);
-      current_statement__ = 159;
+      current_statement__ = 161;
       stan::math::check_less_or_equal(function__, "prior_beta_dist",
         prior_beta_dist, 1);
-      current_statement__ = 160;
+      current_statement__ = 162;
       context__.validate_dims("data initialization", "prior_beta_df",
         "double", std::vector<size_t>{});
       prior_beta_df = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 160;
+      current_statement__ = 162;
       prior_beta_df = context__.vals_r("prior_beta_df")[(1 - 1)];
-      current_statement__ = 160;
+      current_statement__ = 162;
       stan::math::check_greater_or_equal(function__, "prior_beta_df",
         prior_beta_df, 0);
-      current_statement__ = 161;
+      current_statement__ = 163;
       context__.validate_dims("data initialization", "prior_sigma_location",
         "double", std::vector<size_t>{});
       prior_sigma_location = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 161;
+      current_statement__ = 163;
       prior_sigma_location = context__.vals_r("prior_sigma_location")[(1 -
         1)];
-      current_statement__ = 162;
+      current_statement__ = 164;
       context__.validate_dims("data initialization", "prior_sigma_scale",
         "double", std::vector<size_t>{});
       prior_sigma_scale = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 162;
+      current_statement__ = 164;
       prior_sigma_scale = context__.vals_r("prior_sigma_scale")[(1 - 1)];
-      current_statement__ = 162;
+      current_statement__ = 164;
       stan::math::check_greater_or_equal(function__, "prior_sigma_scale",
         prior_sigma_scale, 0);
-      current_statement__ = 163;
+      current_statement__ = 165;
       context__.validate_dims("data initialization", "prior_sigma_dist",
         "int", std::vector<size_t>{});
       prior_sigma_dist = std::numeric_limits<int>::min();
-      current_statement__ = 163;
+      current_statement__ = 165;
       prior_sigma_dist = context__.vals_i("prior_sigma_dist")[(1 - 1)];
-      current_statement__ = 163;
+      current_statement__ = 165;
       stan::math::check_greater_or_equal(function__, "prior_sigma_dist",
         prior_sigma_dist, 0);
-      current_statement__ = 163;
+      current_statement__ = 165;
       stan::math::check_less_or_equal(function__, "prior_sigma_dist",
         prior_sigma_dist, 2);
-      current_statement__ = 164;
+      current_statement__ = 166;
       context__.validate_dims("data initialization", "prior_sigma_df",
         "double", std::vector<size_t>{});
       prior_sigma_df = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 164;
+      current_statement__ = 166;
       prior_sigma_df = context__.vals_r("prior_sigma_df")[(1 - 1)];
-      current_statement__ = 164;
+      current_statement__ = 166;
       stan::math::check_greater_or_equal(function__, "prior_sigma_df",
         prior_sigma_df, 0);
-      current_statement__ = 165;
+      current_statement__ = 167;
       context__.validate_dims("data initialization", "link", "int",
         std::vector<size_t>{});
       link = std::numeric_limits<int>::min();
-      current_statement__ = 165;
-      link = context__.vals_i("link")[(1 - 1)];
-      current_statement__ = 165;
-      stan::math::check_greater_or_equal(function__, "link", link, 1);
-      current_statement__ = 165;
-      stan::math::check_less_or_equal(function__, "link", link, 2);
-      current_statement__ = 166;
-      stan::math::validate_non_negative_index("beta_tilde", "nB", nB);
       current_statement__ = 167;
-      stan::math::validate_non_negative_index("allbeta", "nB", nB);
+      link = context__.vals_i("link")[(1 - 1)];
+      current_statement__ = 167;
+      stan::math::check_greater_or_equal(function__, "link", link, 1);
+      current_statement__ = 167;
+      stan::math::check_less_or_equal(function__, "link", link, 2);
       current_statement__ = 168;
-      stan::math::validate_non_negative_index("beta_index", "n_cov", n_cov);
+      stan::math::validate_non_negative_index("beta_tilde", "nB", nB);
       current_statement__ = 169;
+      stan::math::validate_non_negative_index("allbeta", "nB", nB);
+      current_statement__ = 170;
+      stan::math::validate_non_negative_index("beta_index", "n_cov", n_cov);
+      current_statement__ = 171;
       stan::math::validate_non_negative_index("beta_comparator", "n_cov",
         n_cov);
-      current_statement__ = 170;
-      stan::math::validate_non_negative_index("theta_ipd", "n_ipd", n_ipd);
-      current_statement__ = 171;
-      stan::math::validate_non_negative_index("delta_beta", "n_cov", n_cov);
       current_statement__ = 172;
-      stan::math::validate_non_negative_index("log_lik_ipd", "n_ipd", n_ipd);
+      stan::math::validate_non_negative_index("theta_ipd", "n_ipd", n_ipd);
       current_statement__ = 173;
+      stan::math::validate_non_negative_index("delta_beta", "n_cov", n_cov);
+      current_statement__ = 174;
+      stan::math::validate_non_negative_index("log_lik_ipd", "n_ipd", n_ipd);
+      current_statement__ = 175;
       stan::math::validate_non_negative_index("log_lik_agd", "n_agd_rows",
         n_agd_rows);
     } catch (const std::exception& e) {
@@ -1526,7 +1555,9 @@ public:
                 stan::model::rvalue(X_int, "X_int", stan::model::index_uni(k)),
                 beta_comparator)), "assigning variable y_cmp_k");
           current_statement__ = 52;
-          stan::model::assign(weights, 1, "assigning variable weights",
+          stan::model::assign(weights,
+            stan::model::rvalue(agd_weight, "agd_weight",
+              stan::model::index_uni(k)), "assigning variable weights",
             stan::model::index_uni(k));
           current_statement__ = 59;
           if (stan::math::logical_eq(link, 1)) {

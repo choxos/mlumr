@@ -326,8 +326,11 @@ set_ipd <- function(data, treatment, outcome, covariates,
 #' @param data Data frame containing AgD summary statistics
 #' @param treatment Column name for treatment variable
 #' @param family Outcome family: `"binomial"`, `"normal"`, or `"poisson"`
-#' @param outcome_n Column name for sample size (required for binomial,
-#'   optional for normal)
+#' @param outcome_n Column name for sample size. Required for binomial. For
+#'   normal, required when there is more than one aggregate row, because the
+#'   comparator-population estimand is the size-weighted mixture of those rows
+#'   and they cannot be combined without knowing how large each is; optional for
+#'   a single row, where the weighting is irrelevant.
 #' @param outcome_r Column name for number of events (required for binomial
 #'   and poisson)
 #' @param outcome_mean Column name for mean outcome (required for normal)
@@ -575,6 +578,10 @@ set_agd <- function(data, treatment,
     .validate_agd_binomial_outcomes(data[[outcome_r]], data[[outcome_n]])
   } else if (family == "normal") {
     .validate_agd_normal_outcomes(data[[outcome_mean]], data[[outcome_se]])
+    if (nrow(data) > 1L && is.null(outcome_n)) {
+      stop("`outcome_n` is required for multiple normal aggregate rows so ",
+           "they can be combined using population weights.", call. = FALSE)
+    }
     if (!is.null(outcome_n)) {
       .validate_agd_sample_size(data[[outcome_n]])
     }

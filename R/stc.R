@@ -259,14 +259,22 @@ stc <- function(data, link = NULL, conf_level = 0.95) {
 #' @keywords internal
 .stc_normal <- function(data, fit, ipd, agd, newdata, link_resolved,
                         conf_level, z, beta_hat, V, n_int) {
+  if (nrow(agd) > 1L && is.null(agd$.n)) {
+    stop("`outcome_n` is required for multiple normal AgD rows.", call. = FALSE)
+  }
+  # Population weights, not precision weights. The estimand is the comparator
+  # population's mean, which is the size-weighted mixture of its strata; an
+  # inverse-variance average estimates a common mean instead and is a different
+  # quantity when the strata differ.
+  agd_weights <- agd$.n %||% 1
   pred_y <- predict(fit, newdata = newdata, type = "response")
   weights <- if (data$has_integration) {
-    rep(1 / agd$.se^2, each = n_int)
+    rep(agd_weights, each = n_int)
   } else {
-    1 / (agd$.se^2)
+    agd_weights
   }
   y_hat_A <- weighted.mean(pred_y, weights)
-  y_B <- weighted.mean(agd$.y, 1 / agd$.se^2)
+  y_B <- sum(.normalize_weights(agd_weights) * agd$.y)
   estimate <- y_hat_A - y_B
 
   X_comp_design <- .stc_model_matrix(fit, newdata)
@@ -280,7 +288,7 @@ stc <- function(data, link = NULL, conf_level = 0.95) {
 
   var_A <- .nonnegative_variance(as.numeric(t(grad) %*% V %*% grad),
                                  "normal STC index variance")
-  var_B <- 1 / sum(1 / agd$.se^2)
+  var_B <- sum(.normalize_weights(agd_weights)^2 * agd$.se^2)
   se <- .sqrt_variance(var_A + var_B, "normal STC contrast variance")
 
   list(

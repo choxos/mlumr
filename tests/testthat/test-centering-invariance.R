@@ -61,10 +61,7 @@ test_that("weights fall back to equal when no usable field is present", {
 })
 
 test_that("each family reads its own comparator weight field", {
-  # normal is absent here on purpose: it has no comparator weight field yet, so
-  # it falls back to equal weights and is not split-invariant. It joins this
-  # loop with the change that gives it one.
-  for (fam in c("binomial", "poisson")) {
+  for (fam in c("binomial", "normal", "poisson")) {
     field <- mlumr:::get_family_config(fam)$comp_weight_field
     sd <- make_sd(100, 0, agd_means = c(10, 10), agd_weights = c(30, 70),
                   field = field)
