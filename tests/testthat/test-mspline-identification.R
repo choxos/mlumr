@@ -156,3 +156,32 @@ test_that("per-study knot reduction can reach zero internal knots for a cubic", 
     mlumr:::.matched_per_study_bases(ipd, pseudo, n_knots = 3L, degree = 0L),
     "equal dimension")
 })
+
+test_that("a shared baseline asserts basis support, as the stratified one does", {
+  # The stratified branch calls .assert_basis_support() on both specs; the
+  # shared branch did not, so a single-stratum fit could recreate the exact
+  # ridge that assertion exists to prevent. .validate_user_knots() only
+  # requires the upper boundary to reach the last observed time, not to stop
+  # near it, so internal knots past the observed maximum leave columns
+  # supported nowhere the data reach. Simplex mass can move onto those and
+  # trade one for one against the intercept, leaving the likelihood exactly
+  # flat along that direction and the intercept set by its prior.
+  skip_on_cran()
+  d <- sim_survival_data(seed = 2026, n_ipd = 40, n_agd = 40, n_int = 8)
+  tmax <- max(c(d$ipd$data$.time, d$agd$pseudo_ipd$.time))
+  expect_lt(tmax, 10)
+
+  spec <- mlumr:::.build_mspline_basis(
+    mlumr:::.validate_user_knots(
+      list(internal = c(10, 20, 30), boundary = c(0, 50)), tmax, "shared"),
+    0L)
+  expect_error(mlumr:::.assert_basis_support(spec, tmax, "shared"),
+               "no support over its observed follow-up")
+
+  # Knots placed over the observed range are accepted.
+  ok <- mlumr:::.build_mspline_basis(
+    mlumr:::.validate_user_knots(
+      list(internal = c(1, 2, 3), boundary = c(0, tmax)), tmax, "shared"),
+    0L)
+  expect_true(mlumr:::.assert_basis_support(ok, tmax, "shared"))
+})

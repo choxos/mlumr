@@ -1082,12 +1082,23 @@ mlumr <- function(data,
         .assert_basis_support(spec_cmp, max(pseudo$.time), "comparator")
       }
     } else {
+      observed_max <- max(c(ipd$.time, pseudo$.time))
       knots_i <- if (is.null(knots)) {
         make_knots(data, n_knots = n_knots)
       } else {
-        .validate_user_knots(knots, max(c(ipd$.time, pseudo$.time)), "shared")
+        .validate_user_knots(knots, observed_max, "shared")
       }
       spec_idx <- spec_cmp <- .build_mspline_basis(knots_i, degree)
+      # The stratified branch above asserts basis support and this one did not,
+      # which left the shared baseline able to recreate the very ridge the
+      # comment above describes. .validate_user_knots() only requires the upper
+      # boundary to reach the last observed time, not to stop near it, so
+      # boundary = c(0, 100) with all times under 10 gives columns supported
+      # only on (10, 100]. Simplex mass can move onto those and trade one for
+      # one against the intercept, leaving the likelihood exactly flat along
+      # that direction. Per-study boundaries are what remove it when strata
+      # differ; when they do not, this assertion is what remains.
+      .assert_basis_support(spec_idx, observed_max, "shared")
     }
     spec <- spec_idx
     if (spec$n_scoef < 2L) {
