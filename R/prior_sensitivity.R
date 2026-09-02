@@ -174,7 +174,15 @@ prior_sensitivity <- function(fit,
       ))
     }
 
-    fit_i <- do.call(mlumr, c(args, list(...)))
+    # `...` is documented as the way to pass sampler and backend controls, and
+    # `protected` above already keeps it away from anything that defines the
+    # scenario. Merge rather than concatenate: `args` already names `chains`,
+    # `iter` and the rest, so appending a `...` value would match the same
+    # formal twice and R refuses the call. That made the one thing `...` is for
+    # the one thing it could not do.
+    call_args <- args
+    if (length(dots)) call_args[names(dots)] <- dots
+    fit_i <- do.call(mlumr, call_args)
 
     results[[i]] <- .summarize_sensitivity(fit_i, scale = s, probs = probs)
   }

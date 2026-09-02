@@ -91,3 +91,13 @@ test_that("prior_sensitivity() omits the survival controls for other families", 
                  info = paste(a, "is passed unconditionally"))
   }
 })
+
+test_that("prior_sensitivity() lets `...` override the sampler controls", {
+  # `...` is documented as the way to pass sampler and backend controls, but
+  # the refit named chains/iter/... itself, so any such override matched the
+  # same formal twice and R refused the call before sampling.
+  body_txt <- paste(deparse(body(prior_sensitivity)), collapse = "\n")
+  # dots are merged into the argument list, not concatenated onto it.
+  expect_match(body_txt, "call_args\\[names\\(dots\\)\\] <- dots")
+  expect_false(grepl("do.call(mlumr, c(args, list(...)))", body_txt, fixed = TRUE))
+})
