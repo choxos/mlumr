@@ -346,3 +346,55 @@ test_that("n_events counts every failure, not only the exactly observed ones", {
   agd <- set_agd_surv(ad, "trt", Surv = iv, cov_means = "x_mean")
   expect_equal(agd$n_events, 2L)
 })
+
+# ---- an arm has to be identifiable before it can be grouped ---------------
+
+test_that("a missing arm identifier is refused, not silently matched", {
+  # unique() keeps NA and which(NA == NA) selects nothing, so an all-NA arm
+  # column passed the single-arm check and then matched no rows: the summary
+  # came back .study NA, .trt NA, age_mean NA, from data carrying trt "B" and
+  # a mean of 60. The object was structurally valid, so the model would have
+  # integrated over NA covariate means.
+  d <- data.frame(trt = "B", t = c(4, 6), s = c(1, 0), age_mean = 60, a = NA)
+  expect_error(
+    set_agd_surv(d, "trt", time = "t", status = "s", cov_means = "age_mean",
+                 cov_types = "continuous", arm = "a"),
+    "must not contain missing values")
+  # A missing study or treatment is refused on the same grounds.
+  d2 <- d
+  d2$a <- "control"
+  d2$st <- c("S1", NA)
+  expect_error(
+    set_agd_surv(d2, "trt", time = "t", status = "s", cov_means = "age_mean",
+                 cov_types = "continuous", study = "st", arm = "a"),
+    "must not contain missing values")
+})
+
+test_that("one arm label cannot cover two studies or two treatments", {
+  # An arm is one reconstructed curve, from one study, on one treatment.
+  # Keying only on the label merged rows that shared it: study c("S1", "S2")
+  # with arm c("control", "control") passed the single-arm check, was labeled
+  # "S1", and kept both studies in the pseudo-IPD.
+  d <- data.frame(trt = "B", t = c(4, 6), s = c(1, 0), age_mean = 60,
+                  st = c("S1", "S2"), a = c("control", "control"))
+  expect_error(
+    set_agd_surv(d, "trt", time = "t", status = "s", cov_means = "age_mean",
+                 cov_types = "continuous", study = "st", arm = "a"),
+    "spans more than one study")
+  # Two treatments were already refused, by the whole-frame check.
+  d2 <- d
+  d2$st <- "S1"
+  d2$trt <- c("B", "C")
+  expect_error(
+    set_agd_surv(d2, "trt", time = "t", status = "s", cov_means = "age_mean",
+                 cov_types = "continuous", study = "st", arm = "a"),
+    "single treatment")
+  # One study, one treatment, one arm still works.
+  d3 <- d
+  d3$st <- "S1"
+  got <- set_agd_surv(d3, "trt", time = "t", status = "s",
+                      cov_means = "age_mean", cov_types = "continuous",
+                      study = "st", arm = "a")
+  expect_equal(got$n_arms, 1L)
+  expect_equal(got$data$.study, "S1")
+})

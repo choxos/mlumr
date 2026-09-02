@@ -341,14 +341,18 @@ set_agd_surv <- function(data, treatment, Surv = NULL,
                            surv_df$.delay_time, surv_df$.status, "AgD")
 
   arm_vec <- if (!is.null(arm)) {
-    as.character(data[[arm]])
+    .require_identity(data[[arm]], arm)
   } else if (!is.null(study)) {
-    as.character(data[[study]])
+    .require_identity(data[[study]], study)
   } else {
     rep("AgD_Arm", nrow(data))
   }
-  study_vec <- if (!is.null(study)) as.character(data[[study]]) else arm_vec
-  trt_vec <- data[[treatment]]
+  study_vec <- if (!is.null(study)) {
+    .require_identity(data[[study]], study)
+  } else {
+    arm_vec
+  }
+  trt_vec <- .require_identity(data[[treatment]], treatment, as_char = FALSE)
 
   pseudo_ipd <- data.frame(
     .study = study_vec, .trt = trt_vec, .arm = arm_vec,
@@ -358,6 +362,13 @@ set_agd_surv <- function(data, treatment, Surv = NULL,
   )
 
   arms <- unique(arm_vec)
+  # An arm is one reconstructed curve from one study. Keying only on the arm
+  # label merged rows that shared it across studies: study c("S1", "S2") with
+  # arm c("control", "control") passed the single-arm check below, was
+  # summarized as "S1", and kept both studies in the pseudo-IPD, so two
+  # reconstructed curves became one comparator without a word. A single
+  # treatment is already required across the whole frame above.
+  .require_single_identity(study_vec, arm_vec, "study")
   # Only a single comparator arm is supported. With more than one arm the
   # comparator-population predictions/marginal effects would be an undefined
   # equal-arm mixture (the generated quantities average integration points
@@ -385,6 +396,49 @@ set_agd_surv <- function(data, treatment, Surv = NULL,
   )
   class(out) <- c("mlumr_agd_surv", "mlumr_agd", "list")
   out
+}
+
+
+#' Refuse a missing grouping identifier
+#'
+#' `unique()` keeps `NA` and `which(NA == NA)` selects nothing, so an arm
+#' column of `NA` passed the single-arm check and then matched no rows: the
+#' summary came back with `.study`, `.trt`, and every covariate mean `NA`,
+#' from data that carried a treatment and a mean. The object was structurally
+#' valid, so nothing downstream objected to integrating over `NA`.
+#'
+#' @param x The column.
+#' @param nm Its name, for the message.
+#' @param as_char Return `as.character(x)` rather than `x`.
+#' @keywords internal
+.require_identity <- function(x, nm, as_char = TRUE) {
+  if (anyNA(x)) {
+    stop("`", nm, "` must not contain missing values: it identifies which ",
+         "rows belong together, and a missing identifier matches no rows, ",
+         "leaving an arm summary of NA.", call. = FALSE)
+  }
+  if (as_char) as.character(x) else x
+}
+
+
+#' Refuse an arm that spans more than one study
+#'
+#' @param values The identifier to check within each arm.
+#' @param arm_vec Arm labels.
+#' @param label Name of the identifier, for the message.
+#' @keywords internal
+.require_single_identity <- function(values, arm_vec, label) {
+  for (a in unique(arm_vec)) {
+    vals <- unique(values[arm_vec == a])
+    if (length(vals) > 1L) {
+      stop(sprintf(paste0("Arm '%s' spans more than one %s (%s). An arm is one ",
+                          "reconstructed curve from one study on one ",
+                          "treatment; give each its own `arm` label."),
+                   a, label, paste(sQuote(vals), collapse = ", ")),
+           call. = FALSE)
+    }
+  }
+  invisible(TRUE)
 }
 
 
