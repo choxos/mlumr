@@ -16,6 +16,7 @@
 ^documentation$
 ^inst/future$
 ^LICENSE\.md$
+^man/figures/logo_backup\.svg$
 ^inst/stan/mlumr_[a-z_]+$
 ^src/.*\.(o|so|dll)$
 ^.*\.DS_Store$
