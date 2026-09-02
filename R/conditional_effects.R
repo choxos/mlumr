@@ -185,6 +185,34 @@ conditional_effects <- function(object,
   params <- .conditional_parameters(object, profiles$covariates)
   results <- vector("list", n_profiles)
 
+  # The contrast type depends only on the fit, not on the covariate profile, so
+  # resolve it once. Inside the loop this emitted the same long warning for
+  # every row of `newdata`.
+  if (.aux_shapes_differ(object)) {
+    why <- if (isTRUE(object$surv_info$is_ph)) {
+      paste0("the conditional hazard ratio varies with time and the ",
+             "reported exp(eta_index - eta_comparator) is not it: the ",
+             "baseline ratio h0_index(t) / h0_comparator(t) does not cancel")
+    } else {
+      paste0("the conditional time ratio depends on the survival quantile ",
+             "and the reported exp(eta_index - eta_comparator) is not it: ",
+             "differing shapes add quantile-dependent factors (the Weibull ",
+             "[-log S]^(1/a_i - 1/a_c), the log-normal ",
+             "exp(z_p (sigma_i - sigma_c)), and so on) that do not cancel")
+    }
+    warning("Each study has its own baseline ",
+            if (isTRUE(object$surv_info$is_ph)) "hazard" else "shape",
+            " (`aux_by = \".study\"`, the default), so ", why,
+            ". Target-standardized RMST effects from marginal_effects() ",
+            "remain available, and `aux_by = \"none\"` gives a single shared ",
+            "baseline under which this contrast is exact. Note that ",
+            "predict(type = \"loghr\") is a population-standardized ",
+            "MARGINAL curve, not the conditional effect at this covariate ",
+            "profile, so it answers a different question rather than ",
+            "replacing this one.",
+            call. = FALSE)
+  }
+
   for (i in seq_len(n_profiles)) {
     eta <- .conditional_eta(params, X[i, , drop = FALSE])
     eta_idx <- eta$index
@@ -229,30 +257,6 @@ conditional_effects <- function(object,
       # AFT alike, so the warning has to cover both. Gating it on `is_ph` left a
       # stratified AFT fit relabeling its estimand silently while the
       # documentation promised a warning.
-      if (.aux_shapes_differ(object)) {
-        why <- if (isTRUE(object$surv_info$is_ph)) {
-          paste0("the conditional hazard ratio varies with time and the ",
-                 "reported exp(eta_index - eta_comparator) is not it: the ",
-                 "baseline ratio h0_index(t) / h0_comparator(t) does not cancel")
-        } else {
-          paste0("the conditional time ratio depends on the survival quantile ",
-                 "and the reported exp(eta_index - eta_comparator) is not it: ",
-                 "differing shapes add quantile-dependent factors (the Weibull ",
-                 "[-log S]^(1/a_i - 1/a_c), the log-normal ",
-                 "exp(z_p (sigma_i - sigma_c)), and so on) that do not cancel")
-        }
-        warning("Each study has its own baseline ",
-                if (isTRUE(object$surv_info$is_ph)) "hazard" else "shape",
-                " (`aux_by = \".study\"`, the default), so ", why,
-                ". Target-standardized RMST effects from marginal_effects() ",
-                "remain available, and `aux_by = \"none\"` gives a single shared ",
-                "baseline under which this contrast is exact. Note that ",
-                "predict(type = \"loghr\") is a population-standardized ",
-                "MARGINAL curve, not the conditional effect at this covariate ",
-                "profile, so it answers a different question rather than ",
-                "replacing this one.",
-                call. = FALSE)
-      }
       # Under a stratified baseline the exponentiated contrast is neither a
       # hazard ratio (PH: the h0 ratio does not cancel) nor a time ratio (AFT:
       # differing shape/scale add quantile-dependent factors). Name it for what
@@ -573,11 +577,13 @@ conditional_predict <- function(object,
 #'
 #' `exp(eta_index - eta_comparator)` is a conditional hazard ratio only when the
 #' two studies share a baseline hazard, and a time ratio only when the AFT
-#' shape/scale parameters are shared. Under `aux_by = ".study"` (the default)
-#' neither holds, so the column must not be called `hr` / `tr`.
+#' shape/scale parameters are shared. The test is whether the auxiliary
+#' shape/scale draws actually differ, not whether `aux_by` asked for strata: an
+#' exponential has no shape to stratify, so `aux_by = ".study"` leaves its
+#' baseline shared and the exact `hr` label stands.
 #' @param object An `mlumr_fit` (survival).
-#' @return `"hr"`, `"tr"`, or `"exp_eta_contrast"` when the baseline is
-#'   stratified.
+#' @return `"hr"`, `"tr"`, or `"exp_eta_contrast"` when the two baselines'
+#'   shape/scale parameters differ.
 #' @keywords internal
 .surv_contrast_name <- function(object) {
   # `n_strata > 1` is not the question: an exponential has no shape to

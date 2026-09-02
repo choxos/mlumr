@@ -188,7 +188,14 @@ summary.mlumr_fit <- function(object, ...) {
     }
     rmst_idx <- grep("^rmst_diff_(index|comparator)$", object$summary$variable)
     if (length(rmst_idx) > 0) {
-      cat("  RMST Differences:\n")
+      # RMST is an integral to a restriction time, so the value without its
+      # horizon is not an estimand: two fits with different horizons produce
+      # numbers that must not be read side by side.
+      g <- object$stan_data$rmst_grid_times
+      tau <- if (is.null(g)) NA_real_ else max(g)
+      cat("  RMST Differences",
+          if (is.na(tau)) "" else paste0(" (to t = ", format(tau, digits = 4L), ")"),
+          ":\n", sep = "")
       print(object$summary[rmst_idx, c("variable", "mean", "sd", "2.5%", "97.5%")],
             row.names = FALSE)
     }

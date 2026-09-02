@@ -10,13 +10,15 @@
 \item{object}{An \code{mlumr_fit} (survival).}
 }
 \value{
-\code{"hr"}, \code{"tr"}, or \code{"exp_eta_contrast"} when the baseline is
-stratified.
+\code{"hr"}, \code{"tr"}, or \code{"exp_eta_contrast"} when the two baselines'
+shape/scale parameters differ.
 }
 \description{
 \code{exp(eta_index - eta_comparator)} is a conditional hazard ratio only when the
 two studies share a baseline hazard, and a time ratio only when the AFT
-shape/scale parameters are shared. Under \code{aux_by = ".study"} (the default)
-neither holds, so the column must not be called \code{hr} / \code{tr}.
+shape/scale parameters are shared. The test is whether the auxiliary
+shape/scale draws actually differ, not whether \code{aux_by} asked for strata: an
+exponential has no shape to stratify, so \code{aux_by = ".study"} leaves its
+baseline shared and the exact \code{hr} label stands.
 }
 \keyword{internal}

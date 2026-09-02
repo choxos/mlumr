@@ -632,8 +632,6 @@ predict.mlumr_fit <- function(object,
 #' # Only the log odds ratio in the index population
 #' marginal_effects(fit, population = "index", effect = "lor")
 #'
-#' # Transport the effect to an external (e.g. jurisdiction-specific) population
-#'
 #' # Full posterior draws rather than summary statistics
 #' marginal_effects(fit, summary = FALSE)
 #' }
