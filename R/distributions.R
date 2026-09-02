@@ -25,7 +25,13 @@
 #' @param shape,rate,scale See [stats::GammaDist].
 #' @param lower.tail,log.p,log See [stats::GammaDist].
 #' @param mean,sd Mean and standard deviation, overriding `shape` and
-#'   `rate` / `scale` when both are supplied.
+#'   `rate` / `scale` when both are supplied. Both must be named in full:
+#'   they sit behind `...` so that adding them cannot make `s` ambiguous
+#'   between `scale` and `sd`, which would break the abbreviation
+#'   [stats::qgamma()] accepts.
+#' @param ... Must be empty. It exists only to hold `mean` and `sd` back from
+#'   partial matching, and is checked so that a misspelled argument is refused
+#'   rather than silently ignored.
 #'
 #' @return A numeric vector, as the corresponding \pkg{stats} function.
 #' @seealso [distr()], [add_integration()], [qbern()]
