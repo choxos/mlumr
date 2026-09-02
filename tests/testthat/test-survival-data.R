@@ -366,3 +366,20 @@ test_that("survival data prints as survival data", {
   expect_match(out, "Events = 3 \\(75\\.0%\\), censored = 1")
   expect_false(grepl("exposure", out, ignore.case = TRUE))
 })
+
+test_that(".validate_survival_controls rejects bad grids and spline controls", {
+  vsc <- mlumr:::.validate_survival_controls
+  # valid inputs pass silently
+  expect_true(vsc(c(1, 2, 3), 5, 3L, 7L))
+  expect_true(vsc(NULL, NULL, NULL, 5L))
+  # pred_times must be finite positive
+  expect_error(vsc(c(-1, 2), NULL, NULL, 5L), "pred_times")
+  expect_error(vsc(c(1, Inf), NULL, NULL, 5L), "pred_times")
+  # rmst_horizon must be a single finite positive number
+  expect_error(vsc(NULL, c(1, 2), NULL, 5L), "rmst_horizon")
+  expect_error(vsc(NULL, -3, NULL, 5L), "rmst_horizon")
+  # mspline_degree must be a non-negative integer
+  expect_error(vsc(NULL, NULL, 2.5, 5L), "mspline_degree")
+  # n_knots must be a non-negative integer
+  expect_error(vsc(NULL, NULL, NULL, -1), "n_knots")
+})
