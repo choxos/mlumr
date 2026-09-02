@@ -245,6 +245,7 @@ mlumr <- function(data,
     adapt_delta = adapt_delta,
     max_treedepth = max_treedepth,
     refresh = refresh,
+    verbose = verbose,
     ...
   )
 
@@ -651,10 +652,11 @@ mlumr <- function(data,
 #' @keywords internal
 .mlumr_fit_backend <- function(engine, model_name, stan_data, chains, iter,
                                warmup, seed, adapt_delta, max_treedepth,
-                               refresh, ...) {
+                               refresh, verbose = TRUE, ...) {
   if (engine == "cmdstanr") {
     fit_cmdstanr(model_name, stan_data, chains, iter, warmup,
-                 seed, adapt_delta, max_treedepth, refresh, ...)
+                 seed, adapt_delta, max_treedepth, refresh,
+                 verbose = verbose, ...)
   } else {
     fit_rstan(model_name, stan_data, chains, iter, warmup,
               seed, adapt_delta, max_treedepth, refresh, ...)

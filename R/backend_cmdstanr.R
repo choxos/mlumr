@@ -1,7 +1,8 @@
 #' Fit a Stan model using cmdstanr
 #' @keywords internal
 fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
-                         seed, adapt_delta, max_treedepth, refresh, ...) {
+                         seed, adapt_delta, max_treedepth, refresh,
+                         verbose = TRUE, ...) {
 
   if (!requireNamespace("cmdstanr", quietly = TRUE)) {
     stop("cmdstanr is required but not installed. Run mlumr_engine('cmdstanr') to set up.",
@@ -33,6 +34,19 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
   if (!"parallel_chains" %in% names(dots)) {
     dots$parallel_chains <- min(chains,
                                 max(1L, as.integer(getOption("mc.cores", 1L))))
+  }
+
+  # cmdstanr writes its "Running MCMC with N chains / Chain k finished in ..."
+  # banner to STDOUT, not through the condition system, so `refresh = 0` does
+  # not stop it and neither does suppressMessages(). That is roughly fifteen
+  # lines per fit, which buries anything real in a loop over many models.
+  # `verbose` is the argument a caller already reaches for, so honor it here
+  # too, while leaving an explicit `show_messages` / `show_exceptions` in `...`
+  # to win. `show_exceptions` was added to cmdstanr later than `show_messages`,
+  # so ask the method what it accepts rather than assuming a version.
+  sample_formals <- names(formals(mod$sample))
+  for (nm in intersect(c("show_messages", "show_exceptions"), sample_formals)) {
+    if (!nm %in% names(dots)) dots[[nm]] <- isTRUE(verbose)
   }
 
   sample_args <- c(
