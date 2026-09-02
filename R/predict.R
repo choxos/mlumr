@@ -7,10 +7,8 @@
 #' @param population Which population: `"both"`, `"index"`, or `"comparator"`
 #' @param type Prediction type: `"response"` or `"link"`. For `"response"`:
 #'   probabilities (binomial), means (normal), or rates (poisson). For
-#'   `"link"`: mean linear predictor on the fitted link scale (logit, probit,
-#'   cloglog, log, or identity). The link-scale values are computed directly
-#'   from parameter draws as `E[eta]`, not as `link(E[g^{-1}(eta)])`, to
-#'   avoid Jensen's inequality bias.
+#'   `"link"`: the fitted link applied to the population-standardized
+#'   response mean, `g(E[g^{-1}(eta)])`.
 #' @param summary Return summary statistics (`TRUE`) or full posterior draws (`FALSE`)
 #' @param probs Quantiles for summary (default `c(0.025, 0.5, 0.975)`)
 #' @param ... Additional arguments (unused)
@@ -25,13 +23,26 @@
 #' integration points constructed by [add_integration()] from the AgD
 #' moments. This is the correct population-average prediction for an
 #' individual randomly drawn from that population, and it matches what the
-#' Stan `generated quantities` block computes. For the link scale
-#' (`type = "link"`) the reported value is `E[eta]`, a linear functional,
-#' and the two interpretations coincide.
+#' Stan `generated quantities` block computes.
 #'
-#' @return A data frame with predictions. When `type = "link"`, values are
-#'   mean linear predictors computed directly from parameter draws (avoiding
-#'   Jensen's inequality bias).
+#' `type = "link"` reports `g(E[g^{-1}(eta)])`: the fitted link applied to
+#' that same standardized response mean. This is the quantity
+#' [marginal_effects()] contrasts, so differencing two `type = "link"`
+#' predictions reproduces the reported marginal effect. It is computed from
+#' the log-scale generated quantities, so it stays finite where the
+#' natural-scale mean would round to 0 or 1. The identity link makes the two
+#' definitions agree; logit, probit, cloglog and log separate them.
+#'
+#' This is a deliberate divergence from \pkg{multinma}, which keeps the two
+#' apart: its `predict(type = "link")` returns `E[eta]` and the marginal
+#' link-scale contrast lives in `marginal_effects(mtype = "link")`. mlumr has
+#' no conditional population estimand to pair `E[eta]` with, since every
+#' effect it reports is standardized over a population, so it reports the
+#' marginal link under the one name rather than offering two link scales that
+#' differ silently.
+#'
+#' @return A data frame with predictions. When `type = "link"`, values are on
+#'   the marginal link scale, `g(E[g^{-1}(eta)])`.
 #' @seealso [marginal_effects()] for treatment-effect summaries;
 #'   [conditional_predict()] and [conditional_effects()] for predictions
 #'   at specific covariate profiles.
@@ -88,9 +99,7 @@ predict.mlumr_fit <- function(object,
   if (type == "link") {
     lnk <- object$link %||% cfg$link_default
     if (lnk != "identity") {
-      # Compute mean linear predictors directly from parameter draws to avoid
-      # Jensen's bias from link(E[inv_link(eta)]) != E[eta].
-      pred_draws <- .compute_mean_lp(object, pred_cols)
+      pred_draws <- .compute_marginal_link(object, pred_cols)
     }
   }
 
@@ -195,84 +204,72 @@ marginal_effects <- function(object,
 }
 
 
-#' Compute mean linear predictors from parameter draws
+#' Compute links of population-standardized response means
 #'
-#' Internal helper for predict.mlumr_fit with type="link". Computes
-#' mean(eta_i) directly from parameter draws instead of applying the link
-#' to marginalized response-scale draws, avoiding Jensen's inequality bias.
+#' Internal helper for [predict.mlumr_fit()] with `type = "link"`. Uses the
+#' log-scale generated quantities that underlie the marginal response means so
+#' the result remains finite when the natural-scale mean rounds to 0 or
+#' overflows.
 #'
-#' @param object An mlumr_fit object
-#' @param pred_cols Character vector of column names to compute
-#' @return Data frame with the same columns as pred_cols, on the link scale
+#' @param object An `mlumr_fit` object.
+#' @param pred_cols Character vector of response-scale prediction column names.
+#' @return Data frame with the same column names as `pred_cols`, on the
+#'   marginal link scale.
 #' @keywords internal
-.compute_mean_lp <- function(object, pred_cols) {
+.compute_marginal_link <- function(object, pred_cols) {
   draws <- object$draws
   family <- object$family %||% "binomial"
-  covariates <- object$data$covariates
-  n_cov <- length(covariates)
-  is_relaxed <- object$model == "relaxed"
-  n_draws <- nrow(draws)
-
-  .require_draw_columns(draws, c("mu_index", "mu_comparator"), "linear predictor")
-  mu_idx <- draws$mu_index
-  mu_cmp <- draws$mu_comparator
-
-  if (is_relaxed) {
-    beta_idx_cols <- paste0("beta_index[", seq_len(n_cov), "]")
-    beta_cmp_cols <- paste0("beta_comparator[", seq_len(n_cov), "]")
-    .require_draw_columns(draws, c(beta_idx_cols, beta_cmp_cols), "linear predictor")
-    beta_idx <- as.matrix(draws[, beta_idx_cols, drop = FALSE])
-    beta_cmp <- as.matrix(draws[, beta_cmp_cols, drop = FALSE])
-  } else {
-    beta_cols <- paste0("beta[", seq_len(n_cov), "]")
-    .require_draw_columns(draws, beta_cols, "linear predictor")
-    beta_shared <- as.matrix(draws[, beta_cols, drop = FALSE])
-    beta_idx <- beta_shared
-    beta_cmp <- beta_shared
-  }
-
-  # Index population: mean LP over IPD covariates
-  X_ipd <- as.matrix(object$data$ipd$data[, covariates, drop = FALSE])
-  mean_X_ipd <- colMeans(X_ipd)
-
-  lp_idx_index <- mu_idx + as.vector(beta_idx %*% mean_X_ipd)
-  lp_cmp_index <- mu_cmp + as.vector(beta_cmp %*% mean_X_ipd)
-
-  # Comparator population: weighted mean LP over AgD integration points
-  X_int <- object$data$integration_points  # [n_agd_rows, n_int, n_cov]
-  n_agd_rows <- dim(X_int)[1]
-
-  # Family-appropriate weights (see family_config$comp_weight_field)
-  stan_data <- object$stan_data
-  wfield <- get_family_config(family)$comp_weight_field
-  if (is.null(wfield)) {
-    w <- rep(1, n_agd_rows)
-  } else {
-    w <- as.numeric(stan_data[[wfield]])
-  }
-  total_w <- sum(w)
-
-  lp_idx_comp <- rep(0, n_draws)
-  lp_cmp_comp <- rep(0, n_draws)
-  for (k in seq_len(n_agd_rows)) {
-    mean_X_k <- colMeans(matrix(X_int[k, , ], ncol = n_cov))
-    lp_idx_comp <- lp_idx_comp + (mu_idx + as.vector(beta_idx %*% mean_X_k)) * w[k]
-    lp_cmp_comp <- lp_cmp_comp + (mu_cmp + as.vector(beta_cmp %*% mean_X_k)) * w[k]
-  }
-  lp_idx_comp <- lp_idx_comp / total_w
-  lp_cmp_comp <- lp_cmp_comp / total_w
-
   prefix <- get_family_config(family)$predict_prefix
-  all_lp <- data.frame(
-    lp_idx_index, lp_cmp_index, lp_idx_comp, lp_cmp_comp
-  )
-  names(all_lp) <- paste0(
-    prefix, "_",
-    c("index_index", "comparator_index",
-      "index_comparator", "comparator_comparator")
-  )
+  suffix <- sub(paste0("^", prefix, "_"), "", pred_cols)
 
-  all_lp[, pred_cols, drop = FALSE]
+  out <- if (family == "binomial") {
+    log_p_cols <- paste0("log_p_", suffix)
+    log_q_cols <- paste0("log_q_", suffix)
+    lnk <- object$link %||% "logit"
+    if (all(c(log_p_cols, log_q_cols) %in% names(draws))) {
+      as.data.frame(Map(
+        function(p, q) .binary_link_from_logs(p, q, lnk),
+        draws[log_p_cols], draws[log_q_cols]
+      ))
+    } else {
+      .require_draw_columns(draws, pred_cols, "marginal link prediction")
+      p <- as.matrix(draws[pred_cols])
+      if (any(!is.finite(p)) || any(p <= 0 | p >= 1)) {
+        stop("This older binary fit lacks stable marginal log-probability ",
+             "draws; refit the model to obtain them.", call. = FALSE)
+      }
+      as.data.frame(apply(p, 2L, link_fun, link = lnk))
+    }
+  } else if (family == "poisson") {
+    log_cols <- paste0("log_rate_", suffix)
+    if (all(log_cols %in% names(draws))) {
+      as.data.frame(draws[log_cols])
+    } else {
+      .require_draw_columns(draws, pred_cols, "marginal link prediction")
+      rate <- as.matrix(draws[pred_cols])
+      if (any(!is.finite(rate)) || any(rate <= 0)) {
+        stop("This older Poisson fit lacks stable marginal log-rate draws; ",
+             "refit the model to obtain them.", call. = FALSE)
+      }
+      as.data.frame(log(rate))
+    }
+  } else {
+    link_cols <- paste0("link_y_", suffix)
+    if (all(link_cols %in% names(draws))) {
+      as.data.frame(draws[link_cols])
+    } else {
+      # Older normal-log fits did not store the stable log marginal mean.
+      .require_draw_columns(draws, pred_cols, "marginal link prediction")
+      vals <- as.data.frame(log(draws[pred_cols]))
+      if (any(!is.finite(as.matrix(vals)))) {
+        stop("This older normal-log fit lacks stable marginal link draws; refit ",
+             "the model to obtain them.", call. = FALSE)
+      }
+      vals
+    }
+  }
+  names(out) <- pred_cols
+  out
 }
 
 
