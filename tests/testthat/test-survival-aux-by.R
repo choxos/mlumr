@@ -175,6 +175,10 @@ test_that("a stratified conditional hazard ratio warns instead of misreporting",
   fit <- fit_survival_test(dat, distribution = "weibull")
   nd <- as.data.frame(as.list(colMeans(dat$ipd$data[, dat$covariates,
                                                     drop = FALSE])))
-  # exp(eta_i - eta_c) drops h0_index(t)/h0_comparator(t) once the shapes differ
-  expect_warning(conditional_effects(fit, newdata = nd), "does not")
+  # exp(eta_i - eta_c) drops h0_index(t)/h0_comparator(t) once the shapes differ.
+  # Match the baseline-ratio phrase, not a bare "does not": that substring
+  # appears in ordinary English and any unrelated warning would satisfy it, so
+  # the test would pass with the stratified-baseline warning absent.
+  expect_warning(conditional_effects(fit, newdata = nd),
+                 "baseline ratio h0_index")
 })

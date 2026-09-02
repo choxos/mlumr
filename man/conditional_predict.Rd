@@ -19,9 +19,10 @@ conditional_predict(
 means.}
 
 \item{type}{\code{"response"} for probabilities, means, or rates; \code{"link"} for
-the fitted linear-predictor scale. Ignored for survival fits, which return
-the conditional survival probability S(t | x) at each fitted prediction
-time.}
+the fitted linear-predictor scale. \code{NULL}, the default, resolves to
+\code{"response"} for binomial, normal and Poisson fits. Ignored for survival
+fits, which return the conditional survival probability S(t | x) at each
+fitted prediction time.}
 
 \item{summary}{Return summary (\code{TRUE}) or full draws (\code{FALSE})}
 

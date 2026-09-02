@@ -435,9 +435,10 @@ conditional_effects <- function(object,
 #' @param newdata Data frame of covariate values. If `NULL`, uses IPD covariate
 #'   means.
 #' @param type `"response"` for probabilities, means, or rates; `"link"` for
-#'   the fitted linear-predictor scale. Ignored for survival fits, which return
-#'   the conditional survival probability S(t | x) at each fitted prediction
-#'   time.
+#'   the fitted linear-predictor scale. `NULL`, the default, resolves to
+#'   `"response"` for binomial, normal and Poisson fits. Ignored for survival
+#'   fits, which return the conditional survival probability S(t | x) at each
+#'   fitted prediction time.
 #' @param summary Return summary (`TRUE`) or full draws (`FALSE`)
 #' @param probs Quantiles for summary
 #'
