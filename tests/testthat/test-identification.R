@@ -50,7 +50,6 @@ test_that("check_identification validates its input", {
 })
 
 test_that("check_identification reports both failure modes and the pass", {
-  skip_if_not_installed("splines2")
   set.seed(2026)
   n <- 200
   mk <- function(agd) {
@@ -136,14 +135,27 @@ test_that("check_identification refuses survival data", {
   # nearly invariant to rotations of the coefficient vector. A row count neither
   # bounds nor certifies identification there, so the diagnostic must refuse
   # rather than report a number that would be read as either.
-  skip_if_not_installed("rstan")
-  # sim_survival_data() arrives with the survival family; until then the guard
-  # is checked directly on a data object carrying that family label.
-  skip_if_not(exists("sim_survival_data"), "survival family not present yet")
-  dat <- sim_survival_data(seed = 2026, n_ipd = 40, n_agd = 40, n_int = 8)
+  #
+  # The guard runs before anything else is read, so a minimal object carrying
+  # the family label exercises it. It was previously written against a
+  # `sim_survival_data()` that does not exist here, behind a
+  # `skip_if_not(exists(...))`, so it never ran at all.
+  dat <- structure(
+    list(family = "survival", covariates = "x1",
+         ipd = list(data = data.frame(x1 = c(0, 1))),
+         agd = list(data = data.frame(x1_mean = 0.5))),
+    class = "mlumr_data")
 
   expect_error(check_identification(dat), "not valid for reconstructed survival")
   expect_error(check_identification(dat), "prior_sensitivity")
-  # The non-survival families still work.
-  expect_silent(invisible(dat))
+
+  # The guard is specific to the survival family. A minimal object may still
+  # fail further in for its own reasons, so assert only that it is not this
+  # error, rather than that there is none.
+  dat$family <- "binomial"
+  err <- tryCatch({
+    check_identification(dat, verbose = FALSE)
+    NULL
+  }, error = conditionMessage)
+  expect_false(!is.null(err) && grepl("reconstructed survival", err))
 })
