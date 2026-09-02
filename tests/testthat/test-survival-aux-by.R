@@ -94,8 +94,6 @@ test_that("NULL and the default give the same fit; \"none\" gives the shared one
 })
 
 test_that("stratifying gives each study its own baseline and still converges", {
-  skip_if_not(exists(".surv_scoef_draws", asNamespace("mlumr")),
-             "survival draw readers arrive with the prediction change")
   skip_on_cran()
   skip_if_not_installed("rstan")
   dat <- sim_survival_data(seed = 2026)
@@ -126,8 +124,6 @@ test_that("stratifying gives each study its own baseline and still converges", {
 
 
 test_that("the R readers find the baseline under every draw-name layout", {
-  skip_if_not(exists(".surv_scoef_draws", asNamespace("mlumr")),
-             "survival draw readers arrive with the prediction change")
   # scoef became a matrix, so draws are named scoef[j,s] and the per-treatment
   # views scoef_idx[j] / scoef_cmp[j] are emitted alongside. Fits made before
   # aux_by existed still name it scoef[j]. All three must resolve.
@@ -156,8 +152,6 @@ test_that("the R readers find the baseline under every draw-name layout", {
 })
 
 test_that("the shape draws fall back to the index stratum and then to 1", {
-  skip_if_not(exists(".surv_aux_draws", asNamespace("mlumr")),
-             "survival draw readers arrive with the prediction change")
   mk <- function(nms) {
     d <- as.data.frame(matrix(1.5, nrow = 2, ncol = max(length(nms), 1)))
     if (length(nms)) names(d) <- nms
@@ -172,4 +166,15 @@ test_that("the shape draws fall back to the index stratum and then to 1", {
   none <- structure(list(draws = data.frame(mu_index = c(0, 0))),
                     class = "mlumr_fit")
   expect_equal(mlumr:::.surv_aux_draws(none, "aux_val", "index", 2), c(1, 1))
+})
+
+test_that("a stratified conditional hazard ratio warns instead of misreporting", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  dat <- sim_survival_data(seed = 2026)
+  fit <- fit_survival_test(dat, distribution = "weibull")
+  nd <- as.data.frame(as.list(colMeans(dat$ipd$data[, dat$covariates,
+                                                    drop = FALSE])))
+  # exp(eta_i - eta_c) drops h0_index(t)/h0_comparator(t) once the shapes differ
+  expect_warning(conditional_effects(fit, newdata = nd), "does not")
 })

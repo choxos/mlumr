@@ -14,6 +14,40 @@
 #'   `"rd"`, or `"rr"`. For normal: `"all"` or `"md"`. For Poisson: `"all"`
 #'   or `"rr"`. The legacy value `"lor"` is accepted as an alias for
 #'   `"link_effect"` when the fitted link is logit.
+#'
+#'   For **survival**, what is available depends on whether the two studies
+#'   share a baseline, because `exp(eta_index - eta_comparator)` is a
+#'   conditional hazard ratio only when the baseline factor cancels:
+#'   \itemize{
+#'     \item **Shared baseline shape** (`aux_by = "none"`, or any exponential
+#'       fit, which has no shape to stratify): `"hr"` returns the exact
+#'       conditional hazard ratio, labeled `"HR"`, for a proportional-hazards
+#'       distribution, and `"tr"` the exact time ratio (`"TR"`) for an
+#'       accelerated failure time one. The two are different estimands and
+#'       `"tr"` is **not** an alias for `"hr"`: a proportional-hazards model
+#'       has no constant time ratio and an AFT model has no constant hazard
+#'       ratio, so `"tr"` on a PH fit and `"hr"` on an AFT fit are both errors
+#'       rather than the other measure returned under the label it does have.
+#'     \item **Study-specific shape-bearing baseline** (`aux_by = ".study"`,
+#'       the default, with a distribution that has a shape parameter or either
+#'       flexible baseline): an explicit `"hr"` / `"tr"` request is an
+#'       **error**. The conditional hazard ratio is
+#'       `h0_index(t) / h0_comparator(t) * exp(eta_index - eta_comparator)` and
+#'       the baseline ratio does not cancel, so no scalar hazard ratio exists to
+#'       return. Returning the bare exponent under the name `hr` would report a
+#'       different estimand than the one requested.
+#'     \item `"all"` still works in that case and returns the exponentiated
+#'       linear-predictor contrast under the honest label
+#'       `"EXP_ETA_CONTRAST"`, with a warning explaining what it is not. The
+#'       warning is emitted whenever the baseline shapes differ, for
+#'       accelerated failure time models as well as proportional-hazards ones.
+#'     \item The collapsible RMST effects from [marginal_effects()] are
+#'       unaffected and are the recommended alternative.
+#'       `predict(type = "loghr")` gives the time-varying hazard ratio
+#'       standardized over a **population**, so it is a marginal quantity and
+#'       not the conditional effect at a supplied covariate profile; it answers
+#'       a different question rather than substituting for this one.
+#'   }
 #' @param summary Return summary statistics (`TRUE`) or full posterior draws
 #'   (`FALSE`)
 #' @param probs Quantiles for summary (default `c(0.025, 0.5, 0.975)`)
@@ -27,10 +61,19 @@
 #' covariate values because the index and comparator treatments have different
 #' regression coefficients.
 #'
-#' The conditional link-scale effect is computed directly as
-#' `eta_index - eta_comparator`. This avoids numerical distortion from
-#' transforming extreme response-scale probabilities back through the link
-#' function.
+#' For binomial / normal / Poisson the conditional link-scale effect is computed
+#' directly as `eta_index - eta_comparator`. This avoids numerical distortion
+#' from transforming extreme response-scale probabilities back through the link
+#' function. For **survival** the contrast is reported on the natural scale,
+#' exponentiated from `eta_index - eta_comparator` (null 1, like the rate
+#' ratio). That exponent is the conditional hazard ratio (or AFT time ratio)
+#' only when the two studies share a baseline shape; under the stratified
+#' default it is labeled `"EXP_ETA_CONTRAST"` instead, because the baseline
+#' ratio `h0_index(t) / h0_comparator(t)` does not cancel, and for an
+#' accelerated failure time model because differing shapes add
+#' quantile-dependent factors. `predict(type = "loghr")` gives the time-varying
+#' log hazard ratio standardized over a population, which is a marginal
+#' quantity rather than a profile-specific conditional one.
 #'
 #' **Conditional vs marginal on non-identity links.** Conditional effects are
 #' evaluated at a single covariate profile, so there is no averaging over a
@@ -73,21 +116,6 @@ conditional_effects <- function(object,
   summary <- .validate_summary_flag(summary)
   .validate_probs(probs)
 
-  # Survival fits have no conditional-effects dispatch yet; it arrives with the
-  # reporting layer. The generic path is not inert without one:
-  # .conditional_effect_choices() falls through to the Poisson branch, so
-  # `effect = "rr"` (and the "all" default) resolve, and the caller is handed
-  # exp(eta_index - eta_comparator) labeled RR. Under a shared PH baseline that
-  # number is a conditional hazard ratio, under AFT a time ratio, and under
-  # differing shapes neither. Refuse rather than pick a name for it.
-  if (identical(object$family %||% "binomial", "survival")) {
-    stop("Conditional effects for survival fits arrive with the prediction ",
-         "layer and are not available from this build. exp(eta_index - ",
-         "eta_comparator) is a conditional hazard ratio only when the two ",
-         "studies share a baseline shape, so it is not reported under a ",
-         "generic name here.", call. = FALSE)
-  }
-
   family <- object$family %||% "binomial"
   cfg_family <- get_family_config(family)
   lnk <- object$link %||% cfg_family$link_default
@@ -108,6 +136,48 @@ conditional_effects <- function(object,
     stop(sprintf("For %s family, `effect` must be one of: %s",
                  family, paste(valid_effects, collapse = ", ")), call. = FALSE)
   }
+  # A hazard ratio and a time ratio are different estimands, and only one of
+  # them exists as a scalar for any given fit. `tr` was previously aliased to
+  # `hr` and the answer labeled from the fitted distribution, which meant a
+  # request for one could be answered with the other. Validate instead: an
+  # explicit request either returns what was asked for or errors.
+  if (identical(family, "survival") && effect %in% c("hr", "tr")) {
+    is_ph <- isTRUE(object$surv_info$is_ph)
+    if (is_ph && identical(effect, "tr")) {
+      stop("`effect = \"tr\"` is only available for accelerated failure time ",
+           "distributions. This is a proportional-hazards '",
+           object$distribution %||% "survival",
+           "' fit, whose conditional treatment effect is a hazard ratio; a ",
+           "proportional-hazards model has no constant time ratio. Use ",
+           "`effect = \"hr\"`.",
+           call. = FALSE)
+    }
+    if (!is_ph && identical(effect, "hr")) {
+      stop("`effect = \"hr\"` is not a scalar conditional effect for this ",
+           "accelerated failure time ('", object$distribution %||% "survival",
+           "') model: the conditional hazard ratio varies with time. Use ",
+           "`effect = \"tr\"` for the time ratio when the baseline shapes are ",
+           "shared, or predict(type = \"loghr\") for the population-",
+           "standardized time-varying hazard ratio.",
+           call. = FALSE)
+    }
+    # Under differing baseline shapes exp(eta_index - eta_comparator) is
+    # neither a hazard ratio (the h0 ratio does not cancel) nor a time ratio
+    # (differing shapes add quantile-dependent factors). Returning it under the
+    # requested name would be the relabeling this guard exists to prevent, so
+    # an EXPLICIT `hr` / `tr` request is an error. The default `effect = "all"`
+    # still returns the contrast under its own name, with the warning below.
+    if (.aux_shapes_differ(object)) {
+      stop("`effect = \"", effect, "\"` is not available: each study has its own ",
+           "baseline ", if (is_ph) "hazard" else "shape",
+           " (`aux_by = \".study\"`), so exp(eta_index - eta_comparator) is not ",
+           "a conditional ", if (is_ph) "hazard ratio" else "time ratio",
+           ". Use `effect = \"all\"` for the contrast under its own name, ",
+           "predict(type = \"loghr\") for the time-varying hazard ratio, or ",
+           "refit with `aux_by = \"none\"`.",
+           call. = FALSE)
+    }
+  }
 
   profiles <- .conditional_profiles(object, newdata)
   X <- profiles$X
@@ -121,12 +191,12 @@ conditional_effects <- function(object,
     eta_cmp <- eta$comparator
 
     if (family == "binomial") {
-      p_idx <- inverse_link(eta_idx, lnk)
-      p_cmp <- inverse_link(eta_cmp, lnk)
+      logp_idx <- .binary_log_probs(eta_idx, lnk)$event
+      logp_cmp <- .binary_log_probs(eta_cmp, lnk)$event
       profile_draws <- data.frame(
         link_effect = eta_idx - eta_cmp,
-        rd = p_idx - p_cmp,
-        rr = .safe_positive_ratio(p_idx, p_cmp)
+        rd = .exp_difference_logs(logp_idx, logp_cmp),
+        rr = exp(logp_idx - logp_cmp)
       )
     } else if (family == "normal") {
       if (lnk == "identity") {
@@ -134,16 +204,62 @@ conditional_effects <- function(object,
           md = eta_idx - eta_cmp
         )
       } else {
-        val_idx <- inverse_link(eta_idx, lnk)
-        val_cmp <- inverse_link(eta_cmp, lnk)
         profile_draws <- data.frame(
-          md = val_idx - val_cmp
+          md = .exp_difference_logs(eta_idx, eta_cmp)
         )
       }
-    } else {
+    } else if (family == "poisson") {
       profile_draws <- data.frame(
         rr = exp(eta_idx - eta_cmp)
       )
+    } else {
+      # survival: conditional hazard ratio (PH) / time ratio (AFT) on the natural
+      # scale (exponentiated, null 1), matching the poisson rate ratio above. The
+      # column is named hr (PH) or tr (AFT) so summary = FALSE output is
+      # self-describing.
+      #
+      # exp(eta_index - eta_comparator) is the conditional hazard ratio ONLY when
+      # the two studies share a baseline. That is no longer the default: with
+      # aux_by = ".study" the true
+      # conditional HR is h0_index(t)/h0_comparator(t) * exp(eta_i - eta_c), and
+      # the baseline ratio does not cancel. Reporting the bare exponent would be
+      # the same error the marginal delta_* used to make, so say so rather than
+      # print a number that means something else.
+      # The EXP_ETA_CONTRAST label is applied whenever the shapes differ, PH or
+      # AFT alike, so the warning has to cover both. Gating it on `is_ph` left a
+      # stratified AFT fit relabeling its estimand silently while the
+      # documentation promised a warning.
+      if (.aux_shapes_differ(object)) {
+        why <- if (isTRUE(object$surv_info$is_ph)) {
+          paste0("the conditional hazard ratio varies with time and the ",
+                 "reported exp(eta_index - eta_comparator) is not it: the ",
+                 "baseline ratio h0_index(t) / h0_comparator(t) does not cancel")
+        } else {
+          paste0("the conditional time ratio depends on the survival quantile ",
+                 "and the reported exp(eta_index - eta_comparator) is not it: ",
+                 "differing shapes add quantile-dependent factors (the Weibull ",
+                 "[-log S]^(1/a_i - 1/a_c), the log-normal ",
+                 "exp(z_p (sigma_i - sigma_c)), and so on) that do not cancel")
+        }
+        warning("Each study has its own baseline ",
+                if (isTRUE(object$surv_info$is_ph)) "hazard" else "shape",
+                " (`aux_by = \".study\"`, the default), so ", why,
+                ". Target-standardized RMST effects from marginal_effects() ",
+                "remain available, and `aux_by = \"none\"` gives a single shared ",
+                "baseline under which this contrast is exact. Note that ",
+                "predict(type = \"loghr\") is a population-standardized ",
+                "MARGINAL curve, not the conditional effect at this covariate ",
+                "profile, so it answers a different question rather than ",
+                "replacing this one.",
+                call. = FALSE)
+      }
+      # Under a stratified baseline the exponentiated contrast is neither a
+      # hazard ratio (PH: the h0 ratio does not cancel) nor a time ratio (AFT:
+      # differing shape/scale add quantile-dependent factors). Name it for what
+      # it is, so the returned column cannot be read as HR/TR. The warning above
+      # explains why; the name is what stops it being published as an HR.
+      profile_draws <- data.frame(value = exp(eta_idx - eta_cmp))
+      names(profile_draws) <- .surv_contrast_name(object)
     }
 
     results[[i]] <- profile_draws
@@ -154,8 +270,10 @@ conditional_effects <- function(object,
     keep_cols <- if (effect == "all") c("link_effect", "rd", "rr") else effect
   } else if (family == "normal") {
     keep_cols <- "md"
-  } else {
+  } else if (family == "poisson") {
     keep_cols <- "rr"
+  } else {
+    keep_cols <- .surv_contrast_name(object)
   }
 
   if (!summary) {
@@ -178,8 +296,10 @@ conditional_effects <- function(object,
   out <- do.call(rbind, summary_list)
   out <- out[, c("profile", "effect", "mean", "sd",
                  paste0("q", probs * 100)), drop = FALSE]
+  # Survival effects are on the natural scale (null 1): the effect label is
+  # already HR (PH) or TR (AFT) from the hr / tr column name set above.
   rownames(out) <- NULL
-  out
+  .mlumr_result(out, "mlumr_conditional_effects", family = family)
 }
 
 #' Build covariate profiles for conditional summaries
@@ -295,17 +415,12 @@ conditional_effects <- function(object,
     c("all", "link_effect", "rd", "rr")
   } else if (family == "normal") {
     c("all", "md")
-  } else {
+  } else if (family == "poisson") {
     c("all", "rr")
+  } else {
+    c("all", "hr", "tr")
   }
 }
-
-#' Ratio with the same positive-denominator guard used by Stan generated quantities
-#' @keywords internal
-.safe_positive_ratio <- function(num, denom) {
-  num / pmax(denom, 1e-10)
-}
-
 
 #' Conditional predictions
 #'
@@ -316,11 +431,14 @@ conditional_effects <- function(object,
 #' @param newdata Data frame of covariate values. If `NULL`, uses IPD covariate
 #'   means.
 #' @param type `"response"` for probabilities, means, or rates; `"link"` for
-#'   the fitted linear-predictor scale.
+#'   the fitted linear-predictor scale. Ignored for survival fits, which return
+#'   the conditional survival probability S(t | x) at each fitted prediction
+#'   time.
 #' @param summary Return summary (`TRUE`) or full draws (`FALSE`)
 #' @param probs Quantiles for summary
 #'
-#' @return A data frame with predictions for each treatment at each profile
+#' @return A data frame with predictions for each treatment at each profile.
+#'   For survival fits there is one row per profile, treatment, and time.
 #' @seealso [conditional_effects()] for covariate-conditional treatment
 #'   *effects*; [predict.mlumr_fit()] for population-level predictions.
 #' @export
@@ -332,28 +450,25 @@ conditional_effects <- function(object,
 #' }
 conditional_predict <- function(object,
                                 newdata = NULL,
-                                type = c("response", "link"),
+                                type = NULL,
                                 summary = TRUE,
                                 probs = c(0.025, 0.5, 0.975)) {
 
   .validate_mlumr_fit_object(object)
-  type <- .validate_predict_choice(type, c("response", "link"), "type")
   summary <- .validate_summary_flag(summary)
   .validate_probs(probs)
 
-  # Same reasoning as conditional_effects(): a survival fit has no scalar
-  # `response` at a covariate profile, only curves over the prediction grid.
-  if (identical(object$family %||% "binomial", "survival")) {
-    stop("Conditional predictions for survival fits arrive with the ",
-         "prediction layer and are not available from this build.",
-         call. = FALSE)
+  family <- object$family %||% "binomial"
+  if (family == "survival") {
+    return(.conditional_predict_survival(object, newdata, summary, probs))
   }
 
+  type <- .validate_predict_choice(type %||% "response", c("response", "link"),
+                                   "type")
   profiles <- .conditional_profiles(object, newdata)
   X <- profiles$X
   n_profiles <- nrow(X)
   params <- .conditional_parameters(object, profiles$covariates)
-  family <- object$family %||% "binomial"
   lnk <- object$link %||% get_family_config(family)$link_default
 
   summarize_col <- function(x) .summarize_draw_vector(x, probs)
@@ -404,6 +519,116 @@ conditional_predict <- function(object,
   out <- do.call(rbind, results)
   rownames(out) <- NULL
   out
+}
+
+
+#' Conditional survival predictions S(t | x) at covariate profiles
+#'
+#' Internal dispatch for [conditional_predict()] on survival fits. Returns the
+#' conditional survival probability for each treatment at each profile and
+#' fitted prediction time. Conditional hazard and RMST are well-defined, but
+#' this helper currently returns survival only; use [predict.mlumr_fit()] for
+#' population-standardized hazard and RMST summaries.
+#' @keywords internal
+.conditional_predict_survival <- function(object, newdata, summary, probs) {
+  profiles <- .conditional_profiles(object, newdata)
+  X <- profiles$X
+  n_profiles <- nrow(X)
+  params <- .conditional_parameters(object, profiles$covariates)
+  pred_times <- object$pred_times
+  idx_trt <- object$data$index_treatment
+  cmp_trt <- object$data$comparator_treatment
+
+  rows <- list()
+  for (i in seq_len(n_profiles)) {
+    eta <- .conditional_eta(params, X[i, , drop = FALSE])
+    cells <- list(
+      list(trt = idx_trt, mat = .surv_eval_curve(object, eta$index, "index")),
+      list(trt = cmp_trt,
+           mat = .surv_eval_curve(object, eta$comparator, "comparator"))
+    )
+    for (cell in cells) {
+      if (!summary) {
+        df <- as.data.frame(cell$mat)
+        colnames(df) <- sprintf("t_%g", pred_times)
+        df$profile <- i
+        df$treatment <- cell$trt
+        rows[[length(rows) + 1L]] <- df
+      } else {
+        sm <- .summarize_draw_matrix(cell$mat, probs)
+        rows[[length(rows) + 1L]] <- data.frame(
+          profile = i, treatment = cell$trt, time = pred_times, sm,
+          row.names = NULL
+        )
+      }
+    }
+  }
+  out <- do.call(rbind, rows)
+  rownames(out) <- NULL
+  out
+}
+
+
+#' Name for the conditional survival contrast
+#'
+#' `exp(eta_index - eta_comparator)` is a conditional hazard ratio only when the
+#' two studies share a baseline hazard, and a time ratio only when the AFT
+#' shape/scale parameters are shared. Under `aux_by = ".study"` (the default)
+#' neither holds, so the column must not be called `hr` / `tr`.
+#' @param object An `mlumr_fit` (survival).
+#' @return `"hr"`, `"tr"`, or `"exp_eta_contrast"` when the baseline is
+#'   stratified.
+#' @keywords internal
+.surv_contrast_name <- function(object) {
+  # `n_strata > 1` is not the question: an exponential has no shape to
+  # stratify, so its baseline hazard is exp(eta) with the study intercept
+  # already inside eta, and exp(eta_index - eta_comparator) is an exact
+  # conditional hazard ratio however `aux_by` is set. `.aux_shapes_differ()`
+  # asks whether the baselines actually differ.
+  if (.aux_shapes_differ(object)) return("exp_eta_contrast")
+  if (isTRUE(object$surv_info$is_ph)) "hr" else "tr"
+}
+
+#' Evaluate the conditional survival curve S(t | profile) per posterior draw
+#'
+#' @param object An `mlumr_fit` (survival).
+#' @param eta Numeric vector (length n_draws) of the per-draw linear predictor
+#'   at one covariate profile for one treatment.
+#' @param treatment Which arm's baseline hazard to evaluate against. With
+#'   `aux_by = ".study"` (the default) each study has its own baseline, so the
+#'   curve depends on which arm is being predicted.
+#' @return A matrix of survival probabilities, draws (rows) by fitted
+#'   prediction times (columns).
+#' @keywords internal
+.surv_eval_curve <- function(object, eta,
+                             treatment = c("index", "comparator")) {
+  treatment <- match.arg(treatment)
+  pred_times <- object$pred_times
+
+  # The baseline belongs to the study and each study contributes one arm, so it
+  # travels with the treatment. Reading it through the shared helpers keeps this
+  # path working for a stratified baseline AND for the matrix draw names that
+  # every fit now uses, stratified or not.
+  if (object$surv_info$kind == "parametric") {
+    dist <- object$surv_info$dist_code
+    aux  <- .surv_aux_draws(object, "aux_val", treatment, length(eta))
+    aux2 <- .surv_aux_draws(object, "aux2_val", treatment, length(eta))
+    vapply(pred_times,
+           function(t) exp(.r_log_surv(dist, t, eta, aux, aux2)),
+           numeric(length(eta)))
+  } else {
+    scoef <- .surv_scoef_draws(object, treatment)
+    # Each study has its own basis under `aux_by = ".study"`; the comparator arm
+    # must not be evaluated on the index study's spline. Older fits have no
+    # `_cmp` matrix, so fall back to the shared basis.
+    pred_ib <- if (identical(treatment, "comparator")) {
+      object$stan_data$pred_ibasis_cmp %||% object$stan_data$pred_ibasis
+    } else {
+      object$stan_data$pred_ibasis
+    }
+    cum_haz <- scoef %*% t(pred_ib)            # [n_draws, n_times]
+    exp(-exp(log(cum_haz) + eta))              # eta recycled down columns
+  }
 }
 
 

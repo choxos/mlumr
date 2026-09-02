@@ -5,81 +5,96 @@
 #'
 #' @param object An `mlumr_fit` object
 #' @param population Which population: `"both"`, `"index"`, or `"comparator"`
-#' @param type Prediction type: `"response"` or `"link"`. For `"response"`:
-#'   probabilities (binomial), means (normal), or rates (poisson). For
-#'   `"link"`: the fitted link applied to the population-standardized
-#'   response mean, `g(E[g^{-1}(eta)])`.
+#' @param type Prediction type. For binomial/normal/poisson: `"response"`
+#'   (default) or `"link"`. For survival: `"survival"` (default), `"hazard"`,
+#'   `"cumhaz"`, `"rmst"` (restricted mean survival time), `"median"` (median
+#'   survival, obtained by linear interpolation on the fitted `pred_times` grid;
+#'   if the true median precedes the first grid point it is interpolated between
+#'   the known exact point `S(0) = 1` and `(pred_times[1], S(pred_times[1]))`,
+#'   so it is never reported as later than the first grid time, though a denser
+#'   `pred_times` near zero still resolves very early medians better), or
+#'   `"loghr"` (time-varying marginal log hazard ratio of
+#'   index vs comparator at each fitted time, per population). For `"response"`:
+#'   probabilities (binomial), means
+#'   (normal), or rates (poisson). For `"link"`: the fitted link applied to the
+#'   population-standardized response mean, `g(E[g^{-1}(eta)])`. This is the
+#'   marginal link-scale prediction used by G-computation; it is generally not
+#'   the mean conditional linear predictor `E[eta]`.
 #' @param summary Return summary statistics (`TRUE`) or full posterior draws (`FALSE`)
 #' @param probs Quantiles for summary (default `c(0.025, 0.5, 0.975)`)
+#' @param times For survival fits, an optional vector of times at which to
+#'   report curve predictions; each is matched to the nearest fitted
+#'   `pred_times` grid point. If `NULL`, all fitted times are returned.
 #' @param ... Additional arguments (unused)
 #'
 #' @details
 #' **Marginalization on non-identity links.** For `type = "response"` the
-#' reported values are `E[g^{-1}(eta)]` — the posterior expectation of the
-#' inverse-link-transformed linear predictor — *not* `g^{-1}(E[eta])`. The
+#' reported values are `E[g^{-1}(eta)]`, the posterior expectation of the
+#' inverse-link-transformed linear predictor, *not* `g^{-1}(E[eta])`. The
 #' two differ whenever `g` is non-linear (logit, probit, cloglog, log) by
 #' Jensen's inequality. In the index population the expectation is taken
 #' over IPD individuals; in the comparator population it is taken over the
 #' integration points constructed by [add_integration()] from the AgD
-#' moments. This is the correct population-average prediction for an
-#' individual randomly drawn from that population, and it matches what the
-#' Stan `generated quantities` block computes.
+#' moments. This is the population-average prediction for an individual
+#' randomly drawn from that population, and it matches what the Stan
+#' `generated quantities` block computes. `type = "link"` applies the fitted
+#' link only after that marginalization. It coincides with `E[eta]` for an
+#' identity link but not generally for logit, probit, cloglog, or log links.
 #'
-#' `type = "link"` reports `g(E[g^{-1}(eta)])`: the fitted link applied to
-#' that same standardized response mean. Differencing two `type = "link"`
-#' predictions therefore gives a contrast on the fitted link scale. That
-#' equals a reported effect only where the two scales coincide: a logit
-#' binomial fit's `lor_*`. Elsewhere a transformation is needed, because
-#' [marginal_effects()] reports on the scale conventional for the family
-#' rather than on the fitted link. Poisson fits report the natural-scale rate
-#' ratio, so the link difference is its logarithm; normal log-link fits report
-#' a natural-scale mean difference; and probit and cloglog fits report
-#' `lor_*`, `rd_*` and `rr_*`, none of which is a fitted-link contrast. It is
-#' computed from
-#' the log-scale generated quantities, so it stays finite where the
-#' natural-scale mean would round to 0 or 1. The identity link makes the two
-#' definitions agree; logit, probit, cloglog and log separate them.
-#'
-#' This is a deliberate divergence from \pkg{multinma}, which keeps the two
-#' apart: its `predict(type = "link")` returns `E[eta]` and the marginal
-#' link-scale contrast lives in `marginal_effects(mtype = "link")`. mlumr has
-#' no conditional population estimand to pair `E[eta]` with, since every
-#' effect it reports is standardized over a population, so it reports the
-#' marginal link under the one name rather than offering two link scales that
-#' differ silently.
-#'
-#' @return A data frame with predictions. When `type = "link"`, values are on
-#'   the marginal link scale, `g(E[g^{-1}(eta)])`.
+#' @return A data frame with predictions. When `type = "link"`, values are the
+#'   fitted link applied to each draw's population-standardized response mean.
+#'   `type = "rmst"` adds a `horizon` column: RMST is
+#'   an integral to a restriction time, so values computed to different horizons
+#'   are different estimands and must not be compared. The horizon reported is
+#'   the one actually integrated to. That is the `rmst_horizon` given to
+#'   [mlumr()] when one was supplied; when it was left `NULL` it is the default,
+#'   which for a study-stratified flexible baseline is the follow-up both
+#'   studies observed rather than the pooled maximum.
+#'   Plot methods ([plot.mlumr_prediction()]) require
+#'   `summary = TRUE`; with `summary = FALSE` the raw posterior draws are
+#'   returned as a plain data frame.
 #' @seealso [marginal_effects()] for treatment-effect summaries;
 #'   [conditional_predict()] and [conditional_effects()] for predictions
 #'   at specific covariate profiles.
+#' @examples
+#' \dontrun{
+#' # Absolute predictions for both populations:
+#' predict(fit, population = "both")
+#' # Survival RMST:
+#' predict(fit, type = "rmst")
+#' }
 #' @export
 predict.mlumr_fit <- function(object,
                               population = c("both", "index", "comparator"),
-                              type = c("response", "link"),
+                              type = NULL,
                               summary = TRUE,
                               probs = c(0.025, 0.5, 0.975),
+                              times = NULL,
                               ...) {
 
   .validate_mlumr_fit_object(object)
   population <- .validate_predict_choice(population, c("both", "index", "comparator"),
                                          "population")
-  type <- .validate_predict_choice(type, c("response", "link"), "type")
   summary <- .validate_summary_flag(summary)
   .validate_probs(probs)
 
   family <- object$family %||% "binomial"
 
-  # Survival predictions are curves over the prediction grid, not the single
-  # `response`/`link` column this path assembles. The generic route would fail
-  # on a missing draw name; say why instead.
-  if (identical(family, "survival")) {
-    stop("Predictions for survival fits (survival, hazard, cumhaz, rmst, ",
-         "median, loghr) arrive with the prediction layer and are not ",
-         "available from this build. The fitted draws hold the curves under ",
-         "`surv_*`, `haz_*`, `cumhaz_*`, `loghr_*` and `rmst_*`.",
-         call. = FALSE)
+  # Transport absolute predictions to an arbitrary target population
+
+  if (family == "survival") {
+    ptype <- type %||% "survival"
+    out <- .predict_survival(object, population = population,
+                             type = ptype,
+                             summary = summary, probs = probs, times = times)
+    if (isTRUE(summary)) {
+      out <- .mlumr_result(out, "mlumr_prediction", ptype = ptype,
+                           family = "survival")
+    }
+    return(out)
   }
+
+  type <- .validate_predict_choice(type %||% "response", c("response", "link"), "type")
 
   cfg <- get_family_config(family)
   prefix <- cfg$predict_prefix
@@ -124,7 +139,343 @@ predict.mlumr_fit <- function(object,
   if (!summary) return(as.data.frame(pred_draws))
 
   summary_df <- .summarize_draw_matrix(pred_draws, probs)
-  cbind(labels, summary_df, row.names = NULL)
+  .mlumr_result(cbind(labels, summary_df, row.names = NULL),
+                "mlumr_prediction", ptype = type, family = family)
+}
+
+
+#' Validate user-supplied survival prediction `times`
+#' @keywords internal
+.validate_survival_prediction_times <- function(times) {
+  if (!is.numeric(times) || length(times) < 1L || any(!is.finite(times)) ||
+        any(times <= 0)) {
+    stop("`times` must be finite, positive numbers.", call. = FALSE)
+  }
+  times
+}
+
+#' Survival predictions (internal dispatch for [predict.mlumr_fit()])
+#'
+#' Reads the population-standardized survival generated quantities and returns
+#' a tidy summary by treatment, population, and (for curves) time.
+#' @keywords internal
+.predict_survival <- function(object, population, type, summary, probs,
+                              times = NULL) {
+  valid_types <- c("survival", "hazard", "cumhaz", "rmst", "median", "loghr")
+  if (!is.character(type) || length(type) != 1L || !(type %in% valid_types)) {
+    stop(sprintf("For survival fits, `type` must be one of: %s.",
+                 paste(valid_types, collapse = ", ")), call. = FALSE)
+  }
+  if (!is.null(times)) times <- .validate_survival_prediction_times(times)
+  draws <- object$draws
+  pred_times <- object$pred_times
+  idx_trt <- object$data$index_treatment
+  cmp_trt <- object$data$comparator_treatment
+
+  pops <- switch(population, index = "index", comparator = "comparator",
+                 both = c("index", "comparator"))
+  cells <- expand.grid(trt = c("index", "comparator"), pop = pops,
+                       stringsAsFactors = FALSE)
+  trt_label <- function(t) if (t == "index") idx_trt else cmp_trt
+  pop_label <- function(p) if (p == "index") "Index" else "Comparator"
+
+  # Absolute predictions in the OTHER study's population carry this study's
+  # baseline shape with them, which is an assumption the data cannot check.
+  # `loghr` is exempt: it is a contrast within one population.
+  if (type != "loghr") .transported_baseline_note(object)
+
+  # Time-varying marginal log hazard ratio (index vs comparator) by population:
+  # log( h-bar_index(t | pop) / h-bar_comparator(t | pop) ) at each fitted time.
+  if (type == "loghr") {
+    sel <- if (is.null(times)) {
+      seq_along(pred_times)
+    } else {
+      sort(unique(vapply(times, function(t) which.min(abs(pred_times - t)),
+                         integer(1))))
+    }
+    rows <- lapply(pops, function(pop) {
+      cols_lhr <- sprintf("loghr_%s[%d]", pop, sel)
+      if (all(cols_lhr %in% names(draws))) {
+        # Current survival models (parametric and M-spline / piecewise
+        # exponential) emit the marginal log HR directly in log space, so it
+        # stays finite even where the natural-scale marginal hazard underflows
+        # to 0 deep in the tail (e.g. generalized gamma, or late extrapolation).
+        lhr <- as.matrix(draws[, cols_lhr, drop = FALSE])
+      } else {
+        # M-spline / piecewise-exponential (and older fits): difference of the
+        # natural-scale log hazards.
+        cols_i <- sprintf("haz_index_%s[%d]", pop, sel)
+        cols_c <- sprintf("haz_comparator_%s[%d]", pop, sel)
+        .require_draw_columns(draws, c(cols_i, cols_c), "survival prediction")
+        lhr <- log(as.matrix(draws[, cols_i, drop = FALSE])) -
+          log(as.matrix(draws[, cols_c, drop = FALSE]))
+      }
+      if (!summary) {
+        colnames(lhr) <- sprintf("t_%g", pred_times[sel])
+        return(data.frame(population = pop_label(pop), lhr,
+                          check.names = FALSE))
+      }
+      s <- .summarize_draw_matrix(lhr, probs)
+      data.frame(population = pop_label(pop), time = pred_times[sel], s,
+                 row.names = NULL)
+    })
+    out <- do.call(rbind, rows)
+    rownames(out) <- NULL
+    return(out)
+  }
+
+  # Scalar summaries (RMST, median): one row per treatment x population.
+  if (type %in% c("rmst", "median")) {
+    rows <- lapply(seq_len(nrow(cells)), function(i) {
+      if (type == "rmst") {
+        col <- sprintf("rmst_%s_%s", cells$trt[i], cells$pop[i])
+        .require_draw_columns(draws, col, "survival prediction")
+        vals <- matrix(draws[[col]], ncol = 1)
+      } else {
+        cols <- sprintf("surv_%s_%s[%d]", cells$trt[i], cells$pop[i],
+                        seq_along(pred_times))
+        .require_draw_columns(draws, cols, "survival prediction")
+        med <- .surv_median_from_draws(as.matrix(draws[, cols, drop = FALSE]),
+                                       pred_times)
+        vals <- matrix(med, ncol = 1)
+      }
+      if (!summary) {
+        return(data.frame(treatment = trt_label(cells$trt[i]),
+                          population = pop_label(cells$pop[i]),
+                          value = vals[, 1],
+                          check.names = FALSE))
+      }
+      s <- .summarize_draw_matrix(vals, probs)
+      # For median survival, draws whose fitted survival never reaches 0.5 over
+      # the prediction grid have no finite median ("median not reached"). The
+      # shared summarizer uses na.rm, so its mean/SD/quantiles are conditional on
+      # the median being reached; expose the posterior probability that it is not
+      # rather than silently reporting a finite, precise-looking median.
+      if (type == "median") {
+        s$p_not_reached <- mean(is.na(vals[, 1]))
+      }
+      data.frame(treatment = trt_label(cells$trt[i]),
+                 population = pop_label(cells$pop[i]), s, row.names = NULL)
+    })
+    out <- do.call(rbind, rows)
+    rownames(out) <- NULL
+    # RMST is an integral to a restriction time, so the number is only half the
+    # estimand without it. Report the horizon actually integrated to, read off
+    # the fitted grid: that is the requested `rmst_horizon` when one was given,
+    # and otherwise mlumr()'s default, which for a study-stratified flexible
+    # baseline is the common support rather than the pooled maximum.
+    if (type == "rmst") {
+      g <- object$stan_data$rmst_grid_times
+      tau <- if (is.null(g)) NA_real_ else max(g)
+      if (summary) {
+        out <- cbind(out[, 1:2, drop = FALSE], horizon = tau,
+                     out[, -(1:2), drop = FALSE])
+      } else {
+        out$horizon <- tau
+      }
+    }
+    if (type == "median" && any(out$p_not_reached > 0)) {
+      .median_not_reached_note(max(out$p_not_reached))
+    }
+    return(out)
+  }
+
+  # Curve summaries (survival, hazard, cumhaz): one row per time.
+  sel <- if (is.null(times)) {
+    seq_along(pred_times)
+  } else {
+    sort(unique(vapply(times, function(t) which.min(abs(pred_times - t)),
+                       integer(1))))
+  }
+  qty <- switch(type, survival = "surv", hazard = "haz", cumhaz = "cumhaz")
+  # Survival is 1 and cumulative hazard is 0 at t = 0 (exactly, by definition),
+  # so prepend that origin: survival/cumhaz curves (and any plot built from them,
+  # including a user's own) then start at the top-left corner, matching the
+  # Kaplan-Meier convention (cf. multinma's geom_km). Hazard has no universal
+  # value at t = 0 (it can be 0 or infinite depending on the distribution), so it
+  # is left to start at the first fitted time. Added only for the full default
+  # curve (`times = NULL`) and when t = 0 is not already a fitted time.
+  origin <- switch(type, survival = 1, cumhaz = 0, NA_real_)
+  add_origin <- is.null(times) && !is.na(origin) &&
+    !any(abs(pred_times) < sqrt(.Machine$double.eps))
+  rows <- lapply(seq_len(nrow(cells)), function(i) {
+    cols <- sprintf("%s_%s_%s[%d]", qty, cells$trt[i], cells$pop[i], sel)
+    .require_draw_columns(draws, cols, "survival prediction")
+    smat <- as.matrix(draws[, cols, drop = FALSE])
+    if (!summary) {
+      colnames(smat) <- sprintf("t_%g", pred_times[sel])
+      df <- data.frame(treatment = trt_label(cells$trt[i]),
+                       population = pop_label(cells$pop[i]),
+                       smat, check.names = FALSE)
+      if (add_origin) {
+        df <- data.frame(df[c("treatment", "population")], t_0 = origin,
+                         df[setdiff(names(df), c("treatment", "population"))],
+                         check.names = FALSE)
+      }
+      return(df)
+    }
+    s <- .summarize_draw_matrix(smat, probs)
+    df <- data.frame(treatment = trt_label(cells$trt[i]),
+                     population = pop_label(cells$pop[i]),
+                     time = pred_times[sel], s, row.names = NULL)
+    if (add_origin) {
+      o <- df[1, , drop = FALSE]
+      o$time <- 0
+      num_cols <- setdiff(names(o)[vapply(o, is.numeric, logical(1))], "time")
+      o[num_cols] <- origin
+      if ("sd" %in% names(o)) o$sd <- 0
+      df <- rbind(o, df)
+    }
+    df
+  })
+  out <- do.call(rbind, rows)
+  rownames(out) <- NULL
+  out
+}
+
+
+#' Marginal posterior variance change for comparator coefficients
+#'
+#' For each `beta_comparator` coefficient this reports
+#' `1 - posterior_variance / prior_variance`. A positive value means the
+#' marginal posterior SD is smaller than the marginal prior SD, zero means the
+#' two SDs are equal, and a negative value means the posterior SD is larger.
+#' This descriptive variance comparison is not a fraction of information
+#' learned, an identification test, or a decomposition of data and prior
+#' influence. It ignores changes in location, shape, and posterior correlation.
+#'
+#' The ratio is only interpretable against a prior with a finite variance.
+#' `prior_sd` is therefore the prior STANDARD DEVIATION, not the stored scale:
+#' for a Student-t prior they differ by `sqrt(df / (df - 2))`, and for `df <= 2`
+#' (including the `df = 1` Cauchy) no finite variance exists and `contraction`
+#' is `NA` rather than a number that would misstate what was learned.
+#'
+#' @param object An `mlumr_fit` from `model = "relaxed"`.
+#' @return A data frame with one row per covariate (`covariate`, `prior_sd`,
+#'   `posterior_sd`, `contraction`), or `NULL` if unavailable. The retained
+#'   `contraction` column is the marginal variance change defined above and is
+#'   `NA` where the prior has no finite variance.
+#' @keywords internal
+.relaxed_contraction <- function(object) {
+  if (!identical(object$model, "relaxed")) return(NULL)
+  prior_scale <- object$stan_data$prior_beta_comparator_sd
+  covs <- object$data$covariates
+  if (is.null(prior_scale) || is.null(covs)) return(NULL)
+  prior_scale <- as.numeric(prior_scale)
+  # The stored hyperparameter is the prior SCALE, which is the prior standard
+  # deviation only for a normal prior. A Student-t prior has
+  # SD = scale * sqrt(df / (df - 2)) for df > 2, and NO finite variance for
+  # df <= 2 (the Cauchy that `prior_cauchy()` produces is df = 1). Dividing a
+  # posterior SD by a scale that is not an SD would not produce the stated
+  # marginal variance comparison, so convert where the variance exists and
+  # return NA where it does not.
+  dist <- object$stan_data$prior_beta_comparator_dist %||% 0L
+  df <- object$stan_data$prior_beta_comparator_df %||% NA_real_
+  prior_sd <- if (identical(as.integer(dist)[1], 1L)) {
+    d <- as.numeric(df)[1]
+    if (is.finite(d) && d > 2) prior_scale * sqrt(d / (d - 2)) else NA_real_
+  } else {
+    prior_scale
+  }
+  if (length(prior_sd) == 1L && length(prior_scale) > 1L) {
+    prior_sd <- rep(prior_sd, length(prior_scale))
+  }
+  if (length(prior_sd) == 1L) prior_sd <- rep(prior_sd, length(covs))
+  if (length(prior_sd) != length(covs)) return(NULL)
+  cols <- paste0("beta_comparator[", seq_along(covs), "]")
+  if (!all(cols %in% names(object$draws))) return(NULL)
+  post_sd <- vapply(cols, function(cl) stats::sd(object$draws[[cl]]), numeric(1))
+  ok <- is.finite(prior_sd) & prior_sd > 0
+  contraction <- rep(NA_real_, length(covs))
+  contraction[ok] <- 1 - (post_sd[ok] / prior_sd[ok])^2
+  data.frame(covariate = covs, prior_sd = prior_sd,
+             posterior_sd = unname(post_sd), contraction = contraction,
+             stringsAsFactors = FALSE, row.names = NULL)
+}
+
+
+#' Note the index-population extrapolation in relaxed fits
+#'
+#' Emitted from [marginal_effects()] (and the survival dispatch). Once per
+#' call; suppress with `options(mlumr.quiet_relaxed_index = TRUE)`.
+#' @keywords internal
+.relaxed_index_note <- function(object, population) {
+  if (!identical(object$model, "relaxed")) return(invisible())
+  if (!population %in% c("both", "index")) return(invisible())
+  if (isTRUE(getOption("mlumr.quiet_relaxed_index", FALSE))) return(invisible())
+
+  ct <- .relaxed_contraction(object)
+  detail <- ""
+  if (!is.null(ct) && any(!is.na(ct$contraction))) {
+    detail <- paste0(
+      " Marginal posterior variance change for `beta_comparator` ",
+      "(positive = narrower than its marginal prior, negative = wider): ",
+      paste(sprintf("%s %.2f", ct$covariate, ct$contraction), collapse = ", "),
+      ".",
+      if (any(is.na(ct$contraction))) paste0(
+        " (NA where the comparator prior has no finite variance, so the ratio ",
+        "is undefined.)"
+      ) else "",
+      " This is descriptive, not a fraction learned or an identification test."
+    )
+  }
+
+  message(
+    "Relaxed model index-population effects average `beta_comparator` over ",
+    "the IPD covariate distribution, while `beta_comparator` is informed only ",
+    "by the aggregate likelihood. Whether its components are identified is ",
+    "model- and design-dependent, and transport to the index population can ",
+    "extrapolate beyond the comparator covariate support.", detail,
+    " Inspect the coefficient posterior, report both populations, regularize ",
+    "with `prior_beta_comparator` (see ?mlumr), and test conclusions with ",
+    "`prior_sensitivity()`. ",
+    "Suppress with `options(mlumr.quiet_relaxed_index = TRUE)`."
+  )
+  invisible()
+}
+
+
+#' Note that some median-survival draws never reach S = 0.5
+#'
+#' Emitted from [predict.mlumr_fit()] (survival, `type = "median"`) when a
+#' positive fraction of posterior draws have an unreached median. Suppress with
+#' `options(mlumr.quiet_median_not_reached = TRUE)`.
+#' @keywords internal
+.median_not_reached_note <- function(max_p) {
+  if (isTRUE(getOption("mlumr.quiet_median_not_reached", FALSE))) {
+    return(invisible())
+  }
+  msg <- paste0(
+    "Median survival: up to %.0f%% of posterior draws never reach S = 0.5 on ",
+    "the prediction grid (median not reached). The reported mean/SD/quantiles ",
+    "are conditional on the median being reached; see the `p_not_reached` ",
+    "column, extend `times` / `pred_times`, or inspect the `summary = FALSE` ",
+    "draws (NA = not reached). Suppress with ",
+    "`options(mlumr.quiet_median_not_reached = TRUE)`."
+  )
+  message(sprintf(msg, 100 * max_p))
+  invisible()
+}
+
+
+#' Median survival time from posterior survival-curve draws (linear interp)
+#' @keywords internal
+.surv_median_from_draws <- function(surv_mat, times) {
+  apply(surv_mat, 1, function(s) {
+    if (all(s > 0.5)) return(NA_real_)   # median beyond observed follow-up
+    k <- which(s <= 0.5)[1]
+    if (k == 1L) {
+      # The median falls before the first prediction time. times[1] would be an
+      # upward-biased bound, not an interpolant, so anchor on the known exact
+      # point S(0) = 1 and interpolate between (0, 1) and (times[1], s[1]).
+      # s[1] <= 0.5 here, so the result never exceeds times[1].
+      return(times[1] * 0.5 / (1 - s[1]))
+    }
+    s0 <- s[k - 1L]
+    s1 <- s[k]
+    if (s0 == s1) return(times[k - 1L])
+    times[k - 1L] + (0.5 - s0) * (times[k] - times[k - 1L]) / (s1 - s0)
+  })
 }
 
 
@@ -132,17 +483,131 @@ predict.mlumr_fit <- function(object,
 #'
 #' Extract marginal treatment effects from a fitted ML-UMR model. For
 #' binomial: log odds ratio, risk difference, risk ratio. For normal:
-#' mean difference. For poisson: rate ratio.
+#' mean difference. For poisson: rate ratio. For survival: the hazard ratio
+#' (proportional-hazards distributions, labeled `HR`), the time ratio
+#' (accelerated-failure-time distributions with one shared shape and one shared
+#' coefficient vector, labeled `TR`), or the exponentiated linear-predictor
+#' contrast (`EXP_DELTA_ETA`, where neither of those holds); all natural-scale,
+#' null 1, like the poisson rate ratio. Plus the restricted-mean-survival-time
+#' difference (`RMSTD`, null 0) and the RMST ratio (`RMSTR`, null 1), both
+#' reported with the restriction time in a `horizon` column. For the
+#' time-varying log hazard ratio curve (null 0) use `predict(type = "loghr")`.
+#'
+#' For survival proportional-hazards models the scalar `"hr"` (the exponentiated
+#' `delta_*`) is always a **marginal** quantity, evaluated at one time, and the
+#' `at_time` column records which. It is never a conditional coefficient
+#' contrast, which is a different estimand and is what [conditional_effects()]
+#' returns. Three cases:
+#' \itemize{
+#'   \item **Shared baseline shape, SPFA.** `delta_*` is the marginal log hazard
+#'     ratio in the `t -> 0` limit (`at_time` is 0). Because SPFA gives both
+#'     treatments the same coefficients, the covariate term cancels and this
+#'     value happens to coincide with the conditional log hazard ratio
+#'     `mu_index - mu_comparator`, which IS constant in time and covariates. The
+#'     two agree here; they are still different estimands, and they part company
+#'     at `t > 0`, where the marginal ratio drifts as the two arms' surviving
+#'     covariate distributions diverge.
+#'   \item **Shared baseline shape, relaxed.** The coefficients differ by
+#'     treatment, so nothing cancels: `delta_*` is the marginal log hazard ratio
+#'     at `t -> 0` only, and is time-varying thereafter.
+#'   \item **Study-specific shape-bearing baseline** (the `aux_by = ".study"`
+#'     default). `delta_*` is taken from the time-varying marginal `loghr_*`
+#'     curve at the first prediction time, or at `at_time` when supplied.
+#' }
+#' Hazard ratios are non-collapsible, so the marginal ratio is time-varying in
+#' every case above except the degenerate `t -> 0` evaluation itself. For the
+#' full curve use `predict(type = "loghr")`. RMST-based effects
+#' (`"rmstd"`, `"rmstr"`) are collapsible within a specified population, but
+#' collapsibility alone does not make them invariant or transportable across
+#' populations.
+#'
+#' For accelerated-failure-time distributions the scalar is
+#' `exp(E_X[eta_index(X)] - E_X[eta_comparator(X)])`, and what that is depends
+#' on the fit:
+#' \itemize{
+#'   \item **One shared shape, SPFA** (`TR`). The coefficients are shared, so
+#'     `eta_index(x) - eta_comparator(x)` is the same constant `a` at every
+#'     covariate profile. Every individual's survival time is accelerated by the
+#'     same factor, so the population-standardized curves satisfy
+#'     `S_index(t) = S_comparator(t / a)` exactly and this IS a population time
+#'     ratio.
+#'   \item **Otherwise** (`EXP_DELTA_ETA`; differing shapes, or the relaxed
+#'     model). The conditional acceleration varies with `x`, so it is the
+#'     exponentiated average log ratio: equivalently the conditional time ratio
+#'     at the mean linear predictor, or the geometric mean of the
+#'     profile-specific conditional time ratios. It is **not** generally a time
+#'     ratio between the two standardized survival distributions: there need be
+#'     no single `a` with `S_index(t) = S_comparator(t / a)` for all `t`, and
+#'     different survival quantiles can imply different apparent acceleration
+#'     factors. It is labeled `EXP_DELTA_ETA` rather than `TR` for that reason.
+#' }
+#' Neither carries an evaluation time (`at_time` is `NA`). For a population
+#' contrast under differing covariate effects use the RMST-based effects, which
+#' are collapsible and have no such caveat.
+#'
+#' For binomial fits the `"lor"` measure is always a logit-scale marginal odds
+#' ratio computed from response-scale population probabilities, independent of
+#' the fitted link. So for a `probit`/`cloglog` fit it is on a different scale
+#' than [naive()] / [stc()] `$estimate`, which is the fitted-link (probit /
+#' cloglog) difference.
+#'
+#' **Relaxed-model index-population estimands.** For `model = "relaxed"` the
+#' index-population estimand averages `beta_comparator` over the IPD covariate
+#' distribution, while `beta_comparator` is identified only by the (typically
+#' single) AgD likelihood term and so is integrated outside the support it was
+#' identified on. The resulting effects are wider and more prior-sensitive than
+#' the comparator-population estimands (which integrate `beta_comparator` over
+#' the AgD support, consistent with identification). When `population` is
+#' `"both"` or `"index"` for a relaxed fit, `marginal_effects()` emits a
+#' one-line note recommending the comparator population, tightening
+#' `prior_beta_comparator` (see [mlumr()]), and running [prior_sensitivity()].
+#' Suppress the note with `options(mlumr.quiet_relaxed_index = TRUE)`.
 #'
 #' @param object An `mlumr_fit` object
-#' @param population Which population: `"both"`, `"index"`, or `"comparator"`
+#' @param population Which population: `"both"` (default), `"index"`, or
+#'   `"comparator"`. The **index** population is normally the decision-relevant
+#'   target for health technology assessment, since cost-effectiveness models are
+#'   built for the population the decision is about; report it as the primary
+#'   estimand and the comparator population alongside.
 #' @param effect Which effect measure. For binomial: `"all"`, `"lor"`, `"rd"`,
 #'   or `"rr"`. For normal: `"all"` or `"md"` (mean difference). For poisson:
-#'   `"all"` or `"rr"` (rate ratio).
+#'   `"all"` or `"rr"` (rate ratio). For survival: `"all"`, `"hr"` (hazard ratio
+#'   for PH, time ratio for AFT, natural scale, null 1; `"tr"` is an accepted
+#'   alias), `"exp_delta_eta"`, `"rmstd"` (RMST difference, null 0), or
+#'   `"rmstr"` (RMST ratio, natural scale, null 1). Requesting an effect the fit
+#'   cannot produce is an error rather than a differently-named substitute: with
+#'   an AFT distribution and `aux_by = ".study"` the study shapes differ, so
+#'   `exp(eta_index - eta_comparator)` is not a time ratio and `"hr"` / `"tr"`
+#'   are rejected in favor of the explicit `"exp_delta_eta"`.
+#' @param at_time Evaluation time for the scalar marginal hazard ratio, for
+#'   proportional-hazards fits whose two studies have different baseline shapes
+#'   (`aux_by = ".study"` with a distribution that has a shape parameter, or
+#'   either flexible baseline). Marginal hazard ratios are non-collapsible and
+#'   therefore time-varying, so the scalar is only meaningful with a time
+#'   attached; naming it here makes it an estimand choice instead of a
+#'   consequence of the `pred_times` output grid. Snapped to the nearest fitted
+#'   prediction time, with a message when that is not exact. `NULL` (default)
+#'   uses the first prediction time, reproducing `delta_*`. An error for a
+#'   shared baseline (where the scalar is the closed-form `t -> 0` limit) and
+#'   for AFT fits (whose scalar is a location contrast with no time).
 #' @param summary Return summary (`TRUE`) or full draws (`FALSE`)
 #' @param probs Quantiles for summary
+#' @return A data frame. With `summary = FALSE` the raw posterior draws are
+#'   returned as a plain data frame (not plottable; plot methods need
+#'   `summary = TRUE`); the column names encode the per-family effect scale
+#'   (e.g. poisson `delta_*` is a natural-scale rate ratio, null 1; survival is
+#'   the exponentiated HR/TR). With `summary = TRUE` the `effect` column names
+#'   the measure; with `summary = FALSE` the scale is carried by the draw column
+#'   names themselves (`lor_*`, `rr_*`, `delta_*`, `hr_*` / `tr_*`, `rmst*`).
+#'   For survival, RMST-based rows also carry a `horizon` column (the raw-draw
+#'   frame, a `horizon` attribute) giving the restriction time the integral runs
+#'   to. RMST at different horizons is a different estimand, so results are only
+#'   comparable across fits when this value matches.
 #'
-#' @return A data frame
+#'   For survival, the summary carries an `at_time` column and the raw-draw
+#'   frame an `at_time` attribute (one named value per column, `NA` for measures
+#'   with no evaluation time), so a time-specific hazard ratio never travels
+#'   without its time.
 #' @seealso [predict.mlumr_fit()] for absolute predictions;
 #'   [conditional_effects()] for covariate-conditional effects at specific
 #'   profiles; [prior_sensitivity()] to check how strongly the marginal
@@ -156,6 +621,8 @@ predict.mlumr_fit <- function(object,
 #' # Only the log odds ratio in the index population
 #' marginal_effects(fit, population = "index", effect = "lor")
 #'
+#' # Transport the effect to an external (e.g. jurisdiction-specific) population
+#'
 #' # Full posterior draws rather than summary statistics
 #' marginal_effects(fit, summary = FALSE)
 #' }
@@ -163,7 +630,8 @@ marginal_effects <- function(object,
                              population = c("both", "index", "comparator"),
                              effect = "all",
                              summary = TRUE,
-                             probs = c(0.025, 0.5, 0.975)) {
+                             probs = c(0.025, 0.5, 0.975),
+                             at_time = NULL) {
 
   .validate_mlumr_fit_object(object)
   population <- .validate_predict_choice(population, c("both", "index", "comparator"),
@@ -172,22 +640,20 @@ marginal_effects <- function(object,
   summary <- .validate_summary_flag(summary)
   .validate_probs(probs)
 
+  # Relaxed-model index-population: beta_comparator is identified only by the
+  # AgD likelihood, so averaging it over the IPD covariate distribution
+  # extrapolates outside that support and produces wider, prior-sensitive
+  # effects. Surface this once per call (suppress via the documented option).
+  .relaxed_index_note(object, population)
+
   family <- object$family %||% "binomial"
 
-  # Survival effects need their own dispatch, which arrives with the prediction
-  # layer. Without this guard the generic path below still finds draws for
-  # `hr`: family_config maps it to `delta_*`, which Stan writes on the LOG
-  # scale, so the caller would receive a log hazard ratio labeled `HR`. Failing
-  # here is the difference between a missing feature and a wrong number.
-  if (identical(family, "survival")) {
-    stop("Marginal effects for survival fits arrive with the prediction layer ",
-         "and are not available from this build. The fitted draws hold the ",
-         "quantities themselves: `delta_index` / `delta_comparator` (log ",
-         "hazard ratio or log time ratio), `rmst_diff_*`, and `loghr_*`.",
-         call. = FALSE)
-  }
-
   cfg <- get_family_config(family)
+
+  if (family == "survival") {
+    return(.marginal_effects_survival(object, population, effect, summary, probs,
+                                      at_time))
+  }
 
   valid_effects <- c("all", cfg$effect_measures)
   if (!effect %in% valid_effects) {
@@ -216,7 +682,7 @@ marginal_effects <- function(object,
   # Invert marginal_effect_vars to map Stan variable name -> canonical
   # effect label. This is family-aware, so normal yields "MD" and poisson
   # yields "RR" (both use delta_* columns under different effect names)
-  # rather than a regex that would collapse both to "DELTA".
+  # rather than a regex that would collapse both to "delta".
   vmap <- cfg$marginal_effect_vars
   var_to_effect <- setNames(
     rep(names(vmap), lengths(vmap)),
@@ -232,7 +698,457 @@ marginal_effects <- function(object,
     stringsAsFactors = FALSE
   )
 
-  cbind(labels, summary_df, row.names = NULL)
+  .mlumr_result(cbind(labels, summary_df, row.names = NULL),
+                "mlumr_marginal_effects", family = family)
+}
+
+
+
+
+
+
+
+
+
+
+#' Survival S(t | x) at arbitrary times for one linear-predictor draw vector
+#'
+#' Generalizes [.surv_eval_curve()] to an arbitrary `times` grid with matching
+#' I-spline integral basis `ibasis` (used for the M-spline/piecewise baseline;
+#' ignored for parametric distributions, which evaluate `S` analytically).
+#' @keywords internal
+.surv_s_at_times <- function(object, eta, times, ibasis,
+                             treatment = c("index", "comparator"),
+                             log_scale = FALSE) {
+  treatment <- match.arg(treatment)
+  draws <- object$draws
+  # The baseline belongs to the study, and each study contributes one arm, so it
+  # travels with the treatment. Under `aux_by = NULL` there is only one stratum
+  # and both treatments read the same parameters.
+  log_s <- if (object$surv_info$kind == "parametric") {
+    dist <- object$surv_info$dist_code
+    aux  <- .surv_aux_draws(object, "aux_val", treatment, length(eta))
+    aux2 <- .surv_aux_draws(object, "aux2_val", treatment, length(eta))
+    matrix(
+      vapply(times,
+             function(t) .r_log_surv(dist, t, eta, aux, aux2),
+             numeric(length(eta))),
+      nrow = length(eta), ncol = length(times)
+    )
+  } else {
+    scoef <- .surv_scoef_draws(object, treatment)
+    cum_haz <- scoef %*% t(ibasis)             # [n_draws, n_times]
+    -exp(log(cum_haz) + eta)                    # eta recycled down columns
+  }
+  if (log_scale) log_s else exp(log_s)
+}
+
+#' Spline coefficient draws for one treatment's baseline
+#'
+#' `scoef` is a `[n_scoef, n_strata]` matrix in Stan, so the draws are named
+#' `scoef[j,s]`. Stratum 1 is the index study and stratum `n_strata` is the
+#' comparator, which coincide when the baseline is shared. Older fits stored a
+#' plain vector named `scoef[j]`; those are still readable.
+#' @keywords internal
+.surv_scoef_draws <- function(object, treatment = c("index", "comparator")) {
+  treatment <- match.arg(treatment)
+  draws <- object$draws
+  n_scoef <- object$stan_data$n_scoef
+  n_strata <- object$stan_data$n_strata %||% 1L
+  j <- seq_len(n_scoef)
+  # Three layouts, newest first:
+  #   scoef_idx[j] / scoef_cmp[j]  the named per-treatment views (always emitted)
+  #   scoef[j,s]                   the underlying matrix
+  #   scoef[j]                     fits made before aux_by existed
+  view <- if (identical(treatment, "index")) "scoef_idx" else "scoef_cmp"
+  s <- if (identical(treatment, "index")) 1L else n_strata
+  for (nm in list(paste0(view, "[", j, "]"),
+                  paste0("scoef[", j, ",", s, "]"),
+                  paste0("scoef[", j, "]"))) {
+    if (all(nm %in% names(draws))) return(as.matrix(draws[, nm, drop = FALSE]))
+  }
+  stop("Could not find spline coefficient draws for the ", treatment,
+       " baseline.", call. = FALSE)
+}
+
+#' Auxiliary (shape) draws for one treatment, defaulting to 1 when absent
+#' @keywords internal
+.surv_aux_draws <- function(object, base, treatment, n) {
+  draws <- object$draws
+  cmp <- paste0(base, "_cmp")
+  nm <- if (identical(treatment, "comparator") && cmp %in% names(draws)) cmp else base
+  if (nm %in% names(draws)) draws[[nm]] else rep(1, n)
+}
+
+
+
+
+#' Conditional log hazard at arbitrary times for one predictor draw vector
+#' @keywords internal
+.surv_log_h_at_times <- function(object, eta, times, mbasis = NULL,
+                                 treatment = c("index", "comparator")) {
+  treatment <- match.arg(treatment)
+  if (object$surv_info$kind == "parametric") {
+    dist <- object$surv_info$dist_code
+    aux <- .surv_aux_draws(object, "aux_val", treatment, length(eta))
+    aux2 <- .surv_aux_draws(object, "aux2_val", treatment, length(eta))
+    return(matrix(
+      vapply(times,
+             function(t) .r_log_haz(dist, t, eta, aux, aux2),
+             numeric(length(eta))),
+      nrow = length(eta), ncol = length(times)
+    ))
+  }
+
+  scoef <- .surv_scoef_draws(object, treatment)
+  h0 <- scoef %*% t(mbasis)
+  log(h0) + eta
+}
+
+
+#' Conditional log density at arbitrary times for one predictor draw vector
+#' @keywords internal
+.surv_log_f_at_times <- function(object, eta, times, ibasis = NULL,
+                                 mbasis = NULL,
+                                 treatment = c("index", "comparator")) {
+  treatment <- match.arg(treatment)
+  if (object$surv_info$kind == "parametric") {
+    dist <- object$surv_info$dist_code
+    aux <- .surv_aux_draws(object, "aux_val", treatment, length(eta))
+    aux2 <- .surv_aux_draws(object, "aux2_val", treatment, length(eta))
+    return(matrix(
+      vapply(times,
+             function(t) .r_log_density(dist, t, eta, aux, aux2),
+             numeric(length(eta))),
+      nrow = length(eta), ncol = length(times)
+    ))
+  }
+
+  log_s <- .surv_s_at_times(object, eta, times, ibasis, treatment,
+                            log_scale = TRUE)
+  log_h <- .surv_log_h_at_times(object, eta, times, mbasis, treatment)
+  out <- log_s + log_h
+  out[is.nan(out) & is.infinite(log_s) & log_s < 0] <- -Inf
+  out
+}
+
+
+
+
+#' RMST per draw from a target-standardized survival curve (trapezoid)
+#' @keywords internal
+.rmst_from_surv_matrix <- function(s_mat, times) {
+  dt <- diff(times)
+  # trapezoid: sum_j (S[,j] + S[,j+1]) / 2 * (t[j+1] - t[j])
+  left <- s_mat[, -ncol(s_mat), drop = FALSE]
+  right <- s_mat[, -1, drop = FALSE]
+  as.numeric(((left + right) / 2) %*% dt)
+}
+
+
+
+
+#' Marginal survival treatment effects (internal dispatch for marginal_effects)
+#'
+#' Returns the marginal hazard ratio (PH) / time ratio (AFT) on the natural
+#' scale (null 1), the RMST difference (null 0), and the natural-scale RMST
+#' ratio (null 1), in the index and/or comparator populations, matching the
+#' estimands of Chandler & Ishak (ML-UMR survival). The Stan `delta_*` are log
+#' HR / log time ratios and are exponentiated here.
+#' @keywords internal
+.marginal_effects_survival <- function(object, population, effect, summary,
+                                       probs, at_time = NULL) {
+  draws <- object$draws
+  is_ph <- isTRUE(object$surv_info$is_ph)
+  # Whether the two studies genuinely have DIFFERENT baseline shapes, which is
+  # not the same question as `n_strata > 1`: an exponential has no shape to
+  # stratify, so `aux_by = ".study"` leaves its baseline unchanged and Stan
+  # keeps the exact closed form. `.aux_shapes_differ()` mirrors the Stan gate,
+  # so the time this layer attaches is the time Stan actually evaluated at.
+  stratified <- .aux_shapes_differ(object)
+  # marginal_effects() reports the hazard ratio on the natural scale (null 1),
+  # consistent with the poisson rate ratio: the Stan `delta_*` are log HR (PH) /
+  # log time ratio (AFT) and are exponentiated here. The label is `HR` (PH) or
+  # `TR` (AFT). For the time-varying log hazard ratio curve (null 0) use
+  # predict(type = "loghr").
+  # A stratified AFT baseline gives the two studies different shape/scale
+  # parameters, and then exp(delta_eta) is NOT a time ratio: the Weibull
+  # quantile ratio picks up [-log S]^(1/a_i - 1/a_c), the log-normal picks up
+  # exp(z_p (sigma_i - sigma_c)), and so on. Only the location contrast is
+  # left, so it must not be labeled TR. (The PH side is genuinely a marginal
+  # hazard ratio, taken from loghr_* at `at_time`.)
+  # One shared derivation for the label and its evaluation time, so this and
+  # prior_sensitivity() cannot drift apart. `EXP_DELTA_ETA` now also covers the
+  # RELAXED AFT case: treatment-specific coefficients mean the covariate term
+  # does not cancel, so exp(delta) is the geometric mean of covariate-specific
+  # time ratios, not one population acceleration factor.
+  lab <- .surv_scalar_label(object)
+  hr_label <- lab$label
+  # The estimand the caller asked for must be the estimand they get. When the
+  # AFT shapes differ there is no scalar time ratio, and returning the location
+  # contrast under the name `tr` would report one estimand under the name of
+  # another. Name the quantity that does exist and make the caller opt into it.
+  if (effect %in% c("hr", "tr") && identical(hr_label, "EXP_DELTA_ETA")) {
+    why <- if (stratified) {
+      paste0("each study has its own AFT shape (`aux_by = \".study\"`), so there ",
+             "is no constant acceleration factor at all (the Weibull quantile ",
+             "ratio picks up [-log S]^(1/a_i - 1/a_c), the log-normal ",
+             "exp(z_p (sigma_i - sigma_c)), and so on)")
+    } else {
+      paste0("this is a relaxed fit, so the two treatments have different ",
+             "coefficients and the covariate term does not cancel from ",
+             "mean(eta_index) - mean(eta_comparator). The time ratio varies by ",
+             "covariate profile, and exp(delta) is the geometric mean of those ",
+             "profile-specific ratios, not one population acceleration factor")
+    }
+    stop("`effect = \"", effect, "\"` is not available: ", why,
+         ". Use `effect = \"exp_delta_eta\"` for the location contrast itself, ",
+         "the collapsible `effect = \"rmstd\"` / \"rmstr\", or ",
+         "conditional_effects() for profile-specific time ratios.",
+         call. = FALSE)
+  }
+  if (identical(effect, "exp_delta_eta") && !identical(hr_label, "EXP_DELTA_ETA")) {
+    stop("`effect = \"exp_delta_eta\"` applies to an AFT distribution whose ",
+         "shapes differ by study (`aux_by = \".study\"`) or to any relaxed AFT ",
+         "fit, whose treatment-specific coefficients leave the covariate term ",
+         "in the contrast. This fit reports ", hr_label,
+         "; request `effect = \"", tolower(hr_label), "\"`.", call. = FALSE)
+  }
+
+  # `tr` (time ratio) is accepted as an alias for `hr`: for AFT distributions the
+  # returned effect is already labeled TR (see hr_label), so a user who thinks in
+  # time-ratio terms can request it by name; it routes to the same computation.
+  valid_effects <- c("all", "hr", "tr", "exp_delta_eta", "rmstd", "rmstr")
+  if (!effect %in% valid_effects) {
+    stop(sprintf("For survival family, `effect` must be one of: %s",
+                 paste(valid_effects, collapse = ", ")), call. = FALSE)
+  }
+  # `tr` and `exp_delta_eta` both name the exponentiated location contrast that
+  # `hr` computes; the LABEL on the result (HR / TR / EXP_DELTA_ETA) is what
+  # says which of the three it actually is, and the guards above have already
+  # rejected the combinations where the requested name is not the truth.
+  if (effect %in% c("tr", "exp_delta_eta")) effect <- "hr"
+  # Resolve the evaluation time of the scalar marginal hazard ratio. This is a
+  # genuine estimand choice, not a plotting control, so it is a named argument
+  # rather than a side effect of `pred_times`. Stan already stores the whole
+  # `loghr_*[p]` curve, so any fitted grid time is available at no cost; the
+  # default reproduces `delta_*` exactly.
+  hr_index_p <- NULL
+  hr_at <- NULL
+  if (!is.null(at_time)) {
+    if (!is_ph) {
+      stop("`at_time` applies only to the marginal hazard ratio of a ",
+           "proportional-hazards distribution. This fit is AFT, whose scalar ",
+           "effect is a location contrast with no evaluation time.",
+           call. = FALSE)
+    }
+    if (!is.numeric(at_time) || length(at_time) != 1L || !is.finite(at_time) ||
+          at_time <= 0) {
+      stop("`at_time` must be a single finite positive time. Survival times are ",
+           "positive and the prediction grid excludes 0, so a non-positive ",
+           "value has no nearest fitted time to snap to.", call. = FALSE)
+    }
+    if (!stratified) {
+      stop("`at_time` applies only when the two studies have different ",
+           "baseline shapes. With a shared baseline the scalar HR is the ",
+           "closed-form t -> 0 marginal limit and is not evaluated on the ",
+           "prediction grid; use predict(type = \"loghr\") for the curve.",
+           call. = FALSE)
+    }
+    grid <- object$pred_times
+    hr_index_p <- which.min(abs(grid - at_time))
+    hr_at <- grid[hr_index_p]
+    if (!isTRUE(all.equal(hr_at, at_time))) {
+      message("`at_time = ", format(at_time, digits = 4L), "` is not a fitted ",
+              "prediction time; using the nearest one, t = ",
+              format(hr_at, digits = 4L),
+              ". Refit with that time in `pred_times` for an exact match.")
+    }
+  }
+
+  pops <- switch(population, index = "index", comparator = "comparator",
+                 both = c("index", "comparator"))
+  effs <- if (effect == "all") c("hr", "rmstd", "rmstr") else effect
+
+  # The scalar HR is the marginal hazard ratio at the start of follow-up. Hazard
+  # ratios are non-collapsible, so the marginal HR drifts with time in BOTH
+  # models as the surviving covariate distributions of the two arms diverge; the
+  # relaxed model adds effect modification on top. Flag it once per session for
+  # either model, naming the relaxed extra where it applies.
+  if (is_ph && "hr" %in% effs && !isTRUE(getOption("mlumr.marginal_hr_note"))) {
+    extra <- if ((object$model %||% "spfa") == "relaxed") {
+      " and additionally under the relaxed model's treatment-specific covariate effects"
+    } else {
+      ""
+    }
+    where <- if (stratified) {
+      paste0("t = ", format(hr_at %||% object$pred_times[1], digits = 4L),
+             if (is.null(hr_at)) {
+               paste0(", the first prediction time, because the prediction grid ",
+                      "excludes 0. Pass `at_time` to choose the evaluation time ",
+                      "explicitly rather than inheriting it from `pred_times`")
+             } else {
+               ", the requested evaluation time"
+             })
+    } else {
+      "the start of follow-up (the t -> 0 limit)"
+    }
+    message("Note: the scalar 'HR' is the marginal hazard ratio at ", where,
+            ". The `at_time` column records it. ",
+            "Hazard ratios are non-collapsible, so the marginal ",
+            "hazard ratio varies over time as the surviving covariate ",
+            "distributions of the two arms diverge", extra, ". Use ",
+            "predict(type = \"loghr\") for the time-varying log hazard ratio ",
+            "curve, or the collapsible RMST effects ",
+            "(effect = \"rmstd\" / \"rmstr\").")
+    options(mlumr.marginal_hr_note = TRUE)
+  }
+
+  # The restriction time the RMST effects integrate to. Read off the fitted grid
+  # rather than the requested `rmst_horizon`, so it is right whether the horizon
+  # was supplied or left to mlumr()'s default (common support for a
+  # study-stratified flexible baseline, pooled maximum otherwise).
+  rmst_tau <- {
+    g <- object$stan_data$rmst_grid_times
+    if (is.null(g)) NA_real_ else max(g)
+  }
+
+  spec <- list()
+  for (eff in effs) {
+    for (pop in pops) {
+      if (eff == "hr") {
+        # Natural-scale hazard ratio (PH) / time ratio (AFT), null 1: exponentiate
+        # the Stan log HR / log time ratio.
+        d <- if (is.null(hr_index_p)) {
+          draws[[sprintf("delta_%s", pop)]]
+        } else {
+          # The time-varying marginal log hazard ratio Stan already computed at
+          # every fitted prediction time. delta_* is exactly this curve's first
+          # element under a stratified baseline, so the default path and this
+          # one agree when at_time = pred_times[1].
+          draws[[sprintf("loghr_%s[%d]", pop, hr_index_p)]]
+        }
+        vec <- if (is.null(d)) NULL else exp(d)
+        # Name the raw-draw column to match the effect scale, so summary = FALSE
+        # output is self-describing. `tr_*` would be a lie exactly where
+        # hr_label has already established the quantity is NOT a time ratio, so
+        # the raw name tracks the label rather than just the PH flag.
+        vname <- sprintf("%s_%s", switch(hr_label,
+                                         HR = "hr",
+                                         TR = "tr",
+                                         EXP_DELTA_ETA = "exp_delta_eta"), pop)
+        elabel <- hr_label
+      } else if (eff == "rmstd") {
+        vec <- draws[[sprintf("rmst_diff_%s", pop)]]
+        vname <- sprintf("rmst_diff_%s", pop)
+        elabel <- "RMSTD"
+      } else {
+        # Natural-scale RMST ratio (index / comparator), null 1.
+        ri <- draws[[sprintf("rmst_index_%s", pop)]]
+        rc <- draws[[sprintf("rmst_comparator_%s", pop)]]
+        vec <- if (is.null(ri) || is.null(rc)) NULL else ri / rc
+        vname <- sprintf("rmst_ratio_%s", pop)
+        elabel <- "RMSTR"
+      }
+      if (is.null(vec)) {
+        stop("Required survival draws not found; refit with mlumr (>= 0.2.0).",
+             call. = FALSE)
+      }
+      # The MARGINAL hazard ratio is time-varying in BOTH models, because it
+      # weights the covariate distribution by each arm's own survival and the
+      # risk sets diverge. So the scalar always needs the time it belongs to:
+      #   shared shapes -> the closed form is the t -> 0 limit, so 0;
+      #   differing     -> taken from loghr_* at the requested (or first) time.
+      # NA only for AFT location contrasts and the collapsible RMST effects,
+      # neither of which has an evaluation time.
+      eff_at_time <- if (eff != "hr") {
+        NA_real_
+      } else if (is_ph && stratified) {
+        hr_at %||% lab$at_time
+      } else {
+        lab$at_time
+      }
+      # RMST is an integral to a restriction time, so a value without its
+      # horizon is not an estimand. Two fits with different default horizons
+      # produce numbers that must not be put on the same forest plot, and
+      # nothing in the output said so.
+      eff_horizon <- if (eff %in% c("rmstd", "rmstr")) rmst_tau else NA_real_
+      spec[[length(spec) + 1L]] <- list(
+        variable = vname, effect = elabel,
+        population = if (pop == "index") "Index" else "Comparator",
+        at_time = eff_at_time,
+        horizon = eff_horizon,
+        draws = vec
+      )
+    }
+  }
+
+  mat <- do.call(cbind, lapply(spec, function(s) s$draws))
+  colnames(mat) <- vapply(spec, function(s) s$variable, character(1))
+  if (!summary) {
+    out <- as.data.frame(mat)
+    # A time-specific marginal HR must carry its time everywhere it appears,
+    # and the raw-draw frame has no `effect` column to hang it on. One named
+    # numeric per column, NA where the measure has no evaluation time.
+    ats <- vapply(spec, function(s) s$at_time, numeric(1))
+    names(ats) <- colnames(mat)
+    attr(out, "at_time") <- ats
+    hzs <- vapply(spec, function(s) s$horizon, numeric(1))
+    names(hzs) <- colnames(mat)
+    attr(out, "horizon") <- hzs
+    return(out)
+  }
+
+  summary_df <- .summarize_draw_matrix(mat, probs)
+  labels <- data.frame(
+    variable = vapply(spec, function(s) s$variable, character(1)),
+    effect = vapply(spec, function(s) s$effect, character(1)),
+    population = vapply(spec, function(s) s$population, character(1)),
+    stringsAsFactors = FALSE
+  )
+  at_time <- vapply(spec, function(s) s$at_time, numeric(1))
+  # Only carry the column when it says something, so shared-baseline and
+  # RMST-only output keeps its previous shape.
+  if (any(!is.na(at_time))) labels$at_time <- at_time
+  horizon <- vapply(spec, function(s) s$horizon, numeric(1))
+  if (any(!is.na(horizon))) labels$horizon <- horizon
+  .mlumr_result(cbind(labels, summary_df, row.names = NULL),
+                "mlumr_marginal_effects", family = "survival",
+                rmst_horizon = rmst_tau)
+}
+
+
+#' Note that absolute survival predictions transport a study-specific baseline
+#'
+#' Each study contributes exactly one arm, so a study-specific baseline shape
+#' and a treatment-specific baseline shape are perfectly aliased: no part of the
+#' data can say whether a difference in shape belongs to the treatment or to the
+#' study's eligibility, ascertainment, follow-up, calendar time, supportive
+#' care, or unmeasured prognosis. Predicting one treatment in the other
+#' population therefore carries that study's shape across, which is a structural
+#' assumption on top of the covariate adjustment, not a consequence of it. The
+#' contrast estimands are less exposed than the absolute curves, and the RMST
+#' estimands are collapsible, so say this where the absolute numbers are
+#' produced. Once per session, like the marginal-HR note.
+#' @param object A fitted `mlumr_fit`.
+#' @return `TRUE` invisibly if the note was emitted.
+#' @keywords internal
+.transported_baseline_note <- function(object) {
+  if (!identical(object$family %||% "", "survival")) return(invisible(FALSE))
+  if (!.aux_shapes_differ(object)) return(invisible(FALSE))
+  if (isTRUE(getOption("mlumr.transport_baseline_note"))) {
+    return(invisible(FALSE))
+  }
+  message("Note: this fit gives each study its own baseline shape ",
+          "(`aux_by = \".study\"`). With one arm per study a ",
+          "treatment-specific shape and a study-specific shape are perfectly ",
+          "aliased, so predicting a treatment in the other population carries ",
+          "that study's shape with it, an assumption the data cannot check. ",
+          "Compare against `aux_by = \"none\"`, prefer the collapsible RMST ",
+          "estimands for headline numbers, and report which was used. ",
+          "Suppress with options(mlumr.transport_baseline_note = TRUE).")
+  options(mlumr.transport_baseline_note = TRUE)
+  invisible(TRUE)
 }
 
 

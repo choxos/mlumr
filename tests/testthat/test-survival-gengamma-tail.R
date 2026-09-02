@@ -263,8 +263,6 @@ test_that("target cumulative hazard stays on the log-survival scale", {
 })
 
 test_that("flexible target log survival combines the cumulative hazard scale", {
-  skip_if_not(exists(".surv_s_at_times", asNamespace("mlumr")),
-             "survival prediction helpers arrive with the prediction change")
   fit <- structure(
     list(
       draws = data.frame(

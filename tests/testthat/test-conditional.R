@@ -82,7 +82,8 @@ test_that("conditional link effects use eta differences directly", {
     effect = "rr",
     summary = FALSE
   )
-  expect_true(all(is.finite(rr$rr)))
+  expect_identical(rr$rr[1], Inf)
+  expect_equal(rr$rr[2], plogis(1) / plogis(0))
 
   link_pred <- conditional_predict(
     fit,
@@ -99,7 +100,7 @@ test_that("conditional_effects works with default and custom newdata", {
   skip_on_cran()
   skip_if_not_installed("rstan")
 
-  set.seed(42)
+  set.seed(2026)
   n <- 80
   x1 <- rbinom(n, 1, 0.5)
   outcome <- rbinom(n, 1, plogis(-0.3 + 0.8 * x1))
@@ -115,7 +116,7 @@ test_that("conditional_effects works with default and custom newdata", {
                          x1 = distr(qbern, prob = x1_mean))
 
   fit <- mlumr(dat, model = "spfa", chains = 2, iter = 500,
-               warmup = 250, refresh = 0, seed = 123)
+               warmup = 250, refresh = 0, seed = 2026)
 
   # Default newdata (IPD means)
   ce <- conditional_effects(fit)
@@ -141,7 +142,7 @@ test_that("conditional_predict works with response and link types", {
   skip_on_cran()
   skip_if_not_installed("rstan")
 
-  set.seed(42)
+  set.seed(2026)
   n <- 80
   x1 <- rbinom(n, 1, 0.5)
   outcome <- rbinom(n, 1, plogis(-0.3 + 0.8 * x1))
@@ -157,7 +158,7 @@ test_that("conditional_predict works with response and link types", {
                          x1 = distr(qbern, prob = x1_mean))
 
   fit <- mlumr(dat, model = "spfa", chains = 2, iter = 500,
-               warmup = 250, refresh = 0, seed = 123)
+               warmup = 250, refresh = 0, seed = 2026)
 
   # Response type (default)
   cp <- conditional_predict(fit, type = "response")

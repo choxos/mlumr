@@ -58,8 +58,6 @@ test_that("the two exponential forms are exactly the Stan nonexp exclusions", {
 })
 
 test_that("a stratified exponential is not relabeled as a stratified contrast", {
-  skip_if_not(exists(".surv_contrast_name", asNamespace("mlumr")),
-             "survival draw readers arrive with the prediction change")
   # `.surv_contrast_name()` previously returned "exp_eta_contrast" for ANY
   # n_strata > 1, so a default exponential fit had its exact conditional hazard
   # ratio renamed and warned about.
@@ -82,8 +80,6 @@ test_that("a stratified exponential is not relabeled as a stratified contrast", 
 # the request was never honored. An explicit request must now return the
 # requested estimand or error.
 test_that("conditional_effects() does not substitute HR for TR or TR for HR", {
-  skip(paste("the HR/TR substitution guard arrives with the survival",
-             "prediction and estimand change"))
   fake <- function(distribution, n_strata) {
     f <- fake_fit(distribution, n_strata)
     f$distribution <- distribution

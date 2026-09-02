@@ -7,9 +7,10 @@
 \method{predict}{mlumr_fit}(
   object,
   population = c("both", "index", "comparator"),
-  type = c("response", "link"),
+  type = NULL,
   summary = TRUE,
   probs = c(0.025, 0.5, 0.975),
+  times = NULL,
   ...
 )
 }
@@ -18,20 +19,45 @@
 
 \item{population}{Which population: \code{"both"}, \code{"index"}, or \code{"comparator"}}
 
-\item{type}{Prediction type: \code{"response"} or \code{"link"}. For \code{"response"}:
-probabilities (binomial), means (normal), or rates (poisson). For
-\code{"link"}: the fitted link applied to the population-standardized
-response mean, \code{g(E[g^{-1}(eta)])}.}
+\item{type}{Prediction type. For binomial/normal/poisson: \code{"response"}
+(default) or \code{"link"}. For survival: \code{"survival"} (default), \code{"hazard"},
+\code{"cumhaz"}, \code{"rmst"} (restricted mean survival time), \code{"median"} (median
+survival, obtained by linear interpolation on the fitted \code{pred_times} grid;
+if the true median precedes the first grid point it is interpolated between
+the known exact point \code{S(0) = 1} and \verb{(pred_times[1], S(pred_times[1]))},
+so it is never reported as later than the first grid time, though a denser
+\code{pred_times} near zero still resolves very early medians better), or
+\code{"loghr"} (time-varying marginal log hazard ratio of
+index vs comparator at each fitted time, per population). For \code{"response"}:
+probabilities (binomial), means
+(normal), or rates (poisson). For \code{"link"}: the fitted link applied to the
+population-standardized response mean, \code{g(E[g^{-1}(eta)])}. This is the
+marginal link-scale prediction used by G-computation; it is generally not
+the mean conditional linear predictor \code{E[eta]}.}
 
 \item{summary}{Return summary statistics (\code{TRUE}) or full posterior draws (\code{FALSE})}
 
 \item{probs}{Quantiles for summary (default \code{c(0.025, 0.5, 0.975)})}
 
+\item{times}{For survival fits, an optional vector of times at which to
+report curve predictions; each is matched to the nearest fitted
+\code{pred_times} grid point. If \code{NULL}, all fitted times are returned.}
+
 \item{...}{Additional arguments (unused)}
 }
 \value{
-A data frame with predictions. When \code{type = "link"}, values are on
-the marginal link scale, \code{g(E[g^{-1}(eta)])}.
+A data frame with predictions. When \code{type = "link"}, values are the
+fitted link applied to each draw's population-standardized response mean.
+\code{type = "rmst"} adds a \code{horizon} column: RMST is
+an integral to a restriction time, so values computed to different horizons
+are different estimands and must not be compared. The horizon reported is
+the one actually integrated to. That is the \code{rmst_horizon} given to
+\code{\link[=mlumr]{mlumr()}} when one was supplied; when it was left \code{NULL} it is the default,
+which for a study-stratified flexible baseline is the follow-up both
+studies observed rather than the pooled maximum.
+Plot methods (\code{\link[=plot.mlumr_prediction]{plot.mlumr_prediction()}}) require
+\code{summary = TRUE}; with \code{summary = FALSE} the raw posterior draws are
+returned as a plain data frame.
 }
 \description{
 Generate population-average absolute-outcome predictions in the index and
@@ -39,38 +65,25 @@ comparator populations.
 }
 \details{
 \strong{Marginalization on non-identity links.} For \code{type = "response"} the
-reported values are \code{E[g^{-1}(eta)]} — the posterior expectation of the
-inverse-link-transformed linear predictor — \emph{not} \code{g^{-1}(E[eta])}. The
+reported values are \code{E[g^{-1}(eta)]}, the posterior expectation of the
+inverse-link-transformed linear predictor, \emph{not} \code{g^{-1}(E[eta])}. The
 two differ whenever \code{g} is non-linear (logit, probit, cloglog, log) by
 Jensen's inequality. In the index population the expectation is taken
 over IPD individuals; in the comparator population it is taken over the
 integration points constructed by \code{\link[=add_integration]{add_integration()}} from the AgD
-moments. This is the correct population-average prediction for an
-individual randomly drawn from that population, and it matches what the
-Stan \verb{generated quantities} block computes.
-
-\code{type = "link"} reports \code{g(E[g^{-1}(eta)])}: the fitted link applied to
-that same standardized response mean. Differencing two \code{type = "link"}
-predictions therefore gives a contrast on the fitted link scale. That
-equals a reported effect only where the two scales coincide: a logit
-binomial fit's \verb{lor_*}. Elsewhere a transformation is needed, because
-\code{\link[=marginal_effects]{marginal_effects()}} reports on the scale conventional for the family
-rather than on the fitted link. Poisson fits report the natural-scale rate
-ratio, so the link difference is its logarithm; normal log-link fits report
-a natural-scale mean difference; and probit and cloglog fits report
-\verb{lor_*}, \verb{rd_*} and \verb{rr_*}, none of which is a fitted-link contrast. It is
-computed from
-the log-scale generated quantities, so it stays finite where the
-natural-scale mean would round to 0 or 1. The identity link makes the two
-definitions agree; logit, probit, cloglog and log separate them.
-
-This is a deliberate divergence from \pkg{multinma}, which keeps the two
-apart: its \code{predict(type = "link")} returns \code{E[eta]} and the marginal
-link-scale contrast lives in \code{marginal_effects(mtype = "link")}. mlumr has
-no conditional population estimand to pair \code{E[eta]} with, since every
-effect it reports is standardized over a population, so it reports the
-marginal link under the one name rather than offering two link scales that
-differ silently.
+moments. This is the population-average prediction for an individual
+randomly drawn from that population, and it matches what the Stan
+\verb{generated quantities} block computes. \code{type = "link"} applies the fitted
+link only after that marginalization. It coincides with \code{E[eta]} for an
+identity link but not generally for logit, probit, cloglog, or log links.
+}
+\examples{
+\dontrun{
+# Absolute predictions for both populations:
+predict(fit, population = "both")
+# Survival RMST:
+predict(fit, type = "rmst")
+}
 }
 \seealso{
 \code{\link[=marginal_effects]{marginal_effects()}} for treatment-effect summaries;

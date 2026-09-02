@@ -261,3 +261,17 @@ summary.mlumr_stc <- function(object, ...) {
   print(summary(object$glm_fit))
   invisible(object)
 }
+
+
+# Attach an mlumr result class (+ attributes) while keeping data.frame as a parent
+# so existing data-frame behavior (indexing, knitr::kable, the reporting engine,
+# tests using inherits()) is unchanged. S3 print dispatch falls through to
+# print.data.frame, so these print as ordinary tables.
+#' @keywords internal
+.mlumr_result <- function(df, subclass, ...) {
+  df <- as.data.frame(df)
+  attrs <- list(...)
+  for (nm in names(attrs)) attr(df, nm) <- attrs[[nm]]
+  class(df) <- c(subclass, "data.frame")
+  df
+}
