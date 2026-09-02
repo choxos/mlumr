@@ -1,3 +1,26 @@
+#' Convert a time column, refusing a factor
+#'
+#' `as.numeric()` on a factor returns its internal level codes, not the printed
+#' numbers, and the small positive integers that produces look like plausible
+#' times: they pass every later check. The column route guarded its own times
+#' this way; the `Surv` route coerced `entry_time` directly, so a factor entry
+#' column became left-truncation times of 1, 2, 3 and the likelihood was
+#' conditioned on the wrong risk sets.
+#'
+#' @param x The column.
+#' @param nm Its name, for the message.
+#' @return A numeric vector.
+#' @keywords internal
+.reject_factor_time <- function(x, nm) {
+  if (is.factor(x)) {
+    stop("`", nm, "` is a factor; as.numeric() would use its level codes ",
+         "rather than the times shown. Convert explicitly, e.g. ",
+         "as.numeric(as.character(", nm, ")).", call. = FALSE)
+  }
+  as.numeric(x)
+}
+
+
 #' Parse survival outcome columns into mlumr's internal contract
 #'
 #' Maps either a [survival::Surv()] object or character column names to the
@@ -73,7 +96,7 @@
         stop(sprintf("`entry_time` column '%s' not found in `data`", entry_time),
              call. = FALSE)
       }
-      out$.delay_time <- as.numeric(data[[entry_time]])
+      out$.delay_time <- .reject_factor_time(data[[entry_time]], entry_time)
     }
     return(out)
   }
@@ -81,17 +104,6 @@
   if (is.null(time) || is.null(status)) {
     stop("Provide either a `Surv` object or both `time` and `status` columns",
          call. = FALSE)
-  }
-  # as.numeric() on a factor returns its internal level codes, not the printed
-  # numbers, and plausible-looking positive times would pass every later check.
-  # Status factors are caught by the 0/1 validation below; times are not.
-  .reject_factor_time <- function(x, nm) {
-    if (is.factor(x)) {
-      stop("`", nm, "` is a factor; as.numeric() would use its level codes ",
-           "rather than the times shown. Convert explicitly, e.g. ",
-           "as.numeric(as.character(", nm, ")).", call. = FALSE)
-    }
-    as.numeric(x)
   }
   time_vals <- .reject_factor_time(data[[time]], time)
   status_raw <- data[[status]]

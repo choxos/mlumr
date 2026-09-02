@@ -309,3 +309,21 @@ test_that("a factor status is refused rather than read as level codes", {
   expect_equal(set_ipd(d4, "trt", covariates = "x", family = "survival",
                        time = "t", status = "s")$n_events, 2L)
 })
+
+test_that("a factor entry time is refused on the Surv route too", {
+  # The column route guarded its times; the Surv route coerced entry_time
+  # directly, so factor(c("0", "10")) became delayed entry at 1 and 2 and the
+  # likelihood was conditioned on the wrong risk sets. The values are positive
+  # and smaller than the event times, so nothing later objected.
+  df <- data.frame(trt = "A", x = c(1, 2), entry = factor(c("0", "10")))
+  sv <- survival::Surv(c(5, 15), c(1, 1))
+  expect_error(
+    set_ipd(df, "trt", covariates = "x", family = "survival",
+            Surv = sv, entry_time = "entry"),
+    "level codes")
+  # A numeric entry column is carried through unchanged.
+  df$entry <- c(0, 10)
+  got <- set_ipd(df, "trt", covariates = "x", family = "survival",
+                 Surv = sv, entry_time = "entry")
+  expect_equal(got$data$.delay_time, c(0, 10))
+})
