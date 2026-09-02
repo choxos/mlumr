@@ -392,6 +392,17 @@ qlogitnorm <- function(p, mu = 0, sigma = 1, ..., mean, sd) {
         any(!is.finite(s))) {
     stop("logit-normal `mean` and `sd` must be finite numbers.", call. = FALSE)
   }
+  if (!length(m) || !length(s)) return(as.data.frame(list(mu = numeric(0),
+                                                          sigma = numeric(0))))
+  # Recycle before validating rather than after. The feasibility test below
+  # compares s^2 against m * (1 - m) elementwise, which recycles a scalar `sd`
+  # on its own, and then reported the offending pair with the index that test
+  # produced: qlogitnorm(0.5, mean = c(0.5, 0.01), sd = 0.3) flagged pair 2 and
+  # died on s[[2]] with "subscript out of bounds" instead of saying which mean
+  # and SD were impossible together.
+  n <- max(length(m), length(s))
+  m <- rep_len(m, n)
+  s <- rep_len(s, n)
   # Open interval: the logit of 0 or 1 is infinite, so a boundary mean has no
   # logit-normal representation at all.
   if (any(m <= 0 | m >= 1)) {

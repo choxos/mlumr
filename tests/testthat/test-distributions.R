@@ -246,6 +246,17 @@ test_that("the gamma wrappers still accept an abbreviated `scale`", {
                stats::qgamma(0.5, shape = 25, rate = 2.5))
 })
 
+test_that("an infeasible logit-normal pair is named, not indexed out of bounds", {
+  # The feasibility test recycles a scalar `sd` against a vector `mean`, then
+  # reported the pair with the index that test produced.
+  expect_error(qlogitnorm(0.5, mean = c(0.5, 0.01), sd = 0.3), "impossible")
+  expect_error(qlogitnorm(0.5, mean = 0.01, sd = c(0.005, 0.3)), "impossible")
+  expect_error(qlogitnorm(0.5, mean = c(0.01, 0.5), sd = 0.3), "impossible")
+  # Feasible recycling still works, in both directions.
+  expect_length(qlogitnorm(0.5, mean = c(0.2, 0.3), sd = 0.05), 2L)
+  expect_length(qlogitnorm(0.5, mean = 0.3, sd = c(0.05, 0.1)), 2L)
+})
+
 # ---- margin classification -------------------------------------------------
 
 test_that("qlogitnorm is classified as a continuous margin", {
