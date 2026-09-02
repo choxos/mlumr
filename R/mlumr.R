@@ -511,6 +511,28 @@ mlumr <- function(data,
   n_rows <- nrow(design)
 
   if (qr) {
+    # A thin QR needs full column rank: R is inverted to recover the
+    # original-scale coefficients. set_ipd() permits a constant covariate with a
+    # warning, and in a relaxed model that column is exactly collinear with its
+    # own intercept, so the combined design can be rank deficient even though
+    # the model is still estimable from the coefficient priors when qr = FALSE.
+    # Fail here with something the user can act on rather than inside solve().
+    if (n_rows < nB) {
+      stop(sprintf(paste0("`qr = TRUE` needs at least as many rows as design ",
+                          "columns, but the combined design has %d row(s) and ",
+                          "%d column(s). Use `qr = FALSE`."),
+                   n_rows, nB), call. = FALSE)
+    }
+    design_rank <- qr(design)$rank
+    if (design_rank < nB) {
+      stop(sprintf(paste0("`qr = TRUE` needs a full-rank design, but the ",
+                          "combined (intercepts + covariates) design has rank ",
+                          "%d of %d columns. A constant or collinear covariate ",
+                          "is the usual cause; a constant covariate is exactly ",
+                          "collinear with the intercept. Drop it, or use ",
+                          "`qr = FALSE`, which does not invert the design."),
+                   design_rank, nB), call. = FALSE)
+    }
     qr_decomp <- qr(design)
     scale_factor <- sqrt(n_rows - 1)
     q_mat <- qr.Q(qr_decomp) * scale_factor

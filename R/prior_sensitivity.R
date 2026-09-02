@@ -103,7 +103,9 @@ prior_sensitivity <- function(fit,
       prior_intercept = fit$priors$intercept,
       prior_beta = prior_beta_i,
       prior_sigma = fit$priors$sigma %||% default_prior_sigma(),
-      center       = mc$center       %||% TRUE,
+      # A fit that predates these controls was fitted on the raw scale, so the
+      # historical behavior, not the current default, is what reproduces it.
+      center       = mc$center       %||% FALSE,
       qr           = mc$qr           %||% FALSE,
       chains       = sa$chains       %||% 4,
       iter         = sa$iter         %||% 2000,

@@ -80,3 +80,30 @@ test_that("declared AgD means make centering independent of the QMC realization"
                center_of(high, agd_means = 10), tolerance = 1e-12)
   expect_false(isTRUE(all.equal(center_of(low), center_of(high))))
 })
+
+
+test_that("qr = TRUE rejects a design it cannot invert", {
+  # set_ipd() permits a constant covariate with a warning. In a relaxed model
+  # that covariate's index column is exactly collinear with the index
+  # intercept, so the combined design loses rank and solve() on R would fail
+  # with an opaque LAPACK error. The model is still estimable with qr = FALSE.
+  X_ipd <- cbind(a = rep(2, 5), b = c(0, 1, 0, 1, 0))
+  X_int <- array(0, dim = c(1, 4, 2))
+  X_int[1, , 1] <- c(1, 2, 3, 4)
+  X_int[1, , 2] <- c(0, 1, 1, 0)
+  sd <- list(X_ipd = X_ipd, X_int = X_int)
+
+  expect_error(
+    mlumr:::.mlumr_qr_design(sd, model = "relaxed", qr = TRUE),
+    "full-rank design"
+  )
+  expect_silent(mlumr:::.mlumr_qr_design(sd, model = "relaxed", qr = FALSE))
+  expect_equal(mlumr:::.mlumr_qr_design(sd, model = "relaxed", qr = FALSE)$nB, 6L)
+
+  tiny <- list(X_ipd = matrix(c(1, 2), nrow = 1),
+               X_int = array(c(1, 2), dim = c(1, 1, 2)))
+  expect_error(
+    mlumr:::.mlumr_qr_design(tiny, model = "relaxed", qr = TRUE),
+    "at least as many rows"
+  )
+})
