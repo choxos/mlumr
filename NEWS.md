@@ -3,8 +3,7 @@
 ## Package logo
 
 * **New hex-sticker logo** using a broken-anchor motif, for the unanchored
-  comparison. Built with `hexSticker` and the Ubuntu font via
-  `tools/build-logo.R`.
+  comparison. Built with `hexSticker` and the Ubuntu font.
 
 # mlumr 0.1.0
 

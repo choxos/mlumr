@@ -54,7 +54,7 @@ the checks, produces a reviewable diff, and records why a change was made.
 - Keep implementation, its tests, the roxygen source, the regenerated
   documentation, and the `NEWS.md` bullet together in the same pull request.
 
-Between releases `main` carries a development version (`0.2.0.9000`), so add
+Between releases `main` carries a development version (`0.1.0.9000`), so add
 `NEWS.md` entries as the work lands rather than reconstructing them later.
 
 ## Releases
