@@ -146,6 +146,34 @@
   reports both populations without that assumption, when the index population is
   the decision target.
 
+## Identifying the relaxed model's comparator coefficients
+
+* **New `check_identification()`**: how much aggregate evidence does
+  `model = "relaxed"` need before its index-population estimate is data-driven
+  rather than prior-driven? In the relaxed model `beta_comparator` is identified
+  only by the aggregate likelihood, so the answer is fixed by the aggregate
+  subgroup rows before any model is fitted.
+
+  Each aggregate row contributes one constraint and the comparator side has
+  `K + 1` unknowns (the intercept counts), so `S >= K + 1` rows are necessary.
+  They are not sufficient: the rows must also differ in **every** covariate
+  direction. `check_identification()` measures that directly, reporting
+  `cond_inv` (smallest over largest singular value of the centered, IPD-scaled
+  subgroup-mean matrix) and a continuous count of usable directions. Subgroups
+  reported one variable at a time never exceed one usable direction however many
+  are published.
+
+  For a nonlinear mean model the report is labeled descriptive only: subgroup
+  means do not determine the likelihood geometry there, because the
+  within-row distributions also affect the integrated response.
+
+* **The weak-identifiability warning triggers on covariate rank, not row
+  count.** Version 0.1.0 warned when `n_agd_rows < 2 * n_cov`, which counted
+  duplicate `set_agd()` rows as additional information. Relaxed fits now warn
+  when the aggregate design cannot separate the comparator parameters, so
+  repeated rows that add no new covariate profile no longer suppress the
+  warning.
+
 ## Covariate distributions
 
 * **New moment-parameterized marginal distributions**, mirroring the ones
