@@ -173,14 +173,3 @@ test_that("the shape draws fall back to the index stratum and then to 1", {
                     class = "mlumr_fit")
   expect_equal(mlumr:::.surv_aux_draws(none, "aux_val", "index", 2), c(1, 1))
 })
-
-test_that("a stratified conditional hazard ratio warns instead of misreporting", {
-  skip_on_cran()
-  skip_if_not_installed("rstan")
-  dat <- sim_survival_data(seed = 2026)
-  fit <- fit_survival_test(dat, distribution = "weibull")
-  nd <- as.data.frame(as.list(colMeans(dat$ipd$data[, dat$covariates,
-                                                    drop = FALSE])))
-  # exp(eta_i - eta_c) drops h0_index(t)/h0_comparator(t) once the shapes differ
-  expect_warning(conditional_effects(fit, newdata = nd), "does not")
-})

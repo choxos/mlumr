@@ -22,7 +22,13 @@ test_that("survival SPFA recovers the known log hazard ratio at its stated time"
   skip_if_not_installed("rstan")
 
   dat <- sim_survival_data(seed = 2026, loghr = -0.5, n_ipd = 250, n_agd = 300)
-  fit <- fit_survival_test(dat, distribution = "weibull", iter = 800, warmup = 400)
+  # `aux_by = "none"` is load-bearing, not tidiness. Under the default
+  # `".study"` a Weibull fit has n_strata = 2, and Stan then overwrites
+  # `delta_*` with `loghr_*[1]`, the marginal log HR at the first prediction
+  # time. That is a different estimand from the t -> 0 limit this test compares
+  # against, and it would only pass because the first grid time is early.
+  fit <- fit_survival_test(dat, distribution = "weibull", aux_by = "none",
+                           iter = 800, warmup = 400)
 
   # `delta_comparator` is the marginal log hazard ratio at the time the fit
   # states, which for shared baseline shapes is the t -> 0 limit. There the risk
