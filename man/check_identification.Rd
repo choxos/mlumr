@@ -15,7 +15,8 @@ check_identification(x, verbose = TRUE, link = NULL)
 family default. A fitted object always uses its stored link.}
 }
 \value{
-Invisibly, a list with \code{n_rows} (aggregate rows), \code{n_cov},
+Invisibly, a list with \code{n_rows} (aggregate rows), \code{n_distinct}
+(those that do not repeat another's integration grid), \code{n_cov},
 \code{n_rows_needed} (\code{n_cov + 1}), \code{cond_inv}, \code{eff_dim} (the participation
 ratio of the squared singular-value spectrum, which summarizes how evenly
 the spectral variation is spread across directions; it is not a count of

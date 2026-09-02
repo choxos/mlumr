@@ -167,12 +167,17 @@
   means do not determine the likelihood geometry there, because the
   within-row distributions also affect the integrated response.
 
-* **The weak-identifiability warning triggers on covariate rank, not row
-  count.** Version 0.1.0 warned when `n_agd_rows < 2 * n_cov`, which counted
-  duplicate `set_agd()` rows as additional information. Relaxed fits now warn
-  when the aggregate design cannot separate the comparator parameters, so
-  repeated rows that add no new covariate profile no longer suppress the
-  warning.
+* **The weak-identifiability warning no longer counts a duplicated row as
+  evidence.** Version 0.1.0 warned when `n_agd_rows < 2 * n_cov`, so repeating
+  a `set_agd()` row silenced it without adding anything. What replaces the
+  count depends on the link, because what a row contributes does. Under an
+  identity link the mean profiles are the design, so the warning triggers on
+  the rank of that design. Under any other link the integrated response depends
+  on each row's whole covariate distribution, and two rows with equal means but
+  different spreads do carry different constraints, so mean rank would
+  understate the evidence; there the warning triggers on the number of rows
+  that do not repeat another's integration grid, a bound that holds under every
+  link because a repeated grid gives an identical likelihood term.
 
 ## Covariate distributions
 

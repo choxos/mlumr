@@ -39,7 +39,8 @@
 #' @param link Planned link for an unfitted data object. Defaults to the
 #'   family default. A fitted object always uses its stored link.
 #'
-#' @return Invisibly, a list with `n_rows` (aggregate rows), `n_cov`,
+#' @return Invisibly, a list with `n_rows` (aggregate rows), `n_distinct`
+#'   (those that do not repeat another's integration grid), `n_cov`,
 #'   `n_rows_needed` (`n_cov + 1`), `cond_inv`, `eff_dim` (the participation
 #'   ratio of the squared singular-value spectrum, which summarizes how evenly
 #'   the spectral variation is spread across directions; it is not a count of
@@ -95,14 +96,15 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   geom <- .subgroup_geometry(means, ref_sd)
 
   out <- c(list(n_rows = nrow(means), n_cov = n_cov,
-                n_rows_needed = n_cov + 1L), geom)
+                n_rows_needed = n_cov + 1L,
+                n_distinct = .agd_distinct_profiles(data)), geom)
   resolved_link <- if (is_fit) x$link else check_link(family, link)$link
   out$diagnostic_scope <- if (family == "normal" && resolved_link == "identity") {
     "identity"
   } else {
     "descriptive"
   }
-  out$flagged <- if (out$n_rows < out$n_rows_needed) {
+  out$flagged <- if (out$n_distinct < out$n_rows_needed) {
     TRUE
   } else if (out$diagnostic_scope == "identity") {
     out$cond_inv < 0.2
@@ -178,12 +180,52 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 }
 
 
+#' Number of distinct aggregate likelihood profiles
+#'
+#' Mean-profile rank is the right count only where the mean profile is the
+#' design, which is the identity link. Under any other link the integrated
+#' response depends on a row's whole covariate distribution, so two rows with
+#' equal means but different spreads do contribute different constraints, and
+#' collapsing them on their means would understate the evidence.
+#'
+#' Two rows built from an identical integration grid are a different matter:
+#' they are the identical function of the comparator parameters whatever the
+#' link, so the second repeats the first's likelihood term and adds no
+#' constraint. Counting distinct grids is therefore a valid upper bound where
+#' the raw row count is not, and it is what makes a duplicated `set_agd()` row
+#' stop suppressing the warning for the nonlinear families too.
+#'
+#' @param data An `mlumr_data` object.
+#' @return Integer count of distinct integration grids, or the row count when
+#'   there are no integration points to compare.
+#' @keywords internal
+.agd_distinct_profiles <- function(data) {
+  x_int <- data$integration_points
+  n_rows <- nrow(data$agd$data)
+  if (is.null(x_int) || length(dim(x_int)) != 3L) return(n_rows)
+  n <- dim(x_int)[[1L]]
+  if (n < 2L) return(n)
+  keep <- rep(TRUE, n)
+  for (i in seq_len(n - 1L)) {
+    if (!keep[i]) next
+    for (j in seq(i + 1L, n)) {
+      if (!keep[j]) next
+      if (identical(x_int[i, , , drop = TRUE], x_int[j, , , drop = TRUE])) {
+        keep[j] <- FALSE
+      }
+    }
+  }
+  sum(keep)
+}
+
+
 #' Print the identification report
 #' @keywords internal
 .print_identification <- function(x, covs) {
   cat("\nComparator identification (relaxed model)\n")
   cat("=========================================\n\n")
-  cat(sprintf("Aggregate rows:      %d\n", x$n_rows))
+  cat(sprintf("Aggregate rows:      %d (%d distinct)\n", x$n_rows,
+              x$n_distinct))
   cat(sprintf("Covariates:          %d (%s)\n", x$n_cov,
               paste(covs, collapse = ", ")))
   cat(sprintf("Rows needed (K + 1): %d\n", x$n_rows_needed))
@@ -191,13 +233,20 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
               x$eff_dim, x$n_cov))
   cat(sprintf("Spread (cond_inv):   %.4f\n\n", x$cond_inv))
 
-  if (x$n_rows < x$n_rows_needed) {
-    cat("WEAK: too few aggregate rows. With ", x$n_cov, " covariates the ",
-        "comparator side has ", x$n_rows_needed, " unknowns (the intercept ",
-        "and one coefficient each), and ", x$n_rows, " row(s) supply ",
-        x$n_rows, " constraint(s). At least ", x$n_rows_needed - x$n_rows,
+  if (x$n_distinct < x$n_rows_needed) {
+    cat("WEAK: too few distinct aggregate rows. With ", x$n_cov,
+        " covariates the comparator side has ", x$n_rows_needed,
+        " unknowns (the intercept and one coefficient each), and ",
+        x$n_distinct, " distinct row(s) supply ", x$n_distinct,
+        " constraint(s). At least ", x$n_rows_needed - x$n_distinct,
         " more jointly-defined subgroup row(s) are needed before the count is ",
         "even sufficient.\n", sep = "")
+    if (x$n_distinct < x$n_rows) {
+      cat("Of the ", x$n_rows, " aggregate rows, ", x$n_rows - x$n_distinct,
+          " repeat an integration grid already present. A repeated row adds a ",
+          "likelihood term identical to one already there, so it adds no ",
+          "constraint whatever the link.\n", sep = "")
+    }
   } else if (x$diagnostic_scope == "descriptive") {
     cat("DESCRIPTIVE ONLY: for a nonlinear mean model, subgroup means do not ",
         "determine the likelihood geometry because within-row distributions ",

@@ -159,3 +159,23 @@ test_that("check_identification refuses survival data", {
   }, error = conditionMessage)
   expect_false(!is.null(err) && grepl("reconstructed survival", err))
 })
+
+# ---- a repeated row is not evidence ----------------------------------------
+
+test_that("rows repeating an integration grid are counted once", {
+  mk <- function(rows) {
+    a <- array(0, dim = c(length(rows), 4L, 2L))
+    for (i in seq_along(rows)) a[i, , ] <- rows[[i]]
+    list(integration_points = a,
+         agd = list(data = data.frame(trt = rep("B", length(rows)))))
+  }
+  expect_equal(mlumr:::.agd_distinct_profiles(mk(list(1, 1, 1))), 1L)
+  expect_equal(mlumr:::.agd_distinct_profiles(mk(list(1, 1, 2))), 2L)
+  expect_equal(mlumr:::.agd_distinct_profiles(mk(list(1, 2, 3))), 3L)
+  # With nothing to compare, the row count is all there is.
+  expect_equal(
+    mlumr:::.agd_distinct_profiles(
+      list(integration_points = NULL,
+           agd = list(data = data.frame(trt = rep("B", 5))))),
+    5L)
+})

@@ -224,15 +224,29 @@ mlumr <- function(data,
       }
     } else {
       n_agd_rows_check <- nrow(data$agd$data)
-      if (n_agd_rows_check < n_cov_check + 1L) {
+      # Not the row count. Mean-profile rank is not available here either,
+      # because a nonlinear mean depends on each row's whole covariate
+      # distribution and two rows with equal means but different spreads do
+      # carry different constraints. Rows built from an identical integration
+      # grid are a different matter: they are the identical function of the
+      # comparator parameters whatever the link, so the second repeats the
+      # first's likelihood term. Counting distinct grids is the bound the raw
+      # row count is not, and it is what stops a duplicated set_agd() row from
+      # suppressing this warning for the nonlinear families as well.
+      n_distinct_check <- .agd_distinct_profiles(data)
+      if (n_distinct_check < n_cov_check + 1L) {
         warning(sprintf(
-          paste0("Relaxed model with %d AgD row(s) and %d covariate(s): the ",
-                 "comparator side has %d parameters but only %d scalar ",
-                 "aggregate outcome summaries. The comparator coefficients ",
-                 "cannot all be separated without prior information. Add ",
-                 "jointly-defined subgroup rows, regularize with ",
-                 "an informative `prior_beta`, or use model = \"spfa\"."),
-          n_agd_rows_check, n_cov_check, n_cov_check + 1L, n_agd_rows_check
+          paste0("Relaxed model with %d AgD row(s), %d of them distinct, and ",
+                 "%d covariate(s): the comparator side has %d parameters but ",
+                 "only %d independent scalar aggregate outcome summaries. A ",
+                 "row repeating another's integration grid contributes an ",
+                 "identical likelihood term rather than a new constraint. The ",
+                 "comparator coefficients cannot all be separated without ",
+                 "prior information. Add jointly-defined subgroup rows, ",
+                 "regularize with an informative `prior_beta`, or use ",
+                 "model = \"spfa\"."),
+          n_agd_rows_check, n_distinct_check, n_cov_check, n_cov_check + 1L,
+          n_distinct_check
         ), call. = FALSE)
       }
     }
