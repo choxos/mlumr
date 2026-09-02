@@ -152,6 +152,7 @@ dgamma <- function(x, shape, rate = 1, scale = 1 / rate, log = FALSE,
 #' @param x,q Vector of quantiles, in `(0, 1)`.
 #' @param p Vector of probabilities.
 #' @param mu,sigma Location and scale, on the logit scale.
+#' @param log Return the log density. Positional, as in [stats::dnorm()].
 #' @param ... Passed to the underlying \pkg{stats} normal function.
 #' @param mean,sd Mean and standard deviation on the `(0, 1)` scale,
 #'   overriding `mu` and `sigma` when both are supplied.
@@ -165,8 +166,7 @@ NULL
 
 #' @rdname logitNormal
 #' @export
-dlogitnorm <- function(x, mu = 0, sigma = 1, ..., mean, sd) {
-  is_log <- isTRUE(list(...)$log)
+dlogitnorm <- function(x, mu = 0, sigma = 1, log = FALSE, ..., mean, sd) {
   pars <- .logitnorm_pars(mu, sigma, if (missing(mean)) NULL else mean,
                           if (missing(sd)) NULL else sd,
                           !missing(mean), !missing(sd))
@@ -175,15 +175,36 @@ dlogitnorm <- function(x, mu = 0, sigma = 1, ..., mean, sd) {
   # floating point although the density there is simply zero. Outside [0, 1]
   # qlogis() is NaN with a warning. Evaluate the formula only on the open
   # interval and fill the rest in with the value the density actually takes.
+  #
+  # Recycle first. Subsetting `x` to the interior while leaving `mu` and
+  # `sigma` at full length silently paired each interior point with the wrong
+  # parameter: dlogitnorm(c(0, 0.5), mu = c(0, 10), sigma = 1) evaluated the
+  # single interior point against mu = 0 and returned 1.596 for a density of
+  # 3.08e-22.
   x <- as.numeric(x)
-  out <- rep(if (is_log) -Inf else 0, length(x))
-  inside <- !is.na(x) & x > 0 & x < 1
+  mu_v <- as.numeric(pars[["mu"]])
+  sigma_v <- as.numeric(pars[["sigma"]])
+  n <- max(length(x), length(mu_v), length(sigma_v))
+  if (n == 0L || !length(x) || !length(mu_v) || !length(sigma_v)) {
+    return(numeric(0))
+  }
+  x <- rep_len(x, n)
+  mu_v <- rep_len(mu_v, n)
+  sigma_v <- rep_len(sigma_v, n)
+
+  is_log <- isTRUE(log)
+  out <- rep(if (is_log) -Inf else 0, n)
+  # An unusable parameter is not a point outside the support: the density is
+  # unknown there, not zero. dlogitnorm(0, mu = NA) used to return 0.
+  bad <- !is.finite(mu_v) | !is.finite(sigma_v) | sigma_v < 0
+  inside <- !is.na(x) & x > 0 & x < 1 & !bad
   if (any(inside)) {
-    ld <- stats::dnorm(stats::qlogis(x[inside]), mean = pars[["mu"]],
-                       sd = pars[["sigma"]], log = TRUE) -
-      log(x[inside]) - log1p(-x[inside])
+    ld <- stats::dnorm(stats::qlogis(x[inside]), mean = mu_v[inside],
+                       sd = sigma_v[inside], log = TRUE) -
+      base::log(x[inside]) - log1p(-x[inside])
     out[inside] <- if (is_log) ld else exp(ld)
   }
+  out[bad] <- NA_real_
   out[is.na(x)] <- x[is.na(x)]   # keeps NA as NA and NaN as NaN
   out
 }

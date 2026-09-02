@@ -7,7 +7,7 @@
 \alias{qlogitnorm}
 \title{The logit-Normal distribution}
 \usage{
-dlogitnorm(x, mu = 0, sigma = 1, ..., mean, sd)
+dlogitnorm(x, mu = 0, sigma = 1, log = FALSE, ..., mean, sd)
 
 plogitnorm(q, mu = 0, sigma = 1, ..., mean, sd)
 
@@ -17,6 +17,8 @@ qlogitnorm(p, mu = 0, sigma = 1, ..., mean, sd)
 \item{x, q}{Vector of quantiles, in \verb{(0, 1)}.}
 
 \item{mu, sigma}{Location and scale, on the logit scale.}
+
+\item{log}{Return the log density. Positional, as in \code{\link[stats:dnorm]{stats::dnorm()}}.}
 
 \item{...}{Passed to the underlying \pkg{stats} normal function.}
 

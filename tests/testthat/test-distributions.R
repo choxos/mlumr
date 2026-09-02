@@ -157,3 +157,27 @@ test_that("gamma moments are validated and converted without overflow", {
                    stats::qgamma(0.5, shape = 2, scale = 0.5))
 })
 
+
+# ---- the density lines its arguments up ------------------------------------
+
+test_that("the logit-normal density aligns x with its parameters", {
+  # Subsetting x to the open interval while leaving mu and sigma at full length
+  # paired the surviving points with the wrong parameters.
+  got <- dlogitnorm(c(0, 0.5), mu = c(0, 10), sigma = 1)
+  expect_equal(got, c(0, stats::dnorm(0, 10, 1) / 0.25))
+  expect_equal(dlogitnorm(c(0.5, 0.5), mu = c(0, 10), sigma = c(1, 2)),
+               stats::dnorm(c(0, 0), c(0, 10), c(1, 2)) / 0.25)
+  # A parameter that cannot be used leaves the density unknown, not zero.
+  expect_true(is.na(dlogitnorm(0, mu = NA_real_)))
+  expect_true(is.na(dlogitnorm(0.5, mu = 0, sigma = NA_real_)))
+  expect_equal(dlogitnorm(numeric(0), mu = 0, sigma = 1), numeric(0))
+})
+
+test_that("the logit-normal density takes `log` positionally, as dnorm does", {
+  # It sat behind `...`, so a fourth positional argument was collected and
+  # dropped and the natural-scale density came back instead.
+  expect_equal(dlogitnorm(0.5, 0, 1, TRUE), dlogitnorm(0.5, 0, 1, log = TRUE))
+  expect_equal(dlogitnorm(0.5, 0, 1, TRUE),
+               base::log(dlogitnorm(0.5, 0, 1)))
+})
+
