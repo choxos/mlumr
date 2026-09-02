@@ -141,7 +141,6 @@ jobs:
           extra-packages: |
             any::rcmdcheck
             stan-dev/cmdstanr
-          extra-repositories: https://stan-dev.r-universe.dev
           needs: check
 
       - uses: r-lib/actions/check-r-package@v2
