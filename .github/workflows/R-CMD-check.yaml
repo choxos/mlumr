@@ -17,21 +17,29 @@ jobs:
   stan-export-parity:
     name: Stan export parity
     runs-on: ubuntu-latest
-    # Blocking gate: the committed src/stanExports_* must not lag inst/stan.
-    # `configure` regenerates them at install time, so drift does not reach end
-    # users, but a stale snapshot means the tracked C++ and every local rstan
-    # build are behind the Stan source. Regenerate with
-    # rstantools::rstan_config() on the release toolchain and rebuild before
-    # tagging.
+    # Hygiene gate, not a correctness gate. `configure` runs
+    # rstantools::rstan_config() at install time, so every build (CRAN, CI and
+    # local alike) regenerates src/stanExports_* from inst/stan before
+    # compiling: a stale tracked snapshot cannot make any build execute an old
+    # model. What it does is misrepresent the package to anyone reading the
+    # tracked C++, and leave unrelated churn in the next diff that touches it.
+    #
+    # Scope: this compares the data-field NAMES a model declares against its
+    # export header, so it catches the drift that changes the R-to-Stan
+    # interface. It does not see edits to likelihoods, priors, generated
+    # quantities, constraints, or shared #include files, which leave the field
+    # names unchanged. Regenerating and diffing would catch those but is not
+    # usable as a gate here: the generated C++ varies with the stanc version, so
+    # a runner on a different toolchain than the release machine produces a
+    # diff that is version noise rather than drift.
     steps:
       - uses: actions/checkout@v4
       - uses: r-lib/actions/setup-r@v2
         with:
           r-version: 'release'
           use-public-rspm: true
-      # Fail the release if the committed src/stanExports_* lag inst/stan (a data
-      # field present in a .stan model but absent from its export snapshot).
-      # Regenerate with rstantools::rstan_config() and rebuild before tagging.
+      # Fail when a data field present in a .stan model is absent from its
+      # export snapshot. Regenerate with rstantools::rstan_config() and rebuild.
       #
       # The check is inlined rather than sourced from tools/, which is a local
       # development directory and is not part of the repository.
