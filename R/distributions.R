@@ -40,10 +40,14 @@ NULL
 #' @export
 qgamma <- function(p, shape, rate = 1, scale = 1 / rate, lower.tail = TRUE,
                    log.p = FALSE, mean, sd) {
-  if (!missing(mean) && !missing(sd)) {
-    return(stats::qgamma(p, shape = (mean / sd)^2, rate = mean / sd^2,
+  gp <- .gamma_moment_pars(missing(mean), missing(sd),
+                           if (missing(mean)) NULL else mean,
+                           if (missing(sd)) NULL else sd)
+  if (!is.null(gp)) {
+    return(stats::qgamma(p, shape = gp$shape, rate = gp$rate,
                          lower.tail = lower.tail, log.p = log.p))
   }
+  .reject_rate_and_scale(missing(rate), missing(scale))
   stats::qgamma(p, shape = shape, scale = scale,
                 lower.tail = lower.tail, log.p = log.p)
 }
@@ -52,10 +56,14 @@ qgamma <- function(p, shape, rate = 1, scale = 1 / rate, lower.tail = TRUE,
 #' @export
 pgamma <- function(q, shape, rate = 1, scale = 1 / rate, lower.tail = TRUE,
                    log.p = FALSE, mean, sd) {
-  if (!missing(mean) && !missing(sd)) {
-    return(stats::pgamma(q, shape = (mean / sd)^2, rate = mean / sd^2,
+  gp <- .gamma_moment_pars(missing(mean), missing(sd),
+                           if (missing(mean)) NULL else mean,
+                           if (missing(sd)) NULL else sd)
+  if (!is.null(gp)) {
+    return(stats::pgamma(q, shape = gp$shape, rate = gp$rate,
                          lower.tail = lower.tail, log.p = log.p))
   }
+  .reject_rate_and_scale(missing(rate), missing(scale))
   stats::pgamma(q, shape = shape, scale = scale,
                 lower.tail = lower.tail, log.p = log.p)
 }
@@ -64,11 +72,67 @@ pgamma <- function(q, shape, rate = 1, scale = 1 / rate, lower.tail = TRUE,
 #' @export
 dgamma <- function(x, shape, rate = 1, scale = 1 / rate, log = FALSE,
                    mean, sd) {
-  if (!missing(mean) && !missing(sd)) {
-    return(stats::dgamma(x, shape = (mean / sd)^2, rate = mean / sd^2,
-                         log = log))
+  gp <- .gamma_moment_pars(missing(mean), missing(sd),
+                           if (missing(mean)) NULL else mean,
+                           if (missing(sd)) NULL else sd)
+  if (!is.null(gp)) {
+    return(stats::dgamma(x, shape = gp$shape, rate = gp$rate, log = log))
   }
+  .reject_rate_and_scale(missing(rate), missing(scale))
   stats::dgamma(x, shape = shape, scale = scale, log = log)
+}
+
+#' Gamma shape and rate from a mean and a standard deviation
+#'
+#' Returns `NULL` when neither moment was supplied, so the caller falls through
+#' to the native parameterization.
+#'
+#' @param no_mean,no_sd Whether the caller's `mean` / `sd` were missing.
+#' @param mean,sd The supplied moments, or `NULL`.
+#' @return A list with `shape` and `rate`, or `NULL`.
+#' @keywords internal
+.gamma_moment_pars <- function(no_mean, no_sd, mean, sd) {
+  if (no_mean && no_sd) return(NULL)
+  # Half a moment specification is a mistake, not a parameterization. Without
+  # this, `dgamma(x, shape = 2, mean = 5)` silently returned the shape-2
+  # distribution and ignored the mean, and `qgamma(p, mean = 5)` failed with
+  # R's "argument \"shape\" is missing" rather than saying what was wrong.
+  if (no_mean || no_sd) {
+    stop("The gamma moment parameterization needs both `mean` and `sd`. ",
+         "Supply the other one, or give `shape` and `rate` / `scale`.",
+         call. = FALSE)
+  }
+  if (!is.numeric(mean) || !is.numeric(sd)) {
+    stop("Gamma `mean` and `sd` must be numeric.", call. = FALSE)
+  }
+  if (any(!is.finite(mean) | mean <= 0)) {
+    stop("Gamma `mean` must be finite and strictly positive.", call. = FALSE)
+  }
+  # Both conversions square the SD, so a negative one used to pass silently:
+  # `sd = -2` returned exactly the `sd = 2` distribution.
+  if (any(!is.finite(sd) | sd <= 0)) {
+    stop("Gamma `sd` must be finite and strictly positive.", call. = FALSE)
+  }
+  # `mean / sd^2` overflows as soon as `sd^2` does, which happens from
+  # sd = 1.4e154 even where the rate itself is perfectly representable:
+  # mean = sd = 1e200 gave rate 0 and a median of Inf instead of 6.93e199.
+  # Dividing twice keeps every intermediate on the scale of the answer.
+  ratio <- mean / sd
+  list(shape = ratio^2, rate = ratio / sd)
+}
+
+#' Refuse a conflicting `rate` and `scale`
+#'
+#' The `scale = 1 / rate` default makes both arguments look supplied to
+#' \pkg{stats}, which would otherwise reject the pair. Forwarding only `scale`
+#' silently resolved the conflict in its favor.
+#' @param no_rate,no_scale Whether the caller's `rate` / `scale` were missing.
+#' @keywords internal
+.reject_rate_and_scale <- function(no_rate, no_scale) {
+  if (!no_rate && !no_scale) {
+    stop("specify 'rate' or 'scale' but not both", call. = FALSE)
+  }
+  invisible(TRUE)
 }
 
 

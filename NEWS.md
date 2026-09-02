@@ -159,15 +159,21 @@
   unchanged, so they are drop-in safe. The logit-normal is the natural marginal
   for a covariate reported as a proportion, such as percent body surface area.
 
-  The logit-normal moment reparameterization has no closed form and is solved
-  numerically, so it validates what it is given: both `mean` and `sd` must be
+  Both parameterizations validate what they are given. `mean` and `sd` must be
   supplied together (half a moment specification is an error, not a silent
-  fallback to `mu = 0`, `sigma = 1`); the mean must lie strictly inside
-  `(0, 1)`; the SD must be positive and satisfy `sd^2 < mean * (1 - mean)`, the
-  bound any variable on `(0, 1)` obeys. The search runs on `log(sigma)` so the
-  scale cannot go negative, starts from the delta-method approximation on the
-  logit scale, and the recovered moments are checked against the target rather
-  than the optimizer's convergence flag being trusted on its own.
+  fallback to the native defaults). A gamma needs both strictly positive and
+  finite: a negative SD is not a typo the conversion can absorb, since both
+  `shape` and `rate` square it and `sd = -2` would otherwise return exactly the
+  `sd = 2` distribution. A logit-normal mean must lie strictly inside `(0, 1)`
+  and its SD must satisfy `sd^2 < mean * (1 - mean)`, the bound any variable on
+  `(0, 1)` obeys. Supplying a conflicting `rate` and `scale` is refused rather
+  than resolved in favor of one of them.
+
+  The logit-normal moment reparameterization has no closed form and is solved
+  numerically. The search runs on `log(sigma)` so the scale cannot go negative,
+  starts from the delta-method approximation on the logit scale, and the
+  recovered moments are checked against the target rather than the optimizer's
+  convergence flag being trusted on its own.
 
 ## Example data
 

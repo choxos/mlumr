@@ -124,3 +124,36 @@ test_that("logit-normal density and CDF are correct on and outside the support",
                      0, 1)$value,
     1, tolerance = 1e-6)
 })
+
+# ---- the moment parameterization validates what it is given ---------------
+
+test_that("gamma moments are validated and converted without overflow", {
+  # Both conversions square the SD, so a negative one returned exactly the
+  # positive distribution.
+  expect_error(qgamma(0.5, mean = 10, sd = -2), "strictly positive")
+  expect_error(qgamma(0.5, mean = -10, sd = 2), "strictly positive")
+  expect_error(qgamma(0.5, mean = 10, sd = NA_real_), "finite")
+  expect_error(dgamma(1, mean = Inf, sd = 2), "finite")
+
+  # `mean / sd^2` overflowed as soon as sd^2 did, at sd = 1.4e154, even where
+  # the rate itself is representable.
+  expect_equal(qgamma(0.5, mean = 1e200, sd = 1e200),
+               stats::qgamma(0.5, shape = 1, rate = 1e-200))
+  expect_equal(pgamma(1e200, mean = 1e200, sd = 1e200),
+               stats::pgamma(1e200, shape = 1, rate = 1e-200))
+
+  # Half a moment specification is a mistake: this used to return the shape-2
+  # distribution and ignore the mean.
+  expect_error(dgamma(1, shape = 2, mean = 5), "needs both")
+  expect_error(qgamma(0.5, mean = 5), "needs both")
+  expect_error(qgamma(0.5, shape = 2, sd = 1), "needs both")
+
+  # The `scale = 1 / rate` default made both look supplied, and forwarding only
+  # `scale` resolved the conflict silently in its favor.
+  expect_error(qgamma(0.5, shape = 2, rate = 2, scale = 1), "not both")
+  expect_identical(qgamma(0.5, shape = 2, rate = 2),
+                   stats::qgamma(0.5, shape = 2, rate = 2))
+  expect_identical(qgamma(0.5, shape = 2, scale = 0.5),
+                   stats::qgamma(0.5, shape = 2, scale = 0.5))
+})
+
