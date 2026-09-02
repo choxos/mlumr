@@ -24,7 +24,8 @@ set_agd(
 
 \item{treatment}{Column name for treatment variable}
 
-\item{family}{Outcome family: \code{"binomial"}, \code{"normal"}, or \code{"poisson"}}
+\item{family}{Outcome family: \code{"binomial"}, \code{"normal"}, \code{"poisson"}, or
+\code{"survival"} (time-to-event)}
 
 \item{outcome_n}{Column name for sample size. Required for binomial. For
 normal, required when there is more than one aggregate row, because the

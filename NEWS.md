@@ -146,6 +146,24 @@
   reports both populations without that assumption, when the index population is
   the decision target.
 
+## Time-to-event (survival) data
+
+* **New `"survival"` outcome family for data setup.** `set_ipd()` accepts
+  time-to-event data, and **`set_agd_surv()`** takes the comparator arm as
+  reconstructed pseudo-IPD (event and censoring times digitized from a published
+  Kaplan-Meier curve) together with its covariate moments. `combine_data()` and
+  `add_integration()` carry the family through.
+
+* **Censoring support** in `set_ipd()`: right, left, interval, and delayed entry
+  (left truncation) via a `survival::Surv()` object. The
+  `time`/`status`/`entry_time` column route covers right-censoring (status
+  `0`/`1`) and optional delayed entry; supply a `Surv` object for left- or
+  interval-censored data.
+
+* `outcome` is no longer required for `family = "survival"`, which uses
+  `Surv`/`time`/`status` instead. It is still required for the other families,
+  and its absence is now reported as such.
+
 ## Identifying the relaxed model's comparator coefficients
 
 * **New `check_identification()`**: how much aggregate evidence does
