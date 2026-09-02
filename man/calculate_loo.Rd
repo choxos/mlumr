@@ -4,12 +4,24 @@
 \alias{calculate_loo}
 \title{Calculate LOO-CV for an mlumr_fit}
 \usage{
-calculate_loo(object, ...)
+calculate_loo(
+  object,
+  survival_unit = c("observation", "arm", "aggregate"),
+  ...
+)
 }
 \arguments{
 \item{object}{An \code{mlumr_fit} object.}
 
-\item{...}{Additional arguments passed to \code{\link[loo:loo.array]{loo::loo.array()}}.}
+\item{survival_unit}{For survival fits, the LOO/WAIC pointwise unit:
+\code{"observation"} (default; per reconstructed comparator pseudo-individual,
+optimistic), \code{"arm"} (group the comparator pseudo-IPD by comparator arm, so
+each external arm is one held-out unit), or \code{"aggregate"} (all comparator
+pseudo-IPD as a single external-evidence unit). The index IPD always stays
+per-individual. Ignored for non-survival families.}
+
+\item{...}{Additional arguments passed to \code{\link[loo:loo]{loo::loo()}} (the \code{log_lik} matrix
+dispatches to \code{loo::loo.matrix()}).}
 }
 \value{
 An object of class \code{psis_loo} (see \code{\link[loo:loo]{loo::loo()}}).
@@ -35,6 +47,15 @@ for the within-study clustering; effective sample sizes are
 inflated and Pareto-k warnings are understated. For clustered AgD,
 corroborate with \code{\link[=prior_sensitivity]{prior_sensitivity()}} or refit omitting suspect
 rows to check the influence on the posterior.
+
+\strong{Survival fits.} The comparator AgD enters as reconstructed pseudo-IPD, so
+each AgD pointwise unit is a single reconstructed pseudo-individual, not an
+aggregate row or the comparator trial. Survival LOO/WAIC therefore measure
+pseudo-individual-level predictive fit and are optimistic relative to
+leaving out the comparator arm/trial; treat them as a rough check, not a
+decisive model-selection criterion. Set \code{survival_unit = "arm"} or
+\code{"aggregate"} to instead hold out whole comparator arms / the external
+evidence as single units.
 }
 \examples{
 \dontrun{

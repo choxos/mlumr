@@ -154,6 +154,38 @@
   Kaplan-Meier curve) together with its covariate moments. `combine_data()` and
   `add_integration()` carry the family through.
 
+* **Frequentist benchmarks for survival**: `naive()` returns an unadjusted Cox
+  log hazard ratio, and `stc()` performs parametric G-computation of the RMST
+  difference using the `flexsurv` package (a suggested dependency). `stc()`
+  takes an `rmst_horizon` argument, since its own default is the pooled maximum
+  observed time while a stratified flexible `mlumr()` baseline defaults to the
+  follow-up both studies observed; the two are different estimands. Note that
+  `naive()` is on the **log** scale, so it is not directly comparable with
+  `marginal_effects(effect = "hr")` unless exponentiated.
+
+* **Survival `stc()` uncertainty is a nonparametric bootstrap**, not the delta
+  method the other families use: the RMST is an integral of a fitted survival
+  function and has no convenient closed-form variance. `n_boot` (default 200,
+  `0` for a point estimate with no interval) and `seed` control it, and the seed
+  is restored on exit so the caller's RNG stream is untouched. `n_boot = 1` is
+  rejected, because the standard error of a single resample is undefined and was
+  otherwise indistinguishable from every resample having failed.
+
+* **`survival_unit` for LOO and WAIC.** `calculate_loo()`, `calculate_waic()`,
+  and `compare_models()` gain a `survival_unit` argument controlling what one
+  pointwise unit is for a survival fit. The comparator arm enters as
+  reconstructed pseudo-individuals, so the default `"observation"` holds out one
+  pseudo-individual at a time and is optimistic: the pseudo-IPD are a
+  digitization of a single published curve, not independent observations.
+  `"arm"` groups them so each external arm is one held-out unit, and
+  `"aggregate"` treats all comparator pseudo-IPD as a single external-evidence
+  unit. The index IPD always stay per-individual.
+
+* **Regression coefficients are labeled by covariate name.** `summary()` on a
+  fit now prints `beta[age]` rather than `beta[1]` (and `beta_index[age]` /
+  `beta_comparator[age]` for relaxed fits). The underlying `variable` strings in
+  `fit$summary` are unchanged, so code that indexes on `beta[1]` keeps working.
+
 * **HTA prediction suite** from `predict()` on a survival fit:
   `type = "survival"`, `"hazard"`, `"cumhaz"`, `"rmst"` (restricted mean
   survival time), `"median"`, and `"loghr"` (the time-varying marginal log

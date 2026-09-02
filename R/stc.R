@@ -18,6 +18,37 @@
 #'   poisson: `"log"` (default). If `NULL`, uses the canonical default.
 #' @param conf_level Confidence level for the interval (default 0.95)
 #'
+#' @param distribution For `family = "survival"`: the parametric distribution
+#'   used for the package-specific survival G-computation (default
+#'   `"weibull"`). Requires the `flexsurv`
+#'   package. The STC estimand is the restricted-mean-survival-time difference.
+#'   The flexible baselines `"mspline"` and `"pexp"` have no parametric
+#'   `flexsurv` analogue: requesting either fits a Weibull G-computation as an
+#'   approximate benchmark, emits a warning, and records
+#'   `distribution_fit = "weibull"` and `approximated = TRUE` in the result
+#'   (`$distribution` keeps the requested value). Survival STC currently
+#'   supports right-censored data without delayed entry; use [mlumr()] for
+#'   left-censored, interval-censored, or delayed-entry survival data.
+#' @param n_boot For `family = "survival"` only: number of nonparametric
+#'   bootstrap resamples used for the RMST-difference standard error (default
+#'   `200`). Set `n_boot = 0` for a fast point estimate with no interval
+#'   (`se`/CI returned as `NA`). Must be 0 or at least 2, since a single
+#'   resample has no standard error; several hundred are needed before the
+#'   interval is usable, so treat anything below the default as exploratory.
+#'   Ignored for other families, which use the delta method.
+#' @param seed For `family = "survival"` only: optional integer seed for the
+#'   bootstrap, making the standard error reproducible. The global random
+#'   number stream is restored on exit. Ignored for other families.
+#' @param rmst_horizon For `family = "survival"` only: the restriction time the
+#'   RMST difference is integrated to. Defaults to the largest observed time
+#'   across both arms. RMST at a different horizon is a different estimand, so
+#'   set this explicitly whenever the result is to be compared with an
+#'   [mlumr()] fit, whose own default can be the follow-up both studies
+#'   observed rather than the pooled maximum; read that fit's horizon from the
+#'   `horizon` column of `predict(type = "rmst")`. A value beyond the observed
+#'   range extrapolates the fitted parametric survival function and warns.
+#'   Ignored for other families.
+#'
 #' @return An object of class `mlumr_stc`
 #' @importFrom stats gaussian poisson dnorm
 #' @export
@@ -53,15 +84,44 @@
 #' result <- stc(dat)
 #' print(result)
 #' }
-stc <- function(data, link = NULL, conf_level = 0.95) {
+stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
+                n_boot = 200L, seed = NULL, rmst_horizon = NULL) {
 
   .validate_mlumr_data_object(data)
 
   family <- data$family %||% "binomial"
+  z <- .z_from_conf_level(conf_level)
+
+  if (family == "survival") {
+    if (!isTRUE(data$has_integration)) {
+      stop("Survival STC requires comparator-population integration points. ",
+           "Call add_integration() with a joint covariate distribution; ",
+           "substituting aggregate means is not marginal standardization.",
+           call. = FALSE)
+    }
+    .validate_mlumr_integer(n_boot, "n_boot", lower = 0L)
+    # A single resample gives sd() = NA, which is indistinguishable downstream
+    # from "every resample failed" and was reported as such. Either the
+    # bootstrap is off (0) or it has enough replicates to have a variance.
+    if (n_boot == 1L) {
+      stop("`n_boot` must be 0 (no bootstrap) or at least 2: the standard ",
+           "error of a single resample is undefined. Several hundred ",
+           "resamples are needed for a usable interval; the default is 200.",
+           call. = FALSE)
+    }
+    if (!is.null(seed)) {
+      .validate_mlumr_integer(seed, "seed", lower = 0L)
+    }
+    out <- .stc_survival(data, conf_level, z, distribution,
+                         n_boot = as.integer(n_boot), seed = seed,
+                         rmst_horizon = rmst_horizon)
+    class(out) <- c("mlumr_stc", "list")
+    return(out)
+  }
+
   ipd <- data$ipd$data
   agd <- data$agd$data
   cov_names <- data$covariates
-  z <- .z_from_conf_level(conf_level)
 
   link_info <- check_link(family, link)
   link_resolved <- link_info$link
@@ -414,4 +474,345 @@ stc <- function(data, link = NULL, conf_level = 0.95) {
     newdata[[cov]] <- agd[[mean_col]]
   }
   newdata
+}
+
+
+#' Stable Euclidean norm of two standard errors
+#' @keywords internal
+.stc_hypot <- function(x, y) {
+  if (any(is.infinite(c(x, y)))) return(Inf)
+  scale <- max(abs(c(x, y)))
+  if (scale == 0) return(0)
+  scale * sqrt((x / scale)^2 + (y / scale)^2)
+}
+
+#' Package-specific parametric survival G-computation (RMST difference)
+#'
+#' Fits a parametric survival model to the index IPD (adjusting for
+#' covariates), G-computes the marginal restricted mean survival time (RMST) in
+#' the comparator population, and contrasts it with the comparator RMST from the
+#' reconstructed pseudo-IPD. Standard errors come from a nonparametric
+#' bootstrap. This survival extension is a package benchmark, not the
+#' established binary/continuous/count STC procedure. Requires the `flexsurv`
+#' package.
+#' @keywords internal
+.stc_survival <- function(data, conf_level, z, distribution, n_boot = 200L,
+                          seed = NULL, rmst_horizon = NULL) {
+  if (!requireNamespace("flexsurv", quietly = TRUE)) {
+    stop("Package 'flexsurv' is required for survival STC. ",
+         "Install it or use mlumr() / naive().", call. = FALSE)
+  }
+  ipd <- data$ipd$data
+  pseudo <- data$agd$pseudo_ipd
+  cov_names <- data$covariates
+  # Flexible baselines ("mspline"/"pexp") have no parametric flexsurv analogue.
+  # Rather than silently report the requested distribution while actually
+  # fitting a Weibull, flag the approximation: warn, and record both the
+  # requested `distribution` and the `distribution_fit` actually used.
+  # switch() in .stc_flexsurv_dist() used to end in an unnamed default, so any
+  # unrecognized name (a typo such as "weibul") fell through to a Weibull fit
+  # while the returned object still reported the name the user typed and
+  # approximated = FALSE. Wrong model, wrong label, no warning. Validate first.
+  valid_distributions <- c("exponential", "weibull", "gompertz",
+                           "exponential-aft", "weibull-aft", "lognormal",
+                           "loglogistic", "gamma", "gengamma",
+                           "mspline", "pexp")
+  if (!is.character(distribution) || length(distribution) != 1L ||
+        is.na(distribution) || !distribution %in% valid_distributions) {
+    stop("`distribution` must be one of: ",
+         paste(valid_distributions, collapse = ", "), ".", call. = FALSE)
+  }
+  approximated <- distribution %in% c("mspline", "pexp")
+  dist_fit <- if (approximated) "weibull" else distribution
+  if (approximated) {
+    warning(
+      sprintf(
+        paste0(
+          "Survival STC has no parametric analogue for a '%s' baseline; ",
+          "fitting a Weibull G-computation as an approximate RMST benchmark ",
+          "(the result reports distribution_fit = \"weibull\"). Request ",
+          "distribution = \"weibull\" to silence this, or use mlumr() for ",
+          "the flexible-baseline Bayesian fit."
+        ),
+        distribution
+      ),
+      call. = FALSE
+    )
+  }
+  # Map the actually-fitted family (dist_fit) to its flexsurv name. dist_fit is
+  # the single normalized representation (Weibull for flexible-baseline requests),
+  # so the flexsurv lookup never depends on the mspline/pexp fallback entries.
+  dist_fs <- .stc_flexsurv_dist(dist_fit)
+  # RMST is an integral to a restriction time, so an STC estimate is only
+  # comparable with a Bayesian one when both use the same horizon. mlumr() can
+  # narrow its default to the follow-up both studies observed, which differs
+  # from the pooled maximum used here, so the horizon has to be settable.
+  horizon <- if (is.null(rmst_horizon)) {
+    max(c(ipd$.time, pseudo$.time))
+  } else {
+    if (!is.numeric(rmst_horizon) || length(rmst_horizon) != 1L ||
+          !is.finite(rmst_horizon) || rmst_horizon <= 0) {
+      stop("`rmst_horizon` must be a single positive finite time.",
+           call. = FALSE)
+    }
+    obs_max <- max(c(ipd$.time, pseudo$.time))
+    if (rmst_horizon > obs_max) {
+      warning(sprintf(paste0("`rmst_horizon` = %.4g is beyond the largest ",
+                             "observed time (%.4g); the fitted parametric ",
+                             "survival function is extrapolated past the data ",
+                             "there."), rmst_horizon, obs_max), call. = FALSE)
+    }
+    rmst_horizon
+  }
+  comp_cov <- .stc_comparator_data(data, cov_names, "survival")$newdata
+
+  .validate_stc_survival_right_censored(ipd, pseudo)
+
+  point <- .stc_survival_point(ipd, pseudo, cov_names, comp_cov, dist_fs, horizon)
+
+  # See .stc_survival_point(): a negative fitted shape / Q is outside the
+  # parameter space of the Bayesian model carrying the same name.
+  out_of_family <- NULL
+  if (!is.null(point$family_par_name) && any(point$family_par < 0)) {
+    out_of_family <- point$family_par_name
+    approximated <- TRUE
+    dist_fit <- sprintf("flexsurv %s, unrestricted %s", distribution,
+                        point$family_par_name)
+    warning(sprintf(
+      paste0("The STC '%s' fit has %s = %s, outside the parameter space of ",
+             "mlumr()'s '%s' model, which constrains %s > 0. flexsurv admits ",
+             "the negative branch, so this benchmark and the Bayesian fit of ",
+             "the same name are different distributional families here: a ",
+             "difference between them need not be a Bayesian-versus-",
+             "frequentist difference. Compare the collapsible RMST estimands, ",
+             "or choose a distribution whose parameter spaces agree."),
+      distribution, point$family_par_name,
+      paste(sprintf("%.4g", point$family_par), collapse = " / "),
+      distribution, point$family_par_name
+    ), call. = FALSE)
+  }
+
+  if (n_boot > 0L) {
+    # Seed the bootstrap reproducibly without perturbing the user's global RNG
+    # stream: snapshot .Random.seed and restore it when this function returns.
+    if (!is.null(seed)) {
+      if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+        saved_seed <- get(".Random.seed", envir = globalenv(), inherits = FALSE)
+        on.exit(assign(".Random.seed", saved_seed, envir = globalenv()), # nolint: object_name_linter.
+                add = TRUE)
+      } else {
+        on.exit(suppressWarnings(rm(".Random.seed", envir = globalenv())),
+                add = TRUE)
+      }
+      set.seed(seed)
+    }
+    # Each replicate carries its own family parameter as well as the two
+    # estimates: the point-fit check above cannot see a resample that leaves
+    # mlumr()'s parameter space while the point estimate stays inside it, and
+    # those refits still enter the SE.
+    boot <- vapply(seq_len(n_boot), function(b) {
+      ib <- ipd[sample(nrow(ipd), replace = TRUE), , drop = FALSE]
+      pb <- pseudo[sample(nrow(pseudo), replace = TRUE), , drop = FALSE]
+      tryCatch({
+        pt <- .stc_survival_point(ib, pb, cov_names, comp_cov, dist_fs, horizon)
+        par_b <- c(NA_real_, NA_real_)
+        if (!is.null(pt$family_par)) par_b <- unname(pt$family_par)
+        c(pt$rmst_diff, pt$log_chr, par_b)
+      }, error = function(e) rep(NA_real_, 4L))
+    }, numeric(4))
+    se <- stats::sd(boot[1, ], na.rm = TRUE)
+    log_chr_se <- stats::sd(boot[2, ], na.rm = TRUE)
+    # Count the two quantities separately: a resample can return a finite RMST
+    # difference while the cumulative-hazard ratio is undefined at the horizon
+    # (a boundary survival), and one shared count would hide that.
+    n_boot_ok <- sum(!is.na(boot[1, ]))
+    n_boot_ok_chr <- sum(!is.na(boot[2, ]))
+    n_boot_failed <- n_boot - n_boot_ok
+    n_boot_failed_chr <- n_boot - n_boot_ok_chr
+    # Warn on EITHER shortfall. Gating on the RMST count alone left a run in
+    # which every RMST difference was finite but several cumulative-hazard
+    # ratios were not silently reporting a log-CHR interval built from fewer
+    # replicates than the RMST one.
+    if (n_boot_failed > 0L || n_boot_failed_chr > 0L) {
+      warning(sprintf(
+        paste0("Bootstrap successes: RMST difference %d/%d; log cumulative-",
+               "hazard ratio %d/%d. Each standard error is based only on its ",
+               "own successful resamples. A high failure rate gives an ",
+               "over-narrow SE; consider a different `distribution` or a ",
+               "larger `n_boot`."),
+        n_boot_ok, n_boot, n_boot_ok_chr, n_boot
+      ), call. = FALSE)
+    }
+    # How many resamples left the Bayesian model's parameter space. NA_integer_
+    # when the distribution has no such parameter, which is not the same as
+    # zero and must not print as though it had been checked.
+    n_boot_out_of_family <- if (is.null(point$family_par_name)) {
+      NA_integer_
+    } else {
+      as.integer(sum(apply(boot[3:4, , drop = FALSE], 2L,
+                           function(v) any(!is.na(v) & v < 0))))
+    }
+    if (!is.na(n_boot_out_of_family) && n_boot_out_of_family > 0L) {
+      warning(sprintf(
+        paste0("%d of %d bootstrap resample(s) fitted %s < 0, outside the ",
+               "parameter space of mlumr()'s '%s' model, and those refits are ",
+               "included in the standard error. The interval is therefore a ",
+               "broader-family flexsurv benchmark rather than a like-for-like ",
+               "comparison with the Bayesian fit of the same name."),
+        n_boot_out_of_family, n_boot, point$family_par_name, distribution
+      ), call. = FALSE)
+    }
+    # Fewer than two successes leaves sd() undefined; make that explicit rather
+    # than letting an NA propagate as though the bootstrap had simply failed.
+    if (n_boot_ok < 2L) se <- NA_real_
+    if (n_boot_ok_chr < 2L) log_chr_se <- NA_real_
+  } else {
+    se <- NA_real_
+    log_chr_se <- NA_real_
+    n_boot_ok <- 0L
+    n_boot_ok_chr <- 0L
+    n_boot_out_of_family <- NA_integer_
+  }
+
+  list(
+    estimate = point$rmst_diff,
+    rmst_diff = point$rmst_diff,
+    se = se,
+    ci_lower = if (is.na(se)) NA_real_ else point$rmst_diff - z * se,
+    ci_upper = if (is.na(se)) NA_real_ else point$rmst_diff + z * se,
+    conf_level = conf_level,
+    family = "survival",
+    population = "comparator",
+    method = "package-specific parametric survival G-computation",
+    distribution = distribution,
+    distribution_fit = dist_fit,
+    approximated = approximated,
+    # Non-NULL when the fitted shape/Q left the Bayesian model's parameter
+    # space; names the parameter that did so.
+    out_of_family = out_of_family,
+    family_par = point$family_par,
+    # Name of the parameter whose sign decides family membership ("shape" for
+    # Gompertz, "Q" for the generalized gamma), NULL when the distribution has
+    # none. Reported separately from `out_of_family`, which is set only when the
+    # POINT fit left the space.
+    family_par_name = point$family_par_name,
+    horizon = horizon,
+    rmst_index_comparator = point$rmst_index,
+    rmst_index = point$rmst_index,
+    rmst_comparator = point$rmst_comparator,
+    # Cumulative-hazard ratio at the horizon (ratio of cumulative hazards
+    # H(horizon) = -log S(horizon)), with a bootstrap SE/CI on the log scale.
+    # This is not a hazard ratio in general; see .stc_survival_point().
+    log_chr = point$log_chr,
+    chr = exp(point$log_chr),
+    log_chr_se = log_chr_se,
+    log_chr_lower = if (is.na(log_chr_se)) NA_real_ else point$log_chr - z * log_chr_se,
+    log_chr_upper = if (is.na(log_chr_se)) NA_real_ else point$log_chr + z * log_chr_se,
+    n_index = nrow(ipd),
+    n_comparator = nrow(pseudo),
+    n_boot = n_boot_ok,
+    n_boot_requested = as.integer(n_boot),
+    n_boot_ok = n_boot_ok,
+    n_boot_ok_log_chr = n_boot_ok_chr,
+    # Resamples whose fitted shape / Q left mlumr()'s parameter space but whose
+    # RMST still entered the SE. NA_integer_ when the distribution has no such
+    # parameter to leave.
+    n_boot_out_of_family = n_boot_out_of_family,
+    data = data
+  )
+}
+
+#' Validate survival STC input supported by flexsurv formula construction
+#' @keywords internal
+.validate_stc_survival_right_censored <- function(ipd, pseudo) {
+  status <- c(ipd$.status, pseudo$.status)
+  start_time <- c(ipd$.start_time, pseudo$.start_time)
+  delay_time <- c(ipd$.delay_time, pseudo$.delay_time)
+
+  if (any(!status %in% c(0L, 1L)) ||
+        any(start_time > 0, na.rm = TRUE) ||
+        any(delay_time > 0, na.rm = TRUE)) {
+    stop(
+      "Survival STC currently supports only right-censored data without delayed entry. ",
+      "Use mlumr() for left-censored, interval-censored, or delayed-entry survival data.",
+      call. = FALSE
+    )
+  }
+  invisible(TRUE)
+}
+
+#' One STC survival point estimate (RMST_index, RMST_comparator, difference)
+#' @keywords internal
+.stc_survival_point <- function(ipd, pseudo, cov_names, comp_cov, dist_fs, horizon) {
+  ipd$.stc_event <- as.integer(ipd$.status == 1L)
+  pseudo$.stc_event <- as.integer(pseudo$.status == 1L)
+
+  rhs <- paste(sprintf("`%s`", cov_names), collapse = " + ")
+  form_a <- stats::as.formula(
+    sprintf("survival::Surv(.time, .stc_event) ~ %s", rhs)
+  )
+  fit_a <- flexsurv::flexsurvreg(form_a, data = ipd, dist = dist_fs)
+  rmst_a_rows <- summary(fit_a, newdata = comp_cov, type = "rmst",
+                         t = horizon, ci = FALSE, tidy = TRUE)
+  rmst_index <- mean(rmst_a_rows$est)
+
+  fit_b <- flexsurv::flexsurvreg(survival::Surv(.time, .stc_event) ~ 1,
+                                 data = pseudo, dist = dist_fs)
+  rmst_b <- summary(fit_b, type = "rmst", t = horizon, ci = FALSE,
+                    tidy = TRUE)$est[1]
+
+  # Cumulative-hazard ratio at the horizon: the ratio of cumulative hazards
+  # H(t) = -log S(t) at t = horizon, for the G-computed index survival
+  # (standardized to the comparator covariates) versus the comparator. This is
+  # NOT in general a hazard ratio: only when the two separately-fitted survival
+  # models happen to be proportional with a common baseline shape does it equal
+  # the constant HR. NA if either survival is at a boundary (no events / certain
+  # survival), where the log ratio is undefined.
+  cumhaz_a_rows <- summary(fit_a, newdata = comp_cov, type = "cumhaz",
+                           t = horizon, ci = FALSE, tidy = TRUE)$est
+  log_surv_a <- .weighted_log_mean_exp(-cumhaz_a_rows)
+  cumhaz_a <- -log_surv_a
+  cumhaz_b <- summary(fit_b, type = "cumhaz", t = horizon, ci = FALSE,
+                      tidy = TRUE)$est[1]
+  log_chr <- if (is.finite(cumhaz_a) && is.finite(cumhaz_b) &&
+                   cumhaz_a > 0 && cumhaz_b > 0) {
+    log(cumhaz_a) - log(cumhaz_b)
+  } else {
+    NA_real_
+  }
+
+  # mlumr's Bayesian Gompertz constrains the shape to be positive, and its
+  # generalized gamma is the positive-Q (Lawless k > 0) subfamily. flexsurv
+  # admits the negative branch of both, so an STC benchmark can land outside the
+  # family its label denotes and would then not be a like-for-like comparison
+  # with the Bayesian fit of the same name. Report the parameter so stc() can
+  # say so rather than leaving the reader to assume the spaces match.
+  par_name <- switch(dist_fs, gompertz = "shape", gengamma = "Q", NULL)
+  family_par <- NULL
+  if (!is.null(par_name)) {
+    family_par <- c(index = unname(fit_a$res[par_name, "est"]),
+                    comparator = unname(fit_b$res[par_name, "est"]))
+  }
+
+  list(rmst_index = rmst_index, rmst_comparator = rmst_b,
+       rmst_diff = rmst_index - rmst_b, log_chr = log_chr,
+       family_par = family_par, family_par_name = par_name)
+}
+
+#' Map an mlumr survival distribution to a flexsurv distribution name
+#' @keywords internal
+.stc_flexsurv_dist <- function(distribution) {
+  switch(distribution,
+    exponential = "exp", "exponential-aft" = "exp",
+    weibull = "weibull", "weibull-aft" = "weibull",
+    gompertz = "gompertz", lognormal = "lnorm", loglogistic = "llogis",
+    gamma = "gamma", gengamma = "gengamma",
+    # Flexible baselines have no parametric STC analogue; approximate with
+    # a Weibull G-computation.
+    mspline = "weibull", pexp = "weibull",
+    # No unnamed default: an unrecognized name must not fall through to a
+    # Weibull fit that the result would then mislabel. stc() validates the name
+    # before this point, so reaching here at all is a bug.
+    stop("Unsupported survival distribution: ", distribution, call. = FALSE)
+  )
 }

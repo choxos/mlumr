@@ -37,6 +37,7 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
     binomial = .naive_binomial(data, ipd, agd, link, conf_level, z),
     normal = .naive_normal(data, ipd, agd, conf_level, z),
     poisson = .naive_poisson(data, ipd, agd, conf_level, z),
+    survival = .naive_survival(data, conf_level, z),
     stop("Unsupported outcome family.", call. = FALSE)
   )
 
@@ -216,6 +217,83 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
     exposure_index = exposure_index,
     events_comparator = events_comparator,
     exposure_comparator = exposure_comparator,
+    data = data
+  )
+}
+
+
+#' Naive comparison for survival outcomes
+#'
+#' Unadjusted Cox proportional-hazards log hazard ratio comparing the index IPD
+#' against the reconstructed comparator pseudo-IPD, plus Kaplan-Meier median
+#' survival per arm. Because this benchmark is a right-censored Cox model, left-
+#' and interval-censored records (internal status 2/3) are rejected rather than
+#' collapsed to right-censoring.
+#' @keywords internal
+.naive_survival <- function(data, conf_level, z) {
+  if (!requireNamespace("survival", quietly = TRUE)) {
+    stop("Package 'survival' is required for the naive survival comparison.",
+         call. = FALSE)
+  }
+  ipd <- data$ipd$data
+  pseudo <- data$agd$pseudo_ipd
+
+  # The naive benchmark is a right-censored Cox model. Internal `.status` encodes
+  # 0 = right-censored, 1 = event, 2 = left-censored, 3 = interval-censored. The
+  # Bayesian model (`mlumr()`) handles 2/3, but collapsing them to right-censored
+  # non-events (status != 1) would misrepresent the data (a left-censored record
+  # is known to have failed by its time; an interval-censored record failed within
+  # an interval). Reject them here, matching `stc()` and `geom_km()`, rather than
+  # silently produce an invalid Cox estimate.
+  if (any(c(ipd$.status, pseudo$.status) %in% c(2L, 3L))) {
+    stop("`naive()` fits a right-censored Cox benchmark and does not support ",
+         "left- or interval-censored survival data (internal status 2 or 3). ",
+         "These are supported by the Bayesian model `mlumr()`, but the naive ",
+         "comparison would have to collapse them to right-censored non-events, ",
+         "which misrepresents the data. Restrict the naive comparison to ",
+         "right-censored / event data (status 0/1, optional delayed entry).",
+         call. = FALSE)
+  }
+
+  pooled <- data.frame(
+    time = c(ipd$.time, pseudo$.time),
+    entry = c(ipd$.delay_time, pseudo$.delay_time),
+    event = as.integer(c(ipd$.status, pseudo$.status) == 1L),
+    arm = factor(c(rep("index", nrow(ipd)), rep("comparator", nrow(pseudo))),
+                 levels = c("comparator", "index")),
+    stringsAsFactors = FALSE
+  )
+  has_delay <- any(pooled$entry > 0)
+  surv_obj <- if (has_delay) {
+    survival::Surv(pooled$entry, pooled$time, pooled$event)
+  } else {
+    survival::Surv(pooled$time, pooled$event)
+  }
+
+  cox <- survival::coxph(surv_obj ~ arm, data = pooled)
+  estimate <- unname(stats::coef(cox)[1])
+  se <- sqrt(diag(stats::vcov(cox))[1])
+
+  km <- survival::survfit(surv_obj ~ arm, data = pooled)
+  km_tab <- summary(km)$table
+  med <- if (is.matrix(km_tab)) km_tab[, "median"] else km_tab["median"]
+  med_comparator <- unname(med[grep("comparator", names(med))][1])
+  med_index <- unname(med[grep("index", names(med))][1])
+
+  list(
+    estimate = estimate,
+    log_hr = estimate,
+    se = se,
+    ci_lower = estimate - z * se,
+    ci_upper = estimate + z * se,
+    conf_level = conf_level,
+    family = "survival",
+    median_index = med_index,
+    median_comparator = med_comparator,
+    n_index = nrow(ipd),
+    n_comparator = nrow(pseudo),
+    events_index = sum(ipd$.status == 1L),
+    events_comparator = sum(pseudo$.status == 1L),
     data = data
   )
 }

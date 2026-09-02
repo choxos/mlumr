@@ -4,7 +4,15 @@
 \alias{stc}
 \title{Simulated treatment comparison via G-computation}
 \usage{
-stc(data, link = NULL, conf_level = 0.95)
+stc(
+  data,
+  link = NULL,
+  conf_level = 0.95,
+  distribution = "weibull",
+  n_boot = 200L,
+  seed = NULL,
+  rmst_horizon = NULL
+)
 }
 \arguments{
 \item{data}{An \code{mlumr_data} object from \code{\link[=combine_data]{combine_data()}}. Integration points
@@ -15,6 +23,40 @@ or \code{"cloglog"}. For normal: \code{"identity"} (default) or \code{"log"}. Fo
 poisson: \code{"log"} (default). If \code{NULL}, uses the canonical default.}
 
 \item{conf_level}{Confidence level for the interval (default 0.95)}
+
+\item{distribution}{For \code{family = "survival"}: the parametric distribution
+used for the package-specific survival G-computation (default
+\code{"weibull"}). Requires the \code{flexsurv}
+package. The STC estimand is the restricted-mean-survival-time difference.
+The flexible baselines \code{"mspline"} and \code{"pexp"} have no parametric
+\code{flexsurv} analogue: requesting either fits a Weibull G-computation as an
+approximate benchmark, emits a warning, and records
+\code{distribution_fit = "weibull"} and \code{approximated = TRUE} in the result
+(\verb{$distribution} keeps the requested value). Survival STC currently
+supports right-censored data without delayed entry; use \code{\link[=mlumr]{mlumr()}} for
+left-censored, interval-censored, or delayed-entry survival data.}
+
+\item{n_boot}{For \code{family = "survival"} only: number of nonparametric
+bootstrap resamples used for the RMST-difference standard error (default
+\code{200}). Set \code{n_boot = 0} for a fast point estimate with no interval
+(\code{se}/CI returned as \code{NA}). Must be 0 or at least 2, since a single
+resample has no standard error; several hundred are needed before the
+interval is usable, so treat anything below the default as exploratory.
+Ignored for other families, which use the delta method.}
+
+\item{seed}{For \code{family = "survival"} only: optional integer seed for the
+bootstrap, making the standard error reproducible. The global random
+number stream is restored on exit. Ignored for other families.}
+
+\item{rmst_horizon}{For \code{family = "survival"} only: the restriction time the
+RMST difference is integrated to. Defaults to the largest observed time
+across both arms. RMST at a different horizon is a different estimand, so
+set this explicitly whenever the result is to be compared with an
+\code{\link[=mlumr]{mlumr()}} fit, whose own default can be the follow-up both studies
+observed rather than the pooled maximum; read that fit's horizon from the
+\code{horizon} column of \code{predict(type = "rmst")}. A value beyond the observed
+range extrapolates the fitted parametric survival function and warns.
+Ignored for other families.}
 }
 \value{
 An object of class \code{mlumr_stc}

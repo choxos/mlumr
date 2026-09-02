@@ -4,10 +4,18 @@
 \alias{calculate_waic}
 \title{Calculate WAIC for an mlumr_fit}
 \usage{
-calculate_waic(object, ...)
+calculate_waic(
+  object,
+  survival_unit = c("observation", "arm", "aggregate"),
+  ...
+)
 }
 \arguments{
 \item{object}{An \code{mlumr_fit} object.}
+
+\item{survival_unit}{For survival fits, the WAIC pointwise unit:
+\code{"observation"} (default), \code{"arm"}, or \code{"aggregate"} (see \code{\link[=calculate_loo]{calculate_loo()}}
+for details). Ignored for non-survival families.}
 
 \item{...}{Additional arguments passed to \code{\link[loo:waic]{loo::waic()}}.}
 }
@@ -22,7 +30,10 @@ LOO-CV; prefer \code{\link[=calculate_loo]{calculate_loo()}} when Pareto-k is we
 \note{
 As with \code{\link[=calculate_loo]{calculate_loo()}}, each AgD row is treated as an
 independent observation. WAIC will be optimistic for AgD rows
-that share a study (see the note on \code{calculate_loo()}).
+that share a study (see the note on \code{calculate_loo()}). For
+\strong{survival} fits the AgD pointwise unit is a reconstructed
+pseudo-individual, so WAIC is at the pseudo-individual level
+(see the survival note on \code{\link[=calculate_loo]{calculate_loo()}}).
 }
 \examples{
 \dontrun{
