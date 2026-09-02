@@ -357,6 +357,18 @@ mlumr <- function(data,
     stan_data$y_ipd <- as.numeric(ipd_data$.outcome)
     stan_data$y_agd <- array(as.numeric(agd_data$.y))
     stan_data$se_agd <- array(as.numeric(agd_data$.se))
+    # Target-population weights for the comparator estimand. These say which
+    # comparator population the standardized effect refers to, and are separate
+    # from the likelihood's 1/se^2 precision weights. set_agd() requires
+    # outcome_n for more than one row, so the fallback covers single-row data.
+    n_agd_rows <- length(stan_data$y_agd)
+    agd_n <- agd_data$.n
+    stan_data$agd_weight <- if (!is.null(agd_n) &&
+                                  all(is.finite(agd_n)) && all(agd_n > 0)) {
+      as.array(as.numeric(agd_n))
+    } else {
+      as.array(rep(1, n_agd_rows))
+    }
     stan_data$prior_sigma_location <- sigma_fields$mean
     stan_data$prior_sigma_scale <- sigma_fields$sd
     stan_data$prior_sigma_dist <- sigma_fields$dist

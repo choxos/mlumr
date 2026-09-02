@@ -23,6 +23,11 @@ data {
   // set_agd() rejects a non-positive standard error, so the normal density
   // below never sees a zero scale.
   array[n_agd_rows] real<lower=0> se_agd;
+  // Target-population weights for the comparator estimand (sample-size weights
+  // when outcome_n is supplied, else all 1 = equal per-row). Separate from the
+  // likelihood's precision weighting; defines which comparator population the
+  // standardized effect targets.
+  vector<lower=0>[n_agd_rows] agd_weight;
 
   // Integration points for AgD
   int<lower=1> n_int;
@@ -148,10 +153,12 @@ generated quantities {
     }
   }
 
-  // Marginal predictions in comparator population, equal weights.
-  // Equal weighting avoids double-counting with the likelihood (which already
-  // upweights lower-SE studies through the normal density). For single-row
-  // AgD (the most common case), weighting is irrelevant.
+  // Marginal predictions in the comparator population, weighted by `agd_weight`.
+  // The comparator target population is the size-weighted mixture of its AgD
+  // subgroups (sample-size weights for multiple rows; one for a single row), so
+  // splitting one population into two rows does not change the estimand. This
+  // target weighting is deliberately separate from the likelihood's precision
+  // (1/se^2) weighting. For single-row AgD the weight is irrelevant.
   {
     vector[n_agd_rows] row_index;
     vector[n_agd_rows] row_comparator;
@@ -160,7 +167,7 @@ generated quantities {
     for (k in 1:n_agd_rows) {
       vector[n_int] y_idx_k = mu_index + X_int[k] * beta_index;
       vector[n_int] y_cmp_k = mu_comparator + X_int[k] * beta_comparator;
-      weights[k] = 1;
+      weights[k] = agd_weight[k];
 
       if (link == 1) {
         row_index[k] = mean(y_idx_k);

@@ -575,6 +575,10 @@ set_agd <- function(data, treatment,
     .validate_agd_binomial_outcomes(data[[outcome_r]], data[[outcome_n]])
   } else if (family == "normal") {
     .validate_agd_normal_outcomes(data[[outcome_mean]], data[[outcome_se]])
+    if (nrow(data) > 1L && is.null(outcome_n)) {
+      stop("`outcome_n` is required for multiple normal aggregate rows so ",
+           "they can be combined using population weights.", call. = FALSE)
+    }
     if (!is.null(outcome_n)) {
       .validate_agd_sample_size(data[[outcome_n]])
     }

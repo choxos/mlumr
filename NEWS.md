@@ -56,6 +56,19 @@
   stops with a validation error naming the argument it actually received. Call
   `mlumr()` with named arguments.
 
+* **Continuous multi-row comparator estimand, and `outcome_n` is now required
+  for it.** For the normal family the comparator-population standardized effect
+  from several `set_agd()` rows is weighted by `outcome_n` (sample size) rather
+  than by inverse variance, so splitting one comparator population into subgroup
+  rows no longer changes the estimand. An inverse-variance average estimates a
+  common mean efficiently but is not the comparator population's mean, which is
+  the size-weighted mixture of its strata. Because there is no defensible way to
+  combine several population strata without knowing how large they are,
+  `set_agd()` now requires `outcome_n` when normal aggregate data have more than
+  one row and errors rather than silently falling back to precision weights.
+  `naive()` and `stc()` use the same weighting. Single-row AgD is unchanged and
+  still does not require `outcome_n`.
+
 * **`naive()` combines multiple aggregate rows as strata.** For binomial data
   the comparator standard error was computed as though the pooled comparator
   were a single binomial sample of size `sum(n)`. It is now the variance of the
