@@ -200,17 +200,55 @@ mlumr <- function(data,
             call. = FALSE)
   }
 
-  # Warn about weak identifiability in relaxed models with sparse AgD
+  # Weak identifiability of beta_comparator in relaxed models. It is informed
+  # only by the aggregate likelihood, so the note differs by what that
+  # likelihood actually is.
   if (model == "relaxed") {
-    n_agd_rows_check <- nrow(data$agd$data)
     n_cov_check <- data$n_covariates
-    if (n_agd_rows_check < 2 * n_cov_check) {
-      warning(sprintf(
-        paste0("Relaxed model with %d AgD row(s) and %d covariate(s): ",
-               "beta_comparator may be weakly identified. ",
-               "Consider using more informative priors on beta or the SPFA model."),
-        n_agd_rows_check, n_cov_check
-      ), call. = FALSE)
+    if (family == "normal" && link_info$link == "identity") {
+      n_agd_rows_check <- nrow(data$agd$data)
+      agd_rank <- .agd_covariate_rank(data)
+      if (agd_rank < n_cov_check + 1L) {
+        warning(sprintf(
+          paste0("Relaxed model with %d AgD row(s), aggregate design rank %d, ",
+                 "and %d covariate(s): the identity-link ",
+                 "aggregate design needs at least %d independent profiles, so ",
+                 "some comparator-parameter combinations are not separated by ",
+                 "the likelihood. The most ",
+                 "effective fix is to supply the comparator as jointly-defined ",
+                 "subgroup rows, one set_agd() row per stratum with its own ",
+                 "covariate summaries. Otherwise regularize with ",
+                 "an informative `prior_beta` or use model = \"spfa\"."),
+          n_agd_rows_check, agd_rank, n_cov_check, n_cov_check + 1L
+        ), call. = FALSE)
+      }
+    } else {
+      n_agd_rows_check <- nrow(data$agd$data)
+      # Not the row count. Mean-profile rank is not available here either,
+      # because a nonlinear mean depends on each row's whole covariate
+      # distribution and two rows with equal means but different spreads do
+      # carry different constraints. Rows built from an identical integration
+      # grid are a different matter: they are the identical function of the
+      # comparator parameters whatever the link, so the second repeats the
+      # first's likelihood term. Counting distinct grids is the bound the raw
+      # row count is not, and it is what stops a duplicated set_agd() row from
+      # suppressing this warning for the nonlinear families as well.
+      n_distinct_check <- .agd_distinct_profiles(data)
+      if (n_distinct_check < n_cov_check + 1L) {
+        warning(sprintf(
+          paste0("Relaxed model with %d AgD row(s), %d of them distinct, and ",
+                 "%d covariate(s): the comparator side has %d parameters but ",
+                 "only %d independent scalar aggregate outcome summaries. A ",
+                 "row repeating another's integration grid contributes an ",
+                 "identical likelihood term rather than a new constraint. The ",
+                 "comparator coefficients cannot all be separated without ",
+                 "prior information. Add jointly-defined subgroup rows, ",
+                 "regularize with an informative `prior_beta`, or use ",
+                 "model = \"spfa\"."),
+          n_agd_rows_check, n_distinct_check, n_cov_check, n_cov_check + 1L,
+          n_distinct_check
+        ), call. = FALSE)
+      }
     }
   }
 
@@ -569,6 +607,25 @@ mlumr <- function(data,
   stan_data$Xq_int <- xq_int
   stan_data$R_inv <- r_inv
   stan_data
+}
+
+#' Rank of the AgD comparator covariate design
+#'
+#' The relaxed model's `mu_comparator` and `beta_comparator` are informed only
+#' by the AgD likelihood, which contributes one term per AgD row evaluated at
+#' that row's integration grid. The number of comparator parameters those terms
+#' can separate is therefore the rank of the per-row mean covariate profiles
+#' augmented with an intercept column, NOT the number of rows: rows that repeat
+#' the same covariate summaries add likelihood terms but no new direction.
+#'
+#' Uses the declared aggregate covariate means, which define the identity-link
+#' design exactly and do not vary with integration resolution.
+#'
+#' @param data An `mlumr_data` object with integration points.
+#' @return Integer rank, at least 1.
+#' @keywords internal
+.agd_covariate_rank <- function(data) {
+  .profile_rank(.agd_mean_profiles(data))
 }
 
 #' Validate mlumr() sampler controls before backend dispatch

@@ -146,6 +146,39 @@
   reports both populations without that assumption, when the index population is
   the decision target.
 
+## Identifying the relaxed model's comparator coefficients
+
+* **New `check_identification()`**: how much aggregate evidence does
+  `model = "relaxed"` need before its index-population estimate is data-driven
+  rather than prior-driven? In the relaxed model `beta_comparator` is identified
+  only by the aggregate likelihood, so the answer is fixed by the aggregate
+  subgroup rows before any model is fitted.
+
+  Each aggregate row contributes one constraint and the comparator side has
+  `K + 1` unknowns (the intercept counts), so `S >= K + 1` rows are necessary.
+  They are not sufficient: the rows must also differ in **every** covariate
+  direction. `check_identification()` measures that directly, reporting
+  `cond_inv` (smallest over largest singular value of the centered, IPD-scaled
+  subgroup-mean matrix) and a continuous count of usable directions. Subgroups
+  reported one variable at a time never exceed one usable direction however many
+  are published.
+
+  For a nonlinear mean model the report is labeled descriptive only: subgroup
+  means do not determine the likelihood geometry there, because the
+  within-row distributions also affect the integrated response.
+
+* **The weak-identifiability warning no longer counts a duplicated row as
+  evidence.** Version 0.1.0 warned when `n_agd_rows < 2 * n_cov`, so repeating
+  a `set_agd()` row silenced it without adding anything. What replaces the
+  count depends on the link, because what a row contributes does. Under an
+  identity link the mean profiles are the design, so the warning triggers on
+  the rank of that design. Under any other link the integrated response depends
+  on each row's whole covariate distribution, and two rows with equal means but
+  different spreads do carry different constraints, so mean rank would
+  understate the evidence; there the warning triggers on the number of rows
+  that do not repeat another's integration grid, a bound that holds under every
+  link because a repeated grid gives an identical likelihood term.
+
 ## Covariate distributions
 
 * **New moment-parameterized marginal distributions**, mirroring the ones
