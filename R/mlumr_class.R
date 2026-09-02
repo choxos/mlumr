@@ -8,7 +8,8 @@ print.mlumr_fit <- function(x, ...) {
   family_label <- switch(family,
     binomial = "Binary",
     normal   = "Continuous (Normal)",
-    poisson  = "Count (Poisson)"
+    poisson  = "Count (Poisson)",
+    survival = "Time-to-event"
   )
 
   model_label <- if (x$model == "spfa") {
@@ -75,7 +76,8 @@ summary.mlumr_fit <- function(object, ...) {
   family_label <- switch(family,
     binomial = "Binary",
     normal   = "Continuous (Normal)",
-    poisson  = "Count (Poisson)"
+    poisson  = "Count (Poisson)",
+    survival = "Time-to-event"
   )
 
   link_label <- object$link %||% switch(family, binomial = "logit", normal = "identity", poisson = "log")
@@ -156,6 +158,38 @@ summary.mlumr_fit <- function(object, ...) {
     if (length(delta_idx) > 0) {
       cat("  Mean Differences:\n")
       print(object$summary[delta_idx, c("variable", "mean", "sd", "2.5%", "97.5%")],
+            row.names = FALSE)
+    }
+  } else if (family == "survival") {
+    # delta_* is a LOG hazard ratio (PH) or LOG time ratio (AFT), null 0, not a
+    # rate ratio. Print it under the name the fit's own label helper resolves,
+    # so the heading cannot claim an estimand the distribution does not give,
+    # and carry the evaluation time the scalar belongs to.
+    delta_idx <- grep("^delta_(index|comparator)$", object$summary$variable)
+    if (length(delta_idx) > 0) {
+      lab <- .surv_scalar_label(object, log_scale = TRUE)
+      heading <- switch(lab$label,
+                        LOG_HR = "Log Hazard Ratios",
+                        LOG_TR = "Log Time Ratios",
+                        DELTA_ETA = "Location Contrasts (not a time ratio)")
+      at <- lab$at_time
+      when <- if (identical(lab$label, "LOG_HR")) {
+        if (isTRUE(at == 0)) {
+          " at the start of follow-up (t -> 0)"
+        } else {
+          paste0(" at t = ", format(at, digits = 4L))
+        }
+      } else {
+        ""
+      }
+      cat("  ", heading, when, ":\n", sep = "")
+      print(object$summary[delta_idx, c("variable", "mean", "sd", "2.5%", "97.5%")],
+            row.names = FALSE)
+    }
+    rmst_idx <- grep("^rmst_diff_(index|comparator)$", object$summary$variable)
+    if (length(rmst_idx) > 0) {
+      cat("  RMST Differences:\n")
+      print(object$summary[rmst_idx, c("variable", "mean", "sd", "2.5%", "97.5%")],
             row.names = FALSE)
     }
   } else {
