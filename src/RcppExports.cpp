@@ -18,6 +18,10 @@ RcppExport SEXP _rcpp_module_boot_stan_fit4mlumr_normal_relaxed_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4mlumr_normal_spfa_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4mlumr_poisson_relaxed_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4mlumr_poisson_spfa_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4mlumr_survival_mspline_relaxed_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4mlumr_survival_mspline_spfa_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4mlumr_survival_relaxed_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4mlumr_survival_spfa_mod();
 
 static const R_CallMethodDef CallEntries[] = {
     {"_rcpp_module_boot_stan_fit4mlumr_binary_relaxed_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4mlumr_binary_relaxed_mod, 0},
@@ -26,6 +30,10 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rcpp_module_boot_stan_fit4mlumr_normal_spfa_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4mlumr_normal_spfa_mod, 0},
     {"_rcpp_module_boot_stan_fit4mlumr_poisson_relaxed_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4mlumr_poisson_relaxed_mod, 0},
     {"_rcpp_module_boot_stan_fit4mlumr_poisson_spfa_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4mlumr_poisson_spfa_mod, 0},
+    {"_rcpp_module_boot_stan_fit4mlumr_survival_mspline_relaxed_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4mlumr_survival_mspline_relaxed_mod, 0},
+    {"_rcpp_module_boot_stan_fit4mlumr_survival_mspline_spfa_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4mlumr_survival_mspline_spfa_mod, 0},
+    {"_rcpp_module_boot_stan_fit4mlumr_survival_relaxed_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4mlumr_survival_relaxed_mod, 0},
+    {"_rcpp_module_boot_stan_fit4mlumr_survival_spfa_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4mlumr_survival_spfa_mod, 0},
     {NULL, NULL, 0}
 };
 

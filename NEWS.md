@@ -154,6 +154,35 @@
   Kaplan-Meier curve) together with its covariate moments. `combine_data()` and
   `add_integration()` carry the family through.
 
+* **Parametric and flexible baselines** via the `distribution` argument to
+  `mlumr()`:
+    - Proportional hazards: `"exponential"`, `"weibull"` (default),
+      `"gompertz"` (positive-shape, increasing-hazard parameterization).
+    - Accelerated failure time: `"exponential-aft"`, `"weibull-aft"`,
+      `"lognormal"`, `"loglogistic"`, `"gamma"`, `"gengamma"` (the positive-`Q`
+      Lawless generalized gamma subfamily; negative-`Q` shapes are not covered).
+    - Flexible baseline hazard: `"mspline"` (M-spline) and `"pexp"`
+      (piecewise exponential), with a random-walk smoothing prior.
+
+* **New priors** `default_prior_aux()` (shape/scale parameters) and
+  `default_prior_smooth()` (M-spline smoothing SD), configurable via the
+  `prior_aux` and `prior_smooth` arguments to `mlumr()`. **`make_knots()`**
+  places M-spline knots, and the `knots` argument accepts a custom placement.
+
+* **The baseline hazard is estimated per study by default.** `mlumr()` gains
+  `aux_by`, defaulting to `".study"`: the index and comparator studies get their
+  own M-spline coefficients (or their own parametric shape parameters) rather
+  than sharing one shape, matching what `multinma::nma()` does. Sharing one
+  baseline across both studies is `aux_by = "none"`. Two single-arm trials
+  rarely share a hazard shape, and assuming they do imposes proportional hazards
+  *across studies*, which no randomization supports.
+
+  Each stratum gets its own knots over its own observed support. This is
+  required for identification, not a refinement: with one pooled basis spanning
+  the longer study, a shorter study can have basis functions it never observes,
+  leaving a flat likelihood direction that the prior rather than the data
+  resolves.
+
 * **Censoring support** in `set_ipd()`: right, left, interval, and delayed entry
   (left truncation) via a `survival::Surv()` object. The
   `time`/`status`/`entry_time` column route covers right-censoring (status

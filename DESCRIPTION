@@ -9,8 +9,9 @@ Authors@R: c(
 Description: Bayesian multilevel unanchored meta-regression (ML-UMR) for
     indirect treatment comparisons using individual patient data (IPD) and
     aggregate data (AgD). Implements shared prognostic factor assumption
-    (SPFA) and relaxed SPFA models for binary, continuous, and count
-    outcomes via 'Stan'. Also
+    (SPFA) and relaxed SPFA models for binary, continuous, count, and
+    time-to-event outcomes via 'Stan', the last with parametric and
+    flexible spline baseline hazards. Also
     provides simulated treatment comparison (STC) via parametric
     G-computation and naive unadjusted benchmarks. ML-UMR is an
     adaptation of the ML-NMR methodology (Phillippo et al. 2020,
@@ -37,7 +38,8 @@ Imports:
     rstantools (>= 2.3.0),
     randtoolbox,
     copula,
-    survival (>= 3.1-0)
+    survival (>= 3.1-0),
+    splines2 (>= 0.4.1)
 LinkingTo:
     BH (>= 1.66.0),
     Rcpp (>= 0.12.0),
@@ -46,7 +48,7 @@ LinkingTo:
     rstan (>= 2.26.0),
     StanHeaders (>= 2.26.0)
 Suggests:
-    testthat (>= 3.0.0),
+    testthat (>= 3.1.5),
     knitr,
     rmarkdown,
     posterior,
@@ -54,7 +56,8 @@ Suggests:
     loo,
     Matrix,
     cmdstanr,
-    withr
+    withr,
+    flexsurv
 Additional_repositories: https://stan-dev.r-universe.dev
 SystemRequirements: GNU make
 Config/testthat/edition: 3

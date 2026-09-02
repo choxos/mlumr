@@ -88,8 +88,11 @@ prior_sensitivity <- function(fit,
     # Everything that defines the model rather than the sampler. Overriding any
     # of these would vary a second factor alongside the prior scale, so the
     # movement in the output could no longer be attributed to the prior.
-    protected <- c("data", "model", "link", "prior_beta",
-                   "prior_intercept", "prior_sigma", "center", "qr")
+    protected <- c("data", "model", "link", "distribution", "prior_beta",
+                   "prior_intercept", "prior_sigma", "prior_aux",
+                   "prior_smooth", "center", "qr", "n_knots", "knots",
+                   "mspline_degree", "pred_times", "rmst_horizon",
+                   "n_rmst_grid", "aux_by")
     clash <- intersect(names(dots), protected)
     if (length(clash)) {
       msg <- paste0(
@@ -108,6 +111,13 @@ prior_sensitivity <- function(fit,
   # model as well as the prior and the sweep would no longer isolate one factor.
   # Fits from earlier versions do not record these; the defaults are what they used.
   mc <- fit$model_controls %||% list()
+  # Survival baseline controls needed to reproduce the original baseline; NULL
+  # or absent for the other families. `surv_controls` records a control that
+  # does not apply as NA rather than NULL (a Weibull fit stores
+  # mspline_degree = NA_integer_), and mlumr() rejects NA where it accepts NULL,
+  # so NA is normalized back to NULL before the refit.
+  sc <- fit$surv_controls %||% list()
+  .na_to_null <- function(x) if (length(x) == 1L && is.na(x)) NULL else x
 
   # Re-use the original data object (has_integration is already TRUE)
   data <- fit$data
@@ -122,7 +132,7 @@ prior_sensitivity <- function(fit,
                           i, length(prior_beta_scales), s),
                   verbose = verbose)
 
-    fit_i <- mlumr(
+    args <- list(
       data = data,
       model = fit$model,
       link = fit$link,
@@ -141,9 +151,38 @@ prior_sensitivity <- function(fit,
       max_treedepth = sa$max_treedepth %||% 15,
       refresh = 0,
       engine = fit$engine,
-      verbose = verbose,
-      ...
+      verbose = verbose
     )
+
+    # The survival controls are only legal arguments for a survival fit, and
+    # mlumr() decides that with missing(), not by testing for NULL. Naming
+    # `aux_by` at all makes it non-missing, so listing these unconditionally
+    # would make prior_sensitivity() fail on every binomial, normal and Poisson
+    # fit. Omit the whole group rather than passing NULL into it.
+    if (identical(fit$family, "survival")) {
+      args <- c(args, list(
+        distribution = fit$distribution,
+        prior_aux    = fit$priors$aux,
+        prior_smooth = fit$priors$smooth,
+        n_knots      = sc$n_knots      %||% 7L,
+        knots        = sc$knots,
+        mspline_degree = .na_to_null(sc$mspline_degree),
+        aux_by       = sc$aux_by       %||% ".study",
+        pred_times   = sc$pred_times,
+        rmst_horizon = sc$rmst_horizon,
+        n_rmst_grid  = sc$n_rmst_grid  %||% 100L
+      ))
+    }
+
+    # `...` is documented as the way to pass sampler and backend controls, and
+    # `protected` above already keeps it away from anything that defines the
+    # scenario. Merge rather than concatenate: `args` already names `chains`,
+    # `iter` and the rest, so appending a `...` value would match the same
+    # formal twice and R refuses the call. That made the one thing `...` is for
+    # the one thing it could not do.
+    call_args <- args
+    if (length(dots)) call_args[names(dots)] <- dots
+    fit_i <- do.call(mlumr, call_args)
 
     results[[i]] <- .summarize_sensitivity(fit_i, scale = s, probs = probs)
   }
@@ -200,7 +239,10 @@ prior_sensitivity <- function(fit,
   effect_cols <- switch(family,
     binomial = c("lor_index",   "lor_comparator"),
     normal   = c("delta_index", "delta_comparator"),
-    poisson  = c("lrr_index",   "lrr_comparator")
+    poisson  = c("lrr_index",   "lrr_comparator"),
+    # Log hazard ratio (PH) or log time ratio (AFT). Reported on the log scale,
+    # like every other family here, so the scales stay comparable across rows.
+    survival = c("delta_index", "delta_comparator")
   )
 
   effect_names <- intersect(effect_cols, colnames(draws))

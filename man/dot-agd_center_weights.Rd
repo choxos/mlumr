@@ -18,7 +18,8 @@ Numeric vector of length \code{n_agd_rows}.
 }
 \description{
 Returns one weight per aggregate row, taken from the family's comparator
-weight field (\code{n_agd}, \code{agd_weight}, \code{E_agd}). Falls back to equal weights when no usable field is present.
+weight field (\code{n_agd}, \code{agd_weight}, \code{E_agd}), or the pseudo-individual count
+for survival. Falls back to equal weights when no usable field is present.
 Weights must be positive and finite, and must sum over a split subgroup to
 the same total as the unsplit one, which is what makes the center invariant
 to how the aggregate evidence is tabulated.

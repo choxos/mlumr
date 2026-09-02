@@ -366,3 +366,47 @@ test_that("survival data prints as survival data", {
   expect_match(out, "Events = 3 \\(75\\.0%\\), censored = 1")
   expect_false(grepl("exposure", out, ignore.case = TRUE))
 })
+
+test_that(".validate_survival_controls rejects bad grids and spline controls", {
+  vsc <- mlumr:::.validate_survival_controls
+  # valid inputs pass silently
+  expect_true(vsc(c(1, 2, 3), 5, 3L, 7L))
+  expect_true(vsc(NULL, NULL, NULL, 5L))
+  # pred_times must be finite positive
+  expect_error(vsc(c(-1, 2), NULL, NULL, 5L), "pred_times")
+  expect_error(vsc(c(1, Inf), NULL, NULL, 5L), "pred_times")
+  # rmst_horizon must be a single finite positive number
+  expect_error(vsc(NULL, c(1, 2), NULL, 5L), "rmst_horizon")
+  expect_error(vsc(NULL, -3, NULL, 5L), "rmst_horizon")
+  # mspline_degree must be a non-negative integer
+  expect_error(vsc(NULL, NULL, 2.5, 5L), "mspline_degree")
+  # n_knots must be a non-negative integer
+  expect_error(vsc(NULL, NULL, NULL, -1), "n_knots")
+})
+
+test_that("survival-only controls are rejected for the other families", {
+  # These were accepted and silently discarded, so a caller could hand a
+  # binomial fit a prediction grid and get a fit back that never used it.
+  # The rejection happens during argument validation, so no sampling is needed.
+  set.seed(2026)
+  n <- 40
+  ip <- set_ipd(data.frame(trt = "A", x = stats::rnorm(n),
+                           r = stats::rbinom(n, 1, 0.4)),
+                "trt", outcome = "r", covariates = "x", family = "binomial")
+  ag <- set_agd(data.frame(trt = "B", r = 20, n = 50, x_mean = 0.1, x_sd = 1),
+                "trt", family = "binomial", outcome_r = "r", outcome_n = "n",
+                cov_means = "x_mean", cov_sds = "x_sd",
+                cov_types = "continuous")
+  cd <- combine_data(ip, ag)
+  d <- suppressWarnings(add_integration(cd, n_int = 8,
+                                        x = distr(qnorm, mean = x_mean,
+                                                  sd = x_sd),
+                                        verbose = FALSE))
+  base <- list(data = d, chains = 1, iter = 20, warmup = 10, refresh = 0)
+  for (a in list(list(pred_times = c(1, 2)), list(rmst_horizon = 5),
+                 list(n_knots = 4), list(n_rmst_grid = 50),
+                 list(mspline_degree = 3L))) {
+    expect_error(do.call(mlumr, c(base, a)),
+                 "survival baseline hazard", info = names(a))
+  }
+})

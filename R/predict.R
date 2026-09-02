@@ -70,6 +70,17 @@ predict.mlumr_fit <- function(object,
 
   family <- object$family %||% "binomial"
 
+  # Survival predictions are curves over the prediction grid, not the single
+  # `response`/`link` column this path assembles. The generic route would fail
+  # on a missing draw name; say why instead.
+  if (identical(family, "survival")) {
+    stop("Predictions for survival fits (survival, hazard, cumhaz, rmst, ",
+         "median, loghr) arrive with the prediction layer and are not ",
+         "available from this build. The fitted draws hold the curves under ",
+         "`surv_*`, `haz_*`, `cumhaz_*`, `loghr_*` and `rmst_*`.",
+         call. = FALSE)
+  }
+
   cfg <- get_family_config(family)
   prefix <- cfg$predict_prefix
 
@@ -162,6 +173,20 @@ marginal_effects <- function(object,
   .validate_probs(probs)
 
   family <- object$family %||% "binomial"
+
+  # Survival effects need their own dispatch, which arrives with the prediction
+  # layer. Without this guard the generic path below still finds draws for
+  # `hr`: family_config maps it to `delta_*`, which Stan writes on the LOG
+  # scale, so the caller would receive a log hazard ratio labeled `HR`. Failing
+  # here is the difference between a missing feature and a wrong number.
+  if (identical(family, "survival")) {
+    stop("Marginal effects for survival fits arrive with the prediction layer ",
+         "and are not available from this build. The fitted draws hold the ",
+         "quantities themselves: `delta_index` / `delta_comparator` (log ",
+         "hazard ratio or log time ratio), `rmst_diff_*`, and `loghr_*`.",
+         call. = FALSE)
+  }
+
   cfg <- get_family_config(family)
 
   valid_effects <- c("all", cfg$effect_measures)

@@ -11,6 +11,16 @@ mlumr(
   prior_intercept = default_prior_intercept(),
   prior_beta = default_prior_beta(),
   prior_sigma = default_prior_sigma(),
+  distribution = NULL,
+  prior_aux = NULL,
+  prior_smooth = NULL,
+  n_knots = 7L,
+  knots = NULL,
+  mspline_degree = NULL,
+  aux_by = ".study",
+  pred_times = NULL,
+  rmst_horizon = NULL,
+  n_rmst_grid = 100L,
   center = TRUE,
   qr = FALSE,
   chains = 4,
@@ -54,6 +64,147 @@ when predictors are on very different scales.}
 from \code{\link[=default_prior_sigma]{default_prior_sigma()}} (\code{prior_normal(0, 2.5)}, half-normal via
 the Stan \verb{<lower=0>} constraint). \code{\link[=prior_exponential]{prior_exponential()}} is also
 supported for sigma.}
+
+\item{distribution}{For \code{family = "survival"} only: the survival
+distribution. One of the parametric forms \code{"exponential"}, \code{"weibull"}
+(default), \code{"gompertz"} (proportional hazards), \code{"exponential-aft"},
+\code{"weibull-aft"}, \code{"lognormal"}, \code{"loglogistic"}, \code{"gamma"}, \code{"gengamma"}
+(accelerated failure time), or the flexible-baseline forms \code{"mspline"}
+and \code{"pexp"} (piecewise exponential). Must be \code{NULL} for other families.
+Note: \code{"gengamma"} is the generalized gamma restricted to positive Lawless
+shape \code{Q} (\code{Q = 1 / sqrt(aux2) > 0}), which nests the Weibull, gamma, and
+(as the limit) log-normal; it does not represent negative-\code{Q} shapes. Use a
+flexible \code{"mspline"} baseline if the data need a hazard shape outside the
+positive-\code{Q} family. \code{"gengamma"} is also the least numerically robust
+option: its likelihood uses Stan's regularized incomplete gamma function,
+whose gradient can fail to converge (\verb{grad_reg_lower_inc_gamma: n (internal counter) exceeded 100000 iterations}). Isolated messages of that
+kind are rejected proposals and are harmless, but frequent ones, divergent
+transitions, or a chain that fails outright mean the fit should not be
+trusted. Always inspect the MCMC diagnostics reported by \code{summary()} on a
+\code{gengamma} fit, and prefer \code{"weibull"}, \code{"gamma"}, \code{"lognormal"}, or
+\code{"mspline"} when they fit comparably.
+Note: \code{"gompertz"} has a positive shape only (the shape carries a
+\verb{<lower=0>} constraint, so the hazard \code{exp(eta + shape * t)} is
+monotonically increasing). Decreasing-hazard Gompertz (negative shape),
+available in some survival software, is not supported; use \code{"mspline"} /
+\code{"pexp"} for a decreasing or non-monotone baseline hazard.}
+
+\item{prior_aux}{For \code{family = "survival"} parametric distributions: prior
+for the shape/scale parameter(s) (half-normal/half-t/exponential via the
+\verb{<lower=0>} constraint). Default \code{\link[=default_prior_aux]{default_prior_aux()}}.}
+
+\item{prior_smooth}{For \code{family = "survival"} flexible baselines
+(\code{"mspline"}/\code{"pexp"}): prior for the random-walk smoothing SD. Default
+\code{\link[=default_prior_smooth]{default_prior_smooth()}}.}
+
+\item{n_knots}{For \code{family = "survival"} flexible baselines: number of
+internal spline knots (default 7). See \code{\link[=make_knots]{make_knots()}}.}
+
+\item{knots}{Optional custom knots for a flexible survival baseline. With a
+shared baseline (\code{aux_by = "none"}), supply one \code{\link[=make_knots]{make_knots()}} result. With
+study-specific baselines, supply \code{list(index = ..., comparator = ...)},
+where each element has the same structure and coefficient count.}
+
+\item{mspline_degree}{For \code{family = "survival"} flexible baselines: spline
+degree override (default derived from \code{distribution}: 3 for \code{"mspline"},
+0 for \code{"pexp"}).}
+
+\item{aux_by}{For \code{family = "survival"}: how the baseline hazard is shared
+between the two studies, the unanchored analogue of \code{multinma::nma()}'s
+\code{aux_by}. \code{".study"} (the default) gives each study its \strong{own} baseline
+shape, so the M-spline coefficients (or the parametric shape parameters)
+are estimated separately for the index and comparator studies. This matches
+\code{multinma}, where \code{.study} is always part of the stratification, and it is
+the right default: two single-arm trials rarely share a hazard shape, and
+assuming they do imposes proportional hazards \emph{across studies}, which no
+randomization supports.
+
+\code{NULL} is accepted and means the same as \code{".study"}, matching multinma,
+where a \code{NULL} \code{aux_by} is resolved to \code{".study"} and \code{.study} is always
+part of the stratification.
+
+\code{"none"} gives both studies \strong{one} shared shape. multinma has no spelling
+for this because it cannot do it; in an unanchored comparison it is a
+stronger assumption that buys precision, so it is worth fitting as a
+sensitivity analysis when the two Kaplan-Meier curves plainly have the same
+shape, but it should be a deliberate choice rather than a default.
+
+\strong{What stratifying assumes, and what it cannot test.} The parity with
+\code{multinma} is a parity of spelling, not of meaning. In an anchored
+randomized network each study contributes several arms, so a study-specific
+baseline shape is a nuisance parameter and within-study randomization still
+identifies the treatment effect. Here each study contributes exactly \strong{one}
+arm, so a study-specific baseline shape and a treatment-specific baseline
+shape are perfectly aliased: nothing in the data can separate them. Under
+\code{".study"} the fitted shape therefore travels with the treatment when the
+effect is transported, which is an additional structural assumption the
+data cannot check, not merely the unanchored analogue of stratifying by
+study. \code{"none"} makes the opposite assumption, that the shape belongs to
+the disease rather than to the arm, and that one is at least testable
+against the two observed curves. Neither is assumption-free; fit both and
+report the difference.
+
+With the stratified default the marginal hazard ratio varies with time, so
+the scalar \verb{delta_*} reported by \code{\link[=marginal_effects]{marginal_effects()}} is its value at one
+time, not a constant; pass \code{at_time} to choose which. This applies only
+where the shapes genuinely differ: the exponential has no shape, so
+\code{aux_by} leaves its closed-form contrast exact. The collapsible RMST
+difference does not have this problem and is the better headline estimand.
+
+Identification differs by baseline. For \code{"mspline"} / \code{"pexp"} each stratum
+gets \strong{its own knots over its own observed support} (as in multinma's
+default \code{type = "quantile"}), and its coefficients are a simplex, which
+pins that study's cumulative hazard to 1 at a boundary the study actually
+observed. Both parts matter. A single pooled basis spanning the longest
+study would leave the shorter study with basis functions it never observes;
+scaling its observed coefficients by \code{c}, moving the surplus simplex mass
+into an unobserved column, and replacing its intercept by \code{mu - log(c)}
+would then leave the likelihood exactly unchanged, so the intercept would
+be set by the prior rather than by data. Per-study boundaries remove that
+flat direction. For parametric baselines there is no such normalization and
+none is needed, because shape and scale enter the hazard as different
+functions of time; but the comparator shape is then informed only by the
+reconstructed comparator curve, so stratifying spends information that a
+short or heavily censored aggregate curve may not have. The exponential has
+no shape at all, so \code{aux_by} does not change it.
+
+Reach for \code{"none"} only when the two arms' Kaplan-Meier curves plainly have
+the same shape, and report it as a sensitivity analysis rather than as the
+primary result: one shared shape is the stronger assumption and buys
+precision, but nothing in an unanchored design justifies it.
+
+\strong{An assumption worth naming.} When a stratified fit predicts the index
+treatment in the comparator population, it carries the \emph{index study's}
+baseline shape with it, and vice versa. That is coherent only if the
+residual time pattern is a property of the treatment that travels across
+populations. In an anchored \code{multinma} network a study-stratified baseline
+is a study nuisance, not something attached to a treatment; here each study
+contributes exactly one arm, so the data cannot separate a
+treatment-specific hazard shape from a study, design, or calendar-time
+shape. Stratifying is the safer default for the \emph{contrast}, but absolute
+predictions transported across populations rest on this extra assumption.
+Where it is doubtful, prefer the RMST estimands, compare against
+\code{aux_by = "none"}, and say which was used.}
+
+\item{pred_times}{For \code{family = "survival"}: times at which survival,
+hazard and cumulative-hazard predictions are produced. If \code{NULL}, a grid
+up to the maximum observed time is used.}
+
+\item{rmst_horizon}{For \code{family = "survival"}: the upper time limit for the
+restricted mean survival time. If \code{NULL}, the maximum observed time, except
+for a flexible baseline (\code{"mspline"} / \code{"pexp"}) stratified by study, where
+it defaults to the COMMON follow-up
+\verb{min(max(index times), max(comparator times))}. Each study's flexible
+baseline is extrapolated as a constant hazard past its own last observed
+time, so a pooled-maximum default would make the headline RMST extrapolate
+the shorter study by construction. Pass a longer horizon explicitly to
+accept that extrapolation; doing so still warns.}
+
+\item{n_rmst_grid}{For \code{family = "survival"}: number of equally spaced nodes
+(default \code{100}) on \verb{[0, rmst_horizon]} for the trapezoidal RMST integral.
+Increase for sharp early hazards, long horizons, or high-curvature
+flexible-baseline tails where 100 points may be too coarse; refit at a
+higher value and compare RMST to check convergence.}
 
 \item{center}{Logical (default \code{TRUE}). Center the covariates about the
 pooled IPD and population-weighted declared AgD means before fitting.
@@ -102,7 +253,7 @@ An object of class \code{mlumr_fit}
 \description{
 Fit a Bayesian multilevel unanchored meta-regression model using individual
 patient data (IPD) and aggregate data (AgD). Supports binary, continuous,
-and count outcomes.
+count, and time-to-event outcomes.
 }
 \details{
 The model assumes that all AgD rows come from the same comparator treatment
