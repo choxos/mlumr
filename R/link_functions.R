@@ -280,6 +280,12 @@ bound_probability <- function(p, n, min_count = 0.5) {
   if (any(2 * min_count > n)) {
     stop("`min_count` must be no larger than n / 2.", call. = FALSE)
   }
+  # ifelse() sizes its result by the length of the test, so recycle first:
+  # a scalar `p` with a vector `n` would otherwise collapse to one value,
+  # where the previous pmin/pmax form returned one result per `n`.
+  len <- max(length(p), length(n))
+  p <- rep_len(p, len)
+  n <- rep_len(n, len)
   lower <- min_count / (n + 2 * min_count)
   upper <- (n + min_count) / (n + 2 * min_count)
   ifelse(p <= 0, lower, ifelse(p >= 1, upper, p))

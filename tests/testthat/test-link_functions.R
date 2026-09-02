@@ -1,5 +1,16 @@
 # Tests for link function utilities
 
+test_that("bound_probability recycles p and n to a common length", {
+  # ifelse() sizes its result by the test, so a scalar p with a vector n
+  # silently returned one value instead of one per n.
+  expect_equal(bound_probability(0, c(10, 20, 40)), 0.5 / (c(10, 20, 40) + 1))
+  expect_equal(bound_probability(1, c(10, 20)), (c(10, 20) + 0.5) / (c(10, 20) + 1))
+  expect_length(bound_probability(0, c(10, 20, 40)), 3L)
+  expect_length(bound_probability(c(0, 0.5, 1), 40), 3L)
+  expect_length(bound_probability(0, 40), 1L)
+})
+
+
 test_that("check_link returns correct defaults", {
   expect_equal(check_link("binomial")$link, "logit")
   expect_equal(check_link("binomial")$code, 1L)
