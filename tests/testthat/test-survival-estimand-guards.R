@@ -219,17 +219,6 @@ test_that("survival centering weights each AgD row by its own pseudo-IPD count",
   expect_equal(unname(ctr), (100 * 0 + 300 * 0 + 60 * 10) / (100 + 360))
 })
 
-test_that("raw AFT draw columns are not named tr_* when the label is not TR", {
-  # `summary = FALSE` promises self-describing column names, so a stratified
-  # AFT contrast must not arrive as `tr_index`.
-  spec_name <- function(hr_label, pop) {
-    sprintf("%s_%s", switch(hr_label, HR = "hr", TR = "tr",
-                            EXP_DELTA_ETA = "exp_delta_eta"), pop)
-  }
-  expect_equal(spec_name("HR", "index"), "hr_index")
-  expect_equal(spec_name("TR", "index"), "tr_index")
-  expect_equal(spec_name("EXP_DELTA_ETA", "comparator"), "exp_delta_eta_comparator")
-})
 
 # ---- One derivation of the scalar's identity, shared by every surface -------
 #
@@ -246,6 +235,38 @@ fake_surv_fit <- function(distribution, n_strata, model = "spfa") {
          pred_times = seq(2, 20, length.out = 10)),
     class = "mlumr_fit")
 }
+
+test_that("raw AFT draw columns are not named tr_* when the label is not TR", {
+  # `summary = FALSE` promises self-describing column names, so a stratified
+  # AFT contrast must not arrive as `tr_index`. Assert against the package's
+  # own naming, not a copy of its switch: a local reimplementation would keep
+  # passing after the real columns in R/predict.R were renamed.
+  with_draws <- function(...) {
+    f <- fake_surv_fit(...)
+    n <- 20L
+    f$draws <- data.frame(
+      delta_index = stats::rnorm(n), delta_comparator = stats::rnorm(n),
+      rmst_diff_index = stats::rnorm(n), rmst_diff_comparator = stats::rnorm(n)
+    )
+    f
+  }
+  raw <- function(fit, effect) {
+    names(suppressMessages(
+      mlumr:::.marginal_effects_survival(fit, population = "both",
+                                         effect = effect, summary = FALSE,
+                                         probs = c(0.025, 0.5, 0.975))))
+  }
+
+  # Shared-shape PH is a genuine hazard ratio.
+  expect_equal(raw(with_draws("weibull", 1L), "hr"),
+               c("hr_index", "hr_comparator"))
+  # Shared-shape AFT under SPFA is a genuine time ratio.
+  expect_equal(raw(with_draws("lognormal", 1L), "tr"),
+               c("tr_index", "tr_comparator"))
+  # Stratified AFT has no acceleration factor, so the columns must say so.
+  expect_equal(raw(with_draws("lognormal", 2L), "exp_delta_eta"),
+               c("exp_delta_eta_index", "exp_delta_eta_comparator"))
+})
 
 test_that("the scalar label covers all three survival cases", {
   lab <- function(...) mlumr:::.surv_scalar_label(fake_surv_fit(...))
@@ -288,4 +309,33 @@ test_that("at_time rejects non-positive times", {
   # no nearest fitted time for a non-positive request to snap to.
   expect_error(marginal_effects(fit, effect = "hr", at_time = 0), "positive")
   expect_error(marginal_effects(fit, effect = "hr", at_time = -5), "positive")
+})
+
+test_that("at_time is refused where it cannot apply", {
+  # It selects the evaluation time of the scalar marginal hazard ratio, so it
+  # is meaningless for a family with no time axis and for an effect that is an
+  # integral to a horizon. Both used to be ignored silently, and the RMST case
+  # also emitted a "using the nearest fitted time" message, which reads as if
+  # the reported number had been taken at that time.
+  f <- fake_surv_fit("weibull", 2L)
+  f$draws <- data.frame(rmst_diff_index = 1, rmst_diff_comparator = 1)
+  expect_error(marginal_effects(f, effect = "rmstd", at_time = 12),
+               "integral to the RMST horizon")
+
+  b <- structure(list(family = "binomial", model = "spfa",
+                      draws = data.frame(lor_index = 1)),
+                 class = "mlumr_fit")
+  expect_error(marginal_effects(b, at_time = 12), "no time axis")
+})
+
+test_that("draw column names separate times %g would collapse", {
+  # `%g` carries six significant digits, so two distinct fitted times closer
+  # than that produced duplicate column names and the caller could no longer
+  # tell which draw belonged to which time.
+  close_times <- c(1.0000001, 1.0000002)
+  nm <- sprintf("t_%.15g", close_times)
+  expect_equal(length(unique(nm)), 2L)
+  # Ordinary grids keep their short, readable names.
+  expect_equal(sprintf("t_%.15g", c(0.5, 1, 2.5, 10)),
+               c("t_0.5", "t_1", "t_2.5", "t_10"))
 })
