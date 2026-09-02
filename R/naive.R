@@ -73,11 +73,17 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
   # there is one row.
   row_p <- agd$.r / agd$.n
   row_w <- .normalize_weights(agd$.n)
-  var_p_comparator <- sum(row_w^2 * row_p * (1 - row_p) / agd$.n)
-  row_p_effect <- bound_probability(row_p, agd$.n)
-  var_p_comparator_effect <- sum(
-    row_w^2 * row_p_effect * (1 - row_p_effect) / agd$.n
-  )
+  # Evaluate the comparator variance at the POOLED corrected proportion rather
+  # than correcting each row. bound_probability() moves a boundary arm to
+  # min_count / (n + 2 min_count), which depends on that row's n, so the
+  # per-row form made the answer depend on how one aggregate arm was tabulated:
+  # 0/100 corrects to 0.5/101 while 0/50 + 0/50 corrects to 0.5/51 twice, and
+  # the standard error moved by a factor of 1.40 on identical data. The pooled
+  # form depends only on the totals, so it is invariant to that split, and by
+  # concavity it is never anti-conservative relative to the per-row sum. With a
+  # single row, or with equal row proportions, the two coincide exactly.
+  var_p_comparator_effect <-
+    p_comparator_effect * (1 - p_comparator_effect) / n_comparator
   var_link_index <- binomial_link_variance(
     p_index_effect, n_index, link_resolved
   )
@@ -85,7 +91,13 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
     p_comparator_effect, link_resolved
   )^2 * var_p_comparator_effect
   se <- sqrt(var_link_index + var_link_comparator)
-  p_comparator_se <- sqrt(var_p_comparator)
+  # Use the boundary-corrected variance on the absolute scale too. With raw
+  # `row_p`, a zero-event or all-event arm has p(1 - p) = 0 and contributes no
+  # uncertainty at all: 0/100 gave p_comparator_se = 0, a degenerate [0, 0]
+  # interval, and a risk difference whose SE ignored the comparator entirely,
+  # although 0/100 alone is consistent with p up to roughly 0.03. The link-scale
+  # effect and log_rr_se already use the corrected variance; these did not.
+  p_comparator_se <- sqrt(var_p_comparator_effect)
   p_index_ci <- .bounded_wald_interval(p_index, p_index_se, z,
                                        lower = 0, upper = 1)
   p_comparator_ci <- .bounded_wald_interval(p_comparator, p_comparator_se, z,
