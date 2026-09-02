@@ -191,3 +191,70 @@ test_that("survival STC reports each bootstrap quantity's own replicate count", 
   expect_false(grepl("parameter space",
                      paste(utils::capture.output(print(res_w)), collapse = "\n")))
 })
+
+test_that("a log-link normal STC reports the difference it computed", {
+  # .stc_normal() standardizes on the response scale and returns y_hat_A - y_B
+  # for every link. Labelling that a log mean ratio and exponentiating it turned
+  # a difference of 2 into a reported "mean ratio" of 7.39 when the true ratio
+  # was 1.2, so the label must not vary with the link.
+  mk <- function(link) {
+    structure(list(family = "normal", link = link, estimate = 2, se = 0.5,
+                   ci_lower = 1, ci_upper = 3, conf_level = 0.95,
+                   n_index = 10, n_comparator = 10),
+              class = c("mlumr_stc", "list"))
+  }
+  for (lk in c("identity", "log")) {
+    df <- mlumr:::.effect_measures_df(mk(lk))
+    expect_equal(df$Measure, "Mean difference", info = lk)
+    expect_equal(df$Estimate, 2, info = lk)
+    # Nothing exponentiated: exp(2) = 7.389 must not appear anywhere.
+    expect_false(any(abs(unlist(df[, -1]) - exp(2)) < 1e-6, na.rm = TRUE),
+                 info = lk)
+  }
+})
+
+test_that("a boundary comparator arm still carries uncertainty", {
+  # With the raw proportion, p(1 - p) = 0 for a zero-event arm, so the
+  # comparator contributed no variance: p_comparator_se was 0, its interval
+  # collapsed to [0, 0], and the risk-difference SE ignored the comparator
+  # entirely, although 0/100 alone is consistent with p up to about 0.03.
+  set.seed(2026)
+  ip <- set_ipd(data.frame(trt = "A", x = stats::rnorm(100),
+                           r = c(rep(1, 50), rep(0, 50))),
+                "trt", outcome = "r", covariates = "x", family = "binomial")
+  ag <- set_agd(data.frame(trt = "B", r = 0, n = 100, x_mean = 0, x_sd = 1),
+                "trt", family = "binomial", outcome_r = "r", outcome_n = "n",
+                cov_means = "x_mean", cov_sds = "x_sd",
+                cov_types = "continuous")
+  res <- suppressWarnings(suppressMessages(naive(combine_data(ip, ag))))
+
+  expect_gt(res$p_comparator_se, 0)
+  expect_gt(res$p_comparator_upper, res$p_comparator_lower)
+  # The risk-difference SE must exceed the index-only SE, i.e. the comparator
+  # actually contributes.
+  expect_gt(res$rd_se, res$p_index_se)
+})
+
+test_that("the naive effect SE does not depend on how AgD rows are tabulated", {
+  # bound_probability() shifts a boundary arm by min_count / (n + 2 min_count),
+  # which depends on that row's n. Applied per row, splitting one aggregate arm
+  # into two identical halves moved the standard error by a factor of 1.40 on
+  # the same data while leaving the estimate unchanged.
+  set.seed(2026)
+  mk <- function(agd) {
+    ip <- set_ipd(data.frame(trt = "A", x = stats::rnorm(100),
+                             r = c(rep(1, 50), rep(0, 50))),
+                  "trt", outcome = "r", covariates = "x", family = "binomial")
+    ag <- set_agd(agd, "trt", family = "binomial", outcome_r = "r",
+                  outcome_n = "n", cov_means = "x_mean", cov_sds = "x_sd",
+                  cov_types = "continuous")
+    suppressWarnings(suppressMessages(naive(combine_data(ip, ag))))
+  }
+  one <- mk(data.frame(trt = "B", r = 0, n = 100, x_mean = 0, x_sd = 1))
+  two <- mk(data.frame(trt = "B", r = c(0, 0), n = c(50, 50),
+                       x_mean = c(0, 0), x_sd = c(1, 1)))
+
+  expect_equal(one$estimate, two$estimate)
+  expect_equal(one$se, two$se)
+  expect_equal(one$rd_se, two$rd_se)
+})
