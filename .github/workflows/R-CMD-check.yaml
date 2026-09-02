@@ -14,6 +14,91 @@ permissions:
   contents: read
 
 jobs:
+  stan-export-parity:
+    name: Stan export parity
+    runs-on: ubuntu-latest
+    # Blocking gate: the committed src/stanExports_* must not lag inst/stan.
+    # `configure` regenerates them at install time, so drift does not reach end
+    # users, but a stale snapshot means the tracked C++ and every local rstan
+    # build are behind the Stan source. Regenerate with
+    # rstantools::rstan_config() on the release toolchain and rebuild before
+    # tagging.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: 'release'
+          use-public-rspm: true
+      # Fail the release if the committed src/stanExports_* lag inst/stan (a data
+      # field present in a .stan model but absent from its export snapshot).
+      # Regenerate with rstantools::rstan_config() and rebuild before tagging.
+      #
+      # The check is inlined rather than sourced from tools/, which is a local
+      # development directory and is not part of the repository.
+      - name: Check Stan export/source parity
+        shell: Rscript {0}
+        run: |
+          stan_dir <- file.path("inst", "stan")
+          src_dir <- "src"
+          models <- sub("\\.stan$", "", basename(Sys.glob(file.path(stan_dir, "*.stan"))))
+          if (!length(models)) stop("No Stan sources found under inst/stan.")
+
+          # Variable names declared in a model's own top-level data{} block.
+          # Fields arriving via #include live in shared includes and are covered
+          # implicitly by the models that declare their own fields.
+          data_block_fields <- function(stan_file) {
+            lines <- sub("//.*$", "", readLines(stan_file, warn = FALSE))
+            in_data <- FALSE
+            depth <- 0L
+            fields <- character(0)
+            braces <- function(ln, ch) lengths(regmatches(ln, gregexpr(ch, ln)))
+            for (ln in lines) {
+              if (!in_data) {
+                if (grepl("(^|\\s)data\\s*\\{", ln)) {
+                  in_data <- TRUE
+                  depth <- braces(ln, "\\{") - braces(ln, "\\}")
+                }
+                next
+              }
+              depth <- depth + braces(ln, "\\{") - braces(ln, "\\}")
+              if (depth <= 0L) { in_data <- FALSE; next }
+              if (grepl("#include", ln)) next
+              # A declaration ends in `;`; the variable name is the identifier
+              # immediately before it.
+              m <- regmatches(ln, regexpr("([A-Za-z_][A-Za-z0-9_]*)\\s*;\\s*$", ln))
+              if (length(m)) fields <- c(fields, sub("\\s*;\\s*$", "", m))
+            }
+            unique(fields)
+          }
+
+          drift <- list()
+          missing_export <- character(0)
+          for (m in models) {
+            h_file <- file.path(src_dir, paste0("stanExports_", m, ".h"))
+            if (!file.exists(h_file)) { missing_export <- c(missing_export, m); next }
+            fields <- data_block_fields(file.path(stan_dir, paste0(m, ".stan")))
+            hdr <- paste(readLines(h_file, warn = FALSE), collapse = "\n")
+            absent <- fields[!vapply(fields,
+              function(f) grepl(paste0("\"", f, "\""), hdr), logical(1))]
+            if (length(absent)) drift[[m]] <- absent
+          }
+
+          if (!length(drift) && !length(missing_export)) {
+            cat("Stan export parity OK: every data field is present in its export.\n")
+            quit(status = 0L)
+          }
+          if (length(missing_export)) {
+            cat("Missing export header(s) for: ",
+                paste(missing_export, collapse = ", "), "\n", sep = "")
+          }
+          for (m in names(drift)) {
+            cat(sprintf("DRIFT %s: data field(s) absent from src/stanExports_%s.h -> %s\n",
+                        m, m, paste(drift[[m]], collapse = ", ")))
+          }
+          cat("\nRegenerate with rstantools::rstan_config() on the Stan toolchain, ",
+              "then rebuild, before tagging.\n", sep = "")
+          quit(status = 1L)
+
   R-CMD-check:
     name: ${{ matrix.config.os }} (R ${{ matrix.config.r }})
     runs-on: ${{ matrix.config.os }}
