@@ -18,18 +18,21 @@
   rounded to 0 or 1 before the contrast is taken: `lor_*` is finite in cases
   where `safe_logit()` previously returned its clip boundary. What remains is
   that a ratio whose true value overflows double precision is now `Inf` rather
-  than a large finite surrogate, which needs a draw with an effectively infinite
-  linear predictor. Read the log-scale generated quantities when that happens.
+  than a large finite surrogate. That needs only a finite log contrast above
+  `log(.Machine$double.xmax)`, about 709.78, not an infinite linear predictor.
+  Read the log-scale generated quantities when it happens.
   See `?mlumr-numerical-evaluation`.
 
 * **`predict(type = "link")` reports the marginal link, not the mean linear
   predictor.** It previously returned `E[eta]`, the average conditional linear
   predictor. It now returns `g(E[g^-1(eta)])`: the fitted link applied to the
-  population-standardized response mean. This is the quantity
-  `marginal_effects()` contrasts, so differencing two `type = "link"` predictions
-  now reproduces the reported marginal effect, which it did not before. The two
-  definitions agree for the identity link and differ for logit, probit, cloglog,
-  and log. This is a deliberate divergence from `multinma`, which keeps the two
+  population-standardized response mean. Differencing two `type = "link"`
+  predictions therefore gives a contrast on the fitted link scale, which
+  reproduces a reported effect where the two scales coincide (a logit binomial
+  fit's `lor_*`) and needs a transformation elsewhere, since
+  `marginal_effects()` reports on the scale conventional for the family. The two
+  definitions of `type = "link"` agree for the identity link and differ for
+  logit, probit, cloglog, and log. This is a deliberate divergence from `multinma`, which keeps the two
   apart: its `predict(type = "link")` returns `E[eta]`, and the marginal
   link-scale contrast lives in `marginal_effects(mtype = "link")`. mlumr has no
   conditional population estimand to pair `E[eta]` with, since every effect it

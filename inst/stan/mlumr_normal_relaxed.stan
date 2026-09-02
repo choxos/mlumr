@@ -3,6 +3,7 @@
 
 functions {
 #include include/priors_functions.stan
+#include include/numerical_functions.stan
 }
 
 data {
@@ -76,7 +77,7 @@ model {
       real theta_agd_bar = mean(theta_agd_int);
       y_agd[k] ~ normal(theta_agd_bar, se_agd[k]);
     } else {
-      real mu_agd_bar = mean(exp(theta_agd_int));
+      real mu_agd_bar = exp(log_mean_exp_vec(theta_agd_int));
       y_agd[k] ~ normal(mu_agd_bar, se_agd[k]);
     }
   }
@@ -92,6 +93,10 @@ generated quantities {
   real y_comparator_index;
   real y_index_comparator;
   real y_comparator_comparator;
+  real link_y_index_index;
+  real link_y_comparator_index;
+  real link_y_index_comparator;
+  real link_y_comparator_comparator;
 
   // Effect modification parameters (difference in regression coefficients)
   vector[n_cov] delta_beta;
@@ -109,40 +114,60 @@ generated quantities {
     if (link == 1) {
       y_index_index = mean(y_index_vec);
       y_comparator_index = mean(y_comparator_vec);
+      link_y_index_index = y_index_index;
+      link_y_comparator_index = y_comparator_index;
+      delta_index = y_index_index - y_comparator_index;
     } else {
-      y_index_index = mean(exp(y_index_vec));
-      y_comparator_index = mean(exp(y_comparator_vec));
+      real log_y_index = log_mean_exp_vec(y_index_vec);
+      real log_y_comparator = log_mean_exp_vec(y_comparator_vec);
+      y_index_index = exp(log_y_index);
+      y_comparator_index = exp(log_y_comparator);
+      link_y_index_index = log_y_index;
+      link_y_comparator_index = log_y_comparator;
+      delta_index = exp_difference(log_y_index, log_y_comparator);
     }
   }
 
-  // Marginal predictions in comparator population - equal weights
+  // Marginal predictions in comparator population, equal weights.
   // Equal weighting avoids double-counting with the likelihood (which already
   // upweights lower-SE studies through the normal density). For single-row
   // AgD (the most common case), weighting is irrelevant.
   {
-    real y_index_comparator_sum = 0;
-    real y_comparator_comparator_sum = 0;
+    vector[n_agd_rows] row_index;
+    vector[n_agd_rows] row_comparator;
+    vector[n_agd_rows] weights;
 
     for (k in 1:n_agd_rows) {
       vector[n_int] y_idx_k = mu_index + X_int[k] * beta_index;
       vector[n_int] y_cmp_k = mu_comparator + X_int[k] * beta_comparator;
+      weights[k] = 1;
 
       if (link == 1) {
-        y_index_comparator_sum += mean(y_idx_k);
-        y_comparator_comparator_sum += mean(y_cmp_k);
+        row_index[k] = mean(y_idx_k);
+        row_comparator[k] = mean(y_cmp_k);
       } else {
-        y_index_comparator_sum += mean(exp(y_idx_k));
-        y_comparator_comparator_sum += mean(exp(y_cmp_k));
+        row_index[k] = log_mean_exp_vec(y_idx_k);
+        row_comparator[k] = log_mean_exp_vec(y_cmp_k);
       }
     }
 
-    y_index_comparator = y_index_comparator_sum / n_agd_rows;
-    y_comparator_comparator = y_comparator_comparator_sum / n_agd_rows;
+    if (link == 1) {
+      y_index_comparator = dot_product(weights, row_index) / sum(weights);
+      y_comparator_comparator = dot_product(weights, row_comparator) /
+                                sum(weights);
+      link_y_index_comparator = y_index_comparator;
+      link_y_comparator_comparator = y_comparator_comparator;
+      delta_comparator = y_index_comparator - y_comparator_comparator;
+    } else {
+      real log_y_index = log_weighted_mean_exp_vec(row_index, weights);
+      real log_y_comparator = log_weighted_mean_exp_vec(row_comparator, weights);
+      y_index_comparator = exp(log_y_index);
+      y_comparator_comparator = exp(log_y_comparator);
+      link_y_index_comparator = log_y_index;
+      link_y_comparator_comparator = log_y_comparator;
+      delta_comparator = exp_difference(log_y_index, log_y_comparator);
+    }
   }
-
-  // Calculate marginal effects (mean differences for continuous outcomes)
-  delta_index = y_index_index - y_comparator_index;
-  delta_comparator = y_index_comparator - y_comparator_comparator;
 
   // Calculate effect modification
   delta_beta = beta_index - beta_comparator;
@@ -163,7 +188,7 @@ generated quantities {
       real theta_agd_bar = mean(theta_agd_int);
       log_lik_agd[k] = normal_lpdf(y_agd[k] | theta_agd_bar, se_agd[k]);
     } else {
-      real mu_agd_bar = mean(exp(theta_agd_int));
+      real mu_agd_bar = exp(log_mean_exp_vec(theta_agd_int));
       log_lik_agd[k] = normal_lpdf(y_agd[k] | mu_agd_bar, se_agd[k]);
     }
   }

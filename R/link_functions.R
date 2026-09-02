@@ -169,6 +169,11 @@ inverse_link <- function(x, link = c("identity", "log", "logit", "probit", "clog
   # is finite.
   small <- !is.na(log_event) & log_event < -18
   out[small] <- log_event[small]
+  # The opposite tail cannot be recovered here. log(1 - p) is -exp(eta) for this
+  # link, which overflows to -Inf above eta = 709.78, and -exp(710) has no
+  # double-precision representation to carry. `out` is then Inf: the correct
+  # transform of an input that has already lost the value. Recovering the finite
+  # link would mean the models emitting it as its own generated quantity.
   out
 }
 
@@ -193,6 +198,11 @@ inverse_link <- function(x, link = c("identity", "log", "logit", "probit", "clog
         any(weights < 0) || !any(weights > 0)) {
     stop("`weights` must be finite, non-negative, and match `x`.", call. = FALSE)
   }
+  # A zero weight contributes nothing, but log(0) is -Inf and x + -Inf is NaN
+  # for an infinite x, which would poison the maximum. Drop them first.
+  keep <- weights > 0
+  x <- x[keep]
+  weights <- weights[keep]
   log_weights <- log(weights)
   z <- x + log_weights
   m_num <- max(z)
@@ -280,6 +290,12 @@ bound_probability <- function(p, n, min_count = 0.5) {
   if (any(2 * min_count > n)) {
     stop("`min_count` must be no larger than n / 2.", call. = FALSE)
   }
+  # A probability outside [0, 1] is an upstream construction error, not a
+  # boundary arm. Correcting it would return a plausible-looking number and
+  # hide the bug that produced it.
+  if (any(!is.na(p) & (p < 0 | p > 1))) {
+    stop("`p` must lie in [0, 1].", call. = FALSE)
+  }
   # ifelse() sizes its result by the length of the test, so recycle first:
   # a scalar `p` with a vector `n` would otherwise collapse to one value,
   # where the previous pmin/pmax form returned one result per `n`.
@@ -288,7 +304,7 @@ bound_probability <- function(p, n, min_count = 0.5) {
   n <- rep_len(n, len)
   lower <- min_count / (n + 2 * min_count)
   upper <- (n + min_count) / (n + 2 * min_count)
-  ifelse(p <= 0, lower, ifelse(p >= 1, upper, p))
+  ifelse(p == 0, lower, ifelse(p == 1, upper, p))
 }
 
 #' Derivative of a binomial link with respect to probability

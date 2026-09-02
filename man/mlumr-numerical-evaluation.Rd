@@ -19,8 +19,8 @@ probabilities are then formed with \code{log_sum_exp}, so an extreme but
 finite linear predictor is not first rounded to probability 0 or 1.}
 \item{Log-link outcomes}{Marginal normal means and Poisson rates use
 log-mean-exp calculations. Population weights are normalized on the log
-scale, so multiplying every weight by the same finite constant does not
-change the result.}
+scale, so multiplying every weight by the same positive finite constant
+does not change the result.}
 \item{Natural-scale contrasts}{Differences of positive means are evaluated
 from their logarithms before conversion to the natural scale. Ratios are
 evaluated through log contrasts. A mathematically overflowing ratio may

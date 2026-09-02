@@ -65,13 +65,10 @@ test_that("log-scale mean and contrast helpers preserve finite results", {
 test_that("family Stan models aggregate on the log scale", {
   stan_dir <- system.file("stan", package = "mlumr")
   skip_if(stan_dir == "", "installed Stan sources not found")
-  # Binary and Poisson only. The normal models still average on the natural
-  # scale; they move across when their comparator weighting changes, and this
-  # list widens to all six then.
   models <- file.path(
     stan_dir,
-    paste0("mlumr_", rep(c("binary", "poisson"), each = 2),
-           "_", rep(c("spfa", "relaxed"), 2), ".stan")
+    paste0("mlumr_", rep(c("binary", "normal", "poisson"), each = 2),
+           "_", rep(c("spfa", "relaxed"), 3), ".stan")
   )
   code <- lapply(models, readLines, warn = FALSE)
 

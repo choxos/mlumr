@@ -26,9 +26,16 @@
 #' Stan `generated quantities` block computes.
 #'
 #' `type = "link"` reports `g(E[g^{-1}(eta)])`: the fitted link applied to
-#' that same standardized response mean. This is the quantity
-#' [marginal_effects()] contrasts, so differencing two `type = "link"`
-#' predictions reproduces the reported marginal effect. It is computed from
+#' that same standardized response mean. Differencing two `type = "link"`
+#' predictions therefore gives a contrast on the fitted link scale. That
+#' equals a reported effect only where the two scales coincide: a logit
+#' binomial fit's `lor_*`. Elsewhere a transformation is needed, because
+#' [marginal_effects()] reports on the scale conventional for the family
+#' rather than on the fitted link. Poisson fits report the natural-scale rate
+#' ratio, so the link difference is its logarithm; normal log-link fits report
+#' a natural-scale mean difference; and probit and cloglog fits report
+#' `lor_*`, `rd_*` and `rr_*`, none of which is a fitted-link contrast. It is
+#' computed from
 #' the log-scale generated quantities, so it stays finite where the
 #' natural-scale mean would round to 0 or 1. The identity link makes the two
 #' definitions agree; logit, probit, cloglog and log separate them.

@@ -1,0 +1,6 @@
+mlumr 0.2.0: Bayesian multilevel unanchored meta-regression. GitHub: https://github.com/choxos/mlumr
+autoscale_mean=1 autoscale_sd=2
+declared_center=6.666667
+pearson_guard=`cor_adjust = "pearson"` cannot be used with non-Gaussian continuous margins: a covariate-scale Pearson correlation is not the Gaussian-copula correlation for x1. Use `cor_adjust = "spearman"`, or supply Gaussian margins.
+custom_knots_n_scoef=7
+manual_scenarios=PASS
