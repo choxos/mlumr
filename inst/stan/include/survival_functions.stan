@@ -290,6 +290,10 @@ real log_cumhaz_scalar(int dist, real t, real eta, real aux) {
   if (dist == 4) return log(t) - eta;
   if (dist == 5) return aux * (log(t) - eta);
   reject("log_cumhaz_scalar() has no closed form for dist = ", dist);
+  // Unreachable: reject() throws. Present because a non-void Stan function
+  // must end in a return to satisfy the compiler's return guarantee, which
+  // older stanc versions do not infer from a trailing reject().
+  return not_a_number();
 }
 
 // log(exp(z) - 1) where the argument arrives as log(z), which is how the
