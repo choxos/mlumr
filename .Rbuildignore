@@ -5,8 +5,7 @@
 ^_pkgdown\.yml$
 ^docs$
 ^pkgdown$
-^\.claude$
-^CLAUDE\.md$
+^\.[^/]+$
 ^README\.md$
 ^CODE_OF_CONDUCT\.md$
 ^CONTRIBUTING\.md$
@@ -14,7 +13,6 @@
 ^codecov\.yml$
 ^\.lintr$
 ^cran-comments\.md$
-^audit$
 ^documentation$
 ^inst/future$
 ^LICENSE\.md$
