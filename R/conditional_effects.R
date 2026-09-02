@@ -550,7 +550,7 @@ conditional_predict <- function(object,
     for (cell in cells) {
       if (!summary) {
         df <- as.data.frame(cell$mat)
-        colnames(df) <- sprintf("t_%g", pred_times)
+        colnames(df) <- sprintf("t_%.15g", pred_times)
         df$profile <- i
         df$treatment <- cell$trt
         rows[[length(rows) + 1L]] <- df
@@ -613,9 +613,14 @@ conditional_predict <- function(object,
     dist <- object$surv_info$dist_code
     aux  <- .surv_aux_draws(object, "aux_val", treatment, length(eta))
     aux2 <- .surv_aux_draws(object, "aux2_val", treatment, length(eta))
-    vapply(pred_times,
-           function(t) exp(.r_log_surv(dist, t, eta, aux, aux2)),
-           numeric(length(eta)))
+    # vapply keeps the dimensions when there are several draws, but collapses
+    # to a bare vector when the posterior holds exactly one, and the caller
+    # then applies over a non-existent second margin. Shape it explicitly, as
+    # .surv_s_at_times() already does on the same quantity.
+    matrix(vapply(pred_times,
+                  function(t) exp(.r_log_surv(dist, t, eta, aux, aux2)),
+                  numeric(length(eta))),
+           nrow = length(eta), ncol = length(pred_times))
   } else {
     scoef <- .surv_scoef_draws(object, treatment)
     # Each study has its own basis under `aux_by = ".study"`; the comparator arm
