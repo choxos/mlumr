@@ -1,6 +1,6 @@
 Package: mlumr
 Title: Multilevel Unanchored Meta-Regression for Indirect Treatment Comparisons
-Version: 0.1.0
+Version: 0.1.0.9000
 Authors@R: c(
     person("Ahmad", "Sofi-Mahmudi", , "a.sofimahmudi@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-6829-0823")),

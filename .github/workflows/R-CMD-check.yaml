@@ -1,16 +1,114 @@
 name: R-CMD-check
 
 on:
+  # push only on the long-lived branches; pull_request covers everything else.
+  # Listing release/** in both made every push to a branch with an open PR run
+  # the whole matrix twice on the same commit.
   push:
     branches: [main, master]
   pull_request:
-    branches: [main, master]
+    branches: [main, master, 'release/**']
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  stan-export-parity:
+    name: Stan export parity
+    runs-on: ubuntu-latest
+    # Hygiene gate, not a correctness gate. `configure` runs
+    # rstantools::rstan_config() at install time, so every build (CRAN, CI and
+    # local alike) regenerates src/stanExports_* from inst/stan before
+    # compiling: a stale tracked snapshot cannot make any build execute an old
+    # model. What it does is misrepresent the package to anyone reading the
+    # tracked C++, and leave unrelated churn in the next diff that touches it.
+    #
+    # Scope: this compares the data-field NAMES a model declares against its
+    # export header, so it catches the drift that changes the R-to-Stan
+    # interface. It does not see edits to likelihoods, priors, generated
+    # quantities, constraints, or shared #include files, which leave the field
+    # names unchanged. Regenerating and diffing would catch those but is not
+    # usable as a gate here: the generated C++ varies with the stanc version, so
+    # a runner on a different toolchain than the release machine produces a
+    # diff that is version noise rather than drift.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: 'release'
+          use-public-rspm: true
+      # Fail when a data field present in a .stan model is absent from its
+      # export snapshot. Regenerate with rstantools::rstan_config() and rebuild.
+      #
+      # The check is inlined rather than sourced from tools/, which is a local
+      # development directory and is not part of the repository.
+      - name: Check Stan export/source parity
+        shell: Rscript {0}
+        run: |
+          stan_dir <- file.path("inst", "stan")
+          src_dir <- "src"
+          models <- sub("\\.stan$", "", basename(Sys.glob(file.path(stan_dir, "*.stan"))))
+          if (!length(models)) stop("No Stan sources found under inst/stan.")
+
+          # Variable names declared in a model's own top-level data{} block.
+          # Fields arriving via #include live in shared includes and are covered
+          # implicitly by the models that declare their own fields.
+          data_block_fields <- function(stan_file) {
+            lines <- sub("//.*$", "", readLines(stan_file, warn = FALSE))
+            in_data <- FALSE
+            depth <- 0L
+            fields <- character(0)
+            braces <- function(ln, ch) lengths(regmatches(ln, gregexpr(ch, ln)))
+            for (ln in lines) {
+              if (!in_data) {
+                if (grepl("^\\s*data\\s*\\{", ln)) {
+                  in_data <- TRUE
+                  depth <- braces(ln, "\\{") - braces(ln, "\\}")
+                }
+                next
+              }
+              depth <- depth + braces(ln, "\\{") - braces(ln, "\\}")
+              if (depth <= 0L) { in_data <- FALSE; next }
+              if (grepl("#include", ln)) next
+              # A declaration ends in `;`; the variable name is the identifier
+              # immediately before it.
+              m <- regmatches(ln, regexpr("([A-Za-z_][A-Za-z0-9_]*)\\s*;\\s*$", ln))
+              if (length(m)) fields <- c(fields, sub("\\s*;\\s*$", "", m))
+            }
+            unique(fields)
+          }
+
+          drift <- list()
+          missing_export <- character(0)
+          for (m in models) {
+            h_file <- file.path(src_dir, paste0("stanExports_", m, ".h"))
+            if (!file.exists(h_file)) { missing_export <- c(missing_export, m); next }
+            fields <- data_block_fields(file.path(stan_dir, paste0(m, ".stan")))
+            hdr <- paste(readLines(h_file, warn = FALSE), collapse = "\n")
+            absent <- fields[!vapply(fields,
+              function(f) grepl(paste0("\"", f, "\""), hdr), logical(1))]
+            if (length(absent)) drift[[m]] <- absent
+          }
+
+          if (!length(drift) && !length(missing_export)) {
+            cat("Stan export parity OK: every data field is present in its export.\n")
+            quit(status = 0L)
+          }
+          if (length(missing_export)) {
+            cat("Missing export header(s) for: ",
+                paste(missing_export, collapse = ", "), "\n", sep = "")
+          }
+          for (m in names(drift)) {
+            cat(sprintf("DRIFT %s: data field(s) absent from src/stanExports_%s.h -> %s\n",
+                        m, m, paste(drift[[m]], collapse = ", ")))
+          }
+          cat("\nRegenerate with rstantools::rstan_config() on the Stan toolchain, ",
+              "then rebuild, before tagging.\n", sep = "")
+          quit(status = 1L)
+
   R-CMD-check:
     name: ${{ matrix.config.os }} (R ${{ matrix.config.r }})
     runs-on: ${{ matrix.config.os }}
@@ -22,13 +120,26 @@ jobs:
           - {os: ubuntu-latest, r: 'release'}
           - {os: macos-latest, r: 'release'}
           - {os: windows-latest, r: 'release'}
+          - {os: ubuntu-latest, r: 'devel', http-user-agent: 'release'}
+          - {os: ubuntu-latest, r: 'oldrel-1'}
 
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
+      # r-lib/actions/setup-r exports NOT_CRAN=true unless it is already set, so
+      # without this line every skip_on_cran() test would RUN here and this
+      # matrix would stop emulating CRAN: the platform checks would take the
+      # Stan-fitting path that CRAN never takes, and a platform-specific
+      # sampling failure would be reported as a check failure CRAN cannot
+      # reproduce. Setting it false makes these five jobs match what the CRAN
+      # machines actually execute. The Stan tests are run deliberately, once,
+      # by the full-test-suite job below.
+      NOT_CRAN: "false"
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: r-lib/actions/setup-pandoc@v2
 
@@ -42,9 +153,86 @@ jobs:
           extra-packages: |
             any::rcmdcheck
             stan-dev/cmdstanr
-          extra-repositories: https://stan-dev.r-universe.dev
           needs: check
 
       - uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true
+          args: 'c("--no-manual", "--as-cran")'
+          error-on: '"warning"'
+
+  full-test-suite:
+    name: Full test suite (Stan tests enabled)
+    runs-on: ubuntu-latest
+    # The matrix above pins NOT_CRAN=false so it reproduces CRAN, which means
+    # every skip_on_cran() test is skipped there. That is right for the platform
+    # checks (the Stan fits would blow the CRAN time limit) but it leaves every
+    # test that actually samples unexecuted. This job is the one place they run.
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      NOT_CRAN: true
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: 'release'
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: |
+            any::testthat
+            any::pkgload
+            stan-dev/cmdstanr
+          needs: check
+
+      - name: Install CmdStan
+        run: cmdstanr::install_cmdstan(cores = 2)
+        shell: Rscript {0}
+
+      - name: Run the full test suite
+        run: |
+          pkgload::load_all(".")
+          options(mlumr.stan_engine = "cmdstanr")
+          res <- testthat::test_dir("tests/testthat", package = "mlumr",
+                                    reporter = "summary", stop_on_failure = FALSE)
+          df <- as.data.frame(res)
+          cat("pass", sum(df$passed), "fail", sum(df$failed),
+              "skip", sum(df$skipped), "\n")
+          # A test that ABORTS is recorded in `error`, not in `failed`, so a
+          # gate that reads only `failed` can pass a run in which a whole file
+          # died. testthat's own success helper requires both to be clear.
+          if (sum(df$failed) > 0 || any(df$error)) {
+            stop(sprintf(
+              "Full test suite failed: %d failed expectation(s), %d test error(s).",
+              sum(df$failed), sum(df$error)))
+          }
+          if (any(df$warning)) {
+            cat("Test warnings were generated; inspect them before release.\n")
+          }
+
+          # The point of this job is that NOT_CRAN=true actually runs the Stan
+          # tests, so a skip whose reason is CRAN means the coverage silently
+          # went away and must fail the job. skip_on_ci() is a separate,
+          # deliberate decoration for the handful of tests that really are too
+          # slow for a runner; list those but do not fail on them.
+          reasons <- unlist(lapply(res, function(f) {
+            vapply(f$results, function(r) {
+              if (inherits(r, "expectation_skip")) conditionMessage(r) else NA_character_
+            }, character(1))
+          }))
+          reasons <- reasons[!is.na(reasons)]
+          if (length(reasons)) {
+            cat("Skipped:\n"); cat(paste0("  ", reasons, collapse = "\n"), "\n")
+          }
+          cran_skips <- grep("On CRAN", reasons, value = TRUE)
+          if (length(cran_skips)) {
+            stop(sprintf(
+              "%d test(s) skipped with reason 'On CRAN' despite NOT_CRAN=true; the Stan suite did not run.",
+              length(cran_skips)))
+          }
+        shell: Rscript {0}

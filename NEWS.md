@@ -1,3 +1,10 @@
+# mlumr 0.1.0.9000 (development version)
+
+## Package logo
+
+* **New hex-sticker logo** using a broken-anchor motif, for the unanchored
+  comparison. Built with `hexSticker` and the Ubuntu font.
+
 # mlumr 0.1.0
 
 Initial CRAN release.
@@ -89,7 +96,7 @@ Initial CRAN release.
   human-readable introspection of every prior used in a fit, including
   post-autoscale per-coefficient scales.
 * `prior_sensitivity()` refits a model across a grid of `prior_beta`
-  scales and returns a posterior-summary table — the workflow recommended
+  scales and returns a posterior-summary table; the workflow recommended
   by Vehtari et al.'s prior-choice wiki for judging data- vs prior-driven
   inference.
 
@@ -114,7 +121,7 @@ Initial CRAN release.
 * `compare_models()` accepts `criterion = c("dic", "loo", "waic")`,
   defaulting to `"dic"`.
 * All six Stan models produce pointwise log-likelihood vectors
-  (`log_lik_ipd`, `log_lik_agd`) — the standard contract for
+  (`log_lik_ipd`, `log_lik_agd`); the standard contract for
   `loo::loo()` / `loo::waic()`.
 
 ## Sampling
