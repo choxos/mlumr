@@ -146,6 +146,40 @@
   reports both populations without that assumption, when the index population is
   the decision target.
 
+## Covariate distributions
+
+* **New moment-parameterized marginal distributions**, mirroring the ones
+  `multinma` exports so a published baseline table can be used as printed:
+  `qgamma()` / `pgamma()` / `dgamma()` and `qlogitnorm()` / `plogitnorm()` /
+  `dlogitnorm()`. All accept a `mean` and `sd` that override the native
+  parameters (`shape`/`rate` for the gamma, `mu`/`sigma` on the logit scale for
+  the logit-normal), so `distr(qgamma, mean = age_mean, sd = age_sd)` works
+  directly in `add_integration()` instead of requiring a hand conversion to
+  shape and rate. Without `mean` and `sd` they forward to \pkg{stats}
+  unchanged, so they are drop-in safe. The logit-normal is the natural marginal
+  for a covariate reported as a proportion, such as percent body surface area.
+
+  Both parameterizations validate what they are given. `mean` and `sd` must be
+  supplied together (half a moment specification is an error, not a silent
+  fallback to the native defaults). A gamma needs both strictly positive and
+  finite: a negative SD is not a typo the conversion can absorb, since both
+  `shape` and `rate` square it and `sd = -2` would otherwise return exactly the
+  `sd = 2` distribution. A logit-normal mean must lie strictly inside `(0, 1)`
+  and its SD must satisfy `sd^2 < mean * (1 - mean)`, the bound any variable on
+  `(0, 1)` obeys. Supplying a conflicting `rate` and `scale` is refused rather
+  than resolved in favor of one of them.
+
+  The logit-normal moment reparameterization has no closed form and is solved
+  numerically. The moments are integrated over the latent normal variable
+  rather than over `x` on `(0, 1)`, where a concentrated margin is a narrow
+  spike that adaptive quadrature steps over; the search runs on `log(sigma)` so
+  the scale cannot go negative, starts from the delta-method approximation on
+  the logit scale, and repeats until a restart stops improving, because
+  Nelder-Mead reports convergence when its simplex collapses rather than when
+  it has arrived. The recovered moments are then checked against the target,
+  relative to the target rather than absolutely, instead of the optimizer's
+  convergence flag being trusted on its own.
+
 ## Example data
 
 * **The worked examples are built on datasets derived from published trials**,

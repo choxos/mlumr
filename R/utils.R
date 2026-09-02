@@ -245,8 +245,14 @@ get_distribution_type <- function(..., data = list()) {
   out <- vector("character", length = length(ds))
   names(out) <- dnames
 
+  # qlogitnorm belongs here for the same reason as the rest, and its absence
+  # was not harmless: the fallback below classifies by evaluating the quantile
+  # function on 99 points, and a concentrated logit-normal returns values that
+  # are all 1 to machine precision, so it was labeled binary and given the
+  # binary copula correlation adjustment.
   known_continuous <- c("qbeta", "qcauchy", "qchisq", "qexp", "qf", "qgamma",
-                        "qlnorm", "qnorm", "qt", "qunif", "qweibull")
+                        "qlnorm", "qlogitnorm", "qnorm", "qt", "qunif",
+                        "qweibull")
   known_discrete <- c("qgeom", "qnbinom", "qpois")
   known_binary <- "qbern"
 
