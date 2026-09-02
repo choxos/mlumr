@@ -8,12 +8,16 @@
 ^\.claude$
 ^CLAUDE\.md$
 ^README\.md$
+^CODE_OF_CONDUCT\.md$
+^CONTRIBUTING\.md$
+^SECURITY\.md$
 ^codecov\.yml$
 ^\.lintr$
 ^cran-comments\.md$
 ^audit$
 ^documentation$
 ^inst/future$
+^LICENSE\.md$
 ^inst/stan/mlumr_[a-z_]+$
 ^src/.*\.(o|so|dll)$
 ^.*\.DS_Store$
