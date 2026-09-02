@@ -290,9 +290,12 @@ print.mlumr_stc <- function(x, ...) {
   } else if (family == "normal") {
     cat(sprintf("Marginalized E[Y|index trt, comp pop]: %.4f\n", x$y_hat_index))
     cat(sprintf("Observed E[Y|comp trt, comp pop]:      %.4f\n", x$y_comparator))
-    normal_label <- if (identical(x$link, "log")) "Log Mean Ratio" else
-      "Mean Difference"
-    cat(sprintf("\n%s: %.4f (SE: %.4f)\n", normal_label, x$estimate, x$se))
+    # .stc_normal() standardizes on the RESPONSE scale and returns
+    # y_hat_A - y_B for every link, with a delta-method SE for that difference.
+    # The link chooses the model that is fitted, not the scale of the contrast,
+    # so the label must not change with it: calling this a log mean ratio and
+    # exponentiating it reported exp(difference) as a ratio.
+    cat(sprintf("\nMean Difference: %.4f (SE: %.4f)\n", x$estimate, x$se))
   } else if (family == "poisson") {
     cat(sprintf("Marginalized rate (index trt, comp pop): %.4f\n", x$rate_hat_index))
     cat(sprintf("Observed rate (comp trt, comp pop):      %.4f\n", x$rate_comparator))
@@ -448,14 +451,11 @@ summary.mlumr_stc <- function(object, ...) {
       add("Risk ratio", eexp(x$log_rr), NA_real_, eexp(x$log_rr_lower), eexp(x$log_rr_upper))
     }
   } else if (fam == "normal") {
-    if (identical(link, "log")) {
-      add("Log mean ratio", x$estimate, x$se, x$ci_lower, x$ci_upper)
-      add("Mean ratio", eexp(x$estimate), NA_real_, eexp(x$ci_lower),
-          eexp(x$ci_upper))
-      add("Mean difference", x$md, x$md_se, x$md_lower, x$md_upper)
-    } else {
-      add("Mean difference", x$estimate, x$se, x$ci_lower, x$ci_upper)
-    }
+    # One row for every link: the estimand is the response-scale mean
+    # difference regardless of which link fitted the model. `x$md` was never
+    # populated, so the previous log-link branch also dropped the only true
+    # mean difference it claimed to report.
+    add("Mean difference", x$estimate, x$se, x$ci_lower, x$ci_upper)
   } else if (fam == "poisson") {
     add("Log rate ratio", x$estimate, x$se, x$ci_lower, x$ci_upper)
     add("Rate ratio", eexp(x$estimate), NA_real_, eexp(x$ci_lower), eexp(x$ci_upper))
