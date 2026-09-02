@@ -424,6 +424,18 @@ mlumr <- function(data,
           n_agd_rows_check, agd_rank, n_cov_check, n_cov_check + 1L
         ), call. = FALSE)
       }
+    } else if (family == "survival") {
+      # No count-based warning here, for the reason check_identification()
+      # refuses the family outright: the premise that each aggregate row
+      # contributes one scalar constraint does not hold for a reconstructed
+      # curve. The comparator likelihood is the pseudo-IPD event and censoring
+      # times, one term each, so a single arm row can carry several hundred
+      # constraints. Counting the arm-summary rows would have reported a
+      # 300-patient reconstructed curve as one summary and told the user that
+      # two covariate coefficients "cannot all be separated", which is false.
+      # What can go wrong here is a genuinely uninformative curve, and a row
+      # count cannot see that either way; prior_sensitivity() can.
+      NULL
     } else {
       n_agd_rows_check <- nrow(data$agd$data)
       # Not the row count. Mean-profile rank is not available here either,
