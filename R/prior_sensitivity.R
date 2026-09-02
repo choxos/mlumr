@@ -6,6 +6,12 @@
 #' is the workflow recommended by Vehtari et al.'s prior-choice wiki for
 #' judging how much of the posterior is driven by the data versus the prior.
 #'
+#' The design-matrix controls (`center`, `qr`) are taken from the original fit
+#' and replayed, so a refit reproduces the original parameterization instead of
+#' reverting to the defaults. A fit made with `center = FALSE` or `qr = TRUE` is
+#' a different parameterization, and replaying the defaults would vary the model
+#' as well as the prior.
+#'
 #' @param fit A fitted `mlumr_fit` object to re-fit under alternative priors.
 #' @param prior_beta_scales Numeric vector of scales for `prior_beta`.
 #'   Default `c(0.5, 1, 2.5, 5, 10)`.
@@ -71,6 +77,11 @@ prior_sensitivity <- function(fit,
 
   # Inherit the original sampling args unless overridden by ...
   sa <- fit$sampling_args %||% list()
+  # Design-matrix controls. A fit made with `center = FALSE` or `qr = TRUE` is a
+  # different parameterization, so replaying the defaults here would vary the
+  # model as well as the prior and the sweep would no longer isolate one factor.
+  # Fits from earlier versions do not record these; the defaults are what they used.
+  mc <- fit$model_controls %||% list()
 
   # Re-use the original data object (has_integration is already TRUE)
   data <- fit$data
@@ -92,6 +103,8 @@ prior_sensitivity <- function(fit,
       prior_intercept = fit$priors$intercept,
       prior_beta = prior_beta_i,
       prior_sigma = fit$priors$sigma %||% default_prior_sigma(),
+      center       = mc$center       %||% TRUE,
+      qr           = mc$qr           %||% FALSE,
       chains       = sa$chains       %||% 4,
       iter         = sa$iter         %||% 2000,
       warmup       = sa$warmup       %||% 1000,

@@ -207,6 +207,14 @@ conditional_effects <- function(object,
     stop("`newdata` covariates must be finite.", call. = FALSE)
   }
 
+  # Shift user-supplied (raw-scale) covariate values onto the centered scale
+  # used at fit time, so they are consistent with the fitted (centered)
+  # intercept and coefficients. `cov_center` is set for all families when
+  # center = TRUE (the mlumr default); a vector of zeros (center = FALSE) makes
+  # this a no-op.
+  cov_center <- object$stan_data$cov_center %||% rep(0, length(covariates))
+  X <- sweep(X, 2, cov_center)
+
   list(
     X = X,
     covariates = covariates
