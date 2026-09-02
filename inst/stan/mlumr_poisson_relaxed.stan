@@ -67,7 +67,7 @@ model {
   for (k in 1:n_agd_rows) {
     // AgD log-rate (integrated over covariate distribution) - vectorized with log-sum-exp
     vector[n_int] log_lambda_agd_int = mu_comparator + X_int[k] * beta_comparator;
-    // Use log-sum-exp to avoid overflow: log(mean(exp(x))) = log_sum_exp(x) - log(n)
+    // AgD log-rate integrated over the covariate distribution: log-sum-exp stable.
     real log_lambda_agd_bar = log(E_agd[k]) + log_sum_exp(log_lambda_agd_int) - log(n_int);
 
     r_agd[k] ~ poisson_log(log_lambda_agd_bar);
