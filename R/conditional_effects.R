@@ -382,3 +382,199 @@ conditional_predict <- function(object,
   rownames(out) <- NULL
   out
 }
+
+
+#' Log survival S(t | eta) in R, mirroring the Stan log_surv_scalar()
+#'
+#' Vectorized over posterior draws (`eta`, `aux`, `aux2` are vectors; `t` is a
+#' scalar time).
+#' @keywords internal
+.r_log_surv <- function(dist, t, eta, aux, aux2) {
+  if (dist == 1L) return(-exp(log(t) + eta))
+  if (dist == 2L) return(-exp(aux * log(t) + eta))
+  if (dist == 3L) {
+    at <- aux * t
+    return(-exp(eta - log(aux) + at + log(-expm1(-at))))
+  }
+  if (dist == 4L) return(-exp(log(t) - eta))
+  if (dist == 5L) return(-exp(aux * (log(t) - eta)))
+  if (dist == 6L) {
+    return(stats::plnorm(t, meanlog = eta, sdlog = aux,
+                         lower.tail = FALSE, log.p = TRUE))
+  }
+  if (dist == 7L) {
+    z <- aux * (log(t) - eta)
+    return(-(pmax(z, 0) + log1p(exp(-abs(z)))))
+  }
+  if (dist == 8L) {
+    return(stats::pgamma(exp(log(t) - eta), shape = aux, rate = 1,
+                         lower.tail = FALSE, log.p = TRUE))
+  }
+  # Generalized gamma (dist 9). Form the incomplete-gamma argument in log
+  # space and let R's upper-tail pgamma implementation choose its stable
+  # central or tail algorithm. The continued fraction used for deep tails is
+  # not reliable just above a very large shape parameter.
+  q <- 1 / sqrt(aux2)
+  log_w <- q * (log(t) - eta) / aux + log(aux2)
+  w <- exp(log_w)
+  stats::pgamma(w, shape = rep_len(aux2, length(w)),
+                lower.tail = FALSE, log.p = TRUE)
+}
+
+
+#' Log of the upper-incomplete-gamma continued-fraction factor
+#' @keywords internal
+.r_log_gamma_q_cf_factor <- function(k, x) {
+  tiny <- 1e-300
+  b <- x + 1 - k
+  c <- 1 / tiny
+  d <- 1 / b
+  h <- d
+  for (i in seq_len(300L)) {
+    an <- -i * (i - k)
+    b <- b + 2
+    d <- an * d + b
+    if (abs(d) < tiny) d <- tiny
+    c <- b + an / c
+    if (abs(c) < tiny) c <- tiny
+    d <- 1 / d
+    delta <- d * c
+    h <- h * delta
+    if (abs(delta - 1) < 1e-14) break
+  }
+  log(h)
+}
+
+
+#' Log hazard h(t | eta) in R, mirroring Stan log_haz_full()
+#' @keywords internal
+.r_log_haz <- function(dist, t, eta, aux, aux2) {
+  log_t <- log(t)
+  if (dist == 1L) return(eta)
+  if (dist == 2L) return(log(aux) + aux * log_t + eta - log_t)
+  if (dist == 3L) return(eta + aux * t)
+  if (dist == 4L) return(-eta)
+  if (dist == 5L) return(log(aux) + aux * (log_t - eta) - log_t)
+  if (dist == 6L) {
+    z <- (log_t - eta) / aux
+    log_mills <- stats::dnorm(z, log = TRUE) -
+      stats::pnorm(z, lower.tail = FALSE, log.p = TRUE)
+    tail <- z > 20
+    if (any(tail)) {
+      iz2 <- 1 / z[tail]^2
+      ratio <- 1 + iz2 * (1 + iz2 * (-2 + iz2 * (10 - 74 * iz2)))
+      log_mills[tail] <- log(z[tail]) + log(ratio)
+    }
+    return(log_mills - log(aux) - log_t)
+  }
+  if (dist == 7L) {
+    z <- aux * (log_t - eta)
+    return(log(aux) - log_t - (pmax(-z, 0) + log1p(exp(-abs(z)))))
+  }
+  if (dist == 8L) {
+    log_z <- log_t - eta
+    z <- exp(log_z)
+    a <- rep_len(aux, length(eta))
+    out <- numeric(length(eta))
+    infinite <- is.infinite(z)
+    tail <- !infinite & z > a + pmax(1, sqrt(a))
+    central <- !infinite & !tail
+    if (any(central)) {
+      log_s <- stats::pgamma(z[central], shape = a[central],
+                             lower.tail = FALSE, log.p = TRUE)
+      out[central] <- (a[central] - 1) * log_z[central] - eta[central] -
+        z[central] - lgamma(a[central]) - log_s
+    }
+    if (any(tail)) {
+      out[tail] <- -log_t - mapply(.r_log_gamma_q_cf_factor,
+                                    a[tail], z[tail])
+    }
+    out[infinite] <- -eta[infinite]
+    return(out)
+  }
+
+  k <- rep_len(aux2, length(eta))
+  sigma <- rep_len(aux, length(eta))
+  z <- (1 / sqrt(k)) * (log_t - eta) / sigma
+  log_w <- log(k) + z
+  w <- exp(log_w)
+  out <- numeric(length(eta))
+  infinite <- is.infinite(w)
+  tail <- !infinite & w > k + pmax(1, sqrt(k))
+  central <- !infinite & !tail
+  if (any(central)) {
+    log_f <- -log(sigma[central]) - log_t -
+      0.5 * log(k[central]) * (1 - 2 * k[central]) +
+      k[central] * z[central] - w[central] - lgamma(k[central])
+    log_s <- stats::pgamma(w[central], shape = k[central],
+                           lower.tail = FALSE, log.p = TRUE)
+    out[central] <- log_f - log_s
+  }
+  if (any(tail)) {
+    out[tail] <- -log(sigma[tail]) - log_t - 0.5 * log(k[tail]) -
+      mapply(.r_log_gamma_q_cf_factor, k[tail], w[tail])
+  }
+  out[infinite] <- -log(sigma[infinite]) - log_t +
+    0.5 * log(k[infinite]) + z[infinite]
+  out
+}
+
+
+#' Log density f(t | eta) in R, mirroring Stan log_density_scalar()
+#' @keywords internal
+.r_log_density <- function(dist, t, eta, aux, aux2) {
+  log_t <- log(t)
+  n <- length(eta)
+  a <- rep_len(aux, n)
+  a2 <- rep_len(aux2, n)
+
+  if (dist <= 5L) {
+    log_ch <- switch(
+      as.character(dist),
+      `1` = log_t + eta,
+      `2` = a * log_t + eta,
+      `3` = eta - log(a) + a * t + log(-expm1(-a * t)),
+      `4` = log_t - eta,
+      `5` = a * (log_t - eta)
+    )
+    out <- rep(-Inf, n)
+    keep <- is.finite(log_ch) & log_ch <= 700
+    if (any(keep)) {
+      out[keep] <- .r_log_haz(
+        dist, t, eta[keep], a[keep], a2[keep]
+      ) - exp(log_ch[keep])
+    }
+    return(out)
+  }
+  if (dist == 6L) {
+    z <- (log_t - eta) / a
+    return(-0.5 * z^2 - log(a) - log_t - 0.5 * log(2 * pi))
+  }
+  if (dist == 7L) {
+    z <- a * (log_t - eta)
+    out <- log(a) - log_t
+    upper <- z >= 0
+    out[upper] <- out[upper] - z[upper] -
+      2 * log1p(exp(-z[upper]))
+    out[!upper] <- out[!upper] + z[!upper] -
+      2 * log1p(exp(z[!upper]))
+    return(out)
+  }
+  if (dist == 8L) {
+    log_z <- log_t - eta
+    out <- rep(-Inf, n)
+    keep <- is.finite(log_z) & log_z <= 700
+    out[keep] <- (a[keep] - 1) * log_z[keep] - eta[keep] -
+      exp(log_z[keep]) - lgamma(a[keep])
+    return(out)
+  }
+
+  z <- (log_t - eta) / (a * sqrt(a2))
+  log_w <- log(a2) + z
+  out <- rep(-Inf, n)
+  keep <- is.finite(log_w) & log_w <= 700
+  out[keep] <- -log(a[keep]) - log_t -
+    0.5 * log(a2[keep]) * (1 - 2 * a2[keep]) +
+    a2[keep] * z[keep] - exp(log_w[keep]) - lgamma(a2[keep])
+  out
+}

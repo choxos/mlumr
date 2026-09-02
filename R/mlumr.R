@@ -69,6 +69,138 @@
 #'   to `prior_beta`; [set_agd()] for AgD scale requirements;
 #'   [prior_summary()] for introspection of the priors actually used.
 #'
+#' @param distribution For `family = "survival"` only: the survival
+#'   distribution. One of the parametric forms `"exponential"`, `"weibull"`
+#'   (default), `"gompertz"` (proportional hazards), `"exponential-aft"`,
+#'   `"weibull-aft"`, `"lognormal"`, `"loglogistic"`, `"gamma"`, `"gengamma"`
+#'   (accelerated failure time), or the flexible-baseline forms `"mspline"`
+#'   and `"pexp"` (piecewise exponential). Must be `NULL` for other families.
+#'   Note: `"gengamma"` is the generalized gamma restricted to positive Lawless
+#'   shape `Q` (`Q = 1 / sqrt(aux2) > 0`), which nests the Weibull, gamma, and
+#'   (as the limit) log-normal; it does not represent negative-`Q` shapes. Use a
+#'   flexible `"mspline"` baseline if the data need a hazard shape outside the
+#'   positive-`Q` family. `"gengamma"` is also the least numerically robust
+#'   option: its likelihood uses Stan's regularized incomplete gamma function,
+#'   whose gradient can fail to converge (`grad_reg_lower_inc_gamma: n
+#'   (internal counter) exceeded 100000 iterations`). Isolated messages of that
+#'   kind are rejected proposals and are harmless, but frequent ones, divergent
+#'   transitions, or a chain that fails outright mean the fit should not be
+#'   trusted. Always inspect the MCMC diagnostics reported by `summary()` on a
+#'   `gengamma` fit, and prefer `"weibull"`, `"gamma"`, `"lognormal"`, or
+#'   `"mspline"` when they fit comparably.
+#'   Note: `"gompertz"` has a positive shape only (the shape carries a
+#'   `<lower=0>` constraint, so the hazard `exp(eta + shape * t)` is
+#'   monotonically increasing). Decreasing-hazard Gompertz (negative shape),
+#'   available in some survival software, is not supported; use `"mspline"` /
+#'   `"pexp"` for a decreasing or non-monotone baseline hazard.
+#' @param prior_aux For `family = "survival"` parametric distributions: prior
+#'   for the shape/scale parameter(s) (half-normal/half-t/exponential via the
+#'   `<lower=0>` constraint). Default [default_prior_aux()].
+#' @param prior_smooth For `family = "survival"` flexible baselines
+#'   (`"mspline"`/`"pexp"`): prior for the random-walk smoothing SD. Default
+#'   [default_prior_smooth()].
+#' @param n_knots For `family = "survival"` flexible baselines: number of
+#'   internal spline knots (default 7). See [make_knots()].
+#' @param knots Optional custom knots for a flexible survival baseline. With a
+#'   shared baseline (`aux_by = "none"`), supply one [make_knots()] result. With
+#'   study-specific baselines, supply `list(index = ..., comparator = ...)`,
+#'   where each element has the same structure and coefficient count.
+#' @param aux_by For `family = "survival"`: how the baseline hazard is shared
+#'   between the two studies, the unanchored analogue of `multinma::nma()`'s
+#'   `aux_by`. `".study"` (the default) gives each study its **own** baseline
+#'   shape, so the M-spline coefficients (or the parametric shape parameters)
+#'   are estimated separately for the index and comparator studies. This matches
+#'   `multinma`, where `.study` is always part of the stratification, and it is
+#'   the right default: two single-arm trials rarely share a hazard shape, and
+#'   assuming they do imposes proportional hazards *across studies*, which no
+#'   randomization supports.
+#'
+#'   `NULL` is accepted and means the same as `".study"`, matching multinma,
+#'   where a `NULL` `aux_by` is resolved to `".study"` and `.study` is always
+#'   part of the stratification.
+#'
+#'   `"none"` gives both studies **one** shared shape. multinma has no spelling
+#'   for this because it cannot do it; in an unanchored comparison it is a
+#'   stronger assumption that buys precision, so it is worth fitting as a
+#'   sensitivity analysis when the two Kaplan-Meier curves plainly have the same
+#'   shape, but it should be a deliberate choice rather than a default.
+#'
+#'   **What stratifying assumes, and what it cannot test.** The parity with
+#'   `multinma` is a parity of spelling, not of meaning. In an anchored
+#'   randomized network each study contributes several arms, so a study-specific
+#'   baseline shape is a nuisance parameter and within-study randomization still
+#'   identifies the treatment effect. Here each study contributes exactly **one**
+#'   arm, so a study-specific baseline shape and a treatment-specific baseline
+#'   shape are perfectly aliased: nothing in the data can separate them. Under
+#'   `".study"` the fitted shape therefore travels with the treatment when the
+#'   effect is transported, which is an additional structural assumption the
+#'   data cannot check, not merely the unanchored analogue of stratifying by
+#'   study. `"none"` makes the opposite assumption, that the shape belongs to
+#'   the disease rather than to the arm, and that one is at least testable
+#'   against the two observed curves. Neither is assumption-free; fit both and
+#'   report the difference.
+#'
+#'   With the stratified default the marginal hazard ratio varies with time, so
+#'   the scalar `delta_*` reported by [marginal_effects()] is its value at one
+#'   time, not a constant; pass `at_time` to choose which. This applies only
+#'   where the shapes genuinely differ: the exponential has no shape, so
+#'   `aux_by` leaves its closed-form contrast exact. The collapsible RMST
+#'   difference does not have this problem and is the better headline estimand.
+#'
+#'   Identification differs by baseline. For `"mspline"` / `"pexp"` each stratum
+#'   gets **its own knots over its own observed support** (as in multinma's
+#'   default `type = "quantile"`), and its coefficients are a simplex, which
+#'   pins that study's cumulative hazard to 1 at a boundary the study actually
+#'   observed. Both parts matter. A single pooled basis spanning the longest
+#'   study would leave the shorter study with basis functions it never observes;
+#'   scaling its observed coefficients by `c`, moving the surplus simplex mass
+#'   into an unobserved column, and replacing its intercept by `mu - log(c)`
+#'   would then leave the likelihood exactly unchanged, so the intercept would
+#'   be set by the prior rather than by data. Per-study boundaries remove that
+#'   flat direction. For parametric baselines there is no such normalization and
+#'   none is needed, because shape and scale enter the hazard as different
+#'   functions of time; but the comparator shape is then informed only by the
+#'   reconstructed comparator curve, so stratifying spends information that a
+#'   short or heavily censored aggregate curve may not have. The exponential has
+#'   no shape at all, so `aux_by` does not change it.
+#'
+#'   Reach for `"none"` only when the two arms' Kaplan-Meier curves plainly have
+#'   the same shape, and report it as a sensitivity analysis rather than as the
+#'   primary result: one shared shape is the stronger assumption and buys
+#'   precision, but nothing in an unanchored design justifies it.
+#'
+#'   **An assumption worth naming.** When a stratified fit predicts the index
+#'   treatment in the comparator population, it carries the *index study's*
+#'   baseline shape with it, and vice versa. That is coherent only if the
+#'   residual time pattern is a property of the treatment that travels across
+#'   populations. In an anchored `multinma` network a study-stratified baseline
+#'   is a study nuisance, not something attached to a treatment; here each study
+#'   contributes exactly one arm, so the data cannot separate a
+#'   treatment-specific hazard shape from a study, design, or calendar-time
+#'   shape. Stratifying is the safer default for the *contrast*, but absolute
+#'   predictions transported across populations rest on this extra assumption.
+#'   Where it is doubtful, prefer the RMST estimands, compare against
+#'   `aux_by = "none"`, and say which was used.
+#' @param mspline_degree For `family = "survival"` flexible baselines: spline
+#'   degree override (default derived from `distribution`: 3 for `"mspline"`,
+#'   0 for `"pexp"`).
+#' @param pred_times For `family = "survival"`: times at which survival,
+#'   hazard and cumulative-hazard predictions are produced. If `NULL`, a grid
+#'   up to the maximum observed time is used.
+#' @param rmst_horizon For `family = "survival"`: the upper time limit for the
+#'   restricted mean survival time. If `NULL`, the maximum observed time, except
+#'   for a flexible baseline (`"mspline"` / `"pexp"`) stratified by study, where
+#'   it defaults to the COMMON follow-up
+#'   `min(max(index times), max(comparator times))`. Each study's flexible
+#'   baseline is extrapolated as a constant hazard past its own last observed
+#'   time, so a pooled-maximum default would make the headline RMST extrapolate
+#'   the shorter study by construction. Pass a longer horizon explicitly to
+#'   accept that extrapolation; doing so still warns.
+#' @param n_rmst_grid For `family = "survival"`: number of equally spaced nodes
+#'   (default `100`) on `[0, rmst_horizon]` for the trapezoidal RMST integral.
+#'   Increase for sharp early hazards, long horizons, or high-curvature
+#'   flexible-baseline tails where 100 points may be too coarse; refit at a
+#'   higher value and compare RMST to check convergence.
 #' @param center Logical (default `TRUE`). Center the covariates about the
 #'   pooled IPD and population-weighted declared AgD means before fitting.
 #'   The likelihood is unchanged after the intercept is transformed with the
@@ -116,6 +248,16 @@ mlumr <- function(data,
                   prior_intercept = default_prior_intercept(),
                   prior_beta = default_prior_beta(),
                   prior_sigma = default_prior_sigma(),
+                  distribution = NULL,
+                  prior_aux = NULL,
+                  prior_smooth = NULL,
+                  n_knots = 7L,
+                  knots = NULL,
+                  mspline_degree = NULL,
+                  aux_by = ".study",
+                  pred_times = NULL,
+                  rmst_horizon = NULL,
+                  n_rmst_grid = 100L,
                   center = TRUE,
                   qr = FALSE,
                   chains = 4,
@@ -189,6 +331,66 @@ mlumr <- function(data,
   family <- data$family %||% "binomial"
   link_info <- check_link(family, link)
 
+  # Survival distribution + auxiliary/smoothing priors
+  surv_info <- NULL
+  if (family == "survival") {
+    surv_info <- .survival_distribution_info(distribution)
+    if (!is.null(knots) && surv_info$kind != "flexible") {
+      stop("`knots` can only be supplied with `distribution = \"mspline\"` ",
+           "or `distribution = \"pexp\"`.", call. = FALSE)
+    }
+    if (!is.null(mspline_degree)) {
+      # `distribution` names the baseline shape, and the degree defines it:
+      # "pexp" IS degree 0 and "mspline" IS degree 3. Silently honoring a
+      # contradicting override would fit one model and report the other, so a
+      # mismatch is rejected rather than resolved in either direction.
+      requested <- as.integer(mspline_degree)
+      canonical <- surv_info$mspline_degree
+      if (is.na(canonical)) {
+        stop("`mspline_degree` applies only to the flexible baselines, ",
+             "`distribution = \"mspline\"` (degree 3) or \"pexp\" ",
+             "(degree 0). Got distribution = \"", distribution, "\".",
+             call. = FALSE)
+      }
+      if (!identical(requested, canonical)) {
+        stop("`mspline_degree = ", requested, "` contradicts `distribution = \"",
+             distribution, "\"`, which is degree ", canonical, ". Use ",
+             "`distribution = \"pexp\"` for a degree-0 piecewise-exponential ",
+             "baseline or `distribution = \"mspline\"` for the degree-3 ",
+             "M-spline; the fit would otherwise be reported under the wrong ",
+             "name.", call. = FALSE)
+      }
+      surv_info$mspline_degree <- requested
+    }
+    prior_aux <- prior_aux %||% default_prior_aux()
+    prior_smooth <- prior_smooth %||% default_prior_smooth()
+    validate_prior(prior_aux, "prior_aux")
+    validate_prior(prior_smooth, "prior_smooth")
+    .validate_survival_controls(pred_times, rmst_horizon, mspline_degree,
+                                n_knots, n_rmst_grid,
+                                distribution = distribution)
+    invisible(.resolve_aux_strata(aux_by))   # fail on a bad value before fitting
+    .validate_survival_studies(data, aux_by)
+  } else {
+    if (!is.null(knots)) {
+      stop("`knots` is only used for flexible survival models.", call. = FALSE)
+    }
+    if (!is.null(distribution)) {
+      stop("`distribution` is only used for family = 'survival'.", call. = FALSE)
+    }
+    # `aux_by` now defaults to ".study", so a non-NULL value is not evidence the
+    # user asked for it. Only object when they supplied it explicitly.
+    if (!missing(aux_by)) {
+      stop("`aux_by` is only used for family = 'survival': it stratifies the ",
+           "baseline hazard, which the other families do not have.",
+           call. = FALSE)
+    }
+    if (!is.null(prior_aux) || !is.null(prior_smooth)) {
+      warning("`prior_aux` / `prior_smooth` are ignored for non-survival families.",
+              call. = FALSE)
+    }
+  }
+
   if (family == "normal") {
     validate_prior(prior_sigma, "sigma")
     if (isTRUE(prior_sigma$autoscale)) {
@@ -259,6 +461,15 @@ mlumr <- function(data,
     prior_intercept = prior_intercept,
     prior_beta = prior_beta,
     prior_sigma = prior_sigma,
+    surv_info = surv_info,
+    prior_aux = prior_aux,
+    prior_smooth = prior_smooth,
+    n_knots = n_knots,
+    knots = knots,
+    pred_times = pred_times,
+    rmst_horizon = rmst_horizon,
+    n_rmst_grid = n_rmst_grid,
+    aux_by = aux_by,
     model = model,
     center = center,
     qr = qr
@@ -266,7 +477,12 @@ mlumr <- function(data,
   stan_data <- prepared$stan_data
 
   # Select Stan model (family_config is the single source of truth)
-  model_name <- paste0(get_family_config(family)$stan_prefix, "_", model)
+  stan_prefix <- if (family == "survival") {
+    surv_info$stan_prefix
+  } else {
+    get_family_config(family)$stan_prefix
+  }
+  model_name <- paste0(stan_prefix, "_", model)
 
   .mlumr_log_fit_start(model_name, family, link_info$link, stan_data,
                        engine, verbose)
@@ -275,6 +491,22 @@ mlumr <- function(data,
   result <- .mlumr_fit_backend(
     engine = engine,
     model_name = model_name,
+    distribution = if (!is.null(surv_info)) surv_info$distribution else NULL,
+    surv_info = surv_info,
+    # Baseline controls needed to reproduce this fit. Survival-only entries are
+    # NULL for other families, because mlumr() rejects them there and replaying
+    # a stored formal default into a refit would make it error.
+    surv_controls = list(
+      n_knots = n_knots,
+      knots = if (!is.null(surv_info) && surv_info$kind == "flexible") knots else NULL,
+      aux_by = if (family == "survival") aux_by else NULL,
+      mspline_degree = if (!is.null(surv_info)) surv_info$mspline_degree else NULL,
+      pred_times = stan_data$pred_times,
+      rmst_horizon = if (family == "survival")
+        max(stan_data$rmst_grid_times) else NULL,
+      n_rmst_grid = if (family == "survival")
+        length(stan_data$rmst_grid_times) else NULL
+    ),
     stan_data = stan_data,
     chains = chains,
     iter = iter,
@@ -304,7 +536,10 @@ mlumr <- function(data,
     prior_beta = prior_beta,
     prior_sigma = prior_sigma,
     beta_fields = prepared$beta_fields,
-    sd_x = prepared$sd_x
+    sd_x = prepared$sd_x,
+    prior_aux = prior_aux,
+    prior_smooth = prior_smooth,
+    surv_info = surv_info
   )
 
   out <- list(
@@ -354,6 +589,11 @@ mlumr <- function(data,
 #' @keywords internal
 .mlumr_build_stan_data <- function(data, family, link_info, prior_intercept,
                                    prior_beta, prior_sigma,
+                                   surv_info = NULL, prior_aux = NULL,
+                                   prior_smooth = NULL, n_knots = 7L,
+                                   knots = NULL,
+                                   pred_times = NULL, rmst_horizon = NULL,
+                                   n_rmst_grid = 100L, aux_by = NULL,
                                    model = "spfa", center = TRUE, qr = FALSE) {
   ipd_data <- data$ipd$data
   agd_data <- data$agd$data
@@ -413,11 +653,20 @@ mlumr <- function(data,
     stan_data$prior_sigma_scale <- sigma_fields$sd
     stan_data$prior_sigma_dist <- sigma_fields$dist
     stan_data$prior_sigma_df <- sigma_fields$df
-  } else {
+  } else if (family == "poisson") {
     stan_data$y_ipd <- as.integer(ipd_data$.outcome)
     stan_data$E_ipd <- as.numeric(ipd_data$.exposure)
     stan_data$r_agd <- array(as.integer(agd_data$.r))
     stan_data$E_agd <- array(as.numeric(agd_data$.E))
+  } else {
+    stan_data <- .build_stan_data_survival(
+      stan_data = stan_data, data = data, surv_info = surv_info,
+      pred_times = pred_times, n_knots = n_knots,
+      knots = knots,
+      rmst_horizon = rmst_horizon, n_rmst_grid = n_rmst_grid,
+      prior_aux = prior_aux, prior_smooth = prior_smooth,
+      n_strata = .resolve_aux_strata(aux_by)
+    )
   }
 
   # Shared, all-family covariate centering and combined-design QR
@@ -628,6 +877,346 @@ mlumr <- function(data,
   .profile_rank(.agd_mean_profiles(data))
 }
 
+#' Map `aux_by` onto the Stan `n_strata` switch
+#'
+#' There are only ever two studies in an unanchored comparison, so `".study"`
+#' means 2 and no stratification means 1. Named after multinma's argument so the
+#' concept transfers, but deliberately not accepting `".trt"`: each study
+#' contributes a single arm here, so stratifying by treatment and by study are
+#' the same thing.
+#' @param aux_by `NULL`, `".study"`, or `"none"`.
+#' @return Integer number of baseline strata (1 or 2).
+#' @keywords internal
+.resolve_aux_strata <- function(aux_by) {
+  # NULL means ".study", NOT "share". This follows multinma exactly
+  # (multinma/R/nma.R: `if (quo_is_null(aux_by)) aux_by <- ".study"`, and
+  # get_aux_id(add_study = TRUE) forces .study into the grouping regardless), so
+  # a multinma user writing aux_by = NULL gets the model they expect rather than
+  # its opposite. Sharing one baseline across studies has no multinma spelling
+  # because multinma cannot do it, so it gets its own explicit name here.
+  if (is.null(aux_by)) return(2L)
+  if (!is.character(aux_by) || length(aux_by) != 1L) {
+    stop("`aux_by` must be NULL or \".study\" (a baseline per study), or ",
+         "\"none\" (one shared baseline).", call. = FALSE)
+  }
+  if (identical(aux_by, ".study")) return(2L)
+  if (identical(aux_by, "none")) return(1L)
+  if (identical(aux_by, ".trt")) {
+    stop("`aux_by = \".trt\"` is the same as \".study\" here: each study ",
+         "contributes a single arm, so stratifying by treatment and by study ",
+         "give the same two strata. Use \".study\".", call. = FALSE)
+  }
+  stop("`aux_by` must be NULL or \".study\" (a baseline per study, the ",
+       "default, as in multinma), or \"none\" (one shared baseline). Got \"",
+       aux_by, "\".", call. = FALSE)
+}
+
+#' Validate the two-source study contract of the survival Stan models
+#' @keywords internal
+.validate_survival_studies <- function(data, aux_by) {
+  if (identical(aux_by, "none")) return(invisible(TRUE))
+  ipd_studies <- unique(as.character(data$ipd$data$.study))
+  agd_studies <- unique(as.character(data$agd$pseudo_ipd$.study))
+  if (length(ipd_studies) != 1L || length(agd_studies) != 1L) {
+    stop(
+      "Survival fits with the default `aux_by = \".study\"` contract require ",
+      "exactly one index study and one comparator study. The current Stan ",
+      "models have two source-specific baselines and cannot represent multiple ",
+      "studies within either source. Use `aux_by = \"none\"` only if complete ",
+      "baseline pooling across those studies is scientifically intended.",
+      call. = FALSE
+    )
+  }
+  invisible(TRUE)
+}
+
+#' Augment the Stan data list with survival-specific arrays
+#' @keywords internal
+.build_stan_data_survival <- function(stan_data, data, surv_info, pred_times,
+                                      n_knots, knots = NULL, rmst_horizon,
+                                      n_rmst_grid = 100L,
+                                      prior_aux, prior_smooth, n_strata = 1L) {
+  ipd <- data$ipd$data
+  pseudo <- data$agd$pseudo_ipd
+  arm_summary <- data$agd$data
+  # 1 = one baseline shared by both studies; 2 = one per study (see `aux_by`).
+  stan_data$n_strata <- as.integer(n_strata)
+
+  # Covariate centering is now applied for every family by the shared
+  # .mlumr_center_covariates() step in .mlumr_build_stan_data() (matching
+  # `center = TRUE` default), so it is no longer done here.
+
+  # IPD survival arrays (index treatment)
+  stan_data$ipd_time <- as.numeric(ipd$.time)
+  stan_data$ipd_start_time <- as.numeric(ipd$.start_time)
+  stan_data$ipd_delay_time <- as.numeric(ipd$.delay_time)
+  stan_data$ipd_status <- as.integer(ipd$.status)
+
+  # Comparator pseudo-IPD arrays + map each pseudo-individual to its arm
+  stan_data$n_agd <- nrow(pseudo)
+  stan_data$agd_time <- as.numeric(pseudo$.time)
+  stan_data$agd_start_time <- as.numeric(pseudo$.start_time)
+  stan_data$agd_delay_time <- as.numeric(pseudo$.delay_time)
+  stan_data$agd_status <- as.integer(pseudo$.status)
+  stan_data$agd_arm <- as.integer(match(pseudo$.arm, arm_summary$.arm))
+
+  # Prediction + RMST grids (avoid t = 0 for the hazard-bearing pred grid).
+  # Sort + unique so curve/median interpolation sees an increasing grid.
+  max_time <- max(c(ipd$.time, pseudo$.time))
+  if (is.null(pred_times)) {
+    pred_times <- seq(max_time / 50, max_time, length.out = 50)
+  }
+  pred_times <- sort(unique(as.numeric(pred_times)))
+  stan_data$n_pred_times <- length(pred_times)
+  stan_data$pred_times <- pred_times
+
+  # A flexible baseline is extrapolated as a constant hazard past each study's
+  # own upper boundary knot, so with unequal follow-up a pooled-maximum default
+  # horizon would make the HEADLINE RMST extrapolate the shorter study by
+  # construction. A warning is not enough for a default estimand: default
+  # instead to the common empirical support, and let a longer horizon be an
+  # explicit choice (which still warns).
+  horizon <- rmst_horizon
+  if (is.null(horizon)) {
+    horizon <- if (surv_info$kind == "flexible" && n_strata > 1L) {
+      min(max(ipd$.time), max(pseudo$.time))
+    } else {
+      max_time
+    }
+  }
+  # RMST is the trapezoidal integral of the survival curve on this grid; more
+  # points give a finer (more accurate) approximation. Default 100 is adequate
+  # for smooth curves; raise `n_rmst_grid` for sharp early hazards, long
+  # horizons, or high-curvature flexible-baseline tails.
+  rmst_grid <- seq(0, horizon, length.out = n_rmst_grid)
+  stan_data$n_rmst_grid <- length(rmst_grid)
+  stan_data$rmst_grid_times <- rmst_grid
+
+  if (surv_info$kind == "parametric") {
+    stan_data$dist <- surv_info$dist_code
+    aux_fields <- stan_prior_fields(prior_aux)
+    stan_data$prior_aux_location <- aux_fields$mean
+    stan_data$prior_aux_scale <- aux_fields$sd
+    stan_data$prior_aux_dist <- aux_fields$dist
+    stan_data$prior_aux_df <- aux_fields$df
+    # The second generalized-gamma shape reuses the prior_aux specification.
+    stan_data$prior_aux2_location <- aux_fields$mean
+    stan_data$prior_aux2_scale <- aux_fields$sd
+    stan_data$prior_aux2_dist <- aux_fields$dist
+    stan_data$prior_aux2_df <- aux_fields$df
+  } else {
+    # One basis per baseline stratum. With `aux_by = ".study"` each study gets
+    # its own boundary and internal knots over its OWN observed support, which
+    # is what multinma's default `type = "quantile"` does. This is an
+    # identification requirement, not a nicety: with a single pooled basis whose
+    # upper boundary is the longest study's last time, a shorter study can have
+    # basis functions with no support over its observed period. Scaling that
+    # study's observed coefficients by c, moving the surplus simplex mass into
+    # an unsupported column, and replacing mu by mu - log(c) leaves both
+    # h0(t)exp(eta) and H0(t)exp(eta) unchanged at every observed time, so the
+    # likelihood is exactly flat along that direction and the intercept is set
+    # by the prior rather than the data. Per-study boundaries remove it: every
+    # column is supported and H0_s is pinned at a time the study actually
+    # observed.
+    degree <- surv_info$mspline_degree
+    if (n_strata > 1L) {
+      if (is.null(knots)) {
+        specs <- .matched_per_study_bases(ipd, pseudo, n_knots, degree)
+        spec_idx <- specs$index
+        spec_cmp <- specs$comparator
+      } else {
+        if (!is.list(knots) ||
+            !all(c("index", "comparator") %in% names(knots))) {
+          stop("With `aux_by = \".study\"`, `knots` must be a named list ",
+               "with `index` and `comparator` knot specifications.",
+               call. = FALSE)
+        }
+        k_idx <- .validate_user_knots(knots$index, max(ipd$.time), "index")
+        k_cmp <- .validate_user_knots(knots$comparator, max(pseudo$.time),
+                                      "comparator")
+        spec_idx <- .build_mspline_basis(k_idx, degree)
+        spec_cmp <- .build_mspline_basis(k_cmp, degree)
+        if (spec_idx$n_scoef != spec_cmp$n_scoef) {
+          stop("The index and comparator knot specifications must produce ",
+               "the same number of spline coefficients.", call. = FALSE)
+        }
+        .assert_basis_support(spec_idx, max(ipd$.time), "index")
+        .assert_basis_support(spec_cmp, max(pseudo$.time), "comparator")
+      }
+    } else {
+      knots_i <- if (is.null(knots)) {
+        make_knots(data, n_knots = n_knots)
+      } else {
+        .validate_user_knots(knots, max(c(ipd$.time, pseudo$.time)), "shared")
+      }
+      spec_idx <- spec_cmp <- .build_mspline_basis(knots_i, degree)
+    }
+    spec <- spec_idx
+    if (spec$n_scoef < 2L) {
+      # Only reachable at degree 0 (`distribution = "pexp"`), where n_scoef is
+      # the number of intervals: with no internal knot that is a single constant
+      # hazard, and the random-walk smoothing prior has no increment to be
+      # defined on. A cubic M-spline with no internal knots still has
+      # degree + 1 = 4 coefficients and is fine.
+      stop("Baseline basis has < 2 coefficients, so the random-walk smoothing ",
+           "prior has no increments to smooth. A degree-", spec$degree,
+           " basis needs at least one internal knot for that; use ",
+           "`n_knots >= 1`, or `distribution = \"exponential\"` if a single ",
+           "constant hazard is what you want. Got n_scoef = ", spec$n_scoef,
+           ".", call. = FALSE)
+    }
+    # The M-spline baseline is extrapolated with a constant hazard past the
+    # upper boundary knot. Warn if predictions/RMST extend past follow-up.
+    upper <- min(spec_idx$boundary[2], spec_cmp$boundary[2])
+    if (max(pred_times) > upper || max(rmst_grid) > upper) {
+      which_arm <- if (n_strata > 1L && spec_cmp$boundary[2] < spec_idx$boundary[2]) {
+        "the comparator study's baseline (its follow-up is the shorter one)"
+      } else if (n_strata > 1L && spec_idx$boundary[2] < spec_cmp$boundary[2]) {
+        "the index study's baseline (its follow-up is the shorter one)"
+      } else {
+        "the M-spline baseline"
+      }
+      warning("Flexible-baseline prediction/RMST times extend beyond the ",
+              "largest time that study observed (",
+              format(upper, digits = 4L), "); ", which_arm,
+              " is extrapolated as constant there, so extrapolated estimates ",
+              "are unreliable. Reduce `pred_times` / `rmst_horizon`.",
+              call. = FALSE)
+    }
+    stan_data$n_scoef <- spec$n_scoef
+    # The IPD is entirely the index study and the pseudo-IPD entirely the
+    # comparator, so each likelihood block already uses only its own stratum's
+    # basis. The prediction/RMST grids are evaluated on both.
+    stan_data$b_ipd <- .eval_basis(spec_idx, ipd$.time, integral = FALSE)
+    stan_data$ib_ipd <- .eval_basis(spec_idx, ipd$.time, integral = TRUE)
+    stan_data$ib_ipd_start <- .eval_basis(spec_idx, ipd$.start_time, integral = TRUE)
+    stan_data$ib_ipd_delay <- .eval_basis(spec_idx, ipd$.delay_time, integral = TRUE)
+    stan_data$b_agd <- .eval_basis(spec_cmp, pseudo$.time, integral = FALSE)
+    stan_data$ib_agd <- .eval_basis(spec_cmp, pseudo$.time, integral = TRUE)
+    stan_data$ib_agd_start <- .eval_basis(spec_cmp, pseudo$.start_time, integral = TRUE)
+    stan_data$ib_agd_delay <- .eval_basis(spec_cmp, pseudo$.delay_time, integral = TRUE)
+    stan_data$pred_basis <- .eval_basis(spec_idx, pred_times, integral = FALSE)
+    stan_data$pred_ibasis <- .eval_basis(spec_idx, pred_times, integral = TRUE)
+    stan_data$rmst_ibasis <- .eval_basis(spec_idx, rmst_grid, integral = TRUE)
+    stan_data$pred_basis_cmp <- .eval_basis(spec_cmp, pred_times, integral = FALSE)
+    stan_data$pred_ibasis_cmp <- .eval_basis(spec_cmp, pred_times, integral = TRUE)
+    stan_data$rmst_ibasis_cmp <- .eval_basis(spec_cmp, rmst_grid, integral = TRUE)
+    # The constant-hazard centering and RW1 weights are properties of a basis,
+    # so they are per-stratum once the bases differ.
+    stan_data$lscoef_prior_mean <- cbind(.mspline_constant_hazard(spec_idx),
+                                         .mspline_constant_hazard(spec_cmp))[, seq_len(n_strata),
+                                                                             drop = FALSE]
+    stan_data$lscoef_weights <- cbind(.rw1_prior_weights(spec_idx),
+                                      .rw1_prior_weights(spec_cmp))[, seq_len(n_strata),
+                                                                    drop = FALSE]
+    smooth_fields <- stan_prior_fields(prior_smooth)
+    stan_data$prior_sigma_smooth_location <- smooth_fields$mean
+    stan_data$prior_sigma_smooth_scale <- smooth_fields$sd
+    stan_data$prior_sigma_smooth_dist <- smooth_fields$dist
+    stan_data$prior_sigma_smooth_df <- smooth_fields$df
+  }
+  stan_data
+}
+
+#' Validate user-supplied flexible-baseline knots
+#' @keywords internal
+.validate_user_knots <- function(knots, max_time, label) {
+  if (!is.list(knots) ||
+      !all(c("internal", "boundary") %in% names(knots))) {
+    stop("The ", label, " knot specification must contain `internal` and ",
+         "`boundary`.", call. = FALSE)
+  }
+  internal <- knots$internal
+  boundary <- knots$boundary
+  valid_internal <- is.numeric(internal) && all(is.finite(internal)) &&
+    (length(internal) < 2L || all(diff(internal) > 0))
+  valid_boundary <- is.numeric(boundary) && length(boundary) == 2L &&
+    all(is.finite(boundary)) && boundary[1] == 0 && boundary[2] >= max_time
+  if (!valid_internal || !valid_boundary ||
+      any(internal <= boundary[1] | internal >= boundary[2])) {
+    stop("The ", label, " knots must have strictly increasing finite internal ",
+         "knots inside `boundary = c(0, upper)`, with `upper` covering all ",
+         "observed times for that baseline.", call. = FALSE)
+  }
+  list(internal = internal, boundary = boundary,
+       n_knots = length(internal))
+}
+
+#' Validate survival-specific prediction grids and spline controls
+#' @keywords internal
+.validate_survival_controls <- function(pred_times, rmst_horizon,
+                                        mspline_degree, n_knots,
+                                        n_rmst_grid = 100L,
+                                        distribution = NULL) {
+  valid_grid <- is.numeric(n_rmst_grid) && length(n_rmst_grid) == 1L &&
+    is.finite(n_rmst_grid) && n_rmst_grid >= 2 &&
+    n_rmst_grid == floor(n_rmst_grid)
+  if (!valid_grid) {
+    stop("`n_rmst_grid` must be a single integer >= 2 (RMST trapezoid nodes).",
+         call. = FALSE)
+  }
+  if (!is.null(pred_times)) {
+    valid <- is.numeric(pred_times) && length(pred_times) >= 1L &&
+      all(is.finite(pred_times)) && all(pred_times > 0)
+    if (!valid) {
+      stop("`pred_times` must be finite, positive numbers.", call. = FALSE)
+    }
+  }
+  if (!is.null(rmst_horizon)) {
+    valid <- is.numeric(rmst_horizon) && length(rmst_horizon) == 1L &&
+      is.finite(rmst_horizon) && rmst_horizon > 0
+    if (!valid) {
+      stop("`rmst_horizon` must be a single finite, positive number.",
+           call. = FALSE)
+    }
+  }
+  if (!is.null(mspline_degree)) {
+    valid <- is.numeric(mspline_degree) && length(mspline_degree) == 1L &&
+      is.finite(mspline_degree) && mspline_degree >= 0 &&
+      mspline_degree == floor(mspline_degree)
+    if (!valid) {
+      stop("`mspline_degree` must be a non-negative integer.", call. = FALSE)
+    }
+  }
+  valid_knots <- is.numeric(n_knots) && length(n_knots) == 1L &&
+    is.finite(n_knots) && n_knots >= 0 && n_knots == floor(n_knots) &&
+    n_knots <= 50
+  if (!valid_knots) {
+    stop("`n_knots` must be an integer in [0, 50]. (Flexible baselines rarely ",
+         "need more than a handful of internal knots; the cap also blocks ",
+         "accidental enormous allocations.)", call. = FALSE)
+  }
+  # `n_knots = 0` is in range for make_knots(), which is also called directly.
+  # Whether it yields a fittable baseline depends on the DEGREE, because
+  # `n_scoef = length(internal) + degree + 1`:
+  #   pexp    (degree 0) -> 0 + 0 + 1 = 1 coefficient. The random-walk smoothing
+  #                         prior is defined on the DIFFERENCES between
+  #                         coefficients, so one coefficient has no increments
+  #                         and the model cannot be built.
+  #   mspline (degree 3) -> 0 + 3 + 1 = 4 coefficients, with three RW1
+  #                         increments. That is a perfectly ordinary single-
+  #                         interval cubic M-spline and must NOT be rejected.
+  # Reject only the case that genuinely cannot work, and leave the general
+  # `n_scoef < 2` check to catch anything else.
+  if (!is.null(distribution) && identical(distribution, "pexp") && n_knots < 1) {
+    stop("`n_knots = 0` cannot be used with `distribution = \"pexp\"`: a ",
+         "degree-0 basis with no internal knots leaves a single spline ",
+         "coefficient, and the random-walk smoothing prior is defined on ",
+         "differences between coefficients, so it needs at least two. Use ",
+         "`n_knots >= 1`, or `distribution = \"exponential\"` for a constant ",
+         "baseline hazard.", call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+#' Resolve the sampling seed
+#'
+#' Precedence: an explicit `seed` argument; else a seed drawn from R's RNG when
+#' the user has set it (e.g. via set.seed()); else a fixed default of 2026.
+#' Returns `list(value, source)` and warns when it falls back to the default, so
+#' an unseeded run is still reproducible.
+#' @keywords internal
+
 #' Validate mlumr() sampler controls before backend dispatch
 #' @keywords internal
 .validate_mlumr_sampling_args <- function(chains, iter, warmup, seed,
@@ -723,7 +1312,9 @@ mlumr <- function(data,
 #' Store user priors plus the resolved Stan-scale beta prior
 #' @keywords internal
 .mlumr_prior_metadata <- function(data, family, prior_intercept, prior_beta,
-                                  prior_sigma, beta_fields, sd_x) {
+                                  prior_sigma, beta_fields, sd_x,
+                                  prior_aux = NULL, prior_smooth = NULL,
+                                  surv_info = NULL) {
   priors <- list(
     intercept = prior_intercept,
     beta = prior_beta,
@@ -737,6 +1328,16 @@ mlumr <- function(data,
       sd_x = sd_x
     )
   )
+
+  # Surface the survival baseline priors only where they are consumed.
+  if (identical(family, "survival")) {
+    if (!is.null(surv_info) && surv_info$n_aux > 0) {
+      priors$aux <- prior_aux
+    }
+    if (!is.null(surv_info) && surv_info$kind == "flexible") {
+      priors$smooth <- prior_smooth
+    }
+  }
 
   if (family == "normal") {
     priors$sigma <- prior_sigma

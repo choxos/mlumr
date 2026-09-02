@@ -454,3 +454,23 @@ stan_prior_fields_beta <- function(prior, n_cov, sd_x = NULL,
     autoscale = autos
   )
 }
+
+
+#' @rdname default_priors
+#' @export
+#' @details
+#' `default_prior_aux()` and `default_prior_smooth()` apply to the survival
+#' family only. `prior_aux` is a half-normal(0, 2) on the shape/scale
+#' parameter(s) of parametric survival distributions (Weibull/Gompertz/gamma
+#' shape, log-normal sdlog, generalized-gamma shapes). `prior_smooth` is a
+#' half-normal(0, 1) on the random-walk smoothing SD of the M-spline /
+#' piecewise-exponential baseline hazard.
+default_prior_aux <- function() {
+  .tag_default(prior_normal(mean = 0, sd = 2))
+}
+
+#' @rdname default_priors
+#' @export
+default_prior_smooth <- function() {
+  .tag_default(prior_normal(mean = 0, sd = 1))
+}

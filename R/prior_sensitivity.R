@@ -88,8 +88,11 @@ prior_sensitivity <- function(fit,
     # Everything that defines the model rather than the sampler. Overriding any
     # of these would vary a second factor alongside the prior scale, so the
     # movement in the output could no longer be attributed to the prior.
-    protected <- c("data", "model", "link", "prior_beta",
-                   "prior_intercept", "prior_sigma", "center", "qr")
+    protected <- c("data", "model", "link", "distribution", "prior_beta",
+                   "prior_intercept", "prior_sigma", "prior_aux",
+                   "prior_smooth", "center", "qr", "n_knots", "knots",
+                   "mspline_degree", "pred_times", "rmst_horizon",
+                   "n_rmst_grid", "aux_by")
     clash <- intersect(names(dots), protected)
     if (length(clash)) {
       msg <- paste0(
@@ -108,6 +111,13 @@ prior_sensitivity <- function(fit,
   # model as well as the prior and the sweep would no longer isolate one factor.
   # Fits from earlier versions do not record these; the defaults are what they used.
   mc <- fit$model_controls %||% list()
+  # Survival baseline controls needed to reproduce the original baseline; NULL
+  # or absent for the other families. `surv_controls` records a control that
+  # does not apply as NA rather than NULL (a Weibull fit stores
+  # mspline_degree = NA_integer_), and mlumr() rejects NA where it accepts NULL,
+  # so NA is normalized back to NULL before the refit.
+  sc <- fit$surv_controls %||% list()
+  .na_to_null <- function(x) if (length(x) == 1L && is.na(x)) NULL else x
 
   # Re-use the original data object (has_integration is already TRUE)
   data <- fit$data
@@ -131,6 +141,16 @@ prior_sensitivity <- function(fit,
       prior_sigma = fit$priors$sigma %||% default_prior_sigma(),
       # A fit that predates these controls was fitted on the raw scale, so the
       # historical behavior, not the current default, is what reproduces it.
+      distribution = fit$distribution,
+      prior_aux    = fit$priors$aux,
+      prior_smooth = fit$priors$smooth,
+      n_knots      = sc$n_knots      %||% 7L,
+      knots        = sc$knots,
+      mspline_degree = .na_to_null(sc$mspline_degree),
+      aux_by       = sc$aux_by       %||% ".study",
+      pred_times   = sc$pred_times,
+      rmst_horizon = sc$rmst_horizon,
+      n_rmst_grid  = sc$n_rmst_grid  %||% 100L,
       center       = mc$center       %||% FALSE,
       qr           = mc$qr           %||% FALSE,
       chains       = sa$chains       %||% 4,

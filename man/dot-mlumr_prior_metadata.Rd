@@ -11,7 +11,10 @@
   prior_beta,
   prior_sigma,
   beta_fields,
-  sd_x
+  sd_x,
+  prior_aux = NULL,
+  prior_smooth = NULL,
+  surv_info = NULL
 )
 }
 \description{
