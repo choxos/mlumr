@@ -229,6 +229,23 @@ test_that("the acceptance check is relative to the target moments", {
 })
 
 
+test_that("the gamma wrappers still accept an abbreviated `scale`", {
+  # Adding an `sd` formal alongside `scale` made `s` ambiguous, so a call
+  # stats:: accepts stopped with "argument 3 matches multiple formal
+  # arguments". Only formals before `...` are matched partially.
+  expect_equal(qgamma(0.5, shape = 2, s = 4), stats::qgamma(0.5, shape = 2, s = 4))
+  expect_equal(pgamma(1, shape = 2, s = 4), stats::pgamma(1, shape = 2, s = 4))
+  expect_equal(dgamma(1, shape = 2, s = 4), stats::dgamma(1, shape = 2, s = 4))
+  expect_equal(qgamma(0.5, shape = 2, r = 2), stats::qgamma(0.5, shape = 2, r = 2))
+  # `...` exists only to hold the pair back from partial matching; it must not
+  # become a place where a typo goes quiet.
+  expect_error(qgamma(0.5, shape = 2, nope = 1), "unused argument")
+  expect_error(qgamma(0.5, shape = 2, m = 5), "full names")
+  # And the moment parameterization is unaffected by the move.
+  expect_equal(qgamma(0.5, mean = 10, sd = 2),
+               stats::qgamma(0.5, shape = 25, rate = 2.5))
+})
+
 # ---- margin classification -------------------------------------------------
 
 test_that("qlogitnorm is classified as a continuous margin", {

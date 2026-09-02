@@ -14,6 +14,7 @@ qgamma(
   scale = 1/rate,
   lower.tail = TRUE,
   log.p = FALSE,
+  ...,
   mean,
   sd
 )
@@ -25,11 +26,12 @@ pgamma(
   scale = 1/rate,
   lower.tail = TRUE,
   log.p = FALSE,
+  ...,
   mean,
   sd
 )
 
-dgamma(x, shape, rate = 1, scale = 1/rate, log = FALSE, mean, sd)
+dgamma(x, shape, rate = 1, scale = 1/rate, log = FALSE, ..., mean, sd)
 }
 \arguments{
 \item{p}{Vector of probabilities.}

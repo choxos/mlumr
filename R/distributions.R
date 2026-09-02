@@ -39,7 +39,8 @@ NULL
 #' @rdname GammaDist
 #' @export
 qgamma <- function(p, shape, rate = 1, scale = 1 / rate, lower.tail = TRUE,
-                   log.p = FALSE, mean, sd) {
+                   log.p = FALSE, ..., mean, sd) {
+  .reject_gamma_dots(...)
   gp <- .gamma_moment_pars(missing(mean), missing(sd),
                            if (missing(mean)) NULL else mean,
                            if (missing(sd)) NULL else sd)
@@ -55,7 +56,8 @@ qgamma <- function(p, shape, rate = 1, scale = 1 / rate, lower.tail = TRUE,
 #' @rdname GammaDist
 #' @export
 pgamma <- function(q, shape, rate = 1, scale = 1 / rate, lower.tail = TRUE,
-                   log.p = FALSE, mean, sd) {
+                   log.p = FALSE, ..., mean, sd) {
+  .reject_gamma_dots(...)
   gp <- .gamma_moment_pars(missing(mean), missing(sd),
                            if (missing(mean)) NULL else mean,
                            if (missing(sd)) NULL else sd)
@@ -71,7 +73,8 @@ pgamma <- function(q, shape, rate = 1, scale = 1 / rate, lower.tail = TRUE,
 #' @rdname GammaDist
 #' @export
 dgamma <- function(x, shape, rate = 1, scale = 1 / rate, log = FALSE,
-                   mean, sd) {
+                   ..., mean, sd) {
+  .reject_gamma_dots(...)
   gp <- .gamma_moment_pars(missing(mean), missing(sd),
                            if (missing(mean)) NULL else mean,
                            if (missing(sd)) NULL else sd)
@@ -119,6 +122,31 @@ dgamma <- function(x, shape, rate = 1, scale = 1 / rate, log = FALSE,
   # Dividing twice keeps every intermediate on the scale of the answer.
   ratio <- mean / sd
   list(shape = ratio^2, rate = ratio / sd)
+}
+
+#' Refuse an argument these wrappers do not have
+#'
+#' `mean` and `sd` sit behind `...` so that they cannot take part in partial
+#' matching. Without that, adding an `sd` formal made `s` ambiguous between
+#' `scale` and `sd`, and `qgamma(p, shape = 2, s = 4)`, which \pkg{stats}
+#' accepts as `scale`, failed with "argument 3 matches multiple formal
+#' arguments". Only formals declared before `...` are matched partially, so
+#' moving the pair behind it restores the abbreviation and costs only this
+#' check, which keeps `...` from silently swallowing a typo the way
+#' \pkg{stats} would not.
+#' @param ... Must be empty.
+#' @keywords internal
+.reject_gamma_dots <- function(...) {
+  nm <- names(list(...))
+  if (length(nm) || ...length() > 0L) {
+    lbl <- if (length(nm)) paste(nm[nzchar(nm)], collapse = ", ") else ""
+    stop(sprintf(paste0("unused argument%s%s. `mean` and `sd` must be given ",
+                        "by their full names."),
+                 if (...length() > 1L) "s" else "",
+                 if (nzchar(lbl)) paste0(" (", lbl, ")") else ""),
+         call. = FALSE)
+  }
+  invisible(TRUE)
 }
 
 #' Refuse a conflicting `rate` and `scale`
