@@ -20,7 +20,7 @@ Invisibly, a list with \code{n_rows} (aggregate rows), \code{n_distinct}
 \code{n_rows_needed} (\code{n_cov + 1}), \code{cond_inv}, \code{eff_dim} (the participation
 ratio of the squared singular-value spectrum, which summarizes how evenly
 the spectral variation is spread across directions; it is not a count of
-identified coefficients), \code{singular_values}, \code{means} (the scaled, centered
+identified coefficients), \code{spread}, \code{singular_values}, \code{means} (the scaled, centered
 subgroup mean matrix), \code{diagnostic_scope}, and \code{flagged}: \code{TRUE} for too
 few rows, otherwise the identity-link screen result, or \code{NA} when nonlinear
 mean-profile geometry is descriptive only.
@@ -52,10 +52,16 @@ in large units cannot dominate a proportion by units alone), and decomposed.
 0 as the rows collapse onto a lower-dimensional set. Centering costs one
 dimension, which is the same \code{K + 1} fact seen from the other side.
 
-The identity-link screen uses \code{cond_inv < 0.2} as a package heuristic, not a
-validated universal cutoff. It ignores subgroup sample sizes and outcome
-precision, and a result above the cutoff does not establish identification.
-Confirm conclusions with \code{\link[=prior_sensitivity]{prior_sensitivity()}}.
+The identity-link screen uses \code{cond_inv < 0.2} and \code{spread < 0.05} as package
+heuristics, not validated universal cutoffs. \code{cond_inv} compares directions
+with one another, so it cannot see whether any of them carries information:
+with a single covariate there is one singular value and the ratio is 1 for
+every nonzero separation, including subgroup means that differ by 1e-12.
+\code{spread} supplies the absolute scale it lacks, as the RMS distance of the
+profiles from their center along the dominant direction, in IPD standard
+deviations. Neither sees subgroup sample sizes or outcome precision, and a
+result above both cutoffs does not establish identification. Confirm
+conclusions with \code{\link[=prior_sensitivity]{prior_sensitivity()}}.
 
 This diagnostic concerns \code{model = "relaxed"} only. Under SPFA both treatments
 share one coefficient vector, which the IPD identifies, so a single aggregate

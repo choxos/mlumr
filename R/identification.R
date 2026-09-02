@@ -25,10 +25,16 @@
 #' 0 as the rows collapse onto a lower-dimensional set. Centering costs one
 #' dimension, which is the same `K + 1` fact seen from the other side.
 #'
-#' The identity-link screen uses `cond_inv < 0.2` as a package heuristic, not a
-#' validated universal cutoff. It ignores subgroup sample sizes and outcome
-#' precision, and a result above the cutoff does not establish identification.
-#' Confirm conclusions with [prior_sensitivity()].
+#' The identity-link screen uses `cond_inv < 0.2` and `spread < 0.05` as package
+#' heuristics, not validated universal cutoffs. `cond_inv` compares directions
+#' with one another, so it cannot see whether any of them carries information:
+#' with a single covariate there is one singular value and the ratio is 1 for
+#' every nonzero separation, including subgroup means that differ by 1e-12.
+#' `spread` supplies the absolute scale it lacks, as the RMS distance of the
+#' profiles from their center along the dominant direction, in IPD standard
+#' deviations. Neither sees subgroup sample sizes or outcome precision, and a
+#' result above both cutoffs does not establish identification. Confirm
+#' conclusions with [prior_sensitivity()].
 #'
 #' This diagnostic concerns `model = "relaxed"` only. Under SPFA both treatments
 #' share one coefficient vector, which the IPD identifies, so a single aggregate
@@ -44,7 +50,7 @@
 #'   `n_rows_needed` (`n_cov + 1`), `cond_inv`, `eff_dim` (the participation
 #'   ratio of the squared singular-value spectrum, which summarizes how evenly
 #'   the spectral variation is spread across directions; it is not a count of
-#'   identified coefficients), `singular_values`, `means` (the scaled, centered
+#'   identified coefficients), `spread`, `singular_values`, `means` (the scaled, centered
 #'   subgroup mean matrix), `diagnostic_scope`, and `flagged`: `TRUE` for too
 #'   few rows, otherwise the identity-link screen result, or `NA` when nonlinear
 #'   mean-profile geometry is descriptive only.
@@ -107,7 +113,7 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   out$flagged <- if (out$n_distinct < out$n_rows_needed) {
     TRUE
   } else if (out$diagnostic_scope == "identity") {
-    out$cond_inv < 0.2
+    out$cond_inv < 0.2 || out$spread < 0.05
   } else {
     NA
   }
@@ -153,28 +159,40 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #'   columns on a common scale. Scaling by the spread of the MEANS instead would
 #'   rescale a covariate whose subgroup means barely move up to the same footing
 #'   as one that swings from 0 to 1, hiding the very collapse being measured.
-#' @return A list with `cond_inv`, `eff_dim`, `singular_values`, `means`.
+#' @return A list with `cond_inv`, `eff_dim`, `spread`, `singular_values`,
+#'   `means`.
 #' @keywords internal
 .subgroup_geometry <- function(means, ref_sd) {
   M <- as.matrix(means)
   k <- ncol(M)
-  if (nrow(M) < 2L) {
-    return(list(cond_inv = 0, eff_dim = 0,
-                singular_values = rep(0, k), means = M))
-  }
+  # Center and scale before the early return as well, so the returned `means`
+  # is the scaled, centered matrix the documentation describes whatever the
+  # row count. A single row previously came back on its raw scale.
   M <- scale(M, center = TRUE, scale = FALSE)
   ref_sd <- as.numeric(ref_sd)
   ref_sd[!is.finite(ref_sd) | ref_sd <= 0] <- 1
   M <- sweep(M, 2, ref_sd, "/")
+  degenerate <- list(cond_inv = 0, eff_dim = 0, spread = 0,
+                     singular_values = rep(0, k), means = M)
+  if (nrow(M) < 2L) return(degenerate)
   d <- svd(M)$d
   d <- d[is.finite(d)]
-  if (!length(d) || max(d) <= 0) {
-    return(list(cond_inv = 0, eff_dim = 0,
-                singular_values = rep(0, k), means = M))
-  }
+  if (!length(d) || max(d) <= 0) return(degenerate)
   if (length(d) < k) d <- c(d, rep(0, k - length(d)))
+  # Normalize before the fourth powers. The participation ratio is scale-free
+  # by construction, but `sum(d^2)^2` and `sum(d^4)` are not: a covariate whose
+  # singular values reach 1e200 overflows both and returns NaN for an entirely
+  # ordinary spectrum.
+  dn <- d / max(d)
   list(cond_inv = min(d) / max(d),
-       eff_dim = sum(d^2)^2 / sum(d^4),
+       eff_dim = sum(dn^2)^2 / sum(dn^4),
+       # `cond_inv` compares directions with each other and so cannot see
+       # whether ANY of them carries information: with a single covariate there
+       # is one singular value, and the ratio is 1 for every nonzero
+       # separation, including means that differ by 1e-12. `spread` is the RMS
+       # distance of the profiles from their center along the dominant
+       # direction, in IPD standard deviations, which is an absolute scale.
+       spread = max(d) / sqrt(nrow(M)),
        singular_values = d,
        means = M)
 }
@@ -257,7 +275,8 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   cat(sprintf("Rows needed (K + 1): %d\n", x$n_rows_needed))
   cat(sprintf("Spectral dimension:  %.2f of %d (eff_dim)\n",
               x$eff_dim, x$n_cov))
-  cat(sprintf("Spread (cond_inv):   %.4f\n\n", x$cond_inv))
+  cat(sprintf("Balance (cond_inv):  %.4f\n", x$cond_inv))
+  cat(sprintf("Spread (IPD SDs):    %.4g\n\n", x$spread))
 
   if (x$n_distinct < x$n_rows_needed) {
     cat("WEAK: too few distinct aggregate rows. With ", x$n_cov,
@@ -285,12 +304,19 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
         "This is what happens when subgroups are reported one variable at a ",
         "time, or when cross-tabulated categorical cells all share nearly the ",
         "same mean on a continuous covariate.\n", sep = "")
+  } else if (x$spread < 0.05) {
+    cat("WEAK: the rows vary in every direction, but hardly at all. The ",
+        "subgroup means sit within ", sprintf("%.3g", x$spread), " IPD ",
+        "standard deviations of their own center, so every slope rests on a ",
+        "lever that short. `cond_inv` cannot see this, because it compares ",
+        "the directions with one another rather than with the covariate ",
+        "scale.\n", sep = "")
   } else {
-    cat("NOT FLAGGED: the row count and the spread of the subgroup means are ",
-        "both above the exploratory screening values. This does not establish ",
-        "identification. `cond_inv` is a relative measure, so it cannot see ",
-        "subgroup sizes, outcome precision, or link curvature; confirm with ",
-        "the coefficient posterior and prior_sensitivity().\n", sep = "")
+    cat("NOT FLAGGED: the row count, the balance of the subgroup means, and ",
+        "their spread are all above the exploratory screening values. This ",
+        "does not establish identification: neither measure can see subgroup ",
+        "sizes, outcome precision, or link curvature; confirm with the ",
+        "coefficient posterior and prior_sensitivity().\n", sep = "")
   }
 
   if (isTRUE(x$flagged)) {

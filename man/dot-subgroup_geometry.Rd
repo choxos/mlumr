@@ -15,7 +15,8 @@ rescale a covariate whose subgroup means barely move up to the same footing
 as one that swings from 0 to 1, hiding the very collapse being measured.}
 }
 \value{
-A list with \code{cond_inv}, \code{eff_dim}, \code{singular_values}, \code{means}.
+A list with \code{cond_inv}, \code{eff_dim}, \code{spread}, \code{singular_values},
+\code{means}.
 }
 \description{
 Singular-value geometry of a set of subgroup mean vectors

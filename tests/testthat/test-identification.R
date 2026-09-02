@@ -194,3 +194,34 @@ test_that("profile rank survives an offset and fails closed", {
   # full rank and suppressed its warning.
   expect_equal(mlumr:::.profile_rank(matrix(c(NA_real_, 1), ncol = 1)), 0L)
 })
+
+# ---- absolute scale, not only relative balance -----------------------------
+
+test_that("the geometry helper reports spread as well as balance", {
+  # cond_inv compares directions with one another, so with a single covariate
+  # there is one singular value and the ratio is 1 for any nonzero separation.
+  # Subgroup means 1e-12 apart scored a perfect 1.
+  tiny <- mlumr:::.subgroup_geometry(matrix(c(0, 1e-12), ncol = 1), 1)
+  expect_equal(tiny$cond_inv, 1)
+  expect_lt(tiny$spread, 1e-10)
+
+  real <- mlumr:::.subgroup_geometry(matrix(c(0, 1), ncol = 1), 1)
+  expect_equal(real$cond_inv, 1)
+  expect_gt(real$spread, 0.05)
+})
+
+test_that("the spectrum survives a covariate on an extreme scale", {
+  # eff_dim is scale-free by construction, but sum(d^2)^2 and sum(d^4) are not:
+  # both overflowed and returned NaN for an ordinary spectrum.
+  for (a in c(1e-200, 1, 1e200)) {
+    g <- mlumr:::.subgroup_geometry(matrix(c(-a, a), ncol = 1), 1)
+    expect_false(is.nan(g$eff_dim), info = format(a))
+    expect_equal(g$eff_dim, 1, tolerance = 1e-8, info = format(a))
+  }
+})
+
+test_that("a single row comes back centered and scaled, as documented", {
+  g <- mlumr:::.subgroup_geometry(matrix(10, ncol = 1), 2)
+  expect_equal(as.numeric(g$means), 0)
+  expect_equal(g$spread, 0)
+})
