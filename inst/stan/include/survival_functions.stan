@@ -292,12 +292,22 @@ real log_cumhaz_scalar(int dist, real t, real eta, real aux) {
   reject("log_cumhaz_scalar() has no closed form for dist = ", dist);
 }
 
+// log(exp(z) - 1) where the argument arrives as log(z), which is how the
+// Gompertz and Weibull cumulative-hazard differences below reach it.
 real log_expm1_from_log_x(real log_x) {
   if (log_x < -10) {
     real x = exp(log_x);
     return log_x + log1p(0.5 * x + square(x) / 6);
   }
-  if (log_x > 700) return exp(log_x);
+  // The overflow is in expm1(z), which leaves double precision at z near 709,
+  // so the guard belongs on z = exp(log_x) rather than on log_x itself. Tested
+  // against log_x, it fired only above exp(700), and every log_x between
+  // log(709) and 700 returned log(inf) = inf: for a Gompertz fit with delayed
+  // entry or interval censoring that made the log-likelihood -inf and the draw
+  // was rejected, at parameter values where the true log difference is an
+  // ordinary finite number. Above the threshold log(e^z - 1) is z to well
+  // under double precision.
+  if (log_x > log(700)) return exp(log_x);
   return log(expm1(exp(log_x)));
 }
 
