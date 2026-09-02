@@ -17,6 +17,23 @@ fit_tiny <- function(dat, ...) {
   ))
 }
 
+# The effect quantities are read straight off the draws rather than through
+# marginal_effects()/predict(), which arrive with the prediction layer. Stan is
+# what this file exercises, so asserting on the generated quantities keeps the
+# coverage honest about which layer produced the number.
+expect_finite_draws <- function(fit, vars, info = NULL) {
+  for (v in vars) {
+    d <- fit$draws[[v]]
+    expect_false(is.null(d), info = paste(info, v))
+    expect_true(all(is.finite(d)), info = paste(info, v))
+  }
+}
+
+surv_draw_names <- function(fit, prefix) {
+  nm <- names(fit$draws)
+  nm[grepl(paste0("^", prefix, "\\["), nm)]
+}
+
 test_that("every parametric survival distribution samples and reports finite effects", {
   skip_on_cran()
   skip_if_not_installed("rstan")
@@ -34,18 +51,20 @@ test_that("every parametric survival distribution samples and reports finite eff
     fit <- fit_tiny(dat, distribution = d, aux_by = "none", init = 0)
     expect_s3_class(fit, "mlumr_fit")
 
-    me <- suppressMessages(marginal_effects(fit, effect = "hr"))
-    expect_true(all(is.finite(me$mean)), info = d)
-    expect_true(all(me$mean > 0), info = d)          # natural scale, null 1
-    expect_true(all(me$effect == if (d %in% ph) "HR" else "TR"), info = d)
+    # The log HR (PH) / log time ratio (AFT) contrast and the RMST differences,
+    # under the names the R layer will later read.
+    expect_finite_draws(fit, c("delta_index", "delta_comparator",
+                               "rmst_diff_index", "rmst_diff_comparator"),
+                        info = d)
 
-    rd <- marginal_effects(fit, effect = "rmstd")
-    expect_true(all(is.finite(rd$mean)), info = d)
-    expect_true(all(rd$effect == "RMSTD"), info = d)
-
-    s <- predict(fit, type = "survival")
-    expect_true(all(is.finite(s$mean)), info = d)
-    expect_true(all(s$mean >= 0 & s$mean <= 1), info = d)
+    # Survival curves are probabilities in [0, 1] whatever the distribution.
+    sv <- surv_draw_names(fit, "surv_index_index")
+    expect_true(length(sv) > 0, info = d)
+    for (v in sv) {
+      x <- fit$draws[[v]]
+      expect_true(all(is.finite(x)), info = paste(d, v))
+      expect_true(all(x >= 0 & x <= 1), info = paste(d, v))
+    }
   }
 })
 
@@ -66,13 +85,16 @@ test_that("the relaxed M-spline model samples end to end", {
   expect_true(any(grepl("^beta_comparator\\[", names(fit$draws))))
   expect_true(any(grepl("^scoef", names(fit$draws))))
 
-  rd <- suppressMessages(marginal_effects(fit, effect = "rmstd"))
-  expect_true(all(is.finite(rd$mean)))
-  expect_equal(sort(unique(rd$population)), c("Comparator", "Index"))
-
-  s <- predict(fit, type = "survival")
-  expect_true(all(is.finite(s$mean)))
-  expect_true(all(s$mean >= 0 & s$mean <= 1))
+  # Both target populations produce an RMST difference, and the survival curves
+  # stay probabilities.
+  expect_finite_draws(fit, c("rmst_diff_index", "rmst_diff_comparator"))
+  sv <- surv_draw_names(fit, "surv_index_index")
+  expect_true(length(sv) > 0)
+  for (v in sv) {
+    x <- fit$draws[[v]]
+    expect_true(all(is.finite(x)), info = v)
+    expect_true(all(x >= 0 & x <= 1), info = v)
+  }
 })
 
 test_that("the relaxed piecewise-exponential model samples end to end", {
@@ -84,8 +106,7 @@ test_that("the relaxed piecewise-exponential model samples end to end", {
   fit <- fit_tiny(dat, model = "relaxed", distribution = "pexp", n_knots = 3)
 
   expect_s3_class(fit, "mlumr_fit")
-  rd <- suppressMessages(marginal_effects(fit, effect = "rmstd"))
-  expect_true(all(is.finite(rd$mean)))
+  expect_finite_draws(fit, c("rmst_diff_index", "rmst_diff_comparator"))
 })
 
 test_that("left censoring and delayed entry sample through the likelihood", {
@@ -128,12 +149,12 @@ test_that("left censoring and delayed entry sample through the likelihood", {
   d_left <- mk(survival::Surv(tt, st, type = "left"), age, male)
   fit_left <- fit_tiny(d_left, distribution = "weibull")
   expect_s3_class(fit_left, "mlumr_fit")
-  expect_true(all(is.finite(predict(fit_left, type = "survival")$mean)))
+  expect_finite_draws(fit_left, c("delta_index", "delta_comparator"))
 
   # Delayed entry (left truncation): entry strictly before the event time.
   entry <- pmax(pmin(tt * 0.1, tt - 1e-6), 0)
   d_delay <- mk(survival::Surv(entry, tt, stats::rbinom(n, 1, 0.7)), age, male)
   fit_delay <- fit_tiny(d_delay, distribution = "weibull")
   expect_s3_class(fit_delay, "mlumr_fit")
-  expect_true(all(is.finite(predict(fit_delay, type = "survival")$mean)))
+  expect_finite_draws(fit_delay, c("delta_index", "delta_comparator"))
 })

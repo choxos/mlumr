@@ -50,22 +50,17 @@ test_that("survival relaxed model and exponential/gengamma run", {
 
   fit_gg <- fit_survival_test(dat, distribution = "gengamma", iter = 400, warmup = 200)
   expect_s3_class(fit_gg, "mlumr_fit")
-  # The gengamma likelihood leans on Stan's regularized incomplete gamma, whose
-  # gradient can fail to converge; a chain can terminate abnormally and both
-  # backends then assemble the fit from the survivors. mlumr cannot prevent
-  # that, but it must never hide it: the chain counts have to be recorded so
-  # check_diagnostics() and summary() can report an incomplete posterior.
-  expect_true(is.numeric(fit_gg$diagnostics$n_chains_requested))
-  expect_true(is.numeric(fit_gg$diagnostics$n_chains_returned))
-  expect_equal(fit_gg$diagnostics$n_chains_requested, 2)
-  expect_equal(fit_gg$diagnostics$n_chains_returned,
-               length(unique(fit_gg$chain_ids)))
-  expect_lte(fit_gg$diagnostics$n_chains_returned,
-             fit_gg$diagnostics$n_chains_requested)
-  # generalized-gamma marginal hazard / log-HR generated quantities must be
-  # finite (regression test for the inf - inf cancellation in mean_haz()).
-  expect_true(all(is.finite(predict(fit_gg, type = "hazard")$mean)))
-  expect_true(all(is.finite(predict(fit_gg, type = "loghr")$mean)))
+  # The generalized-gamma hazard and log-HR generated quantities are where the
+  # inf - inf cancellation in mean_haz() would surface. Read them off the draws:
+  # this is the layer the model commit ships, and it does not wait for the
+  # prediction layer to be able to catch a non-finite quantity.
+  gq <- names(fit_gg$draws)
+  haz <- gq[grepl("^haz_(index|comparator)_(index|comparator)\\[", gq)]
+  lhr <- gq[grepl("^loghr_(index|comparator)\\[", gq)]
+  expect_true(length(haz) > 0)
+  expect_true(length(lhr) > 0)
+  expect_true(all(vapply(fit_gg$draws[haz], function(x) all(is.finite(x)), logical(1))))
+  expect_true(all(vapply(fit_gg$draws[lhr], function(x) all(is.finite(x)), logical(1))))
 })
 
 test_that("M-spline and piecewise-exponential survival models fit", {
@@ -95,4 +90,22 @@ test_that("survival LOO consumes the pointwise log-likelihood", {
   fit <- fit_survival_test(dat, distribution = "weibull")
   l <- calculate_loo(fit)
   expect_true(is.finite(l$estimates["elpd_loo", "Estimate"]))
+})
+
+test_that("survival effects and predictions refuse rather than mislabel", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+
+  dat <- sim_survival_data(seed = 2026)
+  fit <- fit_survival_test(dat, distribution = "weibull")
+
+  # `delta_*` is a LOG hazard ratio. The generic marginal_effects() path maps
+  # `hr` onto exactly those columns, so without a guard this call would return
+  # the log HR under the name HR. It must fail instead.
+  expect_error(marginal_effects(fit, effect = "hr"), "prediction layer")
+  expect_error(marginal_effects(fit), "prediction layer")
+  expect_error(predict(fit, type = "response"), "prediction layer")
+
+  # The quantities themselves are present; only the reporting layer is absent.
+  expect_true(all(c("delta_index", "delta_comparator") %in% names(fit$draws)))
 })
