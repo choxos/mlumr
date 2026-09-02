@@ -1,10 +1,13 @@
 name: R-CMD-check
 
 on:
+  # push only on the long-lived branches; pull_request covers everything else.
+  # Listing release/** in both made every push to a branch with an open PR run
+  # the whole matrix twice on the same commit.
   push:
     branches: [main, master]
   pull_request:
-    branches: [main, master]
+    branches: [main, master, 'release/**']
   workflow_dispatch:
 
 permissions:
