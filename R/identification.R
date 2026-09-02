@@ -142,26 +142,54 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 
 # Declared AgD mean profiles define the identity-link aggregate design exactly.
 # Realized integration means are retained only for legacy objects without the
-# public `<covariate>_mean` columns.
+# public `<covariate>_mean` columns, and as a cross-check: the likelihood sees
+# the integration points, not the declared columns, and nothing forces a
+# hand-written `distr()` to reproduce them.
 .agd_mean_profiles <- function(data) {
   covs <- data$covariates
   mean_cols <- paste0(covs, "_mean")
   agd <- data$agd$data
+  realized <- .agd_realized_profiles(data, covs)
   if (all(mean_cols %in% names(agd))) {
     means <- as.matrix(agd[, mean_cols, drop = FALSE])
     storage.mode(means) <- "double"
     if (all(is.finite(means))) {
       colnames(means) <- covs
+      # Declared means are preferred because they do not move with the
+      # integration resolution. They are only worth preferring while they
+      # describe the design being fitted: a `distr()` that ignores the columns
+      # it was meant to read (a fixed `distr(qnorm, mean = 0, sd = 1)` on every
+      # row) leaves declared profiles that span directions the likelihood does
+      # not have. Comparing ranks catches that without needing a tolerance for
+      # quadrature noise, which a direct comparison of the means would.
+      if (!is.null(realized) &&
+            .profile_rank(realized) < .profile_rank(means)) {
+        warning("The integration distributions do not reproduce the declared ",
+                "aggregate covariate means: the realized profiles span fewer ",
+                "directions than the `<covariate>_mean` columns do. Reporting ",
+                "the realized geometry, which is what the likelihood sees. ",
+                "Check that each `distr()` reads its row's summaries.",
+                call. = FALSE)
+        return(realized)
+      }
       return(means)
     }
   }
-  x_int <- data$integration_points
-  if (is.null(x_int)) {
+  if (is.null(realized)) {
     stop("Aggregate covariate means are unavailable. set_agd() normalizes every ",
          "`cov_means` column to `<covariate>_mean`, so this object predates that ",
          "or was built by hand; run add_integration() and the realized ",
          "integration means will be used instead.", call. = FALSE)
   }
+  realized
+}
+
+
+#' Mean covariate profile actually realized by each row's integration points
+#' @keywords internal
+.agd_realized_profiles <- function(data, covs) {
+  x_int <- data$integration_points
+  if (is.null(x_int)) return(NULL)
   means <- apply(x_int, c(1L, 3L), mean)
   means <- matrix(means, nrow = dim(x_int)[1L], ncol = dim(x_int)[3L])
   colnames(means) <- covs

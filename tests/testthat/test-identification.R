@@ -140,11 +140,10 @@ test_that("check_identification refuses survival data", {
   # the family label exercises it. It was previously written against a
   # `sim_survival_data()` that does not exist here, behind a
   # `skip_if_not(exists(...))`, so it never ran at all.
-  dat <- structure(
-    list(family = "survival", covariates = "x1",
-         ipd = list(data = data.frame(x1 = c(0, 1))),
-         agd = list(data = data.frame(x1_mean = 0.5))),
-    class = "mlumr_data")
+  dat <- list(family = "survival", covariates = "x1",
+              ipd = list(data = data.frame(x1 = c(0, 1))),
+              agd = list(data = data.frame(x1_mean = 0.5)))
+  class(dat) <- "mlumr_data"
 
   expect_error(check_identification(dat), "not valid for reconstructed survival")
   expect_error(check_identification(dat), "prior_sensitivity")
@@ -173,11 +172,9 @@ test_that("rows repeating an integration grid are counted once", {
   expect_equal(mlumr:::.agd_distinct_profiles(mk(list(1, 1, 2))), 2L)
   expect_equal(mlumr:::.agd_distinct_profiles(mk(list(1, 2, 3))), 3L)
   # With nothing to compare, the row count is all there is.
-  expect_equal(
-    mlumr:::.agd_distinct_profiles(
-      list(integration_points = NULL,
-           agd = list(data = data.frame(trt = rep("B", 5))))),
-    5L)
+  none <- list(integration_points = NULL,
+               agd = list(data = data.frame(trt = rep("B", 5))))
+  expect_equal(mlumr:::.agd_distinct_profiles(none), 5L)
 })
 
 # ---- rank is judged on a scale that can be judged --------------------------
@@ -239,4 +236,37 @@ test_that("a target profile inside the aggregate row space is reported", {
   one <- matrix(c(0.5, 0.5), nrow = 1)
   expect_true(mlumr:::.target_in_span(one, c(0.5, 0.5), c(1, 1)))
   expect_false(mlumr:::.target_in_span(one, c(0.5, 0.9), c(1, 1)))
+})
+
+# ---- the geometry the likelihood sees --------------------------------------
+
+test_that("declared means that the integration grid does not reproduce are caught", {
+  # Declared `<covariate>_mean` columns are preferred because they do not move
+  # with the integration resolution. That is only worth preferring while they
+  # describe the design being fitted. A `distr()` that ignores the columns it
+  # was meant to read leaves declared profiles spanning directions the
+  # likelihood does not have, and the diagnostic would certify them.
+  mk <- function(realized_means) {
+    n <- length(realized_means)
+    x <- array(0, dim = c(n, 8L, 1L))
+    for (i in seq_len(n)) x[i, , 1L] <- realized_means[[i]]
+    out <- list(family = "normal", covariates = "x1",
+                ipd = list(data = data.frame(x1 = stats::rnorm(20))),
+                agd = list(data = data.frame(x1_mean = c(-1, 1))),
+                integration_points = x)
+    class(out) <- "mlumr_data"
+    out
+  }
+  # Integration grids that do reproduce the declared spread: declared wins,
+  # silently.
+  ok <- mk(list(-1, 1))
+  expect_silent(got <- mlumr:::.agd_mean_profiles(ok))
+  expect_equal(as.numeric(got), c(-1, 1))
+
+  # Both rows built from the same fixed distribution: the declared profiles
+  # span a direction the likelihood does not have.
+  bad <- mk(list(0, 0))
+  expect_warning(got <- mlumr:::.agd_mean_profiles(bad),
+                 "do not reproduce the declared")
+  expect_equal(as.numeric(got), c(0, 0))
 })
