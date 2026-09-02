@@ -146,6 +146,20 @@
   reports both populations without that assumption, when the index population is
   the decision target.
 
+## Example data
+
+* **The worked examples are built on datasets derived from published trials**,
+  replacing the freely invented datasets used in version 0.1.0's vignettes.
+  Provenance differs by example and is stated in each dataset's help page. The
+  plaque psoriasis data are redistributed from `multinma`, where the individual
+  patient data are themselves simulated to resemble the published trial. The
+  shoulder pain and dental caries data are synthetic, generated with `synthpop`
+  from openly licensed trial data.
+
+* `psoriasis_ipd` / `psoriasis_agd` (binary), `shoulder_ipd` / `shoulder_agd`
+  (continuous), and `caries_ipd` / `caries_agd` (count).
+  `data-raw/prepare_multinma_subsets.R` reproduces every bundled dataset.
+
 ## Performance
 
 * The binary, continuous, and count IPD likelihoods now use Stan's fused

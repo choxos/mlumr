@@ -1,0 +1,91 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2865
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww23260\viewh20200\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 FIMPACT 10-year dataset \'96 README / Metadata\
+\
+File name:\
+FIMPACT 10 year outcome all timepoints.xlsx\
+\
+Description:\
+This file contains anonymised individual-level outcome data from the FIMPACT trial, covering all follow-up timepoints (up to 10 years). The dataset includes variables used in the primary and secondary analyses reported in the 10-year follow-up publication submitted to The BMJ.\
+\
+Contents:\
+- One row per timepoint per participant (7 rows per participant: baseline, 3m, 6m, 12m, 24m, 60m, 120m)\
+- Columns include:\
+    - Treatment allocation (placebo, ASD or ET)\
+    - Outcome variables (e.g. pain scores, functional scores, satisfaction)\
+    - Age group (in 5-year intervals)\
+    - Sex\
+    - Follow-up timepoint\
+    - Other derived variables used in analysis\
+\
+Anonymisation:\
+All data are fully anonymised in accordance with GDPR and Finnish data protection regulations. The pseudonymisation key has been destroyed, and variables have been processed to ensure k-anonymity (minimum 6 individuals per stratum). Age is presented in groups, and no location or free-text data are included.\
+\
+Use:\
+This dataset enables reproduction of the primary and secondary outcome analyses reported in the FIMPACT 10-year follow-up study. It is suitable for meta-analysis, secondary synthesis, or methodological research.\
+\
+Contact:\
+Teppo J\'e4rvinen, MD, PhD\
+teppo.jarvinen@helsinki.fi\
+\
+Variable descriptions:\
+\
+agr_group:\
+  Age group at baseline (5-year intervals, e.g., 35\'9639, 40\'9644). Used for k-anonymisation; no exact ages included.\
+\
+Sex:\
+  Biological sex of the participant (Male or Female).\
+\
+Patient#:\
+  Randomly assigned anonymised participant ID. No identifying link exists.\
+\
+time:\
+  Follow-up timepoint. One of: 0 (baseline), 3 (months), 6 (months), 12 (months), 24 (months), 60 (months), 120 (months).\
+\
+Study Group:\
+  Randomisation group: ASD = Arthroscopic Subacromial Decompression; Placebo = Diagnostic arthroscopy; ET = Exercise therapy.\
+\
+As-treated group:\
+  Treatment actually received, regardless of randomisation group (as-treated).\
+\
+Per-protocol indicator:\
+  Binary variable indicating protocol adherence (1 = per-protocol, 0 = deviation).\
+\
+Pain VAS at rest:\
+  Visual Analog Scale (0\'96100 mm) for shoulder pain at rest.\
+\
+Pain VAS on activity:\
+  Visual Analog Scale (0\'96100 mm) for shoulder pain during activity.\
+\
+Constant Score:\
+  Composite shoulder function score (0\'96100); higher scores indicate better function.\
+\
+SST_Score:\
+  Simple Shoulder Test score (0\'9612); higher scores indicate better function.\
+\
+15D Score:\
+  15D health-related quality-of-life score (0\'961 scale, 1 = full health).\
+\
+sf36_Physical_functioning:\
+  SF-36 physical functioning subscale (0\'96100).\
+\
+sf36_mental_health:\
+  SF-36 mental health subscale (0\'96100).\
+\
+sf36_General_health:\
+  SF-36 general health subscale (0\'96100).\
+\
+Return to hobbies:\
+  Binary indicator for return to previous hobbies (1 = returned, 0 = not returned).\
+\
+Responder:\
+  Binary indicator for clinical responder status based on predefined thresholds.\
+\
+VAS_SatisfactionCare:\
+  VAS score (0\'96100 mm) for participant\'92s satisfaction with received care.\
+}
