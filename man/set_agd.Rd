@@ -26,8 +26,11 @@ set_agd(
 
 \item{family}{Outcome family: \code{"binomial"}, \code{"normal"}, or \code{"poisson"}}
 
-\item{outcome_n}{Column name for sample size (required for binomial,
-optional for normal)}
+\item{outcome_n}{Column name for sample size. Required for binomial. For
+normal, required when there is more than one aggregate row, because the
+comparator-population estimand is the size-weighted mixture of those rows
+and they cannot be combined without knowing how large each is; optional for
+a single row, where the weighting is irrelevant.}
 
 \item{outcome_r}{Column name for number of events (required for binomial
 and poisson)}
