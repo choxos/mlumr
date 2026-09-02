@@ -49,6 +49,13 @@
   report for a binomial arm with no events (or no non-events) change slightly.
   Arms with events on both sides are unaffected.
 
+* **New arguments are inserted before the sampler controls, so positional calls
+  are not preserved.** `mlumr()` gains model-defining arguments ahead of
+  `chains`, `iter`, and the rest. A call that passed sampler settings by
+  position rather than by name therefore binds them to the wrong parameters and
+  stops with a validation error naming the argument it actually received. Call
+  `mlumr()` with named arguments.
+
 ## Performance
 
 * The binary, continuous, and count IPD likelihoods now use Stan's fused
