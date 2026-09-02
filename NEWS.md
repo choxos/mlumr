@@ -56,6 +56,40 @@
   stops with a validation error naming the argument it actually received. Call
   `mlumr()` with named arguments.
 
+* **`check_integration()` compares correlations on one scale.** The realized
+  integration-point correlation was always measured with Pearson while the
+  target, when derived from the IPD, defaults to Spearman. The method that
+  defined the target is now carried into the diagnostic and reported in the
+  output, so the comparison can no longer warn (or reassure) purely from a
+  method mismatch.
+
+* **`check_integration()` also reports fidelity to the declared moments.** The
+  existing resolution diagnostic compares two grid sizes and answers "is `n_int`
+  large enough". It now additionally compares each realized grid moment against
+  the mean and standard deviation declared in `set_agd()`, which answers the
+  different question "does the grid represent the population it claims to". A
+  `distr()` specification can be numerically well resolved and still target the
+  wrong marginal.
+
+* **`add_integration()` states where the copula correction does not apply.** The
+  Spearman and Pearson maps branch on continuous versus binary margins. A
+  nonbinary discrete margin, such as a count or an ordered category, has no
+  branch and is mapped with the continuous-margin formula; an exact mapping
+  would depend on that margin's distribution and its category thresholds.
+  `add_integration()` warns when it detects such a covariate, and the
+  documentation states the limitation.
+
+* **`add_integration()` rejects a Pearson correlation with non-Gaussian
+  margins.** A covariate-scale Pearson correlation is the Gaussian-copula
+  correlation only when the margins are themselves Gaussian, so
+  `cor_adjust = "pearson"` combined with a non-`qnorm` continuous margin and a
+  nonzero off-diagonal entry now errors instead of silently treating the
+  supplied matrix as a latent one. Use `cor_adjust = "spearman"`, Gaussian
+  margins, or `cor_adjust = "none"` with a matrix already on the latent scale.
+
+* **`add_integration()` warns when a supplied `distr()` distribution grossly
+  contradicts the declared `set_agd()` moments.**
+
 * **Continuous multi-row comparator estimand, and `outcome_n` is now required
   for it.** For the normal family the comparator-population standardized effect
   from several `set_agd()` rows is weighted by `outcome_n` (sample size) rather
