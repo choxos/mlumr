@@ -491,22 +491,6 @@ mlumr <- function(data,
   result <- .mlumr_fit_backend(
     engine = engine,
     model_name = model_name,
-    distribution = if (!is.null(surv_info)) surv_info$distribution else NULL,
-    surv_info = surv_info,
-    # Baseline controls needed to reproduce this fit. Survival-only entries are
-    # NULL for other families, because mlumr() rejects them there and replaying
-    # a stored formal default into a refit would make it error.
-    surv_controls = list(
-      n_knots = n_knots,
-      knots = if (!is.null(surv_info) && surv_info$kind == "flexible") knots else NULL,
-      aux_by = if (family == "survival") aux_by else NULL,
-      mspline_degree = if (!is.null(surv_info)) surv_info$mspline_degree else NULL,
-      pred_times = stan_data$pred_times,
-      rmst_horizon = if (family == "survival")
-        max(stan_data$rmst_grid_times) else NULL,
-      n_rmst_grid = if (family == "survival")
-        length(stan_data$rmst_grid_times) else NULL
-    ),
     stan_data = stan_data,
     chains = chains,
     iter = iter,
@@ -556,6 +540,31 @@ mlumr <- function(data,
     link_code = link_info$code,
     model = model,
     model_name = model_name,
+    # What was fitted, kept on the fit rather than passed to the sampler.
+    # These describe the model, so they belong here: prior_sensitivity() reads
+    # `distribution` and `surv_controls` to reproduce a fit, and predict() reads
+    # `pred_times`. They were previously handed to .mlumr_fit_backend(), whose
+    # signature ends in `...`, so instead of being stored they were forwarded
+    # to the sampler: rstan::sampling() rejects unknown argument names outright
+    # and CmdStanModel$sample() has no `...` to absorb them, which meant no
+    # survival model could be fitted by either engine.
+    distribution = if (!is.null(surv_info)) surv_info$distribution else NULL,
+    surv_info = surv_info,
+    pred_times = stan_data$pred_times,
+    # Baseline controls needed to reproduce this fit. Survival-only entries are
+    # NULL for other families, because mlumr() rejects them there and replaying
+    # a stored formal default into a refit would make it error.
+    surv_controls = list(
+      n_knots = n_knots,
+      knots = if (!is.null(surv_info) && surv_info$kind == "flexible") knots else NULL,
+      aux_by = if (family == "survival") aux_by else NULL,
+      mspline_degree = if (!is.null(surv_info)) surv_info$mspline_degree else NULL,
+      pred_times = stan_data$pred_times,
+      rmst_horizon = if (family == "survival")
+        max(stan_data$rmst_grid_times) else NULL,
+      n_rmst_grid = if (family == "survival")
+        length(stan_data$rmst_grid_times) else NULL
+    ),
     stan_data = stan_data,
     # Design-matrix controls that change the fitted parameterization (the
     # centered intercept, the QR-rotated coefficients). They have to travel
@@ -692,7 +701,8 @@ mlumr <- function(data,
 #' Population weights for the AgD rows used in covariate centering
 #'
 #' Returns one weight per aggregate row, taken from the family's comparator
-#' weight field (`n_agd`, `agd_weight`, `E_agd`). Falls back to equal weights when no usable field is present.
+#' weight field (`n_agd`, `agd_weight`, `E_agd`), or the pseudo-individual count
+#' for survival. Falls back to equal weights when no usable field is present.
 #' Weights must be positive and finite, and must sum over a split subgroup to
 #' the same total as the unsplit one, which is what makes the center invariant
 #' to how the aggregate evidence is tabulated.
@@ -707,6 +717,22 @@ mlumr <- function(data,
   cfg <- tryCatch(get_family_config(family), error = function(e) NULL)
   field <- if (is.null(cfg)) NULL else cfg$comp_weight_field
   w <- if (!is.null(field)) stan_data[[field]] else NULL
+  # Survival has no comparator weight field; the pseudo-IPD count is the
+  # equivalent population size. `stan_data$n_agd` is the TOTAL number of
+  # pseudo-individuals, so falling through to the equal-weight fallback would
+  # give every AgD row the same weight regardless of how many pseudo-individuals
+  # it actually contributes. That is exactly the tabulation dependence this
+  # function exists to remove: two comparator arms of 300 and 60 would be
+  # centered as if they were 180 each. `agd_arm` maps each pseudo-individual to
+  # its row, so tabulating it recovers the true per-row population.
+  if (is.null(w) && identical(family, "survival")) {
+    arm <- stan_data$agd_arm
+    w <- if (!is.null(arm) && n_agd_rows >= 1L) {
+      tabulate(as.integer(arm), nbins = n_agd_rows)
+    } else {
+      stan_data$n_agd
+    }
+  }
   if (is.null(w)) return(fallback)
   w <- as.numeric(w)
   if (length(w) == 1L && n_agd_rows > 1L) w <- rep(w / n_agd_rows, n_agd_rows)
