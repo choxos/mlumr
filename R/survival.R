@@ -38,7 +38,11 @@
 .get_surv_data <- function(data, Surv = NULL, time = NULL, status = NULL,
                            entry_time = NULL) {
   if (!is.null(Surv)) {
-    if (!inherits(Surv, "Surv")) {
+    # survival::is.Surv() rather than inherits(). The package declares survival
+    # in Imports, and asking its own predicate is what makes that declaration
+    # true: with only an inherits() check nothing in the package ever reached
+    # into the namespace, which R CMD check reports as an unused import.
+    if (!survival::is.Surv(Surv)) {
       stop("`Surv` must be a survival::Surv() object", call. = FALSE)
     }
     sm <- unclass(Surv)
@@ -289,8 +293,11 @@
 #'   weighting estimand is implemented. Defaults to a single arm.
 #'
 #' @return An object of class `mlumr_agd_surv` (also inheriting `mlumr_agd`).
-#' @seealso [set_agd()] for non-survival aggregate data;
-#'   [multinma::set_agd_surv()] for the ML-NMR equivalent.
+#' @seealso [set_agd()] for non-survival aggregate data.
+#'   `multinma::set_agd_surv()` is the ML-NMR equivalent; the name is given as
+#'   code rather than as a link because multinma is not a dependency here, and
+#'   an anchored link into a package the check environment need not have is
+#'   reported as an unresolved cross-reference.
 #' @export
 #'
 #' @examples

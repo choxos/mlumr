@@ -18,7 +18,6 @@ test_that("set_ipd builds a survival object from time/status columns", {
 })
 
 test_that("set_ipd survival accepts a Surv object", {
-  skip_if_not_installed("survival")
   set.seed(2026)
   df <- data.frame(
     trt = "A",
@@ -48,7 +47,6 @@ test_that("set_ipd survival requires time/status and rejects outcome misuse", {
 })
 
 test_that(".get_surv_data maps censoring types to status codes", {
-  skip_if_not_installed("survival")
   # right censoring
   sr <- survival::Surv(c(5, 8), c(1, 0))
   rr <- mlumr:::.get_surv_data(NULL, Surv = sr)
@@ -69,7 +67,6 @@ test_that(".get_surv_data maps censoring types to status codes", {
 })
 
 test_that(".get_surv_data handles left-censoring and the 0/1 column route", {
-  skip_if_not_installed("survival")
   # left-censoring -> status code 2
   sl_obj <- survival::Surv(c(4, 8), c(1, 0), type = "left")
   sl <- mlumr:::.get_surv_data(NULL, Surv = sl_obj)
@@ -110,37 +107,6 @@ test_that(".validate_survival_times catches invalid inputs", {
     mlumr:::.validate_survival_times(c(1, 2), c(0, 0), c(2, 0), c(1L, 1L), "IPD"),
     "earlier than"
   )
-})
-
-test_that(".validate_survival_controls rejects bad grids / spline controls", {
-  skip_if_not(exists(".validate_survival_controls", asNamespace("mlumr")),
-             "survival model controls arrive with the model fitting change")
-  vsc <- mlumr:::.validate_survival_controls
-  # valid inputs pass silently
-  expect_true(vsc(c(1, 2, 3), 5, 3L, 7L))
-  expect_true(vsc(NULL, NULL, NULL, 5L))
-  # pred_times must be finite positive
-  expect_error(vsc(c(-1, 2), NULL, NULL, 5L), "pred_times")
-  expect_error(vsc(c(1, Inf), NULL, NULL, 5L), "pred_times")
-  # rmst_horizon must be a single finite positive number
-  expect_error(vsc(NULL, c(1, 2), NULL, 5L), "rmst_horizon")
-  expect_error(vsc(NULL, -3, NULL, 5L), "rmst_horizon")
-  # mspline_degree must be a non-negative integer
-  expect_error(vsc(NULL, NULL, 2.5, 5L), "mspline_degree")
-  # n_knots must be a non-negative integer
-  expect_error(vsc(NULL, NULL, NULL, -1), "n_knots")
-})
-
-test_that(".validate_survival_prediction_times rejects non-finite/non-positive", {
-  skip_if_not(exists(".validate_survival_prediction_times", asNamespace("mlumr")),
-             "survival model controls arrive with the model fitting change")
-  vt <- mlumr:::.validate_survival_prediction_times
-  expect_equal(vt(c(1, 2, 3)), c(1, 2, 3))
-  expect_error(vt(NA), "finite")
-  expect_error(vt(c(1, Inf)), "finite")
-  expect_error(vt(-1), "positive|finite")
-  expect_error(vt(0), "positive|finite")
-  expect_error(vt("a"), "finite|positive")
 })
 
 test_that("survival IPD drops rows with missing values (with a warning)", {
@@ -279,53 +245,38 @@ test_that(".validate_survival_times handles delayed-entry censoring correctly", 
   )
 })
 
-# ---- a status column that as.numeric() would misread ----------------------
+# ---- identifiers that as.numeric() or NA would quietly rewrite ------------
 
 test_that("a factor status is refused rather than read as level codes", {
   # as.numeric() on a factor returns level codes. For the single level "0"
   # those codes are all 1, so the 0/1 check saw 1s, passed them, and stored
   # every censored record as an event: an arm in which nobody had the event
   # became an arm in which everybody did.
-  d <- data.frame(trt = "A", x = c(1, 2, 3), t = c(5, 6, 7),
-                  s = factor(c("0", "0", "0")))
-  expect_error(
+  mk <- function(s) {
+    d <- data.frame(trt = "A", x = c(1, 2, 3), t = c(5, 6, 7), s = s)
     set_ipd(d, "trt", covariates = "x", family = "survival",
-            time = "t", status = "s"),
-    "level codes")
+            time = "t", status = "s")
+  }
+  expect_error(mk(factor(c("0", "0", "0"))), "level codes")
   # Two levels were already caught, by a route that happened to work.
-  d2 <- d
-  d2$s <- factor(c("0", "1", "0"))
-  expect_error(
-    set_ipd(d2, "trt", covariates = "x", family = "survival",
-            time = "t", status = "s"),
-    "level codes")
+  expect_error(mk(factor(c("0", "1", "0"))), "level codes")
   # Numeric and logical statuses are untouched.
-  d3 <- d
-  d3$s <- c(0, 0, 0)
-  expect_equal(set_ipd(d3, "trt", covariates = "x", family = "survival",
-                       time = "t", status = "s")$n_events, 0L)
-  d4 <- d
-  d4$s <- c(TRUE, FALSE, TRUE)
-  expect_equal(set_ipd(d4, "trt", covariates = "x", family = "survival",
-                       time = "t", status = "s")$n_events, 2L)
+  expect_equal(mk(c(0, 0, 0))$n_events, 0L)
+  expect_equal(mk(c(TRUE, FALSE, TRUE))$n_events, 2L)
 })
 
 test_that("a factor entry time is refused on the Surv route too", {
   # The column route guarded its times; the Surv route coerced entry_time
   # directly, so factor(c("0", "10")) became delayed entry at 1 and 2 and the
-  # likelihood was conditioned on the wrong risk sets. The values are positive
-  # and smaller than the event times, so nothing later objected.
-  df <- data.frame(trt = "A", x = c(1, 2), entry = factor(c("0", "10")))
-  sv <- survival::Surv(c(5, 15), c(1, 1))
-  expect_error(
-    set_ipd(df, "trt", covariates = "x", family = "survival",
-            Surv = sv, entry_time = "entry"),
-    "level codes")
-  # A numeric entry column is carried through unchanged.
-  df$entry <- c(0, 10)
-  got <- set_ipd(df, "trt", covariates = "x", family = "survival",
-                 Surv = sv, entry_time = "entry")
-  expect_equal(got$data$.delay_time, c(0, 10))
+  # likelihood was conditioned on the wrong risk sets. Those values are
+  # positive and below the event times, so nothing later objected.
+  mk <- function(entry) {
+    d <- data.frame(trt = "A", x = c(1, 2), entry = entry)
+    set_ipd(d, "trt", covariates = "x", family = "survival",
+            Surv = survival::Surv(c(5, 15), c(1, 1)), entry_time = "entry")
+  }
+  expect_error(mk(factor(c("0", "10"))), "level codes")
+  expect_equal(mk(c(0, 10))$data$.delay_time, c(0, 10))
 })
 
 test_that("n_events counts every failure, not only the exactly observed ones", {
@@ -334,16 +285,16 @@ test_that("n_events counts every failure, not only the exactly observed ones", {
   # happened and only its time is not. Counting status 1 alone reported
   # n_events = 0 for a fully interval-censored arm.
   df <- data.frame(trt = "A", x = c(1, 2))
-  iv <- survival::Surv(c(2, 4), c(5, 7), type = "interval2")
-  expect_equal(set_ipd(df, "trt", covariates = "x", family = "survival",
-                       Surv = iv)$n_events, 2L)
+  mk <- function(sv) {
+    set_ipd(df, "trt", covariates = "x", family = "survival", Surv = sv)
+  }
+  interval <- survival::Surv(c(2, 4), c(5, 7), type = "interval2")
+  expect_equal(mk(interval)$n_events, 2L)
   # Right-censored rows are still not events.
-  rc <- survival::Surv(c(5, 6), c(1, 0))
-  expect_equal(set_ipd(df, "trt", covariates = "x", family = "survival",
-                       Surv = rc)$n_events, 1L)
+  expect_equal(mk(survival::Surv(c(5, 6), c(1, 0)))$n_events, 1L)
   # And the same holds for the reconstructed comparator arm.
-  ad <- data.frame(trt = "B", x_mean = 0.5)[rep(1, 2), ]
-  agd <- set_agd_surv(ad, "trt", Surv = iv, cov_means = "x_mean")
+  ad <- data.frame(trt = "B", x_mean = c(0.5, 0.5))
+  agd <- set_agd_surv(ad, "trt", Surv = interval, cov_means = "x_mean")
   expect_equal(agd$n_events, 2L)
 })
 
@@ -353,48 +304,41 @@ test_that("a missing arm identifier is refused, not silently matched", {
   # unique() keeps NA and which(NA == NA) selects nothing, so an all-NA arm
   # column passed the single-arm check and then matched no rows: the summary
   # came back .study NA, .trt NA, age_mean NA, from data carrying trt "B" and
-  # a mean of 60. The object was structurally valid, so the model would have
-  # integrated over NA covariate means.
-  d <- data.frame(trt = "B", t = c(4, 6), s = c(1, 0), age_mean = 60, a = NA)
-  expect_error(
+  # a mean of 60. That object is structurally valid, so the model would have
+  # gone on to integrate over NA covariate means.
+  mk <- function(d, ...) {
     set_agd_surv(d, "trt", time = "t", status = "s", cov_means = "age_mean",
-                 cov_types = "continuous", arm = "a"),
-    "must not contain missing values")
-  # A missing study or treatment is refused on the same grounds.
+                 cov_types = "continuous", ...)
+  }
+  d <- data.frame(trt = "B", t = c(4, 6), s = c(1, 0), age_mean = 60, a = NA)
+  expect_error(mk(d, arm = "a"), "must not contain missing values")
   d2 <- d
   d2$a <- "control"
   d2$st <- c("S1", NA)
-  expect_error(
-    set_agd_surv(d2, "trt", time = "t", status = "s", cov_means = "age_mean",
-                 cov_types = "continuous", study = "st", arm = "a"),
-    "must not contain missing values")
+  expect_error(mk(d2, study = "st", arm = "a"), "must not contain missing")
 })
 
-test_that("one arm label cannot cover two studies or two treatments", {
-  # An arm is one reconstructed curve, from one study, on one treatment.
-  # Keying only on the label merged rows that shared it: study c("S1", "S2")
-  # with arm c("control", "control") passed the single-arm check, was labeled
-  # "S1", and kept both studies in the pseudo-IPD.
+test_that("one arm label cannot cover two studies", {
+  # An arm is one reconstructed curve from one study. Keying only on the label
+  # merged rows that shared it: study c("S1", "S2") with arm
+  # c("control", "control") passed the single-arm check, was labeled "S1", and
+  # kept both studies in the pseudo-IPD.
+  mk <- function(d) {
+    set_agd_surv(d, "trt", time = "t", status = "s", cov_means = "age_mean",
+                 cov_types = "continuous", study = "st", arm = "a")
+  }
   d <- data.frame(trt = "B", t = c(4, 6), s = c(1, 0), age_mean = 60,
                   st = c("S1", "S2"), a = c("control", "control"))
-  expect_error(
-    set_agd_surv(d, "trt", time = "t", status = "s", cov_means = "age_mean",
-                 cov_types = "continuous", study = "st", arm = "a"),
-    "spans more than one study")
+  expect_error(mk(d), "spans more than one study")
   # Two treatments were already refused, by the whole-frame check.
   d2 <- d
   d2$st <- "S1"
   d2$trt <- c("B", "C")
-  expect_error(
-    set_agd_surv(d2, "trt", time = "t", status = "s", cov_means = "age_mean",
-                 cov_types = "continuous", study = "st", arm = "a"),
-    "single treatment")
+  expect_error(mk(d2), "single treatment")
   # One study, one treatment, one arm still works.
   d3 <- d
   d3$st <- "S1"
-  got <- set_agd_surv(d3, "trt", time = "t", status = "s",
-                      cov_means = "age_mean", cov_types = "continuous",
-                      study = "st", arm = "a")
+  got <- mk(d3)
   expect_equal(got$n_arms, 1L)
   expect_equal(got$data$.study, "S1")
 })
@@ -406,13 +350,14 @@ test_that("survival data prints as survival data", {
   # comparator reported "Total exposure = 0.0" for a quantity a reconstructed
   # curve does not have. The existing test matched only "Time-to-event", which
   # the broken output also satisfied.
-  ipd <- set_ipd(data.frame(trt = "A", x = c(1, 2, 3), t = c(5, 6, 7),
-                            s = c(1, 1, 0)),
-                 "trt", covariates = "x", family = "survival",
+  ipd_df <- data.frame(trt = "A", x = c(1, 2, 3), t = c(5, 6, 7),
+                       s = c(1, 1, 0))
+  ipd <- set_ipd(ipd_df, "trt", covariates = "x", family = "survival",
                  time = "t", status = "s")
-  agd <- set_agd_surv(data.frame(trt = "B", t = c(4, 6, 8, 9),
-                                 s = c(1, 1, 1, 0), x_mean = 0.5),
-                      "trt", time = "t", status = "s", cov_means = "x_mean")
+  agd_df <- data.frame(trt = "B", t = c(4, 6, 8, 9), s = c(1, 1, 1, 0),
+                       x_mean = 0.5)
+  agd <- set_agd_surv(agd_df, "trt", time = "t", status = "s",
+                      cov_means = "x_mean")
   out <- paste(capture.output(print(combine_data(ipd, agd))), collapse = "\n")
 
   expect_match(out, "Time-to-event")

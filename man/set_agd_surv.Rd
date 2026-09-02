@@ -71,6 +71,9 @@ agd <- set_agd_surv(
 }
 }
 \seealso{
-\code{\link[=set_agd]{set_agd()}} for non-survival aggregate data;
-\code{\link[multinma:set_agd_surv]{multinma::set_agd_surv()}} for the ML-NMR equivalent.
+\code{\link[=set_agd]{set_agd()}} for non-survival aggregate data.
+\code{multinma::set_agd_surv()} is the ML-NMR equivalent; the name is given as
+code rather than as a link because multinma is not a dependency here, and
+an anchored link into a package the check environment need not have is
+reported as an unresolved cross-reference.
 }

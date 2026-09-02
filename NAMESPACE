@@ -79,4 +79,5 @@ importFrom(stats,
   vcov,
   weighted.mean
 )
+importFrom(survival,is.Surv)
 useDynLib(mlumr, .registration = TRUE)
