@@ -1,0 +1,126 @@
+# Covariate-distribution helpers: qgamma/pgamma/dgamma and the logit-normal
+# trio accept `mean`/`sd` and otherwise forward to stats:: unchanged.
+
+test_that("gamma helpers reparameterize from mean and sd", {
+  # shape = (mean/sd)^2, rate = mean/sd^2
+  m <- 10; s <- 2
+  shape <- (m / s)^2; rate <- m / s^2
+  expect_equal(qgamma(0.5, mean = m, sd = s), stats::qgamma(0.5, shape = shape, rate = rate))
+  expect_equal(pgamma(9, mean = m, sd = s), stats::pgamma(9, shape = shape, rate = rate))
+  expect_equal(dgamma(9, mean = m, sd = s), stats::dgamma(9, shape = shape, rate = rate))
+  # the reparameterization really does reproduce the requested moments
+  x <- stats::rgamma(2e5, shape = shape, rate = rate)
+  expect_equal(mean(x), m, tolerance = 0.02)
+  expect_equal(stats::sd(x), s, tolerance = 0.05)
+})
+
+test_that("gamma helpers forward to stats when mean/sd are absent", {
+  expect_identical(qgamma(0.5, shape = 2, rate = 1), stats::qgamma(0.5, shape = 2, rate = 1))
+  expect_identical(pgamma(1.5, shape = 2, rate = 1), stats::pgamma(1.5, shape = 2, rate = 1))
+  expect_identical(dgamma(1.5, shape = 2, rate = 1), stats::dgamma(1.5, shape = 2, rate = 1))
+})
+
+test_that("logit-normal helpers solve for mu/sigma from mean and sd", {
+  q <- qlogitnorm(0.5, mean = 0.3, sd = 0.1)
+  expect_true(is.finite(q) && q > 0 && q < 1)
+  # the median of a logit-normal is plogis(mu), and the solved mean is on target
+  pars <- mlumr:::.pars_logitnorm(0.3, 0.1)
+  dens <- function(x) dlogitnorm(x, mu = pars$mu, sigma = pars$sigma)
+  m <- stats::integrate(function(x) x * dens(x), 0, 1)$value
+  expect_equal(m, 0.3, tolerance = 1e-3)
+})
+
+test_that("logit-normal helpers forward to their own parameterization", {
+  expect_equal(qlogitnorm(0.5, mu = 0, sigma = 1), 0.5, tolerance = 1e-8)
+  expect_equal(plogitnorm(0.5, mu = 0, sigma = 1), 0.5, tolerance = 1e-8)
+  expect_true(dlogitnorm(0.5, mu = 0, sigma = 1) > 0)
+})
+
+test_that("invalid logit-normal moments raise the intended message", {
+  # These guards previously called abort()/warn(), which exist nowhere in the
+  # package, so every one of them failed with `could not find function "abort"`
+  # instead of its message. R CMD check caught it as "no visible global function
+  # definition"; keep it caught here.
+  expect_error(qlogitnorm(0.5, mean = 50, sd = 10), "strictly inside \\(0, 1\\)")
+  expect_error(qlogitnorm(0.5, mean = -0.2, sd = 0.1), "strictly inside \\(0, 1\\)")
+  expect_error(mlumr:::.pars_logitnorm(c(0.2, 0.3), c(0.1, 0.1, 0.1)),
+               "same length")
+  # and nothing in the package reaches for a non-existent error helper
+  for (nm in c("abort", "warn", "inform")) {
+    expect_false(exists(nm, envir = asNamespace("mlumr"), inherits = FALSE),
+                 info = nm)
+  }
+})
+
+# ---- logit-normal moment parameterization ---------------------------------
+
+test_that("logit-normal moment matching recovers the requested moments", {
+  pars <- mlumr:::.pars_logitnorm(0.34, 0.19)
+  mom <- mlumr:::.ln_moments(pars$mu, pars$sigma)
+  expect_equal(unname(mom[["mean"]]), 0.34, tolerance = 1e-4)
+  expect_equal(unname(mom[["sd"]]), 0.19, tolerance = 1e-4)
+  # And the quantile function inverts the same solution.
+  expect_equal(qlogitnorm(0.5, mean = 0.34, sd = 0.19),
+               stats::plogis(pars$mu), tolerance = 1e-8)
+})
+
+test_that("half a moment specification is rejected, not silently ignored", {
+  # `mu` / `sigma` carry defaults, so falling through to them turned
+  # `distr(qlogitnorm, mean = bsa_mean)` into a standard logit-normal that has
+  # neither the requested mean nor any relation to the data.
+  expect_error(qlogitnorm(0.5, mean = 0.34), "needs both")
+  expect_error(qlogitnorm(0.5, sd = 0.19), "needs both")
+  expect_error(plogitnorm(0.5, mean = 0.34), "needs both")
+  expect_error(dlogitnorm(0.5, sd = 0.19), "needs both")
+  # The native parameterization still works untouched.
+  expect_equal(qlogitnorm(0.5, mu = 0, sigma = 1), 0.5)
+})
+
+test_that("infeasible logit-normal moments are rejected before optimizing", {
+  # A variable on (0, 1) has variance below mean * (1 - mean); the bound is
+  # attained only by a two-point distribution on the boundaries.
+  expect_error(qlogitnorm(0.5, mean = 0.5, sd = 0.6), "impossible")
+  expect_error(qlogitnorm(0.5, mean = 0.02, sd = 0.2), "impossible")
+  expect_error(qlogitnorm(0.5, mean = 0, sd = 0.1), "strictly inside")
+  expect_error(qlogitnorm(0.5, mean = 1, sd = 0.1), "strictly inside")
+  expect_error(qlogitnorm(0.5, mean = 0.3, sd = 0), "strictly positive")
+  expect_error(qlogitnorm(0.5, mean = 0.3, sd = -0.1), "strictly positive")
+  expect_error(qlogitnorm(0.5, mean = NA_real_, sd = 0.1), "finite")
+})
+
+test_that("logit-normal density and CDF are correct on and outside the support", {
+  mu <- 0.2
+  sigma <- 0.8
+
+  # The Jacobian form dnorm(qlogis(x)) / (x (1 - x)) is 0/0 at x = 0 and x = 1,
+  # and -Inf - (-Inf) on the log scale; both are NaN in floating point although
+  # the density is zero there. Outside [0, 1] qlogis() is NaN with a warning.
+  edges <- c(-0.5, 0, 1, 1.5)
+  expect_equal(dlogitnorm(edges, mu = mu, sigma = sigma), rep(0, 4))
+  expect_equal(dlogitnorm(edges, mu = mu, sigma = sigma, log = TRUE),
+               rep(-Inf, 4))
+  expect_silent(dlogitnorm(edges, mu = mu, sigma = sigma))
+
+  # The distribution function is defined everywhere: 0 below, 1 above.
+  expect_equal(plogitnorm(c(-0.5, 0), mu = mu, sigma = sigma), c(0, 0))
+  expect_equal(plogitnorm(c(1, 1.5), mu = mu, sigma = sigma), c(1, 1))
+  expect_silent(plogitnorm(edges, mu = mu, sigma = sigma))
+  # `...` semantics survive the out-of-support handling.
+  expect_equal(plogitnorm(edges, mu = mu, sigma = sigma, lower.tail = FALSE),
+               c(1, 1, 0, 0))
+  expect_equal(plogitnorm(edges, mu = mu, sigma = sigma, log.p = TRUE),
+               c(-Inf, -Inf, 0, 0))
+
+  # Missing values propagate rather than being swallowed by the boundary fill.
+  expect_true(is.na(dlogitnorm(NA_real_, mu = mu, sigma = sigma)))
+  expect_true(is.na(plogitnorm(NA_real_, mu = mu, sigma = sigma)))
+
+  # The interior is unchanged: still the Jacobian form, and still a density.
+  x <- seq(0.001, 0.999, length.out = 25)
+  expect_equal(dlogitnorm(x, mu = mu, sigma = sigma),
+               stats::dnorm(stats::qlogis(x), mu, sigma) / (x * (1 - x)))
+  expect_equal(
+    stats::integrate(function(z) dlogitnorm(z, mu = mu, sigma = sigma),
+                     0, 1)$value,
+    1, tolerance = 1e-6)
+})
