@@ -1,5 +1,8 @@
 // ML-UMR: Binary outcomes with Relaxed SPFA
-// Bernoulli/binomial likelihood with treatment-specific prognostic factors
+// Bernoulli/binomial likelihood with treatment-specific prognostic factors.
+// The combined (intercepts + treatment-specific covariates) design is supplied
+// as `Xq_*` (raw centered design when qr = 0, scaled thin-QR factor Q when
+// qr = 1); coefficients are recovered as `allbeta = R_inv * beta_tilde`. See R/mlumr.R (.mlumr_qr_design()) for the centering and QR design construction.
 
 functions {
 #include include/priors_functions.stan
@@ -12,7 +15,7 @@ data {
   int<lower=0> n_ipd;
   array[n_ipd] int<lower=0,upper=1> y_ipd;
   int<lower=1> n_cov;
-  matrix[n_ipd, n_cov] X_ipd;
+  matrix[n_ipd, n_cov] X_ipd;            // centered covariates (generated quantities)
 
   // AgD contributes binomial summaries for the comparator treatment.
   int<lower=1> n_agd_rows;
@@ -21,7 +24,14 @@ data {
 
   // Row-specific integration points approximate each AgD covariate distribution.
   int<lower=1> n_int;
-  array[n_agd_rows] matrix[n_int, n_cov] X_int;
+  array[n_agd_rows] matrix[n_int, n_cov] X_int;   // centered covariates (gen. quantities)
+
+  // Combined (intercepts + index/comparator covariates) design and optional QR.
+  int<lower=0,upper=1> qr;               // 1 = sample on the QR scale
+  int<lower=1> nB;                       // design columns = 2 + 2 * n_cov
+  matrix[n_ipd, nB] Xq_ipd;             // design for IPD rows (Q if qr = 1)
+  array[n_agd_rows] matrix[n_int, nB] Xq_int;     // design for AgD integration rows
+  matrix[nB, nB] R_inv;                  // R^{-1} (identity when qr = 0)
 
 #include include/priors_hyperparameters.stan
 
@@ -29,45 +39,52 @@ data {
 }
 
 parameters {
-  // Treatment-specific intercepts encode the baseline treatment contrast.
-  real mu_index;
-  real mu_comparator;
-  // Affine (non-centered) reparameterization: sample on a standardized scale
-  // and recover beta_* in transformed parameters. See priors_functions.stan.
-  vector[n_cov] z_beta_index;
-  vector[n_cov] z_beta_comparator;
-  // NOTE: beta_comparator is identified only through AgD data.
-  // With sparse AgD (few rows), this creates weak identifiability;
-  // use informative priors on beta to regularize.
+  // Combined coefficients on the (QR) sampling scale:
+  // [mu_index, mu_comparator, beta_index, beta_comparator].
+  vector[nB] beta_tilde;
+  // Note: beta_comparator is identified only through AgD data. With sparse
+  // aggregate evidence (few rows) this creates weak identifiability;
+  // regularize it with an informative prior_beta or use model = "spfa",
+  // which shares one coefficient vector across treatments.
 }
 
 transformed parameters {
-  // Relaxed SPFA allows treatment-specific prognostic coefficients.
-  vector[n_cov] beta_index      = prior_beta_mean + prior_beta_sd .* z_beta_index;
-  vector[n_cov] beta_comparator = prior_beta_mean + prior_beta_sd .* z_beta_comparator;
-  vector[n_ipd] eta_ipd = mu_index + X_ipd * beta_index;
+  // Recover original-scale coefficients (affine map, no Jacobian needed).
+  vector[nB] allbeta = qr ? R_inv * beta_tilde : beta_tilde;
+  real mu_index = allbeta[1];
+  real mu_comparator = allbeta[2];
+  vector[n_cov] beta_index = segment(allbeta, 3, n_cov);
+  vector[n_cov] beta_comparator = segment(allbeta, 3 + n_cov, n_cov);
+  vector[n_ipd] eta_ipd = Xq_ipd * beta_tilde;
 }
 
 model {
-  // Priors (dispatched on dist code)
+  // Priors on the original-scale parameters.
   target += log_prior_scalar(mu_index, prior_intercept_mean, prior_intercept_sd,
                              prior_intercept_dist, prior_intercept_df);
   target += log_prior_scalar(mu_comparator, prior_intercept_mean, prior_intercept_sd,
                              prior_intercept_dist, prior_intercept_df);
-  target += log_prior_std_vector(z_beta_index, prior_beta_dist, prior_beta_df);
-  target += log_prior_std_vector(z_beta_comparator, prior_beta_dist, prior_beta_df);
+  target += log_prior_vector(beta_index, prior_beta_mean, prior_beta_sd,
+                             prior_beta_dist, prior_beta_df);
+  target += log_prior_vector(beta_comparator, prior_beta_mean,
+                             prior_beta_sd, prior_beta_dist,
+                             prior_beta_df);
 
-  // The same binary link is used for the IPD likelihood and AgD integration.
-  if (link == 1)
-    y_ipd ~ bernoulli_logit(eta_ipd);
-  else
+  // IPD likelihood. Keep the fused GLM for the (default) non-QR logit path.
+  if (link == 1) {
+    if (qr)
+      y_ipd ~ bernoulli_logit(eta_ipd);
+    else
+      y_ipd ~ bernoulli_logit_glm(X_ipd, mu_index, beta_index);
+  } else {
     for (i in 1:n_ipd)
       target += bernoulli_link_lpmf(y_ipd[i] | eta_ipd[i], link);
+  }
 
   // The binomial AgD likelihood uses average probability, not average linear predictor.
   for (k in 1:n_agd_rows) {
     // Integrate the comparator event probability over the AgD covariates.
-    vector[n_int] eta_int = mu_comparator + X_int[k] * beta_comparator;
+    vector[n_int] eta_int = Xq_int[k] * beta_tilde;
     target += integrated_binomial_lpmf(r_agd[k] | n_agd[k], eta_int, link);
   }
 }

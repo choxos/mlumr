@@ -13,220 +13,236 @@ namespace model_mlumr_binary_relaxed_namespace {
 using stan::model::model_base_crtp;
 using namespace stan::math;
 stan::math::profile_map profiles__;
-static constexpr std::array<const char*, 213> locations_array__ =
+static constexpr std::array<const char*, 229> locations_array__ =
   {" (found before start of program)",
-  " (in 'mlumr_binary_relaxed', line 187, column 2 to column 16)",
-  " (in 'mlumr_binary_relaxed', line 188, column 2 to column 21)",
-  " (in 'mlumr_binary_relaxed', line 191, column 2 to column 29)",
-  " (in 'mlumr_binary_relaxed', line 192, column 2 to column 34)",
-  " (in 'mlumr_binary_relaxed', line 199, column 2 to column 82)",
-  " (in 'mlumr_binary_relaxed', line 200, column 2 to column 87)",
-  " (in 'mlumr_binary_relaxed', line 201, column 2 to column 56)",
-  " (in 'mlumr_binary_relaxed', line 226, column 2 to column 17)",
-  " (in 'mlumr_binary_relaxed', line 227, column 2 to column 22)",
-  " (in 'mlumr_binary_relaxed', line 228, column 2 to column 16)",
-  " (in 'mlumr_binary_relaxed', line 229, column 2 to column 21)",
-  " (in 'mlumr_binary_relaxed', line 230, column 2 to column 16)",
-  " (in 'mlumr_binary_relaxed', line 231, column 2 to column 21)",
-  " (in 'mlumr_binary_relaxed', line 232, column 2 to column 21)",
-  " (in 'mlumr_binary_relaxed', line 233, column 2 to column 26)",
-  " (in 'mlumr_binary_relaxed', line 234, column 2 to column 26)",
-  " (in 'mlumr_binary_relaxed', line 235, column 2 to column 31)",
-  " (in 'mlumr_binary_relaxed', line 236, column 2 to column 25)",
-  " (in 'mlumr_binary_relaxed', line 237, column 2 to column 25)",
-  " (in 'mlumr_binary_relaxed', line 238, column 2 to column 30)",
-  " (in 'mlumr_binary_relaxed', line 239, column 2 to column 30)",
-  " (in 'mlumr_binary_relaxed', line 240, column 2 to column 30)",
-  " (in 'mlumr_binary_relaxed', line 241, column 2 to column 30)",
-  " (in 'mlumr_binary_relaxed', line 242, column 2 to column 35)",
-  " (in 'mlumr_binary_relaxed', line 243, column 2 to column 35)",
-  " (in 'mlumr_binary_relaxed', line 245, column 2 to column 27)",
-  " (in 'mlumr_binary_relaxed', line 246, column 2 to column 28)",
-  " (in 'mlumr_binary_relaxed', line 247, column 2 to column 33)",
-  " (in 'mlumr_binary_relaxed', line 249, column 2 to column 44)",
-  " (in 'mlumr_binary_relaxed', line 252, column 11 to column 16)",
-  " (in 'mlumr_binary_relaxed', line 252, column 4 to column 75)",
-  " (in 'mlumr_binary_relaxed', line 253, column 4 to column 61)",
-  " (in 'mlumr_binary_relaxed', line 254, column 4 to column 64)",
-  " (in 'mlumr_binary_relaxed', line 255, column 4 to column 73)",
-  " (in 'mlumr_binary_relaxed', line 256, column 4 to column 76)",
-  " (in 'mlumr_binary_relaxed', line 257, column 4 to column 43)",
-  " (in 'mlumr_binary_relaxed', line 258, column 4 to column 53)",
-  " (in 'mlumr_binary_relaxed', line 251, column 2 to line 259, column 3)",
-  " (in 'mlumr_binary_relaxed', line 263, column 11 to column 21)",
-  " (in 'mlumr_binary_relaxed', line 263, column 4 to column 33)",
-  " (in 'mlumr_binary_relaxed', line 264, column 11 to column 21)",
-  " (in 'mlumr_binary_relaxed', line 264, column 4 to column 33)",
-  " (in 'mlumr_binary_relaxed', line 265, column 11 to column 21)",
-  " (in 'mlumr_binary_relaxed', line 265, column 4 to column 33)",
-  " (in 'mlumr_binary_relaxed', line 266, column 11 to column 21)",
-  " (in 'mlumr_binary_relaxed', line 266, column 4 to column 33)",
-  " (in 'mlumr_binary_relaxed', line 267, column 11 to column 21)",
-  " (in 'mlumr_binary_relaxed', line 267, column 4 to column 31)",
-  " (in 'mlumr_binary_relaxed', line 269, column 13 to column 18)",
-  " (in 'mlumr_binary_relaxed', line 269, column 6 to column 63)",
-  " (in 'mlumr_binary_relaxed', line 270, column 13 to column 18)",
-  " (in 'mlumr_binary_relaxed', line 270, column 6 to column 73)",
-  " (in 'mlumr_binary_relaxed', line 271, column 6 to column 58)",
-  " (in 'mlumr_binary_relaxed', line 272, column 6 to column 61)",
-  " (in 'mlumr_binary_relaxed', line 273, column 6 to column 58)",
-  " (in 'mlumr_binary_relaxed', line 274, column 6 to column 61)",
-  " (in 'mlumr_binary_relaxed', line 275, column 6 to column 28)",
-  " (in 'mlumr_binary_relaxed', line 268, column 28 to line 276, column 5)",
-  " (in 'mlumr_binary_relaxed', line 268, column 4 to line 276, column 5)",
-  " (in 'mlumr_binary_relaxed', line 277, column 4 to column 75)",
-  " (in 'mlumr_binary_relaxed', line 278, column 4 to column 75)",
-  " (in 'mlumr_binary_relaxed', line 279, column 4 to column 80)",
-  " (in 'mlumr_binary_relaxed', line 280, column 4 to column 80)",
-  " (in 'mlumr_binary_relaxed', line 281, column 4 to column 53)",
-  " (in 'mlumr_binary_relaxed', line 282, column 4 to column 63)",
-  " (in 'mlumr_binary_relaxed', line 262, column 2 to line 283, column 3)",
-  " (in 'mlumr_binary_relaxed', line 286, column 2 to line 287, column 64)",
-  " (in 'mlumr_binary_relaxed', line 288, column 2 to line 289, column 79)",
-  " (in 'mlumr_binary_relaxed', line 290, column 2 to column 71)",
-  " (in 'mlumr_binary_relaxed', line 291, column 2 to line 292, column 62)",
-  " (in 'mlumr_binary_relaxed', line 293, column 2 to column 61)",
-  " (in 'mlumr_binary_relaxed', line 294, column 2 to column 76)",
-  " (in 'mlumr_binary_relaxed', line 298, column 4 to column 70)",
-  " (in 'mlumr_binary_relaxed', line 297, column 2 to line 298, column 70)",
-  " (in 'mlumr_binary_relaxed', line 300, column 11 to column 16)",
-  " (in 'mlumr_binary_relaxed', line 300, column 4 to column 71)",
-  " (in 'mlumr_binary_relaxed', line 301, column 4 to column 82)",
-  " (in 'mlumr_binary_relaxed', line 299, column 26 to line 302, column 3)",
-  " (in 'mlumr_binary_relaxed', line 299, column 2 to line 302, column 3)",
-  " (in 'mlumr_binary_relaxed', line 205, column 2 to line 206, column 71)",
-  " (in 'mlumr_binary_relaxed', line 207, column 2 to line 208, column 71)",
-  " (in 'mlumr_binary_relaxed', line 209, column 2 to column 79)",
-  " (in 'mlumr_binary_relaxed', line 210, column 2 to column 84)",
-  " (in 'mlumr_binary_relaxed', line 216, column 6 to column 65)",
-  " (in 'mlumr_binary_relaxed', line 215, column 4 to line 216, column 65)",
-  " (in 'mlumr_binary_relaxed', line 213, column 4 to column 37)",
-  " (in 'mlumr_binary_relaxed', line 212, column 2 to line 216, column 65)",
-  " (in 'mlumr_binary_relaxed', line 220, column 11 to column 16)",
-  " (in 'mlumr_binary_relaxed', line 220, column 4 to column 71)",
-  " (in 'mlumr_binary_relaxed', line 221, column 4 to column 75)",
-  " (in 'mlumr_binary_relaxed', line 218, column 26 to line 222, column 3)",
-  " (in 'mlumr_binary_relaxed', line 218, column 2 to line 222, column 3)",
-  " (in 'mlumr_binary_relaxed', line 147, column 2 to column 21)",
-  " (in 'mlumr_binary_relaxed', line 148, column 8 to column 13)",
-  " (in 'mlumr_binary_relaxed', line 148, column 2 to column 42)",
-  " (in 'mlumr_binary_relaxed', line 149, column 2 to column 21)",
-  " (in 'mlumr_binary_relaxed', line 150, column 9 to column 14)",
-  " (in 'mlumr_binary_relaxed', line 150, column 16 to column 21)",
-  " (in 'mlumr_binary_relaxed', line 150, column 2 to column 29)",
-  " (in 'mlumr_binary_relaxed', line 152, column 2 to column 26)",
-  " (in 'mlumr_binary_relaxed', line 153, column 8 to column 18)",
-  " (in 'mlumr_binary_relaxed', line 153, column 2 to column 39)",
-  " (in 'mlumr_binary_relaxed', line 154, column 8 to column 18)",
-  " (in 'mlumr_binary_relaxed', line 154, column 2 to column 39)",
-  " (in 'mlumr_binary_relaxed', line 156, column 2 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 197, column 2 to column 24)",
+  " (in 'mlumr_binary_relaxed', line 205, column 2 to column 60)",
+  " (in 'mlumr_binary_relaxed', line 206, column 2 to column 29)",
+  " (in 'mlumr_binary_relaxed', line 207, column 2 to column 34)",
+  " (in 'mlumr_binary_relaxed', line 208, column 2 to column 56)",
+  " (in 'mlumr_binary_relaxed', line 209, column 2 to column 69)",
+  " (in 'mlumr_binary_relaxed', line 210, column 2 to column 46)",
+  " (in 'mlumr_binary_relaxed', line 242, column 2 to column 17)",
+  " (in 'mlumr_binary_relaxed', line 243, column 2 to column 22)",
+  " (in 'mlumr_binary_relaxed', line 244, column 2 to column 16)",
+  " (in 'mlumr_binary_relaxed', line 245, column 2 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 246, column 2 to column 16)",
+  " (in 'mlumr_binary_relaxed', line 247, column 2 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 248, column 2 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 249, column 2 to column 26)",
+  " (in 'mlumr_binary_relaxed', line 250, column 2 to column 26)",
+  " (in 'mlumr_binary_relaxed', line 251, column 2 to column 31)",
+  " (in 'mlumr_binary_relaxed', line 252, column 2 to column 25)",
+  " (in 'mlumr_binary_relaxed', line 253, column 2 to column 25)",
+  " (in 'mlumr_binary_relaxed', line 254, column 2 to column 30)",
+  " (in 'mlumr_binary_relaxed', line 255, column 2 to column 30)",
+  " (in 'mlumr_binary_relaxed', line 256, column 2 to column 30)",
+  " (in 'mlumr_binary_relaxed', line 257, column 2 to column 30)",
+  " (in 'mlumr_binary_relaxed', line 258, column 2 to column 35)",
+  " (in 'mlumr_binary_relaxed', line 259, column 2 to column 35)",
+  " (in 'mlumr_binary_relaxed', line 261, column 2 to column 27)",
+  " (in 'mlumr_binary_relaxed', line 262, column 2 to column 28)",
+  " (in 'mlumr_binary_relaxed', line 263, column 2 to column 33)",
+  " (in 'mlumr_binary_relaxed', line 265, column 2 to column 44)",
+  " (in 'mlumr_binary_relaxed', line 268, column 11 to column 16)",
+  " (in 'mlumr_binary_relaxed', line 268, column 4 to column 75)",
+  " (in 'mlumr_binary_relaxed', line 269, column 4 to column 61)",
+  " (in 'mlumr_binary_relaxed', line 270, column 4 to column 64)",
+  " (in 'mlumr_binary_relaxed', line 271, column 4 to column 73)",
+  " (in 'mlumr_binary_relaxed', line 272, column 4 to column 76)",
+  " (in 'mlumr_binary_relaxed', line 273, column 4 to column 43)",
+  " (in 'mlumr_binary_relaxed', line 274, column 4 to column 53)",
+  " (in 'mlumr_binary_relaxed', line 267, column 2 to line 275, column 3)",
+  " (in 'mlumr_binary_relaxed', line 279, column 11 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 279, column 4 to column 33)",
+  " (in 'mlumr_binary_relaxed', line 280, column 11 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 280, column 4 to column 33)",
+  " (in 'mlumr_binary_relaxed', line 281, column 11 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 281, column 4 to column 33)",
+  " (in 'mlumr_binary_relaxed', line 282, column 11 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 282, column 4 to column 33)",
+  " (in 'mlumr_binary_relaxed', line 283, column 11 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 283, column 4 to column 31)",
+  " (in 'mlumr_binary_relaxed', line 285, column 13 to column 18)",
+  " (in 'mlumr_binary_relaxed', line 285, column 6 to column 63)",
+  " (in 'mlumr_binary_relaxed', line 286, column 13 to column 18)",
+  " (in 'mlumr_binary_relaxed', line 286, column 6 to column 73)",
+  " (in 'mlumr_binary_relaxed', line 287, column 6 to column 58)",
+  " (in 'mlumr_binary_relaxed', line 288, column 6 to column 61)",
+  " (in 'mlumr_binary_relaxed', line 289, column 6 to column 58)",
+  " (in 'mlumr_binary_relaxed', line 290, column 6 to column 61)",
+  " (in 'mlumr_binary_relaxed', line 291, column 6 to column 28)",
+  " (in 'mlumr_binary_relaxed', line 284, column 28 to line 292, column 5)",
+  " (in 'mlumr_binary_relaxed', line 284, column 4 to line 292, column 5)",
+  " (in 'mlumr_binary_relaxed', line 293, column 4 to column 75)",
+  " (in 'mlumr_binary_relaxed', line 294, column 4 to column 75)",
+  " (in 'mlumr_binary_relaxed', line 295, column 4 to column 80)",
+  " (in 'mlumr_binary_relaxed', line 296, column 4 to column 80)",
+  " (in 'mlumr_binary_relaxed', line 297, column 4 to column 53)",
+  " (in 'mlumr_binary_relaxed', line 298, column 4 to column 63)",
+  " (in 'mlumr_binary_relaxed', line 278, column 2 to line 299, column 3)",
+  " (in 'mlumr_binary_relaxed', line 302, column 2 to line 303, column 64)",
+  " (in 'mlumr_binary_relaxed', line 304, column 2 to line 305, column 79)",
+  " (in 'mlumr_binary_relaxed', line 306, column 2 to column 71)",
+  " (in 'mlumr_binary_relaxed', line 307, column 2 to line 308, column 62)",
+  " (in 'mlumr_binary_relaxed', line 309, column 2 to column 61)",
+  " (in 'mlumr_binary_relaxed', line 310, column 2 to column 76)",
+  " (in 'mlumr_binary_relaxed', line 314, column 4 to column 70)",
+  " (in 'mlumr_binary_relaxed', line 313, column 2 to line 314, column 70)",
+  " (in 'mlumr_binary_relaxed', line 316, column 11 to column 16)",
+  " (in 'mlumr_binary_relaxed', line 316, column 4 to column 71)",
+  " (in 'mlumr_binary_relaxed', line 317, column 4 to column 82)",
+  " (in 'mlumr_binary_relaxed', line 315, column 26 to line 318, column 3)",
+  " (in 'mlumr_binary_relaxed', line 315, column 2 to line 318, column 3)",
+  " (in 'mlumr_binary_relaxed', line 214, column 2 to line 215, column 71)",
+  " (in 'mlumr_binary_relaxed', line 216, column 2 to line 217, column 71)",
+  " (in 'mlumr_binary_relaxed', line 218, column 2 to line 219, column 61)",
+  " (in 'mlumr_binary_relaxed', line 220, column 2 to line 222, column 44)",
+  " (in 'mlumr_binary_relaxed', line 231, column 6 to column 65)",
+  " (in 'mlumr_binary_relaxed', line 230, column 4 to line 231, column 65)",
+  " (in 'mlumr_binary_relaxed', line 229, column 9 to line 232, column 3)",
+  " (in 'mlumr_binary_relaxed', line 228, column 6 to column 63)",
+  " (in 'mlumr_binary_relaxed', line 226, column 6 to column 39)",
+  " (in 'mlumr_binary_relaxed', line 225, column 4 to line 228, column 63)",
+  " (in 'mlumr_binary_relaxed', line 224, column 17 to line 229, column 3)",
+  " (in 'mlumr_binary_relaxed', line 224, column 2 to line 232, column 3)",
+  " (in 'mlumr_binary_relaxed', line 236, column 11 to column 16)",
+  " (in 'mlumr_binary_relaxed', line 236, column 4 to column 51)",
+  " (in 'mlumr_binary_relaxed', line 237, column 4 to column 75)",
+  " (in 'mlumr_binary_relaxed', line 234, column 26 to line 238, column 3)",
+  " (in 'mlumr_binary_relaxed', line 234, column 2 to line 238, column 3)",
+  " (in 'mlumr_binary_relaxed', line 150, column 2 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 151, column 8 to column 13)",
+  " (in 'mlumr_binary_relaxed', line 151, column 2 to column 42)",
+  " (in 'mlumr_binary_relaxed', line 152, column 2 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 153, column 9 to column 14)",
+  " (in 'mlumr_binary_relaxed', line 153, column 16 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 153, column 2 to column 29)",
+  " (in 'mlumr_binary_relaxed', line 155, column 2 to column 26)",
+  " (in 'mlumr_binary_relaxed', line 156, column 8 to column 18)",
+  " (in 'mlumr_binary_relaxed', line 156, column 2 to column 39)",
   " (in 'mlumr_binary_relaxed', line 157, column 8 to column 18)",
-  " (in 'mlumr_binary_relaxed', line 157, column 27 to column 32)",
-  " (in 'mlumr_binary_relaxed', line 157, column 34 to column 39)",
-  " (in 'mlumr_binary_relaxed', line 157, column 2 to column 47)",
-  " (in 'mlumr_binary_relaxed', line 174, column 0 to column 26)",
-  " (in 'mlumr_binary_relaxed', line 175, column 0 to column 33)",
-  " (in 'mlumr_binary_relaxed', line 176, column 0 to column 42)",
-  " (in 'mlumr_binary_relaxed', line 177, column 0 to column 33)",
-  " (in 'mlumr_binary_relaxed', line 179, column 7 to column 12)",
-  " (in 'mlumr_binary_relaxed', line 179, column 0 to column 30)",
-  " (in 'mlumr_binary_relaxed', line 180, column 16 to column 21)",
-  " (in 'mlumr_binary_relaxed', line 180, column 0 to column 37)",
-  " (in 'mlumr_binary_relaxed', line 181, column 0 to column 37)",
-  " (in 'mlumr_binary_relaxed', line 182, column 0 to column 28)",
-  " (in 'mlumr_binary_relaxed', line 183, column 2 to column 28)",
-  " (in 'mlumr_binary_relaxed', line 191, column 9 to column 14)",
-  " (in 'mlumr_binary_relaxed', line 192, column 9 to column 14)",
-  " (in 'mlumr_binary_relaxed', line 199, column 9 to column 14)",
-  " (in 'mlumr_binary_relaxed', line 200, column 9 to column 14)",
-  " (in 'mlumr_binary_relaxed', line 201, column 9 to column 14)",
-  " (in 'mlumr_binary_relaxed', line 245, column 9 to column 14)",
-  " (in 'mlumr_binary_relaxed', line 246, column 9 to column 14)",
-  " (in 'mlumr_binary_relaxed', line 247, column 9 to column 19)",
-  " (in 'mlumr_binary_relaxed', line 21, column 7 to column 54)",
-  " (in 'mlumr_binary_relaxed', line 20, column 17 to column 57)",
-  " (in 'mlumr_binary_relaxed', line 20, column 2 to line 21, column 54)",
-  " (in 'mlumr_binary_relaxed', line 19, column 76 to line 22, column 1)",
-  " (in 'mlumr_binary_relaxed', line 26, column 7 to column 54)",
-  " (in 'mlumr_binary_relaxed', line 25, column 17 to column 57)",
-  " (in 'mlumr_binary_relaxed', line 25, column 2 to line 26, column 54)",
-  " (in 'mlumr_binary_relaxed', line 24, column 82 to line 27, column 1)",
-  " (in 'mlumr_binary_relaxed', line 32, column 7 to column 51)",
-  " (in 'mlumr_binary_relaxed', line 31, column 22 to column 73)",
-  " (in 'mlumr_binary_relaxed', line 31, column 7 to line 32, column 51)",
-  " (in 'mlumr_binary_relaxed', line 30, column 17 to column 61)",
-  " (in 'mlumr_binary_relaxed', line 30, column 2 to line 32, column 51)",
-  " (in 'mlumr_binary_relaxed', line 29, column 79 to line 33, column 1)",
-  " (in 'mlumr_binary_relaxed', line 48, column 7 to column 43)",
-  " (in 'mlumr_binary_relaxed', line 47, column 17 to column 43)",
-  " (in 'mlumr_binary_relaxed', line 47, column 2 to line 48, column 43)",
-  " (in 'mlumr_binary_relaxed', line 46, column 55 to line 49, column 1)",
-  " (in 'mlumr_binary_relaxed', line 52, column 2 to column 47)",
-  " (in 'mlumr_binary_relaxed', line 51, column 32 to line 53, column 1)",
-  " (in 'mlumr_binary_relaxed', line 56, column 2 to column 71)",
-  " (in 'mlumr_binary_relaxed', line 55, column 61 to line 57, column 1)",
-  " (in 'mlumr_binary_relaxed', line 66, column 4 to column 50)",
-  " (in 'mlumr_binary_relaxed', line 64, column 4 to column 49)",
-  " (in 'mlumr_binary_relaxed', line 63, column 7 to line 66, column 50)",
-  " (in 'mlumr_binary_relaxed', line 62, column 22 to column 31)",
-  " (in 'mlumr_binary_relaxed', line 62, column 2 to line 66, column 50)",
-  " (in 'mlumr_binary_relaxed', line 61, column 44 to line 67, column 1)",
-  " (in 'mlumr_binary_relaxed', line 74, column 7 to column 31)",
-  " (in 'mlumr_binary_relaxed', line 73, column 27 to column 43)",
-  " (in 'mlumr_binary_relaxed', line 73, column 7 to line 74, column 31)",
-  " (in 'mlumr_binary_relaxed', line 72, column 22 to column 44)",
-  " (in 'mlumr_binary_relaxed', line 72, column 2 to line 74, column 31)",
-  " (in 'mlumr_binary_relaxed', line 71, column 46 to line 75, column 1)",
-  " (in 'mlumr_binary_relaxed', line 78, column 2 to column 28)",
-  " (in 'mlumr_binary_relaxed', line 79, column 9 to column 10)",
-  " (in 'mlumr_binary_relaxed', line 79, column 2 to column 19)",
-  " (in 'mlumr_binary_relaxed', line 80, column 17 to column 64)",
-  " (in 'mlumr_binary_relaxed', line 80, column 2 to column 64)",
-  " (in 'mlumr_binary_relaxed', line 81, column 2 to column 16)",
-  " (in 'mlumr_binary_relaxed', line 77, column 54 to line 82, column 1)",
-  " (in 'mlumr_binary_relaxed', line 90, column 7 to column 35)",
-  " (in 'mlumr_binary_relaxed', line 89, column 22 to column 33)",
-  " (in 'mlumr_binary_relaxed', line 89, column 7 to line 90, column 35)",
-  " (in 'mlumr_binary_relaxed', line 88, column 27 to column 55)",
-  " (in 'mlumr_binary_relaxed', line 88, column 7 to line 90, column 35)",
-  " (in 'mlumr_binary_relaxed', line 87, column 22 to column 46)",
-  " (in 'mlumr_binary_relaxed', line 87, column 2 to line 90, column 35)",
-  " (in 'mlumr_binary_relaxed', line 86, column 52 to line 91, column 1)",
-  " (in 'mlumr_binary_relaxed', line 106, column 7 to column 24)",
-  " (in 'mlumr_binary_relaxed', line 105, column 27 to column 56)",
-  " (in 'mlumr_binary_relaxed', line 105, column 7 to line 106, column 24)",
-  " (in 'mlumr_binary_relaxed', line 94, column 22 to column 45)",
-  " (in 'mlumr_binary_relaxed', line 94, column 2 to line 106, column 24)",
-  " (in 'mlumr_binary_relaxed', line 93, column 55 to line 107, column 1)",
-  " (in 'mlumr_binary_relaxed', line 110, column 2 to column 28)",
-  " (in 'mlumr_binary_relaxed', line 111, column 9 to column 10)",
-  " (in 'mlumr_binary_relaxed', line 111, column 2 to column 19)",
-  " (in 'mlumr_binary_relaxed', line 112, column 17 to column 70)",
-  " (in 'mlumr_binary_relaxed', line 112, column 2 to column 70)",
-  " (in 'mlumr_binary_relaxed', line 113, column 2 to column 16)",
-  " (in 'mlumr_binary_relaxed', line 109, column 60 to line 114, column 1)",
-  " (in 'mlumr_binary_relaxed', line 117, column 2 to column 28)",
-  " (in 'mlumr_binary_relaxed', line 118, column 9 to column 10)",
-  " (in 'mlumr_binary_relaxed', line 118, column 2 to column 19)",
-  " (in 'mlumr_binary_relaxed', line 119, column 17 to column 73)",
-  " (in 'mlumr_binary_relaxed', line 119, column 2 to column 73)",
-  " (in 'mlumr_binary_relaxed', line 120, column 2 to column 16)",
-  " (in 'mlumr_binary_relaxed', line 116, column 63 to line 121, column 1)",
-  " (in 'mlumr_binary_relaxed', line 124, column 2 to line 125, column 32)",
-  " (in 'mlumr_binary_relaxed', line 123, column 54 to line 126, column 1)",
-  " (in 'mlumr_binary_relaxed', line 129, column 2 to line 130, column 32)",
-  " (in 'mlumr_binary_relaxed', line 128, column 57 to line 131, column 1)",
-  " (in 'mlumr_binary_relaxed', line 134, column 14 to column 59)",
-  " (in 'mlumr_binary_relaxed', line 134, column 2 to column 59)",
-  " (in 'mlumr_binary_relaxed', line 135, column 2 to column 50)",
-  " (in 'mlumr_binary_relaxed', line 133, column 57 to line 136, column 1)",
-  " (in 'mlumr_binary_relaxed', line 139, column 2 to column 62)",
-  " (in 'mlumr_binary_relaxed', line 140, column 13 to column 61)",
-  " (in 'mlumr_binary_relaxed', line 140, column 2 to column 61)",
-  " (in 'mlumr_binary_relaxed', line 141, column 13 to column 70)",
-  " (in 'mlumr_binary_relaxed', line 141, column 2 to column 70)",
-  " (in 'mlumr_binary_relaxed', line 142, column 2 to column 12)",
-  " (in 'mlumr_binary_relaxed', line 138, column 71 to line 143, column 1)"};
+  " (in 'mlumr_binary_relaxed', line 157, column 2 to column 39)",
+  " (in 'mlumr_binary_relaxed', line 159, column 2 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 160, column 8 to column 18)",
+  " (in 'mlumr_binary_relaxed', line 160, column 27 to column 32)",
+  " (in 'mlumr_binary_relaxed', line 160, column 34 to column 39)",
+  " (in 'mlumr_binary_relaxed', line 160, column 2 to column 47)",
+  " (in 'mlumr_binary_relaxed', line 162, column 2 to column 26)",
+  " (in 'mlumr_binary_relaxed', line 163, column 2 to column 18)",
+  " (in 'mlumr_binary_relaxed', line 164, column 9 to column 14)",
+  " (in 'mlumr_binary_relaxed', line 164, column 16 to column 18)",
+  " (in 'mlumr_binary_relaxed', line 164, column 2 to column 27)",
+  " (in 'mlumr_binary_relaxed', line 165, column 8 to column 18)",
+  " (in 'mlumr_binary_relaxed', line 165, column 27 to column 32)",
+  " (in 'mlumr_binary_relaxed', line 165, column 34 to column 36)",
+  " (in 'mlumr_binary_relaxed', line 165, column 2 to column 45)",
+  " (in 'mlumr_binary_relaxed', line 166, column 9 to column 11)",
+  " (in 'mlumr_binary_relaxed', line 166, column 13 to column 15)",
+  " (in 'mlumr_binary_relaxed', line 166, column 2 to column 23)",
+  " (in 'mlumr_binary_relaxed', line 183, column 0 to column 26)",
+  " (in 'mlumr_binary_relaxed', line 184, column 0 to column 33)",
+  " (in 'mlumr_binary_relaxed', line 185, column 0 to column 42)",
+  " (in 'mlumr_binary_relaxed', line 186, column 0 to column 33)",
+  " (in 'mlumr_binary_relaxed', line 188, column 7 to column 12)",
+  " (in 'mlumr_binary_relaxed', line 188, column 0 to column 30)",
+  " (in 'mlumr_binary_relaxed', line 189, column 16 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 189, column 0 to column 37)",
+  " (in 'mlumr_binary_relaxed', line 190, column 0 to column 37)",
+  " (in 'mlumr_binary_relaxed', line 191, column 0 to column 28)",
+  " (in 'mlumr_binary_relaxed', line 192, column 2 to column 28)",
+  " (in 'mlumr_binary_relaxed', line 197, column 9 to column 11)",
+  " (in 'mlumr_binary_relaxed', line 205, column 9 to column 11)",
+  " (in 'mlumr_binary_relaxed', line 208, column 9 to column 14)",
+  " (in 'mlumr_binary_relaxed', line 209, column 9 to column 14)",
+  " (in 'mlumr_binary_relaxed', line 210, column 9 to column 14)",
+  " (in 'mlumr_binary_relaxed', line 261, column 9 to column 14)",
+  " (in 'mlumr_binary_relaxed', line 262, column 9 to column 14)",
+  " (in 'mlumr_binary_relaxed', line 263, column 9 to column 19)",
+  " (in 'mlumr_binary_relaxed', line 24, column 7 to column 54)",
+  " (in 'mlumr_binary_relaxed', line 23, column 17 to column 57)",
+  " (in 'mlumr_binary_relaxed', line 23, column 2 to line 24, column 54)",
+  " (in 'mlumr_binary_relaxed', line 22, column 76 to line 25, column 1)",
+  " (in 'mlumr_binary_relaxed', line 29, column 7 to column 54)",
+  " (in 'mlumr_binary_relaxed', line 28, column 17 to column 57)",
+  " (in 'mlumr_binary_relaxed', line 28, column 2 to line 29, column 54)",
+  " (in 'mlumr_binary_relaxed', line 27, column 82 to line 30, column 1)",
+  " (in 'mlumr_binary_relaxed', line 35, column 7 to column 51)",
+  " (in 'mlumr_binary_relaxed', line 34, column 22 to column 73)",
+  " (in 'mlumr_binary_relaxed', line 34, column 7 to line 35, column 51)",
+  " (in 'mlumr_binary_relaxed', line 33, column 17 to column 61)",
+  " (in 'mlumr_binary_relaxed', line 33, column 2 to line 35, column 51)",
+  " (in 'mlumr_binary_relaxed', line 32, column 79 to line 36, column 1)",
+  " (in 'mlumr_binary_relaxed', line 51, column 7 to column 43)",
+  " (in 'mlumr_binary_relaxed', line 50, column 17 to column 43)",
+  " (in 'mlumr_binary_relaxed', line 50, column 2 to line 51, column 43)",
+  " (in 'mlumr_binary_relaxed', line 49, column 55 to line 52, column 1)",
+  " (in 'mlumr_binary_relaxed', line 55, column 2 to column 47)",
+  " (in 'mlumr_binary_relaxed', line 54, column 32 to line 56, column 1)",
+  " (in 'mlumr_binary_relaxed', line 59, column 2 to column 71)",
+  " (in 'mlumr_binary_relaxed', line 58, column 61 to line 60, column 1)",
+  " (in 'mlumr_binary_relaxed', line 69, column 4 to column 50)",
+  " (in 'mlumr_binary_relaxed', line 67, column 4 to column 49)",
+  " (in 'mlumr_binary_relaxed', line 66, column 7 to line 69, column 50)",
+  " (in 'mlumr_binary_relaxed', line 65, column 22 to column 31)",
+  " (in 'mlumr_binary_relaxed', line 65, column 2 to line 69, column 50)",
+  " (in 'mlumr_binary_relaxed', line 64, column 44 to line 70, column 1)",
+  " (in 'mlumr_binary_relaxed', line 77, column 7 to column 31)",
+  " (in 'mlumr_binary_relaxed', line 76, column 27 to column 43)",
+  " (in 'mlumr_binary_relaxed', line 76, column 7 to line 77, column 31)",
+  " (in 'mlumr_binary_relaxed', line 75, column 22 to column 44)",
+  " (in 'mlumr_binary_relaxed', line 75, column 2 to line 77, column 31)",
+  " (in 'mlumr_binary_relaxed', line 74, column 46 to line 78, column 1)",
+  " (in 'mlumr_binary_relaxed', line 81, column 2 to column 28)",
+  " (in 'mlumr_binary_relaxed', line 82, column 9 to column 10)",
+  " (in 'mlumr_binary_relaxed', line 82, column 2 to column 19)",
+  " (in 'mlumr_binary_relaxed', line 83, column 17 to column 64)",
+  " (in 'mlumr_binary_relaxed', line 83, column 2 to column 64)",
+  " (in 'mlumr_binary_relaxed', line 84, column 2 to column 16)",
+  " (in 'mlumr_binary_relaxed', line 80, column 54 to line 85, column 1)",
+  " (in 'mlumr_binary_relaxed', line 93, column 7 to column 35)",
+  " (in 'mlumr_binary_relaxed', line 92, column 22 to column 33)",
+  " (in 'mlumr_binary_relaxed', line 92, column 7 to line 93, column 35)",
+  " (in 'mlumr_binary_relaxed', line 91, column 27 to column 55)",
+  " (in 'mlumr_binary_relaxed', line 91, column 7 to line 93, column 35)",
+  " (in 'mlumr_binary_relaxed', line 90, column 22 to column 46)",
+  " (in 'mlumr_binary_relaxed', line 90, column 2 to line 93, column 35)",
+  " (in 'mlumr_binary_relaxed', line 89, column 52 to line 94, column 1)",
+  " (in 'mlumr_binary_relaxed', line 109, column 7 to column 24)",
+  " (in 'mlumr_binary_relaxed', line 108, column 27 to column 56)",
+  " (in 'mlumr_binary_relaxed', line 108, column 7 to line 109, column 24)",
+  " (in 'mlumr_binary_relaxed', line 97, column 22 to column 45)",
+  " (in 'mlumr_binary_relaxed', line 97, column 2 to line 109, column 24)",
+  " (in 'mlumr_binary_relaxed', line 96, column 55 to line 110, column 1)",
+  " (in 'mlumr_binary_relaxed', line 113, column 2 to column 28)",
+  " (in 'mlumr_binary_relaxed', line 114, column 9 to column 10)",
+  " (in 'mlumr_binary_relaxed', line 114, column 2 to column 19)",
+  " (in 'mlumr_binary_relaxed', line 115, column 17 to column 70)",
+  " (in 'mlumr_binary_relaxed', line 115, column 2 to column 70)",
+  " (in 'mlumr_binary_relaxed', line 116, column 2 to column 16)",
+  " (in 'mlumr_binary_relaxed', line 112, column 60 to line 117, column 1)",
+  " (in 'mlumr_binary_relaxed', line 120, column 2 to column 28)",
+  " (in 'mlumr_binary_relaxed', line 121, column 9 to column 10)",
+  " (in 'mlumr_binary_relaxed', line 121, column 2 to column 19)",
+  " (in 'mlumr_binary_relaxed', line 122, column 17 to column 73)",
+  " (in 'mlumr_binary_relaxed', line 122, column 2 to column 73)",
+  " (in 'mlumr_binary_relaxed', line 123, column 2 to column 16)",
+  " (in 'mlumr_binary_relaxed', line 119, column 63 to line 124, column 1)",
+  " (in 'mlumr_binary_relaxed', line 127, column 2 to line 128, column 32)",
+  " (in 'mlumr_binary_relaxed', line 126, column 54 to line 129, column 1)",
+  " (in 'mlumr_binary_relaxed', line 132, column 2 to line 133, column 32)",
+  " (in 'mlumr_binary_relaxed', line 131, column 57 to line 134, column 1)",
+  " (in 'mlumr_binary_relaxed', line 137, column 14 to column 59)",
+  " (in 'mlumr_binary_relaxed', line 137, column 2 to column 59)",
+  " (in 'mlumr_binary_relaxed', line 138, column 2 to column 50)",
+  " (in 'mlumr_binary_relaxed', line 136, column 57 to line 139, column 1)",
+  " (in 'mlumr_binary_relaxed', line 142, column 2 to column 62)",
+  " (in 'mlumr_binary_relaxed', line 143, column 13 to column 61)",
+  " (in 'mlumr_binary_relaxed', line 143, column 2 to column 61)",
+  " (in 'mlumr_binary_relaxed', line 144, column 13 to column 70)",
+  " (in 'mlumr_binary_relaxed', line 144, column 2 to column 70)",
+  " (in 'mlumr_binary_relaxed', line 145, column 2 to column 12)",
+  " (in 'mlumr_binary_relaxed', line 141, column 71 to line 146, column 1)"};
 template <typename T0__, typename T1__, typename T2__, typename T3__,
           typename T4__,
           stan::require_all_t<stan::math::disjunction<stan::is_autodiff_scalar<T0__>,
@@ -400,12 +416,12 @@ log_prior_scalar(const T0__& x, const T1__& location, const T2__& scale,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 131;
+    current_statement__ = 147;
     if (stan::math::logical_eq(dist, 0)) {
-      current_statement__ = 130;
+      current_statement__ = 146;
       return stan::math::normal_lpdf<false>(x, location, scale);
     } else {
-      current_statement__ = 129;
+      current_statement__ = 145;
       return stan::math::student_t_lpdf<false>(x, df, location, scale);
     }
   } catch (const std::exception& e) {
@@ -445,12 +461,12 @@ log_prior_vector(const T0__& x_arg__, const T1__& location_arg__, const T2__&
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 135;
+    current_statement__ = 151;
     if (stan::math::logical_eq(dist, 0)) {
-      current_statement__ = 134;
+      current_statement__ = 150;
       return stan::math::normal_lpdf<false>(x, location, scale);
     } else {
-      current_statement__ = 133;
+      current_statement__ = 149;
       return stan::math::student_t_lpdf<false>(x, df, location, scale);
     }
   } catch (const std::exception& e) {
@@ -483,17 +499,17 @@ log_prior_sigma(const T0__& sigma, const T1__& location, const T2__& scale,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 141;
+    current_statement__ = 157;
     if (stan::math::logical_eq(dist, 0)) {
-      current_statement__ = 140;
+      current_statement__ = 156;
       return stan::math::normal_lpdf<false>(sigma, location, scale);
     } else {
-      current_statement__ = 139;
+      current_statement__ = 155;
       if (stan::math::logical_eq(dist, 1)) {
-        current_statement__ = 138;
+        current_statement__ = 154;
         return stan::math::student_t_lpdf<false>(sigma, df, location, scale);
       } else {
-        current_statement__ = 137;
+        current_statement__ = 153;
         return stan::math::exponential_lpdf<false>(sigma,
                  stan::math::inv(scale));
       }
@@ -524,12 +540,12 @@ log_prior_std_vector(const T0__& z_arg__, const T1__& dist, const T2__& df,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 145;
+    current_statement__ = 161;
     if (stan::math::logical_eq(dist, 0)) {
-      current_statement__ = 144;
+      current_statement__ = 160;
       return stan::math::std_normal_lpdf<false>(z);
     } else {
-      current_statement__ = 143;
+      current_statement__ = 159;
       return stan::math::student_t_lpdf<false>(z, df, static_cast<double>(0),
                static_cast<double>(1));
     }
@@ -555,7 +571,7 @@ log_mean_exp_vec(const T0__& x_arg__, std::ostream* pstream__) {
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 147;
+    current_statement__ = 163;
     return (stan::math::log_sum_exp(x) -
            stan::math::log(stan::math::num_elements(x)));
   } catch (const std::exception& e) {
@@ -585,7 +601,7 @@ log_weighted_mean_exp_vec(const T0__& log_x_arg__, const T1__& weights_arg__,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 149;
+    current_statement__ = 165;
     return (stan::math::log_sum_exp(
               stan::math::add(stan::math::log(weights), log_x))
            - stan::math::log_sum_exp(stan::math::log(weights)));
@@ -612,18 +628,18 @@ exp_difference(const T0__& log_x, const T1__& log_y, std::ostream* pstream__) {
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 155;
+    current_statement__ = 171;
     if (stan::math::logical_eq(log_x, log_y)) {
-      current_statement__ = 154;
+      current_statement__ = 170;
       return stan::math::promote_scalar<local_scalar_t__>(0);
     } else {
-      current_statement__ = 153;
+      current_statement__ = 169;
       if (stan::math::logical_gt(log_x, log_y)) {
-        current_statement__ = 152;
+        current_statement__ = 168;
         return stan::math::exp((log_x +
                  stan::math::log1m_exp((log_y - log_x))));
       } else {
-        current_statement__ = 151;
+        current_statement__ = 167;
         return -(stan::math::exp((log_y +
                    stan::math::log1m_exp((log_x - log_y)))));
       }
@@ -651,17 +667,17 @@ inv_link_binary(const T0__& eta, const T1__& link_code, std::ostream*
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 161;
+    current_statement__ = 177;
     if (stan::math::logical_eq(link_code, 1)) {
-      current_statement__ = 160;
+      current_statement__ = 176;
       return stan::math::inv_logit(eta);
     } else {
-      current_statement__ = 159;
+      current_statement__ = 175;
       if (stan::math::logical_eq(link_code, 2)) {
-        current_statement__ = 158;
+        current_statement__ = 174;
         return stan::math::Phi(eta);
       } else {
-        current_statement__ = 157;
+        current_statement__ = 173;
         return stan::math::inv_cloglog(eta);
       }
     }
@@ -690,22 +706,22 @@ inv_link_binary_vec(const T0__& eta_arg__, const T1__& link_code,
   (void) DUMMY_VAR__;
   try {
     int N = std::numeric_limits<int>::min();
-    current_statement__ = 163;
+    current_statement__ = 179;
     N = stan::math::num_elements(eta);
-    current_statement__ = 164;
+    current_statement__ = 180;
     stan::math::validate_non_negative_index("result", "N", N);
     Eigen::Matrix<local_scalar_t__,-1,1> result =
       Eigen::Matrix<local_scalar_t__,-1,1>::Constant(N, DUMMY_VAR__);
-    current_statement__ = 167;
+    current_statement__ = 183;
     for (int i = 1; i <= N; ++i) {
-      current_statement__ = 166;
+      current_statement__ = 182;
       stan::model::assign(result,
         inv_link_binary(
           stan::model::rvalue(eta, "eta", stan::model::index_uni(i)),
           link_code, pstream__), "assigning variable result",
         stan::model::index_uni(i));
     }
-    current_statement__ = 168;
+    current_statement__ = 184;
     return result;
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -730,22 +746,22 @@ log_event_prob_binary(const T0__& eta, const T1__& link_code, std::ostream*
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 176;
+    current_statement__ = 192;
     if (stan::math::logical_eq(link_code, 1)) {
-      current_statement__ = 175;
+      current_statement__ = 191;
       return -(stan::math::log1p_exp(-(eta)));
     } else {
-      current_statement__ = 174;
+      current_statement__ = 190;
       if (stan::math::logical_eq(link_code, 2)) {
-        current_statement__ = 173;
+        current_statement__ = 189;
         return stan::math::std_normal_lcdf(eta);
       } else {
-        current_statement__ = 172;
+        current_statement__ = 188;
         if (stan::math::logical_lt(eta, -(37))) {
-          current_statement__ = 171;
+          current_statement__ = 187;
           return eta;
         } else {
-          current_statement__ = 170;
+          current_statement__ = 186;
           return stan::math::log1m_exp(-(stan::math::exp(eta)));
         }
       }
@@ -773,17 +789,17 @@ log_nonevent_prob_binary(const T0__& eta, const T1__& link_code,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 182;
+    current_statement__ = 198;
     if (stan::math::logical_eq(link_code, 1)) {
-      current_statement__ = 181;
+      current_statement__ = 197;
       return -(stan::math::log1p_exp(eta));
     } else {
-      current_statement__ = 180;
+      current_statement__ = 196;
       if (stan::math::logical_eq(link_code, 2)) {
-        current_statement__ = 179;
+        current_statement__ = 195;
         return stan::math::std_normal_lcdf(-(eta));
       } else {
-        current_statement__ = 178;
+        current_statement__ = 194;
         return -(stan::math::exp(eta));
       }
     }
@@ -812,22 +828,22 @@ log_event_prob_binary_vec(const T0__& eta_arg__, const T1__& link_code,
   (void) DUMMY_VAR__;
   try {
     int N = std::numeric_limits<int>::min();
-    current_statement__ = 184;
+    current_statement__ = 200;
     N = stan::math::num_elements(eta);
-    current_statement__ = 185;
+    current_statement__ = 201;
     stan::math::validate_non_negative_index("result", "N", N);
     Eigen::Matrix<local_scalar_t__,-1,1> result =
       Eigen::Matrix<local_scalar_t__,-1,1>::Constant(N, DUMMY_VAR__);
-    current_statement__ = 188;
+    current_statement__ = 204;
     for (int i = 1; i <= N; ++i) {
-      current_statement__ = 187;
+      current_statement__ = 203;
       stan::model::assign(result,
         log_event_prob_binary(
           stan::model::rvalue(eta, "eta", stan::model::index_uni(i)),
           link_code, pstream__), "assigning variable result",
         stan::model::index_uni(i));
     }
-    current_statement__ = 189;
+    current_statement__ = 205;
     return result;
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -854,22 +870,22 @@ log_nonevent_prob_binary_vec(const T0__& eta_arg__, const T1__& link_code,
   (void) DUMMY_VAR__;
   try {
     int N = std::numeric_limits<int>::min();
-    current_statement__ = 191;
+    current_statement__ = 207;
     N = stan::math::num_elements(eta);
-    current_statement__ = 192;
+    current_statement__ = 208;
     stan::math::validate_non_negative_index("result", "N", N);
     Eigen::Matrix<local_scalar_t__,-1,1> result =
       Eigen::Matrix<local_scalar_t__,-1,1>::Constant(N, DUMMY_VAR__);
-    current_statement__ = 195;
+    current_statement__ = 211;
     for (int i = 1; i <= N; ++i) {
-      current_statement__ = 194;
+      current_statement__ = 210;
       stan::model::assign(result,
         log_nonevent_prob_binary(
           stan::model::rvalue(eta, "eta", stan::model::index_uni(i)),
           link_code, pstream__), "assigning variable result",
         stan::model::index_uni(i));
     }
-    current_statement__ = 196;
+    current_statement__ = 212;
     return result;
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -895,7 +911,7 @@ log_mean_event_binary(const T0__& eta_arg__, const T1__& link_code,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 198;
+    current_statement__ = 214;
     return (stan::math::log_sum_exp(
               log_event_prob_binary_vec(eta, link_code, pstream__))
            - stan::math::log(stan::math::num_elements(eta)));
@@ -923,7 +939,7 @@ log_mean_nonevent_binary(const T0__& eta_arg__, const T1__& link_code,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 200;
+    current_statement__ = 216;
     return (stan::math::log_sum_exp(
               log_nonevent_prob_binary_vec(eta, link_code, pstream__))
            - stan::math::log(stan::math::num_elements(eta)));
@@ -948,12 +964,12 @@ bernoulli_link_lpmf(const T0__& y, const T1__& eta, const T2__& link_code,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 203;
+    current_statement__ = 219;
     if (stan::math::logical_eq(y, 1)) {
-      current_statement__ = 202;
+      current_statement__ = 218;
       return log_event_prob_binary(eta, link_code, pstream__);
     }
-    current_statement__ = 204;
+    current_statement__ = 220;
     return log_nonevent_prob_binary(eta, link_code, pstream__);
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -980,21 +996,21 @@ integrated_binomial_lpmf(const T0__& r, const T1__& n, const T2__& eta_arg__,
   (void) DUMMY_VAR__;
   try {
     local_scalar_t__ lp = DUMMY_VAR__;
-    current_statement__ = 206;
+    current_statement__ = 222;
     lp = ((stan::math::lgamma((n + 1)) - stan::math::lgamma((r + 1))) -
       stan::math::lgamma(((n - r) + 1)));
-    current_statement__ = 208;
+    current_statement__ = 224;
     if (stan::math::logical_gt(r, 0)) {
-      current_statement__ = 207;
+      current_statement__ = 223;
       lp = (lp + (r * log_mean_event_binary(eta, link_code, pstream__)));
     }
-    current_statement__ = 210;
+    current_statement__ = 226;
     if (stan::math::logical_lt(r, n)) {
-      current_statement__ = 209;
+      current_statement__ = 225;
       lp = (lp + ((n - r) *
         log_mean_nonevent_binary(eta, link_code, pstream__)));
     }
-    current_statement__ = 211;
+    current_statement__ = 227;
     return lp;
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -1012,6 +1028,11 @@ private:
   std::vector<int> r_agd;
   int n_int;
   std::vector<Eigen::Matrix<double,-1,-1>> X_int;
+  int qr;
+  int nB;
+  Eigen::Matrix<double,-1,-1> Xq_ipd_data__;
+  std::vector<Eigen::Matrix<double,-1,-1>> Xq_int;
+  Eigen::Matrix<double,-1,-1> R_inv_data__;
   double prior_intercept_mean;
   double prior_intercept_sd;
   int prior_intercept_dist;
@@ -1022,6 +1043,8 @@ private:
   double prior_beta_df;
   int link;
   Eigen::Map<Eigen::Matrix<double,-1,-1>> X_ipd{nullptr, 0, 0};
+  Eigen::Map<Eigen::Matrix<double,-1,-1>> Xq_ipd{nullptr, 0, 0};
+  Eigen::Map<Eigen::Matrix<double,-1,-1>> R_inv{nullptr, 0, 0};
   Eigen::Map<Eigen::Matrix<double,-1,1>> prior_beta_mean{nullptr, 0};
   Eigen::Map<Eigen::Matrix<double,-1,1>> prior_beta_sd{nullptr, 0};
 public:
@@ -1046,39 +1069,39 @@ public:
     try {
       int pos__ = std::numeric_limits<int>::min();
       pos__ = 1;
-      current_statement__ = 93;
+      current_statement__ = 97;
       context__.validate_dims("data initialization", "n_ipd", "int",
         std::vector<size_t>{});
       n_ipd = std::numeric_limits<int>::min();
-      current_statement__ = 93;
+      current_statement__ = 97;
       n_ipd = context__.vals_i("n_ipd")[(1 - 1)];
-      current_statement__ = 93;
+      current_statement__ = 97;
       stan::math::check_greater_or_equal(function__, "n_ipd", n_ipd, 0);
-      current_statement__ = 94;
+      current_statement__ = 98;
       stan::math::validate_non_negative_index("y_ipd", "n_ipd", n_ipd);
-      current_statement__ = 95;
+      current_statement__ = 99;
       context__.validate_dims("data initialization", "y_ipd", "int",
         std::vector<size_t>{static_cast<size_t>(n_ipd)});
       y_ipd = std::vector<int>(n_ipd, std::numeric_limits<int>::min());
-      current_statement__ = 95;
+      current_statement__ = 99;
       y_ipd = context__.vals_i("y_ipd");
-      current_statement__ = 95;
+      current_statement__ = 99;
       stan::math::check_greater_or_equal(function__, "y_ipd", y_ipd, 0);
-      current_statement__ = 95;
+      current_statement__ = 99;
       stan::math::check_less_or_equal(function__, "y_ipd", y_ipd, 1);
-      current_statement__ = 96;
+      current_statement__ = 100;
       context__.validate_dims("data initialization", "n_cov", "int",
         std::vector<size_t>{});
       n_cov = std::numeric_limits<int>::min();
-      current_statement__ = 96;
+      current_statement__ = 100;
       n_cov = context__.vals_i("n_cov")[(1 - 1)];
-      current_statement__ = 96;
+      current_statement__ = 100;
       stan::math::check_greater_or_equal(function__, "n_cov", n_cov, 1);
-      current_statement__ = 97;
+      current_statement__ = 101;
       stan::math::validate_non_negative_index("X_ipd", "n_ipd", n_ipd);
-      current_statement__ = 98;
+      current_statement__ = 102;
       stan::math::validate_non_negative_index("X_ipd", "n_cov", n_cov);
-      current_statement__ = 99;
+      current_statement__ = 103;
       context__.validate_dims("data initialization", "X_ipd", "double",
         std::vector<size_t>{static_cast<size_t>(n_ipd),
           static_cast<size_t>(n_cov)});
@@ -1089,7 +1112,7 @@ public:
         n_cov);
       {
         std::vector<local_scalar_t__> X_ipd_flat__;
-        current_statement__ = 99;
+        current_statement__ = 103;
         X_ipd_flat__ = context__.vals_r("X_ipd");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
@@ -1101,53 +1124,53 @@ public:
           }
         }
       }
-      current_statement__ = 100;
+      current_statement__ = 104;
       context__.validate_dims("data initialization", "n_agd_rows", "int",
         std::vector<size_t>{});
       n_agd_rows = std::numeric_limits<int>::min();
-      current_statement__ = 100;
+      current_statement__ = 104;
       n_agd_rows = context__.vals_i("n_agd_rows")[(1 - 1)];
-      current_statement__ = 100;
+      current_statement__ = 104;
       stan::math::check_greater_or_equal(function__, "n_agd_rows",
         n_agd_rows, 1);
-      current_statement__ = 101;
+      current_statement__ = 105;
       stan::math::validate_non_negative_index("n_agd", "n_agd_rows",
         n_agd_rows);
-      current_statement__ = 102;
+      current_statement__ = 106;
       context__.validate_dims("data initialization", "n_agd", "int",
         std::vector<size_t>{static_cast<size_t>(n_agd_rows)});
       n_agd = std::vector<int>(n_agd_rows, std::numeric_limits<int>::min());
-      current_statement__ = 102;
+      current_statement__ = 106;
       n_agd = context__.vals_i("n_agd");
-      current_statement__ = 102;
+      current_statement__ = 106;
       stan::math::check_greater_or_equal(function__, "n_agd", n_agd, 1);
-      current_statement__ = 103;
+      current_statement__ = 107;
       stan::math::validate_non_negative_index("r_agd", "n_agd_rows",
         n_agd_rows);
-      current_statement__ = 104;
+      current_statement__ = 108;
       context__.validate_dims("data initialization", "r_agd", "int",
         std::vector<size_t>{static_cast<size_t>(n_agd_rows)});
       r_agd = std::vector<int>(n_agd_rows, std::numeric_limits<int>::min());
-      current_statement__ = 104;
+      current_statement__ = 108;
       r_agd = context__.vals_i("r_agd");
-      current_statement__ = 104;
+      current_statement__ = 108;
       stan::math::check_greater_or_equal(function__, "r_agd", r_agd, 0);
-      current_statement__ = 105;
+      current_statement__ = 109;
       context__.validate_dims("data initialization", "n_int", "int",
         std::vector<size_t>{});
       n_int = std::numeric_limits<int>::min();
-      current_statement__ = 105;
+      current_statement__ = 109;
       n_int = context__.vals_i("n_int")[(1 - 1)];
-      current_statement__ = 105;
+      current_statement__ = 109;
       stan::math::check_greater_or_equal(function__, "n_int", n_int, 1);
-      current_statement__ = 106;
+      current_statement__ = 110;
       stan::math::validate_non_negative_index("X_int", "n_agd_rows",
         n_agd_rows);
-      current_statement__ = 107;
+      current_statement__ = 111;
       stan::math::validate_non_negative_index("X_int", "n_int", n_int);
-      current_statement__ = 108;
+      current_statement__ = 112;
       stan::math::validate_non_negative_index("X_int", "n_cov", n_cov);
-      current_statement__ = 109;
+      current_statement__ = 113;
       context__.validate_dims("data initialization", "X_int", "double",
         std::vector<size_t>{static_cast<size_t>(n_agd_rows),
           static_cast<size_t>(n_int), static_cast<size_t>(n_cov)});
@@ -1156,7 +1179,7 @@ public:
                   std::numeric_limits<double>::quiet_NaN()));
       {
         std::vector<local_scalar_t__> X_int_flat__;
-        current_statement__ = 109;
+        current_statement__ = 113;
         X_int_flat__ = context__.vals_r("X_int");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
@@ -1171,48 +1194,149 @@ public:
           }
         }
       }
-      current_statement__ = 110;
+      current_statement__ = 114;
+      context__.validate_dims("data initialization", "qr", "int",
+        std::vector<size_t>{});
+      qr = std::numeric_limits<int>::min();
+      current_statement__ = 114;
+      qr = context__.vals_i("qr")[(1 - 1)];
+      current_statement__ = 114;
+      stan::math::check_greater_or_equal(function__, "qr", qr, 0);
+      current_statement__ = 114;
+      stan::math::check_less_or_equal(function__, "qr", qr, 1);
+      current_statement__ = 115;
+      context__.validate_dims("data initialization", "nB", "int",
+        std::vector<size_t>{});
+      nB = std::numeric_limits<int>::min();
+      current_statement__ = 115;
+      nB = context__.vals_i("nB")[(1 - 1)];
+      current_statement__ = 115;
+      stan::math::check_greater_or_equal(function__, "nB", nB, 1);
+      current_statement__ = 116;
+      stan::math::validate_non_negative_index("Xq_ipd", "n_ipd", n_ipd);
+      current_statement__ = 117;
+      stan::math::validate_non_negative_index("Xq_ipd", "nB", nB);
+      current_statement__ = 118;
+      context__.validate_dims("data initialization", "Xq_ipd", "double",
+        std::vector<size_t>{static_cast<size_t>(n_ipd),
+          static_cast<size_t>(nB)});
+      Xq_ipd_data__ = Eigen::Matrix<double,-1,-1>::Constant(n_ipd, nB,
+                        std::numeric_limits<double>::quiet_NaN());
+      new (&Xq_ipd)
+        Eigen::Map<Eigen::Matrix<double,-1,-1>>(Xq_ipd_data__.data(), n_ipd,
+        nB);
+      {
+        std::vector<local_scalar_t__> Xq_ipd_flat__;
+        current_statement__ = 118;
+        Xq_ipd_flat__ = context__.vals_r("Xq_ipd");
+        pos__ = 1;
+        for (int sym1__ = 1; sym1__ <= nB; ++sym1__) {
+          for (int sym2__ = 1; sym2__ <= n_ipd; ++sym2__) {
+            stan::model::assign(Xq_ipd, Xq_ipd_flat__[(pos__ - 1)],
+              "assigning variable Xq_ipd", stan::model::index_uni(sym2__),
+              stan::model::index_uni(sym1__));
+            pos__ = (pos__ + 1);
+          }
+        }
+      }
+      current_statement__ = 119;
+      stan::math::validate_non_negative_index("Xq_int", "n_agd_rows",
+        n_agd_rows);
+      current_statement__ = 120;
+      stan::math::validate_non_negative_index("Xq_int", "n_int", n_int);
+      current_statement__ = 121;
+      stan::math::validate_non_negative_index("Xq_int", "nB", nB);
+      current_statement__ = 122;
+      context__.validate_dims("data initialization", "Xq_int", "double",
+        std::vector<size_t>{static_cast<size_t>(n_agd_rows),
+          static_cast<size_t>(n_int), static_cast<size_t>(nB)});
+      Xq_int = std::vector<Eigen::Matrix<double,-1,-1>>(n_agd_rows,
+                 Eigen::Matrix<double,-1,-1>::Constant(n_int, nB,
+                   std::numeric_limits<double>::quiet_NaN()));
+      {
+        std::vector<local_scalar_t__> Xq_int_flat__;
+        current_statement__ = 122;
+        Xq_int_flat__ = context__.vals_r("Xq_int");
+        pos__ = 1;
+        for (int sym1__ = 1; sym1__ <= nB; ++sym1__) {
+          for (int sym2__ = 1; sym2__ <= n_int; ++sym2__) {
+            for (int sym3__ = 1; sym3__ <= n_agd_rows; ++sym3__) {
+              stan::model::assign(Xq_int, Xq_int_flat__[(pos__ - 1)],
+                "assigning variable Xq_int", stan::model::index_uni(sym3__),
+                stan::model::index_uni(sym2__),
+                stan::model::index_uni(sym1__));
+              pos__ = (pos__ + 1);
+            }
+          }
+        }
+      }
+      current_statement__ = 123;
+      stan::math::validate_non_negative_index("R_inv", "nB", nB);
+      current_statement__ = 124;
+      stan::math::validate_non_negative_index("R_inv", "nB", nB);
+      current_statement__ = 125;
+      context__.validate_dims("data initialization", "R_inv", "double",
+        std::vector<size_t>{static_cast<size_t>(nB), static_cast<size_t>(nB)});
+      R_inv_data__ = Eigen::Matrix<double,-1,-1>::Constant(nB, nB,
+                       std::numeric_limits<double>::quiet_NaN());
+      new (&R_inv)
+        Eigen::Map<Eigen::Matrix<double,-1,-1>>(R_inv_data__.data(), nB, nB);
+      {
+        std::vector<local_scalar_t__> R_inv_flat__;
+        current_statement__ = 125;
+        R_inv_flat__ = context__.vals_r("R_inv");
+        pos__ = 1;
+        for (int sym1__ = 1; sym1__ <= nB; ++sym1__) {
+          for (int sym2__ = 1; sym2__ <= nB; ++sym2__) {
+            stan::model::assign(R_inv, R_inv_flat__[(pos__ - 1)],
+              "assigning variable R_inv", stan::model::index_uni(sym2__),
+              stan::model::index_uni(sym1__));
+            pos__ = (pos__ + 1);
+          }
+        }
+      }
+      current_statement__ = 126;
       context__.validate_dims("data initialization", "prior_intercept_mean",
         "double", std::vector<size_t>{});
       prior_intercept_mean = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 110;
+      current_statement__ = 126;
       prior_intercept_mean = context__.vals_r("prior_intercept_mean")[(1 -
         1)];
-      current_statement__ = 111;
+      current_statement__ = 127;
       context__.validate_dims("data initialization", "prior_intercept_sd",
         "double", std::vector<size_t>{});
       prior_intercept_sd = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 111;
+      current_statement__ = 127;
       prior_intercept_sd = context__.vals_r("prior_intercept_sd")[(1 - 1)];
-      current_statement__ = 111;
+      current_statement__ = 127;
       stan::math::check_greater_or_equal(function__, "prior_intercept_sd",
         prior_intercept_sd, 0);
-      current_statement__ = 112;
+      current_statement__ = 128;
       context__.validate_dims("data initialization", "prior_intercept_dist",
         "int", std::vector<size_t>{});
       prior_intercept_dist = std::numeric_limits<int>::min();
-      current_statement__ = 112;
+      current_statement__ = 128;
       prior_intercept_dist = context__.vals_i("prior_intercept_dist")[(1 -
         1)];
-      current_statement__ = 112;
+      current_statement__ = 128;
       stan::math::check_greater_or_equal(function__, "prior_intercept_dist",
         prior_intercept_dist, 0);
-      current_statement__ = 112;
+      current_statement__ = 128;
       stan::math::check_less_or_equal(function__, "prior_intercept_dist",
         prior_intercept_dist, 1);
-      current_statement__ = 113;
+      current_statement__ = 129;
       context__.validate_dims("data initialization", "prior_intercept_df",
         "double", std::vector<size_t>{});
       prior_intercept_df = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 113;
+      current_statement__ = 129;
       prior_intercept_df = context__.vals_r("prior_intercept_df")[(1 - 1)];
-      current_statement__ = 113;
+      current_statement__ = 129;
       stan::math::check_greater_or_equal(function__, "prior_intercept_df",
         prior_intercept_df, 0);
-      current_statement__ = 114;
+      current_statement__ = 130;
       stan::math::validate_non_negative_index("prior_beta_mean", "n_cov",
         n_cov);
-      current_statement__ = 115;
+      current_statement__ = 131;
       context__.validate_dims("data initialization", "prior_beta_mean",
         "double", std::vector<size_t>{static_cast<size_t>(n_cov)});
       prior_beta_mean_data__ = Eigen::Matrix<double,-1,1>::Constant(n_cov,
@@ -1222,7 +1346,7 @@ public:
         n_cov);
       {
         std::vector<local_scalar_t__> prior_beta_mean_flat__;
-        current_statement__ = 115;
+        current_statement__ = 131;
         prior_beta_mean_flat__ = context__.vals_r("prior_beta_mean");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
@@ -1232,9 +1356,9 @@ public:
           pos__ = (pos__ + 1);
         }
       }
-      current_statement__ = 116;
+      current_statement__ = 132;
       stan::math::validate_non_negative_index("prior_beta_sd", "n_cov", n_cov);
-      current_statement__ = 117;
+      current_statement__ = 133;
       context__.validate_dims("data initialization", "prior_beta_sd",
         "double", std::vector<size_t>{static_cast<size_t>(n_cov)});
       prior_beta_sd_data__ = Eigen::Matrix<double,-1,1>::Constant(n_cov,
@@ -1244,7 +1368,7 @@ public:
         n_cov);
       {
         std::vector<local_scalar_t__> prior_beta_sd_flat__;
-        current_statement__ = 117;
+        current_statement__ = 133;
         prior_beta_sd_flat__ = context__.vals_r("prior_beta_sd");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
@@ -1254,63 +1378,62 @@ public:
           pos__ = (pos__ + 1);
         }
       }
-      current_statement__ = 117;
+      current_statement__ = 133;
       stan::math::check_greater_or_equal(function__, "prior_beta_sd",
         prior_beta_sd, 0);
-      current_statement__ = 118;
+      current_statement__ = 134;
       context__.validate_dims("data initialization", "prior_beta_dist",
         "int", std::vector<size_t>{});
       prior_beta_dist = std::numeric_limits<int>::min();
-      current_statement__ = 118;
+      current_statement__ = 134;
       prior_beta_dist = context__.vals_i("prior_beta_dist")[(1 - 1)];
-      current_statement__ = 118;
+      current_statement__ = 134;
       stan::math::check_greater_or_equal(function__, "prior_beta_dist",
         prior_beta_dist, 0);
-      current_statement__ = 118;
+      current_statement__ = 134;
       stan::math::check_less_or_equal(function__, "prior_beta_dist",
         prior_beta_dist, 1);
-      current_statement__ = 119;
+      current_statement__ = 135;
       context__.validate_dims("data initialization", "prior_beta_df",
         "double", std::vector<size_t>{});
       prior_beta_df = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 119;
+      current_statement__ = 135;
       prior_beta_df = context__.vals_r("prior_beta_df")[(1 - 1)];
-      current_statement__ = 119;
+      current_statement__ = 135;
       stan::math::check_greater_or_equal(function__, "prior_beta_df",
         prior_beta_df, 0);
-      current_statement__ = 120;
+      current_statement__ = 136;
       context__.validate_dims("data initialization", "link", "int",
         std::vector<size_t>{});
       link = std::numeric_limits<int>::min();
-      current_statement__ = 120;
+      current_statement__ = 136;
       link = context__.vals_i("link")[(1 - 1)];
-      current_statement__ = 120;
+      current_statement__ = 136;
       stan::math::check_greater_or_equal(function__, "link", link, 1);
-      current_statement__ = 120;
+      current_statement__ = 136;
       stan::math::check_less_or_equal(function__, "link", link, 3);
-      current_statement__ = 121;
-      stan::math::validate_non_negative_index("z_beta_index", "n_cov", n_cov);
-      current_statement__ = 122;
-      stan::math::validate_non_negative_index("z_beta_comparator", "n_cov",
-        n_cov);
-      current_statement__ = 123;
+      current_statement__ = 137;
+      stan::math::validate_non_negative_index("beta_tilde", "nB", nB);
+      current_statement__ = 138;
+      stan::math::validate_non_negative_index("allbeta", "nB", nB);
+      current_statement__ = 139;
       stan::math::validate_non_negative_index("beta_index", "n_cov", n_cov);
-      current_statement__ = 124;
+      current_statement__ = 140;
       stan::math::validate_non_negative_index("beta_comparator", "n_cov",
         n_cov);
-      current_statement__ = 125;
+      current_statement__ = 141;
       stan::math::validate_non_negative_index("eta_ipd", "n_ipd", n_ipd);
-      current_statement__ = 126;
+      current_statement__ = 142;
       stan::math::validate_non_negative_index("delta_beta", "n_cov", n_cov);
-      current_statement__ = 127;
+      current_statement__ = 143;
       stan::math::validate_non_negative_index("log_lik_ipd", "n_ipd", n_ipd);
-      current_statement__ = 128;
+      current_statement__ = 144;
       stan::math::validate_non_negative_index("log_lik_agd", "n_agd_rows",
         n_agd_rows);
     } catch (const std::exception& e) {
       stan::lang::rethrow_located(e, locations_array__[current_statement__]);
     }
-    num_params_r__ = 1 + 1 + n_cov + n_cov;
+    num_params_r__ = nB;
   }
   inline std::string model_name() const final {
     return "model_mlumr_binary_relaxed";
@@ -1344,34 +1467,37 @@ public:
     (void) function__;
     try {
       current_statement__ = 1;
-      auto mu_index = in__.template read<local_scalar_t__>();
+      auto beta_tilde =
+        in__.template read<Eigen::Matrix<local_scalar_t__,-1,1>>(nB);
+      Eigen::Matrix<local_scalar_t__,-1,1> allbeta =
+        Eigen::Matrix<local_scalar_t__,-1,1>::Constant(nB, DUMMY_VAR__);
       current_statement__ = 2;
-      auto mu_comparator = in__.template read<local_scalar_t__>();
+      stan::model::assign(allbeta,
+        (qr ? stan::math::eval(stan::math::multiply(R_inv, beta_tilde)) : 
+        stan::math::eval(beta_tilde)), "assigning variable allbeta");
+      local_scalar_t__ mu_index = DUMMY_VAR__;
       current_statement__ = 3;
-      auto z_beta_index =
-        in__.template read<Eigen::Matrix<local_scalar_t__,-1,1>>(n_cov);
+      mu_index = stan::model::rvalue(allbeta, "allbeta",
+                   stan::model::index_uni(1));
+      local_scalar_t__ mu_comparator = DUMMY_VAR__;
       current_statement__ = 4;
-      auto z_beta_comparator =
-        in__.template read<Eigen::Matrix<local_scalar_t__,-1,1>>(n_cov);
+      mu_comparator = stan::model::rvalue(allbeta, "allbeta",
+                        stan::model::index_uni(2));
       Eigen::Matrix<local_scalar_t__,-1,1> beta_index =
         Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n_cov, DUMMY_VAR__);
       current_statement__ = 5;
-      stan::model::assign(beta_index,
-        stan::math::add(prior_beta_mean,
-          stan::math::elt_multiply(prior_beta_sd, z_beta_index)),
+      stan::model::assign(beta_index, stan::math::segment(allbeta, 3, n_cov),
         "assigning variable beta_index");
       Eigen::Matrix<local_scalar_t__,-1,1> beta_comparator =
         Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n_cov, DUMMY_VAR__);
       current_statement__ = 6;
       stan::model::assign(beta_comparator,
-        stan::math::add(prior_beta_mean,
-          stan::math::elt_multiply(prior_beta_sd, z_beta_comparator)),
+        stan::math::segment(allbeta, (3 + n_cov), n_cov),
         "assigning variable beta_comparator");
       Eigen::Matrix<local_scalar_t__,-1,1> eta_ipd =
         Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n_ipd, DUMMY_VAR__);
       current_statement__ = 7;
-      stan::model::assign(eta_ipd,
-        stan::math::add(mu_index, stan::math::multiply(X_ipd, beta_index)),
+      stan::model::assign(eta_ipd, stan::math::multiply(Xq_ipd, beta_tilde),
         "assigning variable eta_ipd");
       {
         current_statement__ = 80;
@@ -1383,16 +1509,25 @@ public:
                          prior_intercept_sd, prior_intercept_dist,
                          prior_intercept_df, pstream__));
         current_statement__ = 82;
-        lp_accum__.add(log_prior_std_vector(z_beta_index, prior_beta_dist,
-                         prior_beta_df, pstream__));
+        lp_accum__.add(log_prior_vector(beta_index, prior_beta_mean,
+                         prior_beta_sd, prior_beta_dist, prior_beta_df,
+                         pstream__));
         current_statement__ = 83;
-        lp_accum__.add(log_prior_std_vector(z_beta_comparator,
-                         prior_beta_dist, prior_beta_df, pstream__));
-        current_statement__ = 87;
+        lp_accum__.add(log_prior_vector(beta_comparator, prior_beta_mean,
+                         prior_beta_sd, prior_beta_dist, prior_beta_df,
+                         pstream__));
+        current_statement__ = 91;
         if (stan::math::logical_eq(link, 1)) {
-          current_statement__ = 86;
-          lp_accum__.add(stan::math::bernoulli_logit_lpmf<propto__>(y_ipd,
-                           eta_ipd));
+          current_statement__ = 89;
+          if (qr) {
+            current_statement__ = 88;
+            lp_accum__.add(stan::math::bernoulli_logit_lpmf<propto__>(y_ipd,
+                             eta_ipd));
+          } else {
+            current_statement__ = 87;
+            lp_accum__.add(stan::math::bernoulli_logit_glm_lpmf<propto__>(
+                             y_ipd, X_ipd, mu_index, beta_index));
+          }
         } else {
           current_statement__ = 85;
           for (int i = 1; i <= n_ipd; ++i) {
@@ -1404,20 +1539,19 @@ public:
                                stan::model::index_uni(i)), link, pstream__));
           }
         }
-        current_statement__ = 92;
+        current_statement__ = 96;
         for (int k = 1; k <= n_agd_rows; ++k) {
-          current_statement__ = 88;
+          current_statement__ = 92;
           stan::math::validate_non_negative_index("eta_int", "n_int", n_int);
           Eigen::Matrix<local_scalar_t__,-1,1> eta_int =
             Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n_int,
               DUMMY_VAR__);
-          current_statement__ = 89;
+          current_statement__ = 93;
           stan::model::assign(eta_int,
-            stan::math::add(mu_comparator,
-              stan::math::multiply(
-                stan::model::rvalue(X_int, "X_int", stan::model::index_uni(k)),
-                beta_comparator)), "assigning variable eta_int");
-          current_statement__ = 90;
+            stan::math::multiply(
+              stan::model::rvalue(Xq_int, "Xq_int", stan::model::index_uni(k)),
+              beta_tilde), "assigning variable eta_int");
+          current_statement__ = 94;
           lp_accum__.add(integrated_binomial_lpmf<false>(
                            stan::model::rvalue(r_agd, "r_agd",
                              stan::model::index_uni(k)),
@@ -1457,34 +1591,37 @@ public:
     (void) function__;
     try {
       current_statement__ = 1;
-      auto mu_index = in__.template read<local_scalar_t__>();
+      auto beta_tilde =
+        in__.template read<Eigen::Matrix<local_scalar_t__,-1,1>>(nB);
+      Eigen::Matrix<local_scalar_t__,-1,1> allbeta =
+        Eigen::Matrix<local_scalar_t__,-1,1>::Constant(nB, DUMMY_VAR__);
       current_statement__ = 2;
-      auto mu_comparator = in__.template read<local_scalar_t__>();
+      stan::model::assign(allbeta,
+        (qr ? stan::math::eval(stan::math::multiply(R_inv, beta_tilde)) : 
+        stan::math::eval(beta_tilde)), "assigning variable allbeta");
+      local_scalar_t__ mu_index = DUMMY_VAR__;
       current_statement__ = 3;
-      auto z_beta_index =
-        in__.template read<Eigen::Matrix<local_scalar_t__,-1,1>>(n_cov);
+      mu_index = stan::model::rvalue(allbeta, "allbeta",
+                   stan::model::index_uni(1));
+      local_scalar_t__ mu_comparator = DUMMY_VAR__;
       current_statement__ = 4;
-      auto z_beta_comparator =
-        in__.template read<Eigen::Matrix<local_scalar_t__,-1,1>>(n_cov);
+      mu_comparator = stan::model::rvalue(allbeta, "allbeta",
+                        stan::model::index_uni(2));
       Eigen::Matrix<local_scalar_t__,-1,1> beta_index =
         Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n_cov, DUMMY_VAR__);
       current_statement__ = 5;
-      stan::model::assign(beta_index,
-        stan::math::add(prior_beta_mean,
-          stan::math::elt_multiply(prior_beta_sd, z_beta_index)),
+      stan::model::assign(beta_index, stan::math::segment(allbeta, 3, n_cov),
         "assigning variable beta_index");
       Eigen::Matrix<local_scalar_t__,-1,1> beta_comparator =
         Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n_cov, DUMMY_VAR__);
       current_statement__ = 6;
       stan::model::assign(beta_comparator,
-        stan::math::add(prior_beta_mean,
-          stan::math::elt_multiply(prior_beta_sd, z_beta_comparator)),
+        stan::math::segment(allbeta, (3 + n_cov), n_cov),
         "assigning variable beta_comparator");
       Eigen::Matrix<local_scalar_t__,-1,1> eta_ipd =
         Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n_ipd, DUMMY_VAR__);
       current_statement__ = 7;
-      stan::model::assign(eta_ipd,
-        stan::math::add(mu_index, stan::math::multiply(X_ipd, beta_index)),
+      stan::model::assign(eta_ipd, stan::math::multiply(Xq_ipd, beta_tilde),
         "assigning variable eta_ipd");
       {
         current_statement__ = 80;
@@ -1496,16 +1633,25 @@ public:
                          prior_intercept_sd, prior_intercept_dist,
                          prior_intercept_df, pstream__));
         current_statement__ = 82;
-        lp_accum__.add(log_prior_std_vector(z_beta_index, prior_beta_dist,
-                         prior_beta_df, pstream__));
+        lp_accum__.add(log_prior_vector(beta_index, prior_beta_mean,
+                         prior_beta_sd, prior_beta_dist, prior_beta_df,
+                         pstream__));
         current_statement__ = 83;
-        lp_accum__.add(log_prior_std_vector(z_beta_comparator,
-                         prior_beta_dist, prior_beta_df, pstream__));
-        current_statement__ = 87;
+        lp_accum__.add(log_prior_vector(beta_comparator, prior_beta_mean,
+                         prior_beta_sd, prior_beta_dist, prior_beta_df,
+                         pstream__));
+        current_statement__ = 91;
         if (stan::math::logical_eq(link, 1)) {
-          current_statement__ = 86;
-          lp_accum__.add(stan::math::bernoulli_logit_lpmf<propto__>(y_ipd,
-                           eta_ipd));
+          current_statement__ = 89;
+          if (qr) {
+            current_statement__ = 88;
+            lp_accum__.add(stan::math::bernoulli_logit_lpmf<propto__>(y_ipd,
+                             eta_ipd));
+          } else {
+            current_statement__ = 87;
+            lp_accum__.add(stan::math::bernoulli_logit_glm_lpmf<propto__>(
+                             y_ipd, X_ipd, mu_index, beta_index));
+          }
         } else {
           current_statement__ = 85;
           for (int i = 1; i <= n_ipd; ++i) {
@@ -1517,20 +1663,19 @@ public:
                                stan::model::index_uni(i)), link, pstream__));
           }
         }
-        current_statement__ = 92;
+        current_statement__ = 96;
         for (int k = 1; k <= n_agd_rows; ++k) {
-          current_statement__ = 88;
+          current_statement__ = 92;
           stan::math::validate_non_negative_index("eta_int", "n_int", n_int);
           Eigen::Matrix<local_scalar_t__,-1,1> eta_int =
             Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n_int,
               DUMMY_VAR__);
-          current_statement__ = 89;
+          current_statement__ = 93;
           stan::model::assign(eta_int,
-            stan::math::add(mu_comparator,
-              stan::math::multiply(
-                stan::model::rvalue(X_int, "X_int", stan::model::index_uni(k)),
-                beta_comparator)), "assigning variable eta_int");
-          current_statement__ = 90;
+            stan::math::multiply(
+              stan::model::rvalue(Xq_int, "Xq_int", stan::model::index_uni(k)),
+              beta_tilde), "assigning variable eta_int");
+          current_statement__ = 94;
           lp_accum__.add(integrated_binomial_lpmf<false>(
                            stan::model::rvalue(r_agd, "r_agd",
                              stan::model::index_uni(k)),
@@ -1581,15 +1726,13 @@ public:
     (void) function__;
     try {
       current_statement__ = 1;
-      auto mu_index = in__.template read<local_scalar_t__>();
-      current_statement__ = 2;
-      auto mu_comparator = in__.template read<local_scalar_t__>();
-      current_statement__ = 3;
-      auto z_beta_index =
-        in__.template read<Eigen::Matrix<local_scalar_t__,-1,1>>(n_cov);
-      current_statement__ = 4;
-      auto z_beta_comparator =
-        in__.template read<Eigen::Matrix<local_scalar_t__,-1,1>>(n_cov);
+      auto beta_tilde =
+        in__.template read<Eigen::Matrix<local_scalar_t__,-1,1>>(nB);
+      Eigen::Matrix<double,-1,1> allbeta =
+        Eigen::Matrix<double,-1,1>::Constant(nB,
+          std::numeric_limits<double>::quiet_NaN());
+      double mu_index = std::numeric_limits<double>::quiet_NaN();
+      double mu_comparator = std::numeric_limits<double>::quiet_NaN();
       Eigen::Matrix<double,-1,1> beta_index =
         Eigen::Matrix<double,-1,1>::Constant(n_cov,
           std::numeric_limits<double>::quiet_NaN());
@@ -1599,30 +1742,36 @@ public:
       Eigen::Matrix<double,-1,1> eta_ipd =
         Eigen::Matrix<double,-1,1>::Constant(n_ipd,
           std::numeric_limits<double>::quiet_NaN());
-      out__.write(mu_index);
-      out__.write(mu_comparator);
-      out__.write(z_beta_index);
-      out__.write(z_beta_comparator);
+      out__.write(beta_tilde);
       if (stan::math::logical_negation(
             (stan::math::primitive_value(emit_transformed_parameters__) ||
             stan::math::primitive_value(emit_generated_quantities__)))) {
         return ;
       }
+      current_statement__ = 2;
+      stan::model::assign(allbeta,
+        (qr ? stan::math::eval(stan::math::multiply(R_inv, beta_tilde)) : 
+        stan::math::eval(beta_tilde)), "assigning variable allbeta");
+      current_statement__ = 3;
+      mu_index = stan::model::rvalue(allbeta, "allbeta",
+                   stan::model::index_uni(1));
+      current_statement__ = 4;
+      mu_comparator = stan::model::rvalue(allbeta, "allbeta",
+                        stan::model::index_uni(2));
       current_statement__ = 5;
-      stan::model::assign(beta_index,
-        stan::math::add(prior_beta_mean,
-          stan::math::elt_multiply(prior_beta_sd, z_beta_index)),
+      stan::model::assign(beta_index, stan::math::segment(allbeta, 3, n_cov),
         "assigning variable beta_index");
       current_statement__ = 6;
       stan::model::assign(beta_comparator,
-        stan::math::add(prior_beta_mean,
-          stan::math::elt_multiply(prior_beta_sd, z_beta_comparator)),
+        stan::math::segment(allbeta, (3 + n_cov), n_cov),
         "assigning variable beta_comparator");
       current_statement__ = 7;
-      stan::model::assign(eta_ipd,
-        stan::math::add(mu_index, stan::math::multiply(X_ipd, beta_index)),
+      stan::model::assign(eta_ipd, stan::math::multiply(Xq_ipd, beta_tilde),
         "assigning variable eta_ipd");
       if (emit_transformed_parameters__) {
+        out__.write(allbeta);
+        out__.write(mu_index);
+        out__.write(mu_comparator);
         out__.write(beta_index);
         out__.write(beta_comparator);
         out__.write(eta_ipd);
@@ -1877,28 +2026,13 @@ public:
     // suppress unused var warning
     (void) DUMMY_VAR__;
     try {
-      local_scalar_t__ mu_index = DUMMY_VAR__;
+      Eigen::Matrix<local_scalar_t__,-1,1> beta_tilde =
+        Eigen::Matrix<local_scalar_t__,-1,1>::Constant(nB, DUMMY_VAR__);
       current_statement__ = 1;
-      mu_index = in__.read<local_scalar_t__>();
-      out__.write(mu_index);
-      local_scalar_t__ mu_comparator = DUMMY_VAR__;
-      current_statement__ = 2;
-      mu_comparator = in__.read<local_scalar_t__>();
-      out__.write(mu_comparator);
-      Eigen::Matrix<local_scalar_t__,-1,1> z_beta_index =
-        Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n_cov, DUMMY_VAR__);
-      current_statement__ = 3;
-      stan::model::assign(z_beta_index,
-        in__.read<Eigen::Matrix<local_scalar_t__,-1,1>>(n_cov),
-        "assigning variable z_beta_index");
-      out__.write(z_beta_index);
-      Eigen::Matrix<local_scalar_t__,-1,1> z_beta_comparator =
-        Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n_cov, DUMMY_VAR__);
-      current_statement__ = 4;
-      stan::model::assign(z_beta_comparator,
-        in__.read<Eigen::Matrix<local_scalar_t__,-1,1>>(n_cov),
-        "assigning variable z_beta_comparator");
-      out__.write(z_beta_comparator);
+      stan::model::assign(beta_tilde,
+        in__.read<Eigen::Matrix<local_scalar_t__,-1,1>>(nB),
+        "assigning variable beta_tilde");
+      out__.write(beta_tilde);
     } catch (const std::exception& e) {
       stan::lang::rethrow_located(e, locations_array__[current_statement__]);
     }
@@ -1917,58 +2051,24 @@ public:
     (void) DUMMY_VAR__;
     try {
       current_statement__ = 1;
-      context__.validate_dims("parameter initialization", "mu_index",
-        "double", std::vector<size_t>{});
-      current_statement__ = 2;
-      context__.validate_dims("parameter initialization", "mu_comparator",
-        "double", std::vector<size_t>{});
-      current_statement__ = 3;
-      context__.validate_dims("parameter initialization", "z_beta_index",
-        "double", std::vector<size_t>{static_cast<size_t>(n_cov)});
-      current_statement__ = 4;
-      context__.validate_dims("parameter initialization",
-        "z_beta_comparator", "double",
-        std::vector<size_t>{static_cast<size_t>(n_cov)});
+      context__.validate_dims("parameter initialization", "beta_tilde",
+        "double", std::vector<size_t>{static_cast<size_t>(nB)});
       int pos__ = std::numeric_limits<int>::min();
       pos__ = 1;
-      local_scalar_t__ mu_index = DUMMY_VAR__;
-      current_statement__ = 1;
-      mu_index = context__.vals_r("mu_index")[(1 - 1)];
-      out__.write(mu_index);
-      local_scalar_t__ mu_comparator = DUMMY_VAR__;
-      current_statement__ = 2;
-      mu_comparator = context__.vals_r("mu_comparator")[(1 - 1)];
-      out__.write(mu_comparator);
-      Eigen::Matrix<local_scalar_t__,-1,1> z_beta_index =
-        Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n_cov, DUMMY_VAR__);
+      Eigen::Matrix<local_scalar_t__,-1,1> beta_tilde =
+        Eigen::Matrix<local_scalar_t__,-1,1>::Constant(nB, DUMMY_VAR__);
       {
-        std::vector<local_scalar_t__> z_beta_index_flat__;
-        current_statement__ = 3;
-        z_beta_index_flat__ = context__.vals_r("z_beta_index");
+        std::vector<local_scalar_t__> beta_tilde_flat__;
+        current_statement__ = 1;
+        beta_tilde_flat__ = context__.vals_r("beta_tilde");
         pos__ = 1;
-        for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
-          stan::model::assign(z_beta_index, z_beta_index_flat__[(pos__ - 1)],
-            "assigning variable z_beta_index", stan::model::index_uni(sym1__));
+        for (int sym1__ = 1; sym1__ <= nB; ++sym1__) {
+          stan::model::assign(beta_tilde, beta_tilde_flat__[(pos__ - 1)],
+            "assigning variable beta_tilde", stan::model::index_uni(sym1__));
           pos__ = (pos__ + 1);
         }
       }
-      out__.write(z_beta_index);
-      Eigen::Matrix<local_scalar_t__,-1,1> z_beta_comparator =
-        Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n_cov, DUMMY_VAR__);
-      {
-        std::vector<local_scalar_t__> z_beta_comparator_flat__;
-        current_statement__ = 4;
-        z_beta_comparator_flat__ = context__.vals_r("z_beta_comparator");
-        pos__ = 1;
-        for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
-          stan::model::assign(z_beta_comparator,
-            z_beta_comparator_flat__[(pos__ - 1)],
-            "assigning variable z_beta_comparator",
-            stan::model::index_uni(sym1__));
-          pos__ = (pos__ + 1);
-        }
-      }
-      out__.write(z_beta_comparator);
+      out__.write(beta_tilde);
     } catch (const std::exception& e) {
       stan::lang::rethrow_located(e, locations_array__[current_statement__]);
     }
@@ -1977,11 +2077,11 @@ public:
   get_param_names(std::vector<std::string>& names__, const bool
                   emit_transformed_parameters__ = true, const bool
                   emit_generated_quantities__ = true) const {
-    names__ = std::vector<std::string>{"mu_index", "mu_comparator",
-                "z_beta_index", "z_beta_comparator"};
+    names__ = std::vector<std::string>{"beta_tilde"};
     if (emit_transformed_parameters__) {
       std::vector<std::string>
-        temp{"beta_index", "beta_comparator", "eta_ipd"};
+        temp{"allbeta", "mu_index", "mu_comparator", "beta_index",
+             "beta_comparator", "eta_ipd"};
       names__.reserve(names__.size() + temp.size());
       names__.insert(names__.end(), temp.begin(), temp.end());
     }
@@ -2004,13 +2104,14 @@ public:
   get_dims(std::vector<std::vector<size_t>>& dimss__, const bool
            emit_transformed_parameters__ = true, const bool
            emit_generated_quantities__ = true) const {
-    dimss__ = std::vector<std::vector<size_t>>{std::vector<size_t>{},
-                std::vector<size_t>{},
-                std::vector<size_t>{static_cast<size_t>(n_cov)},
-                std::vector<size_t>{static_cast<size_t>(n_cov)}};
+    dimss__ = std::vector<std::vector<size_t>>{std::vector<size_t>{static_cast<
+                                                                    size_t>(
+                                                                    nB)}};
     if (emit_transformed_parameters__) {
       std::vector<std::vector<size_t>>
-        temp{std::vector<size_t>{static_cast<size_t>(n_cov)},
+        temp{std::vector<size_t>{static_cast<size_t>(nB)},
+             std::vector<size_t>{}, std::vector<size_t>{},
+             std::vector<size_t>{static_cast<size_t>(n_cov)},
              std::vector<size_t>{static_cast<size_t>(n_cov)},
              std::vector<size_t>{static_cast<size_t>(n_ipd)}};
       dimss__.reserve(dimss__.size() + temp.size());
@@ -2038,17 +2139,17 @@ public:
   constrained_param_names(std::vector<std::string>& param_names__, bool
                           emit_transformed_parameters__ = true, bool
                           emit_generated_quantities__ = true) const final {
-    param_names__.emplace_back(std::string() + "mu_index");
-    param_names__.emplace_back(std::string() + "mu_comparator");
-    for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
-      param_names__.emplace_back(std::string() + "z_beta_index" + '.' +
-        std::to_string(sym1__));
-    }
-    for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
-      param_names__.emplace_back(std::string() + "z_beta_comparator" + '.' +
+    for (int sym1__ = 1; sym1__ <= nB; ++sym1__) {
+      param_names__.emplace_back(std::string() + "beta_tilde" + '.' +
         std::to_string(sym1__));
     }
     if (emit_transformed_parameters__) {
+      for (int sym1__ = 1; sym1__ <= nB; ++sym1__) {
+        param_names__.emplace_back(std::string() + "allbeta" + '.' +
+          std::to_string(sym1__));
+      }
+      param_names__.emplace_back(std::string() + "mu_index");
+      param_names__.emplace_back(std::string() + "mu_comparator");
       for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
         param_names__.emplace_back(std::string() + "beta_index" + '.' +
           std::to_string(sym1__));
@@ -2101,17 +2202,17 @@ public:
   unconstrained_param_names(std::vector<std::string>& param_names__, bool
                             emit_transformed_parameters__ = true, bool
                             emit_generated_quantities__ = true) const final {
-    param_names__.emplace_back(std::string() + "mu_index");
-    param_names__.emplace_back(std::string() + "mu_comparator");
-    for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
-      param_names__.emplace_back(std::string() + "z_beta_index" + '.' +
-        std::to_string(sym1__));
-    }
-    for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
-      param_names__.emplace_back(std::string() + "z_beta_comparator" + '.' +
+    for (int sym1__ = 1; sym1__ <= nB; ++sym1__) {
+      param_names__.emplace_back(std::string() + "beta_tilde" + '.' +
         std::to_string(sym1__));
     }
     if (emit_transformed_parameters__) {
+      for (int sym1__ = 1; sym1__ <= nB; ++sym1__) {
+        param_names__.emplace_back(std::string() + "allbeta" + '.' +
+          std::to_string(sym1__));
+      }
+      param_names__.emplace_back(std::string() + "mu_index");
+      param_names__.emplace_back(std::string() + "mu_comparator");
       for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
         param_names__.emplace_back(std::string() + "beta_index" + '.' +
           std::to_string(sym1__));
@@ -2161,10 +2262,10 @@ public:
     }
   }
   inline std::string get_constrained_sizedtypes() const {
-    return std::string("[{\"name\":\"mu_index\",\"type\":{\"name\":\"real\"},\"block\":\"parameters\"},{\"name\":\"mu_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"parameters\"},{\"name\":\"z_beta_index\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_cov) + "},\"block\":\"parameters\"},{\"name\":\"z_beta_comparator\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_cov) + "},\"block\":\"parameters\"},{\"name\":\"beta_index\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_cov) + "},\"block\":\"transformed_parameters\"},{\"name\":\"beta_comparator\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_cov) + "},\"block\":\"transformed_parameters\"},{\"name\":\"eta_ipd\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_ipd) + "},\"block\":\"transformed_parameters\"},{\"name\":\"lor_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"lor_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"rd_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"rd_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"rr_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"rr_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"p_index_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"p_comparator_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"p_index_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"p_comparator_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_p_index_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_q_index_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_p_comparator_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_q_comparator_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_p_index_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_q_index_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_p_comparator_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_q_comparator_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"delta_beta\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_cov) + "},\"block\":\"generated_quantities\"},{\"name\":\"log_lik_ipd\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_ipd) + "},\"block\":\"generated_quantities\"},{\"name\":\"log_lik_agd\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_agd_rows) + "},\"block\":\"generated_quantities\"}]");
+    return std::string("[{\"name\":\"beta_tilde\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(nB) + "},\"block\":\"parameters\"},{\"name\":\"allbeta\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(nB) + "},\"block\":\"transformed_parameters\"},{\"name\":\"mu_index\",\"type\":{\"name\":\"real\"},\"block\":\"transformed_parameters\"},{\"name\":\"mu_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"transformed_parameters\"},{\"name\":\"beta_index\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_cov) + "},\"block\":\"transformed_parameters\"},{\"name\":\"beta_comparator\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_cov) + "},\"block\":\"transformed_parameters\"},{\"name\":\"eta_ipd\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_ipd) + "},\"block\":\"transformed_parameters\"},{\"name\":\"lor_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"lor_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"rd_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"rd_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"rr_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"rr_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"p_index_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"p_comparator_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"p_index_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"p_comparator_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_p_index_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_q_index_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_p_comparator_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_q_comparator_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_p_index_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_q_index_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_p_comparator_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_q_comparator_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"delta_beta\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_cov) + "},\"block\":\"generated_quantities\"},{\"name\":\"log_lik_ipd\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_ipd) + "},\"block\":\"generated_quantities\"},{\"name\":\"log_lik_agd\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_agd_rows) + "},\"block\":\"generated_quantities\"}]");
   }
   inline std::string get_unconstrained_sizedtypes() const {
-    return std::string("[{\"name\":\"mu_index\",\"type\":{\"name\":\"real\"},\"block\":\"parameters\"},{\"name\":\"mu_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"parameters\"},{\"name\":\"z_beta_index\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_cov) + "},\"block\":\"parameters\"},{\"name\":\"z_beta_comparator\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_cov) + "},\"block\":\"parameters\"},{\"name\":\"beta_index\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_cov) + "},\"block\":\"transformed_parameters\"},{\"name\":\"beta_comparator\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_cov) + "},\"block\":\"transformed_parameters\"},{\"name\":\"eta_ipd\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_ipd) + "},\"block\":\"transformed_parameters\"},{\"name\":\"lor_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"lor_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"rd_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"rd_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"rr_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"rr_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"p_index_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"p_comparator_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"p_index_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"p_comparator_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_p_index_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_q_index_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_p_comparator_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_q_comparator_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_p_index_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_q_index_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_p_comparator_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_q_comparator_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"delta_beta\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_cov) + "},\"block\":\"generated_quantities\"},{\"name\":\"log_lik_ipd\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_ipd) + "},\"block\":\"generated_quantities\"},{\"name\":\"log_lik_agd\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_agd_rows) + "},\"block\":\"generated_quantities\"}]");
+    return std::string("[{\"name\":\"beta_tilde\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(nB) + "},\"block\":\"parameters\"},{\"name\":\"allbeta\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(nB) + "},\"block\":\"transformed_parameters\"},{\"name\":\"mu_index\",\"type\":{\"name\":\"real\"},\"block\":\"transformed_parameters\"},{\"name\":\"mu_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"transformed_parameters\"},{\"name\":\"beta_index\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_cov) + "},\"block\":\"transformed_parameters\"},{\"name\":\"beta_comparator\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_cov) + "},\"block\":\"transformed_parameters\"},{\"name\":\"eta_ipd\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_ipd) + "},\"block\":\"transformed_parameters\"},{\"name\":\"lor_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"lor_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"rd_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"rd_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"rr_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"rr_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"p_index_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"p_comparator_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"p_index_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"p_comparator_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_p_index_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_q_index_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_p_comparator_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_q_comparator_index\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_p_index_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_q_index_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_p_comparator_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"log_q_comparator_comparator\",\"type\":{\"name\":\"real\"},\"block\":\"generated_quantities\"},{\"name\":\"delta_beta\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_cov) + "},\"block\":\"generated_quantities\"},{\"name\":\"log_lik_ipd\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_ipd) + "},\"block\":\"generated_quantities\"},{\"name\":\"log_lik_agd\",\"type\":{\"name\":\"vector\",\"length\":" + std::to_string(n_agd_rows) + "},\"block\":\"generated_quantities\"}]");
   }
   // Begin method overload boilerplate
   template <typename RNG> inline void
@@ -2173,9 +2274,9 @@ public:
               emit_transformed_parameters = true, const bool
               emit_generated_quantities = true, std::ostream*
               pstream = nullptr) const {
-    const size_t num_params__ = 1 + 1 + n_cov + n_cov;
-    const size_t num_transformed = emit_transformed_parameters * (n_cov +
-      n_cov + n_ipd);
+    const size_t num_params__ = nB;
+    const size_t num_transformed = emit_transformed_parameters * (nB + 1 + 1
+      + n_cov + n_cov + n_ipd);
     const size_t num_gen_quantities = emit_generated_quantities * (1 + 1 + 1
       + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + n_cov +
       n_ipd + n_agd_rows);
@@ -2193,9 +2294,9 @@ public:
               emit_transformed_parameters = true, bool
               emit_generated_quantities = true, std::ostream*
               pstream = nullptr) const {
-    const size_t num_params__ = 1 + 1 + n_cov + n_cov;
-    const size_t num_transformed = emit_transformed_parameters * (n_cov +
-      n_cov + n_ipd);
+    const size_t num_params__ = nB;
+    const size_t num_transformed = emit_transformed_parameters * (nB + 1 + 1
+      + n_cov + n_cov + n_ipd);
     const size_t num_gen_quantities = emit_generated_quantities * (1 + 1 + 1
       + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + n_cov +
       n_ipd + n_agd_rows);

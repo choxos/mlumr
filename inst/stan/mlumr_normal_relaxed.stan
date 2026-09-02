@@ -1,5 +1,8 @@
 // ML-UMR: Continuous outcomes with Relaxed SPFA
-// Normal likelihood with treatment-specific prognostic factors
+// Normal likelihood with treatment-specific prognostic factors.
+// The combined (intercepts + treatment-specific covariates) design is supplied
+// as `Xq_*` (raw centered design when qr = 0, scaled thin-QR factor Q when
+// qr = 1); coefficients are recovered as `allbeta = R_inv * beta_tilde`. See R/mlumr.R (.mlumr_qr_design()) for the centering and QR design construction.
 
 functions {
 #include include/priors_functions.stan
@@ -11,68 +14,85 @@ data {
   int<lower=0> n_ipd;
   vector[n_ipd] y_ipd;
   int<lower=1> n_cov;
-  matrix[n_ipd, n_cov] X_ipd;
+  matrix[n_ipd, n_cov] X_ipd;            // centered covariates (generated quantities)
 
   // AgD (Comparator treatment)
   // y_agd and se_agd must be on the original outcome scale.
   int<lower=1> n_agd_rows;
   array[n_agd_rows] real y_agd;
-  array[n_agd_rows] real<lower=1e-12> se_agd;
+  // set_agd() rejects a non-positive standard error, so the normal density
+  // below never sees a zero scale.
+  array[n_agd_rows] real<lower=0> se_agd;
 
   // Integration points for AgD
   int<lower=1> n_int;
-  array[n_agd_rows] matrix[n_int, n_cov] X_int;
+  array[n_agd_rows] matrix[n_int, n_cov] X_int;   // centered covariates (gen. quantities)
+
+  // Combined (intercepts + index/comparator covariates) design and optional QR.
+  int<lower=0,upper=1> qr;               // 1 = sample on the QR scale
+  int<lower=1> nB;                       // design columns = 2 + 2 * n_cov
+  matrix[n_ipd, nB] Xq_ipd;             // design for IPD rows (Q if qr = 1)
+  array[n_agd_rows] matrix[n_int, nB] Xq_int;     // design for AgD integration rows
+  matrix[nB, nB] R_inv;                  // R^{-1} (identity when qr = 0)
 
 #include include/priors_hyperparameters.stan
+
 #include include/priors_sigma_hyperparameters.stan
 
   int<lower=1,upper=2> link;
 }
 
 parameters {
-  real mu_index;
-  real mu_comparator;
-  // Affine (non-centered) reparameterization: see priors_functions.stan.
-  vector[n_cov] z_beta_index;
-  vector[n_cov] z_beta_comparator;
-  // NOTE: beta_comparator is identified only through AgD data.
-  // With sparse AgD (few rows), this creates weak identifiability;
-  // use informative priors on beta to regularize.
+  // Combined coefficients on the (QR) sampling scale:
+  // [mu_index, mu_comparator, beta_index, beta_comparator].
+  vector[nB] beta_tilde;
+  // Note: beta_comparator is identified only through AgD data. With sparse
+  // aggregate evidence, regularize it with an informative prior_beta or use
+  // model = "spfa", which shares one coefficient vector across treatments.
   real<lower=0> sigma;
 }
 
 transformed parameters {
-  // Relaxed SPFA allows treatment-specific prognostic coefficients.
-  vector[n_cov] beta_index      = prior_beta_mean + prior_beta_sd .* z_beta_index;
-  vector[n_cov] beta_comparator = prior_beta_mean + prior_beta_sd .* z_beta_comparator;
-  vector[n_ipd] theta_ipd;
-
-  // IPD linear predictor
-  theta_ipd = mu_index + X_ipd * beta_index;
+  // Recover original-scale coefficients (affine map, no Jacobian needed).
+  vector[nB] allbeta = qr ? R_inv * beta_tilde : beta_tilde;
+  real mu_index = allbeta[1];
+  real mu_comparator = allbeta[2];
+  vector[n_cov] beta_index = segment(allbeta, 3, n_cov);
+  vector[n_cov] beta_comparator = segment(allbeta, 3 + n_cov, n_cov);
+  // IPD linear predictor via the (possibly QR-rotated) design.
+  vector[n_ipd] theta_ipd = Xq_ipd * beta_tilde;
 }
 
 model {
-  // Priors (dispatched on dist code)
+  // Priors on the original-scale parameters.
   target += log_prior_scalar(mu_index, prior_intercept_mean, prior_intercept_sd,
                              prior_intercept_dist, prior_intercept_df);
   target += log_prior_scalar(mu_comparator, prior_intercept_mean, prior_intercept_sd,
                              prior_intercept_dist, prior_intercept_df);
-  target += log_prior_std_vector(z_beta_index, prior_beta_dist, prior_beta_df);
-  target += log_prior_std_vector(z_beta_comparator, prior_beta_dist, prior_beta_df);
+  target += log_prior_vector(beta_index, prior_beta_mean, prior_beta_sd,
+                             prior_beta_dist, prior_beta_df);
+  target += log_prior_vector(beta_comparator, prior_beta_mean,
+                             prior_beta_sd, prior_beta_dist,
+                             prior_beta_df);
   // sigma has <lower=0> so normal / student_t become half-*
   target += log_prior_sigma(sigma, prior_sigma_location, prior_sigma_scale,
                             prior_sigma_dist, prior_sigma_df);
 
   // IPD likelihood. For log link, theta is transformed to the outcome scale.
-  if (link == 1)
-    y_ipd ~ normal(theta_ipd, sigma);
-  else
+  // Keep the fused GLM for the (default) non-QR identity-link path.
+  if (link == 1) {
+    if (qr)
+      y_ipd ~ normal(theta_ipd, sigma);
+    else
+      y_ipd ~ normal_id_glm(X_ipd, mu_index, beta_index, sigma);
+  } else {
     y_ipd ~ normal(exp(theta_ipd), sigma);
+  }
 
   // AgD likelihood matches the reported mean and standard error on the
   // original outcome scale after marginalizing over comparator covariates.
   for (k in 1:n_agd_rows) {
-    vector[n_int] theta_agd_int = mu_comparator + X_int[k] * beta_comparator;
+    vector[n_int] theta_agd_int = Xq_int[k] * beta_tilde;
     if (link == 1) {
       real theta_agd_bar = mean(theta_agd_int);
       y_agd[k] ~ normal(theta_agd_bar, se_agd[k]);

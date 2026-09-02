@@ -10,7 +10,10 @@
   link_info,
   prior_intercept,
   prior_beta,
-  prior_sigma
+  prior_sigma,
+  model = "spfa",
+  center = TRUE,
+  qr = FALSE
 )
 }
 \description{

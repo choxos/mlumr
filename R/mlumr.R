@@ -68,6 +68,22 @@
 #'   to `prior_beta`; [set_agd()] for AgD scale requirements;
 #'   [prior_summary()] for introspection of the priors actually used.
 #'
+#' @param center Logical (default `TRUE`). Center the covariates about the
+#'   pooled IPD and population-weighted declared AgD means before fitting.
+#'   The likelihood is unchanged after the intercept is transformed with the
+#'   slopes, and centering often improves sampling geometry. Priors specified
+#'   independently on the numerical intercept and slopes are not generally
+#'   invariant to that transformation, so `center = TRUE` and `FALSE` can imply
+#'   different joint priors even when their likelihoods represent the same
+#'   regression model. Set `FALSE` to fit on the raw covariate scale.
+#' @param qr Logical (default `FALSE`). Apply a thin-QR
+#'   reparameterization to the combined (intercepts + covariates) design matrix.
+#'   This decorrelates the design columns for more efficient HMC. The Stan model
+#'   maps the requested priors to the original regression coefficients before
+#'   the QR transform, so this option is intended as a computational
+#'   reparameterization. Useful with many correlated or ill-scaled covariates;
+#'   for the common few-covariate case the default fused-GLM path (with
+#'   `center = TRUE`) is usually faster.
 #' @param chains Number of MCMC chains (default 4)
 #' @param iter Total iterations per chain (default 2000)
 #' @param warmup Number of warmup iterations (default 1000)
@@ -99,6 +115,8 @@ mlumr <- function(data,
                   prior_intercept = default_prior_intercept(),
                   prior_beta = default_prior_beta(),
                   prior_sigma = default_prior_sigma(),
+                  center = TRUE,
+                  qr = FALSE,
                   chains = 4,
                   iter = 2000,
                   warmup = 1000,
@@ -114,6 +132,12 @@ mlumr <- function(data,
 
   if (!is.logical(verbose) || length(verbose) != 1L || is.na(verbose)) {
     stop("`verbose` must be TRUE or FALSE.", call. = FALSE)
+  }
+  if (!is.logical(center) || length(center) != 1L || is.na(center)) {
+    stop("`center` must be TRUE or FALSE.", call. = FALSE)
+  }
+  if (!is.logical(qr) || length(qr) != 1L || is.na(qr)) {
+    stop("`qr` must be TRUE or FALSE.", call. = FALSE)
   }
   .validate_mlumr_sampling_args(
     chains = chains,
@@ -195,7 +219,10 @@ mlumr <- function(data,
     link_info = link_info,
     prior_intercept = prior_intercept,
     prior_beta = prior_beta,
-    prior_sigma = prior_sigma
+    prior_sigma = prior_sigma,
+    model = model,
+    center = center,
+    qr = qr
   )
   stan_data <- prepared$stan_data
 
@@ -255,6 +282,14 @@ mlumr <- function(data,
     model = model,
     model_name = model_name,
     stan_data = stan_data,
+    # Design-matrix controls that change the fitted parameterization (the
+    # centered intercept, the QR-rotated coefficients). They have to travel
+    # with the fit so a refit such as prior_sensitivity() reproduces the same
+    # model rather than silently reverting to the defaults.
+    model_controls = list(
+      center = center,
+      qr = qr
+    ),
     engine = engine,
     priors = priors,
     sampling_args = list(
@@ -278,7 +313,8 @@ mlumr <- function(data,
 #' Build the Stan data list for mlumr()
 #' @keywords internal
 .mlumr_build_stan_data <- function(data, family, link_info, prior_intercept,
-                                   prior_beta, prior_sigma) {
+                                   prior_beta, prior_sigma,
+                                   model = "spfa", center = TRUE, qr = FALSE) {
   ipd_data <- data$ipd$data
   agd_data <- data$agd$data
   X_ipd <- as.matrix(ipd_data[, data$covariates])
@@ -332,7 +368,193 @@ mlumr <- function(data,
     stan_data$E_agd <- array(as.numeric(agd_data$.E))
   }
 
+  # Shared, all-family covariate centering and combined-design QR
+  # reparameterization. Centering is likelihood-invariant (the intercept absorbs
+  # the shift), so the estimands are unchanged. It is NOT prior-invariant: the
+  # intercept prior is placed on the centered intercept, so the center must not
+  # depend on tuning controls like `n_int` (see .mlumr_center_covariates(), which
+  # weights by AgD rows, not row*point, precisely so the induced prior does not
+  # move). QR is an affine reparameterization of the (intercepts + covariates)
+  # design that decorrelates the sampling geometry. These leave the likelihood
+  # family and response-scale estimands unchanged, but a fixed numerical prior
+  # need not represent the same prior after a change of parameterization.
+  agd_means <- as.matrix(agd_data[, paste0(data$covariates, "_mean"),
+                                  drop = FALSE])
+  stan_data <- .mlumr_center_covariates(
+    stan_data, center = center, family = family, agd_means = agd_means
+  )
+  stan_data <- .mlumr_qr_design(stan_data, model = model, qr = qr)
+
   list(stan_data = stan_data, beta_fields = beta_fields, sd_x = sd_x)
+}
+
+#' Population weights for the AgD rows used in covariate centering
+#'
+#' Returns one weight per aggregate row, taken from the family's comparator
+#' weight field (`n_agd`, `agd_weight`, `E_agd`). Falls back to equal weights when no usable field is present.
+#' Weights must be positive and finite, and must sum over a split subgroup to
+#' the same total as the unsplit one, which is what makes the center invariant
+#' to how the aggregate evidence is tabulated.
+#'
+#' @param stan_data The assembled Stan data list.
+#' @param family Outcome family name.
+#' @param n_agd_rows Number of aggregate rows.
+#' @return Numeric vector of length `n_agd_rows`.
+#' @keywords internal
+.agd_center_weights <- function(stan_data, family, n_agd_rows) {
+  fallback <- rep(1, n_agd_rows)
+  cfg <- tryCatch(get_family_config(family), error = function(e) NULL)
+  field <- if (is.null(cfg)) NULL else cfg$comp_weight_field
+  w <- if (!is.null(field)) stan_data[[field]] else NULL
+  if (is.null(w)) return(fallback)
+  w <- as.numeric(w)
+  if (length(w) == 1L && n_agd_rows > 1L) w <- rep(w / n_agd_rows, n_agd_rows)
+  if (length(w) != n_agd_rows || !all(is.finite(w)) || any(w <= 0)) {
+    return(fallback)
+  }
+  w
+}
+
+#' Center IPD + integration covariates about their pooled mean (all families)
+#'
+#' Matches `center = TRUE` default. The intercept then represents the
+#' baseline at the average covariate rather than at covariate = 0, removing the
+#' intercept<->slope collinearity that forces deep NUTS trajectories on
+#' real-scale covariates. The likelihood is invariant because `X_ipd` and the
+#' integration grid are shifted by the same `xbar` and the intercept absorbs the
+#' shift. A fixed numerical intercept prior is placed on the centered intercept,
+#' however, so centering need not leave the posterior unchanged. `cov_center`
+#' is always stored (zeros when `center = FALSE`) so predict()/conditional_effects()
+#' can map raw-scale covariate values onto the (possibly centered) model scale.
+#' @keywords internal
+.mlumr_center_covariates <- function(stan_data, center = TRUE,
+                                     family = "binomial", agd_means = NULL) {
+  if (is.null(stan_data$X_ipd) || is.null(stan_data$X_int)) {
+    return(stan_data)
+  }
+  X_ipd <- as.matrix(stan_data$X_ipd)              # [n_ipd, n_cov]
+  X_int <- stan_data$X_int                         # [n_agd_rows, n_int, n_cov]
+  n_cov <- ncol(X_ipd)
+  if (center) {
+    n_ipd_rows <- nrow(X_ipd)
+    n_agd_rows <- dim(X_int)[1]
+    # Use the declared AgD covariate means when the model builder supplies them.
+    # Falling back to realized grid means keeps this helper usable in isolation.
+    # The production center therefore does not move with the QMC resolution,
+    # which would otherwise move the induced raw-scale intercept prior.
+    if (is.null(agd_means)) {
+      agd_means <- apply(X_int, c(1, 3), mean)
+    }
+    agd_row_means <- matrix(as.numeric(agd_means), nrow = n_agd_rows,
+                            ncol = n_cov)
+    # Weight each AgD row by the population it represents, not by 1. Row counts
+    # are a property of how the aggregate evidence happens to be TABULATED:
+    # splitting one comparator subgroup into two statistically equivalent rows
+    # would otherwise change `n_agd_rows`, move `xbar`, and therefore change the
+    # induced raw-scale intercept prior even though the likelihood and the
+    # target estimand are unchanged. Sample-size weights are invariant under any
+    # such split or merge, because the parts sum to the whole.
+    w_agd <- .agd_center_weights(stan_data, family, n_agd_rows)
+    xbar <- (n_ipd_rows * colMeans(X_ipd) +
+               colSums(agd_row_means * w_agd)) /
+      (n_ipd_rows + sum(w_agd))
+    stan_data$X_ipd <- sweep(X_ipd, 2, xbar)
+    stan_data$X_int <- sweep(X_int, 3, xbar)
+    stan_data$cov_center <- xbar
+  } else {
+    stan_data$cov_center <- rep(0, n_cov)
+  }
+  stan_data
+}
+
+#' Build the combined (intercepts + covariates) design and optional thin-QR
+#'
+#' Mirrors QR machinery: the design matrix `D` stacks the IPD rows and
+#' all AgD integration rows, with leading dummy columns for the index and
+#' comparator intercepts followed by the (centered) covariate columns. SPFA uses
+#' one shared covariate block (`nB = 2 + n_cov`); the relaxed model uses
+#' treatment-specific blocks (`nB = 2 + 2 * n_cov`). When `qr = TRUE` the design
+#' is replaced by the scaled thin-QR factor `Q` (`Q = qr.Q(D) * sqrt(N - 1)`) and
+#' `R_inv = solve(qr.R(D) / sqrt(N - 1))` is returned so Stan can recover the
+#' original-scale coefficients via `allbeta = R_inv * beta_tilde`. When
+#' `qr = FALSE`, `Xq_*` is the raw design `D` and `R_inv` is the identity, so
+#' `allbeta = beta_tilde` and the linear predictor is unchanged. The original
+#' (centered) `X_ipd` / `X_int` are kept for the generated-quantities block.
+#' @keywords internal
+.mlumr_qr_design <- function(stan_data, model = "spfa", qr = FALSE) {
+  if (is.null(stan_data$X_ipd) || is.null(stan_data$X_int)) {
+    return(stan_data)
+  }
+  X_ipd <- as.matrix(stan_data$X_ipd)              # [n_ipd, n_cov], centered
+  X_int <- stan_data$X_int                         # [n_agd_rows, n_int, n_cov]
+  n_ipd <- nrow(X_ipd)
+  n_cov <- ncol(X_ipd)
+  n_agd <- dim(X_int)[1]
+  n_int <- dim(X_int)[2]
+  # Arm-major flatten of the integration grid: row (k-1)*n_int + m = X_int[k, m, ].
+  X_int_flat <- matrix(aperm(X_int, c(2, 1, 3)), nrow = n_agd * n_int, ncol = n_cov)
+
+  zero_ipd <- matrix(0, n_ipd, n_cov)
+  zero_int <- matrix(0, n_agd * n_int, n_cov)
+  if (identical(model, "relaxed")) {
+    # [I_index, I_comparator, beta_index cols, beta_comparator cols]
+    nB <- 2L + 2L * n_cov
+    d_ipd <- cbind(1, 0, X_ipd, zero_ipd)
+    d_int <- cbind(0, 1, zero_int, X_int_flat)
+  } else {
+    # SPFA: [I_index, I_comparator, shared beta cols]
+    nB <- 2L + n_cov
+    d_ipd <- cbind(1, 0, X_ipd)
+    d_int <- cbind(0, 1, X_int_flat)
+  }
+  design <- rbind(d_ipd, d_int)
+  n_rows <- nrow(design)
+
+  if (qr) {
+    # A thin QR needs full column rank: R is inverted to recover the
+    # original-scale coefficients. set_ipd() permits a constant covariate with a
+    # warning, and in a relaxed model that column is exactly collinear with its
+    # own intercept, so the combined design can be rank deficient even though
+    # the model is still estimable from the coefficient priors when qr = FALSE.
+    # Fail here with something the user can act on rather than inside solve().
+    if (n_rows < nB) {
+      stop(sprintf(paste0("`qr = TRUE` needs at least as many rows as design ",
+                          "columns, but the combined design has %d row(s) and ",
+                          "%d column(s). Use `qr = FALSE`."),
+                   n_rows, nB), call. = FALSE)
+    }
+    design_rank <- qr(design)$rank
+    if (design_rank < nB) {
+      stop(sprintf(paste0("`qr = TRUE` needs a full-rank design, but the ",
+                          "combined (intercepts + covariates) design has rank ",
+                          "%d of %d columns. A constant or collinear covariate ",
+                          "is the usual cause; a constant covariate is exactly ",
+                          "collinear with the intercept. Drop it, or use ",
+                          "`qr = FALSE`, which does not invert the design."),
+                   design_rank, nB), call. = FALSE)
+    }
+    qr_decomp <- qr(design)
+    scale_factor <- sqrt(n_rows - 1)
+    q_mat <- qr.Q(qr_decomp) * scale_factor
+    r_mat <- qr.R(qr_decomp) / scale_factor
+    r_inv <- solve(r_mat)
+    xq_ipd <- q_mat[seq_len(n_ipd), , drop = FALSE]
+    xq_int_flat <- q_mat[(n_ipd + 1L):n_rows, , drop = FALSE]
+  } else {
+    xq_ipd <- d_ipd
+    xq_int_flat <- d_int
+    r_inv <- diag(nB)
+  }
+  # Reshape the AgD design rows back to [n_agd, n_int, nB] (inverse of the
+  # arm-major flatten above) for Stan's `array[n_agd_rows] matrix[n_int, nB]`.
+  xq_int <- aperm(array(xq_int_flat, dim = c(n_int, n_agd, nB)), c(2, 1, 3))
+
+  stan_data$qr <- as.integer(qr)
+  stan_data$nB <- nB
+  stan_data$Xq_ipd <- xq_ipd
+  stan_data$Xq_int <- xq_int
+  stan_data$R_inv <- r_inv
+  stan_data
 }
 
 #' Validate mlumr() sampler controls before backend dispatch
@@ -450,4 +672,3 @@ mlumr <- function(data,
 
   priors
 }
-

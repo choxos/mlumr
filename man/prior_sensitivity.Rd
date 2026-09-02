@@ -42,6 +42,12 @@ is the workflow recommended by Vehtari et al.'s prior-choice wiki for
 judging how much of the posterior is driven by the data versus the prior.
 }
 \details{
+The design-matrix controls (\code{center}, \code{qr}) are taken from the original fit
+and replayed, so a refit reproduces the original parameterization instead of
+reverting to the defaults. A fit made with \code{center = FALSE} or \code{qr = TRUE} is
+a different parameterization, and replaying the defaults would vary the model
+as well as the prior.
+
 Only the scale of the \code{prior_beta} family is varied; its distribution
 (normal / student_t) and mean are preserved so comparisons are apples to
 apples. \code{prior_intercept} and \code{prior_sigma} are carried through
