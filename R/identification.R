@@ -430,22 +430,30 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 
 #' Does the realized integration design reproduce the declared one?
 #'
-#' Compares the two centered profile matrices through their singular-value
-#' spectra, after scaling each covariate by the spread the DECLARED design
-#' claims for it so the comparison is unit-free.
+#' Projects the realized centered profiles onto the DECLARED design's principal
+#' directions and asks whether each one still carries its share of the spread
+#' the declared design claimed there. Each covariate is first scaled by the
+#' spread the declared design claims for it, so the comparison is unit-free.
 #'
 #' This replaces a comparison of ranks. A rank drop is the extreme case of a
-#' collapsed singular value, so the spectrum test subsumes it, and it also
-#' catches the case the rank test could not see: declared means `c(-1, 1)` and
-#' realized means `c(-1e-10, 1e-10)` both have rank 2, yet the likelihood has
-#' almost no leverage along that direction and the reported geometry described
-#' a design that was not fitted. The `factor` is far above quadrature noise,
-#' which moves a singular value by a relative `O(1 / n_int)`.
+#' collapsed direction, so this test subsumes it, and it also catches the case
+#' the rank test could not see: declared means `c(-1, 1)` and realized means
+#' `c(-1e-10, 1e-10)` both have rank 2, yet the likelihood has almost no
+#' leverage along that direction and the reported geometry described a design
+#' that was not fitted. The `factor` is far above quadrature noise, which moves
+#' a singular value by a relative `O(1 / n_int)`.
+#'
+#' Comparing the two singular-value SPECTRA is not enough, because singular
+#' values arrive sorted and carry no direction. Declared spread in covariate 1
+#' and realized spread of the same size in covariate 2 produce identical
+#' spectra, so a spectrum test would report a match while the likelihood sees a
+#' different covariate entirely. Projecting onto the declared directions is
+#' what makes the comparison directional.
 #'
 #' @param declared Matrix of declared mean profiles (rows are AgD rows).
 #' @param realized Matrix of realized integration means, or `NULL`.
 #' @param factor Smallest share of each declared singular value the realized
-#'   design must still provide.
+#'   design must still provide along that same direction.
 #' @return `TRUE` when the realized design reproduces the declared one, or when
 #'   there is nothing to compare against.
 #' @keywords internal
@@ -464,5 +472,9 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   if (!all(is.finite(d)) || !all(is.finite(r))) {
     return(TRUE)
   }
-  all(svd(r)$d >= factor * svd(d)$d)
+  decomposition <- svd(d)
+  # Length of the realized design along each declared principal direction,
+  # against the length the declared design has there.
+  realized_spread <- sqrt(colSums((r %*% decomposition$v)^2))
+  all(realized_spread >= factor * decomposition$d)
 }

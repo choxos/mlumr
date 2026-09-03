@@ -282,8 +282,12 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   p_B_effect <- bound_probability(p_B, n_B)
   row_p <- agd$.r / agd$.n
   row_w <- .normalize_weights(agd$.n)
-  var_p_B <- sum(row_w^2 * row_p * (1 - row_p) / agd$.n)
-  row_p_effect <- bound_probability(row_p, agd$.n)
+  # Take the boundary correction from the POOLED n, as `.naive_binomial()`
+  # does. With each row's own n the answer depends on how one comparator arm
+  # was tabulated: 0/100 corrects to 0.5/101, while 0/50 + 0/50 corrects to
+  # 0.5/51 twice, so two descriptions of the same data give different standard
+  # errors. Interior rows are untouched either way.
+  row_p_effect <- bound_probability(row_p, n_B)
   var_p_B_effect <- sum(
     row_w^2 * row_p_effect * (1 - row_p_effect) / agd$.n
   )
@@ -297,13 +301,20 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   se <- comp_delta$link_effect_se
   p_hat_A_comp_se <- .sqrt_variance(comp_delta$var_p_A,
                                     "comparator probability variance")
-  p_B_se <- .sqrt_variance(var_p_B, "comparator probability variance")
+  # Use the boundary-corrected variance on the absolute scale too. With raw
+  # `row_p` a zero-event or all-event comparator arm has p(1 - p) = 0 and
+  # contributes no uncertainty: 0/100 gave p_B_se = 0, a degenerate [0, 0]
+  # interval, and a risk difference whose SE ignored the comparator entirely,
+  # although 0/100 alone is consistent with p up to roughly 0.03. The
+  # link-scale effect and the log risk ratio already used the corrected
+  # variance; these did not. This mirrors `.naive_binomial()`.
+  p_B_se <- .sqrt_variance(var_p_B_effect, "comparator probability variance")
   p_hat_A_comp_ci <- .bounded_wald_interval(p_hat_A_comp, p_hat_A_comp_se, z,
                                             lower = 0, upper = 1)
   p_B_ci <- .bounded_wald_interval(p_B, p_B_se, z, lower = 0, upper = 1)
 
   rd <- p_hat_A_comp - p_B
-  se_rd <- .sqrt_variance(comp_delta$var_p_A + var_p_B,
+  se_rd <- .sqrt_variance(comp_delta$var_p_A + var_p_B_effect,
                           "risk-difference variance")
 
   log_rr <- log_p_A_comp - log(p_B_effect)

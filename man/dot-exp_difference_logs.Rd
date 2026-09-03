@@ -9,8 +9,9 @@
 \description{
 Evaluates the difference from the logarithms so that cancellation happens
 before the return to the natural scale. Equal logarithms return exactly \code{0},
-including \code{-Inf - -Inf} (both quantities are zero) and \code{Inf - Inf}, which is
-mathematically indeterminate and is reported as no difference rather than
-\code{NaN}. Arguments are recycled to a common length; \code{NA} propagates.
+including \code{-Inf - -Inf}, where both quantities are zero. Two \code{+Inf} logs are
+the exception: both quantities are unbounded, their difference has no value,
+and \code{NaN} is returned rather than a null effect. Arguments are recycled to a
+common length; \code{NA} propagates.
 }
 \keyword{internal}

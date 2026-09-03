@@ -189,8 +189,13 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
            call. = FALSE)
     }
     exposure_vals <- data[[exposure]]
-    if (!is.numeric(exposure_vals) || any(exposure_vals <= 0, na.rm = TRUE)) {
-      stop("`exposure` must be positive numeric values", call. = FALSE)
+    # The Stan models declare the exposures `<lower=1e-12>`, so anything
+    # smaller is rejected at initialization with a message that names a Stan
+    # variable rather than the column it came from. Reject it here instead.
+    if (!is.numeric(exposure_vals) ||
+          any(exposure_vals < .mlumr_min_positive, na.rm = TRUE)) {
+      stop("`exposure` must be positive numeric values of at least 1e-12",
+           call. = FALSE)
     }
   }
   invisible(TRUE)
@@ -763,8 +768,9 @@ set_agd <- function(data, treatment,
   if (any(!is.finite(y_vals)) || any(!is.finite(se_vals))) {
     stop("`outcome_mean` and `outcome_se` must be finite", call. = FALSE)
   }
-  if (any(se_vals <= 0)) {
-    stop("`outcome_se` must be positive", call. = FALSE)
+  # Matches the `<lower=1e-12>` bound the normal Stan models declare.
+  if (any(se_vals < .mlumr_min_positive)) {
+    stop("`outcome_se` must be positive and at least 1e-12", call. = FALSE)
   }
   invisible(TRUE)
 }
@@ -787,8 +793,9 @@ set_agd <- function(data, treatment,
   if (any(r_vals < 0)) {
     stop("`outcome_r` must be non-negative", call. = FALSE)
   }
-  if (any(E_vals <= 0)) {
-    stop("`outcome_E` must be positive", call. = FALSE)
+  # Matches the `<lower=1e-12>` bound the poisson Stan models declare.
+  if (any(E_vals < .mlumr_min_positive)) {
+    stop("`outcome_E` must be positive and at least 1e-12", call. = FALSE)
   }
   invisible(TRUE)
 }

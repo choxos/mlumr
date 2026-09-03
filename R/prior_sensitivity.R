@@ -316,7 +316,7 @@ prior_sensitivity <- function(fit,
 
 # ---- Helpers ---------------------------------------------------------------
 
-#' Rescale a prior_beta's scale, preserving family / mean / df.
+#' Rescale a prior_beta's scale, preserving family, mean and df
 #' @keywords internal
 .rescale_prior_beta <- function(prior, new_scale) {
   if (is_single_prior(prior)) {
@@ -341,7 +341,7 @@ prior_sensitivity <- function(fit,
   })
 }
 
-#' Summarize a sensitivity refit.
+#' Summarize a sensitivity refit
 #' @keywords internal
 .summarize_sensitivity <- function(fit, scale, scale_comparator = NA_real_,
                                    probs) {

@@ -163,8 +163,13 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
 #' @return Integer count of chains present.
 #' @keywords internal
 .n_chains_returned <- function(chain_ids, chains) {
+  # `NULL` means the backend could not label the draws by chain, which happens
+  # exactly when the draw count does not divide by the fitted chain count: the
+  # abnormal layout this diagnostic exists to notice. Returning the REQUESTED
+  # count there asserts that every chain came back, which is the one thing not
+  # known. Report it as unknown and let the caller say so.
   if (is.null(chain_ids) || !length(chain_ids)) {
-    return(as.integer(chains))
+    return(NA_integer_)
   }
   length(unique(chain_ids))
 }

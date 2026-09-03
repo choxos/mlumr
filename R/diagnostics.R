@@ -613,6 +613,20 @@ check_diagnostics <- function(fit) {
   # them.
   n_req <- .diagnostic_count(diag$n_chains_requested)
   n_got <- .diagnostic_count(diag$n_chains_returned)
+  # `.diagnostic_count()` maps an unusable value to 0, so an unknown layout and
+  # a known-good one both leave `n_got` outside the comparison below. Separate
+  # them: the backend reports `NA` when it could not label the draws by chain,
+  # and that is a finding, not a pass.
+  if (n_req > 0 && !isTRUE(n_got > 0) &&
+        (is.null(diag$n_chains_returned) ||
+           any(is.na(diag$n_chains_returned)))) {
+    warning(paste0(
+      "The draws could not be labeled by chain, so it is not known whether ",
+      "all ", n_req, " requested chain(s) returned. Rhat and the effective ",
+      "sample sizes below are computed from the draws as stored. Refit, or ",
+      "inspect the backend fit object, before reporting these results."
+    ), call. = FALSE)
+  }
   if (n_req > 0 && n_got > 0 && n_got < n_req) {
     warning(sprintf(
       paste0("Only %d of %d requested chain(s) returned; the remaining chain(s) ",
@@ -680,8 +694,14 @@ check_diagnostics <- function(fit) {
     numeric(0)
   }
   if (length(tail_vals) == 0L) {
+    reason <- if (!requireNamespace("posterior", quietly = TRUE)) {
+      "Install the 'posterior' package to enable this check."
+    } else {
+      paste0("The 'posterior' package is installed, so the draws could not be ",
+             "arranged as equal-length chains; check the chain layout.")
+    }
     message("Tail ESS is unavailable for this fit, so tail quantiles were not ",
-            "checked. Install the 'posterior' package to enable this check.")
+            "checked. ", reason)
   } else if (min(tail_vals) < 400) {
     msg <- paste0(
       "Some tail-ESS values < 400 (min = %.1f). Tail quantiles ",

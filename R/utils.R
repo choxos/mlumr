@@ -1,6 +1,11 @@
 # Null-coalescing operator (available in base R >= 4.4.0, but we support >= 4.1.0)
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
+# Smallest strictly positive value the Stan models accept for an exposure or
+# an aggregate standard error. Their data blocks declare `<lower=1e-12>`, so
+# the R validators use the same number and reject it by column name.
+.mlumr_min_positive <- 1e-12
+
 
 #' Specify a marginal distribution
 #'
@@ -74,7 +79,7 @@ eval_distr <- function(d, p, data = list()) {
 }
 
 
-#' Summarize a single draw vector into mean / sd / quantiles.
+#' Summarize a single draw vector into mean, sd and quantiles
 #'
 #' Internal helper. Centralizes the (mean, sd, quantile) triplet used by
 #' [predict.mlumr_fit()], [marginal_effects()], [conditional_effects()] and
@@ -91,7 +96,7 @@ eval_distr <- function(d, p, data = list()) {
     stats::quantile(x, probs = probs, na.rm = TRUE))
 }
 
-#' Summarize a draws matrix column-wise into a tidy data frame.
+#' Summarize a draws matrix column-wise into a tidy data frame
 #'
 #' Applies `.summarize_draw_vector()` across columns of `draws` and renames
 #' the quantile columns to `qNN` form (e.g., `q2.5`, `q50`, `q97.5`).

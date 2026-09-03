@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils.R
 \name{.summarize_draw_matrix}
 \alias{.summarize_draw_matrix}
-\title{Summarize a draws matrix column-wise into a tidy data frame.}
+\title{Summarize a draws matrix column-wise into a tidy data frame}
 \usage{
 .summarize_draw_matrix(draws, probs)
 }

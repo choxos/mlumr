@@ -72,10 +72,12 @@ fit_rstan <- function(model_name, stan_data, chains, iter, warmup,
         !requireNamespace("posterior", quietly = TRUE)) {
     return(out)
   }
-  chains <- if (is.null(chain_ids)) rep(1L, nrow(draws)) else chain_ids
-  if (length(chains) != nrow(draws)) {
+  # Treating unlabeled draws as one long chain would report a tail ESS computed
+  # from a layout that is not the fit's, which is worse than reporting nothing.
+  if (is.null(chain_ids) || length(chain_ids) != nrow(draws)) {
     return(out)
   }
+  chains <- chain_ids
   ids <- unique(chains)
   per_chain <- tabulate(match(chains, ids))
   # Unequal chain lengths cannot be reshaped into an iterations-by-chains

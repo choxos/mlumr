@@ -146,6 +146,9 @@ summary.mlumr_fit <- function(object, ...) {
   if (!is.null(n_req) && !is.null(n_got) && isTRUE(n_got < n_req)) {
     cat(sprintf("  Chains: %d of %d returned (INCOMPLETE, see warnings)\n",
                 n_got, n_req))
+  } else if (!is.null(n_req) && (is.null(n_got) || any(is.na(n_got)))) {
+    cat(sprintf("  Chains: %d requested, layout UNKNOWN (see warnings)\n",
+                n_req))
   }
   cat("  Divergent transitions:", object$diagnostics$n_divergent, "\n")
   cat("  Max treedepth hits:", object$diagnostics$n_max_treedepth, "\n")

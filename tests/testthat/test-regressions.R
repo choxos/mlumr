@@ -326,11 +326,14 @@ test_that("an incomplete chain set is recorded and reported, not hidden (C4)", {
   fit$diagnostics$n_chains_returned <- 4L
   expect_silent(check_diagnostics(fit))
 
-  # The counting helper agrees with the chain labels, and tolerates NULL labels
-  # (backends that cannot report them) by assuming the run was complete.
+  # The counting helper agrees with the chain labels. Labels it cannot read are
+  # reported as unknown rather than as a complete run: see the dedicated test
+  # below.
   expect_equal(mlumr:::.n_chains_returned(c(1, 1, 2, 2, 3), 4L), 3L)
-  expect_equal(mlumr:::.n_chains_returned(NULL, 4L), 4L)
-  expect_equal(mlumr:::.n_chains_returned(integer(0), 2L), 2L)
+
+  # An unknown layout is announced instead of passing as complete.
+  fit$diagnostics$n_chains_returned <- NA_integer_
+  expect_warning(check_diagnostics(fit), "could not be labeled by chain")
 })
 
 
@@ -511,4 +514,113 @@ test_that("rstan draws carry a chain-aware tail ESS", {
   # Unequal chain lengths cannot be reshaped, so the diagnostic is reported as
   # unavailable rather than computed from a wrong layout.
   expect_true(all(is.na(mlumr:::.rstan_ess_tail(draws, c(rep(1L, 150), rep(2L, 250))))))
+})
+
+
+# --- PR #24 review follow-ups ------------------------------------------------
+
+.stc_boundary_fixture <- function(agd_df) {
+  set.seed(2026)
+  n <- 200
+  x1 <- rbinom(n, 1, 0.4)
+  outcome <- rbinom(n, 1, plogis(-0.5 + 1.0 * x1))
+  ipd <- set_ipd(data.frame(trt = "A", outcome = outcome, x1 = x1),
+                 "trt", "outcome", "x1")
+  agd <- set_agd(agd_df, "trt", outcome_n = "n_total", outcome_r = "n_events",
+                 cov_means = "x1_mean")
+  dat <- add_integration(combine_data(ipd, agd), n_int = 32,
+                         x1 = distr(qbern, prob = x1_mean))
+  stc(dat)
+}
+
+test_that("a zero-event comparator arm keeps its uncertainty in binomial STC", {
+  res <- .stc_boundary_fixture(
+    data.frame(trt = "B", n_total = 100, n_events = 0, x1_mean = 0.3)
+  )
+  # With the raw binomial variance p(1 - p)/n, a 0/100 arm has variance exactly
+  # 0: the interval collapsed to a point and the risk-difference SE ignored the
+  # comparator entirely, although 0/100 alone is consistent with p up to
+  # roughly 0.03. `.naive_binomial()` already corrected this.
+  expect_gt(res$p_comparator_se, 0)
+  expect_gt(res$p_comparator_upper, res$p_comparator_lower)
+  expect_gt(res$rd_se, 0)
+})
+
+test_that("binomial STC standard errors do not depend on comparator tabulation", {
+  pooled <- .stc_boundary_fixture(
+    data.frame(trt = "B", n_total = 100, n_events = 0, x1_mean = 0.3)
+  )
+  # The same arm described as two equal strata. The boundary correction takes
+  # its `n` from the pooled total, so both descriptions must agree; with each
+  # row's own `n`, 0/100 corrected to 0.5/101 and 0/50 twice to 0.5/51.
+  split <- .stc_boundary_fixture(
+    data.frame(trt = "B", n_total = c(50, 50), n_events = c(0, 0),
+               x1_mean = c(0.3, 0.3))
+  )
+  expect_equal(pooled$p_comparator_se, split$p_comparator_se)
+  expect_equal(pooled$rd_se, split$rd_se)
+  expect_equal(pooled$se, split$se)
+})
+
+test_that("realized integration geometry is compared direction by direction", {
+  f <- .realized_matches_declared
+  # Same spectrum, different covariate. A sorted singular-value comparison
+  # cannot tell these apart and reported a match, so `check_identification()`
+  # described spread in covariate 1 while the likelihood only saw covariate 2.
+  expect_false(f(cbind(c(-1, 1), c(0, 0)), cbind(c(0, 0), c(-1, 1))))
+  # The case the rank test could not see stays caught.
+  expect_false(f(cbind(c(-1, 1)), cbind(c(-1e-10, 1e-10))))
+  # A genuinely two-dimensional design with one direction collapsed.
+  declared <- cbind(c(-1, 1, 0), c(0, 0, 2))
+  expect_false(f(declared, cbind(c(-0.3, 0.3, 0), c(0, 0, 2))))
+  expect_false(f(declared, cbind(c(-1, 1, 0), c(0, 0, 0.6))))
+  expect_true(f(declared, declared))
+  # Quadrature noise moves a singular value by a relative O(1 / n_int).
+  expect_true(f(cbind(c(-1, 1), c(2, 4)),
+                cbind(c(-1.001, 1.002), c(2.001, 3.999))))
+})
+
+test_that("an unlabeled chain layout is reported as unknown, not as success", {
+  # `NULL` chain ids mean the backend could not divide the draws into chains,
+  # which is the abnormal layout the diagnostic exists to notice. Returning the
+  # requested count asserted that every chain came back.
+  expect_true(is.na(.n_chains_returned(NULL, 4L)))
+  expect_true(is.na(.n_chains_returned(integer(0), 4L)))
+  expect_equal(.n_chains_returned(rep(1:3, each = 10L), 4L), 3L)
+
+  # Tail ESS from unlabeled draws would describe a layout that is not the
+  # fit's, so it is withheld.
+  draws <- data.frame(a = rnorm(20), b = rnorm(20))
+  expect_true(all(is.na(.rstan_ess_tail(draws, NULL))))
+  expect_true(all(is.na(.rstan_ess_tail(draws, rep(1L, 19L)))))
+})
+
+test_that("R rejects the exposures and standard errors Stan rejects", {
+  # The Stan data blocks declare `<lower=1e-12>`; below that the fit died at
+  # initialization with a message naming a Stan variable, not the column.
+  ipd_df <- data.frame(trt = "A", y = c(1L, 2L), e = c(1, 1e-13), x = c(0, 1))
+  expect_error(
+    set_ipd(ipd_df, "trt", "y", "x", exposure = "e", family = "poisson"),
+    "at least 1e-12"
+  )
+  expect_silent(
+    set_ipd(data.frame(trt = "A", y = c(1L, 2L), e = c(1, 1), x = c(0, 1)),
+            "trt", "y", "x", exposure = "e", family = "poisson")
+  )
+
+  agd_norm <- data.frame(trt = "B", m = 1, s = 1e-13, x_mean = 0.5, x_sd = 1)
+  expect_error(
+    set_agd(agd_norm, "trt", family = "normal",
+            outcome_mean = "m", outcome_se = "s",
+            cov_means = "x_mean", cov_sds = "x_sd"),
+    "at least 1e-12"
+  )
+
+  agd_pois <- data.frame(trt = "B", r = 5, E = 1e-13, x_mean = 0.5, x_sd = 1)
+  expect_error(
+    set_agd(agd_pois, "trt", family = "poisson",
+            outcome_r = "r", outcome_E = "E",
+            cov_means = "x_mean", cov_sds = "x_sd"),
+    "at least 1e-12"
+  )
 })

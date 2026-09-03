@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils.R
 \name{.summarize_draw_vector}
 \alias{.summarize_draw_vector}
-\title{Summarize a single draw vector into mean / sd / quantiles.}
+\title{Summarize a single draw vector into mean, sd and quantiles}
 \usage{
 .summarize_draw_vector(x, probs)
 }

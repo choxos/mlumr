@@ -228,9 +228,10 @@ inverse_link <- function(x, link = c("identity", "log", "logit", "probit", "clog
 #'
 #' Evaluates the difference from the logarithms so that cancellation happens
 #' before the return to the natural scale. Equal logarithms return exactly `0`,
-#' including `-Inf - -Inf` (both quantities are zero) and `Inf - Inf`, which is
-#' mathematically indeterminate and is reported as no difference rather than
-#' `NaN`. Arguments are recycled to a common length; `NA` propagates.
+#' including `-Inf - -Inf`, where both quantities are zero. Two `+Inf` logs are
+#' the exception: both quantities are unbounded, their difference has no value,
+#' and `NaN` is returned rather than a null effect. Arguments are recycled to a
+#' common length; `NA` propagates.
 #' @keywords internal
 .exp_difference_logs <- function(log_x, log_y) {
   # Recycle to a common length up front. Comparing vectors of different lengths
