@@ -218,8 +218,12 @@ test_that("a zero-event poisson arm keeps its uncertainty", {
   nv <- suppressWarnings(suppressMessages(naive(dat)))
   expect_equal(nv$rate_index, 0)
   expect_gt(nv$rate_index_se, 0)
-  expect_gt(nv$rd_se, 0)
   expect_lt(nv$rd_lower, nv$rd_upper)
+  # The assertion that discriminates: with the raw plug-in variance the
+  # zero-event arm contributed nothing, so rd_se was EXACTLY the comparator's
+  # SE. `rd_se > 0` alone passes with the old code, because the comparator has
+  # 30 events.
+  expect_gt(nv$rd_se, nv$rate_comparator_se)
   # The interval has to contain the rate it is printed beside. A log-scale Wald
   # around the corrected rate 0.5 / exposure did not: rate 0 with interval
   # [0.0004, 0.101].
