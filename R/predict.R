@@ -170,6 +170,116 @@ predict.mlumr_fit <- function(object,
   times
 }
 
+#' Fitted-grid indices for a user-supplied survival prediction `times`
+#'
+#' Survival quantities exist only at the times the model was fitted to, so an
+#' arbitrary `times` is snapped to its nearest fitted neighbor. Shared by the
+#' built-in and `newdata` routes so that both validate before they select, and
+#' select the same way.
+#' @keywords internal
+.surv_time_selection <- function(times, pred_times) {
+  if (is.null(times)) return(seq_along(pred_times))
+  .validate_survival_prediction_times(times)
+  sort(unique(vapply(times, function(t) which.min(abs(pred_times - t)),
+                     integer(1))))
+}
+
+#' Value of a survival curve at the origin, or `NA_real_` when it has none
+#'
+#' Survival is 1 and cumulative hazard is 0 at t = 0 (exactly, by definition),
+#' so curves of those two types are prepended with that origin: they then start
+#' at the top-left corner, matching the Kaplan-Meier convention (cf. multinma's
+#' geom_km). Hazard has no universal value at t = 0 (it can be 0 or infinite
+#' depending on the distribution), so it is left to start at the first fitted
+#' time. Added only for the full default curve (`times = NULL`) and when t = 0
+#' is not already a fitted time.
+#' @keywords internal
+.surv_origin <- function(type, times, pred_times) {
+  origin <- switch(type, survival = 1, cumhaz = 0, NA_real_)
+  if (is.na(origin) || !is.null(times)) return(NA_real_)
+  if (any(abs(pred_times) < sqrt(.Machine$double.eps))) return(NA_real_)
+  origin
+}
+
+#' Assemble a survival prediction frame from per-cell draw matrices
+#'
+#' Both prediction routes reduce to the same thing: one draw matrix per
+#' displayed cell. Everything after that is layout, and layout written twice
+#' drifts, so it is written once here. `values` is a list of draw matrices, one
+#' per row of `cells`, with a single column for scalar types (`rmst`, `median`)
+#' and one column per selected time for curves. `cells` carries the display
+#' labels, `treatment` (absent for `loghr`, which is a within-population
+#' contrast) followed by `population`.
+#' @keywords internal
+.surv_result_frame <- function(values, cells, type, summary, probs,
+                               times_out = NULL, origin = NA_real_,
+                               horizon = NULL) {
+  label_names <- intersect(c("treatment", "population"), names(cells))
+
+  rows <- lapply(seq_along(values), function(i) {
+    m <- values[[i]]
+    lab <- cells[i, label_names, drop = FALSE]
+    rownames(lab) <- NULL
+    if (is.null(times_out)) {
+      if (!summary) {
+        return(data.frame(lab, value = m[, 1], row.names = NULL,
+                          check.names = FALSE))
+      }
+      s <- .summarize_draw_matrix(m, probs)
+      # For median survival, draws whose fitted survival never reaches 0.5 over
+      # the prediction grid have no finite median ("median not reached"). The
+      # shared summarizer uses na.rm, so its mean/SD/quantiles are conditional
+      # on the median being reached; expose the posterior probability that it is
+      # not rather than silently reporting a finite, precise-looking median.
+      if (type == "median") s$p_not_reached <- mean(is.na(m[, 1]))
+      return(data.frame(lab, s, row.names = NULL, check.names = FALSE))
+    }
+    if (!summary) {
+      colnames(m) <- sprintf("t_%.15g", times_out)
+      df <- data.frame(lab, m, row.names = NULL, check.names = FALSE)
+      if (!is.na(origin)) {
+        df <- data.frame(df[label_names], t_0 = origin,
+                         df[setdiff(names(df), label_names)],
+                         check.names = FALSE)
+      }
+      return(df)
+    }
+    s <- .summarize_draw_matrix(m, probs)
+    df <- data.frame(lab, time = times_out, s, row.names = NULL,
+                     check.names = FALSE)
+    if (!is.na(origin)) {
+      o <- df[1, , drop = FALSE]
+      o$time <- 0
+      num_cols <- setdiff(names(o)[vapply(o, is.numeric, logical(1))], "time")
+      o[num_cols] <- origin
+      if ("sd" %in% names(o)) o$sd <- 0
+      df <- rbind(o, df)
+    }
+    df
+  })
+  out <- do.call(rbind, rows)
+  rownames(out) <- NULL
+
+  # RMST is an integral to a restriction time, so the number is only half the
+  # estimand without it. Report the horizon actually integrated to as a COLUMN
+  # in both layouts, rather than leaving a consumer to know to look for an
+  # attribute.
+  if (!is.null(horizon)) {
+    if (summary) {
+      n_lab <- length(label_names)
+      out <- cbind(out[, seq_len(n_lab), drop = FALSE], horizon = horizon,
+                   out[, -seq_len(n_lab), drop = FALSE])
+    } else {
+      out$horizon <- horizon
+    }
+    rownames(out) <- NULL
+  }
+  if (type == "median" && summary && any(out$p_not_reached > 0)) {
+    .median_not_reached_note(max(out$p_not_reached))
+  }
+  out
+}
+
 #' Survival predictions (internal dispatch for [predict.mlumr_fit()])
 #'
 #' Reads the population-standardized survival generated quantities and returns
@@ -194,6 +304,11 @@ predict.mlumr_fit <- function(object,
                        stringsAsFactors = FALSE)
   trt_label <- function(t) if (t == "index") idx_trt else cmp_trt
   pop_label <- function(p) if (p == "index") "Index" else "Comparator"
+  cell_labels <- data.frame(
+    treatment = vapply(cells$trt, trt_label, character(1)),
+    population = vapply(cells$pop, pop_label, character(1)),
+    stringsAsFactors = FALSE
+  )
 
   # Absolute predictions in the OTHER study's population carry this study's
   # baseline shape with them, which is an assumption the data cannot check.
@@ -203,41 +318,30 @@ predict.mlumr_fit <- function(object,
   # Time-varying marginal log hazard ratio (index vs comparator) by population:
   # log( h-bar_index(t | pop) / h-bar_comparator(t | pop) ) at each fitted time.
   if (type == "loghr") {
-    sel <- if (is.null(times)) {
-      seq_along(pred_times)
-    } else {
-      sort(unique(vapply(times, function(t) which.min(abs(pred_times - t)),
-                         integer(1))))
-    }
-    rows <- lapply(pops, function(pop) {
+    sel <- .surv_time_selection(times, pred_times)
+    values <- lapply(pops, function(pop) {
       cols_lhr <- sprintf("loghr_%s[%d]", pop, sel)
       if (all(cols_lhr %in% names(draws))) {
         # Current survival models (parametric and M-spline / piecewise
         # exponential) emit the marginal log HR directly in log space, so it
         # stays finite even where the natural-scale marginal hazard underflows
         # to 0 deep in the tail (e.g. generalized gamma, or late extrapolation).
-        lhr <- as.matrix(draws[, cols_lhr, drop = FALSE])
-      } else {
-        # M-spline / piecewise-exponential (and older fits): difference of the
-        # natural-scale log hazards.
-        cols_i <- sprintf("haz_index_%s[%d]", pop, sel)
-        cols_c <- sprintf("haz_comparator_%s[%d]", pop, sel)
-        .require_draw_columns(draws, c(cols_i, cols_c), "survival prediction")
-        lhr <- log(as.matrix(draws[, cols_i, drop = FALSE])) -
-          log(as.matrix(draws[, cols_c, drop = FALSE]))
+        return(as.matrix(draws[, cols_lhr, drop = FALSE]))
       }
-      if (!summary) {
-        colnames(lhr) <- sprintf("t_%.15g", pred_times[sel])
-        return(data.frame(population = pop_label(pop), lhr,
-                          check.names = FALSE))
-      }
-      s <- .summarize_draw_matrix(lhr, probs)
-      data.frame(population = pop_label(pop), time = pred_times[sel], s,
-                 row.names = NULL)
+      # M-spline / piecewise-exponential (and older fits): difference of the
+      # natural-scale log hazards.
+      cols_i <- sprintf("haz_index_%s[%d]", pop, sel)
+      cols_c <- sprintf("haz_comparator_%s[%d]", pop, sel)
+      .require_draw_columns(draws, c(cols_i, cols_c), "survival prediction")
+      log(as.matrix(draws[, cols_i, drop = FALSE])) -
+        log(as.matrix(draws[, cols_c, drop = FALSE]))
     })
-    out <- do.call(rbind, rows)
-    rownames(out) <- NULL
-    return(out)
+    return(.surv_result_frame(
+      values,
+      data.frame(population = vapply(pops, pop_label, character(1)),
+                 stringsAsFactors = FALSE),
+      type, summary, probs, times_out = pred_times[sel]
+    ))
   }
 
   # Scalar summaries (RMST, median): one row per treatment x population.
@@ -253,111 +357,44 @@ predict.mlumr_fit <- function(object,
            "median is searched over `pred_times`; change either by refitting.",
            call. = FALSE)
     }
-    rows <- lapply(seq_len(nrow(cells)), function(i) {
+    values <- lapply(seq_len(nrow(cells)), function(i) {
       if (type == "rmst") {
         col <- sprintf("rmst_%s_%s", cells$trt[i], cells$pop[i])
         .require_draw_columns(draws, col, "survival prediction")
-        vals <- matrix(draws[[col]], ncol = 1)
-      } else {
-        cols <- sprintf("surv_%s_%s[%d]", cells$trt[i], cells$pop[i],
-                        seq_along(pred_times))
-        .require_draw_columns(draws, cols, "survival prediction")
-        med <- .surv_median_from_draws(as.matrix(draws[, cols, drop = FALSE]),
-                                       pred_times)
-        vals <- matrix(med, ncol = 1)
+        return(matrix(draws[[col]], ncol = 1))
       }
-      if (!summary) {
-        return(data.frame(treatment = trt_label(cells$trt[i]),
-                          population = pop_label(cells$pop[i]),
-                          value = vals[, 1],
-                          check.names = FALSE))
-      }
-      s <- .summarize_draw_matrix(vals, probs)
-      # For median survival, draws whose fitted survival never reaches 0.5 over
-      # the prediction grid have no finite median ("median not reached"). The
-      # shared summarizer uses na.rm, so its mean/SD/quantiles are conditional on
-      # the median being reached; expose the posterior probability that it is not
-      # rather than silently reporting a finite, precise-looking median.
-      if (type == "median") {
-        s$p_not_reached <- mean(is.na(vals[, 1]))
-      }
-      data.frame(treatment = trt_label(cells$trt[i]),
-                 population = pop_label(cells$pop[i]), s, row.names = NULL)
+      cols <- sprintf("surv_%s_%s[%d]", cells$trt[i], cells$pop[i],
+                      seq_along(pred_times))
+      .require_draw_columns(draws, cols, "survival prediction")
+      matrix(.surv_median_from_draws(as.matrix(draws[, cols, drop = FALSE]),
+                                     pred_times), ncol = 1)
     })
-    out <- do.call(rbind, rows)
-    rownames(out) <- NULL
     # RMST is an integral to a restriction time, so the number is only half the
     # estimand without it. Report the horizon actually integrated to, read off
     # the fitted grid: that is the requested `rmst_horizon` when one was given,
     # and otherwise mlumr()'s default, which for a study-stratified flexible
     # baseline is the common support rather than the pooled maximum.
-    if (type == "rmst") {
+    horizon <- if (type == "rmst") {
       g <- object$stan_data$rmst_grid_times
-      tau <- if (is.null(g)) NA_real_ else max(g)
-      if (summary) {
-        out <- cbind(out[, 1:2, drop = FALSE], horizon = tau,
-                     out[, -(1:2), drop = FALSE])
-      } else {
-        out$horizon <- tau
-      }
+      if (is.null(g)) NA_real_ else max(g)
+    } else {
+      NULL
     }
-    if (type == "median" && any(out$p_not_reached > 0)) {
-      .median_not_reached_note(max(out$p_not_reached))
-    }
-    return(out)
+    return(.surv_result_frame(values, cell_labels, type, summary, probs,
+                              horizon = horizon))
   }
 
   # Curve summaries (survival, hazard, cumhaz): one row per time.
-  sel <- if (is.null(times)) {
-    seq_along(pred_times)
-  } else {
-    sort(unique(vapply(times, function(t) which.min(abs(pred_times - t)),
-                       integer(1))))
-  }
+  sel <- .surv_time_selection(times, pred_times)
   qty <- switch(type, survival = "surv", hazard = "haz", cumhaz = "cumhaz")
-  # Survival is 1 and cumulative hazard is 0 at t = 0 (exactly, by definition),
-  # so prepend that origin: survival/cumhaz curves (and any plot built from them,
-  # including a user's own) then start at the top-left corner, matching the
-  # Kaplan-Meier convention (cf. multinma's geom_km). Hazard has no universal
-  # value at t = 0 (it can be 0 or infinite depending on the distribution), so it
-  # is left to start at the first fitted time. Added only for the full default
-  # curve (`times = NULL`) and when t = 0 is not already a fitted time.
-  origin <- switch(type, survival = 1, cumhaz = 0, NA_real_)
-  add_origin <- is.null(times) && !is.na(origin) &&
-    !any(abs(pred_times) < sqrt(.Machine$double.eps))
-  rows <- lapply(seq_len(nrow(cells)), function(i) {
+  values <- lapply(seq_len(nrow(cells)), function(i) {
     cols <- sprintf("%s_%s_%s[%d]", qty, cells$trt[i], cells$pop[i], sel)
     .require_draw_columns(draws, cols, "survival prediction")
-    smat <- as.matrix(draws[, cols, drop = FALSE])
-    if (!summary) {
-      colnames(smat) <- sprintf("t_%.15g", pred_times[sel])
-      df <- data.frame(treatment = trt_label(cells$trt[i]),
-                       population = pop_label(cells$pop[i]),
-                       smat, check.names = FALSE)
-      if (add_origin) {
-        df <- data.frame(df[c("treatment", "population")], t_0 = origin,
-                         df[setdiff(names(df), c("treatment", "population"))],
-                         check.names = FALSE)
-      }
-      return(df)
-    }
-    s <- .summarize_draw_matrix(smat, probs)
-    df <- data.frame(treatment = trt_label(cells$trt[i]),
-                     population = pop_label(cells$pop[i]),
-                     time = pred_times[sel], s, row.names = NULL)
-    if (add_origin) {
-      o <- df[1, , drop = FALSE]
-      o$time <- 0
-      num_cols <- setdiff(names(o)[vapply(o, is.numeric, logical(1))], "time")
-      o[num_cols] <- origin
-      if ("sd" %in% names(o)) o$sd <- 0
-      df <- rbind(o, df)
-    }
-    df
+    as.matrix(draws[, cols, drop = FALSE])
   })
-  out <- do.call(rbind, rows)
-  rownames(out) <- NULL
-  out
+  .surv_result_frame(values, cell_labels, type, summary, probs,
+                     times_out = pred_times[sel],
+                     origin = .surv_origin(type, times, pred_times))
 }
 
 
