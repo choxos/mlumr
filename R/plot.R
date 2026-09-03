@@ -64,9 +64,15 @@
 # applied only when every panel shown is a ratio measure; a mixed panel set
 # keeps identity axes.
 #' @keywords internal
-.all_ratio_measures <- function(effects) {
+.all_ratio_measures <- function(effects, values = NULL) {
   e <- toupper(unique(effects))
-  length(e) > 0L && all(e %in% .ratio_measures)
+  if (!length(e) || !all(e %in% .ratio_measures)) return(FALSE)
+  # A log axis needs strictly positive values. A ratio bound that has
+  # underflowed to 0 cannot be drawn on one, and ggplot2 would warn and drop it
+  # rather than show the interval, so keep the identity axis in that case.
+  if (is.null(values)) return(TRUE)
+  v <- values[is.finite(values)]
+  length(v) > 0L && all(v > 0)
 }
 
 # Marginal hazard ratios are non-collapsible and therefore time-varying, so the
@@ -150,7 +156,9 @@ plot.mlumr_marginal_effects <- function(x, ref_line = NULL, ...) {
                   caption = .rmst_caption(x, df$effect)) +
     ggplot2::theme_minimal(base_size = 11) +
     ggplot2::theme(panel.grid.minor = ggplot2::element_blank())
-  if (.all_ratio_measures(df$effect)) p <- p + ggplot2::scale_x_log10()
+  if (.all_ratio_measures(df$effect, c(df$mean, df$.lo, df$.hi))) {
+    p <- p + ggplot2::scale_x_log10()
+  }
   p
 }
 
@@ -525,11 +533,18 @@ plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
   if ("effect" %in% names(df) && length(unique(df$effect)) > 1) {
     p <- p + ggplot2::facet_wrap(~ .data$effect, scales = "free_x")
   }
-  p + ggplot2::geom_point(size = 2.6, color = "#3B6B9A") +
+  p <- p + ggplot2::geom_point(size = 2.6, color = "#3B6B9A") +
     ggplot2::labs(x = sprintf("Conditional effect (%s)",
                               if (is.null(ci)) "point estimate" else .ci_label(ci)),
                   y = "Covariate profile") +
     ggplot2::theme_minimal(base_size = 11)
+  # Same rule as the marginal forest: reciprocal ratio effects belong at equal
+  # distances from the null, which an identity axis does not give them.
+  ci_vals <- if (is.null(ci)) NULL else c(df[[ci$lo]], df[[ci$hi]])
+  if (has_effect && .all_ratio_measures(df$effect, c(df$mean, ci_vals))) {
+    p <- p + ggplot2::scale_x_log10()
+  }
+  p
 }
 
 #' Prior a fitted parameter was actually given
@@ -561,7 +576,11 @@ plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
   res <- if (base %in% c("beta", "beta_index")) {
     priors$beta_resolved
   } else if (base == "beta_comparator") {
-    priors$beta_comparator_resolved
+    # A fit that records a comparator-specific resolved prior uses it; otherwise
+    # the comparator coefficients carry the same prior as `beta`, which is what
+    # the relaxed models apply, so fall back to that rather than refusing to
+    # draw a parameter whose prior is in fact known.
+    priors$beta_comparator_resolved %||% priors$beta_resolved
   } else {
     NULL
   }

@@ -147,9 +147,12 @@ test_that("the conditional-effects forest reads its null line from the effect", 
       "mlumr_conditional_effects", family = "poisson")
   }
   # The defect: ref_line defaulted to 0 for every effect, so a rate-ratio panel
-  # drew its null off the plotted scale.
+  # drew its null off the plotted scale. Read the reference from the layer's own
+  # data rather than from the built plot: an all-ratio panel is drawn on a log
+  # axis, where the built coordinate of the null at 1 is log10(1) = 0, which
+  # says nothing about whether the right null was chosen.
   vline_x <- function(p) {
-    ggplot2::ggplot_build(p)$data[[1]]$xintercept
+    p$layers[[1]]$data$ref
   }
   expect_equal(unique(vline_x(plot(mk("RR")))), 1)
   expect_equal(unique(vline_x(plot(mk("HR")))), 1)
@@ -297,4 +300,45 @@ test_that("the observed KM curves stay in the population they were measured in",
   idx_trt <- dat$index_treatment
   expect_true(all(km$population[km$treatment == idx_trt] == "Index"))
   expect_true(all(km$population[km$treatment != idx_trt] == "Comparator"))
+})
+
+test_that("beta_comparator falls back to the beta prior when the fit shares it", {
+  skip_if_not_installed("ggplot2")
+  # The relaxed models apply the resolved `beta` prior to both coefficient
+  # vectors unless the fit records a comparator-specific one, so refusing to
+  # draw `beta_comparator[1]` would withhold a prior that is in fact known.
+  fit <- structure(
+    list(
+      family = "binomial", model = "relaxed", link = "logit",
+      data = list(covariates = "age"),
+      draws = data.frame(`beta_comparator[1]` = stats::rnorm(200),
+                         check.names = FALSE),
+      priors = list(
+        beta = prior_normal(0, 2.5),
+        beta_resolved = list(covariate_names = "age", mean = 0, sd = 2.5,
+                             dist = 0L, df = NA_real_, autoscale = FALSE,
+                             sd_x = 1)
+      )
+    ),
+    class = "mlumr_fit"
+  )
+  p <- plot_prior_posterior(fit, pars = "beta_comparator[1]")
+  expect_s3_class(p, "ggplot")
+  expect_gt(nrow(p$layers[[2]]$data), 0)
+})
+
+test_that("an all-ratio conditional forest is drawn on a log axis too", {
+  skip_if_not_installed("ggplot2")
+  mk <- function(effect) {
+    mlumr:::.mlumr_result(
+      data.frame(profile = 1:2, effect = effect, mean = c(1.2, 1.1),
+                 sd = c(.1, .1), q2.5 = c(.9, .8), q97.5 = c(1.6, 1.5)),
+      "mlumr_conditional_effects", family = "poisson")
+  }
+  is_log <- function(p) {
+    any(vapply(p$scales$scales, function(s) identical(s$trans$name, "log-10"),
+               logical(1)))
+  }
+  expect_true(is_log(plot(mk("RR"))))
+  expect_false(is_log(plot(mk("RD"))))
 })
