@@ -10,15 +10,16 @@ Description: Bayesian multilevel unanchored meta-regression (ML-UMR) for
     indirect treatment comparisons using individual patient data (IPD) and
     aggregate data (AgD). Implements shared prognostic factor assumption
     (SPFA) and relaxed SPFA models for binary, continuous, count, and
-    time-to-event outcomes via 'Stan', the last with parametric and
-    flexible spline baseline hazards. Also
-    provides simulated treatment comparison (STC) via parametric
-    G-computation and naive unadjusted benchmarks. ML-UMR is an
-    adaptation of the ML-NMR methodology (Phillippo et al. 2020,
+    time-to-event (survival) outcomes via 'Stan', including parametric and
+    flexible M-spline survival baselines. Also provides a one-arm simulated
+    treatment comparison (STC) via comparator-population G-computation and
+    naive unadjusted benchmarks. ML-UMR is an adaptation of the ML-NMR
+    methodology (Phillippo et al. 2020,
     <doi:10.1111/rssa.12579>) implemented in the 'multinma' package
-    (GPL-3) to the unanchored two-trial case; the public API
-    deliberately mirrors multinma's so users can move between ML-NMR
-    and ML-UMR with the same workflow.
+    (GPL-3) to the unanchored two-trial case. The public API uses familiar
+    names for data setup, integration and effect summaries, but ML-NMR and
+    ML-UMR specifications and fitted objects are not interchangeable because
+    their evidence structures and models differ.
 License: GPL-3
 URL: https://github.com/choxos/mlumr, https://choxos.github.io/mlumr/
 BugReports: https://github.com/choxos/mlumr/issues
@@ -59,9 +60,11 @@ Suggests:
     Matrix,
     cmdstanr,
     withr,
-    flexsurv
+    flexsurv,
+    multinma,
+    R.rsp
 Additional_repositories: https://stan-dev.r-universe.dev
 SystemRequirements: GNU make
 Config/testthat/edition: 3
-VignetteBuilder: knitr
+VignetteBuilder: knitr, R.rsp
 Config/roxygen2/version: 8.1.0

@@ -1,0 +1,228 @@
+---
+title: "Fitting, priors, and diagnostics"
+output: rmarkdown::html_vignette
+bibliography: ../inst/REFERENCES.bib
+link-citations: yes
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  # knitr's default is error = TRUE, which prints the condition into the
+  # vignette and carries on. For a precompiled vignette that silently ships a
+  # broken chunk, so fail the build instead.
+  error = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 7,
+  fig.height = 4.5,
+  fig.align = "center",
+  dpi = 110
+)
+
+options(width = 100, rstan_refresh = 0,
+        # Fit MCMC chains in parallel at precompile time (rstan under Rscript
+        # otherwise defaults to mc.cores = 1 and runs chains sequentially).
+        mc.cores = parallel::detectCores(),
+        # The precompiled .Rmd has no \VignetteIndexEntry (it lives in
+        # .html.asis), so silence rmarkdown's title-mismatch check.
+        rmarkdown.html_vignette.check_title = FALSE)
+```
+
+```{r packages, message = FALSE}
+library(mlumr)
+library(ggplot2)
+options(mc.cores = parallel::detectCores())
+```
+
+This vignette covers the mechanics of fitting an ML-UMR model with `mlumr()`:
+sampler control, backends, priors, inspecting a fit, and MCMC diagnostics. It is
+family-agnostic, we illustrate with the real plaque-psoriasis binary example
+from `vignette("binary-outcomes")`, but the workflow is identical for
+continuous, count, and survival outcomes. For *which* method to report, see
+`vignette("choosing-a-method")`.
+
+`mlumr()` fits two model variants by Stan: `model = "spfa"` (shared
+prognostic-factor coefficients) and `model = "relaxed"` (treatment-specific
+coefficients, allowing effect modification). The default backend is `rstan`;
+`cmdstanr` is an optional alternative.
+
+## A model to work with
+
+We reuse the plaque-psoriasis binary example, a compact ML-UMR fit that the rest
+of this vignette inspects, tunes, and diagnoses (the data preparation is covered
+in `vignette("binary-outcomes")`):
+
+```{r data}
+library(mlumr)
+data("psoriasis_ipd")   # bundled with mlumr (from multinma, GPL-3)
+data("psoriasis_agd")
+
+covs <- c("age", "bsa", "weight")
+ipd <- psoriasis_ipd
+ipd$bsa <- ipd$bsa / 100          # body-surface area: % -> proportion
+ipd <- ipd[ipd$study == "UNCOVER-2" & ipd$treatment == "IXE_Q4W", ]
+ipd <- ipd[stats::complete.cases(ipd[, c("pasi75", covs)]), ]
+
+agd <- psoriasis_agd
+agd$bsa_mean <- agd$bsa_mean / 100; agd$bsa_sd <- agd$bsa_sd / 100
+agd <- agd[agd$study == "FIXTURE" & agd$treatment == "SEC_300", ]
+
+dat <- combine_data(
+  set_ipd(ipd, treatment = "treatment", outcome = "pasi75", covariates = covs),
+  set_agd(agd, treatment = "treatment", outcome_n = "pasi75_n", outcome_r = "pasi75_r",
+          cov_means = c("age_mean", "bsa_mean", "weight_mean"),
+          cov_sds   = c("age_sd", "bsa_sd", "weight_sd"),
+          cov_types = c("continuous", "continuous", "continuous")))
+dat <- add_integration(dat, n_int = 64,
+  age    = distr(qgamma,     mean = age_mean,    sd = age_sd),
+  bsa    = distr(qlogitnorm, mean = bsa_mean,    sd = bsa_sd),
+  weight = distr(qgamma,     mean = weight_mean, sd = weight_sd))
+
+fit <- mlumr(dat, model = "spfa",
+             prior_beta = prior_normal(0, 2.5, autoscale = TRUE),
+             chains = 4, iter = 2000, warmup = 1000, seed = 2026, refresh = 0)
+```
+
+## Controlling the sampler
+
+All sampler controls are arguments to `mlumr()`. For a production analysis use
+more chains and iterations than the short settings above:
+
+```{r sampler, eval = FALSE}
+fit <- mlumr(
+  dat, model = "spfa",
+  chains = 4,            # number of MCMC chains
+  iter = 4000,           # total iterations per chain
+  warmup = 2000,         # warmup iterations
+  seed = 2026,           # reproducibility
+  adapt_delta = 0.99,    # raise toward 1 to remove divergences
+  max_treedepth = 15,    # raise if treedepth is saturated
+  refresh = 500          # progress printing (0 = silent)
+)
+```
+
+## Backend selection
+
+`rstan` (default) uses the model compiled into the installed package.
+`cmdstanr` is an optional backend, selected per fit or globally with
+`mlumr_engine("cmdstanr")`:
+
+```{r backend, eval = FALSE}
+fit_cmd <- mlumr(dat, model = "spfa", engine = "cmdstanr", seed = 2026, refresh = 0)
+```
+
+`cmdstanr` is often faster once compiled, especially with parallel chains and
+long runs. Posterior estimates agree up to Monte Carlo error.
+
+## Priors
+
+The defaults, `prior_normal(0, 10)` for intercepts and
+`prior_normal(0, 2.5)` for regression coefficients, are generic starting
+values rather than calibrated choices for every family and outcome scale.
+**Autoscaling** divides a coefficient prior's location and scale by each
+covariate's SD so its intended contribution is preserved when predictors use
+different units. Inspect the priors actually passed to Stan, including
+autoscaled scales, with `prior_summary()`:
+
+```{r priors}
+prior_summary(fit)
+```
+
+Overlaying the prior on the posterior shows how much the data have updated each
+parameter, the intercepts move sharply away from their $\mathrm{N}(0,10)$ prior:
+
+```{r prior-post, fig.height = 2.6}
+plot_prior_posterior(fit, pars = c("mu_index", "mu_comparator"))
+```
+
+## Inspecting a fit
+
+`print()` gives a one-line description of the model; `summary()` tabulates the
+posterior for every parameter (point estimate, credible interval, and the
+per-parameter convergence diagnostics):
+
+```{r inspect}
+print(fit)
+summary(fit)
+```
+
+Population-averaged effects, absolute predictions, and the raw posterior draws
+are available from `marginal_effects()` and `predict()` (the available measures
+and prediction types depend on the family, see the per-outcome vignettes):
+
+```{r effects}
+knitr::kable(marginal_effects(fit, effect = "lor"), caption = "Marginal log odds ratios")
+```
+
+Both return **both** target populations by default, the index and the
+comparator, which is what separates ML-UMR from the frequentist benchmarks:
+
+```{r predict-both}
+knitr::kable(predict(fit, type = "response"),
+   caption = "Standardized response probabilities, both populations")
+```
+
+## MCMC diagnostics
+
+`mlumr()` automatically warns about divergent transitions, treedepth
+saturation, high Rhat (> 1.01), and low ESS (< 400). Inspect them directly:
+
+```{r diagnostics}
+fit$diagnostics$n_divergent
+fit$diagnostics$n_max_treedepth
+max(fit$summary$Rhat, na.rm = TRUE)
+min(fit$summary$n_eff, na.rm = TRUE)
+```
+
+Posterior intervals for the key effects come straight from `marginal_effects()`
+and its `plot()` method:
+
+```{r intervals, fig.height = 2.4}
+plot(marginal_effects(fit, effect = "lor"))
+```
+
+For convergence diagnostics on the raw draws, `bayesplot` works directly on
+`fit$draws`, here trace plots of the same parameters:
+
+```{r trace, fig.height = 3}
+bayesplot::mcmc_trace(fit$draws, pars = c("lor_index", "lor_comparator")) +
+  ggplot2::labs(title = "Trace plots")
+```
+
+## Prior sensitivity
+
+`prior_sensitivity()` refits across a grid of `prior_beta` scales, holding every
+other model setting fixed, so any movement in the summaries is attributable to
+the prior alone. The fit used here is the SPFA model built above, where the
+coefficients are identified by the IPD and the sweep is expected to be flat:
+
+```{r sensitivity}
+prior_sensitivity(fit, prior_beta_scales = c(1, 2.5, 5))
+```
+
+The case that motivates the check is the relaxed model, whose comparator
+coefficients are informed only through the aggregate likelihood and can
+therefore be prior-sensitive. For a relaxed binomial, normal, or poisson fit, run
+`check_identification()` on the data first, since a sweep cannot repair a design
+that carries no information about a coefficient, then pass the relaxed fit to
+`prior_sensitivity()` and sweep the comparator prior alongside the index one
+with `prior_beta_comparator_scales`. See
+`vignette("subgroup-identification", "mlumr")`. Survival is the exception:
+`check_identification()` refuses it, because a reconstructed comparator curve is
+not a set of scalar subgroup summaries and a row count neither bounds nor
+certifies what it identifies. For a relaxed survival fit, inspect the coefficient
+posterior and use the prior sweep. The reported marginal posterior-to-prior
+variance change is descriptive and is not a fraction learned from the data.
+
+## Troubleshooting
+
+- **Divergent transitions**, raise `adapt_delta` (e.g. `0.99`).
+- **Slow convergence / low ESS**, increase `iter` and `warmup`.
+- **Relaxed-model identifiability**, with little AgD, the comparator-specific
+  coefficients are weakly identified (mlumr warns). Use SPFA if effect
+  modification is not expected, supply more informative `prior_beta`, or run
+  `prior_sensitivity()`.
+
+## References

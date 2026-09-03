@@ -1,0 +1,310 @@
+---
+title: "Aggregate subgroup information for the relaxed model"
+output: rmarkdown::html_vignette
+bibliography: ../inst/REFERENCES.bib
+vignette: >
+  %\VignetteIndexEntry{Aggregate subgroup information for the relaxed model}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  message = FALSE,
+  warning = FALSE,
+  error = FALSE
+)
+options(width = 100, rmarkdown.html_vignette.check_title = FALSE)
+```
+
+The relaxed model gives the index and comparator treatments separate
+covariate coefficients. The IPD identify `beta_index`; the comparator
+coefficients are informed only through the aggregate likelihood. Aggregate
+subgroup rows can add information, but a row count alone cannot establish that
+all comparator coefficients are identified.
+
+This vignette separates three questions:
+
+1. Is the aggregate design structurally capable of separating the comparator
+   intercept and coefficients?
+2. Does the nonlinear likelihood contain enough information at the fitted
+   parameter values?
+3. Is the resulting target-population effect stable to the prior, integration
+   approximation, and transport assumptions?
+
+Only the first question has a simple exact answer, and only for the normal
+identity-link model.
+
+## What an aggregate row contributes
+
+For the binomial, normal, and Poisson families, each mutually exclusive
+aggregate stratum contributes one scalar outcome summary. With $K$ covariates,
+the relaxed comparator model has $K + 1$ coefficients: an intercept and $K$
+slopes. Therefore
+
+$$
+S \geq K + 1
+$$
+
+is a necessary counting condition. It is not sufficient.
+
+For a normal identity-link model, stratum $s$ has mean
+
+$$
+\bar y_s = \mu_c + m_s^\mathsf{T}\beta_c,
+$$
+
+where $m_s$ is the declared covariate-mean vector. The exact aggregate design
+matrix is $D=[\mathbf{1},M]$. The comparator coefficients can be separated by
+the likelihood only when $D$ has full column rank $K+1$. Equivalently, after
+centering the rows of $M$, the covariate-mean matrix must have rank $K$.
+
+For a nonlinear mean model, each row instead contributes
+
+$$
+\bar y_s =
+\mathbb{E}_{X\sim f_s}\left[g^{-1}(\mu_c+X^\mathsf{T}\beta_c)\right].
+$$
+
+Its local Jacobian depends on the full within-stratum distribution $f_s$, the
+link, and the parameter values. Mean vectors alone do not determine that
+Jacobian. Differences in variances, binary probabilities, or dependence can
+add information that a mean-only rank calculation cannot see. Consequently,
+`check_identification()` treats the mean-profile spectrum as descriptive for
+binomial, Poisson, and normal-log models. When the row count is adequate,
+`flagged` is `NA`, not `FALSE`.
+
+These distinctions follow the aggregate marginalization used by ML-NMR and
+ML-UMR [@Phillippo2020; @ChandlerIshakMLUMR].
+
+## Rows must describe one population
+
+Multiple `set_agd()` rows are assumed to be mutually exclusive, collectively
+exhaustive strata of one comparator population. They are not separate,
+overlapping subgroup analyses. Population summaries are combined with
+`outcome_n` for binomial and normal outcomes and with person-time exposure for
+Poisson outcomes. For a normal comparator mean,
+
+$$
+\bar y_c=\sum_s w_s\bar y_s,\qquad
+\operatorname{Var}(\bar y_c)=\sum_s w_s^2 SE_s^2,
+\qquad w_s=\frac{n_s}{\sum_j n_j},
+$$
+
+assuming independent, mutually exclusive stratum summaries. Inverse-variance
+weights would describe a meta-analysis of estimates, not the mean of the
+comparator population.
+
+If Poisson exposure varies with covariates, reported covariate summaries must
+match the person-time distribution relevant to the rate. Ordinary participant
+means are justified only under a fixed-exposure or suitable independence
+assumption [@RemiroAzocar2022].
+
+## Mean-profile geometry
+
+`check_identification()` centers the declared subgroup mean vectors, scales
+each covariate by its IPD SD, and examines the singular values. Scaling prevents
+a covariate measured in large units from dominating a binary proportion merely
+because of units. The reported
+
+$$
+\texttt{cond_inv}=\frac{d_{\min}}{d_{\max}}
+$$
+
+approaches zero as the mean profiles collapse onto a lower-dimensional set.
+For the identity-link model this summarizes the exact design matrix. For
+nonlinear models it describes only the spread of the declared means.
+
+```{r packages}
+library(mlumr)
+```
+
+Consider one continuous and two binary covariates. The following designs all
+contain several rows, but they span different covariate directions.
+
+```{r geometry-demo}
+ref_sd <- c(age = 1, sex = 0.5, prior = 0.49)
+
+by_age_only <- cbind(
+  age = seq(-1.5, 1.5, length.out = 6),
+  sex = 0.5,
+  prior = 0.4
+)
+
+cross_tab <- rbind(
+  c(0, 0, 0), c(0, 1, 0), c(0, 0, 1), c(0, 1, 1)
+)
+
+jointly_defined <- rbind(
+  c(-1, 0, 0), c(-1, 1, 0), c(-1, 0, 1), c(-1, 1, 1),
+  c(1, 0, 0), c(1, 1, 1)
+)
+
+geometry <- function(M, ref_sd) {
+  M <- as.matrix(M)
+  K <- ncol(M)
+  M <- scale(M, center = TRUE, scale = FALSE)
+  M <- sweep(M, 2, ref_sd, "/")
+  d <- svd(M)$d
+  if (length(d) < K) d <- c(d, rep(0, K - length(d)))
+  c(cond_inv = min(d) / max(d),
+    eff_dim = sum(d^2)^2 / sum(d^4))
+}
+
+do.call(rbind, lapply(
+  c("by_age_only", "cross_tab", "jointly_defined"),
+  function(nm) c(design = nm, rows = nrow(get(nm)),
+                 round(geometry(get(nm), ref_sd), 3))
+))
+```
+
+Age bands vary only in the age direction. The binary cross-tab varies in two
+directions but leaves age fixed. Only the jointly defined cells span all three
+covariates. More rows along an existing direction cannot replace a missing
+direction.
+
+## Using `check_identification()`
+
+The function uses declared AgD means, so the identity-link result does not
+depend on the realized QMC points and can be run before `add_integration()`.
+
+```{r build-example}
+set.seed(2026)
+n_ipd <- 120
+ipd_df <- data.frame(
+  trt = "A",
+  y = rnorm(n_ipd, 2, 1),
+  age = rnorm(n_ipd),
+  sex = rbinom(n_ipd, 1, 0.5),
+  prior = rbinom(n_ipd, 1, 0.4)
+)
+ipd <- set_ipd(ipd_df, treatment = "trt", outcome = "y",
+               covariates = c("age", "sex", "prior"), family = "normal")
+
+make_design <- function(M) {
+  agd_df <- data.frame(
+    trt = "B",
+    n = rep(100, nrow(M)),
+    ybar = 2 + 0.1 * M[, 1] + 0.2 * M[, 2] - 0.1 * M[, 3],
+    yse = rep(0.1, nrow(M)),
+    age_mean = M[, 1],
+    age_sd = rep(1, nrow(M)),
+    sex_mean = M[, 2],
+    prior_mean = M[, 3]
+  )
+  agd <- set_agd(
+    agd_df, treatment = "trt", family = "normal",
+    outcome_mean = "ybar", outcome_se = "yse", outcome_n = "n",
+    cov_means = c("age_mean", "sex_mean", "prior_mean"),
+    cov_sds = c("age_sd", NA, NA),
+    cov_types = c("continuous", "binary", "binary")
+  )
+  combine_data(ipd, agd)
+}
+
+identity_age <- check_identification(
+  make_design(by_age_only), link = "identity", verbose = FALSE
+)
+identity_joint <- check_identification(
+  make_design(jointly_defined), link = "identity", verbose = FALSE
+)
+nonlinear_joint <- check_identification(
+  make_design(jointly_defined), link = "log", verbose = FALSE
+)
+
+data.frame(
+  design = c("age only", "joint identity", "joint log"),
+  scope = c(identity_age$diagnostic_scope,
+            identity_joint$diagnostic_scope,
+            nonlinear_joint$diagnostic_scope),
+  rows = c(identity_age$n_rows, identity_joint$n_rows,
+           nonlinear_joint$n_rows),
+  cond_inv = c(identity_age$cond_inv, identity_joint$cond_inv,
+               nonlinear_joint$cond_inv),
+  flagged = c(identity_age$flagged, identity_joint$flagged,
+              nonlinear_joint$flagged)
+)
+```
+
+The package threshold `cond_inv < 0.2` is an exploratory warning rule for the
+identity-link design. It is not a validated universal cutoff. The statistic is
+relative: it cannot see subgroup sample sizes, outcome precision, overall
+between-stratum magnitude, nonlinear link curvature, or model misspecification.
+A value above 0.2 does not prove identification.
+
+## Recommended workflow
+
+1. Verify that rows are mutually exclusive and collectively exhaustive, and
+   that their sample sizes or exposures represent the intended comparator
+   population.
+2. Count the scalar outcome summaries. Fewer than $K+1$ rows cannot separate a
+   relaxed comparator intercept and $K$ slopes for the non-survival families.
+3. For normal identity models, inspect design rank and `cond_inv`. Request
+   jointly defined cells that vary across all covariates when the design is
+   deficient.
+4. For nonlinear models, treat the mean spectrum as descriptive. Check the
+   fitted coefficient posterior, sampler diagnostics, and
+   `prior_sensitivity()`. A prior sweep measures sensitivity; it does not assign
+   a fraction of information to the data or the prior.
+5. Check `check_integration()` separately. Numerical fidelity of the QMC grid
+   and statistical identification are different questions.
+6. Examine overlap before transporting the comparator regression to the index
+   or another target covariate distribution. A stable fit inside the comparator
+   support does not validate extrapolation outside it [@TSD18;
+   @ChandlerIshakTransport].
+7. If the relaxed result is unstable, obtain more informative jointly defined
+   strata, simplify the effect-modification structure, use SPFA with a clear
+   assumption statement, and report prior and target-population sensitivity.
+
+The marginal posterior-to-prior variance change printed for relaxed
+coefficients is descriptive. It can be negative because of posterior
+correlation or changed marginal geometry, and neither its sign nor magnitude is
+an identification certificate.
+
+## Distribution and dependence assumptions
+
+Each nonlinear aggregate likelihood integrates over a reconstructed
+within-stratum covariate distribution. Means, SDs, binary proportions, and a
+copula do not uniquely identify that distribution. The same supplied
+correlation matrix is used as a within-stratum dependence model across rows.
+A pooled comparator correlation also contains between-stratum covariance and
+is not generally the required within-stratum correlation. For non-Gaussian
+continuous margins, supply a defensible Spearman matrix with
+`cor_adjust = "spearman"` or a calibrated latent Gaussian-copula matrix with
+`cor_adjust = "none"`; an observed Pearson matrix is not automatically either.
+
+These are sensitivity assumptions, not details that subgroup row count can
+repair. Vary plausible dependence structures and marginal distributions when
+the estimand is sensitive to them.
+
+## Time-to-event outcomes
+
+The counting argument does not apply to reconstructed survival data. A
+comparator curve supplied through `set_agd_surv()` contributes event and
+censoring likelihood terms across time, not one scalar summary. Depending on
+the survival family and covariate distribution, one marginal curve may identify
+some combinations of comparator coefficients while leaving other directions
+weak. `check_identification()` therefore refuses survival rather than returning
+a misleading row-count result.
+
+For a relaxed survival fit, inspect the comparator coefficient posterior and
+run `prior_sensitivity()` with `prior_beta_comparator_scales`. Also compare
+plausible baseline assumptions, including `aux_by = ".study"` and
+`aux_by = "none"` where scientifically defensible. RMST differences are
+collapsible within a specified population, but this does not make them
+automatically transportable to another population.
+
+## What this vignette does not claim
+
+There is no universal minimum number of rows beyond the necessary $K+1$ count,
+no source-validated `cond_inv` cutoff, and no guarantee that a non-flagged
+design produces a practically precise target effect. A proper simulation study
+for a specific design must reconstruct the actual within-stratum
+distributions, use the correct exposure-weighted target for rates, report
+failures and Monte Carlo standard errors, and use enough replications for its
+claimed precision. The guidance here is structural and diagnostic, not a
+numerical calibration.
+
+## References

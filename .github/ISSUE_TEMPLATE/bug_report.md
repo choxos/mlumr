@@ -34,7 +34,7 @@ sessionInfo()
 
 ## Model and Data Context
 
-- Outcome family: binomial / normal / poisson
+- Outcome family: binomial / normal / poisson / survival
 - Model: SPFA / relaxed SPFA
 - Backend: rstan / cmdstanr
 - Stan settings: chains, iter, warmup, adapt_delta

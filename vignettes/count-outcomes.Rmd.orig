@@ -1,0 +1,409 @@
+---
+title: "Count outcomes: an unanchored rate-ratio comparison"
+output: rmarkdown::html_vignette
+bibliography: ../inst/REFERENCES.bib
+link-citations: yes
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  # knitr's default is error = TRUE, which prints the condition into the
+  # vignette and carries on. For a precompiled vignette that silently ships a
+  # broken chunk, so fail the build instead.
+  error = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 7,
+  fig.height = 4.5,
+  fig.align = "center",
+  dpi = 110
+)
+
+options(width = 100, rstan_refresh = 0,
+        # Fit MCMC chains in parallel at precompile time (rstan under Rscript
+        # otherwise defaults to mc.cores = 1 and runs chains sequentially).
+        mc.cores = parallel::detectCores(),
+        # The precompiled .Rmd has no \VignetteIndexEntry (it lives in
+        # .html.asis), so silence rmarkdown's title-mismatch check.
+        rmarkdown.html_vignette.check_title = FALSE)
+```
+
+```{r packages, message = FALSE}
+library(mlumr)
+library(ggplot2)
+options(mc.cores = parallel::detectCores())
+```
+
+This vignette is a complete worked example of an **unanchored** indirect
+comparison for a **count** endpoint, using mlumr's bundled `caries_ipd` and
+`caries_agd` example data. It is the count-outcome analogue of
+`vignette("binary-outcomes")`; for the shared data-preparation machinery see
+`vignette("data-preparation")`, for sampler/prior/diagnostic detail see
+`vignette("fitting-and-diagnostics")`, and for how to choose between methods see
+`vignette("choosing-a-method")`.
+
+> **Simulated data.** `caries_ipd` / `caries_agd` are *simulated* (not real
+> patient records): they are generated with the `synthpop` package (sequential
+> CART) [@Nowok2016] from a silver-diamine-fluoride vs nano-silver-fluoride
+> dental caries trial [@Ammar2025] (CC BY 4.0), preserving its covariate
+> relationships (fidelity validated with the `syntheticdata` package), much as
+> `multinma` builds its own example data. Because dmft was a balanced *baseline*
+> characteristic in that trial, a plausible caries-arresting effect for SDF was
+> imposed so the worked example has a meaningful treatment contrast. The two arms
+> are treated as separate single-arm sources to illustrate an unanchored
+> comparison.
+
+## The clinical question
+
+We want the relative efficacy of two topical agents on the **dmft count**
+(decayed, missing and filled teeth) in young children, when:
+
+* **Index (IPD).** We hold individual patient data for **silver diamine
+  fluoride** (`SDF`), one count per child with a follow-up exposure.
+* **Comparator (AgD).** Only published aggregate data are available for
+  **nano-silver fluoride** (`NSF`): a total event count, total exposure, and a
+  baseline-characteristics table.
+
+The two arms come from single-arm sources with no common comparator, so the
+comparison is **unanchored** and relies on the conditional-constancy /
+shared-prognostic-factor assumptions discussed in `vignette("introduction")`.
+ML-UMR adjusts for cross-trial differences in prognostic factors by standardizing
+the IPD model to the comparator population (and vice versa).
+
+## The ML-UMR model
+
+On the index IPD, ML-UMR fits a Poisson regression for the count with a log link
+and a log-exposure offset,
+$$\log\mathbb{E}[y_{ik}\mid x_i]=\log T_i+\mu_k+x_i^\top\beta_k,$$
+so $\mu_k$ and $\beta_k$ live on the **log-rate** scale (here there is one row
+per child, so the exposure $T_i$ is constant). The aggregate comparator does not
+contribute patient rows; instead its likelihood is the individual rate
+**integrated over the comparator covariate distribution** $f_{\text{AgD}}(x)$
+implied by the published moments,
+$$\bar\lambda_k=\mathbb{E}[\lambda\mid \text{AgD population}]=\int\exp(\mu_k+x^\top\beta_k)\,f_{\text{AgD}}(x)\,dx,$$
+which mlumr approximates with quasi-Monte Carlo integration points (see *Setting
+up the ML-UMR data*). This is the same population-adjustment device as ML-NMR
+[@Phillippo2020], specialized to the unanchored two-study case.
+
+Two variants differ only in how the prognostic effects are shared across
+treatments:
+
+* **SPFA** (shared prognostic factors) assumes $\beta_{\text{index}}=\beta_{\text{comparator}}=\beta$, the conditional-constancy / shared-effect-modifier assumption.
+* **Relaxed** frees them, $\beta_{\text{index}}\neq\beta_{\text{comparator}}$, allowing effect modification at the cost of identifiability (the comparator coefficients are informed only by the single AgD likelihood term).
+
+The population-standardized contrast is the **rate ratio**
+$\mathrm{RR}=\bar\lambda_{\text{index}}/\bar\lambda_{\text{comparator}}$
+(null = 1), reported in both populations.
+
+```{r data}
+library(mlumr)
+library(ggplot2)
+
+data("caries_ipd")     # index IPD (SDF), bundled with mlumr
+data("caries_agd")     # comparator AgD (NSF)
+
+covariates <- c("age", "log_cfu")   # baseline bacterial load is the key prognostic
+
+knitr::kable(data.frame(
+  Arm = c("Index (SDF, IPD)", "Comparator (NSF, AgD)"),
+  Children = c(nrow(caries_ipd), caries_agd$n),
+  Total_dmft = c(sum(caries_ipd$dmft), caries_agd$r),
+  Mean_dmft = c(mean(caries_ipd$dmft), caries_agd$r / caries_agd$E)
+), caption = "dmft counts (index IPD vs comparator AgD)")
+```
+
+A glimpse of the index IPD (one row per child):
+
+```{r data-head}
+knitr::kable(head(caries_ipd), caption = "Index IPD (SDF), first rows")
+```
+
+## Covariate balance
+
+Population adjustment is motivated by the fact that the two trial populations differ
+on prognostic factors. Comparing the index sample means against the published
+comparator means shows the imbalance we must adjust for, here baseline bacterial
+load (`log_cfu`) is the key prognostic factor:
+
+```{r balance}
+balance <- data.frame(
+  Covariate     = c("Age (years)", "Baseline bacterial load (log CFU)"),
+  Index_SDF     = c(mean(caries_ipd$age), mean(caries_ipd$log_cfu)),
+  Comparator_NSF = c(caries_agd$age_mean, caries_agd$log_cfu_mean)
+)
+knitr::kable(balance, caption = "Prognostic-factor balance: index vs comparator population")
+```
+
+## Setting up the ML-UMR data
+
+For a Poisson IPD outcome use `set_ipd()` with `family = "poisson"`, the count,
+and an `exposure` column; `set_agd()` takes the comparator total count
+(`outcome_r`), total exposure (`outcome_E`), and the covariate summaries.
+Covariate column suffixes (`_mean`, `_sd`) are stripped to match the IPD names.
+
+```{r setup-data}
+ipd <- set_ipd(caries_ipd, treatment = "treatment", outcome = "dmft",
+               family = "poisson", exposure = "exposure",
+               covariates = covariates)
+agd <- set_agd(caries_agd, treatment = "treatment", family = "poisson",
+               outcome_r = "r", outcome_E = "E",
+               cov_means = c("age_mean", "log_cfu_mean"),
+               cov_sds   = c("age_sd", "log_cfu_sd"),
+               cov_types = c("continuous", "continuous"))
+dat <- combine_data(ipd, agd)
+dat
+```
+
+The comparator covariate distribution is represented by quasi-Monte Carlo
+integration points drawn from each covariate's marginal (here normals for age and
+log CFU), correlated via a Gaussian copula calibrated from the IPD. We use a
+modest `n_int = 64` here so the vignette builds quickly; a real analysis would use
+several hundred or more (see `vignette("data-preparation")`).
+
+```{r integration}
+dat <- add_integration(dat, n_int = 64,
+                       age     = distr(qnorm, mean = age_mean, sd = age_sd),
+                       log_cfu = distr(qnorm, mean = log_cfu_mean, sd = log_cfu_sd))
+```
+
+`check_integration()` confirms the quasi-Monte Carlo points reproduce the
+requested covariate moments, run it whenever covariates are correlated or
+`n_int` is small:
+
+```{r check-int}
+check_integration(
+  dat,
+  age     = distr(qnorm, mean = age_mean, sd = age_sd),
+  log_cfu = distr(qnorm, mean = log_cfu_mean, sd = log_cfu_sd)
+)
+```
+
+## Frequentist benchmarks
+
+The unadjusted (naive) comparison ignores the covariate imbalance; STC adjusts
+for it by parametric G-computation. Both are fast and serve as reference points.
+Both return estimates on the **log-rate** (link) scale, so we exponentiate them
+to the rate-ratio scale when plotting alongside the Bayesian effects below.
+
+```{r benchmarks}
+res_naive <- naive(dat)
+res_stc   <- stc(dat)
+res_naive
+res_stc
+```
+
+## Fitting the ML-UMR models
+
+For the Poisson family the canonical link is `log` and the likelihood uses
+`log(exposure)` as the offset, so coefficients are on the log-rate scale. We fit
+both the shared-prognostic-factor model (**SPFA**) and the **relaxed** model
+(treatment-specific prognostic effects). An **autoscaled** coefficient prior
+puts covariate contributions on a common SD scale; its numerical width still
+requires substantive and prior-predictive checking. The relaxed model uses a
+tighter prior and a higher `adapt_delta`
+because its comparator-specific coefficients lean on one aggregate row.
+
+```{r fit}
+fit_spfa <- mlumr(dat, model = "spfa", link = "log",
+                  prior_beta = prior_normal(0, 1, autoscale = TRUE),
+                  chains = 4, iter = 2000, warmup = 1000, seed = 2026, refresh = 0)
+fit_relaxed <- mlumr(dat, model = "relaxed", link = "log",
+                     prior_beta = prior_normal(0, 0.5, autoscale = TRUE),
+                     chains = 4, iter = 2000, warmup = 1000,
+                     adapt_delta = 0.95, seed = 2026, refresh = 0)
+summary(fit_spfa)
+```
+
+### Priors
+
+These fits use $\mu_k\sim\mathrm{N}(0,10^2)$ for the intercepts and autoscaled
+$\beta\sim\mathrm{N}(0,1^2)$ for the coefficients. On the log scale this
+coefficient prior permits a wide range of rate ratios per covariate SD, but
+that observation does not calibrate it for this application. `prior_summary()`
+shows exactly what was passed to Stan; prior-predictive checks and sensitivity
+analyses determine whether the scales are suitable:
+
+```{r priors}
+prior_summary(fit_spfa)
+```
+
+The data are substantially more informative than the priors, the posterior intercepts are
+much tighter than the $\mathrm{N}(0,10)$ prior:
+
+```{r prior-post, fig.height = 2.6}
+plot_prior_posterior(fit_spfa, pars = c("mu_index", "mu_comparator"))
+```
+
+### The log link and aggregation bias
+
+The log link is **nonlinear**, so the aggregate rate is *not* the rate at the
+mean covariate. By Jensen's inequality
+$\mathbb{E}[\exp(\mu+x^\top\beta)]\neq\exp(\mu+\bar x^\top\beta)$, so "plugging in"
+the comparator covariate means would bias the aggregate-level likelihood. ML-UMR
+instead integrates $\exp(\mu+x^\top\beta)$ over the QMC points (the integral
+above), evaluated with a numerically stable log-sum-exp so that large linear
+predictors do not overflow. This is the count analogue of the logit
+nonlinearity in `vignette("binary-outcomes")`, and it is exactly why the
+integration machinery (rather than mean-covariate plug-in) is needed.
+
+### Overdispersion
+
+The Poisson model assumes the count mean equals its variance. Caries counts are
+often **overdispersed** (variance > mean, e.g. from unmodeled clustering), in
+which case the Poisson intervals are optimistically narrow. mlumr's count family
+is Poisson and has no dispersion parameter. If the IPD shows clear
+overdispersion (compare `var(dmft)` against `mean(dmft)`), report the intervals
+as a lower bound on uncertainty and state the limitation. Prespecified
+prognostic covariates may explain part of the excess variation, but they are not
+a correction for it, and neither the naive contrast nor Poisson STC adjusts for
+residual overdispersion; both inherit the same assumption. Material
+overdispersion calls for a dispersion-aware model outside mlumr.
+
+### Convergence
+
+`mlumr()` warns automatically about divergences, treedepth saturation, high
+$\hat R$, and low effective sample size. They are clean here:
+
+```{r diagnostics}
+data.frame(
+  n_divergent  = fit_spfa$diagnostics$n_divergent,
+  max_treedepth = fit_spfa$diagnostics$n_max_treedepth,
+  max_Rhat     = round(max(fit_spfa$summary$Rhat, na.rm = TRUE), 3),
+  min_ESS      = round(min(fit_spfa$summary$n_eff, na.rm = TRUE))
+)
+```
+
+## Treatment effects
+
+For a Poisson outcome the population-standardized effect is the **rate ratio**
+(RR; null = 1), reported in both populations:
+
+```{r effects}
+knitr::kable(marginal_effects(fit_spfa), caption = "SPFA standardized rate ratio (SDF vs NSF)")
+```
+
+A forest plot makes the value of adjustment visible. It uses a log axis (null
+at 1); the frequentist `naive`/`stc` estimates are on the log-rate scale, so we
+exponentiate them onto the rate-ratio scale. ML-UMR is shown in **both** target
+populations. The **index** population is normally the decision-relevant one for
+HTA, since cost-effectiveness models are built for the population a
+reimbursement decision is about, which is usually the index trial's
+[@ChandlerIshakTransport]. STC is standardized to the comparator population;
+the naive contrast is not standardized to either population. The log link is
+nonlinear, but the marginal
+rate still factorizes as
+$\mathbb{E}[\exp(\mu_k+x^\top\beta)]=\exp(\mu_k)\,\mathbb{E}[\exp(x^\top\beta)]$,
+and under SPFA the shared second factor **cancels in the ratio**. So the two
+SPFA rows coincide exactly, just as the mean difference does; only the relaxed
+model, which gives each treatment its own $\beta$, separates the populations.
+This is a property of the multiplicative model, not of collapsibility in
+general: the log odds ratio in `vignette("binary-outcomes")` has no such
+factorization and genuinely differs between populations under SPFA.
+
+```{r forest, fig.height = 3.6}
+rr_spfa <- marginal_effects(fit_spfa, population = "both")
+rr_rel  <- marginal_effects(fit_relaxed, population = "both")
+# One row per (model, population); `pop()` pulls the requested one.
+pop <- function(d, which) d[d$population == which, ]
+forest_df <- data.frame(
+  label = c("Naive (unstandardized)", "STC (comparator)",
+            "ML-UMR SPFA (index)", "ML-UMR SPFA (comparator)",
+            "ML-UMR relaxed (index)", "ML-UMR relaxed (comparator)"),
+  est = c(exp(res_naive$estimate), exp(res_stc$estimate),
+          pop(rr_spfa, "Index")$mean, pop(rr_spfa, "Comparator")$mean,
+          pop(rr_rel, "Index")$mean, pop(rr_rel, "Comparator")$mean),
+  lo  = c(exp(res_naive$ci_lower), exp(res_stc$ci_lower),
+          pop(rr_spfa, "Index")$q2.5, pop(rr_spfa, "Comparator")$q2.5,
+          pop(rr_rel, "Index")$q2.5, pop(rr_rel, "Comparator")$q2.5),
+  hi  = c(exp(res_naive$ci_upper), exp(res_stc$ci_upper),
+          pop(rr_spfa, "Index")$q97.5, pop(rr_spfa, "Comparator")$q97.5,
+          pop(rr_rel, "Index")$q97.5, pop(rr_rel, "Comparator")$q97.5)
+)
+mlumr_forest(forest_df, ref_line = 1, log_x = TRUE,
+             x = "Rate ratio (SDF vs NSF)",
+             title = "dmft count rate ratio",
+             subtitle = "Unadjusted vs population-adjusted, in both target populations")
+```
+
+Both models' standardized rate ratios in both populations, as a table:
+
+```{r effects-both}
+knitr::kable(rbind(cbind(Model = "SPFA", rr_spfa),
+                   cbind(Model = "Relaxed", rr_rel)),
+   caption = "Standardized rate ratio (SDF vs NSF), both models and both populations")
+```
+
+The standardized rate ratio in both populations, plotted straight from
+`marginal_effects()` with its `plot()` method (the null line sits at 1 for a
+ratio measure):
+
+```{r posterior-areas, fig.height = 2.6}
+plot(marginal_effects(fit_spfa))
+```
+
+## Absolute predictions
+
+Absolute predicted expected counts for each treatment in each population, as a
+table and as a plot (the two populations distinguished by color):
+
+```{r predict}
+knitr::kable(predict(fit_spfa, population = "both", type = "response"),
+   caption = "Standardized expected dmft by treatment")
+```
+
+```{r predict-plot, fig.height = 3}
+plot(predict(fit_spfa, population = "both", type = "response"))
+```
+
+## Conditional effects
+
+Conditional effects evaluate the contrast at specific covariate profiles rather
+than averaging over a population, useful for checking whether the rate ratio is
+plausibly constant across the prognostic range (the SPFA assumption) or varies
+with baseline bacterial load:
+
+```{r conditional}
+profiles <- data.frame(age = c(4, 5, 6), log_cfu = c(9, 11, 13))
+knitr::kable(conditional_effects(fit_spfa, newdata = profiles),
+   caption = "Conditional rate ratios at three covariate profiles")
+```
+
+## Model comparison
+
+Compare SPFA against the relaxed model with leave-one-out cross-validation and
+DIC. A markedly better relaxed fit would *suggest* effect modification, but the
+comparator coefficients are weakly identified from a single AgD row, so treat it
+as suggestive and check `prior_sensitivity()` (see
+`vignette("fitting-and-diagnostics")`).
+
+```{r compare}
+compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "loo")
+compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "dic")
+```
+
+## Interpretation
+
+* The **naive** rate ratio mixes the treatment contrast with between-study
+  differences, including baseline bacterial-load imbalance.
+* In this example **STC** and **ML-UMR SPFA** both standardize over the named
+  covariates and broadly agree. ML-UMR reports posterior uncertainty and effects
+  in *both* populations, which matters when the decision population is not the
+  comparator's.
+* The **relaxed** model frees the shared-effect assumption but pays for it in
+  precision here, because the comparator-specific coefficients lean on one
+  aggregate row.
+* A rate ratio below 1 favors SDF (fewer affected teeth) here. Use an anchored
+  network meta-analysis when the network is connected; reserve ML-UMR for the
+  unanchored case, accepting wider intervals as the price of discarding
+  within-trial randomization.
+
+> **Data provenance.** `caries_ipd` / `caries_agd` are simulated (mlumr's own
+> work, GPL-3), generated with `synthpop` (sequential CART) [@Nowok2016] from a
+> silver-diamine-fluoride vs nano-silver-fluoride dental caries trial
+> [@Ammar2025] (CC BY 4.0) while preserving its covariate relationships, with a
+> plausible SDF treatment effect imposed for illustration; they are not real
+> patient data. See `data-raw/simulate_external_data.R`.
+
+## References
