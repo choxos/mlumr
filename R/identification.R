@@ -231,7 +231,15 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   degenerate <- list(cond_inv = 0, eff_dim = 0, spread = 0,
                      singular_values = rep(0, k), means = M)
   if (nrow(M) < 2L) return(degenerate)
-  d <- svd(M)$d
+  # Fail closed on a design that cannot be decomposed, exactly as
+  # `.profile_rank()` does. Both are handed the same matrix, and a legacy
+  # integration-mean matrix carrying NA reaches them both, so a hard LAPACK
+  # error here ("infinite or missing values in 'x'") against a quiet zero
+  # there would be the two screens disagreeing about one design. Zero spread
+  # is the conservative reading: no direction the likelihood can use.
+  if (!all(is.finite(M))) return(degenerate)
+  d <- tryCatch(svd(M)$d, error = function(e) NULL)
+  if (is.null(d)) return(degenerate)
   d <- d[is.finite(d)]
   if (!length(d) || max(d) <= 0) return(degenerate)
   if (length(d) < k) d <- c(d, rep(0, k - length(d)))

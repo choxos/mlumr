@@ -639,6 +639,26 @@ test_that("a realized grid that collapses onto a diagonal is caught", {
   expect_false(f(declared, declared * 0.4, c(1, 1)))
 })
 
+
+test_that("the two identification screens agree on an undecomposable design", {
+  # `.profile_rank()` fails closed on a mean matrix that carries NA, which is
+  # the legacy integration-mean case its own comment names. `.subgroup_geometry()`
+  # is handed the SAME matrix by `check_identification()` and used to abort
+  # inside LAPACK with "infinite or missing values in 'x'", so one screen
+  # reported an unidentified design and the other stopped the call.
+  M <- cbind(c(0, 1, NA), c(1, 0, 1))
+  expect_equal(.profile_rank(M, c(1, 1)), 0L)
+  geom <- .subgroup_geometry(M, c(1, 1))
+  expect_equal(geom$spread, 0)
+  expect_equal(geom$cond_inv, 0)
+  expect_equal(geom$eff_dim, 0)
+
+  # A finite design is untouched.
+  ok <- .subgroup_geometry(cbind(c(0, 1, 2), c(1, 0, 1)), c(1, 1))
+  expect_gt(ok$spread, 0)
+  expect_gt(ok$cond_inv, 0)
+})
+
 test_that("an unlabeled chain layout is reported as unknown, not as success", {
   # `NULL` chain ids mean the backend could not divide the draws into chains,
   # which is the abnormal layout the diagnostic exists to notice. Returning the
