@@ -263,7 +263,6 @@ mlumr <- function(data,
                   link = NULL,
                   prior_intercept = default_prior_intercept(),
                   prior_beta = default_prior_beta(),
-                  prior_beta_comparator = NULL,
                   prior_sigma = default_prior_sigma(),
                   distribution = NULL,
                   prior_aux = NULL,
@@ -286,6 +285,12 @@ mlumr <- function(data,
                   refresh = 200,
                   engine = NULL,
                   verbose = TRUE,
+                  # Appended rather than placed next to `prior_beta`, where it
+                  # reads better: inserting a formal in the middle silently
+                  # rebinds every positional argument after it, so a 0.1.0 call
+                  # passing prior_sigma positionally would have applied it to
+                  # the comparator coefficients instead.
+                  prior_beta_comparator = NULL,
                   ...) {
 
   model <- match.arg(model)
@@ -351,7 +356,16 @@ mlumr <- function(data,
   link_info <- check_link(family, link)
 
   if (!is.null(prior_beta_comparator)) {
-    if (is_single_prior(prior_beta_comparator)) {
+    if (model == "spfa") {
+      # Ignored means ignored: validating first made a malformed value an error
+      # on a model that never reads it, so the user got a hard failure instead
+      # of the warning telling them the argument does not apply.
+      warning("`prior_beta_comparator` is ignored for the SPFA model ",
+              "(which has a single shared `beta`); only the relaxed model ",
+              "has a comparator-specific coefficient vector.",
+              call. = FALSE)
+      prior_beta_comparator <- NULL
+    } else if (is_single_prior(prior_beta_comparator)) {
       validate_prior(prior_beta_comparator, "beta_comparator")
       if (prior_beta_comparator$distribution == "exponential") {
         stop("prior_beta_comparator does not support exponential priors ",
@@ -362,12 +376,6 @@ mlumr <- function(data,
     } else if (!is.list(prior_beta_comparator)) {
       stop("`prior_beta_comparator` must be a prior list or a list of priors.",
            call. = FALSE)
-    }
-    if (model == "spfa") {
-      warning("`prior_beta_comparator` is ignored for the SPFA model ",
-              "(which has a single shared `beta`); only the relaxed model ",
-              "has a comparator-specific coefficient vector.",
-              call. = FALSE)
     }
   }
 

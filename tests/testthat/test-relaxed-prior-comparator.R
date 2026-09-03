@@ -250,3 +250,48 @@ test_that("a deliberate comparator prior survives the prior_beta sweep", {
     "scenario-defining"
   )
 })
+
+test_that("the new prior argument does not move the existing ones", {
+  # Inserting a formal in the middle rebinds every positional argument after
+  # it, so a 0.1.0 call passing prior_sigma positionally would have applied it
+  # to the comparator coefficients and quietly used the default sigma prior.
+  fm <- names(formals(mlumr))
+  expect_identical(
+    fm[1:7],
+    c("data", "model", "link", "prior_intercept", "prior_beta", "prior_sigma",
+      "distribution")
+  )
+  # It must still be reachable by name, and only by name in practice.
+  expect_true("prior_beta_comparator" %in% fm)
+  expect_gt(match("prior_beta_comparator", fm), match("verbose", fm))
+})
+
+test_that("an SPFA fit warns about the comparator prior instead of failing", {
+  # `ignored` has to mean ignored. Validation ran first, so a value this model
+  # never reads produced a hard error rather than the warning that says the
+  # argument does not apply here.
+  set.seed(2026)
+  ipd <- data.frame(trt = "A", y = stats::rbinom(60, 1, 0.4),
+                    age = stats::rnorm(60))
+  agd <- data.frame(trt = "B", n_total = 100, n_events = 45,
+                    age_mean = 0.2, age_sd = 1)
+  dat <- combine_data(
+    set_ipd(ipd, "trt", "y", "age"),
+    set_agd(agd, "trt", outcome_n = "n_total", outcome_r = "n_events",
+            cov_means = "age_mean", cov_sds = "age_sd")
+  )
+  dat <- add_integration(dat, n_int = 8, verbose = FALSE,
+                         age = distr(qnorm, mean = age_mean, sd = age_sd))
+
+  # An exponential prior is rejected outright for the relaxed model; for SPFA it
+  # must only warn, because the model has no comparator coefficients at all.
+  expect_warning(
+    tryCatch(
+      mlumr(dat, model = "spfa", prior_beta_comparator = prior_exponential(1),
+            chains = 1, iter = 2, warmup = 1, refresh = 0, seed = 2026,
+            verbose = FALSE),
+      error = function(e) NULL
+    ),
+    "ignored for the SPFA model"
+  )
+})
