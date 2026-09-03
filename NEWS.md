@@ -146,6 +146,40 @@
   reports both populations without that assumption, when the index population is
   the decision target.
 
+## Plotting
+
+* **`plot()` methods** for the result objects, following multinma's convention
+  that calling `plot()` on an effects or prediction object produces the
+  corresponding figure:
+    - `plot(marginal_effects(fit))`: forest of population-standardized effects.
+    - `plot(predict(fit, type = "survival"))`: a curve with a credible band.
+      The `"hazard"`, `"cumhaz"` and `"loghr"` types plot the same way, and
+      `"rmst"`, `"median"` and `"response"` plot as point-intervals. Compose
+      further layers, such as a Kaplan-Meier overlay, with `+`.
+    - `plot(conditional_effects(fit, newdata = ...))`: effects by covariate
+      profile.
+* Each forest draws the null line implied by the measure it is showing, per
+  facet: 0 for differences and log scales, 1 for the risk ratio, rate ratio,
+  hazard ratio, time ratio, RMST ratio, and the two exponentiated survival
+  contrasts.
+* **`geom_km()`** overlays the observed Kaplan-Meier curves (from the
+  `mlumr_data` object) on a model survival plot, colored by treatment and
+  honoring delayed entry.
+* **`plot_prior_posterior()`** (exported; the `multinma` name) overlays the
+  posterior of named parameters on their prior, read from the fit.
+* **`mlumr_forest()`** draws a forest plot from a plain data frame of estimates
+  and interval bounds, for comparisons the `plot()` methods do not cover because
+  they mix estimators: putting `naive()`, `stc()`, and both ML-UMR models on one
+  axis, for instance. It takes the reference line, axis label, title, and
+  subtitle as arguments so the caller sets the measure's null rather than
+  inheriting one.
+* `marginal_effects()`, `predict()`, and `conditional_effects()` now return
+  lightweight `data.frame` subclasses so these `plot()` methods can dispatch;
+  all existing data-frame behavior (indexing, `knitr::kable()`, the reporting
+  engine) is unchanged.
+* `ggplot2` moved from Suggests to Imports (the plot methods use it at run
+  time), at `>= 3.4.0` because they use `linewidth`, which 3.3.x ignores.
+
 ## Time-to-event (survival) data
 
 * **New `"survival"` outcome family for data setup.** `set_ipd()` accepts
