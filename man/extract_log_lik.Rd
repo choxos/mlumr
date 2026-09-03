@@ -10,8 +10,13 @@ extract_log_lik(object)
 \item{object}{An \code{mlumr_fit} object.}
 }
 \value{
-A numeric matrix of dimension \verb{n_draws x (n_ipd + n_agd_rows)}.
-IPD columns come first, then AgD rows.
+A numeric matrix of dimension \verb{n_draws x (n_ipd + n_agd)}. IPD
+columns come first, then the AgD columns. The AgD pointwise unit is whatever
+the family's Stan model emits as \code{log_lik_agd}: for binomial / normal /
+poisson this is \strong{one column per aggregate row}; for \strong{survival} it is
+\strong{one column per reconstructed pseudo-individual} (not per aggregate row),
+so survival LOO/WAIC operate at the pseudo-individual level. See the notes
+on \code{\link[=calculate_loo]{calculate_loo()}} / \code{\link[=calculate_waic]{calculate_waic()}}.
 }
 \description{
 Combines the IPD and AgD per-observation log-likelihood draws into a

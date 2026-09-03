@@ -126,8 +126,12 @@ summary.mlumr_fit <- function(object, ...) {
     beta_idx <- grep("^beta_(index|comparator)\\[", object$summary$variable)
   }
   if (length(beta_idx) > 0) {
-    print(object$summary[beta_idx, c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")],
-          row.names = FALSE)
+    # Relabel beta[1] as beta[age] for readability. The underlying `variable`
+    # strings in object$summary are untouched, so code indexing by name keeps
+    # working; only this printed copy is relabeled.
+    beta_df <- object$summary[beta_idx,
+                              c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")]
+    print(.label_beta_rows(beta_df, object$data$covariates), row.names = FALSE)
   }
 
   # Marginal effects
@@ -220,6 +224,7 @@ print.mlumr_naive <- function(x, ...) {
   cat("Naive Unadjusted Indirect Comparison\n")
   cat("=====================================\n\n")
   cat("Treatments:", x$data$index_treatment, "vs", x$data$comparator_treatment, "\n\n")
+  cat("Population basis: index-study outcome versus comparator-population outcome; no common standardized target.\n\n")
 
   if (family == "binomial") {
     cat("Event rates:\n")
@@ -238,15 +243,24 @@ print.mlumr_naive <- function(x, ...) {
     cat(sprintf("  Index (IPD):      %.4f\n", x$mean_index))
     cat(sprintf("  Comparator (AgD): %.4f\n", x$mean_comparator))
     cat(sprintf("\nMean Difference: %.4f (SE: %.4f)\n", x$estimate, x$se))
-  } else {
+  } else if (family == "poisson") {
     cat("Rates:\n")
     cat(sprintf("  Index (IPD):      %.4f\n", x$rate_index))
     cat(sprintf("  Comparator (AgD): %.4f\n", x$rate_comparator))
     cat(sprintf("\nLog Rate Ratio: %.4f (SE: %.4f)\n", x$estimate, x$se))
+  } else {
+    fmt_med <- function(m) if (is.na(m)) "not reached" else sprintf("%.3f", m)
+    cat("Median survival:\n")
+    cat(sprintf("  Index (IPD):      %s (%d events / %d)\n",
+                fmt_med(x$median_index), x$events_index, x$n_index))
+    cat(sprintf("  Comparator (AgD): %s (%d events / %d)\n",
+                fmt_med(x$median_comparator), x$events_comparator, x$n_comparator))
+    cat(sprintf("\nLog Hazard Ratio (Cox): %.4f (SE: %.4f)\n", x$estimate, x$se))
   }
 
   cat(sprintf("%.0f%% CI: [%.4f, %.4f]\n",
               x$conf_level * 100, x$ci_lower, x$ci_upper))
+  .print_effect_measures(x)
   invisible(x)
 }
 
@@ -265,6 +279,10 @@ print.mlumr_stc <- function(x, ...) {
   cat("Simulated Treatment Comparison (G-computation)\n")
   cat("===============================================\n\n")
   cat("Treatments:", x$data$index_treatment, "vs", x$data$comparator_treatment, "\n\n")
+  cat("Estimand population: comparator\n")
+  cat("Treating this as the index-population effect requires a separate ",
+      "effect-equality assumption; this calculation does not transport to ",
+      "the index population.\n\n", sep = "")
 
   if (family == "binomial") {
     cat(sprintf("Marginalized P(Y=1|index trt, comp pop): %.4f\n", x$p_hat_index))
@@ -278,18 +296,104 @@ print.mlumr_stc <- function(x, ...) {
   } else if (family == "normal") {
     cat(sprintf("Marginalized E[Y|index trt, comp pop]: %.4f\n", x$y_hat_index))
     cat(sprintf("Observed E[Y|comp trt, comp pop]:      %.4f\n", x$y_comparator))
+    # .stc_normal() standardizes on the RESPONSE scale and returns
+    # y_hat_A - y_B for every link, with a delta-method SE for that difference.
+    # The link chooses the model that is fitted, not the scale of the contrast,
+    # so the label must not change with it: calling this a log mean ratio and
+    # exponentiating it reported exp(difference) as a ratio.
     cat(sprintf("\nMean Difference: %.4f (SE: %.4f)\n", x$estimate, x$se))
-  } else {
+  } else if (family == "poisson") {
     cat(sprintf("Marginalized rate (index trt, comp pop): %.4f\n", x$rate_hat_index))
     cat(sprintf("Observed rate (comp trt, comp pop):      %.4f\n", x$rate_comparator))
     cat(sprintf("\nLog Rate Ratio: %.4f (SE: %.4f)\n", x$estimate, x$se))
+  } else {
+    cat("Method note: package-specific parametric survival extension.\n")
+    if (!is.null(x$out_of_family)) {
+      # The fitted shape/Q left the parameter space of the Bayesian model with
+      # the same name, so naming only the distribution would imply a
+      # like-for-like comparison that does not hold.
+      cat(sprintf(paste0("Distribution: %s (%s = %s is outside mlumr()'s '%s' ",
+                         "parameter space) | RMST horizon: %.3f\n"),
+                  x$distribution_fit, x$out_of_family,
+                  paste(sprintf("%.4g", x$family_par), collapse = " / "),
+                  x$distribution, x$horizon))
+    } else if (isTRUE(x$approximated)) {
+      cat(sprintf(paste0("Distribution: %s (Weibull approximation; '%s' has no",
+                         " parametric STC analogue) | RMST horizon: %.3f\n"),
+                  x$distribution_fit %||% "weibull", x$distribution, x$horizon))
+    } else {
+      cat(sprintf("Distribution: %s | RMST horizon: %.3f\n",
+                  x$distribution, x$horizon))
+    }
+    # Both numbers come from a parametric fit. The comparator's is an
+    # intercept-only flexsurvreg fit to the reconstructed pseudo-IPD, not a
+    # Kaplan-Meier area, so calling it "observed" would invite a reader to
+    # blame any discrepancy on the index standardization when it can just as
+    # easily come from the comparator's own distributional assumption.
+    cat(sprintf("Marginalized RMST (index trt, comp pop): %.4f\n", x$rmst_index))
+    cat(sprintf("Fitted RMST (comp trt, comp pop):        %.4f\n",
+                x$rmst_comparator))
+    req <- x$n_boot_requested %||% x$n_boot %||% 0L
+    okn <- x$n_boot_ok %||% x$n_boot %||% 0L
+    if (is.na(x$se)) {
+      # sd() returns NA both when every resample failed and when exactly one
+      # survived, and the two are not the same event. Branch on the success
+      # count, not on the NA, so a single surviving replicate is not reported
+      # as a total failure.
+      if (req == 0L) {
+        cat(sprintf(paste0("\nRMST Difference: %.4f (point estimate only; ",
+                           "bootstrap disabled, n_boot = 0)\n"), x$estimate))
+      } else if (okn == 0L) {
+        cat(sprintf(paste0("\nRMST Difference: %.4f (point estimate only; all ",
+                           "%d bootstrap resample(s) failed)\n"),
+                    x$estimate, req))
+      } else {
+        cat(sprintf(paste0("\nRMST Difference: %.4f (point estimate only; ",
+                           "%d of %d bootstrap resample(s) succeeded, too few ",
+                           "for a standard error)\n"),
+                    x$estimate, okn, req))
+      }
+    } else if (okn < req) {
+      cat(sprintf(paste0("\nRMST Difference: %.4f (bootstrap SE: %.4f, %d of %d ",
+                         "reps succeeded, %d failed)\n"),
+                  x$estimate, x$se, okn, req, req - okn))
+    } else {
+      cat(sprintf("\nRMST Difference: %.4f (bootstrap SE: %.4f, %d reps)\n",
+                  x$estimate, x$se, okn))
+    }
+    # The log cumulative-hazard-ratio interval printed below can rest on fewer
+    # replicates than the RMST one: a resample can give a finite RMST difference
+    # while H(horizon) is undefined for one arm. Say so beside the count that
+    # applies to it rather than letting the RMST count stand for both.
+    okc <- x$n_boot_ok_log_chr
+    if (req > 0L && !is.null(okc) &&
+          !identical(as.integer(okc), as.integer(okn))) {
+      cat(sprintf(paste0("Log cumulative-hazard-ratio SE based on %d of %d ",
+                         "resample(s)\n"), as.integer(okc), req))
+    }
+    # Family membership is decided per fit, so the point estimate can sit inside
+    # mlumr()'s parameter space while some resamples do not; those refits still
+    # enter the standard error.
+    oof <- x$n_boot_out_of_family
+    if (!is.null(oof) && !is.na(oof) && oof > 0L) {
+      cat(sprintf(paste0("Bootstrap: %d of %d resample(s) fitted %s < 0, ",
+                         "outside mlumr()'s '%s' parameter space, and are ",
+                         "included in the SE\n"),
+                  as.integer(oof), req, x$family_par_name %||% "the shape",
+                  x$distribution))
+    }
   }
 
-  cat(sprintf("%.0f%% CI: [%.4f, %.4f]\n",
-              x$conf_level * 100, x$ci_lower, x$ci_upper))
+  if (!is.na(x$ci_lower)) {
+    cat(sprintf("%.0f%% CI: [%.4f, %.4f]\n",
+                x$conf_level * 100, x$ci_lower, x$ci_upper))
+  }
+  .print_effect_measures(x)
 
-  cat("\nOutcome model coefficients:\n")
-  print(round(coef(x$glm_fit), 4))
+  if (!is.null(x$glm_fit)) {
+    cat("\nOutcome model coefficients:\n")
+    print(round(coef(x$glm_fit), 4))
+  }
   invisible(x)
 }
 
@@ -298,8 +402,13 @@ print.mlumr_stc <- function(x, ...) {
 #' @export
 summary.mlumr_stc <- function(object, ...) {
   print.mlumr_stc(object, ...)
-  cat("\nFull GLM summary:\n")
-  print(summary(object$glm_fit))
+  # A survival STC has no GLM behind it, so this footer printed "NULL" under a
+  # "Full GLM summary" heading. print.mlumr_stc already guards its own copy;
+  # the heading moves inside the guard so nothing is announced that is absent.
+  if (!is.null(object$glm_fit)) {
+    cat("\nFull GLM summary:\n")
+    print(summary(object$glm_fit))
+  }
   invisible(object)
 }
 
@@ -315,4 +424,127 @@ summary.mlumr_stc <- function(object, ...) {
   for (nm in names(attrs)) attr(df, nm) <- attrs[[nm]]
   class(df) <- c(subclass, "data.frame")
   df
+}
+
+
+# All effect measures derivable from a naive/STC result, as a tidy data frame
+# (Measure, Estimate, SE, CI_lower, CI_upper). The per-arm absolute outcomes
+# yield every comparative measure for the family, so the benchmarks are reported
+# as completely as the method allows.
+.effect_measures_df <- function(x) {
+  fam <- x$family %||% "binomial"
+  link <- x$link %||% "logit"
+  # A missing bound is NULL on some result objects and NA_real_ on others.
+  # exp(NULL) errors before `%||%` can rescue it, so normalize first: any value
+  # that is absent, non-numeric, NA, or NaN becomes NA_real_. Infinite values
+  # are retained because an exact natural-scale ratio can legitimately overflow.
+  num <- function(v) {
+    if (is.null(v) || length(v) != 1L || !is.numeric(v) || is.na(v) || is.nan(v)) {
+      return(NA_real_)
+    }
+    as.numeric(v)
+  }
+  acc <- new.env(parent = emptyenv())
+  acc$rows <- list()
+  add <- function(measure, est, se = NA_real_, lo = NA_real_, hi = NA_real_) {
+    est <- num(est)
+    if (is.na(est)) return(invisible())
+    acc$rows[[length(acc$rows) + 1L]] <- data.frame(
+      Measure = measure,
+      Estimate = est,
+      SE = num(se),
+      CI_lower = num(lo),
+      CI_upper = num(hi),
+      stringsAsFactors = FALSE
+    )
+    invisible()
+  }
+  # exp() of an already-normalized bound, so a NULL/NA bound stays NA instead of
+  # raising "non-numeric argument to mathematical function".
+  eexp <- function(v) exp(num(v))
+  if (fam == "binomial") {
+    lab <- switch(link, logit = "Log odds ratio", probit = "Probit difference",
+                  cloglog = "Cloglog difference", "Link-scale difference")
+    add(lab, x$estimate, x$se, x$ci_lower, x$ci_upper)
+    if (identical(link, "logit")) {
+      add("Odds ratio", eexp(x$estimate), NA_real_, eexp(x$ci_lower), eexp(x$ci_upper))
+    }
+    add("Risk difference", x$rd, x$rd_se, x$rd_lower, x$rd_upper)
+    if (!is.null(x$log_rr)) {
+      add("Risk ratio", eexp(x$log_rr), NA_real_, eexp(x$log_rr_lower), eexp(x$log_rr_upper))
+    }
+  } else if (fam == "normal") {
+    # One row for every link: the estimand is the response-scale mean
+    # difference regardless of which link fitted the model. `x$md` was never
+    # populated, so the previous log-link branch also dropped the only true
+    # mean difference it claimed to report.
+    add("Mean difference", x$estimate, x$se, x$ci_lower, x$ci_upper)
+  } else if (fam == "poisson") {
+    add("Log rate ratio", x$estimate, x$se, x$ci_lower, x$ci_upper)
+    add("Rate ratio", eexp(x$estimate), NA_real_, eexp(x$ci_lower), eexp(x$ci_upper))
+    # Rate difference on the natural (per-unit-exposure) scale. Both the naive
+    # and STC poisson estimators compute it; a result object from an older
+    # version that predates the field simply omits the row.
+    add("Rate difference", x$rd, x$rd_se, x$rd_lower, x$rd_upper)
+  } else {  # survival
+    if (!is.null(x$rmst_diff)) {                       # STC: RMST + cumhaz ratio
+      add("RMST difference", x$rmst_diff, x$se, x$ci_lower, x$ci_upper)
+      if (!is.null(x$log_chr)) {
+        # A ratio of cumulative hazards at the horizon, not a hazard ratio.
+        add("Log cumulative-hazard ratio (at horizon)",
+            x$log_chr, x$log_chr_se, x$log_chr_lower, x$log_chr_upper)
+        add("Cumulative-hazard ratio (at horizon)",
+            eexp(x$log_chr), NA_real_, eexp(x$log_chr_lower), eexp(x$log_chr_upper))
+      }
+    } else {                                           # naive Cox: conditional HR
+      add("Log hazard ratio (Cox)", x$estimate, x$se, x$ci_lower, x$ci_upper)
+      add("Hazard ratio (Cox)", eexp(x$estimate), NA_real_, eexp(x$ci_lower), eexp(x$ci_upper))
+    }
+  }
+  if (!length(acc$rows)) return(NULL)
+  do.call(rbind, acc$rows)
+}
+
+#' Label indexed beta rows with covariate names for display
+#'
+#' Rewrites `beta[1]` to `beta[age]` (and the relaxed model's
+#' `beta_index[1]` / `beta_comparator[1]` likewise) so printed coefficient
+#' tables name the covariate instead of its position, matching the
+#' `beta[age]` idiom used by `multinma`. Display only: the underlying
+#' `variable` strings in `fit$summary` are unchanged, so code that indexes
+#' on `beta[1]` keeps working.
+#'
+#' @param df A slice of `fit$summary`.
+#' @param covariates Character vector of covariate names, in model order.
+#' @return `df` with its `variable` column relabeled where possible.
+#' @keywords internal
+.label_beta_rows <- function(df, covariates) {
+  if (!length(covariates) || !nrow(df)) return(df)
+  m <- regmatches(df$variable,
+                  regexec("^(beta|beta_index|beta_comparator)\\[([0-9]+)\\]$",
+                          df$variable))
+  df$variable <- vapply(seq_along(m), function(i) {
+    p <- m[[i]]
+    if (length(p) != 3L) return(df$variable[i])
+    k <- as.integer(p[[3]])
+    if (is.na(k) || k < 1L || k > length(covariates)) return(df$variable[i])
+    sprintf("%s[%s]", p[[2]], covariates[k])
+  }, character(1))
+  df
+}
+
+# Print the full effect-measures table for a naive/STC benchmark.
+.print_effect_measures <- function(x) {
+  df <- tryCatch(.effect_measures_df(x), error = function(e) NULL)
+  if (is.null(df) || !nrow(df)) return(invisible())
+  cl <- x$conf_level %||% 0.95
+  fmt <- function(v) if (is.na(v)) "" else formatC(v, format = "f", digits = 4)
+  cat(sprintf("\nAll effect measures (%.0f%% CI):\n", cl * 100))
+  for (i in seq_len(nrow(df))) {
+    se <- if (is.na(df$SE[i])) "" else sprintf(" (SE %s)", fmt(df$SE[i]))
+    ci <- if (is.na(df$CI_lower[i])) "" else
+      sprintf(" [%s, %s]", fmt(df$CI_lower[i]), fmt(df$CI_upper[i]))
+    cat(sprintf("  %-28s %8s%s%s\n", df$Measure[i], fmt(df$Estimate[i]), se, ci))
+  }
+  invisible()
 }

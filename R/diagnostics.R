@@ -1,3 +1,35 @@
+#' Refuse a pointwise log-likelihood that is not one column per observation
+#'
+#' Every route into LOO, WAIC, and DIC treats one column of `log_lik_agd` as one
+#' held-out data point, and the arm / aggregate routes additionally align those
+#' columns with `stan_data$agd_arm`. Tie aggregation breaks both assumptions in
+#' the same way: it keeps one row per distinct likelihood key and carries the
+#' multiplicity in `stan_data$agd_count`, so `log_lik_agd` holds one UNWEIGHTED
+#' value per UNIQUE row and `agd_arm` is the collapsed arm map. Both objects
+#' still agree in length, so nothing downstream errors, and the diagnostics come
+#' back quietly understating every tied observation.
+#'
+#' Fail closed instead. The multiplicities must be expanded back to the original
+#' observation sequence (repeat unique column `k` its `agd_count[k]` times, and
+#' expand the arm map with it) before any diagnostic reads them.
+#' @keywords internal
+.assert_agd_loglik_per_observation <- function(object) {
+  cnt <- object$stan_data$agd_count
+  if (is.null(cnt) || !length(cnt) || all(cnt <= 1L)) return(invisible(TRUE))
+  draws <- object$draws
+  if (is.null(draws) || is.null(colnames(draws))) return(invisible(TRUE))
+  n_cols <- length(.ordered_log_lik_columns(draws, "agd"))
+  if (n_cols != length(cnt)) return(invisible(TRUE))   # already expanded
+  stop("This fit collapsed tied aggregate rows (`stan_data$agd_count` has ",
+       "multiplicities above one), so `log_lik_agd` holds one value per ",
+       "UNIQUE row rather than one per observation. LOO, WAIC, and DIC would ",
+       "count each tied observation once instead of ", max(cnt), " times, and ",
+       "arm grouping would use the collapsed arm map. Expand the pointwise ",
+       "log-likelihood and the arm map back to the original observations ",
+       "before requesting diagnostics.", call. = FALSE)
+}
+
+
 #' Extract the full pointwise log-likelihood matrix from an mlumr_fit
 #'
 #' Combines the IPD and AgD per-observation log-likelihood draws into a
@@ -6,11 +38,17 @@
 #' [loo::loo()] / [loo::waic()].
 #'
 #' @param object An `mlumr_fit` object.
-#' @return A numeric matrix of dimension `n_draws x (n_ipd + n_agd_rows)`.
-#'   IPD columns come first, then AgD rows.
+#' @return A numeric matrix of dimension `n_draws x (n_ipd + n_agd)`. IPD
+#'   columns come first, then the AgD columns. The AgD pointwise unit is whatever
+#'   the family's Stan model emits as `log_lik_agd`: for binomial / normal /
+#'   poisson this is **one column per aggregate row**; for **survival** it is
+#'   **one column per reconstructed pseudo-individual** (not per aggregate row),
+#'   so survival LOO/WAIC operate at the pseudo-individual level. See the notes
+#'   on [calculate_loo()] / [calculate_waic()].
 #' @keywords internal
 extract_log_lik <- function(object) {
   .validate_mlumr_fit_object(object)
+  .assert_agd_loglik_per_observation(object)
 
   draws <- object$draws
   if (is.null(draws) || is.null(colnames(draws))) {
@@ -25,7 +63,7 @@ extract_log_lik <- function(object) {
       "Pointwise log-likelihood columns not found in draws. ",
       "This package requires Stan models that generate `log_lik_ipd` and ",
       "`log_lik_agd` as vectors (per-observation). If you have a fit from ",
-      "a pre-v0.2 version of mlumr, refit with the current version.",
+      "an older version of mlumr; refit with the current version.",
       call. = FALSE
     )
   }
@@ -117,6 +155,7 @@ calculate_dic <- function(object) {
     DIC = DIC,
     pD = pD,
     D_bar = D_bar,
+    n_obs = ncol(log_lik),
     model = .mlumr_model_label(object)
   )
 
@@ -160,8 +199,24 @@ print.mlumr_dic <- function(x, ...) {
 #' corroborate with [prior_sensitivity()] or refit omitting suspect
 #' rows to check the influence on the posterior.
 #'
+#' **Survival fits.** The comparator AgD enters as reconstructed pseudo-IPD, so
+#' each AgD pointwise unit is a single reconstructed pseudo-individual, not an
+#' aggregate row or the comparator trial. Survival LOO/WAIC therefore measure
+#' pseudo-individual-level predictive fit and are optimistic relative to
+#' leaving out the comparator arm/trial; treat them as a rough check, not a
+#' decisive model-selection criterion. Set `survival_unit = "arm"` or
+#' `"aggregate"` to instead hold out whole comparator arms / the external
+#' evidence as single units.
+#'
 #' @param object An `mlumr_fit` object.
-#' @param ... Additional arguments passed to [loo::loo.array()].
+#' @param survival_unit For survival fits, the LOO/WAIC pointwise unit:
+#'   `"observation"` (default; per reconstructed comparator pseudo-individual,
+#'   optimistic), `"arm"` (group the comparator pseudo-IPD by comparator arm, so
+#'   each external arm is one held-out unit), or `"aggregate"` (all comparator
+#'   pseudo-IPD as a single external-evidence unit). The index IPD always stays
+#'   per-individual. Ignored for non-survival families.
+#' @param ... Additional arguments passed to [loo::loo()] (the `log_lik` matrix
+#'   dispatches to `loo::loo.matrix()`).
 #'
 #' @return An object of class `psis_loo` (see [loo::loo()]).
 #' @export
@@ -170,14 +225,107 @@ print.mlumr_dic <- function(x, ...) {
 #' loo_spfa <- calculate_loo(fit_spfa)
 #' print(loo_spfa)
 #' }
-calculate_loo <- function(object, ...) {
+calculate_loo <- function(object,
+                          survival_unit = c("observation", "arm", "aggregate"),
+                          ...) {
   if (!requireNamespace("loo", quietly = TRUE)) {
     stop("The 'loo' package is required for calculate_loo(). ",
          "Install with install.packages('loo').", call. = FALSE)
   }
-  log_lik <- extract_log_lik(object)
+  survival_unit <- match.arg(survival_unit)
+  log_lik <- .survival_log_lik_by_unit(object, survival_unit)
   r_eff <- .relative_eff_from_log_lik(log_lik, .chain_id(object))
   loo::loo(log_lik, r_eff = r_eff, ...)
+}
+
+
+#' Warn that survival LOO/WAIC pointwise units are reconstructed pseudo-IPD
+#'
+#' For survival fits `log_lik_agd` is per reconstructed pseudo-individual, so
+#' LOO/WAIC operate at that level rather than per aggregate row or per trial.
+#' Emitted once per session (suppress with
+#' `options(mlumr.quiet_survival_loo = TRUE)`).
+#' @keywords internal
+.warn_survival_loo_unit <- function(object) {
+  if (!identical(object$family, "survival")) return(invisible())
+  if (isTRUE(getOption("mlumr.quiet_survival_loo", FALSE))) return(invisible())
+  if (isTRUE(getOption("mlumr.survival_loo_warned", FALSE))) return(invisible())
+  warning(
+    "Survival LOO/WAIC: the comparator AgD enters as reconstructed pseudo-IPD, ",
+    "so each AgD pointwise unit is one pseudo-individual (not an aggregate row ",
+    "or the comparator trial). These criteria measure pseudo-individual-level ",
+    "fit and are optimistic relative to leaving out the comparator arm; use ",
+    "them as a rough check, not a decisive model-selection criterion. Suppress ",
+    "with `options(mlumr.quiet_survival_loo = TRUE)`.",
+    call. = FALSE
+  )
+  options(mlumr.survival_loo_warned = TRUE)
+  invisible()
+}
+
+
+#' Pointwise log-likelihood for LOO/WAIC, optionally grouped for survival
+#'
+#' At the default `survival_unit = "observation"` this is `extract_log_lik()`
+#' (per-observation; per reconstructed pseudo-individual for survival AgD) and
+#' emits the pseudo-IPD-level warning. For survival fits, `"arm"` collapses the
+#' comparator pseudo-IPD log-likelihood by comparator arm (summing within arm,
+#' exact under conditional independence given the parameters) and `"aggregate"`
+#' collapses all comparator pseudo-IPD into one external-evidence unit; the index
+#' IPD stays per-individual. Leaving out a grouped unit then corresponds to
+#' leaving out that whole external arm / the whole external evidence, which is
+#' the question grouped LOO/WAIC answer (and is not optimistic at the
+#' pseudo-individual level). Non-survival families ignore the option.
+#' @keywords internal
+.survival_log_lik_by_unit <- function(object, survival_unit = "observation") {
+  .assert_agd_loglik_per_observation(object)
+  if (!identical(object$family, "survival") ||
+        identical(survival_unit, "observation")) {
+    .warn_survival_loo_unit(object)
+    return(extract_log_lik(object))
+  }
+
+  draws <- object$draws
+  if (is.null(draws) || is.null(colnames(draws))) {
+    stop("`object$draws` must contain named posterior draw columns.",
+         call. = FALSE)
+  }
+  ipd_cols <- .ordered_log_lik_columns(draws, "ipd")
+  agd_cols <- .ordered_log_lik_columns(draws, "agd")
+  if (length(agd_cols) == 0L) {
+    stop("Grouped survival LOO/WAIC needs AgD pointwise log-likelihood ",
+         "columns (`log_lik_agd`).", call. = FALSE)
+  }
+  agd_mat <- as.matrix(draws[, agd_cols, drop = FALSE])
+
+  groups <- if (identical(survival_unit, "aggregate")) {
+    rep(1L, ncol(agd_mat))
+  } else {
+    g <- object$stan_data$agd_arm
+    if (is.null(g) || length(g) != ncol(agd_mat)) {
+      stop("Cannot group survival AgD by arm: the per-pseudo-individual arm ",
+           "map (`stan_data$agd_arm`) is missing or the wrong length.",
+           call. = FALSE)
+    }
+    as.integer(g)
+  }
+
+  # Sum each group's pseudo-individual log-likelihoods into one column: under
+  # conditional independence given the parameters this is the log predictive
+  # density of the whole arm / external-evidence unit.
+  grouped <- vapply(sort(unique(groups)), function(gg) {
+    rowSums(agd_mat[, groups == gg, drop = FALSE])
+  }, numeric(nrow(agd_mat)))
+  grouped <- matrix(grouped, nrow = nrow(agd_mat))
+
+  ipd_mat <- if (length(ipd_cols) > 0L) {
+    as.matrix(draws[, ipd_cols, drop = FALSE])
+  } else {
+    NULL
+  }
+  out <- if (is.null(ipd_mat)) grouped else cbind(ipd_mat, grouped)
+  .validate_log_lik_matrix(out)
+  out
 }
 
 
@@ -190,9 +338,15 @@ calculate_loo <- function(object, ...) {
 #' @note
 #' As with [calculate_loo()], each AgD row is treated as an
 #' independent observation. WAIC will be optimistic for AgD rows
-#' that share a study (see the note on `calculate_loo()`).
+#' that share a study (see the note on `calculate_loo()`). For
+#' **survival** fits the AgD pointwise unit is a reconstructed
+#' pseudo-individual, so WAIC is at the pseudo-individual level
+#' (see the survival note on [calculate_loo()]).
 #'
 #' @param object An `mlumr_fit` object.
+#' @param survival_unit For survival fits, the WAIC pointwise unit:
+#'   `"observation"` (default), `"arm"`, or `"aggregate"` (see [calculate_loo()]
+#'   for details). Ignored for non-survival families.
 #' @param ... Additional arguments passed to [loo::waic()].
 #'
 #' @return An object of class `waic` (see [loo::waic()]).
@@ -201,12 +355,15 @@ calculate_loo <- function(object, ...) {
 #' \dontrun{
 #' waic_spfa <- calculate_waic(fit_spfa)
 #' }
-calculate_waic <- function(object, ...) {
+calculate_waic <- function(object,
+                           survival_unit = c("observation", "arm", "aggregate"),
+                           ...) {
   if (!requireNamespace("loo", quietly = TRUE)) {
     stop("The 'loo' package is required for calculate_waic(). ",
          "Install with install.packages('loo').", call. = FALSE)
   }
-  log_lik <- extract_log_lik(object)
+  survival_unit <- match.arg(survival_unit)
+  log_lik <- .survival_log_lik_by_unit(object, survival_unit)
   loo::waic(log_lik, ...)
 }
 
@@ -227,15 +384,23 @@ calculate_waic <- function(object, ...) {
 #'   objects are also accepted.
 #' @param criterion One of `"dic"` (default), `"loo"`, or `"waic"`.
 #'   LOO and WAIC require the optional `loo` package.
+#' @param survival_unit For survival fits compared by `"loo"`/`"waic"`, the
+#'   pointwise unit forwarded to [calculate_loo()] / [calculate_waic()]:
+#'   `"observation"` (default; per reconstructed comparator pseudo-individual,
+#'   optimistic), `"arm"`, or `"aggregate"`. Choose `"arm"` or `"aggregate"` to
+#'   select on whole-external-arm predictive fit. Ignored for non-survival
+#'   families and for `criterion = "dic"`.
 #'
 #' @return For `"loo"` / `"waic"`: a `compare.loo` table from
 #'   [loo::loo_compare()]. For `"dic"`: a data frame (invisibly) with
 #'   columns `Model`, `DIC`, `pD`, `Delta_DIC`.
 #' @export
-compare_models <- function(..., criterion = c("dic", "loo", "waic")) {
+compare_models <- function(..., criterion = c("dic", "loo", "waic"),
+                           survival_unit = c("observation", "arm", "aggregate")) {
 
   criterion <- .validate_diagnostic_choice(criterion, c("dic", "loo", "waic"),
                                            "criterion")
+  survival_unit <- match.arg(survival_unit)
   models <- list(...)
   .validate_model_count(models)
 
@@ -254,6 +419,18 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic")) {
     model_names <- vapply(dics, function(d) d$model, character(1))
     dic_vals <- vapply(dics, function(d) d$DIC, numeric(1))
     pD_vals <- vapply(dics, function(d) d$pD, numeric(1))
+    # DIC is only comparable across fits of the same observation set. Unlike the
+    # LOO/WAIC path (where loo::loo_compare checks pointwise compatibility),
+    # nothing here would otherwise catch ranking models built from different
+    # numbers of observations.
+    n_obs_vals <- vapply(dics, function(d) d$n_obs %||% NA_integer_, integer(1))
+    if (length(unique(stats::na.omit(n_obs_vals))) > 1L) {
+      msg <- paste0(
+        "Comparing DIC across fits with different observation counts (%s). DIC ",
+        "is only comparable on a common data set; this ranking is not meaningful."
+      )
+      warning(sprintf(msg, paste(n_obs_vals, collapse = ", ")), call. = FALSE)
+    }
     model_names <- .comparison_names(models, model_names)
 
     out <- data.frame(
@@ -287,7 +464,10 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic")) {
   }
 
   calc_fn <- if (criterion == "loo") calculate_loo else calculate_waic
-  ic_list <- lapply(models, calc_fn)
+  # Forward the survival LOO/WAIC pointwise unit so survival model selection is
+  # not silently hardwired to the optimistic per-pseudo-individual default.
+  # Ignored by the calculators for non-survival families.
+  ic_list <- lapply(models, function(m) calc_fn(m, survival_unit = survival_unit))
   names(ic_list) <- .comparison_names(
     models,
     vapply(models, .mlumr_model_label, character(1))
@@ -304,15 +484,23 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic")) {
 }
 
 
-# Helper: recover chain ids from draws ordering.
-# rstan stores draws in chain-major order (post-warmup iterations per chain
-# contiguous). cmdstanr's format = "df" is similar. If sampling_args is
-# unavailable we fall back to all-one (treated as a single chain, which
-# inflates r_eff but does not produce incorrect elpd).
+# Helper: recover chain ids for each draw.
+# Prefer the real per-draw chain labels stored by the backend (`object$chain_ids`,
+# cmdstanr's actual `.chain` column or rstan's chain-major layout). Only when
+# those are unavailable do we reconstruct from row ordering: both backends store
+# draws in chain-major order (post-warmup iterations per chain contiguous). If
+# even the chain count is unavailable we fall back to all-one (a single chain,
+# which inflates r_eff but does not produce incorrect elpd).
 .chain_id <- function(object) {
   n_draws <- nrow(object$draws)
   if (!is.numeric(n_draws) || length(n_draws) != 1L || n_draws < 1L) {
     return(integer())
+  }
+  # Authoritative path: real chain labels captured at fit time.
+  stored <- object$chain_ids
+  if (!is.null(stored) && is.numeric(stored) && length(stored) == n_draws &&
+        all(is.finite(stored))) {
+    return(as.integer(stored))
   }
   chains <- object$sampling_args$chains %||% 1L
   valid_chains <- is.numeric(chains) &&
@@ -397,13 +585,14 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic")) {
 #' @keywords internal
 .comparison_names <- function(models, fallback) {
   user_names <- names(models)
-  if (is.null(user_names)) {
-    return(fallback)
-  }
-  use_user_name <- nzchar(user_names)
   out <- fallback
-  out[use_user_name] <- user_names[use_user_name]
-  out
+  if (!is.null(user_names)) {
+    use_user_name <- nzchar(user_names)
+    out[use_user_name] <- user_names[use_user_name]
+  }
+  # Two unnamed fits of the same model type would otherwise both be labeled e.g.
+  # "SPFA", making the comparison rows unattributable. Disambiguate duplicates.
+  make.unique(out, sep = " #")
 }
 
 
@@ -415,6 +604,25 @@ check_diagnostics <- function(fit) {
   .validate_mlumr_fit_object(fit)
   diag <- fit$diagnostics %||% list()
   sampling_args <- fit$sampling_args %||% list()
+
+  # A chain that terminates abnormally is dropped by both backends, which then
+  # assemble the fit from the survivors. Everything downstream (posterior
+  # summaries, Rhat, effect estimates) is then computed from fewer chains than
+  # were requested, with no other signal that it happened. Report it first,
+  # because it invalidates the convergence checks below rather than adding to
+  # them.
+  n_req <- .diagnostic_count(diag$n_chains_requested)
+  n_got <- .diagnostic_count(diag$n_chains_returned)
+  if (n_req > 0 && n_got > 0 && n_got < n_req) {
+    warning(sprintf(
+      paste0("Only %d of %d requested chain(s) returned; the remaining chain(s) ",
+             "terminated abnormally. The posterior, Rhat, and every effect ",
+             "estimate below are based on the surviving chain(s) only, and Rhat ",
+             "is not meaningful from a single chain. Do not report these results ",
+             "without refitting successfully."),
+      n_got, n_req
+    ), call. = FALSE)
+  }
 
   n_divergent <- .diagnostic_count(diag$n_divergent)
   if (n_divergent > 0) {
@@ -437,7 +645,7 @@ check_diagnostics <- function(fit) {
     max_rhat <- max(rhat_vals)
     if (max_rhat > 1.05) {
       warning(sprintf(
-        "Some Rhat values > 1.05 (max = %.3f). Chains have likely NOT converged.",
+        "Some Rhat values > 1.05 (max = %.3f). Chains have likely not converged.",
         max_rhat
       ), call. = FALSE)
     } else if (max_rhat > 1.01) {
@@ -456,6 +664,22 @@ check_diagnostics <- function(fit) {
         "Some ESS values < 400 (min = %.1f). Consider running more iterations.",
         min_ess
       ), call. = FALSE)
+    }
+  }
+
+  # Tail ESS (Vehtari et al. 2021): reliable tail quantiles (the q2.5/q97.5
+  # reported by predict()/marginal_effects()) need ESS-tail >= 400 too, which the
+  # bulk n_eff above does not capture. The cmdstanr backend asks `posterior` for
+  # this column explicitly; rstan's classic summary reports bulk n_eff only, so
+  # the check is a no-op on that backend rather than a passing one.
+  if ("ess_tail" %in% names(fit$summary)) {
+    tail_vals <- .finite_numeric_values(fit$summary$ess_tail)
+    if (length(tail_vals) > 0L && min(tail_vals) < 400) {
+      msg <- paste0(
+        "Some tail-ESS values < 400 (min = %.1f). Tail quantiles ",
+        "(e.g. 2.5%%/97.5%%) may be unreliable; run more iterations."
+      )
+      warning(sprintf(msg, min(tail_vals)), call. = FALSE)
     }
   }
 
