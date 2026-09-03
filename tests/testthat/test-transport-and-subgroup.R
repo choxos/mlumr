@@ -174,6 +174,29 @@ test_that("transported frames have the same shape as their built-in twins", {
   expect_equal(names(eff_sum), names(eff_idx))
 })
 
+test_that("asking for a few times gives the same answer as asking for all", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+
+  # The transported hazard and log-HR routes evaluate only the requested times
+  # now, rather than every fitted time followed by a subset. The basis matrices
+  # carry one row per fitted time, so the row and the time have to be selected
+  # together; getting that wrong would silently evaluate the wrong times.
+  dat <- sim_survival_data(seed = 2026, n_ipd = 120, n_agd = 120, n_int = 32)
+  fit <- fit_survival_test(dat, distribution = "weibull")
+  ipd_cov <- dat$ipd$data[, dat$covariates]
+  want <- fit$pred_times[c(2L, 5L)]
+
+  for (ty in c("hazard", "loghr")) {
+    full <- suppressMessages(predict(fit, newdata = ipd_cov, type = ty))
+    part <- suppressMessages(predict(fit, newdata = ipd_cov, type = ty,
+                                     times = want))
+    expect_equal(sort(unique(part$time)), sort(want), info = ty)
+    keep <- full[full$time %in% want, , drop = FALSE]
+    expect_equal(part$mean, keep$mean, tolerance = 1e-10, info = ty)
+  }
+})
+
 test_that("relaxed model: joint subgroup AgD identifies beta_comparator from data", {
   skip_on_cran()
   skip_if_not_installed("rstan")

@@ -85,8 +85,6 @@ predict.mlumr_fit <- function(object,
                               ...) {
 
   .validate_mlumr_fit_object(object)
-  population <- .validate_predict_choice(population, c("both", "index", "comparator"),
-                                         "population")
   summary <- .validate_summary_flag(summary)
   .validate_probs(probs)
 
@@ -94,9 +92,15 @@ predict.mlumr_fit <- function(object,
 
   # Transport absolute predictions to an arbitrary target population
   # (g-computation over `newdata`); isolated from the built-in populations.
+  # Dispatched before `population` is validated because the documentation says
+  # `population` is ignored here, and an argument that cannot affect the answer
+  # should not be able to refuse the call.
   if (!is.null(newdata)) {
     return(.predict_target(object, newdata, type, summary, probs, times))
   }
+
+  population <- .validate_predict_choice(population, c("both", "index", "comparator"),
+                                         "population")
 
   if (family == "survival") {
     ptype <- type %||% "survival"
@@ -721,8 +725,6 @@ marginal_effects <- function(object,
                              at_time = NULL) {
 
   .validate_mlumr_fit_object(object)
-  population <- .validate_predict_choice(population, c("both", "index", "comparator"),
-                                         "population")
   effect <- .validate_effect_choice(effect)
   summary <- .validate_summary_flag(summary)
   .validate_probs(probs)
@@ -754,6 +756,12 @@ marginal_effects <- function(object,
     return(.marginal_effects_target(object, newdata, effect, summary, probs,
                                     at_time))
   }
+
+  # Only the built-in route reads `population`, and it is documented as ignored
+  # above, so it is validated here rather than ahead of the dispatch.
+  population <- .validate_predict_choice(population,
+                                         c("both", "index", "comparator"),
+                                         "population")
 
   # Relaxed-model index-population: beta_comparator is identified only by the
   # AgD likelihood, so averaging it over the IPD covariate distribution
@@ -1021,16 +1029,18 @@ marginal_effects <- function(object,
 
   if (type %in% c("hazard", "loghr")) {
     sel <- .surv_time_selection(times, pred_times)
+    # Evaluate only the requested times. Every fitted time was computed for
+    # every target row and draw and then discarded, so asking for one time cost
+    # roughly `length(pred_times)` times the work it needed.
     log_h <- .standardize_target_survival_log_h(
-      object, newdata, pred_times,
-      object$stan_data$pred_ibasis,
-      object$stan_data$pred_ibasis_cmp,
-      object$stan_data$pred_basis,
-      object$stan_data$pred_basis_cmp
+      object, newdata, pred_times[sel],
+      .basis_rows(object$stan_data$pred_ibasis, sel),
+      .basis_rows(object$stan_data$pred_ibasis_cmp, sel),
+      .basis_rows(object$stan_data$pred_basis, sel),
+      .basis_rows(object$stan_data$pred_basis_cmp, sel)
     )
     if (type == "loghr") {
-      values <- list(log_h$index[, sel, drop = FALSE] -
-                       log_h$comparator[, sel, drop = FALSE])
+      values <- list(log_h$index - log_h$comparator)
       out <- .surv_result_frame(
         values, data.frame(population = "Target", stringsAsFactors = FALSE),
         type, summary, probs, times_out = pred_times[sel]
@@ -1039,8 +1049,7 @@ marginal_effects <- function(object,
       return(.mlumr_result(out, "mlumr_prediction", ptype = type,
                            family = "survival"))
     }
-    values <- list(exp(log_h$index[, sel, drop = FALSE]),
-                   exp(log_h$comparator[, sel, drop = FALSE]))
+    values <- list(exp(log_h$index), exp(log_h$comparator))
     out <- .surv_result_frame(values, cell_labels, type, summary, probs,
                               times_out = pred_times[sel],
                               origin = .surv_origin(type, times, pred_times))
@@ -1164,6 +1173,17 @@ marginal_effects <- function(object,
   .mlumr_result(out, "mlumr_marginal_effects", family = family)
 }
 
+
+#' Select the rows of a spline basis that match selected prediction times
+#'
+#' The basis matrices carry one row per fitted time, so a time and its row are
+#' chosen together. `NULL` for a parametric fit, which evaluates analytically
+#' and has no basis.
+#' @keywords internal
+.basis_rows <- function(basis, idx) {
+  if (is.null(basis)) return(NULL)
+  basis[idx, , drop = FALSE]
+}
 
 #' Survival S(t | x) at arbitrary times for one linear-predictor draw vector
 #'
@@ -1480,15 +1500,24 @@ marginal_effects <- function(object,
   .transported_baseline_note(object)
 
   times <- object$stan_data$rmst_grid_times
-  ibasis <- object$stan_data$rmst_ibasis
-  sbar <- .standardize_target_survival_s(object, newdata, times, ibasis,
-                                         object$stan_data$rmst_ibasis_cmp)
-  rmst_i <- .rmst_from_surv_matrix(sbar$index, times)
-  rmst_c <- .rmst_from_surv_matrix(sbar$comparator, times)
   # RMST is an integral to a restriction time; carry it with the value so a
   # transported result cannot be compared against one computed to a different
-  # horizon without the difference being visible.
+  # horizon without the difference being visible. The horizon comes off the
+  # grid, so it costs nothing even when no RMST effect is requested.
   rmst_tau <- max(times)
+  # Standardizing over the whole RMST grid costs target rows x draws x
+  # n_rmst_grid (100 points by default) and is thrown away for an HR-only
+  # request, which needs either the linear predictors or one selected time.
+  want_rmst <- effect %in% c("all", "rmstd", "rmstr")
+  rmst_i <- NULL
+  rmst_c <- NULL
+  if (want_rmst) {
+    sbar <- .standardize_target_survival_s(object, newdata, times,
+                                           object$stan_data$rmst_ibasis,
+                                           object$stan_data$rmst_ibasis_cmp)
+    rmst_i <- .rmst_from_surv_matrix(sbar$index, times)
+    rmst_c <- .rmst_from_surv_matrix(sbar$comparator, times)
+  }
 
   spec <- list()
   if (is_ph && effect %in% c("all", "hr")) {
@@ -1506,14 +1535,16 @@ marginal_effects <- function(object,
                 "prediction time; using the nearest one, t = ",
                 format(used_time, digits = 4L), ".")
       }
+      # One time is wanted, so evaluate one: the basis matrices have one row
+      # per fitted time, so the row and the time are selected together.
       log_h <- .standardize_target_survival_log_h(
-        object, newdata, grid,
-        object$stan_data$pred_ibasis,
-        object$stan_data$pred_ibasis_cmp,
-        object$stan_data$pred_basis,
-        object$stan_data$pred_basis_cmp
+        object, newdata, grid[p],
+        .basis_rows(object$stan_data$pred_ibasis, p),
+        .basis_rows(object$stan_data$pred_ibasis_cmp, p),
+        .basis_rows(object$stan_data$pred_basis, p),
+        .basis_rows(object$stan_data$pred_basis_cmp, p)
       )
-      hr_draws <- exp(log_h$index[, p] - log_h$comparator[, p])
+      hr_draws <- exp(log_h$index[, 1] - log_h$comparator[, 1])
     } else {
       # Shared baseline shape: the shape cancels from the ratio, so the marginal
       # hazard ratio is the `t -> 0` limit E[exp(eta_index)] / E[exp(eta_cmp)]
