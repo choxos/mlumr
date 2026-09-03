@@ -254,7 +254,12 @@ predict.mlumr_fit <- function(object,
     if (!is.na(origin)) {
       o <- df[1, , drop = FALSE]
       o$time <- 0
-      num_cols <- setdiff(names(o)[vapply(o, is.numeric, logical(1))], "time")
+      # Only the summarized quantities take the origin value. Treatment labels
+      # can be numeric, and overwriting them here set every arm's t = 0 row to
+      # the origin (1 for survival), so those rows claimed to belong to a
+      # treatment called "1".
+      num_cols <- setdiff(names(o)[vapply(o, is.numeric, logical(1))],
+                          c("time", label_names))
       o[num_cols] <- origin
       if ("sd" %in% names(o)) o$sd <- 0
       df <- rbind(o, df)

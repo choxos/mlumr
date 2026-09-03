@@ -1,3 +1,16 @@
+# Compare every summarized quantity, not just the posterior mean: a transported
+# implementation can reproduce the mean while returning a wrong SD or wrong
+# quantiles, and a mean-only assertion passes anyway.
+expect_summary_equal <- function(target, reference, info = NULL) {
+  cols <- intersect(names(reference), names(target))
+  cols <- cols[vapply(reference[cols], is.numeric, logical(1))]
+  testthat::expect_gt(length(cols), 1L)
+  for (cl in cols) {
+    testthat::expect_equal(target[[cl]], reference[[cl]], tolerance = 1e-6,
+                           info = paste(info, cl))
+  }
+}
+
 # Tests for ML-UMR paper-compliance features:
 #  - arbitrary target-population transport via newdata (g-computation)
 #  - subgroup-AgD identification of the relaxed model's beta_comparator
@@ -28,15 +41,19 @@ test_that("transport to newdata = index covariates reproduces the index populati
   me_tgt <- suppressMessages(marginal_effects(fit, newdata = ipd_cov))
   # g-computation over the IPD covariates == the Stan index generated quantities.
   for (eff in c("LOR", "RD", "RR")) {
-    expect_equal(me_tgt$mean[me_tgt$effect == eff],
-                 me_idx$mean[me_idx$effect == eff], tolerance = 1e-6,
-                 info = eff)
+    tg <- me_tgt[me_tgt$effect == eff, , drop = FALSE]
+    ix <- me_idx[me_idx$effect == eff, , drop = FALSE]
+    expect_equal(nrow(tg), 1L, info = eff)
+    expect_equal(nrow(ix), 1L, info = eff)
+    expect_summary_equal(tg, ix, info = eff)
   }
   expect_true(all(me_tgt$population == "Target"))
 
   pr_idx <- predict(fit, population = "index")
   pr_tgt <- predict(fit, newdata = ipd_cov)
-  expect_equal(pr_tgt$mean, pr_idx$mean, tolerance = 1e-6)
+  expect_equal(nrow(pr_tgt), nrow(pr_idx))
+  expect_equal(pr_tgt$treatment, pr_idx$treatment)
+  expect_summary_equal(pr_tgt, pr_idx, info = "response")
 
   # A genuinely different target shifts the standardized effect. Require the
   # shifted value to be a single finite number first: `all.equal()` returns a
@@ -66,9 +83,15 @@ test_that("survival transport (RMST) to newdata = index covariates matches index
 
   ri <- predict(fit, population = "index", type = "rmst")
   rt <- predict(fit, newdata = ipd_cov, type = "rmst")
-  m <- merge(ri[, c("treatment", "mean")], rt[, c("treatment", "mean")],
-             by = "treatment", suffixes = c(".idx", ".tgt"))
-  expect_equal(m$mean.tgt, m$mean.idx, tolerance = 1e-6)
+  # merge() inner-joins, so a transported row that went missing would be
+  # dropped before the comparison and the survivors would still match. Assert
+  # the keys and the cardinality first.
+  expect_equal(nrow(rt), nrow(ri))
+  expect_setequal(rt$treatment, ri$treatment)
+  ord_t <- order(rt$treatment)
+  ord_i <- order(ri$treatment)
+  expect_summary_equal(rt[ord_t, , drop = FALSE], ri[ord_i, , drop = FALSE],
+                       info = "rmst")
 
   # RMST differences and time-specific marginal HRs both standardize to the
   # target covariate distribution. The latter is population-specific because
@@ -235,4 +258,19 @@ test_that("relaxed model: joint subgroup AgD identifies beta_comparator from dat
   # default prior (sd 2.5) and recovers the positive age gradient.
   expect_lt(stats::sd(bc), 2.5)
   expect_gt(mean(bc), 0)
+})
+
+test_that("a numeric treatment label survives the synthetic origin row", {
+  skip_if_not_installed("ggplot2")
+  # The origin row overwrote every numeric column with the origin value, so a
+  # numerically-labelled treatment became "1" on its own t = 0 row.
+  values <- list(matrix(c(0.9, 0.8), nrow = 1), matrix(c(0.7, 0.6), nrow = 1))
+  cells <- data.frame(treatment = c(10, 20), population = "Index")
+  out <- mlumr:::.surv_result_frame(
+    values, cells, type = "survival", summary = TRUE,
+    probs = c(0.025, 0.975), times_out = c(1, 2), origin = 1
+  )
+  origin_rows <- out[out$time == 0, , drop = FALSE]
+  expect_setequal(origin_rows$treatment, c(10, 20))
+  expect_true(all(origin_rows$mean == 1))
 })
