@@ -83,6 +83,10 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
       `75%` = function(.x) stats::quantile(.x, 0.75),
       `97.5%` = function(.x) stats::quantile(.x, 0.975),
       n_eff = posterior::ess_bulk,
+      # Bulk ESS does not speak for the tails, and the reported 2.5% / 97.5%
+      # quantiles are tail quantities. check_diagnostics() tests this column;
+      # without it that check was dead for every fit the package produced.
+      ess_tail = posterior::ess_tail,
       Rhat = posterior::rhat
     )
     summary_df <- as.data.frame(cmdstan_summ)

@@ -158,3 +158,20 @@ test_that(".chain_id falls back to one chain when metadata is invalid", {
   expect_equal(length(ids), 40L)
   expect_true(all(ids == 1L))
 })
+
+test_that("the tail-ESS check can actually fire", {
+  # The guard tests for an `ess_tail` column that neither backend produced, so
+  # it was dead for every fit the package made. Drive it directly.
+  fit <- structure(
+    list(summary = data.frame(variable = c("a", "b"),
+                              n_eff = c(1200, 1100),
+                              ess_tail = c(1000, 120),
+                              Rhat = c(1.001, 1.002)),
+         diagnostics = list(n_divergent = 0, n_max_treedepth = 0)),
+    class = "mlumr_fit"
+  )
+  expect_warning(check_diagnostics(fit), "tail-ESS values < 400")
+
+  fit$summary$ess_tail <- c(1000, 900)
+  expect_no_warning(check_diagnostics(fit))
+})

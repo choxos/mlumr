@@ -669,8 +669,9 @@ check_diagnostics <- function(fit) {
 
   # Tail ESS (Vehtari et al. 2021): reliable tail quantiles (the q2.5/q97.5
   # reported by predict()/marginal_effects()) need ESS-tail >= 400 too, which the
-  # bulk n_eff above does not capture. cmdstanr summaries carry an `ess_tail`
-  # column; rstan's classic n_eff is bulk only, so this check is a no-op there.
+  # bulk n_eff above does not capture. The cmdstanr backend asks `posterior` for
+  # this column explicitly; rstan's classic summary reports bulk n_eff only, so
+  # the check is a no-op on that backend rather than a passing one.
   if ("ess_tail" %in% names(fit$summary)) {
     tail_vals <- .finite_numeric_values(fit$summary$ess_tail)
     if (length(tail_vals) > 0L && min(tail_vals) < 400) {
