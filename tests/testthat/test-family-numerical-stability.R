@@ -90,4 +90,5 @@ test_that("R log-scale helpers preserve extreme marginal contrasts", {
 
   low <- mlumr:::.binary_log_probs(c(-750, -751), "logit")
   expect_equal(exp(low$event[1] - low$event[2]), exp(1), tolerance = 1e-12)
+  expect_identical(mlumr:::.stc_hypot(Inf, 1), Inf)
 })

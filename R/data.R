@@ -1,12 +1,12 @@
 # Example datasets bundled with mlumr.
 #
-# The psoriasis datasets are subsets of datasets distributed by the multinma
-# package (GPL-3), trimmed to exactly the arms and columns used in mlumr's
-# binary example and re-exposed so the examples are self-contained (see
-# data-raw/prepare_multinma_subsets.R). The shoulder and caries datasets
-# (further below) are synthetic. Provenance and original trial sources are in
-# each @source. Note: multinma's psoriasis individual patient data are
-# themselves simulated (not real patient records).
+# The psoriasis and ndmm datasets are subsets of datasets distributed by the
+# multinma package (GPL-3), trimmed to exactly the arms and columns used in
+# mlumr's binary and survival vignettes and re-exposed so the examples are
+# self-contained (see data-raw/prepare_multinma_subsets.R). The shoulder and
+# caries datasets (further below) are synthetic. Provenance and original trial
+# sources are in each @source. Note: multinma's psoriasis/ndmm individual patient
+# data are themselves simulated / reconstructed (not real patient records).
 
 #' Plaque psoriasis: index individual patient data (binary)
 #'
@@ -19,9 +19,14 @@
 #'   \item{study, treatment}{study and treatment labels}
 #'   \item{subject}{row identifier}
 #'   \item{pasi75}{binary PASI 75 response indicator}
-#'   \item{age, bsa, weight, prevsys}{patient covariates (age, body-surface area,
-#'     weight, previous systemic treatment)}
+#'   \item{age, bsa, weight, prevsys}{patient covariates (age in years,
+#'     body-surface area in percent, weight in kg, and previous systemic
+#'     treatment as a 1/0 indicator)}
 #' }
+#'
+#'   \code{weight} is missing for 2 of the 347 rows, as it is in the multinma
+#'   source. \code{\link{set_ipd}} drops incomplete rows with a warning, so a
+#'   fit adjusting for weight uses 345 of them.
 #' @details The two source trials are not genuinely disconnected: UNCOVER-2 and
 #'   FIXTURE both include placebo and etanercept arms. Those arms are omitted
 #'   here deliberately, so that this pair of datasets poses the unanchored
@@ -55,8 +60,66 @@
 #'   \code{\link{psoriasis_ipd}} for the original trial sources.
 "psoriasis_agd"
 
+#' Newly diagnosed multiple myeloma: index individual patient data (survival)
+#'
+#' Individual patient data for the index arm (McCarthy 2012, lenalidomide), the
+#' survival (progression-free survival) ML-UMR worked example; pair with
+#' \code{\link{ndmm_agd}} and \code{\link{ndmm_agd_covs}}.
+#'
+#' @format A data frame with 231 rows and 9 columns:
+#' \describe{
+#'   \item{study, treatment}{study and treatment labels}
+#'   \item{subject}{row identifier}
+#'   \item{age, iss_stage3, response_cr_vgpr, male}{patient covariates}
+#'   \item{eventtime, status}{progression-free survival time and event
+#'     indicator (1 = event, 0 = censored)}
+#' }
+#' @details The two source trials are not genuinely disconnected: McCarthy 2012
+#'   and Morgan 2012 both include a placebo arm. Those arms are omitted here
+#'   deliberately, so that this pair of datasets poses the unanchored problem
+#'   ML-UMR exists for. \code{vignette("survival-outcomes")} puts them back at
+#'   the end to check the unanchored estimate against the anchored one.
+#'
+#'   McCarthy 2012 is the index arm because population overlap, not sample size,
+#'   governs how far an unanchored comparison has to extrapolate. Unanchored MAIC
+#'   effective sample size against the Morgan 2012 thalidomide arm is 35.8 of 231
+#'   (15.5\%) for McCarthy 2012, against 3.0 of 126 (2.4\%) for the Palumbo 2014
+#'   lenalidomide arm, the other candidate for this comparison. See
+#'   \code{data-raw/prepare_multinma_subsets.R} for the full pair ranking.
+#'
+#' @source The McCarthy-2012 lenalidomide arm of \code{multinma::ndmm_ipd} (GPL-3;
+#'   Phillippo, \emph{multinma}, 2024), subset to the columns used in the survival
+#'   vignette. multinma provides \emph{simulated} IPD resembling published
+#'   newly-diagnosed-multiple-myeloma trials; the vignette compares lenalidomide
+#'   (McCarthy et al. 2012) with thalidomide (Morgan et al. 2012). See
+#'   \code{data-raw/prepare_multinma_subsets.R}.
+"ndmm_ipd"
 
+#' Newly diagnosed multiple myeloma: comparator pseudo-IPD (survival)
+#'
+#' Reconstructed Kaplan-Meier pseudo-IPD for the comparator arm (Morgan 2012,
+#' thalidomide), the survival AgD comparator; pair with \code{\link{ndmm_ipd}}
+#' and \code{\link{ndmm_agd_covs}}.
+#'
+#' @format A data frame with 408 rows and 5 columns: \code{study},
+#'   \code{treatment}, \code{subject}, \code{eventtime}, \code{status}.
+#' @source The Morgan-2012 thalidomide arm of \code{multinma::ndmm_agd} (GPL-3;
+#'   Phillippo, \emph{multinma}, 2024); event/censoring times reconstructed from
+#'   published Kaplan-Meier curves. See \code{\link{ndmm_ipd}} for trial sources.
+"ndmm_agd"
 
+#' Newly diagnosed multiple myeloma: comparator covariate summaries (survival)
+#'
+#' Published covariate summaries for the comparator arm (Morgan 2012,
+#' thalidomide), supplying the covariate moments for the AgD integration points.
+#'
+#' @format A data frame with 1 row and 7 columns: \code{study},
+#'   \code{treatment}, \code{age_mean} / \code{age_sd}, and the proportions
+#'   \code{iss_stage3_prop}, \code{response_cr_vgpr_prop}, \code{male_prop}.
+#' @source The Morgan-2012 thalidomide row of \code{multinma::ndmm_agd_covs}
+#'   (GPL-3; Phillippo, \emph{multinma}, 2024), subset to the columns used in the
+#'   survival vignette. See \code{\link{ndmm_ipd}} for trial sources.
+"ndmm_agd_covs"
 
 
 # ---------------------------------------------------------------------------
@@ -84,6 +147,15 @@
 #'   \item{baseline_vas}{baseline shoulder pain on activity (VAS 0-100)}
 #'   \item{pain_vas_activity}{shoulder pain on activity at 24 months (VAS 0-100)}
 #' }
+#'
+#' @details The index and comparator arms come from the SAME trial, so both
+#'   carry the study label \code{"FIMPACT"}. Splitting one randomized trial into a
+#'   single-arm IPD source and a single-arm aggregate source is what makes this
+#'   an unanchored example whose true answer is still known. Because the label
+#'   is shared, \code{\link{combine_data}} warns that IPD and AgD come from
+#'   the same study; that warning is expected here and is the honest reading of
+#'   the data. It does not fire for \code{\link{psoriasis_ipd}} or
+#'   \code{\link{ndmm_ipd}}, whose arms really do come from different trials.
 #' @source Simulated (not real patient data), generated with the \pkg{synthpop}
 #'   package (sequential CART; Nowok, Raab and Dibben 2016,
 #'   \doi{10.18637/jss.v074.i11}) from the FIMPACT 10-year trial
@@ -120,11 +192,39 @@
 #'   \item{treatment}{index treatment label (\code{"SDF"})}
 #'   \item{subject}{row identifier}
 #'   \item{age}{age in years}
-#'   \item{gender}{1/0 indicator}
-#'   \item{log_cfu}{log baseline salivary \emph{S. mutans} count (CFU/mL)}
+#'   \item{gender}{1/0 indicator, as coded in the source trial, which does not
+#'     record which level is which. Only the covariate's distribution matters
+#'     for the adjustment, so the labeling does not affect the estimand.}
+#'   \item{log_cfu}{log baseline salivary \emph{S. mutans} count,
+#'     \code{log(CFU/mL + 1)}}
 #'   \item{dmft}{decayed-missing-filled-teeth count (the count outcome)}
-#'   \item{exposure}{exposure for the Poisson model (1 = per child)}
+#'   \item{exposure}{Poisson offset, 1 per child. \code{dmft} is a whole-mouth
+#'     count with no time at risk and no per-tooth denominator, so the rate is
+#'     "dmft per child" and the offset is 1. The column is present because
+#'     \code{\link{set_ipd}} requires \code{exposure} for the Poisson family;
+#'     \code{log(1) = 0}, so it contributes nothing to the linear predictor.
+#'     The comparator's \code{E} is the matching total, one unit per child.}
 #' }
+#'
+#'   \code{log_cfu} is bimodal: 9 of the 103 children (8.7\%) have no
+#'   detectable baseline count and so sit at exactly 0, and the rest are
+#'   concentrated near 10.9 (SD 0.8). The comparator arm declares this covariate
+#'   as a single normal distribution (\code{log_cfu_mean} 11.0,
+#'   \code{log_cfu_sd} 0.7) because the source trial's comparator arm contains
+#'   no such zeros. Integrating a normal over the comparator therefore puts
+#'   almost no weight where the index arm's zero mode sits, so effects adjusted
+#'   for \code{log_cfu} extrapolate over that part of the covariate space. This
+#'   is a property of the source trial, not of the synthesis; treat it as a
+#'   worked illustration of a covariate whose arms are not fully overlapping.
+#'
+#' @details The index and comparator arms come from the SAME trial, so both
+#'   carry the study label \code{"Ammar 2025"}. Splitting one randomized trial into a
+#'   single-arm IPD source and a single-arm aggregate source is what makes this
+#'   an unanchored example whose true answer is still known. Because the label
+#'   is shared, \code{\link{combine_data}} warns that IPD and AgD come from
+#'   the same study; that warning is expected here and is the honest reading of
+#'   the data. It does not fire for \code{\link{psoriasis_ipd}} or
+#'   \code{\link{ndmm_ipd}}, whose arms really do come from different trials.
 #' @source Simulated (not real patient data), generated with the \pkg{synthpop}
 #'   package (sequential CART; Nowok, Raab and Dibben 2016,
 #'   \doi{10.18637/jss.v074.i11}) from the silver-diamine-fluoride vs

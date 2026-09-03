@@ -4,7 +4,12 @@
 \alias{.prior_sensitivity_args}
 \title{Arguments that replay a fit under a rescaled \code{prior_beta}}
 \usage{
-.prior_sensitivity_args(fit, prior_beta_i, verbose)
+.prior_sensitivity_args(
+  fit,
+  prior_beta_i,
+  verbose,
+  prior_beta_comparator_i = NULL
+)
 }
 \description{
 Everything except the prior being swept has to come from the original fit, or

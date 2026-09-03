@@ -10,7 +10,8 @@
   mspline_degree,
   n_knots,
   n_rmst_grid = 100L,
-  distribution = NULL
+  distribution = NULL,
+  knots = NULL
 )
 }
 \description{

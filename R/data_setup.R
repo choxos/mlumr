@@ -81,9 +81,9 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
   .check_required_columns(data, required_cols)
   .validate_ipd_outcome(data, outcome, family, exposure)
   .validate_reserved_internal_names(
-    covariates,
+    c(covariates, treatment, outcome, exposure, study),
     c(".study", ".trt", ".outcome", ".exposure"),
-    "Covariate name(s)"
+    "Column name(s)"
   )
   .validate_ipd_covariates(data, covariates)
   .validate_ipd_finite_columns(data, outcome, exposure, family)
@@ -91,6 +91,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
   data <- .drop_missing_rows(data, required_cols)
   .validate_complete_rows_remain(data, "IPD")
   .warn_constant_ipd_covariates(data, covariates)
+  .warn_collinear_ipd_covariates(data, covariates)
   .validate_single_treatment(data, treatment, "IPD")
   ipd_data <- .standardize_ipd_data(data, treatment, outcome, covariates,
                                     family, exposure, study)
@@ -198,7 +199,18 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 #' Validate a data source contains only one treatment
 #' @keywords internal
 .validate_single_treatment <- function(data, treatment, label) {
-  trt_vals <- unique(data[[treatment]])
+  raw <- data[[treatment]]
+  # Reject missing labels: an all-NA column collapses to a single unique value
+  # and would otherwise pass as "one treatment", fitting an unlabeled arm.
+  if (anyNA(raw)) {
+    stop(sprintf("%s treatment column '%s' contains missing (NA) values.",
+                 label, treatment), call. = FALSE)
+  }
+  trt_vals <- unique(raw)
+  if (length(trt_vals) < 1L) {
+    stop(sprintf("%s treatment column '%s' has no values.", label, treatment),
+         call. = FALSE)
+  }
   if (length(trt_vals) > 1L) {
     stop(sprintf("%s should contain a single treatment. Found: %s",
                  label, paste(trt_vals, collapse = ", ")), call. = FALSE)
@@ -298,6 +310,66 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
   invisible(TRUE)
 }
 
+# Warn when IPD covariates are (near-)linearly dependent. Constant covariates are
+# handled separately by .warn_constant_ipd_covariates(); this catches collinearity
+# among two or more varying covariates, which the constant check cannot see. The
+# threshold is deliberately conservative (condition number of the covariate
+# correlation matrix > 1000, i.e. |pairwise correlation| above ~0.998 for a pair),
+# so it fires only on near-redundant covariates that genuinely weaken
+# identification, not on merely-correlated ones that Stan samples without trouble.
+.warn_collinear_ipd_covariates <- function(data, covariates) {
+  if (length(covariates) < 2L) {
+    return(invisible(TRUE))
+  }
+  x <- data[stats::complete.cases(data[, covariates, drop = FALSE]), covariates,
+            drop = FALSE]
+  sds <- vapply(x, function(col) stats::sd(as.numeric(col)), numeric(1))
+  keep <- is.finite(sds) & sds > 0
+  x <- x[, keep, drop = FALSE]
+  if (ncol(x) < 2L) {
+    return(invisible(TRUE))
+  }
+  if (nrow(x) < ncol(x) + 1L) {
+    # Fewer complete rows than intercept plus covariates. The design is rank
+    # deficient, so the correlation matrix cannot tell the covariates apart and
+    # the condition number below would be meaningless. Returning quietly here
+    # hid the very case the check exists to catch.
+    warning(
+      paste0(
+        "Only ", nrow(x), " complete IPD row(s) for ", ncol(x),
+        " varying covariate(s): ", paste(colnames(x), collapse = ", "),
+        ". The covariate design is rank deficient, so these coefficients are",
+        " not separately identified from the IPD; consider dropping covariates",
+        " or using informative priors."
+      ),
+      call. = FALSE
+    )
+    return(invisible(TRUE))
+  }
+  cor_mat <- suppressWarnings(stats::cor(data.matrix(x)))
+  if (anyNA(cor_mat)) {
+    return(invisible(TRUE))
+  }
+  ev <- eigen(cor_mat, symmetric = TRUE, only.values = TRUE)$values
+  min_ev <- min(ev)
+  condition_number <- if (min_ev > 0) max(ev) / min_ev else Inf
+  if (condition_number > 1000) {
+    warning(
+      paste(
+        "IPD covariates are highly collinear (condition number",
+        format(round(condition_number), big.mark = ","),
+        "of the covariate correlation matrix):",
+        paste(colnames(x), collapse = ", "),
+        ". Near-linearly-dependent covariates are only weakly identified and can",
+        "cause slow sampling or divergences; consider dropping or combining",
+        "redundant covariates."
+      ),
+      call. = FALSE
+    )
+  }
+  invisible(TRUE)
+}
+
 #' Standardize IPD to mlumr's internal column contract
 #' @keywords internal
 .standardize_ipd_data <- function(data, treatment, outcome, covariates,
@@ -365,6 +437,21 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 #' @param study Column name for study identifier (optional)
 #'
 #' @details
+#' **Rows must partition the aggregate sample, not overlap it.** Every row
+#' contributes its own factor to the aggregate likelihood, which multiplies
+#' them as if they came from disjoint sets of patients. That is correct when the
+#' rows are one arm, or a set of mutually exclusive, jointly defined subgroup
+#' cells (for example the four cells of sex crossed with prior therapy). It is
+#' wrong when a publication reports several *overlapping* subgroup tables over
+#' the same participants, as when age bands, sex, and disease severity are each
+#' tabulated separately. Supplying those together counts every patient once per
+#' table, and the posterior becomes correspondingly overconfident: the intervals
+#' shrink because the model believes it has seen several independent studies.
+#' Nothing in the data identifies the overlap, so `set_agd()` cannot detect this
+#' and does not try. Choose one partition of the comparator sample and use only
+#' its rows. See `vignette("subgroup-identification", "mlumr")` for how many
+#' such rows the relaxed model needs.
+#'
 #' **Scale assumptions for `family = "normal"`.** The AgD likelihood is
 #' `y_agd ~ normal(E[exp(eta)], se_agd)` under `link = "log"` and
 #' `y_agd ~ normal(E[eta], se_agd)` under `link = "identity"`. In both
@@ -461,7 +548,8 @@ set_agd <- function(data, treatment,
   .check_required_columns(data, required_cols)
   .validate_single_treatment(data, treatment, "AgD")
   .validate_reserved_internal_names(
-    c(cov_means, cov_sds[!is.na(cov_sds)]),
+    c(cov_means, cov_sds[!is.na(cov_sds)], treatment, study,
+      outcome_n, outcome_r, outcome_mean, outcome_se, outcome_E),
     c(".study", ".trt", ".n", ".r", ".y", ".se", ".E"),
     "Column name(s)"
   )
@@ -902,9 +990,35 @@ combine_data <- function(ipd, agd) {
     stop("Covariates must match between IPD and AgD", call. = FALSE)
   }
 
-  if (length(intersect(ipd$treatment, agd$treatment)) > 0) {
-    warning("IPD and AgD share treatments -- this looks like an anchored comparison",
-            call. = FALSE)
+  shared_trt <- intersect(ipd$treatment, agd$treatment)
+  if (length(shared_trt) > 0) {
+    # An unanchored comparison contrasts two *different* treatments across two
+    # single-arm sources. A shared label makes the two model intercepts describe
+    # the same treatment, so the reported "effect" is a study/population baseline
+    # difference reported as a treatment effect. This cannot be made valid by a
+    # warning; reject it. (When `study` is not supplied the two sides still carry
+    # distinct treatment labels, so this only fires on genuine overlap.)
+    msg <- paste0(
+      "IPD and AgD share treatment label(s): %s. An unanchored comparison ",
+      "requires two distinct treatments (one per source); a shared label would ",
+      "estimate a treatment effect from baseline differences between the ",
+      "studies. Relabel the arms, or use an anchored method for shared-comparator ",
+      "evidence."
+    )
+    stop(sprintf(msg, paste(shared_trt, collapse = ", ")), call. = FALSE)
+  }
+
+  # In an unanchored comparison IPD and AgD come from different studies; a shared
+  # study label is unusual and likely a data-entry error. (When `study` is not
+  # supplied the two sides default to distinct labels, so this only fires on
+  # explicit overlap.)
+  shared_studies <- intersect(unique(ipd$data$.study), unique(agd$data$.study))
+  if (length(shared_studies) > 0) {
+    msg <- paste0(
+      "IPD and AgD share study label(s): %s. An unanchored comparison normally ",
+      "draws IPD and AgD from different studies; check the `study` columns."
+    )
+    warning(sprintf(msg, paste(shared_studies, collapse = ", ")), call. = FALSE)
   }
 
   out <- list(

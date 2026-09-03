@@ -284,9 +284,12 @@ test_that(".exp_difference_logs recycles and handles equal logarithms", {
   # the comparisons recycled, so the answer was silently truncated.
   expect_equal(ed(c(0, log(2)), 0), c(0, 1))
   expect_equal(ed(0, c(0, log(2))), c(0, -1))
-  # Equal logarithms are exactly zero, including both infinite cases.
+  # Equal finite logarithms are exactly zero, and so is -Inf against -Inf:
+  # both quantities are then zero. Two POSITIVE infinities are not: both
+  # quantities are unbounded, so the difference is indeterminate and must not
+  # be reported as an exact null effect.
   expect_equal(ed(-Inf, -Inf), 0)
-  expect_equal(ed(Inf, Inf), 0)
+  expect_true(is.nan(ed(Inf, Inf)))
   # Cancellation is done before returning to the natural scale.
   expect_equal(ed(log(1), log1p(-1e-15)), 1e-15, tolerance = 1e-6)
   expect_true(is.nan(ed(NA_real_, 0)))

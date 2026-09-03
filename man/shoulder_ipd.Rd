@@ -34,4 +34,14 @@ Simulated individual patient data for the index treatment (arthroscopic
 subacromial decompression, ASD) in a continuous-outcome ML-UMR example. Pair
 with \code{\link{shoulder_agd}} (the comparator). Not real patient data.
 }
+\details{
+The index and comparator arms come from the SAME trial, so both
+carry the study label \code{"FIMPACT"}. Splitting one randomized trial into a
+single-arm IPD source and a single-arm aggregate source is what makes this
+an unanchored example whose true answer is still known. Because the label
+is shared, \code{\link{combine_data}} warns that IPD and AgD come from
+the same study; that warning is expected here and is the honest reading of
+the data. It does not fire for \code{\link{psoriasis_ipd}} or
+\code{\link{ndmm_ipd}}, whose arms really do come from different trials.
+}
 \keyword{datasets}

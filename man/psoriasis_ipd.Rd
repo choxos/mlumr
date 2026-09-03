@@ -10,9 +10,14 @@ A data frame with 347 rows and 8 columns:
 \item{study, treatment}{study and treatment labels}
 \item{subject}{row identifier}
 \item{pasi75}{binary PASI 75 response indicator}
-\item{age, bsa, weight, prevsys}{patient covariates (age, body-surface area,
-weight, previous systemic treatment)}
+\item{age, bsa, weight, prevsys}{patient covariates (age in years,
+body-surface area in percent, weight in kg, and previous systemic
+treatment as a 1/0 indicator)}
 }
+
+\code{weight} is missing for 2 of the 347 rows, as it is in the multinma
+source. \code{\link{set_ipd}} drops incomplete rows with a warning, so a
+fit adjusting for weight uses 345 of them.
 }
 \source{
 The UNCOVER-2 ixekizumab-Q4W arm of

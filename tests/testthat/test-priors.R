@@ -75,3 +75,14 @@ test_that("per-coefficient priors still support heterogeneous means and scales",
   expect_equal(fields$dist, 0L)
   expect_equal(fields$df, 3)
 })
+
+test_that("autoscaling transforms prior locations and scales together", {
+  fields <- stan_prior_fields_beta(
+    list(prior_normal(2, 4, autoscale = TRUE), prior_normal(3, 5)),
+    n_cov = 2,
+    sd_x = c(2, 10)
+  )
+
+  expect_equal(fields$mean, c(1, 3))
+  expect_equal(fields$sd, c(2, 5))
+})

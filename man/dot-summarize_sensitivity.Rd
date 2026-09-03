@@ -4,7 +4,7 @@
 \alias{.summarize_sensitivity}
 \title{Summarize a sensitivity refit.}
 \usage{
-.summarize_sensitivity(fit, scale, probs)
+.summarize_sensitivity(fit, scale, scale_comparator = NA_real_, probs)
 }
 \description{
 Summarize a sensitivity refit.

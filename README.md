@@ -234,17 +234,17 @@ ML-UMR is most appropriate when:
 
 Detailed tutorials are available as package vignettes:
 
-- `vignette("introduction")` -- Package overview, installation, and quick
+- `vignette("introduction")`: Package overview, installation, and quick
   start
-- `vignette("data-preparation")` -- IPD/AgD setup, integration points, and
+- `vignette("data-preparation")`: IPD/AgD setup, integration points, and
   correlation handling
-- `vignette("mlumr-models")` -- SPFA vs Relaxed models, priors,
+- `vignette("mlumr-models")`: SPFA vs Relaxed models, priors,
   diagnostics, and LOO/WAIC/DIC model comparison
-- `vignette("stc-and-naive")` -- STC and naive methods with delta-method
+- `vignette("stc-and-naive")`: STC and naive methods with delta-method
   details
-- `vignette("model-comparison")` -- Side-by-side comparison of all methods
+- `vignette("model-comparison")`: Side-by-side comparison of all methods
   with interpretation guidance
-- `vignette("worked-example")` -- Complete end-to-end analysis from
+- `vignette("worked-example")`: Complete end-to-end analysis from
   simulated data
 
 ## References

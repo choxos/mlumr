@@ -669,18 +669,25 @@ check_diagnostics <- function(fit) {
 
   # Tail ESS (Vehtari et al. 2021): reliable tail quantiles (the q2.5/q97.5
   # reported by predict()/marginal_effects()) need ESS-tail >= 400 too, which the
-  # bulk n_eff above does not capture. The cmdstanr backend asks `posterior` for
-  # this column explicitly; rstan's classic summary reports bulk n_eff only, so
-  # the check is a no-op on that backend rather than a passing one.
-  if ("ess_tail" %in% names(fit$summary)) {
-    tail_vals <- .finite_numeric_values(fit$summary$ess_tail)
-    if (length(tail_vals) > 0L && min(tail_vals) < 400) {
-      msg <- paste0(
-        "Some tail-ESS values < 400 (min = %.1f). Tail quantiles ",
-        "(e.g. 2.5%%/97.5%%) may be unreliable; run more iterations."
-      )
-      warning(sprintf(msg, min(tail_vals)), call. = FALSE)
-    }
+  # bulk n_eff above does not capture. Both backends supply the column when the
+  # `posterior` package is installed; rstan's classic summary does not report it,
+  # so the rstan backend computes it from the draws. Report an absent or
+  # all-missing column instead of passing silently, which is indistinguishable
+  # from a clean check.
+  tail_vals <- if ("ess_tail" %in% names(fit$summary)) {
+    .finite_numeric_values(fit$summary$ess_tail)
+  } else {
+    numeric(0)
+  }
+  if (length(tail_vals) == 0L) {
+    message("Tail ESS is unavailable for this fit, so tail quantiles were not ",
+            "checked. Install the 'posterior' package to enable this check.")
+  } else if (min(tail_vals) < 400) {
+    msg <- paste0(
+      "Some tail-ESS values < 400 (min = %.1f). Tail quantiles ",
+      "(e.g. 2.5%%/97.5%%) may be unreliable; run more iterations."
+    )
+    warning(sprintf(msg, min(tail_vals)), call. = FALSE)
   }
 
   invisible(NULL)

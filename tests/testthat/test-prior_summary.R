@@ -1,6 +1,6 @@
 # Tests for prior_summary.mlumr_fit()
 #
-# Pure-R tests — no Stan, no sampling. The method inspects a stored
+# Pure-R tests: no Stan, no sampling. The method inspects a stored
 # `priors` list on the fit object, so we construct minimal fit stubs
 # that exercise the three branches the method cares about:
 #

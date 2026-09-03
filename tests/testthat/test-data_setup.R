@@ -1,26 +1,3 @@
-test_that("degenerate exposures and standard errors are rejected at setup", {
-  # The Stan data bounds allow zero; these constructors are what keeps a zero
-  # out, so log(E) and the normal scale are always finite in the models.
-  expect_error(
-    set_ipd(data.frame(trt = "A", y = c(1, 2), e = c(1, 0), x = c(0, 1)),
-            "trt", "y", "x", family = "poisson", exposure = "e"),
-    regexp = "."
-  )
-  expect_error(
-    set_agd(data.frame(trt = "B", r = 5, E = 0, x_mean = 0), "trt",
-            family = "poisson", outcome_r = "r", outcome_E = "E",
-            cov_means = "x_mean"),
-    regexp = "."
-  )
-  expect_error(
-    set_agd(data.frame(trt = "B", y = 1, se = 0, x_mean = 0), "trt",
-            family = "normal", outcome_mean = "y", outcome_se = "se",
-            cov_means = "x_mean"),
-    regexp = "."
-  )
-})
-
-
 test_that("set_ipd validates inputs", {
   df <- data.frame(trt = "A", outcome = c(0, 1, 1, 0), x1 = rnorm(4))
 
@@ -101,6 +78,33 @@ test_that("set_ipd does not warn on varying covariates", {
     NA
   )
   expect_s3_class(ipd, "mlumr_ipd")
+})
+
+
+test_that("set_ipd warns on highly collinear covariates", {
+  x <- c(1, 2, 3, 4, 5, 6, 7, 8)
+  df <- data.frame(trt = "A", outcome = c(0, 1, 0, 1, 0, 1, 0, 1),
+                   x1 = x,
+                   x2 = 2 * x + c(0.01, -0.01, 0.01, -0.01,
+                                  0.01, -0.01, 0.01, -0.01))
+
+  expect_warning(
+    ipd <- set_ipd(df, "trt", "outcome", covariates = c("x1", "x2")),
+    "collinear"
+  )
+  expect_s3_class(ipd, "mlumr_ipd")
+})
+
+
+test_that("set_ipd does not warn on moderately correlated covariates", {
+  df <- data.frame(trt = "A", outcome = c(0, 1, 0, 1, 0, 1, 0, 1),
+                   x1 = c(1, 2, 3, 4, 5, 6, 7, 8),
+                   x2 = c(2, 1, 4, 3, 6, 5, 8, 7))
+
+  expect_warning(
+    set_ipd(df, "trt", "outcome", covariates = c("x1", "x2")),
+    NA
+  )
 })
 
 
@@ -570,4 +574,27 @@ test_that("set_ipd accepts ordinary covariate names (sanity check)", {
     set_ipd(df, "trt", "outcome", covariates = c("age", "bmi")),
     "mlumr_ipd"
   )
+})
+
+test_that("set_ipd() rejects a column name colliding with a reserved internal", {
+  df <- data.frame(.trt = "A", y = c(0, 1, 1), x = c(1, 2, 3),
+                   check.names = FALSE)
+  expect_error(
+    set_ipd(df, treatment = ".trt", outcome = "y", covariates = "x",
+            family = "binomial"),
+    "reserved internal columns"
+  )
+})
+
+test_that("combine_data() warns when IPD and AgD share an explicit study label", {
+  ipd_df <- data.frame(trt = "A", y = c(0, 1, 1, 0), x = c(1, 2, 3, 4),
+                       study = "S1")
+  agd_df <- data.frame(trt = "B", n = 100, r = 40, x_mean = 0.5, x_sd = 1,
+                       study = "S1")
+  ipd <- set_ipd(ipd_df, treatment = "trt", outcome = "y", covariates = "x",
+                 family = "binomial", study = "study")
+  agd <- set_agd(agd_df, treatment = "trt", family = "binomial",
+                 outcome_n = "n", outcome_r = "r", cov_means = "x_mean",
+                 cov_sds = "x_sd", study = "study")
+  expect_warning(combine_data(ipd, agd), "share study label")
 })

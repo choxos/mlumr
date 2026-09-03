@@ -1,5 +1,5 @@
 test_that("add_integration generates valid integration points", {
-  set.seed(42)
+  set.seed(2026)
   ipd_df <- data.frame(trt = "A", outcome = rbinom(50, 1, 0.5), x1 = rbinom(50, 1, 0.4))
   agd_df <- data.frame(trt = "B", n_total = 100, n_events = 40, x1_mean = 0.3)
 
@@ -18,7 +18,7 @@ test_that("add_integration generates valid integration points", {
 })
 
 test_that("add_integration can suppress progress messages", {
-  set.seed(42)
+  set.seed(2026)
   ipd_df <- data.frame(trt = "A", outcome = rbinom(50, 1, 0.5), x1 = rbinom(50, 1, 0.4))
   agd_df <- data.frame(trt = "B", n_total = 100, n_events = 40, x1_mean = 0.3)
 
@@ -40,7 +40,7 @@ test_that("add_integration can suppress progress messages", {
 })
 
 test_that("add_integration works with two covariates and correlation", {
-  set.seed(42)
+  set.seed(2026)
   n <- 100
   ipd_df <- data.frame(
     trt = "A", outcome = rbinom(n, 1, 0.5),
@@ -70,8 +70,44 @@ test_that("add_integration works with two covariates and correlation", {
   expect_true(mean(x2_pts) > 4 && mean(x2_pts) < 6)
 })
 
+test_that("Pearson targets reject non-Gaussian continuous margins", {
+  set.seed(2026)
+  ipd_df <- data.frame(
+    trt = "A", outcome = stats::rbinom(80, 1, 0.5),
+    x1 = stats::rlnorm(80), x2 = stats::rnorm(80)
+  )
+  agd_df <- data.frame(
+    trt = "B", n_total = 100, n_events = 40,
+    x1_mean = 1.5, x1_sd = 1, x2_mean = 0, x2_sd = 1
+  )
+  dat <- combine_data(
+    set_ipd(ipd_df, "trt", "outcome", c("x1", "x2")),
+    set_agd(agd_df, "trt", outcome_n = "n_total", outcome_r = "n_events",
+            cov_means = c("x1_mean", "x2_mean"),
+            cov_sds = c("x1_sd", "x2_sd"))
+  )
+  target_cor <- matrix(c(1, 0.5, 0.5, 1), 2)
+
+  expect_error(
+    add_integration(
+      dat, n_int = 64, cor = target_cor, cor_adjust = "pearson",
+      x1 = distr(qlnorm, meanlog = 0, sdlog = 1),
+      x2 = distr(qnorm, mean = x2_mean, sd = x2_sd)
+    ),
+    "cannot be used with non-Gaussian continuous margins"
+  )
+  expect_s3_class(
+    suppressWarnings(add_integration(
+      dat, n_int = 64, cor = target_cor, cor_adjust = "spearman",
+      x1 = distr(qlnorm, meanlog = 0, sdlog = 1),
+      x2 = distr(qnorm, mean = x2_mean, sd = x2_sd), verbose = FALSE
+    )),
+    "mlumr_data"
+  )
+})
+
 test_that("add_integration keeps integration array in data covariate order", {
-  set.seed(42)
+  set.seed(2026)
   n <- 100
   ipd_df <- data.frame(
     trt = "A", outcome = rbinom(n, 1, 0.5),
@@ -102,7 +138,7 @@ test_that("add_integration keeps integration array in data covariate order", {
 })
 
 test_that("add_integration reorders named correlation matrices to covariate order", {
-  set.seed(42)
+  set.seed(2026)
   n <- 100
   ipd_df <- data.frame(
     trt = "A", outcome = rbinom(n, 1, 0.5),
@@ -135,7 +171,7 @@ test_that("add_integration reorders named correlation matrices to covariate orde
 })
 
 test_that("add_integration rejects missing distribution specs", {
-  set.seed(42)
+  set.seed(2026)
   ipd_df <- data.frame(trt = "A", outcome = rbinom(50, 1, 0.5),
                        x1 = rbinom(50, 1, 0.4), x2 = rnorm(50))
   agd_df <- data.frame(trt = "B", n_total = 100, n_events = 40,
@@ -155,7 +191,7 @@ test_that("add_integration rejects missing distribution specs", {
 })
 
 test_that("add_integration rejects invalid scalar arguments cleanly", {
-  set.seed(42)
+  set.seed(2026)
   ipd_df <- data.frame(trt = "A", outcome = rbinom(50, 1, 0.5),
                        x1 = rbinom(50, 1, 0.4))
   agd_df <- data.frame(trt = "B", n_total = 100, n_events = 40,
@@ -183,7 +219,7 @@ test_that("add_integration rejects invalid scalar arguments cleanly", {
 })
 
 test_that("add_integration rejects duplicate distribution names", {
-  set.seed(42)
+  set.seed(2026)
   ipd_df <- data.frame(trt = "A", outcome = rbinom(50, 1, 0.5),
                        x1 = rbinom(50, 1, 0.4))
   agd_df <- data.frame(trt = "B", n_total = 100, n_events = 40,
@@ -203,7 +239,7 @@ test_that("add_integration rejects duplicate distribution names", {
 })
 
 test_that("add_integration validates correlation names and computed correlations", {
-  set.seed(42)
+  set.seed(2026)
   n <- 100
   ipd_df <- data.frame(
     trt = "A", outcome = rbinom(n, 1, 0.5),
@@ -245,7 +281,7 @@ test_that("add_integration validates correlation names and computed correlations
 })
 
 test_that("add_integration works with multi-row AgD", {
-  set.seed(42)
+  set.seed(2026)
   ipd_df <- data.frame(trt = "A", outcome = rbinom(50, 1, 0.5), x1 = rbinom(50, 1, 0.4))
   agd_df <- data.frame(
     trt = c("B", "B"),
@@ -265,7 +301,7 @@ test_that("add_integration works with multi-row AgD", {
 })
 
 test_that("unnest_integration produces correct long format", {
-  set.seed(42)
+  set.seed(2026)
   ipd_df <- data.frame(trt = "A", outcome = rbinom(50, 1, 0.5), x1 = rbinom(50, 1, 0.4))
   agd_df <- data.frame(trt = "B", n_total = 100, n_events = 40, x1_mean = 0.3)
 
@@ -284,7 +320,7 @@ test_that("unnest_integration produces correct long format", {
 
 
 test_that("check_integration errors without integration points", {
-  set.seed(42)
+  set.seed(2026)
   ipd_df <- data.frame(trt = "A", outcome = rbinom(50, 1, 0.5), x1 = rbinom(50, 1, 0.4))
   agd_df <- data.frame(trt = "B", n_total = 100, n_events = 40, x1_mean = 0.3)
   ipd <- set_ipd(ipd_df, "trt", "outcome", "x1")
@@ -300,7 +336,7 @@ test_that("check_integration errors without integration points", {
 
 
 test_that("check_integration returns marginals data frame", {
-  set.seed(42)
+  set.seed(2026)
   ipd_df <- data.frame(trt = "A", outcome = rbinom(100, 1, 0.5),
                        x1 = rbinom(100, 1, 0.4))
   agd_df <- data.frame(trt = "B", n_total = 100, n_events = 40, x1_mean = 0.3)
@@ -323,7 +359,7 @@ test_that("check_integration returns marginals data frame", {
 })
 
 test_that("check_integration can suppress printed diagnostics", {
-  set.seed(42)
+  set.seed(2026)
   ipd_df <- data.frame(trt = "A", outcome = rbinom(100, 1, 0.5),
                        x1 = rbinom(100, 1, 0.4))
   agd_df <- data.frame(trt = "B", n_total = 100, n_events = 40, x1_mean = 0.3)
@@ -347,7 +383,7 @@ test_that("check_integration can suppress printed diagnostics", {
 })
 
 test_that("check_integration validates check_joint", {
-  set.seed(42)
+  set.seed(2026)
   ipd_df <- data.frame(trt = "A", outcome = rbinom(100, 1, 0.5),
                        x1 = rbinom(100, 1, 0.4))
   agd_df <- data.frame(trt = "B", n_total = 100, n_events = 40, x1_mean = 0.3)
@@ -372,7 +408,7 @@ test_that("check_integration validates check_joint", {
 
 
 test_that("check_integration with check_joint returns pairwise correlations", {
-  set.seed(42)
+  set.seed(2026)
   n <- 100
   ipd_df <- data.frame(
     trt = "A", outcome = rbinom(n, 1, 0.5),
@@ -401,4 +437,65 @@ test_that("check_integration with check_joint returns pairwise correlations", {
   expect_s3_class(out$correlations, "data.frame")
   expect_true(all(c("agd_row", "pair", "cor_current", "cor_doubled",
                     "abs_diff") %in% names(out$correlations)))
+})
+
+test_that("check_integration() reuses a supplied custom correlation by default", {
+  # With a custom `cor`, check_integration() reuses it for the doubled-resolution
+  # grid rather than recomputing the IPD correlation. The IPD covariates are
+  # independent (cor ~ 0) but a strong custom cor (0.85) is supplied, so both the
+  # current and doubled grids carry it.
+  set.seed(2026)
+  n <- 200
+  ipd_df <- data.frame(
+    trt = "A", outcome = rbinom(n, 1, 0.5),
+    x1 = rnorm(n, 0, 1), x2 = rnorm(n, 0, 1)
+  )
+  agd_df <- data.frame(
+    trt = "B", n_total = 200, n_events = 80,
+    x1_mean = 0.2, x1_sd = 1, x2_mean = 0.1, x2_sd = 1
+  )
+  ipd <- set_ipd(ipd_df, "trt", "outcome", c("x1", "x2"))
+  agd <- set_agd(agd_df, "trt", outcome_n = "n_total", outcome_r = "n_events",
+                 cov_means = c("x1_mean", "x2_mean"),
+                 cov_sds = c("x1_sd", "x2_sd"))
+  dat <- combine_data(ipd, agd)
+
+  custom_cor <- matrix(c(1, 0.85, 0.85, 1), 2, 2,
+                       dimnames = list(c("x1", "x2"), c("x1", "x2")))
+  dat <- add_integration(dat, n_int = 64, cor = custom_cor, cor_adjust = "none",
+                         verbose = FALSE,
+                         x1 = distr(qnorm, mean = x1_mean, sd = x1_sd),
+                         x2 = distr(qnorm, mean = x2_mean, sd = x2_sd))
+
+  expect_equal(unname(dat$int_cor), unname(custom_cor))
+  realized <- stats::cor(dat$integration_points[1, , 1],
+                         dat$integration_points[1, , 2])
+  expect_gt(realized, 0.6)
+
+  res <- check_integration(dat, check_joint = TRUE, verbose = FALSE,
+                           x1 = distr(qnorm, mean = x1_mean, sd = x1_sd),
+                           x2 = distr(qnorm, mean = x2_mean, sd = x2_sd))
+  expect_lt(max(res$correlations$abs_diff, na.rm = TRUE), 0.1)
+})
+
+test_that("a namespace-qualified quantile function is still classified correctly", {
+  # distr() records deparse(substitute(qfun)), so distr(stats::qpois, ...) used
+  # to store "stats::qpois". get_distribution_type() matches against bare names,
+  # so the qualified form missed every lookup and fell through to the
+  # support-grid heuristic; a count margin with a small mean evaluates to {0, 1}
+  # on that grid and was classified "binary". That silently selects the wrong
+  # copula correction and suppresses the non-binary discrete-margin warning.
+  d_bare <- distr(qpois, lambda = 0.1)
+  d_ns   <- distr(stats::qpois, lambda = 0.1)
+  expect_equal(d_bare$qfun_name, "qpois")
+  expect_equal(d_ns$qfun_name, "qpois")
+
+  dummy <- data.frame(n = 1)
+  expect_equal(unname(mlumr:::get_distribution_type(x = d_bare, data = dummy)), "discrete")
+  expect_equal(unname(mlumr:::get_distribution_type(x = d_ns, data = dummy)), "discrete")
+
+  # Triple-colon and the continuous path behave the same way.
+  expect_equal(distr(stats:::qnorm, mean = 0, sd = 1)$qfun_name, "qnorm")
+  expect_equal(unname(mlumr:::get_distribution_type(
+    x = distr(stats::qnorm, mean = 0, sd = 1), data = dummy)), "continuous")
 })

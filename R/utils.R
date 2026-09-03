@@ -22,6 +22,14 @@
 distr <- function(qfun, ...) {
   qfun_resolved <- match.fun(qfun)
   qfun_name <- tryCatch(deparse(substitute(qfun)), error = function(e) "user_function")
+  # Strip any namespace qualifier so the recorded name is the bare function
+  # name. get_distribution_type() matches this against "qpois", "qbern" and the
+  # rest, and a qualified call such as distr(stats::qpois, ...) would otherwise
+  # miss every lookup and fall through to the support-grid heuristic. A count
+  # margin with a small mean evaluates to {0, 1} on that grid and was then
+  # classified "binary", which silently selects the wrong copula correction and
+  # suppresses the non-binary discrete-margin warning in add_integration().
+  qfun_name <- sub("^.*:::?", "", qfun_name)
 
   # Capture arguments as unevaluated expressions
   args <- as.list(match.call(expand.dots = FALSE))[["..."]]
@@ -151,8 +159,8 @@ eval_distr <- function(d, p, data = list()) {
          call. = FALSE)
   }
   if (!is.numeric(lower) || !is.numeric(upper) ||
-      length(lower) != 1L || length(upper) != 1L ||
-      is.na(lower) || is.na(upper) || lower > upper) {
+        length(lower) != 1L || length(upper) != 1L ||
+        is.na(lower) || is.na(upper) || lower > upper) {
     stop("`lower` and `upper` must define a valid interval.", call. = FALSE)
   }
   list(
@@ -316,11 +324,20 @@ cor_adjust_spearman <- function(X, types) {
 
   X[cont, cont] <- 2 * sin(pi * X[cont, cont] / 6)
   X[bin, bin] <- sin(pi * X[bin, bin] / 2)
-  X[cont, bin] <- sqrt(2) * sin(pi * X[cont, bin] / (2 * sqrt(3)))
-  X[bin, cont] <- sqrt(2) * sin(pi * X[bin, cont] / (2 * sqrt(3)))
+  # The continuous-binary heuristic can map strong input correlations to a
+  # magnitude > 1 (|rho_S| > sqrt(3)/2); clamp to keep a valid correlation
+  # entry before the positive-definite projection.
+  X[cont, bin] <- .clamp_cor(sqrt(2) * sin(pi * X[cont, bin] / (2 * sqrt(3))))
+  X[bin, cont] <- .clamp_cor(sqrt(2) * sin(pi * X[bin, cont] / (2 * sqrt(3))))
 
   diag(X) <- 1
   X
+}
+
+#' Clamp correlation entries to a valid open interval
+#' @keywords internal
+.clamp_cor <- function(x) {
+  pmin(pmax(x, -0.999), 0.999)
 }
 
 #' Convert Pearson correlations to Gaussian copula correlations
@@ -344,8 +361,10 @@ cor_adjust_pearson <- function(X, types) {
   cont <- !bin
 
   X[bin, bin] <- sin(pi * X[bin, bin] / 2)
-  X[cont, bin] <- sqrt(pi / 2) * X[cont, bin]
-  X[bin, cont] <- sqrt(pi / 2) * X[bin, cont]
+  # Continuous-binary heuristic can exceed |1| for |rho_P| > 1/sqrt(pi/2);
+  # clamp to a valid correlation entry before the positive-definite projection.
+  X[cont, bin] <- .clamp_cor(sqrt(pi / 2) * X[cont, bin])
+  X[bin, cont] <- .clamp_cor(sqrt(pi / 2) * X[bin, cont])
 
   diag(X) <- 1
   X

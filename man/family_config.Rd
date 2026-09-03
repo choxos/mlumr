@@ -27,9 +27,16 @@ in \code{\link[=check_link]{check_link()}}.}
 \item{\code{marginal_effect_vars}}{Generated-quantity column names for each
 effect measure, per population. Expanded in \code{\link[=marginal_effects]{marginal_effects()}}.}
 \item{\code{comp_weight_field}}{Name of the Stan-data field used to
-weight the comparator-population marginal predictions
-(\code{n_agd} for binomial, \code{E_agd} for poisson, \code{NULL} for normal
-= equal weights).}
+weight the comparator-population marginal predictions. Must name
+the same field the family's Stan \verb{generated quantities} block
+weights by, otherwise the R-side link-scale path in
+\code{\link[=predict.mlumr_fit]{predict.mlumr_fit()}} would average over a different target
+population than the Stan-side response-scale predictions and
+\code{marginal_effects()}. Currently \code{n_agd} (binomial), \code{E_agd}
+(poisson), \code{agd_weight} (normal; required sample sizes for multiple rows,
+or one for a single row without \code{outcome_n}), and \code{NULL} for survival, whose
+comparator population is the pooled pseudo-IPD rather than a
+weighted mixture of aggregate rows.}
 }
 }
 \keyword{internal}

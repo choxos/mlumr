@@ -1,9 +1,9 @@
 #' Numerical evaluation in the Stan models
 #'
-#' `mlumr` evaluates tail probabilities, marginal means, ratios, and
-#' differences on the log scale where possible. The models do not clip event
-#' probabilities, rates, risk ratios, or rate ratios to finite reporting
-#' bounds.
+#' `mlumr` evaluates tail probabilities, marginal means, ratios, differences,
+#' and survival quantities on the log scale where possible. The models do not
+#' clip event probabilities, rates, survival probabilities, cumulative hazards,
+#' risk ratios, or rate ratios to finite reporting bounds.
 #'
 #' @section Log-scale calculations:
 #'
@@ -14,8 +14,13 @@
 #'     finite linear predictor is not first rounded to probability 0 or 1.}
 #'   \item{Log-link outcomes}{Marginal normal means and Poisson rates use
 #'     log-mean-exp calculations. Population weights are normalized on the log
-#'     scale, so multiplying every weight by the same positive finite constant
-#'     does not change the result.}
+#'     scale, so multiplying every weight by the same finite constant does not
+#'     change the result.}
+#'   \item{Survival outcomes}{Cumulative hazards and log hazards combine time,
+#'     shape, and linear-predictor terms before exponentiation. Marginal
+#'     survival and hazard calculations use log-sum-exp identities, including
+#'     tail-specific expressions for log-normal, gamma, generalized-gamma,
+#'     Weibull, Gompertz, and log-logistic models.}
 #'   \item{Natural-scale contrasts}{Differences of positive means are evaluated
 #'     from their logarithms before conversion to the natural scale. Ratios are
 #'     evaluated through log contrasts. A mathematically overflowing ratio may
@@ -27,14 +32,19 @@
 #' @section Structural constraints and roundoff:
 #'
 #' Positive model parameters such as the normal residual SD use Stan lower
-#' bounds and therefore truncate their priors to the positive half-line.
+#' bounds and therefore truncate their priors to the positive half-line. For
+#' flexible survival baselines, differences of cumulative I-spline bases are
+#' computed before the coefficient dot product and tiny negative values caused
+#' by floating-point cancellation are projected to zero. This projection
+#' enforces the mathematical non-negativity of a cumulative-hazard increment;
+#' it is not a floor on a positive event probability or hazard.
 #'
 #' @section Interpreting extreme draws:
 #'
 #' Inspect the log-scale generated quantities when a natural-scale contrast is
 #' zero or infinite. For example, binary models retain marginal log event and
-#' non-event probabilities internally, and Poisson models form log rates before
-#' exponentiation.
+#' non-event probabilities internally, Poisson models form log rates before
+#' exponentiation, and survival models form log survival and log mean hazards.
 #' An infinite natural-scale ratio can be the correct floating-point
 #' representation of a finite log ratio whose exponential exceeds double
 #' precision; replacing it with a fixed finite number would change the

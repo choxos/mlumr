@@ -1,23 +1,43 @@
 #' Simulated treatment comparison via G-computation
 #'
-#' Perform an unanchored simulated treatment comparison (STC) using parametric
-#' G-computation. Fits a regression on IPD, predicts counterfactual
-#' outcomes in both the index and comparator populations, and computes
-#' marginal treatment effects with delta-method standard errors.
+#' Perform an unanchored simulated treatment comparison (STC) with marginal
+#' standardization. Fits an outcome regression to the single IPD treatment arm,
+#' standardizes its predictions over the comparator-population covariate
+#' distribution, and contrasts that outcome with the reported comparator-arm
+#' outcome in the same population. It does not standardize either treatment to
+#' the index population.
 #'
 #' For binomial outcomes, returns the treatment effect on the link scale plus
 #' event probabilities, risk difference, and log risk ratio with SEs and CIs
-#' for both populations. Event-probability intervals use Wald standard errors
-#' and are bounded to `[0, 1]`. For Poisson outcomes, the comparator log rate
-#' uses a 0.5 continuity correction when the observed event count is zero.
+#' in the comparator population. Event-probability intervals use Wald standard
+#' errors and are bounded to `[0, 1]`. When an observed arm has zero or all
+#' events, transformed effect measures use the boundary-only pseudo-count
+#' `(r + 0.5) / (n + 1)`; model predictions are never corrected. For Poisson
+#' outcomes, the comparator log rate uses a 0.5 continuity correction when the
+#' observed event count is zero.
+#'
+#' Scale note: `$estimate` (and the binomial `$log_rr`) is on the link / log
+#' scale, where the null is 0. To compare against the natural-scale risk ratio
+#' or rate ratio from [marginal_effects()] (where the null is 1), exponentiate
+#' it (e.g. `exp(result$estimate)`).
+#'
+#' Normal-family weighting note: across multiple AgD rows, the normal STC
+#' comparator-population prediction and observed mean use sample-size
+#' (`outcome_n`) weights, matching the Bayesian ML-UMR comparator-population
+#' estimand. `outcome_n` is required when there is more than one row; a single
+#' row has weight one. The observed comparator-mean variance combines
+#' independent, mutually exclusive strata as `sum(w^2 * se^2)` using normalized
+#' population weights.
 #'
 #' @param data An `mlumr_data` object from [combine_data()]. Integration points
-#'   are not required for STC but covariate information from the AgD is used.
+#'   from [add_integration()] are required whenever the outcome model uses a
+#'   nonlinear link (binomial, Poisson, normal-log, or survival). Substitution
+#'   of aggregate means is exact only for a normal identity-link model.
 #' @param link Link function. For binomial: `"logit"` (default), `"probit"`,
 #'   or `"cloglog"`. For normal: `"identity"` (default) or `"log"`. For
-#'   poisson: `"log"` (default). If `NULL`, uses the canonical default.
+#'   poisson: `"log"` (default). Ignored for survival. If `NULL`, uses the
+#'   canonical default.
 #' @param conf_level Confidence level for the interval (default 0.95)
-#'
 #' @param distribution For `family = "survival"`: the parametric distribution
 #'   used for the package-specific survival G-computation (default
 #'   `"weibull"`). Requires the `flexsurv`
@@ -57,27 +77,54 @@
 #' The STC procedure is:
 #' 1. Fit a GLM on IPD (binomial/gaussian/poisson as appropriate).
 #' 2. Predict on comparator-population covariates (from integration points or
-#'    AgD covariate means).
+#'    AgD covariate means for the identity-link normal special case).
 #' 3. Marginalize predictions over the comparator population.
-#' 4. Predict on index-population covariates (IPD).
-#' 5. Compute treatment effects and SEs via the delta method.
+#' 4. Contrast with the reported comparator outcome in that population.
+#' 5. Compute first-order, fixed-integration-grid delta-method standard errors.
 #'
-#' STC is a parametric G-computation benchmark. It relies on the IPD outcome
-#' model being correctly specified and transportable to the comparator
-#' population. It does not model posterior uncertainty in population
-#' covariate distributions or relax treatment-specific covariate effects.
+#' The response-scale standardization follows the marginalization order used by
+#' Ren et al.'s unanchored STC and by parametric G-computation: predict each
+#' target profile, average the natural-scale outcomes, then transform that
+#' average. This is a one-arm standardization benchmark: only the index-treatment
+#' outcome model is fitted because comparator IPD are unavailable. Remiro-Azocar
+#' et al. implement two-arm G-computation, where both potential outcomes are
+#' predicted from an IPD study; that is a different data design even though the
+#' response-scale marginalization step is shared.
+#'
+#' The non-survival standard error is conditional on the supplied integration
+#' grid and reported comparator covariate summaries. It propagates fitted
+#' regression-coefficient uncertainty and observed comparator-outcome
+#' uncertainty, but not uncertainty from reconstructing the comparator
+#' covariate distribution. Ren et al. instead resample the IPD, reconstruct the
+#' target distribution, and use a nonparametric bootstrap. Use the present
+#' delta-method result as a fast benchmark and use sensitivity analyses when
+#' reconstruction uncertainty may matter.
+#'
+#' The estimator relies on correct specification of the index-treatment outcome
+#' model and its applicability to the comparator population. It does not model
+#' posterior uncertainty in population covariate distributions or relax
+#' treatment-specific covariate effects.
 #' When clinically meaningful effect modification is plausible, prefer
 #' `mlumr(..., model = "relaxed")` as the primary analysis and use STC as a
 #' sensitivity or benchmarking analysis.
 #'
-#' The estimand is the comparator-population contrast, and only that. Earlier
-#' versions also reported an index-population effect, obtained by assuming the
-#' treatment difference is constant on the link scale. That constancy is an
-#' extra assumption which is not part of the STC estimand, is not testable from
-#' the available data, and does not hold under effect modification, which is the
-#' situation population adjustment exists to handle. Use [mlumr()], which
-#' standardizes both treatment models and reports both populations without it,
-#' when the index population is the decision target.
+#' The returned effect is defined in the comparator population. Applying that
+#' same effect to the index or another decision population is a separate
+#' effect-equality assumption. `stc()` does not standardize to, perform, or
+#' validate transport to the index population. This differs from two-arm
+#' parametric G-computation, which fits treatment-specific outcome regressions
+#' and can standardize both potential outcomes to a chosen target population.
+#'
+#' @references
+#' Ren S, Ren S, Welton NJ, Strong M (2024). Advancing unanchored simulated
+#' treatment comparisons: A novel implementation and simulation study.
+#' *Research Synthesis Methods*, 15(4), 657-670.
+#' \doi{10.1002/jrsm.1718}
+#'
+#' Remiro-Azocar A, Heath A, Baio G (2022). Parametric G-computation for
+#' compatible indirect treatment comparisons with limited individual patient
+#' data. *Research Synthesis Methods*, 13(6), 716-744.
+#' \doi{10.1002/jrsm.1565}
 #'
 #' @examples
 #' \dontrun{
@@ -125,6 +172,13 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 
   link_info <- check_link(family, link)
   link_resolved <- link_info$link
+
+  if (!isTRUE(data$has_integration) &&
+        !(family == "normal" && link_resolved == "identity")) {
+    stop("STC with a nonlinear link requires comparator-population integration ",
+         "points. Call add_integration(); substituting aggregate covariate ",
+         "means is generally biased.", call. = FALSE)
+  }
 
   if (family == "binomial") {
     glm_family <- binomial(link = link_resolved)
@@ -217,27 +271,33 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' @keywords internal
 .stc_binomial <- function(data, fit, ipd, agd, newdata, link_resolved,
                           conf_level, z, beta_hat, V, n_int) {
-  pred_probs <- predict(fit, newdata = newdata, type = "response")
   weights <- if (data$has_integration) rep(agd$.n, each = n_int) else agd$.n
-
-  p_hat_A_comp <- weighted.mean(pred_probs, weights)
+  eta_comp <- as.numeric(predict(fit, newdata = newdata, type = "link"))
+  lp_comp <- .binary_log_probs(eta_comp, link_resolved)
+  log_p_A_comp <- .weighted_log_mean_exp(lp_comp$event, weights)
+  log_q_A_comp <- .weighted_log_mean_exp(lp_comp$nonevent, weights)
+  p_hat_A_comp <- exp(log_p_A_comp)
   n_B <- sum(agd$.n)
   p_B <- sum(agd$.r) / n_B
-
-  p_hat_A_comp <- bound_probability(p_hat_A_comp, n_B)
-  p_B <- bound_probability(p_B, n_B)
+  p_B_effect <- bound_probability(p_B, n_B)
+  row_p <- agd$.r / agd$.n
+  row_w <- .normalize_weights(agd$.n)
+  var_p_B <- sum(row_w^2 * row_p * (1 - row_p) / agd$.n)
+  row_p_effect <- bound_probability(row_p, agd$.n)
+  var_p_B_effect <- sum(
+    row_w^2 * row_p_effect * (1 - row_p_effect) / agd$.n
+  )
 
   comp_delta <- .stc_binomial_comparator_delta(
     fit, newdata, weights, beta_hat, V, link_resolved,
-    p_hat_A_comp, p_B, n_B
+    log_p_A_comp, log_q_A_comp, p_B_effect, var_p_B_effect
   )
 
   estimate <- comp_delta$link_effect
   se <- comp_delta$link_effect_se
-  var_p_B <- p_B * (1 - p_B) / n_B
   p_hat_A_comp_se <- .sqrt_variance(comp_delta$var_p_A,
                                     "comparator probability variance")
-  p_B_se <- sqrt(var_p_B)
+  p_B_se <- .sqrt_variance(var_p_B, "comparator probability variance")
   p_hat_A_comp_ci <- .bounded_wald_interval(p_hat_A_comp, p_hat_A_comp_se, z,
                                             lower = 0, upper = 1)
   p_B_ci <- .bounded_wald_interval(p_B, p_B_se, z, lower = 0, upper = 1)
@@ -246,10 +306,9 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   se_rd <- .sqrt_variance(comp_delta$var_p_A + var_p_B,
                           "risk-difference variance")
 
-  log_rr <- log(p_hat_A_comp) - log(p_B)
+  log_rr <- log_p_A_comp - log(p_B_effect)
   se_log_rr <- .sqrt_variance(
-    comp_delta$var_p_A / (p_hat_A_comp^2) +
-      (1 - p_B) / (n_B * p_B),
+    comp_delta$var_log_p_A + var_p_B_effect / p_B_effect^2,
     "log-risk-ratio variance"
   )
 
@@ -263,10 +322,12 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     family = "binomial",
     link = link_resolved,
     population = "comparator",
+    p_index_comparator = p_hat_A_comp,
     p_hat_index = p_hat_A_comp,
     p_hat_index_se = p_hat_A_comp_se,
     p_hat_index_lower = p_hat_A_comp_ci$lower,
     p_hat_index_upper = p_hat_A_comp_ci$upper,
+    p_comparator_comparator = p_B,
     p_comparator = p_B,
     p_comparator_se = p_B_se,
     p_comparator_lower = p_B_ci$lower,
@@ -288,31 +349,64 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' @keywords internal
 .stc_binomial_comparator_delta <- function(fit, newdata, weights,
                                            beta_hat, V, link_resolved,
-                                           p_A, p_B, n_B) {
+                                           log_p_A, log_q_A, p_B,
+                                           var_p_B) {
   X_comp_design <- .stc_model_matrix(fit, newdata)
-  eta_comp <- as.vector(X_comp_design %*% beta_hat)
-  p_comp <- inverse_link(eta_comp, link_resolved)
-  w_norm <- weights / sum(weights)
-
-  dp_dbeta <- inverse_link_derivative(eta_comp, p_comp, link_resolved)
-  grad_mean <- colSums(w_norm * dp_dbeta * X_comp_design)
-  grad_link <- grad_mean * link_derivative_response(
-    sum(w_norm * p_comp), link_resolved
-  )
+  log_means <- function(beta) {
+    lp <- .binary_log_probs(as.vector(X_comp_design %*% beta), link_resolved)
+    c(event = .weighted_log_mean_exp(lp$event, weights),
+      nonevent = .weighted_log_mean_exp(lp$nonevent, weights))
+  }
+  link_A <- function(beta) {
+    lm <- log_means(beta)
+    .binary_link_from_logs(lm["event"], lm["nonevent"], link_resolved)
+  }
+  p_A <- function(beta) exp(log_means(beta)["event"])
+  log_p <- function(beta) log_means(beta)["event"]
+  grad_link <- .stc_numeric_gradient(link_A, beta_hat)
+  grad_mean <- .stc_numeric_gradient(p_A, beta_hat)
+  grad_log_p <- .stc_numeric_gradient(log_p, beta_hat)
 
   var_link_A <- as.numeric(t(grad_link) %*% V %*% grad_link)
-  var_link_B <- binomial_link_variance(p_B, n_B, link_resolved)
+  var_link_B <- link_derivative_response(p_B, link_resolved)^2 * var_p_B
   var_link_effect <- .nonnegative_variance(var_link_A + var_link_B,
                                            "comparator link-effect variance")
   var_p_A <- .nonnegative_variance(as.numeric(t(grad_mean) %*% V %*% grad_mean),
                                    "comparator probability variance")
+  var_log_p_A <- .nonnegative_variance(
+    as.numeric(t(grad_log_p) %*% V %*% grad_log_p),
+    "comparator log-probability variance"
+  )
 
   list(
-    link_effect = link_fun(p_A, link_resolved) - link_fun(p_B, link_resolved),
+    link_effect = .binary_link_from_logs(log_p_A, log_q_A, link_resolved) -
+      link_fun(p_B, link_resolved),
     link_effect_se = sqrt(var_link_effect),
     var_link_effect = var_link_effect,
-    var_p_A = var_p_A
+    var_p_A = var_p_A,
+    var_log_p_A = var_log_p_A
   )
+}
+
+#' Numerical gradient for fixed-grid STC delta-method summaries
+#' @keywords internal
+.stc_numeric_gradient <- function(fn, beta) {
+  step <- .Machine$double.eps^(1 / 3) * pmax(1, abs(beta))
+  vapply(seq_along(beta), function(j) {
+    upper <- lower <- beta
+    upper[j] <- upper[j] + step[j]
+    lower[j] <- lower[j] - step[j]
+    (fn(upper) - fn(lower)) / (2 * step[j])
+  }, numeric(1))
+}
+
+#' Stable Euclidean norm of two standard errors
+#' @keywords internal
+.stc_hypot <- function(x, y) {
+  if (any(is.infinite(c(x, y)))) return(Inf)
+  scale <- max(abs(c(x, y)))
+  if (scale == 0) return(0)
+  scale * sqrt((x / scale)^2 + (y / scale)^2)
 }
 
 #' Normal-outcome STC estimator
@@ -322,35 +416,59 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   if (nrow(agd) > 1L && is.null(agd$.n)) {
     stop("`outcome_n` is required for multiple normal AgD rows.", call. = FALSE)
   }
-  # Population weights, not precision weights. The estimand is the comparator
-  # population's mean, which is the size-weighted mixture of its strata; an
-  # inverse-variance average estimates a common mean instead and is a different
-  # quantity when the strata differ.
   agd_weights <- agd$.n %||% 1
-  pred_y <- predict(fit, newdata = newdata, type = "response")
   weights <- if (data$has_integration) {
     rep(agd_weights, each = n_int)
   } else {
     agd_weights
   }
-  y_hat_A <- weighted.mean(pred_y, weights)
   y_B <- sum(.normalize_weights(agd_weights) * agd$.y)
-  estimate <- y_hat_A - y_B
-
   X_comp_design <- .stc_model_matrix(fit, newdata)
-  w_norm <- weights / sum(weights)
-  grad <- if (link_resolved == "identity") {
-    colSums(w_norm * X_comp_design)
+  w_norm <- .normalize_weights(weights)
+  eta_comp <- as.vector(X_comp_design %*% beta_hat)
+
+  if (link_resolved == "identity") {
+    y_hat_A <- sum(w_norm * eta_comp)
+    grad <- colSums(w_norm * X_comp_design)
+    var_A <- .nonnegative_variance(as.numeric(t(grad) %*% V %*% grad),
+                                   "normal STC standardized-mean variance")
+    se_A <- sqrt(var_A)
   } else {
-    eta_comp <- as.vector(X_comp_design %*% beta_hat)
-    colSums(w_norm * exp(eta_comp) * X_comp_design)
+    log_y_hat_A <- .weighted_log_mean_exp(eta_comp, weights)
+    y_hat_A <- exp(log_y_hat_A)
+    log_contribution <- log(weights) + eta_comp
+    contribution_max <- max(log_contribution)
+    centered_weights <- exp(log_contribution - contribution_max)
+    centered_weights <- centered_weights / sum(centered_weights)
+    grad_log <- colSums(centered_weights * X_comp_design)
+    var_log_A <- .nonnegative_variance(
+      as.numeric(t(grad_log) %*% V %*% grad_log),
+      "normal STC standardized log-mean variance"
+    )
+    se_A <- if (var_log_A == 0) 0 else
+      exp(log_y_hat_A + 0.5 * log(var_log_A))
   }
-
-  var_A <- .nonnegative_variance(as.numeric(t(grad) %*% V %*% grad),
-                                 "normal STC index variance")
-  var_B <- sum(.normalize_weights(agd_weights)^2 * agd$.se^2)
-  se <- .sqrt_variance(var_A + var_B, "normal STC contrast variance")
-
+  w_B <- .normalize_weights(agd_weights)
+  var_B <- sum(w_B^2 * agd$.se^2)
+  se_B <- sqrt(var_B)
+  md <- if (link_resolved == "log" && y_B > 0) {
+    .exp_difference_logs(log_y_hat_A, log(y_B))
+  } else {
+    y_hat_A - y_B
+  }
+  md_se <- .stc_hypot(se_A, se_B)
+  if (link_resolved == "log") {
+    if (!is.finite(y_B) || y_B <= 0) {
+      stop("Normal-log STC requires a positive comparator aggregate mean.",
+           call. = FALSE)
+    }
+    estimate <- log_y_hat_A - log(y_B)
+    se <- .sqrt_variance(var_log_A + var_B / y_B^2,
+                         "normal STC log-mean-ratio variance")
+  } else {
+    estimate <- md
+    se <- md_se
+  }
   list(
     estimate = estimate,
     se = se,
@@ -360,8 +478,13 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     family = "normal",
     link = link_resolved,
     population = "comparator",
+    md = md,
+    md_se = md_se,
+    md_lower = md - z * md_se,
+    md_upper = md + z * md_se,
+    y_index_comparator = y_hat_A,
     y_hat_index = y_hat_A,
-    y_hat_index_se = sqrt(var_A),
+    y_hat_index_se = se_A,
     y_comparator = y_B,
     y_comparator_se = sqrt(var_B),
     glm_fit = fit,
@@ -373,32 +496,36 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' @keywords internal
 .stc_poisson <- function(data, fit, ipd, agd, newdata, link_resolved,
                          conf_level, z, beta_hat, V, n_int) {
-  pred_rate <- predict(fit, newdata = newdata, type = "response")
   weights <- if (data$has_integration) rep(agd$.E, each = n_int) else agd$.E
-  rate_hat_A <- weighted.mean(pred_rate, weights)
-
   events_B <- sum(agd$.r)
   exposure_B <- sum(agd$.E)
   rate_B <- events_B / exposure_B
   events_B_adjusted <- max(events_B, 0.5)
   rate_B_for_log <- events_B_adjusted / exposure_B
-  estimate <- log(rate_hat_A) - log(rate_B_for_log)
-
   X_comp_design <- .stc_model_matrix(fit, newdata)
   eta_comp <- as.vector(X_comp_design %*% beta_hat)
-  lambda_comp <- exp(eta_comp)
-  w_norm <- weights / sum(weights)
-
-  grad_log_rate <- colSums(w_norm * lambda_comp * X_comp_design) /
-    sum(w_norm * lambda_comp)
+  log_rate_hat_A <- .weighted_log_mean_exp(eta_comp, weights)
+  rate_hat_A <- exp(log_rate_hat_A)
+  estimate <- log_rate_hat_A - log(rate_B_for_log)
+  log_contribution <- log(weights) + eta_comp
+  contribution_max <- max(log_contribution)
+  contribution <- exp(log_contribution - contribution_max)
+  contribution <- contribution / sum(contribution)
+  grad_log_rate <- colSums(contribution * X_comp_design)
   var_lrr_A <- .nonnegative_variance(
     as.numeric(t(grad_log_rate) %*% V %*% grad_log_rate),
-    "poisson STC log-rate variance"
+    "poisson STC standardized log-rate variance"
   )
   var_lrr_B <- 1 / events_B_adjusted
   se <- .sqrt_variance(var_lrr_A + var_lrr_B,
                        "poisson STC contrast variance")
 
+  # Gradient of the standardized RATE itself, not of its logarithm:
+  # d/dbeta of sum_i w_norm_i * exp(eta_i) is sum_i w_norm_i * lambda_i * X_i.
+  # The log-rate gradient above normalizes by the exponentially weighted
+  # `contribution` instead, which is a different weighting, so both are needed.
+  w_norm <- weights / sum(weights)
+  lambda_comp <- exp(eta_comp)
   grad_rate <- colSums(w_norm * lambda_comp * X_comp_design)
   var_rate_A <- .nonnegative_variance(
     as.numeric(t(grad_rate) %*% V %*% grad_rate),
@@ -476,6 +603,9 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     }
     newdata <- as.data.frame(X_comp)
   } else {
+    # Reached only where the mean profile IS the standardized quantity: stc()
+    # rejects a nonlinear link without integration points up front, because
+    # g^-1(mu + Xbar'beta) is not E_X[g^-1(mu + X'beta)] there.
     newdata <- .stc_agd_mean_newdata(agd, cov_names)
   }
 
@@ -484,36 +614,6 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   }
 
   list(newdata = newdata, n_int = n_int)
-}
-
-#' Build comparator-population covariates from AgD means
-#' @keywords internal
-.stc_agd_mean_newdata <- function(agd, cov_names) {
-  newdata <- data.frame(row.names = seq_len(nrow(agd)))
-  for (cov in cov_names) {
-    mean_col <- paste0(cov, "_mean")
-    if (!mean_col %in% names(agd)) {
-      stop(sprintf(
-        paste0(
-          "Cannot find mean for covariate '%s' in AgD. ",
-          "Either add integration points or ensure AgD has '%s' column."
-        ),
-        cov, mean_col
-      ), call. = FALSE)
-    }
-    newdata[[cov]] <- agd[[mean_col]]
-  }
-  newdata
-}
-
-
-#' Stable Euclidean norm of two standard errors
-#' @keywords internal
-.stc_hypot <- function(x, y) {
-  if (any(is.infinite(c(x, y)))) return(Inf)
-  scale <- max(abs(c(x, y)))
-  if (scale == 0) return(0)
-  scale * sqrt((x / scale)^2 + (y / scale)^2)
 }
 
 #' Package-specific parametric survival G-computation (RMST difference)
@@ -936,4 +1036,24 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     # before this point, so reaching here at all is a bug.
     stop("Unsupported survival distribution: ", distribution, call. = FALSE)
   )
+}
+
+#' Build comparator-population covariates from AgD means
+#' @keywords internal
+.stc_agd_mean_newdata <- function(agd, cov_names) {
+  newdata <- data.frame(row.names = seq_len(nrow(agd)))
+  for (cov in cov_names) {
+    mean_col <- paste0(cov, "_mean")
+    if (!mean_col %in% names(agd)) {
+      stop(sprintf(
+        paste0(
+          "Cannot find mean for covariate '%s' in AgD. ",
+          "Either add integration points or ensure AgD has '%s' column."
+        ),
+        cov, mean_col
+      ), call. = FALSE)
+    }
+    newdata[[cov]] <- agd[[mean_col]]
+  }
+  newdata
 }

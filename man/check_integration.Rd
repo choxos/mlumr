@@ -35,9 +35,15 @@ dependence structure does not (rare in practice for QMC with sensible
 \value{
 A list with components \code{marginals} (the original data frame
 returned by previous versions) and, if \code{check_joint = TRUE},
-\code{correlations} -- a data frame of pairwise covariate correlations at
+\code{correlations}, a data frame of pairwise covariate correlations at
 the current and doubled \code{n_int} for each AgD row. Printed with a
 pass/warn verdict.
+
+The \code{verdict} component reports \code{"stable"} / \code{"close"} when a comparison
+was made and met the heuristic, \code{"review"} when it did not, and
+\code{"unavailable"} when there was nothing finite to compare. A declared
+target the AgD does not supply, or a latent Gaussian-copula correlation
+(\code{cor_adjust = "none"}), gives \code{"unavailable"} rather than a pass.
 }
 \description{
 Compare integration results at the current \code{n_int} against a doubled

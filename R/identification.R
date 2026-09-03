@@ -80,6 +80,17 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
     stop("`link` is determined by the fitted object and cannot be overridden.",
          call. = FALSE)
   }
+  # The report is headed "relaxed model" and diagnoses `beta_comparator`. An
+  # SPFA fit shares one coefficient vector across treatments, so it has no
+  # comparator-only coefficients and the geometry below says nothing about it.
+  if (is_fit && !identical(x$model, "relaxed")) {
+    stop("check_identification() diagnoses the comparator coefficients of a ",
+         "relaxed fit. This fit used model = \"", x$model, "\", which shares ",
+         "one coefficient vector across treatments and so has no ",
+         "comparator-only coefficients to identify. Pass the mlumr_data ",
+         "object if you want the aggregate design geometry on its own.",
+         call. = FALSE)
+  }
   data <- if (inherits(x, "mlumr_fit")) x$data else x
   if (!inherits(data, "mlumr_data")) {
     stop("`x` must be an mlumr_data object (from combine_data()) or an ",
@@ -160,15 +171,13 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
       # describe the design being fitted: a `distr()` that ignores the columns
       # it was meant to read (a fixed `distr(qnorm, mean = 0, sd = 1)` on every
       # row) leaves declared profiles that span directions the likelihood does
-      # not have. Comparing ranks catches that without needing a tolerance for
-      # quadrature noise, which a direct comparison of the means would.
-      if (!is.null(realized) &&
-            .profile_rank(realized) < .profile_rank(means)) {
+      # not have.
+      if (!.realized_matches_declared(means, realized)) {
         warning("The integration distributions do not reproduce the declared ",
-                "aggregate covariate means: the realized profiles span fewer ",
-                "directions than the `<covariate>_mean` columns do. Reporting ",
-                "the realized geometry, which is what the likelihood sees. ",
-                "Check that each `distr()` reads its row's summaries.",
+                "aggregate covariate means: the realized profiles offer much ",
+                "less spread than the `<covariate>_mean` columns claim. ",
+                "Reporting the realized geometry, which is what the likelihood ",
+                "sees. Check that each `distr()` reads its row's summaries.",
                 call. = FALSE)
         return(realized)
       }
@@ -328,17 +337,18 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   if (is.null(x_int) || length(dim(x_int)) != 3L) return(n_rows)
   n <- dim(x_int)[[1L]]
   if (n < 2L) return(n)
-  keep <- rep(TRUE, n)
-  for (i in seq_len(n - 1L)) {
-    if (!keep[i]) next
-    for (j in seq(i + 1L, n)) {
-      if (!keep[j]) next
-      if (identical(x_int[i, , , drop = TRUE], x_int[j, , , drop = TRUE])) {
-        keep[j] <- FALSE
-      }
-    }
-  }
-  sum(keep)
+  # The likelihood integrates over a row's points, so it sees the multiset of
+  # tuples and not their order. Sort each row's tuples into a canonical order
+  # before comparing; comparing the grids as stored counted two orderings of one
+  # grid as two constraints when they carry one. `%.17g` round-trips a double
+  # exactly, so equal grids always produce equal keys.
+  keys <- vapply(seq_len(n), function(i) {
+    grid <- x_int[i, , , drop = FALSE]
+    dim(grid) <- dim(x_int)[2:3]
+    ord <- do.call(order, as.data.frame(grid))
+    paste(sprintf("%.17g", grid[ord, , drop = FALSE]), collapse = "\r")
+  }, character(1))
+  length(unique(keys))
 }
 
 
@@ -415,4 +425,44 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
         "prior_sensitivity().\n", sep = "")
   }
   invisible(x)
+}
+
+
+#' Does the realized integration design reproduce the declared one?
+#'
+#' Compares the two centered profile matrices through their singular-value
+#' spectra, after scaling each covariate by the spread the DECLARED design
+#' claims for it so the comparison is unit-free.
+#'
+#' This replaces a comparison of ranks. A rank drop is the extreme case of a
+#' collapsed singular value, so the spectrum test subsumes it, and it also
+#' catches the case the rank test could not see: declared means `c(-1, 1)` and
+#' realized means `c(-1e-10, 1e-10)` both have rank 2, yet the likelihood has
+#' almost no leverage along that direction and the reported geometry described
+#' a design that was not fitted. The `factor` is far above quadrature noise,
+#' which moves a singular value by a relative `O(1 / n_int)`.
+#'
+#' @param declared Matrix of declared mean profiles (rows are AgD rows).
+#' @param realized Matrix of realized integration means, or `NULL`.
+#' @param factor Smallest share of each declared singular value the realized
+#'   design must still provide.
+#' @return `TRUE` when the realized design reproduces the declared one, or when
+#'   there is nothing to compare against.
+#' @keywords internal
+.realized_matches_declared <- function(declared, realized, factor = 0.5) {
+  if (is.null(realized) || !identical(dim(declared), dim(realized))) {
+    return(TRUE)
+  }
+  col_scale <- apply(declared, 2L, function(col) {
+    s <- diff(range(col))
+    if (!is.finite(s) || s <= 0) s <- max(abs(col))
+    if (!is.finite(s) || s <= 0) s <- 1
+    s
+  })
+  d <- sweep(scale(declared, center = TRUE, scale = FALSE), 2L, col_scale, "/")
+  r <- sweep(scale(realized, center = TRUE, scale = FALSE), 2L, col_scale, "/")
+  if (!all(is.finite(d)) || !all(is.finite(r))) {
+    return(TRUE)
+  }
+  all(svd(r)$d >= factor * svd(d)$d)
 }

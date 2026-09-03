@@ -39,7 +39,9 @@ check_link <- function(family, link = NULL) {
     binary     = "binomial",
     count      = "binomial",
     rate       = "poisson",
-    continuous = "normal"
+    continuous = "normal",
+    tte        = "survival",
+    surv       = "survival"
   )
   canonical <- unname(family_aliases[family])
   if (!is.na(canonical)) {
@@ -169,11 +171,6 @@ inverse_link <- function(x, link = c("identity", "log", "logit", "probit", "clog
   # is finite.
   small <- !is.na(log_event) & log_event < -18
   out[small] <- log_event[small]
-  # The opposite tail cannot be recovered here. log(1 - p) is -exp(eta) for this
-  # link, which overflows to -Inf above eta = 709.78, and -exp(710) has no
-  # double-precision representation to carry. `out` is then Inf: the correct
-  # transform of an input that has already lost the value. Recovering the finite
-  # link would mean the models emitting it as its own generated quantity.
   out
 }
 
@@ -244,7 +241,12 @@ inverse_link <- function(x, link = c("identity", "log", "logit", "probit", "clog
   if (length(log_y) != n) log_y <- rep_len(log_y, n)
   out <- rep(NaN, n)
   known <- !is.na(log_x) & !is.na(log_y)
-  same <- known & log_x == log_y
+  # Two positive infinities mean both quantities are unbounded, so their
+  # difference is indeterminate. Without this guard the equality branch below
+  # would report an exact null effect. Equal finite logs, and two -Inf logs
+  # (both quantities zero), do legitimately give a difference of zero.
+  both_unbounded <- known & log_x == Inf & log_y == Inf
+  same <- known & !both_unbounded & log_x == log_y
   x_larger <- known & !same & log_x > log_y
   y_larger <- known & !same & log_y > log_x
 

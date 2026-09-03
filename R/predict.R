@@ -436,11 +436,7 @@ predict.mlumr_fit <- function(object,
 #' @keywords internal
 .relaxed_contraction <- function(object) {
   if (!identical(object$model, "relaxed")) return(NULL)
-  # Falls back to the shared coefficient prior where a separate comparator
-  # prior is not present, which is what the relaxed models place on
-  # beta_comparator in that case.
-  prior_scale <- object$stan_data$prior_beta_comparator_sd %||%
-    object$stan_data$prior_beta_sd
+  prior_scale <- object$stan_data$prior_beta_comparator_sd
   covs <- object$data$covariates
   if (is.null(prior_scale) || is.null(covs)) return(NULL)
   prior_scale <- as.numeric(prior_scale)
@@ -451,10 +447,8 @@ predict.mlumr_fit <- function(object,
   # posterior SD by a scale that is not an SD would not produce the stated
   # marginal variance comparison, so convert where the variance exists and
   # return NA where it does not.
-  dist <- object$stan_data$prior_beta_comparator_dist %||%
-    object$stan_data$prior_beta_dist %||% 0L
-  df <- object$stan_data$prior_beta_comparator_df %||%
-    object$stan_data$prior_beta_df %||% NA_real_
+  dist <- object$stan_data$prior_beta_comparator_dist %||% 0L
+  df <- object$stan_data$prior_beta_comparator_df %||% NA_real_
   prior_sd <- if (identical(as.integer(dist)[1], 1L)) {
     d <- as.numeric(df)[1]
     if (is.finite(d) && d > 2) prior_scale * sqrt(d / (d - 2)) else NA_real_

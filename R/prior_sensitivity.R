@@ -15,6 +15,16 @@
 #' @param fit A fitted `mlumr_fit` object to re-fit under alternative priors.
 #' @param prior_beta_scales Numeric vector of scales for `prior_beta`.
 #'   Default `c(0.5, 1, 2.5, 5, 10)`.
+#' @param prior_beta_comparator_scales (Relaxed fits only.) Numeric vector of
+#'   scales for `prior_beta_comparator`, same length as `prior_beta_scales` and
+#'   paired with it elementwise. If `NULL` (default), the comparator prior is
+#'   swept in parallel using `prior_beta_scales`. This matters because the
+#'   relaxed index-population estimand is driven by the comparator coefficients,
+#'   so a faithful sensitivity sweep must vary their prior. Whichever scale is
+#'   used is reported in the `scale_comparator` column, so a refit that paired,
+#'   say, an index scale of 0.5 with a comparator scale of 2.5 is not labeled
+#'   as though only the index prior had been set. Ignored, with a warning, for
+#'   SPFA fits, which have no comparator-specific coefficients.
 #' @param probs Quantiles for summarizing each posterior
 #'   (default `c(0.025, 0.5, 0.975)`).
 #' @param verbose Logical; if `FALSE`, suppresses progress messages and final
@@ -37,14 +47,17 @@
 #' `prior_normal(0, scale)` at each grid point since exponential has no
 #' scale parameter to vary.
 #'
-#' A relaxed fit whose `prior_beta_comparator` was set deliberately keeps that
-#' prior fixed at its original value across the sweep, because otherwise the
-#' refits would silently drop the regularizer the model was fitted with. That
-#' also bounds what the sweep can tell you: it measures sensitivity to
-#' `prior_beta` alone. An index-population estimand that is in fact driven by
-#' `prior_beta_comparator` can look perfectly insensitive here, so do not read
-#' a flat result as evidence that the comparator prior does not matter. Refit
-#' with different comparator scales to answer that question.
+#' For a relaxed fit the comparator prior is swept alongside the index prior.
+#' By default the two move together, which is a single-factor sweep of overall
+#' prior informativeness; supplying `prior_beta_comparator_scales` pairs a
+#' different comparator scale with each index scale, so the two are then
+#' separate factors moved in lockstep rather than one. Sweeping the comparator
+#' prior is what makes the result meaningful: the relaxed index-population
+#' estimand is driven by the comparator coefficients, so holding their prior
+#' fixed would report a flat, reassuring curve for exactly the quantity most
+#' exposed to the prior. Both scales are recorded per row (`scale` and
+#' `scale_comparator`), so a row is never labeled by only half of the prior it
+#' was fitted under.
 #'
 #' @return A data frame (tibble-style) with one row per
 #'   (scale, population, quantile) combination and columns `scale`,
@@ -60,6 +73,7 @@
 #' }
 prior_sensitivity <- function(fit,
                               prior_beta_scales = c(0.5, 1, 2.5, 5, 10),
+                              prior_beta_comparator_scales = NULL,
                               probs = c(0.025, 0.5, 0.975),
                               verbose = TRUE,
                               ...) {
@@ -67,14 +81,48 @@ prior_sensitivity <- function(fit,
   if (!inherits(fit, "mlumr_fit")) {
     stop("`fit` must be an mlumr_fit object", call. = FALSE)
   }
+  is_relaxed <- identical(fit$model, "relaxed")
+  # `length() < 1L` matters on its own: `any()` of an empty vector is FALSE, so
+  # an empty grid passed every other test and produced a sweep of nothing.
   invalid_prior_scales <- !is.numeric(prior_beta_scales) ||
+    length(prior_beta_scales) < 1L ||
     any(!is.finite(prior_beta_scales)) ||
     any(prior_beta_scales <= 0)
   if (invalid_prior_scales) {
-    stop("`prior_beta_scales` must be positive finite numbers", call. = FALSE)
+    stop("`prior_beta_scales` must be one or more positive finite numbers",
+         call. = FALSE)
+  }
+  invalid_probs <- !is.numeric(probs) || length(probs) < 1L ||
+    any(!is.finite(probs)) || any(probs < 0) || any(probs > 1)
+  if (invalid_probs) {
+    stop("`probs` must be one or more numbers in [0, 1]", call. = FALSE)
   }
   if (!is.logical(verbose) || length(verbose) != 1L || is.na(verbose)) {
     stop("`verbose` must be TRUE or FALSE.", call. = FALSE)
+  }
+
+  if (!is.null(prior_beta_comparator_scales)) {
+    if (!is_relaxed) {
+      # Branch on the model before validating. Checking first turned an
+      # inapplicable argument into a hard error on a fit that has no comparator
+      # coefficients, and a well-formed value was dropped without a word.
+      warning("`prior_beta_comparator_scales` is ignored for the ",
+              fit$model, " model (which has a single shared `beta`); only the ",
+              "relaxed model has a comparator-specific coefficient vector.",
+              call. = FALSE)
+      prior_beta_comparator_scales <- NULL
+    } else {
+      invalid_cmp <- !is.numeric(prior_beta_comparator_scales) ||
+        any(!is.finite(prior_beta_comparator_scales)) ||
+        any(prior_beta_comparator_scales <= 0) ||
+        length(prior_beta_comparator_scales) != length(prior_beta_scales)
+      if (invalid_cmp) {
+        stop("`prior_beta_comparator_scales` must be positive finite numbers ",
+             "the same length as `prior_beta_scales`, so that each row of the ",
+             "sweep pairs one index scale with one comparator scale.",
+             call. = FALSE)
+      }
+    }
   }
 
   # Extract the base prior so we can reconstruct scaled variants.
@@ -114,17 +162,42 @@ prior_sensitivity <- function(fit,
     }
   }
 
+  # The relaxed model's comparator coefficients carry their own prior, so a
+  # sweep that moved only `prior_beta` would leave the comparator regularizer
+  # fixed and report the sensitivity of a model nobody fitted. The comparator
+  # prior is swept from the fit's OWN comparator prior, paired one-to-one with
+  # the index scales, and `prior_beta_comparator_scales` decouples the two when
+  # the question is specifically how much the comparator prior is doing.
+  base_beta_cmp <- fit$priors$beta_comparator %||% base_beta
+  cmp_scales <- if (is_relaxed) {
+    prior_beta_comparator_scales %||% prior_beta_scales
+  } else {
+    NULL
+  }
+
   results <- vector("list", length(prior_beta_scales))
 
   for (i in seq_along(prior_beta_scales)) {
     s <- prior_beta_scales[[i]]
     prior_beta_i <- .rescale_prior_beta(base_beta, s)
+    prior_beta_cmp_i <- if (is_relaxed) {
+      .rescale_prior_beta(base_beta_cmp, cmp_scales[[i]])
+    } else {
+      NULL
+    }
+    s_cmp <- if (is_relaxed) cmp_scales[[i]] else NA_real_
 
-    mlumr_message(sprintf("Prior sensitivity: refit %d/%d with scale %g",
-                          i, length(prior_beta_scales), s),
-                  verbose = verbose)
+    msg <- if (is_relaxed) {
+      sprintf("Prior sensitivity: refit %d/%d with scale %g (comparator %g)",
+              i, length(prior_beta_scales), s, s_cmp)
+    } else {
+      sprintf("Prior sensitivity: refit %d/%d with scale %g",
+              i, length(prior_beta_scales), s)
+    }
+    mlumr_message(msg, verbose = verbose)
 
-    args <- .prior_sensitivity_args(fit, prior_beta_i, verbose)
+    args <- .prior_sensitivity_args(fit, prior_beta_i, verbose,
+                                    prior_beta_cmp_i)
 
     # `...` is documented as the way to pass sampler and backend controls, and
     # `protected` above already keeps it away from anything that defines the
@@ -136,11 +209,25 @@ prior_sensitivity <- function(fit,
     if (length(dots)) call_args[names(dots)] <- dots
     fit_i <- do.call(mlumr, call_args)
 
-    results[[i]] <- .summarize_sensitivity(fit_i, scale = s, probs = probs)
+    results[[i]] <- .summarize_sensitivity(
+      fit_i, scale = s, scale_comparator = s_cmp, probs = probs
+    )
   }
 
   out <- do.call(rbind, results)
   rownames(out) <- NULL
+  # Only carry `at_time` when it says something. Every non-survival family, and
+  # survival fits whose scalar has no evaluation time, would otherwise gain an
+  # all-NA column and the printed table would get noisier for no information.
+  if (!is.null(out$at_time) && all(is.na(out$at_time))) out$at_time <- NULL
+  # `scale_comparator` is the scale actually applied to `prior_beta_comparator`
+  # on that row. It is retained for every relaxed fit, including the default
+  # case where it equals `scale`, so a reader never has to infer which prior a
+  # row varied; SPFA has no comparator coefficient prior, so the all-NA column
+  # is dropped there rather than printed as noise.
+  if (!is.null(out$scale_comparator) && all(is.na(out$scale_comparator))) {
+    out$scale_comparator <- NULL
+  }
 
   if (verbose) {
     cat("\nPrior sensitivity: posterior of marginal treatment effects\n")
@@ -160,7 +247,8 @@ prior_sensitivity <- function(fit,
 #' the sweep varies more than one factor. Split out from the refit loop so the
 #' replay can be checked without sampling.
 #' @keywords internal
-.prior_sensitivity_args <- function(fit, prior_beta_i, verbose) {
+.prior_sensitivity_args <- function(fit, prior_beta_i, verbose,
+                                    prior_beta_comparator_i = NULL) {
   sa <- fit$sampling_args %||% list()
   # Design-matrix controls. A fit made with `center = FALSE` or `qr = TRUE` is a
   # different parameterization, so replaying the defaults here would vary the
@@ -197,15 +285,10 @@ prior_sensitivity <- function(fit,
     verbose = verbose
   )
 
-  # A relaxed fit whose comparator prior was set deliberately must keep it
-  # across the sweep. Leaving it NULL makes mlumr() reuse `prior_beta`, which
-  # is the very argument being swept, so a tight comparator regularizer would
-  # disappear from every refit and the reported movement would be the
-  # sensitivity of a model that was never fitted. When it was NOT set, leaving
-  # it NULL is correct: it then tracks the swept prior, which is the 0.1.0
-  # behavior the sweep is measuring.
-  if (isTRUE(fit$priors$beta_comparator_resolved$user_specified)) {
-    args$prior_beta_comparator <- fit$priors$beta_comparator
+  # The comparator prior for this refit, already rescaled by the caller. NULL
+  # for a non-relaxed fit, which has no comparator coefficients.
+  if (!is.null(prior_beta_comparator_i)) {
+    args$prior_beta_comparator <- prior_beta_comparator_i
   }
 
   # The survival controls are only legal arguments for a survival fit, and
@@ -249,7 +332,7 @@ prior_sensitivity <- function(fit,
     return(prior)
   }
   # Per-coefficient list: rescale each element to new_scale (absolute, not
-  # ratio — we want a homogeneous sensitivity sweep).
+  # ratio; we want a homogeneous sensitivity sweep).
   lapply(prior, function(p) {
     p$sd <- new_scale
     p$default <- NULL
@@ -260,7 +343,8 @@ prior_sensitivity <- function(fit,
 
 #' Summarize a sensitivity refit.
 #' @keywords internal
-.summarize_sensitivity <- function(fit, scale, probs) {
+.summarize_sensitivity <- function(fit, scale, scale_comparator = NA_real_,
+                                   probs) {
   draws <- fit$draws
   family <- fit$family %||% "binomial"
 
@@ -268,7 +352,10 @@ prior_sensitivity <- function(fit,
   effect_cols <- switch(family,
     binomial = c("lor_index",   "lor_comparator"),
     normal   = c("delta_index", "delta_comparator"),
-    poisson  = c("lrr_index",   "lrr_comparator"),
+    # No Stan model emits `lrr_*`; the poisson marginal effect is `delta_*`,
+    # as family_config records. Looking for the wrong name matched no columns
+    # at all, so a poisson sweep summarized nothing.
+    poisson  = c("delta_index", "delta_comparator"),
     # Log hazard ratio (PH) or log time ratio (AFT). Reported on the log scale,
     # like every other family here, so the scales stay comparable across rows.
     survival = c("delta_index", "delta_comparator")
@@ -277,6 +364,21 @@ prior_sensitivity <- function(fit,
   effect_names <- intersect(effect_cols, colnames(draws))
   if (length(effect_names) == 0L) return(NULL)
 
+  # What the summarized quantity actually IS, per row. Without this the survival
+  # rows are printed as a generic "log hazard ratio / log time ratio", which is
+  # wrong in two of the three cases: a stratified PH delta is tied to a specific
+  # evaluation time, and a stratified or relaxed AFT delta is a location
+  # contrast rather than any time ratio. Derived from the same helper
+  # marginal_effects() uses, so the two surfaces cannot disagree.
+  if (identical(family, "survival")) {
+    lab <- .surv_scalar_label(fit, log_scale = TRUE)
+    eff_label <- lab$label
+    eff_at_time <- lab$at_time
+  } else {
+    eff_label <- switch(family, binomial = "LOR", normal = "MD", poisson = "RR")
+    eff_at_time <- NA_real_
+  }
+
   qnames <- paste0("q", round(100 * probs))
 
   rows <- lapply(effect_names, function(nm) {
@@ -284,7 +386,10 @@ prior_sensitivity <- function(fit,
     qs <- stats::quantile(x, probs = probs, names = FALSE)
     row <- data.frame(
       scale = scale,
+      scale_comparator = scale_comparator,
       parameter = nm,
+      effect = eff_label,
+      at_time = eff_at_time,
       mean = mean(x),
       sd = stats::sd(x),
       stringsAsFactors = FALSE

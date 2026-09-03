@@ -1,5 +1,5 @@
 // ML-UMR: parametric survival (time-to-event) with the Shared Prognostic
-// Factor Assumption (SPFA -- one prognostic coefficient vector shared across
+// Factor Assumption (SPFA: one prognostic coefficient vector shared across
 // treatments). Unanchored comparison of single-arm trials.
 //
 //   IPD  (index treatment)     : individual event/censoring times + covariates.

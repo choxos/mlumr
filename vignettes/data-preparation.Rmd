@@ -282,7 +282,7 @@ biomarker = distr(qgamma, shape = 2, rate = 0.5)
 By default, correlations between covariates are estimated from the IPD
 using Spearman rank correlation, then adjusted for the Gaussian copula.
 For binary and mixed discrete/continuous covariate pairs, this adjustment
-is a pragmatic approximation — exact calibration of the latent Gaussian
+is a pragmatic approximation; exact calibration of the latent Gaussian
 correlation depends on marginal prevalences, which are not used in the
 current transform. For most practical datasets this provides adequate
 integration-point distributions, but users with strong prior information

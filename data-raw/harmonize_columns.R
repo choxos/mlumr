@@ -13,6 +13,11 @@ load("data/psoriasis_ipd.rda")
 names(psoriasis_ipd)[names(psoriasis_ipd) == "studyc"] <- "study"
 names(psoriasis_ipd)[names(psoriasis_ipd) == "trtc"]   <- "treatment"
 psoriasis_ipd$subject <- seq_len(nrow(psoriasis_ipd))
+# multinma stores prevsys as a logical. set_ipd() requires numeric covariates,
+# so a logical column has to be coerced by every caller before it can be used,
+# and it is the only binary covariate across these datasets that is not already
+# a 0/1 integer (cf. sex, gender, male, iss_stage3, response_cr_vgpr).
+psoriasis_ipd$prevsys <- as.integer(psoriasis_ipd$prevsys)
 psoriasis_ipd <- lead(psoriasis_ipd, c("study", "treatment", "subject"))
 sv(psoriasis_ipd, "psoriasis_ipd")
 
@@ -20,7 +25,13 @@ load("data/psoriasis_agd.rda")
 names(psoriasis_agd)[names(psoriasis_agd) == "studyc"]  <- "study"
 names(psoriasis_agd)[names(psoriasis_agd) == "trtc"]    <- "treatment"
 names(psoriasis_agd)[names(psoriasis_agd) == "prevsys"] <- "prevsys_prop"
-psoriasis_agd$prevsys_prop <- psoriasis_agd$prevsys_prop / 100  # percentage -> proportion
+# This script rewrites data/ in place, so every step has to survive a re-run.
+# The rename above no-ops on a second pass (the column is already
+# `prevsys_prop`), but an unguarded division would run again and silently turn
+# 0.63 into 0.0063. Convert only while the value is still a percentage.
+if (psoriasis_agd$prevsys_prop > 1) {
+  psoriasis_agd$prevsys_prop <- psoriasis_agd$prevsys_prop / 100
+}
 psoriasis_agd <- lead(psoriasis_agd, c("study", "treatment"))
 sv(psoriasis_agd, "psoriasis_agd")
 

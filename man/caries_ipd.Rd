@@ -11,11 +11,30 @@ A data frame with 103 rows and 8 columns:
 \item{treatment}{index treatment label (\code{"SDF"})}
 \item{subject}{row identifier}
 \item{age}{age in years}
-\item{gender}{1/0 indicator}
-\item{log_cfu}{log baseline salivary \emph{S. mutans} count (CFU/mL)}
+\item{gender}{1/0 indicator, as coded in the source trial, which does not
+record which level is which. Only the covariate's distribution matters
+for the adjustment, so the labeling does not affect the estimand.}
+\item{log_cfu}{log baseline salivary \emph{S. mutans} count,
+\code{log(CFU/mL + 1)}}
 \item{dmft}{decayed-missing-filled-teeth count (the count outcome)}
-\item{exposure}{exposure for the Poisson model (1 = per child)}
+\item{exposure}{Poisson offset, 1 per child. \code{dmft} is a whole-mouth
+count with no time at risk and no per-tooth denominator, so the rate is
+"dmft per child" and the offset is 1. The column is present because
+\code{\link{set_ipd}} requires \code{exposure} for the Poisson family;
+\code{log(1) = 0}, so it contributes nothing to the linear predictor.
+The comparator's \code{E} is the matching total, one unit per child.}
 }
+
+\code{log_cfu} is bimodal: 9 of the 103 children (8.7\\%) have no
+detectable baseline count and so sit at exactly 0, and the rest are
+concentrated near 10.9 (SD 0.8). The comparator arm declares this covariate
+as a single normal distribution (\code{log_cfu_mean} 11.0,
+\code{log_cfu_sd} 0.7) because the source trial's comparator arm contains
+no such zeros. Integrating a normal over the comparator therefore puts
+almost no weight where the index arm's zero mode sits, so effects adjusted
+for \code{log_cfu} extrapolate over that part of the covariate space. This
+is a property of the source trial, not of the synthesis; treat it as a
+worked illustration of a covariate whose arms are not fully overlapping.
 }
 \source{
 Simulated (not real patient data), generated with the \pkg{synthpop}
@@ -35,5 +54,15 @@ caries_ipd
 Simulated individual patient data for the index treatment (silver diamine
 fluoride, SDF) in a count-outcome ML-UMR example; pair with
 \code{\link{caries_agd}}. Not real patient data.
+}
+\details{
+The index and comparator arms come from the SAME trial, so both
+carry the study label \code{"Ammar 2025"}. Splitting one randomized trial into a
+single-arm IPD source and a single-arm aggregate source is what makes this
+an unanchored example whose true answer is still known. Because the label
+is shared, \code{\link{combine_data}} warns that IPD and AgD come from
+the same study; that warning is expected here and is the honest reading of
+the data. It does not fire for \code{\link{psoriasis_ipd}} or
+\code{\link{ndmm_ipd}}, whose arms really do come from different trials.
 }
 \keyword{datasets}

@@ -231,23 +231,28 @@ test_that("a deliberate comparator prior survives the prior_beta sweep", {
     class = "mlumr_fit"
   )
 
-  args <- .prior_sensitivity_args(fit, prior_normal(0, 1), verbose = FALSE)
+  # The comparator prior is swept, not held fixed, so the refit's copy is
+  # whatever the caller rescaled for this grid point. It is carried through
+  # unchanged.
+  args <- .prior_sensitivity_args(fit, prior_normal(0, 1), verbose = FALSE,
+                                  prior_beta_comparator_i = tight)
   expect_identical(args$prior_beta_comparator, tight)
   expect_equal(args$prior_beta$sd, 1)
   expect_identical(args$data, fit$data)
 
-  # Not user-specified: it must stay NULL so it keeps tracking the swept prior,
-  # which is what the sweep is measuring.
-  fit$priors$beta_comparator_resolved$user_specified <- FALSE
+  # Omitted (a non-relaxed fit has no comparator coefficients) it stays absent,
+  # so mlumr() is never handed a comparator prior it cannot use.
   args_default <- .prior_sensitivity_args(fit, prior_normal(0, 1),
                                           verbose = FALSE)
   expect_null(args_default$prior_beta_comparator)
 
-  # And it is scenario-defining, so `...` cannot smuggle it in.
+  # `prior_beta_comparator` never reaches `...`: R partial-matches it to the
+  # `prior_beta_comparator_scales` formal, so that argument's own validator
+  # rejects it first. Either way it cannot silently replace the swept prior.
   expect_error(
     prior_sensitivity(fit, prior_beta_scales = c(1, 2),
                       prior_beta_comparator = tight, verbose = FALSE),
-    "scenario-defining"
+    "positive finite"
   )
 })
 

@@ -15,7 +15,7 @@ data {
   array[n_ipd] int<lower=0> y_ipd;
   // Exposure is a log offset in the IPD likelihood. set_ipd() rejects a
   // non-positive exposure, so log(E_ipd) is always finite here.
-  vector<lower=0>[n_ipd] E_ipd;
+  vector<lower=1e-12>[n_ipd] E_ipd;
   int<lower=1> n_cov;
   matrix[n_ipd, n_cov] X_ipd;            // centered covariates (generated quantities)
 
@@ -24,7 +24,7 @@ data {
   array[n_agd_rows] int<lower=0> r_agd;
   // AgD exposure scales the marginal rate into an expected total count.
   // set_agd() rejects a non-positive exposure, so log(E_agd) is finite.
-  array[n_agd_rows] real<lower=0> E_agd;
+  array[n_agd_rows] real<lower=1e-12> E_agd;
 
   // Integration points for AgD
   int<lower=1> n_int;
