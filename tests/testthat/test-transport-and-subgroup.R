@@ -134,11 +134,28 @@ test_that("shared baseline shapes: the target HR is the same estimand as index",
   expect_equal(hr_idx$at_time[1], 0)
 
   # The evaluation time is not a knob when the shapes are shared, on either
-  # route: there is no grid point to snap to.
+  # route: there is no grid point to snap to. Both routes accept the one time
+  # that is true, 0, and reject any other, so the same call behaves the same
+  # way whether or not `newdata` is supplied.
   expect_error(
     suppressMessages(marginal_effects(fit, newdata = ipd_cov, effect = "hr",
                                       at_time = 2)),
     "different baseline shapes"
+  )
+  expect_error(
+    suppressMessages(marginal_effects(fit, population = "index",
+                                      effect = "hr", at_time = 2)),
+    "different baseline shapes"
+  )
+  expect_equal(
+    suppressMessages(marginal_effects(fit, population = "index", effect = "hr",
+                                      at_time = 0))$mean[1],
+    hr_idx$mean[1]
+  )
+  expect_equal(
+    suppressMessages(marginal_effects(fit, newdata = ipd_cov, effect = "hr",
+                                      at_time = 0))$mean[1],
+    hr_tgt$mean[1]
   )
 
   # `tr` is an alias for `hr` on the built-in route; it has to be one here too.
@@ -273,4 +290,24 @@ test_that("a numeric treatment label survives the synthetic origin row", {
   origin_rows <- out[out$time == 0, , drop = FALSE]
   expect_setequal(origin_rows$treatment, c(10, 20))
   expect_true(all(origin_rows$mean == 1))
+})
+
+test_that("survival predictions survive a numeric treatment label", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  # set_ipd()/set_agd() accept numeric and factor treatment identifiers. The
+  # shared-frame refactor built the label column with vapply(character(1)),
+  # which rejects those before any prediction is assembled.
+  dat <- sim_survival_data(seed = 2026, n_ipd = 120, n_agd = 120, n_int = 32)
+  dat$index_treatment <- 1
+  dat$comparator_treatment <- 0
+  fit <- fit_survival_test(dat, distribution = "weibull")
+
+  pr <- suppressMessages(predict(fit, population = "index", type = "survival"))
+  expect_setequal(unique(pr$treatment), c(0, 1))
+  expect_true(all(is.finite(pr$mean)))
+  # The synthetic origin row must not take the origin value as its label.
+  origin <- pr[pr$time == 0, , drop = FALSE]
+  expect_setequal(origin$treatment, c(0, 1))
+  expect_true(all(origin$mean == 1))
 })

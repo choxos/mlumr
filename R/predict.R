@@ -311,10 +311,15 @@ predict.mlumr_fit <- function(object,
                  both = c("index", "comparator"))
   cells <- expand.grid(trt = c("index", "comparator"), pop = pops,
                        stringsAsFactors = FALSE)
-  trt_label <- function(t) if (t == "index") idx_trt else cmp_trt
   pop_label <- function(p) if (p == "index") "Index" else "Comparator"
+  # Index the labels rather than mapping through vapply(): set_ipd()/set_agd()
+  # accept numeric and factor treatment identifiers, and `character(1)` rejects
+  # those before any prediction is assembled. Subsetting preserves whatever
+  # type the fit carries, which is what the per-cell construction this replaced
+  # did.
   cell_labels <- data.frame(
-    treatment = vapply(cells$trt, trt_label, character(1)),
+    treatment = c(idx_trt, cmp_trt)[match(cells$trt,
+                                          c("index", "comparator"))],
     population = vapply(cells$pop, pop_label, character(1)),
     stringsAsFactors = FALSE
   )
@@ -1708,26 +1713,36 @@ marginal_effects <- function(object,
            call. = FALSE)
     }
     if (!is.numeric(at_time) || length(at_time) != 1L || !is.finite(at_time) ||
-          at_time <= 0) {
-      stop("`at_time` must be a single finite positive time. Survival times are ",
-           "positive and the prediction grid excludes 0, so a non-positive ",
-           "value has no nearest fitted time to snap to.", call. = FALSE)
-    }
-    if (!stratified) {
-      stop("`at_time` applies only when the two studies have different ",
-           "baseline shapes. With a shared baseline the scalar HR is the ",
-           "closed-form t -> 0 marginal limit and is not evaluated on the ",
-           "prediction grid; use predict(type = \"loghr\") for the curve.",
+          at_time < 0) {
+      stop("`at_time` must be a single finite non-negative time.",
            call. = FALSE)
     }
-    grid <- object$pred_times
-    hr_index_p <- which.min(abs(grid - at_time))
-    hr_at <- grid[hr_index_p]
-    if (!isTRUE(all.equal(hr_at, at_time))) {
-      message("`at_time = ", format(at_time, digits = 4L), "` is not a fitted ",
-              "prediction time; using the nearest one, t = ",
-              format(hr_at, digits = 4L),
-              ". Refit with that time in `pred_times` for an exact match.")
+    if (!stratified && !isTRUE(all.equal(at_time, 0))) {
+      stop("`at_time` applies only when the two studies have different ",
+           "baseline shapes. With a shared baseline the scalar HR is the ",
+           "closed-form t -> 0 marginal limit, so the only evaluation time it ",
+           "accepts is 0; use predict(type = \"loghr\") for the curve.",
+           call. = FALSE)
+    }
+    if (stratified && at_time <= 0) {
+      stop("`at_time` must be a single finite positive time when the two ",
+           "studies have different baseline shapes. The prediction grid ",
+           "excludes 0, so a non-positive value has no nearest fitted time ",
+           "to snap to.", call. = FALSE)
+    }
+    if (stratified) {
+      # Only the stratified branch reads a time off the grid. With shared
+      # shapes the scalar is the closed-form limit and `hr_index_p` stays NULL,
+      # which is what selects `delta_*` below.
+      grid <- object$pred_times
+      hr_index_p <- which.min(abs(grid - at_time))
+      hr_at <- grid[hr_index_p]
+      if (!isTRUE(all.equal(hr_at, at_time))) {
+        message("`at_time = ", format(at_time, digits = 4L), "` is not a ",
+                "fitted prediction time; using the nearest one, t = ",
+                format(hr_at, digits = 4L),
+                ". Refit with that time in `pred_times` for an exact match.")
+      }
     }
   }
 
