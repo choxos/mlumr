@@ -697,8 +697,37 @@ test_that("the grid comparison never rejects a design the rank screen accepts", 
     if (!isTRUE(f(dec, faithful, ref_sd))) {
       expect_lt(.profile_rank(faithful, ref_sd), .profile_rank(dec, ref_sd))
     }
+    # A grid IDENTICAL to the declared one always reproduces it. This is the
+    # strongest form of the property and holds with no tolerance argument.
+    expect_true(f(dec, dec, ref_sd))
   }
   succeed()
+})
+
+
+test_that("a declared spread sitting exactly on the floor still matches itself", {
+  # `counts` decides which declared directions clear `min_spread` from one
+  # decomposition; the realized side recomputes that same quantity by two
+  # other routes, column norms of the projection and a second decomposition.
+  # The routes agree only to within a few ULPs, so a declared spread landing
+  # exactly on 0.05 was counted by the first and fell a ULP short of the
+  # second, and a grid identical to the declared one was reported as failing
+  # to reproduce it.
+  set.seed(10)
+  n <- 8L
+  p <- 3L
+  basis <- qr.Q(qr(cbind(1, matrix(stats::rnorm(n * (n - 1L)), n, n - 1L))))
+  u <- basis[, -1L][, seq_len(p)]
+  v <- qr.Q(qr(matrix(stats::rnorm(p * p), p, p)))[, seq_len(p)]
+  declared <- u %*% diag(c(1, 0.05, 0.05) * sqrt(n), p) %*% t(v)
+
+  # Two of the three spreads straddle the floor by less than a ULP.
+  centered <- sweep(scale(declared, center = TRUE, scale = FALSE),
+                    2L, c(1, 1, 1), "/")
+  spreads <- svd(centered)$d / sqrt(n)
+  expect_true(any(abs(spreads - 0.05) < 1e-15))
+
+  expect_true(.realized_matches_declared(declared, declared, c(1, 1, 1)))
 })
 
 

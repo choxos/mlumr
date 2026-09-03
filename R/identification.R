@@ -632,7 +632,17 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   clears_floor <- if (is.null(ref_sd)) {
     TRUE
   } else {
-    realized_axis >= min_spread & realized_sv >= min_spread
+    # Compare against the floor with a relative slack. `counts` established
+    # that these declared directions clear `min_spread`, and both realized
+    # measurements recompute that same quantity by a different route (column
+    # norms and a second decomposition of the projection). The routes agree to
+    # within a few ULPs, so a declared spread sitting exactly on 0.05 can be
+    # counted here and fall a ULP short there, and a grid IDENTICAL to the
+    # declared one is reported as failing to reproduce it. The slack is 1e-8
+    # relative, far above that noise and far below any spread difference that
+    # means anything.
+    floor_tol <- min_spread * (1 - 1e-8)
+    realized_axis >= floor_tol & realized_sv >= floor_tol
   }
   all(keeps_share) && all(clears_floor)
 }
