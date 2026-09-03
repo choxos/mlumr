@@ -26,6 +26,10 @@
 
 # Vignette build output
 vignettes/*.html
+# knitr writes figures beside the working directory, so knitting a
+# vignette from the repository root drops a figure/ here. The tracked
+# figures live under vignettes/.
+/figure/
 vignettes/*.pdf
 
 # knitr / R Markdown caches
