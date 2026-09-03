@@ -469,3 +469,16 @@ test_that("a constrained prior below its bound still widens the window", {
   expect_lt(r2[1], 0)
   expect_gt(r2[2], 0)
 })
+
+test_that("the KM layer stays two curves without a population facet", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("survival")
+  dat <- sim_survival_data(seed = 2026, n_ipd = 60, n_agd = 60, n_int = 8)
+  dat$comparator_treatment <- dat$index_treatment
+  # Colour is the treatment label, so with one label both fitted curves fell
+  # into a single ggplot2 group and geom_step() joined their interleaved
+  # points. Faceting by population hid it; a bare plot did not.
+  p <- ggplot2::ggplot() + geom_km(dat)
+  built <- ggplot2::ggplot_build(p)$data[[1]]
+  expect_equal(length(unique(built$group)), 2L)
+})

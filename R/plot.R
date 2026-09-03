@@ -279,10 +279,17 @@ geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
     km$steps <- km$steps[km$steps$treatment %in% treatments, , drop = FALSE]
     km$censor <- km$censor[km$censor$treatment %in% treatments, , drop = FALSE]
   }
+  # Group on the population, not on the colour. Colour is the treatment label,
+  # and when both arms share one label ggplot2 puts the two separately fitted
+  # curves in a single group and `geom_step()` joins their interleaved points
+  # into one invalid curve. Faceting by population happens to hide that, so the
+  # layer would be right or wrong depending on the host plot; grouping here
+  # makes it right on its own.
   layers <- list(
     ggplot2::geom_step(
       data = km$steps,
-      ggplot2::aes(x = .data$time, y = .data$surv, color = .data$treatment),
+      ggplot2::aes(x = .data$time, y = .data$surv, color = .data$treatment,
+                   group = .data$population),
       inherit.aes = FALSE, linewidth = linewidth, ...
     )
   )
@@ -290,7 +297,8 @@ geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
     layers <- c(layers, list(
       ggplot2::geom_point(
         data = km$censor,
-        ggplot2::aes(x = .data$time, y = .data$surv, color = .data$treatment),
+        ggplot2::aes(x = .data$time, y = .data$surv, color = .data$treatment,
+                     group = .data$population),
         inherit.aes = FALSE, shape = 3, size = 1.6, show.legend = FALSE
       )
     ))
