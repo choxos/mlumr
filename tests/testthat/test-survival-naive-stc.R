@@ -335,6 +335,15 @@ test_that("the naive Cox comparison refuses an event-free arm", {
                  cov_means = "age_mean", cov_sds = "age_sd",
                  cov_types = "continuous")
   )
+  dat <- suppressWarnings(add_integration(
+    dat, n_int = 8, verbose = FALSE,
+    age = distr(qnorm, mean = age_mean, sd = age_sd)
+  ))
   expect_error(suppressWarnings(suppressMessages(naive(dat))),
+               "at least one event in each arm")
+  # Same defect in the parametric benchmark: flexsurvreg() returns
+  # optimizer-boundary parameters with a warning rather than failing, so the
+  # RMST difference looked ordinary.
+  expect_error(suppressWarnings(suppressMessages(stc(dat, n_boot = 0L))),
                "at least one event in each arm")
 })

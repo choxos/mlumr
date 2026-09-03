@@ -597,6 +597,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   comp_cov <- .stc_comparator_data(data, cov_names, "survival")$newdata
 
   .validate_stc_survival_right_censored(ipd, pseudo)
+  .validate_stc_survival_events(ipd, pseudo)
 
   point <- .stc_survival_point(ipd, pseudo, cov_names, comp_cov, dist_fs, horizon)
 
@@ -643,6 +644,13 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     boot <- vapply(seq_len(n_boot), function(b) {
       ib <- ipd[sample(nrow(ipd), replace = TRUE), , drop = FALSE]
       pb <- pseudo[sample(nrow(pseudo), replace = TRUE), , drop = FALSE]
+      # A resample can lose every event in an arm. flexsurvreg() then returns
+      # optimizer-boundary parameters with a warning rather than an error, so
+      # the replicate would be counted as a success and its number would enter
+      # the standard error. Treat it as the failed fit it is.
+      if (sum(ib$.status == 1L) == 0L || sum(pb$.status == 1L) == 0L) {
+        return(rep(NA_real_, 4L))
+      }
       tryCatch({
         pt <- .stc_survival_point(ib, pb, cov_names, comp_cov, dist_fs, horizon)
         par_b <- c(NA_real_, NA_real_)
@@ -750,6 +758,26 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     n_boot_out_of_family = n_boot_out_of_family,
     data = data
   )
+}
+
+#' Require events in both arms before a parametric survival STC
+#'
+#' With no events in an arm the likelihood for its event-time distribution has
+#' no finite interior maximum. `flexsurvreg()` returns optimizer-boundary
+#' parameters with a warning rather than failing, after which an RMST
+#' difference and its interval look ordinary.
+#' @keywords internal
+.validate_stc_survival_events <- function(ipd, pseudo) {
+  n_idx <- sum(ipd$.status == 1L)
+  n_cmp <- sum(pseudo$.status == 1L)
+  if (n_idx == 0L || n_cmp == 0L) {
+    stop("Survival STC needs at least one event in each arm: observed ",
+         n_idx, " in the index arm and ", n_cmp, " in the comparator arm. ",
+         "With an event-free arm the parametric survival fit has no finite ",
+         "interior estimate, so the RMST difference it produces is an ",
+         "artifact of where the optimizer stopped.", call. = FALSE)
+  }
+  invisible(TRUE)
 }
 
 #' Validate survival STC input supported by flexsurv formula construction
