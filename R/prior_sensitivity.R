@@ -37,6 +37,15 @@
 #' `prior_normal(0, scale)` at each grid point since exponential has no
 #' scale parameter to vary.
 #'
+#' A relaxed fit whose `prior_beta_comparator` was set deliberately keeps that
+#' prior fixed at its original value across the sweep, because otherwise the
+#' refits would silently drop the regularizer the model was fitted with. That
+#' also bounds what the sweep can tell you: it measures sensitivity to
+#' `prior_beta` alone. An index-population estimand that is in fact driven by
+#' `prior_beta_comparator` can look perfectly insensitive here, so do not read
+#' a flat result as evidence that the comparator prior does not matter. Refit
+#' with different comparator scales to answer that question.
+#'
 #' @return A data frame (tibble-style) with one row per
 #'   (scale, population, quantile) combination and columns `scale`,
 #'   `parameter`, `mean`, `sd`, and the requested quantiles. Side effect:

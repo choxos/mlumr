@@ -485,8 +485,10 @@ mlumr <- function(data,
     } else {
       paste0("You have supplied `prior_beta_comparator`, so those ",
              "coefficients are estimable, but their posterior is driven by ",
-             "that prior rather than by the aggregate likelihood. Check ",
-             "`prior_sensitivity()`, or add jointly-defined subgroup rows.")
+             "that prior rather than by the aggregate likelihood. Refit with ",
+             "different `prior_beta_comparator` scales to see how far the ",
+             "index-population estimand moves, or add jointly-defined ",
+             "subgroup rows.")
     }
     if (family == "normal" && link_info$link == "identity") {
       n_agd_rows_check <- nrow(data$agd$data)
