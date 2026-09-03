@@ -136,3 +136,165 @@ test_that("RMST prediction plots name the restriction time", {
                      class = c("mlumr_prediction", "data.frame"))
   expect_s3_class(plot(pred3), "gg")
 })
+
+
+test_that("the conditional-effects forest reads its null line from the effect", {
+  skip_if_not_installed("ggplot2")
+  mk <- function(effect) {
+    mlumr:::.mlumr_result(
+      data.frame(profile = 1:2, effect = effect, mean = c(1.2, 1.1),
+                 sd = c(.1, .1), q2.5 = c(.9, .8), q97.5 = c(1.6, 1.5)),
+      "mlumr_conditional_effects", family = "poisson")
+  }
+  # The defect: ref_line defaulted to 0 for every effect, so a rate-ratio panel
+  # drew its null off the plotted scale.
+  vline_x <- function(p) {
+    ggplot2::ggplot_build(p)$data[[1]]$xintercept
+  }
+  expect_equal(unique(vline_x(plot(mk("RR")))), 1)
+  expect_equal(unique(vline_x(plot(mk("HR")))), 1)
+  expect_equal(unique(vline_x(plot(mk("EXP_ETA_CONTRAST")))), 1)
+  expect_equal(unique(vline_x(plot(mk("RD")))), 0)
+  expect_equal(unique(vline_x(plot(mk("MD")))), 0)
+  # An explicit override still wins.
+  expect_equal(unique(vline_x(plot(mk("RR"), ref_line = 2))), 2)
+})
+
+test_that("the marginal forest puts EXP_DELTA_ETA on a ratio axis", {
+  skip_if_not_installed("ggplot2")
+  me <- mlumr:::.mlumr_result(
+    data.frame(variable = c("tr_index", "rmst_diff_index"),
+               effect = c("EXP_DELTA_ETA", "RMSTD"),
+               population = c("Index", "Index"),
+               mean = c(1.3, 2.0), sd = c(.1, .3),
+               q2.5 = c(1.0, 1.2), q97.5 = c(1.7, 2.8)),
+    "mlumr_marginal_effects", family = "survival")
+  d <- ggplot2::ggplot_build(plot(me))$data[[1]]
+  expect_setequal(d$xintercept, c(1, 0))
+})
+
+test_that("the interval label reports the coverage actually plotted", {
+  skip_if_not_installed("ggplot2")
+  me <- function(lo, hi) {
+    d <- data.frame(variable = "lor_index", effect = "LOR", population = "Index",
+                    mean = 0.3, sd = 0.1)
+    d[[paste0("q", lo)]] <- 0.1
+    d[[paste0("q", hi)]] <- 0.5
+    mlumr:::.mlumr_result(d, "mlumr_marginal_effects", family = "binomial")
+  }
+  expect_match(plot(me(2.5, 97.5))$labels$x, "95% credible interval", fixed = TRUE)
+  # The label was hard-coded, so an 80% interval was announced as 95%.
+  expect_match(plot(me(10, 90))$labels$x, "80% credible interval", fixed = TRUE)
+})
+
+test_that("an all-ratio forest is drawn on a log axis", {
+  skip_if_not_installed("ggplot2")
+  mk <- function(effects) {
+    mlumr:::.mlumr_result(
+      data.frame(variable = paste0("v", seq_along(effects)), effect = effects,
+                 population = "Index", mean = rep(1.2, length(effects)),
+                 sd = 0.1, q2.5 = 0.9, q97.5 = 1.6),
+      "mlumr_marginal_effects", family = "survival")
+  }
+  is_log <- function(p) {
+    any(vapply(p$scales$scales, function(s) identical(s$trans$name, "log-10"),
+               logical(1)))
+  }
+  # 0.5 and 2 are the same effect in opposite directions and must sit at equal
+  # distances from the null, which an identity axis does not do.
+  expect_true(is_log(plot(mk(c("HR", "RMSTR")))))
+  # A mixed panel set cannot: an additive measure has no log axis.
+  expect_false(is_log(plot(mk(c("HR", "RMSTD")))))
+})
+
+test_that("a time-specific hazard ratio carries its evaluation time", {
+  skip_if_not_installed("ggplot2")
+  mk <- function(at) {
+    mlumr:::.mlumr_result(
+      data.frame(variable = "hr_index", effect = "HR", population = "Index",
+                 at_time = at, mean = 0.8, sd = 0.1, q2.5 = 0.6, q97.5 = 1.1),
+      "mlumr_marginal_effects", family = "survival")
+  }
+  lv <- levels(ggplot2::ggplot_build(plot(mk(12)))$plot$data$.facet)
+  expect_true(any(grepl("t = 12", lv)))
+  # Forests at two evaluation times were labelled identically although they are
+  # different estimands.
+  expect_false(identical(
+    levels(ggplot2::ggplot_build(plot(mk(36)))$plot$data$.facet), lv
+  ))
+  mixed <- mlumr:::.mlumr_result(
+    data.frame(variable = c("hr_index", "hr_comparator"), effect = "HR",
+               population = c("Index", "Comparator"), at_time = c(12, 36),
+               mean = 0.8, sd = 0.1, q2.5 = 0.6, q97.5 = 1.1),
+    "mlumr_marginal_effects", family = "survival")
+  expect_error(plot(mixed), "mix evaluation times")
+})
+
+test_that("mlumr_forest keeps its null line on a log axis and in view", {
+  skip_if_not_installed("ggplot2")
+  d <- data.frame(label = c("A", "B"), est = c(0.5, 2),
+                  lo = c(0.25, 1), hi = c(1, 4))
+  # ref_line defaulted to 0, which log10() sends to -Inf, so no null was drawn.
+  # Built coordinates are on the transformed scale, so the null at 1 lands on
+  # log10(1) = 0; what matters is that it is finite and therefore drawn.
+  vl <- ggplot2::ggplot_build(mlumr_forest(d, log_x = TRUE))$data[[1]]$xintercept
+  expect_true(all(is.finite(vl)))
+  expect_equal(unique(vl), 0)
+  expect_error(mlumr_forest(d, log_x = TRUE, ref_line = 0), "must be positive")
+
+  # Clipping is about one wide interval, not about hiding the null.
+  far <- data.frame(label = c("A", "B", "C"), est = c(10, 11, 12),
+                    lo = c(9, 10, -100), hi = c(11, 12, 100))
+  p <- mlumr_forest(far, ref_line = 0)
+  xr <- ggplot2::ggplot_build(p)$layout$panel_params[[1]]$x.range
+  expect_lte(xr[1], 0)
+})
+
+test_that("mlumr_forest refuses to put two effect scales on one axis", {
+  skip_if_not_installed("ggplot2")
+  d <- data.frame(label = c("A", "B"), effect = c("LOG_HR", "HR"),
+                  est = c(log(2), 2), lo = c(log(1.2), 1.2),
+                  hi = c(log(3), 3))
+  expect_error(mlumr_forest(d), "same effect scale")
+})
+
+test_that("plot_prior_posterior uses each parameter's own prior", {
+  skip_if_not_installed("ggplot2")
+  fit <- structure(
+    list(
+      family = "normal", model = "spfa", link = "identity",
+      data = list(covariates = "age"),
+      draws = data.frame(mu_index = stats::rnorm(200),
+                         sigma = abs(stats::rnorm(200)) + 0.2),
+      priors = list(intercept = prior_normal(0, 10),
+                    sigma = prior_exponential(1))
+    ),
+    class = "mlumr_fit"
+  )
+  p <- plot_prior_posterior(fit, pars = c("mu_index", "sigma"))
+  pd <- p$layers[[2]]$data
+  # sigma is declared <lower=0>; the intercept prior put mass below zero there.
+  expect_true(all(pd$density[pd$parameter == "sigma" & pd$value < 0] == 0) ||
+                all(pd$value[pd$parameter == "sigma"] >= 0))
+  expect_gt(max(pd$density[pd$parameter == "sigma"]),
+            max(pd$density[pd$parameter == "mu_index"]))
+  # A parameter with no recorded prior is refused rather than given someone
+  # else's.
+  fit$draws$nuisance <- stats::rnorm(200)
+  expect_error(plot_prior_posterior(fit, pars = "nuisance"), "No prior is recorded")
+})
+
+test_that("the observed KM curves stay in the population they were measured in", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("survival")
+  dat <- sim_survival_data(seed = 2026, n_ipd = 60, n_agd = 60, n_int = 8)
+  layers <- geom_km(dat)
+  km <- layers[[1]]$data
+  # plot() facets by population, and a layer with no `population` column is
+  # drawn into EVERY facet, so both observed curves appeared in both panels.
+  expect_true("population" %in% names(km))
+  expect_setequal(unique(km$population), c("Index", "Comparator"))
+  idx_trt <- dat$index_treatment
+  expect_true(all(km$population[km$treatment == idx_trt] == "Index"))
+  expect_true(all(km$population[km$treatment != idx_trt] == "Comparator"))
+})

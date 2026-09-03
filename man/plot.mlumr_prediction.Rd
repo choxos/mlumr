@@ -22,7 +22,8 @@ A \code{ggplot} object (compose further layers, e.g. a KM overlay, with \code{+}
 \description{
 Dispatches on the prediction \code{type}: time-indexed types
 (\code{"survival"}, \code{"hazard"}, \code{"cumhaz"}, \code{"loghr"}) are drawn as curves with
-95\% credible bands; scalar types (\code{"rmst"}, \code{"median"}, \code{"response"}) as
+credible bands at the coverage the result was summarized with; scalar types
+(\code{"rmst"}, \code{"median"}, \code{"response"}) as
 point-intervals. The mlumr analogue of \code{plot(predict(multinma_fit))}.
 }
 \examples{

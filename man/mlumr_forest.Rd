@@ -6,7 +6,7 @@
 \usage{
 mlumr_forest(
   data,
-  ref_line = 0,
+  ref_line = NULL,
   log_x = FALSE,
   x = NULL,
   title = NULL,
@@ -24,8 +24,11 @@ estimate from \code{est} / \code{estimate} / \code{mean}; the interval bounds fr
 \code{lo}/\code{hi}, \code{q2.5}/\code{q97.5}, \code{ci_lower}/\code{ci_upper}, \code{conf.low}/\code{conf.high}, or
 \code{lower}/\code{upper}.}
 
-\item{ref_line}{Null-effect reference line (default \code{0}; pass \code{1} for ratio
-measures).}
+\item{ref_line}{Null-effect reference line. Defaults to \code{1} when
+\code{log_x = TRUE} and \code{0} otherwise, so a ratio axis gets its own null rather
+than one that log-transforms to \code{-Inf} and disappears. Kept inside the
+clipping window, so a forest whose estimates sit far from the null still
+shows it.}
 
 \item{log_x}{Draw the x axis on a log10 scale (for ratio measures).}
 
@@ -50,6 +53,11 @@ profiles. Rows are drawn top-to-bottom in the order given. Returns a \code{ggplo
 object, so further ggplot2 layers compose with \code{+}. This keeps the
 method-comparison forests in the vignettes to a single line instead of a
 hand-built \code{ggplot()} stack.
+}
+\details{
+All rows share one axis, so they must be on one effect scale: a frame with an
+\code{effect} column naming more than one measure is rejected rather than drawn
+against a single reference that cannot be right for both.
 }
 \examples{
 \dontrun{

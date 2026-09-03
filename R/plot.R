@@ -46,10 +46,59 @@
   ifelse(toupper(effect) %in% .ratio_measures, 1, 0)
 }
 
+# Coverage of the interval actually being drawn, read off the quantile columns.
+# It was hard-coded to 95%, so `probs = c(0.10, 0.90)` drew an 80% interval
+# under an axis labelled "95% credible interval".
+#' @keywords internal
+.ci_label <- function(ci) {
+  lo <- as.numeric(sub("^q", "", ci$lo))
+  hi <- as.numeric(sub("^q", "", ci$hi))
+  sprintf("%g%% credible interval", hi - lo)
+}
+
+# Ratio measures are multiplicative: 0.5 and 2 are the same effect in opposite
+# directions and belong at equal distances from the null. On an identity axis
+# they are not, which misreads a forest. A log axis fixes that, but ggplot2
+# applies one transform to the whole plot, and an additive measure cannot go on
+# a log axis at all (its values can be zero or negative). So the transform is
+# applied only when every panel shown is a ratio measure; a mixed panel set
+# keeps identity axes.
+#' @keywords internal
+.all_ratio_measures <- function(effects) {
+  e <- toupper(unique(effects))
+  length(e) > 0L && all(e %in% .ratio_measures)
+}
+
+# Marginal hazard ratios are non-collapsible and therefore time-varying, so the
+# scalar is only an estimand together with its evaluation time. Two forests from
+# `at_time = 12` and `at_time = 36` were labelled identically. Fold the time into
+# the facet label, and refuse to draw one panel that mixes evaluation times.
+#' @keywords internal
+.effect_facet_labels <- function(df) {
+  if (is.null(df$at_time)) return(df$effect)
+  labs <- vapply(split(seq_len(nrow(df)), df$effect), function(idx) {
+    times <- unique(df$at_time[idx])
+    times <- times[!is.na(times)]
+    eff <- df$effect[idx[1]]
+    if (length(times) > 1L) {
+      stop("One `", eff, "` panel cannot mix evaluation times (",
+           paste(format(times, digits = 4L), collapse = ", "),
+           "): a marginal hazard ratio is non-collapsible, so those are ",
+           "different estimands. Plot them separately.", call. = FALSE)
+    }
+    if (length(times) == 0L) eff else sprintf("%s at t = %s", eff,
+                                              format(times, digits = 4L))
+  }, character(1))
+  unname(labs[as.character(df$effect)])
+}
+
 #' Forest plot of population-standardized marginal effects
 #'
-#' Plots the point estimate and 95% credible interval for each effect measure,
-#' grouped by target population (index / comparator). The mlumr analogue of
+#' Plots the point estimate and credible interval for each effect measure,
+#' grouped by target population (index / comparator). The interval's coverage is
+#' read from the quantile columns present, so it matches the `probs` the result
+#' was summarized with. Panels showing only ratio measures are drawn on a log
+#' axis, where reciprocal effects sit at equal distances from the null. The mlumr analogue of
 #' `plot(multinma::relative_effects(fit))`.
 #'
 #' @param x A `marginal_effects()` result.
@@ -75,16 +124,18 @@ plot.mlumr_marginal_effects <- function(x, ref_line = NULL, ...) {
   df$.lo <- df[[ci$lo]]
   df$.hi <- df[[ci$hi]]
   df$population <- factor(df$population, levels = unique(df$population))
+  df$.facet <- .effect_facet_labels(df)
+  df$.facet <- factor(df$.facet, levels = unique(df$.facet))
 
   # Per-facet null line: user override, else 1 for ratio measures, 0 otherwise.
-  ref_df <- data.frame(effect = unique(df$effect))
+  ref_df <- unique(df[, c("effect", ".facet"), drop = FALSE])
   ref_df$ref <- if (!is.null(ref_line)) {
     ref_line[1]
   } else {
     .null_ref_for(ref_df$effect)
   }
 
-  ggplot2::ggplot(df, ggplot2::aes(x = .data$mean, y = .data$population)) +
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = .data$mean, y = .data$population)) +
     ggplot2::geom_vline(
       data = ref_df,
       ggplot2::aes(xintercept = .data$ref),
@@ -94,11 +145,13 @@ plot.mlumr_marginal_effects <- function(x, ref_line = NULL, ...) {
       orientation = "y", width = 0.16, color = "#3B6B9A"
     ) +
     ggplot2::geom_point(size = 2.6, color = "#3B6B9A") +
-    ggplot2::facet_wrap(~ .data$effect, scales = "free_x") +
-    ggplot2::labs(x = "Estimate (95% credible interval)", y = NULL,
+    ggplot2::facet_wrap(~ .data$.facet, scales = "free_x") +
+    ggplot2::labs(x = sprintf("Estimate (%s)", .ci_label(ci)), y = NULL,
                   caption = .rmst_caption(x, df$effect)) +
     ggplot2::theme_minimal(base_size = 11) +
     ggplot2::theme(panel.grid.minor = ggplot2::element_blank())
+  if (.all_ratio_measures(df$effect)) p <- p + ggplot2::scale_x_log10()
+  p
 }
 
 
@@ -166,7 +219,11 @@ plot.mlumr_marginal_effects <- function(x, ref_line = NULL, ...) {
 #' @param linewidth Step line width (default `0.4`).
 #' @param ... Passed to [ggplot2::geom_step()].
 #' @return A list of ggplot2 layers (a step layer, plus a censoring-mark layer
-#'   when `marks = TRUE`) to add to a plot with `+`.
+#'   when `marks = TRUE`) to add to a plot with `+`. The layers carry the
+#'   population each observed arm was measured in, so on a plot faceted by
+#'   population each curve appears only in its own panel. A plot standardized to
+#'   a `newdata` target therefore shows no observed curve, which is correct:
+#'   no arm was observed in that population.
 #' @seealso [plot.mlumr_prediction()]
 #' @export
 #' @examples
@@ -250,7 +307,15 @@ geom_km <- function(data, treatments = NULL, marks = TRUE, linewidth = 0.4, ...)
   }
   sf <- survival::survfit0(km_fit)
   trt <- rep(sub("treatment=", "", names(sf$strata)), sf$strata)
-  steps <- data.frame(time = sf$time, surv = sf$surv, treatment = trt)
+  # Carry the population each observed arm was measured in. plot() facets the
+  # predictions by population, and a layer with no `population` column is drawn
+  # into EVERY facet, so both observed curves appeared in both panels: an
+  # observed index-population curve sat next to comparator-standardized
+  # predictions, and vice versa. Each study contributes one arm, so the arm
+  # identifies its population.
+  pop <- ifelse(trt == data$index_treatment, "Index", "Comparator")
+  steps <- data.frame(time = sf$time, surv = sf$surv, treatment = trt,
+                      population = pop)
   cens <- if (!is.null(sf$n.censor)) {
     steps[sf$n.censor > 0, , drop = FALSE]
   } else {
@@ -263,7 +328,8 @@ geom_km <- function(data, treatments = NULL, marks = TRUE, linewidth = 0.4, ...)
 #'
 #' Dispatches on the prediction `type`: time-indexed types
 #' (`"survival"`, `"hazard"`, `"cumhaz"`, `"loghr"`) are drawn as curves with
-#' 95% credible bands; scalar types (`"rmst"`, `"median"`, `"response"`) as
+#' credible bands at the coverage the result was summarized with; scalar types
+#' (`"rmst"`, `"median"`, `"response"`) as
 #' point-intervals. The mlumr analogue of `plot(predict(multinma_fit))`.
 #'
 #' @param x A `predict()` result (an `mlumr_prediction`).
@@ -358,6 +424,18 @@ plot.mlumr_prediction <- function(x, ref_line = NULL, ...) {
       xlab <- sprintf("Restricted mean survival time (tau = %.4g)", tau)
     }
   }
+  # A median summary drops the draws whose fitted survival never reaches 0.5 on
+  # the prediction grid, so it is conditional on the median being reached. Drawn
+  # as a plain point-interval with that fraction unmentioned, a summary of the
+  # 10% of draws that did reach it reads as an ordinary posterior median.
+  if (identical(ptype, "median") && !is.null(df$p_not_reached) &&
+        any(df$p_not_reached > 0, na.rm = TRUE)) {
+    worst <- max(df$p_not_reached, na.rm = TRUE)
+    cap <- sprintf(paste0("Conditional on the median being reached on the ",
+                          "prediction grid; up to %.0f%% of draws never reach ",
+                          "it and are excluded."), 100 * worst)
+    xlab <- paste0(xlab, " (conditional)")
+  }
   dodge <- ggplot2::position_dodge(width = 0.5)
   base_aes <- if (has_pop) {
     ggplot2::aes(x = .data$mean, y = .data[[yvar]], color = .data$population)
@@ -448,8 +526,87 @@ plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
     p <- p + ggplot2::facet_wrap(~ .data$effect, scales = "free_x")
   }
   p + ggplot2::geom_point(size = 2.6, color = "#3B6B9A") +
-    ggplot2::labs(x = "Conditional effect (95% credible interval)", y = "Covariate profile") +
+    ggplot2::labs(x = sprintf("Conditional effect (%s)",
+                              if (is.null(ci)) "point estimate" else .ci_label(ci)),
+                  y = "Covariate profile") +
     ggplot2::theme_minimal(base_size = 11)
+}
+
+#' Prior a fitted parameter was actually given
+#'
+#' `plot_prior_posterior()` drew `prior_intercept` over every parameter, so
+#' `pars = "sigma"` was overlaid with a symmetric normal that puts mass on
+#' impossible negative values. Each parameter is mapped to the prior the fit
+#' records for it, with the Stan `<lower=0>` constraint carried along so a
+#' constrained parameter gets the truncated density rather than the full one.
+#'
+#' @param object An `mlumr_fit`.
+#' @param par One draw column name.
+#' @return A list with `prior` (a prior specification) and `lower` (the support
+#'   bound), or `NULL` when the fit records no prior for that parameter.
+#' @keywords internal
+.parameter_prior <- function(object, par) {
+  priors <- object$priors %||% list()
+  base <- sub("\\[[0-9]+\\]$", "", par)
+  idx <- suppressWarnings(as.integer(sub("^.*\\[([0-9]+)\\]$", "\\1", par)))
+  if (base %in% c("mu_index", "mu_comparator")) {
+    return(list(prior = priors$intercept, lower = -Inf))
+  }
+  # Stan declares these <lower=0>, which truncates rather than folds.
+  if (base == "sigma") return(list(prior = priors$sigma, lower = 0))
+  if (base %in% c("aux_val", "aux_val_cmp", "aux2_val", "aux2_val_cmp")) {
+    return(list(prior = priors$aux, lower = 0))
+  }
+  if (base == "sigma_smooth") return(list(prior = priors$smooth, lower = 0))
+  res <- if (base %in% c("beta", "beta_index")) {
+    priors$beta_resolved
+  } else if (base == "beta_comparator") {
+    priors$beta_comparator_resolved
+  } else {
+    NULL
+  }
+  if (!is.null(res) && !is.na(idx) && idx >= 1L && idx <= length(res$mean)) {
+    # The resolved struct is post-autoscaling, which is the prior the sampler
+    # saw and therefore the one to draw against these draws.
+    return(list(
+      prior = list(distribution = if (isTRUE(res$dist == 1L)) "student_t" else "normal",
+                   mean = res$mean[idx], sd = res$sd[idx], df = res$df),
+      lower = -Inf
+    ))
+  }
+  NULL
+}
+
+#' Density function of a prior specification, truncated at `lower`
+#' @keywords internal
+.prior_density_fun <- function(pr, lower = -Inf) {
+  if (is.null(pr)) return(NULL)
+  dist <- pr$distribution %||% "normal"
+  m <- pr$mean %||% 0
+  sd <- pr$sd %||% 10
+  df <- pr$df
+  base <- switch(
+    dist,
+    normal = function(z) stats::dnorm(z, mean = m, sd = sd),
+    student_t = function(z) stats::dt((z - m) / sd, df = df) / sd,
+    cauchy = function(z) stats::dcauchy(z, location = m, scale = sd),
+    exponential = function(z) stats::dexp(z, rate = pr$rate %||% (1 / sd)),
+    NULL
+  )
+  if (is.null(base)) return(NULL)
+  if (!is.finite(lower) || identical(dist, "exponential")) return(base)
+  # A <lower=0> declaration truncates the prior and Stan renormalizes it, so the
+  # curve drawn here has to be renormalized the same way rather than showing the
+  # untruncated density at half the height.
+  mass <- switch(
+    dist,
+    normal = stats::pnorm(lower, mean = m, sd = sd, lower.tail = FALSE),
+    student_t = stats::pt((lower - m) / sd, df = df, lower.tail = FALSE),
+    cauchy = stats::pcauchy(lower, location = m, scale = sd, lower.tail = FALSE),
+    1
+  )
+  if (!is.finite(mass) || mass <= 0) return(NULL)
+  function(z) ifelse(z < lower, 0, base(z) / mass)
 }
 
 #' Prior-versus-posterior overlay
@@ -481,24 +638,20 @@ plot_prior_posterior <- function(object, pars = c("mu_index", "mu_comparator"),
   if (!length(pars)) {
     stop("None of `pars` are in the fit's posterior draws.", call. = FALSE)
   }
-  # The intercepts share prior_intercept; this is the documented use. Overlaying
-  # this prior on a non-intercept parameter (e.g. a regression coefficient) draws
-  # the wrong reference curve, so warn rather than mislead.
-  non_intercept <- setdiff(pars, c("mu_index", "mu_comparator"))
-  if (length(non_intercept)) {
-    warning(
-      "plot_prior_posterior() overlays the intercept prior (prior_intercept) ",
-      "for every parameter; for non-intercept parameter(s) ",
-      paste(non_intercept, collapse = ", "),
-      " the prior curve shown is only an approximation, not the parameter's ",
-      "own prior.",
-      call. = FALSE
-    )
+  # Each parameter gets the prior the fit records for IT. Drawing
+  # `prior_intercept` over everything put a symmetric normal, with mass on
+  # negative values, over a parameter Stan declares `<lower=0>`.
+  resolved <- lapply(pars, function(p) .parameter_prior(object, p))
+  names(resolved) <- pars
+  unknown <- pars[vapply(resolved, function(r) is.null(r) || is.null(r$prior),
+                         logical(1))]
+  if (length(unknown)) {
+    stop("No prior is recorded on the fit for parameter(s) ",
+         paste(unknown, collapse = ", "),
+         ". plot_prior_posterior() draws each parameter against its own prior ",
+         "and will not substitute another one; use prior_summary() to see ",
+         "which priors this fit carries.", call. = FALSE)
   }
-  pr <- object$priors$intercept
-  prior_mean <- pr$mean %||% 0
-  prior_sd <- pr$sd %||% 10
-  prior_df <- pr$df
 
   long <- do.call(rbind, lapply(pars, function(p) {
     data.frame(
@@ -506,19 +659,32 @@ plot_prior_posterior <- function(object, pars = c("mu_index", "mu_comparator"),
       stringsAsFactors = FALSE
     )
   }))
-  prior_fun <- if (!is.null(prior_df) && !is.na(prior_df)) {
-    function(z) stats::dt((z - prior_mean) / prior_sd, df = prior_df) / prior_sd
-  } else {
-    function(z) stats::dnorm(z, mean = prior_mean, sd = prior_sd)
-  }
+  # ggplot2 applies one stat_function to every facet, so the prior curves are
+  # evaluated here, per parameter, over that parameter's own posterior range.
+  prior_df <- do.call(rbind, lapply(pars, function(p) {
+    v <- as.numeric(draws[[p]])
+    r <- resolved[[p]]
+    fun <- .prior_density_fun(r$prior, r$lower)
+    if (is.null(fun)) {
+      stop("The prior recorded for `", p, "` has no density this function can ",
+           "draw.", call. = FALSE)
+    }
+    lo <- min(v)
+    hi <- max(v)
+    pad <- 0.15 * (hi - lo)
+    grid <- seq(max(lo - pad, r$lower), hi + pad, length.out = 256)
+    data.frame(parameter = p, value = grid, density = fun(grid),
+               stringsAsFactors = FALSE)
+  }))
 
   ggplot2::ggplot(long, ggplot2::aes(.data$value)) +
     ggplot2::geom_density(ggplot2::aes(color = "posterior"),
       fill = "#3B6B9A", alpha = 0.15, linewidth = 0.7
     ) +
-    ggplot2::stat_function(
-      fun = prior_fun, ggplot2::aes(color = "prior"),
-      linetype = "dashed"
+    ggplot2::geom_line(
+      data = prior_df,
+      ggplot2::aes(x = .data$value, y = .data$density, color = "prior"),
+      inherit.aes = FALSE, linetype = "dashed"
     ) +
     ggplot2::facet_wrap(~ .data$parameter, scales = "free") +
     ggplot2::scale_color_manual(values = c(posterior = "#3B6B9A", prior = "gray45")) +
@@ -536,14 +702,21 @@ plot_prior_posterior <- function(object, pars = c("mu_index", "mu_comparator"),
 #' method-comparison forests in the vignettes to a single line instead of a
 #' hand-built `ggplot()` stack.
 #'
+#' All rows share one axis, so they must be on one effect scale: a frame with an
+#' `effect` column naming more than one measure is rejected rather than drawn
+#' against a single reference that cannot be right for both.
+#'
 #' @param data A data frame with one row per estimate. Columns are matched
 #'   flexibly (first match wins): the row label from `label` / `method` /
 #'   `Method` / `Comparison` (else the first character/factor column); the point
 #'   estimate from `est` / `estimate` / `mean`; the interval bounds from
 #'   `lo`/`hi`, `q2.5`/`q97.5`, `ci_lower`/`ci_upper`, `conf.low`/`conf.high`, or
 #'   `lower`/`upper`.
-#' @param ref_line Null-effect reference line (default `0`; pass `1` for ratio
-#'   measures).
+#' @param ref_line Null-effect reference line. Defaults to `1` when
+#'   `log_x = TRUE` and `0` otherwise, so a ratio axis gets its own null rather
+#'   than one that log-transforms to `-Inf` and disappears. Kept inside the
+#'   clipping window, so a forest whose estimates sit far from the null still
+#'   shows it.
 #' @param log_x Draw the x axis on a log10 scale (for ratio measures).
 #' @param x,title,subtitle Axis label and titles (passed to [ggplot2::labs()]).
 #' @param color Point and interval color.
@@ -566,11 +739,29 @@ plot_prior_posterior <- function(object, pars = c("mu_index", "mu_comparator"),
 #' )
 #' mlumr_forest(forest_df, ref_line = 0, x = "Log odds ratio")
 #' }
-mlumr_forest <- function(data, ref_line = 0, log_x = FALSE,
+mlumr_forest <- function(data, ref_line = NULL, log_x = FALSE,
                          x = NULL, title = NULL, subtitle = NULL,
                          color = "#3B6B9A", clip = TRUE, ...) {
   .need_ggplot2()
   df <- as.data.frame(data)
+  # The null of a ratio axis is 1, not 0. A fixed default of 0 was sent to
+  # log10(0) = -Inf by `log_x = TRUE`, so the reference line silently vanished
+  # from exactly the plots that most need one.
+  if (is.null(ref_line)) ref_line <- if (isTRUE(log_x)) 1 else 0
+  if (isTRUE(log_x) && any(ref_line <= 0)) {
+    stop("`ref_line` must be positive when `log_x = TRUE`: a log axis has no ",
+         "position for zero or a negative value.", call. = FALSE)
+  }
+  # One axis carries one scale. A frame holding both LOG_HR and HR would put
+  # log(2) and 2 against a single reference, which reads as two very different
+  # effects when they are the same one written twice.
+  if ("effect" %in% names(df) && length(unique(df$effect)) > 1L) {
+    stop("mlumr_forest() draws one axis, so every row must be on the same ",
+         "effect scale; this frame mixes ",
+         paste(unique(df$effect), collapse = ", "),
+         ". Split it, or drop the `effect` column if the rows really are ",
+         "comparable.", call. = FALSE)
+  }
   pick <- function(cands, what) {
     hit <- intersect(cands, names(df))
     if (!length(hit)) {
@@ -605,6 +796,17 @@ mlumr_forest <- function(data, ref_line = 0, log_x = FALSE,
   fwd <- if (isTRUE(log_x)) function(z) log10(z) else function(z) z
   inv <- if (isTRUE(log_x)) function(z) 10^z else function(z) z
   lim <- .forest_clip_range(fwd(pdat$.est), fwd(pdat$.lo), fwd(pdat$.hi), clip)
+  # Clipping is about keeping one very wide interval from squeezing the rest,
+  # not about hiding the null. With estimates far from it the computed viewport
+  # can exclude the reference entirely, leaving a forest with no null line at
+  # all, so widen the window to keep it in view.
+  if (!is.null(lim)) {
+    ref_f <- fwd(ref_line[is.finite(ref_line)])
+    ref_f <- ref_f[is.finite(ref_f)]
+    if (length(ref_f)) {
+      lim <- c(min(lim[1], min(ref_f)), max(lim[2], max(ref_f)))
+    }
+  }
 
   pdat$.dlo <- pdat$.lo
   pdat$.dhi <- pdat$.hi

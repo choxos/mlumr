@@ -22,7 +22,11 @@ observed and predicted curves refer to the same population).}
 }
 \value{
 A list of ggplot2 layers (a step layer, plus a censoring-mark layer
-when \code{marks = TRUE}) to add to a plot with \code{+}.
+when \code{marks = TRUE}) to add to a plot with \code{+}. The layers carry the
+population each observed arm was measured in, so on a plot faceted by
+population each curve appears only in its own panel. A plot standardized to
+a \code{newdata} target therefore shows no observed curve, which is correct:
+no arm was observed in that population.
 }
 \description{
 Returns ggplot2 layers drawing the observed Kaplan-Meier step curves (the

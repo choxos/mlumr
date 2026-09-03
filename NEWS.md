@@ -161,12 +161,21 @@
 * Each forest draws the null line implied by the measure it is showing, per
   facet: 0 for differences and log scales, 1 for the risk ratio, rate ratio,
   hazard ratio, time ratio, RMST ratio, and the two exponentiated survival
-  contrasts.
+  contrasts. A forest showing only ratio measures is drawn on a log axis, so
+  reciprocal effects sit at equal distances from the null. The interval's
+  coverage is read from the quantiles the result carries rather than assumed to
+  be 95%, and a time-specific marginal hazard ratio is labelled with the
+  evaluation time it belongs to.
 * **`geom_km()`** overlays the observed Kaplan-Meier curves (from the
   `mlumr_data` object) on a model survival plot, colored by treatment and
-  honoring delayed entry.
+  honoring delayed entry. Each curve carries the population its arm was
+  measured in, so on a plot faceted by population it appears only in its own
+  panel.
 * **`plot_prior_posterior()`** (exported; the `multinma` name) overlays the
-  posterior of named parameters on their prior, read from the fit.
+  posterior of named parameters on the prior the fit records for each of them,
+  including the `<lower=0>` truncation for the constrained ones. A parameter
+  the fit carries no prior for is refused rather than drawn against another
+  parameter's.
 * **`mlumr_forest()`** draws a forest plot from a plain data frame of estimates
   and interval bounds, for comparisons the `plot()` methods do not cover because
   they mix estimators: putting `naive()`, `stc()`, and both ML-UMR models on one

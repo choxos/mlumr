@@ -19,8 +19,11 @@ facet. Pass a single value to override for all panels.}
 A \code{ggplot} object.
 }
 \description{
-Plots the point estimate and 95\% credible interval for each effect measure,
-grouped by target population (index / comparator). The mlumr analogue of
+Plots the point estimate and credible interval for each effect measure,
+grouped by target population (index / comparator). The interval's coverage is
+read from the quantile columns present, so it matches the \code{probs} the result
+was summarized with. Panels showing only ratio measures are drawn on a log
+axis, where reciprocal effects sit at equal distances from the null. The mlumr analogue of
 \code{plot(multinma::relative_effects(fit))}.
 }
 \examples{
