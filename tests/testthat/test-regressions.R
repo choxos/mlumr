@@ -811,6 +811,32 @@ test_that("the WEAK flag uses the same floor as the rank screen", {
 })
 
 
+test_that("a threshold that is not a number is rejected, not silently NA", {
+  # `NA` and `NaN` are not thresholds. Comparing against one returns NA rather
+  # than a verdict, and the NA surfaced far from its cause: `.profile_rank()`
+  # answered `NA_integer_`, and `.realized_matches_declared()` died at
+  # `if (!any(counts))` with "missing value where TRUE/FALSE needed".
+  declared <- cbind(c(-1, 1))
+  for (bad in list(NA, NA_real_, NaN)) {
+    expect_error(.profile_rank(declared, 1, min_spread = bad),
+                 "must be a number")
+    matches <- function() {
+      .realized_matches_declared(declared, declared, 1, min_spread = bad)
+    }
+    expect_error(matches(), "must be a number")
+  }
+
+  # An infinite threshold IS coherent: nothing clears `Inf`, everything clears
+  # `-Inf`. Those keep working, on a bare comparison, since there is no slack
+  # to compute from an infinity.
+  expect_false(.at_least(1, Inf))
+  expect_true(.at_least(1, -Inf))
+  expect_true(.realized_matches_declared(declared, declared, 1,
+                                         min_spread = Inf))
+  expect_equal(.profile_rank(declared, 1, min_spread = Inf), 1L)
+})
+
+
 test_that("a declared spread sitting exactly on the floor still matches itself", {
   # `counts` decides which declared directions clear `min_spread` from one
   # decomposition; the realized side recomputes that same quantity by two

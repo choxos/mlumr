@@ -319,10 +319,16 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 # `x >= threshold`, tolerant of the ULP-scale disagreement between those
 # routes. Scaled by the threshold, so it means the same thing at any spread.
 .at_least <- function(x, threshold) {
-  # A non-finite threshold has no slack to compute: `Inf - Inf * tol` is NaN,
-  # and the NA that follows reaches `if (!any(counts))` as a condition rather
-  # than as a verdict. Compare bare instead, which is what the callers did
-  # before there was a tolerance.
+  # `NA` and `NaN` are not thresholds, and letting them through returns NA
+  # rather than a verdict: `.profile_rank()` then answers `NA_integer_` and
+  # `.realized_matches_declared()` dies at `if (!any(counts))` with "missing
+  # value where TRUE/FALSE needed", neither of which names the cause.
+  if (anyNA(threshold)) {
+    stop("`min_spread` must be a number, not NA or NaN.", call. = FALSE)
+  }
+  # An infinite threshold is coherent (nothing clears `Inf`, everything clears
+  # `-Inf`) but has no slack to compute: `Inf - Inf * tol` is NaN. Compare
+  # bare, which is what the callers did before there was a tolerance.
   if (!all(is.finite(threshold))) {
     return(x >= threshold)
   }
