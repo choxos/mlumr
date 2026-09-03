@@ -296,6 +296,29 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 }
 
 
+# Relative slack for every comparison of a spread against a threshold in this
+# file. `.profile_rank()`, the `counts` mask and both realized-grid tests
+# measure the same geometry through different routes: a full decomposition of
+# the declared design, the column norms of a projection, and a second
+# decomposition of that projection. The routes agree only to within a few
+# ULPs, so comparing any of them against a bare threshold lets one design fall
+# on opposite sides of the same question depending on which route asked it.
+#
+# That is not hypothetical in either direction. A grid identical to the
+# declared means was reported as failing to reproduce them, and adding a slack
+# to only one of the four comparisons merely moved the disagreement: a
+# realized spread in [0.05 * (1 - 1e-8), 0.05) then cleared the floor here
+# while `.profile_rank()` counted that direction as lost. One tolerance
+# applied at every such comparison is what keeps the screens consistent.
+.spread_tol <- 1e-8
+
+# `x >= threshold`, tolerant of the ULP-scale disagreement between those
+# routes. Scaled by the threshold, so it means the same thing at any spread.
+.at_least <- function(x, threshold) {
+  x >= threshold - abs(threshold) * .spread_tol
+}
+
+
 #' Numerical rank of an aggregate design, on a scale that can be judged
 #'
 #' `qr()` calls a column negligible relative to the norms it is handed, so an
@@ -344,7 +367,7 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   # `d / sqrt(nrow)` is the RMS distance of the profiles from their center
   # along a direction, in IPD SDs: the same quantity `.subgroup_geometry()`
   # reports as `spread`.
-  n_directions <- sum(d / sqrt(nrow(M)) >= min_spread)
+  n_directions <- sum(.at_least(d / sqrt(nrow(M)), min_spread))
   # Centering removed the mean, so the intercept is always one more direction.
   as.integer(n_directions) + 1L
 }
@@ -589,7 +612,7 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   # as `spread`, which is what the floor is stated in.
   rows <- sqrt(nrow(d))
   declared_spread <- decomposition$d / rows
-  counts <- declared_spread >= min_spread
+  counts <- .at_least(declared_spread, min_spread)
   if (!any(counts)) {
     return(TRUE)
   }
@@ -627,22 +650,13 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   # declared spreads, which `svd()` already returns sorted.
   realized_sv <- realized_d[seq_along(declared_spread)] / rows
   realized_sv[!is.finite(realized_sv)] <- 0
-  keeps_share <- realized_axis >= factor * declared_spread &
-    realized_sv >= factor * declared_spread
+  share_of <- factor * declared_spread
+  keeps_share <- .at_least(realized_axis, share_of) &
+    .at_least(realized_sv, share_of)
   clears_floor <- if (is.null(ref_sd)) {
     TRUE
   } else {
-    # Compare against the floor with a relative slack. `counts` established
-    # that these declared directions clear `min_spread`, and both realized
-    # measurements recompute that same quantity by a different route (column
-    # norms and a second decomposition of the projection). The routes agree to
-    # within a few ULPs, so a declared spread sitting exactly on 0.05 can be
-    # counted here and fall a ULP short there, and a grid IDENTICAL to the
-    # declared one is reported as failing to reproduce it. The slack is 1e-8
-    # relative, far above that noise and far below any spread difference that
-    # means anything.
-    floor_tol <- min_spread * (1 - 1e-8)
-    realized_axis >= floor_tol & realized_sv >= floor_tol
+    .at_least(realized_axis, min_spread) & .at_least(realized_sv, min_spread)
   }
   all(keeps_share) && all(clears_floor)
 }

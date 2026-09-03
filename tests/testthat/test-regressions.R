@@ -637,6 +637,15 @@ test_that("a realized grid that collapses onto a diagonal is caught", {
   expect_true(f(declared, declared, c(1, 1)))
   expect_true(f(declared, declared * 0.8, c(1, 1)))
   expect_false(f(declared, declared * 0.4, c(1, 1)))
+
+  # Both collapses again with no reference scale. Without `ref_sd` the
+  # absolute floor is skipped and the share test is the only guard, so this is
+  # the path where the singular-value half of that test is load bearing. Every
+  # case above supplies `ref_sd`, under which the floor catches these anyway,
+  # and dropping the singular values from the share test went unnoticed.
+  expect_false(f(declared, diagonal, NULL))
+  expect_false(f(table_2x2, both_sex, NULL))
+  expect_true(f(declared, declared, NULL))
 })
 
 
@@ -686,6 +695,11 @@ test_that("the grid comparison never rejects a design the rank screen accepts", 
   # independently counts fewer directions in the realized grid. A rejection
   # without a rank drop would be this function inventing a mismatch the rest of
   # the package does not see.
+  # Assert the implication itself on every draw rather than only inside an
+  # `if` that the seed may never enter. Written as a branch, this sweep ran
+  # 300 trials with zero rejections, so the assertion about rejections never
+  # executed and the test would have stayed green with the rank agreement
+  # deleted. `matched || dropped` is the same claim and cannot go unevaluated.
   set.seed(2026)
   for (trial in seq_len(300)) {
     n <- sample(2:8, 1)
@@ -694,14 +708,47 @@ test_that("the grid comparison never rejects a design the rank screen accepts", 
     ref_sd <- stats::runif(p, 0.2, 3)
     faithful <- dec +
       matrix(stats::rnorm(n * p, sd = 0.005 * max(abs(dec))), n, p)
-    if (!isTRUE(f(dec, faithful, ref_sd))) {
-      expect_lt(.profile_rank(faithful, ref_sd), .profile_rank(dec, ref_sd))
-    }
+    matched <- isTRUE(f(dec, faithful, ref_sd))
+    dropped <- .profile_rank(faithful, ref_sd) < .profile_rank(dec, ref_sd)
+    expect_true(matched || dropped)
     # A grid IDENTICAL to the declared one always reproduces it. This is the
     # strongest form of the property and holds with no tolerance argument.
     expect_true(f(dec, dec, ref_sd))
   }
-  succeed()
+})
+
+
+test_that("one tolerance governs every spread comparison", {
+  f <- .realized_matches_declared
+
+  # Slack on a single comparison moves the disagreement instead of removing
+  # it. With a tolerant floor here and a bare `>=` in `.profile_rank()`, a
+  # realized spread inside the slack window cleared the floor while the rank
+  # screen counted the direction as lost. Both now use `.at_least()`, so the
+  # two answers track each other across the window.
+  declared <- matrix(c(-0.052, 0.052), ncol = 1)
+  for (edge in c(0.0499999999, 0.0499999997, 0.0499999994, 0.048)) {
+    realized <- matrix(c(-edge, edge), ncol = 1)
+    dropped <- .profile_rank(realized, 1) < .profile_rank(declared, 1)
+    expect_equal(isTRUE(f(declared, realized, 1)), !dropped)
+  }
+
+  # The share test needs the same tolerance, for the same reason: the two
+  # realized measurements are separate routes to one quantity, so requiring
+  # both against a bare threshold rejects a grid sitting exactly on `factor`.
+  dec <- matrix(c(-1.3792740098849141, -1.110798484273599, -1.9041066897235663,
+                  -2.9223694564651317, 2.1287187527194424,
+                  0.66839307325321073), ncol = 1)
+  center <- mean(dec)
+  expect_true(f(dec, center + 0.5 * (dec - center), 1))
+  expect_false(f(dec, center + 0.49 * (dec - center), 1))
+
+  # The tolerance is relative, so it means the same thing at any spread.
+  for (scale_by in c(1e-3, 1, 1e3)) {
+    scaled <- matrix(c(-0.052, 0.052) * scale_by, ncol = 1)
+    expect_true(f(scaled, scaled, scale_by))
+    expect_false(f(scaled, scaled * 0.5, scale_by))
+  }
 })
 
 
