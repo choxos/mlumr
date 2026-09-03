@@ -208,3 +208,45 @@ test_that("every relaxed Stan model reads the comparator prior family and df", {
       info = basename(f))
   }
 })
+
+test_that("a deliberate comparator prior survives the prior_beta sweep", {
+  # The sweep rescales prior_beta. A NULL prior_beta_comparator reuses
+  # prior_beta, so a comparator regularizer set by the user would be replaced by
+  # the swept prior in every refit and the reported movement would belong to a
+  # model that was never fitted.
+  tight <- prior_normal(0, 0.5)
+  fit <- structure(
+    list(
+      family = "binomial", model = "relaxed", link = "logit",
+      engine = "rstan", data = list(covariates = "age"),
+      sampling_args = list(chains = 2, iter = 600, warmup = 300, seed = 2026),
+      model_controls = list(center = TRUE, qr = FALSE),
+      priors = list(
+        intercept = prior_normal(0, 10),
+        beta = prior_normal(0, 2.5),
+        beta_comparator = tight,
+        beta_comparator_resolved = list(user_specified = TRUE)
+      )
+    ),
+    class = "mlumr_fit"
+  )
+
+  args <- .prior_sensitivity_args(fit, prior_normal(0, 1), verbose = FALSE)
+  expect_identical(args$prior_beta_comparator, tight)
+  expect_equal(args$prior_beta$sd, 1)
+  expect_identical(args$data, fit$data)
+
+  # Not user-specified: it must stay NULL so it keeps tracking the swept prior,
+  # which is what the sweep is measuring.
+  fit$priors$beta_comparator_resolved$user_specified <- FALSE
+  args_default <- .prior_sensitivity_args(fit, prior_normal(0, 1),
+                                          verbose = FALSE)
+  expect_null(args_default$prior_beta_comparator)
+
+  # And it is scenario-defining, so `...` cannot smuggle it in.
+  expect_error(
+    prior_sensitivity(fit, prior_beta_scales = c(1, 2),
+                      prior_beta_comparator = tight, verbose = FALSE),
+    "scenario-defining"
+  )
+})

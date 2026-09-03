@@ -338,11 +338,13 @@ mlumr <- function(data,
     stop("`prior_beta` must be a prior list or a list of priors.", call. = FALSE)
   }
 
-  # C.3: autoscale is only consumed by prior_beta. Warn if the user set it
+  # C.3: autoscale is only consumed by the regression-coefficient priors. Warn
+  # if the user set it
   # on prior_intercept or prior_sigma, because it will be silently ignored.
   if (isTRUE(prior_intercept$autoscale)) {
     warning("`autoscale = TRUE` on prior_intercept is ignored; ",
-            "autoscaling is only applied to prior_beta.", call. = FALSE)
+            "autoscaling is only applied to prior_beta and ",
+            "prior_beta_comparator.", call. = FALSE)
   }
 
   family <- data$family %||% "binomial"
@@ -450,7 +452,8 @@ mlumr <- function(data,
     validate_prior(prior_sigma, "sigma")
     if (isTRUE(prior_sigma$autoscale)) {
       warning("`autoscale = TRUE` on prior_sigma is ignored; ",
-              "autoscaling is only applied to prior_beta.", call. = FALSE)
+              "autoscaling is only applied to prior_beta and ",
+              "prior_beta_comparator.", call. = FALSE)
     }
   } else if (!is.null(prior_sigma) && !isTRUE(prior_sigma$default)) {
     warning("`prior_sigma` is ignored for non-normal families.",
@@ -462,6 +465,21 @@ mlumr <- function(data,
   # likelihood actually is.
   if (model == "relaxed") {
     n_cov_check <- data$n_covariates
+    # What to tell the user depends on whether they have already regularized.
+    # Pointing at `prior_beta` was wrong either way: it shrinks beta_index too,
+    # where the IPD are informative, which is precisely the coupling
+    # `prior_beta_comparator` exists to remove. And once a comparator prior IS
+    # set, advising the user to set one says nothing; what matters then is that
+    # the posterior for those coefficients is a statement about the prior.
+    remedy <- if (is.null(prior_beta_comparator)) {
+      paste0("Add jointly-defined subgroup rows, regularize with an ",
+             "informative `prior_beta_comparator`, or use model = \"spfa\".")
+    } else {
+      paste0("You have supplied `prior_beta_comparator`, so those ",
+             "coefficients are estimable, but their posterior is driven by ",
+             "that prior rather than by the aggregate likelihood. Check ",
+             "`prior_sensitivity()`, or add jointly-defined subgroup rows.")
+    }
     if (family == "normal" && link_info$link == "identity") {
       n_agd_rows_check <- nrow(data$agd$data)
       agd_rank <- .agd_covariate_rank(data)
@@ -474,9 +492,8 @@ mlumr <- function(data,
                  "the likelihood. The most ",
                  "effective fix is to supply the comparator as jointly-defined ",
                  "subgroup rows, one set_agd() row per stratum with its own ",
-                 "covariate summaries. Otherwise regularize with ",
-                 "an informative `prior_beta` or use model = \"spfa\"."),
-          n_agd_rows_check, agd_rank, n_cov_check, n_cov_check + 1L
+                 "covariate summaries. %s"),
+          n_agd_rows_check, agd_rank, n_cov_check, n_cov_check + 1L, remedy
         ), call. = FALSE)
       }
     } else if (family == "survival") {
@@ -511,11 +528,9 @@ mlumr <- function(data,
                  "row repeating another's integration grid contributes an ",
                  "identical likelihood term rather than a new constraint. The ",
                  "comparator coefficients cannot all be separated without ",
-                 "prior information. Add jointly-defined subgroup rows, ",
-                 "regularize with an informative `prior_beta`, or use ",
-                 "model = \"spfa\"."),
+                 "prior information. %s"),
           n_agd_rows_check, n_distinct_check, n_cov_check, n_cov_check + 1L,
-          n_distinct_check
+          n_distinct_check, remedy
         ), call. = FALSE)
       }
     }
