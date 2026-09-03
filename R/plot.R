@@ -220,9 +220,13 @@ plot.mlumr_marginal_effects <- function(x, ref_line = NULL, ...) {
 #'
 #' @param data An `mlumr_data` survival object from [combine_data()].
 #' @param treatments Optional character vector of treatment labels to draw. By
-#'   default both observed arms are drawn; pass `data$comparator_treatment` to
-#'   overlay only the comparator KM on a comparator-population prediction (so the
-#'   observed and predicted curves refer to the same population).
+#'   default both observed arms are drawn. This cannot separate the arms when
+#'   both carry the same label, which [combine_data()] permits; use `population`
+#'   there.
+#' @param population Optional cohort to draw, `"Index"` and/or `"Comparator"`.
+#'   Selects the arm itself rather than its display name, so
+#'   `population = "Comparator"` overlays only the comparator KM on a
+#'   comparator-population prediction whatever the treatments are called.
 #' @param marks Logical; draw censoring marks (default `TRUE`).
 #' @param linewidth Step line width (default `0.4`).
 #' @param ... Passed to [ggplot2::geom_step()].
@@ -237,12 +241,29 @@ plot.mlumr_marginal_effects <- function(x, ref_line = NULL, ...) {
 #' @examples
 #' \dontrun{
 #' plot(predict(fit, type = "survival")) + geom_km(dat)
-#' plot(predict(fit, type = "survival")) + geom_km(dat, dat$comparator_treatment)
+#' plot(predict(fit, type = "survival")) + geom_km(dat, population = "Comparator")
 #' }
-geom_km <- function(data, treatments = NULL, marks = TRUE, linewidth = 0.4, ...) {
+geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
+                    linewidth = 0.4, ...) {
   .need_ggplot2()
   km <- .km_observed(data)
+  # Selecting by treatment label cannot separate the arms when both carry the
+  # same name, which combine_data() permits: the documented comparator-only
+  # overlay then drew the index cohort too. `population` selects the cohort
+  # itself and is the reliable selector in that case.
+  if (!is.null(population)) {
+    population <- .validate_km_population(population)
+    km$steps <- km$steps[km$steps$population %in% population, , drop = FALSE]
+    km$censor <- km$censor[km$censor$population %in% population, , drop = FALSE]
+  }
   if (!is.null(treatments)) {
+    if (identical(data$index_treatment, data$comparator_treatment) &&
+          is.null(population)) {
+      warning("Both arms are labelled '", data$index_treatment,
+              "', so `treatments` cannot tell them apart and selects both. ",
+              "Use `population = \"Index\"` or `population = \"Comparator\"`.",
+              call. = FALSE)
+    }
     km$steps <- km$steps[km$steps$treatment %in% treatments, , drop = FALSE]
     km$censor <- km$censor[km$censor$treatment %in% treatments, , drop = FALSE]
   }
@@ -263,6 +284,18 @@ geom_km <- function(data, treatments = NULL, marks = TRUE, linewidth = 0.4, ...)
     ))
   }
   layers
+}
+
+#' Validate a `geom_km()` population selector
+#' @keywords internal
+.validate_km_population <- function(population) {
+  valid <- c("Index", "Comparator")
+  if (!is.character(population) || !length(population) ||
+        !all(population %in% valid)) {
+    stop("`population` must be \"Index\", \"Comparator\", or both.",
+         call. = FALSE)
+  }
+  unique(population)
 }
 
 #' Observed Kaplan-Meier step + censoring data for a survival mlumr_data
@@ -350,6 +383,28 @@ geom_km <- function(data, treatments = NULL, marks = TRUE, linewidth = 0.4, ...)
   list(steps = steps, censor = cens)
 }
 
+#' Refuse a prediction frame whose two arms cannot be told apart
+#'
+#' Colour and fill are keyed on `treatment`, so when both arms carry the same
+#' label (which [combine_data()] permits, with a warning) the index and
+#' comparator series of a population fall into ONE ggplot2 group. The line and
+#' ribbon then connect alternating rows of two different predictions instead of
+#' drawing two curves, which is a wrong figure rather than an ugly one. Nothing
+#' in the frame can separate them, so refuse rather than guess.
+#' @keywords internal
+.reject_ambiguous_series <- function(x) {
+  df <- as.data.frame(x)
+  key <- intersect(c("treatment", "population", "time"), names(df))
+  if (!all(c("treatment", "population") %in% key)) return(invisible())
+  if (anyDuplicated(df[, key, drop = FALSE])) {
+    stop("This prediction has two series per population that share the ",
+         "treatment label '", df$treatment[1], "', so they cannot be drawn ",
+         "as separate curves. Give the two arms distinct treatment names in ",
+         "set_ipd() / set_agd_surv() and refit.", call. = FALSE)
+  }
+  invisible()
+}
+
 #' Plot absolute predictions from a fitted ML-UMR model
 #'
 #' Dispatches on the prediction `type`: time-indexed types
@@ -375,6 +430,7 @@ geom_km <- function(data, treatments = NULL, marks = TRUE, linewidth = 0.4, ...)
 #' }
 plot.mlumr_prediction <- function(x, ref_line = NULL, ...) {
   .need_ggplot2()
+  .reject_ambiguous_series(x)
   df <- as.data.frame(x)
   ptype <- attr(x, "ptype") %||% "response"
   ci <- .ci_cols(df)
@@ -646,6 +702,33 @@ plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
   function(z) ifelse(z < lower, 0, base(z) / mass)
 }
 
+#' Central mass of a prior, for choosing a plotting window
+#'
+#' Returns the interval holding the prior's central 99%, truncated at `lower`
+#' when the parameter is constrained. `NA`-free and finite: a Cauchy has no
+#' variance but its quantiles exist, and an unrecognized prior returns an empty
+#' range so the caller keeps the posterior window.
+#' @keywords internal
+.prior_quantile_range <- function(pr, lower = -Inf) {
+  if (is.null(pr)) return(c(Inf, -Inf))
+  dist <- pr$distribution %||% "normal"
+  m <- pr$mean %||% 0
+  sd <- pr$sd %||% 10
+  df <- pr$df
+  p <- c(0.005, 0.995)
+  q <- switch(
+    dist,
+    normal = stats::qnorm(p, mean = m, sd = sd),
+    student_t = m + sd * stats::qt(p, df = df),
+    cauchy = stats::qcauchy(p, location = m, scale = sd),
+    exponential = stats::qexp(p, rate = pr$rate %||% (1 / sd)),
+    c(Inf, -Inf)
+  )
+  if (any(!is.finite(q))) return(c(Inf, -Inf))
+  if (is.finite(lower)) q[1] <- max(q[1], lower)
+  q
+}
+
 #' Prior-versus-posterior overlay
 #'
 #' Plots the posterior density of the named parameters with their prior density
@@ -718,7 +801,14 @@ plot_prior_posterior <- function(object, pars = c("mu_index", "mu_comparator"),
     lo <- min(v)
     hi <- max(v)
     pad <- 0.15 * (hi - lo)
-    grid <- seq(max(lo - pad, r$lower), hi + pad, length.out = 256)
+    # A posterior much narrower than its prior would otherwise define a window
+    # that omits nearly all the prior mass, drawing it as an almost flat line
+    # and hiding the very comparison the plot exists to make. Widen the grid to
+    # cover the prior's central mass as well.
+    pq <- .prior_quantile_range(r$prior, r$lower)
+    lo <- min(lo - pad, pq[1])
+    hi <- max(hi + pad, pq[2])
+    grid <- seq(max(lo, r$lower), hi, length.out = 512)
     data.frame(parameter = p, value = grid, density = fun(grid),
                stringsAsFactors = FALSE)
   }))

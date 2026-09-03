@@ -4,15 +4,27 @@
 \alias{geom_km}
 \title{Observed Kaplan-Meier layer for survival overlays}
 \usage{
-geom_km(data, treatments = NULL, marks = TRUE, linewidth = 0.4, ...)
+geom_km(
+  data,
+  treatments = NULL,
+  population = NULL,
+  marks = TRUE,
+  linewidth = 0.4,
+  ...
+)
 }
 \arguments{
 \item{data}{An \code{mlumr_data} survival object from \code{\link[=combine_data]{combine_data()}}.}
 
 \item{treatments}{Optional character vector of treatment labels to draw. By
-default both observed arms are drawn; pass \code{data$comparator_treatment} to
-overlay only the comparator KM on a comparator-population prediction (so the
-observed and predicted curves refer to the same population).}
+default both observed arms are drawn. This cannot separate the arms when
+both carry the same label, which \code{\link[=combine_data]{combine_data()}} permits; use \code{population}
+there.}
+
+\item{population}{Optional cohort to draw, \code{"Index"} and/or \code{"Comparator"}.
+Selects the arm itself rather than its display name, so
+\code{population = "Comparator"} overlays only the comparator KM on a
+comparator-population prediction whatever the treatments are called.}
 
 \item{marks}{Logical; draw censoring marks (default \code{TRUE}).}
 
@@ -39,7 +51,7 @@ predicted-versus-observed figure is just
 \examples{
 \dontrun{
 plot(predict(fit, type = "survival")) + geom_km(dat)
-plot(predict(fit, type = "survival")) + geom_km(dat, dat$comparator_treatment)
+plot(predict(fit, type = "survival")) + geom_km(dat, population = "Comparator")
 }
 }
 \seealso{

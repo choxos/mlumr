@@ -392,3 +392,52 @@ test_that("plot_prior_posterior refuses a parameter it cannot find", {
                "Not in the fit's posterior draws")
   expect_s3_class(plot_prior_posterior(fit, pars = "mu_index"), "ggplot")
 })
+
+test_that("population selects the cohort when the labels cannot", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("survival")
+  dat <- sim_survival_data(seed = 2026, n_ipd = 60, n_agd = 60, n_int = 8)
+  dat$comparator_treatment <- dat$index_treatment
+
+  only_cmp <- geom_km(dat, population = "Comparator")[[1]]$data
+  expect_setequal(unique(only_cmp$population), "Comparator")
+  # The documented comparator-only overlay used the treatment label, which
+  # selects both cohorts when the two labels coincide.
+  expect_warning(
+    both <- geom_km(dat, treatments = dat$comparator_treatment)[[1]]$data,
+    "cannot tell them apart"
+  )
+  expect_setequal(unique(both$population), c("Index", "Comparator"))
+  expect_error(geom_km(dat, population = "Target"), "must be")
+})
+
+test_that("a prediction whose two series share a label is refused", {
+  skip_if_not_installed("ggplot2")
+  # Colour and fill key on `treatment`, so identical labels put both arms of a
+  # population in one ggplot2 group and the line connects alternating rows of
+  # two different predictions.
+  pred <- mlumr:::.mlumr_result(
+    data.frame(treatment = rep("A", 4), population = rep("Index", 4),
+               time = c(1, 1, 2, 2), mean = c(.9, .8, .7, .6), sd = .05,
+               q2.5 = c(.85, .75, .65, .55), q97.5 = c(.95, .85, .75, .65)),
+    "mlumr_prediction", ptype = "survival", family = "survival")
+  expect_error(plot(pred), "cannot be drawn as separate curves")
+})
+
+test_that("the prior/posterior window shows the prior, not just the posterior", {
+  skip_if_not_installed("ggplot2")
+  # A posterior far narrower than its prior defined a window that omitted
+  # almost all the prior mass, drawing it as an almost flat line.
+  fit <- structure(
+    list(
+      family = "binomial", model = "spfa", link = "logit",
+      data = list(covariates = "age"),
+      draws = data.frame(mu_index = stats::rnorm(400, 0, 0.02)),
+      priors = list(intercept = prior_normal(0, 10))
+    ),
+    class = "mlumr_fit"
+  )
+  pd <- plot_prior_posterior(fit, pars = "mu_index")$layers[[2]]$data
+  expect_gt(max(pd$value), 5)
+  expect_lt(min(pd$value), -5)
+})
