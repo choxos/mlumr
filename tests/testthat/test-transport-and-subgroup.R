@@ -38,10 +38,22 @@ test_that("transport to newdata = index covariates reproduces the index populati
   pr_tgt <- predict(fit, newdata = ipd_cov)
   expect_equal(pr_tgt$mean, pr_idx$mean, tolerance = 1e-6)
 
-  # A genuinely different target shifts the standardized effect.
+  # A genuinely different target shifts the standardized effect. Require the
+  # shifted value to be a single finite number first: `all.equal()` returns a
+  # message rather than TRUE when either side is NA or NaN, so the inequality
+  # alone is also satisfied by a `newdata` path that has stopped producing
+  # numbers at all.
   shifted <- data.frame(age = ipd$age + 3, bmi = ipd$bmi)
   me_shift <- suppressMessages(marginal_effects(fit, newdata = shifted, effect = "rd"))
-  expect_false(isTRUE(all.equal(me_shift$mean, me_idx$mean[me_idx$effect == "RD"])))
+  expect_equal(nrow(me_shift), 1L)
+  expect_true(is.finite(me_shift$mean))
+  expect_true(is.finite(me_shift$sd))
+  rd_idx <- me_idx$mean[me_idx$effect == "RD"]
+  expect_false(isTRUE(all.equal(me_shift$mean, rd_idx)))
+  # The risk difference is a probability contrast, so a standardized value
+  # outside [-1, 1] would be a broken calculation rather than a shifted one.
+  expect_gte(me_shift$mean, -1)
+  expect_lte(me_shift$mean, 1)
 })
 
 test_that("survival transport (RMST) to newdata = index covariates matches index", {
