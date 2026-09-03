@@ -294,3 +294,25 @@ test_that("a boundary index arm also keeps its uncertainty", {
   expect_gt(res$p_index_se, 0)
   expect_gt(res$p_index_upper, res$p_index_lower)
 })
+
+test_that("survival STC accepts a covariate name that cannot be backtick-quoted", {
+  # The formula was pasted together as text with each name wrapped in
+  # backticks, so a name containing one produced a string that does not parse
+  # and the fit failed on a column the setup layer had already accepted.
+  set.seed(2026)
+  n <- 120
+  ipd <- data.frame(
+    `a\`ge` = stats::rnorm(n),
+    .time = stats::rexp(n, rate = exp(-1)),
+    .status = stats::rbinom(n, 1, 0.85),
+    check.names = FALSE
+  )
+  pseudo <- data.frame(.time = stats::rexp(80, rate = exp(-0.9)),
+                       .status = stats::rbinom(80, 1, 0.85))
+  comp <- data.frame(`a\`ge` = stats::rnorm(80), check.names = FALSE)
+
+  res <- .stc_survival_point(ipd, pseudo, "a`ge", comp, "weibull",
+                             horizon = 3)
+  expect_true(is.finite(res$rmst_index))
+  expect_true(is.finite(res$rmst_diff))
+})

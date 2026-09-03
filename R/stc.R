@@ -747,9 +747,16 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   ipd$.stc_event <- as.integer(ipd$.status == 1L)
   pseudo$.stc_event <- as.integer(pseudo$.status == 1L)
 
-  rhs <- paste(sprintf("`%s`", cov_names), collapse = " + ")
+  # Build the formula from symbols rather than pasting names into a string, as
+  # `.stc_formula()` already does for the other families. Backtick-quoting a
+  # name that itself contains a backtick produces a formula that does not parse,
+  # so a column this function has already accepted as a valid numeric covariate
+  # would fail here instead.
+  rhs <- Reduce(function(left, right) call("+", left, right),
+                lapply(cov_names, as.name))
   form_a <- stats::as.formula(
-    sprintf("survival::Surv(.time, .stc_event) ~ %s", rhs)
+    call("~", quote(survival::Surv(.time, .stc_event)), rhs),
+    env = parent.frame()
   )
   fit_a <- flexsurv::flexsurvreg(form_a, data = ipd, dist = dist_fs)
   rmst_a_rows <- summary(fit_a, newdata = comp_cov, type = "rmst",
