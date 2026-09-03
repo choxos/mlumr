@@ -195,3 +195,29 @@ test_that("the poisson benchmarks report the rate difference they advertise", {
   expect_gt(st$rd_se, 0)
   expect_true(any(grepl("Rate difference", capture.output(print(summary(st))))))
 })
+
+test_that("a zero-event poisson arm keeps its uncertainty", {
+  # The rate SE used the raw plug-in variance rate / exposure, which is exactly
+  # 0 for a zero-event arm, so its interval collapsed to a point and the rate
+  # difference ignored that arm. The log-rate contrast already used the
+  # continuity-corrected counts.
+  set.seed(2026)
+  n <- 80
+  ipd <- data.frame(trt = "A", y = rep(0L, n),
+                    expo = stats::runif(n, 0.8, 1.2), age = stats::rnorm(n))
+  agd <- data.frame(trt = "B", r = 30, n = 100, E = 100,
+                    age_mean = 0.1, age_sd = 1)
+  dat <- combine_data(
+    set_ipd(ipd, "trt", outcome = "y", covariates = "age", family = "poisson",
+            exposure = "expo"),
+    set_agd(agd, "trt", family = "poisson", outcome_r = "r", outcome_n = "n",
+            outcome_E = "E", cov_means = "age_mean", cov_sds = "age_sd",
+            cov_types = "continuous")
+  )
+
+  nv <- suppressWarnings(suppressMessages(naive(dat)))
+  expect_equal(nv$rate_index, 0)
+  expect_gt(nv$rate_index_se, 0)
+  expect_gt(nv$rd_se, 0)
+  expect_lt(nv$rd_lower, nv$rd_upper)
+})

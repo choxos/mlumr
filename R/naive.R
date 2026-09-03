@@ -212,8 +212,14 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
 
   estimate <- log_rate_index - log_rate_comparator
   se <- sqrt(1 / events_index_adjusted + 1 / events_comparator_adjusted)
-  rate_index_se <- sqrt(rate_index / exposure_index)
-  rate_comparator_se <- sqrt(rate_comparator / exposure_comparator)
+  # Use the continuity-corrected counts on the absolute scale too. With the raw
+  # rate, a zero-event arm has variance rate / exposure = 0 and contributes no
+  # uncertainty at all, so its interval collapses to a point and the rate
+  # difference below ignores that arm entirely, although 0 events alone is
+  # consistent with a clearly positive rate. The log-rate contrast already used
+  # the corrected counts; these did not.
+  rate_index_se <- sqrt(events_index_adjusted) / exposure_index
+  rate_comparator_se <- sqrt(events_comparator_adjusted) / exposure_comparator
   log_rate_index_se <- sqrt(1 / events_index_adjusted)
   log_rate_comparator_se <- sqrt(1 / events_comparator_adjusted)
   # Rate difference on the natural per-unit-exposure scale, the additive

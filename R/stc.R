@@ -409,7 +409,11 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   # variance is the delta-method one already computed for it, and the two arms
   # are independent, so the variances add.
   rd <- rate_hat_A - rate_B
-  var_rd <- var_rate_A + rate_B / exposure_B
+  # The comparator variance uses the continuity-corrected count, so a
+  # zero-event comparator arm still contributes uncertainty rather than
+  # collapsing the interval; the log-rate contrast already corrects the same
+  # way.
+  var_rd <- var_rate_A + events_B_adjusted / exposure_B^2
   se_rd <- .sqrt_variance(var_rd, "poisson STC rate-difference variance")
 
   list(
@@ -428,7 +432,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     rate_hat_index = rate_hat_A,
     rate_hat_index_se = sqrt(var_rate_A),
     rate_comparator = rate_B,
-    rate_comparator_se = sqrt(rate_B / exposure_B),
+    rate_comparator_se = sqrt(events_B_adjusted) / exposure_B,
     events_comparator = events_B,
     exposure_comparator = exposure_B,
     events_comparator_adjusted = events_B_adjusted,
