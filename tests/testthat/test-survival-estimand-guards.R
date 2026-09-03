@@ -262,16 +262,21 @@ test_that("the scalar label covers all three survival cases", {
   expect_equal(lg("lognormal", 1L, model = "relaxed")$label, "DELTA_ETA")
 })
 
-test_that("at_time rejects non-positive times", {
+test_that("at_time rejects times that cannot be evaluated", {
   skip_on_cran()
   skip_if_not_installed("rstan")
   dat <- sim_survival_data(seed = 2026, n_ipd = 30, n_agd = 30, n_int = 8)
   fit <- suppressWarnings(suppressMessages(
     fit_survival_test(dat, chains = 1, iter = 100, warmup = 50)))
-  # Survival times are positive and the prediction grid excludes 0, so there is
-  # no nearest fitted time for a non-positive request to snap to.
+  # This fit gives each study its own baseline shape, so the scalar hazard
+  # ratio is read off the prediction grid. The grid excludes 0, so there is no
+  # nearest fitted time for a request at 0 to snap to. (With a SHARED baseline
+  # the scalar IS the t -> 0 limit and 0 is the one accepted time; that is
+  # asserted in test-transport-and-subgroup.R, on both routes.)
   expect_error(marginal_effects(fit, effect = "hr", at_time = 0), "positive")
-  expect_error(marginal_effects(fit, effect = "hr", at_time = -5), "positive")
+  # A negative value is not an evaluation time under either configuration.
+  expect_error(marginal_effects(fit, effect = "hr", at_time = -5),
+               "non-negative")
 })
 
 test_that("at_time is refused where it cannot apply", {
