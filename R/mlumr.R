@@ -483,9 +483,11 @@ mlumr <- function(data,
       paste0("Add jointly-defined subgroup rows, regularize with an ",
              "informative `prior_beta_comparator`, or use model = \"spfa\".")
     } else {
-      paste0("You have supplied `prior_beta_comparator`, so those ",
-             "coefficients are estimable, but their posterior is driven by ",
-             "that prior rather than by the aggregate likelihood. Refit with ",
+      paste0("You have supplied `prior_beta_comparator`, so the comparator ",
+             "coefficients are estimable. The aggregate data still cannot ",
+             "separate every direction of `beta_comparator`, and it is those ",
+             "directions that the prior determines; combinations the ",
+             "likelihood does constrain remain data-driven. Refit with ",
              "different `prior_beta_comparator` scales to see how far the ",
              "index-population estimand moves, or add jointly-defined ",
              "subgroup rows.")

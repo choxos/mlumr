@@ -285,13 +285,14 @@ test_that("an SPFA fit warns about the comparator prior instead of failing", {
 
   # An exponential prior is rejected outright for the relaxed model; for SPFA it
   # must only warn, because the model has no comparator coefficients at all.
+  # The fit itself must succeed: swallowing errors here would let the test pass
+  # on the warning while the fit failed for some entirely different reason.
   expect_warning(
-    tryCatch(
-      mlumr(dat, model = "spfa", prior_beta_comparator = prior_exponential(1),
-            chains = 1, iter = 2, warmup = 1, refresh = 0, seed = 2026,
-            verbose = FALSE),
-      error = function(e) NULL
-    ),
+    fit <- mlumr(dat, model = "spfa",
+                 prior_beta_comparator = prior_exponential(1),
+                 chains = 1, iter = 200, warmup = 100, refresh = 0,
+                 seed = 2026, verbose = FALSE),
     "ignored for the SPFA model"
   )
+  expect_s3_class(fit, "mlumr_fit")
 })
