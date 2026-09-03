@@ -101,6 +101,8 @@ res_naive
 #> 
 #> Treatments: IXE_Q4W vs SEC_300 
 #> 
+#> Population basis: index-study outcome versus comparator-population outcome; no common standardized target.
+#> 
 #> Event rates:
 #>   Index (IPD):      0.774 (267/345)
 #>   Comparator (AgD): 0.771 (249/323)
@@ -118,6 +120,9 @@ res_stc
 #> ===============================================
 #> 
 #> Treatments: IXE_Q4W vs SEC_300 
+#> 
+#> Estimand population: comparator
+#> Treating this as the index-population effect requires a separate effect-equality assumption; this calculation does not transport to the index population.
 #> 
 #> Marginalized P(Y=1|index trt, comp pop): 0.8111
 #> Observed P(Y=1|comp trt, comp pop):      0.7709
@@ -149,27 +154,27 @@ fit_spfa <- mlumr(dat, model = "spfa",
                   chains = 4, iter = 2000, warmup = 1000, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 1 finished in 0.4 seconds.
-#> Chain 2 finished in 0.4 seconds.
-#> Chain 3 finished in 0.4 seconds.
-#> Chain 4 finished in 0.4 seconds.
+#> Chain 1 finished in 0.5 seconds.
+#> Chain 2 finished in 0.5 seconds.
+#> Chain 3 finished in 0.5 seconds.
+#> Chain 4 finished in 0.5 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 0.4 seconds.
-#> Total execution time: 0.5 seconds.
+#> Mean chain execution time: 0.5 seconds.
+#> Total execution time: 0.9 seconds.
 fit_relaxed <- mlumr(dat, model = "relaxed",
                      prior_beta = prior_normal(0, 2.5, autoscale = TRUE),
                      chains = 4, iter = 2000, warmup = 1000, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 3 finished in 2.0 seconds.
 #> Chain 2 finished in 2.0 seconds.
-#> Chain 1 finished in 2.3 seconds.
-#> Chain 4 finished in 2.4 seconds.
+#> Chain 1 finished in 2.7 seconds.
+#> Chain 4 finished in 2.7 seconds.
+#> Chain 3 finished in 3.2 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 2.2 seconds.
-#> Total execution time: 2.6 seconds.
+#> Mean chain execution time: 2.7 seconds.
+#> Total execution time: 3.6 seconds.
 ```
 
 ## A comparison table
@@ -211,14 +216,14 @@ knitr::kable(comparison, caption = "PASI 75 log odds ratio by method, in both ta
 
 Table: PASI 75 log odds ratio by method, in both target populations
 
-|Method         |Population |       LOR|   CI_lower|  CI_upper|
-|:--------------|:----------|---------:|----------:|---------:|
-|Naive          |comparator | 0.0171520| -0.3447542| 0.3790582|
-|STC            |comparator | 0.2438031| -0.1526731| 0.6402793|
-|ML-UMR SPFA    |index      | 0.2464405| -0.1596581| 0.6430433|
-|ML-UMR SPFA    |comparator | 0.2482089| -0.1601546| 0.6494108|
-|ML-UMR relaxed |index      | 0.0390127| -1.2088992| 1.1371928|
-|ML-UMR relaxed |comparator | 0.2489060| -0.1495779| 0.6477850|
+|Method         |Population     |       LOR|   CI_lower|  CI_upper|
+|:--------------|:--------------|---------:|----------:|---------:|
+|Naive          |unstandardized | 0.0171520| -0.3447542| 0.3790582|
+|STC            |comparator     | 0.2438031| -0.1526731| 0.6402793|
+|ML-UMR SPFA    |index          | 0.2477799| -0.1451398| 0.6518321|
+|ML-UMR SPFA    |comparator     | 0.2495874| -0.1460096| 0.6611413|
+|ML-UMR relaxed |index          | 0.0494304| -1.2090620| 1.1843938|
+|ML-UMR relaxed |comparator     | 0.2541723| -0.1537578| 0.6562261|
 
 
 
@@ -288,7 +293,7 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "loo")
 #> 
 #>    model elpd_diff se_diff p_worse       diag_diff      diag_elpd
 #>  Relaxed       0.0     0.0      NA                 1 k_psis > 0.7
-#>     SPFA      -0.5     0.4    0.88 |elpd_diff| < 4 1 k_psis > 0.7
+#>     SPFA      -0.1     0.0    0.97 |elpd_diff| < 4 1 k_psis > 0.7
 #> 
 #> elpd_diff is the difference in expected log pointwise predictive
 #> density vs the best model. se_diff > 2 is the conventional threshold
@@ -299,8 +304,8 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed)   # DIC-based (the defaul
 #> ======================
 #> 
 #>    Model    DIC   pD Delta_DIC
-#>  Relaxed 366.23 4.88      0.00
-#>     SPFA 366.57 5.15      0.35
+#>  Relaxed 366.71 5.21      0.00
+#>     SPFA 366.78 5.23      0.07
 #> 
 #> Lower DIC = better fit. Delta_DIC > 5 is a rough heuristic for
 #> meaningful difference, not a formally calibrated threshold.

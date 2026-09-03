@@ -32,7 +32,7 @@
       "programmingLanguage": { "@id": "https://www.r-project.org" },
       "codeRepository": "https://github.com/choxos/mlumr",
       "url": "https://choxos.github.io/mlumr/",
-      "version": "0.2.0",
+      "version": "0.1.0.9000",
       "license": { "@id": "https://spdx.org/licenses/GPL-3.0-only.html" },
       "author": [
         { "@id": "https://orcid.org/0000-0001-6829-0823" },

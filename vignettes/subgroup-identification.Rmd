@@ -152,7 +152,7 @@ do.call(rbind, lapply(
                  round(geometry(get(nm), ref_sd), 3))
 ))
 #>      design            rows cond_inv eff_dim
-#> [1,] "by_age_only"     "6"  "0"      "1"
+#> [1,] "by_age_only"     "6"  "0"      "1"    
 #> [2,] "cross_tab"       "4"  "0"      "1.999"
 #> [3,] "jointly_defined" "6"  "0.707"  "2.764"
 ```

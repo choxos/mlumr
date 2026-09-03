@@ -1,6 +1,6 @@
 # Version is taken from the installed DESCRIPTION so the citation never goes stale.
 ver <- meta$Version
-if (is.null(ver) || !nzchar(ver)) ver <- "0.2.0"
+if (is.null(ver) || !nzchar(ver)) ver <- "0.1.0.9000"
 
 # Main reference: the ML-UMR methodology paper (Chandler & Ishak).
 bibentry(

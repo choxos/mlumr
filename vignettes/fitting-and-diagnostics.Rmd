@@ -64,14 +64,14 @@ fit <- mlumr(dat, model = "spfa",
              chains = 4, iter = 2000, warmup = 1000, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 1 finished in 0.5 seconds.
-#> Chain 2 finished in 0.5 seconds.
-#> Chain 3 finished in 0.5 seconds.
-#> Chain 4 finished in 0.5 seconds.
+#> Chain 1 finished in 0.7 seconds.
+#> Chain 2 finished in 0.6 seconds.
+#> Chain 3 finished in 0.7 seconds.
+#> Chain 4 finished in 0.6 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 0.5 seconds.
-#> Total execution time: 0.6 seconds.
+#> Mean chain execution time: 0.6 seconds.
+#> Total execution time: 1.0 seconds.
 ```
 
 ## Controlling the sampler
@@ -125,7 +125,7 @@ prior_summary(fit)
 #> 
 #> Intercepts (mu_index, mu_comparator):
 #>   normal(0, 10)
-#>   (package default, mlumr 0.2.0)
+#>   (package default, mlumr 0.1.0.9000)
 #> 
 #> Regression coefficients (beta):
 #>   Family: normal
@@ -180,13 +180,13 @@ print(fit)
 #>   Iterations: 2000 (warmup: 1000 )
 #> 
 #> Key Parameters:
-#>        variable       mean         sd        2.5%     97.5%     Rhat
-#>        mu_index 1.45497058 0.15541405  1.14819811 1.7596714 1.000843
-#>   mu_comparator 1.18540929 0.14612154  0.90725703 1.4743261 1.002292
-#>       lor_index 0.24973047 0.20410850 -0.16242509 0.6321788 1.001457
-#>  lor_comparator 0.25061268 0.20494195 -0.16249197 0.6350378 1.001444
-#>        rd_index 0.04691023 0.03849191 -0.02909988 0.1206175 1.001587
-#>   rd_comparator 0.04086203 0.03343894 -0.02709870 0.1029403 1.001539
+#>        variable       mean         sd        2.5%     97.5%      Rhat
+#>        mu_index 1.44618427 0.15636550  1.15196094 1.7651909 0.9995392
+#>   mu_comparator 1.17260184 0.15224510  0.88731421 1.4799876 1.0000963
+#>       lor_index 0.25377673 0.20530813 -0.15266887 0.6555978 1.0012879
+#>  lor_comparator 0.25466793 0.20617373 -0.15273282 0.6587242 1.0013579
+#>        rd_index 0.04763409 0.03873935 -0.02809253 0.1234016 1.0017769
+#>   rd_comparator 0.04156580 0.03362521 -0.02554187 0.1053535 1.0015519
 #> 
 #> Use summary() for full results
 summary(fit)
@@ -202,33 +202,33 @@ summary(fit)
 #> MCMC Diagnostics:
 #>   Divergent transitions: 0 
 #>   Max treedepth hits: 0 
-#>   Max Rhat: 1.003 
-#>   Min ESS: 1749 
+#>   Max Rhat: 1.004 
+#>   Min ESS: 1890 
 #> 
 #> Intercepts (logit scale):
-#>       variable     mean        sd     2.5%    97.5%     Rhat
-#>       mu_index 1.454971 0.1554141 1.148198 1.759671 1.000843
-#>  mu_comparator 1.185409 0.1461215 0.907257 1.474326 1.002292
+#>       variable     mean        sd      2.5%    97.5%      Rhat
+#>       mu_index 1.446184 0.1563655 1.1519609 1.765191 0.9995392
+#>  mu_comparator 1.172602 0.1522451 0.8873142 1.479988 1.0000963
 #> 
 #> Regression Coefficients:
-#>      variable        mean          sd        2.5%        97.5%     Rhat
-#>     beta[age] -0.04070237 0.011157728 -0.06274130 -0.019201031 1.000707
-#>     beta[bsa]  0.12447865 0.728466416 -1.27521661  1.613261013 1.001039
-#>  beta[weight] -0.01451296 0.006612253 -0.02757098 -0.001551676 1.000658
+#>      variable        mean          sd        2.5%        97.5%      Rhat
+#>     beta[age] -0.04072437 0.010852931 -0.06213992 -0.020515311 1.0013211
+#>     beta[bsa]  0.09474860 0.738994077 -1.31835682  1.580247738 1.0015116
+#>  beta[weight] -0.01462932 0.006335175 -0.02729679 -0.002487916 0.9998753
 #> 
 #> Marginal Treatment Effects:
 #>   Log Odds Ratios:
 #>        variable      mean        sd       2.5%     97.5%
-#>       lor_index 0.2497305 0.2041085 -0.1624251 0.6321788
-#>  lor_comparator 0.2506127 0.2049419 -0.1624920 0.6350378
+#>       lor_index 0.2537767 0.2053081 -0.1526689 0.6555978
+#>  lor_comparator 0.2546679 0.2061737 -0.1527328 0.6587242
 #>   Risk Differences:
 #>       variable       mean         sd        2.5%     97.5%
-#>       rd_index 0.04691023 0.03849191 -0.02909988 0.1206175
-#>  rd_comparator 0.04086203 0.03343894 -0.02709870 0.1029403
+#>       rd_index 0.04763409 0.03873935 -0.02809253 0.1234016
+#>  rd_comparator 0.04156580 0.03362521 -0.02554187 0.1053535
 #>   Risk Ratios:
 #>       variable     mean         sd      2.5%    97.5%
-#>       rr_index 1.066522 0.05562134 0.9629038 1.179667
-#>  rr_comparator 1.053996 0.04467879 0.9665252 1.140622
+#>       rr_index 1.067584 0.05630268 0.9641510 1.183359
+#>  rr_comparator 1.054985 0.04509862 0.9677899 1.144179
 ```
 
 Population-averaged effects, absolute predictions, and the raw posterior draws
@@ -246,8 +246,8 @@ Table: Marginal log odds ratios
 
 |variable       |effect |population |      mean|        sd|       q2.5|       q50|     q97.5|
 |:--------------|:------|:----------|---------:|---------:|----------:|---------:|---------:|
-|lor_index      |LOR    |Index      | 0.2497305| 0.2041085| -0.1624251| 0.2551416| 0.6321788|
-|lor_comparator |LOR    |Comparator | 0.2506127| 0.2049419| -0.1624920| 0.2557102| 0.6350378|
+|lor_index      |LOR    |Index      | 0.2537767| 0.2053081| -0.1526689| 0.2538476| 0.6555978|
+|lor_comparator |LOR    |Comparator | 0.2546679| 0.2061737| -0.1527328| 0.2545148| 0.6587242|
 
 
 
@@ -266,10 +266,10 @@ Table: Standardized response probabilities, both populations
 
 |treatment |population |      mean|        sd|      q2.5|       q50|     q97.5|
 |:---------|:----------|---------:|---------:|---------:|---------:|---------:|
-|IXE_Q4W   |Index      | 0.7740228| 0.0216959| 0.7295385| 0.7746736| 0.8147383|
-|SEC_300   |Index      | 0.7271126| 0.0311022| 0.6651287| 0.7278552| 0.7855310|
-|IXE_Q4W   |Comparator | 0.8117238| 0.0233096| 0.7635180| 0.8132318| 0.8544340|
-|SEC_300   |Comparator | 0.7708617| 0.0231403| 0.7239993| 0.7712690| 0.8147916|
+|IXE_Q4W   |Index      | 0.7744589| 0.0220586| 0.7290820| 0.7750439| 0.8165154|
+|SEC_300   |Index      | 0.7268248| 0.0314643| 0.6626042| 0.7277590| 0.7862674|
+|IXE_Q4W   |Comparator | 0.8120690| 0.0234368| 0.7639743| 0.8132213| 0.8551468|
+|SEC_300   |Comparator | 0.7705032| 0.0241048| 0.7232535| 0.7706705| 0.8155886|
 
 
 
@@ -285,9 +285,9 @@ fit$diagnostics$n_divergent
 fit$diagnostics$n_max_treedepth
 #> [1] 0
 max(fit$summary$Rhat, na.rm = TRUE)
-#> [1] 1.003096
+#> [1] 1.003758
 min(fit$summary$n_eff, na.rm = TRUE)
-#> [1] 1749.138
+#> [1] 1890.414
 ```
 
 Posterior intervals for the key effects come straight from `marginal_effects()`
@@ -329,48 +329,48 @@ coefficients are identified by the IPD and the sweep is expected to be flat:
 prior_sensitivity(fit, prior_beta_scales = c(1, 2.5, 5))
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 1 finished in 0.5 seconds.
-#> Chain 2 finished in 0.5 seconds.
-#> Chain 3 finished in 0.5 seconds.
-#> Chain 4 finished in 0.5 seconds.
+#> Chain 1 finished in 0.7 seconds.
+#> Chain 2 finished in 0.7 seconds.
+#> Chain 3 finished in 0.7 seconds.
+#> Chain 4 finished in 0.7 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 0.5 seconds.
-#> Total execution time: 0.7 seconds.
+#> Mean chain execution time: 0.7 seconds.
+#> Total execution time: 1.1 seconds.
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 1 finished in 0.5 seconds.
+#> Chain 1 finished in 0.6 seconds.
 #> Chain 2 finished in 0.5 seconds.
-#> Chain 3 finished in 0.5 seconds.
-#> Chain 4 finished in 0.5 seconds.
+#> Chain 3 finished in 0.6 seconds.
+#> Chain 4 finished in 0.6 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 0.5 seconds.
-#> Total execution time: 0.7 seconds.
+#> Mean chain execution time: 0.6 seconds.
+#> Total execution time: 1.0 seconds.
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 1 finished in 0.5 seconds.
-#> Chain 2 finished in 0.5 seconds.
+#> Chain 1 finished in 0.6 seconds.
+#> Chain 2 finished in 0.6 seconds.
 #> Chain 3 finished in 0.6 seconds.
 #> Chain 4 finished in 0.5 seconds.
 #> 
 #> All 4 chains finished successfully.
 #> Mean chain execution time: 0.5 seconds.
-#> Total execution time: 0.8 seconds.
+#> Total execution time: 0.9 seconds.
 #> 
 #> Prior sensitivity: posterior of marginal treatment effects
 #> =========================================================
 #> 
-#>  scale      parameter effect      mean        sd       q2.5       q50     q97.5
-#>    1.0      lor_index    LOR 0.2493537 0.2028645 -0.1521821 0.2469932 0.6434855
-#>    1.0 lor_comparator    LOR 0.2502244 0.2037184 -0.1518749 0.2472533 0.6488729
-#>    2.5      lor_index    LOR 0.2497305 0.2041085 -0.1624251 0.2551416 0.6321788
-#>    2.5 lor_comparator    LOR 0.2506127 0.2049419 -0.1624920 0.2557102 0.6350378
-#>    5.0      lor_index    LOR 0.2543252 0.2020578 -0.1396538 0.2547255 0.6556654
-#>    5.0 lor_comparator    LOR 0.2552326 0.2029117 -0.1396964 0.2550773 0.6606167
+#>  scale      parameter effect      mean        sd         q2       q50       q98
+#>    1.0      lor_index    LOR 0.2450842 0.2042432 -0.1572848 0.2449714 0.6380143
+#>    1.0 lor_comparator    LOR 0.2459477 0.2050747 -0.1581046 0.2454590 0.6396459
+#>    2.5      lor_index    LOR 0.2537767 0.2053081 -0.1526689 0.2538476 0.6555978
+#>    2.5 lor_comparator    LOR 0.2546679 0.2061737 -0.1527328 0.2545148 0.6587242
+#>    5.0      lor_index    LOR 0.2481648 0.2012573 -0.1446230 0.2465931 0.6394745
+#>    5.0 lor_comparator    LOR 0.2490404 0.2020809 -0.1439587 0.2471842 0.6418033
 #> 
 #> Interpretation: if posterior summaries are approximately constant
-#> across scales, the result is robust to the tested prior scales.
+#> across scales, the inference is data-driven rather than prior-driven.
 ```
 
 The case that motivates the check is the relaxed model, whose comparator

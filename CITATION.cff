@@ -9,7 +9,7 @@ message: 'To cite the mlumr package in publications use:'
 type: software
 license: GPL-3.0-only
 title: 'mlumr: Multilevel Unanchored Meta-Regression for Indirect Treatment Comparisons'
-version: 0.2.0
+version: 0.1.0.9000
 abstract: >-
   Bayesian multilevel unanchored meta-regression (ML-UMR) for indirect treatment
   comparisons using individual patient data (IPD) and aggregate data (AgD).
@@ -69,7 +69,7 @@ references:
         given-names: Conor
         orcid: https://orcid.org/0000-0002-1365-9002
     year: '2026'
-    notes: R package version 0.2.0
+    notes: R package version 0.1.0.9000
     url: https://github.com/choxos/mlumr
   - type: article
     title: >-

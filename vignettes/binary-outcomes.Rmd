@@ -86,8 +86,10 @@ established by simulation [@ChandlerIshak2025]: the **comparator-population**
 effect is robust, recovered with little bias even when SPFA is violated, because
 the prognostic coefficients are anchored by the index IPD, whereas the
 **index-population** effect is biased if SPFA is wrongly imposed under strong
-effect modification. (When the estimand is confined to the comparator population,
-ML-UMR reduces to unanchored STC.)
+effect modification. (Restricted to the comparator population, the SPFA
+estimand has the same standardization target as unanchored STC. The estimators
+still differ: ML-UMR fits a joint likelihood in which the aggregate outcome
+informs the comparator intercept, whereas STC regresses on the IPD alone.)
 
 
 ``` r
@@ -103,7 +105,6 @@ covs <- c("age", "bsa", "weight", "prevsys")   # adjustment set for this example
 # --- Index IPD: UNCOVER-2, ixekizumab Q4W -----------------------------------
 ipd <- psoriasis_ipd
 ipd$bsa     <- ipd$bsa / 100      # body-surface area: % -> proportion
-ipd$prevsys <- as.integer(ipd$prevsys)   # previous systemic therapy (0/1)
 ipd <- ipd[ipd$study == "UNCOVER-2" & ipd$treatment == "IXE_Q4W", ]
 ipd <- ipd[stats::complete.cases(ipd[, c("pasi75", covs)]), ]
 
@@ -111,7 +112,6 @@ ipd <- ipd[stats::complete.cases(ipd[, c("pasi75", covs)]), ]
 agd <- psoriasis_agd
 agd$bsa_mean    <- agd$bsa_mean / 100
 agd$bsa_sd      <- agd$bsa_sd / 100
-agd$prevsys_mean <- agd$prevsys_prop          # already a proportion (0-1)
 agd <- agd[agd$study == "FIXTURE" & agd$treatment == "SEC_300", ]
 ```
 
@@ -141,7 +141,7 @@ Table: Index IPD (UNCOVER-2, ixekizumab Q4W), first rows
 
 ``` r
 knitr::kable(agd[, c("study", "treatment", "pasi75_r", "pasi75_n",
-           "age_mean", "bsa_mean", "weight_mean", "prevsys_mean")],
+           "age_mean", "bsa_mean", "weight_mean", "prevsys_prop")],
    caption = "Comparator AgD (FIXTURE, secukinumab 300 mg)")
 ```
 
@@ -149,7 +149,7 @@ knitr::kable(agd[, c("study", "treatment", "pasi75_r", "pasi75_n",
 
 Table: Comparator AgD (FIXTURE, secukinumab 300 mg)
 
-|study   |treatment | pasi75_r| pasi75_n| age_mean| bsa_mean| weight_mean| prevsys_mean|
+|study   |treatment | pasi75_r| pasi75_n| age_mean| bsa_mean| weight_mean| prevsys_prop|
 |:-------|:---------|--------:|--------:|--------:|--------:|-----------:|------------:|
 |FIXTURE |SEC_300   |      249|      323|     44.5|    0.343|          83|         0.63|
 
@@ -157,7 +157,7 @@ Table: Comparator AgD (FIXTURE, secukinumab 300 mg)
 
 ## Covariate balance
 
-The whole point of population adjustment is that the two trial populations
+Population adjustment is motivated by the fact that the two trial populations
 differ on prognostic factors. Comparing the index sample means against the
 published comparator means shows the imbalance we must adjust for:
 
@@ -167,7 +167,7 @@ balance <- data.frame(
   Covariate  = c("Age (years)", "Body-surface area (prop.)",
                  "Weight (kg)", "Previous systemic (prop.)"),
   Index_IXE  = c(mean(ipd$age), mean(ipd$bsa), mean(ipd$weight), mean(ipd$prevsys)),
-  Comparator_SEC = c(agd$age_mean, agd$bsa_mean, agd$weight_mean, agd$prevsys_mean)
+  Comparator_SEC = c(agd$age_mean, agd$bsa_mean, agd$weight_mean, agd$prevsys_prop)
 )
 knitr::kable(balance, caption = "Prognostic-factor balance: index vs comparator population")
 ```
@@ -197,7 +197,7 @@ ipd_obj <- set_ipd(ipd, treatment = "treatment", outcome = "pasi75", covariates 
 
 agd_obj <- set_agd(agd, treatment = "treatment",
                    outcome_n = "pasi75_n", outcome_r = "pasi75_r",
-                   cov_means = c("age_mean", "bsa_mean", "weight_mean", "prevsys_mean"),
+                   cov_means = c("age_mean", "bsa_mean", "weight_mean", "prevsys_prop"),
                    cov_sds   = c("age_sd", "bsa_sd", "weight_sd", NA),
                    cov_types = c("continuous", "continuous", "continuous", "binary"))
 
@@ -257,11 +257,13 @@ check_integration(
   prevsys = distr(qbern,      prob = prevsys_mean)
 )
 #> Integration check: n_int = 64 vs 128
-#> Marginals -- max relative difference: 0.0310
-#> Caution: 1-5%% marginal relative difference. Consider increasing n_int.
-#> Joint -- max |cor(current) - cor(doubled)|: 0.1025
+#> Resolution heuristic, max relative difference: 0.0310
+#> Caution: 1-5% marginal relative difference. Consider increasing n_int.
+#> Declared-target fidelity, max relative difference: 0.0638
+#> Warning: grid moments differ from declared AgD moments by >5%.
+#> Joint: max |cor(current) - cor(doubled)|: 0.1025
 #> Warning: pairwise correlations differ by > 0.05 between resolutions.
-#> Target (spearman) -- max |cor(doubled) - cor_target|: 0.0390
+#> Target (spearman): max |cor(doubled) - cor_target|: 0.0390
 ```
 
 ## Frequentist benchmarks
@@ -278,6 +280,8 @@ res_naive
 #> =====================================
 #> 
 #> Treatments: IXE_Q4W vs SEC_300 
+#> 
+#> Population basis: index-study outcome versus comparator-population outcome; no common standardized target.
 #> 
 #> Event rates:
 #>   Index (IPD):      0.774 (267/345)
@@ -296,6 +300,9 @@ res_stc
 #> ===============================================
 #> 
 #> Treatments: IXE_Q4W vs SEC_300 
+#> 
+#> Estimand population: comparator
+#> Treating this as the index-population effect requires a separate effect-equality assumption; this calculation does not transport to the index population.
 #> 
 #> Marginalized P(Y=1|index trt, comp pop): 0.8106
 #> Observed P(Y=1|comp trt, comp pop):      0.7709
@@ -331,14 +338,14 @@ fit_spfa <- mlumr(dat, model = "spfa", link = "logit",
                   seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 1 finished in 2.0 seconds.
-#> Chain 4 finished in 1.9 seconds.
-#> Chain 3 finished in 2.1 seconds.
-#> Chain 2 finished in 2.2 seconds.
+#> Chain 1 finished in 0.6 seconds.
+#> Chain 2 finished in 0.6 seconds.
+#> Chain 3 finished in 0.6 seconds.
+#> Chain 4 finished in 0.6 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 2.0 seconds.
-#> Total execution time: 2.5 seconds.
+#> Mean chain execution time: 0.6 seconds.
+#> Total execution time: 0.8 seconds.
 
 fit_relaxed <- mlumr(dat, model = "relaxed", link = "logit",
                      prior_beta = prior_normal(0, 2.5, autoscale = TRUE),
@@ -346,14 +353,14 @@ fit_relaxed <- mlumr(dat, model = "relaxed", link = "logit",
                      seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 2 finished in 10.4 seconds.
-#> Chain 1 finished in 12.7 seconds.
-#> Chain 3 finished in 13.0 seconds.
-#> Chain 4 finished in 12.9 seconds.
+#> Chain 2 finished in 3.8 seconds.
+#> Chain 4 finished in 4.2 seconds.
+#> Chain 3 finished in 4.7 seconds.
+#> Chain 1 finished in 5.1 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 12.2 seconds.
-#> Total execution time: 13.1 seconds.
+#> Mean chain execution time: 4.5 seconds.
+#> Total execution time: 5.2 seconds.
 
 summary(fit_spfa)
 #> ML-UMR Model Summary
@@ -368,34 +375,34 @@ summary(fit_spfa)
 #> MCMC Diagnostics:
 #>   Divergent transitions: 0 
 #>   Max treedepth hits: 0 
-#>   Max Rhat: 1.004 
-#>   Min ESS: 1626 
+#>   Max Rhat: 1.003 
+#>   Min ESS: 1836 
 #> 
 #> Intercepts (logit scale):
 #>       variable     mean        sd      2.5%    97.5%     Rhat
-#>       mu_index 1.456032 0.1585342 1.1588052 1.771057 1.001716
-#>  mu_comparator 1.193006 0.1510081 0.8984091 1.495718 1.000437
+#>       mu_index 1.433550 0.1566491 1.1431922 1.745167 1.002008
+#>  mu_comparator 1.182341 0.1504401 0.8824316 1.474706 1.000581
 #> 
 #> Regression Coefficients:
 #>       variable        mean          sd        2.5%        97.5%     Rhat
-#>      beta[age] -0.04142623 0.010977362 -0.06363061 -0.020512870 1.000944
-#>      beta[bsa]  0.09918916 0.745150032 -1.31097336  1.654219025 1.001327
-#>   beta[weight] -0.01416714 0.006554276 -0.02724947 -0.001708739 1.000400
-#>  beta[prevsys]  0.09711935 0.287967633 -0.47427496  0.638432173 1.000120
+#>      beta[age] -0.04089938 0.011061348 -0.06207939 -0.018932920 1.000364
+#>      beta[bsa]  0.08158985 0.756802237 -1.35288580  1.631374443 1.000150
+#>   beta[weight] -0.01385874 0.006396755 -0.02678303 -0.001332561 1.000806
+#>  beta[prevsys]  0.09063289 0.296119495 -0.48294336  0.658655304 1.002473
 #> 
 #> Marginal Treatment Effects:
 #>   Log Odds Ratios:
 #>        variable      mean        sd       2.5%     97.5%
-#>       lor_index 0.2429309 0.2058044 -0.1636367 0.6492656
-#>  lor_comparator 0.2438600 0.2066924 -0.1641550 0.6538689
+#>       lor_index 0.2323910 0.2047769 -0.1695227 0.6270024
+#>  lor_comparator 0.2332364 0.2056267 -0.1698324 0.6304798
 #>   Risk Differences:
 #>       variable       mean         sd        2.5%     97.5%
-#>       rd_index 0.04561572 0.03878394 -0.02904194 0.1225446
-#>  rd_comparator 0.03983098 0.03373852 -0.02773046 0.1065781
+#>       rd_index 0.04364540 0.03862472 -0.03157762 0.1196621
+#>  rd_comparator 0.03821683 0.03369655 -0.02940678 0.1037666
 #>   Risk Ratios:
 #>       variable     mean         sd      2.5%    97.5%
-#>       rr_index 1.064697 0.05616386 0.9624723 1.181290
-#>  rr_comparator 1.052683 0.04514840 0.9648882 1.145201
+#>       rr_index 1.061858 0.05571767 0.9589326 1.177867
+#>  rr_comparator 1.050589 0.04504107 0.9631279 1.140555
 ```
 
 ### Priors
@@ -415,7 +422,7 @@ prior_summary(fit_spfa)
 #> 
 #> Intercepts (mu_index, mu_comparator):
 #>   normal(0, 10)
-#>   (package default, mlumr 0.2.0)
+#>   (package default, mlumr 0.1.0.9000)
 #> 
 #> Regression coefficients (beta):
 #>   Family: normal
@@ -427,7 +434,7 @@ prior_summary(fit_spfa)
 #>   (scale = user_scale / sd_x for autoscaled rows)
 ```
 
-The data are far more informative than the priors, the posterior intercepts are
+The data are substantially more informative than the priors, the posterior intercepts are
 much tighter than the $\mathrm{N}(0,10)$ prior:
 
 
@@ -477,7 +484,7 @@ data.frame(
   min_ESS      = round(min(fit_spfa$summary$n_eff, na.rm = TRUE))
 )
 #>   n_divergent max_treedepth max_Rhat min_ESS
-#> 1           0             0    1.004    1626
+#> 1           0             0    1.003    1836
 ```
 
 ## Treatment effects
@@ -499,12 +506,12 @@ Table: SPFA population-standardized effects (IXE_Q4W vs SEC_300)
 
 |variable       |effect |population |      mean|        sd|       q2.5|       q50|     q97.5|
 |:--------------|:------|:----------|---------:|---------:|----------:|---------:|---------:|
-|lor_index      |LOR    |Index      | 0.2429309| 0.2058044| -0.1636367| 0.2459725| 0.6492656|
-|lor_comparator |LOR    |Comparator | 0.2438600| 0.2066924| -0.1641550| 0.2465905| 0.6538689|
-|rd_index       |RD     |Index      | 0.0456157| 0.0387839| -0.0290419| 0.0456861| 0.1225446|
-|rd_comparator  |RD     |Comparator | 0.0398310| 0.0337385| -0.0277305| 0.0402706| 0.1065781|
-|rr_index       |RR     |Index      | 1.0646970| 0.0561639|  0.9624723| 1.0624852| 1.1812900|
-|rr_comparator  |RR     |Comparator | 1.0526825| 0.0451484|  0.9648882| 1.0520700| 1.1452014|
+|lor_index      |LOR    |Index      | 0.2323910| 0.2047769| -0.1695227| 0.2323505| 0.6270024|
+|lor_comparator |LOR    |Comparator | 0.2332364| 0.2056267| -0.1698324| 0.2326902| 0.6304798|
+|rd_index       |RD     |Index      | 0.0436454| 0.0386247| -0.0315776| 0.0429736| 0.1196621|
+|rd_comparator  |RD     |Comparator | 0.0382168| 0.0336965| -0.0294068| 0.0380543| 0.1037666|
+|rr_index       |RR     |Index      | 1.0618581| 0.0557177|  0.9589326| 1.0591640| 1.1778672|
+|rr_comparator  |RR     |Comparator | 1.0505893| 0.0450411|  0.9631279| 1.0494870| 1.1405554|
 
 
 
@@ -562,12 +569,12 @@ Table: Relaxed-model standardized effects, both populations
 
 |variable       |effect |population |      mean|        sd|       q2.5|       q50|     q97.5|
 |:--------------|:------|:----------|---------:|---------:|----------:|---------:|---------:|
-|lor_index      |LOR    |Index      | 0.0060900| 0.6019682| -1.1167811| 0.0148098| 1.1380890|
-|lor_comparator |LOR    |Comparator | 0.2437978| 0.2033377| -0.1454519| 0.2464298| 0.6432549|
-|rd_index       |RD     |Index      | 0.0157195| 0.1059826| -0.1452645| 0.0026297| 0.2443535|
-|rd_comparator  |RD     |Comparator | 0.0398935| 0.0332571| -0.0251425| 0.0406807| 0.1045699|
-|rr_index       |RR     |Index      | 1.0427156| 0.1662701|  0.8380489| 1.0034479| 1.4532960|
-|rr_comparator  |RR     |Comparator | 1.0527739| 0.0445464|  0.9686698| 1.0528289| 1.1433087|
+|lor_index      |LOR    |Index      | 0.0141719| 0.6172729| -1.1375790| 0.0264874| 1.1553849|
+|lor_comparator |LOR    |Comparator | 0.2536500| 0.2075576| -0.1664167| 0.2531127| 0.6573647|
+|rd_index       |RD     |Index      | 0.0179156| 0.1078882| -0.1488600| 0.0045542| 0.2521100|
+|rd_comparator  |RD     |Comparator | 0.0414963| 0.0339794| -0.0270876| 0.0415212| 0.1080257|
+|rr_index       |RR     |Index      | 1.0462395| 0.1675566|  0.8348833| 1.0061259| 1.4737397|
+|rr_comparator  |RR     |Comparator | 1.0549516| 0.0455742|  0.9666071| 1.0542417| 1.1477168|
 
 
 
@@ -603,10 +610,10 @@ Table: Standardized PASI 75 response probabilities
 
 |treatment |population |      mean|        sd|      q2.5|       q50|     q97.5|
 |:---------|:----------|---------:|---------:|---------:|---------:|---------:|
-|IXE_Q4W   |Index      | 0.7738115| 0.0222147| 0.7291134| 0.7743846| 0.8151820|
-|SEC_300   |Index      | 0.7281957| 0.0318568| 0.6634756| 0.7292301| 0.7882981|
-|IXE_Q4W   |Comparator | 0.8103198| 0.0241473| 0.7610089| 0.8117656| 0.8533010|
-|SEC_300   |Comparator | 0.7704888| 0.0234794| 0.7216666| 0.7709953| 0.8153665|
+|IXE_Q4W   |Index      | 0.7729681| 0.0219597| 0.7280789| 0.7736964| 0.8140666|
+|SEC_300   |Index      | 0.7293227| 0.0314229| 0.6649613| 0.7299364| 0.7871844|
+|IXE_Q4W   |Comparator | 0.8088424| 0.0239865| 0.7606818| 0.8100515| 0.8525781|
+|SEC_300   |Comparator | 0.7706255| 0.0236577| 0.7209321| 0.7708675| 0.8149083|
 
 
 
@@ -641,15 +648,15 @@ Table: Conditional log odds ratios at three covariate profiles
 
 | profile|effect      |      mean|        sd|       q2.5|       q50|     q97.5|
 |-------:|:-----------|---------:|---------:|----------:|---------:|---------:|
-|       1|LINK_EFFECT | 0.2630262| 0.2239716| -0.1729783| 0.2636715| 0.7089039|
-|       1|RD          | 0.0161457| 0.0169085| -0.0167018| 0.0147952| 0.0556351|
-|       1|RR          | 1.0180881| 0.0200311|  0.9811304| 1.0159245| 1.0662065|
-|       2|LINK_EFFECT | 0.2630262| 0.2239716| -0.1729783| 0.2636714| 0.7089039|
-|       2|RD          | 0.0243758| 0.0234659| -0.0228272| 0.0238640| 0.0721420|
-|       2|RR          | 1.0288030| 0.0295617|  0.9720738| 1.0270368| 1.0922750|
-|       3|LINK_EFFECT | 0.2630262| 0.2239716| -0.1729783| 0.2636714| 0.7089039|
-|       3|RD          | 0.0373960| 0.0346560| -0.0325699| 0.0371830| 0.1075276|
-|       3|RR          | 1.0502054| 0.0519139|  0.9547235| 1.0465803| 1.1652331|
+|       1|LINK_EFFECT | 0.2512088| 0.2220838| -0.1788467| 0.2480997| 0.6897951|
+|       1|RD          | 0.0158931| 0.0171732| -0.0166838| 0.0144929| 0.0546655|
+|       1|RR          | 1.0179169| 0.0205886|  0.9814740| 1.0157309| 1.0652528|
+|       2|LINK_EFFECT | 0.2512088| 0.2220838| -0.1788467| 0.2480997| 0.6897951|
+|       2|RD          | 0.0237740| 0.0232938| -0.0239803| 0.0233931| 0.0717123|
+|       2|RR          | 1.0282100| 0.0292494|  0.9722342| 1.0266319| 1.0918931|
+|       3|LINK_EFFECT | 0.2512088| 0.2220838| -0.1788467| 0.2480997| 0.6897951|
+|       3|RD          | 0.0361316| 0.0341120| -0.0330421| 0.0359099| 0.1050578|
+|       3|RR          | 1.0487346| 0.0501596|  0.9539080| 1.0448837| 1.1595812|
 
 
 
@@ -669,8 +676,8 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "loo")
 #> ======================
 #> 
 #>    model elpd_diff se_diff p_worse       diag_diff      diag_elpd
-#>     SPFA       0.0     0.0      NA                 1 k_psis > 0.7
-#>  Relaxed      -0.1     0.1    0.92 |elpd_diff| < 4 1 k_psis > 0.7
+#>  Relaxed       0.0     0.0      NA                 1 k_psis > 0.7
+#>     SPFA      -0.3     0.3    0.81 |elpd_diff| < 4 1 k_psis > 0.7
 #> 
 #> elpd_diff is the difference in expected log pointwise predictive
 #> density vs the best model. se_diff > 2 is the conventional threshold
@@ -681,8 +688,8 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "dic")
 #> ======================
 #> 
 #>    Model    DIC   pD Delta_DIC
-#>  Relaxed 368.42 6.08      0.00
-#>     SPFA 368.53 6.23      0.11
+#>  Relaxed 368.56 6.19      0.00
+#>     SPFA 368.67 6.33      0.12
 #> 
 #> Lower DIC = better fit. Delta_DIC > 5 is a rough heuristic for
 #> meaningful difference, not a formally calibrated threshold.
@@ -882,28 +889,28 @@ Table: Unanchored estimates against the anchored references, in both target popu
 |:----------------------------------------------------|:--------|:-----------------------|-------:|-------:|------:|
 |Naive (unadjusted)                                   |no       |comparator              |   0.017|  -0.345|  0.379|
 |STC (G-computation)                                  |no       |comparator              |   0.240|  -0.157|  0.638|
-|ML-UMR SPFA (prognostic only)                        |no       |index                   |   0.243|  -0.164|  0.649|
-|ML-UMR SPFA (prognostic only)                        |no       |comparator              |   0.244|  -0.164|  0.654|
-|ML-UMR relaxed (effect modification)                 |no       |index                   |   0.006|  -1.117|  1.138|
-|ML-UMR relaxed (effect modification)                 |no       |comparator              |   0.244|  -0.145|  0.643|
+|ML-UMR SPFA (prognostic only)                        |no       |index                   |   0.232|  -0.170|  0.627|
+|ML-UMR SPFA (prognostic only)                        |no       |comparator              |   0.233|  -0.170|  0.630|
+|ML-UMR relaxed (effect modification)                 |no       |index                   |   0.014|  -1.138|  1.155|
+|ML-UMR relaxed (effect modification)                 |no       |comparator              |   0.254|  -0.166|  0.657|
 |Anchored: Bucher / fixed-effect NMA                  |yes      |not population-specific |   0.208|  -0.265|  0.682|
-|Anchored: ML-NMR, prognostic only                    |yes      |not population-specific |   0.155|  -0.358|  0.650|
-|Anchored: ML-NMR, with * .trt (multinma's own model) |yes      |index                   |  -8.166| -21.505|  0.367|
-|Anchored: ML-NMR, with * .trt (multinma's own model) |yes      |comparator              | -10.634| -26.899| -1.496|
+|Anchored: ML-NMR, prognostic only                    |yes      |not population-specific |   0.157|  -0.366|  0.665|
+|Anchored: ML-NMR, with * .trt (multinma's own model) |yes      |index                   |  -8.377| -21.582|  0.344|
+|Anchored: ML-NMR, with * .trt (multinma's own model) |yes      |comparator              | -10.521| -25.689| -1.552|
 
 
 
-Read the last two rows with care, and read them as a warning rather than a
-result. The `* .trt` specification is the one multinma's own plaque-psoriasis
-example uses, but that example has **five** studies to identify the
-interactions. This sub-network has two, and two studies cannot separate a
-treatment effect from a covariate-by-treatment interaction. The fits run,
-report, and produce numbers with enormous intervals; that is non-identification
-wearing the clothes of an estimate. Reporting them in both populations makes the
-point sharper than a single row could: the index and comparator values are
-separated by more than two log odds ratios, when a well-identified contrast
-barely moves between populations. They are included precisely so their width and
-their disagreement can be compared against the rows above.
+The last two rows should not be interpreted substantively. The `* .trt`
+specification is the one multinma's own plaque-psoriasis example uses, but that
+example has **five** studies to identify the interactions. This sub-network has
+two, and two studies cannot separate a treatment effect from a
+covariate-by-treatment interaction. The fits converge and return estimates, but
+the intervals are very wide, which is the expected signature of weak
+identification rather than a usable result. Reporting both populations makes
+this visible: the index and comparator values differ by more than two log odds
+ratios, whereas a well-identified contrast changes little between populations.
+The rows are included so that their width and their disagreement can be compared
+with the rows above.
 
 Setting those rows aside, the two identified anchored estimates agree with each
 other, and the SPFA model agrees with both of them in **both** populations.
