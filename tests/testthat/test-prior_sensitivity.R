@@ -73,23 +73,38 @@ test_that(".rescale_prior_beta rescales per-coefficient priors element-wise", {
 test_that("prior_sensitivity() omits the survival controls for other families", {
   # mlumr() rejects `aux_by` for non-survival families using missing(), not a
   # NULL test, so naming it in the refit call at all breaks every binomial,
-  # normal and Poisson fit. Assert on the argument set the refit would build
-  # rather than paying for a sampling run.
-  body_txt <- paste(deparse(body(prior_sensitivity)), collapse = "\n")
-
-  # The survival-only controls must sit behind a family test.
-  expect_match(body_txt, 'identical\\(fit\\$family, "survival"\\)')
-
+  # normal and Poisson fit. Assert on the argument set the refit actually
+  # builds rather than paying for a sampling run.
   surv_only <- c("aux_by", "distribution", "n_knots", "knots",
                  "mspline_degree", "pred_times", "rmst_horizon",
                  "n_rmst_grid", "prior_aux", "prior_smooth")
-  # Each appears only inside the survival branch: it must not be named in the
-  # unconditional argument list.
-  before <- sub('identical\\(fit\\$family, "survival"\\).*$', "", body_txt)
-  for (a in surv_only) {
-    expect_false(grepl(paste0("\\b", a, "\\s*="), before),
-                 info = paste(a, "is passed unconditionally"))
+  mk <- function(family) {
+    structure(
+      list(family = family, model = "spfa", link = NULL, engine = "rstan",
+           data = list(covariates = "age"),
+           distribution = if (family == "survival") "weibull" else NULL,
+           sampling_args = list(chains = 2, iter = 600, warmup = 300),
+           model_controls = list(center = TRUE, qr = FALSE),
+           surv_controls = list(aux_by = ".study", n_knots = 7L,
+                                mspline_degree = NA_integer_),
+           priors = list(intercept = prior_normal(0, 10),
+                         beta = prior_normal(0, 2.5))),
+      class = "mlumr_fit"
+    )
   }
+  args_bin <- mlumr:::.prior_sensitivity_args(mk("binomial"),
+                                              prior_normal(0, 1), FALSE)
+  for (a in surv_only) {
+    expect_false(a %in% names(args_bin),
+                 info = paste(a, "is passed for a non-survival fit"))
+  }
+
+  args_surv <- mlumr:::.prior_sensitivity_args(mk("survival"),
+                                               prior_normal(0, 1), FALSE)
+  expect_true(all(surv_only %in% names(args_surv)))
+  # NA controls are normalized back to NULL, which mlumr() accepts where it
+  # rejects NA.
+  expect_null(args_surv$mspline_degree)
 })
 
 test_that("prior_sensitivity() lets `...` override the sampler controls", {

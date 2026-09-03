@@ -13,104 +13,104 @@ namespace model_mlumr_binary_relaxed_namespace {
 using stan::model::model_base_crtp;
 using namespace stan::math;
 stan::math::profile_map profiles__;
-static constexpr std::array<const char*, 229> locations_array__ =
+static constexpr std::array<const char*, 235> locations_array__ =
   {" (found before start of program)",
-  " (in 'mlumr_binary_relaxed', line 197, column 2 to column 24)",
-  " (in 'mlumr_binary_relaxed', line 205, column 2 to column 60)",
-  " (in 'mlumr_binary_relaxed', line 206, column 2 to column 29)",
-  " (in 'mlumr_binary_relaxed', line 207, column 2 to column 34)",
-  " (in 'mlumr_binary_relaxed', line 208, column 2 to column 56)",
-  " (in 'mlumr_binary_relaxed', line 209, column 2 to column 69)",
-  " (in 'mlumr_binary_relaxed', line 210, column 2 to column 46)",
-  " (in 'mlumr_binary_relaxed', line 242, column 2 to column 17)",
-  " (in 'mlumr_binary_relaxed', line 243, column 2 to column 22)",
-  " (in 'mlumr_binary_relaxed', line 244, column 2 to column 16)",
-  " (in 'mlumr_binary_relaxed', line 245, column 2 to column 21)",
-  " (in 'mlumr_binary_relaxed', line 246, column 2 to column 16)",
-  " (in 'mlumr_binary_relaxed', line 247, column 2 to column 21)",
-  " (in 'mlumr_binary_relaxed', line 248, column 2 to column 21)",
-  " (in 'mlumr_binary_relaxed', line 249, column 2 to column 26)",
-  " (in 'mlumr_binary_relaxed', line 250, column 2 to column 26)",
-  " (in 'mlumr_binary_relaxed', line 251, column 2 to column 31)",
-  " (in 'mlumr_binary_relaxed', line 252, column 2 to column 25)",
-  " (in 'mlumr_binary_relaxed', line 253, column 2 to column 25)",
-  " (in 'mlumr_binary_relaxed', line 254, column 2 to column 30)",
-  " (in 'mlumr_binary_relaxed', line 255, column 2 to column 30)",
-  " (in 'mlumr_binary_relaxed', line 256, column 2 to column 30)",
-  " (in 'mlumr_binary_relaxed', line 257, column 2 to column 30)",
-  " (in 'mlumr_binary_relaxed', line 258, column 2 to column 35)",
-  " (in 'mlumr_binary_relaxed', line 259, column 2 to column 35)",
-  " (in 'mlumr_binary_relaxed', line 261, column 2 to column 27)",
-  " (in 'mlumr_binary_relaxed', line 262, column 2 to column 28)",
-  " (in 'mlumr_binary_relaxed', line 263, column 2 to column 33)",
-  " (in 'mlumr_binary_relaxed', line 265, column 2 to column 44)",
-  " (in 'mlumr_binary_relaxed', line 268, column 11 to column 16)",
-  " (in 'mlumr_binary_relaxed', line 268, column 4 to column 75)",
-  " (in 'mlumr_binary_relaxed', line 269, column 4 to column 61)",
-  " (in 'mlumr_binary_relaxed', line 270, column 4 to column 64)",
-  " (in 'mlumr_binary_relaxed', line 271, column 4 to column 73)",
-  " (in 'mlumr_binary_relaxed', line 272, column 4 to column 76)",
-  " (in 'mlumr_binary_relaxed', line 273, column 4 to column 43)",
-  " (in 'mlumr_binary_relaxed', line 274, column 4 to column 53)",
-  " (in 'mlumr_binary_relaxed', line 267, column 2 to line 275, column 3)",
-  " (in 'mlumr_binary_relaxed', line 279, column 11 to column 21)",
-  " (in 'mlumr_binary_relaxed', line 279, column 4 to column 33)",
-  " (in 'mlumr_binary_relaxed', line 280, column 11 to column 21)",
-  " (in 'mlumr_binary_relaxed', line 280, column 4 to column 33)",
-  " (in 'mlumr_binary_relaxed', line 281, column 11 to column 21)",
-  " (in 'mlumr_binary_relaxed', line 281, column 4 to column 33)",
-  " (in 'mlumr_binary_relaxed', line 282, column 11 to column 21)",
-  " (in 'mlumr_binary_relaxed', line 282, column 4 to column 33)",
-  " (in 'mlumr_binary_relaxed', line 283, column 11 to column 21)",
-  " (in 'mlumr_binary_relaxed', line 283, column 4 to column 31)",
-  " (in 'mlumr_binary_relaxed', line 285, column 13 to column 18)",
-  " (in 'mlumr_binary_relaxed', line 285, column 6 to column 63)",
-  " (in 'mlumr_binary_relaxed', line 286, column 13 to column 18)",
-  " (in 'mlumr_binary_relaxed', line 286, column 6 to column 73)",
-  " (in 'mlumr_binary_relaxed', line 287, column 6 to column 58)",
-  " (in 'mlumr_binary_relaxed', line 288, column 6 to column 61)",
-  " (in 'mlumr_binary_relaxed', line 289, column 6 to column 58)",
-  " (in 'mlumr_binary_relaxed', line 290, column 6 to column 61)",
-  " (in 'mlumr_binary_relaxed', line 291, column 6 to column 28)",
-  " (in 'mlumr_binary_relaxed', line 284, column 28 to line 292, column 5)",
-  " (in 'mlumr_binary_relaxed', line 284, column 4 to line 292, column 5)",
-  " (in 'mlumr_binary_relaxed', line 293, column 4 to column 75)",
-  " (in 'mlumr_binary_relaxed', line 294, column 4 to column 75)",
-  " (in 'mlumr_binary_relaxed', line 295, column 4 to column 80)",
-  " (in 'mlumr_binary_relaxed', line 296, column 4 to column 80)",
-  " (in 'mlumr_binary_relaxed', line 297, column 4 to column 53)",
-  " (in 'mlumr_binary_relaxed', line 298, column 4 to column 63)",
-  " (in 'mlumr_binary_relaxed', line 278, column 2 to line 299, column 3)",
-  " (in 'mlumr_binary_relaxed', line 302, column 2 to line 303, column 64)",
-  " (in 'mlumr_binary_relaxed', line 304, column 2 to line 305, column 79)",
-  " (in 'mlumr_binary_relaxed', line 306, column 2 to column 71)",
-  " (in 'mlumr_binary_relaxed', line 307, column 2 to line 308, column 62)",
-  " (in 'mlumr_binary_relaxed', line 309, column 2 to column 61)",
-  " (in 'mlumr_binary_relaxed', line 310, column 2 to column 76)",
-  " (in 'mlumr_binary_relaxed', line 314, column 4 to column 70)",
-  " (in 'mlumr_binary_relaxed', line 313, column 2 to line 314, column 70)",
-  " (in 'mlumr_binary_relaxed', line 316, column 11 to column 16)",
-  " (in 'mlumr_binary_relaxed', line 316, column 4 to column 71)",
-  " (in 'mlumr_binary_relaxed', line 317, column 4 to column 82)",
-  " (in 'mlumr_binary_relaxed', line 315, column 26 to line 318, column 3)",
-  " (in 'mlumr_binary_relaxed', line 315, column 2 to line 318, column 3)",
-  " (in 'mlumr_binary_relaxed', line 214, column 2 to line 215, column 71)",
-  " (in 'mlumr_binary_relaxed', line 216, column 2 to line 217, column 71)",
-  " (in 'mlumr_binary_relaxed', line 218, column 2 to line 219, column 61)",
-  " (in 'mlumr_binary_relaxed', line 220, column 2 to line 222, column 44)",
-  " (in 'mlumr_binary_relaxed', line 231, column 6 to column 65)",
-  " (in 'mlumr_binary_relaxed', line 230, column 4 to line 231, column 65)",
-  " (in 'mlumr_binary_relaxed', line 229, column 9 to line 232, column 3)",
-  " (in 'mlumr_binary_relaxed', line 228, column 6 to column 63)",
-  " (in 'mlumr_binary_relaxed', line 226, column 6 to column 39)",
-  " (in 'mlumr_binary_relaxed', line 225, column 4 to line 228, column 63)",
-  " (in 'mlumr_binary_relaxed', line 224, column 17 to line 229, column 3)",
-  " (in 'mlumr_binary_relaxed', line 224, column 2 to line 232, column 3)",
-  " (in 'mlumr_binary_relaxed', line 236, column 11 to column 16)",
-  " (in 'mlumr_binary_relaxed', line 236, column 4 to column 51)",
-  " (in 'mlumr_binary_relaxed', line 237, column 4 to column 75)",
-  " (in 'mlumr_binary_relaxed', line 234, column 26 to line 238, column 3)",
-  " (in 'mlumr_binary_relaxed', line 234, column 2 to line 238, column 3)",
+  " (in 'mlumr_binary_relaxed', line 205, column 2 to column 24)",
+  " (in 'mlumr_binary_relaxed', line 212, column 2 to column 60)",
+  " (in 'mlumr_binary_relaxed', line 213, column 2 to column 29)",
+  " (in 'mlumr_binary_relaxed', line 214, column 2 to column 34)",
+  " (in 'mlumr_binary_relaxed', line 215, column 2 to column 56)",
+  " (in 'mlumr_binary_relaxed', line 216, column 2 to column 69)",
+  " (in 'mlumr_binary_relaxed', line 217, column 2 to column 46)",
+  " (in 'mlumr_binary_relaxed', line 249, column 2 to column 17)",
+  " (in 'mlumr_binary_relaxed', line 250, column 2 to column 22)",
+  " (in 'mlumr_binary_relaxed', line 251, column 2 to column 16)",
+  " (in 'mlumr_binary_relaxed', line 252, column 2 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 253, column 2 to column 16)",
+  " (in 'mlumr_binary_relaxed', line 254, column 2 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 255, column 2 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 256, column 2 to column 26)",
+  " (in 'mlumr_binary_relaxed', line 257, column 2 to column 26)",
+  " (in 'mlumr_binary_relaxed', line 258, column 2 to column 31)",
+  " (in 'mlumr_binary_relaxed', line 259, column 2 to column 25)",
+  " (in 'mlumr_binary_relaxed', line 260, column 2 to column 25)",
+  " (in 'mlumr_binary_relaxed', line 261, column 2 to column 30)",
+  " (in 'mlumr_binary_relaxed', line 262, column 2 to column 30)",
+  " (in 'mlumr_binary_relaxed', line 263, column 2 to column 30)",
+  " (in 'mlumr_binary_relaxed', line 264, column 2 to column 30)",
+  " (in 'mlumr_binary_relaxed', line 265, column 2 to column 35)",
+  " (in 'mlumr_binary_relaxed', line 266, column 2 to column 35)",
+  " (in 'mlumr_binary_relaxed', line 268, column 2 to column 27)",
+  " (in 'mlumr_binary_relaxed', line 269, column 2 to column 28)",
+  " (in 'mlumr_binary_relaxed', line 270, column 2 to column 33)",
+  " (in 'mlumr_binary_relaxed', line 272, column 2 to column 44)",
+  " (in 'mlumr_binary_relaxed', line 275, column 11 to column 16)",
+  " (in 'mlumr_binary_relaxed', line 275, column 4 to column 75)",
+  " (in 'mlumr_binary_relaxed', line 276, column 4 to column 61)",
+  " (in 'mlumr_binary_relaxed', line 277, column 4 to column 64)",
+  " (in 'mlumr_binary_relaxed', line 278, column 4 to column 73)",
+  " (in 'mlumr_binary_relaxed', line 279, column 4 to column 76)",
+  " (in 'mlumr_binary_relaxed', line 280, column 4 to column 43)",
+  " (in 'mlumr_binary_relaxed', line 281, column 4 to column 53)",
+  " (in 'mlumr_binary_relaxed', line 274, column 2 to line 282, column 3)",
+  " (in 'mlumr_binary_relaxed', line 286, column 11 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 286, column 4 to column 33)",
+  " (in 'mlumr_binary_relaxed', line 287, column 11 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 287, column 4 to column 33)",
+  " (in 'mlumr_binary_relaxed', line 288, column 11 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 288, column 4 to column 33)",
+  " (in 'mlumr_binary_relaxed', line 289, column 11 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 289, column 4 to column 33)",
+  " (in 'mlumr_binary_relaxed', line 290, column 11 to column 21)",
+  " (in 'mlumr_binary_relaxed', line 290, column 4 to column 31)",
+  " (in 'mlumr_binary_relaxed', line 292, column 13 to column 18)",
+  " (in 'mlumr_binary_relaxed', line 292, column 6 to column 63)",
+  " (in 'mlumr_binary_relaxed', line 293, column 13 to column 18)",
+  " (in 'mlumr_binary_relaxed', line 293, column 6 to column 73)",
+  " (in 'mlumr_binary_relaxed', line 294, column 6 to column 58)",
+  " (in 'mlumr_binary_relaxed', line 295, column 6 to column 61)",
+  " (in 'mlumr_binary_relaxed', line 296, column 6 to column 58)",
+  " (in 'mlumr_binary_relaxed', line 297, column 6 to column 61)",
+  " (in 'mlumr_binary_relaxed', line 298, column 6 to column 28)",
+  " (in 'mlumr_binary_relaxed', line 291, column 28 to line 299, column 5)",
+  " (in 'mlumr_binary_relaxed', line 291, column 4 to line 299, column 5)",
+  " (in 'mlumr_binary_relaxed', line 300, column 4 to column 75)",
+  " (in 'mlumr_binary_relaxed', line 301, column 4 to column 75)",
+  " (in 'mlumr_binary_relaxed', line 302, column 4 to column 80)",
+  " (in 'mlumr_binary_relaxed', line 303, column 4 to column 80)",
+  " (in 'mlumr_binary_relaxed', line 304, column 4 to column 53)",
+  " (in 'mlumr_binary_relaxed', line 305, column 4 to column 63)",
+  " (in 'mlumr_binary_relaxed', line 285, column 2 to line 306, column 3)",
+  " (in 'mlumr_binary_relaxed', line 309, column 2 to line 310, column 64)",
+  " (in 'mlumr_binary_relaxed', line 311, column 2 to line 312, column 79)",
+  " (in 'mlumr_binary_relaxed', line 313, column 2 to column 71)",
+  " (in 'mlumr_binary_relaxed', line 314, column 2 to line 315, column 62)",
+  " (in 'mlumr_binary_relaxed', line 316, column 2 to column 61)",
+  " (in 'mlumr_binary_relaxed', line 317, column 2 to column 76)",
+  " (in 'mlumr_binary_relaxed', line 321, column 4 to column 70)",
+  " (in 'mlumr_binary_relaxed', line 320, column 2 to line 321, column 70)",
+  " (in 'mlumr_binary_relaxed', line 323, column 11 to column 16)",
+  " (in 'mlumr_binary_relaxed', line 323, column 4 to column 71)",
+  " (in 'mlumr_binary_relaxed', line 324, column 4 to column 82)",
+  " (in 'mlumr_binary_relaxed', line 322, column 26 to line 325, column 3)",
+  " (in 'mlumr_binary_relaxed', line 322, column 2 to line 325, column 3)",
+  " (in 'mlumr_binary_relaxed', line 221, column 2 to line 222, column 71)",
+  " (in 'mlumr_binary_relaxed', line 223, column 2 to line 224, column 71)",
+  " (in 'mlumr_binary_relaxed', line 225, column 2 to line 226, column 61)",
+  " (in 'mlumr_binary_relaxed', line 227, column 2 to line 229, column 55)",
+  " (in 'mlumr_binary_relaxed', line 238, column 6 to column 65)",
+  " (in 'mlumr_binary_relaxed', line 237, column 4 to line 238, column 65)",
+  " (in 'mlumr_binary_relaxed', line 236, column 9 to line 239, column 3)",
+  " (in 'mlumr_binary_relaxed', line 235, column 6 to column 63)",
+  " (in 'mlumr_binary_relaxed', line 233, column 6 to column 39)",
+  " (in 'mlumr_binary_relaxed', line 232, column 4 to line 235, column 63)",
+  " (in 'mlumr_binary_relaxed', line 231, column 17 to line 236, column 3)",
+  " (in 'mlumr_binary_relaxed', line 231, column 2 to line 239, column 3)",
+  " (in 'mlumr_binary_relaxed', line 243, column 11 to column 16)",
+  " (in 'mlumr_binary_relaxed', line 243, column 4 to column 51)",
+  " (in 'mlumr_binary_relaxed', line 244, column 4 to column 75)",
+  " (in 'mlumr_binary_relaxed', line 241, column 26 to line 245, column 3)",
+  " (in 'mlumr_binary_relaxed', line 241, column 2 to line 245, column 3)",
   " (in 'mlumr_binary_relaxed', line 150, column 2 to column 21)",
   " (in 'mlumr_binary_relaxed', line 151, column 8 to column 13)",
   " (in 'mlumr_binary_relaxed', line 151, column 2 to column 42)",
@@ -150,15 +150,21 @@ static constexpr std::array<const char*, 229> locations_array__ =
   " (in 'mlumr_binary_relaxed', line 189, column 0 to column 37)",
   " (in 'mlumr_binary_relaxed', line 190, column 0 to column 37)",
   " (in 'mlumr_binary_relaxed', line 191, column 0 to column 28)",
-  " (in 'mlumr_binary_relaxed', line 192, column 2 to column 28)",
-  " (in 'mlumr_binary_relaxed', line 197, column 9 to column 11)",
+  " (in 'mlumr_binary_relaxed', line 196, column 9 to column 14)",
+  " (in 'mlumr_binary_relaxed', line 196, column 2 to column 43)",
+  " (in 'mlumr_binary_relaxed', line 197, column 18 to column 23)",
+  " (in 'mlumr_binary_relaxed', line 197, column 2 to column 50)",
+  " (in 'mlumr_binary_relaxed', line 198, column 2 to column 50)",
+  " (in 'mlumr_binary_relaxed', line 199, column 2 to column 41)",
+  " (in 'mlumr_binary_relaxed', line 200, column 2 to column 28)",
   " (in 'mlumr_binary_relaxed', line 205, column 9 to column 11)",
-  " (in 'mlumr_binary_relaxed', line 208, column 9 to column 14)",
-  " (in 'mlumr_binary_relaxed', line 209, column 9 to column 14)",
-  " (in 'mlumr_binary_relaxed', line 210, column 9 to column 14)",
-  " (in 'mlumr_binary_relaxed', line 261, column 9 to column 14)",
-  " (in 'mlumr_binary_relaxed', line 262, column 9 to column 14)",
-  " (in 'mlumr_binary_relaxed', line 263, column 9 to column 19)",
+  " (in 'mlumr_binary_relaxed', line 212, column 9 to column 11)",
+  " (in 'mlumr_binary_relaxed', line 215, column 9 to column 14)",
+  " (in 'mlumr_binary_relaxed', line 216, column 9 to column 14)",
+  " (in 'mlumr_binary_relaxed', line 217, column 9 to column 14)",
+  " (in 'mlumr_binary_relaxed', line 268, column 9 to column 14)",
+  " (in 'mlumr_binary_relaxed', line 269, column 9 to column 14)",
+  " (in 'mlumr_binary_relaxed', line 270, column 9 to column 19)",
   " (in 'mlumr_binary_relaxed', line 24, column 7 to column 54)",
   " (in 'mlumr_binary_relaxed', line 23, column 17 to column 57)",
   " (in 'mlumr_binary_relaxed', line 23, column 2 to line 24, column 54)",
@@ -416,12 +422,12 @@ log_prior_scalar(const T0__& x, const T1__& location, const T2__& scale,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 147;
+    current_statement__ = 153;
     if (stan::math::logical_eq(dist, 0)) {
-      current_statement__ = 146;
+      current_statement__ = 152;
       return stan::math::normal_lpdf<false>(x, location, scale);
     } else {
-      current_statement__ = 145;
+      current_statement__ = 151;
       return stan::math::student_t_lpdf<false>(x, df, location, scale);
     }
   } catch (const std::exception& e) {
@@ -461,12 +467,12 @@ log_prior_vector(const T0__& x_arg__, const T1__& location_arg__, const T2__&
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 151;
+    current_statement__ = 157;
     if (stan::math::logical_eq(dist, 0)) {
-      current_statement__ = 150;
+      current_statement__ = 156;
       return stan::math::normal_lpdf<false>(x, location, scale);
     } else {
-      current_statement__ = 149;
+      current_statement__ = 155;
       return stan::math::student_t_lpdf<false>(x, df, location, scale);
     }
   } catch (const std::exception& e) {
@@ -499,17 +505,17 @@ log_prior_sigma(const T0__& sigma, const T1__& location, const T2__& scale,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 157;
+    current_statement__ = 163;
     if (stan::math::logical_eq(dist, 0)) {
-      current_statement__ = 156;
+      current_statement__ = 162;
       return stan::math::normal_lpdf<false>(sigma, location, scale);
     } else {
-      current_statement__ = 155;
+      current_statement__ = 161;
       if (stan::math::logical_eq(dist, 1)) {
-        current_statement__ = 154;
+        current_statement__ = 160;
         return stan::math::student_t_lpdf<false>(sigma, df, location, scale);
       } else {
-        current_statement__ = 153;
+        current_statement__ = 159;
         return stan::math::exponential_lpdf<false>(sigma,
                  stan::math::inv(scale));
       }
@@ -540,12 +546,12 @@ log_prior_std_vector(const T0__& z_arg__, const T1__& dist, const T2__& df,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 161;
+    current_statement__ = 167;
     if (stan::math::logical_eq(dist, 0)) {
-      current_statement__ = 160;
+      current_statement__ = 166;
       return stan::math::std_normal_lpdf<false>(z);
     } else {
-      current_statement__ = 159;
+      current_statement__ = 165;
       return stan::math::student_t_lpdf<false>(z, df, static_cast<double>(0),
                static_cast<double>(1));
     }
@@ -571,7 +577,7 @@ log_mean_exp_vec(const T0__& x_arg__, std::ostream* pstream__) {
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 163;
+    current_statement__ = 169;
     return (stan::math::log_sum_exp(x) -
            stan::math::log(stan::math::num_elements(x)));
   } catch (const std::exception& e) {
@@ -601,7 +607,7 @@ log_weighted_mean_exp_vec(const T0__& log_x_arg__, const T1__& weights_arg__,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 165;
+    current_statement__ = 171;
     return (stan::math::log_sum_exp(
               stan::math::add(stan::math::log(weights), log_x))
            - stan::math::log_sum_exp(stan::math::log(weights)));
@@ -628,18 +634,18 @@ exp_difference(const T0__& log_x, const T1__& log_y, std::ostream* pstream__) {
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 171;
+    current_statement__ = 177;
     if (stan::math::logical_eq(log_x, log_y)) {
-      current_statement__ = 170;
+      current_statement__ = 176;
       return stan::math::promote_scalar<local_scalar_t__>(0);
     } else {
-      current_statement__ = 169;
+      current_statement__ = 175;
       if (stan::math::logical_gt(log_x, log_y)) {
-        current_statement__ = 168;
+        current_statement__ = 174;
         return stan::math::exp((log_x +
                  stan::math::log1m_exp((log_y - log_x))));
       } else {
-        current_statement__ = 167;
+        current_statement__ = 173;
         return -(stan::math::exp((log_y +
                    stan::math::log1m_exp((log_x - log_y)))));
       }
@@ -667,17 +673,17 @@ inv_link_binary(const T0__& eta, const T1__& link_code, std::ostream*
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 177;
+    current_statement__ = 183;
     if (stan::math::logical_eq(link_code, 1)) {
-      current_statement__ = 176;
+      current_statement__ = 182;
       return stan::math::inv_logit(eta);
     } else {
-      current_statement__ = 175;
+      current_statement__ = 181;
       if (stan::math::logical_eq(link_code, 2)) {
-        current_statement__ = 174;
+        current_statement__ = 180;
         return stan::math::Phi(eta);
       } else {
-        current_statement__ = 173;
+        current_statement__ = 179;
         return stan::math::inv_cloglog(eta);
       }
     }
@@ -706,22 +712,22 @@ inv_link_binary_vec(const T0__& eta_arg__, const T1__& link_code,
   (void) DUMMY_VAR__;
   try {
     int N = std::numeric_limits<int>::min();
-    current_statement__ = 179;
+    current_statement__ = 185;
     N = stan::math::num_elements(eta);
-    current_statement__ = 180;
+    current_statement__ = 186;
     stan::math::validate_non_negative_index("result", "N", N);
     Eigen::Matrix<local_scalar_t__,-1,1> result =
       Eigen::Matrix<local_scalar_t__,-1,1>::Constant(N, DUMMY_VAR__);
-    current_statement__ = 183;
+    current_statement__ = 189;
     for (int i = 1; i <= N; ++i) {
-      current_statement__ = 182;
+      current_statement__ = 188;
       stan::model::assign(result,
         inv_link_binary(
           stan::model::rvalue(eta, "eta", stan::model::index_uni(i)),
           link_code, pstream__), "assigning variable result",
         stan::model::index_uni(i));
     }
-    current_statement__ = 184;
+    current_statement__ = 190;
     return result;
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -746,22 +752,22 @@ log_event_prob_binary(const T0__& eta, const T1__& link_code, std::ostream*
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 192;
+    current_statement__ = 198;
     if (stan::math::logical_eq(link_code, 1)) {
-      current_statement__ = 191;
+      current_statement__ = 197;
       return -(stan::math::log1p_exp(-(eta)));
     } else {
-      current_statement__ = 190;
+      current_statement__ = 196;
       if (stan::math::logical_eq(link_code, 2)) {
-        current_statement__ = 189;
+        current_statement__ = 195;
         return stan::math::std_normal_lcdf(eta);
       } else {
-        current_statement__ = 188;
+        current_statement__ = 194;
         if (stan::math::logical_lt(eta, -(37))) {
-          current_statement__ = 187;
+          current_statement__ = 193;
           return eta;
         } else {
-          current_statement__ = 186;
+          current_statement__ = 192;
           return stan::math::log1m_exp(-(stan::math::exp(eta)));
         }
       }
@@ -789,17 +795,17 @@ log_nonevent_prob_binary(const T0__& eta, const T1__& link_code,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 198;
+    current_statement__ = 204;
     if (stan::math::logical_eq(link_code, 1)) {
-      current_statement__ = 197;
+      current_statement__ = 203;
       return -(stan::math::log1p_exp(eta));
     } else {
-      current_statement__ = 196;
+      current_statement__ = 202;
       if (stan::math::logical_eq(link_code, 2)) {
-        current_statement__ = 195;
+        current_statement__ = 201;
         return stan::math::std_normal_lcdf(-(eta));
       } else {
-        current_statement__ = 194;
+        current_statement__ = 200;
         return -(stan::math::exp(eta));
       }
     }
@@ -828,22 +834,22 @@ log_event_prob_binary_vec(const T0__& eta_arg__, const T1__& link_code,
   (void) DUMMY_VAR__;
   try {
     int N = std::numeric_limits<int>::min();
-    current_statement__ = 200;
+    current_statement__ = 206;
     N = stan::math::num_elements(eta);
-    current_statement__ = 201;
+    current_statement__ = 207;
     stan::math::validate_non_negative_index("result", "N", N);
     Eigen::Matrix<local_scalar_t__,-1,1> result =
       Eigen::Matrix<local_scalar_t__,-1,1>::Constant(N, DUMMY_VAR__);
-    current_statement__ = 204;
+    current_statement__ = 210;
     for (int i = 1; i <= N; ++i) {
-      current_statement__ = 203;
+      current_statement__ = 209;
       stan::model::assign(result,
         log_event_prob_binary(
           stan::model::rvalue(eta, "eta", stan::model::index_uni(i)),
           link_code, pstream__), "assigning variable result",
         stan::model::index_uni(i));
     }
-    current_statement__ = 205;
+    current_statement__ = 211;
     return result;
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -870,22 +876,22 @@ log_nonevent_prob_binary_vec(const T0__& eta_arg__, const T1__& link_code,
   (void) DUMMY_VAR__;
   try {
     int N = std::numeric_limits<int>::min();
-    current_statement__ = 207;
+    current_statement__ = 213;
     N = stan::math::num_elements(eta);
-    current_statement__ = 208;
+    current_statement__ = 214;
     stan::math::validate_non_negative_index("result", "N", N);
     Eigen::Matrix<local_scalar_t__,-1,1> result =
       Eigen::Matrix<local_scalar_t__,-1,1>::Constant(N, DUMMY_VAR__);
-    current_statement__ = 211;
+    current_statement__ = 217;
     for (int i = 1; i <= N; ++i) {
-      current_statement__ = 210;
+      current_statement__ = 216;
       stan::model::assign(result,
         log_nonevent_prob_binary(
           stan::model::rvalue(eta, "eta", stan::model::index_uni(i)),
           link_code, pstream__), "assigning variable result",
         stan::model::index_uni(i));
     }
-    current_statement__ = 212;
+    current_statement__ = 218;
     return result;
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -911,7 +917,7 @@ log_mean_event_binary(const T0__& eta_arg__, const T1__& link_code,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 214;
+    current_statement__ = 220;
     return (stan::math::log_sum_exp(
               log_event_prob_binary_vec(eta, link_code, pstream__))
            - stan::math::log(stan::math::num_elements(eta)));
@@ -939,7 +945,7 @@ log_mean_nonevent_binary(const T0__& eta_arg__, const T1__& link_code,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 216;
+    current_statement__ = 222;
     return (stan::math::log_sum_exp(
               log_nonevent_prob_binary_vec(eta, link_code, pstream__))
            - stan::math::log(stan::math::num_elements(eta)));
@@ -964,12 +970,12 @@ bernoulli_link_lpmf(const T0__& y, const T1__& eta, const T2__& link_code,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 219;
+    current_statement__ = 225;
     if (stan::math::logical_eq(y, 1)) {
-      current_statement__ = 218;
+      current_statement__ = 224;
       return log_event_prob_binary(eta, link_code, pstream__);
     }
-    current_statement__ = 220;
+    current_statement__ = 226;
     return log_nonevent_prob_binary(eta, link_code, pstream__);
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -996,21 +1002,21 @@ integrated_binomial_lpmf(const T0__& r, const T1__& n, const T2__& eta_arg__,
   (void) DUMMY_VAR__;
   try {
     local_scalar_t__ lp = DUMMY_VAR__;
-    current_statement__ = 222;
+    current_statement__ = 228;
     lp = ((stan::math::lgamma((n + 1)) - stan::math::lgamma((r + 1))) -
       stan::math::lgamma(((n - r) + 1)));
-    current_statement__ = 224;
+    current_statement__ = 230;
     if (stan::math::logical_gt(r, 0)) {
-      current_statement__ = 223;
+      current_statement__ = 229;
       lp = (lp + (r * log_mean_event_binary(eta, link_code, pstream__)));
     }
-    current_statement__ = 226;
+    current_statement__ = 232;
     if (stan::math::logical_lt(r, n)) {
-      current_statement__ = 225;
+      current_statement__ = 231;
       lp = (lp + ((n - r) *
         log_mean_nonevent_binary(eta, link_code, pstream__)));
     }
-    current_statement__ = 227;
+    current_statement__ = 233;
     return lp;
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -1041,12 +1047,19 @@ private:
   Eigen::Matrix<double,-1,1> prior_beta_sd_data__;
   int prior_beta_dist;
   double prior_beta_df;
+  Eigen::Matrix<double,-1,1> prior_beta_comparator_mean_data__;
+  Eigen::Matrix<double,-1,1> prior_beta_comparator_sd_data__;
+  int prior_beta_comparator_dist;
+  double prior_beta_comparator_df;
   int link;
   Eigen::Map<Eigen::Matrix<double,-1,-1>> X_ipd{nullptr, 0, 0};
   Eigen::Map<Eigen::Matrix<double,-1,-1>> Xq_ipd{nullptr, 0, 0};
   Eigen::Map<Eigen::Matrix<double,-1,-1>> R_inv{nullptr, 0, 0};
   Eigen::Map<Eigen::Matrix<double,-1,1>> prior_beta_mean{nullptr, 0};
   Eigen::Map<Eigen::Matrix<double,-1,1>> prior_beta_sd{nullptr, 0};
+  Eigen::Map<Eigen::Matrix<double,-1,1>>
+    prior_beta_comparator_mean{nullptr, 0};
+  Eigen::Map<Eigen::Matrix<double,-1,1>> prior_beta_comparator_sd{nullptr, 0};
 public:
   ~model_mlumr_binary_relaxed() {}
   model_mlumr_binary_relaxed(stan::io::var_context& context__, unsigned int
@@ -1403,31 +1416,109 @@ public:
       stan::math::check_greater_or_equal(function__, "prior_beta_df",
         prior_beta_df, 0);
       current_statement__ = 136;
+      stan::math::validate_non_negative_index("prior_beta_comparator_mean",
+        "n_cov", n_cov);
+      current_statement__ = 137;
+      context__.validate_dims("data initialization",
+        "prior_beta_comparator_mean", "double",
+        std::vector<size_t>{static_cast<size_t>(n_cov)});
+      prior_beta_comparator_mean_data__ = Eigen::Matrix<double,-1,1>::Constant(n_cov,
+                                            std::numeric_limits<double>::quiet_NaN(
+                                              ));
+      new (&prior_beta_comparator_mean)
+        Eigen::Map<Eigen::Matrix<double,-1,1>>(prior_beta_comparator_mean_data__.data(),
+        n_cov);
+      {
+        std::vector<local_scalar_t__> prior_beta_comparator_mean_flat__;
+        current_statement__ = 137;
+        prior_beta_comparator_mean_flat__ = context__.vals_r("prior_beta_comparator_mean");
+        pos__ = 1;
+        for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
+          stan::model::assign(prior_beta_comparator_mean,
+            prior_beta_comparator_mean_flat__[(pos__ - 1)],
+            "assigning variable prior_beta_comparator_mean",
+            stan::model::index_uni(sym1__));
+          pos__ = (pos__ + 1);
+        }
+      }
+      current_statement__ = 138;
+      stan::math::validate_non_negative_index("prior_beta_comparator_sd",
+        "n_cov", n_cov);
+      current_statement__ = 139;
+      context__.validate_dims("data initialization",
+        "prior_beta_comparator_sd", "double",
+        std::vector<size_t>{static_cast<size_t>(n_cov)});
+      prior_beta_comparator_sd_data__ = Eigen::Matrix<double,-1,1>::Constant(n_cov,
+                                          std::numeric_limits<double>::quiet_NaN(
+                                            ));
+      new (&prior_beta_comparator_sd)
+        Eigen::Map<Eigen::Matrix<double,-1,1>>(prior_beta_comparator_sd_data__.data(),
+        n_cov);
+      {
+        std::vector<local_scalar_t__> prior_beta_comparator_sd_flat__;
+        current_statement__ = 139;
+        prior_beta_comparator_sd_flat__ = context__.vals_r("prior_beta_comparator_sd");
+        pos__ = 1;
+        for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
+          stan::model::assign(prior_beta_comparator_sd,
+            prior_beta_comparator_sd_flat__[(pos__ - 1)],
+            "assigning variable prior_beta_comparator_sd",
+            stan::model::index_uni(sym1__));
+          pos__ = (pos__ + 1);
+        }
+      }
+      current_statement__ = 139;
+      stan::math::check_greater_or_equal(function__,
+        "prior_beta_comparator_sd", prior_beta_comparator_sd, 0);
+      current_statement__ = 140;
+      context__.validate_dims("data initialization",
+        "prior_beta_comparator_dist", "int", std::vector<size_t>{});
+      prior_beta_comparator_dist = std::numeric_limits<int>::min();
+      current_statement__ = 140;
+      prior_beta_comparator_dist = context__.vals_i("prior_beta_comparator_dist")[(1
+        - 1)];
+      current_statement__ = 140;
+      stan::math::check_greater_or_equal(function__,
+        "prior_beta_comparator_dist", prior_beta_comparator_dist, 0);
+      current_statement__ = 140;
+      stan::math::check_less_or_equal(function__,
+        "prior_beta_comparator_dist", prior_beta_comparator_dist, 1);
+      current_statement__ = 141;
+      context__.validate_dims("data initialization",
+        "prior_beta_comparator_df", "double", std::vector<size_t>{});
+      prior_beta_comparator_df = std::numeric_limits<double>::quiet_NaN();
+      current_statement__ = 141;
+      prior_beta_comparator_df = context__.vals_r("prior_beta_comparator_df")[(1
+        - 1)];
+      current_statement__ = 141;
+      stan::math::check_greater_or_equal(function__,
+        "prior_beta_comparator_df", prior_beta_comparator_df, 0);
+      current_statement__ = 142;
       context__.validate_dims("data initialization", "link", "int",
         std::vector<size_t>{});
       link = std::numeric_limits<int>::min();
-      current_statement__ = 136;
+      current_statement__ = 142;
       link = context__.vals_i("link")[(1 - 1)];
-      current_statement__ = 136;
+      current_statement__ = 142;
       stan::math::check_greater_or_equal(function__, "link", link, 1);
-      current_statement__ = 136;
+      current_statement__ = 142;
       stan::math::check_less_or_equal(function__, "link", link, 3);
-      current_statement__ = 137;
+      current_statement__ = 143;
       stan::math::validate_non_negative_index("beta_tilde", "nB", nB);
-      current_statement__ = 138;
+      current_statement__ = 144;
       stan::math::validate_non_negative_index("allbeta", "nB", nB);
-      current_statement__ = 139;
+      current_statement__ = 145;
       stan::math::validate_non_negative_index("beta_index", "n_cov", n_cov);
-      current_statement__ = 140;
+      current_statement__ = 146;
       stan::math::validate_non_negative_index("beta_comparator", "n_cov",
         n_cov);
-      current_statement__ = 141;
+      current_statement__ = 147;
       stan::math::validate_non_negative_index("eta_ipd", "n_ipd", n_ipd);
-      current_statement__ = 142;
+      current_statement__ = 148;
       stan::math::validate_non_negative_index("delta_beta", "n_cov", n_cov);
-      current_statement__ = 143;
+      current_statement__ = 149;
       stan::math::validate_non_negative_index("log_lik_ipd", "n_ipd", n_ipd);
-      current_statement__ = 144;
+      current_statement__ = 150;
       stan::math::validate_non_negative_index("log_lik_agd", "n_agd_rows",
         n_agd_rows);
     } catch (const std::exception& e) {
@@ -1513,9 +1604,11 @@ public:
                          prior_beta_sd, prior_beta_dist, prior_beta_df,
                          pstream__));
         current_statement__ = 83;
-        lp_accum__.add(log_prior_vector(beta_comparator, prior_beta_mean,
-                         prior_beta_sd, prior_beta_dist, prior_beta_df,
-                         pstream__));
+        lp_accum__.add(log_prior_vector(beta_comparator,
+                         prior_beta_comparator_mean,
+                         prior_beta_comparator_sd,
+                         prior_beta_comparator_dist,
+                         prior_beta_comparator_df, pstream__));
         current_statement__ = 91;
         if (stan::math::logical_eq(link, 1)) {
           current_statement__ = 89;
@@ -1637,9 +1730,11 @@ public:
                          prior_beta_sd, prior_beta_dist, prior_beta_df,
                          pstream__));
         current_statement__ = 83;
-        lp_accum__.add(log_prior_vector(beta_comparator, prior_beta_mean,
-                         prior_beta_sd, prior_beta_dist, prior_beta_df,
-                         pstream__));
+        lp_accum__.add(log_prior_vector(beta_comparator,
+                         prior_beta_comparator_mean,
+                         prior_beta_comparator_sd,
+                         prior_beta_comparator_dist,
+                         prior_beta_comparator_df, pstream__));
         current_statement__ = 91;
         if (stan::math::logical_eq(link, 1)) {
           current_statement__ = 89;

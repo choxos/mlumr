@@ -248,6 +248,17 @@
   means do not determine the likelihood geometry there, because the
   within-row distributions also affect the integrated response.
 
+* **New `prior_beta_comparator` argument** to `mlumr()` lets the relaxed model
+  use a separate (typically tighter) prior on `beta_comparator`, which
+  regularizes the index-population estimand that would otherwise extrapolate
+  weakly-identified coefficients over the IPD covariate distribution. Defaults
+  to `prior_beta` (so behavior matches earlier versions); ignored for
+  `model = "spfa"`. Surfaced separately by `prior_summary()` and reused by
+  `prior_sensitivity()`. All five relaxed Stan models take
+  `prior_beta_comparator_mean` / `_sd` / `_dist` / `_df`, so the comparator
+  coefficients can use a fully independent prior including a different family
+  from `beta_index` (for example a heavy-tailed Student-t for regularization).
+
 * **The weak-identifiability warning no longer counts a duplicated row as
   evidence.** Version 0.1.0 warned when `n_agd_rows < 2 * n_cov`, so repeating
   a `set_agd()` row silenced it without adding anything. What replaces the

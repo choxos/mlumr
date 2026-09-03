@@ -23,6 +23,22 @@
 #'   Stan community prior-choice wiki). Set `autoscale = TRUE` on the
 #'   prior to divide the scale by each covariate's empirical SD — useful
 #'   when predictors are on very different scales.
+#' @param prior_beta_comparator (Relaxed model only.) Prior for the
+#'   comparator-arm regression coefficients `beta_comparator`. Same
+#'   specification rules as `prior_beta` (single prior or per-coefficient
+#'   list, any supported family); a different family from `prior_beta` is
+#'   allowed (for example a heavy-tailed Student-t). If `NULL` (the default)
+#'   `prior_beta` is used (matching the default symmetric behavior). This is
+#'   a secondary, targeted regularization tool: for reliable relaxed-model
+#'   estimates first ensure adequate integration points
+#'   ([add_integration()] `n_int`) and post-warmup iterations. The
+#'   comparator-population effect is identified directly by the AgD; the
+#'   index-population effect additionally averages `beta_comparator` over
+#'   the IPD covariate distribution (an extrapolation, since
+#'   `beta_comparator` is informed only by the AgD likelihood), so its
+#'   residual width is identification-driven. Tightening this prior (for
+#'   example a smaller `prior_normal(0, 1)`) regularizes that residual
+#'   width. Ignored for `model = "spfa"` (which has a single shared `beta`).
 #' @param prior_sigma Prior for residual SD (normal family only). Default
 #'   from [default_prior_sigma()] (`prior_normal(0, 2.5)`, half-normal via
 #'   the Stan `<lower=0>` constraint). [prior_exponential()] is also
@@ -269,6 +285,12 @@ mlumr <- function(data,
                   refresh = 200,
                   engine = NULL,
                   verbose = TRUE,
+                  # Appended rather than placed next to `prior_beta`, where it
+                  # reads better: inserting a formal in the middle silently
+                  # rebinds every positional argument after it, so a 0.1.0 call
+                  # passing prior_sigma positionally would have applied it to
+                  # the comparator coefficients instead.
+                  prior_beta_comparator = NULL,
                   ...) {
 
   model <- match.arg(model)
@@ -321,15 +343,41 @@ mlumr <- function(data,
     stop("`prior_beta` must be a prior list or a list of priors.", call. = FALSE)
   }
 
-  # C.3: autoscale is only consumed by prior_beta. Warn if the user set it
+  # C.3: autoscale is only consumed by the regression-coefficient priors. Warn
+  # if the user set it
   # on prior_intercept or prior_sigma, because it will be silently ignored.
   if (isTRUE(prior_intercept$autoscale)) {
     warning("`autoscale = TRUE` on prior_intercept is ignored; ",
-            "autoscaling is only applied to prior_beta.", call. = FALSE)
+            "autoscaling is only applied to prior_beta and ",
+            "prior_beta_comparator.", call. = FALSE)
   }
 
   family <- data$family %||% "binomial"
   link_info <- check_link(family, link)
+
+  if (!is.null(prior_beta_comparator)) {
+    if (model == "spfa") {
+      # Ignored means ignored: validating first made a malformed value an error
+      # on a model that never reads it, so the user got a hard failure instead
+      # of the warning telling them the argument does not apply.
+      warning("`prior_beta_comparator` is ignored for the SPFA model ",
+              "(which has a single shared `beta`); only the relaxed model ",
+              "has a comparator-specific coefficient vector.",
+              call. = FALSE)
+      prior_beta_comparator <- NULL
+    } else if (is_single_prior(prior_beta_comparator)) {
+      validate_prior(prior_beta_comparator, "beta_comparator")
+      if (prior_beta_comparator$distribution == "exponential") {
+        stop("prior_beta_comparator does not support exponential priors ",
+             "(coefficients are unconstrained on the link scale). ",
+             "Use prior_normal(), prior_student_t(), or prior_cauchy().",
+             call. = FALSE)
+      }
+    } else if (!is.list(prior_beta_comparator)) {
+      stop("`prior_beta_comparator` must be a prior list or a list of priors.",
+           call. = FALSE)
+    }
+  }
 
   # Survival distribution + auxiliary/smoothing priors
   surv_info <- NULL
@@ -412,7 +460,8 @@ mlumr <- function(data,
     validate_prior(prior_sigma, "sigma")
     if (isTRUE(prior_sigma$autoscale)) {
       warning("`autoscale = TRUE` on prior_sigma is ignored; ",
-              "autoscaling is only applied to prior_beta.", call. = FALSE)
+              "autoscaling is only applied to prior_beta and ",
+              "prior_beta_comparator.", call. = FALSE)
     }
   } else if (!is.null(prior_sigma) && !isTRUE(prior_sigma$default)) {
     warning("`prior_sigma` is ignored for non-normal families.",
@@ -424,6 +473,25 @@ mlumr <- function(data,
   # likelihood actually is.
   if (model == "relaxed") {
     n_cov_check <- data$n_covariates
+    # What to tell the user depends on whether they have already regularized.
+    # Pointing at `prior_beta` was wrong either way: it shrinks beta_index too,
+    # where the IPD are informative, which is precisely the coupling
+    # `prior_beta_comparator` exists to remove. And once a comparator prior IS
+    # set, advising the user to set one says nothing; what matters then is that
+    # the posterior for those coefficients is a statement about the prior.
+    remedy <- if (is.null(prior_beta_comparator)) {
+      paste0("Add jointly-defined subgroup rows, regularize with an ",
+             "informative `prior_beta_comparator`, or use model = \"spfa\".")
+    } else {
+      paste0("You have supplied `prior_beta_comparator`, so the comparator ",
+             "coefficients are estimable. The aggregate data still cannot ",
+             "separate every direction of `beta_comparator`, and it is those ",
+             "directions that the prior determines; combinations the ",
+             "likelihood does constrain remain data-driven. Refit with ",
+             "different `prior_beta_comparator` scales to see how far the ",
+             "index-population estimand moves, or add jointly-defined ",
+             "subgroup rows.")
+    }
     if (family == "normal" && link_info$link == "identity") {
       n_agd_rows_check <- nrow(data$agd$data)
       agd_rank <- .agd_covariate_rank(data)
@@ -436,9 +504,8 @@ mlumr <- function(data,
                  "the likelihood. The most ",
                  "effective fix is to supply the comparator as jointly-defined ",
                  "subgroup rows, one set_agd() row per stratum with its own ",
-                 "covariate summaries. Otherwise regularize with ",
-                 "an informative `prior_beta` or use model = \"spfa\"."),
-          n_agd_rows_check, agd_rank, n_cov_check, n_cov_check + 1L
+                 "covariate summaries. %s"),
+          n_agd_rows_check, agd_rank, n_cov_check, n_cov_check + 1L, remedy
         ), call. = FALSE)
       }
     } else if (family == "survival") {
@@ -473,11 +540,9 @@ mlumr <- function(data,
                  "row repeating another's integration grid contributes an ",
                  "identical likelihood term rather than a new constraint. The ",
                  "comparator coefficients cannot all be separated without ",
-                 "prior information. Add jointly-defined subgroup rows, ",
-                 "regularize with an informative `prior_beta`, or use ",
-                 "model = \"spfa\"."),
+                 "prior information. %s"),
           n_agd_rows_check, n_distinct_check, n_cov_check, n_cov_check + 1L,
-          n_distinct_check
+          n_distinct_check, remedy
         ), call. = FALSE)
       }
     }
@@ -489,6 +554,7 @@ mlumr <- function(data,
     link_info = link_info,
     prior_intercept = prior_intercept,
     prior_beta = prior_beta,
+    prior_beta_comparator = prior_beta_comparator,
     prior_sigma = prior_sigma,
     surv_info = surv_info,
     prior_aux = prior_aux,
@@ -545,10 +611,13 @@ mlumr <- function(data,
   priors <- .mlumr_prior_metadata(
     data = data,
     family = family,
+    model = model,
     prior_intercept = prior_intercept,
     prior_beta = prior_beta,
+    prior_beta_comparator = prior_beta_comparator,
     prior_sigma = prior_sigma,
     beta_fields = prepared$beta_fields,
+    beta_comparator_fields = prepared$beta_comparator_fields,
     sd_x = prepared$sd_x,
     prior_aux = prior_aux,
     prior_smooth = prior_smooth,
@@ -635,7 +704,8 @@ mlumr <- function(data,
 #' Build the Stan data list for mlumr()
 #' @keywords internal
 .mlumr_build_stan_data <- function(data, family, link_info, prior_intercept,
-                                   prior_beta, prior_sigma,
+                                   prior_beta, prior_beta_comparator = NULL,
+                                   prior_sigma,
                                    surv_info = NULL, prior_aux = NULL,
                                    prior_smooth = NULL, n_knots = 7L,
                                    knots = NULL,
@@ -656,6 +726,22 @@ mlumr <- function(data,
     sd_x = sd_x,
     covariate_names = data$covariates
   )
+  # beta_comparator carries its own family, df, location and scale into Stan
+  # (every relaxed model calls log_prior_vector() with the comparator-specific
+  # *_dist and *_df, not the index ones), so a heavy-tailed comparator prior on
+  # top of a normal index prior is fitted as requested. When the user leaves
+  # prior_beta_comparator NULL we reuse the prior_beta values, which preserves
+  # the behavior of fits made before this argument existed.
+  beta_comparator_fields <- if (is.null(prior_beta_comparator)) {
+    beta_fields
+  } else {
+    stan_prior_fields_beta(
+      prior_beta_comparator,
+      data$n_covariates,
+      sd_x = sd_x,
+      covariate_names = data$covariates
+    )
+  }
 
   stan_data <- list(
     n_ipd = nrow(ipd_data),
@@ -672,6 +758,10 @@ mlumr <- function(data,
     prior_beta_sd = as.array(beta_fields$sd),
     prior_beta_dist = beta_fields$dist,
     prior_beta_df = beta_fields$df,
+    prior_beta_comparator_mean = as.array(beta_comparator_fields$mean),
+    prior_beta_comparator_sd = as.array(beta_comparator_fields$sd),
+    prior_beta_comparator_dist = beta_comparator_fields$dist,
+    prior_beta_comparator_df = beta_comparator_fields$df,
     link = link_info$code
   )
 
@@ -733,7 +823,8 @@ mlumr <- function(data,
   )
   stan_data <- .mlumr_qr_design(stan_data, model = model, qr = qr)
 
-  list(stan_data = stan_data, beta_fields = beta_fields, sd_x = sd_x)
+  list(stan_data = stan_data, beta_fields = beta_fields,
+       beta_comparator_fields = beta_comparator_fields, sd_x = sd_x)
 }
 
 #' Population weights for the AgD rows used in covariate centering
@@ -1429,8 +1520,11 @@ mlumr <- function(data,
 
 #' Store user priors plus the resolved Stan-scale beta prior
 #' @keywords internal
-.mlumr_prior_metadata <- function(data, family, prior_intercept, prior_beta,
-                                  prior_sigma, beta_fields, sd_x,
+.mlumr_prior_metadata <- function(data, family, model = "spfa",
+                                  prior_intercept, prior_beta,
+                                  prior_beta_comparator = NULL,
+                                  prior_sigma, beta_fields,
+                                  beta_comparator_fields = NULL, sd_x,
                                   prior_aux = NULL, prior_smooth = NULL,
                                   surv_info = NULL) {
   priors <- list(
@@ -1446,6 +1540,25 @@ mlumr <- function(data,
       sd_x = sd_x
     )
   )
+
+  # Surface the comparator coefficient prior only for relaxed fits, where it
+  # is actually consumed. user-NULL still resolves to prior_beta inside the
+  # Stan data list, so the resolved struct reflects what the sampler saw.
+  if (identical(model, "relaxed")) {
+    priors$beta_comparator <- prior_beta_comparator %||% prior_beta
+    if (!is.null(beta_comparator_fields)) {
+      priors$beta_comparator_resolved <- list(
+        covariate_names = data$covariates,
+        mean = beta_comparator_fields$mean,
+        sd = beta_comparator_fields$sd,
+        dist = beta_comparator_fields$dist,
+        df = beta_comparator_fields$df,
+        autoscale = beta_comparator_fields$autoscale,
+        sd_x = sd_x,
+        user_specified = !is.null(prior_beta_comparator)
+      )
+    }
+  }
 
   # Surface the survival baseline priors only where they are consumed.
   if (identical(family, "survival")) {

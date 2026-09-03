@@ -10,6 +10,7 @@
   link_info,
   prior_intercept,
   prior_beta,
+  prior_beta_comparator = NULL,
   prior_sigma,
   surv_info = NULL,
   prior_aux = NULL,
