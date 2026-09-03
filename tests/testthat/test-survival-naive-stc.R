@@ -365,6 +365,13 @@ test_that("a non-converged flexsurv fit is a failed fit", {
   fake$cov <- matrix(c(1, Inf, Inf, 1), 2, 2)
   expect_error(.validate_flexsurv_fit(fake, "comparator"), "non-finite")
 
+  # Finite is not the same as usable: a converged optimizer at a saddle or
+  # boundary point yields a finite but non-positive-definite covariance.
+  fake$cov <- matrix(c(1, 2, 2, 1), 2, 2)   # eigenvalues 3 and -1
+  expect_error(.validate_flexsurv_fit(fake, "index"), "not positive definite")
+  fake$cov <- matrix(c(0, 0, 0, 1), 2, 2)   # a zero variance
+  expect_error(.validate_flexsurv_fit(fake, "index"), "not positive definite")
+
   fake$cov <- diag(2)
   expect_true(.validate_flexsurv_fit(fake, "index"))
 })

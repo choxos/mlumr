@@ -825,6 +825,24 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
          "covariance matrix, so its uncertainty cannot be quantified.",
          call. = FALSE)
   }
+  # A finite covariance is not yet a usable one. The optimizer can report
+  # convergence while the Hessian is not positive definite, which is a saddle
+  # or boundary point rather than a maximum; flexsurv then returns finite
+  # variances that can be zero or negative. Checking only for NA / Inf accepts
+  # that fit, and the bootstrap counts it among its successes.
+  if (!is.null(fit$cov) && length(fit$cov) > 0L) {
+    v <- diag(as.matrix(fit$cov))
+    ev <- tryCatch(
+      eigen(as.matrix(fit$cov), symmetric = TRUE, only.values = TRUE)$values,
+      error = function(e) NA_real_
+    )
+    if (any(v <= 0) || anyNA(ev) || min(ev) <= 0) {
+      stop("The survival STC fit for the ", arm, " arm returned a covariance ",
+           "matrix that is not positive definite, so the optimizer stopped at ",
+           "a saddle or boundary point rather than a maximum and its ",
+           "uncertainty is not usable.", call. = FALSE)
+    }
+  }
   invisible(TRUE)
 }
 
