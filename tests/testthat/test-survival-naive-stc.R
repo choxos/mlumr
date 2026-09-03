@@ -316,3 +316,25 @@ test_that("survival STC accepts a covariate name that cannot be backtick-quoted"
   expect_true(is.finite(res$rmst_index))
   expect_true(is.finite(res$rmst_diff))
 })
+
+test_that("the naive Cox comparison refuses an event-free arm", {
+  # coxph() warns and returns NA or a diverging coefficient when one arm has no
+  # events; that was packaged as an ordinary hazard ratio with an interval.
+  set.seed(2026)
+  n <- 60
+  ipd <- data.frame(trt = "A", time = stats::rexp(n, 0.2),
+                    status = rep(0L, n), age = stats::rnorm(n))
+  agd <- data.frame(trt = "B", time = stats::rexp(50, 0.3),
+                    status = stats::rbinom(50, 1, 0.8))
+  agd$age_mean <- 0.1
+  agd$age_sd <- 1
+  dat <- combine_data(
+    set_ipd(ipd, "trt", covariates = "age", family = "survival",
+            time = "time", status = "status"),
+    set_agd_surv(agd, "trt", time = "time", status = "status",
+                 cov_means = "age_mean", cov_sds = "age_sd",
+                 cov_types = "continuous")
+  )
+  expect_error(suppressWarnings(suppressMessages(naive(dat))),
+               "at least one event in each arm")
+})

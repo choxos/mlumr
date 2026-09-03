@@ -312,9 +312,32 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
     survival::Surv(pooled$time, pooled$event)
   }
 
+  # The partial likelihood needs events in both arms to identify the treatment
+  # coefficient. With none at all, or with every event in one arm, coxph()
+  # returns NA or a coefficient running off to infinity and warns rather than
+  # failing, and the result was packaged as an ordinary hazard ratio with a
+  # confidence interval. Refuse instead: the comparison is not estimable, and a
+  # number that looks like a log hazard ratio is worse than no number.
+  events_by_arm <- tapply(pooled$event, pooled$arm, sum)
+  events_by_arm[is.na(events_by_arm)] <- 0L
+  if (sum(pooled$event) == 0L || any(events_by_arm == 0L)) {
+    stop("The naive Cox comparison needs at least one event in each arm: ",
+         sprintf("observed %d in the comparator arm and %d in the index arm. ",
+                 as.integer(events_by_arm[["comparator"]]),
+                 as.integer(events_by_arm[["index"]])),
+         "With an event-free arm the treatment coefficient is not identified ",
+         "by the partial likelihood.", call. = FALSE)
+  }
+
   cox <- survival::coxph(surv_obj ~ arm, data = pooled)
   estimate <- unname(stats::coef(cox)[1])
   se <- sqrt(diag(stats::vcov(cox))[1])
+  if (!is.finite(estimate) || !is.finite(se) || se <= 0) {
+    stop("The naive Cox comparison did not produce an estimable treatment ",
+         "effect (coefficient ", format(estimate), ", standard error ",
+         format(se), "). This usually means the arms are separated in time, ",
+         "so the partial likelihood has no interior maximum.", call. = FALSE)
+  }
 
   km <- survival::survfit(surv_obj ~ arm, data = pooled)
   km_tab <- summary(km)$table
