@@ -68,6 +68,15 @@ data {
 
 #include include/priors_hyperparameters.stan
 
+  // Fully separate prior for beta_comparator: its own family, degrees of
+  // freedom, location and scale, none of them tied to beta_index. Tighten these
+  // to regularize the comparator coefficients, which are identified only
+  // through the AgD likelihood.
+  vector[n_cov] prior_beta_comparator_mean;
+  vector<lower=0>[n_cov] prior_beta_comparator_sd;
+  int<lower=0,upper=1> prior_beta_comparator_dist;
+  real<lower=0> prior_beta_comparator_df;
+
   // Baseline-hazard stratification (the analogue of multinma's aux_by).
   //   1 = one baseline shape shared by both studies (proportional hazards
   //       across studies, the historical behavior);
@@ -144,9 +153,9 @@ model {
                              prior_intercept_dist, prior_intercept_df);
   target += log_prior_vector(beta_index, prior_beta_mean, prior_beta_sd,
                              prior_beta_dist, prior_beta_df);
-  target += log_prior_vector(beta_comparator, prior_beta_mean,
-                             prior_beta_sd, prior_beta_dist,
-                             prior_beta_df);
+  target += log_prior_vector(beta_comparator, prior_beta_comparator_mean,
+                             prior_beta_comparator_sd, prior_beta_comparator_dist,
+                             prior_beta_comparator_df);
   to_vector(u_lscoef) ~ std_normal();
   for (s in 1:n_strata)
     target += log_prior_sigma(sigma_smooth[s], prior_sigma_smooth_location,

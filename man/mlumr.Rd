@@ -10,6 +10,7 @@ mlumr(
   link = NULL,
   prior_intercept = default_prior_intercept(),
   prior_beta = default_prior_beta(),
+  prior_beta_comparator = NULL,
   prior_sigma = default_prior_sigma(),
   distribution = NULL,
   prior_aux = NULL,
@@ -59,6 +60,23 @@ must share the same family and (for Student-t) df. Default from
 Stan community prior-choice wiki). Set \code{autoscale = TRUE} on the
 prior to divide the scale by each covariate's empirical SD — useful
 when predictors are on very different scales.}
+
+\item{prior_beta_comparator}{(Relaxed model only.) Prior for the
+comparator-arm regression coefficients \code{beta_comparator}. Same
+specification rules as \code{prior_beta} (single prior or per-coefficient
+list, any supported family); a different family from \code{prior_beta} is
+allowed (for example a heavy-tailed Student-t). If \code{NULL} (the default)
+\code{prior_beta} is used (matching the default symmetric behavior). This is
+a secondary, targeted regularization tool: for reliable relaxed-model
+estimates first ensure adequate integration points
+(\code{\link[=add_integration]{add_integration()}} \code{n_int}) and post-warmup iterations. The
+comparator-population effect is identified directly by the AgD; the
+index-population effect additionally averages \code{beta_comparator} over
+the IPD covariate distribution (an extrapolation, since
+\code{beta_comparator} is informed only by the AgD likelihood), so its
+residual width is identification-driven. Tightening this prior (for
+example a smaller \code{prior_normal(0, 1)}) regularizes that residual
+width. Ignored for \code{model = "spfa"} (which has a single shared \code{beta}).}
 
 \item{prior_sigma}{Prior for residual SD (normal family only). Default
 from \code{\link[=default_prior_sigma]{default_prior_sigma()}} (\code{prior_normal(0, 2.5)}, half-normal via
