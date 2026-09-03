@@ -153,15 +153,19 @@
   population** by Bayesian g-computation (model-based standardization over a
   supplied covariate distribution), as in the ML-UMR transportability step.
   Version 0.1.0 offered only the built-in index and comparator populations.
-  Supported for all families' effects and predictions; for survival, the
-  collapsible RMST-based effects (`"rmstd"`, `"rmstr"`) and the
-  `survival`/`cumhaz`/`rmst`/`median` predictions transport, while the
-  non-collapsible time-varying marginal hazard ratio remains tied to the
-  built-in populations.
+  Supported for all families' effects and predictions. For survival, the
+  collapsible RMST-based effects (`"rmstd"`, `"rmstr"`) and every absolute
+  prediction transport. The marginal hazard ratio is reported for a target
+  population too, but it is not a property of that population alone: hazard
+  ratios are non-collapsible, and the marginal one weights the covariate
+  distribution by each arm's own survival. It follows the same
+  evaluation-time convention as the built-in populations, the closed-form
+  `t -> 0` limit when the two studies share a baseline shape and the requested
+  (or first) fitted time when they do not.
 
   Standardizing to the index covariates reproduces `population = "index"`
-  exactly, which is the check that the transport path and the built-in path are
-  the same calculation.
+  exactly, for every measure including the hazard ratio, which is the check
+  that the transport path and the built-in path are the same calculation.
 
 * **`marginal_effects()` emits a one-line note** when a relaxed fit is queried
   for the index population, reporting the **posterior contraction** of

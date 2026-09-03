@@ -946,8 +946,14 @@ marginal_effects <- function(object,
     v_idx <- std$index
     v_cmp <- std$comparator
   }
+  # Name the raw-draw columns the way the built-in route does, `<prefix>_<arm>_`
+  # plus the population, so `newdata` changes which population is reported and
+  # not what the columns are called. They were the treatment LABELS, which meant
+  # the raw frame's names depended on the user's arm names on one route and not
+  # on the other.
   pred_draws <- data.frame(a = v_idx, b = v_cmp)
-  colnames(pred_draws) <- c(idx_trt, cmp_trt)
+  colnames(pred_draws) <- paste0(get_family_config(family)$predict_prefix, "_",
+                                 c("index", "comparator"), "_target")
 
   if (!summary) return(pred_draws)
 
@@ -967,51 +973,54 @@ marginal_effects <- function(object,
                                    c("survival", "hazard", "cumhaz", "rmst",
                                      "median", "loghr"),
                                    "type")
+  # Validate before any branch consults `times`, so an invalid value is refused
+  # rather than reported as ignored, matching .predict_survival().
+  if (!is.null(times)) times <- .validate_survival_prediction_times(times)
   idx_trt <- object$data$index_treatment
   cmp_trt <- object$data$comparator_treatment
+  pred_times <- object$pred_times
+  cell_labels <- data.frame(treatment = c(idx_trt, cmp_trt),
+                            population = "Target", stringsAsFactors = FALSE)
 
   # Absolute predictions in an arbitrary target population transport the fitted
   # study-specific baseline shape, same assumption as the built-in populations.
-  .transported_baseline_note(object)
+  # `loghr` is exempt for the same reason it is on the built-in route: it is a
+  # contrast within one population, so no baseline is carried anywhere.
+  if (type != "loghr") .transported_baseline_note(object)
+
+  if (type %in% c("rmst", "median")) {
+    # `times` selects points on a curve. RMST is an integral to the fitted
+    # horizon and the median is read off the whole fitted grid, so neither
+    # consults it. The built-in route refuses rather than ignores, because
+    # ignoring let a caller believe they had changed the horizon.
+    if (!is.null(times)) {
+      stop("`times` selects points on a predicted curve, but `type = \"", type,
+           "\"` is a scalar summary of the whole fitted grid and does not use ",
+           "it. RMST integrates to the horizon fixed at fit time, and the ",
+           "median is searched over `pred_times`; change either by refitting.",
+           call. = FALSE)
+    }
+  }
 
   if (type == "rmst") {
-    if (!is.null(times)) {
-      warning("`times` does not apply to `type = \"rmst\"` and is ignored ",
-              "(RMST integrates over the full restricted horizon).",
-              call. = FALSE)
-    }
     tt <- object$stan_data$rmst_grid_times
     sbar <- .standardize_target_survival_s(object, newdata, tt,
                                            object$stan_data$rmst_ibasis,
                                            object$stan_data$rmst_ibasis_cmp)
-    vals <- data.frame(a = .rmst_from_surv_matrix(sbar$index, tt),
-                       b = .rmst_from_surv_matrix(sbar$comparator, tt))
-    colnames(vals) <- c(idx_trt, cmp_trt)
+    values <- list(
+      matrix(.rmst_from_surv_matrix(sbar$index, tt), ncol = 1),
+      matrix(.rmst_from_surv_matrix(sbar$comparator, tt), ncol = 1)
+    )
     tau <- max(tt)
-    if (!summary) {
-      hz <- rep(tau, ncol(vals))
-      names(hz) <- colnames(vals)
-      attr(vals, "horizon") <- hz
-      return(vals)
-    }
-    s <- .summarize_draw_matrix(vals, probs)
-    labels <- data.frame(treatment = c(idx_trt, cmp_trt), population = "Target",
-                         horizon = tau, stringsAsFactors = FALSE)
-    out <- .mlumr_result(cbind(labels, s, row.names = NULL),
-                         "mlumr_prediction", ptype = type, family = "survival",
-                         rmst_horizon = tau)
-    return(out)
+    out <- .surv_result_frame(values, cell_labels, type, summary, probs,
+                              horizon = tau)
+    if (!summary) return(out)
+    return(.mlumr_result(out, "mlumr_prediction", ptype = type,
+                         family = "survival", rmst_horizon = tau))
   }
 
-  pred_times <- object$pred_times
   if (type %in% c("hazard", "loghr")) {
-    sel <- if (is.null(times)) {
-      seq_along(pred_times)
-    } else {
-      .validate_survival_prediction_times(times)
-      sort(unique(vapply(times, function(t) which.min(abs(pred_times - t)),
-                         integer(1))))
-    }
+    sel <- .surv_time_selection(times, pred_times)
     log_h <- .standardize_target_survival_log_h(
       object, newdata, pred_times,
       object$stan_data$pred_ibasis,
@@ -1020,40 +1029,21 @@ marginal_effects <- function(object,
       object$stan_data$pred_basis_cmp
     )
     if (type == "loghr") {
-      vals <- log_h$index[, sel, drop = FALSE] -
-        log_h$comparator[, sel, drop = FALSE]
-      if (!summary) {
-        colnames(vals) <- sprintf("t_%g", pred_times[sel])
-        return(data.frame(population = "Target", vals, check.names = FALSE))
-      }
-      sm <- .summarize_draw_matrix(vals, probs)
-      return(.mlumr_result(
-        data.frame(population = "Target", time = pred_times[sel], sm,
-                   row.names = NULL),
-        "mlumr_prediction", ptype = type, family = "survival"
-      ))
+      values <- list(log_h$index[, sel, drop = FALSE] -
+                       log_h$comparator[, sel, drop = FALSE])
+      out <- .surv_result_frame(
+        values, data.frame(population = "Target", stringsAsFactors = FALSE),
+        type, summary, probs, times_out = pred_times[sel]
+      )
+      if (!summary) return(out)
+      return(.mlumr_result(out, "mlumr_prediction", ptype = type,
+                           family = "survival"))
     }
-
-    rows <- list()
-    for (cell in list(list(trt = idx_trt, m = log_h$index),
-                      list(trt = cmp_trt, m = log_h$comparator))) {
-      vals <- exp(cell$m[, sel, drop = FALSE])
-      if (!summary) {
-        colnames(vals) <- sprintf("t_%g", pred_times[sel])
-        rows[[length(rows) + 1L]] <- data.frame(
-          treatment = cell$trt, population = "Target", vals,
-          check.names = FALSE
-        )
-      } else {
-        sm <- .summarize_draw_matrix(vals, probs)
-        rows[[length(rows) + 1L]] <- data.frame(
-          treatment = cell$trt, population = "Target",
-          time = pred_times[sel], sm, row.names = NULL
-        )
-      }
-    }
-    out <- do.call(rbind, rows)
-    rownames(out) <- NULL
+    values <- list(exp(log_h$index[, sel, drop = FALSE]),
+                   exp(log_h$comparator[, sel, drop = FALSE]))
+    out <- .surv_result_frame(values, cell_labels, type, summary, probs,
+                              times_out = pred_times[sel],
+                              origin = .surv_origin(type, times, pred_times))
     if (!summary) return(out)
     return(.mlumr_result(out, "mlumr_prediction", ptype = type,
                          family = "survival"))
@@ -1064,65 +1054,25 @@ marginal_effects <- function(object,
                                          object$stan_data$pred_ibasis_cmp,
                                          log_scale = type == "cumhaz")
   if (type == "median") {
-    if (!is.null(times)) {
-      warning("`times` does not apply to `type = \"median\"` and is ignored.",
-              call. = FALSE)
-    }
-    med_i <- .surv_median_from_draws(sbar$index, pred_times)
-    med_c <- .surv_median_from_draws(sbar$comparator, pred_times)
-    vals <- data.frame(a = med_i, b = med_c)
-    colnames(vals) <- c(idx_trt, cmp_trt)
-    if (!summary) return(vals)
-    s <- .summarize_draw_matrix(vals, probs)
-    # Mirror the built-in median path: expose the posterior fraction of draws
-    # whose target-population survival never reaches 0.5 on the grid, so the
-    # NA-dropping summary is not mistaken for an unconditional median.
-    s$p_not_reached <- c(mean(is.na(med_i)), mean(is.na(med_c)))
-    labels <- data.frame(treatment = c(idx_trt, cmp_trt), population = "Target",
-                         stringsAsFactors = FALSE)
-    out <- .mlumr_result(cbind(labels, s, row.names = NULL),
-                         "mlumr_prediction", ptype = type, family = "survival")
-    if (any(out$p_not_reached > 0)) {
-      .median_not_reached_note(max(out$p_not_reached))
-    }
-    return(out)
+    values <- list(
+      matrix(.surv_median_from_draws(sbar$index, pred_times), ncol = 1),
+      matrix(.surv_median_from_draws(sbar$comparator, pred_times), ncol = 1)
+    )
+    out <- .surv_result_frame(values, cell_labels, type, summary, probs)
+    if (!summary) return(out)
+    return(.mlumr_result(out, "mlumr_prediction", ptype = type,
+                         family = "survival"))
   }
 
   # survival / cumhaz curves: one row per treatment x time, honoring `times`
   # (nearest-grid-point selection, matching the built-in population path).
-  sel <- if (is.null(times)) {
-    seq_along(pred_times)
-  } else {
-    .validate_survival_prediction_times(times)
-    sort(unique(vapply(times, function(t) which.min(abs(pred_times - t)),
-                       integer(1))))
-  }
-  sel_times <- pred_times[sel]
-  transform_mat <- if (type == "cumhaz") function(m) -m else
-    function(m) m
-  rows <- list()
-  for (cell in list(list(trt = idx_trt, m = sbar$index),
-                    list(trt = cmp_trt, m = sbar$comparator))) {
-    qty <- transform_mat(cell$m)[, sel, drop = FALSE]
-    if (!summary) {
-      df <- as.data.frame(qty)
-      colnames(df) <- sprintf("t_%g", sel_times)
-      df$treatment <- cell$trt
-      df$population <- "Target"
-      rows[[length(rows) + 1L]] <- df
-    } else {
-      sm <- .summarize_draw_matrix(qty, probs)
-      rows[[length(rows) + 1L]] <- data.frame(
-        treatment = cell$trt,
-        population = "Target",
-        time = sel_times,
-        sm,
-        row.names = NULL
-      )
-    }
-  }
-  out <- do.call(rbind, rows)
-  rownames(out) <- NULL
+  sel <- .surv_time_selection(times, pred_times)
+  flip <- if (type == "cumhaz") function(m) -m else function(m) m
+  values <- list(flip(sbar$index)[, sel, drop = FALSE],
+                 flip(sbar$comparator)[, sel, drop = FALSE])
+  out <- .surv_result_frame(values, cell_labels, type, summary, probs,
+                            times_out = pred_times[sel],
+                            origin = .surv_origin(type, times, pred_times))
   if (!summary) return(out)
   .mlumr_result(out, "mlumr_prediction", ptype = type, family = "survival")
 }
@@ -1139,6 +1089,11 @@ marginal_effects <- function(object,
 .marginal_effects_target <- function(object, newdata, effect, summary, probs,
                                      at_time = NULL) {
   family <- object$family %||% "binomial"
+  # A relaxed fit identifies beta_comparator from the aggregate likelihood
+  # alone, so standardizing it over an arbitrary target extrapolates at least as
+  # far as the index population does. The built-in route says so; this one was
+  # silent about the same extrapolation, on every family.
+  .relaxed_index_note(object, "index")
   if (family == "survival") {
     return(.marginal_effects_target_survival(object, newdata, effect, summary,
                                              probs, at_time))
@@ -1155,34 +1110,53 @@ marginal_effects <- function(object,
   mu_i <- std$index
   mu_c <- std$comparator
 
-  cols <- list()
+  # Name the raw-draw columns the way the built-in route does, with `_target`
+  # in place of `_index` / `_comparator`, and carry the same `variable` column
+  # into the summary. They were bare measure labels (`LOR`, `RD`, `RR`), so
+  # `$lor_index` became NULL and the summary lost a column the moment a caller
+  # added `newdata` to an otherwise identical call.
+  target_var <- function(measure) {
+    v <- cfg$marginal_effect_vars[[measure]][1]
+    paste0(sub("_(index|comparator)$", "", v), "_target")
+  }
+  push <- function(spec, measure, draws) {
+    c(spec, list(list(variable = target_var(measure),
+                      effect = toupper(measure), draws = draws)))
+  }
+  spec <- list()
   if (family == "binomial") {
     if (effect %in% c("all", "lor")) {
-      cols$LOR <- (std$log_index - std$log_nonevent_index) -
-        (std$log_comparator - std$log_nonevent_comparator)
+      spec <- push(spec, "lor", (std$log_index - std$log_nonevent_index) -
+                     (std$log_comparator - std$log_nonevent_comparator))
     }
     if (effect %in% c("all", "rd")) {
-      cols$RD <- .exp_difference_logs(std$log_index, std$log_comparator)
+      spec <- push(spec, "rd",
+                   .exp_difference_logs(std$log_index, std$log_comparator))
     }
     if (effect %in% c("all", "rr")) {
-      cols$RR <- exp(std$log_index - std$log_comparator)
+      spec <- push(spec, "rr", exp(std$log_index - std$log_comparator))
     }
   } else if (family == "normal") {
-    cols$MD <- if (identical(object$link, "log")) {
+    spec <- push(spec, "md", if (identical(object$link, "log")) {
       .exp_difference_logs(std$log_index, std$log_comparator)
     } else {
       mu_i - mu_c
-    }
+    })
   } else {
-    cols$RR <- exp(std$log_index - std$log_comparator)
+    spec <- push(spec, "rr", exp(std$log_index - std$log_comparator))
   }
-  effect_draws <- as.data.frame(cols)
+  effect_draws <- as.data.frame(
+    stats::setNames(lapply(spec, function(x) x$draws),
+                    vapply(spec, function(x) x$variable, character(1))),
+    check.names = FALSE
+  )
 
   if (!summary) return(effect_draws)
 
   summary_df <- .summarize_draw_matrix(effect_draws, probs)
   labels <- data.frame(
-    effect = rownames(summary_df),
+    variable = vapply(spec, function(x) x$variable, character(1)),
+    effect = vapply(spec, function(x) x$effect, character(1)),
     population = "Target",
     stringsAsFactors = FALSE
   )
@@ -1363,9 +1337,11 @@ marginal_effects <- function(object,
 #' Uses the equivalent definition `E(f) / E(S)`, accumulating log density and log
 #' survival separately so opposite infinities are never added.
 #' @keywords internal
-.standardize_target_survival_log_h <- function(
-    object, newdata, times, ibasis = NULL, ibasis_cmp = NULL,
-    mbasis = NULL, mbasis_cmp = NULL) {
+.standardize_target_survival_log_h <- function(object, newdata, times,
+                                               ibasis = NULL,
+                                               ibasis_cmp = NULL,
+                                               mbasis = NULL,
+                                               mbasis_cmp = NULL) {
   profiles <- .conditional_profiles(object, newdata)
   x_centered <- profiles$X
   params <- .conditional_parameters(object, profiles$covariates)
@@ -1477,7 +1453,16 @@ marginal_effects <- function(object,
 .marginal_effects_target_survival <- function(object, newdata, effect, summary,
                                               probs, at_time = NULL) {
   is_ph <- isTRUE(object$surv_info$is_ph)
-  valid_effects <- if (is_ph) c("all", "hr", "rmstd", "rmstr") else
+  # Whether the two studies genuinely have DIFFERENT baseline shapes. This is
+  # the same gate the built-in route uses, and it decides the ESTIMAND, not just
+  # the presentation: with shared shapes the baseline cancels and the marginal
+  # hazard ratio has a closed form; with differing shapes it can only be read
+  # off the fitted grid.
+  stratified <- .aux_shapes_differ(object)
+  # `tr` names the same scalar contrast as `hr` on the built-in route, which
+  # accepts it as an alias. Refusing it here made the same request succeed or
+  # fail depending only on whether `newdata` was supplied.
+  valid_effects <- if (is_ph) c("all", "hr", "tr", "rmstd", "rmstr") else
     c("all", "rmstd", "rmstr")
   if (!effect %in% valid_effects) {
     stop(sprintf(
@@ -1485,6 +1470,7 @@ marginal_effects <- function(object,
       paste(valid_effects, collapse = ", ")
     ), call. = FALSE)
   }
+  if (effect == "tr") effect <- "hr"
   if (!is.null(at_time) && !is_ph) {
     stop("`at_time` applies to a time-specific marginal hazard ratio, but this ",
          "fit uses an accelerated-failure-time distribution. Use RMST effects ",
@@ -1499,65 +1485,95 @@ marginal_effects <- function(object,
                                          object$stan_data$rmst_ibasis_cmp)
   rmst_i <- .rmst_from_surv_matrix(sbar$index, times)
   rmst_c <- .rmst_from_surv_matrix(sbar$comparator, times)
-
-  cols <- list()
-  effect_times <- numeric()
-  if (is_ph && effect %in% c("all", "hr")) {
-    grid <- object$pred_times
-    requested <- at_time %||% grid[1]
-    if (!is.numeric(requested) || length(requested) != 1L ||
-          !is.finite(requested) || requested <= 0) {
-      stop("`at_time` must be a single finite positive time.", call. = FALSE)
-    }
-    p <- which.min(abs(grid - requested))
-    used_time <- grid[p]
-    if (!isTRUE(all.equal(used_time, requested))) {
-      message("`at_time = ", format(requested, digits = 4L), "` is not a fitted ",
-              "prediction time; using the nearest one, t = ",
-              format(used_time, digits = 4L), ".")
-    }
-    log_h <- .standardize_target_survival_log_h(
-      object, newdata, grid,
-      object$stan_data$pred_ibasis,
-      object$stan_data$pred_ibasis_cmp,
-      object$stan_data$pred_basis,
-      object$stan_data$pred_basis_cmp
-    )
-    cols$HR <- exp(log_h$index[, p] - log_h$comparator[, p])
-    effect_times["HR"] <- used_time
-  }
-  if (effect %in% c("all", "rmstd")) cols$RMSTD <- rmst_i - rmst_c
-  if (effect %in% c("all", "rmstr")) cols$RMSTR <- rmst_i / rmst_c
-  effect_draws <- as.data.frame(cols)
-
   # RMST is an integral to a restriction time; carry it with the value so a
   # transported result cannot be compared against one computed to a different
   # horizon without the difference being visible.
   rmst_tau <- max(times)
-  if (!summary) {
-    hz <- rep(rmst_tau, ncol(effect_draws))
-    names(hz) <- colnames(effect_draws)
-    hz[names(hz) == "HR"] <- NA_real_
-    attr(effect_draws, "horizon") <- hz
-    ats <- rep(NA_real_, ncol(effect_draws))
-    names(ats) <- colnames(effect_draws)
-    ats[names(effect_times)] <- effect_times
-    attr(effect_draws, "at_time") <- ats
-    return(effect_draws)
+
+  spec <- list()
+  if (is_ph && effect %in% c("all", "hr")) {
+    if (stratified) {
+      grid <- object$pred_times
+      requested <- at_time %||% grid[1]
+      if (!is.numeric(requested) || length(requested) != 1L ||
+            !is.finite(requested) || requested <= 0) {
+        stop("`at_time` must be a single finite positive time.", call. = FALSE)
+      }
+      p <- which.min(abs(grid - requested))
+      used_time <- grid[p]
+      if (!isTRUE(all.equal(used_time, requested))) {
+        message("`at_time = ", format(requested, digits = 4L), "` is not a fitted ",
+                "prediction time; using the nearest one, t = ",
+                format(used_time, digits = 4L), ".")
+      }
+      log_h <- .standardize_target_survival_log_h(
+        object, newdata, grid,
+        object$stan_data$pred_ibasis,
+        object$stan_data$pred_ibasis_cmp,
+        object$stan_data$pred_basis,
+        object$stan_data$pred_basis_cmp
+      )
+      hr_draws <- exp(log_h$index[, p] - log_h$comparator[, p])
+    } else {
+      # Shared baseline shape: the shape cancels from the ratio, so the marginal
+      # hazard ratio is the `t -> 0` limit E[exp(eta_index)] / E[exp(eta_cmp)]
+      # over the target rows, which is the closed form Stan writes into
+      # `delta_*`. Reading it off the grid instead would return the
+      # survival-weighted ratio at pred_times[1], so standardizing to the IPD
+      # covariates would NOT reproduce `population = "index"` even though it is
+      # the same calculation over the same distribution.
+      if (!is.null(at_time) && !isTRUE(all.equal(at_time, 0))) {
+        stop("`at_time` applies only when the two studies have different ",
+             "baseline shapes. With a shared baseline the marginal hazard ",
+             "ratio is the closed-form t -> 0 limit and is not evaluated on ",
+             "the prediction grid; use predict(type = \"loghr\", newdata = ) ",
+             "for the curve.", call. = FALSE)
+      }
+      hr_draws <- exp(.target_loghr_origin(object, newdata))
+      used_time <- 0
+    }
+    spec[[length(spec) + 1L]] <- list(
+      variable = "hr_target", effect = "HR", population = "Target",
+      at_time = used_time, horizon = NA_real_, draws = hr_draws
+    )
+  }
+  if (effect %in% c("all", "rmstd")) {
+    spec[[length(spec) + 1L]] <- list(
+      variable = "rmst_diff_target", effect = "RMSTD", population = "Target",
+      at_time = NA_real_, horizon = rmst_tau, draws = rmst_i - rmst_c
+    )
+  }
+  if (effect %in% c("all", "rmstr")) {
+    spec[[length(spec) + 1L]] <- list(
+      variable = "rmst_ratio_target", effect = "RMSTR", population = "Target",
+      at_time = NA_real_, horizon = rmst_tau, draws = rmst_i / rmst_c
+    )
   }
 
-  summary_df <- .summarize_draw_matrix(effect_draws, probs)
-  effect_names <- rownames(summary_df)
-  labels <- data.frame(
-    effect = effect_names,
-    population = "Target",
-    at_time = ifelse(effect_names == "HR", effect_times["HR"], NA_real_),
-    horizon = ifelse(effect_names %in% c("RMSTD", "RMSTR"), rmst_tau, NA_real_),
-    stringsAsFactors = FALSE
-  )
-  .mlumr_result(cbind(labels, summary_df, row.names = NULL),
-                "mlumr_marginal_effects", family = "survival",
-                rmst_horizon = rmst_tau)
+  .surv_effect_frame(spec, summary, probs, rmst_tau)
+}
+
+#' Marginal log hazard ratio in a target population at the origin
+#'
+#' With a shared baseline shape the shape cancels from the ratio of marginal
+#' hazards as `t -> 0`, leaving
+#' `log E[exp(eta_index)] - log E[exp(eta_comparator)]` over the target rows.
+#' This is the same closed form the Stan models use for `delta_*`, so a target
+#' equal to the IPD covariates reproduces `population = "index"` exactly. The
+#' equal row counts cancel, so no `1/n` appears.
+#' @keywords internal
+.target_loghr_origin <- function(object, newdata) {
+  profiles <- .conditional_profiles(object, newdata)
+  params <- .conditional_parameters(object, profiles$covariates)
+  x_centered <- profiles$X
+  li <- NULL
+  lc <- NULL
+  for (i in seq_len(nrow(x_centered))) {
+    eta <- .conditional_eta(params, x_centered[i, , drop = FALSE])
+    li <- if (is.null(li)) eta$index else .logspace_add(li, eta$index)
+    lc <- if (is.null(lc)) eta$comparator else .logspace_add(lc, eta$comparator)
+  }
+  li - lc
 }
 
 
@@ -1796,38 +1812,50 @@ marginal_effects <- function(object,
     }
   }
 
+  .surv_effect_frame(spec, summary, probs, rmst_tau)
+}
+
+#' Assemble a survival marginal-effects frame from per-column draw records
+#'
+#' `spec` is a list with one entry per effect column, each carrying `variable`
+#' (the raw-draw column name), `effect` (the display label), `population`,
+#' `at_time`, `horizon` and the `draws` vector. Both the built-in and the
+#' transported route reduce to that list, so the layout below is written once:
+#' writing it twice is how the two came to disagree about column names and
+#' about which of `at_time` / `horizon` appear at all.
+#' @keywords internal
+.surv_effect_frame <- function(spec, summary, probs, rmst_horizon) {
   mat <- do.call(cbind, lapply(spec, function(s) s$draws))
   colnames(mat) <- vapply(spec, function(s) s$variable, character(1))
+  at_time <- vapply(spec, function(s) s$at_time, numeric(1))
+  horizon <- vapply(spec, function(s) s$horizon, numeric(1))
+
   if (!summary) {
     out <- as.data.frame(mat)
     # A time-specific marginal HR must carry its time everywhere it appears,
     # and the raw-draw frame has no `effect` column to hang it on. One named
     # numeric per column, NA where the measure has no evaluation time.
-    ats <- vapply(spec, function(s) s$at_time, numeric(1))
-    names(ats) <- colnames(mat)
-    attr(out, "at_time") <- ats
-    hzs <- vapply(spec, function(s) s$horizon, numeric(1))
-    names(hzs) <- colnames(mat)
-    attr(out, "horizon") <- hzs
+    names(at_time) <- colnames(mat)
+    attr(out, "at_time") <- at_time
+    names(horizon) <- colnames(mat)
+    attr(out, "horizon") <- horizon
     return(out)
   }
 
   summary_df <- .summarize_draw_matrix(mat, probs)
   labels <- data.frame(
-    variable = vapply(spec, function(s) s$variable, character(1)),
+    variable = colnames(mat),
     effect = vapply(spec, function(s) s$effect, character(1)),
     population = vapply(spec, function(s) s$population, character(1)),
     stringsAsFactors = FALSE
   )
-  at_time <- vapply(spec, function(s) s$at_time, numeric(1))
   # Only carry the column when it says something, so shared-baseline and
   # RMST-only output keeps its previous shape.
   if (any(!is.na(at_time))) labels$at_time <- at_time
-  horizon <- vapply(spec, function(s) s$horizon, numeric(1))
   if (any(!is.na(horizon))) labels$horizon <- horizon
   .mlumr_result(cbind(labels, summary_df, row.names = NULL),
                 "mlumr_marginal_effects", family = "survival",
-                rmst_horizon = rmst_tau)
+                rmst_horizon = rmst_horizon)
 }
 
 

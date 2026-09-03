@@ -74,6 +74,106 @@ test_that("survival transport (RMST) to newdata = index covariates matches index
   expect_equal(hr_tgt$at_time[1], hr_idx$at_time[1])
 })
 
+test_that("shared baseline shapes: the target HR is the same estimand as index", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+
+  # `aux_by = "none"` is essential here, not incidental. With the default
+  # ".study" both routes evaluate the marginal hazard ratio at pred_times[1] and
+  # agree whatever the target route does, so the same test written the obvious
+  # way proves nothing. With shared shapes the baseline cancels and the built-in
+  # scalar is the closed-form t -> 0 limit, which is the estimand the target
+  # route has to reproduce when it standardizes to the IPD covariates.
+  dat <- sim_survival_data(seed = 2026, n_ipd = 120, n_agd = 120, n_int = 32)
+  fit <- fit_survival_test(dat, distribution = "weibull", aux_by = "none")
+  ipd_cov <- dat$ipd$data[, dat$covariates]
+
+  hr_idx <- suppressMessages(
+    marginal_effects(fit, population = "index", effect = "hr")
+  )
+  hr_tgt <- suppressMessages(
+    marginal_effects(fit, newdata = ipd_cov, effect = "hr")
+  )
+  expect_equal(hr_tgt$mean[1], hr_idx$mean[1], tolerance = 1e-6)
+  expect_equal(hr_tgt$at_time[1], 0)
+  expect_equal(hr_idx$at_time[1], 0)
+
+  # The evaluation time is not a knob when the shapes are shared, on either
+  # route: there is no grid point to snap to.
+  expect_error(
+    suppressMessages(marginal_effects(fit, newdata = ipd_cov, effect = "hr",
+                                      at_time = 2)),
+    "different baseline shapes"
+  )
+
+  # `tr` is an alias for `hr` on the built-in route; it has to be one here too.
+  expect_equal(
+    suppressMessages(
+      marginal_effects(fit, newdata = ipd_cov, effect = "tr")
+    )$mean[1],
+    hr_tgt$mean[1]
+  )
+})
+
+test_that("transported frames have the same shape as their built-in twins", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+
+  dat <- sim_survival_data(seed = 2026, n_ipd = 120, n_agd = 120, n_int = 32)
+  fit <- fit_survival_test(dat, distribution = "weibull")
+  ipd_cov <- dat$ipd$data[, dat$covariates]
+
+  # Scalar predictions: long, with `population`, `value` and (for RMST) the
+  # horizon as a column rather than an attribute.
+  for (ty in c("rmst", "median")) {
+    raw_idx <- suppressMessages(
+      predict(fit, population = "index", type = ty, summary = FALSE)
+    )
+    raw_tgt <- suppressMessages(
+      predict(fit, newdata = ipd_cov, type = ty, summary = FALSE)
+    )
+    expect_equal(names(raw_tgt), names(raw_idx), info = ty)
+    expect_false(is.null(raw_tgt$value), info = ty)
+    sum_idx <- suppressMessages(predict(fit, population = "index", type = ty))
+    sum_tgt <- suppressMessages(predict(fit, newdata = ipd_cov, type = ty))
+    expect_equal(names(sum_tgt), names(sum_idx), info = ty)
+  }
+
+  # Curves: the label columns come first on both routes, and the default
+  # survival curve starts at the origin.
+  for (ty in c("survival", "cumhaz", "hazard")) {
+    raw_idx <- suppressMessages(
+      predict(fit, population = "index", type = ty, summary = FALSE)
+    )
+    raw_tgt <- suppressMessages(
+      predict(fit, newdata = ipd_cov, type = ty, summary = FALSE)
+    )
+    expect_equal(names(raw_tgt), names(raw_idx), info = ty)
+  }
+  expect_true("t_0" %in% names(suppressMessages(
+    predict(fit, newdata = ipd_cov, type = "survival", summary = FALSE)
+  )))
+
+  # `times` is refused for scalar summaries on both routes, not ignored.
+  expect_error(
+    suppressMessages(predict(fit, newdata = ipd_cov, type = "rmst",
+                             times = c(1, 2))),
+    "scalar summary"
+  )
+
+  # Raw effect draws carry the same column names, `_target` in place of
+  # `_index`, so a caller can reach the same quantity by the same name.
+  eff_tgt <- suppressMessages(
+    marginal_effects(fit, newdata = ipd_cov, effect = "rmstd", summary = FALSE)
+  )
+  expect_equal(names(eff_tgt), "rmst_diff_target")
+  eff_sum <- suppressMessages(
+    marginal_effects(fit, newdata = ipd_cov, effect = "rmstd")
+  )
+  eff_idx <- marginal_effects(fit, population = "index", effect = "rmstd")
+  expect_equal(names(eff_sum), names(eff_idx))
+})
+
 test_that("relaxed model: joint subgroup AgD identifies beta_comparator from data", {
   skip_on_cran()
   skip_if_not_installed("rstan")
