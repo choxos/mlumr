@@ -359,3 +359,36 @@ test_that("each observed KM curve starts at the origin", {
   cens <- geom_km(dat)[[2]]$data
   if (nrow(cens)) expect_true(all(cens$time > 0))
 })
+
+test_that("shared treatment labels still give two observed curves", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("survival")
+  # combine_data() permits the IPD and AgD arms to carry the same treatment
+  # name. Stratifying the KM on that label merged the two cohorts into one
+  # curve and left a facet empty; the population is what identifies them.
+  dat <- sim_survival_data(seed = 2026, n_ipd = 60, n_agd = 60, n_int = 8)
+  dat$comparator_treatment <- dat$index_treatment
+
+  km <- geom_km(dat)[[1]]$data
+  expect_setequal(unique(km$population), c("Index", "Comparator"))
+  expect_gt(nrow(km[km$population == "Index", , drop = FALSE]), 1)
+  expect_gt(nrow(km[km$population == "Comparator", , drop = FALSE]), 1)
+})
+
+test_that("plot_prior_posterior refuses a parameter it cannot find", {
+  skip_if_not_installed("ggplot2")
+  fit <- structure(
+    list(
+      family = "binomial", model = "spfa", link = "logit",
+      data = list(covariates = "age"),
+      draws = data.frame(mu_index = stats::rnorm(100)),
+      priors = list(intercept = prior_normal(0, 10))
+    ),
+    class = "mlumr_fit"
+  )
+  # One real name and one absent name silently produced a plot of just the
+  # real one, so a misspelling looked like success.
+  expect_error(plot_prior_posterior(fit, pars = c("mu_index", "sigma")),
+               "Not in the fit's posterior draws")
+  expect_s3_class(plot_prior_posterior(fit, pars = "mu_index"), "ggplot")
+})

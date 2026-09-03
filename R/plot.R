@@ -285,11 +285,11 @@ geom_km <- function(data, treatments = NULL, marks = TRUE, linewidth = 0.4, ...)
   obs <- rbind(
     data.frame(
       entry = ipd_entry, time = ipd$.time, status = ipd$.status,
-      treatment = data$index_treatment
+      treatment = data$index_treatment, population = "Index"
     ),
     data.frame(
       entry = pseudo_entry, time = pseudo$.time, status = pseudo$.status,
-      treatment = data$comparator_treatment
+      treatment = data$comparator_treatment, population = "Comparator"
     )
   )
   # geom_km() draws a right-censored Kaplan-Meier curve. Internal `.status`
@@ -308,20 +308,25 @@ geom_km <- function(data, treatments = NULL, marks = TRUE, linewidth = 0.4, ...)
   # counting-process Surv(entry, time, status) so the risk set is counted from
   # each subject's entry, matching naive()/stc() and the survival model. With all
   # entries 0 this reduces exactly to the standard right-censored KM.
+  # Stratify by POPULATION, not by the treatment label. Each study contributes
+  # one arm, so the population identifies the cohort, while the two labels can
+  # coincide: combine_data() permits an IPD and an AgD arm with the same
+  # treatment name (with a warning). Stratifying on the label there would merge
+  # the two observed cohorts into one curve and leave a facet empty.
   km_fit <- if (any(obs$entry > 0)) {
-    survival::survfit(survival::Surv(entry, time, status) ~ treatment, data = obs)
+    survival::survfit(survival::Surv(entry, time, status) ~ population,
+                      data = obs)
   } else {
-    survival::survfit(survival::Surv(time, status) ~ treatment, data = obs)
+    survival::survfit(survival::Surv(time, status) ~ population, data = obs)
   }
   sf <- km_fit
-  trt <- rep(sub("treatment=", "", names(sf$strata)), sf$strata)
-  # Carry the population each observed arm was measured in. plot() facets the
-  # predictions by population, and a layer with no `population` column is drawn
-  # into EVERY facet, so both observed curves appeared in both panels: an
-  # observed index-population curve sat next to comparator-standardized
-  # predictions, and vice versa. Each study contributes one arm, so the arm
-  # identifies its population.
-  pop <- ifelse(trt == data$index_treatment, "Index", "Comparator")
+  # `plot()` facets the predictions by population, and a layer with no
+  # `population` column is drawn into EVERY facet, so both observed curves
+  # appeared in both panels: an observed index-population curve sat next to
+  # comparator-standardized predictions, and vice versa.
+  pop <- rep(sub("population=", "", names(sf$strata)), sf$strata)
+  trt <- ifelse(pop == "Index", data$index_treatment,
+                data$comparator_treatment)
   steps <- data.frame(time = sf$time, surv = sf$surv, treatment = trt,
                       population = pop)
   # Censoring marks are read off the fitted rows, before the origin is added.
@@ -666,7 +671,16 @@ plot_prior_posterior <- function(object, pars = c("mu_index", "mu_comparator"),
   .need_ggplot2()
   .validate_mlumr_fit_object(object)
   draws <- object$draws
-  pars <- intersect(pars, colnames(draws))
+  # `intersect()` silently dropped a misspelled or absent name and drew an
+  # incomplete figure; the error below only fired when EVERY name was missing,
+  # so asking for one real and one wrong parameter looked like success.
+  missing_pars <- setdiff(pars, colnames(draws))
+  if (length(missing_pars)) {
+    stop("Not in the fit's posterior draws: ",
+         paste(missing_pars, collapse = ", "),
+         ". plot_prior_posterior() draws every parameter it is asked for or ",
+         "none of them.", call. = FALSE)
+  }
   if (!length(pars)) {
     stop("None of `pars` are in the fit's posterior draws.", call. = FALSE)
   }
