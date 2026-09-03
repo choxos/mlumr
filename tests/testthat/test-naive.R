@@ -166,3 +166,32 @@ test_that("naive works with poisson family", {
   # Print works
   expect_output(print(result), "Log Rate Ratio")
 })
+
+test_that("the poisson benchmarks report the rate difference they advertise", {
+  # summary() gained a "Rate difference" row that read `x$rd`, which neither
+  # poisson estimator set, so the row was silently dropped from every table.
+  set.seed(2026)
+  n <- 200
+  ipd <- data.frame(trt = "A", y = stats::rpois(n, 2),
+                    expo = stats::runif(n, 0.8, 1.2), age = stats::rnorm(n))
+  agd <- data.frame(trt = "B", r = 260, n = 150, E = 150,
+                    age_mean = 0.2, age_sd = 1)
+  dat <- combine_data(
+    set_ipd(ipd, "trt", outcome = "y", covariates = "age", family = "poisson",
+            exposure = "expo"),
+    set_agd(agd, "trt", family = "poisson", outcome_r = "r", outcome_n = "n",
+            outcome_E = "E", cov_means = "age_mean", cov_sds = "age_sd",
+            cov_types = "continuous")
+  )
+
+  nv <- suppressWarnings(suppressMessages(naive(dat)))
+  expect_equal(nv$rd, nv$rate_index - nv$rate_comparator)
+  expect_gt(nv$rd_se, 0)
+  expect_lt(nv$rd_lower, nv$rd_upper)
+  expect_true(any(grepl("Rate difference", capture.output(print(summary(nv))))))
+
+  st <- suppressWarnings(suppressMessages(stc(dat)))
+  expect_equal(st$rd, st$rate_hat_index - st$rate_comparator)
+  expect_gt(st$rd_se, 0)
+  expect_true(any(grepl("Rate difference", capture.output(print(summary(st))))))
+})

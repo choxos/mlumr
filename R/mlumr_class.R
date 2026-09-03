@@ -280,7 +280,9 @@ print.mlumr_stc <- function(x, ...) {
   cat("===============================================\n\n")
   cat("Treatments:", x$data$index_treatment, "vs", x$data$comparator_treatment, "\n\n")
   cat("Estimand population: comparator\n")
-  cat("Treating this as the index-population effect requires a separate effect-equality assumption; this calculation does not transport to the index population.\n\n")
+  cat("Treating this as the index-population effect requires a separate ",
+      "effect-equality assumption; this calculation does not transport to ",
+      "the index population.\n\n", sep = "")
 
   if (family == "binomial") {
     cat(sprintf("Marginalized P(Y=1|index trt, comp pop): %.4f\n", x$p_hat_index))
@@ -426,7 +428,6 @@ summary.mlumr_stc <- function(object, ...) {
 .effect_measures_df <- function(x) {
   fam <- x$family %||% "binomial"
   link <- x$link %||% "logit"
-  rows <- list()
   # A missing bound is NULL on some result objects and NA_real_ on others.
   # exp(NULL) errors before `%||%` can rescue it, so normalize first: any value
   # that is absent, non-numeric, NA, or NaN becomes NA_real_. Infinite values
@@ -437,13 +438,20 @@ summary.mlumr_stc <- function(object, ...) {
     }
     as.numeric(v)
   }
+  acc <- new.env(parent = emptyenv())
+  acc$rows <- list()
   add <- function(measure, est, se = NA_real_, lo = NA_real_, hi = NA_real_) {
     est <- num(est)
     if (is.na(est)) return(invisible())
-    rows[[length(rows) + 1L]] <<- data.frame(
-      Measure = measure, Estimate = est, SE = num(se),
-      CI_lower = num(lo), CI_upper = num(hi),
-      stringsAsFactors = FALSE)
+    acc$rows[[length(acc$rows) + 1L]] <- data.frame(
+      Measure = measure,
+      Estimate = est,
+      SE = num(se),
+      CI_lower = num(lo),
+      CI_upper = num(hi),
+      stringsAsFactors = FALSE
+    )
+    invisible()
   }
   # exp() of an already-normalized bound, so a NULL/NA bound stays NA instead of
   # raising "non-numeric argument to mathematical function".
@@ -469,8 +477,8 @@ summary.mlumr_stc <- function(object, ...) {
     add("Log rate ratio", x$estimate, x$se, x$ci_lower, x$ci_upper)
     add("Rate ratio", eexp(x$estimate), NA_real_, eexp(x$ci_lower), eexp(x$ci_upper))
     # Rate difference on the natural (per-unit-exposure) scale. Both the naive
-    # and STC poisson benchmarks report it as `rd`; older result objects that
-    # predate it simply omit the row.
+    # and STC poisson estimators compute it; a result object from an older
+    # version that predates the field simply omits the row.
     add("Rate difference", x$rd, x$rd_se, x$rd_lower, x$rd_upper)
   } else {  # survival
     if (!is.null(x$rmst_diff)) {                       # STC: RMST + cumhaz ratio
@@ -487,8 +495,8 @@ summary.mlumr_stc <- function(object, ...) {
       add("Hazard ratio (Cox)", eexp(x$estimate), NA_real_, eexp(x$ci_lower), eexp(x$ci_upper))
     }
   }
-  if (!length(rows)) return(NULL)
-  do.call(rbind, rows)
+  if (!length(acc$rows)) return(NULL)
+  do.call(rbind, acc$rows)
 }
 
 #' Label indexed beta rows with covariate names for display

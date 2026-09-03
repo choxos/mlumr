@@ -216,6 +216,11 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
   rate_comparator_se <- sqrt(rate_comparator / exposure_comparator)
   log_rate_index_se <- sqrt(1 / events_index_adjusted)
   log_rate_comparator_se <- sqrt(1 / events_comparator_adjusted)
+  # Rate difference on the natural per-unit-exposure scale, the additive
+  # counterpart of the rate ratio. The two arms are independent, so the variance
+  # of the difference is the sum of the two rate variances already computed.
+  rd <- rate_index - rate_comparator
+  rd_se <- sqrt(rate_index_se^2 + rate_comparator_se^2)
 
   list(
     estimate = estimate,
@@ -224,6 +229,10 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
     ci_upper = estimate + z * se,
     conf_level = conf_level,
     family = "poisson",
+    rd = rd,
+    rd_se = rd_se,
+    rd_lower = rd - z * rd_se,
+    rd_upper = rd + z * rd_se,
     rate_index = rate_index,
     rate_index_se = rate_index_se,
     rate_index_lower = exp(log_rate_index - z * log_rate_index_se),

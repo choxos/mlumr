@@ -404,6 +404,14 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     as.numeric(t(grad_rate) %*% V %*% grad_rate),
     "poisson STC rate variance"
   )
+  # Rate difference on the natural per-unit-exposure scale: the standardized
+  # index rate minus the observed comparator rate. The standardized rate's
+  # variance is the delta-method one already computed for it, and the two arms
+  # are independent, so the variances add.
+  rd <- rate_hat_A - rate_B
+  var_rd <- var_rate_A + rate_B / exposure_B
+  se_rd <- .sqrt_variance(var_rd, "poisson STC rate-difference variance")
+
   list(
     estimate = estimate,
     se = se,
@@ -413,6 +421,10 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     family = "poisson",
     link = link_resolved,
     population = "comparator",
+    rd = rd,
+    rd_se = se_rd,
+    rd_lower = rd - z * se_rd,
+    rd_upper = rd + z * se_rd,
     rate_hat_index = rate_hat_A,
     rate_hat_index_se = sqrt(var_rate_A),
     rate_comparator = rate_B,
