@@ -404,6 +404,20 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     as.numeric(t(grad_rate) %*% V %*% grad_rate),
     "poisson STC rate variance"
   )
+  # With no events at all in the IPD the fitted rate is numerically 0, so the
+  # gradient lambda * X vanishes and the delta method reports the standardized
+  # rate as known to within ~1e-7. It is not: zero events over the observed
+  # exposure is consistent with a clearly positive rate, which is why the
+  # log-rate contrast on the same fit carries an SE in the tens of thousands.
+  # Floor the variance at the continuity-corrected plug-in the naive estimator
+  # would report from the same IPD, so the index arm still contributes to the
+  # rate difference. Only reached at the boundary; a fit with any event keeps
+  # its delta-method variance untouched.
+  events_index_total <- sum(ipd$.outcome)
+  if (events_index_total == 0) {
+    exposure_index_total <- sum(ipd$.exposure)
+    var_rate_A <- max(var_rate_A, 0.5 / exposure_index_total^2)
+  }
   # Rate difference on the natural per-unit-exposure scale: the standardized
   # index rate minus the observed comparator rate. The standardized rate's
   # variance is the delta-method one already computed for it, and the two arms

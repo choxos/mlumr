@@ -220,13 +220,20 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
   # the corrected counts; these did not.
   rate_index_se <- sqrt(events_index_adjusted) / exposure_index
   rate_comparator_se <- sqrt(events_comparator_adjusted) / exposure_comparator
-  log_rate_index_se <- sqrt(1 / events_index_adjusted)
-  log_rate_comparator_se <- sqrt(1 / events_comparator_adjusted)
   # Rate difference on the natural per-unit-exposure scale, the additive
   # counterpart of the rate ratio. The two arms are independent, so the variance
   # of the difference is the sum of the two rate variances already computed.
   rd <- rate_index - rate_comparator
   rd_se <- sqrt(rate_index_se^2 + rate_comparator_se^2)
+  # Bound the absolute-scale interval at 0 around the REPORTED rate, the way the
+  # binomial arm does. The previous interval was a log-scale Wald around the
+  # continuity-corrected rate 0.5 / exposure, so for a zero-event arm it did not
+  # contain the rate it was printed beside: rate 0 with interval
+  # [0.0004, 0.101]. Rates are non-negative, so the point sits on the bound.
+  rate_index_ci <- .bounded_wald_interval(rate_index, rate_index_se, z,
+                                          lower = 0)
+  rate_comparator_ci <- .bounded_wald_interval(rate_comparator,
+                                               rate_comparator_se, z, lower = 0)
 
   list(
     estimate = estimate,
@@ -241,12 +248,12 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
     rd_upper = rd + z * rd_se,
     rate_index = rate_index,
     rate_index_se = rate_index_se,
-    rate_index_lower = exp(log_rate_index - z * log_rate_index_se),
-    rate_index_upper = exp(log_rate_index + z * log_rate_index_se),
+    rate_index_lower = rate_index_ci$lower,
+    rate_index_upper = rate_index_ci$upper,
     rate_comparator = rate_comparator,
     rate_comparator_se = rate_comparator_se,
-    rate_comparator_lower = exp(log_rate_comparator - z * log_rate_comparator_se),
-    rate_comparator_upper = exp(log_rate_comparator + z * log_rate_comparator_se),
+    rate_comparator_lower = rate_comparator_ci$lower,
+    rate_comparator_upper = rate_comparator_ci$upper,
     n_index = n_index,
     events_index = events_index,
     exposure_index = exposure_index,
