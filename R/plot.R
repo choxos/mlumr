@@ -313,7 +313,7 @@ geom_km <- function(data, treatments = NULL, marks = TRUE, linewidth = 0.4, ...)
   } else {
     survival::survfit(survival::Surv(time, status) ~ treatment, data = obs)
   }
-  sf <- survival::survfit0(km_fit)
+  sf <- km_fit
   trt <- rep(sub("treatment=", "", names(sf$strata)), sf$strata)
   # Carry the population each observed arm was measured in. plot() facets the
   # predictions by population, and a layer with no `population` column is drawn
@@ -324,11 +324,24 @@ geom_km <- function(data, treatments = NULL, marks = TRUE, linewidth = 0.4, ...)
   pop <- ifelse(trt == data$index_treatment, "Index", "Comparator")
   steps <- data.frame(time = sf$time, surv = sf$surv, treatment = trt,
                       population = pop)
+  # Censoring marks are read off the fitted rows, before the origin is added.
   cens <- if (!is.null(sf$n.censor)) {
     steps[sf$n.censor > 0, , drop = FALSE]
   } else {
     steps[0, , drop = FALSE]
   }
+  # Start each curve at (0, 1). S(0) = 1 exactly, by definition, so the step
+  # function begins at the top-left corner rather than at the first event time,
+  # matching the convention the model curves already follow. This is what
+  # survival::survfit0() does; doing it here keeps `geom_km()` working on every
+  # `survival` release the package declares rather than only those that export
+  # that helper.
+  origin <- unique(steps[, c("treatment", "population"), drop = FALSE])
+  origin$time <- 0
+  origin$surv <- 1
+  steps <- rbind(origin[, names(steps), drop = FALSE], steps)
+  steps <- steps[order(steps$treatment, steps$time), , drop = FALSE]
+  rownames(steps) <- NULL
   list(steps = steps, censor = cens)
 }
 

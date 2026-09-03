@@ -342,3 +342,20 @@ test_that("an all-ratio conditional forest is drawn on a log axis too", {
   expect_true(is_log(plot(mk("RR"))))
   expect_false(is_log(plot(mk("RD"))))
 })
+
+test_that("each observed KM curve starts at the origin", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("survival")
+  dat <- sim_survival_data(seed = 2026, n_ipd = 60, n_agd = 60, n_int = 8)
+  km <- geom_km(dat)[[1]]$data
+  # S(0) = 1 exactly, per arm. Previously supplied by survival::survfit0(),
+  # which older releases the package declares do not export.
+  for (trt in unique(km$treatment)) {
+    arm <- km[km$treatment == trt, , drop = FALSE]
+    expect_equal(min(arm$time), 0, info = trt)
+    expect_equal(arm$surv[which.min(arm$time)], 1, info = trt)
+  }
+  # The censoring marks are fitted observations, not the synthetic origin.
+  cens <- geom_km(dat)[[2]]$data
+  if (nrow(cens)) expect_true(all(cens$time > 0))
+})
