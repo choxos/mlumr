@@ -146,6 +146,35 @@
   reports both populations without that assumption, when the index population is
   the decision target.
 
+## Transportability to arbitrary target populations
+
+* **`newdata` argument** on `marginal_effects()` and `predict.mlumr_fit()`
+  transports treatment effects and absolute outcomes to an **arbitrary target
+  population** by Bayesian g-computation (model-based standardization over a
+  supplied covariate distribution), as in the ML-UMR transportability step.
+  Version 0.1.0 offered only the built-in index and comparator populations.
+  Supported for all families' effects and predictions; for survival, the
+  collapsible RMST-based effects (`"rmstd"`, `"rmstr"`) and the
+  `survival`/`cumhaz`/`rmst`/`median` predictions transport, while the
+  non-collapsible time-varying marginal hazard ratio remains tied to the
+  built-in populations.
+
+  Standardizing to the index covariates reproduces `population = "index"`
+  exactly, which is the check that the transport path and the built-in path are
+  the same calculation.
+
+* **`marginal_effects()` emits a one-line note** when a relaxed fit is queried
+  for the index population, reporting the **posterior contraction** of
+  `beta_comparator` per covariate, `1 - (posterior sd / prior sd)^2`, and naming
+  the weakly-identified ones. A single marginal comparator curve constrains
+  `beta'X` but not the direction of `beta`, which is exactly what transporting
+  to the index population needs, and an event count cannot detect that. The
+  prior SD respects the prior family: Student-t scales are converted via
+  `sqrt(df / (df - 2))`, and priors with no finite variance (`df <= 2`,
+  including the Cauchy) report `NA` rather than a number that would misstate how
+  much was learned. Suppress with
+  `options(mlumr.quiet_relaxed_index = TRUE)`.
+
 ## Time-to-event (survival) data
 
 * **New `"survival"` outcome family for data setup.** `set_ipd()` accepts
