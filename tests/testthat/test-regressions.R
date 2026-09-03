@@ -605,6 +605,12 @@ test_that("R rejects the exposures and standard errors Stan rejects", {
     set_ipd(data.frame(trt = "A", y = c(1L, 2L), e = c(1, 1), x = c(0, 1)),
             "trt", "y", "x", exposure = "e", family = "poisson")
   )
+  # The bound is inclusive. A validator written with `>` would pass every
+  # rejection case above and still refuse a legal boundary value.
+  expect_silent(
+    set_ipd(data.frame(trt = "A", y = c(1L, 2L), e = c(1e-12, 1), x = c(0, 1)),
+            "trt", "y", "x", exposure = "e", family = "poisson")
+  )
 
   agd_norm <- data.frame(trt = "B", m = 1, s = 1e-13, x_mean = 0.5, x_sd = 1)
   expect_error(
@@ -620,6 +626,19 @@ test_that("R rejects the exposures and standard errors Stan rejects", {
             outcome_r = "r", outcome_E = "E",
             cov_means = "x_mean", cov_sds = "x_sd"),
     "at least 1e-12"
+  )
+
+  agd_norm$s <- 1e-12
+  expect_silent(
+    set_agd(agd_norm, "trt", family = "normal",
+            outcome_mean = "m", outcome_se = "s",
+            cov_means = "x_mean", cov_sds = "x_sd")
+  )
+  agd_pois$E <- 1e-12
+  expect_silent(
+    set_agd(agd_pois, "trt", family = "poisson",
+            outcome_r = "r", outcome_E = "E",
+            cov_means = "x_mean", cov_sds = "x_sd")
   )
 })
 
@@ -723,4 +742,34 @@ test_that("the comparator prior section is printed once", {
   )
   printed <- capture.output(prior_summary(fit))
   expect_length(grep("Comparator regression coefficients", printed), 1L)
+})
+
+
+test_that("a partly-missing tail ESS column is reported, not silently dropped", {
+  # `posterior::ess_tail()` returns NA for a chain layout it cannot use, for
+  # any non-finite draw, and for a parameter that is constant across chains.
+  # Keeping only the finite entries checked the survivors and read as clean.
+  base_fit <- function(ess) {
+    structure(
+      list(
+        summary = data.frame(variable = paste0("v", seq_along(ess)),
+                             Rhat = 1, n_eff = 1000, ess_tail = ess),
+        diagnostics = list(n_divergent = 0, n_max_treedepth = 0,
+                           n_chains_requested = 4L, n_chains_returned = 4L),
+        sampling_args = list(adapt_delta = 0.95, max_treedepth = 15)
+      ),
+      class = "mlumr_fit"
+    )
+  }
+  expect_message(check_diagnostics(base_fit(c(1000, NA, 2000))),
+                 "unavailable for 1 of 3")
+  # All missing: name the outcome, not a cause the backend did not record.
+  expect_message(check_diagnostics(base_fit(c(NA_real_, NA_real_))),
+                 "Tail ESS is unavailable for this fit")
+  expect_silent(check_diagnostics(base_fit(c(1000, 2000))))
+  # A low value among the available ones still warns.
+  expect_warning(
+    suppressMessages(check_diagnostics(base_fit(c(100, NA)))),
+    "tail-ESS values < 400"
+  )
 })

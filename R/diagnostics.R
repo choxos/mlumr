@@ -688,26 +688,43 @@ check_diagnostics <- function(fit) {
   # so the rstan backend computes it from the draws. Report an absent or
   # all-missing column instead of passing silently, which is indistinguishable
   # from a clean check.
-  tail_vals <- if ("ess_tail" %in% names(fit$summary)) {
-    .finite_numeric_values(fit$summary$ess_tail)
+  #
+  # `posterior::ess_tail()` returns NA for several distinct reasons: a chain
+  # layout it cannot use, any non-finite draw, and a parameter that is constant
+  # across every chain. The backend does not record which, so name the outcome
+  # and not a cause, and count the parameters that lack a value instead of
+  # dropping them: a partly-missing column would otherwise be checked on its
+  # finite entries alone and read as clean.
+  tail_all <- if ("ess_tail" %in% names(fit$summary)) {
+    fit$summary$ess_tail
   } else {
     numeric(0)
   }
+  tail_vals <- .finite_numeric_values(tail_all)
+  n_missing <- length(tail_all) - length(tail_vals)
   if (length(tail_vals) == 0L) {
-    reason <- if (!requireNamespace("posterior", quietly = TRUE)) {
-      "Install the 'posterior' package to enable this check."
+    hint <- if (!requireNamespace("posterior", quietly = TRUE)) {
+      " Install the 'posterior' package to enable this check."
     } else {
-      paste0("The 'posterior' package is installed, so the draws could not be ",
-             "arranged as equal-length chains; check the chain layout.")
+      ""
     }
     message("Tail ESS is unavailable for this fit, so tail quantiles were not ",
-            "checked. ", reason)
-  } else if (min(tail_vals) < 400) {
-    msg <- paste0(
-      "Some tail-ESS values < 400 (min = %.1f). Tail quantiles ",
-      "(e.g. 2.5%%/97.5%%) may be unreliable; run more iterations."
-    )
-    warning(sprintf(msg, min(tail_vals)), call. = FALSE)
+            "checked.", hint)
+  } else {
+    if (n_missing > 0L) {
+      message(sprintf(
+        paste0("Tail ESS is unavailable for %d of %d parameter(s), which were ",
+               "not checked; the remaining %d were."),
+        n_missing, length(tail_all), length(tail_vals)
+      ))
+    }
+    if (min(tail_vals) < 400) {
+      msg <- paste0(
+        "Some tail-ESS values < 400 (min = %.1f). Tail quantiles ",
+        "(e.g. 2.5%%/97.5%%) may be unreliable; run more iterations."
+      )
+      warning(sprintf(msg, min(tail_vals)), call. = FALSE)
+    }
   }
 
   invisible(NULL)
