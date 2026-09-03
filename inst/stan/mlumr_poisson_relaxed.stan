@@ -13,8 +13,7 @@ data {
   // IPD (Index treatment)
   int<lower=0> n_ipd;
   array[n_ipd] int<lower=0> y_ipd;
-  // Exposure is a log offset in the IPD likelihood. set_ipd() rejects a
-  // non-positive exposure, so log(E_ipd) is always finite here.
+  // Exposure is a log offset in the IPD likelihood.
   vector<lower=0>[n_ipd] E_ipd;
   int<lower=1> n_cov;
   matrix[n_ipd, n_cov] X_ipd;            // centered covariates (generated quantities)
@@ -23,7 +22,6 @@ data {
   int<lower=1> n_agd_rows;
   array[n_agd_rows] int<lower=0> r_agd;
   // AgD exposure scales the marginal rate into an expected total count.
-  // set_agd() rejects a non-positive exposure, so log(E_agd) is finite.
   array[n_agd_rows] real<lower=0> E_agd;
 
   // Integration points for AgD
@@ -39,6 +37,15 @@ data {
 
 #include include/priors_hyperparameters.stan
 
+  // Fully separate prior for beta_comparator: its own family, degrees of
+  // freedom, location and scale, none of them tied to beta_index. Tighten these
+  // to regularize the comparator coefficients, which are identified only
+  // through the AgD likelihood.
+  vector[n_cov] prior_beta_comparator_mean;
+  vector<lower=0>[n_cov] prior_beta_comparator_sd;
+  int<lower=0,upper=1> prior_beta_comparator_dist;
+  real<lower=0> prior_beta_comparator_df;
+
   int<lower=1,upper=1> link;
 }
 
@@ -46,9 +53,8 @@ parameters {
   // Combined coefficients on the (QR) sampling scale:
   // [mu_index, mu_comparator, beta_index, beta_comparator].
   vector[nB] beta_tilde;
-  // Note: beta_comparator is identified only through AgD data. With sparse
-  // aggregate evidence, regularize it with an informative prior_beta or use
-  // model = "spfa", which shares one coefficient vector across treatments.
+  // Note: beta_comparator is identified only through AgD data; use informative
+  // prior_beta_comparator to regularize when AgD is sparse.
 }
 
 transformed parameters {
@@ -70,9 +76,9 @@ model {
                              prior_intercept_dist, prior_intercept_df);
   target += log_prior_vector(beta_index, prior_beta_mean, prior_beta_sd,
                              prior_beta_dist, prior_beta_df);
-  target += log_prior_vector(beta_comparator, prior_beta_mean,
-                             prior_beta_sd, prior_beta_dist,
-                             prior_beta_df);
+  target += log_prior_vector(beta_comparator, prior_beta_comparator_mean,
+                             prior_beta_comparator_sd, prior_beta_comparator_dist,
+                             prior_beta_comparator_df);
 
   // IPD likelihood. Keep the fused GLM for the (default) non-QR path; the
   // log-exposure offset enters as a per-observation intercept.

@@ -59,46 +59,24 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
   cat("\n")
 
   # Beta (regression coefficients)
-  cat("Regression coefficients (beta):\n")
-  br <- priors$beta_resolved
-  if (is.null(br)) {
-    # Fallback for older fits: just print the user-specified prior.
-    cat(paste0("  ", .format_prior_collection(priors$beta, digits = digits)),
-        sep = "\n")
-    cat("\n")
-  } else {
-    # Detect whether the resolved per-coefficient priors are homogeneous.
-    means_eq <- length(unique(round(br$mean, 12))) == 1L
-    sds_eq   <- length(unique(round(br$sd,   12))) == 1L
-    autos_any <- any(br$autoscale)
+  .print_beta_prior_block("Regression coefficients (beta):",
+                          priors$beta_resolved, priors$beta, digits)
 
-    family_label <- .resolved_prior_family_label(br$dist)
-    broadcast_label <- .resolved_prior_broadcast_label(br, digits)
-
-    if (means_eq && sds_eq && !autos_any) {
-      # Broadcast summary
-      cat(sprintf("  %s applied to all %d covariate(s)\n",
-                  broadcast_label, length(br$mean)))
-    } else {
-      # Per-coefficient table
-      tbl <- data.frame(
-        coefficient = br$covariate_names,
-        mean = round(br$mean, digits),
-        scale = round(br$sd,  digits),
-        autoscaled = br$autoscale,
-        sd_x = round(br$sd_x, digits),
-        stringsAsFactors = FALSE
-      )
-      cat(sprintf("  Family: %s%s\n", family_label,
-                  if (br$dist == 1L) sprintf(" (df = %g)", br$df) else ""))
-      print(tbl, row.names = FALSE)
-      if (autos_any) {
-        cat("  (scale = user_scale / sd_x for autoscaled rows)\n")
-      }
+  # The relaxed model's comparator coefficients can carry a fully separate
+  # prior, and regularizing them is the whole point of that argument: they are
+  # identified only through the aggregate likelihood, and the index-population
+  # estimand averages them over the IPD covariate distribution. The resolved
+  # struct was stored on the fit and never printed, so the advertised
+  # introspection API could not confirm which prior the sampler actually used.
+  if (!is.null(priors$beta_comparator_resolved)) {
+    .print_beta_prior_block(
+      "Comparator regression coefficients (beta_comparator):",
+      priors$beta_comparator_resolved, priors$beta_comparator, digits
+    )
+    if (!isTRUE(priors$beta_comparator_resolved$user_specified)) {
+      cat("  (not set; reuses the `beta` prior above)\n\n")
     }
   }
-  .print_default_tag(priors$beta)
-  cat("\n")
 
   # Sigma (normal family only)
   if (!is.null(priors$sigma)) {
@@ -169,6 +147,58 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
   if (isTRUE(prior$default) && !is.null(prior$version)) {
     cat("  (package default, mlumr ", prior$version, ")\n", sep = "")
   }
+}
+
+
+
+#' Print one resolved regression-coefficient prior block
+#'
+#' `beta` and `beta_comparator` are reported the same way, so the broadcast /
+#' per-coefficient decision, the autoscaling footnote and the default tag are
+#' written once. `resolved` is the per-coefficient struct stored on the fit;
+#' `user_prior` is what the caller passed, used for the fallback on older fits
+#' that carry no resolved struct and for the package-default tag.
+#' @keywords internal
+.print_beta_prior_block <- function(heading, resolved, user_prior, digits) {
+  cat(heading, "\n", sep = "")
+  if (is.null(resolved)) {
+    # Fallback for older fits: just print the user-specified prior.
+    cat(paste0("  ", .format_prior_collection(user_prior, digits = digits)),
+        sep = "\n")
+    cat("\n")
+  } else {
+    # Detect whether the resolved per-coefficient priors are homogeneous.
+    means_eq <- length(unique(round(resolved$mean, 12))) == 1L
+    sds_eq   <- length(unique(round(resolved$sd,   12))) == 1L
+    autos_any <- any(resolved$autoscale)
+
+    family_label <- .resolved_prior_family_label(resolved$dist)
+    broadcast_label <- .resolved_prior_broadcast_label(resolved, digits)
+
+    if (means_eq && sds_eq && !autos_any) {
+      # Broadcast summary
+      cat(sprintf("  %s applied to all %d covariate(s)\n",
+                  broadcast_label, length(resolved$mean)))
+    } else {
+      # Per-coefficient table
+      tbl <- data.frame(
+        coefficient = resolved$covariate_names,
+        mean = round(resolved$mean, digits),
+        scale = round(resolved$sd,  digits),
+        autoscaled = resolved$autoscale,
+        sd_x = round(resolved$sd_x, digits),
+        stringsAsFactors = FALSE
+      )
+      cat(sprintf("  Family: %s%s\n", family_label,
+                  if (resolved$dist == 1L) sprintf(" (df = %g)", resolved$df) else ""))
+      print(tbl, row.names = FALSE)
+      if (autos_any) {
+        cat("  (scale = user_scale / sd_x for autoscaled rows)\n")
+      }
+    }
+  }
+  .print_default_tag(user_prior)
+  cat("\n")
 }
 
 

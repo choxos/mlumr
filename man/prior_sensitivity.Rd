@@ -60,6 +60,15 @@ rescaling of existing relative differences). If the original
 \code{prior_beta} used an exponential family, it is swapped for a
 \code{prior_normal(0, scale)} at each grid point since exponential has no
 scale parameter to vary.
+
+A relaxed fit whose \code{prior_beta_comparator} was set deliberately keeps that
+prior fixed at its original value across the sweep, because otherwise the
+refits would silently drop the regularizer the model was fitted with. That
+also bounds what the sweep can tell you: it measures sensitivity to
+\code{prior_beta} alone. An index-population estimand that is in fact driven by
+\code{prior_beta_comparator} can look perfectly insensitive here, so do not read
+a flat result as evidence that the comparator prior does not matter. Refit
+with different comparator scales to answer that question.
 }
 \examples{
 \dontrun{

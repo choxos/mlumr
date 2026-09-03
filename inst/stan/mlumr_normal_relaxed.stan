@@ -20,8 +20,6 @@ data {
   // y_agd and se_agd must be on the original outcome scale.
   int<lower=1> n_agd_rows;
   array[n_agd_rows] real y_agd;
-  // set_agd() rejects a non-positive standard error, so the normal density
-  // below never sees a zero scale.
   array[n_agd_rows] real<lower=0> se_agd;
   // Target-population weights for the comparator estimand (sample-size weights
   // when outcome_n is supplied, else all 1 = equal per-row). Separate from the
@@ -42,6 +40,15 @@ data {
 
 #include include/priors_hyperparameters.stan
 
+  // Fully separate prior for beta_comparator: its own family, degrees of
+  // freedom, location and scale, none of them tied to beta_index. Tighten these
+  // to regularize the comparator coefficients, which are identified only
+  // through the AgD likelihood.
+  vector[n_cov] prior_beta_comparator_mean;
+  vector<lower=0>[n_cov] prior_beta_comparator_sd;
+  int<lower=0,upper=1> prior_beta_comparator_dist;
+  real<lower=0> prior_beta_comparator_df;
+
 #include include/priors_sigma_hyperparameters.stan
 
   int<lower=1,upper=2> link;
@@ -51,9 +58,8 @@ parameters {
   // Combined coefficients on the (QR) sampling scale:
   // [mu_index, mu_comparator, beta_index, beta_comparator].
   vector[nB] beta_tilde;
-  // Note: beta_comparator is identified only through AgD data. With sparse
-  // aggregate evidence, regularize it with an informative prior_beta or use
-  // model = "spfa", which shares one coefficient vector across treatments.
+  // Note: beta_comparator is identified only through AgD data; use informative
+  // prior_beta_comparator to regularize when AgD is sparse.
   real<lower=0> sigma;
 }
 
@@ -76,9 +82,9 @@ model {
                              prior_intercept_dist, prior_intercept_df);
   target += log_prior_vector(beta_index, prior_beta_mean, prior_beta_sd,
                              prior_beta_dist, prior_beta_df);
-  target += log_prior_vector(beta_comparator, prior_beta_mean,
-                             prior_beta_sd, prior_beta_dist,
-                             prior_beta_df);
+  target += log_prior_vector(beta_comparator, prior_beta_comparator_mean,
+                             prior_beta_comparator_sd, prior_beta_comparator_dist,
+                             prior_beta_comparator_df);
   // sigma has <lower=0> so normal / student_t become half-*
   target += log_prior_sigma(sigma, prior_sigma_location, prior_sigma_scale,
                             prior_sigma_dist, prior_sigma_df);

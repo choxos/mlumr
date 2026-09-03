@@ -37,6 +37,15 @@
 #' `prior_normal(0, scale)` at each grid point since exponential has no
 #' scale parameter to vary.
 #'
+#' A relaxed fit whose `prior_beta_comparator` was set deliberately keeps that
+#' prior fixed at its original value across the sweep, because otherwise the
+#' refits would silently drop the regularizer the model was fitted with. That
+#' also bounds what the sweep can tell you: it measures sensitivity to
+#' `prior_beta` alone. An index-population estimand that is in fact driven by
+#' `prior_beta_comparator` can look perfectly insensitive here, so do not read
+#' a flat result as evidence that the comparator prior does not matter. Refit
+#' with different comparator scales to answer that question.
+#'
 #' @return A data frame (tibble-style) with one row per
 #'   (scale, population, quantile) combination and columns `scale`,
 #'   `parameter`, `mean`, `sd`, and the requested quantiles. Side effect:
@@ -89,9 +98,9 @@ prior_sensitivity <- function(fit,
     # of these would vary a second factor alongside the prior scale, so the
     # movement in the output could no longer be attributed to the prior.
     protected <- c("data", "model", "link", "distribution", "prior_beta",
-                   "prior_intercept", "prior_sigma", "prior_aux",
-                   "prior_smooth", "center", "qr", "n_knots", "knots",
-                   "mspline_degree", "pred_times", "rmst_horizon",
+                   "prior_beta_comparator", "prior_intercept", "prior_sigma",
+                   "prior_aux", "prior_smooth", "center", "qr", "n_knots",
+                   "knots", "mspline_degree", "pred_times", "rmst_horizon",
                    "n_rmst_grid", "aux_by")
     clash <- intersect(names(dots), protected)
     if (length(clash)) {
@@ -105,23 +114,6 @@ prior_sensitivity <- function(fit,
     }
   }
 
-  sa <- fit$sampling_args %||% list()
-  # Design-matrix controls. A fit made with `center = FALSE` or `qr = TRUE` is a
-  # different parameterization, so replaying the defaults here would vary the
-  # model as well as the prior and the sweep would no longer isolate one factor.
-  # Fits from earlier versions do not record these; the defaults are what they used.
-  mc <- fit$model_controls %||% list()
-  # Survival baseline controls needed to reproduce the original baseline; NULL
-  # or absent for the other families. `surv_controls` records a control that
-  # does not apply as NA rather than NULL (a Weibull fit stores
-  # mspline_degree = NA_integer_), and mlumr() rejects NA where it accepts NULL,
-  # so NA is normalized back to NULL before the refit.
-  sc <- fit$surv_controls %||% list()
-  .na_to_null <- function(x) if (length(x) == 1L && is.na(x)) NULL else x
-
-  # Re-use the original data object (has_integration is already TRUE)
-  data <- fit$data
-
   results <- vector("list", length(prior_beta_scales))
 
   for (i in seq_along(prior_beta_scales)) {
@@ -132,47 +124,7 @@ prior_sensitivity <- function(fit,
                           i, length(prior_beta_scales), s),
                   verbose = verbose)
 
-    args <- list(
-      data = data,
-      model = fit$model,
-      link = fit$link,
-      prior_intercept = fit$priors$intercept,
-      prior_beta = prior_beta_i,
-      prior_sigma = fit$priors$sigma %||% default_prior_sigma(),
-      # A fit that predates these controls was fitted on the raw scale, so the
-      # historical behavior, not the current default, is what reproduces it.
-      center       = mc$center       %||% FALSE,
-      qr           = mc$qr           %||% FALSE,
-      chains       = sa$chains       %||% 4,
-      iter         = sa$iter         %||% 2000,
-      warmup       = sa$warmup       %||% 1000,
-      seed         = sa$seed,
-      adapt_delta  = sa$adapt_delta  %||% 0.95,
-      max_treedepth = sa$max_treedepth %||% 15,
-      refresh = 0,
-      engine = fit$engine,
-      verbose = verbose
-    )
-
-    # The survival controls are only legal arguments for a survival fit, and
-    # mlumr() decides that with missing(), not by testing for NULL. Naming
-    # `aux_by` at all makes it non-missing, so listing these unconditionally
-    # would make prior_sensitivity() fail on every binomial, normal and Poisson
-    # fit. Omit the whole group rather than passing NULL into it.
-    if (identical(fit$family, "survival")) {
-      args <- c(args, list(
-        distribution = fit$distribution,
-        prior_aux    = fit$priors$aux,
-        prior_smooth = fit$priors$smooth,
-        n_knots      = sc$n_knots      %||% 7L,
-        knots        = sc$knots,
-        mspline_degree = .na_to_null(sc$mspline_degree),
-        aux_by       = sc$aux_by       %||% ".study",
-        pred_times   = sc$pred_times,
-        rmst_horizon = sc$rmst_horizon,
-        n_rmst_grid  = sc$n_rmst_grid  %||% 100L
-      ))
-    }
+    args <- .prior_sensitivity_args(fit, prior_beta_i, verbose)
 
     # `...` is documented as the way to pass sampler and backend controls, and
     # `protected` above already keeps it away from anything that defines the
@@ -199,6 +151,83 @@ prior_sensitivity <- function(fit,
   }
 
   invisible(out)
+}
+
+
+#' Arguments that replay a fit under a rescaled `prior_beta`
+#'
+#' Everything except the prior being swept has to come from the original fit, or
+#' the sweep varies more than one factor. Split out from the refit loop so the
+#' replay can be checked without sampling.
+#' @keywords internal
+.prior_sensitivity_args <- function(fit, prior_beta_i, verbose) {
+  sa <- fit$sampling_args %||% list()
+  # Design-matrix controls. A fit made with `center = FALSE` or `qr = TRUE` is a
+  # different parameterization, so replaying the defaults here would vary the
+  # model as well as the prior and the sweep would no longer isolate one factor.
+  # Fits from earlier versions do not record these; the defaults are what they used.
+  mc <- fit$model_controls %||% list()
+  # Survival baseline controls needed to reproduce the original baseline; NULL
+  # or absent for the other families. `surv_controls` records a control that
+  # does not apply as NA rather than NULL (a Weibull fit stores
+  # mspline_degree = NA_integer_), and mlumr() rejects NA where it accepts NULL,
+  # so NA is normalized back to NULL before the refit.
+  sc <- fit$surv_controls %||% list()
+  .na_to_null <- function(x) if (length(x) == 1L && is.na(x)) NULL else x
+
+  args <- list(
+    data = fit$data,
+    model = fit$model,
+    link = fit$link,
+    prior_intercept = fit$priors$intercept,
+    prior_beta = prior_beta_i,
+    prior_sigma = fit$priors$sigma %||% default_prior_sigma(),
+    # A fit that predates these controls was fitted on the raw scale, so the
+    # historical behavior, not the current default, is what reproduces it.
+    center       = mc$center       %||% FALSE,
+    qr           = mc$qr           %||% FALSE,
+    chains       = sa$chains       %||% 4,
+    iter         = sa$iter         %||% 2000,
+    warmup       = sa$warmup       %||% 1000,
+    seed         = sa$seed,
+    adapt_delta  = sa$adapt_delta  %||% 0.95,
+    max_treedepth = sa$max_treedepth %||% 15,
+    refresh = 0,
+    engine = fit$engine,
+    verbose = verbose
+  )
+
+  # A relaxed fit whose comparator prior was set deliberately must keep it
+  # across the sweep. Leaving it NULL makes mlumr() reuse `prior_beta`, which
+  # is the very argument being swept, so a tight comparator regularizer would
+  # disappear from every refit and the reported movement would be the
+  # sensitivity of a model that was never fitted. When it was NOT set, leaving
+  # it NULL is correct: it then tracks the swept prior, which is the 0.1.0
+  # behavior the sweep is measuring.
+  if (isTRUE(fit$priors$beta_comparator_resolved$user_specified)) {
+    args$prior_beta_comparator <- fit$priors$beta_comparator
+  }
+
+  # The survival controls are only legal arguments for a survival fit, and
+  # mlumr() decides that with missing(), not by testing for NULL. Naming
+  # `aux_by` at all makes it non-missing, so listing these unconditionally
+  # would make prior_sensitivity() fail on every binomial, normal and Poisson
+  # fit. Omit the whole group rather than passing NULL into it.
+  if (identical(fit$family, "survival")) {
+    args <- c(args, list(
+      distribution = fit$distribution,
+      prior_aux    = fit$priors$aux,
+      prior_smooth = fit$priors$smooth,
+      n_knots      = sc$n_knots      %||% 7L,
+      knots        = sc$knots,
+      mspline_degree = .na_to_null(sc$mspline_degree),
+      aux_by       = sc$aux_by       %||% ".study",
+      pred_times   = sc$pred_times,
+      rmst_horizon = sc$rmst_horizon,
+      n_rmst_grid  = sc$n_rmst_grid  %||% 100L
+    ))
+  }
+  args
 }
 
 

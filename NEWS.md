@@ -179,6 +179,49 @@
   much was learned. Suppress with
   `options(mlumr.quiet_relaxed_index = TRUE)`.
 
+## Plotting
+
+* **`plot()` methods** for the result objects, following multinma's convention
+  that calling `plot()` on an effects or prediction object produces the
+  corresponding figure:
+    - `plot(marginal_effects(fit))`: forest of population-standardized effects.
+    - `plot(predict(fit, type = "survival"))`: a curve with a credible band.
+      The `"hazard"`, `"cumhaz"` and `"loghr"` types plot the same way, and
+      `"rmst"`, `"median"` and `"response"` plot as point-intervals. Compose
+      further layers, such as a Kaplan-Meier overlay, with `+`.
+    - `plot(conditional_effects(fit, newdata = ...))`: effects by covariate
+      profile.
+* Each forest draws the null line implied by the measure it is showing, per
+  facet: 0 for differences and log scales, 1 for the risk ratio, rate ratio,
+  hazard ratio, time ratio, RMST ratio, and the two exponentiated survival
+  contrasts. A forest showing only ratio measures is drawn on a log axis, so
+  reciprocal effects sit at equal distances from the null. The interval's
+  coverage is read from the quantiles the result carries rather than assumed to
+  be 95%, and a time-specific marginal hazard ratio is labelled with the
+  evaluation time it belongs to.
+* **`geom_km()`** overlays the observed Kaplan-Meier curves (from the
+  `mlumr_data` object) on a model survival plot, colored by treatment and
+  honoring delayed entry. Each curve carries the population its arm was
+  measured in, so on a plot faceted by population it appears only in its own
+  panel.
+* **`plot_prior_posterior()`** (exported; the `multinma` name) overlays the
+  posterior of named parameters on the prior the fit records for each of them,
+  including the `<lower=0>` truncation for the constrained ones. A parameter
+  the fit carries no prior for is refused rather than drawn against another
+  parameter's.
+* **`mlumr_forest()`** draws a forest plot from a plain data frame of estimates
+  and interval bounds, for comparisons the `plot()` methods do not cover because
+  they mix estimators: putting `naive()`, `stc()`, and both ML-UMR models on one
+  axis, for instance. It takes the reference line, axis label, title, and
+  subtitle as arguments so the caller sets the measure's null rather than
+  inheriting one.
+* `marginal_effects()`, `predict()`, and `conditional_effects()` now return
+  lightweight `data.frame` subclasses so these `plot()` methods can dispatch;
+  all existing data-frame behavior (indexing, `knitr::kable()`, the reporting
+  engine) is unchanged.
+* `ggplot2` moved from Suggests to Imports (the plot methods use it at run
+  time), at `>= 3.4.0` because they use `linewidth`, which 3.3.x ignores.
+
 ## Time-to-event (survival) data
 
 * **New `"survival"` outcome family for data setup.** `set_ipd()` accepts
@@ -280,6 +323,17 @@
   For a nonlinear mean model the report is labeled descriptive only: subgroup
   means do not determine the likelihood geometry there, because the
   within-row distributions also affect the integrated response.
+
+* **New `prior_beta_comparator` argument** to `mlumr()` lets the relaxed model
+  use a separate (typically tighter) prior on `beta_comparator`, which
+  regularizes the index-population estimand that would otherwise extrapolate
+  weakly-identified coefficients over the IPD covariate distribution. Defaults
+  to `prior_beta` (so behavior matches earlier versions); ignored for
+  `model = "spfa"`. Surfaced separately by `prior_summary()` and reused by
+  `prior_sensitivity()`. All five relaxed Stan models take
+  `prior_beta_comparator_mean` / `_sd` / `_dist` / `_df`, so the comparator
+  coefficients can use a fully independent prior including a different family
+  from `beta_index` (for example a heavy-tailed Student-t for regularization).
 
 * **The weak-identifiability warning no longer counts a duplicated row as
   evidence.** Version 0.1.0 warned when `n_agd_rows < 2 * n_cov`, so repeating
