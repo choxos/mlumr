@@ -819,12 +819,30 @@ test_that("a threshold that is not a number is rejected, not silently NA", {
   declared <- cbind(c(-1, 1))
   for (bad in list(NA, NA_real_, NaN)) {
     expect_error(.profile_rank(declared, 1, min_spread = bad),
-                 "must be a number")
+                 "spread threshold must be a number")
     matches <- function() {
       .realized_matches_declared(declared, declared, 1, min_spread = bad)
     }
-    expect_error(matches(), "must be a number")
+    expect_error(matches(), "spread threshold must be a number")
   }
+
+  # The message names no argument, because this helper is called with three
+  # different thresholds and naming one would misreport the other two. A
+  # partly-NA vector threshold, the shape `factor * declared_spread` has, is
+  # rejected on the same footing.
+  expect_error(.at_least(c(1, 2), c(0.5, NA)), "spread threshold")
+  expect_equal(.at_least(c(1, 2), c(0.5, 1.5)), c(TRUE, TRUE))
+
+  # `factor` is the other way a threshold goes NA: `share_of` is
+  # `factor * declared_spread`, and `declared_spread` is finite by the time it
+  # is used, so an NA there came from `factor`. Blaming `min_spread` would send
+  # the reader to the argument that is still correct.
+  bad_factor <- function() {
+    .realized_matches_declared(declared, declared, 1, factor = NA)
+  }
+  expect_error(bad_factor(), "spread threshold must be a number")
+  expect_false(grepl("min_spread",
+                     tryCatch(bad_factor(), error = conditionMessage)))
 
   # An infinite threshold IS coherent: nothing clears `Inf`, everything clears
   # `-Inf`. Those keep working, on a bare comparison, since there is no slack

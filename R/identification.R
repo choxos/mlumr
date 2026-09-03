@@ -323,8 +323,13 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   # rather than a verdict: `.profile_rank()` then answers `NA_integer_` and
   # `.realized_matches_declared()` dies at `if (!any(counts))` with "missing
   # value where TRUE/FALSE needed", neither of which names the cause.
+  #
+  # The message does not name an argument. This is called with three different
+  # thresholds, `min_spread`, the literal 0.05 of the identity-link screen, and
+  # the vector `factor * declared_spread`, so naming one of them would misreport
+  # the other two.
   if (anyNA(threshold)) {
-    stop("`min_spread` must be a number, not NA or NaN.", call. = FALSE)
+    stop("A spread threshold must be a number, not NA or NaN.", call. = FALSE)
   }
   # An infinite threshold is coherent (nothing clears `Inf`, everything clears
   # `-Inf`) but has no slack to compute: `Inf - Inf * tol` is NaN. Compare
