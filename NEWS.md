@@ -146,6 +146,39 @@
   reports both populations without that assumption, when the index population is
   the decision target.
 
+## Transportability to arbitrary target populations
+
+* **`newdata` argument** on `marginal_effects()` and `predict.mlumr_fit()`
+  transports treatment effects and absolute outcomes to an **arbitrary target
+  population** by Bayesian g-computation (model-based standardization over a
+  supplied covariate distribution), as in the ML-UMR transportability step.
+  Version 0.1.0 offered only the built-in index and comparator populations.
+  Supported for all families' effects and predictions. For survival, the
+  collapsible RMST-based effects (`"rmstd"`, `"rmstr"`) and every absolute
+  prediction transport. The marginal hazard ratio is reported for a target
+  population too, but it is not a property of that population alone: hazard
+  ratios are non-collapsible, and the marginal one weights the covariate
+  distribution by each arm's own survival. It follows the same
+  evaluation-time convention as the built-in populations, the closed-form
+  `t -> 0` limit when the two studies share a baseline shape and the requested
+  (or first) fitted time when they do not.
+
+  Standardizing to the index covariates reproduces `population = "index"`
+  exactly, for every measure including the hazard ratio, which is the check
+  that the transport path and the built-in path are the same calculation.
+
+* **`marginal_effects()` emits a one-line note** when a relaxed fit is queried
+  for the index population, reporting the **posterior contraction** of
+  `beta_comparator` per covariate, `1 - (posterior sd / prior sd)^2`, and naming
+  the weakly-identified ones. A single marginal comparator curve constrains
+  `beta'X` but not the direction of `beta`, which is exactly what transporting
+  to the index population needs, and an event count cannot detect that. The
+  prior SD respects the prior family: Student-t scales are converted via
+  `sqrt(df / (df - 2))`, and priors with no finite variance (`df <= 2`,
+  including the Cauchy) report `NA` rather than a number that would misstate how
+  much was learned. Suppress with
+  `options(mlumr.quiet_relaxed_index = TRUE)`.
+
 ## Plotting
 
 * **`plot()` methods** for the result objects, following multinma's convention

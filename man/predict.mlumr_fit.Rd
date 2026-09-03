@@ -11,6 +11,7 @@
   summary = TRUE,
   probs = c(0.025, 0.5, 0.975),
   times = NULL,
+  newdata = NULL,
   ...
 )
 }
@@ -42,6 +43,18 @@ the mean conditional linear predictor \code{E[eta]}.}
 \item{times}{For survival fits, an optional vector of times at which to
 report curve predictions; each is matched to the nearest fitted
 \code{pred_times} grid point. If \code{NULL}, all fitted times are returned.}
+
+\item{newdata}{Optional data frame of covariate profiles defining an arbitrary
+\strong{target population}. When supplied, per-treatment absolute predictions are
+standardized to this population by g-computation (averaging model-based
+predictions over the rows at each posterior draw), and \code{population} is
+ignored. Supports \code{type = "response"}/\code{"link"} (binomial/normal/poisson) and
+\code{type = "survival"}/\code{"hazard"}/\code{"cumhaz"}/\code{"rmst"}/\code{"median"}/\code{"loghr"}
+(survival). Survival hazards use the target-specific survival-weighted
+definition, so \code{"loghr"} is population-specific and time-varying. Rows
+outside the covariate support used to fit a treatment model are accepted as
+model-based extrapolation; the function does not certify overlap or
+transportability, so users must assess support and run sensitivity analyses.}
 
 \item{...}{Additional arguments (unused)}
 }
@@ -80,8 +93,9 @@ identity link but not generally for logit, probit, cloglog, or log links.
 \dontrun{
 # Absolute predictions for both populations:
 predict(fit, population = "both")
-# Survival RMST:
+# Survival RMST, and transport to a target covariate distribution:
 predict(fit, type = "rmst")
+predict(fit, newdata = target_population)
 }
 }
 \seealso{

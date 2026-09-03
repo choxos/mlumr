@@ -10,6 +10,7 @@ marginal_effects(
   effect = "all",
   summary = TRUE,
   probs = c(0.025, 0.5, 0.975),
+  newdata = NULL,
   at_time = NULL
 )
 }
@@ -20,7 +21,9 @@ marginal_effects(
 \code{"comparator"}. The \strong{index} population is normally the decision-relevant
 target for health technology assessment, since cost-effectiveness models are
 built for the population the decision is about; report it as the primary
-estimand and the comparator population alongside.}
+estimand and the comparator population alongside.
+Ignored when \code{newdata} is supplied (the effect is standardized to the
+\code{newdata} target population instead).}
 
 \item{effect}{Which effect measure. For binomial: \code{"all"}, \code{"lor"}, \code{"rd"},
 or \code{"rr"}. For normal: \code{"all"} or \code{"md"} (mean difference). For poisson:
@@ -36,6 +39,18 @@ are rejected in favor of the explicit \code{"exp_delta_eta"}.}
 \item{summary}{Return summary (\code{TRUE}) or full draws (\code{FALSE})}
 
 \item{probs}{Quantiles for summary}
+
+\item{newdata}{Optional data frame of covariate profiles defining an arbitrary
+\strong{target population} to transport the effect to (Bayesian g-computation /
+model-based standardization over the supplied covariate distribution, as in
+Chandler & Ishak Eq 9-10). Each row is one individual / covariate profile;
+column names must match the model covariates. When \code{NULL} (default), effects
+are returned for the built-in \code{index} and/or \code{comparator} populations from
+the Stan generated quantities. When supplied, the marginal effect is
+recomputed by averaging model-based predictions over these rows at each
+posterior draw, and \code{population} is ignored. For survival, RMST effects and
+the time-specific target-standardized marginal hazard ratio are available;
+the latter uses \code{at_time} (the first fitted prediction time by default).}
 
 \item{at_time}{Evaluation time for the scalar marginal hazard ratio, for
 proportional-hazards fits whose two studies have different baseline shapes
@@ -158,6 +173,9 @@ marginal_effects(fit)
 
 # Only the log odds ratio in the index population
 marginal_effects(fit, population = "index", effect = "lor")
+
+# Transport the effect to an external (e.g. jurisdiction-specific) population
+marginal_effects(fit, newdata = target_population_covariates)
 
 # Full posterior draws rather than summary statistics
 marginal_effects(fit, summary = FALSE)
