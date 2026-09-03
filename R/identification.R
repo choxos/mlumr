@@ -494,6 +494,16 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #' separation the likelihood can use either way, so requiring the grid to
 #' reproduce them would flag noise.
 #'
+#' What is measured on the projection is its SINGULAR VALUES, not the length of
+#' each projected column. Per-axis lengths are not a rank: a grid that has
+#' collapsed onto a diagonal of two declared axes still has a long component on
+#' each of them separately, so a columnwise test passes it while it spans one
+#' direction where the declared design spans two. Two `distr()` calls keyed off
+#' the same margin do exactly that, and in a jointly defined subgroup table it
+#' is one copy-and-paste away. Singular values count the directions actually
+#' spanned, which is what `.profile_rank()` screens, so the two cannot report
+#' different verdicts on the same design.
+#'
 #' @param declared Matrix of declared mean profiles (rows are AgD rows).
 #' @param realized Matrix of realized integration means, or `NULL`.
 #' @param ref_sd Reference SD per covariate (the IPD SDs), to put both designs
@@ -544,22 +554,48 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
             "not been checked against the design being fitted.", call. = FALSE)
     return(TRUE)
   }
-  decomposition <- svd(d)
+  decomposition <- tryCatch(svd(d), error = function(e) NULL)
+  if (is.null(decomposition)) {
+    warning("The realized integration means could not be compared with the ",
+            "declared aggregate means, because the declared design could not ",
+            "be decomposed. The reported geometry describes the declared ",
+            "columns, which have not been checked against the design being ",
+            "fitted.", call. = FALSE)
+    return(TRUE)
+  }
   # Length of each design along the declared principal directions. Dividing by
   # sqrt(nrow) gives the RMS profile separation `.subgroup_geometry()` reports
   # as `spread`, which is what the floor is stated in.
   rows <- sqrt(nrow(d))
   declared_spread <- decomposition$d / rows
-  realized_spread <- sqrt(colSums((r %*% decomposition$v)^2)) / rows
   counts <- declared_spread >= min_spread
   if (!any(counts)) {
     return(TRUE)
   }
-  keeps_share <- realized_spread[counts] >= factor * declared_spread[counts]
+  # Project the realized grid onto the declared directions that count, then
+  # take the SINGULAR VALUES of that projection. Per-column lengths will not
+  # do: a grid that collapses onto a diagonal of two declared axes still has a
+  # long component on each axis separately, so a columnwise test passes it
+  # while it spans one direction where the declared design spans two. Two
+  # `distr()` calls keyed off the same margin do exactly that, and it is a
+  # copy-and-paste away in any jointly-defined subgroup table. Singular values
+  # count directions actually spanned, which is the quantity `.profile_rank()`
+  # screens, so the two cannot disagree about the same design.
+  projected <- r %*% decomposition$v[, counts, drop = FALSE]
+  realized_d <- tryCatch(svd(projected)$d, error = function(e) NULL)
+  if (is.null(realized_d) || length(realized_d) != sum(counts) ||
+        any(!is.finite(realized_d))) {
+    return(FALSE)
+  }
+  realized_spread <- realized_d / rows
+  declared_spread <- declared_spread[counts]
+  # Both vectors are now sorted descending over the same number of directions,
+  # so the k-th realized direction is judged against the k-th declared one.
+  keeps_share <- realized_spread >= factor * declared_spread
   clears_floor <- if (is.null(ref_sd)) {
     TRUE
   } else {
-    realized_spread[counts] >= min_spread
+    realized_spread >= min_spread
   }
   all(keeps_share) && all(clears_floor)
 }

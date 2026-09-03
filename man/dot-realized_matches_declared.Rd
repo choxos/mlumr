@@ -66,5 +66,15 @@ standing above the floor.
 Declared directions already below the floor are skipped: they carry no
 separation the likelihood can use either way, so requiring the grid to
 reproduce them would flag noise.
+
+What is measured on the projection is its SINGULAR VALUES, not the length of
+each projected column. Per-axis lengths are not a rank: a grid that has
+collapsed onto a diagonal of two declared axes still has a long component on
+each of them separately, so a columnwise test passes it while it spans one
+direction where the declared design spans two. Two \code{distr()} calls keyed off
+the same margin do exactly that, and in a jointly defined subgroup table it
+is one copy-and-paste away. Singular values count the directions actually
+spanned, which is what \code{.profile_rank()} screens, so the two cannot report
+different verdicts on the same design.
 }
 \keyword{internal}

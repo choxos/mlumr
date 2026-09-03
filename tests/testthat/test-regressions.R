@@ -608,6 +608,37 @@ test_that("realized integration geometry is compared direction by direction", {
                 cbind(c(-1.001, 1.002), c(2.001, 3.999))))
 })
 
+
+test_that("a realized grid that collapses onto a diagonal is caught", {
+  f <- .realized_matches_declared
+  rank <- .profile_rank
+  # Per-axis lengths are not a rank. A grid that collapses onto a diagonal of
+  # two declared axes keeps a long component on each axis separately, so a
+  # columnwise comparison passed it while it spanned one direction where the
+  # declared design spanned two. `.profile_rank()` counted the drop; this
+  # function did not, and the two screens contradicted each other on the same
+  # design.
+  declared <- cbind(c(-1, 1, 0), c(0, 0, 2))
+  diagonal <- cbind(c(-0.5, 0.5, 1), c(-0.5, 0.5, 1))
+  expect_equal(rank(declared, c(1, 1)), 3L)
+  expect_equal(rank(diagonal, c(1, 1)), 2L)
+  expect_false(f(declared, diagonal, c(1, 1)))
+
+  # The realistic form: a 2 x 2 subgroup table whose two `distr()` calls were
+  # both keyed off the same margin, which is one copy-and-paste away.
+  table_2x2 <- cbind(c(0, 0, 1, 1), c(0, 1, 0, 1))
+  both_sex <- cbind(table_2x2[, 1], table_2x2[, 1])
+  expect_equal(rank(table_2x2, c(0.5, 0.5)), 3L)
+  expect_equal(rank(both_sex, c(0.5, 0.5)), 2L)
+  expect_false(f(table_2x2, both_sex, c(0.5, 0.5)))
+
+  # A faithful grid still passes, and so does one shrunk within tolerance, so
+  # the stricter test did not simply start rejecting everything.
+  expect_true(f(declared, declared, c(1, 1)))
+  expect_true(f(declared, declared * 0.8, c(1, 1)))
+  expect_false(f(declared, declared * 0.4, c(1, 1)))
+})
+
 test_that("an unlabeled chain layout is reported as unknown, not as success", {
   # `NULL` chain ids mean the backend could not divide the draws into chains,
   # which is the abnormal layout the diagnostic exists to notice. Returning the
