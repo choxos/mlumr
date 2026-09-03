@@ -318,6 +318,7 @@ test_that("survival STC accepts a covariate name that cannot be backtick-quoted"
 })
 
 test_that("the naive Cox comparison refuses an event-free arm", {
+  skip_if_not_installed("flexsurv")
   # coxph() warns and returns NA or a diverging coefficient when one arm has no
   # events; that was packaged as an ordinary hazard ratio with an interval.
   set.seed(2026)

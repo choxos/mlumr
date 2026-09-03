@@ -849,6 +849,13 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   .validate_flexsurv_fit(fit_a, "index")
   rmst_a_rows <- summary(fit_a, newdata = comp_cov, type = "rmst",
                          t = horizon, ci = FALSE, tidy = TRUE)
+  # An equal-weight mean IS the comparator-population average here: survival
+  # AgD carries exactly one arm-summary row (set_agd_surv() rejects multi-arm
+  # comparators), so `comp_cov` is that single row's integration grid and the
+  # points are equally weighted by construction. The other families average
+  # over several AgD rows and must weight by `agd$.n` / `agd$.E`, which
+  # survival AgD does not carry. Weighting has to arrive with multi-row
+  # support, not before it.
   rmst_index <- mean(rmst_a_rows$est)
 
   fit_b <- flexsurv::flexsurvreg(survival::Surv(.time, .stc_event) ~ 1,
