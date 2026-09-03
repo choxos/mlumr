@@ -749,6 +749,59 @@ test_that("one tolerance governs every spread comparison", {
     expect_true(f(scaled, scaled, scale_by))
     expect_false(f(scaled, scaled * 0.5, scale_by))
   }
+
+})
+
+
+test_that("the WEAK flag uses the same floor as the rank screen", {
+  # The `flagged` screen is a fifth route to this threshold and has to move
+  # with the others. Left on a bare `<`, a spread inside the slack window
+  # counted as a direction for the rank screen, so `mlumr()` stayed silent,
+  # while `check_identification()` called the same design WEAK.
+  #
+  # Driven through `check_identification()` rather than through the helper,
+  # because it is the `flagged` field that carries the contradiction: an
+  # assertion on `.at_least()` itself passes whatever `flagged` does.
+  at_spread <- function(target) {
+    set.seed(2026)
+    n <- 200L
+    x <- stats::rnorm(n)
+    # For a two-row design the reported spread is exactly `half / sd(x)`, so
+    # solving for `half` lands it on a chosen side of the floor.
+    half <- target * stats::sd(x)
+    ipd <- data.frame(trt = "A", y = x + stats::rnorm(n), x = x)
+    i <- set_ipd(ipd, treatment = "trt", outcome = "y",
+                 covariates = "x", family = "normal")
+    a <- set_agd(data.frame(trt = "B", n = c(60, 60),
+                            y_mean = c(0, 0), y_se = c(0.2, 0.2),
+                            x_mean = c(-half, half), x_sd = c(1, 1)),
+                 treatment = "trt", family = "normal", outcome_n = "n",
+                 outcome_mean = "y_mean", outcome_se = "y_se",
+                 cov_means = "x_mean", cov_sds = "x_sd",
+                 cov_types = "continuous")
+    joined <- combine_data(i, a)
+    dat <- add_integration(joined, n_int = 32,
+                           x = distr(qnorm, mean = x_mean, sd = x_sd),
+                           verbose = FALSE)
+    suppressMessages(check_identification(dat, verbose = FALSE))
+  }
+
+  # Inside the tolerance window: the rank screen counts the direction, so the
+  # flag must not contradict it.
+  inside <- at_spread(0.05 * (1 - 5e-9))
+  expect_equal(inside$diagnostic_scope, "identity")
+  expect_lt(inside$spread, 0.05)
+  expect_false(inside$flagged)
+
+  # Genuinely below the floor is still flagged, so the tolerance did not
+  # simply disable the screen.
+  below <- at_spread(0.05 * (1 - 1e-6))
+  expect_lt(below$spread, 0.05)
+  expect_true(below$flagged)
+
+  # And a design comfortably clear of the floor stays unflagged.
+  clear <- at_spread(0.2)
+  expect_false(clear$flagged)
 })
 
 

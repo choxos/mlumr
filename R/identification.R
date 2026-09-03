@@ -141,7 +141,7 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   out$flagged <- if (out$n_distinct < out$n_rows_needed) {
     TRUE
   } else if (out$diagnostic_scope == "identity") {
-    out$cond_inv < 0.2 || out$spread < 0.05
+    out$cond_inv < 0.2 || !.at_least(out$spread, 0.05)
   } else {
     NA
   }
@@ -297,18 +297,22 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 
 
 # Relative slack for every comparison of a spread against a threshold in this
-# file. `.profile_rank()`, the `counts` mask and both realized-grid tests
-# measure the same geometry through different routes: a full decomposition of
-# the declared design, the column norms of a projection, and a second
-# decomposition of that projection. The routes agree only to within a few
-# ULPs, so comparing any of them against a bare threshold lets one design fall
-# on opposite sides of the same question depending on which route asked it.
+# file. `.profile_rank()`, the `counts` mask, both realized-grid tests and the
+# `flagged` screen measure the same geometry through different routes: a full
+# decomposition of the declared design, the column norms of a projection, a
+# second decomposition of that projection, and `.subgroup_geometry()`'s own
+# decomposition. The routes agree only to within a few ULPs, so comparing any
+# of them against a bare threshold lets one design fall on opposite sides of
+# the same question depending on which route asked it.
 #
 # That is not hypothetical in either direction. A grid identical to the
 # declared means was reported as failing to reproduce them, and adding a slack
 # to only one of the four comparisons merely moved the disagreement: a
 # realized spread in [0.05 * (1 - 1e-8), 0.05) then cleared the floor here
-# while `.profile_rank()` counted that direction as lost. One tolerance
+# while `.profile_rank()` counted that direction as lost. Leaving the
+# `flagged` screen bare had the mirror effect: `.profile_rank()` counted a
+# spread inside the window as a direction, so `mlumr()` stayed silent, while
+# `check_identification()` reported the same design as WEAK. One tolerance
 # applied at every such comparison is what keeps the screens consistent.
 .spread_tol <- 1e-8
 
@@ -454,7 +458,7 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
         "This is what happens when subgroups are reported one variable at a ",
         "time, or when cross-tabulated categorical cells all share nearly the ",
         "same mean on a continuous covariate.\n", sep = "")
-  } else if (x$spread < 0.05) {
+  } else if (!.at_least(x$spread, 0.05)) {
     cat("WEAK: the rows vary in every direction, but hardly at all. The ",
         "subgroup means sit within ", sprintf("%.3g", x$spread), " IPD ",
         "standard deviations of their own center, so every slope rests on a ",
