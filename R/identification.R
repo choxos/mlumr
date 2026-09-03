@@ -172,7 +172,9 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
       # it was meant to read (a fixed `distr(qnorm, mean = 0, sd = 1)` on every
       # row) leaves declared profiles that span directions the likelihood does
       # not have.
-      if (!.realized_matches_declared(means, realized)) {
+      ipd_cov <- data$ipd$data[, covs, drop = FALSE]
+      ref_sd <- apply(as.matrix(ipd_cov), 2L, stats::sd)
+      if (!.realized_matches_declared(means, realized, ref_sd)) {
         warning("The integration distributions do not reproduce the declared ",
                 "aggregate covariate means: the realized profiles offer much ",
                 "less spread than the `<covariate>_mean` columns claim. ",
@@ -478,31 +480,86 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #' different covariate entirely. Projecting onto the declared directions is
 #' what makes the comparison directional.
 #'
+#' The comparison uses the same absolute scale as [check_identification()] and
+#' `.profile_rank()`, not only a relative one. A purely relative test disagrees
+#' with them in a window: declared means `c(-0.08, 0.08)` against realized
+#' `c(-0.04, 0.04)` retain exactly half their spread, so a relative test passes
+#' and the declared profiles are reported, while the grid the likelihood
+#' actually integrates over sits at 0.04 IPD SDs, below the `0.05` floor those
+#' two screens use, and is the unidentified design they exist to catch. A
+#' direction must therefore keep BOTH its share of the declared spread and its
+#' standing above the floor.
+#'
+#' Declared directions already below the floor are skipped: they carry no
+#' separation the likelihood can use either way, so requiring the grid to
+#' reproduce them would flag noise.
+#'
 #' @param declared Matrix of declared mean profiles (rows are AgD rows).
 #' @param realized Matrix of realized integration means, or `NULL`.
+#' @param ref_sd Reference SD per covariate (the IPD SDs), to put both designs
+#'   on the scale the identification screens use. Non-finite or non-positive
+#'   entries fall back to 1.
 #' @param factor Smallest share of each declared singular value the realized
 #'   design must still provide along that same direction.
+#' @param min_spread Absolute floor, in IPD standard deviations, matching
+#'   [check_identification()] and `.profile_rank()`.
 #' @return `TRUE` when the realized design reproduces the declared one, or when
 #'   there is nothing to compare against.
 #' @keywords internal
-.realized_matches_declared <- function(declared, realized, factor = 0.5) {
-  if (is.null(realized) || !identical(dim(declared), dim(realized))) {
+.realized_matches_declared <- function(declared, realized, ref_sd = NULL,
+                                       factor = 0.5, min_spread = 0.05) {
+  if (is.null(realized)) {
     return(TRUE)
   }
-  col_scale <- apply(declared, 2L, function(col) {
-    s <- diff(range(col))
-    if (!is.finite(s) || s <= 0) s <- max(abs(col))
-    if (!is.finite(s) || s <= 0) s <- 1
-    s
-  })
-  d <- sweep(scale(declared, center = TRUE, scale = FALSE), 2L, col_scale, "/")
-  r <- sweep(scale(realized, center = TRUE, scale = FALSE), 2L, col_scale, "/")
+  if (!identical(dim(declared), dim(realized))) {
+    # Not a match and not a mismatch: the grid cannot be compared at all. Say
+    # so rather than reporting the declared geometry as if it had been checked.
+    warning("The realized integration means could not be compared with the ",
+            "declared aggregate means, because the two have different shapes. ",
+            "The reported geometry describes the declared columns, which have ",
+            "not been checked against the design being fitted.", call. = FALSE)
+    return(TRUE)
+  }
+  scale_by <- if (is.null(ref_sd)) {
+    # No external scale supplied: fall back to the declared column spreads, so
+    # the relative half of the test still means something. The absolute floor
+    # is skipped in that case, since there is no scale to judge it on.
+    apply(declared, 2L, function(col) {
+      s <- diff(range(col))
+      if (!is.finite(s) || s <= 0) s <- max(abs(col))
+      if (!is.finite(s) || s <= 0) s <- 1
+      s
+    })
+  } else {
+    sd_vals <- as.numeric(ref_sd)
+    sd_vals[!is.finite(sd_vals) | sd_vals <= 0] <- 1
+    sd_vals
+  }
+  d <- sweep(scale(declared, center = TRUE, scale = FALSE), 2L, scale_by, "/")
+  r <- sweep(scale(realized, center = TRUE, scale = FALSE), 2L, scale_by, "/")
   if (!all(is.finite(d)) || !all(is.finite(r))) {
+    warning("The realized integration means could not be compared with the ",
+            "declared aggregate means, because one of them is not finite. ",
+            "The reported geometry describes the declared columns, which have ",
+            "not been checked against the design being fitted.", call. = FALSE)
     return(TRUE)
   }
   decomposition <- svd(d)
-  # Length of the realized design along each declared principal direction,
-  # against the length the declared design has there.
-  realized_spread <- sqrt(colSums((r %*% decomposition$v)^2))
-  all(realized_spread >= factor * decomposition$d)
+  # Length of each design along the declared principal directions. Dividing by
+  # sqrt(nrow) gives the RMS profile separation `.subgroup_geometry()` reports
+  # as `spread`, which is what the floor is stated in.
+  rows <- sqrt(nrow(d))
+  declared_spread <- decomposition$d / rows
+  realized_spread <- sqrt(colSums((r %*% decomposition$v)^2)) / rows
+  counts <- declared_spread >= min_spread
+  if (!any(counts)) {
+    return(TRUE)
+  }
+  keeps_share <- realized_spread[counts] >= factor * declared_spread[counts]
+  clears_floor <- if (is.null(ref_sd)) {
+    TRUE
+  } else {
+    realized_spread[counts] >= min_spread
+  }
+  all(keeps_share) && all(clears_floor)
 }

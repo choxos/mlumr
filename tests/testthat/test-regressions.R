@@ -560,6 +560,36 @@ test_that("binomial STC standard errors do not depend on comparator tabulation",
   expect_equal(pooled$se, split$se)
 })
 
+test_that("the match test uses the same floor as the identification screens", {
+  f <- .realized_matches_declared
+  # A purely relative test disagreed with `.profile_rank()` and the `spread`
+  # screen in a window of its own: declared means of c(-0.08, 0.08) against
+  # realized c(-0.04, 0.04) keep exactly half their spread, so the declared
+  # profiles were reported as reproduced, while the grid the likelihood
+  # integrates over sits at 0.04 IPD SDs, below the 0.05 floor, and ranks 1
+  # where the declared design ranks 2.
+  declared <- matrix(c(-0.08, 0.08), ncol = 1)
+  realized <- matrix(c(-0.04, 0.04), ncol = 1)
+  expect_equal(.profile_rank(declared, 1), 2L)
+  expect_equal(.profile_rank(realized, 1), 1L)
+  expect_false(f(declared, realized, 1))
+  # Half the spread is still a match when both sides clear the floor.
+  expect_true(f(matrix(c(-1, 1), ncol = 1), matrix(c(-0.6, 0.6), ncol = 1), 1))
+  # A declared direction already below the floor carries nothing the likelihood
+  # can use, so the grid is not required to reproduce it.
+  expect_true(f(matrix(c(-0.01, 0.01), ncol = 1),
+                matrix(c(-0.001, 0.001), ncol = 1), 1))
+  # A grid that cannot be compared at all is announced, not reported as a match
+  # that was checked.
+  expect_warning(f(matrix(c(-1, 1), ncol = 1),
+                   cbind(c(-1, 1), c(0, 1)), 1),
+                 "could not be compared")
+  expect_warning(f(matrix(c(-1, 1), ncol = 1),
+                   matrix(c(NaN, 1), ncol = 1), 1),
+                 "could not be compared")
+})
+
+
 test_that("realized integration geometry is compared direction by direction", {
   f <- .realized_matches_declared
   # Same spectrum, different covariate. A sorted singular-value comparison

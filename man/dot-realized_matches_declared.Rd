@@ -4,15 +4,28 @@
 \alias{.realized_matches_declared}
 \title{Does the realized integration design reproduce the declared one?}
 \usage{
-.realized_matches_declared(declared, realized, factor = 0.5)
+.realized_matches_declared(
+  declared,
+  realized,
+  ref_sd = NULL,
+  factor = 0.5,
+  min_spread = 0.05
+)
 }
 \arguments{
 \item{declared}{Matrix of declared mean profiles (rows are AgD rows).}
 
 \item{realized}{Matrix of realized integration means, or \code{NULL}.}
 
+\item{ref_sd}{Reference SD per covariate (the IPD SDs), to put both designs
+on the scale the identification screens use. Non-finite or non-positive
+entries fall back to 1.}
+
 \item{factor}{Smallest share of each declared singular value the realized
 design must still provide along that same direction.}
+
+\item{min_spread}{Absolute floor, in IPD standard deviations, matching
+\code{\link[=check_identification]{check_identification()}} and \code{.profile_rank()}.}
 }
 \value{
 \code{TRUE} when the realized design reproduces the declared one, or when
@@ -39,5 +52,19 @@ and realized spread of the same size in covariate 2 produce identical
 spectra, so a spectrum test would report a match while the likelihood sees a
 different covariate entirely. Projecting onto the declared directions is
 what makes the comparison directional.
+
+The comparison uses the same absolute scale as \code{\link[=check_identification]{check_identification()}} and
+\code{.profile_rank()}, not only a relative one. A purely relative test disagrees
+with them in a window: declared means \code{c(-0.08, 0.08)} against realized
+\code{c(-0.04, 0.04)} retain exactly half their spread, so a relative test passes
+and the declared profiles are reported, while the grid the likelihood
+actually integrates over sits at 0.04 IPD SDs, below the \code{0.05} floor those
+two screens use, and is the unidentified design they exist to catch. A
+direction must therefore keep BOTH its share of the declared spread and its
+standing above the floor.
+
+Declared directions already below the floor are skipped: they carry no
+separation the likelihood can use either way, so requiring the grid to
+reproduce them would flag noise.
 }
 \keyword{internal}
