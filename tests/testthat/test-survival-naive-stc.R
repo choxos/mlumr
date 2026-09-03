@@ -347,3 +347,23 @@ test_that("the naive Cox comparison refuses an event-free arm", {
   expect_error(suppressWarnings(suppressMessages(stc(dat, n_boot = 0L))),
                "at least one event in each arm")
 })
+
+test_that("a non-converged flexsurv fit is a failed fit", {
+  # flexsurvreg() warns rather than failing when the optimizer stops at a
+  # boundary, so the estimates were summarized as an ordinary RMST and the
+  # bootstrap counted such refits among its successes.
+  fake <- list(opt = list(convergence = 1L),
+               res = matrix(c(1, 2), ncol = 1, dimnames = list(NULL, "est")))
+  expect_error(.validate_flexsurv_fit(fake, "index"), "did not converge")
+
+  fake$opt$convergence <- 0L
+  fake$res <- matrix(c(1, NA_real_), ncol = 1, dimnames = list(NULL, "est"))
+  expect_error(.validate_flexsurv_fit(fake, "index"), "non-finite parameter")
+
+  fake$res <- matrix(c(1, 2), ncol = 1, dimnames = list(NULL, "est"))
+  fake$cov <- matrix(c(1, Inf, Inf, 1), 2, 2)
+  expect_error(.validate_flexsurv_fit(fake, "comparator"), "non-finite")
+
+  fake$cov <- diag(2)
+  expect_true(.validate_flexsurv_fit(fake, "index"))
+})

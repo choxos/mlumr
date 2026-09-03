@@ -799,6 +799,35 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   invisible(TRUE)
 }
 
+#' Require a flexsurv fit that actually converged
+#'
+#' A sparse or nearly separated sample can leave events in both arms and still
+#' send the optimizer to a boundary. `flexsurvreg()` warns in that case rather
+#' than failing, so the estimates were summarized as an ordinary RMST, and the
+#' bootstrap counted such refits among its successes because `tryCatch()` sees
+#' only errors. Raising an error here makes a non-converged replicate a failed
+#' one, which is what it is.
+#' @keywords internal
+.validate_flexsurv_fit <- function(fit, arm) {
+  conv <- fit$opt$convergence
+  if (!is.null(conv) && !identical(as.integer(conv), 0L)) {
+    stop("The survival STC fit for the ", arm, " arm did not converge ",
+         "(optimizer code ", as.integer(conv), "), so its restricted mean is ",
+         "an artifact of where the optimizer stopped.", call. = FALSE)
+  }
+  est <- tryCatch(fit$res[, "est"], error = function(e) NULL)
+  if (is.null(est) || anyNA(est) || any(!is.finite(est))) {
+    stop("The survival STC fit for the ", arm, " arm returned non-finite ",
+         "parameter estimates.", call. = FALSE)
+  }
+  if (!is.null(fit$cov) && (anyNA(fit$cov) || any(!is.finite(fit$cov)))) {
+    stop("The survival STC fit for the ", arm, " arm returned a non-finite ",
+         "covariance matrix, so its uncertainty cannot be quantified.",
+         call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
 #' One STC survival point estimate (RMST_index, RMST_comparator, difference)
 #' @keywords internal
 .stc_survival_point <- function(ipd, pseudo, cov_names, comp_cov, dist_fs, horizon) {
@@ -817,12 +846,14 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     env = parent.frame()
   )
   fit_a <- flexsurv::flexsurvreg(form_a, data = ipd, dist = dist_fs)
+  .validate_flexsurv_fit(fit_a, "index")
   rmst_a_rows <- summary(fit_a, newdata = comp_cov, type = "rmst",
                          t = horizon, ci = FALSE, tidy = TRUE)
   rmst_index <- mean(rmst_a_rows$est)
 
   fit_b <- flexsurv::flexsurvreg(survival::Surv(.time, .stc_event) ~ 1,
                                  data = pseudo, dist = dist_fs)
+  .validate_flexsurv_fit(fit_b, "comparator")
   rmst_b <- summary(fit_b, type = "rmst", t = horizon, ci = FALSE,
                     tidy = TRUE)$est[1]
 
