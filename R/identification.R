@@ -319,6 +319,13 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 # `x >= threshold`, tolerant of the ULP-scale disagreement between those
 # routes. Scaled by the threshold, so it means the same thing at any spread.
 .at_least <- function(x, threshold) {
+  # A non-finite threshold has no slack to compute: `Inf - Inf * tol` is NaN,
+  # and the NA that follows reaches `if (!any(counts))` as a condition rather
+  # than as a verdict. Compare bare instead, which is what the callers did
+  # before there was a tolerance.
+  if (!all(is.finite(threshold))) {
+    return(x >= threshold)
+  }
   x >= threshold - abs(threshold) * .spread_tol
 }
 

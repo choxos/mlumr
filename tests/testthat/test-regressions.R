@@ -695,26 +695,32 @@ test_that("the grid comparison never rejects a design the rank screen accepts", 
   # independently counts fewer directions in the realized grid. A rejection
   # without a rank drop would be this function inventing a mismatch the rest of
   # the package does not see.
-  # Assert the implication itself on every draw rather than only inside an
-  # `if` that the seed may never enter. Written as a branch, this sweep ran
-  # 300 trials with zero rejections, so the assertion about rejections never
-  # executed and the test would have stayed green with the rank agreement
-  # deleted. `matched || dropped` is the same claim and cannot go unevaluated.
+  # A sweep whose designs never approach the floor asserts nothing about the
+  # floor. Drawn from an arbitrary scale, every grid matched and `dropped` was
+  # never consulted, so `matched || dropped` was `expect_true(TRUE)` 300 times
+  # and stayed green with the rank comparison replaced by `FALSE`. Put the
+  # generator ON the boundary instead: a two-row design has spread exactly
+  # `half / ref_sd`, so drawing that target either side of 0.05 and perturbing
+  # it makes the noise cross the floor. Assert the EQUIVALENCE, and require
+  # both outcomes to occur so the sweep cannot go quiet again.
   set.seed(2026)
-  for (trial in seq_len(300)) {
-    n <- sample(2:8, 1)
-    p <- sample(1:4, 1)
-    dec <- matrix(stats::rnorm(n * p, sd = 10^stats::runif(1, -1, 1)), n, p)
-    ref_sd <- stats::runif(p, 0.2, 3)
-    faithful <- dec +
-      matrix(stats::rnorm(n * p, sd = 0.005 * max(abs(dec))), n, p)
+  accepted <- 0L
+  rejected <- 0L
+  for (trial in seq_len(400)) {
+    ref_sd <- stats::runif(1, 0.2, 3)
+    half <- stats::runif(1, 0.045, 0.055) * ref_sd
+    dec <- matrix(c(-half, half), ncol = 1)
+    faithful <- dec + matrix(stats::rnorm(2, sd = 0.03 * half), 2, 1)
     matched <- isTRUE(f(dec, faithful, ref_sd))
     dropped <- .profile_rank(faithful, ref_sd) < .profile_rank(dec, ref_sd)
-    expect_true(matched || dropped)
+    expect_equal(matched, !dropped)
+    if (matched) accepted <- accepted + 1L else rejected <- rejected + 1L
     # A grid IDENTICAL to the declared one always reproduces it. This is the
     # strongest form of the property and holds with no tolerance argument.
     expect_true(f(dec, dec, ref_sd))
   }
+  expect_gt(rejected, 0L)
+  expect_gt(accepted, 0L)
 })
 
 
