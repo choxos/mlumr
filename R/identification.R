@@ -502,15 +502,28 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #' separation the likelihood can use either way, so requiring the grid to
 #' reproduce them would flag noise.
 #'
-#' What is measured on the projection is its SINGULAR VALUES, not the length of
-#' each projected column. Per-axis lengths are not a rank: a grid that has
-#' collapsed onto a diagonal of two declared axes still has a long component on
-#' each of them separately, so a columnwise test passes it while it spans one
-#' direction where the declared design spans two. Two `distr()` calls keyed off
-#' the same margin do exactly that, and in a jointly defined subgroup table it
-#' is one copy-and-paste away. Singular values count the directions actually
-#' spanned, which is what `.profile_rank()` screens, so the two cannot report
-#' different verdicts on the same design.
+#' The projection is measured two ways, because neither alone suffices and each
+#' covers the other's blind spot.
+#'
+#' Per-axis LENGTHS are directional: they pair the k-th declared direction with
+#' the realized energy on that same direction, so they catch a grid that keeps
+#' its total spread but relocates it onto a different declared axis. They are
+#' not a rank. A grid collapsed onto a diagonal of two declared axes still has
+#' a long component on each of them separately, so lengths alone accept a grid
+#' spanning one direction where the declared design spans two; two `distr()`
+#' calls keyed off the same margin do exactly that, and in a jointly defined
+#' subgroup table it is one copy-and-paste away.
+#'
+#' SINGULAR VALUES of the projection count the directions actually spanned,
+#' which is what `.profile_rank()` screens, so they close that hole. On their
+#' own they are looser than the directional test, not stricter: they arrive
+#' sorted and carry no direction, so the largest realized combination is judged
+#' against the largest declared direction even when its energy sits on another,
+#' and a grid retaining 40 percent of the dominant direction passes on surplus
+#' it carries elsewhere.
+#'
+#' Requiring both means a direction must keep its own share of the declared
+#' spread AND remain a direction the grid genuinely spans.
 #'
 #' @param declared Matrix of declared mean profiles (rows are AgD rows).
 #' @param realized Matrix of realized integration means, or `NULL`.
@@ -580,30 +593,46 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   if (!any(counts)) {
     return(TRUE)
   }
-  # Project the realized grid onto the declared directions that count, then
-  # take the SINGULAR VALUES of that projection. Per-column lengths will not
-  # do: a grid that collapses onto a diagonal of two declared axes still has a
-  # long component on each axis separately, so a columnwise test passes it
-  # while it spans one direction where the declared design spans two. Two
-  # `distr()` calls keyed off the same margin do exactly that, and it is a
-  # copy-and-paste away in any jointly-defined subgroup table. Singular values
-  # count directions actually spanned, which is the quantity `.profile_rank()`
-  # screens, so the two cannot disagree about the same design.
+  # Project the realized grid onto the declared directions that count, and
+  # measure that projection TWO ways. Neither alone is enough, and each catches
+  # what the other misses.
+  #
+  # Per-axis lengths are directional: they pair the k-th declared direction
+  # with the realized energy on THAT direction, so they catch a grid that keeps
+  # its total spread but moves it onto a different declared axis. They are not
+  # a rank: a grid collapsed onto a diagonal of two declared axes still has a
+  # long component on each of them separately, so this test alone passes a grid
+  # spanning one direction where the declared design spans two. Two `distr()`
+  # calls keyed off the same margin do exactly that.
+  #
+  # Singular values count the directions actually spanned, which is the
+  # quantity `.profile_rank()` screens, so they close that hole. But they
+  # arrive sorted and carry no direction, so this test alone is LOOSER than the
+  # directional one: the largest realized combination gets judged against the
+  # largest declared direction even when its energy sits on another, and a grid
+  # keeping 40 percent of the dominant direction passes on the surplus it
+  # carries elsewhere.
+  #
+  # Requiring both means a direction must keep its own share AND still be a
+  # direction the grid genuinely spans.
   projected <- r %*% decomposition$v[, counts, drop = FALSE]
   realized_d <- tryCatch(svd(projected)$d, error = function(e) NULL)
-  if (is.null(realized_d) || length(realized_d) != sum(counts) ||
-        any(!is.finite(realized_d))) {
+  if (is.null(realized_d) || any(!is.finite(realized_d))) {
     return(FALSE)
   }
-  realized_spread <- realized_d / rows
   declared_spread <- declared_spread[counts]
-  # Both vectors are now sorted descending over the same number of directions,
-  # so the k-th realized direction is judged against the k-th declared one.
-  keeps_share <- realized_spread >= factor * declared_spread
+  # Lengths along each declared direction, in the same RMS units as `spread`.
+  realized_axis <- sqrt(colSums(projected^2)) / rows
+  # Singular values of the same projection, sorted descending against the
+  # declared spreads, which `svd()` already returns sorted.
+  realized_sv <- realized_d[seq_along(declared_spread)] / rows
+  realized_sv[!is.finite(realized_sv)] <- 0
+  keeps_share <- realized_axis >= factor * declared_spread &
+    realized_sv >= factor * declared_spread
   clears_floor <- if (is.null(ref_sd)) {
     TRUE
   } else {
-    realized_spread >= min_spread
+    realized_axis >= min_spread & realized_sv >= min_spread
   }
   all(keeps_share) && all(clears_floor)
 }

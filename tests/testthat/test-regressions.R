@@ -640,6 +640,31 @@ test_that("a realized grid that collapses onto a diagonal is caught", {
 })
 
 
+test_that("a sorted singular-value pairing alone is too lenient", {
+  f <- .realized_matches_declared
+  # Singular values arrive sorted and carry no direction, so on their own they
+  # judge the largest realized combination against the largest declared
+  # direction even when that energy sits somewhere else. A grid keeping 40
+  # percent of the dominant direction then passes on the surplus it carries on
+  # the second, which the per-axis lengths reject. Both tests are applied.
+  declared <- cbind(c(-2, -2, 2, 2), c(-1, 1, -1, 1))
+  short_on_first <- cbind(0.4 * declared[, 1], declared[, 2])
+  expect_false(f(declared, short_on_first, c(1, 1)))
+
+  # The same hole as a swap of two counted directions: the spectrum is
+  # identical, the directions are exchanged.
+  swapped_declared <- cbind(c(-2, 2, 0), c(0, 0, 0.5))
+  swapped <- cbind(c(0, 0, 0.5), c(-2, 2, 0))
+  expect_false(f(swapped_declared, swapped, c(1, 1)))
+
+  # And the directional test alone stays too lenient for the diagonal case, so
+  # neither check is redundant.
+  diag_declared <- cbind(c(-1, 1, 0), c(0, 0, 2))
+  expect_false(f(diag_declared, cbind(c(-0.5, 0.5, 1), c(-0.5, 0.5, 1)), c(1, 1)))
+  expect_true(f(diag_declared, diag_declared, c(1, 1)))
+})
+
+
 test_that("the two identification screens agree on an undecomposable design", {
   # `.profile_rank()` fails closed on a mean matrix that carries NA, which is
   # the legacy integration-mean case its own comment names. `.subgroup_geometry()`
