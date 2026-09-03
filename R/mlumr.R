@@ -446,16 +446,6 @@ mlumr <- function(data,
     }
   }
 
-  # C.3: autoscale is only consumed by prior_beta. Warn if the user set it
-  # on prior_intercept or prior_sigma, because it will be silently ignored.
-  if (isTRUE(prior_intercept$autoscale)) {
-    warning("`autoscale = TRUE` on prior_intercept is ignored; ",
-            "autoscaling is only applied to prior_beta.", call. = FALSE)
-  }
-
-  family <- data$family %||% "binomial"
-  link_info <- check_link(family, link)
-
   # Survival distribution + auxiliary/smoothing priors
   surv_info <- NULL
   if (family == "survival") {
@@ -1185,7 +1175,10 @@ mlumr <- function(data,
 #' @return Integer rank, at least 1.
 #' @keywords internal
 .agd_covariate_rank <- function(data) {
-  .profile_rank(.agd_mean_profiles(data))
+  covs <- data$covariates
+  ipd_cov <- data$ipd$data[, covs, drop = FALSE]
+  ref_sd <- apply(as.matrix(ipd_cov), 2L, stats::sd)
+  .profile_rank(.agd_mean_profiles(data), ref_sd)
 }
 
 #' Map `aux_by` onto the Stan `n_strata` switch

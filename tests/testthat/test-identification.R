@@ -182,14 +182,35 @@ test_that("rows repeating an integration grid are counted once", {
 test_that("profile rank survives an offset and fails closed", {
   # qr() calls a column negligible relative to the norms it is handed, so an
   # uncentered covariate on a large offset collapses to rank 1.
-  expect_equal(mlumr:::.profile_rank(matrix(1e7 + c(0, 1, 2), ncol = 1)), 2L)
-  expect_equal(mlumr:::.profile_rank(matrix(c(0, 1, 2), ncol = 1)), 2L)
+  expect_equal(mlumr:::.profile_rank(matrix(1e7 + c(0, 1, 2), ncol = 1), 1), 2L)
+  expect_equal(mlumr:::.profile_rank(matrix(c(0, 1, 2), ncol = 1), 1), 2L)
   # Duplicated profiles carry one direction however many rows there are.
-  expect_equal(mlumr:::.profile_rank(matrix(rep(c(1, 2), each = 3), ncol = 2)), 1L)
+  expect_equal(
+    mlumr:::.profile_rank(matrix(rep(c(1, 2), each = 3), ncol = 2), c(1, 1)), 1L
+  )
   # A design qr() cannot decompose used to fall back to the aggregate row
   # count, which is the quantity the rank replaced: a padded table then looked
   # full rank and suppressed its warning.
-  expect_equal(mlumr:::.profile_rank(matrix(c(NA_real_, 1), ncol = 1)), 0L)
+  expect_equal(mlumr:::.profile_rank(matrix(c(NA_real_, 1), ncol = 1), 1), 0L)
+})
+
+
+test_that("profile rank is judged against the IPD scale, not its own", {
+  # Dividing each column by its own root-mean-square stretched any separation
+  # back to unit size, so a design the likelihood cannot separate came back
+  # full rank and the identity-link relaxed-model screen never fired.
+  collapsed <- matrix(c(-1e-10, 1e-10), ncol = 1)
+  expect_equal(mlumr:::.profile_rank(collapsed, 10), 1L)
+  # A real separation on the same covariate still counts.
+  expect_equal(mlumr:::.profile_rank(matrix(c(40, 60), ncol = 1), 10), 2L)
+  # A non-positive or missing reference SD falls back to 1 rather than dividing
+  # by zero.
+  expect_equal(mlumr:::.profile_rank(matrix(c(0, 1, 2), ncol = 1), 0), 2L)
+  expect_equal(mlumr:::.profile_rank(matrix(c(0, 1, 2), ncol = 1), NA_real_), 2L)
+  # The floor is the value check_identification() screens `spread` on, so the
+  # two diagnostics cannot disagree about the same design.
+  expect_equal(mlumr:::.profile_rank(matrix(c(-0.02, 0.02), ncol = 1), 1), 1L)
+  expect_equal(mlumr:::.profile_rank(matrix(c(-0.2, 0.2), ncol = 1), 1), 2L)
 })
 
 # ---- absolute scale, not only relative balance -----------------------------

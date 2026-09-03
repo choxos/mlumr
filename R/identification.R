@@ -294,21 +294,49 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #' fits, with covariates centered by default, is plainly rank 2. Centering and
 #' scaling first asks the question about the design being fitted.
 #'
+#' The scale has to come from OUTSIDE the profiles. Dividing each column by its
+#' own root-mean-square, which this did, stretches any separation back to unit
+#' size: aggregate means of `c(-1e-10, 1e-10)` became `c(-1, 1)` and the design
+#' was reported full rank, so the identity-link relaxed-model screen in
+#' [mlumr()] never fired on a comparator the likelihood cannot separate. The
+#' IPD standard deviations are an absolute scale and are what
+#' `.subgroup_geometry()` already uses, so the two diagnostics now agree.
+#'
+#' `qr()` cannot supply that judgment on its own either. LINPACK's `dqrdc2`
+#' compares each column's remaining norm against that SAME column's original
+#' norm, so a covariate separated by `1e-11` IPD SDs is still "independent" of
+#' the intercept and counts toward the rank. Directions are therefore counted
+#' by singular value against an absolute floor, the `spread` that
+#' [check_identification()] already screens on, so the two agree by
+#' construction.
+#'
 #' @param profiles Aggregate subgroup mean matrix, rows by covariates.
+#' @param ref_sd Reference SD per covariate (the IPD SDs), used to put the
+#'   profile separations on a scale that can be judged. Non-finite or
+#'   non-positive entries fall back to 1.
+#' @param min_spread Smallest RMS profile separation along a direction, in IPD
+#'   standard deviations, that counts as a direction. Defaults to the value
+#'   [check_identification()] screens on.
 #' @return Integer rank, or `0` when the design cannot be decomposed.
 #' @keywords internal
-.profile_rank <- function(profiles) {
+.profile_rank <- function(profiles, ref_sd, min_spread = 0.05) {
   M <- scale(as.matrix(profiles), center = TRUE, scale = FALSE)
-  sds <- apply(M, 2L, function(z) sqrt(mean(z^2)))
-  sds[!is.finite(sds) | sds <= 0] <- 1
-  M <- sweep(M, 2L, sds, "/")
-  rank <- tryCatch(qr(cbind(1, M))$rank, error = function(e) NA_integer_)
-  # Fail closed. A design qr() cannot decompose, a legacy integration-mean
+  ref_sd <- as.numeric(ref_sd)
+  ref_sd[!is.finite(ref_sd) | ref_sd <= 0] <- 1
+  M <- sweep(M, 2L, ref_sd, "/")
+  # Fail closed. A design that cannot be decomposed, a legacy integration-mean
   # matrix carrying NA for instance, used to fall back to the aggregate row
   # count, which is exactly the quantity this rank replaced: a padded table
   # then looked full rank and suppressed the warning it should have raised.
-  if (!is.finite(rank)) return(0L)
-  max(as.integer(rank), 1L)
+  if (!all(is.finite(M))) return(0L)
+  d <- tryCatch(svd(M)$d, error = function(e) NULL)
+  if (is.null(d) || !length(d) || any(!is.finite(d))) return(0L)
+  # `d / sqrt(nrow)` is the RMS distance of the profiles from their center
+  # along a direction, in IPD SDs: the same quantity `.subgroup_geometry()`
+  # reports as `spread`.
+  n_directions <- sum(d / sqrt(nrow(M)) >= min_spread)
+  # Centering removed the mean, so the intercept is always one more direction.
+  as.integer(n_directions) + 1L
 }
 
 

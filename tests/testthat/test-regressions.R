@@ -121,11 +121,8 @@ test_that("the gengamma log-survival helper uses the stable upper-tail form", {
   # helper, log_surv_scalar(). The precomputed-eta twin log_surv_pre() is
   # deferred to v0.2.1 (inst/future/v0.2.1/), and the dual-path check that both
   # twins use the stable form travels with it.
-  f <- system.file("stan", "include", "survival_functions.stan", package = "mlumr")
-  if (!nzchar(f)) {
-    f <- testthat::test_path("..", "..", "inst", "stan", "include",
-                             "survival_functions.stan")
-  }
+  f <- stan_source_path("include", "survival_functions.stan")
+  expect_true(file.exists(f))
   skip_if_not(file.exists(f))
   code <- grep("^\\s*//", readLines(f, warn = FALSE), value = TRUE, invert = TRUE)
   expect_false(any(grepl("log1m(gamma_p", code, fixed = TRUE)))
@@ -148,10 +145,8 @@ test_that("the normal comparator weight field matches what Stan weights by (A1)"
   weighted <- vapply(
     c("mlumr_normal_spfa", "mlumr_normal_relaxed"),
     function(model) {
-      path <- system.file("stan", paste0(model, ".stan"), package = "mlumr")
-      if (!nzchar(path)) path <- file.path("..", "..", "inst", "stan",
-                                           paste0(model, ".stan"))
-      skip_if_not(file.exists(path), "Stan source not available")
+      path <- stan_source_path(paste0(model, ".stan"))
+      expect_true(file.exists(path))
       any(grepl("agd_weight[k]", readLines(path, warn = FALSE), fixed = TRUE))
     },
     logical(1)
@@ -353,10 +348,13 @@ test_that("a difference of two unbounded quantities is not reported as zero", {
 })
 
 test_that("the Stan difference helper guards the same case", {
-  src <- readLines(
-    system.file("stan", "include", "numerical_functions.stan", package = "mlumr")
-  )
-  body <- paste(src, collapse = "\n")
+  # `system.file()` returns "" when the package is loaded from source without
+  # its inst/ tree shimmed, which would make `readLines()` abort rather than
+  # report. Fall back to the source tree, and require the file either way: a
+  # skip here would hide a packaging defect.
+  path <- stan_source_path("include", "numerical_functions.stan")
+  expect_true(file.exists(path))
+  body <- paste(readLines(path), collapse = "\n")
   expect_match(body, "not_a_number\\(\\)", fixed = FALSE)
 })
 
@@ -493,12 +491,12 @@ test_that("exposure and standard-error bounds stay strictly positive in Stan", {
   # admits an exposure of exactly zero (log(0) in the linear predictor) and a
   # zero aggregate standard error (an improper normal likelihood).
   for (f in c("mlumr_poisson_spfa", "mlumr_poisson_relaxed")) {
-    src <- readLines(system.file("stan", paste0(f, ".stan"), package = "mlumr"))
+    src <- readLines(stan_source_path(paste0(f, ".stan")))
     expect_true(any(grepl("vector<lower=1e-12>[n_ipd] E_ipd;", src, fixed = TRUE)))
     expect_true(any(grepl("real<lower=1e-12> E_agd;", src, fixed = TRUE)))
   }
   for (f in c("mlumr_normal_spfa", "mlumr_normal_relaxed")) {
-    src <- readLines(system.file("stan", paste0(f, ".stan"), package = "mlumr"))
+    src <- readLines(stan_source_path(paste0(f, ".stan")))
     expect_true(any(grepl("real<lower=1e-12> se_agd;", src, fixed = TRUE)))
   }
 })
@@ -623,4 +621,106 @@ test_that("R rejects the exposures and standard errors Stan rejects", {
             cov_means = "x_mean", cov_sds = "x_sd"),
     "at least 1e-12"
   )
+})
+
+
+test_that("an ignored autoscale on prior_intercept warns exactly once", {
+  # The warning and the family/link block were duplicated inside `mlumr()`, and
+  # the second copy carried pre-`prior_beta_comparator` text, so a user setting
+  # autoscale on prior_intercept got two warnings that disagreed about which
+  # priors autoscaling reaches. `check_link()` runs immediately after the
+  # warning, so an invalid link stops the call there without sampling.
+  set.seed(2026)
+  n <- 60
+  ipd <- set_ipd(
+    data.frame(trt = "A", y = rbinom(n, 1, 0.5), x = rbinom(n, 1, 0.4)),
+    "trt", "y", "x"
+  )
+  agd <- set_agd(
+    data.frame(trt = "B", n_total = 100, n_events = 40, x_mean = 0.3),
+    "trt", outcome_n = "n_total", outcome_r = "n_events",
+    cov_means = "x_mean"
+  )
+  dat <- suppressWarnings(add_integration(
+    combine_data(ipd, agd), n_int = 8, x = distr(qbern, prob = x_mean)
+  ))
+
+  seen <- character(0)
+  expect_error(
+    withCallingHandlers(
+      mlumr(dat, link = "nonsense", seed = 2026,
+            prior_intercept = prior_normal(0, 10, autoscale = TRUE)),
+      warning = function(cond) {
+        seen <<- c(seen, conditionMessage(cond))
+        invokeRestart("muffleWarning")
+      }
+    ),
+    "is not valid for family"
+  )
+  autoscale <- seen[grepl("autoscaling is only applied to", seen, fixed = TRUE)]
+  expect_length(autoscale, 1L)
+  expect_match(autoscale, "prior_beta_comparator", fixed = TRUE)
+})
+
+
+test_that("a withheld target-correlation comparison has the documented verdict", {
+  # `cor_adjust = "none"` declares a latent Gaussian-copula matrix, which the
+  # realized covariate-scale correlation does not estimate, so the comparison
+  # is withheld. Leaving the field unset made a deliberate abstention
+  # indistinguishable from a missing field.
+  set.seed(2026)
+  n <- 80
+  ipd_df <- data.frame(trt = "A", y = rbinom(n, 1, 0.5),
+                       x1 = rnorm(n), x2 = rnorm(n))
+  agd_df <- data.frame(trt = "B", n_total = 100, n_events = 40,
+                       x1_mean = 0.1, x1_sd = 1, x2_mean = -0.1, x2_sd = 1)
+  ipd <- set_ipd(ipd_df, "trt", "y", c("x1", "x2"))
+  agd <- set_agd(agd_df, "trt", outcome_n = "n_total", outcome_r = "n_events",
+                 cov_means = c("x1_mean", "x2_mean"),
+                 cov_sds = c("x1_sd", "x2_sd"))
+  cor_mat <- matrix(c(1, 0.3, 0.3, 1), 2, 2,
+                    dimnames = list(c("x1", "x2"), c("x1", "x2")))
+  dat <- suppressWarnings(add_integration(
+    combine_data(ipd, agd), n_int = 32, cor = cor_mat, cor_adjust = "none",
+    x1 = distr(qnorm, mean = x1_mean, sd = x1_sd),
+    x2 = distr(qnorm, mean = x2_mean, sd = x2_sd)
+  ))
+  # check_integration() re-integrates, so it needs the distributions too.
+  out <- suppressMessages(suppressWarnings(check_integration(
+    dat, check_joint = TRUE, verbose = FALSE, cor = cor_mat,
+    cor_adjust = "none",
+    x1 = distr(qnorm, mean = x1_mean, sd = x1_sd),
+    x2 = distr(qnorm, mean = x2_mean, sd = x2_sd)
+  )))
+  expect_identical(out$verdict$target_correlation, "unavailable")
+})
+
+
+test_that("the comparator prior section is printed once", {
+  # `prior_summary()` carried both the shared `.print_beta_prior_block()` call
+  # and the hand-rolled block it replaced, guarded on the same condition, so
+  # every relaxed fit printed the comparator section twice.
+  fit <- structure(
+    list(
+      model = "relaxed",
+      priors = list(
+        intercept = prior_normal(0, 10),
+        beta = prior_normal(0, 1),
+        beta_resolved = list(
+          mean = c(0, 0), sd = c(1, 1), dist = 0L, df = 1,
+          autoscale = c(FALSE, FALSE), sd_x = c(1, 1),
+          covariate_names = c("x1", "x2"), user_specified = TRUE
+        ),
+        beta_comparator = prior_normal(0, 2),
+        beta_comparator_resolved = list(
+          mean = c(0, 0), sd = c(2, 2), dist = 0L, df = 1,
+          autoscale = c(FALSE, FALSE), sd_x = c(1, 1),
+          covariate_names = c("x1", "x2"), user_specified = TRUE
+        )
+      )
+    ),
+    class = "mlumr_fit"
+  )
+  printed <- capture.output(prior_summary(fit))
+  expect_length(grep("Comparator regression coefficients", printed), 1L)
 })

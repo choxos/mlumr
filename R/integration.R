@@ -800,9 +800,13 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
         cat("Target correlation: not available (no finite comparison).\n")
       }
     }
-    if (!is.null(cor_target)) {
-      out$verdict$target_correlation <-
-        .moment_verdict(max_target_cor_diff, 0.05, "close")
+    out$verdict$target_correlation <- if (is.null(cor_target)) {
+      # Withheld on purpose under `cor_adjust = "none"`, where the supplied
+      # matrix is the latent copula correlation. Leaving the field unset made
+      # a deliberate abstention indistinguishable from a missing field.
+      "unavailable"
+    } else {
+      .moment_verdict(max_target_cor_diff, 0.05, "close")
     }
     out$correlations <- cor_result$diff
   }
