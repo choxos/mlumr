@@ -124,11 +124,17 @@ plot.mlumr_marginal_effects <- function(x, ref_line = NULL, ...) {
   .need_ggplot2()
   df <- as.data.frame(x)
   ci <- .ci_cols(df)
-  if (is.null(ci) || !all(c("mean", "effect", "population") %in% names(df))) {
+  if (!all(c("mean", "effect", "population") %in% names(df))) {
     stop("Unexpected marginal_effects structure; cannot plot.", call. = FALSE)
   }
-  df$.lo <- df[[ci$lo]]
-  df$.hi <- df[[ci$hi]]
+  # `probs` may name a single quantile, which is a valid summary with no
+  # interval to draw. The other plot methods already fall back to points, so
+  # rejecting it here made the same request plottable or not depending only on
+  # which function produced it.
+  if (!is.null(ci)) {
+    df$.lo <- df[[ci$lo]]
+    df$.hi <- df[[ci$hi]]
+  }
   df$population <- factor(df$population, levels = unique(df$population))
   df$.facet <- .effect_facet_labels(df)
   df$.facet <- factor(df$.facet, levels = unique(df$.facet))
@@ -146,13 +152,19 @@ plot.mlumr_marginal_effects <- function(x, ref_line = NULL, ...) {
       data = ref_df,
       ggplot2::aes(xintercept = .data$ref),
       linetype = "dashed", color = "gray55"
-    ) +
-    ggplot2::geom_errorbar(ggplot2::aes(xmin = .data$.lo, xmax = .data$.hi),
+    )
+  if (!is.null(ci)) {
+    p <- p + ggplot2::geom_errorbar(
+      ggplot2::aes(xmin = .data$.lo, xmax = .data$.hi),
       orientation = "y", width = 0.16, color = "#3B6B9A"
-    ) +
+    )
+  }
+  p <- p +
     ggplot2::geom_point(size = 2.6, color = "#3B6B9A") +
     ggplot2::facet_wrap(~ .data$.facet, scales = "free_x") +
-    ggplot2::labs(x = sprintf("Estimate (%s)", .ci_label(ci)), y = NULL,
+    ggplot2::labs(x = sprintf("Estimate (%s)",
+                              if (is.null(ci)) "point estimate" else .ci_label(ci)),
+                  y = NULL,
                   caption = .rmst_caption(x, df$effect)) +
     ggplot2::theme_minimal(base_size = 11) +
     ggplot2::theme(panel.grid.minor = ggplot2::element_blank())
@@ -715,18 +727,38 @@ plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
   m <- pr$mean %||% 0
   sd <- pr$sd %||% 10
   df <- pr$df
-  p <- c(0.005, 0.995)
-  q <- switch(
+  rate <- pr$rate %||% (1 / sd)
+  qfun <- switch(
     dist,
-    normal = stats::qnorm(p, mean = m, sd = sd),
-    student_t = m + sd * stats::qt(p, df = df),
-    cauchy = stats::qcauchy(p, location = m, scale = sd),
-    exponential = stats::qexp(p, rate = pr$rate %||% (1 / sd)),
-    c(Inf, -Inf)
+    normal = function(pp) stats::qnorm(pp, mean = m, sd = sd),
+    student_t = function(pp) m + sd * stats::qt(pp, df = df),
+    cauchy = function(pp) stats::qcauchy(pp, location = m, scale = sd),
+    exponential = function(pp) stats::qexp(pp, rate = rate),
+    NULL
   )
+  pfun <- switch(
+    dist,
+    normal = function(x) stats::pnorm(x, mean = m, sd = sd),
+    student_t = function(x) stats::pt((x - m) / sd, df = df),
+    cauchy = function(x) stats::pcauchy(x, location = m, scale = sd),
+    exponential = function(x) stats::pexp(x, rate = rate),
+    NULL
+  )
+  if (is.null(qfun) || is.null(pfun)) return(c(Inf, -Inf))
+  p <- c(0.005, 0.995)
+  if (is.finite(lower)) {
+    # Quantiles of the TRUNCATED prior, which is the density actually drawn.
+    # Clamping the unconditional quantiles instead reverses the range whenever
+    # both of them fall below the bound, as for normal(-5, 1) constrained to
+    # be positive, and the grid then never widened to show the prior at all.
+    f_lo <- pfun(lower)
+    if (!is.finite(f_lo) || f_lo >= 1) return(c(lower, lower))
+    p <- f_lo + p * (1 - f_lo)
+  }
+  q <- qfun(p)
   if (any(!is.finite(q))) return(c(Inf, -Inf))
   if (is.finite(lower)) q[1] <- max(q[1], lower)
-  q
+  sort(q)
 }
 
 #' Prior-versus-posterior overlay

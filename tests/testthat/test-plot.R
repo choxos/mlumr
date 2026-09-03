@@ -441,3 +441,31 @@ test_that("the prior/posterior window shows the prior, not just the posterior", 
   expect_gt(max(pd$value), 5)
   expect_lt(min(pd$value), -5)
 })
+
+test_that("a single-quantile summary plots as points", {
+  skip_if_not_installed("ggplot2")
+  # marginal_effects(probs = 0.5) is a valid summary with no interval. The
+  # other plot methods already degraded to points; this one errored.
+  me <- mlumr:::.mlumr_result(
+    data.frame(variable = "lor_index", effect = "LOR", population = "Index",
+               mean = 0.3, sd = 0.1, q50 = 0.29),
+    "mlumr_marginal_effects", family = "binomial")
+  p <- plot(me)
+  expect_s3_class(p, "ggplot")
+  expect_no_error(ggplot2::ggplot_build(p))
+  expect_match(p$labels$x, "point estimate", fixed = TRUE)
+})
+
+test_that("a constrained prior below its bound still widens the window", {
+  skip_if_not_installed("ggplot2")
+  # Clamping the unconditional quantiles reversed the range when both fell
+  # below the bound, so the grid never widened to show the prior.
+  r <- mlumr:::.prior_quantile_range(prior_normal(-5, 1), lower = 0)
+  expect_lte(r[1], r[2])
+  expect_gte(r[1], 0)
+  expect_true(all(is.finite(r)))
+  # Unconstrained priors are unchanged.
+  r2 <- mlumr:::.prior_quantile_range(prior_normal(0, 10), lower = -Inf)
+  expect_lt(r2[1], 0)
+  expect_gt(r2[2], 0)
+})
