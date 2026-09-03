@@ -204,6 +204,8 @@ agd_normal <- set_agd(
   cov_types = "binary"
 )
 dat_normal <- combine_data(ipd_normal, agd_normal)
+# The identity link is the one case where the mean of the predictions equals
+# the prediction at the mean, so no integration points are required here.
 naive(dat_normal)
 stc(dat_normal)
 ```
@@ -235,6 +237,10 @@ agd_poisson <- set_agd(
   cov_types = "binary"
 )
 dat_poisson <- combine_data(ipd_poisson, agd_poisson)
+# The log link is nonlinear, so STC needs the comparator distribution rather
+# than its means.
+dat_poisson <- add_integration(dat_poisson, n_int = 64,
+                               age_cat = distr(qbern, prob = age_cat_mean))
 naive(dat_poisson)
 stc(dat_poisson)
 ```
