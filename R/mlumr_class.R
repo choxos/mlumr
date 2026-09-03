@@ -325,8 +325,14 @@ print.mlumr_stc <- function(x, ...) {
       cat(sprintf("Distribution: %s | RMST horizon: %.3f\n",
                   x$distribution, x$horizon))
     }
+    # Both numbers come from a parametric fit. The comparator's is an
+    # intercept-only flexsurvreg fit to the reconstructed pseudo-IPD, not a
+    # Kaplan-Meier area, so calling it "observed" would invite a reader to
+    # blame any discrepancy on the index standardization when it can just as
+    # easily come from the comparator's own distributional assumption.
     cat(sprintf("Marginalized RMST (index trt, comp pop): %.4f\n", x$rmst_index))
-    cat(sprintf("Observed RMST (comp trt, comp pop):      %.4f\n", x$rmst_comparator))
+    cat(sprintf("Fitted RMST (comp trt, comp pop):        %.4f\n",
+                x$rmst_comparator))
     req <- x$n_boot_requested %||% x$n_boot %||% 0L
     okn <- x$n_boot_ok %||% x$n_boot %||% 0L
     if (is.na(x$se)) {
