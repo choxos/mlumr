@@ -665,6 +665,43 @@ test_that("a sorted singular-value pairing alone is too lenient", {
 })
 
 
+test_that("the grid comparison never rejects a design the rank screen accepts", {
+  f <- .realized_matches_declared
+
+  # The boundary case, constructed rather than hoped for. A 2 x 1 design has
+  # spread `a` in IPD SDs, so a declared 0.052 sits just above the 0.05 floor
+  # and a realized 0.048 just below it. The share is 0.92, far above `factor`,
+  # so this is the floor acting alone: the grid is faithful in proportion and
+  # still not a direction the likelihood can use.
+  declared <- matrix(c(-0.052, 0.052), ncol = 1)
+  realized <- matrix(c(-0.048, 0.048), ncol = 1)
+  expect_false(f(declared, realized, 1))
+  # And the rank screen says the same thing about the same pair, which is the
+  # property that matters: one direction declared, none realized.
+  expect_equal(.profile_rank(declared, 1), 2L)
+  expect_equal(.profile_rank(realized, 1), 1L)
+
+  # State it as an invariant over a sweep as well. Given a faithful grid
+  # (quadrature-scale noise), any rejection must be one where `.profile_rank()`
+  # independently counts fewer directions in the realized grid. A rejection
+  # without a rank drop would be this function inventing a mismatch the rest of
+  # the package does not see.
+  set.seed(2026)
+  for (trial in seq_len(300)) {
+    n <- sample(2:8, 1)
+    p <- sample(1:4, 1)
+    dec <- matrix(stats::rnorm(n * p, sd = 10^stats::runif(1, -1, 1)), n, p)
+    ref_sd <- stats::runif(p, 0.2, 3)
+    faithful <- dec +
+      matrix(stats::rnorm(n * p, sd = 0.005 * max(abs(dec))), n, p)
+    if (!isTRUE(f(dec, faithful, ref_sd))) {
+      expect_lt(.profile_rank(faithful, ref_sd), .profile_rank(dec, ref_sd))
+    }
+  }
+  succeed()
+})
+
+
 test_that("the two identification screens agree on an undecomposable design", {
   # `.profile_rank()` fails closed on a mean matrix that carries NA, which is
   # the legacy integration-mean case its own comment names. `.subgroup_geometry()`
