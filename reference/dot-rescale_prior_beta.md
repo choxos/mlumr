@@ -1,6 +1,6 @@
-# Rescale a prior_beta's scale, preserving family / mean / df.
+# Rescale a prior_beta's scale, preserving family, mean and df
 
-Rescale a prior_beta's scale, preserving family / mean / df.
+Rescale a prior_beta's scale, preserving family, mean and df
 
 ## Usage
 

@@ -9,7 +9,7 @@ treatments.
 conditional_predict(
   object,
   newdata = NULL,
-  type = c("response", "link"),
+  type = NULL,
   summary = TRUE,
   probs = c(0.025, 0.5, 0.975)
 )
@@ -28,7 +28,10 @@ conditional_predict(
 - type:
 
   `"response"` for probabilities, means, or rates; `"link"` for the
-  fitted linear-predictor scale.
+  fitted linear-predictor scale. `NULL`, the default, resolves to
+  `"response"` for binomial, normal and Poisson fits. Ignored for
+  survival fits, which return the conditional survival probability S(t
+  \| x) at each fitted prediction time.
 
 - summary:
 
@@ -40,7 +43,8 @@ conditional_predict(
 
 ## Value
 
-A data frame with predictions for each treatment at each profile
+A data frame with predictions for each treatment at each profile. For
+survival fits there is one row per profile, treatment, and time.
 
 ## See also
 

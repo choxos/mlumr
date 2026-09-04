@@ -1,6 +1,766 @@
 # Changelog
 
+## mlumr 0.1.0.9000 (development version)
+
+### Behavior and validation changes to existing functions
+
+- **Marginal summaries are no longer clipped to finite reporting
+  bounds.** The Stan models previously passed marginal probabilities
+  through `safe_logit()` (clamping to `[1e-10, 1 - 1e-10]`) and ratios
+  through `safe_divide()` (flooring the denominator at `1e-10`). Both
+  helpers are gone. Event and non-event probabilities, marginal means,
+  and rates are now formed on the log scale and the contrasts are built
+  from those logs, so the reported quantity is the mathematical one
+  rather than a finite surrogate. Two consequences: the likelihood is no
+  longer biased by a clamp at extreme linear predictors, and ratios are
+  no longer biased downward. The old `safe_divide()` substituted a
+  denominator LARGER than the true one, so a risk ratio or rate ratio
+  with a near-zero comparator was systematically understated; the
+  log-scale contrast reports it. Working on the log scale also removes
+  most of what used to trigger the clip in the first place, because a
+  marginal probability is no longer rounded to 0 or 1 before the
+  contrast is taken: `lor_*` is finite in cases where `safe_logit()`
+  previously returned its clip boundary. What remains is that a ratio
+  whose true value overflows double precision is now `Inf` rather than a
+  large finite surrogate. That needs only a finite log contrast above
+  `log(.Machine$double.xmax)`, about 709.78, not an infinite linear
+  predictor. Read the log-scale generated quantities when it happens.
+  See `?mlumr-numerical-evaluation`.
+
+- **`predict(type = "link")` reports the marginal link, not the mean
+  linear predictor.** It previously returned `E[eta]`, the average
+  conditional linear predictor. It now returns `g(E[g^-1(eta)])`: the
+  fitted link applied to the population-standardized response mean.
+  Differencing two `type = "link"` predictions therefore gives a
+  contrast on the fitted link scale, which reproduces a reported effect
+  where the two scales coincide (a logit binomial fit’s `lor_*`) and
+  needs a transformation elsewhere, since
+  [`marginal_effects()`](https://choxos.github.io/mlumr/reference/marginal_effects.md)
+  reports on the scale conventional for the family. The two definitions
+  of `type = "link"` agree for the identity link and differ for logit,
+  probit, cloglog, and log. This is a deliberate divergence from
+  `multinma`, which keeps the two apart: its `predict(type = "link")`
+  returns `E[eta]`, and the marginal link-scale contrast lives in
+  `marginal_effects(mtype = "link")`. mlumr has no conditional
+  population estimand to pair `E[eta]` with, since every effect it
+  reports is standardized over a population, so it reports the marginal
+  link under the one name rather than offering two link scales that
+  differ silently.
+
+- **Boundary probabilities use a continuity correction instead of a
+  clamp.**
+  [`bound_probability()`](https://choxos.github.io/mlumr/reference/bound_probability.md)
+  previously clamped every input into
+  `[min_count / n, 1 - min_count / n]`. It now leaves interior
+  probabilities untouched and replaces only an observed 0 or 1 with the
+  pseudo-count estimate `(r + min_count) / (n + 2 * min_count)`. For a
+  zero-event arm with `min_count = 0.5` that is `0.5 / (n + 1)` rather
+  than `0.5 / n`, so the link contrast, its standard error, and the risk
+  ratio that
+  [`naive()`](https://choxos.github.io/mlumr/reference/naive.md) and
+  [`stc()`](https://choxos.github.io/mlumr/reference/stc.md) report for
+  a binomial arm with no events (or no non-events) change slightly. Arms
+  with events on both sides are unaffected.
+
+- **New arguments are inserted before the sampler controls, so
+  positional calls are not preserved.**
+  [`mlumr()`](https://choxos.github.io/mlumr/reference/mlumr.md) gains
+  model-defining arguments ahead of `chains`, `iter`, and the rest. A
+  call that passed sampler settings by position rather than by name
+  therefore binds them to the wrong parameters and stops with a
+  validation error naming the argument it actually received. Call
+  [`mlumr()`](https://choxos.github.io/mlumr/reference/mlumr.md) with
+  named arguments.
+
+- **[`prior_sensitivity()`](https://choxos.github.io/mlumr/reference/prior_sensitivity.md)
+  varies the prior and nothing else.** Every model-defining setting is
+  taken from the original fit and replayed: family, link, survival
+  distribution and its baseline controls (`n_knots`, `mspline_degree`,
+  `pred_times`, `rmst_horizon`, `n_rmst_grid`, `aux_by`), the
+  design-matrix controls (`center`, `qr`), the integration points, the
+  shape and smoothing priors, and the engine and sampler settings. `...`
+  may no longer override any of them, so movement across the sweep is
+  attributable to the prior alone. For relaxed fits the comparator prior
+  is swept alongside the index one, and `prior_beta_comparator_scales`
+  pairs a chosen comparator scale with each index scale. Both are
+  reported per row, in `scale` and `scale_comparator`, so a refit is
+  never labeled by only half of the prior it was fitted under. On an
+  SPFA fit, which has no comparator coefficient prior, the argument is
+  declined with a warning and the column is dropped. Survival rows carry
+  an `effect` label (`LOG_HR`, `LOG_TR`, or `DELTA_ETA`) and an
+  `at_time` where one applies, from the same shared helper
+  [`marginal_effects()`](https://choxos.github.io/mlumr/reference/marginal_effects.md)
+  uses.
+
+- **`verbose = FALSE` now silences the sampler banner too.** cmdstanr
+  writes its “Running MCMC with N chains / Chain k finished in …” lines
+  to stdout rather than through the condition system, so neither
+  `refresh = 0` nor
+  [`suppressMessages()`](https://rdrr.io/r/base/message.html) suppressed
+  them: roughly fifteen lines per fit, which buries the output of any
+  loop over more than a handful of models.
+  [`mlumr()`](https://choxos.github.io/mlumr/reference/mlumr.md) now
+  passes `verbose` through to the backend, and an explicit
+  `show_messages` or `show_exceptions` in `...` still wins.
+
+- **`prior_normal(autoscale = TRUE)` rescales the prior location as well
+  as its scale.** Autoscaling states a prior on the coefficient of a
+  covariate measured in standard-deviation units, so recovering it on
+  the original scale divides both the location and the scale by that
+  covariate’s SD. Only the scale was divided before, which left a
+  nonzero prior mean attached to the wrong covariate scale. The default
+  `mean = 0` is unaffected, since `0 / sd` is `0`.
+
+- **[`check_integration()`](https://choxos.github.io/mlumr/reference/check_integration.md)
+  compares correlations on one scale.** The realized integration-point
+  correlation was always measured with Pearson while the target, when
+  derived from the IPD, defaults to Spearman. The method that defined
+  the target is now carried into the diagnostic and reported in the
+  output, so the comparison can no longer warn (or reassure) purely from
+  a method mismatch.
+
+- **[`check_integration()`](https://choxos.github.io/mlumr/reference/check_integration.md)
+  also reports fidelity to the declared moments.** The existing
+  resolution diagnostic compares two grid sizes and answers “is `n_int`
+  large enough”. It now additionally compares each realized grid moment
+  against the mean and standard deviation declared in
+  [`set_agd()`](https://choxos.github.io/mlumr/reference/set_agd.md),
+  which answers the different question “does the grid represent the
+  population it claims to”. A
+  [`distr()`](https://choxos.github.io/mlumr/reference/distr.md)
+  specification can be numerically well resolved and still target the
+  wrong marginal.
+
+- **[`add_integration()`](https://choxos.github.io/mlumr/reference/add_integration.md)
+  states where the copula correction does not apply.** The Spearman and
+  Pearson maps branch on continuous versus binary margins. A nonbinary
+  discrete margin, such as a count or an ordered category, has no branch
+  and is mapped with the continuous-margin formula; an exact mapping
+  would depend on that margin’s distribution and its category
+  thresholds.
+  [`add_integration()`](https://choxos.github.io/mlumr/reference/add_integration.md)
+  warns when it detects such a covariate, and the documentation states
+  the limitation.
+
+- **[`add_integration()`](https://choxos.github.io/mlumr/reference/add_integration.md)
+  rejects a Pearson correlation with non-Gaussian margins.** A
+  covariate-scale Pearson correlation is the Gaussian-copula correlation
+  only when the margins are themselves Gaussian, so
+  `cor_adjust = "pearson"` combined with a non-`qnorm` continuous margin
+  and a nonzero off-diagonal entry now errors instead of silently
+  treating the supplied matrix as a latent one. Use
+  `cor_adjust = "spearman"`, Gaussian margins, or `cor_adjust = "none"`
+  with a matrix already on the latent scale.
+
+- **[`add_integration()`](https://choxos.github.io/mlumr/reference/add_integration.md)
+  warns when a supplied
+  [`distr()`](https://choxos.github.io/mlumr/reference/distr.md)
+  distribution grossly contradicts the declared
+  [`set_agd()`](https://choxos.github.io/mlumr/reference/set_agd.md)
+  moments.**
+
+- **Continuous multi-row comparator estimand, and `outcome_n` is now
+  required for it.** For the normal family the comparator-population
+  standardized effect from several
+  [`set_agd()`](https://choxos.github.io/mlumr/reference/set_agd.md)
+  rows is weighted by `outcome_n` (sample size) rather than by inverse
+  variance, so splitting one comparator population into subgroup rows no
+  longer changes the estimand. An inverse-variance average estimates a
+  common mean efficiently but is not the comparator population’s mean,
+  which is the size-weighted mixture of its strata. Because there is no
+  defensible way to combine several population strata without knowing
+  how large they are,
+  [`set_agd()`](https://choxos.github.io/mlumr/reference/set_agd.md) now
+  requires `outcome_n` when normal aggregate data have more than one row
+  and errors rather than silently falling back to precision weights.
+  [`naive()`](https://choxos.github.io/mlumr/reference/naive.md) and
+  [`stc()`](https://choxos.github.io/mlumr/reference/stc.md) use the
+  same weighting. Single-row AgD is unchanged and still does not require
+  `outcome_n`.
+
+- **[`naive()`](https://choxos.github.io/mlumr/reference/naive.md)
+  combines multiple aggregate rows as strata.** For binomial data the
+  comparator standard error was computed as though the pooled comparator
+  were a single binomial sample of size `sum(n)`. It is now the variance
+  of the sample-size-weighted average of the row proportions,
+  `sum(w_k^2 * p_k * (1 - p_k) / n_k)` with `w_k = n_k / sum(n)`,
+  propagated to the link scale by the delta method. It reduces exactly
+  to the previous formula for single-row aggregate data. The reported
+  comparator event rate is now the observed proportion; the continuity
+  correction is applied only inside the effect calculation.
+
+- **[`stc()`](https://choxos.github.io/mlumr/reference/stc.md) no longer
+  reports an index-population contrast.** For the binomial, normal, and
+  count families
+  [`stc()`](https://choxos.github.io/mlumr/reference/stc.md) previously
+  returned an index-population effect alongside the
+  comparator-population one, obtained by assuming the treatment
+  difference is constant on the link scale. That constancy is an extra
+  assumption which is not part of the STC estimand and is not testable
+  from the available data, and it does not hold under effect
+  modification, which is the situation population adjustment exists to
+  handle. [`stc()`](https://choxos.github.io/mlumr/reference/stc.md) is
+  now what its design supports: a comparator-population estimand,
+  labeled as such in the returned object. Use
+  [`mlumr()`](https://choxos.github.io/mlumr/reference/mlumr.md), which
+  standardizes both treatment models and reports both populations
+  without that assumption, when the index population is the decision
+  target.
+
+- **`seed` defaults to 2026 and says so.** `seed = NULL` previously drew
+  from the session RNG whenever `.Random.seed` existed. R initializes
+  that variable on demand from the clock and the process id, so its
+  presence never established that
+  [`set.seed()`](https://rdrr.io/r/base/Random.html) had been called: an
+  unseeded fit was silently irreproducible, and drawing from the state
+  also advanced the caller’s stream. `seed = NULL` now uses the
+  documented default of 2026 and warns, and the fit banner marks the
+  seed as a default.
+
+- **A difference of two unbounded quantities is undefined, not zero.**
+  The log-scale contrast used by the marginal summaries returned an
+  exact zero when both logs were `+Inf`, reporting an indeterminate
+  difference as a null effect. Both the R helper and its Stan
+  counterpart now leave it undefined. Two `-Inf` logs still give zero,
+  because both quantities are zero.
+
+- **Zero exposures and zero aggregate standard errors are refused
+  again.** `E_ipd` and `E_agd` in the poisson models and `se_agd` in the
+  normal models are declared `<lower=1e-12>`, as they were in 0.1.0.
+  Under a bound of zero an exposure of exactly zero reaches
+  [`log()`](https://rdrr.io/r/base/Log.html) in the linear predictor,
+  and a zero aggregate standard error makes the normal likelihood
+  improper.
+
+- **The collinearity guard reports a design that cannot be full rank.**
+  It returned quietly whenever there were no more complete IPD rows than
+  covariates, which is exactly the case it exists to catch. A covariate
+  whose empirical standard deviation is undefined, which is what a
+  single IPD row produces, is treated as having no usable scale instead
+  of aborting autoscaling.
+
+- **Tail ESS is computed rather than looked for.**
+  [`check_diagnostics()`](https://choxos.github.io/mlumr/reference/check_diagnostics.md)
+  tested a column that the default rstan backend never produced, so the
+  check was inert on every fit the package makes. Tail ESS is now
+  computed chain-aware from the post-warmup draws, and a fit that cannot
+  supply it is reported as such rather than passing silently.
+
+- **[`check_integration()`](https://choxos.github.io/mlumr/reference/check_integration.md)
+  no longer passes a comparison it did not make.** An all-missing set of
+  differences gave `-Inf` from `max(na.rm = TRUE)`, which clears every
+  threshold and printed as “close”; such a comparison now reads
+  “unavailable”. The declared-target standard deviation falls back to
+  the Bernoulli form only for margins declared binary, rather than for
+  any covariate whose mean happens to land in `[0, 1]`. A correlation
+  matrix passed directly is resolved by name the way
+  [`add_integration()`](https://choxos.github.io/mlumr/reference/add_integration.md)
+  resolves it, so reversed dimnames no longer produce a verdict about
+  the wrong pairs. Under `cor_adjust = "none"` the supplied matrix is
+  the latent Gaussian copula correlation, which the realized
+  covariate-scale correlation does not estimate; that comparison is
+  withheld and named instead of scored across the two scales.
+
+- **[`check_identification()`](https://choxos.github.io/mlumr/reference/check_identification.md)
+  declines a fitted SPFA object.** Its report is headed “relaxed model”
+  and diagnoses `beta_comparator`, which a shared-coefficient model does
+  not have. It also compares the realized integration design against the
+  declared one through singular-value spectra rather than matrix rank,
+  which could not distinguish declared means `c(-1, 1)` from realized
+  `c(-1e-10, 1e-10)`; and two aggregate rows built from the same
+  integration tuples in a different order now count as one profile,
+  since the likelihood averages over a row’s points.
+
+- **`n_knots` is validated only when knots have to be generated.** A
+  valid custom knot specification was rejected because an argument the
+  fit never reads was out of range. The resolved basis is still checked
+  on its own terms.
+
+### Transportability to arbitrary target populations
+
+- **`newdata` argument** on
+  [`marginal_effects()`](https://choxos.github.io/mlumr/reference/marginal_effects.md)
+  and
+  [`predict.mlumr_fit()`](https://choxos.github.io/mlumr/reference/predict.mlumr_fit.md)
+  transports treatment effects and absolute outcomes to an **arbitrary
+  target population** by Bayesian g-computation (model-based
+  standardization over a supplied covariate distribution), as in the
+  ML-UMR transportability step. Version 0.1.0 offered only the built-in
+  index and comparator populations. Supported for all families’ effects
+  and predictions. For survival, the collapsible RMST-based effects
+  (`"rmstd"`, `"rmstr"`) and every absolute prediction transport. The
+  marginal hazard ratio is reported for a target population too, but it
+  is not a property of that population alone: hazard ratios are
+  non-collapsible, and the marginal one weights the covariate
+  distribution by each arm’s own survival. It follows the same
+  evaluation-time convention as the built-in populations, the
+  closed-form `t -> 0` limit when the two studies share a baseline shape
+  and the requested (or first) fitted time when they do not.
+
+  Standardizing to the index covariates reproduces
+  `population = "index"` exactly, for every measure including the hazard
+  ratio, which is the check that the transport path and the built-in
+  path are the same calculation.
+
+- **[`marginal_effects()`](https://choxos.github.io/mlumr/reference/marginal_effects.md)
+  emits a one-line note** when a relaxed fit is queried for the index
+  population, reporting the **posterior contraction** of
+  `beta_comparator` per covariate, `1 - (posterior sd / prior sd)^2`,
+  and naming the weakly-identified ones. A single marginal comparator
+  curve constrains `beta'X` but not the direction of `beta`, which is
+  exactly what transporting to the index population needs, and an event
+  count cannot detect that. The prior SD respects the prior family:
+  Student-t scales are converted via `sqrt(df / (df - 2))`, and priors
+  with no finite variance (`df <= 2`, including the Cauchy) report `NA`
+  rather than a number that would misstate how much was learned.
+  Suppress with `options(mlumr.quiet_relaxed_index = TRUE)`.
+
+### Plotting
+
+- **[`plot()`](https://rdrr.io/r/graphics/plot.default.html) methods**
+  for the result objects, following multinma’s convention that calling
+  [`plot()`](https://rdrr.io/r/graphics/plot.default.html) on an effects
+  or prediction object produces the corresponding figure:
+  - `plot(marginal_effects(fit))`: forest of population-standardized
+    effects.
+  - `plot(predict(fit, type = "survival"))`: a curve with a credible
+    band. The `"hazard"`, `"cumhaz"` and `"loghr"` types plot the same
+    way, and `"rmst"`, `"median"` and `"response"` plot as
+    point-intervals. Compose further layers, such as a Kaplan-Meier
+    overlay, with `+`.
+  - `plot(conditional_effects(fit, newdata = ...))`: effects by
+    covariate profile.
+- Each forest draws the null line implied by the measure it is showing,
+  per facet: 0 for differences and log scales, 1 for the risk ratio,
+  rate ratio, hazard ratio, time ratio, RMST ratio, and the two
+  exponentiated survival contrasts. A forest showing only ratio measures
+  is drawn on a log axis, so reciprocal effects sit at equal distances
+  from the null. The interval’s coverage is read from the quantiles the
+  result carries rather than assumed to be 95%, and a time-specific
+  marginal hazard ratio is labelled with the evaluation time it belongs
+  to.
+- **[`geom_km()`](https://choxos.github.io/mlumr/reference/geom_km.md)**
+  overlays the observed Kaplan-Meier curves (from the `mlumr_data`
+  object) on a model survival plot, colored by treatment and honoring
+  delayed entry. Each curve carries the population its arm was measured
+  in, so on a plot faceted by population it appears only in its own
+  panel.
+- **[`plot_prior_posterior()`](https://choxos.github.io/mlumr/reference/plot_prior_posterior.md)**
+  (exported; the `multinma` name) overlays the posterior of named
+  parameters on the prior the fit records for each of them, including
+  the `<lower=0>` truncation for the constrained ones. A parameter the
+  fit carries no prior for is refused rather than drawn against another
+  parameter’s.
+- **[`mlumr_forest()`](https://choxos.github.io/mlumr/reference/mlumr_forest.md)**
+  draws a forest plot from a plain data frame of estimates and interval
+  bounds, for comparisons the
+  [`plot()`](https://rdrr.io/r/graphics/plot.default.html) methods do
+  not cover because they mix estimators: putting
+  [`naive()`](https://choxos.github.io/mlumr/reference/naive.md),
+  [`stc()`](https://choxos.github.io/mlumr/reference/stc.md), and both
+  ML-UMR models on one axis, for instance. It takes the reference line,
+  axis label, title, and subtitle as arguments so the caller sets the
+  measure’s null rather than inheriting one.
+- [`marginal_effects()`](https://choxos.github.io/mlumr/reference/marginal_effects.md),
+  [`predict()`](https://rdrr.io/r/stats/predict.html), and
+  [`conditional_effects()`](https://choxos.github.io/mlumr/reference/conditional_effects.md)
+  now return lightweight `data.frame` subclasses so these
+  [`plot()`](https://rdrr.io/r/graphics/plot.default.html) methods can
+  dispatch; all existing data-frame behavior (indexing,
+  [`knitr::kable()`](https://rdrr.io/pkg/knitr/man/kable.html), the
+  reporting engine) is unchanged.
+- `ggplot2` moved from Suggests to Imports (the plot methods use it at
+  run time), at `>= 3.4.0` because they use `linewidth`, which 3.3.x
+  ignores.
+
+### Time-to-event (survival) outcomes
+
+- **New `"survival"` outcome family for data setup.**
+  [`set_ipd()`](https://choxos.github.io/mlumr/reference/set_ipd.md)
+  accepts time-to-event data, and
+  **[`set_agd_surv()`](https://choxos.github.io/mlumr/reference/set_agd_surv.md)**
+  takes the comparator arm as reconstructed pseudo-IPD (event and
+  censoring times digitized from a published Kaplan-Meier curve)
+  together with its covariate moments.
+  [`combine_data()`](https://choxos.github.io/mlumr/reference/combine_data.md)
+  and
+  [`add_integration()`](https://choxos.github.io/mlumr/reference/add_integration.md)
+  carry the family through.
+
+- **Frequentist benchmarks for survival**:
+  [`naive()`](https://choxos.github.io/mlumr/reference/naive.md) returns
+  an unadjusted Cox log hazard ratio, and
+  [`stc()`](https://choxos.github.io/mlumr/reference/stc.md) performs
+  parametric G-computation of the RMST difference using the `flexsurv`
+  package (a suggested dependency).
+  [`stc()`](https://choxos.github.io/mlumr/reference/stc.md) takes an
+  `rmst_horizon` argument, since its own default is the pooled maximum
+  observed time while a stratified flexible
+  [`mlumr()`](https://choxos.github.io/mlumr/reference/mlumr.md)
+  baseline defaults to the follow-up both studies observed; the two are
+  different estimands. Note that
+  [`naive()`](https://choxos.github.io/mlumr/reference/naive.md) is on
+  the **log** scale, so it is not directly comparable with
+  `marginal_effects(effect = "hr")` unless exponentiated.
+
+- **Survival [`stc()`](https://choxos.github.io/mlumr/reference/stc.md)
+  uncertainty is a nonparametric bootstrap**, not the delta method the
+  other families use: the RMST is an integral of a fitted survival
+  function and has no convenient closed-form variance. `n_boot` (default
+  200, `0` for a point estimate with no interval) and `seed` control it,
+  and the seed is restored on exit so the caller’s RNG stream is
+  untouched. `n_boot = 1` is rejected, because the standard error of a
+  single resample is undefined and was otherwise indistinguishable from
+  every resample having failed.
+
+- **`survival_unit` for LOO and WAIC.**
+  [`calculate_loo()`](https://choxos.github.io/mlumr/reference/calculate_loo.md),
+  [`calculate_waic()`](https://choxos.github.io/mlumr/reference/calculate_waic.md),
+  and
+  [`compare_models()`](https://choxos.github.io/mlumr/reference/compare_models.md)
+  gain a `survival_unit` argument controlling what one pointwise unit is
+  for a survival fit. The comparator arm enters as reconstructed
+  pseudo-individuals, so the default `"observation"` holds out one
+  pseudo-individual at a time and is optimistic: the pseudo-IPD are a
+  digitization of a single published curve, not independent
+  observations. `"arm"` groups them so each external arm is one held-out
+  unit, and `"aggregate"` treats all comparator pseudo-IPD as a single
+  external-evidence unit. The index IPD always stay per-individual.
+
+- **Regression coefficients are labeled by covariate name.**
+  [`summary()`](https://rdrr.io/r/base/summary.html) on a fit now prints
+  `beta[age]` rather than `beta[1]` (and `beta_index[age]` /
+  `beta_comparator[age]` for relaxed fits). The underlying `variable`
+  strings in `fit$summary` are unchanged, so code that indexes on
+  `beta[1]` keeps working.
+
+- **HTA prediction suite** from
+  [`predict()`](https://rdrr.io/r/stats/predict.html) on a survival fit:
+  `type = "survival"`, `"hazard"`, `"cumhaz"`, `"rmst"` (restricted mean
+  survival time), `"median"`, and `"loghr"` (the time-varying marginal
+  log hazard ratio curve, null 0). `predict(type = "median")` carries a
+  `p_not_reached` column reporting the posterior probability that the
+  median is beyond follow-up.
+  [`conditional_effects()`](https://choxos.github.io/mlumr/reference/conditional_effects.md)
+  /
+  [`conditional_predict()`](https://choxos.github.io/mlumr/reference/conditional_predict.md)
+  give covariate-conditional contrasts and survival curves.
+
+- **[`marginal_effects()`](https://choxos.github.io/mlumr/reference/marginal_effects.md)
+  reports natural-scale survival effects** (null 1): the hazard ratio
+  (`HR`) for proportional-hazards distributions, the time ratio (`TR`)
+  for AFT distributions with one shared shape and one shared coefficient
+  vector, or the exponentiated linear-predictor contrast
+  (`EXP_DELTA_ETA`) where neither holds. Plus the RMST difference
+  (`RMSTD`, null 0) and RMST ratio (`RMSTR`).
+
+- **A scalar hazard ratio never travels without its evaluation time.**
+  Marginal hazard ratios are non-collapsible and generally time-varying,
+  so
+  [`marginal_effects()`](https://choxos.github.io/mlumr/reference/marginal_effects.md)
+  carries an `at_time` column, reported as `0` for the closed-form
+  `t -> 0` limit under a shared baseline shape and as the evaluation
+  time under study-specific shapes. For the whole curve use
+  `predict(type = "loghr")`; the RMST-based effects are collapsible and
+  free of this entirely.
+
+- **RMST results carry their restriction time.** RMST is an integral to
+  a horizon, so results computed to different horizons are different
+  estimands and must not be pooled. `predict(type = "rmst")` and the
+  `RMSTD` / `RMSTR` rows of
+  [`marginal_effects()`](https://choxos.github.io/mlumr/reference/marginal_effects.md)
+  report a `horizon` column.
+
+- **An effect that is not available is an error, not a substitution.**
+  With an AFT distribution and study-specific shapes, the exponentiated
+  contrast is not a time ratio, and the same applies to any relaxed AFT
+  fit even with shared shapes. An explicit `effect = "hr"` / `"tr"`
+  request stops in these cases and names the alternative rather than
+  returning a differently-named quantity.
+
+- **Parametric and flexible baselines** via the `distribution` argument
+  to [`mlumr()`](https://choxos.github.io/mlumr/reference/mlumr.md):
+
+  - Proportional hazards: `"exponential"`, `"weibull"` (default),
+    `"gompertz"` (positive-shape, increasing-hazard parameterization).
+  - Accelerated failure time: `"exponential-aft"`, `"weibull-aft"`,
+    `"lognormal"`, `"loglogistic"`, `"gamma"`, `"gengamma"` (the
+    positive-`Q` Lawless generalized gamma subfamily; negative-`Q`
+    shapes are not covered).
+  - Flexible baseline hazard: `"mspline"` (M-spline) and `"pexp"`
+    (piecewise exponential), with a random-walk smoothing prior.
+
+- **New priors**
+  [`default_prior_aux()`](https://choxos.github.io/mlumr/reference/default_priors.md)
+  (shape/scale parameters) and
+  [`default_prior_smooth()`](https://choxos.github.io/mlumr/reference/default_priors.md)
+  (M-spline smoothing SD), configurable via the `prior_aux` and
+  `prior_smooth` arguments to
+  [`mlumr()`](https://choxos.github.io/mlumr/reference/mlumr.md).
+  **[`make_knots()`](https://choxos.github.io/mlumr/reference/make_knots.md)**
+  places M-spline knots, and the `knots` argument accepts a custom
+  placement.
+
+- **The baseline hazard is estimated per study by default.**
+  [`mlumr()`](https://choxos.github.io/mlumr/reference/mlumr.md) gains
+  `aux_by`, defaulting to `".study"`: the index and comparator studies
+  get their own M-spline coefficients (or their own parametric shape
+  parameters) rather than sharing one shape, matching what
+  [`multinma::nma()`](https://dmphillippo.github.io/multinma/reference/nma.html)
+  does. Sharing one baseline across both studies is `aux_by = "none"`.
+  Two single-arm trials rarely share a hazard shape, and assuming they
+  do imposes proportional hazards *across studies*, which no
+  randomization supports.
+
+  Each stratum gets its own knots over its own observed support. This is
+  required for identification, not a refinement: with one pooled basis
+  spanning the longer study, a shorter study can have basis functions it
+  never observes, leaving a flat likelihood direction that the prior
+  rather than the data resolves.
+
+- **Censoring support** in
+  [`set_ipd()`](https://choxos.github.io/mlumr/reference/set_ipd.md):
+  right, left, interval, and delayed entry (left truncation) via a
+  [`survival::Surv()`](https://rdrr.io/pkg/survival/man/Surv.html)
+  object. The `time`/`status`/`entry_time` column route covers
+  right-censoring (status `0`/`1`) and optional delayed entry; supply a
+  `Surv` object for left- or interval-censored data.
+
+- `outcome` is no longer required for `family = "survival"`, which uses
+  `Surv`/`time`/`status` instead. It is still required for the other
+  families, and its absence is now reported as such.
+
+### Identifying the relaxed model’s comparator coefficients
+
+- **New
+  [`check_identification()`](https://choxos.github.io/mlumr/reference/check_identification.md)**:
+  how much aggregate evidence does `model = "relaxed"` need before its
+  index-population estimate is data-driven rather than prior-driven? In
+  the relaxed model `beta_comparator` is identified only by the
+  aggregate likelihood, so the answer is fixed by the aggregate subgroup
+  rows before any model is fitted.
+
+  Each aggregate row contributes one constraint and the comparator side
+  has `K + 1` unknowns (the intercept counts), so `S >= K + 1` rows are
+  necessary. They are not sufficient: the rows must also differ in
+  **every** covariate direction.
+  [`check_identification()`](https://choxos.github.io/mlumr/reference/check_identification.md)
+  measures that directly, reporting `cond_inv` (smallest over largest
+  singular value of the centered, IPD-scaled subgroup-mean matrix) and a
+  continuous count of usable directions. Subgroups reported one variable
+  at a time never exceed one usable direction however many are
+  published.
+
+  For a nonlinear mean model the report is labeled descriptive only:
+  subgroup means do not determine the likelihood geometry there, because
+  the within-row distributions also affect the integrated response.
+
+- **New `prior_beta_comparator` argument** to
+  [`mlumr()`](https://choxos.github.io/mlumr/reference/mlumr.md) lets
+  the relaxed model use a separate (typically tighter) prior on
+  `beta_comparator`, which regularizes the index-population estimand
+  that would otherwise extrapolate weakly-identified coefficients over
+  the IPD covariate distribution. Defaults to `prior_beta` (so behavior
+  matches earlier versions); ignored for `model = "spfa"`. Surfaced
+  separately by
+  [`prior_summary()`](https://choxos.github.io/mlumr/reference/prior_summary.md)
+  and reused by
+  [`prior_sensitivity()`](https://choxos.github.io/mlumr/reference/prior_sensitivity.md).
+  All five relaxed Stan models take `prior_beta_comparator_mean` / `_sd`
+  / `_dist` / `_df`, so the comparator coefficients can use a fully
+  independent prior including a different family from `beta_index` (for
+  example a heavy-tailed Student-t for regularization).
+
+- **The weak-identifiability warning no longer counts a duplicated row
+  as evidence.** Version 0.1.0 warned when `n_agd_rows < 2 * n_cov`, so
+  repeating a
+  [`set_agd()`](https://choxos.github.io/mlumr/reference/set_agd.md) row
+  silenced it without adding anything. What replaces the count depends
+  on the link, because what a row contributes does. Under an identity
+  link the mean profiles are the design, so the warning triggers on the
+  rank of that design. Under any other link the integrated response
+  depends on each row’s whole covariate distribution, and two rows with
+  equal means but different spreads do carry different constraints, so
+  mean rank would understate the evidence; there the warning triggers on
+  the number of rows that do not repeat another’s integration grid, a
+  bound that holds under every link because a repeated grid gives an
+  identical likelihood term.
+
+### Covariate distributions
+
+- **New moment-parameterized marginal distributions**, mirroring the
+  ones `multinma` exports so a published baseline table can be used as
+  printed:
+  [`qgamma()`](https://choxos.github.io/mlumr/reference/GammaDist.md) /
+  [`pgamma()`](https://choxos.github.io/mlumr/reference/GammaDist.md) /
+  [`dgamma()`](https://choxos.github.io/mlumr/reference/GammaDist.md)
+  and
+  [`qlogitnorm()`](https://choxos.github.io/mlumr/reference/logitNormal.md)
+  /
+  [`plogitnorm()`](https://choxos.github.io/mlumr/reference/logitNormal.md)
+  /
+  [`dlogitnorm()`](https://choxos.github.io/mlumr/reference/logitNormal.md).
+  All accept a `mean` and `sd` that override the native parameters
+  (`shape`/`rate` for the gamma, `mu`/`sigma` on the logit scale for the
+  logit-normal), so `distr(qgamma, mean = age_mean, sd = age_sd)` works
+  directly in
+  [`add_integration()`](https://choxos.github.io/mlumr/reference/add_integration.md)
+  instead of requiring a hand conversion to shape and rate. Without
+  `mean` and `sd` they forward to unchanged, so they are drop-in safe.
+  The logit-normal is the natural marginal for a covariate reported as a
+  proportion, such as percent body surface area.
+
+  Both parameterizations validate what they are given. `mean` and `sd`
+  must be supplied together (half a moment specification is an error,
+  not a silent fallback to the native defaults). A gamma needs both
+  strictly positive and finite: a negative SD is not a typo the
+  conversion can absorb, since both `shape` and `rate` square it and
+  `sd = -2` would otherwise return exactly the `sd = 2` distribution. A
+  logit-normal mean must lie strictly inside `(0, 1)` and its SD must
+  satisfy `sd^2 < mean * (1 - mean)`, the bound any variable on `(0, 1)`
+  obeys. Supplying a conflicting `rate` and `scale` is refused rather
+  than resolved in favor of one of them.
+
+  The logit-normal moment reparameterization has no closed form and is
+  solved numerically. The moments are integrated over the latent normal
+  variable rather than over `x` on `(0, 1)`, where a concentrated margin
+  is a narrow spike that adaptive quadrature steps over; the search runs
+  on `log(sigma)` so the scale cannot go negative, starts from the
+  delta-method approximation on the logit scale, and repeats until a
+  restart stops improving, because Nelder-Mead reports convergence when
+  its simplex collapses rather than when it has arrived. The recovered
+  moments are then checked against the target, relative to the target
+  rather than absolutely, instead of the optimizer’s convergence flag
+  being trusted on its own.
+
+### Example data
+
+- **The worked examples are built on datasets derived from published
+  trials**, replacing the freely invented datasets used in version
+  0.1.0’s vignettes. Provenance differs by example and is stated in each
+  dataset’s help page. The plaque psoriasis data are redistributed from
+  `multinma`, where the individual patient data are themselves simulated
+  to resemble the published trial. The shoulder pain and dental caries
+  data are synthetic, generated with `synthpop` from openly licensed
+  trial data.
+
+- `psoriasis_ipd` / `psoriasis_agd` (binary), `shoulder_ipd` /
+  `shoulder_agd` (continuous), `caries_ipd` / `caries_agd` (count), and
+  `ndmm_ipd` / `ndmm_agd` / `ndmm_agd_covs` (survival, newly diagnosed
+  multiple myeloma, also redistributed from `multinma`).
+  `data-raw/prepare_multinma_subsets.R` reproduces every bundled
+  dataset.
+
+- `psoriasis_ipd$prevsys` is `integer` 0/1 rather than `logical`,
+  matching every other binary covariate in the bundled sets.
+  [`set_ipd()`](https://choxos.github.io/mlumr/reference/set_ipd.md)
+  declines a logical covariate, so the pair previously could not be used
+  without coercing it first. The values are unchanged, and no dataset
+  shipped in 0.1.0.
+
+- Each help page now records the covariates that look wrong but are not:
+  `caries_ipd$exposure` is the poisson offset that
+  [`set_ipd()`](https://choxos.github.io/mlumr/reference/set_ipd.md)
+  requires, constant at 1 because `dmft` is a whole-mouth count with no
+  time at risk; `caries_ipd$log_cfu` is bimodal, with 9 of 103 values at
+  exactly zero; `psoriasis_ipd$weight` is missing for 2 of 347 rows; and
+  the shoulder and caries pairs share one `study` label across their IPD
+  and AgD halves because each pair is two arms of one trial, so the
+  [`combine_data()`](https://choxos.github.io/mlumr/reference/combine_data.md)
+  warning about it is expected.
+
+### Performance
+
+- The binary, continuous, and count IPD likelihoods now use Stan’s fused
+  **GLM density functions** (`bernoulli_logit_glm`, `normal_id_glm`,
+  `poisson_log_glm`) on their canonical links (logit / identity / log);
+  these carry analytic gradients and are faster than the equivalent
+  `_lpdf` forms. Non-canonical links (probit, cloglog, log-normal) are
+  unchanged. They are statistically equivalent to the 0.1.0
+  implementation: results match up to Monte Carlo error.
+- Models **center the covariates** by default: the IPD design matrix and
+  the comparator integration grid are shifted to their pooled covariate
+  mean before fitting. This removes an intercept-versus-slope
+  collinearity that, on real-scale covariates (for example age in
+  years), could push the NUTS sampler into very deep (max-treedepth)
+  trajectories and dramatically slow fits. The shift is
+  estimand-invariant for the reported effects (the intercept absorbs it,
+  so all population-standardized contrasts are unchanged) and is applied
+  transparently to [`predict()`](https://rdrr.io/r/stats/predict.html),
+  [`conditional_effects()`](https://choxos.github.io/mlumr/reference/conditional_effects.md),
+  and
+  [`conditional_predict()`](https://choxos.github.io/mlumr/reference/conditional_predict.md).
+  It is not prior-invariant: `prior_intercept` then applies to the
+  intercept at the pooled covariate mean, so intercepts and intercept
+  prior-versus-posterior plots are on a different scale from an
+  uncentered fit. `center = FALSE` restores the raw-scale
+  parameterization, and `qr = TRUE` offers a QR-rotated design as an
+  alternative conditioning fix.
+
+### Documentation
+
+- Reorganized the vignettes into nine outcome-focused guides:
+  `introduction`, `data-preparation`, `binary-outcomes`,
+  `continuous-outcomes`, `count-outcomes`, `survival-outcomes`,
+  `subgroup-identification`, `fitting-and-diagnostics`, and
+  `choosing-a-method`.
+- The modeling vignettes use the bundled example data and show complete
+  output: posterior summary and effect tables, forest plots, survival
+  and Kaplan-Meier curves, and posterior diagnostic plots.
+- To keep checks fast, those vignettes are precompiled, following
+  multinma’s pattern: the Stan models are fitted once locally through
+  `vignettes/precompile.R` and the rendered HTML ships through the
+  `R.rsp` engine, so no Stan model runs at build or check time. The
+  prebuilt `*.html` and their `*.html.asis` registration stubs are
+  tracked and included in the build.
+- The binary-outcomes vignette covers quasi-complete separation, handled
+  with a heavy-tailed coefficient prior
+  ([`prior_student_t()`](https://choxos.github.io/mlumr/reference/prior_student_t.md)
+  /
+  [`prior_cauchy()`](https://choxos.github.io/mlumr/reference/prior_cauchy.md)),
+  following Gelman et al. (2008).
+- Covariate marginals follow multinma’s own examples
+  (`example_plaque_psoriasis.Rmd`, `example_ndmm.Rmd`): gamma for skewed
+  continuous covariates, logit-normal for proportions, Bernoulli for
+  binary, with age in years and weight in kilograms. Each vignette fits
+  both the prognostic-only model and the one with treatment
+  interactions, and the anchored cross-check does the same with
+  `multinma`.
+- The vignettes are self-contained. Each opens with a visible
+  [`library(mlumr)`](https://github.com/choxos/mlumr) and
+  `options(mc.cores = ...)` chunk and otherwise uses exported functions,
+  so every line producing a displayed result is printed in the vignette
+  itself and the visible chunks are meant to run in a new session. The
+  identification vignette additionally calls one internal diagnostic
+  helper. The survival vignette leads with the M-spline baseline,
+  matching multinma’s NDMM example, and adds a relaxed-model
+  effect-modification section.
+
+### Dependencies
+
+- Added `splines2` and `survival` to Imports, and `flexsurv` to
+  Suggests; the survival STC G-computation uses `flexsurv` when it is
+  available.
+- Moved `ggplot2` from Suggests to Imports. The
+  [`plot()`](https://rdrr.io/r/graphics/plot.default.html) methods,
+  [`mlumr_forest()`](https://choxos.github.io/mlumr/reference/mlumr_forest.md),
+  [`geom_km()`](https://choxos.github.io/mlumr/reference/geom_km.md),
+  and
+  [`plot_prior_posterior()`](https://choxos.github.io/mlumr/reference/plot_prior_posterior.md)
+  build ggplot objects at run time rather than only in examples.
+- Added `multinma` (the anchored cross-check in the vignettes),
+  `ggsurvfit` (the observed Kaplan-Meier displays), and `R.rsp` (the
+  precompiled-vignette engine) to Suggests, and `R.rsp` to
+  `VignetteBuilder`.
+
+### Package logo
+
+- **New hex-sticker logo** using a broken-anchor motif, for the
+  unanchored comparison. Built with `hexSticker` and the Ubuntu font.
+
 ## mlumr 0.1.0
+
+CRAN release: 2026-05-20
 
 Initial CRAN release.
 
@@ -122,7 +882,7 @@ Initial CRAN release.
   including post-autoscale per-coefficient scales.
 - [`prior_sensitivity()`](https://choxos.github.io/mlumr/reference/prior_sensitivity.md)
   refits a model across a grid of `prior_beta` scales and returns a
-  posterior-summary table — the workflow recommended by Vehtari et al.’s
+  posterior-summary table; the workflow recommended by Vehtari et al.’s
   prior-choice wiki for judging data- vs prior-driven inference.
 
 ### Inference helpers
@@ -153,7 +913,7 @@ Initial CRAN release.
 - [`compare_models()`](https://choxos.github.io/mlumr/reference/compare_models.md)
   accepts `criterion = c("dic", "loo", "waic")`, defaulting to `"dic"`.
 - All six Stan models produce pointwise log-likelihood vectors
-  (`log_lik_ipd`, `log_lik_agd`) — the standard contract for
+  (`log_lik_ipd`, `log_lik_agd`); the standard contract for
   [`loo::loo()`](https://mc-stan.org/loo/reference/loo.html) /
   [`loo::waic()`](https://mc-stan.org/loo/reference/waic.html).
 

@@ -2,7 +2,11 @@
 
 Compare integration results at the current `n_int` against a doubled
 resolution to assess numerical accuracy. Large discrepancies indicate
-that `n_int` should be increased.
+that `n_int` should be increased. Because the Sobol sequence is nested
+(the doubled set contains the current set), this current-vs-doubled
+difference is a convergence heuristic, not an error bound. Agreement
+between the two grids does not establish accuracy for rare discrete
+margins or for a final treatment-effect estimand.
 
 ## Usage
 
@@ -54,6 +58,12 @@ check_integration(
 ## Value
 
 A list with components `marginals` (the original data frame returned by
-previous versions) and, if `check_joint = TRUE`, `correlations` – a data
+previous versions) and, if `check_joint = TRUE`, `correlations`, a data
 frame of pairwise covariate correlations at the current and doubled
 `n_int` for each AgD row. Printed with a pass/warn verdict.
+
+The `verdict` component reports `"stable"` / `"close"` when a comparison
+was made and met the heuristic, `"review"` when it did not, and
+`"unavailable"` when there was nothing finite to compare. A declared
+target the AgD does not supply, or a latent Gaussian-copula correlation
+(`cor_adjust = "none"`), gives `"unavailable"` rather than a pass.

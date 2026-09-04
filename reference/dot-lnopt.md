@@ -1,0 +1,26 @@
+# Solve for one logit-normal (mu, sigma) from a mean and SD
+
+Starts from the delta-method approximation on the logit scale rather
+than from the target moments themselves, which live on a different scale
+and make a poor starting point, and verifies that the recovered moments
+actually reproduce the target before returning.
+
+## Usage
+
+``` r
+.lnopt(m, s, tol = 1e-04)
+```
+
+## Details
+
+Nelder-Mead reports convergence when its simplex has collapsed, which on
+this objective happens well short of the target: from a single pass, 27
+of 77 mean and SD pairs spanning the feasible region were still off by
+more than 1e-6, the worst by 6e-3. Restarting rebuilds the simplex
+around the current point, so the search is repeated until a restart no
+longer improves the objective. That leaves every one of the 77 within
+2e-12, for a mean of under four passes.
+
+`tol` is relative to each target moment. It was absolute at 1e-3, which
+for `mean = 0.0005, sd = 0.0004` is larger than either target, so the
+check accepted a solution with mean 0.00147 and SD 0.00139 in silence.

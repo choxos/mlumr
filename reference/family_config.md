@@ -46,5 +46,15 @@ Fields:
 - `comp_weight_field`:
 
   Name of the Stan-data field used to weight the comparator-population
-  marginal predictions (`n_agd` for binomial, `E_agd` for poisson,
-  `NULL` for normal = equal weights).
+  marginal predictions. Must name the same field the family's Stan
+  `generated quantities` block weights by, otherwise the R-side
+  link-scale path in
+  [`predict.mlumr_fit()`](https://choxos.github.io/mlumr/reference/predict.mlumr_fit.md)
+  would average over a different target population than the Stan-side
+  response-scale predictions and
+  [`marginal_effects()`](https://choxos.github.io/mlumr/reference/marginal_effects.md).
+  Currently `n_agd` (binomial), `E_agd` (poisson), `agd_weight` (normal;
+  required sample sizes for multiple rows, or one for a single row
+  without `outcome_n`), and `NULL` for survival, whose comparator
+  population is the pooled pseudo-IPD rather than a weighted mixture of
+  aggregate rows.

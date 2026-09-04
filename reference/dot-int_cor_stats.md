@@ -5,5 +5,12 @@ Pairwise-correlation diagnostics for integration points
 ## Usage
 
 ``` r
-.int_cor_stats(X_orig, X_double, cov_names, n_agd, cor_target = NULL)
+.int_cor_stats(
+  X_orig,
+  X_double,
+  cov_names,
+  n_agd,
+  cor_target = NULL,
+  cor_method = "pearson"
+)
 ```

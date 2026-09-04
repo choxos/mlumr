@@ -3,7 +3,7 @@
 Cauchy is Student-t with `df = 1`; this constructor is a convenience
 wrapper around
 [`prior_student_t()`](https://choxos.github.io/mlumr/reference/prior_student_t.md).
-It has very heavy tails and should be used with care — modern
+It has very heavy tails and should be used with care; modern
 recommendations generally prefer `prior_student_t(df in 3:7, ...)` over
 Cauchy for regression coefficients to keep sampling well-behaved (see
 Piironen & Vehtari on the horseshoe; Ghosh et al. 2015).

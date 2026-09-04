@@ -34,12 +34,19 @@ set_agd(
 
 - family:
 
-  Outcome family: `"binomial"`, `"normal"`, or `"poisson"`
+  Outcome family: `"binomial"`, `"normal"`, or `"poisson"`.
+  Time-to-event comparator data go to
+  [`set_agd_surv()`](https://choxos.github.io/mlumr/reference/set_agd_surv.md)
+  instead, which takes reconstructed pseudo-IPD rather than a scalar
+  outcome summary.
 
 - outcome_n:
 
-  Column name for sample size (required for binomial, optional for
-  normal)
+  Column name for sample size. Required for binomial. For normal,
+  required when there is more than one aggregate row, because the
+  comparator-population estimand is the size-weighted mixture of those
+  rows and they cannot be combined without knowing how large each is;
+  optional for a single row, where the weighting is irrelevant.
 
 - outcome_r:
 
@@ -80,6 +87,23 @@ set_agd(
 An object of class `mlumr_agd`
 
 ## Details
+
+**Rows must partition the aggregate sample, not overlap it.** Every row
+contributes its own factor to the aggregate likelihood, which multiplies
+them as if they came from disjoint sets of patients. That is correct
+when the rows are one arm, or a set of mutually exclusive, jointly
+defined subgroup cells (for example the four cells of sex crossed with
+prior therapy). It is wrong when a publication reports several
+*overlapping* subgroup tables over the same participants, as when age
+bands, sex, and disease severity are each tabulated separately.
+Supplying those together counts every patient once per table, and the
+posterior becomes correspondingly overconfident: the intervals shrink
+because the model believes it has seen several independent studies.
+Nothing in the data identifies the overlap, so `set_agd()` cannot detect
+this and does not try. Choose one partition of the comparator sample and
+use only its rows. See
+[`vignette("subgroup-identification", "mlumr")`](https://choxos.github.io/mlumr/articles/subgroup-identification.md)
+for how many such rows the relaxed model needs.
 
 **Scale assumptions for `family = "normal"`.** The AgD likelihood is
 `y_agd ~ normal(E[exp(eta)], se_agd)` under `link = "log"` and

@@ -15,6 +15,7 @@ fit_cmdstanr(
   adapt_delta,
   max_treedepth,
   refresh,
+  verbose = TRUE,
   ...
 )
 ```

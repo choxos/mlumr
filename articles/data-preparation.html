@@ -5,27 +5,26 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Data Preparation and Integration • mlumr</title>
-<!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="../favicon-96x96.png">
-<link rel="icon" type="”image/svg+xml”" href="../favicon.svg">
-<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
-<link rel="icon" sizes="any" href="../favicon.ico">
-<link rel="manifest" href="../site.webmanifest">
-<script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<title>Preparing data and integration points • mlumr</title>
+<!-- katex math --><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script><script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script><script src="../katex-auto.js"></script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Inter-0.4.10/font.css" rel="stylesheet">
+<link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet">
+<link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Data Preparation and Integration">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet">
+<meta property="og:title" content="Preparing data and integration points">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
-    <nav class="navbar navbar-expand-lg fixed-top bg-light" data-bs-theme="light" aria-label="Site navigation"><div class="container">
+    <nav class="navbar navbar-expand-lg fixed-top " aria-label="Site navigation"><div class="container">
 
     <a class="navbar-brand me-2" href="../index.html">mlumr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -34,16 +33,23 @@
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
+<li class="nav-item"><a class="nav-link" href="https://choxos.github.io/mlumr/app" aria-label="mlumr web app (in-browser playground)"><span class="fa fa-rocket"></span> Web app</a></li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="nav-item dropdown">
+<li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/data-preparation.html">Data Preparation and Integration</a></li>
+<li><h6 class="dropdown-header" data-toc-skip>Getting started</h6></li>
     <li><a class="dropdown-item" href="../articles/introduction.html">Introduction to mlumr</a></li>
-    <li><a class="dropdown-item" href="../articles/mlumr-models.html">Fitting ML-UMR Models</a></li>
-    <li><a class="dropdown-item" href="../articles/model-comparison.html">Comparing ML-UMR, STC, and Naive Methods</a></li>
-    <li><a class="dropdown-item" href="../articles/stc-and-naive.html">STC and Naive Benchmarks</a></li>
-    <li><a class="dropdown-item" href="../articles/worked-example.html">Worked Example: Complete Analysis</a></li>
+    <li><a class="dropdown-item" href="../articles/data-preparation.html">Preparing data and integration points</a></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Outcome types</h6></li>
+    <li><a class="dropdown-item" href="../articles/binary-outcomes.html">Binary outcomes</a></li>
+    <li><a class="dropdown-item" href="../articles/continuous-outcomes.html">Continuous outcomes</a></li>
+    <li><a class="dropdown-item" href="../articles/count-outcomes.html">Count outcomes</a></li>
+    <li><a class="dropdown-item" href="../articles/survival-outcomes.html">Survival (time-to-event) outcomes</a></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Methods</h6></li>
+    <li><a class="dropdown-item" href="../articles/fitting-and-diagnostics.html">Fitting, priors, and diagnostics</a></li>
+    <li><a class="dropdown-item" href="../articles/choosing-a-method.html">Choosing a method: ML-UMR, STC, and naive</a></li>
+    <li><a class="dropdown-item" href="../articles/subgroup-identification.html">Aggregate subgroup information for the relaxed model</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -52,6 +58,14 @@
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-lightswitch" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true" aria-label="Light switch"><span class="fa fa-sun"></span></button>
+  <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdown-lightswitch">
+<li><button class="dropdown-item" data-bs-theme-value="light"><span class="fa fa-sun"></span> Light</button></li>
+    <li><button class="dropdown-item" data-bs-theme-value="dark"><span class="fa fa-moon"></span> Dark</button></li>
+    <li><button class="dropdown-item" data-bs-theme-value="auto"><span class="fa fa-adjust"></span> Auto</button></li>
+  </ul>
+</li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/choxos/mlumr/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul>
 </div>
@@ -65,780 +79,69 @@
 
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
-      <img src="../logo.png" class="logo" alt=""><h1>Data Preparation and Integration</h1>
+      <img src="../logo.svg" class="logo" alt=""><h1>Preparing data and integration points</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/choxos/mlumr/blob/HEAD/vignettes/data-preparation.Rmd" class="external-link"><code>vignettes/data-preparation.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/choxos/mlumr/blob/main/vignettes/data-preparation.Rmd" class="external-link"><code>vignettes/data-preparation.Rmd</code></a></small>
       <div class="d-none name"><code>data-preparation.Rmd</code></div>
     </div>
 
     
     
-<div class="section level2">
-<h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
-</h2>
-<p>Before fitting any model in mlumr, you need to:</p>
+<p>Every mlumr analysis follows the same four-step pipeline. This
+vignette covers the <strong>family-agnostic</strong> machinery,
+combining IPD and AgD and, above all, the numerical integration that
+powers population adjustment. The exact <code><a href="../reference/set_ipd.html">set_ipd()</a></code> /
+<code><a href="../reference/set_agd.html">set_agd()</a></code> arguments for each outcome family are shown, with
+complete runnable examples, in the per-outcome vignettes (see the
+reference table below).</p>
 <ol style="list-style-type: decimal">
-<li>Set up the IPD with <code><a href="../reference/set_ipd.html">set_ipd()</a></code>
-</li>
-<li>Set up the AgD with <code><a href="../reference/set_agd.html">set_agd()</a></code>
-</li>
-<li>Combine them with <code><a href="../reference/combine_data.html">combine_data()</a></code>
-</li>
-<li>(For ML-UMR only) Add integration points with
-<code><a href="../reference/add_integration.html">add_integration()</a></code>
-</li>
+<li>
+<code><a href="../reference/set_ipd.html">set_ipd()</a></code>, individual patient data (the index
+treatment)</li>
+<li>
+<code><a href="../reference/set_agd.html">set_agd()</a></code> (or <code><a href="../reference/set_agd_surv.html">set_agd_surv()</a></code> for
+survival), aggregate data (comparator)</li>
+<li>
+<code><a href="../reference/combine_data.html">combine_data()</a></code>, join them into one
+<code>mlumr_data</code> object</li>
+<li>
+<code><a href="../reference/add_integration.html">add_integration()</a></code>, quasi-Monte Carlo integration points
+(ML-UMR only)</li>
 </ol>
-</div>
 <div class="section level2">
-<h2 id="setting-up-ipd">Setting up IPD<a class="anchor" aria-label="anchor" href="#setting-up-ipd"></a>
+<h2 id="the-pipeline-illustrated-on-a-binary-endpoint">The pipeline (illustrated on a binary endpoint)<a class="anchor" aria-label="anchor" href="#the-pipeline-illustrated-on-a-binary-endpoint"></a>
 </h2>
-<p>IPD should be a data frame with one row per patient, containing:</p>
-<ul>
-<li>A treatment indicator column</li>
-<li>An outcome column (binary 0/1, continuous numeric, or non-negative
-integer counts depending on <code>family</code>)</li>
-<li>Covariate columns</li>
-<li>For Poisson family: an exposure column</li>
-</ul>
+<p>The four steps below build a complete <code>mlumr_data</code> object
+from a binary IPD trial and a one-row aggregate comparator; the sections
+that follow explain each piece (covariate naming, integration,
+correlation) in detail:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/choxos/mlumr" class="external-link">mlumr</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Example: Trial A data (index treatment)</span></span>
+<span><span class="co"># IPD (index): one row per patient</span></span>
 <span><span class="va">trial_a</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  patient_id <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">500</span>,</span>
 <span>  treatment <span class="op">=</span> <span class="st">"Drug_A"</span>,</span>
 <span>  response <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="fl">500</span>, <span class="fl">1</span>, <span class="fl">0.6</span><span class="op">)</span>,</span>
-<span>  age_group <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="fl">500</span>, <span class="fl">1</span>, <span class="fl">0.4</span><span class="op">)</span>,   <span class="co"># 0 = young, 1 = old</span></span>
-<span>  sex <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="fl">500</span>, <span class="fl">1</span>, <span class="fl">0.55</span><span class="op">)</span>          <span class="co"># 0 = male, 1 = female</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">ipd</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_ipd.html">set_ipd</a></span><span class="op">(</span></span>
-<span>  data <span class="op">=</span> <span class="va">trial_a</span>,</span>
-<span>  treatment <span class="op">=</span> <span class="st">"treatment"</span>,</span>
-<span>  outcome <span class="op">=</span> <span class="st">"response"</span>,</span>
-<span>  covariates <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age_group"</span>, <span class="st">"sex"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">ipd</span></span>
-<span><span class="co">#&gt; $data</span></span>
-<span><span class="co">#&gt;        .study   .trt .outcome age_group sex</span></span>
-<span><span class="co">#&gt; 1   IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 2   IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 3   IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 4   IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 5   IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 6   IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 7   IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 8   IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 9   IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 10  IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 11  IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 12  IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 13  IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 14  IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 15  IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 16  IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 17  IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 18  IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 19  IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 20  IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 21  IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 22  IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 23  IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 24  IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 25  IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 26  IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 27  IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 28  IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 29  IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 30  IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 31  IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 32  IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 33  IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 34  IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 35  IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 36  IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 37  IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 38  IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 39  IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 40  IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 41  IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 42  IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 43  IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 44  IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 45  IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 46  IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 47  IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 48  IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 49  IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 50  IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 51  IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 52  IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 53  IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 54  IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 55  IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 56  IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 57  IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 58  IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 59  IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 60  IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 61  IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 62  IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 63  IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 64  IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 65  IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 66  IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 67  IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 68  IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 69  IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 70  IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 71  IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 72  IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 73  IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 74  IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 75  IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 76  IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 77  IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 78  IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 79  IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 80  IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 81  IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 82  IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 83  IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 84  IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 85  IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 86  IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 87  IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 88  IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 89  IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 90  IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 91  IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 92  IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 93  IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 94  IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 95  IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 96  IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 97  IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 98  IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 99  IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 100 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 101 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 102 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 103 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 104 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 105 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 106 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 107 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 108 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 109 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 110 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 111 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 112 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 113 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 114 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 115 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 116 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 117 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 118 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 119 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 120 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 121 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 122 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 123 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 124 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 125 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 126 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 127 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 128 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 129 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 130 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 131 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 132 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 133 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 134 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 135 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 136 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 137 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 138 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 139 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 140 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 141 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 142 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 143 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 144 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 145 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 146 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 147 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 148 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 149 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 150 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 151 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 152 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 153 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 154 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 155 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 156 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 157 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 158 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 159 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 160 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 161 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 162 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 163 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 164 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 165 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 166 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 167 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 168 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 169 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 170 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 171 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 172 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 173 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 174 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 175 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 176 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 177 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 178 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 179 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 180 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 181 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 182 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 183 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 184 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 185 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 186 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 187 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 188 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 189 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 190 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 191 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 192 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 193 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 194 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 195 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 196 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 197 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 198 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 199 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 200 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 201 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 202 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 203 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 204 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 205 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 206 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 207 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 208 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 209 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 210 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 211 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 212 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 213 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 214 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 215 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 216 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 217 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 218 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 219 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 220 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 221 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 222 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 223 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 224 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 225 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 226 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 227 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 228 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 229 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 230 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 231 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 232 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 233 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 234 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 235 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 236 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 237 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 238 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 239 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 240 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 241 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 242 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 243 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 244 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 245 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 246 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 247 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 248 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 249 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 250 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 251 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 252 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 253 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 254 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 255 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 256 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 257 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 258 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 259 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 260 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 261 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 262 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 263 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 264 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 265 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 266 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 267 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 268 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 269 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 270 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 271 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 272 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 273 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 274 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 275 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 276 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 277 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 278 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 279 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 280 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 281 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 282 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 283 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 284 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 285 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 286 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 287 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 288 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 289 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 290 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 291 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 292 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 293 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 294 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 295 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 296 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 297 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 298 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 299 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 300 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 301 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 302 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 303 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 304 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 305 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 306 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 307 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 308 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 309 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 310 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 311 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 312 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 313 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 314 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 315 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 316 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 317 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 318 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 319 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 320 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 321 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 322 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 323 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 324 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 325 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 326 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 327 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 328 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 329 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 330 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 331 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 332 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 333 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 334 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 335 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 336 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 337 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 338 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 339 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 340 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 341 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 342 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 343 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 344 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 345 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 346 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 347 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 348 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 349 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 350 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 351 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 352 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 353 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 354 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 355 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 356 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 357 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 358 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 359 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 360 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 361 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 362 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 363 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 364 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 365 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 366 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 367 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 368 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 369 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 370 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 371 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 372 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 373 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 374 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 375 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 376 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 377 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 378 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 379 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 380 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 381 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 382 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 383 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 384 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 385 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 386 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 387 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 388 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 389 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 390 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 391 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 392 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 393 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 394 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 395 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 396 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 397 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 398 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 399 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 400 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 401 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 402 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 403 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 404 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 405 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 406 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 407 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 408 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 409 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 410 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 411 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 412 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 413 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 414 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 415 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 416 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 417 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 418 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 419 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 420 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 421 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 422 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 423 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 424 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 425 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 426 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 427 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 428 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 429 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 430 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 431 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 432 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 433 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 434 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 435 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 436 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 437 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 438 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 439 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 440 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 441 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 442 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 443 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 444 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 445 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 446 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 447 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 448 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 449 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 450 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 451 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 452 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 453 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 454 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 455 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 456 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 457 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 458 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 459 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 460 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 461 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 462 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 463 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 464 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 465 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 466 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 467 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 468 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 469 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 470 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 471 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 472 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 473 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 474 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 475 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 476 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 477 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 478 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 479 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 480 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 481 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 482 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 483 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 484 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 485 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 486 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; 487 IPD_Study Drug_A        0         1   1</span></span>
-<span><span class="co">#&gt; 488 IPD_Study Drug_A        1         1   0</span></span>
-<span><span class="co">#&gt; 489 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 490 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 491 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 492 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 493 IPD_Study Drug_A        1         1   1</span></span>
-<span><span class="co">#&gt; 494 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 495 IPD_Study Drug_A        1         0   1</span></span>
-<span><span class="co">#&gt; 496 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 497 IPD_Study Drug_A        0         0   1</span></span>
-<span><span class="co">#&gt; 498 IPD_Study Drug_A        0         1   0</span></span>
-<span><span class="co">#&gt; 499 IPD_Study Drug_A        1         0   0</span></span>
-<span><span class="co">#&gt; 500 IPD_Study Drug_A        0         0   0</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $n</span></span>
-<span><span class="co">#&gt; [1] 500</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $treatment</span></span>
-<span><span class="co">#&gt; [1] "Drug_A"</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $covariates</span></span>
-<span><span class="co">#&gt; [1] "age_group" "sex"      </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $family</span></span>
-<span><span class="co">#&gt; [1] "binomial"</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $type</span></span>
-<span><span class="co">#&gt; [1] "ipd"</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $n_events</span></span>
-<span><span class="co">#&gt; [1] 303</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; attr(,"class")</span></span>
-<span><span class="co">#&gt; [1] "mlumr_ipd" "list"</span></span></code></pre></div>
-<div class="section level3">
-<h3 id="continuous-outcomes">Continuous outcomes<a class="anchor" aria-label="anchor" href="#continuous-outcomes"></a>
-</h3>
-<p>For continuous outcomes, use <code>family = "normal"</code>. The IPD
-frame needs a numeric outcome column:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">trial_a_normal</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  patient_id <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">500</span>,</span>
-<span>  treatment <span class="op">=</span> <span class="st">"Drug_A"</span>,</span>
-<span>  score <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">500</span>, mean <span class="op">=</span> <span class="fl">3.0</span>, sd <span class="op">=</span> <span class="fl">1.2</span><span class="op">)</span>,</span>
 <span>  age_group <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="fl">500</span>, <span class="fl">1</span>, <span class="fl">0.4</span><span class="op">)</span>,</span>
 <span>  sex <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="fl">500</span>, <span class="fl">1</span>, <span class="fl">0.55</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
+<span><span class="va">ipd</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_ipd.html">set_ipd</a></span><span class="op">(</span><span class="va">trial_a</span>, treatment <span class="op">=</span> <span class="st">"treatment"</span>, outcome <span class="op">=</span> <span class="st">"response"</span>,</span>
+<span>               covariates <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age_group"</span>, <span class="st">"sex"</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">ipd_normal</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_ipd.html">set_ipd</a></span><span class="op">(</span></span>
-<span>  data <span class="op">=</span> <span class="va">trial_a_normal</span>,</span>
-<span>  treatment <span class="op">=</span> <span class="st">"treatment"</span>,</span>
-<span>  outcome <span class="op">=</span> <span class="st">"score"</span>,</span>
-<span>  covariates <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age_group"</span>, <span class="st">"sex"</span><span class="op">)</span>,</span>
-<span>  family <span class="op">=</span> <span class="st">"normal"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="count-outcomes">Count outcomes<a class="anchor" aria-label="anchor" href="#count-outcomes"></a>
-</h3>
-<p>For Poisson count data, use <code>family = "poisson"</code> and
-supply an <code>exposure</code> column:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">trial_a_poisson</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  patient_id <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">500</span>,</span>
-<span>  treatment <span class="op">=</span> <span class="st">"Drug_A"</span>,</span>
-<span>  events <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Poisson.html" class="external-link">rpois</a></span><span class="op">(</span><span class="fl">500</span>, lambda <span class="op">=</span> <span class="fl">0.8</span><span class="op">)</span>,</span>
-<span>  person_years <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fl">500</span>, <span class="fl">0.5</span>, <span class="fl">2.0</span><span class="op">)</span>,</span>
-<span>  age_group <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="fl">500</span>, <span class="fl">1</span>, <span class="fl">0.4</span><span class="op">)</span>,</span>
-<span>  sex <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="fl">500</span>, <span class="fl">1</span>, <span class="fl">0.55</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">ipd_poisson</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_ipd.html">set_ipd</a></span><span class="op">(</span></span>
-<span>  data <span class="op">=</span> <span class="va">trial_a_poisson</span>,</span>
-<span>  treatment <span class="op">=</span> <span class="st">"treatment"</span>,</span>
-<span>  outcome <span class="op">=</span> <span class="st">"events"</span>,</span>
-<span>  covariates <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age_group"</span>, <span class="st">"sex"</span><span class="op">)</span>,</span>
-<span>  family <span class="op">=</span> <span class="st">"poisson"</span>,</span>
-<span>  exposure <span class="op">=</span> <span class="st">"person_years"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="validation">Validation<a class="anchor" aria-label="anchor" href="#validation"></a>
-</h3>
-<p><code><a href="../reference/set_ipd.html">set_ipd()</a></code> checks that:</p>
-<ul>
-<li>All specified columns exist in the data</li>
-<li>The outcome matches the family (binary for binomial, numeric for
-normal, non-negative integers for Poisson)</li>
-<li>Missing values are handled (rows dropped with a warning)</li>
-</ul>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># This will error: non-binary outcome with binomial family</span></span>
-<span><span class="va">bad_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>trt <span class="op">=</span> <span class="st">"A"</span>, outcome <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span>, x <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/set_ipd.html">set_ipd</a></span><span class="op">(</span><span class="va">bad_data</span>, <span class="st">"trt"</span>, <span class="st">"outcome"</span>, <span class="st">"x"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #BBBB00; font-weight: bold;">Error</span><span style="font-weight: bold;">:</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> `outcome` must be binary (0/1) for binomial family</span></span></code></pre></div>
-</div>
-</div>
-<div class="section level2">
-<h2 id="setting-up-agd">Setting up AgD<a class="anchor" aria-label="anchor" href="#setting-up-agd"></a>
-</h2>
-<p>AgD should be a data frame with one row per study/subgroup,
-containing:</p>
-<ul>
-<li>Treatment indicator</li>
-<li>Outcome summaries (depend on <code>family</code>):
-<ul>
-<li>
-<strong>Binomial</strong>: sample size (<code>outcome_n</code>) and
-number of events (<code>outcome_r</code>)</li>
-<li>
-<strong>Normal</strong>: mean outcome (<code>outcome_mean</code>)
-and standard error (<code>outcome_se</code>), optionally sample size
-(<code>outcome_n</code>)</li>
-<li>
-<strong>Poisson</strong>: number of events (<code>outcome_r</code>)
-and total exposure (<code>outcome_E</code>)</li>
-</ul>
-</li>
-<li>Covariate means/proportions</li>
-</ul>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Example: Trial B data (comparator treatment)</span></span>
+<span><span class="co"># AgD (comparator): one row per study, with covariate summaries</span></span>
 <span><span class="va">trial_b</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  study <span class="op">=</span> <span class="st">"Trial_B"</span>,</span>
-<span>  treatment <span class="op">=</span> <span class="st">"Drug_B"</span>,</span>
-<span>  n_total <span class="op">=</span> <span class="fl">400</span>,</span>
-<span>  n_events <span class="op">=</span> <span class="fl">160</span>,</span>
-<span>  age_group_mean <span class="op">=</span> <span class="fl">0.35</span>,   <span class="co"># proportion in "old" group</span></span>
-<span>  sex_prop <span class="op">=</span> <span class="fl">0.50</span>           <span class="co"># proportion female</span></span>
+<span>  treatment <span class="op">=</span> <span class="st">"Drug_B"</span>, n_total <span class="op">=</span> <span class="fl">400</span>, n_events <span class="op">=</span> <span class="fl">160</span>,</span>
+<span>  age_group_mean <span class="op">=</span> <span class="fl">0.35</span>, sex_prop <span class="op">=</span> <span class="fl">0.50</span></span>
 <span><span class="op">)</span></span>
+<span><span class="va">agd</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_agd.html">set_agd</a></span><span class="op">(</span><span class="va">trial_b</span>, treatment <span class="op">=</span> <span class="st">"treatment"</span>,</span>
+<span>               outcome_n <span class="op">=</span> <span class="st">"n_total"</span>, outcome_r <span class="op">=</span> <span class="st">"n_events"</span>,</span>
+<span>               cov_means <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age_group_mean"</span>, <span class="st">"sex_prop"</span><span class="op">)</span>,</span>
+<span>               cov_types <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"binary"</span>, <span class="st">"binary"</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">agd</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_agd.html">set_agd</a></span><span class="op">(</span></span>
-<span>  data <span class="op">=</span> <span class="va">trial_b</span>,</span>
-<span>  treatment <span class="op">=</span> <span class="st">"treatment"</span>,</span>
-<span>  outcome_n <span class="op">=</span> <span class="st">"n_total"</span>,</span>
-<span>  outcome_r <span class="op">=</span> <span class="st">"n_events"</span>,</span>
-<span>  cov_means <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age_group_mean"</span>, <span class="st">"sex_prop"</span><span class="op">)</span>,</span>
-<span>  cov_types <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"binary"</span>, <span class="st">"binary"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<div class="section level3">
-<h3 id="agd-for-continuous-outcomes">AgD for continuous outcomes<a class="anchor" aria-label="anchor" href="#agd-for-continuous-outcomes"></a>
-</h3>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">agd_normal</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_agd.html">set_agd</a></span><span class="op">(</span></span>
-<span>  data <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>    trt <span class="op">=</span> <span class="st">"Drug_B"</span>, y_mean <span class="op">=</span> <span class="fl">3.2</span>, se <span class="op">=</span> <span class="fl">0.15</span>, n <span class="op">=</span> <span class="fl">400</span>,</span>
-<span>    age_group_mean <span class="op">=</span> <span class="fl">0.35</span>, sex_prop <span class="op">=</span> <span class="fl">0.50</span></span>
-<span>  <span class="op">)</span>,</span>
-<span>  treatment <span class="op">=</span> <span class="st">"trt"</span>,</span>
-<span>  family <span class="op">=</span> <span class="st">"normal"</span>,</span>
-<span>  outcome_mean <span class="op">=</span> <span class="st">"y_mean"</span>,</span>
-<span>  outcome_se <span class="op">=</span> <span class="st">"se"</span>,</span>
-<span>  outcome_n <span class="op">=</span> <span class="st">"n"</span>,</span>
-<span>  cov_means <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age_group_mean"</span>, <span class="st">"sex_prop"</span><span class="op">)</span>,</span>
-<span>  cov_types <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"binary"</span>, <span class="st">"binary"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p><strong>Scale requirement for normal outcomes.</strong>
-<code><a href="../reference/set_agd.html">set_agd()</a></code> assumes the AgD mean (<code>outcome_mean</code>)
-and SE (<code>outcome_se</code>) are on the <strong>arithmetic
-(original, untransformed) scale</strong>, regardless of whether
-<code><a href="../reference/mlumr.html">mlumr()</a></code> is later called with <code>link = "identity"</code>
-or <code>link = "log"</code>. If a publication reports only a log-scale
-mean and SD, or a geometric mean, back-transform before calling
-<code><a href="../reference/set_agd.html">set_agd()</a></code> and propagate uncertainty via the delta method;
-passing log-scale summaries silently biases the posterior because the
-Stan likelihood is <code>normal(E[exp(eta)], se_agd)</code> under the
-log link, expecting the AgD quantities already on the outcome scale.</p>
-</div>
-<div class="section level3">
-<h3 id="agd-for-count-outcomes">AgD for count outcomes<a class="anchor" aria-label="anchor" href="#agd-for-count-outcomes"></a>
-</h3>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">agd_poisson</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_agd.html">set_agd</a></span><span class="op">(</span></span>
-<span>  data <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>    trt <span class="op">=</span> <span class="st">"Drug_B"</span>, n_events <span class="op">=</span> <span class="fl">120</span>, person_years <span class="op">=</span> <span class="fl">800</span>,</span>
-<span>    age_group_mean <span class="op">=</span> <span class="fl">0.35</span>, sex_prop <span class="op">=</span> <span class="fl">0.50</span></span>
-<span>  <span class="op">)</span>,</span>
-<span>  treatment <span class="op">=</span> <span class="st">"trt"</span>,</span>
-<span>  family <span class="op">=</span> <span class="st">"poisson"</span>,</span>
-<span>  outcome_r <span class="op">=</span> <span class="st">"n_events"</span>,</span>
-<span>  outcome_E <span class="op">=</span> <span class="st">"person_years"</span>,</span>
-<span>  cov_means <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age_group_mean"</span>, <span class="st">"sex_prop"</span><span class="op">)</span>,</span>
-<span>  cov_types <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"binary"</span>, <span class="st">"binary"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="covariate-naming">Covariate naming<a class="anchor" aria-label="anchor" href="#covariate-naming"></a>
-</h3>
-<p><code><a href="../reference/set_agd.html">set_agd()</a></code> automatically strips <code>_mean</code> and
-<code>_prop</code> suffixes from covariate names to match the IPD
-covariate names:</p>
-<ul>
-<li>
-<code>"age_group_mean"</code> -&gt; covariate name
-<code>"age_group"</code>
-</li>
-<li>
-<code>"sex_prop"</code> -&gt; covariate name <code>"sex"</code>
-</li>
-</ul>
-<p>Make sure the resulting names match those in your IPD.</p>
-</div>
-<div class="section level3">
-<h3 id="continuous-covariates">Continuous covariates<a class="anchor" aria-label="anchor" href="#continuous-covariates"></a>
-</h3>
-<p>For continuous covariates, also supply standard deviations:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">agd_continuous</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_agd.html">set_agd</a></span><span class="op">(</span></span>
-<span>  data <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>    trt <span class="op">=</span> <span class="st">"B"</span>, n_total <span class="op">=</span> <span class="fl">400</span>, n_events <span class="op">=</span> <span class="fl">160</span>,</span>
-<span>    bmi_mean <span class="op">=</span> <span class="fl">25.3</span>, bmi_sd <span class="op">=</span> <span class="fl">4.2</span></span>
-<span>  <span class="op">)</span>,</span>
-<span>  treatment <span class="op">=</span> <span class="st">"trt"</span>,</span>
-<span>  outcome_n <span class="op">=</span> <span class="st">"n_total"</span>,</span>
-<span>  outcome_r <span class="op">=</span> <span class="st">"n_events"</span>,</span>
-<span>  cov_means <span class="op">=</span> <span class="st">"bmi_mean"</span>,</span>
-<span>  cov_sds <span class="op">=</span> <span class="st">"bmi_sd"</span>,</span>
-<span>  cov_types <span class="op">=</span> <span class="st">"continuous"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-</div>
-<div class="section level2">
-<h2 id="combining-data">Combining data<a class="anchor" aria-label="anchor" href="#combining-data"></a>
-</h2>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/combine_data.html">combine_data</a></span><span class="op">(</span><span class="va">ipd</span>, <span class="va">agd</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">dat</span><span class="op">)</span></span>
+<span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/combine_data.html">combine_data</a></span><span class="op">(</span><span class="va">ipd</span>, <span class="va">agd</span><span class="op">)</span></span>
+<span><span class="va">dat</span></span>
 <span><span class="co">#&gt; Unanchored Comparison Data (Binary)</span></span>
 <span><span class="co">#&gt; ====================================</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -854,87 +157,175 @@ covariate names:</p>
 <span><span class="co">#&gt; Integration points: not yet added (use add_integration())</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="adding-integration-points">Adding integration points<a class="anchor" aria-label="anchor" href="#adding-integration-points"></a>
+<h2 id="outcome-family-input-reference">Outcome-family input reference<a class="anchor" aria-label="anchor" href="#outcome-family-input-reference"></a>
 </h2>
-<p>Integration points are needed for ML-UMR’s numerical integration over
-the comparator population’s covariate distribution. They are generated
-using Sobol quasi-Monte Carlo sequences with a Gaussian copula to
-respect covariate correlations.</p>
+<p>The outcome arguments differ by family; everything else (covariates,
+combining, integration) is identical. Each family has a complete worked
+example.</p>
+<table class="table">
+<colgroup>
+<col width="11%">
+<col width="37%">
+<col width="37%">
+<col width="14%">
+</colgroup>
+<thead><tr class="header">
+<th>Family</th>
+<th>
+<code><a href="../reference/set_ipd.html">set_ipd()</a></code> outcome args</th>
+<th>
+<code><a href="../reference/set_agd.html">set_agd()</a></code> outcome args</th>
+<th>Vignette</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>binomial</td>
+<td>
+<code>outcome</code> (0/1)</td>
+<td>
+<code>outcome_n</code>, <code>outcome_r</code>
+</td>
+<td><code><a href="../articles/binary-outcomes.html">vignette("binary-outcomes")</a></code></td>
+</tr>
+<tr class="even">
+<td>normal</td>
+<td>
+<code>outcome</code>, <code>family = "normal"</code>
+</td>
+<td>
+<code>outcome_mean</code>, <code>outcome_se</code> (+
+<code>outcome_n</code>)</td>
+<td><code><a href="../articles/continuous-outcomes.html">vignette("continuous-outcomes")</a></code></td>
+</tr>
+<tr class="odd">
+<td>poisson</td>
+<td>
+<code>outcome</code>, <code>exposure</code>,
+<code>family = "poisson"</code>
+</td>
+<td>
+<code>outcome_r</code>, <code>outcome_E</code>
+</td>
+<td><code><a href="../articles/count-outcomes.html">vignette("count-outcomes")</a></code></td>
+</tr>
+<tr class="even">
+<td>survival</td>
+<td>
+<code>Surv</code>/<code>time</code>/<code>status</code>,
+<code>family = "survival"</code>
+</td>
+<td>
+<code><a href="../reference/set_agd_surv.html">set_agd_surv()</a></code>: pseudo-IPD
+<code>time</code>/<code>status</code>
+</td>
+<td><code><a href="../articles/survival-outcomes.html">vignette("survival-outcomes")</a></code></td>
+</tr>
+</tbody>
+</table>
+<p><code><a href="../reference/set_ipd.html">set_ipd()</a></code> validates that the outcome matches the family
+(binary 0/1; numeric for normal; non-negative integer counts for
+Poisson; positive times for survival) and drops rows with missing values
+(with a warning).</p>
 <div class="section level3">
-<h3 id="basic-usage">Basic usage<a class="anchor" aria-label="anchor" href="#basic-usage"></a>
+<h3 id="covariate-naming-and-types">Covariate naming and types<a class="anchor" aria-label="anchor" href="#covariate-naming-and-types"></a>
 </h3>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<p><code><a href="../reference/set_agd.html">set_agd()</a></code> strips <code>_mean</code> and
+<code>_prop</code> suffixes so AgD covariate names match the IPD
+(<code>age_group_mean</code> → <code>age_group</code>,
+<code>sex_prop</code> → <code>sex</code>). Declare each covariate as
+<code>"binary"</code> or <code>"continuous"</code> via
+<code>cov_types</code>; continuous covariates also need a
+standard-deviation column in <code>cov_sds</code>.</p>
+</div>
+<div class="section level3">
+<h3 id="scale-conventions-for-aggregate-summaries">Scale conventions for aggregate summaries<a class="anchor" aria-label="anchor" href="#scale-conventions-for-aggregate-summaries"></a>
+</h3>
+<p>For the <strong>normal</strong> family, <code>outcome_mean</code> and
+<code>outcome_se</code> must be on the <strong>original (arithmetic)
+scale</strong>, the same scale as the IPD outcome, even when fitting
+with <code>link = "log"</code>. Back-transform any geometric mean or
+log-scale summary (propagating the SE by the delta method) before
+calling <code><a href="../reference/set_agd.html">set_agd()</a></code>. See
+<code><a href="../articles/continuous-outcomes.html">vignette("continuous-outcomes")</a></code>.</p>
+</div>
+</div>
+<div class="section level2">
+<h2 id="integration-points">Integration points<a class="anchor" aria-label="anchor" href="#integration-points"></a>
+</h2>
+<p>ML-UMR adjusts for covariate imbalance by integrating the IPD-derived
+outcome model over the comparator population’s covariate distribution.
+mlumr represents that distribution by <strong>Sobol quasi-Monte Carlo
+(QMC)</strong> integration points, correlated with a <strong>Gaussian
+copula</strong> so the joint covariate structure is respected.</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/add_integration.html">add_integration</a></span><span class="op">(</span></span>
 <span>  <span class="va">dat</span>,</span>
 <span>  n_int <span class="op">=</span> <span class="fl">64</span>,</span>
 <span>  age_group <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qbern</span>, prob <span class="op">=</span> <span class="va">age_group_mean</span><span class="op">)</span>,</span>
 <span>  sex <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qbern</span>, prob <span class="op">=</span> <span class="va">sex_mean</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Key points:</p>
 <ul>
 <li>
-<strong><code>n_int</code></strong>: Number of integration points
-(powers of 2 recommended: 32, 64, 128, 256). More points = better
-accuracy but slower Stan fitting.</li>
+<strong><code>n_int</code></strong>, number of points (powers of 2:
+32, 64, 128, …). More points give better accuracy at the cost of slower
+fitting; check adequacy with <code><a href="../reference/check_integration.html">check_integration()</a></code>
+(below).</li>
 <li>
-<strong><code><a href="../reference/distr.html">distr()</a></code></strong>: Wraps a quantile function
-with parameters. Parameters can reference columns in the AgD data (e.g.,
-<code>age_group_mean</code>).</li>
-<li>
-<strong><code>qbern</code></strong>: Bernoulli quantile function
-(provided by mlumr) for binary covariates. Use <code>qnorm</code> for
-continuous covariates.</li>
+<strong><code><a href="../reference/distr.html">distr()</a></code></strong>, wraps a quantile function
+whose parameters reference AgD summary columns. Use <code>qbern</code>
+(Bernoulli, supplied by mlumr) for binary covariates, <code>qnorm</code>
+for normal, <code>qgamma</code> for skewed positive covariates, and
+<code>qlogitnorm</code> for a covariate reported as a proportion on
+<code>(0, 1)</code>.</li>
 </ul>
-</div>
-<div class="section level3">
-<h3 id="distribution-types">Distribution types<a class="anchor" aria-label="anchor" href="#distribution-types"></a>
-</h3>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Binary covariate</span></span>
-<span><span class="va">age</span> <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qbern</span>, prob <span class="op">=</span> <span class="va">age_mean</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Continuous covariate (normal)</span></span>
-<span><span class="va">bmi</span> <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qnorm</span>, mean <span class="op">=</span> <span class="va">bmi_mean</span>, sd <span class="op">=</span> <span class="va">bmi_sd</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Continuous covariate (gamma)</span></span>
-<span><span class="va">biomarker</span> <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qgamma</span>, shape <span class="op">=</span> <span class="fl">2</span>, rate <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span></span></code></pre></div>
-</div>
+<p>mlumr’s <code><a href="../reference/GammaDist.html">qgamma()</a></code> and <code><a href="../reference/logitNormal.html">qlogitnorm()</a></code> accept a
+<code>mean</code> and <code>sd</code> on the natural scale in place of
+their native parameters, so the moments can be taken from a published
+baseline table without conversion. Both must be supplied together. A
+logit-normal additionally requires
+<code>sd^2 &lt; mean * (1 - mean)</code>, the bound any variable on
+<code>(0, 1)</code> satisfies; a percentage must be rescaled to a
+proportion first.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/add_integration.html">add_integration</a></span><span class="op">(</span></span>
+<span>  <span class="va">dat</span>, n_int <span class="op">=</span> <span class="fl">64</span>,</span>
+<span>  age <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qbern</span>, prob <span class="op">=</span> <span class="va">age_mean</span><span class="op">)</span>,                  <span class="co"># binary</span></span>
+<span>  bmi <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qnorm</span>, mean <span class="op">=</span> <span class="va">bmi_mean</span>, sd <span class="op">=</span> <span class="va">bmi_sd</span><span class="op">)</span>,     <span class="co"># continuous (normal)</span></span>
+<span>  biomarker <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qgamma</span>, mean <span class="op">=</span> <span class="va">bio_mean</span>, sd <span class="op">=</span> <span class="va">bio_sd</span><span class="op">)</span>,  <span class="co"># right-skewed</span></span>
+<span>  bsa <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qlogitnorm</span>, mean <span class="op">=</span> <span class="va">bsa_mean</span>, sd <span class="op">=</span> <span class="va">bsa_sd</span><span class="op">)</span>     <span class="co"># proportion on (0, 1)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="correlation-handling">Correlation handling<a class="anchor" aria-label="anchor" href="#correlation-handling"></a>
 </h3>
-<p>By default, correlations between covariates are estimated from the
-IPD using Spearman rank correlation, then adjusted for the Gaussian
-copula. For binary and mixed discrete/continuous covariate pairs, this
-adjustment is a pragmatic approximation — exact calibration of the
-latent Gaussian correlation depends on marginal prevalences, which are
-not used in the current transform. For most practical datasets this
-provides adequate integration-point distributions, but users with strong
-prior information on covariate correlations can supply their own matrix
-via the <code>cor</code> argument.</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Default: Spearman correlation from IPD</span></span>
-<span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/add_integration.html">add_integration</a></span><span class="op">(</span><span class="va">dat</span>, n_int <span class="op">=</span> <span class="fl">64</span>,</span>
-<span>                       age_group <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qbern</span>, prob <span class="op">=</span> <span class="va">age_group_mean</span><span class="op">)</span>,</span>
-<span>                       sex <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qbern</span>, prob <span class="op">=</span> <span class="va">sex_mean</span><span class="op">)</span><span class="op">)</span></span>
+<p>By default the covariate correlation is estimated from the IPD
+(Spearman) and adjusted for the Gaussian copula. For binary and mixed
+discrete/continuous pairs this copula adjustment is a <strong>pragmatic
+approximation</strong>: the exact latent Gaussian correlation depends on
+the marginal prevalences, which the current transform does not use. It
+is adequate for most datasets, but if you have strong prior information,
+or covariates with prevalences near 0/1, strong correlations, or many
+covariates, supply your own matrix via <code>cor</code> and confirm the
+result is stable with <code><a href="../reference/check_integration.html">check_integration()</a></code>.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">my_cor</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">0.3</span>, <span class="fl">0.3</span>, <span class="fl">1</span><span class="op">)</span>, <span class="fl">2</span>, <span class="fl">2</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/add_integration.html">add_integration</a></span><span class="op">(</span><span class="va">dat</span>, n_int <span class="op">=</span> <span class="fl">64</span>, cor <span class="op">=</span> <span class="va">my_cor</span>,</span>
+<span>                age_group <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qbern</span>, prob <span class="op">=</span> <span class="va">age_group_mean</span><span class="op">)</span>,</span>
+<span>                sex <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qbern</span>, prob <span class="op">=</span> <span class="va">sex_mean</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Supply your own correlation matrix</span></span>
-<span><span class="va">my_cor</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">0.3</span>, <span class="fl">0.3</span>, <span class="fl">1</span><span class="op">)</span>, <span class="fl">2</span>, <span class="fl">2</span><span class="op">)</span></span>
-<span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/add_integration.html">add_integration</a></span><span class="op">(</span><span class="va">dat</span>, n_int <span class="op">=</span> <span class="fl">64</span>, cor <span class="op">=</span> <span class="va">my_cor</span>,</span>
-<span>                       age_group <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qbern</span>, prob <span class="op">=</span> <span class="va">age_group_mean</span><span class="op">)</span>,</span>
-<span>                       sex <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qbern</span>, prob <span class="op">=</span> <span class="va">sex_mean</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># No correlation adjustment</span></span>
-<span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/add_integration.html">add_integration</a></span><span class="op">(</span><span class="va">dat</span>, n_int <span class="op">=</span> <span class="fl">64</span>, cor_adjust <span class="op">=</span> <span class="st">"none"</span>,</span>
-<span>                       age_group <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qbern</span>, prob <span class="op">=</span> <span class="va">age_group_mean</span><span class="op">)</span>,</span>
-<span>                       sex <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qbern</span>, prob <span class="op">=</span> <span class="va">sex_mean</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="../reference/add_integration.html">add_integration</a></span><span class="op">(</span><span class="va">dat</span>, n_int <span class="op">=</span> <span class="fl">64</span>, cor_adjust <span class="op">=</span> <span class="st">"none"</span>,  <span class="co"># no adjustment</span></span>
+<span>                age_group <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qbern</span>, prob <span class="op">=</span> <span class="va">age_group_mean</span><span class="op">)</span>,</span>
+<span>                sex <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qbern</span>, prob <span class="op">=</span> <span class="va">sex_mean</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
-<h3 id="inspecting-integration-points">Inspecting integration points<a class="anchor" aria-label="anchor" href="#inspecting-integration-points"></a>
+<h3 id="inspecting-the-integration-points">Inspecting the integration points<a class="anchor" aria-label="anchor" href="#inspecting-the-integration-points"></a>
 </h3>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Expand to long format</span></span>
-<span><span class="va">int_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/unnest_integration.html">unnest_integration</a></span><span class="op">(</span><span class="va">dat</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">int_df</span><span class="op">)</span></span>
+<p><code><a href="../reference/unnest_integration.html">unnest_integration()</a></code> expands the stored points to a data
+frame with one row per aggregate row and integration point, one column
+per covariate, plus <code>.int_id</code> and <code>.agd_row</code>, so
+you can inspect or plot the realized comparator distribution
+directly:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="../reference/unnest_integration.html">unnest_integration</a></span><span class="op">(</span><span class="va">dat</span><span class="op">)</span><span class="op">)</span>     <span class="co"># one row per point, covariates in columns</span></span>
 <span><span class="co">#&gt;   age_group sex .int_id .agd_row</span></span>
 <span><span class="co">#&gt; 1         0   0       1        1</span></span>
 <span><span class="co">#&gt; 2         1   0       2        1</span></span>
@@ -942,38 +333,118 @@ via the <code>cor</code> argument.</p>
 <span><span class="co">#&gt; 4         0   0       4        1</span></span>
 <span><span class="co">#&gt; 5         1   1       5        1</span></span>
 <span><span class="co">#&gt; 6         0   0       6        1</span></span></code></pre></div>
-<p>Use <code><a href="../reference/check_integration.html">check_integration()</a></code> to compare the generated
-integration points against the requested AgD marginal distributions and
-correlation structure:</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/check_integration.html">check_integration</a></span><span class="op">(</span></span>
 <span>  <span class="va">dat</span>,</span>
 <span>  age_group <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qbern</span>, prob <span class="op">=</span> <span class="va">age_group_mean</span><span class="op">)</span>,</span>
 <span>  sex <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qbern</span>, prob <span class="op">=</span> <span class="va">sex_mean</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt; Integration check: n_int = 64 vs 128</span></span>
-<span><span class="co">#&gt; Marginals -- max relative difference: 0.0159</span></span>
-<span><span class="co">#&gt; CAUTION: 1-5%% marginal relative difference. Consider increasing n_int.</span></span>
-<span><span class="co">#&gt; Joint -- max |cor(current) - cor(doubled)|: 0.0113</span></span>
-<span><span class="co">#&gt; OK joint: pairwise correlations agree within 0.05.</span></span></code></pre></div>
-<p>This is especially important when there are several covariates,
-strong correlations, binary covariates with prevalences near 0 or 1, or
-a small number of integration points.</p>
+<span><span class="co">#&gt; Resolution heuristic, max relative difference: 0.0079</span></span>
+<span><span class="co">#&gt; Resolution stable within the package's 1% heuristic.</span></span>
+<span><span class="co">#&gt; Declared-target fidelity, max relative difference: 0.0156</span></span>
+<span><span class="co">#&gt; Caution: grid moments differ from declared AgD moments by 1-5%.</span></span>
+<span><span class="co">#&gt; Joint: max |cor(current) - cor(doubled)|: 0.0113</span></span>
+<span><span class="co">#&gt; Joint resolution stable within the package's 0.05 heuristic.</span></span>
+<span><span class="co">#&gt; Target (spearman): max |cor(doubled) - cor_target|: 0.0196</span></span></code></pre></div>
+<p><code><a href="../reference/check_integration.html">check_integration()</a></code> compares the realized integration
+points against the requested marginals and correlations and flags when
+<code>n_int</code> is too small, run it whenever there are several or
+strongly correlated covariates.</p>
+</div>
+<div class="section level3">
+<h3 id="visualizing-the-integration-points">Visualizing the integration points<a class="anchor" aria-label="anchor" href="#visualizing-the-integration-points"></a>
+</h3>
+<p>For a continuous covariate the quasi-Monte Carlo points should
+reproduce the requested marginal. Here we build a small example with a
+continuous <code>age</code> and overlay the integration points on the
+requested Normal density:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
+<span><span class="va">ipd_c</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>treatment <span class="op">=</span> <span class="st">"Drug_A"</span>, response <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="fl">400</span>, <span class="fl">1</span>, <span class="fl">0.5</span><span class="op">)</span>,</span>
+<span>                    age <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">400</span>, <span class="fl">55</span>, <span class="fl">10</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">agd_c</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>treatment <span class="op">=</span> <span class="st">"Drug_B"</span>, n_total <span class="op">=</span> <span class="fl">300</span>, n_events <span class="op">=</span> <span class="fl">120</span>,</span>
+<span>                    age_mean <span class="op">=</span> <span class="fl">60</span>, age_sd <span class="op">=</span> <span class="fl">9</span><span class="op">)</span></span>
+<span><span class="va">dat_c</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/combine_data.html">combine_data</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="../reference/set_ipd.html">set_ipd</a></span><span class="op">(</span><span class="va">ipd_c</span>, treatment <span class="op">=</span> <span class="st">"treatment"</span>, outcome <span class="op">=</span> <span class="st">"response"</span>, covariates <span class="op">=</span> <span class="st">"age"</span><span class="op">)</span>,</span>
+<span>  <span class="fu"><a href="../reference/set_agd.html">set_agd</a></span><span class="op">(</span><span class="va">agd_c</span>, treatment <span class="op">=</span> <span class="st">"treatment"</span>, outcome_n <span class="op">=</span> <span class="st">"n_total"</span>,</span>
+<span>          outcome_r <span class="op">=</span> <span class="st">"n_events"</span>, cov_means <span class="op">=</span> <span class="st">"age_mean"</span>, cov_sds <span class="op">=</span> <span class="st">"age_sd"</span>,</span>
+<span>          cov_types <span class="op">=</span> <span class="st">"continuous"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">dat_c</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/add_integration.html">add_integration</a></span><span class="op">(</span><span class="va">dat_c</span>, n_int <span class="op">=</span> <span class="fl">128</span>,</span>
+<span>                         age <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qnorm</span>, mean <span class="op">=</span> <span class="va">age_mean</span>, sd <span class="op">=</span> <span class="va">age_sd</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">pts</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/unnest_integration.html">unnest_integration</a></span><span class="op">(</span><span class="va">dat_c</span><span class="op">)</span></span>
+<span></span>
+<span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"ggplot2"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">pts</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span><span class="va">age</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_histogram.html" class="external-link">geom_histogram</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>y <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes_eval.html" class="external-link">after_stat</a></span><span class="op">(</span><span class="va">density</span><span class="op">)</span><span class="op">)</span>, bins <span class="op">=</span> <span class="fl">25</span>,</span>
+<span>                   fill <span class="op">=</span> <span class="st">"#3B6B9A"</span>, alpha <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_function.html" class="external-link">stat_function</a></span><span class="op">(</span>fun <span class="op">=</span> <span class="va">dnorm</span>, args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="fl">60</span>, sd <span class="op">=</span> <span class="fl">9</span><span class="op">)</span>,</span>
+<span>                  color <span class="op">=</span> <span class="st">"darkred"</span>, linewidth <span class="op">=</span> <span class="fl">0.8</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Age (comparator integration points)"</span>, y <span class="op">=</span> <span class="st">"Density"</span>,</span>
+<span>         title <span class="op">=</span> <span class="st">"QMC integration points reproduce the requested Normal(60, 9)"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+<p><img src="data-preparation_files/figure-html/viz-int-1.png" class="r-plt" alt="" width="672" style="display: block; margin: auto;"></p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="notes-on-stc-and-naive">Notes on STC and naive<a class="anchor" aria-label="anchor" href="#notes-on-stc-and-naive"></a>
+<h2 id="integration-requirements-for-stc-and-naive">Integration requirements for STC and naive<a class="anchor" aria-label="anchor" href="#integration-requirements-for-stc-and-naive"></a>
 </h2>
-<p>The STC and naive methods do <strong>not</strong> require integration
-points. The STC uses integration points if available (for better
-marginalization), but falls back to AgD covariate means if they are not.
-You can call <code><a href="../reference/stc.html">stc()</a></code> and <code><a href="../reference/naive.html">naive()</a></code> immediately
-after <code><a href="../reference/combine_data.html">combine_data()</a></code>.</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># These work without add_integration()</span></span>
-<span><span class="va">dat_no_int</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/combine_data.html">combine_data</a></span><span class="op">(</span><span class="va">ipd</span>, <span class="va">agd</span><span class="op">)</span></span>
-<span><span class="va">naive_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/naive.html">naive</a></span><span class="op">(</span><span class="va">dat_no_int</span><span class="op">)</span></span>
-<span><span class="va">stc_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/stc.html">stc</a></span><span class="op">(</span><span class="va">dat_no_int</span><span class="op">)</span></span></code></pre></div>
+<p><code><a href="../reference/naive.html">naive()</a></code> can be called immediately after
+<code><a href="../reference/combine_data.html">combine_data()</a></code> because it uses only the observed crude
+outcomes. <code><a href="../reference/stc.html">stc()</a></code> requires integration points for nonlinear
+links, including binomial and Poisson outcomes and normal-log models.
+Replacing a covariate distribution by its mean before applying a
+nonlinear inverse link does not recover the marginal outcome. Only the
+normal identity-link STC can use the aggregate means directly; see
+<code><a href="../articles/choosing-a-method.html">vignette("choosing-a-method")</a></code>.</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">dat_no_int</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/combine_data.html">combine_data</a></span><span class="op">(</span><span class="va">ipd</span>, <span class="va">agd</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/naive.html">naive</a></span><span class="op">(</span><span class="va">dat_no_int</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Naive Unadjusted Indirect Comparison</span></span>
+<span><span class="co">#&gt; =====================================</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Treatments: Drug_A vs Drug_B </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Population basis: index-study outcome versus comparator-population outcome; no common standardized target.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Event rates:</span></span>
+<span><span class="co">#&gt;   Index (IPD):      0.606 (303/500)</span></span>
+<span><span class="co">#&gt;   Comparator (AgD): 0.400 (160/400)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Log Odds Ratio: 0.8360 (SE: 0.1371)</span></span>
+<span><span class="co">#&gt; 95% CI: [0.5673, 1.1047]</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; All effect measures (95% CI):</span></span>
+<span><span class="co">#&gt;   Log odds ratio                 0.8360 (SE 0.1371) [0.5673, 1.1047]</span></span>
+<span><span class="co">#&gt;   Odds ratio                     2.3071 [1.7635, 3.0183]</span></span>
+<span><span class="co">#&gt;   Risk difference                0.2060 (SE 0.0328) [0.1417, 0.2703]</span></span>
+<span><span class="co">#&gt;   Risk ratio                     1.5150 [1.3180, 1.7414]</span></span>
+<span><span class="fu"><a href="../reference/stc.html">stc</a></span><span class="op">(</span><span class="va">dat</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Simulated Treatment Comparison (G-computation)</span></span>
+<span><span class="co">#&gt; ===============================================</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Treatments: Drug_A vs Drug_B </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Estimand population: comparator</span></span>
+<span><span class="co">#&gt; Treating this as the index-population effect requires a separate effect-equality assumption; this calculation does not transport to the index population.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Marginalized P(Y=1|index trt, comp pop): 0.6025</span></span>
+<span><span class="co">#&gt; Observed P(Y=1|comp trt, comp pop):      0.4000</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Log Odds Ratio: 0.8213 (SE: 0.1383)</span></span>
+<span><span class="co">#&gt; 95% CI: [0.5503, 1.0923]</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; All effect measures (95% CI):</span></span>
+<span><span class="co">#&gt;   Log odds ratio                 0.8213 (SE 0.1383) [0.5503, 1.0923]</span></span>
+<span><span class="co">#&gt;   Odds ratio                     2.2736 [1.7339, 2.9812]</span></span>
+<span><span class="co">#&gt;   Risk difference                0.2025 (SE 0.0332) [0.1375, 0.2675]</span></span>
+<span><span class="co">#&gt;   Risk ratio                     1.5062 [1.3091, 1.7331]</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Outcome model coefficients:</span></span>
+<span><span class="co">#&gt; (Intercept)   age_group         sex </span></span>
+<span><span class="co">#&gt;      0.3515      0.1693      0.0142</span></span></code></pre></div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
@@ -986,7 +457,7 @@ after <code><a href="../reference/combine_data.html">combine_data()</a></code>.<
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer>

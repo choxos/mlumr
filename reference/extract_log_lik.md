@@ -20,5 +20,13 @@ extract_log_lik(object)
 
 ## Value
 
-A numeric matrix of dimension `n_draws x (n_ipd + n_agd_rows)`. IPD
-columns come first, then AgD rows.
+A numeric matrix of dimension `n_draws x (n_ipd + n_agd)`. IPD columns
+come first, then the AgD columns. The AgD pointwise unit is whatever the
+family's Stan model emits as `log_lik_agd`: for binomial / normal /
+poisson this is **one column per aggregate row**; for **survival** it is
+**one column per reconstructed pseudo-individual** (not per aggregate
+row), so survival LOO/WAIC operate at the pseudo-individual level. See
+the notes on
+[`calculate_loo()`](https://choxos.github.io/mlumr/reference/calculate_loo.md)
+/
+[`calculate_waic()`](https://choxos.github.io/mlumr/reference/calculate_waic.md).

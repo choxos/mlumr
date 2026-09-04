@@ -16,12 +16,25 @@ default_prior_intercept()
 default_prior_beta()
 
 default_prior_sigma()
+
+default_prior_aux()
+
+default_prior_smooth()
 ```
 
 ## Value
 
 A prior list (see
 [`prior_normal()`](https://choxos.github.io/mlumr/reference/prior_normal.md)).
+
+## Details
+
+`default_prior_aux()` and `default_prior_smooth()` apply to the survival
+family only. `prior_aux` is a half-normal(0, 2) on the shape/scale
+parameter(s) of parametric survival distributions
+(Weibull/Gompertz/gamma shape, log-normal sdlog, generalized-gamma
+shapes). `prior_smooth` is a half-normal(0, 1) on the random-walk
+smoothing SD of the M-spline / piecewise-exponential baseline hazard.
 
 ## Examples
 
@@ -46,7 +59,7 @@ default_prior_intercept()
 #> [1] TRUE
 #> 
 #> $version
-#> [1] "0.1.0"
+#> [1] "0.1.0.9000"
 #> 
 default_prior_beta()
 #> $distribution
@@ -68,7 +81,7 @@ default_prior_beta()
 #> [1] TRUE
 #> 
 #> $version
-#> [1] "0.1.0"
+#> [1] "0.1.0.9000"
 #> 
 default_prior_sigma()
 #> $distribution
@@ -90,6 +103,6 @@ default_prior_sigma()
 #> [1] TRUE
 #> 
 #> $version
-#> [1] "0.1.0"
+#> [1] "0.1.0.9000"
 #> 
 ```

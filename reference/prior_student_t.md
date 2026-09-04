@@ -2,10 +2,9 @@
 
 Heavier-tailed alternative to
 [`prior_normal()`](https://choxos.github.io/mlumr/reference/prior_normal.md).
-For logistic-regression coefficients with unit-scale predictors, the
-Stan community prior-choice recommendations suggest Student-t with `df`
-between 3 and 7 as a robust weakly informative prior (Gelman et al.,
-2008).
+A Student-t with moderate degrees of freedom can be a robust weakly
+informative starting family, but its scale still requires calibration to
+the link, outcome, and predictor scaling.
 
 ## Usage
 
@@ -17,8 +16,7 @@ prior_student_t(df = 5, mean = 0, sd = 2.5, autoscale = FALSE)
 
 - df:
 
-  Degrees of freedom (must be positive). Values in `3:7` are recommended
-  for logistic-regression coefficients.
+  Degrees of freedom (must be positive).
 
 - mean:
 
@@ -42,7 +40,7 @@ A list with components `distribution = "student_t"`, `df`, `mean`, `sd`,
 ## Examples
 
 ``` r
-# Gelman et al. 2008 recommendation for logistic-regression coefficients
+# A moderately heavy-tailed coefficient prior
 prior_student_t(df = 5, mean = 0, sd = 2.5)
 #> $distribution
 #> [1] "student_t"

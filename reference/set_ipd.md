@@ -9,11 +9,15 @@ comparison.
 set_ipd(
   data,
   treatment,
-  outcome,
+  outcome = NULL,
   covariates,
-  family = c("binomial", "normal", "poisson"),
+  family = c("binomial", "normal", "poisson", "survival"),
   exposure = NULL,
-  study = NULL
+  study = NULL,
+  Surv = NULL,
+  time = NULL,
+  status = NULL,
+  entry_time = NULL
 )
 ```
 
@@ -31,7 +35,9 @@ set_ipd(
 
   Column name for outcome variable. For `family = "binomial"`, must be
   binary (0/1). For `family = "normal"`, any numeric. For
-  `family = "poisson"`, non-negative integer counts.
+  `family = "poisson"`, non-negative integer counts. Not used (leave
+  `NULL`) for `family = "survival"`, which uses `Surv`/`time`/`status`
+  instead.
 
 - covariates:
 
@@ -39,7 +45,8 @@ set_ipd(
 
 - family:
 
-  Outcome family: `"binomial"`, `"normal"`, or `"poisson"`
+  Outcome family: `"binomial"`, `"normal"`, `"poisson"`, or `"survival"`
+  (time-to-event)
 
 - exposure:
 
@@ -49,6 +56,19 @@ set_ipd(
 - study:
 
   Column name for study identifier (optional)
+
+- Surv:
+
+  For `family = "survival"`, an optional
+  [`survival::Surv()`](https://rdrr.io/pkg/survival/man/Surv.html)
+  object describing the outcome (use for left/interval censoring or
+  delayed entry).
+
+- time, status, entry_time:
+
+  For `family = "survival"`, character column names as an alternative to
+  `Surv` (right-censoring with status `0`/`1`, plus optional delayed
+  entry).
 
 ## Value
 

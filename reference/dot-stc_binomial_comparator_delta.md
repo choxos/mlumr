@@ -12,8 +12,9 @@ Comparator-population delta-method terms for binomial STC
   beta_hat,
   V,
   link_resolved,
-  p_A,
+  log_p_A,
+  log_q_A,
   p_B,
-  n_B
+  var_p_B
 )
 ```

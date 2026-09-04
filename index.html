@@ -6,29 +6,28 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Multilevel Unanchored Meta-Regression for Indirect Treatment Comparisons • mlumr</title>
-<!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png">
-<link rel="icon" type="”image/svg+xml”" href="favicon.svg">
-<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-<link rel="icon" sizes="any" href="favicon.ico">
-<link rel="manifest" href="site.webmanifest">
-<script src="deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<!-- katex math --><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script><script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script><script src="katex-auto.js"></script><script src="lightswitch.js"></script><script src="deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<link href="deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="deps/Inter-0.4.10/font.css" rel="stylesheet">
+<link href="deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet">
+<link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Multilevel Unanchored Meta-Regression for Indirect Treatment Comparisons">
-<meta name="description" content="Bayesian multilevel unanchored meta-regression (ML-UMR) for indirect treatment comparisons using individual patient data (IPD) and aggregate data (AgD). Implements shared prognostic factor assumption (SPFA) and relaxed SPFA models for binary, continuous, and count outcomes via Stan. Also provides simulated treatment comparison (STC) via parametric G-computation and naive unadjusted benchmarks. ML-UMR is an adaptation of the ML-NMR methodology (Phillippo et al. 2020, &lt;doi:10.1111/rssa.12579&gt;) implemented in the multinma package (GPL-3) to the unanchored two-trial case; the public API deliberately mirrors multinma's so users can move between ML-NMR and ML-UMR with the same workflow.">
-<meta property="og:description" content="Bayesian multilevel unanchored meta-regression (ML-UMR) for indirect treatment comparisons using individual patient data (IPD) and aggregate data (AgD). Implements shared prognostic factor assumption (SPFA) and relaxed SPFA models for binary, continuous, and count outcomes via Stan. Also provides simulated treatment comparison (STC) via parametric G-computation and naive unadjusted benchmarks. ML-UMR is an adaptation of the ML-NMR methodology (Phillippo et al. 2020, &lt;doi:10.1111/rssa.12579&gt;) implemented in the multinma package (GPL-3) to the unanchored two-trial case; the public API deliberately mirrors multinma's so users can move between ML-NMR and ML-UMR with the same workflow.">
-<meta property="og:image" content="https://choxos.github.io/mlumr/logo.png">
+<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><link href="extra.css" rel="stylesheet">
+<meta property="og:title" content="Multilevel Unanchored Meta-Regression for Indirect Treatment Comparisons">
+<meta name="description" content="Bayesian multilevel unanchored meta-regression (ML-UMR) for indirect treatment comparisons using individual patient data (IPD) and aggregate data (AgD). Implements shared prognostic factor assumption (SPFA) and relaxed SPFA models for binary, continuous, count, and time-to-event (survival) outcomes via Stan, including parametric and flexible M-spline survival baselines. Also provides a one-arm simulated treatment comparison (STC) via comparator-population G-computation and naive unadjusted benchmarks. ML-UMR is an adaptation of the ML-NMR methodology (Phillippo et al. 2020, &lt;doi:10.1111/rssa.12579&gt;) implemented in the multinma package (GPL-3) to the unanchored two-trial case. The public API uses familiar names for data setup, integration and effect summaries, but ML-NMR and ML-UMR specifications and fitted objects are not interchangeable because their evidence structures and models differ.">
+<meta property="og:description" content="Bayesian multilevel unanchored meta-regression (ML-UMR) for indirect treatment comparisons using individual patient data (IPD) and aggregate data (AgD). Implements shared prognostic factor assumption (SPFA) and relaxed SPFA models for binary, continuous, count, and time-to-event (survival) outcomes via Stan, including parametric and flexible M-spline survival baselines. Also provides a one-arm simulated treatment comparison (STC) via comparator-population G-computation and naive unadjusted benchmarks. ML-UMR is an adaptation of the ML-NMR methodology (Phillippo et al. 2020, &lt;doi:10.1111/rssa.12579&gt;) implemented in the multinma package (GPL-3) to the unanchored two-trial case. The public API uses familiar names for data setup, integration and effect summaries, but ML-NMR and ML-UMR specifications and fitted objects are not interchangeable because their evidence structures and models differ.">
+<meta property="og:image" content="https://choxos.github.io/mlumr/logo.svg">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
-    <nav class="navbar navbar-expand-lg fixed-top bg-light" data-bs-theme="light" aria-label="Site navigation"><div class="container">
+    <nav class="navbar navbar-expand-lg fixed-top " aria-label="Site navigation"><div class="container">
 
     <a class="navbar-brand me-2" href="index.html">mlumr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,16 +36,23 @@
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
+<li class="nav-item"><a class="nav-link" href="https://choxos.github.io/mlumr/app" aria-label="mlumr web app (in-browser playground)"><span class="fa fa-rocket"></span> Web app</a></li>
 <li class="nav-item"><a class="nav-link" href="reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="articles/data-preparation.html">Data Preparation and Integration</a></li>
+<li><h6 class="dropdown-header" data-toc-skip>Getting started</h6></li>
     <li><a class="dropdown-item" href="articles/introduction.html">Introduction to mlumr</a></li>
-    <li><a class="dropdown-item" href="articles/mlumr-models.html">Fitting ML-UMR Models</a></li>
-    <li><a class="dropdown-item" href="articles/model-comparison.html">Comparing ML-UMR, STC, and Naive Methods</a></li>
-    <li><a class="dropdown-item" href="articles/stc-and-naive.html">STC and Naive Benchmarks</a></li>
-    <li><a class="dropdown-item" href="articles/worked-example.html">Worked Example: Complete Analysis</a></li>
+    <li><a class="dropdown-item" href="articles/data-preparation.html">Preparing data and integration points</a></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Outcome types</h6></li>
+    <li><a class="dropdown-item" href="articles/binary-outcomes.html">Binary outcomes</a></li>
+    <li><a class="dropdown-item" href="articles/continuous-outcomes.html">Continuous outcomes</a></li>
+    <li><a class="dropdown-item" href="articles/count-outcomes.html">Count outcomes</a></li>
+    <li><a class="dropdown-item" href="articles/survival-outcomes.html">Survival (time-to-event) outcomes</a></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Methods</h6></li>
+    <li><a class="dropdown-item" href="articles/fitting-and-diagnostics.html">Fitting, priors, and diagnostics</a></li>
+    <li><a class="dropdown-item" href="articles/choosing-a-method.html">Choosing a method: ML-UMR, STC, and naive</a></li>
+    <li><a class="dropdown-item" href="articles/subgroup-identification.html">Aggregate subgroup information for the relaxed model</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
@@ -55,6 +61,14 @@
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="search.json">
 </form></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-lightswitch" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true" aria-label="Light switch"><span class="fa fa-sun"></span></button>
+  <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdown-lightswitch">
+<li><button class="dropdown-item" data-bs-theme-value="light"><span class="fa fa-sun"></span> Light</button></li>
+    <li><button class="dropdown-item" data-bs-theme-value="dark"><span class="fa fa-moon"></span> Dark</button></li>
+    <li><button class="dropdown-item" data-bs-theme-value="auto"><span class="fa fa-adjust"></span> Auto</button></li>
+  </ul>
+</li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/choxos/mlumr/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul>
 </div>
@@ -65,26 +79,99 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="section level1">
 <div class="page-header">
-<img src="logo.png" class="logo" alt=""><h1 id="mlumr-multilevel-unanchored-meta-regression-">mlumr: Multilevel Unanchored Meta-Regression <a class="anchor" aria-label="anchor" href="#mlumr-multilevel-unanchored-meta-regression-"></a>
+<img src="logo.svg" class="logo" alt=""><h1 id="mlumr-multilevel-unanchored-meta-regression-">mlumr: Multilevel Unanchored Meta-Regression <a class="anchor" aria-label="anchor" href="#mlumr-multilevel-unanchored-meta-regression-"></a>
 </h1>
 </div>
 <!-- badges: start -->
 
-<p><strong>mlumr</strong> implements Multilevel Unanchored Meta-Regression (ML-UMR), a population-adjusted indirect treatment comparison method for disconnected evidence networks. ML-UMR extends Multilevel Network Meta-Regression (ML-NMR; Phillippo et al., 2020) to the unanchored setting, where individual patient data (IPD) are available for one treatment and only aggregate data (AgD) are available for the comparator, with no common reference arm (e.g. comparison of single arm studies). In this setting, mlumr estimates treatment effects while adjusting for cross-trial differences in prognostic factors.</p>
-<p>In terms of the software, mlumr is an adaptation of the GPL-3 licensed <a href="https://github.com/dmphillippo/multinma" class="external-link"><code>multinma</code></a> package, which provides functionality for conducting ML-NMR and NMAs. mlumr uses similar Sobol quasi-Monte Carlo and Gaussian-copula integration machinery to marginalize over the comparator-population covariate distribution, and extends the implementation with Stan likelihoods for the unanchored two-treatment problem, including SPFA and relaxed-SPFA models for binomial, normal, and Poisson outcomes.</p>
-<p>The package provides three complementary methods within a unified interface:</p>
+<p><strong><em>mlumr</em></strong> implements Multilevel Unanchored Meta-Regression (ML-UMR), a population-adjusted indirect treatment comparison for <em>disconnected</em> evidence networks: individual patient data (IPD) for one treatment, aggregate data (AgD) for the comparator, and no common reference arm (e.g., comparing single-arm studies). It estimates treatment effects while adjusting for cross-trial differences in prognostic factors, extending Multilevel Network Meta-Regression (ML-NMR; Phillippo et al., 2020) to the unanchored setting.</p>
+<p>It provides four estimators behind one data interface, two of them ML-UMR variants:</p>
 <ul>
 <li>
-<strong>ML-UMR</strong> (Bayesian): SPFA and Relaxed SPFA models via Stan, with quasi-Monte Carlo integration and Gaussian copula for population adjustment</li>
+<strong>ML-UMR</strong> (Bayesian): the shared prognostic factor assumption (SPFA) model and the relaxed SPFA model, fitted via Stan with quasi-Monte Carlo integration and a Gaussian copula for population adjustment</li>
 <li>
-<strong>STC</strong> (Frequentist): Simulated treatment comparison via parametric G-computation with delta-method standard errors</li>
+<strong>STC</strong> (frequentist): one-arm simulated treatment comparison via comparator-population G-computation, with delta-method standard errors for binary, continuous, and count outcomes and a nonparametric bootstrap for time-to-event</li>
 <li>
-<strong>Naive</strong> (Benchmark): Unadjusted comparison of crude outcome summaries</li>
+<strong>Naive</strong> (benchmark): unadjusted comparison of crude outcome summaries</li>
 </ul>
+<p>Binary, continuous, count, and time-to-event outcomes are supported.</p>
+<div class="section level2">
+<h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
+</h2>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># From CRAN</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"mlumr"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Development version</span></span>
+<span><span class="co"># install.packages("remotes")</span></span>
+<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"choxos/mlumr"</span><span class="op">)</span></span></code></pre></div>
+<p><strong><em>mlumr</em></strong> fits models with <a href="https://mc-stan.org/" class="external-link">Stan</a> (default backend <a href="https://mc-stan.org/rstan/" class="external-link">rstan</a>, C++ generated by rstantools and compiled at install), so a C++ toolchain is required:</p>
+<ul>
+<li>
+<strong>macOS</strong>: Xcode Command Line Tools (<code>xcode-select --install</code>)</li>
+<li>
+<strong>Windows</strong>: <a href="https://cran.r-project.org/bin/windows/Rtools/" class="external-link">Rtools</a>
+</li>
+<li>
+<strong>Linux</strong>: <code>g++</code> and <code>make</code> (usually present by default)</li>
+</ul>
+<p>A <a href="https://mc-stan.org/cmdstanr/" class="external-link">cmdstanr</a> backend is optional; see <a href="#stan-backend">Stan backend</a> below.</p>
+</div>
+<div class="section level2">
+<h2 id="quick-start">Quick start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
+</h2>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/choxos/mlumr" class="external-link">mlumr</a></span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># --- Prepare IPD (index treatment) ---</span></span>
+<span><span class="va">n_A</span> <span class="op">&lt;-</span> <span class="fl">500</span></span>
+<span><span class="va">ipd_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  trt <span class="op">=</span> <span class="st">"Drug_A"</span>,</span>
+<span>  outcome <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n_A</span>, <span class="fl">1</span>, <span class="fl">0.55</span><span class="op">)</span>,</span>
+<span>  age_group <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n_A</span>, <span class="fl">1</span>, <span class="fl">0.40</span><span class="op">)</span>,</span>
+<span>  sex <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n_A</span>, <span class="fl">1</span>, <span class="fl">0.55</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">ipd</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/set_ipd.html">set_ipd</a></span><span class="op">(</span><span class="va">ipd_df</span>, treatment <span class="op">=</span> <span class="st">"trt"</span>, outcome <span class="op">=</span> <span class="st">"outcome"</span>,</span>
+<span>               covariates <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age_group"</span>, <span class="st">"sex"</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># --- Prepare AgD (comparator) ---</span></span>
+<span><span class="va">agd_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  trt <span class="op">=</span> <span class="st">"Drug_B"</span>, n_total <span class="op">=</span> <span class="fl">400</span>, n_events <span class="op">=</span> <span class="fl">148</span>,</span>
+<span>  age_group_mean <span class="op">=</span> <span class="fl">0.35</span>, sex_mean <span class="op">=</span> <span class="fl">0.50</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">agd</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/set_agd.html">set_agd</a></span><span class="op">(</span><span class="va">agd_df</span>, treatment <span class="op">=</span> <span class="st">"trt"</span>,</span>
+<span>               outcome_n <span class="op">=</span> <span class="st">"n_total"</span>, outcome_r <span class="op">=</span> <span class="st">"n_events"</span>,</span>
+<span>               cov_means <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age_group_mean"</span>, <span class="st">"sex_mean"</span><span class="op">)</span>,</span>
+<span>               cov_types <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"binary"</span>, <span class="st">"binary"</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># --- Combine and add integration points ---</span></span>
+<span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/combine_data.html">combine_data</a></span><span class="op">(</span><span class="va">ipd</span>, <span class="va">agd</span><span class="op">)</span></span>
+<span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/add_integration.html">add_integration</a></span><span class="op">(</span><span class="va">dat</span>, n_int <span class="op">=</span> <span class="fl">64</span>,</span>
+<span>  age_group <span class="op">=</span> <span class="fu"><a href="reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qbern</span>, prob <span class="op">=</span> <span class="va">age_group_mean</span><span class="op">)</span>,</span>
+<span>  sex <span class="op">=</span> <span class="fu"><a href="reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qbern</span>, prob <span class="op">=</span> <span class="va">sex_mean</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># --- Run all three methods ---</span></span>
+<span><span class="va">naive_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/naive.html">naive</a></span><span class="op">(</span><span class="va">dat</span><span class="op">)</span>                          <span class="co"># instant</span></span>
+<span><span class="va">stc_result</span>   <span class="op">&lt;-</span> <span class="fu"><a href="reference/stc.html">stc</a></span><span class="op">(</span><span class="va">dat</span><span class="op">)</span>                            <span class="co"># instant</span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/mlumr.html">mlumr</a></span><span class="op">(</span><span class="va">dat</span>, model <span class="op">=</span> <span class="st">"spfa"</span>,                   <span class="co"># Bayesian, a few minutes</span></span>
+<span>             prior_intercept <span class="op">=</span> <span class="fu"><a href="reference/prior_normal.html">prior_normal</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">10</span><span class="op">)</span>,</span>
+<span>             prior_beta <span class="op">=</span> <span class="fu"><a href="reference/prior_normal.html">prior_normal</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">2.5</span><span class="op">)</span>,</span>
+<span>             chains <span class="op">=</span> <span class="fl">4</span>, iter <span class="op">=</span> <span class="fl">4000</span>, warmup <span class="op">=</span> <span class="fl">2000</span>, seed <span class="op">=</span> <span class="fl">42</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/marginal_effects.html">marginal_effects</a></span><span class="op">(</span><span class="va">fit</span>, effect <span class="op">=</span> <span class="st">"lor"</span><span class="op">)</span></span></code></pre></div>
+</div>
 <div class="section level2">
 <h2 id="supported-outcome-families-and-link-functions">Supported outcome families and link functions<a class="anchor" aria-label="anchor" href="#supported-outcome-families-and-link-functions"></a>
 </h2>
 <table class="table">
+<colgroup>
+<col width="21%">
+<col width="36%">
+<col width="42%">
+</colgroup>
 <thead><tr>
 <th>Family</th>
 <th align="left">Outcome type</th>
@@ -106,125 +193,31 @@
 <td align="left">Count + exposure</td>
 <td align="left">log (default)</td>
 </tr>
+<tr>
+<td>Survival</td>
+<td align="left">Time-to-event</td>
+<td align="left">log (proportional hazards, or accelerated failure time)</td>
+</tr>
 </tbody>
 </table>
-</div>
-<div class="section level2">
-<h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
-</h2>
-<div class="section level3">
-<h3 id="development-version">Development version<a class="anchor" aria-label="anchor" href="#development-version"></a>
-</h3>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># install.packages("remotes")</span></span>
-<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"choxos/mlumr"</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="prerequisites">Prerequisites<a class="anchor" aria-label="anchor" href="#prerequisites"></a>
-</h3>
-<p>mlumr uses <a href="https://mc-stan.org/" class="external-link">Stan</a> for Bayesian model fitting. The default backend is <a href="https://mc-stan.org/rstan/" class="external-link">rstan</a>, with Stan model C++ code generated by rstantools and compiled during package installation. A C++ toolchain is required:</p>
-<ul>
-<li>
-<strong>macOS</strong>: Install Xcode Command Line Tools (<code>xcode-select --install</code>)</li>
-<li>
-<strong>Windows</strong>: Install <a href="https://cran.r-project.org/bin/windows/Rtools/" class="external-link">Rtools</a>
-</li>
-<li>
-<strong>Linux</strong>: Install <code>g++</code> and <code>make</code> (usually available by default)</li>
-</ul>
-</div>
-<div class="section level3">
-<h3 id="optional-cmdstanr-backend">Optional: cmdstanr backend<a class="anchor" aria-label="anchor" href="#optional-cmdstanr-backend"></a>
-</h3>
-<p>Users who prefer <a href="https://mc-stan.org/cmdstanr/" class="external-link">cmdstanr</a> can switch backends after installation:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Switch to cmdstanr (will offer to install cmdstanr + CmdStan if needed)</span></span>
-<span><span class="fu"><a href="reference/mlumr_engine.html">mlumr_engine</a></span><span class="op">(</span><span class="st">"cmdstanr"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Switch back to rstan</span></span>
-<span><span class="fu"><a href="reference/mlumr_engine.html">mlumr_engine</a></span><span class="op">(</span><span class="st">"rstan"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Check current engine</span></span>
-<span><span class="fu"><a href="reference/mlumr_engine.html">mlumr_engine</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p>The engine preference persists for the current session. To set a permanent default, add to your <code>.Rprofile</code>:</p>
+<p>For survival outcomes the comparator arm is reconstructed pseudo-IPD (event/censoring times digitized from a published Kaplan-Meier curve) supplied via <code><a href="reference/set_agd_surv.html">set_agd_surv()</a></code>. The <code>distribution</code> argument selects one of nine parametric forms (exponential, Weibull, Gompertz, and accelerated failure time variants) or a flexible <code>"mspline"</code> / <code>"pexp"</code> baseline. <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> returns survival, hazard, RMST, and median curves plus the time-varying marginal log hazard ratio (<code>type = "loghr"</code>). <code><a href="reference/marginal_effects.html">marginal_effects()</a></code> reports the hazard ratio for proportional-hazards distributions on the natural scale (null 1, as for the rate ratio). For accelerated failure time distributions it reports a time ratio only when the two studies share one baseline shape and one coefficient vector; under the default <code>aux_by = ".study"</code>, or under the relaxed model, it reports the exponentiated linear-predictor contrast (<code>EXP_DELTA_ETA</code>) instead. Both are accompanied by the RMST difference and ratio, each reported with the restriction horizon it was integrated to.</p>
+<p>The baseline hazard is estimated <strong>separately for each study</strong> (<code>aux_by = ".study"</code>, the default, as in multinma). The spelling matches multinma; the meaning does not. In an anchored network a study-specific shape is a nuisance parameter and within-study randomization still identifies the treatment effect. Here each study contributes exactly one arm, so a study-specific shape and a treatment-specific shape are perfectly aliased: nothing in the data separates them. <code>aux_by = "none"</code> instead assumes one shared shape, which for proportional-hazards distributions imposes proportional hazards across studies and for accelerated failure time distributions imposes a common distributional shape; that assumption is at least testable against the two observed Kaplan-Meier curves. Neither choice is assumption-free, so fit both and report which was used.</p>
+<p>After marginalization the hazard ratio is generally time-varying in the SPFA and relaxed models alike, because each arm weights the covariate distribution by its own survival and the two risk sets diverge; study-specific shapes add the ratio of the baselines on top of that. The scalar marginal hazard ratio is therefore its value at one time, chosen with <code>at_time</code>, and the primary reported estimand should be the <code>loghr</code> curve or the collapsible RMST effects. See <code><a href="articles/survival-outcomes.html">vignette("survival-outcomes")</a></code>.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>mlumr.stan_engine <span class="op">=</span> <span class="st">"cmdstanr"</span><span class="op">)</span></span></code></pre></div>
-<p>You can also override the engine for a single model fit:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/mlumr.html">mlumr</a></span><span class="op">(</span><span class="va">dat</span>, model <span class="op">=</span> <span class="st">"spfa"</span>, engine <span class="op">=</span> <span class="st">"cmdstanr"</span><span class="op">)</span></span></code></pre></div>
-<p>When the package is attached with <code><a href="https://github.com/choxos/mlumr" class="external-link">library(mlumr)</a></code>, it prints a short startup message with the installed version and GitHub repository.</p>
-</div>
-</div>
-<div class="section level2">
-<h2 id="using-mlumr-alongside-multinma">Using mlumr alongside multinma<a class="anchor" aria-label="anchor" href="#using-mlumr-alongside-multinma"></a>
-</h2>
-<p>A subset of mlumr’s exported functions perform similar actions to their multinma counterparts and intentionally retain the same name (<code><a href="reference/set_ipd.html">set_ipd()</a></code>, <code><a href="reference/set_agd.html">set_agd()</a></code>, <code><a href="reference/add_integration.html">add_integration()</a></code>, <code><a href="reference/unnest_integration.html">unnest_integration()</a></code>, <code><a href="reference/distr.html">distr()</a></code>, <code><a href="reference/marginal_effects.html">marginal_effects()</a></code>, <code>qbern()/pbern()/dbern()</code>). mlumr also exports several functions that are not available in multinma (<code><a href="reference/mlumr.html">mlumr()</a></code>, <code><a href="reference/naive.html">naive()</a></code>, <code><a href="reference/stc.html">stc()</a></code>, <code><a href="reference/combine_data.html">combine_data()</a></code>, <code><a href="reference/check_integration.html">check_integration()</a></code>, <code><a href="reference/conditional_effects.html">conditional_effects()</a></code>, <code><a href="reference/conditional_predict.html">conditional_predict()</a></code>, <code><a href="reference/prior_sensitivity.html">prior_sensitivity()</a></code>, <code>calculate_dic()/loo()/waic()</code>, <code><a href="reference/compare_models.html">compare_models()</a></code>).</p>
-<p>If both packages are attached in the same R session, R issues masking warnings on the shared names. The cleanest practice is to <strong>use only one package per session for any given analysis</strong>, matched to the network type (anchored connected → multinma; unanchored disconnected → mlumr). When you do need both attached (e.g. a methods-comparison sensitivity analysis), use the namespace prefix to disambiguate:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dmphillippo.github.io/multinma/" class="external-link">multinma</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/choxos/mlumr" class="external-link">mlumr</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="co"># Index IPD with a Surv outcome; comparator from a digitized KM curve</span></span>
+<span><span class="va">ipd</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/set_ipd.html">set_ipd</a></span><span class="op">(</span><span class="va">ipd_df</span>, treatment <span class="op">=</span> <span class="st">"trt"</span>, covariates <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age"</span>, <span class="st">"sex"</span><span class="op">)</span>,</span>
+<span>               family <span class="op">=</span> <span class="st">"survival"</span>, time <span class="op">=</span> <span class="st">"time"</span>, status <span class="op">=</span> <span class="st">"status"</span><span class="op">)</span></span>
+<span><span class="va">agd</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/set_agd_surv.html">set_agd_surv</a></span><span class="op">(</span><span class="va">km_df</span>, treatment <span class="op">=</span> <span class="st">"trt"</span>, time <span class="op">=</span> <span class="st">"time"</span>, status <span class="op">=</span> <span class="st">"status"</span>,</span>
+<span>                    cov_means <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age_mean"</span>, <span class="st">"sex_prop"</span><span class="op">)</span>,</span>
+<span>                    cov_sds <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age_sd"</span>, <span class="cn">NA</span><span class="op">)</span>,</span>
+<span>                    cov_types <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"continuous"</span>, <span class="st">"binary"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/add_integration.html">add_integration</a></span><span class="op">(</span><span class="fu"><a href="reference/combine_data.html">combine_data</a></span><span class="op">(</span><span class="va">ipd</span>, <span class="va">agd</span><span class="op">)</span>, n_int <span class="op">=</span> <span class="fl">64</span>,</span>
+<span>                       age <span class="op">=</span> <span class="fu"><a href="reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qnorm</span>, mean <span class="op">=</span> <span class="va">age_mean</span>, sd <span class="op">=</span> <span class="va">age_sd</span><span class="op">)</span>,</span>
+<span>                       sex <span class="op">=</span> <span class="fu"><a href="reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qbern</span>, prob <span class="op">=</span> <span class="va">sex_mean</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># mlumr fits ML-UMR (disconnected, two-trial)</span></span>
-<span><span class="va">ipd_umr</span> <span class="op">&lt;-</span> <span class="fu">mlumr</span><span class="fu">::</span><span class="fu"><a href="reference/set_ipd.html">set_ipd</a></span><span class="op">(</span><span class="va">ipd_df</span>, treatment <span class="op">=</span> <span class="st">"trt"</span>, outcome <span class="op">=</span> <span class="st">"outcome"</span>,</span>
-<span>                          covariates <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age_group"</span>, <span class="st">"sex"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">fit_umr</span> <span class="op">&lt;-</span> <span class="fu">mlumr</span><span class="fu">::</span><span class="fu"><a href="reference/mlumr.html">mlumr</a></span><span class="op">(</span><span class="va">dat</span>, model <span class="op">=</span> <span class="st">"spfa"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># multinma fits ML-NMR (connected network)</span></span>
-<span><span class="va">net_nmr</span> <span class="op">&lt;-</span> <span class="fu">multinma</span><span class="fu">::</span><span class="fu"><a href="https://dmphillippo.github.io/multinma/reference/set_ipd.html" class="external-link">set_ipd</a></span><span class="op">(</span><span class="va">pso_ipd</span>, study <span class="op">=</span> <span class="va">studyc</span>, trt <span class="op">=</span> <span class="va">trtc</span>, r <span class="op">=</span> <span class="va">pasi75</span><span class="op">)</span></span>
-<span><span class="va">fit_nmr</span> <span class="op">&lt;-</span> <span class="fu">multinma</span><span class="fu">::</span><span class="fu"><a href="https://dmphillippo.github.io/multinma/reference/nma.html" class="external-link">nma</a></span><span class="op">(</span><span class="va">net_nmr</span>, regression <span class="op">=</span> <span class="op">~</span> <span class="va">age</span><span class="op">:</span><span class="va">.trt</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="quick-start">Quick start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
-</h2>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/choxos/mlumr" class="external-link">mlumr</a></span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># --- Prepare IPD (index treatment) ---</span></span>
-<span><span class="va">n_A</span> <span class="op">&lt;-</span> <span class="fl">500</span></span>
-<span><span class="va">ipd_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  trt <span class="op">=</span> <span class="st">"Drug_A"</span>,</span>
-<span>  outcome <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n_A</span>, <span class="fl">1</span>, <span class="fl">0.55</span><span class="op">)</span>,</span>
-<span>  age_group <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n_A</span>, <span class="fl">1</span>, <span class="fl">0.40</span><span class="op">)</span>,</span>
-<span>  sex <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n_A</span>, <span class="fl">1</span>, <span class="fl">0.55</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">ipd</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/set_ipd.html">set_ipd</a></span><span class="op">(</span><span class="va">ipd_df</span>, treatment <span class="op">=</span> <span class="st">"trt"</span>, outcome <span class="op">=</span> <span class="st">"outcome"</span>,</span>
-<span>                     covariates <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age_group"</span>, <span class="st">"sex"</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># --- Prepare AgD (comparator) ---</span></span>
-<span><span class="va">agd_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  trt <span class="op">=</span> <span class="st">"Drug_B"</span>, n_total <span class="op">=</span> <span class="fl">400</span>, n_events <span class="op">=</span> <span class="fl">148</span>,</span>
-<span>  age_group_mean <span class="op">=</span> <span class="fl">0.35</span>, sex_mean <span class="op">=</span> <span class="fl">0.50</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">agd</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/set_agd.html">set_agd</a></span><span class="op">(</span><span class="va">agd_df</span>, treatment <span class="op">=</span> <span class="st">"trt"</span>,</span>
-<span>                     outcome_n <span class="op">=</span> <span class="st">"n_total"</span>, outcome_r <span class="op">=</span> <span class="st">"n_events"</span>,</span>
-<span>                     cov_means <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age_group_mean"</span>, <span class="st">"sex_mean"</span><span class="op">)</span>,</span>
-<span>                     cov_types <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"binary"</span>, <span class="st">"binary"</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># --- Combine and add integration points ---</span></span>
-<span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/combine_data.html">combine_data</a></span><span class="op">(</span><span class="va">ipd</span>, <span class="va">agd</span><span class="op">)</span></span>
-<span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/add_integration.html">add_integration</a></span><span class="op">(</span><span class="va">dat</span>, n_int <span class="op">=</span> <span class="fl">64</span>,</span>
-<span>  age_group <span class="op">=</span> <span class="fu"><a href="reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qbern</span>, prob <span class="op">=</span> <span class="va">age_group_mean</span><span class="op">)</span>,</span>
-<span>  sex <span class="op">=</span> <span class="fu"><a href="reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qbern</span>, prob <span class="op">=</span> <span class="va">sex_mean</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># --- Run all three methods ---</span></span>
-<span><span class="co"># Naive (instant)</span></span>
-<span><span class="va">naive_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/naive.html">naive</a></span><span class="op">(</span><span class="va">dat</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># STC (instant)</span></span>
-<span><span class="va">stc_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/stc.html">stc</a></span><span class="op">(</span><span class="va">dat</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># ML-UMR SPFA (Bayesian, takes a few minutes)</span></span>
-<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/mlumr.html">mlumr</a></span><span class="op">(</span><span class="va">dat</span>, model <span class="op">=</span> <span class="st">"spfa"</span>,</span>
-<span>             prior_intercept <span class="op">=</span> <span class="fu"><a href="reference/prior_normal.html">prior_normal</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">10</span><span class="op">)</span>,</span>
-<span>             prior_beta <span class="op">=</span> <span class="fu"><a href="reference/prior_normal.html">prior_normal</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">2.5</span><span class="op">)</span>,</span>
-<span>             chains <span class="op">=</span> <span class="fl">4</span>, iter <span class="op">=</span> <span class="fl">4000</span>, warmup <span class="op">=</span> <span class="fl">2000</span>, seed <span class="op">=</span> <span class="fl">42</span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/marginal_effects.html">marginal_effects</a></span><span class="op">(</span><span class="va">fit</span>, effect <span class="op">=</span> <span class="st">"lor"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/mlumr.html">mlumr</a></span><span class="op">(</span><span class="va">dat</span>, model <span class="op">=</span> <span class="st">"spfa"</span>, distribution <span class="op">=</span> <span class="st">"weibull"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/marginal_effects.html">marginal_effects</a></span><span class="op">(</span><span class="va">fit</span>, effect <span class="op">=</span> <span class="st">"hr"</span><span class="op">)</span>     <span class="co"># marginal hazard ratio, null 1</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"rmst"</span><span class="op">)</span>              <span class="co"># restricted mean survival time</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="methods-overview">Methods overview<a class="anchor" aria-label="anchor" href="#methods-overview"></a>
@@ -263,95 +256,22 @@
 <td>Uncertainty</td>
 <td align="center">Posterior</td>
 <td align="center">Posterior</td>
-<td align="center">Delta method</td>
+<td align="center">Delta method (bootstrap for TTE)</td>
 <td align="center">Delta method</td>
 </tr>
 <tr>
 <td>Population weighting</td>
 <td align="center">QMC integration</td>
 <td align="center">QMC integration</td>
-<td align="center">G-computation</td>
-<td align="center">None</td>
-</tr>
-<tr>
-<td>Speed</td>
-<td align="center">Minutes</td>
-<td align="center">Minutes</td>
-<td align="center">Sub-second</td>
-<td align="center">Sub-second</td>
+<td align="center">Comparator-population G-computation</td>
+<td align="center">Crude observed populations</td>
 </tr>
 <tr>
 <td>Integration points required</td>
 <td align="center">Yes</td>
 <td align="center">Yes</td>
-<td align="center">Optional</td>
+<td align="center">Yes, except normal identity</td>
 <td align="center">No</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="section level2">
-<h2 id="key-functions">Key functions<a class="anchor" aria-label="anchor" href="#key-functions"></a>
-</h2>
-<table class="table">
-<colgroup>
-<col width="52%">
-<col width="47%">
-</colgroup>
-<thead><tr>
-<th>Function</th>
-<th>Purpose</th>
-</tr></thead>
-<tbody>
-<tr>
-<td>
-<code><a href="reference/set_ipd.html">set_ipd()</a></code>, <code><a href="reference/set_agd.html">set_agd()</a></code>
-</td>
-<td>Prepare IPD and AgD with outcome and covariate specification</td>
-</tr>
-<tr>
-<td><code><a href="reference/combine_data.html">combine_data()</a></code></td>
-<td>Combine IPD and AgD into a unified dataset</td>
-</tr>
-<tr>
-<td><code><a href="reference/add_integration.html">add_integration()</a></code></td>
-<td>Generate QMC integration points with Gaussian copula</td>
-</tr>
-<tr>
-<td><code><a href="reference/mlumr.html">mlumr()</a></code></td>
-<td>Fit ML-UMR SPFA or Relaxed model via Stan</td>
-</tr>
-<tr>
-<td><code><a href="reference/mlumr_engine.html">mlumr_engine()</a></code></td>
-<td>Get or set the Stan backend (rstan or cmdstanr)</td>
-</tr>
-<tr>
-<td>
-<code><a href="reference/naive.html">naive()</a></code>, <code><a href="reference/stc.html">stc()</a></code>
-</td>
-<td>Frequentist benchmark methods</td>
-</tr>
-<tr>
-<td><code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code></td>
-<td>Population-specific predicted outcomes</td>
-</tr>
-<tr>
-<td><code><a href="reference/marginal_effects.html">marginal_effects()</a></code></td>
-<td>Posterior treatment effect summaries</td>
-</tr>
-<tr>
-<td><code><a href="reference/conditional_effects.html">conditional_effects()</a></code></td>
-<td>Covariate-conditional treatment effects</td>
-</tr>
-<tr>
-<td><code><a href="reference/conditional_predict.html">conditional_predict()</a></code></td>
-<td>Predictions at specific covariate values</td>
-</tr>
-<tr>
-<td>
-<code><a href="reference/calculate_loo.html">calculate_loo()</a></code>, <code><a href="reference/calculate_waic.html">calculate_waic()</a></code>, <code><a href="reference/calculate_dic.html">calculate_dic()</a></code>, <code><a href="reference/compare_models.html">compare_models()</a></code>
-</td>
-<td>Bayesian model comparison (LOO-CV, WAIC, DIC)</td>
 </tr>
 </tbody>
 </table>
@@ -388,7 +308,7 @@
 <tr>
 <td>STC</td>
 <td align="center">IPD + AgD</td>
-<td align="center">Anchored or unanchored</td>
+<td align="center">Unanchored</td>
 <td align="center">Yes</td>
 <td align="center">Marginal</td>
 <td align="center">Comparator</td>
@@ -405,45 +325,183 @@
 <td><strong>ML-UMR</strong></td>
 <td align="center">IPD + AgD</td>
 <td align="center">Unanchored</td>
-<td align="center">No</td>
+<td align="center">Yes</td>
 <td align="center">Marginal or conditional</td>
 <td align="center">Any pre-specified target</td>
 </tr>
 </tbody>
 </table>
+<p>The <strong>index population is the decision-relevant target</strong> in most health technology assessment (HTA) settings: cost-effectiveness models are built for the population a reimbursement decision is about, which is normally the index trial’s. MAIC and pairwise STC identify an effect in the <em>comparator</em> population, so applying them to a decision problem carries an extra, usually implicit, transport step. ML-UMR makes that step explicit by standardizing each treatment model to the index population (or any pre-specified covariate target via <code>newdata</code>). <code><a href="reference/marginal_effects.html">marginal_effects()</a></code> reports both populations; lead with the population relevant to the decision and show the other as a sensitivity analysis. This standardization is itself a transport step and relies on correct outcome models, the stated cross-treatment assumptions, and adequate covariate overlap.</p>
 <p>ML-UMR is most appropriate when:</p>
 <ol style="list-style-type: decimal">
 <li>You have IPD for one treatment and AgD for the comparator</li>
 <li>No common reference arm connects the evidence (unanchored)</li>
-<li>Binary, continuous, or count outcomes are of interest</li>
+<li>Binary, continuous, count, or time-to-event outcomes are of interest</li>
 <li>Covariate distributions differ between trial populations</li>
 </ol>
 </div>
 <div class="section level2">
+<h2 id="key-functions">Key functions<a class="anchor" aria-label="anchor" href="#key-functions"></a>
+</h2>
+<table class="table">
+<colgroup>
+<col width="52%">
+<col width="47%">
+</colgroup>
+<thead><tr>
+<th>Function</th>
+<th>Purpose</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>
+<code><a href="reference/set_ipd.html">set_ipd()</a></code>, <code><a href="reference/set_agd.html">set_agd()</a></code>
+</td>
+<td>Prepare IPD and AgD with outcome and covariate specification</td>
+</tr>
+<tr>
+<td><code><a href="reference/set_agd_surv.html">set_agd_surv()</a></code></td>
+<td>Prepare comparator survival pseudo-IPD (reconstructed KM)</td>
+</tr>
+<tr>
+<td><code><a href="reference/combine_data.html">combine_data()</a></code></td>
+<td>Combine IPD and AgD into a unified dataset</td>
+</tr>
+<tr>
+<td><code><a href="reference/add_integration.html">add_integration()</a></code></td>
+<td>Generate QMC integration points with Gaussian copula</td>
+</tr>
+<tr>
+<td><code><a href="reference/make_knots.html">make_knots()</a></code></td>
+<td>Choose M-spline knots for a flexible survival baseline</td>
+</tr>
+<tr>
+<td><code><a href="reference/mlumr.html">mlumr()</a></code></td>
+<td>Fit ML-UMR SPFA or Relaxed model via Stan</td>
+</tr>
+<tr>
+<td><code><a href="reference/mlumr_engine.html">mlumr_engine()</a></code></td>
+<td>Get or set the Stan backend (rstan or cmdstanr)</td>
+</tr>
+<tr>
+<td>
+<code><a href="reference/naive.html">naive()</a></code>, <code><a href="reference/stc.html">stc()</a></code>
+</td>
+<td>Frequentist benchmark methods</td>
+</tr>
+<tr>
+<td><code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code></td>
+<td>Population-specific predicted outcomes</td>
+</tr>
+<tr>
+<td><code><a href="reference/marginal_effects.html">marginal_effects()</a></code></td>
+<td>Posterior treatment effect summaries</td>
+</tr>
+<tr>
+<td><code><a href="reference/conditional_effects.html">conditional_effects()</a></code></td>
+<td>Covariate-conditional treatment effects</td>
+</tr>
+<tr>
+<td><code><a href="reference/conditional_predict.html">conditional_predict()</a></code></td>
+<td>Predictions at specific covariate values</td>
+</tr>
+<tr>
+<td><code><a href="reference/check_identification.html">check_identification()</a></code></td>
+<td>Screen whether the aggregate rows can inform the relaxed model’s comparator coefficients (binomial, normal, poisson)</td>
+</tr>
+<tr>
+<td><code><a href="reference/check_integration.html">check_integration()</a></code></td>
+<td>Check that the integration points reproduce the declared AgD moments</td>
+</tr>
+<tr>
+<td><code><a href="reference/prior_sensitivity.html">prior_sensitivity()</a></code></td>
+<td>Refit across a grid of prior scales, varying only the prior</td>
+</tr>
+<tr>
+<td>
+<code><a href="reference/calculate_loo.html">calculate_loo()</a></code>, <code><a href="reference/calculate_waic.html">calculate_waic()</a></code>, <code><a href="reference/compare_models.html">compare_models()</a></code>
+</td>
+<td>Bayesian model comparison (LOO-CV, WAIC); <code>survival_unit</code> sets the pointwise unit for survival fits</td>
+</tr>
+<tr>
+<td><code><a href="reference/calculate_dic.html">calculate_dic()</a></code></td>
+<td>Deviance information criterion, computed from the fit’s own log likelihood</td>
+</tr>
+<tr>
+<td>
+<code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code>, <code><a href="reference/mlumr_forest.html">mlumr_forest()</a></code>, <code><a href="reference/geom_km.html">geom_km()</a></code>, <code><a href="reference/plot_prior_posterior.html">plot_prior_posterior()</a></code>
+</td>
+<td>Forest, curve, and prior-versus-posterior figures</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section level2">
+<h2 id="stan-backend">Stan backend<a class="anchor" aria-label="anchor" href="#stan-backend"></a>
+</h2>
+<p>The default backend is rstan. Users who prefer cmdstanr can switch after installation:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/mlumr_engine.html">mlumr_engine</a></span><span class="op">(</span><span class="st">"cmdstanr"</span><span class="op">)</span>   <span class="co"># offers to install cmdstanr + CmdStan if needed</span></span>
+<span><span class="fu"><a href="reference/mlumr_engine.html">mlumr_engine</a></span><span class="op">(</span><span class="st">"rstan"</span><span class="op">)</span>      <span class="co"># switch back</span></span>
+<span><span class="fu"><a href="reference/mlumr_engine.html">mlumr_engine</a></span><span class="op">(</span><span class="op">)</span>             <span class="co"># check current engine</span></span></code></pre></div>
+<p>The preference persists for the session. Set a permanent default in <code>.Rprofile</code> with <code>options(mlumr.stan_engine = "cmdstanr")</code>, or override per fit: <code>mlumr(dat, model = "spfa", engine = "cmdstanr")</code>.</p>
+</div>
+<div class="section level2">
+<h2 id="using-mlumr-alongside-multinma">Using mlumr alongside multinma<a class="anchor" aria-label="anchor" href="#using-mlumr-alongside-multinma"></a>
+</h2>
+<p>Some exported functions intentionally use names familiar from multinma counterparts (<code><a href="reference/set_ipd.html">set_ipd()</a></code>, <code><a href="reference/set_agd.html">set_agd()</a></code>, <code><a href="reference/add_integration.html">add_integration()</a></code>, <code><a href="reference/unnest_integration.html">unnest_integration()</a></code>, <code><a href="reference/distr.html">distr()</a></code>, <code><a href="reference/marginal_effects.html">marginal_effects()</a></code>, <code><a href="reference/make_knots.html">make_knots()</a></code>, <code><a href="reference/geom_km.html">geom_km()</a></code>, <code>qbern()/pbern()/dbern()</code>, <code>qgamma()/pgamma()/dgamma()</code>, <code>qlogitnorm()/plogitnorm()/dlogitnorm()</code>).</p>
+<p>Shared names signal related concepts, not drop-in compatibility. The data objects, argument sets, supported evidence structures, and fitted models differ, so translate a multinma specification explicitly and check each mlumr help page. One difference is worth stating outright, because both packages spell it <code>"link"</code>: <code>multinma::predict(type = "link")</code> returns the average linear predictor <code>E[eta]</code>, and its marginal link-scale contrast is <code>marginal_effects(mtype = "link")</code>. mlumr’s <code>predict(type = "link")</code> is the marginal one, the fitted link applied to the population-standardized response mean, because every effect mlumr reports is standardized over a population and there is no conditional estimand here for <code>E[eta]</code> to pair with. For survival, <code>aux_by = NULL</code> resolves to <code>".study"</code>; the mlumr-specific <code>aux_by = "none"</code> shares one baseline shape across both studies.</p>
+<p>The cleanest practice is still to <strong>use one package per session</strong>, matched to the network type (anchored connected → multinma; unanchored disconnected → mlumr). When both must be attached, disambiguate with the namespace prefix:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dmphillippo.github.io/multinma/" class="external-link">multinma</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/choxos/mlumr" class="external-link">mlumr</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># mlumr fits ML-UMR (disconnected, two-trial)</span></span>
+<span><span class="va">fit_umr</span> <span class="op">&lt;-</span> <span class="fu">mlumr</span><span class="fu">::</span><span class="fu"><a href="reference/mlumr.html">mlumr</a></span><span class="op">(</span><span class="va">dat</span>, model <span class="op">=</span> <span class="st">"spfa"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># multinma fits ML-NMR (connected network)</span></span>
+<span><span class="va">net_nmr</span> <span class="op">&lt;-</span> <span class="fu">multinma</span><span class="fu">::</span><span class="fu"><a href="https://dmphillippo.github.io/multinma/reference/set_ipd.html" class="external-link">set_ipd</a></span><span class="op">(</span><span class="va">pso_ipd</span>, study <span class="op">=</span> <span class="va">studyc</span>, trt <span class="op">=</span> <span class="va">trtc</span>, r <span class="op">=</span> <span class="va">pasi75</span><span class="op">)</span></span>
+<span><span class="va">fit_nmr</span> <span class="op">&lt;-</span> <span class="fu">multinma</span><span class="fu">::</span><span class="fu"><a href="https://dmphillippo.github.io/multinma/reference/nma.html" class="external-link">nma</a></span><span class="op">(</span><span class="va">net_nmr</span>, regression <span class="op">=</span> <span class="op">~</span> <span class="va">age</span><span class="op">:</span><span class="va">.trt</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
 <h2 id="vignettes">Vignettes<a class="anchor" aria-label="anchor" href="#vignettes"></a>
 </h2>
-<p>Detailed tutorials are available as package vignettes:</p>
+<p>Detailed tutorials are available as package vignettes, in reading order:</p>
+<p><em>Getting started</em></p>
 <ul>
 <li>
-<code><a href="articles/introduction.html">vignette("introduction")</a></code> – Package overview, installation, and quick start</li>
+<code><a href="articles/introduction.html">vignette("introduction")</a></code>: overview, the unanchored problem, the four methods, and a reading roadmap</li>
 <li>
-<code><a href="articles/data-preparation.html">vignette("data-preparation")</a></code> – IPD/AgD setup, integration points, and correlation handling</li>
+<code><a href="articles/data-preparation.html">vignette("data-preparation")</a></code>: the four-step pipeline and the numerical integration that powers population adjustment</li>
+</ul>
+<p><em>Outcome types</em> (each a complete worked example)</p>
+<ul>
 <li>
-<code><a href="articles/mlumr-models.html">vignette("mlumr-models")</a></code> – SPFA vs Relaxed models, priors, diagnostics, and LOO/WAIC/DIC model comparison</li>
+<code><a href="articles/binary-outcomes.html">vignette("binary-outcomes")</a></code>: binary response (PASI 75, plaque psoriasis)</li>
 <li>
-<code><a href="articles/stc-and-naive.html">vignette("stc-and-naive")</a></code> – STC and naive methods with delta-method details</li>
+<code><a href="articles/continuous-outcomes.html">vignette("continuous-outcomes")</a></code>: continuous outcome (shoulder pain, ASD vs exercise therapy)</li>
 <li>
-<code><a href="articles/model-comparison.html">vignette("model-comparison")</a></code> – Side-by-side comparison of all methods with interpretation guidance</li>
+<code><a href="articles/count-outcomes.html">vignette("count-outcomes")</a></code>: count outcome (dmft dental caries, silver diamine fluoride vs nano-silver fluoride)</li>
 <li>
-<code><a href="articles/worked-example.html">vignette("worked-example")</a></code> – Complete end-to-end analysis from simulated data</li>
+<code><a href="articles/survival-outcomes.html">vignette("survival-outcomes")</a></code>: time-to-event (progression-free survival in multiple myeloma, lenalidomide vs thalidomide)</li>
+</ul>
+<p><em>Methods</em></p>
+<ul>
+<li>
+<code><a href="articles/fitting-and-diagnostics.html">vignette("fitting-and-diagnostics")</a></code>: sampler control, backends, priors, and MCMC diagnostics</li>
+<li>
+<code><a href="articles/choosing-a-method.html">vignette("choosing-a-method")</a></code>: assumptions, model comparison, and a decision guide for ML-UMR vs STC vs naive</li>
+<li>
+<code><a href="articles/subgroup-identification.html">vignette("subgroup-identification")</a></code>: how many jointly defined aggregate subgroup rows the relaxed model needs, the geometry those rows must have, and how to read <code><a href="reference/check_identification.html">check_identification()</a></code>
+</li>
 </ul>
 </div>
 <div class="section level2">
 <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h2>
-<p>The ML-UMR methodology extends the ML-NMR framework:</p>
+<p>mlumr implements multilevel unanchored meta-regression (ML-UMR):</p>
 <blockquote>
-<p>Phillippo, D. M., Dias, S., Ades, A. E., Belger, M., Brnabic, A., Schacht, A., Saure, D., Kadziola, Z., &amp; Welton, N. J. (2020). “Multilevel Network Meta-Regression for population-adjusted treatment comparisons.” <em>Journal of the Royal Statistical Society: Series A</em>, 183(3), 1189–1210. <a href="https://doi.org/10.1111/rssa.12579" class="external-link">doi:10.1111/rssa.12579</a></p>
+<p>Chandler, C. &amp; Ishak, J. (2026). “Anchors Away: Navigating Unanchored Indirect Comparisons with Multilevel Unanchored Meta-Regression (ML-UMR).” Preprint, arXiv:2606.20341 [stat.ME]. <a href="https://doi.org/10.48550/arXiv.2606.20341" class="external-link">doi:10.48550/arXiv.2606.20341</a></p>
 </blockquote>
 <blockquote>
 <p>Chandler, C. &amp; Ishak, J. (2025). “Anchors Away: Navigating Unanchored Indirect Comparisons With Multilevel Unanchored Meta-Regression (ML-UMR).” ISPOR Europe 2025, MSR28. <em>Value in Health</em>, 28, S498. <a href="https://www.valueinhealthjournal.com/article/S1098-3015(25)05944-3/abstract" class="external-link uri">https://www.valueinhealthjournal.com/article/S1098-3015(25)05944-3/abstract</a></p>
@@ -451,12 +509,30 @@
 <blockquote>
 <p>Chandler, C. &amp; Ishak, J. (2026). “Surviving Unanchored Indirect Comparisons: An Extension of Multilevel Unanchored Meta-Regression (ML-UMR) for Survival Analyses.” ISPOR 2026, MSR131. <em>Value in Health</em>, 29(S6). <a href="https://www.ispor.org/heor-resources/presentations-database/presentation-cti/ispor-2026/poster-session-3-3/surviving-unanchored-indirect-comparisons-an-extension-of-multilevel-unanchored-meta-regression-ml-umr-for-survival-analyses" class="external-link uri">https://www.ispor.org/heor-resources/presentations-database/presentation-cti/ispor-2026/poster-session-3-3/surviving-unanchored-indirect-comparisons-an-extension-of-multilevel-unanchored-meta-regression-ml-umr-for-survival-analyses</a></p>
 </blockquote>
+<p>ML-UMR is an adaptation of multilevel network meta-regression (ML-NMR) to the unanchored case, where no common comparator arm links the two studies:</p>
+<blockquote>
+<p>Phillippo, D. M., Dias, S., Ades, A. E., Belger, M., Brnabic, A., Schacht, A., Saure, D., Kadziola, Z., &amp; Welton, N. J. (2020). “Multilevel Network Meta-Regression for population-adjusted treatment comparisons.” <em>Journal of the Royal Statistical Society: Series A</em>, 183(3), 1189–1210. <a href="https://doi.org/10.1111/rssa.12579" class="external-link">doi:10.1111/rssa.12579</a></p>
+</blockquote>
 </div>
 <div class="section level2">
 <h2 id="citing-mlumr">Citing mlumr<a class="anchor" aria-label="anchor" href="#citing-mlumr"></a>
 </h2>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/citation.html" class="external-link">citation</a></span><span class="op">(</span><span class="st">"mlumr"</span><span class="op">)</span></span></code></pre></div>
+<p>Each release is archived on <a href="https://zenodo.org/" class="external-link">Zenodo</a> with a citable DOI (the DOI badge above appears after the first release). The repository ships machine-readable citation and software metadata for FAIR harvesters:</p>
+<ul>
+<li>
+<a href="CITATION.cff"><code>CITATION.cff</code></a>: Citation File Format (GitHub “Cite this repository”, Zenodo).</li>
+<li>
+<a href="codemeta.json"><code>codemeta.json</code></a>: CodeMeta 2.0 software metadata crosswalk.</li>
+<li>
+<a href=".zenodo.json"><code>.zenodo.json</code></a>: Zenodo deposit metadata (authors, ORCIDs, license, related identifiers).</li>
+<li>
+<a href="ro-crate-metadata.json"><code>ro-crate-metadata.json</code></a>: RO-Crate 1.1 packaging and provenance.</li>
+<li>
+<code>inst/CITATION</code>: the R-level citation (<code>citation("mlumr")</code>).</li>
+</ul>
+<p>All carry the GPL-3.0 SPDX identifier, both authors’ ORCIDs, and the upstream ML-NMR / <code>multinma</code> provenance.</p>
 </div>
 <div class="section level2">
 <h2 id="authors">Authors<a class="anchor" aria-label="anchor" href="#authors"></a>
@@ -471,7 +547,8 @@
 <div class="section level2">
 <h2 id="acknowledgments">Acknowledgments<a class="anchor" aria-label="anchor" href="#acknowledgments"></a>
 </h2>
-<p>Portions of the package code, documentation, and Stan models were drafted and audited with the assistance of large language models: Anthropic’s Claude Opus 4.6 and 4.7 (via <a href="https://www.anthropic.com/claude-code" class="external-link">Claude Code</a>) and OpenAI’s ChatGPT 5.4 and 5.5 (via <a href="https://openai.com/codex/" class="external-link">Codex</a>). All methodological choices, design decisions, and the final review and validation were performed by the named authors, who take responsibility for the package’s contents.</p>
+<p>mlumr is an adaptation of the GPL-3 licensed <a href="https://github.com/dmphillippo/multinma" class="external-link"><code>multinma</code></a> package, reusing its Sobol quasi-Monte Carlo and Gaussian-copula integration machinery and adding Stan likelihoods for the unanchored two-treatment problem.</p>
+<p>Portions of the package code, documentation, and Stan models were drafted and reviewed with the assistance of large language models: Anthropic’s Claude Opus 4.6, 4.7, and 5 (via <a href="https://www.anthropic.com/claude-code" class="external-link">Claude Code</a>) and OpenAI’s ChatGPT 5.4, 5.5, and 5.6 Sol (via <a href="https://openai.com/codex/" class="external-link">Codex</a>). All methodological choices, design decisions, and the final review and validation were performed by the named authors, who take responsibility for the package’s contents.</p>
 </div>
 <div class="section level2">
 <h2 id="license">License<a class="anchor" aria-label="anchor" href="#license"></a>
@@ -482,6 +559,7 @@
   </main><aside class="col-md-3"><div class="links">
 <h2 data-toc-skip>Links</h2>
 <ul class="list-unstyled">
+<li><a href="https://cloud.r-project.org/package=mlumr" class="external-link">View on CRAN</a></li>
 <li><a href="https://github.com/choxos/mlumr/" class="external-link">Browse source code</a></li>
 <li><a href="https://github.com/choxos/mlumr/issues" class="external-link">Report a bug</a></li>
 </ul>
@@ -490,10 +568,18 @@
 <div class="license">
 <h2 data-toc-skip>License</h2>
 <ul class="list-unstyled">
-<li><a href="https://www.r-project.org/Licenses/GPL-3" class="external-link">GPL-3</a></li>
+<li><a href="LICENSE.html">Full license</a></li>
+<li><small><a href="https://www.r-project.org/Licenses/GPL-3" class="external-link">GPL-3</a></small></li>
 </ul>
 </div>
 
+<div class="community">
+<h2 data-toc-skip>Community</h2>
+<ul class="list-unstyled">
+<li><a href="CONTRIBUTING.html">Contributing guide</a></li>
+<li><a href="CODE_OF_CONDUCT.html">Code of conduct</a></li>
+</ul>
+</div>
 
 <div class="citation">
 <h2 data-toc-skip>Citation</h2>
@@ -514,8 +600,13 @@
 <h2 data-toc-skip>Dev status</h2>
 <ul class="list-unstyled">
 <li><a href="https://CRAN.R-project.org/package=mlumr" class="external-link"><img src="https://www.r-pkg.org/badges/version/mlumr" alt="CRAN status"></a></li>
+<li><a href="https://cran.r-project.org/package=mlumr" class="external-link"><img src="https://cranlogs.r-pkg.org/badges/mlumr" alt="CRAN downloads"></a></li>
+<li><a href="https://choxos.r-universe.dev/mlumr" class="external-link"><img src="https://choxos.r-universe.dev/mlumr/badges/version" alt="R-universe"></a></li>
 <li><a href="https://github.com/choxos/mlumr/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/choxos/mlumr/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
+<li><a href="https://choxos.github.io/mlumr/"><img src="https://github.com/choxos/mlumr/actions/workflows/pkgdown.yaml/badge.svg" alt="pkgdown"></a></li>
+<li><a href="https://lifecycle.r-lib.org/articles/stages.html#maturing" class="external-link"><img src="https://img.shields.io/badge/lifecycle-maturing-blue.svg" alt="Lifecycle: maturing"></a></li>
 <li><a href="https://www.gnu.org/licenses/gpl-3.0" class="external-link"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License: GPL v3"></a></li>
+<li><a href="https://archive.softwareheritage.org/browse/origin/?origin_url=https://github.com/choxos/mlumr" class="external-link"><img src="https://archive.softwareheritage.org/badge/origin/https://github.com/choxos/mlumr/" alt="Archived on Software Heritage"></a></li>
 </ul>
 </div>
 
@@ -528,7 +619,7 @@
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer>

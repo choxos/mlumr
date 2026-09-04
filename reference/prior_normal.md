@@ -41,9 +41,9 @@ A list with components `distribution`, `mean`, `sd`, `df`, `autoscale`.
 The Stan community's prior-choice wiki (Vehtari et al., 2025) describes
 five broad categories, from least to most informative:
 
-1.  Flat prior — not recommended.
+1.  Flat prior (not recommended).
 
-2.  Super-vague proper prior, e.g., `normal(0, 1e6)` — not recommended.
+2.  Super-vague proper prior, e.g., `normal(0, 1e6)` (not recommended).
 
 3.  Weakly informative, **very weak**, e.g., `normal(0, 10)`.
 
@@ -57,23 +57,24 @@ models the natural scales are:
 - Treatment intercepts:
 
   On the linear-predictor (link) scale. For a binary outcome with logit
-  link, the intercept is a baseline log odds; `normal(0, 10)` spans ±20
-  log-odds at 95 percent and is "very weak". It is the default because
-  the data usually constrain the intercept strongly. Tightening to
-  `normal(0, 5)` is reasonable when the expected event rate is far from
-  the extremes.
+  link, the intercept is a baseline log odds; `normal(0, 10)` spans
+  +/-20 log-odds at 95 percent and is "very weak". It is the default
+  because the data usually constrain the intercept strongly. Tightening
+  to `normal(0, 5)` is reasonable when the expected event rate is far
+  from the extremes.
 
 - Regression coefficients (`beta`):
 
-  On the link scale, per unit of covariate. For logistic regression with
-  predictors on unit scale, Gelman et al. (2008) and the Stan wiki
-  recommend `student_t(df, 0, 2.5)` with `df` in `3:7`, or — as a
-  practical approximation — `normal(0, 2.5)`. That is the default used
-  by [`mlumr()`](https://choxos.github.io/mlumr/reference/mlumr.md). Use
-  `normal(0, 1)` if you expect small effects (e.g., standardized
-  predictors in a normal-outcome model). If predictors are on very
-  different scales, set `autoscale = TRUE` so the scale is divided by
-  each covariate's SD.
+  On the link scale, per unit of covariate. `normal(0, 2.5)` is the
+  package's generic starting value, not a universally calibrated
+  default. Gelman et al. (2008) motivate a weakly informative Cauchy
+  scale for logistic coefficients after a particular predictor scaling;
+  that recommendation does not by itself justify this normal prior for
+  every family or covariate scale. Use prior predictive checks and
+  subject-matter knowledge to calibrate the scale. If predictors are on
+  different scales, `autoscale = TRUE` transforms both the prior
+  location and scale to preserve the intended prior on the contribution
+  of each original-scale covariate.
 
 - Residual SD (`sigma`, normal family only):
 
@@ -87,13 +88,13 @@ Prior sensitivity is especially important for the relaxed model, where
 `beta_comparator` is identified only by the AgD likelihood. Run
 [`prior_sensitivity()`](https://choxos.github.io/mlumr/reference/prior_sensitivity.md)
 to quantify how much conclusions move under alternative scales; see
-[`vignette("mlumr-models")`](https://choxos.github.io/mlumr/articles/mlumr-models.md).
+[`vignette("fitting-and-diagnostics")`](https://choxos.github.io/mlumr/articles/fitting-and-diagnostics.md).
 
 ## References
 
 Gelman, A., Jakulin, A., Pittau, M. G., & Su, Y.-S. (2008). A weakly
 informative default prior distribution for logistic and other regression
-models. *Annals of Applied Statistics*, 2(4), 1360–1383.
+models. *Annals of Applied Statistics*, 2(4), 1360-1383.
 
 Vehtari, A. et al. Prior Choice Recommendations (Stan wiki):
 <https://github.com/stan-dev/stan/wiki/Prior-Choice-Recommendations>.
@@ -119,7 +120,7 @@ prior_normal(mean = 0, sd = 10)
 #> [1] FALSE
 #> 
 
-# Gelman 2008 default for logistic-regression coefficients
+# Package starting value for regression coefficients
 prior_normal(mean = 0, sd = 2.5)
 #> $distribution
 #> [1] "normal"

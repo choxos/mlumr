@@ -9,7 +9,11 @@ For DIC the return is a data frame ordered by DIC.
 ## Usage
 
 ``` r
-compare_models(..., criterion = c("dic", "loo", "waic"))
+compare_models(
+  ...,
+  criterion = c("dic", "loo", "waic"),
+  survival_unit = c("observation", "arm", "aggregate")
+)
 ```
 
 ## Arguments
@@ -23,6 +27,18 @@ compare_models(..., criterion = c("dic", "loo", "waic"))
 
   One of `"dic"` (default), `"loo"`, or `"waic"`. LOO and WAIC require
   the optional `loo` package.
+
+- survival_unit:
+
+  For survival fits compared by `"loo"`/`"waic"`, the pointwise unit
+  forwarded to
+  [`calculate_loo()`](https://choxos.github.io/mlumr/reference/calculate_loo.md)
+  /
+  [`calculate_waic()`](https://choxos.github.io/mlumr/reference/calculate_waic.md):
+  `"observation"` (default; per reconstructed comparator
+  pseudo-individual, optimistic), `"arm"`, or `"aggregate"`. Choose
+  `"arm"` or `"aggregate"` to select on whole-external-arm predictive
+  fit. Ignored for non-survival families and for `criterion = "dic"`.
 
 ## Value
 

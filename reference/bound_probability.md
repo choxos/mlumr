@@ -1,6 +1,8 @@
-# Bound probabilities away from 0 and 1
+# Apply a boundary-only binomial continuity correction
 
-Bound probabilities away from 0 and 1
+At zero or all events, uses the pseudo-count estimate
+`(r + min_count) / (n + 2 * min_count)`. Interior probabilities are
+unchanged.
 
 ## Usage
 

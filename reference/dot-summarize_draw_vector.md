@@ -1,4 +1,4 @@
-# Summarize a single draw vector into mean / sd / quantiles.
+# Summarize a single draw vector into mean, sd and quantiles
 
 Internal helper. Centralizes the (mean, sd, quantile) triplet used by
 [`predict.mlumr_fit()`](https://choxos.github.io/mlumr/reference/predict.mlumr_fit.md),

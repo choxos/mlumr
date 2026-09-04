@@ -1,4 +1,4 @@
-# Summarize a draws matrix column-wise into a tidy data frame.
+# Summarize a draws matrix column-wise into a tidy data frame
 
 Applies
 [`.summarize_draw_vector()`](https://choxos.github.io/mlumr/reference/dot-summarize_draw_vector.md)

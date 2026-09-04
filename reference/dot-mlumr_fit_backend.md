@@ -16,6 +16,7 @@ Dispatch mlumr() sampling to the selected backend
   adapt_delta,
   max_treedepth,
   refresh,
+  verbose = TRUE,
   ...
 )
 ```

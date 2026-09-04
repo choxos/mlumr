@@ -7,7 +7,11 @@ Stan models. Returns a `loo` object from the `loo` package.
 ## Usage
 
 ``` r
-calculate_loo(object, ...)
+calculate_loo(
+  object,
+  survival_unit = c("observation", "arm", "aggregate"),
+  ...
+)
 ```
 
 ## Arguments
@@ -16,10 +20,21 @@ calculate_loo(object, ...)
 
   An `mlumr_fit` object.
 
+- survival_unit:
+
+  For survival fits, the LOO/WAIC pointwise unit: `"observation"`
+  (default; per reconstructed comparator pseudo-individual, optimistic),
+  `"arm"` (group the comparator pseudo-IPD by comparator arm, so each
+  external arm is one held-out unit), or `"aggregate"` (all comparator
+  pseudo-IPD as a single external-evidence unit). The index IPD always
+  stays per-individual. Ignored for non-survival families.
+
 - ...:
 
   Additional arguments passed to
-  [`loo::loo.array()`](https://mc-stan.org/loo/reference/loo.html).
+  [`loo::loo()`](https://mc-stan.org/loo/reference/loo.html) (the
+  `log_lik` matrix dispatches to
+  [`loo::loo.matrix()`](https://mc-stan.org/loo/reference/loo.html)).
 
 ## Value
 
@@ -44,6 +59,15 @@ within-study clustering; effective sample sizes are inflated and
 Pareto-k warnings are understated. For clustered AgD, corroborate with
 [`prior_sensitivity()`](https://choxos.github.io/mlumr/reference/prior_sensitivity.md)
 or refit omitting suspect rows to check the influence on the posterior.
+
+**Survival fits.** The comparator AgD enters as reconstructed
+pseudo-IPD, so each AgD pointwise unit is a single reconstructed
+pseudo-individual, not an aggregate row or the comparator trial.
+Survival LOO/WAIC therefore measure pseudo-individual-level predictive
+fit and are optimistic relative to leaving out the comparator arm/trial;
+treat them as a rough check, not a decisive model-selection criterion.
+Set `survival_unit = "arm"` or `"aggregate"` to instead hold out whole
+comparator arms / the external evidence as single units.
 
 ## Examples
 
