@@ -46,7 +46,10 @@ continuous, count, and survival outcomes. For *which* method to report, see
 `mlumr()` fits two model variants by Stan: `model = "spfa"` (shared
 prognostic-factor coefficients) and `model = "relaxed"` (treatment-specific
 coefficients, allowing effect modification). The default backend is `rstan`;
-`cmdstanr` is an optional alternative.
+`cmdstanr` is an optional alternative. The sampler messages, timings and
+`Engine:` line shown throughout this vignette were produced with `cmdstanr`,
+which `vignettes/precompile.R` selects, so running the same code with the
+defaults prints rstan's equivalents instead.
 
 ## A model to work with
 

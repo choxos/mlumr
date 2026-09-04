@@ -83,7 +83,7 @@ library(ggplot2)
 data("caries_ipd")     # index IPD (SDF), bundled with mlumr
 data("caries_agd")     # comparator AgD (NSF)
 
-covariates <- c("age", "log_cfu")   # baseline bacterial load is the key prognostic
+covariates <- c("age", "log_cfu")   # age carries the prognostic signal here
 
 knitr::kable(data.frame(
   Arm = c("Index (SDF, IPD)", "Comparator (NSF, AgD)"),
@@ -131,7 +131,7 @@ Table: Index IPD (SDF), first rows
 Population adjustment is motivated by the fact that the two trial populations differ
 on prognostic factors. Comparing the index sample means against the published
 comparator means shows the imbalance we must adjust for, here baseline bacterial
-load (`log_cfu`) is the key prognostic factor:
+load (`log_cfu`) is the covariate the two arms are most imbalanced on:
 
 
 ``` r
@@ -294,14 +294,14 @@ fit_spfa <- mlumr(dat, model = "spfa", link = "log",
                   chains = 4, iter = 2000, warmup = 1000, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 1 finished in 0.1 seconds.
-#> Chain 2 finished in 0.1 seconds.
-#> Chain 3 finished in 0.1 seconds.
+#> Chain 1 finished in 0.2 seconds.
+#> Chain 2 finished in 0.2 seconds.
+#> Chain 3 finished in 0.2 seconds.
 #> Chain 4 finished in 0.1 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 0.1 seconds.
-#> Total execution time: 0.4 seconds.
+#> Mean chain execution time: 0.2 seconds.
+#> Total execution time: 0.5 seconds.
 fit_relaxed <- mlumr(dat, model = "relaxed", link = "log",
                      prior_beta = prior_normal(0, 0.5, autoscale = TRUE),
                      chains = 4, iter = 2000, warmup = 1000,
@@ -310,12 +310,12 @@ fit_relaxed <- mlumr(dat, model = "relaxed", link = "log",
 #> 
 #> Chain 1 finished in 0.5 seconds.
 #> Chain 2 finished in 0.5 seconds.
-#> Chain 4 finished in 0.4 seconds.
 #> Chain 3 finished in 0.5 seconds.
+#> Chain 4 finished in 0.4 seconds.
 #> 
 #> All 4 chains finished successfully.
 #> Mean chain execution time: 0.5 seconds.
-#> Total execution time: 0.8 seconds.
+#> Total execution time: 0.7 seconds.
 summary(fit_spfa)
 #> ML-UMR Model Summary
 #> ====================

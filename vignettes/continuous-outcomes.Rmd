@@ -294,7 +294,7 @@ fit_spfa <- mlumr(dat, model = "spfa", link = "identity",
                   prior_beta = prior_normal(0, 1, autoscale = TRUE),
                   chains = 4, iter = 2000, warmup = 1000, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
-#> Chain 1 finished in 0.2 seconds.
+#> Chain 1 finished in 0.1 seconds.
 #> Chain 2 finished in 0.2 seconds.
 #> Chain 3 finished in 0.2 seconds.
 #> Chain 4 finished in 0.2 seconds.
@@ -310,7 +310,7 @@ fit_relaxed <- mlumr(dat, model = "relaxed", link = "identity",
 #> Chain 1 finished in 0.2 seconds.
 #> Chain 2 finished in 0.2 seconds.
 #> Chain 3 finished in 0.2 seconds.
-#> Chain 4 finished in 0.3 seconds.
+#> Chain 4 finished in 0.2 seconds.
 #> 
 #> All 4 chains finished successfully.
 #> Mean chain execution time: 0.2 seconds.

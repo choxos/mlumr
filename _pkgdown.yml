@@ -47,6 +47,8 @@ navbar:
         href: articles/fitting-and-diagnostics.html
       - text: "Choosing a method: ML-UMR, STC, and naive"
         href: articles/choosing-a-method.html
+      - text: Aggregate subgroup information for the relaxed model
+        href: articles/subgroup-identification.html
 
 articles:
 - title: Getting started

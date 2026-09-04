@@ -24,7 +24,10 @@ continuous, count, and survival outcomes. For *which* method to report, see
 `mlumr()` fits two model variants by Stan: `model = "spfa"` (shared
 prognostic-factor coefficients) and `model = "relaxed"` (treatment-specific
 coefficients, allowing effect modification). The default backend is `rstan`;
-`cmdstanr` is an optional alternative.
+`cmdstanr` is an optional alternative. The sampler messages, timings and
+`Engine:` line shown throughout this vignette were produced with `cmdstanr`,
+which `vignettes/precompile.R` selects, so running the same code with the
+defaults prints rstan's equivalents instead.
 
 ## A model to work with
 
@@ -64,14 +67,14 @@ fit <- mlumr(dat, model = "spfa",
              chains = 4, iter = 2000, warmup = 1000, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 1 finished in 0.7 seconds.
-#> Chain 2 finished in 0.6 seconds.
-#> Chain 3 finished in 0.7 seconds.
-#> Chain 4 finished in 0.6 seconds.
+#> Chain 1 finished in 0.8 seconds.
+#> Chain 2 finished in 0.8 seconds.
+#> Chain 3 finished in 0.8 seconds.
+#> Chain 4 finished in 0.8 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 0.6 seconds.
-#> Total execution time: 1.0 seconds.
+#> Mean chain execution time: 0.8 seconds.
+#> Total execution time: 1.1 seconds.
 ```
 
 ## Controlling the sampler
@@ -329,34 +332,34 @@ coefficients are identified by the IPD and the sweep is expected to be flat:
 prior_sensitivity(fit, prior_beta_scales = c(1, 2.5, 5))
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 1 finished in 0.7 seconds.
-#> Chain 2 finished in 0.7 seconds.
-#> Chain 3 finished in 0.7 seconds.
-#> Chain 4 finished in 0.7 seconds.
-#> 
-#> All 4 chains finished successfully.
-#> Mean chain execution time: 0.7 seconds.
-#> Total execution time: 1.1 seconds.
-#> Running MCMC with 4 parallel chains...
-#> 
 #> Chain 1 finished in 0.6 seconds.
 #> Chain 2 finished in 0.5 seconds.
-#> Chain 3 finished in 0.6 seconds.
+#> Chain 3 finished in 0.5 seconds.
 #> Chain 4 finished in 0.6 seconds.
 #> 
 #> All 4 chains finished successfully.
 #> Mean chain execution time: 0.6 seconds.
-#> Total execution time: 1.0 seconds.
+#> Total execution time: 0.8 seconds.
 #> Running MCMC with 4 parallel chains...
 #> 
 #> Chain 1 finished in 0.6 seconds.
 #> Chain 2 finished in 0.6 seconds.
 #> Chain 3 finished in 0.6 seconds.
-#> Chain 4 finished in 0.5 seconds.
+#> Chain 4 finished in 0.6 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 0.5 seconds.
+#> Mean chain execution time: 0.6 seconds.
 #> Total execution time: 0.9 seconds.
+#> Running MCMC with 4 parallel chains...
+#> 
+#> Chain 1 finished in 1.0 seconds.
+#> Chain 2 finished in 1.1 seconds.
+#> Chain 3 finished in 1.0 seconds.
+#> Chain 4 finished in 0.9 seconds.
+#> 
+#> All 4 chains finished successfully.
+#> Mean chain execution time: 1.0 seconds.
+#> Total execution time: 1.5 seconds.
 #> 
 #> Prior sensitivity: posterior of marginal treatment effects
 #> =========================================================

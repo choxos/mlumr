@@ -338,14 +338,14 @@ fit_spfa <- mlumr(dat, model = "spfa", link = "logit",
                   seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 1 finished in 0.6 seconds.
-#> Chain 2 finished in 0.6 seconds.
-#> Chain 3 finished in 0.6 seconds.
-#> Chain 4 finished in 0.6 seconds.
+#> Chain 1 finished in 0.8 seconds.
+#> Chain 2 finished in 0.8 seconds.
+#> Chain 3 finished in 0.8 seconds.
+#> Chain 4 finished in 0.8 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 0.6 seconds.
-#> Total execution time: 0.8 seconds.
+#> Mean chain execution time: 0.8 seconds.
+#> Total execution time: 1.0 seconds.
 
 fit_relaxed <- mlumr(dat, model = "relaxed", link = "logit",
                      prior_beta = prior_normal(0, 2.5, autoscale = TRUE),
@@ -353,14 +353,14 @@ fit_relaxed <- mlumr(dat, model = "relaxed", link = "logit",
                      seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 2 finished in 3.8 seconds.
-#> Chain 4 finished in 4.2 seconds.
-#> Chain 3 finished in 4.7 seconds.
-#> Chain 1 finished in 5.1 seconds.
+#> Chain 2 finished in 4.3 seconds.
+#> Chain 4 finished in 4.7 seconds.
+#> Chain 3 finished in 5.3 seconds.
+#> Chain 1 finished in 5.7 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 4.5 seconds.
-#> Total execution time: 5.2 seconds.
+#> Mean chain execution time: 5.0 seconds.
+#> Total execution time: 5.8 seconds.
 
 summary(fit_spfa)
 #> ML-UMR Model Summary
@@ -636,8 +636,12 @@ with the covariates:
 
 
 ``` r
+# Weight stays in kilograms in this vignette (IPD mean about 94), unlike
+# `vignette("choosing-a-method")`, which divides it by 10. Profiles must be on
+# the scale the model was fitted on, or the contrast is evaluated outside the
+# covariate support.
 profiles <- data.frame(age = c(40, 55, 70), bsa = c(0.15, 0.30, 0.45),
-                       weight = c(7.5, 9.0, 11.0), prevsys = c(0, 1, 1))
+                       weight = c(75, 90, 110), prevsys = c(0, 1, 1))
 knitr::kable(conditional_effects(fit_spfa, newdata = profiles),
    caption = "Conditional log odds ratios at three covariate profiles")
 ```
@@ -649,14 +653,14 @@ Table: Conditional log odds ratios at three covariate profiles
 | profile|effect      |      mean|        sd|       q2.5|       q50|     q97.5|
 |-------:|:-----------|---------:|---------:|----------:|---------:|---------:|
 |       1|LINK_EFFECT | 0.2512088| 0.2220838| -0.1788467| 0.2480997| 0.6897951|
-|       1|RD          | 0.0158931| 0.0171732| -0.0166838| 0.0144929| 0.0546655|
-|       1|RR          | 1.0179169| 0.0205886|  0.9814740| 1.0157309| 1.0652528|
+|       1|RD          | 0.0339087| 0.0307868| -0.0262549| 0.0332149| 0.0957605|
+|       1|RR          | 1.0427288| 0.0399764|  0.9673283| 1.0403847| 1.1271305|
 |       2|LINK_EFFECT | 0.2512088| 0.2220838| -0.1788467| 0.2480997| 0.6897951|
-|       2|RD          | 0.0237740| 0.0232938| -0.0239803| 0.0233931| 0.0717123|
-|       2|RR          | 1.0282100| 0.0292494|  0.9722342| 1.0266319| 1.0918931|
+|       2|RD          | 0.0514439| 0.0457618| -0.0357710| 0.0502035| 0.1429027|
+|       2|RR          | 1.0783357| 0.0717254|  0.9517072| 1.0722251| 1.2320427|
 |       3|LINK_EFFECT | 0.2512088| 0.2220838| -0.1788467| 0.2480997| 0.6897951|
-|       3|RD          | 0.0361316| 0.0341120| -0.0330421| 0.0359099| 0.1050578|
-|       3|RR          | 1.0487346| 0.0501596|  0.9539080| 1.0448837| 1.1595812|
+|       3|RD          | 0.0608825| 0.0537360| -0.0434875| 0.0601443| 0.1653002|
+|       3|RR          | 1.1429823| 0.1365554|  0.9216199| 1.1236565| 1.4613458|
 
 
 
@@ -863,7 +867,10 @@ knitr::kable(data.frame(
              "Anchored: ML-NMR, with * .trt (multinma's own model)",
              "Anchored: ML-NMR, with * .trt (multinma's own model)"),
   Anchored = c("no", "no", "no", "no", "no", "no", "yes", "yes", "yes", "yes"),
-  Population = c("comparator", "comparator", "index", "comparator",
+  # `naive()` contrasts the two crude outcomes; it is standardized to no
+  # population, which is the point of comparing it against the adjusted rows.
+  # `vignette("choosing-a-method")` uses the same label for the same reason.
+  Population = c("unstandardized", "comparator", "index", "comparator",
                  "index", "comparator", "not population-specific",
                  "not population-specific", "index", "comparator"),
   LOR   = c(res_naive$link_effect, res_stc$link_effect,
@@ -887,7 +894,7 @@ Table: Unanchored estimates against the anchored references, in both target popu
 
 |Method                                               |Anchored |Population              |     LOR|    2.5%|  97.5%|
 |:----------------------------------------------------|:--------|:-----------------------|-------:|-------:|------:|
-|Naive (unadjusted)                                   |no       |comparator              |   0.017|  -0.345|  0.379|
+|Naive (unadjusted)                                   |no       |unstandardized          |   0.017|  -0.345|  0.379|
 |STC (G-computation)                                  |no       |comparator              |   0.240|  -0.157|  0.638|
 |ML-UMR SPFA (prognostic only)                        |no       |index                   |   0.232|  -0.170|  0.627|
 |ML-UMR SPFA (prognostic only)                        |no       |comparator              |   0.233|  -0.170|  0.630|

@@ -45,6 +45,10 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: JamesIves/github-pages-deploy-action@d92aa235d04922e8f08b40ce78cc5442fcfbfa2f # v4.8.0
         with:
-          clean: false
+          # The vignette set was replaced, so pages for the retired
+          # mlumr-models, model-comparison, stc-and-naive and worked-example
+          # articles are no longer generated. With `clean: false` they would
+          # stay on gh-pages and keep serving a site that no longer exists.
+          clean: true
           branch: gh-pages
           folder: docs

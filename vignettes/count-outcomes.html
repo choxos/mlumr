@@ -448,7 +448,7 @@ ratio</strong> <span class="math inline">\(\mathrm{RR}=\bar\lambda_{\text{index}
 <span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;caries_ipd&quot;</span>)     <span class="co"># index IPD (SDF), bundled with mlumr</span></span>
 <span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;caries_agd&quot;</span>)     <span class="co"># comparator AgD (NSF)</span></span>
 <span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a></span>
-<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>covariates <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;age&quot;</span>, <span class="st">&quot;log_cfu&quot;</span>)   <span class="co"># baseline bacterial load is the key prognostic</span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>covariates <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;age&quot;</span>, <span class="st">&quot;log_cfu&quot;</span>)   <span class="co"># age carries the prognostic signal here</span></span>
 <span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a></span>
 <span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
 <span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>  <span class="at">Arm =</span> <span class="fu">c</span>(<span class="st">&quot;Index (SDF, IPD)&quot;</span>, <span class="st">&quot;Comparator (NSF, AgD)&quot;</span>),</span>
@@ -567,7 +567,7 @@ ratio</strong> <span class="math inline">\(\mathrm{RR}=\bar\lambda_{\text{index}
 populations differ on prognostic factors. Comparing the index sample
 means against the published comparator means shows the imbalance we must
 adjust for, here baseline bacterial load (<code>log_cfu</code>) is the
-key prognostic factor:</p>
+covariate the two arms are most imbalanced on:</p>
 <div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>balance <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
 <span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  <span class="at">Covariate     =</span> <span class="fu">c</span>(<span class="st">&quot;Age (years)&quot;</span>, <span class="st">&quot;Baseline bacterial load (log CFU)&quot;</span>),</span>
 <span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  <span class="at">Index_SDF     =</span> <span class="fu">c</span>(<span class="fu">mean</span>(caries_ipd<span class="sc">$</span>age), <span class="fu">mean</span>(caries_ipd<span class="sc">$</span>log_cfu)),</span>
@@ -723,14 +723,14 @@ comparator-specific coefficients lean on one aggregate row.</p>
 <span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>                  <span class="at">chains =</span> <span class="dv">4</span>, <span class="at">iter =</span> <span class="dv">2000</span>, <span class="at">warmup =</span> <span class="dv">1000</span>, <span class="at">seed =</span> <span class="dv">2026</span>, <span class="at">refresh =</span> <span class="dv">0</span>)</span>
 <span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
 <span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a><span class="co">#&gt; Chain 1 finished in 0.1 seconds.</span></span>
-<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a><span class="co">#&gt; Chain 2 finished in 0.1 seconds.</span></span>
-<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a><span class="co">#&gt; Chain 3 finished in 0.1 seconds.</span></span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a><span class="co">#&gt; Chain 1 finished in 0.2 seconds.</span></span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a><span class="co">#&gt; Chain 2 finished in 0.2 seconds.</span></span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a><span class="co">#&gt; Chain 3 finished in 0.2 seconds.</span></span>
 <span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a><span class="co">#&gt; Chain 4 finished in 0.1 seconds.</span></span>
 <span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a><span class="co">#&gt; Mean chain execution time: 0.1 seconds.</span></span>
-<span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a><span class="co">#&gt; Total execution time: 0.4 seconds.</span></span>
+<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a><span class="co">#&gt; Mean chain execution time: 0.2 seconds.</span></span>
+<span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a><span class="co">#&gt; Total execution time: 0.5 seconds.</span></span>
 <span id="cb9-14"><a href="#cb9-14" tabindex="-1"></a>fit_relaxed <span class="ot">&lt;-</span> <span class="fu">mlumr</span>(dat, <span class="at">model =</span> <span class="st">&quot;relaxed&quot;</span>, <span class="at">link =</span> <span class="st">&quot;log&quot;</span>,</span>
 <span id="cb9-15"><a href="#cb9-15" tabindex="-1"></a>                     <span class="at">prior_beta =</span> <span class="fu">prior_normal</span>(<span class="dv">0</span>, <span class="fl">0.5</span>, <span class="at">autoscale =</span> <span class="cn">TRUE</span>),</span>
 <span id="cb9-16"><a href="#cb9-16" tabindex="-1"></a>                     <span class="at">chains =</span> <span class="dv">4</span>, <span class="at">iter =</span> <span class="dv">2000</span>, <span class="at">warmup =</span> <span class="dv">1000</span>,</span>
@@ -739,12 +739,12 @@ comparator-specific coefficients lean on one aggregate row.</p>
 <span id="cb9-19"><a href="#cb9-19" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb9-20"><a href="#cb9-20" tabindex="-1"></a><span class="co">#&gt; Chain 1 finished in 0.5 seconds.</span></span>
 <span id="cb9-21"><a href="#cb9-21" tabindex="-1"></a><span class="co">#&gt; Chain 2 finished in 0.5 seconds.</span></span>
-<span id="cb9-22"><a href="#cb9-22" tabindex="-1"></a><span class="co">#&gt; Chain 4 finished in 0.4 seconds.</span></span>
-<span id="cb9-23"><a href="#cb9-23" tabindex="-1"></a><span class="co">#&gt; Chain 3 finished in 0.5 seconds.</span></span>
+<span id="cb9-22"><a href="#cb9-22" tabindex="-1"></a><span class="co">#&gt; Chain 3 finished in 0.5 seconds.</span></span>
+<span id="cb9-23"><a href="#cb9-23" tabindex="-1"></a><span class="co">#&gt; Chain 4 finished in 0.4 seconds.</span></span>
 <span id="cb9-24"><a href="#cb9-24" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb9-25"><a href="#cb9-25" tabindex="-1"></a><span class="co">#&gt; All 4 chains finished successfully.</span></span>
 <span id="cb9-26"><a href="#cb9-26" tabindex="-1"></a><span class="co">#&gt; Mean chain execution time: 0.5 seconds.</span></span>
-<span id="cb9-27"><a href="#cb9-27" tabindex="-1"></a><span class="co">#&gt; Total execution time: 0.8 seconds.</span></span>
+<span id="cb9-27"><a href="#cb9-27" tabindex="-1"></a><span class="co">#&gt; Total execution time: 0.7 seconds.</span></span>
 <span id="cb9-28"><a href="#cb9-28" tabindex="-1"></a><span class="fu">summary</span>(fit_spfa)</span>
 <span id="cb9-29"><a href="#cb9-29" tabindex="-1"></a><span class="co">#&gt; ML-UMR Model Summary</span></span>
 <span id="cb9-30"><a href="#cb9-30" tabindex="-1"></a><span class="co">#&gt; ====================</span></span>

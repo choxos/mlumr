@@ -355,8 +355,11 @@ to report, see <code>vignette(&quot;choosing-a-method&quot;)</code>.</p>
 <code>model = &quot;spfa&quot;</code> (shared prognostic-factor coefficients) and
 <code>model = &quot;relaxed&quot;</code> (treatment-specific coefficients,
 allowing effect modification). The default backend is
-<code>rstan</code>; <code>cmdstanr</code> is an optional
-alternative.</p>
+<code>rstan</code>; <code>cmdstanr</code> is an optional alternative.
+The sampler messages, timings and <code>Engine:</code> line shown
+throughout this vignette were produced with <code>cmdstanr</code>, which
+<code>vignettes/precompile.R</code> selects, so running the same code
+with the defaults prints rstan’s equivalents instead.</p>
 <div id="a-model-to-work-with" class="section level2">
 <h2>A model to work with</h2>
 <p>We reuse the plaque-psoriasis binary example, a compact ML-UMR fit
@@ -392,14 +395,14 @@ preparation is covered in <code>vignette(&quot;binary-outcomes&quot;)</code>):</
 <span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a>             <span class="at">chains =</span> <span class="dv">4</span>, <span class="at">iter =</span> <span class="dv">2000</span>, <span class="at">warmup =</span> <span class="dv">1000</span>, <span class="at">seed =</span> <span class="dv">2026</span>, <span class="at">refresh =</span> <span class="dv">0</span>)</span>
 <span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
 <span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a><span class="co">#&gt; Chain 1 finished in 0.7 seconds.</span></span>
-<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a><span class="co">#&gt; Chain 2 finished in 0.6 seconds.</span></span>
-<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a><span class="co">#&gt; Chain 3 finished in 0.7 seconds.</span></span>
-<span id="cb2-34"><a href="#cb2-34" tabindex="-1"></a><span class="co">#&gt; Chain 4 finished in 0.6 seconds.</span></span>
+<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a><span class="co">#&gt; Chain 1 finished in 0.8 seconds.</span></span>
+<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a><span class="co">#&gt; Chain 2 finished in 0.8 seconds.</span></span>
+<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a><span class="co">#&gt; Chain 3 finished in 0.8 seconds.</span></span>
+<span id="cb2-34"><a href="#cb2-34" tabindex="-1"></a><span class="co">#&gt; Chain 4 finished in 0.8 seconds.</span></span>
 <span id="cb2-35"><a href="#cb2-35" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb2-36"><a href="#cb2-36" tabindex="-1"></a><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span id="cb2-37"><a href="#cb2-37" tabindex="-1"></a><span class="co">#&gt; Mean chain execution time: 0.6 seconds.</span></span>
-<span id="cb2-38"><a href="#cb2-38" tabindex="-1"></a><span class="co">#&gt; Total execution time: 1.0 seconds.</span></span></code></pre></div>
+<span id="cb2-37"><a href="#cb2-37" tabindex="-1"></a><span class="co">#&gt; Mean chain execution time: 0.8 seconds.</span></span>
+<span id="cb2-38"><a href="#cb2-38" tabindex="-1"></a><span class="co">#&gt; Total execution time: 1.1 seconds.</span></span></code></pre></div>
 </div>
 <div id="controlling-the-sampler" class="section level2">
 <h2>Controlling the sampler</h2>
@@ -705,34 +708,34 @@ identified by the IPD and the sweep is expected to be flat:</p>
 <div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">prior_sensitivity</span>(fit, <span class="at">prior_beta_scales =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="fl">2.5</span>, <span class="dv">5</span>))</span>
 <span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
 <span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a><span class="co">#&gt; Chain 1 finished in 0.7 seconds.</span></span>
-<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a><span class="co">#&gt; Chain 2 finished in 0.7 seconds.</span></span>
-<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a><span class="co">#&gt; Chain 3 finished in 0.7 seconds.</span></span>
-<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a><span class="co">#&gt; Chain 4 finished in 0.7 seconds.</span></span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a><span class="co">#&gt; Chain 1 finished in 0.6 seconds.</span></span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a><span class="co">#&gt; Chain 2 finished in 0.5 seconds.</span></span>
+<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a><span class="co">#&gt; Chain 3 finished in 0.5 seconds.</span></span>
+<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a><span class="co">#&gt; Chain 4 finished in 0.6 seconds.</span></span>
 <span id="cb13-8"><a href="#cb13-8" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb13-9"><a href="#cb13-9" tabindex="-1"></a><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span id="cb13-10"><a href="#cb13-10" tabindex="-1"></a><span class="co">#&gt; Mean chain execution time: 0.7 seconds.</span></span>
-<span id="cb13-11"><a href="#cb13-11" tabindex="-1"></a><span class="co">#&gt; Total execution time: 1.1 seconds.</span></span>
+<span id="cb13-10"><a href="#cb13-10" tabindex="-1"></a><span class="co">#&gt; Mean chain execution time: 0.6 seconds.</span></span>
+<span id="cb13-11"><a href="#cb13-11" tabindex="-1"></a><span class="co">#&gt; Total execution time: 0.8 seconds.</span></span>
 <span id="cb13-12"><a href="#cb13-12" tabindex="-1"></a><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
 <span id="cb13-13"><a href="#cb13-13" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb13-14"><a href="#cb13-14" tabindex="-1"></a><span class="co">#&gt; Chain 1 finished in 0.6 seconds.</span></span>
-<span id="cb13-15"><a href="#cb13-15" tabindex="-1"></a><span class="co">#&gt; Chain 2 finished in 0.5 seconds.</span></span>
+<span id="cb13-15"><a href="#cb13-15" tabindex="-1"></a><span class="co">#&gt; Chain 2 finished in 0.6 seconds.</span></span>
 <span id="cb13-16"><a href="#cb13-16" tabindex="-1"></a><span class="co">#&gt; Chain 3 finished in 0.6 seconds.</span></span>
 <span id="cb13-17"><a href="#cb13-17" tabindex="-1"></a><span class="co">#&gt; Chain 4 finished in 0.6 seconds.</span></span>
 <span id="cb13-18"><a href="#cb13-18" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb13-19"><a href="#cb13-19" tabindex="-1"></a><span class="co">#&gt; All 4 chains finished successfully.</span></span>
 <span id="cb13-20"><a href="#cb13-20" tabindex="-1"></a><span class="co">#&gt; Mean chain execution time: 0.6 seconds.</span></span>
-<span id="cb13-21"><a href="#cb13-21" tabindex="-1"></a><span class="co">#&gt; Total execution time: 1.0 seconds.</span></span>
+<span id="cb13-21"><a href="#cb13-21" tabindex="-1"></a><span class="co">#&gt; Total execution time: 0.9 seconds.</span></span>
 <span id="cb13-22"><a href="#cb13-22" tabindex="-1"></a><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
 <span id="cb13-23"><a href="#cb13-23" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb13-24"><a href="#cb13-24" tabindex="-1"></a><span class="co">#&gt; Chain 1 finished in 0.6 seconds.</span></span>
-<span id="cb13-25"><a href="#cb13-25" tabindex="-1"></a><span class="co">#&gt; Chain 2 finished in 0.6 seconds.</span></span>
-<span id="cb13-26"><a href="#cb13-26" tabindex="-1"></a><span class="co">#&gt; Chain 3 finished in 0.6 seconds.</span></span>
-<span id="cb13-27"><a href="#cb13-27" tabindex="-1"></a><span class="co">#&gt; Chain 4 finished in 0.5 seconds.</span></span>
+<span id="cb13-24"><a href="#cb13-24" tabindex="-1"></a><span class="co">#&gt; Chain 1 finished in 1.0 seconds.</span></span>
+<span id="cb13-25"><a href="#cb13-25" tabindex="-1"></a><span class="co">#&gt; Chain 2 finished in 1.1 seconds.</span></span>
+<span id="cb13-26"><a href="#cb13-26" tabindex="-1"></a><span class="co">#&gt; Chain 3 finished in 1.0 seconds.</span></span>
+<span id="cb13-27"><a href="#cb13-27" tabindex="-1"></a><span class="co">#&gt; Chain 4 finished in 0.9 seconds.</span></span>
 <span id="cb13-28"><a href="#cb13-28" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb13-29"><a href="#cb13-29" tabindex="-1"></a><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span id="cb13-30"><a href="#cb13-30" tabindex="-1"></a><span class="co">#&gt; Mean chain execution time: 0.5 seconds.</span></span>
-<span id="cb13-31"><a href="#cb13-31" tabindex="-1"></a><span class="co">#&gt; Total execution time: 0.9 seconds.</span></span>
+<span id="cb13-30"><a href="#cb13-30" tabindex="-1"></a><span class="co">#&gt; Mean chain execution time: 1.0 seconds.</span></span>
+<span id="cb13-31"><a href="#cb13-31" tabindex="-1"></a><span class="co">#&gt; Total execution time: 1.5 seconds.</span></span>
 <span id="cb13-32"><a href="#cb13-32" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb13-33"><a href="#cb13-33" tabindex="-1"></a><span class="co">#&gt; Prior sensitivity: posterior of marginal treatment effects</span></span>
 <span id="cb13-34"><a href="#cb13-34" tabindex="-1"></a><span class="co">#&gt; =========================================================</span></span>

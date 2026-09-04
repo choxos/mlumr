@@ -389,14 +389,14 @@ fit_mspline <- mlumr(dat, model = "spfa", distribution = "mspline", n_knots = 7,
                      chains = 4, iter = 2000, warmup = 1000, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 1 finished in 314.2 seconds.
-#> Chain 3 finished in 324.9 seconds.
-#> Chain 4 finished in 332.3 seconds.
-#> Chain 2 finished in 381.5 seconds.
+#> Chain 1 finished in 346.3 seconds.
+#> Chain 3 finished in 355.9 seconds.
+#> Chain 4 finished in 361.9 seconds.
+#> Chain 2 finished in 410.9 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 338.2 seconds.
-#> Total execution time: 381.7 seconds.
+#> Mean chain execution time: 368.8 seconds.
+#> Total execution time: 411.0 seconds.
 ```
 
 
@@ -412,14 +412,14 @@ fit_mspline_relaxed <- mlumr(dat, model = "relaxed", distribution = "mspline",
                              refresh = 0)
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 4 finished in 627.3 seconds.
-#> Chain 3 finished in 653.2 seconds.
-#> Chain 1 finished in 665.0 seconds.
-#> Chain 2 finished in 667.4 seconds.
+#> Chain 4 finished in 508.3 seconds.
+#> Chain 3 finished in 528.7 seconds.
+#> Chain 1 finished in 537.7 seconds.
+#> Chain 2 finished in 539.5 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 653.2 seconds.
-#> Total execution time: 667.6 seconds.
+#> Mean chain execution time: 528.5 seconds.
+#> Total execution time: 539.7 seconds.
 ```
 
 
@@ -430,14 +430,14 @@ fit_weibull <- mlumr(dat, model = "spfa", distribution = "weibull",
                      chains = 4, iter = 2000, warmup = 1000, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 2 finished in 602.2 seconds.
-#> Chain 3 finished in 614.9 seconds.
-#> Chain 1 finished in 639.6 seconds.
-#> Chain 4 finished in 674.5 seconds.
+#> Chain 2 finished in 380.7 seconds.
+#> Chain 3 finished in 390.1 seconds.
+#> Chain 1 finished in 402.2 seconds.
+#> Chain 4 finished in 424.2 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 632.8 seconds.
-#> Total execution time: 675.1 seconds.
+#> Mean chain execution time: 399.3 seconds.
+#> Total execution time: 424.6 seconds.
 ```
 
 
@@ -889,14 +889,19 @@ km_rmst <- function(d) unname(summary(
   survival::survfit(survival::Surv(eventtime, status) ~ 1, data = d),
   rmean = tau)$table["rmean"])
 
+# Name these so the prose below cites the same numbers the table prints,
+# rather than literals that drift the next time the vignette is re-knitted.
+rmst_own       <- km_rmst(mcc_pbo)
+rmst_transport <- mean(summary(m_pbo, newdata = nd, type = "rmst",
+                               t = tau, ci = FALSE, tidy = TRUE)$est)
+rmst_observed  <- km_rmst(mor_pbo)
+rmst_gap       <- rmst_observed - rmst_transport
+
 knitr::kable(data.frame(
   Quantity = c("McCarthy2012 placebo, observed in its own population",
                "McCarthy2012 placebo model, transported to Morgan2012",
                "Morgan2012 placebo, observed"),
-  `RMST (months)` = c(km_rmst(mcc_pbo),
-                      mean(summary(m_pbo, newdata = nd, type = "rmst",
-                                   t = tau, ci = FALSE, tidy = TRUE)$est),
-                      km_rmst(mor_pbo)),
+  `RMST (months)` = c(rmst_own, rmst_transport, rmst_observed),
   check.names = FALSE), digits = 2,
   caption = "Conditional-constancy check on the placebo arms this example discards")
 ```
@@ -913,18 +918,17 @@ Table: Conditional-constancy check on the placebo arms this example discards
 
 
 
-The transported placebo arm predicts about 30 months of restricted mean survival
-for Morgan2012's placebo population, against the roughly 32 months Morgan2012
-actually observed. That is close, and it is the reassurance an unanchored
+The transported placebo arm predicts about 29.3
+months of restricted mean survival for Morgan2012's placebo population, against
+the 30.9 months Morgan2012 actually observed. That is close, and it is the reassurance an unanchored
 analysis normally cannot get: the transport machinery, run on an arm both trials
 share, roughly recovers what that arm did.
 
 It is not exact, and the residual gap is worth keeping in view. The covariate
 model is fitted in a population with mean age 57.9 years and 27% ISS stage 3 and
 asked to reach one with mean age 65.6 years and 32% ISS stage 3. That is a real
-extrapolation, and the remaining two-month shortfall is what is left of it after
-adjusting for the four measured covariates. Run on the low-overlap Palumbo2014
-arm instead, the same check predicts about 19 months against 31 observed.
+extrapolation, and the remaining 1.5-month shortfall
+is what is left of it after adjusting for the four measured covariates.
 
 Now the anchored answers. Both trials contain a placebo arm, so two anchored
 estimates are available. The first is a **Bucher** indirect comparison: take each
@@ -1031,6 +1035,14 @@ nmr_em_c <- nmr_contrast(fit_nmr_em, study = "Morgan2012")
 
 # ML-UMR reports a log HR in each population; pull both from the fit summary.
 lhr_row <- function(fit, var) fit$summary[fit$summary$variable == var, ]
+
+# `fit$summary` stores coefficients under Stan's positional names, `beta[1]`
+# and so on; only `print()` relabels them as `beta[age]`. Look them up by
+# position so the prose below cannot silently cite an empty result.
+beta_mean <- function(fit, cov) {
+  k <- match(cov, fit$data$covariates)
+  fit$summary$mean[fit$summary$variable == sprintf("beta[%d]", k)]
+}
 lhr_i     <- lhr_row(fit_mspline, "delta_index")
 lhr_c     <- lhr_row(fit_mspline, "delta_comparator")
 lhr_rel_i <- lhr_row(fit_mspline_relaxed, "delta_index")
@@ -1047,7 +1059,9 @@ knitr::kable(data.frame(
              "Anchored: ML-NMR, with * .trt (multinma's own model)",
              "Anchored: ML-NMR, with * .trt (multinma's own model)"),
   Anchored = c("no", "no", "no", "no", "no", "yes", "yes", "yes", "yes"),
-  Population = c("comparator", "index", "comparator", "index", "comparator",
+  # The naive Cox row is standardized to no population; it contrasts the two
+  # crude arms. `vignette("choosing-a-method")` uses the same label.
+  Population = c("unstandardized", "index", "comparator", "index", "comparator",
                  "not population-specific", "not population-specific",
                  "index", "comparator"),
   `log HR` = c(res_naive$estimate,
@@ -1073,7 +1087,7 @@ Table: Unanchored estimates against the anchored references, in both target popu
 
 |Method                                               |Anchored |Population              | log HR|   2.5%|  97.5%|
 |:----------------------------------------------------|:--------|:-----------------------|------:|------:|------:|
-|Naive Cox (unadjusted)                               |no       |comparator              | -0.554| -0.767| -0.341|
+|Naive Cox (unadjusted)                               |no       |unstandardized          | -0.554| -0.767| -0.341|
 |ML-UMR M-spline (SPFA, prognostic only)              |no       |index                   | -0.508| -1.361|  0.231|
 |ML-UMR M-spline (SPFA, prognostic only)              |no       |comparator              | -0.505| -1.354|  0.228|
 |ML-UMR M-spline (relaxed, effect modification)       |no       |index                   | -1.060| -2.347|  0.368|
@@ -1141,12 +1155,14 @@ difference, or on the `predict(type = "loghr")` curve, when the distinction
 matters.
 
 The prognostic coefficients above sit close to multinma's network estimates:
-age about 0.10 per year against multinma's 0.08, ISS stage III 0.44 against
-0.35, and the response and sex coefficients near zero, where multinma also puts
-them. The constancy check misses by about two months.
+age 0.07 per year against
+multinma's 0.08, ISS stage III
+0.41 against 0.35,
+and the response and sex coefficients near zero, where multinma also puts them.
+The constancy check misses by 1.5 months.
 
-Neither adjustment produces agreement with the anchored answer. Two conclusions
-follow. First, where a common comparator exists it should be used; ML-UMR does
+The adjusted estimates recover the direction and approximate magnitude of the
+anchored answer, but not its precision. Two conclusions follow. First, where a common comparator exists it should be used; ML-UMR does
 not substitute for randomization. Second, where none exists, both the SPFA and
 relaxed fits should be reported so that the contribution of the modeling
 assumptions is visible. The
@@ -1161,8 +1177,10 @@ far better, and its unanchored and anchored answers do agree closely.
   the comparison table, and adjusting moves every other method away from it.
 * The prognostic coefficients are the part to check first, because they are what
   the adjustment is built from. Here they are close to what `multinma` estimates
-  from the full five-study network (age about 0.10 per year against 0.08, ISS
-  stage III 0.44 against 0.35, response and sex near zero in both).
+  from the full five-study network (age 0.07
+  per year against 0.08, ISS stage III
+  0.41 against 0.35, response
+  and sex near zero in both).
 * **ML-UMR** adjusts for the imbalance and recovers the direction and rough
   magnitude of the anchored answer (SPFA -0.508 in the index population and
   -0.505 in the comparator, against -0.29 to -0.38 anchored), at roughly three

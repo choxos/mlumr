@@ -223,7 +223,8 @@ ML-UMR is most appropriate when:
 | `check_identification()` | Screen whether the aggregate rows can inform the relaxed model's comparator coefficients (binomial, normal, poisson) |
 | `check_integration()` | Check that the integration points reproduce the declared AgD moments |
 | `prior_sensitivity()` | Refit across a grid of prior scales, varying only the prior |
-| `calculate_loo()`, `calculate_waic()`, `calculate_dic()`, `compare_models()` | Bayesian model comparison (LOO-CV, WAIC, DIC); `survival_unit` sets the pointwise unit for survival fits |
+| `calculate_loo()`, `calculate_waic()`, `compare_models()` | Bayesian model comparison (LOO-CV, WAIC); `survival_unit` sets the pointwise unit for survival fits |
+| `calculate_dic()` | Deviance information criterion, computed from the fit's own log likelihood |
 | `plot()`, `mlumr_forest()`, `geom_km()`, `plot_prior_posterior()` | Forest, curve, and prior-versus-posterior figures |
 
 ## Stan backend

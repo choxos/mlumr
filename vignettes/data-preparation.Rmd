@@ -161,12 +161,13 @@ add_integration(dat, n_int = 64, cor_adjust = "none",  # no adjustment
 
 ### Inspecting the integration points
 
-`unnest_integration()` expands the stored points to long format, one row per
-integration point per covariate, so you can inspect or plot the realized
-comparator distribution directly:
+`unnest_integration()` expands the stored points to a data frame with one row
+per aggregate row and integration point, one column per covariate, plus
+`.int_id` and `.agd_row`, so you can inspect or plot the realized comparator
+distribution directly:
 
 ```{r, eval = TRUE}
-head(unnest_integration(dat))     # long format
+head(unnest_integration(dat))     # one row per point, covariates in columns
 ```
 
 ```{r, eval = TRUE, purl = FALSE}

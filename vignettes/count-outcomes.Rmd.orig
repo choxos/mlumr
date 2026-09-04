@@ -104,7 +104,7 @@ library(ggplot2)
 data("caries_ipd")     # index IPD (SDF), bundled with mlumr
 data("caries_agd")     # comparator AgD (NSF)
 
-covariates <- c("age", "log_cfu")   # baseline bacterial load is the key prognostic
+covariates <- c("age", "log_cfu")   # age carries the prognostic signal here
 
 knitr::kable(data.frame(
   Arm = c("Index (SDF, IPD)", "Comparator (NSF, AgD)"),
@@ -125,7 +125,7 @@ knitr::kable(head(caries_ipd), caption = "Index IPD (SDF), first rows")
 Population adjustment is motivated by the fact that the two trial populations differ
 on prognostic factors. Comparing the index sample means against the published
 comparator means shows the imbalance we must adjust for, here baseline bacterial
-load (`log_cfu`) is the key prognostic factor:
+load (`log_cfu`) is the covariate the two arms are most imbalanced on:
 
 ```{r balance}
 balance <- data.frame(

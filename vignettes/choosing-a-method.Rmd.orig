@@ -90,9 +90,12 @@ dat <- combine_data(
           cov_means = c("age_mean", "bsa_mean", "weight_mean"),
           cov_sds   = c("age_sd", "bsa_sd", "weight_sd"),
           cov_types = c("continuous", "continuous", "continuous")))
+# `bsa` was rescaled to a proportion above, so its marginal has to respect
+# (0, 1). A normal marginal puts integration points outside that range;
+# `vignette("binary-outcomes")` uses the logit-normal for the same reason.
 dat <- add_integration(dat, n_int = 64,
-  age    = distr(qnorm,  mean = age_mean, sd = age_sd),
-  bsa    = distr(qnorm,  mean = bsa_mean, sd = bsa_sd),
+  age    = distr(qnorm,      mean = age_mean, sd = age_sd),
+  bsa    = distr(qlogitnorm, mean = bsa_mean, sd = bsa_sd),
   weight = distr(qgamma, shape = weight_mean^2 / weight_sd^2,
                  rate = weight_mean / weight_sd^2))
 ```

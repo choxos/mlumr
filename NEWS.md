@@ -165,7 +165,7 @@
   `seed = NULL` now uses the documented default of 2026 and warns, and the fit
   banner marks the seed as a default.
 
-* **A ratio of two unbounded quantities is undefined, not zero.** The
+* **A difference of two unbounded quantities is undefined, not zero.** The
   log-scale contrast used by the marginal summaries returned an exact zero when
   both logs were `+Inf`, reporting an indeterminate difference as a null
   effect. Both the R helper and its Stan counterpart now leave it undefined.

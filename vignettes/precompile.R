@@ -19,7 +19,10 @@
 # Every package the vignette chunks reach for. Checked up front so a missing
 # Suggests fails here rather than forty minutes into a Stan fit.
 for (pkg in c("knitr", "rmarkdown", "multinma", "ggplot2",
-              "ggsurvfit", "flexsurv", "survival", "bayesplot", "loo")) {
+              "ggsurvfit", "flexsurv", "survival", "bayesplot", "loo",
+              # The engine is set to cmdstanr below, so a missing cmdstanr is
+              # exactly the failure this loop exists to catch early.
+              "cmdstanr")) {
   if (!requireNamespace(pkg, quietly = TRUE)) {
     stop("precompile.R needs the '", pkg, "' package installed.", call. = FALSE)
   }

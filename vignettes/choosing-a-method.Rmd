@@ -69,9 +69,12 @@ dat <- combine_data(
           cov_means = c("age_mean", "bsa_mean", "weight_mean"),
           cov_sds   = c("age_sd", "bsa_sd", "weight_sd"),
           cov_types = c("continuous", "continuous", "continuous")))
+# `bsa` was rescaled to a proportion above, so its marginal has to respect
+# (0, 1). A normal marginal puts integration points outside that range;
+# `vignette("binary-outcomes")` uses the logit-normal for the same reason.
 dat <- add_integration(dat, n_int = 64,
-  age    = distr(qnorm,  mean = age_mean, sd = age_sd),
-  bsa    = distr(qnorm,  mean = bsa_mean, sd = bsa_sd),
+  age    = distr(qnorm,      mean = age_mean, sd = age_sd),
+  bsa    = distr(qlogitnorm, mean = bsa_mean, sd = bsa_sd),
   weight = distr(qgamma, shape = weight_mean^2 / weight_sd^2,
                  rate = weight_mean / weight_sd^2))
 ```
@@ -127,14 +130,14 @@ res_stc
 #> Marginalized P(Y=1|index trt, comp pop): 0.8111
 #> Observed P(Y=1|comp trt, comp pop):      0.7709
 #> 
-#> Log Odds Ratio: 0.2438 (SE: 0.2023)
-#> 95% CI: [-0.1527, 0.6403]
+#> Log Odds Ratio: 0.2437 (SE: 0.2021)
+#> 95% CI: [-0.1524, 0.6399]
 #> 
 #> All effect measures (95% CI):
-#>   Log odds ratio                 0.2438 (SE 0.2023) [-0.1527, 0.6403]
-#>   Odds ratio                     1.2761 [0.8584, 1.8970]
-#>   Risk difference                0.0402 (SE 0.0331) [-0.0247, 0.1051]
-#>   Risk ratio                     1.0522 [0.9692, 1.1422]
+#>   Log odds ratio                 0.2437 (SE 0.2021) [-0.1524, 0.6399]
+#>   Odds ratio                     1.2760 [0.8586, 1.8962]
+#>   Risk difference                0.0402 (SE 0.0331) [-0.0246, 0.1050]
+#>   Risk ratio                     1.0521 [0.9693, 1.1421]
 #> 
 #> Outcome model coefficients:
 #> (Intercept)         age         bsa      weight 
@@ -161,20 +164,20 @@ fit_spfa <- mlumr(dat, model = "spfa",
 #> 
 #> All 4 chains finished successfully.
 #> Mean chain execution time: 0.5 seconds.
-#> Total execution time: 0.9 seconds.
+#> Total execution time: 0.8 seconds.
 fit_relaxed <- mlumr(dat, model = "relaxed",
                      prior_beta = prior_normal(0, 2.5, autoscale = TRUE),
                      chains = 4, iter = 2000, warmup = 1000, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 2 finished in 2.0 seconds.
-#> Chain 1 finished in 2.7 seconds.
+#> Chain 1 finished in 2.4 seconds.
+#> Chain 2 finished in 2.8 seconds.
 #> Chain 4 finished in 2.7 seconds.
-#> Chain 3 finished in 3.2 seconds.
+#> Chain 3 finished in 2.9 seconds.
 #> 
 #> All 4 chains finished successfully.
 #> Mean chain execution time: 2.7 seconds.
-#> Total execution time: 3.6 seconds.
+#> Total execution time: 3.1 seconds.
 ```
 
 ## A comparison table
@@ -216,14 +219,14 @@ knitr::kable(comparison, caption = "PASI 75 log odds ratio by method, in both ta
 
 Table: PASI 75 log odds ratio by method, in both target populations
 
-|Method         |Population     |       LOR|   CI_lower|  CI_upper|
-|:--------------|:--------------|---------:|----------:|---------:|
-|Naive          |unstandardized | 0.0171520| -0.3447542| 0.3790582|
-|STC            |comparator     | 0.2438031| -0.1526731| 0.6402793|
-|ML-UMR SPFA    |index          | 0.2477799| -0.1451398| 0.6518321|
-|ML-UMR SPFA    |comparator     | 0.2495874| -0.1460096| 0.6611413|
-|ML-UMR relaxed |index          | 0.0494304| -1.2090620| 1.1843938|
-|ML-UMR relaxed |comparator     | 0.2541723| -0.1537578| 0.6562261|
+|Method         |Population     |        LOR|   CI_lower|  CI_upper|
+|:--------------|:--------------|----------:|----------:|---------:|
+|Naive          |unstandardized |  0.0171520| -0.3447542| 0.3790582|
+|STC            |comparator     |  0.2437223| -0.1524312| 0.6398759|
+|ML-UMR SPFA    |index          |  0.2442120| -0.1440524| 0.6435369|
+|ML-UMR SPFA    |comparator     |  0.2459988| -0.1446246| 0.6508805|
+|ML-UMR relaxed |index          | -0.0211377| -1.2249046| 1.0791852|
+|ML-UMR relaxed |comparator     |  0.2470542| -0.1473308| 0.6289507|
 
 
 
@@ -293,7 +296,7 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "loo")
 #> 
 #>    model elpd_diff se_diff p_worse       diag_diff      diag_elpd
 #>  Relaxed       0.0     0.0      NA                 1 k_psis > 0.7
-#>     SPFA      -0.1     0.0    0.97 |elpd_diff| < 4 1 k_psis > 0.7
+#>     SPFA      -0.2     0.1    0.99 |elpd_diff| < 4 1 k_psis > 0.7
 #> 
 #> elpd_diff is the difference in expected log pointwise predictive
 #> density vs the best model. se_diff > 2 is the conventional threshold
@@ -304,8 +307,8 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed)   # DIC-based (the defaul
 #> ======================
 #> 
 #>    Model    DIC   pD Delta_DIC
-#>  Relaxed 366.71 5.21      0.00
-#>     SPFA 366.78 5.23      0.07
+#>  Relaxed 366.10 4.84      0.00
+#>     SPFA 366.17 4.74      0.07
 #> 
 #> Lower DIC = better fit. Delta_DIC > 5 is a rough heuristic for
 #> meaningful difference, not a formally calibrated threshold.

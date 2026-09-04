@@ -11,7 +11,7 @@
   "version": "0.1.0.9000",
   "softwareVersion": "0.1.0.9000",
   "programmingLanguage": "R",
-  "runtimePlatform": "R >= 4.0.0",
+  "runtimePlatform": "R >= 4.1.0",
   "operatingSystem": "OS Independent",
   "applicationCategory": "Indirect treatment comparison / evidence synthesis",
   "developmentStatus": "active",
@@ -28,7 +28,7 @@
     "R"
   ],
   "softwareRequirements": [
-    "R >= 4.0.0",
+    "R >= 4.1.0",
     "methods",
     "stats",
     "Rcpp",

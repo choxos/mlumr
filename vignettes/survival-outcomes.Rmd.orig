@@ -603,30 +603,34 @@ km_rmst <- function(d) unname(summary(
   survival::survfit(survival::Surv(eventtime, status) ~ 1, data = d),
   rmean = tau)$table["rmean"])
 
+# Name these so the prose below cites the same numbers the table prints,
+# rather than literals that drift the next time the vignette is re-knitted.
+rmst_own       <- km_rmst(mcc_pbo)
+rmst_transport <- mean(summary(m_pbo, newdata = nd, type = "rmst",
+                               t = tau, ci = FALSE, tidy = TRUE)$est)
+rmst_observed  <- km_rmst(mor_pbo)
+rmst_gap       <- rmst_observed - rmst_transport
+
 knitr::kable(data.frame(
   Quantity = c("McCarthy2012 placebo, observed in its own population",
                "McCarthy2012 placebo model, transported to Morgan2012",
                "Morgan2012 placebo, observed"),
-  `RMST (months)` = c(km_rmst(mcc_pbo),
-                      mean(summary(m_pbo, newdata = nd, type = "rmst",
-                                   t = tau, ci = FALSE, tidy = TRUE)$est),
-                      km_rmst(mor_pbo)),
+  `RMST (months)` = c(rmst_own, rmst_transport, rmst_observed),
   check.names = FALSE), digits = 2,
   caption = "Conditional-constancy check on the placebo arms this example discards")
 ```
 
-The transported placebo arm predicts about 30 months of restricted mean survival
-for Morgan2012's placebo population, against the roughly 32 months Morgan2012
-actually observed. That is close, and it is the reassurance an unanchored
+The transported placebo arm predicts about `r sprintf('%.1f', rmst_transport)`
+months of restricted mean survival for Morgan2012's placebo population, against
+the `r sprintf('%.1f', rmst_observed)` months Morgan2012 actually observed. That is close, and it is the reassurance an unanchored
 analysis normally cannot get: the transport machinery, run on an arm both trials
 share, roughly recovers what that arm did.
 
 It is not exact, and the residual gap is worth keeping in view. The covariate
 model is fitted in a population with mean age 57.9 years and 27% ISS stage 3 and
 asked to reach one with mean age 65.6 years and 32% ISS stage 3. That is a real
-extrapolation, and the remaining two-month shortfall is what is left of it after
-adjusting for the four measured covariates. Run on the low-overlap Palumbo2014
-arm instead, the same check predicts about 19 months against 31 observed.
+extrapolation, and the remaining `r sprintf('%.1f', rmst_gap)`-month shortfall
+is what is left of it after adjusting for the four measured covariates.
 
 Now the anchored answers. Both trials contain a placebo arm, so two anchored
 estimates are available. The first is a **Bucher** indirect comparison: take each
@@ -729,6 +733,14 @@ nmr_em_c <- nmr_contrast(fit_nmr_em, study = "Morgan2012")
 
 # ML-UMR reports a log HR in each population; pull both from the fit summary.
 lhr_row <- function(fit, var) fit$summary[fit$summary$variable == var, ]
+
+# `fit$summary` stores coefficients under Stan's positional names, `beta[1]`
+# and so on; only `print()` relabels them as `beta[age]`. Look them up by
+# position so the prose below cannot silently cite an empty result.
+beta_mean <- function(fit, cov) {
+  k <- match(cov, fit$data$covariates)
+  fit$summary$mean[fit$summary$variable == sprintf("beta[%d]", k)]
+}
 lhr_i     <- lhr_row(fit_mspline, "delta_index")
 lhr_c     <- lhr_row(fit_mspline, "delta_comparator")
 lhr_rel_i <- lhr_row(fit_mspline_relaxed, "delta_index")
@@ -745,7 +757,9 @@ knitr::kable(data.frame(
              "Anchored: ML-NMR, with * .trt (multinma's own model)",
              "Anchored: ML-NMR, with * .trt (multinma's own model)"),
   Anchored = c("no", "no", "no", "no", "no", "yes", "yes", "yes", "yes"),
-  Population = c("comparator", "index", "comparator", "index", "comparator",
+  # The naive Cox row is standardized to no population; it contrasts the two
+  # crude arms. `vignette("choosing-a-method")` uses the same label.
+  Population = c("unstandardized", "index", "comparator", "index", "comparator",
                  "not population-specific", "not population-specific",
                  "index", "comparator"),
   `log HR` = c(res_naive$estimate,
@@ -821,12 +835,14 @@ difference, or on the `predict(type = "loghr")` curve, when the distinction
 matters.
 
 The prognostic coefficients above sit close to multinma's network estimates:
-age about 0.10 per year against multinma's 0.08, ISS stage III 0.44 against
-0.35, and the response and sex coefficients near zero, where multinma also puts
-them. The constancy check misses by about two months.
+age `r sprintf('%.2f', beta_mean(fit_mspline, 'age'))` per year against
+multinma's 0.08, ISS stage III
+`r sprintf('%.2f', beta_mean(fit_mspline, 'iss_stage3'))` against 0.35,
+and the response and sex coefficients near zero, where multinma also puts them.
+The constancy check misses by `r sprintf('%.1f', rmst_gap)` months.
 
-Neither adjustment produces agreement with the anchored answer. Two conclusions
-follow. First, where a common comparator exists it should be used; ML-UMR does
+The adjusted estimates recover the direction and approximate magnitude of the
+anchored answer, but not its precision. Two conclusions follow. First, where a common comparator exists it should be used; ML-UMR does
 not substitute for randomization. Second, where none exists, both the SPFA and
 relaxed fits should be reported so that the contribution of the modeling
 assumptions is visible. The
@@ -841,8 +857,10 @@ far better, and its unanchored and anchored answers do agree closely.
   the comparison table, and adjusting moves every other method away from it.
 * The prognostic coefficients are the part to check first, because they are what
   the adjustment is built from. Here they are close to what `multinma` estimates
-  from the full five-study network (age about 0.10 per year against 0.08, ISS
-  stage III 0.44 against 0.35, response and sex near zero in both).
+  from the full five-study network (age `r sprintf('%.2f', beta_mean(fit_mspline, 'age'))`
+  per year against 0.08, ISS stage III
+  `r sprintf('%.2f', beta_mean(fit_mspline, 'iss_stage3'))` against 0.35, response
+  and sex near zero in both).
 * **ML-UMR** adjusts for the imbalance and recovers the direction and rough
   magnitude of the anchored answer (SPFA `r sprintf('%.3f', lhr_i$mean)` in the index population and
   `r sprintf('%.3f', lhr_c$mean)` in the comparator, against -0.29 to -0.38 anchored), at roughly three

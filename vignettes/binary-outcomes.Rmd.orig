@@ -395,8 +395,12 @@ plausibly constant across the prognostic range (the SPFA assumption) or varies
 with the covariates:
 
 ```{r conditional}
+# Weight stays in kilograms in this vignette (IPD mean about 94), unlike
+# `vignette("choosing-a-method")`, which divides it by 10. Profiles must be on
+# the scale the model was fitted on, or the contrast is evaluated outside the
+# covariate support.
 profiles <- data.frame(age = c(40, 55, 70), bsa = c(0.15, 0.30, 0.45),
-                       weight = c(7.5, 9.0, 11.0), prevsys = c(0, 1, 1))
+                       weight = c(75, 90, 110), prevsys = c(0, 1, 1))
 knitr::kable(conditional_effects(fit_spfa, newdata = profiles),
    caption = "Conditional log odds ratios at three covariate profiles")
 ```
@@ -567,7 +571,10 @@ knitr::kable(data.frame(
              "Anchored: ML-NMR, with * .trt (multinma's own model)",
              "Anchored: ML-NMR, with * .trt (multinma's own model)"),
   Anchored = c("no", "no", "no", "no", "no", "no", "yes", "yes", "yes", "yes"),
-  Population = c("comparator", "comparator", "index", "comparator",
+  # `naive()` contrasts the two crude outcomes; it is standardized to no
+  # population, which is the point of comparing it against the adjusted rows.
+  # `vignette("choosing-a-method")` uses the same label for the same reason.
+  Population = c("unstandardized", "comparator", "index", "comparator",
                  "index", "comparator", "not population-specific",
                  "not population-specific", "index", "comparator"),
   LOR   = c(res_naive$link_effect, res_stc$link_effect,

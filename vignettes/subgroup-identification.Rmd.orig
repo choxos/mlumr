@@ -2,10 +2,6 @@
 title: "Aggregate subgroup information for the relaxed model"
 output: rmarkdown::html_vignette
 bibliography: ../inst/REFERENCES.bib
-vignette: >
-  %\VignetteIndexEntry{Aggregate subgroup information for the relaxed model}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
 ---
 
 ```{r setup, include = FALSE}

@@ -783,14 +783,14 @@ application-specific choice and should be checked predictively.</p>
 <span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>                  <span class="at">seed =</span> <span class="dv">2026</span>, <span class="at">refresh =</span> <span class="dv">0</span>)</span>
 <span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
 <span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a><span class="co">#&gt; Chain 1 finished in 0.6 seconds.</span></span>
-<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a><span class="co">#&gt; Chain 2 finished in 0.6 seconds.</span></span>
-<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a><span class="co">#&gt; Chain 3 finished in 0.6 seconds.</span></span>
-<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a><span class="co">#&gt; Chain 4 finished in 0.6 seconds.</span></span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a><span class="co">#&gt; Chain 1 finished in 0.8 seconds.</span></span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a><span class="co">#&gt; Chain 2 finished in 0.8 seconds.</span></span>
+<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a><span class="co">#&gt; Chain 3 finished in 0.8 seconds.</span></span>
+<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a><span class="co">#&gt; Chain 4 finished in 0.8 seconds.</span></span>
 <span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span id="cb10-13"><a href="#cb10-13" tabindex="-1"></a><span class="co">#&gt; Mean chain execution time: 0.6 seconds.</span></span>
-<span id="cb10-14"><a href="#cb10-14" tabindex="-1"></a><span class="co">#&gt; Total execution time: 0.8 seconds.</span></span>
+<span id="cb10-13"><a href="#cb10-13" tabindex="-1"></a><span class="co">#&gt; Mean chain execution time: 0.8 seconds.</span></span>
+<span id="cb10-14"><a href="#cb10-14" tabindex="-1"></a><span class="co">#&gt; Total execution time: 1.0 seconds.</span></span>
 <span id="cb10-15"><a href="#cb10-15" tabindex="-1"></a></span>
 <span id="cb10-16"><a href="#cb10-16" tabindex="-1"></a>fit_relaxed <span class="ot">&lt;-</span> <span class="fu">mlumr</span>(dat, <span class="at">model =</span> <span class="st">&quot;relaxed&quot;</span>, <span class="at">link =</span> <span class="st">&quot;logit&quot;</span>,</span>
 <span id="cb10-17"><a href="#cb10-17" tabindex="-1"></a>                     <span class="at">prior_beta =</span> <span class="fu">prior_normal</span>(<span class="dv">0</span>, <span class="fl">2.5</span>, <span class="at">autoscale =</span> <span class="cn">TRUE</span>),</span>
@@ -798,14 +798,14 @@ application-specific choice and should be checked predictively.</p>
 <span id="cb10-19"><a href="#cb10-19" tabindex="-1"></a>                     <span class="at">seed =</span> <span class="dv">2026</span>, <span class="at">refresh =</span> <span class="dv">0</span>)</span>
 <span id="cb10-20"><a href="#cb10-20" tabindex="-1"></a><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
 <span id="cb10-21"><a href="#cb10-21" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb10-22"><a href="#cb10-22" tabindex="-1"></a><span class="co">#&gt; Chain 2 finished in 3.8 seconds.</span></span>
-<span id="cb10-23"><a href="#cb10-23" tabindex="-1"></a><span class="co">#&gt; Chain 4 finished in 4.2 seconds.</span></span>
-<span id="cb10-24"><a href="#cb10-24" tabindex="-1"></a><span class="co">#&gt; Chain 3 finished in 4.7 seconds.</span></span>
-<span id="cb10-25"><a href="#cb10-25" tabindex="-1"></a><span class="co">#&gt; Chain 1 finished in 5.1 seconds.</span></span>
+<span id="cb10-22"><a href="#cb10-22" tabindex="-1"></a><span class="co">#&gt; Chain 2 finished in 4.3 seconds.</span></span>
+<span id="cb10-23"><a href="#cb10-23" tabindex="-1"></a><span class="co">#&gt; Chain 4 finished in 4.7 seconds.</span></span>
+<span id="cb10-24"><a href="#cb10-24" tabindex="-1"></a><span class="co">#&gt; Chain 3 finished in 5.3 seconds.</span></span>
+<span id="cb10-25"><a href="#cb10-25" tabindex="-1"></a><span class="co">#&gt; Chain 1 finished in 5.7 seconds.</span></span>
 <span id="cb10-26"><a href="#cb10-26" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb10-27"><a href="#cb10-27" tabindex="-1"></a><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span id="cb10-28"><a href="#cb10-28" tabindex="-1"></a><span class="co">#&gt; Mean chain execution time: 4.5 seconds.</span></span>
-<span id="cb10-29"><a href="#cb10-29" tabindex="-1"></a><span class="co">#&gt; Total execution time: 5.2 seconds.</span></span>
+<span id="cb10-28"><a href="#cb10-28" tabindex="-1"></a><span class="co">#&gt; Mean chain execution time: 5.0 seconds.</span></span>
+<span id="cb10-29"><a href="#cb10-29" tabindex="-1"></a><span class="co">#&gt; Total execution time: 5.8 seconds.</span></span>
 <span id="cb10-30"><a href="#cb10-30" tabindex="-1"></a></span>
 <span id="cb10-31"><a href="#cb10-31" tabindex="-1"></a><span class="fu">summary</span>(fit_spfa)</span>
 <span id="cb10-32"><a href="#cb10-32" tabindex="-1"></a><span class="co">#&gt; ML-UMR Model Summary</span></span>
@@ -1241,10 +1241,14 @@ plot of chunk predict-plot
 profiles rather than averaging over a population, useful for checking
 whether the effect is plausibly constant across the prognostic range
 (the SPFA assumption) or varies with the covariates:</p>
-<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a>profiles <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">age =</span> <span class="fu">c</span>(<span class="dv">40</span>, <span class="dv">55</span>, <span class="dv">70</span>), <span class="at">bsa =</span> <span class="fu">c</span>(<span class="fl">0.15</span>, <span class="fl">0.30</span>, <span class="fl">0.45</span>),</span>
-<span id="cb21-2"><a href="#cb21-2" tabindex="-1"></a>                       <span class="at">weight =</span> <span class="fu">c</span>(<span class="fl">7.5</span>, <span class="fl">9.0</span>, <span class="fl">11.0</span>), <span class="at">prevsys =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>))</span>
-<span id="cb21-3"><a href="#cb21-3" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">conditional_effects</span>(fit_spfa, <span class="at">newdata =</span> profiles),</span>
-<span id="cb21-4"><a href="#cb21-4" tabindex="-1"></a>   <span class="at">caption =</span> <span class="st">&quot;Conditional log odds ratios at three covariate profiles&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a><span class="co"># Weight stays in kilograms in this vignette (IPD mean about 94), unlike</span></span>
+<span id="cb21-2"><a href="#cb21-2" tabindex="-1"></a><span class="co"># `vignette(&quot;choosing-a-method&quot;)`, which divides it by 10. Profiles must be on</span></span>
+<span id="cb21-3"><a href="#cb21-3" tabindex="-1"></a><span class="co"># the scale the model was fitted on, or the contrast is evaluated outside the</span></span>
+<span id="cb21-4"><a href="#cb21-4" tabindex="-1"></a><span class="co"># covariate support.</span></span>
+<span id="cb21-5"><a href="#cb21-5" tabindex="-1"></a>profiles <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">age =</span> <span class="fu">c</span>(<span class="dv">40</span>, <span class="dv">55</span>, <span class="dv">70</span>), <span class="at">bsa =</span> <span class="fu">c</span>(<span class="fl">0.15</span>, <span class="fl">0.30</span>, <span class="fl">0.45</span>),</span>
+<span id="cb21-6"><a href="#cb21-6" tabindex="-1"></a>                       <span class="at">weight =</span> <span class="fu">c</span>(<span class="dv">75</span>, <span class="dv">90</span>, <span class="dv">110</span>), <span class="at">prevsys =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>))</span>
+<span id="cb21-7"><a href="#cb21-7" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">conditional_effects</span>(fit_spfa, <span class="at">newdata =</span> profiles),</span>
+<span id="cb21-8"><a href="#cb21-8" tabindex="-1"></a>   <span class="at">caption =</span> <span class="st">&quot;Conditional log odds ratios at three covariate profiles&quot;</span>)</span></code></pre></div>
 <table>
 <caption>Conditional log odds ratios at three covariate
 profiles</caption>
@@ -1281,20 +1285,20 @@ profiles</caption>
 <tr class="even">
 <td align="right">1</td>
 <td align="left">RD</td>
-<td align="right">0.0158931</td>
-<td align="right">0.0171732</td>
-<td align="right">-0.0166838</td>
-<td align="right">0.0144929</td>
-<td align="right">0.0546655</td>
+<td align="right">0.0339087</td>
+<td align="right">0.0307868</td>
+<td align="right">-0.0262549</td>
+<td align="right">0.0332149</td>
+<td align="right">0.0957605</td>
 </tr>
 <tr class="odd">
 <td align="right">1</td>
 <td align="left">RR</td>
-<td align="right">1.0179169</td>
-<td align="right">0.0205886</td>
-<td align="right">0.9814740</td>
-<td align="right">1.0157309</td>
-<td align="right">1.0652528</td>
+<td align="right">1.0427288</td>
+<td align="right">0.0399764</td>
+<td align="right">0.9673283</td>
+<td align="right">1.0403847</td>
+<td align="right">1.1271305</td>
 </tr>
 <tr class="even">
 <td align="right">2</td>
@@ -1308,20 +1312,20 @@ profiles</caption>
 <tr class="odd">
 <td align="right">2</td>
 <td align="left">RD</td>
-<td align="right">0.0237740</td>
-<td align="right">0.0232938</td>
-<td align="right">-0.0239803</td>
-<td align="right">0.0233931</td>
-<td align="right">0.0717123</td>
+<td align="right">0.0514439</td>
+<td align="right">0.0457618</td>
+<td align="right">-0.0357710</td>
+<td align="right">0.0502035</td>
+<td align="right">0.1429027</td>
 </tr>
 <tr class="even">
 <td align="right">2</td>
 <td align="left">RR</td>
-<td align="right">1.0282100</td>
-<td align="right">0.0292494</td>
-<td align="right">0.9722342</td>
-<td align="right">1.0266319</td>
-<td align="right">1.0918931</td>
+<td align="right">1.0783357</td>
+<td align="right">0.0717254</td>
+<td align="right">0.9517072</td>
+<td align="right">1.0722251</td>
+<td align="right">1.2320427</td>
 </tr>
 <tr class="odd">
 <td align="right">3</td>
@@ -1335,20 +1339,20 @@ profiles</caption>
 <tr class="even">
 <td align="right">3</td>
 <td align="left">RD</td>
-<td align="right">0.0361316</td>
-<td align="right">0.0341120</td>
-<td align="right">-0.0330421</td>
-<td align="right">0.0359099</td>
-<td align="right">0.1050578</td>
+<td align="right">0.0608825</td>
+<td align="right">0.0537360</td>
+<td align="right">-0.0434875</td>
+<td align="right">0.0601443</td>
+<td align="right">0.1653002</td>
 </tr>
 <tr class="odd">
 <td align="right">3</td>
 <td align="left">RR</td>
-<td align="right">1.0487346</td>
-<td align="right">0.0501596</td>
-<td align="right">0.9539080</td>
-<td align="right">1.0448837</td>
-<td align="right">1.1595812</td>
+<td align="right">1.1429823</td>
+<td align="right">0.1365554</td>
+<td align="right">0.9216199</td>
+<td align="right">1.1236565</td>
+<td align="right">1.4613458</td>
 </tr>
 </tbody>
 </table>
@@ -1558,22 +1562,25 @@ index/comparator pair reported for ML-UMR.</p>
 <span id="cb25-63"><a href="#cb25-63" tabindex="-1"></a>             <span class="st">&quot;Anchored: ML-NMR, with * .trt (multinma&#39;s own model)&quot;</span>,</span>
 <span id="cb25-64"><a href="#cb25-64" tabindex="-1"></a>             <span class="st">&quot;Anchored: ML-NMR, with * .trt (multinma&#39;s own model)&quot;</span>),</span>
 <span id="cb25-65"><a href="#cb25-65" tabindex="-1"></a>  <span class="at">Anchored =</span> <span class="fu">c</span>(<span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;yes&quot;</span>),</span>
-<span id="cb25-66"><a href="#cb25-66" tabindex="-1"></a>  <span class="at">Population =</span> <span class="fu">c</span>(<span class="st">&quot;comparator&quot;</span>, <span class="st">&quot;comparator&quot;</span>, <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>,</span>
-<span id="cb25-67"><a href="#cb25-67" tabindex="-1"></a>                 <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>, <span class="st">&quot;not population-specific&quot;</span>,</span>
-<span id="cb25-68"><a href="#cb25-68" tabindex="-1"></a>                 <span class="st">&quot;not population-specific&quot;</span>, <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>),</span>
-<span id="cb25-69"><a href="#cb25-69" tabindex="-1"></a>  <span class="at">LOR   =</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>link_effect, res_stc<span class="sc">$</span>link_effect,</span>
-<span id="cb25-70"><a href="#cb25-70" tabindex="-1"></a>            me_spfa_i<span class="sc">$</span>mean, me_spfa_c<span class="sc">$</span>mean, me_rel_i<span class="sc">$</span>mean, me_rel_c<span class="sc">$</span>mean,</span>
-<span id="cb25-71"><a href="#cb25-71" tabindex="-1"></a>            anchored[<span class="dv">1</span>], <span class="sc">-</span>nmr<span class="sc">$</span>mean, <span class="sc">-</span>nmr_em_i<span class="sc">$</span>mean, <span class="sc">-</span>nmr_em_c<span class="sc">$</span>mean),</span>
-<span id="cb25-72"><a href="#cb25-72" tabindex="-1"></a>  <span class="st">`</span><span class="at">2.5%</span><span class="st">`</span>  <span class="ot">=</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>ci_lower, res_stc<span class="sc">$</span>ci_lower,</span>
-<span id="cb25-73"><a href="#cb25-73" tabindex="-1"></a>              me_spfa_i<span class="sc">$</span>q2<span class="fl">.5</span>, me_spfa_c<span class="sc">$</span>q2<span class="fl">.5</span>, me_rel_i<span class="sc">$</span>q2<span class="fl">.5</span>, me_rel_c<span class="sc">$</span>q2<span class="fl">.5</span>,</span>
-<span id="cb25-74"><a href="#cb25-74" tabindex="-1"></a>              anchored_ci[<span class="dv">1</span>], <span class="sc">-</span>nmr[[<span class="st">&quot;97.5%&quot;</span>]],</span>
-<span id="cb25-75"><a href="#cb25-75" tabindex="-1"></a>              <span class="sc">-</span>nmr_em_i[[<span class="st">&quot;97.5%&quot;</span>]], <span class="sc">-</span>nmr_em_c[[<span class="st">&quot;97.5%&quot;</span>]]),</span>
-<span id="cb25-76"><a href="#cb25-76" tabindex="-1"></a>  <span class="st">`</span><span class="at">97.5%</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>ci_upper, res_stc<span class="sc">$</span>ci_upper,</span>
-<span id="cb25-77"><a href="#cb25-77" tabindex="-1"></a>              me_spfa_i<span class="sc">$</span>q97<span class="fl">.5</span>, me_spfa_c<span class="sc">$</span>q97<span class="fl">.5</span>, me_rel_i<span class="sc">$</span>q97<span class="fl">.5</span>, me_rel_c<span class="sc">$</span>q97<span class="fl">.5</span>,</span>
-<span id="cb25-78"><a href="#cb25-78" tabindex="-1"></a>              anchored_ci[<span class="dv">2</span>], <span class="sc">-</span>nmr[[<span class="st">&quot;2.5%&quot;</span>]],</span>
-<span id="cb25-79"><a href="#cb25-79" tabindex="-1"></a>              <span class="sc">-</span>nmr_em_i[[<span class="st">&quot;2.5%&quot;</span>]], <span class="sc">-</span>nmr_em_c[[<span class="st">&quot;2.5%&quot;</span>]]),</span>
-<span id="cb25-80"><a href="#cb25-80" tabindex="-1"></a>  <span class="at">check.names =</span> <span class="cn">FALSE</span>), <span class="at">digits =</span> <span class="dv">3</span>,</span>
-<span id="cb25-81"><a href="#cb25-81" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">&quot;Unanchored estimates against the anchored references, in both target populations (log odds ratio, IXE_Q4W vs SEC_300)&quot;</span>)</span></code></pre></div>
+<span id="cb25-66"><a href="#cb25-66" tabindex="-1"></a>  <span class="co"># `naive()` contrasts the two crude outcomes; it is standardized to no</span></span>
+<span id="cb25-67"><a href="#cb25-67" tabindex="-1"></a>  <span class="co"># population, which is the point of comparing it against the adjusted rows.</span></span>
+<span id="cb25-68"><a href="#cb25-68" tabindex="-1"></a>  <span class="co"># `vignette(&quot;choosing-a-method&quot;)` uses the same label for the same reason.</span></span>
+<span id="cb25-69"><a href="#cb25-69" tabindex="-1"></a>  <span class="at">Population =</span> <span class="fu">c</span>(<span class="st">&quot;unstandardized&quot;</span>, <span class="st">&quot;comparator&quot;</span>, <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>,</span>
+<span id="cb25-70"><a href="#cb25-70" tabindex="-1"></a>                 <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>, <span class="st">&quot;not population-specific&quot;</span>,</span>
+<span id="cb25-71"><a href="#cb25-71" tabindex="-1"></a>                 <span class="st">&quot;not population-specific&quot;</span>, <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>),</span>
+<span id="cb25-72"><a href="#cb25-72" tabindex="-1"></a>  <span class="at">LOR   =</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>link_effect, res_stc<span class="sc">$</span>link_effect,</span>
+<span id="cb25-73"><a href="#cb25-73" tabindex="-1"></a>            me_spfa_i<span class="sc">$</span>mean, me_spfa_c<span class="sc">$</span>mean, me_rel_i<span class="sc">$</span>mean, me_rel_c<span class="sc">$</span>mean,</span>
+<span id="cb25-74"><a href="#cb25-74" tabindex="-1"></a>            anchored[<span class="dv">1</span>], <span class="sc">-</span>nmr<span class="sc">$</span>mean, <span class="sc">-</span>nmr_em_i<span class="sc">$</span>mean, <span class="sc">-</span>nmr_em_c<span class="sc">$</span>mean),</span>
+<span id="cb25-75"><a href="#cb25-75" tabindex="-1"></a>  <span class="st">`</span><span class="at">2.5%</span><span class="st">`</span>  <span class="ot">=</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>ci_lower, res_stc<span class="sc">$</span>ci_lower,</span>
+<span id="cb25-76"><a href="#cb25-76" tabindex="-1"></a>              me_spfa_i<span class="sc">$</span>q2<span class="fl">.5</span>, me_spfa_c<span class="sc">$</span>q2<span class="fl">.5</span>, me_rel_i<span class="sc">$</span>q2<span class="fl">.5</span>, me_rel_c<span class="sc">$</span>q2<span class="fl">.5</span>,</span>
+<span id="cb25-77"><a href="#cb25-77" tabindex="-1"></a>              anchored_ci[<span class="dv">1</span>], <span class="sc">-</span>nmr[[<span class="st">&quot;97.5%&quot;</span>]],</span>
+<span id="cb25-78"><a href="#cb25-78" tabindex="-1"></a>              <span class="sc">-</span>nmr_em_i[[<span class="st">&quot;97.5%&quot;</span>]], <span class="sc">-</span>nmr_em_c[[<span class="st">&quot;97.5%&quot;</span>]]),</span>
+<span id="cb25-79"><a href="#cb25-79" tabindex="-1"></a>  <span class="st">`</span><span class="at">97.5%</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>ci_upper, res_stc<span class="sc">$</span>ci_upper,</span>
+<span id="cb25-80"><a href="#cb25-80" tabindex="-1"></a>              me_spfa_i<span class="sc">$</span>q97<span class="fl">.5</span>, me_spfa_c<span class="sc">$</span>q97<span class="fl">.5</span>, me_rel_i<span class="sc">$</span>q97<span class="fl">.5</span>, me_rel_c<span class="sc">$</span>q97<span class="fl">.5</span>,</span>
+<span id="cb25-81"><a href="#cb25-81" tabindex="-1"></a>              anchored_ci[<span class="dv">2</span>], <span class="sc">-</span>nmr[[<span class="st">&quot;2.5%&quot;</span>]],</span>
+<span id="cb25-82"><a href="#cb25-82" tabindex="-1"></a>              <span class="sc">-</span>nmr_em_i[[<span class="st">&quot;2.5%&quot;</span>]], <span class="sc">-</span>nmr_em_c[[<span class="st">&quot;2.5%&quot;</span>]]),</span>
+<span id="cb25-83"><a href="#cb25-83" tabindex="-1"></a>  <span class="at">check.names =</span> <span class="cn">FALSE</span>), <span class="at">digits =</span> <span class="dv">3</span>,</span>
+<span id="cb25-84"><a href="#cb25-84" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">&quot;Unanchored estimates against the anchored references, in both target populations (log odds ratio, IXE_Q4W vs SEC_300)&quot;</span>)</span></code></pre></div>
 <table>
 <caption>Unanchored estimates against the anchored references, in both
 target populations (log odds ratio, IXE_Q4W vs SEC_300)</caption>
@@ -1599,7 +1606,7 @@ target populations (log odds ratio, IXE_Q4W vs SEC_300)</caption>
 <tr class="odd">
 <td align="left">Naive (unadjusted)</td>
 <td align="left">no</td>
-<td align="left">comparator</td>
+<td align="left">unstandardized</td>
 <td align="right">0.017</td>
 <td align="right">-0.345</td>
 <td align="right">0.379</td>
