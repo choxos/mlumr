@@ -316,28 +316,46 @@ jobs:
               file = Sys.getenv("GITHUB_OUTPUT"), append = TRUE)
         shell: Rscript {0}
 
+      # `setup-r-dependencies` resolves with pak, which does NOT read
+      # `Additional_repositories` out of DESCRIPTION, and the action has no
+      # input for adding a repository (passing `extra-repositories` is accepted
+      # silently and ignored: GitHub logs "Unexpected input(s)" and the resolver
+      # still reports "Can't find package called cmdstanr"). The portable way to
+      # reach every later R session, pak's subprocess included, is the user
+      # profile.
+      - name: Put the declared repository on the R repository list
+        run: |
+          rprofile <- path.expand("~/.Rprofile")
+          block <- c(
+            'local({',
+            '  r <- getOption("repos")',
+            # A bare "@CRAN@" placeholder makes available.packages() error out
+            # rather than resolve, so pin a mirror when one is not already set.
+            '  if (is.na(r["CRAN"]) || identical(unname(r["CRAN"]), "@CRAN@")) {',
+            '    r["CRAN"] <- "https://cloud.r-project.org"',
+            '  }',
+            sprintf('  r["stan"] <- "%s"', "${{ steps.declared.outputs.repo }}"),
+            '  options(repos = r)',
+            '})')
+          cat(block, sep = "\n", file = rprofile, append = TRUE)
+          cat("\n", file = rprofile, append = TRUE)
+          cat("appended to", rprofile, ":\n")
+          cat(block, sep = "\n"); cat("\n")
+        shell: Rscript {0}
+
       - name: Check the declared chain offers cmdstanr, and record the version
         run: |
-          repos <- c(CRAN = "https://cloud.r-project.org",
-                     declared = "${{ steps.declared.outputs.repo }}")
-          cat("repositories:\n"); print(repos)
-          av <- available.packages(repos = repos)
+          cat("repositories:\n"); print(getOption("repos"))
+          av <- available.packages()
           if (!"cmdstanr" %in% rownames(av)) {
             stop("cmdstanr is not available from the declared repository chain: ",
-                 paste(repos, collapse = ", "))
+                 paste(getOption("repos"), collapse = ", "))
           }
           cat("resolved cmdstanr version:", av["cmdstanr", "Version"], "\n")
         shell: Rscript {0}
 
-      # `setup-r-dependencies` resolves with pak, which does NOT read
-      # `Additional_repositories` out of DESCRIPTION. Without this the resolver
-      # reports "Can't find package called cmdstanr" and the job fails on its
-      # own setup rather than on the package, which is what happened on Windows
-      # the first time this job ran. Declaring the repository here is what makes
-      # the chain the thing under test.
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-repositories: ${{ steps.declared.outputs.repo }}
           extra-packages: |
             any::testthat
             any::pkgload
@@ -347,9 +365,8 @@ jobs:
         run: |
           # The resolver must not have satisfied cmdstanr from somewhere else.
           # `available.packages()` on the declared chain is the reference.
-          repos <- c(CRAN = "https://cloud.r-project.org",
-                     declared = "${{ steps.declared.outputs.repo }}")
-          declared_version <- available.packages(repos = repos)["cmdstanr", "Version"]
+          declared_version <- available.packages(
+            repos = "${{ steps.declared.outputs.repo }}")["cmdstanr", "Version"]
           installed <- as.character(utils::packageVersion("cmdstanr"))
           cat("declared:", declared_version, " installed:", installed, "\n")
           if (!identical(declared_version, installed)) {
