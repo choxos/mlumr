@@ -270,3 +270,95 @@ jobs:
                                       distribution = "weibull"),
                     "relaxed (weibull)")
         shell: Rscript {0}
+
+  declared-repository-chain:
+    name: Declared repository chain (cmdstanr)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Windows is the platform where the two repositories most often carry
+        # different cmdstanr versions, and where a toolchain fix present in one
+        # and absent from the other actually changes whether a fit builds. It is
+        # the reason this job exists, so it is not optional here.
+        os: [ubuntu-latest, windows-latest]
+    # Every other job installs cmdstanr from stan-dev/cmdstanr on GitHub, which
+    # is NOT what DESCRIPTION selects. The repository chain this package
+    # declares was therefore never exercised: the whole matrix could stay green
+    # while `Additional_repositories` resolved to nothing installable, or to a
+    # version that cannot build a model. This job installs the way a user does,
+    # from the declared repositories and nothing else, and refuses to fall back.
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      NOT_CRAN: true
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: 'release'
+          use-public-rspm: true
+
+      - name: Install cmdstanr from the repositories DESCRIPTION declares
+        run: |
+          extra <- read.dcf("DESCRIPTION", "Additional_repositories")[[1]]
+          if (is.na(extra) || !nzchar(extra)) {
+            stop("DESCRIPTION declares no Additional_repositories.")
+          }
+          repos <- c(CRAN = "https://cloud.r-project.org",
+                     declared = trimws(extra))
+          cat("repositories:\n"); print(repos)
+          av <- available.packages(repos = repos)
+          if (!"cmdstanr" %in% rownames(av)) {
+            stop("cmdstanr is not available from the declared repository chain: ",
+                 paste(repos, collapse = ", "))
+          }
+          version <- av["cmdstanr", "Version"]
+          cat("resolved cmdstanr version:", version, "\n")
+          # No GitHub remote, no fallback: if the declared chain cannot supply a
+          # working cmdstanr, this job has to say so rather than quietly
+          # installing the same package from somewhere else.
+          install.packages("cmdstanr", repos = repos)
+          stopifnot(identical(
+            as.character(utils::packageVersion("cmdstanr")), version))
+        shell: Rscript {0}
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: |
+            any::testthat
+            any::pkgload
+          needs: check
+
+      - name: Install CmdStan
+        run: cmdstanr::install_cmdstan(cores = 2)
+        shell: Rscript {0}
+
+      - name: Record the resolved software versions
+        run: |
+          cat("cmdstanr:", as.character(utils::packageVersion("cmdstanr")), "\n")
+          cat("CmdStan: ", cmdstanr::cmdstan_version(), "\n")
+          cat("R:       ", R.version.string, "\n")
+        shell: Rscript {0}
+
+      - name: Sample through the chain this package declares
+        run: |
+          pkgload::load_all(".")
+          options(mlumr.stan_engine = "cmdstanr")
+          # A smoke test, not the suite: the question is whether the cmdstanr
+          # this chain resolves can compile and run one model end to end.
+          data("psoriasis_ipd", package = "mlumr")
+          data("psoriasis_agd", package = "mlumr")
+          res <- testthat::test_file("tests/testthat/test-mlumr.R",
+                                     package = "mlumr", reporter = "summary",
+                                     stop_on_failure = FALSE)
+          df <- as.data.frame(res)
+          cat("pass", sum(df$passed), "fail", sum(df$failed),
+              "error", sum(df$error), "\n")
+          if (sum(df$failed) > 0 || any(df$error)) {
+            stop("the declared repository chain does not produce a working cmdstanr")
+          }
+        shell: Rscript {0}

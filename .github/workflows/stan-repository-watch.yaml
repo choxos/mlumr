@@ -1,0 +1,89 @@
+name: Stan repository watch
+
+# `Additional_repositories` points at https://mc-stan.org/r-packages, which the
+# Stan project describes as deprecated and no longer updated. That is a
+# deliberate temporary choice: the maintained repository briefly served a
+# cmdstanr whose version could not be resolved together with the rest of the
+# dependency chain, and pinning the older repository was the way to keep
+# installation working while that settled.
+#
+# A temporary workaround with nothing watching it becomes permanent. This job
+# exists so the decision is revisited on a schedule instead of on a memory:
+#
+#   1. it fails if the deprecated repository stops serving cmdstanr, which is
+#      the failure mode that would otherwise reach users as a broken install;
+#   2. it prints the version each repository offers, so the version race that
+#      motivated the pin is visible when it resolves;
+#   3. it fails after EXPIRES_ON regardless, so the pin cannot outlive its
+#      reason without somebody deciding to extend it.
+
+on:
+  schedule:
+    # Weekly, Monday 06:00 UTC.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  watch:
+    name: Deprecated repository still serves cmdstanr
+    runs-on: ubuntu-latest
+    env:
+      # Move this date forward only together with a note in the pull request
+      # saying why the pin is still needed. Reverting the pin is what clears it.
+      EXPIRES_ON: '2027-03-01'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: 'release'
+          use-public-rspm: true
+
+      - name: Compare the declared and maintained repositories
+        run: |
+          declared <- trimws(read.dcf("DESCRIPTION", "Additional_repositories")[[1]])
+          maintained <- "https://stan-dev.r-universe.dev"
+          version_at <- function(url) {
+            av <- tryCatch(available.packages(repos = url),
+                           error = function(e) NULL)
+            if (is.null(av) || !"cmdstanr" %in% rownames(av)) NA_character_
+            else unname(av["cmdstanr", "Version"])
+          }
+          v_declared <- version_at(declared)
+          v_maintained <- version_at(maintained)
+          cat("declared  ", declared, "-> cmdstanr", v_declared, "\n")
+          cat("maintained", maintained, "-> cmdstanr", v_maintained, "\n")
+
+          expires <- as.Date(Sys.getenv("EXPIRES_ON"))
+          today <- Sys.Date()
+
+          problems <- character(0)
+          if (is.na(v_declared)) {
+            problems <- c(problems, paste0(
+              "the declared repository (", declared, ") no longer serves ",
+              "cmdstanr, so installing this package from DESCRIPTION alone ",
+              "cannot get the optional backend"))
+          }
+          if (today > expires) {
+            problems <- c(problems, paste0(
+              "the pin to a deprecated repository passed its review date (",
+              expires, "). Either revert Additional_repositories to ",
+              maintained, " and confirm the dependency chain resolves, or ",
+              "move EXPIRES_ON forward with a stated reason."))
+          }
+          if (length(problems)) {
+            stop(paste0("\n- ", problems, collapse = ""))
+          }
+          if (!is.na(v_maintained) && !is.na(v_declared) &&
+                identical(v_declared, v_maintained)) {
+            cat("\nNOTE: both repositories now offer cmdstanr", v_declared,
+                "- the version race that motivated the pin appears resolved,",
+                "so the pin can probably be reverted.\n")
+          }
+        shell: Rscript {0}
