@@ -819,18 +819,20 @@ test_that("a threshold that is not a number is rejected, not silently NA", {
   declared <- cbind(c(-1, 1))
   for (bad in list(NA, NA_real_, NaN)) {
     expect_error(.profile_rank(declared, 1, min_spread = bad),
-                 "spread threshold must be a number")
+                 "Spread threshold values must not be")
     matches <- function() {
       .realized_matches_declared(declared, declared, 1, min_spread = bad)
     }
-    expect_error(matches(), "spread threshold must be a number")
+    expect_error(matches(), "Spread threshold values must not be")
   }
 
   # The message names no argument, because this helper is called with three
-  # different thresholds and naming one would misreport the other two. A
-  # partly-NA vector threshold, the shape `factor * declared_spread` has, is
-  # rejected on the same footing.
-  expect_error(.at_least(c(1, 2), c(0.5, NA)), "spread threshold")
+  # different thresholds and naming one would misreport the other two. It also
+  # avoids the singular: a threshold may be a VECTOR, the shape
+  # `factor * declared_spread` has, so "must be a number" would state a scalar
+  # constraint the function does not impose. A partly-NA vector is rejected on
+  # the same footing as a scalar one, and a wholly finite vector is accepted.
+  expect_error(.at_least(c(1, 2), c(0.5, NA)), "Spread threshold values")
   expect_equal(.at_least(c(1, 2), c(0.5, 1.5)), c(TRUE, TRUE))
 
   # `factor` is the other way a threshold goes NA: `share_of` is
@@ -840,9 +842,15 @@ test_that("a threshold that is not a number is rejected, not silently NA", {
   bad_factor <- function() {
     .realized_matches_declared(declared, declared, 1, factor = NA)
   }
-  expect_error(bad_factor(), "spread threshold must be a number")
-  expect_false(grepl("min_spread",
-                     tryCatch(bad_factor(), error = conditionMessage)))
+  # Take the condition FROM `expect_error()`, which cannot hand one back unless
+  # something was raised. Reaching for the message with
+  # `tryCatch(bad_factor(), error = conditionMessage)` instead is vacuous in
+  # exactly the case this guards: with the check removed the call returns a
+  # value rather than raising, `tryCatch` passes that value straight through,
+  # and `grepl` on `NA` or `TRUE` is FALSE, so the assertion holds while the
+  # thing it tests has gone.
+  err <- expect_error(bad_factor(), "Spread threshold values must not be")
+  expect_false(grepl("min_spread", conditionMessage(err), fixed = TRUE))
 
   # An infinite threshold IS coherent: nothing clears `Inf`, everything clears
   # `-Inf`. Those keep working, on a bare comparison, since there is no slack
