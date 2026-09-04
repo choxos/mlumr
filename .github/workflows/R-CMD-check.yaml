@@ -302,36 +302,63 @@ jobs:
           r-version: 'release'
           use-public-rspm: true
 
-      - name: Install cmdstanr from the repositories DESCRIPTION declares
+      # DESCRIPTION is the single source of truth for the chain under test, so
+      # the URL is read from it rather than repeated here, and handed to both
+      # the availability probe and the resolver below.
+      - name: Read the declared repository from DESCRIPTION
+        id: declared
         run: |
           extra <- read.dcf("DESCRIPTION", "Additional_repositories")[[1]]
           if (is.na(extra) || !nzchar(extra)) {
             stop("DESCRIPTION declares no Additional_repositories.")
           }
+          cat(sprintf("repo=%s\n", trimws(extra)),
+              file = Sys.getenv("GITHUB_OUTPUT"), append = TRUE)
+        shell: Rscript {0}
+
+      - name: Check the declared chain offers cmdstanr, and record the version
+        run: |
           repos <- c(CRAN = "https://cloud.r-project.org",
-                     declared = trimws(extra))
+                     declared = "${{ steps.declared.outputs.repo }}")
           cat("repositories:\n"); print(repos)
           av <- available.packages(repos = repos)
           if (!"cmdstanr" %in% rownames(av)) {
             stop("cmdstanr is not available from the declared repository chain: ",
                  paste(repos, collapse = ", "))
           }
-          version <- av["cmdstanr", "Version"]
-          cat("resolved cmdstanr version:", version, "\n")
-          # No GitHub remote, no fallback: if the declared chain cannot supply a
-          # working cmdstanr, this job has to say so rather than quietly
-          # installing the same package from somewhere else.
-          install.packages("cmdstanr", repos = repos)
-          stopifnot(identical(
-            as.character(utils::packageVersion("cmdstanr")), version))
+          cat("resolved cmdstanr version:", av["cmdstanr", "Version"], "\n")
         shell: Rscript {0}
 
+      # `setup-r-dependencies` resolves with pak, which does NOT read
+      # `Additional_repositories` out of DESCRIPTION. Without this the resolver
+      # reports "Can't find package called cmdstanr" and the job fails on its
+      # own setup rather than on the package, which is what happened on Windows
+      # the first time this job ran. Declaring the repository here is what makes
+      # the chain the thing under test.
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
+          extra-repositories: ${{ steps.declared.outputs.repo }}
           extra-packages: |
             any::testthat
             any::pkgload
           needs: check
+
+      - name: Confirm cmdstanr came from the declared chain
+        run: |
+          # The resolver must not have satisfied cmdstanr from somewhere else.
+          # `available.packages()` on the declared chain is the reference.
+          repos <- c(CRAN = "https://cloud.r-project.org",
+                     declared = "${{ steps.declared.outputs.repo }}")
+          declared_version <- available.packages(repos = repos)["cmdstanr", "Version"]
+          installed <- as.character(utils::packageVersion("cmdstanr"))
+          cat("declared:", declared_version, " installed:", installed, "\n")
+          if (!identical(declared_version, installed)) {
+            stop("cmdstanr ", installed, " was installed, but the declared ",
+                 "repository chain offers ", declared_version,
+                 ": the resolver fell back to another source, so this job is ",
+                 "not testing the chain DESCRIPTION declares.")
+          }
+        shell: Rscript {0}
 
       - name: Install CmdStan
         run: cmdstanr::install_cmdstan(cores = 2)
