@@ -39,6 +39,8 @@ real log_prior_sigma(real sigma, real location, real scale, int dist, real df) {
 // scale; HMC sees a unit-scale, zero-centered coordinate, which
 // improves sampling when the prior scale is mismatched with the
 // posterior scale (common with the default weakly-informative priors).
+// Note: intentionally retained as API surface; not called by any current model
+// (none use this non-centered std-vector prior form). Kept for extension use.
 real log_prior_std_vector(vector z, int dist, real df) {
   if (dist == 0) return std_normal_lpdf(z);
   else return student_t_lpdf(z | df, 0, 1);

@@ -1,0 +1,120 @@
+# -----------------------------------------------------------------------------
+# Citation File Format (https://citation-file-format.github.io/).
+# Machine-readable citation metadata for GitHub, Zenodo, and FAIR tooling.
+# The R-level citation lives in inst/CITATION; the canonical software metadata
+# crosswalk is in codemeta.json; Zenodo deposit metadata is in .zenodo.json.
+# -----------------------------------------------------------------------------
+cff-version: 1.2.0
+message: 'To cite the mlumr package in publications use:'
+type: software
+license: GPL-3.0-only
+title: 'mlumr: Multilevel Unanchored Meta-Regression for Indirect Treatment Comparisons'
+version: 0.1.0.9000
+abstract: >-
+  Bayesian multilevel unanchored meta-regression (ML-UMR) for indirect treatment
+  comparisons using individual patient data (IPD) and aggregate data (AgD).
+  Implements the shared prognostic factor assumption (SPFA) and relaxed SPFA
+  models for binary, continuous, count, and time-to-event (survival) outcomes via
+  Stan, including parametric and flexible M-spline survival baselines, with
+  transport of marginal treatment effects to arbitrary target populations
+  (covariate-conditional effects are reported at specified profiles).
+  Also provides simulated treatment comparison (STC) via parametric G-computation
+  and naive unadjusted benchmarks. ML-UMR is an adaptation of the multilevel
+  network meta-regression (ML-NMR) methodology of Phillippo et al. (2020),
+  implemented in the multinma package, to the unanchored disconnected-evidence
+  setting.
+authors:
+  - family-names: Sofi-Mahmudi
+    given-names: Ahmad
+    email: a.sofimahmudi@gmail.com
+    orcid: https://orcid.org/0000-0001-6829-0823
+  - family-names: Chandler
+    given-names: Conor
+    orcid: https://orcid.org/0000-0002-1365-9002
+repository-code: https://github.com/choxos/mlumr
+url: https://choxos.github.io/mlumr/
+keywords:
+  - indirect-treatment-comparison
+  - population-adjusted-indirect-comparison
+  - network-meta-analysis
+  - health-technology-assessment
+  - evidence-synthesis
+  - bayesian
+  - stan
+  - survival-analysis
+  - multilevel-network-meta-regression
+  - r
+preferred-citation:
+  type: article
+  title: >-
+    Anchors Away: Navigating Unanchored Indirect Comparisons with Multilevel
+    Unanchored Meta-Regression (ML-UMR)
+  authors:
+    - family-names: Chandler
+      given-names: Conor
+    - family-names: Ishak
+      given-names: Jack
+  year: '2026'
+  doi: 10.48550/arXiv.2606.20341
+  url: https://arxiv.org/abs/2606.20341
+  notes: Preprint, arXiv:2606.20341 [stat.ME]
+references:
+  - type: software
+    title: 'mlumr: Multilevel Unanchored Meta-Regression for Indirect Treatment Comparisons'
+    authors:
+      - family-names: Sofi-Mahmudi
+        given-names: Ahmad
+        orcid: https://orcid.org/0000-0001-6829-0823
+      - family-names: Chandler
+        given-names: Conor
+        orcid: https://orcid.org/0000-0002-1365-9002
+    year: '2026'
+    notes: R package version 0.1.0.9000
+    url: https://github.com/choxos/mlumr
+  - type: article
+    title: >-
+      Anchors Away: Navigating Unanchored Indirect Comparisons With Multilevel
+      Unanchored Meta-Regression (ML-UMR)
+    authors:
+      - family-names: Chandler
+        given-names: Conor
+      - family-names: Ishak
+        given-names: Jack
+    journal: Value in Health
+    year: '2025'
+    volume: '28'
+    notes: ISPOR Europe 2025 poster MSR28 (conference version of the preprint above)
+  - type: article
+    title: >-
+      Surviving Unanchored Indirect Comparisons: An Extension of Multilevel
+      Unanchored Meta-Regression (ML-UMR) for Survival Analyses
+    authors:
+      - family-names: Chandler
+        given-names: Conor
+      - family-names: Ishak
+        given-names: Jack
+    journal: Value in Health
+    year: '2026'
+    volume: '29'
+    issue: S6
+    notes: ISPOR 2026 poster MSR131
+  - type: article
+    title: >-
+      Multilevel network meta-regression for population-adjusted treatment
+      comparisons
+    authors:
+      - family-names: Phillippo
+        given-names: David M.
+      - family-names: Dias
+        given-names: Sofia
+      - family-names: Ades
+        given-names: A. E.
+      - family-names: Welton
+        given-names: Nicky J.
+    journal: 'Journal of the Royal Statistical Society: Series A'
+    year: '2020'
+    volume: '183'
+    issue: '3'
+    start: 1189
+    end: 1210
+    doi: 10.1111/rssa.12579

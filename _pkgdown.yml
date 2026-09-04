@@ -1,0 +1,159 @@
+url: https://choxos.github.io/mlumr/
+
+template:
+  bootstrap: 5
+  light-switch: true          # dark / light mode toggle (bslib)
+  math-rendering: katex        # fast, crisp LaTeX in the math-heavy vignettes
+  bslib:
+    primary: "#1A6D73"         # mlumr brand teal (from the hex logo)
+    link-color: "#1A6D73"
+    base_font: {google: "Inter"}
+    heading_font: {google: "Inter"}
+    code_font: {google: "JetBrains Mono"}
+
+navbar:
+  structure:
+    left: [intro, app, reference, articles, news]
+    right: [search, lightswitch, github]
+  components:
+    # In-browser playground (separate deploy on the webapp branch at /mlumr/app),
+    # featured prominently in the navbar.
+    app:
+      text: Web app
+      icon: fa-rocket
+      href: https://choxos.github.io/mlumr/app
+      aria-label: mlumr web app (in-browser playground)
+    # Articles dropdown with short outcome-type labels (the full descriptive
+    # titles stay on the pages themselves and in the CRAN vignette index).
+    articles:
+      text: Articles
+      menu:
+      - text: Getting started
+      - text: Introduction to mlumr
+        href: articles/introduction.html
+      - text: Preparing data and integration points
+        href: articles/data-preparation.html
+      - text: Outcome types
+      - text: Binary outcomes
+        href: articles/binary-outcomes.html
+      - text: Continuous outcomes
+        href: articles/continuous-outcomes.html
+      - text: Count outcomes
+        href: articles/count-outcomes.html
+      - text: Survival (time-to-event) outcomes
+        href: articles/survival-outcomes.html
+      - text: Methods
+      - text: Fitting, priors, and diagnostics
+        href: articles/fitting-and-diagnostics.html
+      - text: "Choosing a method: ML-UMR, STC, and naive"
+        href: articles/choosing-a-method.html
+      - text: Aggregate subgroup information for the relaxed model
+        href: articles/subgroup-identification.html
+
+articles:
+- title: Getting started
+  navbar: Getting started
+  contents:
+  - introduction
+  - "data-preparation"
+- title: Outcome types
+  navbar: Outcome types
+  contents:
+  - "binary-outcomes"
+  - "continuous-outcomes"
+  - "count-outcomes"
+  - "survival-outcomes"
+- title: Methods
+  navbar: Methods
+  contents:
+  - "fitting-and-diagnostics"
+  - "choosing-a-method"
+  - "subgroup-identification"
+
+reference:
+- title: Data setup
+  desc: >
+    Assemble the index IPD and comparator AgD into one `mlumr_data` object and
+    build the quasi-Monte Carlo integration points for population adjustment.
+  contents:
+  - set_ipd
+  - set_agd
+  - set_agd_surv
+  - combine_data
+  - add_integration
+  - check_integration
+  - check_identification
+  - unnest_integration
+  - make_knots
+- title: Covariate distributions
+  desc: Marginal-distribution helpers for the comparator integration points.
+  contents:
+  - distr
+  - qbern
+  - pbern
+  - dbern
+  - GammaDist
+  - logitNormal
+- title: Model fitting
+  desc: Fit the Bayesian ML-UMR model (SPFA / relaxed) and select the Stan backend.
+  contents:
+  - mlumr
+  - mlumr_engine
+- title: Priors
+  desc: Prior constructors, the prior summary, and prior-sensitivity analysis.
+  contents:
+  - prior_normal
+  - prior_student_t
+  - prior_cauchy
+  - prior_exponential
+  - prior_summary
+  - prior_sensitivity
+  - default_prior_intercept
+  - default_prior_beta
+  - default_prior_sigma
+  - default_prior_aux
+  - default_prior_smooth
+- title: Treatment effects and predictions
+  desc: Population-standardized effects and absolute predictions in either population.
+  contents:
+  - marginal_effects
+  - conditional_effects
+  - predict.mlumr_fit
+  - conditional_predict
+- title: Frequentist benchmarks
+  desc: Unadjusted (naive) and simulated-treatment-comparison (STC) reference estimators.
+  contents:
+  - naive
+  - stc
+- title: Model comparison and diagnostics
+  desc: Compare SPFA against relaxed, and the information criteria behind it.
+  contents:
+  - compare_models
+  - calculate_dic
+  - calculate_loo
+  - calculate_waic
+- title: Plots
+  desc: >
+    The `plot()` methods, the Kaplan-Meier overlay, the method-comparison forest,
+    and the prior-versus-posterior overlay.
+  contents:
+  - plot.mlumr_prediction
+  - plot.mlumr_marginal_effects
+  - plot.mlumr_conditional_effects
+  - geom_km
+  - mlumr_forest
+  - plot_prior_posterior
+- title: Example datasets
+  desc: >
+    Bundled index IPD and comparator AgD for the worked examples, one pair per
+    outcome family (binary, continuous, count, survival).
+  contents:
+  - psoriasis_ipd
+  - psoriasis_agd
+  - shoulder_ipd
+  - shoulder_agd
+  - caries_ipd
+  - caries_agd
+  - ndmm_ipd
+  - ndmm_agd
+  - ndmm_agd_covs

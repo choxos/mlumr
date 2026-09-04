@@ -1,3 +1,22 @@
+# Version is taken from the installed DESCRIPTION so the citation never goes stale.
+ver <- meta$Version
+if (is.null(ver) || !nzchar(ver)) ver <- "0.1.0.9000"
+
+# Main reference: the ML-UMR methodology paper (Chandler & Ishak).
+bibentry(
+  bibtype  = "Misc",
+  title    = "Anchors Away: Navigating Unanchored Indirect Comparisons with Multilevel Unanchored Meta-Regression (ML-UMR)",
+  author   = c(
+    person("Conor", "Chandler"),
+    person("Jack", "Ishak")
+  ),
+  year     = "2026",
+  doi      = "10.48550/arXiv.2606.20341",
+  url      = "https://arxiv.org/abs/2606.20341",
+  note     = "Preprint, arXiv:2606.20341 [stat.ME]",
+  header   = "To cite the ML-UMR methodology (the method this package implements), please use:"
+)
+
 bibentry(
   bibtype  = "Manual",
   title    = "mlumr: Multilevel Unanchored Meta-Regression for Indirect Treatment Comparisons",
@@ -8,7 +27,11 @@ bibentry(
            comment = c(ORCID = "0000-0002-1365-9002"))
   ),
   year     = "2026",
-  note     = "R package version 0.1.0. An adaptation of the ML-NMR methodology to the unanchored case; built on conventions established by the 'multinma' package (Phillippo et al., GPL-3).",
+  header   = "To cite the mlumr software, please use:",
+  note     = paste0("R package version ", ver,
+                    ". An adaptation of the ML-NMR methodology to the unanchored case; ",
+                    "built on conventions established by the 'multinma' package ",
+                    "(Phillippo et al., GPL-3)."),
   url      = "https://github.com/choxos/mlumr"
 )
 

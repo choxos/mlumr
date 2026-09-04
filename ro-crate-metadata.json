@@ -1,0 +1,77 @@
+{
+  "@context": "https://w3id.org/ro/crate/1.1/context",
+  "@graph": [
+    {
+      "@type": "CreativeWork",
+      "@id": "ro-crate-metadata.json",
+      "conformsTo": { "@id": "https://w3id.org/ro/crate/1.1" },
+      "about": { "@id": "./" },
+      "description": "Machine-readable provenance and packaging metadata for the mlumr R package, following the RO-Crate 1.1 specification."
+    },
+    {
+      "@type": "Dataset",
+      "@id": "./",
+      "name": "mlumr: Multilevel Unanchored Meta-Regression for Indirect Treatment Comparisons",
+      "description": "Bayesian multilevel unanchored meta-regression (ML-UMR) for indirect treatment comparisons of disconnected single-arm evidence, synthesizing individual patient data (IPD) and aggregate data (AgD) for binary, continuous, count, and survival outcomes.",
+      "datePublished": "2026-07-24",
+      "license": { "@id": "https://spdx.org/licenses/GPL-3.0-only.html" },
+      "author": [
+        { "@id": "https://orcid.org/0000-0001-6829-0823" },
+        { "@id": "https://orcid.org/0000-0002-1365-9002" }
+      ],
+      "mainEntity": { "@id": "#mlumr" },
+      "hasPart": [
+        { "@id": "#mlumr" },
+        { "@id": "https://github.com/choxos/mlumr" }
+      ]
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "#mlumr",
+      "name": "mlumr",
+      "programmingLanguage": { "@id": "https://www.r-project.org" },
+      "codeRepository": "https://github.com/choxos/mlumr",
+      "url": "https://choxos.github.io/mlumr/",
+      "version": "0.1.0.9000",
+      "license": { "@id": "https://spdx.org/licenses/GPL-3.0-only.html" },
+      "author": [
+        { "@id": "https://orcid.org/0000-0001-6829-0823" },
+        { "@id": "https://orcid.org/0000-0002-1365-9002" }
+      ],
+      "isBasedOn": "https://doi.org/10.5281/zenodo.3904454",
+      "referencePublication": { "@id": "https://doi.org/10.1111/rssa.12579" }
+    },
+    {
+      "@type": "Person",
+      "@id": "https://orcid.org/0000-0001-6829-0823",
+      "name": "Ahmad Sofi-Mahmudi",
+      "roleName": [
+        "Software",
+        "Methodology",
+        "Validation",
+        "Writing - original draft",
+        "Project administration"
+      ]
+    },
+    {
+      "@type": "Person",
+      "@id": "https://orcid.org/0000-0002-1365-9002",
+      "name": "Conor Chandler",
+      "roleName": [
+        "Conceptualization",
+        "Methodology",
+        "Writing - review & editing"
+      ]
+    },
+    {
+      "@type": "ScholarlyArticle",
+      "@id": "https://doi.org/10.1111/rssa.12579",
+      "name": "Multilevel network meta-regression for population-adjusted treatment comparisons"
+    },
+    {
+      "@type": "CreativeWork",
+      "@id": "https://w3id.org/ro/crate/1.1",
+      "name": "RO-Crate 1.1"
+    }
+  ]
+}

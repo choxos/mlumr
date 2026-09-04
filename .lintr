@@ -2,6 +2,9 @@ linters: linters_with_defaults(
     line_length_linter = line_length_linter(120L),
     commented_code_linter = NULL,
     object_length_linter = NULL,
+    # object_usage_linter is disabled deliberately: it raises false positives on
+    # ggplot2 non-standard evaluation (aes() column names) and data-masking
+    # throughout the plotting/prediction code. Re-enable only with those handled.
     object_usage_linter = NULL,
     object_name_linter = object_name_linter(
         styles = c("snake_case", "symbols"),
@@ -22,5 +25,6 @@ exclusions: list(
     "inst/future",
     "src",
     "man",
+    "data-raw",
     "R/stanmodels.R"
   )

@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Aggregate subgroup information for the relaxed model</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+<style type="text/css">
+
+div.csl-bib-body { }
+div.csl-entry {
+clear: both;
+}
+.hanging div.csl-entry {
+margin-left:2em;
+text-indent:-2em;
+}
+div.csl-left-margin {
+min-width:2em;
+float:left;
+}
+div.csl-right-inline {
+margin-left:2em;
+padding-left:1em;
+}
+div.csl-indent {
+margin-left: 2em;
+}
+</style>
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Aggregate subgroup information for the
+relaxed model</h1>
+
+
+
+<p>The relaxed model gives the index and comparator treatments separate
+covariate coefficients. The IPD identify <code>beta_index</code>; the
+comparator coefficients are informed only through the aggregate
+likelihood. Aggregate subgroup rows can add information, but a row count
+alone cannot establish that all comparator coefficients are
+identified.</p>
+<p>This vignette separates three questions:</p>
+<ol style="list-style-type: decimal">
+<li>Is the aggregate design structurally capable of separating the
+comparator intercept and coefficients?</li>
+<li>Does the nonlinear likelihood contain enough information at the
+fitted parameter values?</li>
+<li>Is the resulting target-population effect stable to the prior,
+integration approximation, and transport assumptions?</li>
+</ol>
+<p>Only the first question has a simple exact answer, and only for the
+normal identity-link model.</p>
+<div id="what-an-aggregate-row-contributes" class="section level2">
+<h2>What an aggregate row contributes</h2>
+<p>For the binomial, normal, and Poisson families, each mutually
+exclusive aggregate stratum contributes one scalar outcome summary. With
+<span class="math inline">\(K\)</span> covariates, the relaxed
+comparator model has <span class="math inline">\(K + 1\)</span>
+coefficients: an intercept and <span class="math inline">\(K\)</span>
+slopes. Therefore</p>
+<p><span class="math display">\[
+S \geq K + 1
+\]</span></p>
+<p>is a necessary counting condition. It is not sufficient.</p>
+<p>For a normal identity-link model, stratum <span class="math inline">\(s\)</span> has mean</p>
+<p><span class="math display">\[
+\bar y_s = \mu_c + m_s^\mathsf{T}\beta_c,
+\]</span></p>
+<p>where <span class="math inline">\(m_s\)</span> is the declared
+covariate-mean vector. The exact aggregate design matrix is <span class="math inline">\(D=[\mathbf{1},M]\)</span>. The comparator
+coefficients can be separated by the likelihood only when <span class="math inline">\(D\)</span> has full column rank <span class="math inline">\(K+1\)</span>. Equivalently, after centering the
+rows of <span class="math inline">\(M\)</span>, the covariate-mean
+matrix must have rank <span class="math inline">\(K\)</span>.</p>
+<p>For a nonlinear mean model, each row instead contributes</p>
+<p><span class="math display">\[
+\bar y_s =
+\mathbb{E}_{X\sim f_s}\left[g^{-1}(\mu_c+X^\mathsf{T}\beta_c)\right].
+\]</span></p>
+<p>Its local Jacobian depends on the full within-stratum distribution
+<span class="math inline">\(f_s\)</span>, the link, and the parameter
+values. Mean vectors alone do not determine that Jacobian. Differences
+in variances, binary probabilities, or dependence can add information
+that a mean-only rank calculation cannot see. Consequently,
+<code>check_identification()</code> treats the mean-profile spectrum as
+descriptive for binomial, Poisson, and normal-log models. When the row
+count is adequate, <code>flagged</code> is <code>NA</code>, not
+<code>FALSE</code>.</p>
+<p>These distinctions follow the aggregate marginalization used by
+ML-NMR and ML-UMR <span class="citation">(Phillippo et al. 2020; C.
+Chandler and Ishak 2026)</span>.</p>
+</div>
+<div id="rows-must-describe-one-population" class="section level2">
+<h2>Rows must describe one population</h2>
+<p>Multiple <code>set_agd()</code> rows are assumed to be mutually
+exclusive, collectively exhaustive strata of one comparator population.
+They are not separate, overlapping subgroup analyses. Population
+summaries are combined with <code>outcome_n</code> for binomial and
+normal outcomes and with person-time exposure for Poisson outcomes. For
+a normal comparator mean,</p>
+<p><span class="math display">\[
+\bar y_c=\sum_s w_s\bar y_s,\qquad
+\operatorname{Var}(\bar y_c)=\sum_s w_s^2 SE_s^2,
+\qquad w_s=\frac{n_s}{\sum_j n_j},
+\]</span></p>
+<p>assuming independent, mutually exclusive stratum summaries.
+Inverse-variance weights would describe a meta-analysis of estimates,
+not the mean of the comparator population.</p>
+<p>If Poisson exposure varies with covariates, reported covariate
+summaries must match the person-time distribution relevant to the rate.
+Ordinary participant means are justified only under a fixed-exposure or
+suitable independence assumption <span class="citation">(Remiro-Azocar
+et al. 2022)</span>.</p>
+</div>
+<div id="mean-profile-geometry" class="section level2">
+<h2>Mean-profile geometry</h2>
+<p><code>check_identification()</code> centers the declared subgroup
+mean vectors, scales each covariate by its IPD SD, and examines the
+singular values. Scaling prevents a covariate measured in large units
+from dominating a binary proportion merely because of units. The
+reported</p>
+<p><span class="math display">\[
+\texttt{cond_inv}=\frac{d_{\min}}{d_{\max}}
+\]</span></p>
+<p>approaches zero as the mean profiles collapse onto a
+lower-dimensional set. For the identity-link model this summarizes the
+exact design matrix. For nonlinear models it describes only the spread
+of the declared means.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(mlumr)</span></code></pre></div>
+<p>Consider one continuous and two binary covariates. The following
+designs all contain several rows, but they span different covariate
+directions.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>ref_sd <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="at">age =</span> <span class="dv">1</span>, <span class="at">sex =</span> <span class="fl">0.5</span>, <span class="at">prior =</span> <span class="fl">0.49</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>by_age_only <span class="ot">&lt;-</span> <span class="fu">cbind</span>(</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>  <span class="at">age =</span> <span class="fu">seq</span>(<span class="sc">-</span><span class="fl">1.5</span>, <span class="fl">1.5</span>, <span class="at">length.out =</span> <span class="dv">6</span>),</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>  <span class="at">sex =</span> <span class="fl">0.5</span>,</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>  <span class="at">prior =</span> <span class="fl">0.4</span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>)</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>cross_tab <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>  <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>), <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>)</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>)</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>jointly_defined <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>  <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>), <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>),</span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>  <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>)</span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>)</span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a></span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a>geometry <span class="ot">&lt;-</span> <span class="cf">function</span>(M, ref_sd) {</span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>  M <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(M)</span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>  K <span class="ot">&lt;-</span> <span class="fu">ncol</span>(M)</span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a>  M <span class="ot">&lt;-</span> <span class="fu">scale</span>(M, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a>  M <span class="ot">&lt;-</span> <span class="fu">sweep</span>(M, <span class="dv">2</span>, ref_sd, <span class="st">&quot;/&quot;</span>)</span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a>  d <span class="ot">&lt;-</span> <span class="fu">svd</span>(M)<span class="sc">$</span>d</span>
+<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">length</span>(d) <span class="sc">&lt;</span> K) d <span class="ot">&lt;-</span> <span class="fu">c</span>(d, <span class="fu">rep</span>(<span class="dv">0</span>, K <span class="sc">-</span> <span class="fu">length</span>(d)))</span>
+<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">cond_inv =</span> <span class="fu">min</span>(d) <span class="sc">/</span> <span class="fu">max</span>(d),</span>
+<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a>    <span class="at">eff_dim =</span> <span class="fu">sum</span>(d<span class="sc">^</span><span class="dv">2</span>)<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> <span class="fu">sum</span>(d<span class="sc">^</span><span class="dv">4</span>))</span>
+<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>}</span>
+<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a></span>
+<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a><span class="fu">do.call</span>(rbind, <span class="fu">lapply</span>(</span>
+<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;by_age_only&quot;</span>, <span class="st">&quot;cross_tab&quot;</span>, <span class="st">&quot;jointly_defined&quot;</span>),</span>
+<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a>  <span class="cf">function</span>(nm) <span class="fu">c</span>(<span class="at">design =</span> nm, <span class="at">rows =</span> <span class="fu">nrow</span>(<span class="fu">get</span>(nm)),</span>
+<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a>                 <span class="fu">round</span>(<span class="fu">geometry</span>(<span class="fu">get</span>(nm), ref_sd), <span class="dv">3</span>))</span>
+<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a>))</span>
+<span id="cb2-34"><a href="#cb2-34" tabindex="-1"></a><span class="co">#&gt;      design            rows cond_inv eff_dim</span></span>
+<span id="cb2-35"><a href="#cb2-35" tabindex="-1"></a><span class="co">#&gt; [1,] &quot;by_age_only&quot;     &quot;6&quot;  &quot;0&quot;      &quot;1&quot;    </span></span>
+<span id="cb2-36"><a href="#cb2-36" tabindex="-1"></a><span class="co">#&gt; [2,] &quot;cross_tab&quot;       &quot;4&quot;  &quot;0&quot;      &quot;1.999&quot;</span></span>
+<span id="cb2-37"><a href="#cb2-37" tabindex="-1"></a><span class="co">#&gt; [3,] &quot;jointly_defined&quot; &quot;6&quot;  &quot;0.707&quot;  &quot;2.764&quot;</span></span></code></pre></div>
+<p>Age bands vary only in the age direction. The binary cross-tab varies
+in two directions but leaves age fixed. Only the jointly defined cells
+span all three covariates. More rows along an existing direction cannot
+replace a missing direction.</p>
+</div>
+<div id="using-check_identification" class="section level2">
+<h2>Using <code>check_identification()</code></h2>
+<p>The function uses declared AgD means, so the identity-link result
+does not depend on the realized QMC points and can be run before
+<code>add_integration()</code>.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2026</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>n_ipd <span class="ot">&lt;-</span> <span class="dv">120</span></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>ipd_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>  <span class="at">trt =</span> <span class="st">&quot;A&quot;</span>,</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>  <span class="at">y =</span> <span class="fu">rnorm</span>(n_ipd, <span class="dv">2</span>, <span class="dv">1</span>),</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>  <span class="at">age =</span> <span class="fu">rnorm</span>(n_ipd),</span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>  <span class="at">sex =</span> <span class="fu">rbinom</span>(n_ipd, <span class="dv">1</span>, <span class="fl">0.5</span>),</span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a>  <span class="at">prior =</span> <span class="fu">rbinom</span>(n_ipd, <span class="dv">1</span>, <span class="fl">0.4</span>)</span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>)</span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a>ipd <span class="ot">&lt;-</span> <span class="fu">set_ipd</span>(ipd_df, <span class="at">treatment =</span> <span class="st">&quot;trt&quot;</span>, <span class="at">outcome =</span> <span class="st">&quot;y&quot;</span>,</span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a>               <span class="at">covariates =</span> <span class="fu">c</span>(<span class="st">&quot;age&quot;</span>, <span class="st">&quot;sex&quot;</span>, <span class="st">&quot;prior&quot;</span>), <span class="at">family =</span> <span class="st">&quot;normal&quot;</span>)</span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a></span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a>make_design <span class="ot">&lt;-</span> <span class="cf">function</span>(M) {</span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a>  agd_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a>    <span class="at">trt =</span> <span class="st">&quot;B&quot;</span>,</span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a>    <span class="at">n =</span> <span class="fu">rep</span>(<span class="dv">100</span>, <span class="fu">nrow</span>(M)),</span>
+<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a>    <span class="at">ybar =</span> <span class="dv">2</span> <span class="sc">+</span> <span class="fl">0.1</span> <span class="sc">*</span> M[, <span class="dv">1</span>] <span class="sc">+</span> <span class="fl">0.2</span> <span class="sc">*</span> M[, <span class="dv">2</span>] <span class="sc">-</span> <span class="fl">0.1</span> <span class="sc">*</span> M[, <span class="dv">3</span>],</span>
+<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a>    <span class="at">yse =</span> <span class="fu">rep</span>(<span class="fl">0.1</span>, <span class="fu">nrow</span>(M)),</span>
+<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a>    <span class="at">age_mean =</span> M[, <span class="dv">1</span>],</span>
+<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a>    <span class="at">age_sd =</span> <span class="fu">rep</span>(<span class="dv">1</span>, <span class="fu">nrow</span>(M)),</span>
+<span id="cb3-21"><a href="#cb3-21" tabindex="-1"></a>    <span class="at">sex_mean =</span> M[, <span class="dv">2</span>],</span>
+<span id="cb3-22"><a href="#cb3-22" tabindex="-1"></a>    <span class="at">prior_mean =</span> M[, <span class="dv">3</span>]</span>
+<span id="cb3-23"><a href="#cb3-23" tabindex="-1"></a>  )</span>
+<span id="cb3-24"><a href="#cb3-24" tabindex="-1"></a>  agd <span class="ot">&lt;-</span> <span class="fu">set_agd</span>(</span>
+<span id="cb3-25"><a href="#cb3-25" tabindex="-1"></a>    agd_df, <span class="at">treatment =</span> <span class="st">&quot;trt&quot;</span>, <span class="at">family =</span> <span class="st">&quot;normal&quot;</span>,</span>
+<span id="cb3-26"><a href="#cb3-26" tabindex="-1"></a>    <span class="at">outcome_mean =</span> <span class="st">&quot;ybar&quot;</span>, <span class="at">outcome_se =</span> <span class="st">&quot;yse&quot;</span>, <span class="at">outcome_n =</span> <span class="st">&quot;n&quot;</span>,</span>
+<span id="cb3-27"><a href="#cb3-27" tabindex="-1"></a>    <span class="at">cov_means =</span> <span class="fu">c</span>(<span class="st">&quot;age_mean&quot;</span>, <span class="st">&quot;sex_mean&quot;</span>, <span class="st">&quot;prior_mean&quot;</span>),</span>
+<span id="cb3-28"><a href="#cb3-28" tabindex="-1"></a>    <span class="at">cov_sds =</span> <span class="fu">c</span>(<span class="st">&quot;age_sd&quot;</span>, <span class="cn">NA</span>, <span class="cn">NA</span>),</span>
+<span id="cb3-29"><a href="#cb3-29" tabindex="-1"></a>    <span class="at">cov_types =</span> <span class="fu">c</span>(<span class="st">&quot;continuous&quot;</span>, <span class="st">&quot;binary&quot;</span>, <span class="st">&quot;binary&quot;</span>)</span>
+<span id="cb3-30"><a href="#cb3-30" tabindex="-1"></a>  )</span>
+<span id="cb3-31"><a href="#cb3-31" tabindex="-1"></a>  <span class="fu">combine_data</span>(ipd, agd)</span>
+<span id="cb3-32"><a href="#cb3-32" tabindex="-1"></a>}</span>
+<span id="cb3-33"><a href="#cb3-33" tabindex="-1"></a></span>
+<span id="cb3-34"><a href="#cb3-34" tabindex="-1"></a>identity_age <span class="ot">&lt;-</span> <span class="fu">check_identification</span>(</span>
+<span id="cb3-35"><a href="#cb3-35" tabindex="-1"></a>  <span class="fu">make_design</span>(by_age_only), <span class="at">link =</span> <span class="st">&quot;identity&quot;</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span></span>
+<span id="cb3-36"><a href="#cb3-36" tabindex="-1"></a>)</span>
+<span id="cb3-37"><a href="#cb3-37" tabindex="-1"></a>identity_joint <span class="ot">&lt;-</span> <span class="fu">check_identification</span>(</span>
+<span id="cb3-38"><a href="#cb3-38" tabindex="-1"></a>  <span class="fu">make_design</span>(jointly_defined), <span class="at">link =</span> <span class="st">&quot;identity&quot;</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span></span>
+<span id="cb3-39"><a href="#cb3-39" tabindex="-1"></a>)</span>
+<span id="cb3-40"><a href="#cb3-40" tabindex="-1"></a>nonlinear_joint <span class="ot">&lt;-</span> <span class="fu">check_identification</span>(</span>
+<span id="cb3-41"><a href="#cb3-41" tabindex="-1"></a>  <span class="fu">make_design</span>(jointly_defined), <span class="at">link =</span> <span class="st">&quot;log&quot;</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span></span>
+<span id="cb3-42"><a href="#cb3-42" tabindex="-1"></a>)</span>
+<span id="cb3-43"><a href="#cb3-43" tabindex="-1"></a></span>
+<span id="cb3-44"><a href="#cb3-44" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
+<span id="cb3-45"><a href="#cb3-45" tabindex="-1"></a>  <span class="at">design =</span> <span class="fu">c</span>(<span class="st">&quot;age only&quot;</span>, <span class="st">&quot;joint identity&quot;</span>, <span class="st">&quot;joint log&quot;</span>),</span>
+<span id="cb3-46"><a href="#cb3-46" tabindex="-1"></a>  <span class="at">scope =</span> <span class="fu">c</span>(identity_age<span class="sc">$</span>diagnostic_scope,</span>
+<span id="cb3-47"><a href="#cb3-47" tabindex="-1"></a>            identity_joint<span class="sc">$</span>diagnostic_scope,</span>
+<span id="cb3-48"><a href="#cb3-48" tabindex="-1"></a>            nonlinear_joint<span class="sc">$</span>diagnostic_scope),</span>
+<span id="cb3-49"><a href="#cb3-49" tabindex="-1"></a>  <span class="at">rows =</span> <span class="fu">c</span>(identity_age<span class="sc">$</span>n_rows, identity_joint<span class="sc">$</span>n_rows,</span>
+<span id="cb3-50"><a href="#cb3-50" tabindex="-1"></a>           nonlinear_joint<span class="sc">$</span>n_rows),</span>
+<span id="cb3-51"><a href="#cb3-51" tabindex="-1"></a>  <span class="at">cond_inv =</span> <span class="fu">c</span>(identity_age<span class="sc">$</span>cond_inv, identity_joint<span class="sc">$</span>cond_inv,</span>
+<span id="cb3-52"><a href="#cb3-52" tabindex="-1"></a>               nonlinear_joint<span class="sc">$</span>cond_inv),</span>
+<span id="cb3-53"><a href="#cb3-53" tabindex="-1"></a>  <span class="at">flagged =</span> <span class="fu">c</span>(identity_age<span class="sc">$</span>flagged, identity_joint<span class="sc">$</span>flagged,</span>
+<span id="cb3-54"><a href="#cb3-54" tabindex="-1"></a>              nonlinear_joint<span class="sc">$</span>flagged)</span>
+<span id="cb3-55"><a href="#cb3-55" tabindex="-1"></a>)</span>
+<span id="cb3-56"><a href="#cb3-56" tabindex="-1"></a><span class="co">#&gt;           design       scope rows     cond_inv flagged</span></span>
+<span id="cb3-57"><a href="#cb3-57" tabindex="-1"></a><span class="co">#&gt; 1       age only    identity    6 1.487234e-33    TRUE</span></span>
+<span id="cb3-58"><a href="#cb3-58" tabindex="-1"></a><span class="co">#&gt; 2 joint identity    identity    6 7.070856e-01   FALSE</span></span>
+<span id="cb3-59"><a href="#cb3-59" tabindex="-1"></a><span class="co">#&gt; 3      joint log descriptive    6 7.070856e-01      NA</span></span></code></pre></div>
+<p>The package threshold <code>cond_inv &lt; 0.2</code> is an
+exploratory warning rule for the identity-link design. It is not a
+validated universal cutoff. The statistic is relative: it cannot see
+subgroup sample sizes, outcome precision, overall between-stratum
+magnitude, nonlinear link curvature, or model misspecification. A value
+above 0.2 does not prove identification.</p>
+</div>
+<div id="recommended-workflow" class="section level2">
+<h2>Recommended workflow</h2>
+<ol style="list-style-type: decimal">
+<li>Verify that rows are mutually exclusive and collectively exhaustive,
+and that their sample sizes or exposures represent the intended
+comparator population.</li>
+<li>Count the scalar outcome summaries. Fewer than <span class="math inline">\(K+1\)</span> rows cannot separate a relaxed
+comparator intercept and <span class="math inline">\(K\)</span> slopes
+for the non-survival families.</li>
+<li>For normal identity models, inspect design rank and
+<code>cond_inv</code>. Request jointly defined cells that vary across
+all covariates when the design is deficient.</li>
+<li>For nonlinear models, treat the mean spectrum as descriptive. Check
+the fitted coefficient posterior, sampler diagnostics, and
+<code>prior_sensitivity()</code>. A prior sweep measures sensitivity; it
+does not assign a fraction of information to the data or the prior.</li>
+<li>Check <code>check_integration()</code> separately. Numerical
+fidelity of the QMC grid and statistical identification are different
+questions.</li>
+<li>Examine overlap before transporting the comparator regression to the
+index or another target covariate distribution. A stable fit inside the
+comparator support does not validate extrapolation outside it <span class="citation">(Phillippo et al. 2016; Conor Chandler and Ishak
+2026)</span>.</li>
+<li>If the relaxed result is unstable, obtain more informative jointly
+defined strata, simplify the effect-modification structure, use SPFA
+with a clear assumption statement, and report prior and
+target-population sensitivity.</li>
+</ol>
+<p>The marginal posterior-to-prior variance change printed for relaxed
+coefficients is descriptive. It can be negative because of posterior
+correlation or changed marginal geometry, and neither its sign nor
+magnitude is an identification certificate.</p>
+</div>
+<div id="distribution-and-dependence-assumptions" class="section level2">
+<h2>Distribution and dependence assumptions</h2>
+<p>Each nonlinear aggregate likelihood integrates over a reconstructed
+within-stratum covariate distribution. Means, SDs, binary proportions,
+and a copula do not uniquely identify that distribution. The same
+supplied correlation matrix is used as a within-stratum dependence model
+across rows. A pooled comparator correlation also contains
+between-stratum covariance and is not generally the required
+within-stratum correlation. For non-Gaussian continuous margins, supply
+a defensible Spearman matrix with <code>cor_adjust = &quot;spearman&quot;</code>
+or a calibrated latent Gaussian-copula matrix with
+<code>cor_adjust = &quot;none&quot;</code>; an observed Pearson matrix is not
+automatically either.</p>
+<p>These are sensitivity assumptions, not details that subgroup row
+count can repair. Vary plausible dependence structures and marginal
+distributions when the estimand is sensitive to them.</p>
+</div>
+<div id="time-to-event-outcomes" class="section level2">
+<h2>Time-to-event outcomes</h2>
+<p>The counting argument does not apply to reconstructed survival data.
+A comparator curve supplied through <code>set_agd_surv()</code>
+contributes event and censoring likelihood terms across time, not one
+scalar summary. Depending on the survival family and covariate
+distribution, one marginal curve may identify some combinations of
+comparator coefficients while leaving other directions weak.
+<code>check_identification()</code> therefore refuses survival rather
+than returning a misleading row-count result.</p>
+<p>For a relaxed survival fit, inspect the comparator coefficient
+posterior and run <code>prior_sensitivity()</code> with
+<code>prior_beta_comparator_scales</code>. Also compare plausible
+baseline assumptions, including <code>aux_by = &quot;.study&quot;</code> and
+<code>aux_by = &quot;none&quot;</code> where scientifically defensible. RMST
+differences are collapsible within a specified population, but this does
+not make them automatically transportable to another population.</p>
+</div>
+<div id="what-this-vignette-does-not-claim" class="section level2">
+<h2>What this vignette does not claim</h2>
+<p>There is no universal minimum number of rows beyond the necessary
+<span class="math inline">\(K+1\)</span> count, no source-validated
+<code>cond_inv</code> cutoff, and no guarantee that a non-flagged design
+produces a practically precise target effect. A proper simulation study
+for a specific design must reconstruct the actual within-stratum
+distributions, use the correct exposure-weighted target for rates,
+report failures and Monte Carlo standard errors, and use enough
+replications for its claimed precision. The guidance here is structural
+and diagnostic, not a numerical calibration.</p>
+</div>
+<div id="references" class="section level2 unnumbered">
+<h2 class="unnumbered">References</h2>
+<div id="refs" class="references csl-bib-body hanging-indent">
+<div id="ref-ChandlerIshakMLUMR" class="csl-entry">
+Chandler, C., and K. J. Ishak. 2026. <em>Anchors Away: Navigating
+Unanchored Indirect Comparisons with Multilevel Unanchored
+Meta-Regression (<span>ML-UMR</span>)</em>. Preprint. <a href="https://doi.org/10.48550/arXiv.2606.20341">https://doi.org/10.48550/arXiv.2606.20341</a>.
+</div>
+<div id="ref-ChandlerIshakTransport" class="csl-entry">
+Chandler, Conor, and K. Jack Ishak. 2026. <em>Reframing
+Population-Adjusted Indirect Comparisons as a Transportability Problem:
+An Estimand-Based Perspective and Implications for Health Technology
+Assessment</em>.
+</div>
+<div id="ref-TSD18" class="csl-entry">
+Phillippo, D. M., A. E. Ades, S. Dias, S. Palmer, K. R. Abrams, and N.
+J. Welton. 2016. <em><span>NICE DSU Technical Support Document</span>
+18: Methods for Population-Adjusted Indirect Comparisons in Submissions
+to <span>NICE</span></em>. <span>National Institute for Health and Care
+Excellence Decision Support Unit</span>. <a href="https://www.sheffield.ac.uk/nice-dsu/tsds/population-adjusted">https://www.sheffield.ac.uk/nice-dsu/tsds/population-adjusted</a>.
+</div>
+<div id="ref-Phillippo2020" class="csl-entry">
+Phillippo, D. M., S. Dias, A. E. Ades, et al. 2020. <span>“Multilevel
+Network Meta-Regression for Population-Adjusted Treatment
+Comparisons.”</span> <em>Journal of the Royal Statistical Society:
+Series A (Statistics in Society)</em> 183 (3): 1189–210. <a href="https://doi.org/10.1111/rssa.12579">https://doi.org/10.1111/rssa.12579</a>.
+</div>
+<div id="ref-RemiroAzocar2022" class="csl-entry">
+Remiro-Azocar, Antonio, Anna Heath, and Gianluca Baio. 2022.
+<span>“Parametric g-Computation for Compatible Indirect Treatment
+Comparisons with Limited Individual Patient Data.”</span> <em>Research
+Synthesis Methods</em> 13 (6): 716–44. <a href="https://doi.org/10.1002/jrsm.1565">https://doi.org/10.1002/jrsm.1565</a>.
+</div>
+</div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

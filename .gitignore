@@ -24,11 +24,24 @@
 # R CMD check output
 /*.Rcheck/
 
-# Vignette build output
-vignettes/*.html
-# knitr writes figures beside the working directory, so knitting a
-# vignette from the repository root drops a figure/ here. The tracked
-# figures live under vignettes/.
+# Local package build helpers (track the hand-written extra.css source; the
+# favicon/ is auto-regenerated from the logo at build time, so stays ignored)
+pkgdown/*
+!pkgdown/extra.css
+
+# Vignette build output.
+# introduction + data-preparation are plain knitr .Rmd (rebuilt at build time),
+# so their stray .html are ignored. The 6 precompiled modeling vignettes ship
+# their prebuilt .html + R.rsp .html.asis to CRAN (Stan never runs at build).
+# Their knitted .Rmd and figure/ are tracked too, so pkgdown can build the
+# articles site on a fresh checkout (multinma's pattern); both are kept out of
+# the CRAN tarball via .Rbuildignore, so the package itself stays lean.
+vignettes/introduction.html
+vignettes/data-preparation.html
+
+# knitr writes figures beside the working directory, so knitting a vignette
+# from the repository root drops a figure/ there. Only vignettes/figure is
+# tracked.
 /figure/
 vignettes/*.pdf
 
@@ -57,9 +70,11 @@ rsconnect/
 *.o
 *.so
 *.dll
+*.o.tmp
 src/*.o
 src/*.so
 src/*.dll
+src/*.o.tmp
 src/Makevars
 src/Makevars.win
 src/stan_meta_header.hpp
@@ -75,6 +90,7 @@ inst/stan/**
 # ============================================================================
 
 .DS_Store
+man/figures/logo_backup.svg
 Thumbs.db
 ehthumbs.db
 desktop.ini
@@ -93,6 +109,13 @@ desktop.ini
 
 # JetBrains
 .idea/
+
+# Local editor and assistant state. Hidden directories are never part of the
+# package, so ignore them as a class rather than maintaining a vendor list that
+# goes stale; .github is the one that must stay tracked.
+.*/
+!.github/
+.github/prompts/
 
 # Emacs
 \#*\#
@@ -116,8 +139,4 @@ docs
 
 # Reporting
 reporting/
-
-# Local working directories and generated site assets
-.omo/
-pkgdown/favicon/
-man/figures/logo_backup.svg
+Rplots.pdf

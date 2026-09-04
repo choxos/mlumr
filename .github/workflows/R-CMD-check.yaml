@@ -14,24 +14,26 @@ permissions:
   contents: read
 
 jobs:
-  stan-export-parity:
+  stan-export-regeneration:
+    # The name is load bearing: the ruleset protecting `main` requires a check
+    # called "Stan export parity", so renaming this job silently blocks every
+    # merge on a check that can never report. The job itself no longer merely
+    # compares field names; it regenerates and diffs.
     name: Stan export parity
     runs-on: ubuntu-latest
-    # Hygiene gate, not a correctness gate. `configure` runs
-    # rstantools::rstan_config() at install time, so every build (CRAN, CI and
-    # local alike) regenerates src/stanExports_* from inst/stan before
-    # compiling: a stale tracked snapshot cannot make any build execute an old
-    # model. What it does is misrepresent the package to anyone reading the
-    # tracked C++, and leave unrelated churn in the next diff that touches it.
+    # Blocking gate: the committed src/stanExports_* must not lag inst/stan.
+    # `configure` regenerates them at install time, so drift never reaches end
+    # users, but a stale snapshot means the tracked C++ and every local rstan
+    # build are behind the Stan source.
     #
-    # Scope: this compares the data-field NAMES a model declares against its
-    # export header, so it catches the drift that changes the R-to-Stan
-    # interface. It does not see edits to likelihoods, priors, generated
-    # quantities, constraints, or shared #include files, which leave the field
-    # names unchanged. Regenerating and diffing would catch those but is not
-    # usable as a gate here: the generated C++ varies with the stanc version, so
-    # a runner on a different toolchain than the release machine produces a
-    # diff that is version noise rather than drift.
+    # This regenerates into a scratch copy and diffs, so it catches ANY content
+    # change. Its predecessor compared only the data field NAMES a model
+    # declares, and a change inside a function body adds no field: commit
+    # bdd8a9e edited a shared include, the job passed, and main carried an
+    # export one edit behind inst/stan until it was noticed by hand.
+    #
+    # rstan_config() only writes .cc/.h; nothing is compiled, so this runs in
+    # seconds.
     steps:
       - uses: actions/checkout@v4
         with:
@@ -40,74 +42,59 @@ jobs:
         with:
           r-version: 'release'
           use-public-rspm: true
-      # Fail when a data field present in a .stan model is absent from its
-      # export snapshot. Regenerate with rstantools::rstan_config() and rebuild.
-      #
-      # The check is inlined rather than sourced from tools/, which is a local
-      # development directory and is not part of the repository.
-      - name: Check Stan export/source parity
-        shell: Rscript {0}
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: any::rstantools
+      - name: Regenerate Stan exports and diff against the tracked copies
+        shell: bash
         run: |
-          stan_dir <- file.path("inst", "stan")
-          src_dir <- "src"
-          models <- sub("\\.stan$", "", basename(Sys.glob(file.path(stan_dir, "*.stan"))))
-          if (!length(models)) stop("No Stan sources found under inst/stan.")
-
-          # Variable names declared in a model's own top-level data{} block.
-          # Fields arriving via #include live in shared includes and are covered
-          # implicitly by the models that declare their own fields.
-          data_block_fields <- function(stan_file) {
-            lines <- sub("//.*$", "", readLines(stan_file, warn = FALSE))
-            in_data <- FALSE
-            depth <- 0L
-            fields <- character(0)
-            braces <- function(ln, ch) lengths(regmatches(ln, gregexpr(ch, ln)))
-            for (ln in lines) {
-              if (!in_data) {
-                if (grepl("^\\s*data\\s*\\{", ln)) {
-                  in_data <- TRUE
-                  depth <- braces(ln, "\\{") - braces(ln, "\\}")
-                }
-                next
-              }
-              depth <- depth + braces(ln, "\\{") - braces(ln, "\\}")
-              if (depth <= 0L) { in_data <- FALSE; next }
-              if (grepl("#include", ln)) next
-              # A declaration ends in `;`; the variable name is the identifier
-              # immediately before it.
-              m <- regmatches(ln, regexpr("([A-Za-z_][A-Za-z0-9_]*)\\s*;\\s*$", ln))
-              if (length(m)) fields <- c(fields, sub("\\s*;\\s*$", "", m))
-            }
-            unique(fields)
-          }
-
-          drift <- list()
-          missing_export <- character(0)
-          for (m in models) {
-            h_file <- file.path(src_dir, paste0("stanExports_", m, ".h"))
-            if (!file.exists(h_file)) { missing_export <- c(missing_export, m); next }
-            fields <- data_block_fields(file.path(stan_dir, paste0(m, ".stan")))
-            hdr <- paste(readLines(h_file, warn = FALSE), collapse = "\n")
-            absent <- fields[!vapply(fields,
-              function(f) grepl(paste0("\"", f, "\""), hdr), logical(1))]
-            if (length(absent)) drift[[m]] <- absent
-          }
-
-          if (!length(drift) && !length(missing_export)) {
-            cat("Stan export parity OK: every data field is present in its export.\n")
-            quit(status = 0L)
-          }
-          if (length(missing_export)) {
-            cat("Missing export header(s) for: ",
-                paste(missing_export, collapse = ", "), "\n", sep = "")
-          }
-          for (m in names(drift)) {
-            cat(sprintf("DRIFT %s: data field(s) absent from src/stanExports_%s.h -> %s\n",
-                        m, m, paste(drift[[m]], collapse = ", ")))
-          }
-          cat("\nRegenerate with rstantools::rstan_config() on the Stan toolchain, ",
-              "then rebuild, before tagging.\n", sep = "")
-          quit(status = 1L)
+          set -euo pipefail
+          WT=$(mktemp -d)
+          cp -R DESCRIPTION NAMESPACE R inst src configure "$WT"/
+          (cd "$WT" && Rscript -e 'rstantools::rstan_config(".")')
+          drift=0
+          # Compare the file SETS in both directions first. Walking only the
+          # tracked names would miss a model added to inst/stan whose export
+          # was never committed: regeneration writes it under $WT alone, the
+          # loop never looks there, and the job passes with the exports
+          # incomplete.
+          (cd src && ls stanExports_*.h stanExports_*.cc 2>/dev/null | sort) > "$WT/tracked.list"
+          (cd "$WT/src" && ls stanExports_*.h stanExports_*.cc 2>/dev/null | sort) > "$WT/regen.list"
+          if ! diff -q "$WT/tracked.list" "$WT/regen.list" >/dev/null 2>&1; then
+            echo "DRIFT: the tracked export set differs from the regenerated one"
+            diff "$WT/tracked.list" "$WT/regen.list" || true
+            drift=1
+          fi
+          # stanc stamps its own version into every header, so an unrelated
+          # StanHeaders release would turn every file red with no .stan change.
+          # Compare the generated code, not the toolchain that generated it.
+          # Both places stanc writes its version. The second sits inside a
+          # quoted string that opens BEFORE the key, `{"stanc_version = stanc3
+          # v2.39.0"`, so a pattern anchored on a quoted VALUE never matches
+          # it and the normalization silently does nothing.
+          strip_stamp() { sed -e 's|// Code generated by stanc v.*|// Code generated by stanc|' \
+                              -e 's|stanc_version = stanc3 v[0-9][0-9.]*|stanc_version = stanc3|' "$1"; }
+          for f in src/stanExports_*.h src/stanExports_*.cc; do
+            b=$(basename "$f")
+            [ -f "$WT/src/$b" ] || continue
+            if ! diff -q <(strip_stamp "$f") <(strip_stamp "$WT/src/$b") >/dev/null 2>&1; then
+              echo "DRIFT: $b"
+              drift=1
+            fi
+          done
+          # rstan_config() also rewrites R/stanmodels.R, which names the models
+          # it found under inst/stan. Adding or removing a model changes that
+          # file and nothing under src/, so diff it too.
+          if ! diff -q R/stanmodels.R "$WT/R/stanmodels.R" >/dev/null 2>&1; then
+            echo "DRIFT: R/stanmodels.R"
+            drift=1
+          fi
+          if [ "$drift" -ne 0 ]; then
+            echo
+            echo "Regenerate with rstantools::rstan_config() and commit the result."
+            exit 1
+          fi
+          echo "Stan exports match inst/stan."
 
   R-CMD-check:
     name: ${{ matrix.config.os }} (R ${{ matrix.config.r }})
@@ -166,8 +153,11 @@ jobs:
     runs-on: ubuntu-latest
     # The matrix above pins NOT_CRAN=false so it reproduces CRAN, which means
     # every skip_on_cran() test is skipped there. That is right for the platform
-    # checks (the Stan fits would blow the CRAN time limit) but it leaves every
-    # test that actually samples unexecuted. This job is the one place they run.
+    # checks (the Stan fits would blow the CRAN time limit) but it leaves the
+    # survival family, the newdata transport tests, and the relaxed-model
+    # subgroup identification test unexecuted. This job is the one place they
+    # run. It uses cmdstanr for the sweep, and finishes with an explicit rstan
+    # step, because rstan is the package default and the engine CRAN users get.
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       NOT_CRAN: true
@@ -219,7 +209,8 @@ jobs:
           # tests, so a skip whose reason is CRAN means the coverage silently
           # went away and must fail the job. skip_on_ci() is a separate,
           # deliberate decoration for the handful of tests that really are too
-          # slow for a runner; list those but do not fail on them.
+          # slow for a runner (test-survival-predict.R's far-extrapolation sweep
+          # measures ~66 minutes); list those but do not fail on them.
           reasons <- unlist(lapply(res, function(f) {
             vapply(f$results, function(r) {
               if (inherits(r, "expectation_skip")) conditionMessage(r) else NA_character_
@@ -235,4 +226,42 @@ jobs:
               "%d test(s) skipped with reason 'On CRAN' despite NOT_CRAN=true; the Stan suite did not run.",
               length(cran_skips)))
           }
+        shell: Rscript {0}
+
+      # rstan is the package's default and CRAN-available backend, but the sweep
+      # above runs on cmdstanr and the matrix no longer touches skip_on_cran()
+      # tests at all, so nothing else samples through rstan. Stan-export parity
+      # proves the committed C++ matches inst/stan; it does not exercise the
+      # rstan sampling call, draw extraction, chain labelling, diagnostics, or
+      # the survival prediction methods reading a real rstan fit. This step
+      # does, on the models most likely to break: a parametric SPFA fit, a
+      # flexible-baseline fit, and a relaxed fit. The package is already
+      # compiled by the sweep above, so this costs sampling time only.
+      - name: rstan survival sampling smoke test
+        run: |
+          pkgload::load_all(".")
+          stopifnot(identical(mlumr_engine(), "rstan"))
+          source("tests/testthat/helper-survival.R")
+          dat <- sim_survival_data(seed = 2026)
+
+          check_fit <- function(fit, what) {
+            stopifnot(inherits(fit, "mlumr_fit"), identical(fit$family, "survival"))
+            stopifnot(nrow(fit$draws) > 0, length(fit$chain_ids) == nrow(fit$draws))
+            stopifnot(is.numeric(fit$diagnostics$n_divergent))
+            me <- marginal_effects(fit, effect = "rmstd")
+            stopifnot(nrow(me) > 0, all(is.finite(me$mean)))
+            pr <- predict(fit, type = "survival")
+            stopifnot(nrow(pr) > 0, all(pr$mean >= 0 & pr$mean <= 1))
+            cat(sprintf("rstan %s: %d draws, %d divergent, max Rhat %.3f\n",
+                        what, nrow(fit$draws), fit$diagnostics$n_divergent,
+                        max(fit$summary$Rhat, na.rm = TRUE)))
+          }
+
+          check_fit(fit_survival_test(dat, distribution = "weibull"),
+                    "parametric SPFA (weibull)")
+          check_fit(fit_survival_test(dat, distribution = "mspline", n_knots = 4),
+                    "flexible baseline (m-spline)")
+          check_fit(fit_survival_test(dat, model = "relaxed",
+                                      distribution = "weibull"),
+                    "relaxed (weibull)")
         shell: Rscript {0}

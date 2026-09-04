@@ -58,9 +58,20 @@
 
 * **`prior_sensitivity()` varies the prior and nothing else.** Every
   model-defining setting is taken from the original fit and replayed: family,
-  link, the design-matrix controls (`center`, `qr`), the integration points, and
-  the engine and sampler settings. `...` may no longer override any of them, so
-  movement across the sweep is attributable to the prior alone.
+  link, survival distribution and its baseline controls (`n_knots`,
+  `mspline_degree`, `pred_times`, `rmst_horizon`, `n_rmst_grid`, `aux_by`), the
+  design-matrix controls (`center`, `qr`), the integration points, the shape and
+  smoothing priors, and the engine and sampler settings. `...` may no longer
+  override any of them, so movement across the sweep is attributable to the
+  prior alone. For relaxed fits the comparator prior is swept alongside the
+  index one, and `prior_beta_comparator_scales` pairs a chosen comparator scale
+  with each index scale. Both are reported per row, in `scale` and
+  `scale_comparator`, so a refit is never labeled by only half of the prior it
+  was fitted under. On an SPFA fit, which has no comparator coefficient prior,
+  the argument is declined with a warning and the column is dropped. Survival
+  rows carry an `effect` label (`LOG_HR`, `LOG_TR`, or `DELTA_ETA`) and an
+  `at_time` where one applies, from the same shared helper `marginal_effects()`
+  uses.
 
 * **`verbose = FALSE` now silences the sampler banner too.** cmdstanr writes its
   "Running MCMC with N chains / Chain k finished in ..." lines to stdout rather
@@ -146,6 +157,65 @@
   reports both populations without that assumption, when the index population is
   the decision target.
 
+* **`seed` defaults to 2026 and says so.** `seed = NULL` previously drew from
+  the session RNG whenever `.Random.seed` existed. R initializes that variable
+  on demand from the clock and the process id, so its presence never
+  established that `set.seed()` had been called: an unseeded fit was silently
+  irreproducible, and drawing from the state also advanced the caller's stream.
+  `seed = NULL` now uses the documented default of 2026 and warns, and the fit
+  banner marks the seed as a default.
+
+* **A difference of two unbounded quantities is undefined, not zero.** The
+  log-scale contrast used by the marginal summaries returned an exact zero when
+  both logs were `+Inf`, reporting an indeterminate difference as a null
+  effect. Both the R helper and its Stan counterpart now leave it undefined.
+  Two `-Inf` logs still give zero, because both quantities are zero.
+
+* **Zero exposures and zero aggregate standard errors are refused again.**
+  `E_ipd` and `E_agd` in the poisson models and `se_agd` in the normal models
+  are declared `<lower=1e-12>`, as they were in 0.1.0. Under a bound of zero an
+  exposure of exactly zero reaches `log()` in the linear predictor, and a zero
+  aggregate standard error makes the normal likelihood improper.
+
+* **The collinearity guard reports a design that cannot be full rank.** It
+  returned quietly whenever there were no more complete IPD rows than
+  covariates, which is exactly the case it exists to catch. A covariate whose
+  empirical standard deviation is undefined, which is what a single IPD row
+  produces, is treated as having no usable scale instead of aborting
+  autoscaling.
+
+* **Tail ESS is computed rather than looked for.** `check_diagnostics()` tested
+  a column that the default rstan backend never produced, so the check was
+  inert on every fit the package makes. Tail ESS is now computed chain-aware
+  from the post-warmup draws, and a fit that cannot supply it is reported as
+  such rather than passing silently.
+
+* **`check_integration()` no longer passes a comparison it did not make.** An
+  all-missing set of differences gave `-Inf` from `max(na.rm = TRUE)`, which
+  clears every threshold and printed as "close"; such a comparison now reads
+  "unavailable". The declared-target standard deviation falls back to the
+  Bernoulli form only for margins declared binary, rather than for any
+  covariate whose mean happens to land in `[0, 1]`. A correlation matrix passed
+  directly is resolved by name the way `add_integration()` resolves it, so
+  reversed dimnames no longer produce a verdict about the wrong pairs. Under
+  `cor_adjust = "none"` the supplied matrix is the latent Gaussian copula
+  correlation, which the realized covariate-scale correlation does not
+  estimate; that comparison is withheld and named instead of scored across the
+  two scales.
+
+* **`check_identification()` declines a fitted SPFA object.** Its report is
+  headed "relaxed model" and diagnoses `beta_comparator`, which a
+  shared-coefficient model does not have. It also compares the realized
+  integration design against the declared one through singular-value spectra
+  rather than matrix rank, which could not distinguish declared means
+  `c(-1, 1)` from realized `c(-1e-10, 1e-10)`; and two aggregate rows built
+  from the same integration tuples in a different order now count as one
+  profile, since the likelihood averages over a row's points.
+
+* **`n_knots` is validated only when knots have to be generated.** A valid
+  custom knot specification was rejected because an argument the fit never
+  reads was out of range. The resolved basis is still checked on its own terms.
+
 ## Transportability to arbitrary target populations
 
 * **`newdata` argument** on `marginal_effects()` and `predict.mlumr_fit()`
@@ -222,7 +292,7 @@
 * `ggplot2` moved from Suggests to Imports (the plot methods use it at run
   time), at `>= 3.4.0` because they use `linewidth`, which 3.3.x ignores.
 
-## Time-to-event (survival) data
+## Time-to-event (survival) outcomes
 
 * **New `"survival"` outcome family for data setup.** `set_ipd()` accepts
   time-to-event data, and **`set_agd_surv()`** takes the comparator arm as
@@ -424,8 +494,24 @@
   from openly licensed trial data.
 
 * `psoriasis_ipd` / `psoriasis_agd` (binary), `shoulder_ipd` / `shoulder_agd`
-  (continuous), and `caries_ipd` / `caries_agd` (count).
+  (continuous), `caries_ipd` / `caries_agd` (count), and `ndmm_ipd` /
+  `ndmm_agd` / `ndmm_agd_covs` (survival, newly diagnosed multiple myeloma,
+  also redistributed from `multinma`).
   `data-raw/prepare_multinma_subsets.R` reproduces every bundled dataset.
+
+* `psoriasis_ipd$prevsys` is `integer` 0/1 rather than `logical`, matching
+  every other binary covariate in the bundled sets. `set_ipd()` declines a
+  logical covariate, so the pair previously could not be used without coercing
+  it first. The values are unchanged, and no dataset shipped in 0.1.0.
+
+* Each help page now records the covariates that look wrong but are not:
+  `caries_ipd$exposure` is the poisson offset that `set_ipd()` requires,
+  constant at 1 because `dmft` is a whole-mouth count with no time at risk;
+  `caries_ipd$log_cfu` is bimodal, with 9 of 103 values at exactly zero;
+  `psoriasis_ipd$weight` is missing for 2 of 347 rows; and the shoulder and
+  caries pairs share one `study` label across their IPD and AgD halves because
+  each pair is two arms of one trial, so the `combine_data()` warning about it
+  is expected.
 
 ## Performance
 
@@ -449,6 +535,49 @@
   intercept prior-versus-posterior plots are on a different scale from an
   uncentered fit. `center = FALSE` restores the raw-scale parameterization, and
   `qr = TRUE` offers a QR-rotated design as an alternative conditioning fix.
+
+## Documentation
+
+* Reorganized the vignettes into nine outcome-focused guides: `introduction`,
+  `data-preparation`, `binary-outcomes`, `continuous-outcomes`,
+  `count-outcomes`, `survival-outcomes`, `subgroup-identification`,
+  `fitting-and-diagnostics`, and `choosing-a-method`.
+* The modeling vignettes use the bundled example data and show complete
+  output: posterior summary and effect tables, forest plots, survival and
+  Kaplan-Meier curves, and posterior diagnostic plots.
+* To keep checks fast, those vignettes are precompiled, following multinma's
+  pattern: the Stan models are fitted once locally through
+  `vignettes/precompile.R` and the rendered HTML ships through the `R.rsp`
+  engine, so no Stan model runs at build or check time. The prebuilt `*.html`
+  and their `*.html.asis` registration stubs are tracked and included in the
+  build.
+* The binary-outcomes vignette covers quasi-complete separation, handled with
+  a heavy-tailed coefficient prior (`prior_student_t()` / `prior_cauchy()`),
+  following Gelman et al. (2008).
+* Covariate marginals follow multinma's own examples
+  (`example_plaque_psoriasis.Rmd`, `example_ndmm.Rmd`): gamma for skewed
+  continuous covariates, logit-normal for proportions, Bernoulli for binary,
+  with age in years and weight in kilograms. Each vignette fits both the
+  prognostic-only model and the one with treatment interactions, and the
+  anchored cross-check does the same with `multinma`.
+* The vignettes are self-contained. Each opens with a visible `library(mlumr)`
+  and `options(mc.cores = ...)` chunk and otherwise uses exported functions, so
+  every line producing a displayed result is printed in the vignette itself and
+  the visible chunks are meant to run in a new session. The identification
+  vignette additionally calls one internal diagnostic helper. The survival
+  vignette leads with the M-spline baseline, matching multinma's NDMM example,
+  and adds a relaxed-model effect-modification section.
+
+## Dependencies
+
+* Added `splines2` and `survival` to Imports, and `flexsurv` to Suggests; the
+  survival STC G-computation uses `flexsurv` when it is available.
+* Moved `ggplot2` from Suggests to Imports. The `plot()` methods,
+  `mlumr_forest()`, `geom_km()`, and `plot_prior_posterior()` build ggplot
+  objects at run time rather than only in examples.
+* Added `multinma` (the anchored cross-check in the vignettes), `ggsurvfit`
+  (the observed Kaplan-Meier displays), and `R.rsp` (the precompiled-vignette
+  engine) to Suggests, and `R.rsp` to `VignetteBuilder`.
 
 ## Package logo
 

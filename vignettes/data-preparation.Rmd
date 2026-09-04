@@ -1,8 +1,10 @@
 ---
-title: "Data Preparation and Integration"
+title: "Preparing data and integration points"
 output: rmarkdown::html_vignette
+bibliography: ../inst/REFERENCES.bib
+link-citations: yes
 vignette: >
-  %\VignetteIndexEntry{Data Preparation and Integration}
+  %\VignetteIndexEntry{Preparing data and integration points}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -17,234 +19,89 @@ knitr::opts_chunk$set(
 )
 ```
 
-## Overview
+Every mlumr analysis follows the same four-step pipeline. This vignette covers
+the **family-agnostic** machinery, combining IPD and AgD and, above all, the
+numerical integration that powers population adjustment. The exact `set_ipd()` /
+`set_agd()` arguments for each outcome family are shown, with complete runnable
+examples, in the per-outcome vignettes (see the reference table below).
 
-Before fitting any model in mlumr, you need to:
+1. `set_ipd()`, individual patient data (the index treatment)
+2. `set_agd()` (or `set_agd_surv()` for survival), aggregate data (comparator)
+3. `combine_data()`, join them into one `mlumr_data` object
+4. `add_integration()`, quasi-Monte Carlo integration points (ML-UMR only)
 
-1. Set up the IPD with `set_ipd()`
-2. Set up the AgD with `set_agd()`
-3. Combine them with `combine_data()`
-4. (For ML-UMR only) Add integration points with `add_integration()`
+## The pipeline (illustrated on a binary endpoint)
 
-## Setting up IPD
-
-IPD should be a data frame with one row per patient, containing:
-
-- A treatment indicator column
-- An outcome column (binary 0/1, continuous numeric, or non-negative integer
-  counts depending on `family`)
-- Covariate columns
-- For Poisson family: an exposure column
+The four steps below build a complete `mlumr_data` object from a binary IPD trial
+and a one-row aggregate comparator; the sections that follow explain each piece
+(covariate naming, integration, correlation) in detail:
 
 ```{r, eval = TRUE}
 library(mlumr)
 set.seed(2026)
 
-# Example: Trial A data (index treatment)
+# IPD (index): one row per patient
 trial_a <- data.frame(
-  patient_id = 1:500,
   treatment = "Drug_A",
   response = rbinom(500, 1, 0.6),
-  age_group = rbinom(500, 1, 0.4),   # 0 = young, 1 = old
-  sex = rbinom(500, 1, 0.55)          # 0 = male, 1 = female
-)
-
-ipd <- set_ipd(
-  data = trial_a,
-  treatment = "treatment",
-  outcome = "response",
-  covariates = c("age_group", "sex")
-)
-
-ipd
-```
-
-### Continuous outcomes
-
-For continuous outcomes, use `family = "normal"`. The IPD frame needs a
-numeric outcome column:
-
-```{r, eval = TRUE}
-trial_a_normal <- data.frame(
-  patient_id = 1:500,
-  treatment = "Drug_A",
-  score = rnorm(500, mean = 3.0, sd = 1.2),
   age_group = rbinom(500, 1, 0.4),
   sex = rbinom(500, 1, 0.55)
 )
+ipd <- set_ipd(trial_a, treatment = "treatment", outcome = "response",
+               covariates = c("age_group", "sex"))
 
-ipd_normal <- set_ipd(
-  data = trial_a_normal,
-  treatment = "treatment",
-  outcome = "score",
-  covariates = c("age_group", "sex"),
-  family = "normal"
-)
-```
-
-### Count outcomes
-
-For Poisson count data, use `family = "poisson"` and supply an `exposure`
-column:
-
-```{r, eval = TRUE}
-trial_a_poisson <- data.frame(
-  patient_id = 1:500,
-  treatment = "Drug_A",
-  events = rpois(500, lambda = 0.8),
-  person_years = runif(500, 0.5, 2.0),
-  age_group = rbinom(500, 1, 0.4),
-  sex = rbinom(500, 1, 0.55)
-)
-
-ipd_poisson <- set_ipd(
-  data = trial_a_poisson,
-  treatment = "treatment",
-  outcome = "events",
-  covariates = c("age_group", "sex"),
-  family = "poisson",
-  exposure = "person_years"
-)
-```
-
-### Validation
-
-`set_ipd()` checks that:
-
-- All specified columns exist in the data
-- The outcome matches the family (binary for binomial, numeric for normal,
-  non-negative integers for Poisson)
-- Missing values are handled (rows dropped with a warning)
-
-```{r, eval = TRUE, error = TRUE, purl = FALSE}
-# This will error: non-binary outcome with binomial family
-bad_data <- data.frame(trt = "A", outcome = c(0, 1, 2), x = rnorm(3))
-set_ipd(bad_data, "trt", "outcome", "x")
-```
-
-## Setting up AgD
-
-AgD should be a data frame with one row per study/subgroup, containing:
-
-- Treatment indicator
-- Outcome summaries (depend on `family`):
-  - **Binomial**: sample size (`outcome_n`) and number of events (`outcome_r`)
-  - **Normal**: mean outcome (`outcome_mean`) and standard error (`outcome_se`),
-    optionally sample size (`outcome_n`)
-  - **Poisson**: number of events (`outcome_r`) and total exposure (`outcome_E`)
-- Covariate means/proportions
-
-```{r, eval = TRUE}
-# Example: Trial B data (comparator treatment)
+# AgD (comparator): one row per study, with covariate summaries
 trial_b <- data.frame(
-  study = "Trial_B",
-  treatment = "Drug_B",
-  n_total = 400,
-  n_events = 160,
-  age_group_mean = 0.35,   # proportion in "old" group
-  sex_prop = 0.50           # proportion female
+  treatment = "Drug_B", n_total = 400, n_events = 160,
+  age_group_mean = 0.35, sex_prop = 0.50
 )
+agd <- set_agd(trial_b, treatment = "treatment",
+               outcome_n = "n_total", outcome_r = "n_events",
+               cov_means = c("age_group_mean", "sex_prop"),
+               cov_types = c("binary", "binary"))
 
-agd <- set_agd(
-  data = trial_b,
-  treatment = "treatment",
-  outcome_n = "n_total",
-  outcome_r = "n_events",
-  cov_means = c("age_group_mean", "sex_prop"),
-  cov_types = c("binary", "binary")
-)
-```
-
-### AgD for continuous outcomes
-
-```{r, eval = TRUE}
-agd_normal <- set_agd(
-  data = data.frame(
-    trt = "Drug_B", y_mean = 3.2, se = 0.15, n = 400,
-    age_group_mean = 0.35, sex_prop = 0.50
-  ),
-  treatment = "trt",
-  family = "normal",
-  outcome_mean = "y_mean",
-  outcome_se = "se",
-  outcome_n = "n",
-  cov_means = c("age_group_mean", "sex_prop"),
-  cov_types = c("binary", "binary")
-)
-```
-
-**Scale requirement for normal outcomes.** `set_agd()` assumes the
-AgD mean (`outcome_mean`) and SE (`outcome_se`) are on the
-**arithmetic (original, untransformed) scale**, regardless of
-whether `mlumr()` is later called with `link = "identity"` or
-`link = "log"`. If a publication reports only a log-scale mean and
-SD, or a geometric mean, back-transform before calling `set_agd()`
-and propagate uncertainty via the delta method; passing log-scale
-summaries silently biases the posterior because the Stan likelihood
-is `normal(E[exp(eta)], se_agd)` under the log link, expecting the
-AgD quantities already on the outcome scale.
-
-### AgD for count outcomes
-
-```{r, eval = TRUE}
-agd_poisson <- set_agd(
-  data = data.frame(
-    trt = "Drug_B", n_events = 120, person_years = 800,
-    age_group_mean = 0.35, sex_prop = 0.50
-  ),
-  treatment = "trt",
-  family = "poisson",
-  outcome_r = "n_events",
-  outcome_E = "person_years",
-  cov_means = c("age_group_mean", "sex_prop"),
-  cov_types = c("binary", "binary")
-)
-```
-
-### Covariate naming
-
-`set_agd()` automatically strips `_mean` and `_prop` suffixes from covariate
-names to match the IPD covariate names:
-
-- `"age_group_mean"` -> covariate name `"age_group"`
-- `"sex_prop"` -> covariate name `"sex"`
-
-Make sure the resulting names match those in your IPD.
-
-### Continuous covariates
-
-For continuous covariates, also supply standard deviations:
-
-```{r, eval = TRUE}
-agd_continuous <- set_agd(
-  data = data.frame(
-    trt = "B", n_total = 400, n_events = 160,
-    bmi_mean = 25.3, bmi_sd = 4.2
-  ),
-  treatment = "trt",
-  outcome_n = "n_total",
-  outcome_r = "n_events",
-  cov_means = "bmi_mean",
-  cov_sds = "bmi_sd",
-  cov_types = "continuous"
-)
-```
-
-## Combining data
-
-```{r, eval = TRUE}
 dat <- combine_data(ipd, agd)
-print(dat)
+dat
 ```
 
-## Adding integration points
+## Outcome-family input reference
 
-Integration points are needed for ML-UMR's numerical integration over the
-comparator population's covariate distribution. They are generated using
-Sobol quasi-Monte Carlo sequences with a Gaussian copula to respect
-covariate correlations.
+The outcome arguments differ by family; everything else (covariates, combining,
+integration) is identical. Each family has a complete worked example.
 
-### Basic usage
+| Family | `set_ipd()` outcome args | `set_agd()` outcome args | Vignette |
+|--------|--------------------------|--------------------------|----------|
+| binomial | `outcome` (0/1) | `outcome_n`, `outcome_r` | `vignette("binary-outcomes")` |
+| normal | `outcome`, `family = "normal"` | `outcome_mean`, `outcome_se` (+ `outcome_n`) | `vignette("continuous-outcomes")` |
+| poisson | `outcome`, `exposure`, `family = "poisson"` | `outcome_r`, `outcome_E` | `vignette("count-outcomes")` |
+| survival | `Surv`/`time`/`status`, `family = "survival"` | `set_agd_surv()`: pseudo-IPD `time`/`status` | `vignette("survival-outcomes")` |
+
+`set_ipd()` validates that the outcome matches the family (binary 0/1; numeric
+for normal; non-negative integer counts for Poisson; positive times for
+survival) and drops rows with missing values (with a warning).
+
+### Covariate naming and types
+
+`set_agd()` strips `_mean` and `_prop` suffixes so AgD covariate names match the
+IPD (`age_group_mean` → `age_group`, `sex_prop` → `sex`). Declare each covariate
+as `"binary"` or `"continuous"` via `cov_types`; continuous covariates also need
+a standard-deviation column in `cov_sds`.
+
+### Scale conventions for aggregate summaries
+
+For the **normal** family, `outcome_mean` and `outcome_se` must be on the
+**original (arithmetic) scale**, the same scale as the IPD outcome, even when
+fitting with `link = "log"`. Back-transform any geometric mean or log-scale
+summary (propagating the SE by the delta method) before calling `set_agd()`.
+See `vignette("continuous-outcomes")`.
+
+## Integration points
+
+ML-UMR adjusts for covariate imbalance by integrating the IPD-derived outcome
+model over the comparator population's covariate distribution. mlumr represents
+that distribution by **Sobol quasi-Monte Carlo (QMC)** integration points,
+correlated with a **Gaussian copula** so the joint covariate structure is
+respected.
 
 ```{r, eval = TRUE}
 dat <- add_integration(
@@ -255,68 +112,63 @@ dat <- add_integration(
 )
 ```
 
-Key points:
+- **`n_int`**, number of points (powers of 2: 32, 64, 128, …). More points give
+  better accuracy at the cost of slower fitting; check adequacy with
+  `check_integration()` (below).
+- **`distr()`**, wraps a quantile function whose parameters reference AgD
+  summary columns. Use `qbern` (Bernoulli, supplied by mlumr) for binary
+  covariates, `qnorm` for normal, `qgamma` for skewed positive covariates, and
+  `qlogitnorm` for a covariate reported as a proportion on `(0, 1)`.
 
-- **`n_int`**: Number of integration points (powers of 2 recommended: 32,
-  64, 128, 256). More points = better accuracy but slower Stan fitting.
-- **`distr()`**: Wraps a quantile function with parameters. Parameters can
-  reference columns in the AgD data (e.g., `age_group_mean`).
-- **`qbern`**: Bernoulli quantile function (provided by mlumr) for binary
-  covariates. Use `qnorm` for continuous covariates.
+mlumr's `qgamma()` and `qlogitnorm()` accept a `mean` and `sd` on the natural
+scale in place of their native parameters, so the moments can be taken from a
+published baseline table without conversion. Both must be supplied together.
+A logit-normal additionally requires `sd^2 < mean * (1 - mean)`, the bound any
+variable on `(0, 1)` satisfies; a percentage must be rescaled to a proportion
+first.
 
-### Distribution types
-
-```{r, eval = FALSE, purl = FALSE}
-# Binary covariate
-age = distr(qbern, prob = age_mean)
-
-# Continuous covariate (normal)
-bmi = distr(qnorm, mean = bmi_mean, sd = bmi_sd)
-
-# Continuous covariate (gamma)
-biomarker = distr(qgamma, shape = 2, rate = 0.5)
+```{r}
+add_integration(
+  dat, n_int = 64,
+  age = distr(qbern, prob = age_mean),                  # binary
+  bmi = distr(qnorm, mean = bmi_mean, sd = bmi_sd),     # continuous (normal)
+  biomarker = distr(qgamma, mean = bio_mean, sd = bio_sd),  # right-skewed
+  bsa = distr(qlogitnorm, mean = bsa_mean, sd = bsa_sd)     # proportion on (0, 1)
+)
 ```
 
 ### Correlation handling
 
-By default, correlations between covariates are estimated from the IPD
-using Spearman rank correlation, then adjusted for the Gaussian copula.
-For binary and mixed discrete/continuous covariate pairs, this adjustment
-is a pragmatic approximation; exact calibration of the latent Gaussian
-correlation depends on marginal prevalences, which are not used in the
-current transform. For most practical datasets this provides adequate
-integration-point distributions, but users with strong prior information
-on covariate correlations can supply their own matrix via the `cor`
-argument.
+By default the covariate correlation is estimated from the IPD (Spearman) and
+adjusted for the Gaussian copula. For binary and mixed discrete/continuous
+pairs this copula adjustment is a **pragmatic approximation**: the exact latent
+Gaussian correlation depends on the marginal prevalences, which the current
+transform does not use. It is adequate for most datasets, but if you have strong
+prior information, or covariates with prevalences near 0/1, strong
+correlations, or many covariates, supply your own matrix via `cor` and confirm
+the result is stable with `check_integration()`.
 
-```{r, eval = TRUE}
-# Default: Spearman correlation from IPD
-dat <- add_integration(dat, n_int = 64,
-                       age_group = distr(qbern, prob = age_group_mean),
-                       sex = distr(qbern, prob = sex_mean))
-
-# Supply your own correlation matrix
+```{r}
 my_cor <- matrix(c(1, 0.3, 0.3, 1), 2, 2)
-dat <- add_integration(dat, n_int = 64, cor = my_cor,
-                       age_group = distr(qbern, prob = age_group_mean),
-                       sex = distr(qbern, prob = sex_mean))
+add_integration(dat, n_int = 64, cor = my_cor,
+                age_group = distr(qbern, prob = age_group_mean),
+                sex = distr(qbern, prob = sex_mean))
 
-# No correlation adjustment
-dat <- add_integration(dat, n_int = 64, cor_adjust = "none",
-                       age_group = distr(qbern, prob = age_group_mean),
-                       sex = distr(qbern, prob = sex_mean))
+add_integration(dat, n_int = 64, cor_adjust = "none",  # no adjustment
+                age_group = distr(qbern, prob = age_group_mean),
+                sex = distr(qbern, prob = sex_mean))
 ```
 
-### Inspecting integration points
+### Inspecting the integration points
+
+`unnest_integration()` expands the stored points to a data frame with one row
+per aggregate row and integration point, one column per covariate, plus
+`.int_id` and `.agd_row`, so you can inspect or plot the realized comparator
+distribution directly:
 
 ```{r, eval = TRUE}
-# Expand to long format
-int_df <- unnest_integration(dat)
-head(int_df)
+head(unnest_integration(dat))     # one row per point, covariates in columns
 ```
-
-Use `check_integration()` to compare the generated integration points against
-the requested AgD marginal distributions and correlation structure:
 
 ```{r, eval = TRUE, purl = FALSE}
 check_integration(
@@ -326,29 +178,55 @@ check_integration(
 )
 ```
 
-This is especially important when there are several covariates, strong
-correlations, binary covariates with prevalences near 0 or 1, or a small
-number of integration points.
+`check_integration()` compares the realized integration points against the
+requested marginals and correlations and flags when `n_int` is too small, run
+it whenever there are several or strongly correlated covariates.
 
-## Notes on STC and naive
+### Visualizing the integration points
 
-`naive()` compares the two arms as reported and uses no covariates at all,
-so it needs no integration points and can be called immediately after
-`combine_data()`.
+For a continuous covariate the quasi-Monte Carlo points should reproduce the
+requested marginal. Here we build a small example with a continuous `age` and
+overlay the integration points on the requested Normal density:
 
-`stc()` does need them, except under an identity link. It standardizes the
-index outcome model over the comparator population, and on a nonlinear link
-the mean of the predictions is not the prediction at the mean: substituting
-the aggregate covariate means for the distribution is biased by Jensen's
-inequality, in a direction that depends on the curvature. `stc()` refuses
-that substitution rather than returning a number that looks usable.
+```{r viz-int, eval = TRUE, fig.width = 7, fig.height = 4, fig.align = "center"}
+set.seed(2026)
+ipd_c <- data.frame(treatment = "Drug_A", response = rbinom(400, 1, 0.5),
+                    age = rnorm(400, 55, 10))
+agd_c <- data.frame(treatment = "Drug_B", n_total = 300, n_events = 120,
+                    age_mean = 60, age_sd = 9)
+dat_c <- combine_data(
+  set_ipd(ipd_c, treatment = "treatment", outcome = "response", covariates = "age"),
+  set_agd(agd_c, treatment = "treatment", outcome_n = "n_total",
+          outcome_r = "n_events", cov_means = "age_mean", cov_sds = "age_sd",
+          cov_types = "continuous"))
+dat_c <- add_integration(dat_c, n_int = 128,
+                         age = distr(qnorm, mean = age_mean, sd = age_sd))
+pts <- unnest_integration(dat_c)
+
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  library(ggplot2)
+  ggplot(pts, aes(age)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 25,
+                   fill = "#3B6B9A", alpha = 0.5) +
+    stat_function(fun = dnorm, args = list(mean = 60, sd = 9),
+                  color = "darkred", linewidth = 0.8) +
+    labs(x = "Age (comparator integration points)", y = "Density",
+         title = "QMC integration points reproduce the requested Normal(60, 9)") +
+    theme_minimal()
+}
+```
+
+## Integration requirements for STC and naive
+
+`naive()` can be called immediately after `combine_data()` because it uses only
+the observed crude outcomes. `stc()` requires integration points for nonlinear
+links, including binomial and Poisson outcomes and normal-log models. Replacing
+a covariate distribution by its mean before applying a nonlinear inverse link
+does not recover the marginal outcome. Only the normal identity-link STC can use
+the aggregate means directly; see `vignette("choosing-a-method")`.
 
 ```{r, eval = TRUE}
 dat_no_int <- combine_data(ipd, agd)
-
-# naive() needs nothing beyond combine_data()
-naive_result <- naive(dat_no_int)
-
-# stc() on a logit link needs the comparator distribution
-stc_result <- stc(dat)
+naive(dat_no_int)
+stc(dat)
 ```

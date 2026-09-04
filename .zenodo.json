@@ -1,0 +1,51 @@
+{
+  "title": "mlumr: Multilevel Unanchored Meta-Regression for Indirect Treatment Comparisons",
+  "description": "Bayesian multilevel unanchored meta-regression (ML-UMR) for indirect treatment comparisons using individual patient data (IPD) and aggregate data (AgD). Implements the shared prognostic factor assumption (SPFA) and relaxed SPFA models for binary, continuous, count, and time-to-event (survival) outcomes via Stan, including parametric and flexible M-spline survival baselines, with transport of marginal and conditional treatment effects to arbitrary target populations by Bayesian g-computation. Also provides simulated treatment comparison (STC) via parametric G-computation and naive unadjusted benchmarks. ML-UMR is an adaptation of the multilevel network meta-regression (ML-NMR) methodology of Phillippo et al. (2020), implemented in the multinma package, to the unanchored disconnected-evidence setting.",
+  "upload_type": "software",
+  "license": "GPL-3.0-only",
+  "access_right": "open",
+  "creators": [
+    {
+      "name": "Sofi-Mahmudi, Ahmad",
+      "orcid": "0000-0001-6829-0823"
+    },
+    {
+      "name": "Chandler, Conor",
+      "orcid": "0000-0002-1365-9002"
+    }
+  ],
+  "keywords": [
+    "indirect treatment comparison",
+    "population-adjusted indirect comparison",
+    "network meta-analysis",
+    "health technology assessment",
+    "evidence synthesis",
+    "Bayesian",
+    "Stan",
+    "survival analysis",
+    "multilevel network meta-regression",
+    "R"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/choxos/mlumr",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://choxos.github.io/mlumr/",
+      "relation": "isDocumentedBy",
+      "scheme": "url"
+    },
+    {
+      "identifier": "10.1111/rssa.12579",
+      "relation": "isDerivedFrom",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.5281/zenodo.3904454",
+      "relation": "isDerivedFrom",
+      "scheme": "doi"
+    }
+  ]
+}

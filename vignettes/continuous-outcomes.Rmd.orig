@@ -1,0 +1,407 @@
+---
+title: "Continuous outcomes: an unanchored mean-difference comparison"
+output: rmarkdown::html_vignette
+bibliography: ../inst/REFERENCES.bib
+link-citations: yes
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  # knitr's default is error = TRUE, which prints the condition into the
+  # vignette and carries on. For a precompiled vignette that silently ships a
+  # broken chunk, so fail the build instead.
+  error = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 7,
+  fig.height = 4.5,
+  fig.align = "center",
+  dpi = 110
+)
+
+options(width = 100, rstan_refresh = 0,
+        # Fit MCMC chains in parallel at precompile time (rstan under Rscript
+        # otherwise defaults to mc.cores = 1 and runs chains sequentially).
+        mc.cores = parallel::detectCores(),
+        # The precompiled .Rmd has no \VignetteIndexEntry (it lives in
+        # .html.asis), so silence rmarkdown's title-mismatch check.
+        rmarkdown.html_vignette.check_title = FALSE)
+```
+
+```{r packages, message = FALSE}
+library(mlumr)
+library(ggplot2)
+options(mc.cores = parallel::detectCores())
+```
+
+This vignette is a complete worked example of an **unanchored** indirect
+comparison for a **continuous** endpoint, using mlumr's bundled `shoulder_ipd`
+and `shoulder_agd` example data. It is the continuous-outcome analogue of
+`vignette("binary-outcomes")`; for the shared data-preparation machinery see
+`vignette("data-preparation")`, for sampler/prior/diagnostic detail see
+`vignette("fitting-and-diagnostics")`, and for how to choose between methods see
+`vignette("choosing-a-method")`.
+
+> **Simulated data.** `shoulder_ipd` / `shoulder_agd` are *simulated* (not real
+> patient records): they are generated with the `synthpop` package (sequential
+> CART) [@Nowok2016] from the FIMPACT 10-year shoulder trial [@Fimpact2025]
+> (dataset CC BY 4.0), preserving its covariate and covariate-outcome
+> relationships (fidelity validated with the `syntheticdata` package), much as
+> `multinma` builds its own example data. The two trial arms are treated as
+> separate single-arm sources to illustrate an unanchored comparison; in a real
+> ML-UMR application the comparator would come from a different study.
+
+## The clinical question
+
+We want the relative efficacy of two treatments for subacromial shoulder pain on
+**pain on activity** (a visual analogue scale, VAS 0-100, lower = better) at 24
+months, when:
+
+* **Index (IPD).** We hold individual patient data for **arthroscopic subacromial
+  decompression** (`ASD`).
+* **Comparator (AgD).** Only published aggregate data are available for
+  **exercise therapy** (`ET`): an arm mean, its standard error, and a
+  baseline-characteristics table.
+
+The two arms come from single-arm sources with no common comparator, so the
+comparison is **unanchored** and relies on the conditional-constancy /
+shared-prognostic-factor assumptions discussed in `vignette("introduction")`.
+ML-UMR adjusts for cross-trial differences in prognostic factors by standardizing
+the IPD model to the comparator population (and vice versa).
+
+## The ML-UMR model
+
+On the index IPD, ML-UMR fits a linear (identity-link) model for the mean
+outcome,
+$$\mathbb{E}[y_{ik}\mid x_i]=\mu_k+x_i^\top\beta_k,\qquad y_{ik}\sim\mathrm{N}(\mu_k+x_i^\top\beta_k,\ \sigma^2),$$
+where $\mu_k$ is a treatment-specific intercept and $\beta_k$ the vector of
+prognostic-factor coefficients. The aggregate comparator does not contribute
+patient rows; instead its likelihood is the individual model **integrated over
+the comparator covariate distribution** $f_{\text{AgD}}(x)$ implied by the
+published moments,
+$$\bar\theta_k=\mathbb{E}[Y\mid \text{AgD population}]=\int(\mu_k+x^\top\beta_k)\,f_{\text{AgD}}(x)\,dx,$$
+which mlumr approximates with quasi-Monte Carlo integration points (see *Setting
+up the ML-UMR data*). This is the same population-adjustment device as ML-NMR
+[@Phillippo2020], specialized to the unanchored two-study case.
+
+Two variants differ only in how the prognostic effects are shared across
+treatments:
+
+* **SPFA** (shared prognostic factors) assumes $\beta_{\text{index}}=\beta_{\text{comparator}}=\beta$, the conditional-constancy / shared-effect-modifier assumption.
+* **Relaxed** frees them, $\beta_{\text{index}}\neq\beta_{\text{comparator}}$, allowing effect modification at the cost of identifiability (the comparator coefficients are informed only by the single AgD likelihood term).
+
+Because the identity link is linear, the mean difference is **collapsible**:
+the integral above passes through the linear predictor unchanged, so under SPFA
+the index- and comparator-population effects *coincide* and differ only under
+genuine effect modification (the relaxed model). This is the simplest family in
+mlumr precisely because no aggregation bias arises from a nonlinear link
+(contrast the log odds ratio in `vignette("binary-outcomes")`).
+
+```{r data}
+library(mlumr)
+library(ggplot2)
+
+data("shoulder_ipd")     # index IPD (ASD), bundled with mlumr
+data("shoulder_agd")     # comparator AgD (ET)
+
+covariates <- c("age", "baseline_vas")   # baseline pain is the key prognostic
+```
+
+A glimpse of the index IPD (one row per patient) and the single aggregate
+comparator row:
+
+```{r data-head}
+knitr::kable(head(shoulder_ipd), caption = "Index IPD (ASD), first rows")
+knitr::kable(shoulder_agd[, c("treatment", "n", "y_mean", "y_se",
+                              "age_mean", "baseline_vas_mean")],
+   caption = "Comparator AgD (ET)")
+```
+
+## Covariate balance
+
+Population adjustment is motivated by the fact that the two trial populations differ
+on prognostic factors. Comparing the index sample means against the published
+comparator means shows the imbalance we must adjust for, here baseline pain is
+the key prognostic factor and the outcome we are comparing:
+
+```{r balance}
+balance <- data.frame(
+  Covariate = c("Pain VAS on activity (24m)", "Age (years)", "Baseline pain VAS"),
+  Index_ASD = c(mean(shoulder_ipd$pain_vas_activity), mean(shoulder_ipd$age),
+                mean(shoulder_ipd$baseline_vas)),
+  Comparator_ET = c(shoulder_agd$y_mean, shoulder_agd$age_mean,
+                    shoulder_agd$baseline_vas_mean)
+)
+knitr::kable(balance, caption = "Prognostic-factor balance: index vs comparator population")
+```
+
+## Setting up the ML-UMR data
+
+For a continuous IPD outcome use `set_ipd()` with `family = "normal"` and the
+outcome column; `set_agd()` takes the comparator arm mean (`outcome_mean`), its
+standard error (`outcome_se`), the sample size, and the covariate summaries.
+Covariate column suffixes (`_mean`, `_sd`) are stripped to match the IPD names.
+
+```{r setup-data}
+ipd <- set_ipd(shoulder_ipd, treatment = "treatment", outcome = "pain_vas_activity",
+               family = "normal", covariates = covariates)
+agd <- set_agd(shoulder_agd, treatment = "treatment", family = "normal",
+               outcome_n = "n", outcome_mean = "y_mean", outcome_se = "y_se",
+               cov_means = c("age_mean", "baseline_vas_mean"),
+               cov_sds   = c("age_sd", "baseline_vas_sd"),
+               cov_types = c("continuous", "continuous"))
+dat <- combine_data(ipd, agd)
+dat
+```
+
+The comparator covariate distribution is represented by quasi-Monte Carlo
+integration points drawn from each covariate's marginal (here normals for age and
+baseline VAS), correlated via a Gaussian copula calibrated from the IPD. We use a
+modest `n_int = 64` here so the vignette builds quickly; a real analysis would use
+several hundred or more (see `vignette("data-preparation")`).
+
+The normal marginal for `baseline_vas` is an approximation. A visual analog
+scale is bounded at 100, and the published mean of 74.6 with SD 19.2 puts about
+9% of a normal's mass above that ceiling, so some integration points describe
+scores the instrument cannot record. It is kept here because the aggregate data
+report only a mean and an SD, which is the usual situation, and because the
+comparison this vignette makes is insensitive to it. Where a bounded marginal
+matters, rescale the covariate to a proportion and use `qlogitnorm`, as
+`vignette("binary-outcomes")` does for body-surface area.
+
+```{r integration}
+dat <- add_integration(dat, n_int = 64,
+                       age          = distr(qnorm, mean = age_mean, sd = age_sd),
+                       baseline_vas = distr(qnorm, mean = baseline_vas_mean,
+                                            sd = baseline_vas_sd))
+```
+
+`check_integration()` confirms the quasi-Monte Carlo points reproduce the
+requested covariate moments, run it whenever covariates are correlated or
+`n_int` is small:
+
+```{r check-int}
+check_integration(
+  dat,
+  age          = distr(qnorm, mean = age_mean, sd = age_sd),
+  baseline_vas = distr(qnorm, mean = baseline_vas_mean, sd = baseline_vas_sd)
+)
+```
+
+## Frequentist benchmarks
+
+The unadjusted (naive) comparison ignores the covariate imbalance; STC adjusts
+for it by parametric G-computation. Both are fast and serve as reference points.
+For the identity link STC and the naive mean difference share the outcome scale.
+Their gap reflects standardization plus outcome-model assumptions; it is not by
+itself an estimate of bias removed by adjustment.
+
+```{r benchmarks}
+res_naive <- naive(dat)
+res_stc   <- stc(dat)
+res_naive
+res_stc
+```
+
+## Fitting the ML-UMR models
+
+For the normal family the canonical link is `identity`, so coefficients are on
+the outcome scale. We fit both the shared-prognostic-factor model (**SPFA**) and
+the **relaxed** model (treatment-specific prognostic effects). A weakly
+informative, **autoscaled** coefficient prior keeps the prior comparable across
+covariates of different magnitudes (age in years vs VAS in points); the relaxed
+model uses a slightly tighter prior and a higher `adapt_delta` because its
+comparator-specific coefficients lean on one aggregate row.
+
+```{r fit}
+fit_spfa <- mlumr(dat, model = "spfa", link = "identity",
+                  prior_beta = prior_normal(0, 1, autoscale = TRUE),
+                  chains = 4, iter = 2000, warmup = 1000, seed = 2026, refresh = 0)
+fit_relaxed <- mlumr(dat, model = "relaxed", link = "identity",
+                     prior_beta = prior_normal(0, 0.75, autoscale = TRUE),
+                     chains = 4, iter = 2000, warmup = 1000,
+                     adapt_delta = 0.95, seed = 2026, refresh = 0)
+summary(fit_spfa)
+```
+
+### Priors
+
+These fits use $\mu_k\sim\mathrm{N}(0,10^2)$ for the intercepts, autoscaled
+$\beta\sim\mathrm{N}(0,1^2)$ for the coefficients, and a half-normal prior on
+the residual standard deviation $\sigma$ (a `normal()` prior truncated at zero
+by the `<lower=0>` constraint). These are starting choices whose suitability
+depends on the outcome and covariate scales. `prior_summary()` shows exactly
+what was passed to Stan, including the autoscaled coefficient scales:
+
+```{r priors}
+prior_summary(fit_spfa)
+```
+
+The data are substantially more informative than the priors, the posterior intercepts are
+much tighter than the $\mathrm{N}(0,10)$ prior:
+
+```{r prior-post, fig.height = 2.6}
+plot_prior_posterior(fit_spfa, pars = c("mu_index", "mu_comparator"))
+```
+
+### Aggregate-data scale conventions
+
+For the **normal** family `outcome_mean` and `outcome_se` must be on the
+**original (arithmetic) scale**, the same scale as the IPD outcome. If a
+published comparator reports a *geometric* mean, a mean on the log scale, or a
+change-from-baseline on a transformed scale, back-transform it (propagating the
+standard error by the delta method) before calling `set_agd()`. Passing a
+log-scale summary while fitting on the identity link silently biases the
+comparator likelihood. The residual likelihood here is Gaussian, so an influential
+observation in the IPD can pull the fit. A heavier-tailed prior on the
+coefficients does not address this: the prior governs the coefficients, not the
+residual distribution, and a heavier tail permits larger coefficients rather
+than suppressing them. mlumr's normal family provides no heavy-tailed residual
+distribution, so identify influential observations directly, report their
+effect on the estimate, and use `prior_sensitivity()` only for what it measures,
+namely sensitivity to the coefficient prior.
+
+### Convergence
+
+`mlumr()` warns automatically about divergences, treedepth saturation, high
+$\hat R$, and low effective sample size. They are clean here:
+
+```{r diagnostics}
+data.frame(
+  n_divergent  = fit_spfa$diagnostics$n_divergent,
+  max_treedepth = fit_spfa$diagnostics$n_max_treedepth,
+  max_Rhat     = round(max(fit_spfa$summary$Rhat, na.rm = TRUE), 3),
+  min_ESS      = round(min(fit_spfa$summary$n_eff, na.rm = TRUE))
+)
+```
+
+## Treatment effects
+
+For a continuous outcome the population-standardized effect is the **mean
+difference** (MD), reported in both populations. Because the MD is collapsible
+and SPFA shares one $\beta$ across treatments, the standardized contrast reduces
+to $\mu_{\text{index}}-\mu_{\text{comparator}}$, which contains no covariates at
+all. The index- and comparator-population values are therefore **identical**,
+draw for draw, not merely close:
+
+```{r effects}
+knitr::kable(marginal_effects(fit_spfa), caption = "SPFA standardized mean difference (ASD vs ET)")
+```
+
+A forest plot makes the value of adjustment visible, on the **mean
+difference**. ML-UMR is shown in **both** target populations. The **index**
+population is normally the decision-relevant one for HTA, since
+cost-effectiveness models are built for the population a reimbursement decision
+is about, which is usually the index trial's [@ChandlerIshakTransport]; the
+STC is standardized to the comparator population. The naive contrast is not
+standardized to either population.
+The two SPFA rows coincide exactly, for the algebraic reason just given; the
+**relaxed** rows do separate, because freeing $\beta$ by treatment puts the
+covariate distribution back into the contrast. That gap is effect modification,
+not aggregation bias.
+
+```{r forest, fig.height = 3.6}
+md_spfa <- marginal_effects(fit_spfa, population = "both")
+md_rel  <- marginal_effects(fit_relaxed, population = "both")
+# One row per (model, population); `pop()` pulls the requested one.
+pop <- function(d, which) d[d$population == which, ]
+forest_df <- data.frame(
+  label = c("Naive (unstandardized)", "STC (comparator)",
+            "ML-UMR SPFA (index)", "ML-UMR SPFA (comparator)",
+            "ML-UMR relaxed (index)", "ML-UMR relaxed (comparator)"),
+  est = c(res_naive$estimate, res_stc$estimate,
+          pop(md_spfa, "Index")$mean, pop(md_spfa, "Comparator")$mean,
+          pop(md_rel, "Index")$mean, pop(md_rel, "Comparator")$mean),
+  lo  = c(res_naive$ci_lower, res_stc$ci_lower,
+          pop(md_spfa, "Index")$q2.5, pop(md_spfa, "Comparator")$q2.5,
+          pop(md_rel, "Index")$q2.5, pop(md_rel, "Comparator")$q2.5),
+  hi  = c(res_naive$ci_upper, res_stc$ci_upper,
+          pop(md_spfa, "Index")$q97.5, pop(md_spfa, "Comparator")$q97.5,
+          pop(md_rel, "Index")$q97.5, pop(md_rel, "Comparator")$q97.5)
+)
+mlumr_forest(forest_df, ref_line = 0,
+             x = "Mean difference in pain VAS on activity",
+             title = "Shoulder pain on activity: ASD vs ET",
+             subtitle = "Unadjusted vs population-adjusted, in both target populations")
+```
+
+Both models' standardized mean differences in both populations, as a table:
+
+```{r effects-both}
+knitr::kable(rbind(cbind(Model = "SPFA", md_spfa),
+                   cbind(Model = "Relaxed", md_rel)),
+   caption = "Standardized mean difference (ASD vs ET), both models and both populations")
+```
+
+The standardized mean difference in both populations, plotted straight from
+`marginal_effects()` with its `plot()` method:
+
+```{r posterior-areas, fig.height = 2.6}
+plot(marginal_effects(fit_spfa))
+```
+
+## Absolute predictions
+
+Absolute predicted mean outcomes for each treatment in each population, as a
+table and as a plot (the two populations distinguished by color):
+
+```{r predict}
+knitr::kable(predict(fit_spfa, population = "both", type = "response"),
+   caption = "Standardized mean pain VAS by treatment")
+```
+
+```{r predict-plot, fig.height = 3}
+plot(predict(fit_spfa, population = "both", type = "response"))
+```
+
+## Conditional effects
+
+Conditional effects evaluate the contrast at specific covariate profiles rather
+than averaging over a population, useful for checking whether the effect is
+plausibly constant across the prognostic range (the SPFA assumption) or varies
+with baseline pain:
+
+```{r conditional}
+profiles <- data.frame(age = c(45, 55, 65), baseline_vas = c(50, 70, 90))
+knitr::kable(conditional_effects(fit_spfa, newdata = profiles),
+   caption = "Conditional mean differences at three covariate profiles")
+```
+
+## Model comparison
+
+Compare SPFA against the relaxed model with leave-one-out cross-validation and
+DIC. A markedly better relaxed fit would *suggest* effect modification, but the
+comparator coefficients are weakly identified from a single AgD row, so treat it
+as suggestive and check `prior_sensitivity()` (see
+`vignette("fitting-and-diagnostics")`).
+
+```{r compare}
+compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "loo")
+compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "dic")
+```
+
+## Interpretation
+
+* The **naive** mean difference mixes the treatment contrast with between-study
+  differences, including the baseline-pain imbalance.
+* In this example **STC** and **ML-UMR SPFA** both standardize over the named
+  covariates and broadly agree. ML-UMR reports posterior uncertainty and effects
+  in *both* populations, which matters when the decision population is not the
+  comparator's.
+* The **relaxed** model frees the shared-effect assumption but pays for it in
+  precision here, because the comparator-specific coefficients lean on one
+  aggregate row.
+* Lower pain favors ASD here, but the explicit cost of the unanchored regime is
+  wider intervals, since within-trial randomization is discarded. When the
+  evidence network is connected (a shared comparator exists), prefer an anchored
+  network meta-analysis; reserve ML-UMR for genuinely unanchored evidence.
+
+> **Data provenance.** `shoulder_ipd` / `shoulder_agd` are simulated (mlumr's own
+> work, GPL-3), generated with `synthpop` (sequential CART) [@Nowok2016] from the
+> FIMPACT 10-year shoulder trial [@Fimpact2025] (dataset CC BY 4.0) while
+> preserving its covariate-outcome relationships; they are not real patient data.
+> See `data-raw/simulate_external_data.R`.
+
+## References

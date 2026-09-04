@@ -1,3 +1,11 @@
+## Status
+
+This file records the submission of version 0.1.0, which is on CRAN. The
+development version on `main` is not a submission candidate, and every
+measurement below was taken against the 0.1.0 tarball. Re-run the checks and
+re-measure the sizes against the tarball that is actually submitted before
+reusing this file.
+
 ## R CMD check results
 
 Local `R CMD check --as-cran --no-manual mlumr_0.1.0.tar.gz` on macOS
@@ -32,11 +40,11 @@ toolchain and are not expected to appear on CRAN's build servers:
 
 ## Notes to CRAN reviewers
 
-* This is a new submission.
-* The package embeds six Stan models (binomial / normal / poisson,
-  each with SPFA and relaxed variants). They are compiled at install
-  time via the standard rstantools pipeline; expect several minutes of
-  C++ compilation.
+* 0.1.0 was a new submission; a later version will not be.
+* The package embeds ten Stan models: binomial, normal and poisson, each
+  with SPFA and relaxed variants, plus parametric and M-spline survival in
+  both variants. They are compiled at install time via the standard
+  rstantools pipeline; expect several minutes of C++ compilation.
 * `cmdstanr` is listed in `Suggests` with `Additional_repositories:
   https://stan-dev.r-universe.dev`. This follows the same approach
   adopted by brms and other Stan-ecosystem packages: cmdstanr is an
@@ -44,8 +52,9 @@ toolchain and are not expected to appear on CRAN's build servers:
   Examples, tests, and vignettes do not require cmdstanr; cmdstanr
   comparison code is skipped unless cmdstanr and CmdStan are available.
 * Developer-only directories and build artifacts are excluded via
-  `.Rbuildignore`; the current source tarball weighs about 380 KB.
-* The installed package is approximately 6.9 MB, dominated by the six
-  Stan-generated shared libraries (5.4 MB in `libs/`). This is in line
-  with other Stan-backed CRAN packages (e.g. `rstanarm`, `brms`) and is
-  the unavoidable consequence of shipping pre-compiled Stan models.
+  `.Rbuildignore`. The 0.1.0 tarball weighed about 380 KB and the installed
+  package about 6.9 MB, of which 5.4 MB was `libs/`. Four Stan models have
+  been added since, so both figures are now low; measure them again on the
+  submitted tarball rather than quoting these. The installed size is
+  dominated by the Stan-generated shared libraries, as it is for other
+  Stan-backed CRAN packages such as `rstanarm` and `brms`.
