@@ -3,11 +3,33 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { modelNames } from "./model-list.mjs";
 
+import { access } from "node:fs/promises";
+
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(scriptDir, "..");
 const repoRoot = resolve(appRoot, "..");
-const stanRoot = join(repoRoot, "inst", "stan");
+
+// Where the package's Stan sources live. The default assumes this app sits in a
+// subdirectory of a mlumr checkout, which is how it was developed, but this
+// branch is app-only and its root IS the repository root, so the default
+// resolves outside the checkout entirely. MLUMR_STAN_DIR names the directory
+// explicitly; without the check below a wrong path failed later with a
+// file-not-found on an individual model, which reads like a missing model
+// rather than a misconfigured root.
+const stanRoot = process.env.MLUMR_STAN_DIR
+  ? resolve(process.env.MLUMR_STAN_DIR)
+  : join(repoRoot, "inst", "stan");
 const outRoot = join(appRoot, "build", "stan-expanded");
+
+try {
+  await access(stanRoot);
+} catch {
+  throw new Error(
+    `Stan sources not found at ${stanRoot}. This branch carries only the app, ` +
+    "so point MLUMR_STAN_DIR at the inst/stan directory of a mlumr checkout, " +
+    "e.g. MLUMR_STAN_DIR=/path/to/mlumr/inst/stan npm run prepare:stan"
+  );
+}
 
 await mkdir(outRoot, { recursive: true });
 
