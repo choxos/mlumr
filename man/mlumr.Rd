@@ -297,8 +297,9 @@ previous behavior. The two auxiliaries control different features of the
 hazard, so they can need different regularization; supply this when one of
 them is poorly identified. Every other distribution has at most one
 auxiliary parameter: supplying this for one of them warns and has no
-effect on the fit. It is still checked for well-formedness first, so a
-malformed prior is reported rather than quietly discarded.}
+effect on the fit, and the value is discarded WITHOUT being validated, so
+a malformed prior in that position warns like any other ignored one rather
+than aborting the fit. Non-survival families behave the same way.}
 
 \item{...}{Additional arguments passed to the Stan sampling function
 (\code{\link[rstan:sampling]{rstan::sampling()}} or cmdstanr's \verb{$sample()} method)}

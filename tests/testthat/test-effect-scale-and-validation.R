@@ -211,6 +211,42 @@ test_that("prior_aux2 warns when the distribution has no second auxiliary", {
   expect_match(w, "ignored")
 })
 
+test_that("an ignored prior_aux2 is not validated", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  # An argument documented as ignored has to be ignored. A well-formed value in
+  # a position it does not apply to was dropped quietly while a MALFORMED one in
+  # the same position aborted the fit, so the same argument carried two
+  # contracts depending on a distribution it never reaches. A Weibull fit has
+  # one auxiliary parameter, so `prior_aux2` applies to nothing here and the
+  # garbage below must not decide whether the fit runs.
+  set.seed(2026)
+  d <- sim_survival_data(n_ipd = 40, n_agd = 50, n_int = 8)
+  run <- function() {
+    mlumr(d, distribution = "weibull", prior_aux2 = "not a prior at all",
+          chains = 1, iter = 10, warmup = 5, refresh = 0, seed = 2026,
+          verbose = FALSE)
+  }
+  # Unconditional, so the assertion runs whether or not a short fit errors for
+  # some unrelated reason. A conditional version registered no expectation at
+  # all when the fit succeeded, and testthat reported the test as skipped.
+  blamed_prior_aux2 <- FALSE
+  warned <- FALSE
+  withCallingHandlers(
+    suppressMessages(tryCatch(run(), error = function(e) {
+      blamed_prior_aux2 <<- grepl("prior_aux2", conditionMessage(e),
+                                  fixed = TRUE)
+    })),
+    warning = function(w) {
+      if (grepl("prior_aux2", conditionMessage(w), fixed = TRUE)) warned <<- TRUE
+      invokeRestart("muffleWarning")
+    })
+  # The value really was in the ignored position ...
+  expect_true(warned)
+  # ... and its contents did not decide whether the fit ran.
+  expect_false(blamed_prior_aux2)
+})
+
 # ---- the tie-aggregation precondition rejects an unrecognized shape ---------
 
 test_that("the agd_count guard only passes a genuinely expanded likelihood", {
