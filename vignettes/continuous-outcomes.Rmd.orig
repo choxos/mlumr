@@ -162,6 +162,15 @@ baseline VAS), correlated via a Gaussian copula calibrated from the IPD. We use 
 modest `n_int = 64` here so the vignette builds quickly; a real analysis would use
 several hundred or more (see `vignette("data-preparation")`).
 
+The normal marginal for `baseline_vas` is an approximation. A visual analog
+scale is bounded at 100, and the published mean of 74.6 with SD 19.2 puts about
+9% of a normal's mass above that ceiling, so some integration points describe
+scores the instrument cannot record. It is kept here because the aggregate data
+report only a mean and an SD, which is the usual situation, and because the
+comparison this vignette makes is insensitive to it. Where a bounded marginal
+matters, rescale the covariate to a proportion and use `qlogitnorm`, as
+`vignette("binary-outcomes")` does for body-surface area.
+
 ```{r integration}
 dat <- add_integration(dat, n_int = 64,
                        age          = distr(qnorm, mean = age_mean, sd = age_sd),
