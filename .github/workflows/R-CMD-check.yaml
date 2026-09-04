@@ -6,8 +6,13 @@ on:
   # the whole matrix twice on the same commit.
   push:
     branches: [main, master]
+  # pre-release/** is where a version series is integrated before it reaches
+  # main, so a PR into it must face the same gate a PR into main does. Without
+  # it listed here the whole series accumulates with no check run at all: the
+  # matrix, the Stan export gate and the test suite are all skipped, and the
+  # only thing reporting is the docs build, which is not a check of the package.
   pull_request:
-    branches: [main, master, 'release/**']
+    branches: [main, master, 'release/**', 'pre-release/**']
   workflow_dispatch:
 
 permissions:
