@@ -294,15 +294,140 @@ plausible baseline assumptions, including `aux_by = ".study"` and
 collapsible within a specified population, but this does not make them
 automatically transportable to another population.
 
+## Simulation evidence
+
+
+
+The sections above argue from geometry. This section measures whether that
+geometry actually predicts anything, using a study whose script ships with the
+package at `data-raw/simulate_subgroup_identification.R`.
+
+Six aggregate designs are crossed with the three non-survival families and
+300 replications each, 5400 fits in total. Every replication draws a
+fresh index study and a fresh comparator, generated at the individual level
+inside each stratum and then aggregated, so each row reports the realized means
+and standard deviations of its own members rather than a stratum mean pushed
+through the link.
+
+The `Failed` column counts fits that errored and are excluded from the rest of
+the row. They are rare and, unlike the convergence failures, are spread across
+identified and unidentified designs alike, so they do not favor either side of
+the comparison.
+
+One control makes the comparison meaningful: the comparator is a single
+population of fixed total size, split across whichever design is in play. A
+design with more rows therefore has proportionally smaller rows. Without this,
+extra rows would buy information through sample size alone and "more rows is
+better" would be true by construction.
+
+
+
+|Family   |Design     | Rows| Per row| cond_inv| eff_dim| Width| Width CV| Failed| Rhat > 1.01| Coverage| MCSE log width|
+|:--------|:----------|----:|-------:|--------:|-------:|-----:|--------:|------:|-----------:|--------:|--------------:|
+|binomial |joint_8    |    8|      75|     0.98|    3.00| 0.639|    0.028|      1|           0|    0.940|         0.0016|
+|binomial |joint_6    |    6|     100|     0.71|    2.76| 0.653|    0.027|      1|           0|    0.963|         0.0016|
+|binomial |minimal_4  |    4|     150|     0.70|    2.66| 0.690|    0.032|      2|           0|    0.950|         0.0018|
+|binomial |ovat_age_3 |    3|     200|     0.00|    1.00| 0.736|    0.120|      1|           0|    0.963|         0.0066|
+|binomial |crosstab_4 |    4|     150|     0.00|    2.00| 0.749|    0.163|      0|         104|    0.957|         0.0086|
+|binomial |ovat_age_6 |    6|     100|     0.00|    1.00| 0.721|    0.104|      2|           2|    0.983|         0.0057|
+|normal   |joint_8    |    8|      75|     0.98|    3.00| 0.328|    0.045|      0|           0|    0.957|         0.0026|
+|normal   |joint_6    |    6|     100|     0.71|    2.76| 0.330|    0.044|      0|           0|    0.957|         0.0026|
+|normal   |minimal_4  |    4|     150|     0.70|    2.66| 0.352|    0.043|      0|           0|    0.963|         0.0025|
+|normal   |ovat_age_3 |    3|     200|     0.00|    1.00| 0.534|    0.366|      1|           0|    0.987|         0.0186|
+|normal   |crosstab_4 |    4|     150|     0.00|    2.00| 0.535|    0.545|      0|           0|    0.977|         0.0240|
+|normal   |ovat_age_6 |    6|     100|     0.00|    1.00| 0.418|    0.234|      1|           0|    0.940|         0.0116|
+|poisson  |joint_8    |    8|      75|     0.98|    3.00| 0.212|    0.032|      1|           0|    0.957|         0.0019|
+|poisson  |joint_6    |    6|     100|     0.71|    2.76| 0.216|    0.031|      0|           0|    0.947|         0.0018|
+|poisson  |minimal_4  |    4|     150|     0.70|    2.66| 0.225|    0.034|      1|           0|    0.960|         0.0020|
+|poisson  |ovat_age_3 |    3|     200|     0.00|    1.00| 0.322|    0.286|      0|           7|    0.987|         0.0152|
+|poisson  |crosstab_4 |    4|     150|     0.00|    2.00| 0.817|    1.174|      0|          50|    0.940|         0.0464|
+|poisson  |ovat_age_6 |    6|     100|     0.00|    1.00| 0.264|    0.223|      0|           8|    0.947|         0.0113|
+
+
+
+### Row count does not order the designs; geometry does
+
+
+
+|Predictor | Spearman with mean width|
+|:---------|------------------------:|
+|row count |                   -0.765|
+|cond_inv  |                   -0.941|
+|eff_dim   |                   -0.812|
+
+
+
+Two things are worth separating here, because they carry different weight.
+
+Ranked against the mean width, `cond_inv` orders these designs better than the
+row count does, but the margin is modest and rests on six designs per family,
+which is a thin basis for a correlation. Read it as a direction, not as a
+calibration.
+
+The inversion is the part that does not depend on how many designs were tried.
+The six-row one-variable-at-a-time design has more rows than the four-row
+minimal design and yields a wider, less stable interval, in every family. A
+reader counting rows would prefer the worse design. That is the concrete
+content of the claim that more rows along an existing direction cannot replace
+a missing direction, and one counterexample is enough to establish it.
+
+### The two failing designs lose opposite halves of the space
+
+Both the one-variable-at-a-time bands and the bare cross-tab have
+`cond_inv` = 0, so neither is identified, but they are not the same failure.
+The bands vary only age, leaving `eff_dim` at 1 whether they have three rows or
+six. The cross-tab varies both binaries and holds age fixed, giving
+`eff_dim` = 2. One keeps the continuous covariate and loses the binaries; the
+other keeps the binaries and loses the continuous covariate.
+
+### An unidentified design is unpredictable, not merely imprecise
+
+The failing designs are not just wider. Their widths vary far more from one
+replication to the next than the identified designs do, so a single analysis
+cannot be read as representative of what that design would have produced. The
+coefficient of variation of the width separates the two groups by roughly an
+order of magnitude, and in the worst cell the standard deviation of the width
+exceeds its own mean.
+
+### The sampler notices, and only for the nonlinear families
+
+Non-convergence tracks identification exactly in this study: no fit in any
+identified design reported a split-Rhat above 1.01, and every non-converged fit
+belongs to a design with `cond_inv` = 0. So a rank-deficient aggregate design
+does not merely widen the interval, it also makes the posterior harder to
+sample, and the diagnostics one would run anyway will often say so.
+
+They do not always say so. Every non-converged fit here is binomial or Poisson;
+the normal family sampled cleanly in the unidentified designs too. A plausible
+reading is that with an identity link the unidentified direction is a flat
+ridge, which the sampler traverses without difficulty, while a logit or log link
+curves it. That is an explanation for the pattern rather than something this
+study tested, and the practical point does not depend on it: a clean set of
+convergence diagnostics is not evidence that the design is identified.
+
+Coverage does not reveal any of this. The unidentified designs cover at or near
+the nominal rate, because a wide enough interval covers almost anything. An
+interval can be correct and useless at the same time, which is why the width and
+its variability, not the coverage, are what these designs should be judged on.
+
 ## What this vignette does not claim
 
 There is no universal minimum number of rows beyond the necessary $K+1$ count,
 no source-validated `cond_inv` cutoff, and no guarantee that a non-flagged
-design produces a practically precise target effect. A proper simulation study
-for a specific design must reconstruct the actual within-stratum
-distributions, use the correct exposure-weighted target for rates, report
-failures and Monte Carlo standard errors, and use enough replications for its
-claimed precision. The guidance here is structural and diagnostic, not a
-numerical calibration.
+design produces a practically precise target effect.
+
+The simulation above is deliberately narrow. It uses synthetic strata rather
+than a real trial's reported subgroups, six designs rather than a systematic
+sweep of the design space, three covariates, one effect size, one comparator
+size, and no survival family. Its correlations rest on six designs per family,
+which is a thin basis; read the ranking as a direction, not as a calibration.
+What it does establish is the inversion, and one counterexample is enough for
+that: a design with more rows can be strictly worse than a design with fewer.
+
+A study that justified a `cond_inv` threshold for a specific application would
+need the actual within-stratum distributions of that application, its own
+effect size and sample sizes, a design sweep wide enough to place a cutoff,
+and the outcome family in use. The guidance here remains structural and
+diagnostic, not a numerical calibration.
 
 ## References

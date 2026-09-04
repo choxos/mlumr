@@ -641,17 +641,413 @@ baseline assumptions, including <code>aux_by = &quot;.study&quot;</code> and
 differences are collapsible within a specified population, but this does
 not make them automatically transportable to another population.</p>
 </div>
+<div id="simulation-evidence" class="section level2">
+<h2>Simulation evidence</h2>
+<p>The sections above argue from geometry. This section measures whether
+that geometry actually predicts anything, using a study whose script
+ships with the package at
+<code>data-raw/simulate_subgroup_identification.R</code>.</p>
+<p>Six aggregate designs are crossed with the three non-survival
+families and 300 replications each, 5400 fits in total. Every
+replication draws a fresh index study and a fresh comparator, generated
+at the individual level inside each stratum and then aggregated, so each
+row reports the realized means and standard deviations of its own
+members rather than a stratum mean pushed through the link.</p>
+<p>The <code>Failed</code> column counts fits that errored and are
+excluded from the rest of the row. They are rare and, unlike the
+convergence failures, are spread across identified and unidentified
+designs alike, so they do not favor either side of the comparison.</p>
+<p>One control makes the comparison meaningful: the comparator is a
+single population of fixed total size, split across whichever design is
+in play. A design with more rows therefore has proportionally smaller
+rows. Without this, extra rows would buy information through sample size
+alone and “more rows is better” would be true by construction.</p>
+<table>
+<colgroup>
+<col width="8%" />
+<col width="10%" />
+<col width="4%" />
+<col width="7%" />
+<col width="8%" />
+<col width="7%" />
+<col width="5%" />
+<col width="8%" />
+<col width="6%" />
+<col width="11%" />
+<col width="8%" />
+<col width="13%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Family</th>
+<th align="left">Design</th>
+<th align="right">Rows</th>
+<th align="right">Per row</th>
+<th align="right">cond_inv</th>
+<th align="right">eff_dim</th>
+<th align="right">Width</th>
+<th align="right">Width CV</th>
+<th align="right">Failed</th>
+<th align="right">Rhat &gt; 1.01</th>
+<th align="right">Coverage</th>
+<th align="right">MCSE log width</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">binomial</td>
+<td align="left">joint_8</td>
+<td align="right">8</td>
+<td align="right">75</td>
+<td align="right">0.98</td>
+<td align="right">3.00</td>
+<td align="right">0.639</td>
+<td align="right">0.028</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">0.940</td>
+<td align="right">0.0016</td>
+</tr>
+<tr class="even">
+<td align="left">binomial</td>
+<td align="left">joint_6</td>
+<td align="right">6</td>
+<td align="right">100</td>
+<td align="right">0.71</td>
+<td align="right">2.76</td>
+<td align="right">0.653</td>
+<td align="right">0.027</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">0.963</td>
+<td align="right">0.0016</td>
+</tr>
+<tr class="odd">
+<td align="left">binomial</td>
+<td align="left">minimal_4</td>
+<td align="right">4</td>
+<td align="right">150</td>
+<td align="right">0.70</td>
+<td align="right">2.66</td>
+<td align="right">0.690</td>
+<td align="right">0.032</td>
+<td align="right">2</td>
+<td align="right">0</td>
+<td align="right">0.950</td>
+<td align="right">0.0018</td>
+</tr>
+<tr class="even">
+<td align="left">binomial</td>
+<td align="left">ovat_age_3</td>
+<td align="right">3</td>
+<td align="right">200</td>
+<td align="right">0.00</td>
+<td align="right">1.00</td>
+<td align="right">0.736</td>
+<td align="right">0.120</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">0.963</td>
+<td align="right">0.0066</td>
+</tr>
+<tr class="odd">
+<td align="left">binomial</td>
+<td align="left">crosstab_4</td>
+<td align="right">4</td>
+<td align="right">150</td>
+<td align="right">0.00</td>
+<td align="right">2.00</td>
+<td align="right">0.749</td>
+<td align="right">0.163</td>
+<td align="right">0</td>
+<td align="right">104</td>
+<td align="right">0.957</td>
+<td align="right">0.0086</td>
+</tr>
+<tr class="even">
+<td align="left">binomial</td>
+<td align="left">ovat_age_6</td>
+<td align="right">6</td>
+<td align="right">100</td>
+<td align="right">0.00</td>
+<td align="right">1.00</td>
+<td align="right">0.721</td>
+<td align="right">0.104</td>
+<td align="right">2</td>
+<td align="right">2</td>
+<td align="right">0.983</td>
+<td align="right">0.0057</td>
+</tr>
+<tr class="odd">
+<td align="left">normal</td>
+<td align="left">joint_8</td>
+<td align="right">8</td>
+<td align="right">75</td>
+<td align="right">0.98</td>
+<td align="right">3.00</td>
+<td align="right">0.328</td>
+<td align="right">0.045</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">0.957</td>
+<td align="right">0.0026</td>
+</tr>
+<tr class="even">
+<td align="left">normal</td>
+<td align="left">joint_6</td>
+<td align="right">6</td>
+<td align="right">100</td>
+<td align="right">0.71</td>
+<td align="right">2.76</td>
+<td align="right">0.330</td>
+<td align="right">0.044</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">0.957</td>
+<td align="right">0.0026</td>
+</tr>
+<tr class="odd">
+<td align="left">normal</td>
+<td align="left">minimal_4</td>
+<td align="right">4</td>
+<td align="right">150</td>
+<td align="right">0.70</td>
+<td align="right">2.66</td>
+<td align="right">0.352</td>
+<td align="right">0.043</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">0.963</td>
+<td align="right">0.0025</td>
+</tr>
+<tr class="even">
+<td align="left">normal</td>
+<td align="left">ovat_age_3</td>
+<td align="right">3</td>
+<td align="right">200</td>
+<td align="right">0.00</td>
+<td align="right">1.00</td>
+<td align="right">0.534</td>
+<td align="right">0.366</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">0.987</td>
+<td align="right">0.0186</td>
+</tr>
+<tr class="odd">
+<td align="left">normal</td>
+<td align="left">crosstab_4</td>
+<td align="right">4</td>
+<td align="right">150</td>
+<td align="right">0.00</td>
+<td align="right">2.00</td>
+<td align="right">0.535</td>
+<td align="right">0.545</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">0.977</td>
+<td align="right">0.0240</td>
+</tr>
+<tr class="even">
+<td align="left">normal</td>
+<td align="left">ovat_age_6</td>
+<td align="right">6</td>
+<td align="right">100</td>
+<td align="right">0.00</td>
+<td align="right">1.00</td>
+<td align="right">0.418</td>
+<td align="right">0.234</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">0.940</td>
+<td align="right">0.0116</td>
+</tr>
+<tr class="odd">
+<td align="left">poisson</td>
+<td align="left">joint_8</td>
+<td align="right">8</td>
+<td align="right">75</td>
+<td align="right">0.98</td>
+<td align="right">3.00</td>
+<td align="right">0.212</td>
+<td align="right">0.032</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">0.957</td>
+<td align="right">0.0019</td>
+</tr>
+<tr class="even">
+<td align="left">poisson</td>
+<td align="left">joint_6</td>
+<td align="right">6</td>
+<td align="right">100</td>
+<td align="right">0.71</td>
+<td align="right">2.76</td>
+<td align="right">0.216</td>
+<td align="right">0.031</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">0.947</td>
+<td align="right">0.0018</td>
+</tr>
+<tr class="odd">
+<td align="left">poisson</td>
+<td align="left">minimal_4</td>
+<td align="right">4</td>
+<td align="right">150</td>
+<td align="right">0.70</td>
+<td align="right">2.66</td>
+<td align="right">0.225</td>
+<td align="right">0.034</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">0.960</td>
+<td align="right">0.0020</td>
+</tr>
+<tr class="even">
+<td align="left">poisson</td>
+<td align="left">ovat_age_3</td>
+<td align="right">3</td>
+<td align="right">200</td>
+<td align="right">0.00</td>
+<td align="right">1.00</td>
+<td align="right">0.322</td>
+<td align="right">0.286</td>
+<td align="right">0</td>
+<td align="right">7</td>
+<td align="right">0.987</td>
+<td align="right">0.0152</td>
+</tr>
+<tr class="odd">
+<td align="left">poisson</td>
+<td align="left">crosstab_4</td>
+<td align="right">4</td>
+<td align="right">150</td>
+<td align="right">0.00</td>
+<td align="right">2.00</td>
+<td align="right">0.817</td>
+<td align="right">1.174</td>
+<td align="right">0</td>
+<td align="right">50</td>
+<td align="right">0.940</td>
+<td align="right">0.0464</td>
+</tr>
+<tr class="even">
+<td align="left">poisson</td>
+<td align="left">ovat_age_6</td>
+<td align="right">6</td>
+<td align="right">100</td>
+<td align="right">0.00</td>
+<td align="right">1.00</td>
+<td align="right">0.264</td>
+<td align="right">0.223</td>
+<td align="right">0</td>
+<td align="right">8</td>
+<td align="right">0.947</td>
+<td align="right">0.0113</td>
+</tr>
+</tbody>
+</table>
+<div id="row-count-does-not-order-the-designs-geometry-does" class="section level3">
+<h3>Row count does not order the designs; geometry does</h3>
+<table>
+<thead>
+<tr class="header">
+<th align="left">Predictor</th>
+<th align="right">Spearman with mean width</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">row count</td>
+<td align="right">-0.765</td>
+</tr>
+<tr class="even">
+<td align="left">cond_inv</td>
+<td align="right">-0.941</td>
+</tr>
+<tr class="odd">
+<td align="left">eff_dim</td>
+<td align="right">-0.812</td>
+</tr>
+</tbody>
+</table>
+<p>Two things are worth separating here, because they carry different
+weight.</p>
+<p>Ranked against the mean width, <code>cond_inv</code> orders these
+designs better than the row count does, but the margin is modest and
+rests on six designs per family, which is a thin basis for a
+correlation. Read it as a direction, not as a calibration.</p>
+<p>The inversion is the part that does not depend on how many designs
+were tried. The six-row one-variable-at-a-time design has more rows than
+the four-row minimal design and yields a wider, less stable interval, in
+every family. A reader counting rows would prefer the worse design. That
+is the concrete content of the claim that more rows along an existing
+direction cannot replace a missing direction, and one counterexample is
+enough to establish it.</p>
+</div>
+<div id="the-two-failing-designs-lose-opposite-halves-of-the-space" class="section level3">
+<h3>The two failing designs lose opposite halves of the space</h3>
+<p>Both the one-variable-at-a-time bands and the bare cross-tab have
+<code>cond_inv</code> = 0, so neither is identified, but they are not
+the same failure. The bands vary only age, leaving <code>eff_dim</code>
+at 1 whether they have three rows or six. The cross-tab varies both
+binaries and holds age fixed, giving <code>eff_dim</code> = 2. One keeps
+the continuous covariate and loses the binaries; the other keeps the
+binaries and loses the continuous covariate.</p>
+</div>
+<div id="an-unidentified-design-is-unpredictable-not-merely-imprecise" class="section level3">
+<h3>An unidentified design is unpredictable, not merely imprecise</h3>
+<p>The failing designs are not just wider. Their widths vary far more
+from one replication to the next than the identified designs do, so a
+single analysis cannot be read as representative of what that design
+would have produced. The coefficient of variation of the width separates
+the two groups by roughly an order of magnitude, and in the worst cell
+the standard deviation of the width exceeds its own mean.</p>
+</div>
+<div id="the-sampler-notices-and-only-for-the-nonlinear-families" class="section level3">
+<h3>The sampler notices, and only for the nonlinear families</h3>
+<p>Non-convergence tracks identification exactly in this study: no fit
+in any identified design reported a split-Rhat above 1.01, and every
+non-converged fit belongs to a design with <code>cond_inv</code> = 0. So
+a rank-deficient aggregate design does not merely widen the interval, it
+also makes the posterior harder to sample, and the diagnostics one would
+run anyway will often say so.</p>
+<p>They do not always say so. Every non-converged fit here is binomial
+or Poisson; the normal family sampled cleanly in the unidentified
+designs too. A plausible reading is that with an identity link the
+unidentified direction is a flat ridge, which the sampler traverses
+without difficulty, while a logit or log link curves it. That is an
+explanation for the pattern rather than something this study tested, and
+the practical point does not depend on it: a clean set of convergence
+diagnostics is not evidence that the design is identified.</p>
+<p>Coverage does not reveal any of this. The unidentified designs cover
+at or near the nominal rate, because a wide enough interval covers
+almost anything. An interval can be correct and useless at the same
+time, which is why the width and its variability, not the coverage, are
+what these designs should be judged on.</p>
+</div>
+</div>
 <div id="what-this-vignette-does-not-claim" class="section level2">
 <h2>What this vignette does not claim</h2>
 <p>There is no universal minimum number of rows beyond the necessary
 <span class="math inline">\(K+1\)</span> count, no source-validated
 <code>cond_inv</code> cutoff, and no guarantee that a non-flagged design
-produces a practically precise target effect. A proper simulation study
-for a specific design must reconstruct the actual within-stratum
-distributions, use the correct exposure-weighted target for rates,
-report failures and Monte Carlo standard errors, and use enough
-replications for its claimed precision. The guidance here is structural
-and diagnostic, not a numerical calibration.</p>
+produces a practically precise target effect.</p>
+<p>The simulation above is deliberately narrow. It uses synthetic strata
+rather than a real trial’s reported subgroups, six designs rather than a
+systematic sweep of the design space, three covariates, one effect size,
+one comparator size, and no survival family. Its correlations rest on
+six designs per family, which is a thin basis; read the ranking as a
+direction, not as a calibration. What it does establish is the
+inversion, and one counterexample is enough for that: a design with more
+rows can be strictly worse than a design with fewer.</p>
+<p>A study that justified a <code>cond_inv</code> threshold for a
+specific application would need the actual within-stratum distributions
+of that application, its own effect size and sample sizes, a design
+sweep wide enough to place a cutoff, and the outcome family in use. The
+guidance here remains structural and diagnostic, not a numerical
+calibration.</p>
 </div>
 <div id="references" class="section level2 unnumbered">
 <h2 class="unnumbered">References</h2>
