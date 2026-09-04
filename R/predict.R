@@ -718,9 +718,11 @@ predict.mlumr_fit <- function(object,
 #'   null 0), and `"rmstr"` (RMST ratio, natural scale, null 1). The scalar name
 #'   is `"hr"` (marginal hazard ratio, null 1) for a proportional-hazards fit,
 #'   `"tr"` (time ratio, null 1) for a shared-shape SPFA accelerated-failure-time
-#'   fit, and `"exp_delta_eta"` otherwise, meaning any relaxed AFT fit or an AFT
-#'   fit with `aux_by = ".study"`, where the covariate term does not cancel or
-#'   the shapes differ and no constant acceleration factor exists. There are no
+#'   fit, and `"exp_delta_eta"` otherwise, meaning any relaxed AFT fit or a
+#'   **shape-bearing** AFT fit with `aux_by = ".study"`, where the covariate term
+#'   does not cancel or the shapes differ and no constant acceleration factor
+#'   exists. `"exponential-aft"` has no shape parameter, so `aux_by = ".study"`
+#'   leaves its baseline unstratified and an SPFA fit keeps `"tr"`. There are no
 #'   aliases: `"hr"` never returns a time ratio and `"tr"` never returns a
 #'   hazard ratio. Requesting a scale the fit cannot supply is an error naming
 #'   the one it can.

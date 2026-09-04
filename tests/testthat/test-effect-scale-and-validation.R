@@ -263,3 +263,28 @@ test_that("prior_aux2 reaches Stan through the public mlumr() call", {
   expect_true(any(grepl("gengamma sigma", txt, fixed = TRUE)))
   expect_true(any(grepl("k = 1 / Q^2", txt, fixed = TRUE)))
 })
+
+test_that("exponential-aft keeps `tr` under aux_by = '.study'", {
+  # `aux_by = ".study"` only stratifies a baseline that HAS a shape. The
+  # exponential AFT has none, so an SPFA fit keeps a genuine time ratio and the
+  # `tr` selector, where every shape-bearing AFT would move to
+  # `exp_delta_eta`. The documentation used to send these users to a selector
+  # that then errors.
+  mk <- function(dist, model = "spfa") {
+    structure(list(surv_info = mlumr:::.survival_distribution_info(dist),
+                   stan_data = list(n_strata = 2L), model = model,
+                   pred_times = c(1, 2, 3)), class = "mlumr_fit")
+  }
+  name_of <- function(fit) {
+    mlumr:::.surv_scalar_effect_name(mlumr:::.surv_scalar_label(fit)$label)
+  }
+  expect_equal(mk("exponential-aft")$surv_info$n_aux, 0L)
+  expect_equal(name_of(mk("exponential-aft")), "tr")
+  # The shape-bearing AFTs do move, which is what makes the exception one.
+  expect_equal(name_of(mk("weibull-aft")), "exp_delta_eta")
+  expect_equal(name_of(mk("lognormal")), "exp_delta_eta")
+  # And a relaxed exponential-aft still loses the time ratio, because there the
+  # covariate term fails to cancel for a reason unrelated to the shape.
+  expect_equal(name_of(mk("exponential-aft", model = "relaxed")),
+               "exp_delta_eta")
+})

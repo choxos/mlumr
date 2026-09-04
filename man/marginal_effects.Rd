@@ -33,9 +33,11 @@ scalar name that its contrast actually is, \code{"rmstd"} (RMST difference,
 null 0), and \code{"rmstr"} (RMST ratio, natural scale, null 1). The scalar name
 is \code{"hr"} (marginal hazard ratio, null 1) for a proportional-hazards fit,
 \code{"tr"} (time ratio, null 1) for a shared-shape SPFA accelerated-failure-time
-fit, and \code{"exp_delta_eta"} otherwise, meaning any relaxed AFT fit or an AFT
-fit with \code{aux_by = ".study"}, where the covariate term does not cancel or
-the shapes differ and no constant acceleration factor exists. There are no
+fit, and \code{"exp_delta_eta"} otherwise, meaning any relaxed AFT fit or a
+\strong{shape-bearing} AFT fit with \code{aux_by = ".study"}, where the covariate term
+does not cancel or the shapes differ and no constant acceleration factor
+exists. \code{"exponential-aft"} has no shape parameter, so \code{aux_by = ".study"}
+leaves its baseline unstratified and an SPFA fit keeps \code{"tr"}. There are no
 aliases: \code{"hr"} never returns a time ratio and \code{"tr"} never returns a
 hazard ratio. Requesting a scale the fit cannot supply is an error naming
 the one it can.}

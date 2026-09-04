@@ -10,7 +10,9 @@
   returned a time ratio, and `effect = "tr"` from a proportional-hazards fit
   returned a hazard ratio. Each fit now accepts exactly one scalar name: `"hr"`
   for proportional hazards, `"tr"` for a shared-shape SPFA AFT fit, and
-  `"exp_delta_eta"` for any relaxed AFT fit or one with `aux_by = ".study"`.
+  `"exp_delta_eta"` for any relaxed AFT fit, or a shape-bearing one with
+  `aux_by = ".study"` (`"exponential-aft"` has no shape to stratify, so an SPFA
+  fit keeps `"tr"`).
   Asking for a scale the fit cannot supply is an error naming the one it can.
   `conditional_effects()` already worked this way, so the two APIs no longer
   disagree. Code that relied on the aliasing must name the measure it wants.

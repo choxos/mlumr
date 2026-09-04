@@ -295,8 +295,10 @@ identification-driven. Tightening this prior (for example a smaller
 auxiliary parameter. \code{NULL} (the default) reuses \code{prior_aux}, which is the
 previous behavior. The two auxiliaries control different features of the
 hazard, so they can need different regularization; supply this when one of
-them is poorly identified. Ignored by every other distribution, which has
-at most one auxiliary parameter.}
+them is poorly identified. Every other distribution has at most one
+auxiliary parameter: supplying this for one of them warns and has no
+effect on the fit. It is still checked for well-formedness first, so a
+malformed prior is reported rather than quietly discarded.}
 
 \item{...}{Additional arguments passed to the Stan sampling function
 (\code{\link[rstan:sampling]{rstan::sampling()}} or cmdstanr's \verb{$sample()} method)}
