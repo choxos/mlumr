@@ -294,6 +294,31 @@ grid$seed <- 2026L + seq_len(nrow(grid)) * 7L
 # error anywhere.
 grid$key <- sprintf("%s__%s__rep%04d", grid$family, grid$design, grid$rep)
 
+# A name is not a configuration. `joint_8` can be edited to a different design
+# matrix and keep its key, and reordering `expand.grid()` changes every seed
+# while every key stays put, so a stale checkpoint would still be accepted. Pin
+# the whole generative configuration next to the cells and refuse to reuse them
+# when it differs. `identical()` rather than a hash: this is a handful of small
+# objects, so there is no reason to accept collision risk for brevity.
+CONFIG <- list(
+  designs = DESIGNS, n_rep = N_REP, families = sort(unique(grid$family)),
+  beta_a = BETA_A, beta_b = BETA_B, mu_a = MU_A, mu_b = MU_B,
+  n_ipd = N_IPD, n_cmp = N_CMP, sigma = SIGMA, expo = EXPO, n_int = N_INT,
+  k = K, ref_sd = REF_SD, covs = COVS, link = LINK,
+  seeds = grid$seed[order(grid$key)]
+)
+config_file <- file.path(CELLS, "_config.rds")
+if (file.exists(config_file)) {
+  if (!identical(readRDS(config_file), CONFIG)) {
+    stop("`", CELLS, "` holds checkpoints from a DIFFERENT configuration ",
+         "(the designs, constants, replication count or seeds have changed). ",
+         "Reusing them would assemble one CSV out of two studies. Move or ",
+         "delete that directory to start a clean run.", call. = FALSE)
+  }
+} else {
+  saveRDS(CONFIG, config_file)
+}
+
 cores <- max(1L, min(parallel::detectCores() - 2L, 6L))
 cat("cells:", nrow(grid), " cores:", cores, "\n")
 utils::flush.console()
