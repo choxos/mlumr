@@ -44,9 +44,11 @@
 #'   the link, the covariate distribution, the outcome precision, and this
 #'   prior. A handful of aggregate rows can leave whole coefficient
 #'   directions informed only by the prior while the posterior still looks
-#'   narrow. Use [check_identification()] to see which directions the AgD
-#'   rows actually span, and [prior_sensitivity()] to see how much of the
-#'   posterior width the prior is supplying. The index-population effect
+#'   narrow. [check_identification()] reports the geometry of the aggregate
+#'   rows, exactly for a normal identity-link model and descriptively for a
+#'   nonlinear mean (it does not accept survival fits); [prior_sensitivity()]
+#'   shows how much the posterior moves with the prior scale. Neither is a
+#'   sufficient test on its own. The index-population effect
 #'   additionally averages `beta_comparator` over the IPD covariate
 #'   distribution (an extrapolation, since `beta_comparator` is informed
 #'   only by the AgD likelihood), so its residual width is
@@ -356,7 +358,6 @@ mlumr <- function(data,
                   prior_sigma = default_prior_sigma(),
                   distribution = NULL,
                   prior_aux = NULL,
-                  prior_aux2 = NULL,
                   prior_smooth = NULL,
                   n_knots = 7L,
                   knots = NULL,
@@ -382,6 +383,12 @@ mlumr <- function(data,
                   # passing prior_sigma positionally would have applied it to
                   # the comparator coefficients instead.
                   prior_beta_comparator = NULL,
+                  # Appended for the same reason, and it is the reason: placed
+                  # next to `prior_aux` where it reads better, it rebound every
+                  # positional argument from `prior_smooth` onward, so a call
+                  # passing `n_knots` positionally would have set the smoothing
+                  # prior instead.
+                  prior_aux2 = NULL,
                   ...) {
 
   model <- match.arg(model)
@@ -504,6 +511,17 @@ mlumr <- function(data,
       surv_info$mspline_degree <- requested
     }
     prior_aux <- prior_aux %||% default_prior_aux()
+    # Only the generalized gamma has a second auxiliary parameter. Everywhere
+    # else a supplied `prior_aux2` has nothing to apply to, and defaulting it
+    # silently would let a user believe they had regularized something.
+    if (!is.null(prior_aux2) && (surv_info$n_aux %||% 0L) < 2L) {
+      warning("`prior_aux2` applies to the second auxiliary parameter of ",
+              "`distribution = \"gengamma\"`; `distribution = \"",
+              surv_info$distribution, "\"` has ",
+              if ((surv_info$n_aux %||% 0L) == 0L) "no" else "one",
+              " auxiliary parameter, so it is ignored. Use `prior_aux`.",
+              call. = FALSE)
+    }
     # Falling back to `prior_aux` keeps the previous behavior exactly for every
     # fit that does not name the second auxiliary.
     prior_aux2 <- prior_aux2 %||% prior_aux

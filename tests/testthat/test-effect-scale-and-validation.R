@@ -129,4 +129,106 @@ test_that("prediction times moved onto the fitted grid are reported", {
 
   # The whole-grid default is not a request and is not reported on.
   expect_silent(sel(NULL, grid))
+
+  # A time asked for twice is a duplicate request, not a grid approximation.
+  # Deduplicating it changes the row count but not the answer, so advising a
+  # refit with a grid that already contains that exact time is wrong.
+  msg_of <- function(times) {
+    capture.output(sel(times, grid), type = "message")
+  }
+  expect_message(sel(c(2, 2), grid), "Duplicate prediction time")
+  expect_false(any(grepl("Refit with", msg_of(c(2, 2)))))
+  # Two DISTINCT times landing on one point does lose information, so that case
+  # keeps the refit advice.
+  expect_true(any(grepl("Refit with", msg_of(c(2.1, 2.2)))))
+})
+
+# ---- the mlumr() signature does not rebind positional arguments -------------
+
+test_that("new formals are appended, so positional calls keep their meaning", {
+  # A formal inserted in the middle silently rebinds every argument after it:
+  # `prior_aux2` first landed next to `prior_aux`, which moved `prior_smooth`,
+  # `n_knots` and everything downstream by one position. Pin the prefix so the
+  # next insertion fails here rather than in a user's script.
+  f <- names(formals(mlumr))
+  # This prefix is the released signature, read off the base branch, not a
+  # transcription of whatever the current file happens to say.
+  released <- paste0(
+                     "data model link prior_intercept prior_beta prior_sigma ",
+                     "distribution prior_aux prior_smooth n_knots knots ",
+                     "mspline_degree aux_by pred_times rmst_horizon n_rmst_grid ",
+                     "center qr chains iter")
+  released_prefix <- strsplit(released, " ")[[1]]
+  expect_identical(f[seq_along(released_prefix)], released_prefix)
+  # Arguments added after 0.1.0 live at the end, ahead of `...` only.
+  expect_identical(tail(f, 3), c("prior_beta_comparator", "prior_aux2", "..."))
+})
+
+# ---- prior_sensitivity() quantile column names ------------------------------
+
+test_that("quantile columns are named by percentage and cannot collide", {
+  # `round(100 * probs)` labelled the defaults `q2` / `q98` and mapped 0.024 and
+  # 0.025 both to `q2`, where the second silently overwrote the first.
+  draws <- data.frame(lor_index = stats::qnorm(seq(0.001, 0.999, length.out = 400)),
+                      lor_comparator = stats::qnorm(seq(0.001, 0.999,
+                                                        length.out = 400)))
+  fit <- structure(list(draws = draws, family = "binomial", model = "spfa"),
+                   class = "mlumr_fit")
+  out <- mlumr:::.summarize_sensitivity(fit, scale = 1, probs = c(0.025, 0.5, 0.975))
+  expect_true(all(c("q2.5", "q50", "q97.5") %in% names(out)))
+  expect_false(any(c("q2", "q98") %in% names(out)))
+
+  # Nearby probabilities must stay distinct rather than overwriting each other.
+  out2 <- mlumr:::.summarize_sensitivity(fit, scale = 1, probs = c(0.024, 0.025))
+  expect_true(all(c("q2.4", "q2.5") %in% names(out2)))
+  expect_false(isTRUE(all.equal(out2$q2.4[1], out2$q2.5[1])))
+})
+
+test_that("prior_aux2 warns when the distribution has no second auxiliary", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  # Every survival fit defaulted and validated `prior_aux2`, but only the
+  # generalized gamma has a parameter for it to reach. A Weibull fit accepted a
+  # supplied value, applied it to nothing, and left no trace in prior_summary().
+  set.seed(2026)
+  d <- sim_survival_data(n_ipd = 40, n_agd = 50, n_int = 8)
+  # A short fit emits several sampling warnings, so capture by message rather
+  # than asserting on "the" warning.
+  w <- NULL
+  run <- function() {
+    mlumr(d, distribution = "weibull", prior_aux2 = prior_normal(0, 1),
+          chains = 1, iter = 10, warmup = 5, refresh = 0, seed = 2026,
+          verbose = FALSE)
+  }
+  capture <- function(x) {
+    if (grepl("prior_aux2", conditionMessage(x))) w <<- conditionMessage(x)
+    invokeRestart("muffleWarning")
+  }
+  withCallingHandlers(try(suppressMessages(run()), silent = TRUE),
+                      warning = capture)
+  expect_false(is.null(w))
+  expect_match(w, "gengamma")
+  expect_match(w, "ignored")
+})
+
+# ---- the tie-aggregation precondition rejects an unrecognized shape ---------
+
+test_that("the agd_count guard only passes a genuinely expanded likelihood", {
+  g <- mlumr:::.assert_agd_loglik_per_observation
+  mk <- function(cnt, n_cols) {
+    draws <- as.data.frame(matrix(0, nrow = 2, ncol = n_cols))
+    names(draws) <- paste0("log_lik_agd[", seq_len(n_cols), "]")
+    structure(list(stan_data = list(agd_count = cnt), draws = draws),
+              class = "mlumr_fit")
+  }
+  cnt <- c(2L, 1L, 4L)                     # 3 retained rows, 7 observations
+  # Collapsed: one column per retained row. Fail closed.
+  expect_error(g(mk(cnt, 3L)), "collapsed tied aggregate rows")
+  # Expanded: one column per observation. Pass.
+  expect_true(g(mk(cnt, 7L)))
+  # Anything else is an unrecognized state. It used to be waved through as
+  # "already expanded" purely because the count differed from the row count.
+  expect_error(g(mk(cnt, 5L)), "neither one per")
+  # No multiplicities at all is the ordinary case and stays silent.
+  expect_true(g(mk(rep(1L, 3), 3L)))
 })

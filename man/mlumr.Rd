@@ -13,7 +13,6 @@ mlumr(
   prior_sigma = default_prior_sigma(),
   distribution = NULL,
   prior_aux = NULL,
-  prior_aux2 = NULL,
   prior_smooth = NULL,
   n_knots = 7L,
   knots = NULL,
@@ -34,6 +33,7 @@ mlumr(
   engine = NULL,
   verbose = TRUE,
   prior_beta_comparator = NULL,
+  prior_aux2 = NULL,
   ...
 )
 }
@@ -108,14 +108,6 @@ values three orders of magnitude apart, and a half-normal(0, 2) is
 near-flat on one scale and strongly informative on another. Set it
 explicitly for a Gompertz baseline, and use \code{\link[=prior_sensitivity]{prior_sensitivity()}} or a
 prior-predictive check to see what hazard shapes it implies.}
-
-\item{prior_aux2}{For \code{family = "survival"} with
-\code{distribution = "gengamma"}: prior for the SECOND generalized-gamma
-auxiliary parameter. \code{NULL} (the default) reuses \code{prior_aux}, which is the
-previous behavior. The two auxiliaries control different features of the
-hazard, so they can need different regularization; supply this when one of
-them is poorly identified. Ignored by every other distribution, which has
-at most one auxiliary parameter.}
 
 \item{prior_smooth}{For \code{family = "survival"} flexible baselines
 (\code{"mspline"}/\code{"pexp"}): prior for the random-walk smoothing SD. Default
@@ -286,15 +278,25 @@ depends on the number and geometry of independent aggregate summaries,
 the link, the covariate distribution, the outcome precision, and this
 prior. A handful of aggregate rows can leave whole coefficient
 directions informed only by the prior while the posterior still looks
-narrow. Use \code{\link[=check_identification]{check_identification()}} to see which directions the AgD
-rows actually span, and \code{\link[=prior_sensitivity]{prior_sensitivity()}} to see how much of the
-posterior width the prior is supplying. The index-population effect
+narrow. \code{\link[=check_identification]{check_identification()}} reports the geometry of the aggregate
+rows, exactly for a normal identity-link model and descriptively for a
+nonlinear mean (it does not accept survival fits); \code{\link[=prior_sensitivity]{prior_sensitivity()}}
+shows how much the posterior moves with the prior scale. Neither is a
+sufficient test on its own. The index-population effect
 additionally averages \code{beta_comparator} over the IPD covariate
 distribution (an extrapolation, since \code{beta_comparator} is informed
 only by the AgD likelihood), so its residual width is
 identification-driven. Tightening this prior (for example a smaller
 \code{prior_normal(0, 1)}) regularizes that residual width. Ignored for
 \code{model = "spfa"} (which has a single shared \code{beta}).}
+
+\item{prior_aux2}{For \code{family = "survival"} with
+\code{distribution = "gengamma"}: prior for the SECOND generalized-gamma
+auxiliary parameter. \code{NULL} (the default) reuses \code{prior_aux}, which is the
+previous behavior. The two auxiliaries control different features of the
+hazard, so they can need different regularization; supply this when one of
+them is poorly identified. Ignored by every other distribution, which has
+at most one auxiliary parameter.}
 
 \item{...}{Additional arguments passed to the Stan sampling function
 (\code{\link[rstan:sampling]{rstan::sampling()}} or cmdstanr's \verb{$sample()} method)}

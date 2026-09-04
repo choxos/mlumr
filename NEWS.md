@@ -14,6 +14,21 @@
   Asking for a scale the fit cannot supply is an error naming the one it can.
   `conditional_effects()` already worked this way, so the two APIs no longer
   disagree. Code that relied on the aliasing must name the measure it wants.
+  This applies to `marginal_effects()` on the built-in populations. The
+  `newdata` route is unchanged and still narrower: it offers the hazard ratio
+  for a proportional-hazards fit and no scalar at all for an AFT fit, so a
+  shared-shape SPFA AFT fit answers `effect = "tr"` without `newdata` and
+  refuses it with. That gap predates this change; the error now says so and
+  points at the built-in call, whose value is population-invariant for such a
+  fit and therefore already applies to any target.
+
+* **`prior_sensitivity()` names its quantile columns like the rest of the
+  package.** They were built with `paste0("q", round(100 * probs))`, which
+  labelled the default 2.5th and 97.5th percentiles `q2` and `q98`, and made
+  distinct probabilities collide: `probs = c(0.024, 0.025)` produced `q2` twice
+  and the second silently overwrote the first. The columns are now `q2.5`,
+  `q50`, `q97.5`, matching `marginal_effects()`, so the two can be joined by
+  name. Code reading `q2` or `q98` must be updated.
 
 * **The native logit-normal parameterization validates `mu` and `sigma`.** Only
   the moment (`mean` / `sd`) parameterization was checked. A `sigma` of zero
@@ -26,12 +41,17 @@
   with the wrong parameter.
 
 * **Requested survival prediction times report when they are snapped.**
-  `predict(..., times = )` selects the nearest fitted grid time, which is
-  unavoidable, but said nothing: a 12-month policy horizon could be reported at
+  `predict(..., times = )` selects the nearest fitted grid time and said
+  nothing about it: a 12-month policy horizon could be reported at
   11.8 months, and two requested times landing on one grid point silently
   produced one row instead of two. Both now emit a message naming the requested
-  and the used times, and point at `pred_times` for exact evaluation. The
-  returned values are unchanged.
+  and the used times, and point at `pred_times` for exact evaluation. A repeated
+  request for the same time is reported as a duplicate rather than as an
+  approximation. The returned values are unchanged. Snapping itself remains: it
+  is a property of this implementation, not a necessity, since the parametric
+  distributions have closed forms at any positive time and the flexible bases
+  can be evaluated anywhere inside their support. Evaluating requested times
+  directly is still to do.
 
 * **`prior_sensitivity()` no longer claims a scale sweep proves the inference is
   data-driven.** Constant summaries across the tested scales show insensitivity
@@ -336,10 +356,15 @@
   can need different regularization; both previously took whatever `prior_aux`
   specified. `NULL` (the default) reuses `prior_aux`, so existing fits are
   unchanged, and `prior_summary()` shows the two separately when they can
-  differ. `prior_aux`'s documentation now also records that one default is
-  reused across auxiliary parameters that do not share a scale: the Gompertz
-  shape has units of 1 / time, so the same trial expressed in days rather than
-  years gives a half-normal(0, 2) an entirely different meaning.
+  differ, naming them as the generalized-gamma `sigma` and `k = 1 / Q^2` for the
+  Lawless shape `Q` rather than as anonymous auxiliaries. Supplying it for a
+  distribution with fewer than two auxiliary parameters warns rather than being
+  silently ignored, and `prior_sensitivity()` refuses to vary it mid-sweep like
+  every other scenario-defining argument. `prior_aux`'s documentation now also
+  records that one default is reused across auxiliary parameters that do not
+  share a scale: the Gompertz shape has units of 1 / time, so the same trial
+  expressed in days rather than years gives a half-normal(0, 2) an entirely
+  different meaning.
 
 * **New `"survival"` outcome family for data setup.** `set_ipd()` accepts
   time-to-event data, and **`set_agd_surv()`** takes the comparator arm as

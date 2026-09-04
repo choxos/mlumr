@@ -35,9 +35,38 @@ test_that(".Rbuildignore keeps the files the source package must contain", {
     "vignettes/binary-outcomes.html.asis"
   )
   for (path in must_ship) {
+    # Existence AND non-exclusion. Checking only the regex made a DELETED file
+    # pass, because a file that is not there is also not excluded, which is the
+    # opposite of what this test is for.
+    full <- testthat::test_path("..", "..", path)
+    expect_true(file.exists(full),
+                label = paste0("'", path, "' is missing from the source tree"))
     expect_false(.excluded_by_buildignore(path, patterns),
                  label = paste0("`.Rbuildignore` excludes '", path, "'"))
   }
+})
+
+test_that("the dotfiles R reads out of the tarball are not caught by the catch-all", {
+  # `.Rinstignore` and `.install_extras` only take effect if they SHIP. Neither
+  # exists yet, so this asserts the property that matters when one is added:
+  # that adding it is not silently undone by `^\.[^/]+$`. It fails the moment
+  # someone creates one without exempting it.
+  ignore_file <- testthat::test_path("..", "..", ".Rbuildignore")
+  skip_if_not(file.exists(ignore_file),
+              "run from a source checkout, not an installed package")
+  patterns <- readLines(ignore_file, warn = FALSE)
+  patterns <- patterns[nzchar(trimws(patterns))]
+  for (path in c(".Rinstignore", ".install_extras")) {
+    if (!file.exists(testthat::test_path("..", "..", path))) next
+    expect_false(.excluded_by_buildignore(path, patterns),
+                 label = paste0("'", path, "' exists but would not ship"))
+  }
+  # The catch-all is what would swallow them, so record that it is still there:
+  # if it goes away the exemption is unnecessary, and if it stays the check above
+  # is the one that matters.
+  expect_true(any(grepl("^\\^\\\\\\.\\[\\^/\\]\\+\\$$", patterns)) ||
+                any(patterns == "^\\.[^/]+$"),
+              label = "the top-level dotfile catch-all is still present")
 })
 
 test_that("the dotfile catch-all is the reason dotfiles are excluded", {

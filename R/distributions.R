@@ -226,7 +226,15 @@ dlogitnorm <- function(x, mu = 0, sigma = 1, log = FALSE, ..., mean, sd) {
   mu_v <- rep_len(mu_v, n)
   sigma_v <- rep_len(sigma_v, n)
 
-  is_log <- isTRUE(log)
+  # `isTRUE()` quietly maps NA, `1`, and a length-two logical to FALSE, so
+  # `dlogitnorm(x, log = 1)` returned the natural-scale density where
+  # stats::dnorm(x, log = 1) returns the log. Coerce as the stats functions do
+  # and reject what cannot be one flag.
+  if (length(log) != 1L || is.na(as.logical(log))) {
+    stop("`log` must be a single non-missing value coercible to TRUE or FALSE.",
+         call. = FALSE)
+  }
+  is_log <- as.logical(log)
   out <- rep(if (is_log) -Inf else 0, n)
   # An unusable parameter is not a point outside the support: the density is
   # unknown there, not zero. dlogitnorm(0, mu = NA) used to return 0.

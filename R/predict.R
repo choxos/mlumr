@@ -204,8 +204,22 @@ predict.mlumr_fit <- function(object,
 .warn_snapped_prediction_times <- function(requested, used) {
   # Relative, because a 0.2 gap means something different at t = 1 and t = 500.
   moved <- abs(used - requested) > 1e-8 * pmax(1, abs(requested))
-  collapsed <- length(unique(used)) < length(used)
-  if (!any(moved) && !collapsed) return(invisible(NULL))
+  # Two DISTINCT requested times landing on one grid point loses information and
+  # is worth the refit advice. The same time asked for twice is a duplicate
+  # request: deduplicating it changes the row count but not the answer, and
+  # telling the user to refit with a grid that already contains that time would
+  # be wrong. Separate the two rather than counting rows.
+  n_distinct_requested <- length(unique(requested))
+  distinct_collapse <- length(unique(used)) < n_distinct_requested
+  duplicated_request <- n_distinct_requested < length(requested)
+  if (!any(moved) && !distinct_collapse) {
+    if (duplicated_request) {
+      message(sprintf(paste0("Duplicate prediction time(s) requested; the ",
+                             "result has %d time row(s) rather than %d."),
+                      length(unique(used)), length(used)))
+    }
+    return(invisible(NULL))
+  }
   parts <- character(0)
   if (any(moved)) {
     show <- which(moved)
@@ -221,11 +235,11 @@ predict.mlumr_fit <- function(object,
                paste0("Requested prediction time(s) were moved to the nearest ",
                       "fitted grid time: ", moves, more, "."))
   }
-  if (collapsed) {
+  if (distinct_collapse) {
     parts <- c(parts,
-               sprintf(paste0("%d requested time(s) share a grid point, so the ",
-                              "result has %d time row(s) rather than %d."),
-                       length(used), length(unique(used)), length(used)))
+               sprintf(paste0("Distinct requested time(s) share a grid point, ",
+                              "so the result has %d time row(s) rather than %d."),
+                       length(unique(used)), n_distinct_requested))
   }
   message(paste(c(parts,
                   paste0("Refit with `pred_times` containing the exact times ",
@@ -1534,16 +1548,28 @@ marginal_effects <- function(object,
   # off the fitted grid.
   stratified <- .aux_shapes_differ(object)
   # Literal selector, matching the built-in route: a PH fit supplies a hazard
-  # ratio and only `"hr"` names it. An AFT fit has no transported scalar
-  # contrast on this route at all, so only the collapsible RMST effects are
-  # offered rather than a time ratio that is not computed here.
+  # ratio and only `"hr"` names it.
+  #
+  # An AFT fit has no transported scalar contrast on this route at all, which is
+  # a NARROWER set than the built-in route offers rather than the same rule: a
+  # shared-shape SPFA AFT fit answers `effect = "tr"` without `newdata` and
+  # refuses it here, and `effect = "all"` correspondingly returns RMST effects
+  # only. The asymmetry predates the literal selector and is a gap, not a
+  # statement that the quantity does not exist; for a shared-shape SPFA fit the
+  # covariate term cancels, so the time ratio is population-invariant and the
+  # built-in value already applies to any target. The error below says so
+  # instead of leaving the caller to infer it.
   valid_effects <- if (is_ph) c("all", "hr", "rmstd", "rmstr") else
     c("all", "rmstd", "rmstr")
   if (!effect %in% valid_effects) {
     scale_note <- if (!is_ph && effect %in% c("hr", "tr", "exp_delta_eta")) {
       paste0(" This fit uses an accelerated-failure-time distribution, whose",
-             " scalar contrast is not standardized to a `newdata` target;",
-             " RMST effects are directly collapsible and are.")
+             " scalar contrast is not standardized to a `newdata` target here;",
+             " RMST effects are directly collapsible and are. Call",
+             " marginal_effects() without `newdata` for the scalar contrast",
+             " itself: for a shared-shape SPFA fit the covariate term cancels,",
+             " so that time ratio is population-invariant and already applies",
+             " to this target.")
     } else if (is_ph && effect %in% c("tr", "exp_delta_eta")) {
       paste0(" This fit uses a proportional-hazards distribution, so its scalar",
              " contrast is a hazard ratio (`effect = \"hr\"`), not a time ratio",

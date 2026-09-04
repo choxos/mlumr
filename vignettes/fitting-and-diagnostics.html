@@ -740,7 +740,7 @@ identified by the IPD and the sweep is expected to be flat:</p>
 <span id="cb13-33"><a href="#cb13-33" tabindex="-1"></a><span class="co">#&gt; Prior sensitivity: posterior of marginal treatment effects</span></span>
 <span id="cb13-34"><a href="#cb13-34" tabindex="-1"></a><span class="co">#&gt; =========================================================</span></span>
 <span id="cb13-35"><a href="#cb13-35" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb13-36"><a href="#cb13-36" tabindex="-1"></a><span class="co">#&gt;  scale      parameter effect      mean        sd         q2       q50       q98</span></span>
+<span id="cb13-36"><a href="#cb13-36" tabindex="-1"></a><span class="co">#&gt;  scale      parameter effect      mean        sd       q2.5       q50     q97.5</span></span>
 <span id="cb13-37"><a href="#cb13-37" tabindex="-1"></a><span class="co">#&gt;    1.0      lor_index    LOR 0.2450842 0.2042432 -0.1572848 0.2449714 0.6380143</span></span>
 <span id="cb13-38"><a href="#cb13-38" tabindex="-1"></a><span class="co">#&gt;    1.0 lor_comparator    LOR 0.2459477 0.2050747 -0.1581046 0.2454590 0.6396459</span></span>
 <span id="cb13-39"><a href="#cb13-39" tabindex="-1"></a><span class="co">#&gt;    2.5      lor_index    LOR 0.2537767 0.2053081 -0.1526689 0.2538476 0.6555978</span></span>
@@ -748,8 +748,14 @@ identified by the IPD and the sweep is expected to be flat:</p>
 <span id="cb13-41"><a href="#cb13-41" tabindex="-1"></a><span class="co">#&gt;    5.0      lor_index    LOR 0.2481648 0.2012573 -0.1446230 0.2465931 0.6394745</span></span>
 <span id="cb13-42"><a href="#cb13-42" tabindex="-1"></a><span class="co">#&gt;    5.0 lor_comparator    LOR 0.2490404 0.2020809 -0.1439587 0.2471842 0.6418033</span></span>
 <span id="cb13-43"><a href="#cb13-43" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb13-44"><a href="#cb13-44" tabindex="-1"></a><span class="co">#&gt; Interpretation: if posterior summaries are approximately constant</span></span>
-<span id="cb13-45"><a href="#cb13-45" tabindex="-1"></a><span class="co">#&gt; across scales, the inference is data-driven rather than prior-driven.</span></span></code></pre></div>
+<span id="cb13-44"><a href="#cb13-44" tabindex="-1"></a><span class="co">#&gt; Interpretation: approximately constant summaries show the posterior</span></span>
+<span id="cb13-45"><a href="#cb13-45" tabindex="-1"></a><span class="co">#&gt; is insensitive to the beta-prior SCALES tested here. That is not the</span></span>
+<span id="cb13-46"><a href="#cb13-46" tabindex="-1"></a><span class="co">#&gt; same as the inference being data-driven: identification also depends</span></span>
+<span id="cb13-47"><a href="#cb13-47" tabindex="-1"></a><span class="co">#&gt; on the prior family and location, the comparator-specific and</span></span>
+<span id="cb13-48"><a href="#cb13-48" tabindex="-1"></a><span class="co">#&gt; auxiliary priors, and the model structure. Vary those too. For a</span></span>
+<span id="cb13-49"><a href="#cb13-49" tabindex="-1"></a><span class="co">#&gt; non-survival fit, check_identification() adds the geometry of the</span></span>
+<span id="cb13-50"><a href="#cb13-50" tabindex="-1"></a><span class="co">#&gt; aggregate rows: exact for a normal identity-link model, descriptive</span></span>
+<span id="cb13-51"><a href="#cb13-51" tabindex="-1"></a><span class="co">#&gt; otherwise.</span></span></code></pre></div>
 <p>The case that motivates the check is the relaxed model, whose
 comparator coefficients are informed only through the aggregate
 likelihood and can therefore be prior-sensitive. For a relaxed binomial,

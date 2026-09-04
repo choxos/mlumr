@@ -61,10 +61,12 @@
 #'
 #' @return A data frame with one row per (prior scale, summarized parameter)
 #'   pair, and columns `scale`, `scale_comparator` (dropped when the model has
-#'   no comparator coefficient prior), `parameter`, `effect`, `at_time`,
+#'   no comparator coefficient prior), `parameter`, `effect`, `at_time` (present
+#'   only when the summarized effect has an evaluation time, so absent for every
+#'   non-survival family and for survival scalars that carry none),
 #'   `mean`, `sd`, and one column per requested quantile, named `q` followed by
-#'   the rounded percentage (the default `probs` give `q2`, `q50`, `q98`).
-#'   Quantiles are columns, not a row dimension.
+#'   the percentage (the default `probs` give `q2.5`, `q50`, `q97.5`), matching
+#'   [marginal_effects()]. Quantiles are columns, not a row dimension.
 #'   Side effect: prints a summary table at the end.
 #' @seealso [prior_summary()] for a one-shot description of the priors on
 #'   a fit; [marginal_effects()] for the posterior summary quantities this
@@ -150,9 +152,9 @@ prior_sensitivity <- function(fit,
     # movement in the output could no longer be attributed to the prior.
     protected <- c("data", "model", "link", "distribution", "prior_beta",
                    "prior_beta_comparator", "prior_intercept", "prior_sigma",
-                   "prior_aux", "prior_smooth", "center", "qr", "n_knots",
-                   "knots", "mspline_degree", "pred_times", "rmst_horizon",
-                   "n_rmst_grid", "aux_by")
+                   "prior_aux", "prior_aux2", "prior_smooth", "center", "qr",
+                   "n_knots", "knots", "mspline_degree", "pred_times",
+                   "rmst_horizon", "n_rmst_grid", "aux_by")
     clash <- intersect(names(dots), protected)
     if (length(clash)) {
       msg <- paste0(
@@ -246,9 +248,10 @@ prior_sensitivity <- function(fit,
     cat("is insensitive to the beta-prior SCALES tested here. That is not the\n")
     cat("same as the inference being data-driven: identification also depends\n")
     cat("on the prior family and location, the comparator-specific and\n")
-    cat("auxiliary priors, and the model structure. Vary those too, and use\n")
-    cat("check_identification() to see which coefficient directions the AgD\n")
-    cat("rows actually inform.\n")
+    cat("auxiliary priors, and the model structure. Vary those too. For a\n")
+    cat("non-survival fit, check_identification() adds the geometry of the\n")
+    cat("aggregate rows: exact for a normal identity-link model, descriptive\n")
+    cat("otherwise.\n")
   }
 
   invisible(out)
@@ -397,7 +400,12 @@ prior_sensitivity <- function(fit,
     eff_at_time <- NA_real_
   }
 
-  qnames <- paste0("q", round(100 * probs))
+  # `round()` here both mislabeled the defaults (2.5 and 97.5 became `q2` and
+  # `q98`) and could collide: probs 0.024 and 0.025 both produced `q2`, and the
+  # assignment below then overwrote the first quantile with the second without a
+  # word. Name them the way the rest of the package does, so a caller can bind
+  # prior_sensitivity() output to marginal_effects() output by column name.
+  qnames <- paste0("q", probs * 100)
 
   rows <- lapply(effect_names, function(nm) {
     x <- draws[, nm]

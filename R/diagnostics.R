@@ -25,7 +25,17 @@
   draws <- object$draws
   if (is.null(draws) || is.null(colnames(draws))) return(invisible(TRUE))
   n_cols <- length(.ordered_log_lik_columns(draws, "agd"))
-  if (n_cols != length(cnt)) return(invisible(TRUE))   # already expanded
+  # Only ONE column count means the multiplicities were expanded: one column per
+  # observation, `sum(cnt)`. Treating every count that merely differs from
+  # `length(cnt)` as expanded passed any other shape too, which is the state
+  # this guard exists to catch rather than wave through.
+  if (n_cols == sum(cnt)) return(invisible(TRUE))
+  if (n_cols != length(cnt)) {
+    stop("`log_lik_agd` has ", n_cols, " column(s), which is neither one per ",
+         "retained AgD row (", length(cnt), ") nor one per observation (",
+         sum(cnt), "). LOO, WAIC, and DIC cannot align the pointwise ",
+         "likelihood with the arm map in that state.", call. = FALSE)
+  }
   stop("This fit collapsed tied aggregate rows (`stan_data$agd_count` has ",
        "multiplicities above one), so `log_lik_agd` holds one value per ",
        "UNIQUE row rather than one per observation. LOO, WAIC, and DIC would ",

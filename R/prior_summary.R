@@ -99,7 +99,7 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
     label <- if (is.null(priors$aux2)) {
       "Survival auxiliary (shape / scale, half-distribution via <lower=0>):"
     } else {
-      "Survival auxiliary 1 (shape / scale, half-distribution via <lower=0>):"
+      "Survival auxiliary 1 (gengamma sigma, half-distribution via <lower=0>):"
     }
     cat(label, "\n", sep = "")
     cat("  ", .format_prior(priors$aux, digits = digits), "\n", sep = "")
@@ -109,7 +109,8 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
   # Generalized gamma only. Shown separately because the two auxiliaries govern
   # different features of the hazard and can now carry different priors.
   if (!is.null(priors$aux2)) {
-    cat("Survival auxiliary 2 (generalized gamma, half-distribution via <lower=0>):\n")
+    cat("Survival auxiliary 2 (gengamma k = 1 / Q^2, where Q is the Lawless\n")
+    cat("  shape; half-distribution via <lower=0>):\n")
     cat("  ", .format_prior(priors$aux2, digits = digits), "\n", sep = "")
     .print_default_tag(priors$aux2)
     cat("\n")
