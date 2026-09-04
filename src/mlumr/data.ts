@@ -54,7 +54,7 @@ function standardizeIpd(row: RawRow, family: Family, mapping: ColumnMapping): St
 
   if (family === "poisson") {
     if (!mapping.exposure) throw new Error("Poisson IPD requires an exposure column.");
-    out.exposure = positiveNumeric(row, mapping.exposure);
+    out.exposure = minPositiveNumeric(row, mapping.exposure);
   }
 
   return out;
@@ -105,13 +105,17 @@ function standardizeAgd(row: RawRow, family: Family, mapping: ColumnMapping): St
       throw new Error("Normal AgD requires mean and standard-error columns.");
     }
     out.y = numeric(row, mapping.agdMean);
-    out.se = positiveNumeric(row, mapping.agdSe);
+    out.se = minPositiveNumeric(row, mapping.agdSe);
+    // Optional group size. The normal models weight the comparator estimand by
+    // it (Stan `agd_weight`), so it matters once the comparator is split across
+    // several rows; a single row is unaffected by any positive weight.
+    if (mapping.agdTotal) out.n = integerCount(row, mapping.agdTotal, 1);
   } else {
     if (!mapping.agdEvents || !mapping.agdExposure) {
       throw new Error("Poisson AgD requires event and exposure columns.");
     }
     out.r = integerCount(row, mapping.agdEvents);
-    out.exposure = positiveNumeric(row, mapping.agdExposure);
+    out.exposure = minPositiveNumeric(row, mapping.agdExposure);
   }
 
   return out;
@@ -148,6 +152,33 @@ export function numeric(row: RawRow, column: string): number {
 export function positiveNumeric(row: RawRow, column: string): number {
   const value = numeric(row, column);
   if (value <= 0) throw new Error(`Column '${column}' must contain positive numeric values.`);
+  return value;
+}
+
+/**
+ * The smallest value the Stan models accept where a quantity is declared
+ * `<lower=1e-12>`: the normal standard errors and the Poisson exposures.
+ * Mirrors `.mlumr_min_positive` in R/utils.R.
+ */
+export const MIN_POSITIVE = 1e-12;
+
+/**
+ * A strictly positive value that Stan will also accept.
+ *
+ * `se_agd`, `E_ipd` and `E_agd` are declared `<lower=1e-12>` rather than
+ * `<lower=0>`, so a value such as 1e-15 passes a plain positivity test and is
+ * then rejected inside the sampler, where the only report is a data-read
+ * failure naming the Stan variable. Checking here fails on the column the user
+ * chose instead. Mirrors the `outcome_se` / `outcome_E` / `exposure` checks in
+ * R/data_setup.R.
+ */
+export function minPositiveNumeric(row: RawRow, column: string): number {
+  const value = numeric(row, column);
+  if (!(value >= MIN_POSITIVE)) {
+    throw new Error(
+      `Column '${column}' must contain positive values of at least ${MIN_POSITIVE}.`
+    );
+  }
   return value;
 }
 

@@ -184,6 +184,14 @@ function addNormalData(stanData: StanData, data: MlumrData, priorSigma?: PriorSp
   stanData.y_ipd = data.ipd.map((row) => row.outcome);
   stanData.y_agd = data.agd.map((row) => requireNumber(row.y, "y_agd"));
   stanData.se_agd = data.agd.map((row) => requireNumber(row.se, "se_agd"));
+  // Target-population weights for the comparator estimand: sample sizes when
+  // every AgD row supplies one, so splitting a comparator population into
+  // subgroup rows does not move the standardized effect, and equal weights
+  // otherwise. These are mixing weights and are separate from the likelihood's
+  // 1/se^2 precision weighting. Mirrors R/mlumr.R.
+  const agdN = data.agd.map((row) => row.n);
+  const usableN = agdN.every((value) => Number.isFinite(value) && (value as number) > 0);
+  stanData.agd_weight = usableN ? agdN.map((value) => value as number) : data.agd.map(() => 1);
   stanData.prior_sigma_location = sigmaFields.mean;
   stanData.prior_sigma_scale = sigmaFields.sd;
   stanData.prior_sigma_dist = sigmaFields.dist;
@@ -285,6 +293,13 @@ function addSurvivalData(
 
   // Common fields shared by parametric and flexible models
   stanData.n_agd = data.agd.length;
+  // Number of baseline strata. The browser app fits one shared baseline across
+  // the two studies, which is the package's `aux_by = "none"`. The package
+  // DEFAULT is `aux_by = NULL`, meaning n_strata = 2, a separate baseline per
+  // study; that needs per-study knots and bases, which this prototype does not
+  // build. Stan constrains this to 1 or 2 and indexes the comparator by it, so
+  // with 1 the index and comparator views are the same parameter.
+  stanData.n_strata = 1;
   stanData.agd_status = agdStatus;
   stanData.agd_arm = agdArm;
   stanData.ipd_status = ipdStatus;
@@ -344,14 +359,24 @@ function addSurvivalData(
     stanData.ib_agd_start = evalBasis(basisSpec, agdStartTime, true);
     stanData.ib_agd_delay = evalBasis(basisSpec, agdDelayTime, true);
 
-    // Prediction basis matrices
+    // Prediction basis matrices. Stan evaluates the prediction and RMST grids on
+    // both strata's bases; with one shared baseline (n_strata = 1) the
+    // comparator basis IS the index basis, and the `_cmp` copies make that
+    // explicit rather than leaving the variables undeclared, which is a
+    // data-read failure inside the sampler.
     stanData.pred_basis = evalBasis(basisSpec, predTimes, false);
     stanData.pred_ibasis = evalBasis(basisSpec, predTimes, true);
     stanData.rmst_ibasis = evalBasis(basisSpec, rmstGridTimes, true);
+    stanData.pred_basis_cmp = stanData.pred_basis;
+    stanData.pred_ibasis_cmp = stanData.pred_ibasis;
+    stanData.rmst_ibasis_cmp = stanData.rmst_ibasis;
 
-    // RW1 prior anchor and weights
-    stanData.lscoef_prior_mean = msplineConstantHazard(basisSpec);
-    stanData.lscoef_weights = rw1PriorWeights(basisSpec);
+    // RW1 prior anchor and weights. Stan declares both as
+    // `matrix[n_scoef - 1, n_strata]`, one column per stratum, so each flat
+    // vector becomes a single-column matrix. Sent flat they are read as a
+    // vector and rejected.
+    stanData.lscoef_prior_mean = asColumnMatrix(msplineConstantHazard(basisSpec));
+    stanData.lscoef_weights = asColumnMatrix(rw1PriorWeights(basisSpec));
 
     // Smoothing prior
     const smooth = priorFields(priors.priorSmooth ?? defaultPriorSmooth());
@@ -360,6 +385,14 @@ function addSurvivalData(
     stanData.prior_sigma_smooth_dist = smooth.dist;
     stanData.prior_sigma_smooth_df = smooth.df;
   }
+}
+
+/**
+ * Turn a per-coefficient vector into the one-column matrix Stan declares for a
+ * single baseline stratum.
+ */
+function asColumnMatrix(values: number[]): number[][] {
+  return values.map((value) => [value]);
 }
 
 /**

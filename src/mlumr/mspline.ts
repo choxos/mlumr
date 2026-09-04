@@ -1,4 +1,5 @@
-// Validated against R splines2 mSpline/iSpline; see /tmp/mspline_ref.txt
+// Validated against R splines2 mSpline/iSpline; see
+// src/test/fixtures/mspline-reference.txt and the R script beside it.
 //
 // Implements M-spline and I-spline (integrated M-spline) bases using the
 // Ramsay (1988) recursion with intercept=TRUE (i.e. the first basis function
@@ -120,16 +121,21 @@ export function evalBasis(
     });
   }
 
-  // For the integral (I-spline) we need boundary M-spline values for the
-  // left-tail extrapolation (0 < t < lo -> t * M(lo)), and the saturated
-  // I(upper) row for the right clamp (t >= upper -> all ones).
-  // At t <= 0 we return zeros. For lo <= t <= upper we evaluate exactly.
-  // For t > upper we clamp to I(upper) = [1,...,1]: each I_j integrates
-  // its M-spline to exactly 1 over [lo, upper], so the basis is saturated
-  // and returning values above 1 is both mathematically wrong and inconsistent
-  // with splines2's behaviour (it evaluates at clamped times, matching the
-  // reference file at t=14 -> same as t=12 -> all ones).
+  // For the integral we need the boundary M-spline values at both ends: the
+  // left tail is a constant hazard M(lo) accumulated from zero, and the right
+  // tail is a constant hazard M(hi) accumulated past the upper knot.
+  //
+  // Past the upper knot the value keeps growing; it is not clamped to I(hi).
+  // These columns are the CUMULATIVE HAZARD basis, not a distribution
+  // function, so there is no saturation at one to respect: the package
+  // extrapolates the baseline as a constant hazard beyond the last knot
+  // (R/mspline.R, `basis[after_upper, ] + (times - upper) * upper_haz`), and
+  // Stan consumes these as `ib_*`. Clamping held the cumulative hazard fixed
+  // after the last observed time, which is a survival curve that stops
+  // falling: any prediction or RMST horizon beyond follow-up read flat here
+  // while the package reported a decaying curve.
   const mAtLower = evalMsplineRow(spec, lo);
+  const mAtUpper = evalMsplineRow(spec, hi);
   const iAtUpper = evalIsplineRow(spec, hi);
 
   return times.map((t) => {
@@ -139,8 +145,8 @@ export function evalBasis(
     if (t < lo) {
       return mAtLower.map((m) => t * m);
     }
-    if (t >= hi) {
-      return iAtUpper.slice();
+    if (t > hi) {
+      return iAtUpper.map((i, j) => i + (t - hi) * mAtUpper[j]);
     }
     return evalIsplineRow(spec, t);
   });
