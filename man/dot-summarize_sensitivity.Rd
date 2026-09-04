@@ -2,11 +2,11 @@
 % Please edit documentation in R/prior_sensitivity.R
 \name{.summarize_sensitivity}
 \alias{.summarize_sensitivity}
-\title{Summarize a sensitivity refit.}
+\title{Summarize a sensitivity refit}
 \usage{
-.summarize_sensitivity(fit, scale, probs)
+.summarize_sensitivity(fit, scale, scale_comparator = NA_real_, probs)
 }
 \description{
-Summarize a sensitivity refit.
+Summarize a sensitivity refit
 }
 \keyword{internal}

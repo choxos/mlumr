@@ -1,3 +1,5 @@
+
+
 #' @method print mlumr_fit
 #' @export
 print.mlumr_fit <- function(x, ...) {
@@ -11,6 +13,9 @@ print.mlumr_fit <- function(x, ...) {
     poisson  = "Count (Poisson)",
     survival = "Time-to-event"
   )
+  if (family == "survival" && !is.null(x$distribution)) {
+    family_label <- sprintf("%s [%s]", family_label, x$distribution)
+  }
 
   model_label <- if (x$model == "spfa") {
     "SPFA (Shared Prognostic Factors)"
@@ -18,7 +23,9 @@ print.mlumr_fit <- function(x, ...) {
     "Relaxed SPFA (Treatment-specific effects)"
   }
 
-  link_label <- x$link %||% switch(family, binomial = "logit", normal = "identity", poisson = "log")
+  link_label <- x$link %||% switch(family, binomial = "logit",
+                                   normal = "identity", poisson = "log",
+                                   survival = "log")
 
   cat("Model:", model_label, "\n")
   cat("Family:", family_label, "\n")
@@ -47,9 +54,15 @@ print.mlumr_fit <- function(x, ...) {
   } else if (family == "normal") {
     params <- c("mu_index", "mu_comparator", "sigma",
                 "delta_index", "delta_comparator")
-  } else {
+  } else if (family == "poisson") {
     params <- c("mu_index", "mu_comparator",
                 "delta_index", "delta_comparator")
+  } else {
+    # aux_val_cmp / sigma_smooth[2] only exist when aux_by = ".study"; the
+    # match below is on exact names, so listing them is harmless otherwise.
+    params <- c("mu_index", "mu_comparator", "aux_val", "aux_val_cmp",
+                "sigma_smooth", "sigma_smooth[1]", "sigma_smooth[2]",
+                "delta_conditional", "delta_index", "delta_comparator")
   }
 
   idx <- x$summary$variable %in% params
@@ -57,6 +70,38 @@ print.mlumr_fit <- function(x, ...) {
     cat("Key Parameters:\n")
     sub_df <- x$summary[idx, c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")]
     print(sub_df, row.names = FALSE)
+    # `delta_conditional` is mu_index - mu_comparator, which is eta_index(x) -
+    # eta_comparator(x) evaluated at x = 0. Two separate conditions matter and
+    # were previously conflated. A SHARED baseline shape is what makes it a
+    # conditional log hazard / time ratio at all, and it is then that contrast
+    # at the reference profile, whether or not the coefficients are shared.
+    # SHARED coefficients are what make it constant across covariate profiles.
+    # With study-specific shapes neither holds: the baseline ratio does not
+    # cancel, and with per-study M-spline bases each intercept is additionally
+    # tied to its own basis normalization.
+    if ("delta_conditional" %in% x$summary$variable[idx]) {
+      differs <- .aux_shapes_differ(x)
+      relaxed <- identical(x$model %||% "spfa", "relaxed")
+      # `center = TRUE` (the default) shifts the design to the pooled covariate
+      # mean, so the reference profile is that mean rather than raw zero.
+      ref <- if (isTRUE(x$model_controls$center %||% TRUE)) {
+        "the pooled covariate mean"
+      } else {
+        "x = 0"
+      }
+      if (differs) {
+        cat("   (delta_conditional is mu_index - mu_comparator. With",
+            " study-specific\n    baseline shapes the baseline ratio does not",
+            " cancel, so this is an\n    intercept contrast under this fit's",
+            " normalization, not a conditional\n    hazard or time ratio. Use",
+            " marginal_effects() for the treatment effect.)\n", sep = "")
+      } else if (relaxed) {
+        cat("   (delta_conditional is the conditional log effect at ", ref,
+            ".\n    The coefficients are treatment-specific, so it varies with",
+            " the\n    covariates and is not one number for the population.)\n",
+            sep = "")
+      }
+    }
   }
 
   cat("\nUse summary() for full results\n")
@@ -79,8 +124,13 @@ summary.mlumr_fit <- function(object, ...) {
     poisson  = "Count (Poisson)",
     survival = "Time-to-event"
   )
+  if (family == "survival" && !is.null(object$distribution)) {
+    family_label <- sprintf("%s [%s]", family_label, object$distribution)
+  }
 
-  link_label <- object$link %||% switch(family, binomial = "logit", normal = "identity", poisson = "log")
+  link_label <- object$link %||% switch(family, binomial = "logit",
+                                        normal = "identity", poisson = "log",
+                                        survival = "log")
 
   cat("Model:", model_label, "\n")
   cat("Family:", family_label, "\n")
@@ -91,13 +141,26 @@ summary.mlumr_fit <- function(object, ...) {
 
   # Diagnostics
   cat("MCMC Diagnostics:\n")
+  n_req <- object$diagnostics$n_chains_requested
+  n_got <- object$diagnostics$n_chains_returned
+  if (!is.null(n_req) && !is.null(n_got) && isTRUE(n_got < n_req)) {
+    cat(sprintf("  Chains: %d of %d returned (INCOMPLETE, see warnings)\n",
+                n_got, n_req))
+  } else if (!is.null(n_req) && (is.null(n_got) || any(is.na(n_got)))) {
+    cat(sprintf("  Chains: %d requested, layout UNKNOWN (see warnings)\n",
+                n_req))
+  }
   cat("  Divergent transitions:", object$diagnostics$n_divergent, "\n")
   cat("  Max treedepth hits:", object$diagnostics$n_max_treedepth, "\n")
   if (!is.null(object$summary$Rhat)) {
-    cat("  Max Rhat:", round(max(object$summary$Rhat, na.rm = TRUE), 3), "\n")
+    finite_rhat <- object$summary$Rhat[is.finite(object$summary$Rhat)]
+    cat("  Max Rhat:",
+        if (length(finite_rhat)) round(max(finite_rhat), 3) else "unavailable", "\n")
   }
   if (!is.null(object$summary$n_eff)) {
-    cat("  Min ESS:", round(min(object$summary$n_eff, na.rm = TRUE), 0), "\n")
+    finite_ess <- object$summary$n_eff[is.finite(object$summary$n_eff)]
+    cat("  Min ESS:",
+        if (length(finite_ess)) round(min(finite_ess), 0) else "unavailable", "\n")
   }
   cat("\n")
 
@@ -132,6 +195,41 @@ summary.mlumr_fit <- function(object, ...) {
     beta_df <- object$summary[beta_idx,
                               c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")]
     print(.label_beta_rows(beta_df, object$data$covariates), row.names = FALSE)
+
+  }
+
+  # Shape / smoothing parameters (survival)
+  if (family == "survival") {
+    # Say which baseline structure produced these numbers: a stratified baseline
+    # makes the hazard ratio time-varying, which changes how delta_* reads.
+    n_strata <- object$stan_data$n_strata %||% 1L
+    differs <- .aux_shapes_differ(object)
+    cat("\nBaseline hazard: ",
+        if (!differs && n_strata > 1L) {
+          # aux_by = ".study" was requested but the exponential (and its AFT
+          # form) has no SHAPE parameter to stratify, so `aux_by` changes
+          # nothing and every closed-form contrast stays exact. Do not call the
+          # baselines "shared": each study still has its own hazard LEVEL
+          # through its own intercept. What coincides is the shape, trivially,
+          # because there is none.
+          paste0("constant within study; the exponential has no shape ",
+                 "parameter for `aux_by` to stratify, and each study's hazard ",
+                 "level is carried by its own intercept")
+        } else if (differs) {
+          "stratified by study (aux_by = \".study\")"
+        } else {
+          "shared by both studies"
+        },
+        "\n", sep = "")
+    aux_idx <- which(object$summary$variable %in%
+                       c("aux_val", "aux2_val", "aux_val_cmp", "aux2_val_cmp",
+                         "sigma_smooth", "sigma_smooth[1]", "sigma_smooth[2]"))
+    if (length(aux_idx) > 0) {
+      cat("\nShape / smoothing parameters:\n")
+      print(object$summary[aux_idx,
+                           c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")],
+            row.names = FALSE)
+    }
   }
 
   # Marginal effects
@@ -203,7 +301,7 @@ summary.mlumr_fit <- function(object, ...) {
       print(object$summary[rmst_idx, c("variable", "mean", "sd", "2.5%", "97.5%")],
             row.names = FALSE)
     }
-  } else {
+  } else if (family == "poisson") {
     delta_idx <- grep("^delta_(index|comparator)$", object$summary$variable)
     if (length(delta_idx) > 0) {
       cat("  Rate Ratios:\n")
@@ -215,6 +313,8 @@ summary.mlumr_fit <- function(object, ...) {
   cat("\n")
   invisible(object)
 }
+
+
 
 
 #' @method print mlumr_naive

@@ -5,7 +5,6 @@
 #   plot_prior_posterior(fit)          -> prior-vs-posterior overlay
 # Each returns a ggplot object so it composes with further ggplot2 layers.
 
-
 #' @keywords internal
 .need_ggplot2 <- function() {
   if (!requireNamespace("ggplot2", quietly = TRUE)) {

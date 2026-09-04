@@ -62,6 +62,21 @@ Prepare AgD from the comparator treatment for an unanchored indirect
 comparison.
 }
 \details{
+\strong{Rows must partition the aggregate sample, not overlap it.} Every row
+contributes its own factor to the aggregate likelihood, which multiplies
+them as if they came from disjoint sets of patients. That is correct when the
+rows are one arm, or a set of mutually exclusive, jointly defined subgroup
+cells (for example the four cells of sex crossed with prior therapy). It is
+wrong when a publication reports several \emph{overlapping} subgroup tables over
+the same participants, as when age bands, sex, and disease severity are each
+tabulated separately. Supplying those together counts every patient once per
+table, and the posterior becomes correspondingly overconfident: the intervals
+shrink because the model believes it has seen several independent studies.
+Nothing in the data identifies the overlap, so \code{set_agd()} cannot detect this
+and does not try. Choose one partition of the comparator sample and use only
+its rows. See \code{vignette("subgroup-identification", "mlumr")} for how many
+such rows the relaxed model needs.
+
 \strong{Scale assumptions for \code{family = "normal"}.} The AgD likelihood is
 \code{y_agd ~ normal(E[exp(eta)], se_agd)} under \code{link = "log"} and
 \code{y_agd ~ normal(E[eta], se_agd)} under \code{link = "identity"}. In both

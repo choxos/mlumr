@@ -587,9 +587,15 @@ unnest_integration <- function(data) {
 #'
 #' @return A list with components `marginals` (the original data frame
 #'   returned by previous versions) and, if `check_joint = TRUE`,
-#'   `correlations` -- a data frame of pairwise covariate correlations at
+#'   `correlations`, a data frame of pairwise covariate correlations at
 #'   the current and doubled `n_int` for each AgD row. Printed with a
 #'   pass/warn verdict.
+#'
+#'   The `verdict` component reports `"stable"` / `"close"` when a comparison
+#'   was made and met the heuristic, `"review"` when it did not, and
+#'   `"unavailable"` when there was nothing finite to compare. A declared
+#'   target the AgD does not supply, or a latent Gaussian-copula correlation
+#'   (`cor_adjust = "none"`), gives `"unavailable"` rather than a pass.
 #' @param verbose Logical; if `FALSE`, suppresses printed diagnostic messages.
 #' @export
 check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
@@ -646,15 +652,26 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
     (abs(stats_double$sd) + 1e-8)
 
   agd <- data$agd$data
+  # sqrt(m * (1 - m)) is the SD of a Bernoulli margin and of nothing else. It
+  # was applied to any covariate whose declared mean happened to land in [0, 1],
+  # so a continuous covariate with mean 0.4 and no declared SD was compared
+  # against a fabricated target and could be reported as off by a wide margin.
+  # Ask the declared distributions what the margin is instead of guessing from
+  # the mean.
+  dtypes <- do.call(
+    get_distribution_type,
+    c(list(...), list(data = utils::head(agd)))
+  )
   target_mean <- target_sd <- numeric(nrow(stats_orig))
   for (i in seq_len(nrow(stats_orig))) {
     cov <- stats_orig$covariate[i]
     row <- stats_orig$agd_row[i]
     target_mean[i] <- as.numeric(agd[[paste0(cov, "_mean")]][row])
     sd_col <- paste0(cov, "_sd")
+    is_binary <- isTRUE(unname(dtypes[cov]) == "binary")
     target_sd[i] <- if (sd_col %in% names(agd)) {
       as.numeric(agd[[sd_col]][row])
-    } else if (target_mean[i] >= 0 && target_mean[i] <= 1) {
+    } else if (is_binary && isTRUE(target_mean[i] >= 0 && target_mean[i] <= 1)) {
       sqrt(target_mean[i] * (1 - target_mean[i]))
     } else {
       NA_real_
@@ -682,35 +699,47 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
     stringsAsFactors = FALSE
   )
 
-  max_diff <- max(c(rel_diff_mean, rel_diff_sd), na.rm = TRUE)
-  max_target_diff <- max(c(target_diff_mean, target_diff_sd), na.rm = TRUE)
+  max_diff <- .max_finite(c(rel_diff_mean, rel_diff_sd))
+  max_target_diff <- .max_finite(c(target_diff_mean, target_diff_sd))
 
   if (verbose) {
     cat(sprintf("Integration check: n_int = %d vs %d\n", n_int_orig, n_int_double))
-    cat(sprintf("Resolution heuristic -- max relative difference: %.4f\n", max_diff))
-    if (max_diff > 0.05) {
-      cat("Warning: >5% marginal relative difference. Increase n_int.\n")
-    } else if (max_diff > 0.01) {
-      cat("Caution: 1-5% marginal relative difference. Consider increasing n_int.\n")
+    if (is.na(max_diff)) {
+      cat("Resolution heuristic: not available (no finite comparison).\n")
     } else {
-      cat("Resolution stable within the package's 1% heuristic.\n")
+      cat(sprintf("Resolution heuristic, max relative difference: %.4f\n", max_diff))
+      if (max_diff > 0.05) {
+        cat("Warning: >5% marginal relative difference. Increase n_int.\n")
+      } else if (max_diff > 0.01) {
+        cat("Caution: 1-5% marginal relative difference. Consider increasing n_int.\n")
+      } else {
+        cat("Resolution stable within the package's 1% heuristic.\n")
+      }
     }
-    cat(sprintf("Declared-target fidelity -- max relative difference: %.4f\n",
-                max_target_diff))
-    if (max_target_diff > 0.05) {
-      cat("Warning: grid moments differ from declared AgD moments by >5%.\n")
-    } else if (max_target_diff > 0.01) {
-      cat("Caution: grid moments differ from declared AgD moments by 1-5%.\n")
+    if (is.na(max_target_diff)) {
+      cat("Declared-target fidelity: not available; the AgD declares no",
+          "comparable moments for these covariates.\n")
     } else {
-      cat("Grid moments agree with declared AgD moments within the package's 1% heuristic.\n")
+      cat(sprintf("Declared-target fidelity, max relative difference: %.4f\n",
+                  max_target_diff))
+      if (max_target_diff > 0.05) {
+        cat("Warning: grid moments differ from declared AgD moments by >5%.\n")
+      } else if (max_target_diff > 0.01) {
+        cat("Caution: grid moments differ from declared AgD moments by 1-5%.\n")
+      } else {
+        cat("Grid moments agree with declared AgD moments within the package's 1% heuristic.\n")
+      }
     }
   }
 
+  # A verdict of "close" must mean something was compared. `max(x, na.rm = TRUE)`
+  # on an all-NA vector returns -Inf, which passed every threshold below and
+  # certified agreement computed from no data at all.
   out <- list(
     marginals = result,
     verdict = list(
-      resolution = if (max_diff <= 0.01) "stable" else "review",
-      target_moments = if (max_target_diff <= 0.01) "close" else "review"
+      resolution = .moment_verdict(max_diff, 0.01, "stable"),
+      target_moments = .moment_verdict(max_target_diff, 0.01, "close")
     )
   )
 
@@ -720,34 +749,64 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
     # integration points with Pearson would compare two different estimands and
     # could warn (or reassure) for no reason. Carry the method that defined the
     # target into the diagnostic.
-    cor_target <- cor %||% data$int_cor
+    # `data$int_cor` was already put in covariate order when add_integration()
+    # validated it, but a matrix passed straight to check_integration() was not.
+    # .int_cor_stats() indexes it positionally against `cov_names`, so a
+    # caller-supplied matrix whose dimnames run in a different order was read
+    # transposed and produced a verdict about the wrong pairs.
+    cor_target <- if (is.null(cor)) {
+      data$int_cor
+    } else {
+      .validate_integration_cor(cor, length(cov_names), cov_names = cov_names)
+    }
     target_method <- cor_adjust %||% data$int_cor_adjust %||% "pearson"
-    if (identical(target_method, "none")) target_method <- "pearson"
+    # `cor_adjust = "none"` means the supplied matrix IS the latent
+    # Gaussian-copula correlation. The integration points realize the margins,
+    # so measuring them gives an observed correlation on the covariate scale,
+    # which is a different quantity: the two agree only for Gaussian margins.
+    # Report the resolution comparison, which is like for like, and withhold
+    # the target comparison rather than scoring one estimand against the other.
+    latent_target <- identical(target_method, "none")
+    if (latent_target) {
+      target_method <- "pearson"
+      cor_target <- NULL
+    }
     cor_result <- .int_cor_stats(X_orig, X_double, cov_names, n_agd,
                                  cor_target = cor_target,
                                  cor_method = target_method)
-    max_cor_diff <- max(cor_result$diff$abs_diff, na.rm = TRUE)
+    max_cor_diff <- .max_finite(cor_result$diff$abs_diff)
     max_target_cor_diff <- if (is.null(cor_target)) NA_real_ else
-      max(cor_result$diff$abs_diff_target, na.rm = TRUE)
+      .max_finite(cor_result$diff$abs_diff_target)
     if (verbose) {
-      cat(sprintf("Joint -- max |cor(current) - cor(doubled)|: %.4f\n",
-                  max_cor_diff))
-      if (max_cor_diff > 0.05) {
-        cat("Warning: pairwise correlations differ by > 0.05 between resolutions.\n")
+      if (is.na(max_cor_diff)) {
+        cat("Joint resolution: not available (no finite comparison).\n")
       } else {
-        cat("Joint resolution stable within the package's 0.05 heuristic.\n")
+        cat(sprintf("Joint: max |cor(current) - cor(doubled)|: %.4f\n",
+                    max_cor_diff))
+        if (max_cor_diff > 0.05) {
+          cat("Warning: pairwise correlations differ by > 0.05 between resolutions.\n")
+        } else {
+          cat("Joint resolution stable within the package's 0.05 heuristic.\n")
+        }
       }
-      if (!is.null(cor_target)) {
-        cat(sprintf("Target (%s) -- max |cor(doubled) - cor_target|: %.4f\n",
+      if (latent_target) {
+        cat("Target correlation: not compared. `cor_adjust = \"none\"` declares",
+            "a latent Gaussian-copula matrix, which the realized covariate-scale",
+            "correlation does not estimate.\n")
+      } else if (!is.null(cor_target) && !is.na(max_target_cor_diff)) {
+        cat(sprintf("Target (%s): max |cor(doubled) - cor_target|: %.4f\n",
                     target_method, max_target_cor_diff))
+      } else if (!is.null(cor_target)) {
+        cat("Target correlation: not available (no finite comparison).\n")
       }
     }
-    if (!is.null(cor_target)) {
-      out$verdict$target_correlation <- if (max_target_cor_diff <= 0.05) {
-        "close"
-      } else {
-        "review"
-      }
+    out$verdict$target_correlation <- if (is.null(cor_target)) {
+      # Withheld on purpose under `cor_adjust = "none"`, where the supplied
+      # matrix is the latent copula correlation. Leaving the field unset made
+      # a deliberate abstention indistinguishable from a missing field.
+      "unavailable"
+    } else {
+      .moment_verdict(max_target_cor_diff, 0.05, "close")
     }
     out$correlations <- cor_result$diff
   }
@@ -817,4 +876,29 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
     }
   }
   do.call(rbind, rows)
+}
+
+
+#' Largest finite value, or NA when there is none
+#'
+#' `max(x, na.rm = TRUE)` returns `-Inf` for an all-missing vector, which then
+#' passes every "is it small enough" threshold. Return `NA_real_` instead so a
+#' comparison that never happened cannot be reported as agreement.
+#' @keywords internal
+.max_finite <- function(x) {
+  x <- x[is.finite(x)]
+  if (length(x) == 0L) NA_real_ else max(x)
+}
+
+
+#' Turn a difference into a verdict, keeping "not measured" distinct from "close"
+#' @keywords internal
+.moment_verdict <- function(value, threshold, pass) {
+  if (is.na(value)) {
+    "unavailable"
+  } else if (value <= threshold) {
+    pass
+  } else {
+    "review"
+  }
 }

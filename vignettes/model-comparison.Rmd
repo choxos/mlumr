@@ -214,7 +214,7 @@ print(dic_comparison)
 ```
 
 If the Relaxed model gives markedly different LORs or substantially better
-DIC, this *may* suggest effect modification -- covariate effects differ by
+DIC, this *may* suggest effect modification: covariate effects differ by
 treatment. However, DIC is a rough metric with known limitations: it should
 not be the sole basis for claiming effect modification. Always inspect
 `delta_beta` credible intervals, prior sensitivity, and clinical plausibility.
@@ -291,7 +291,7 @@ cat(sprintf("  Relaxed: LOR = %.3f (95%% CrI: %.3f to %.3f)\n",
 
 Running all three methods and comparing their results strengthens any
 unanchored ITC analysis. mlumr's unified data interface makes this
-comparison straightforward -- the same `mlumr_data` object feeds all
+comparison straightforward: the same `mlumr_data` object feeds all
 methods, ensuring consistency in the inputs.
 
 Key takeaways:

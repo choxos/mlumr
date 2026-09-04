@@ -7,8 +7,8 @@
 //   S(t|x) = exp(-H0(t) exp(eta)),  H0(t) = sum_j scoef_j I_j(t)
 //
 // scoef = softmax(append_row(0, lscoef)) is a simplex; lscoef has an RW1
-// smoothing prior (not horseshoe -- see inst/future/README.md). Spline basis
-// matrices are evaluated in R (splines2) and passed as data.
+// smoothing prior (not horseshoe). Spline basis matrices are evaluated in R
+// (splines2) and passed as data.
 //
 // The (intercepts + covariates) design is supplied as `Xq_*` (raw centered
 // design when qr = 0, scaled thin-QR factor Q when qr = 1); coefficients are

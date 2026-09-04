@@ -282,7 +282,7 @@ biomarker = distr(qgamma, shape = 2, rate = 0.5)
 By default, correlations between covariates are estimated from the IPD
 using Spearman rank correlation, then adjusted for the Gaussian copula.
 For binary and mixed discrete/continuous covariate pairs, this adjustment
-is a pragmatic approximation — exact calibration of the latent Gaussian
+is a pragmatic approximation; exact calibration of the latent Gaussian
 correlation depends on marginal prevalences, which are not used in the
 current transform. For most practical datasets this provides adequate
 integration-point distributions, but users with strong prior information
@@ -332,14 +332,23 @@ number of integration points.
 
 ## Notes on STC and naive
 
-The STC and naive methods do **not** require integration points. The STC
-uses integration points if available (for better marginalization), but
-falls back to AgD covariate means if they are not. You can call `stc()`
-and `naive()` immediately after `combine_data()`.
+`naive()` compares the two arms as reported and uses no covariates at all,
+so it needs no integration points and can be called immediately after
+`combine_data()`.
+
+`stc()` does need them, except under an identity link. It standardizes the
+index outcome model over the comparator population, and on a nonlinear link
+the mean of the predictions is not the prediction at the mean: substituting
+the aggregate covariate means for the distribution is biased by Jensen's
+inequality, in a direction that depends on the curvature. `stc()` refuses
+that substitution rather than returning a number that looks usable.
 
 ```{r, eval = TRUE}
-# These work without add_integration()
 dat_no_int <- combine_data(ipd, agd)
+
+# naive() needs nothing beyond combine_data()
 naive_result <- naive(dat_no_int)
-stc_result <- stc(dat_no_int)
+
+# stc() on a logit link needs the comparator distribution
+stc_result <- stc(dat)
 ```

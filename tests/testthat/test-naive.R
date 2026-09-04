@@ -1,6 +1,6 @@
 test_that("naive computes correct LOR", {
   # Create simple data
-  set.seed(42)
+  set.seed(2026)
   n <- 100
   ipd_df <- data.frame(
     trt = "A",
@@ -60,7 +60,7 @@ test_that("naive handles extreme rates", {
 
 test_that("naive respects custom conf_level", {
   ipd_df <- data.frame(trt = "A", outcome = c(rep(1, 60), rep(0, 40)),
-                        x1 = rnorm(100))
+                       x1 = rnorm(100))
   agd_df <- data.frame(trt = "B", n_total = 200, n_events = 80, x1_mean = 0.5)
 
   ipd <- set_ipd(ipd_df, "trt", "outcome", "x1")
@@ -95,7 +95,7 @@ test_that("naive validates data and conf_level", {
 
 test_that("naive works with equal rates", {
   ipd_df <- data.frame(trt = "A", outcome = c(rep(1, 50), rep(0, 50)),
-                        x1 = rnorm(100))
+                       x1 = rnorm(100))
   agd_df <- data.frame(trt = "B", n_total = 200, n_events = 100, x1_mean = 0.5)
 
   ipd <- set_ipd(ipd_df, "trt", "outcome", "x1")
@@ -111,7 +111,7 @@ test_that("naive works with equal rates", {
 # ---- Normal family ----
 
 test_that("naive works with normal family", {
-  set.seed(42)
+  set.seed(2026)
   ipd_df <- data.frame(trt = "A", score = rnorm(100, mean = 5, sd = 2),
                        x1 = rnorm(100))
   agd_df <- data.frame(trt = "B", y_mean = 3.0, se = 0.2, x1_mean = 0.5)
@@ -135,11 +135,46 @@ test_that("naive works with normal family", {
   expect_output(print(result), "Mean Difference")
 })
 
+test_that("normal naive benchmark combines aggregate strata using population weights", {
+  ipd_df <- data.frame(trt = "A", y = 0:5, x = -2:3)
+  agd_df <- data.frame(
+    trt = c("B", "B"), n = c(10, 90), y = c(0, 10),
+    se = c(0.05, 5), x_mean = c(-1, 1)
+  )
+  dat <- combine_data(
+    set_ipd(ipd_df, "trt", "y", "x", family = "normal"),
+    set_agd(
+      agd_df, "trt", family = "normal", outcome_n = "n",
+      outcome_mean = "y", outcome_se = "se", cov_means = "x_mean",
+      cov_types = "continuous"
+    )
+  )
+
+  result <- naive(dat)
+  population_weights <- agd_df$n / sum(agd_df$n)
+
+  expect_equal(result$mean_comparator, weighted.mean(agd_df$y, agd_df$n),
+               tolerance = 1e-12)
+  expect_equal(result$mean_comparator_se,
+               sqrt(sum(population_weights^2 * agd_df$se^2)),
+               tolerance = 1e-12)
+  expect_gt(abs(result$mean_comparator -
+                  weighted.mean(agd_df$y, 1 / agd_df$se^2)), 1)
+
+  expect_error(
+    set_agd(
+      agd_df, "trt", family = "normal", outcome_mean = "y",
+      outcome_se = "se", cov_means = "x_mean", cov_types = "continuous"
+    ),
+    "outcome_n.*multiple normal aggregate rows"
+  )
+})
+
 
 # ---- Poisson family ----
 
 test_that("naive works with poisson family", {
-  set.seed(42)
+  set.seed(2026)
   ipd_df <- data.frame(trt = "A", events = rpois(50, 3),
                        pyears = runif(50, 0.5, 2), x1 = rnorm(50))
   agd_df <- data.frame(trt = "B", n_events = 100, pyears = 500, x1_mean = 0.4)
@@ -183,6 +218,12 @@ test_that("the poisson benchmarks report the rate difference they advertise", {
             outcome_E = "E", cov_means = "age_mean", cov_sds = "age_sd",
             cov_types = "continuous")
   )
+  # stc() on a log link standardizes over the comparator population, so it
+  # needs integration points rather than the aggregate means.
+  dat <- suppressMessages(add_integration(
+    dat, n_int = 32, age = distr(qnorm, mean = age_mean, sd = age_sd),
+    verbose = FALSE
+  ))
 
   nv <- suppressWarnings(suppressMessages(naive(dat)))
   expect_equal(nv$rd, nv$rate_index - nv$rate_comparator)
@@ -214,6 +255,10 @@ test_that("a zero-event poisson arm keeps its uncertainty", {
             outcome_E = "E", cov_means = "age_mean", cov_sds = "age_sd",
             cov_types = "continuous")
   )
+  dat <- suppressMessages(add_integration(
+    dat, n_int = 32, age = distr(qnorm, mean = age_mean, sd = age_sd),
+    verbose = FALSE
+  ))
 
   nv <- suppressWarnings(suppressMessages(naive(dat)))
   expect_equal(nv$rate_index, 0)
@@ -238,4 +283,18 @@ test_that("a zero-event poisson arm keeps its uncertainty", {
   st <- suppressWarnings(suppressMessages(stc(dat)))
   expect_gt(st$rate_hat_index_se, 1e-4)
   expect_gt(st$rd_se, st$rate_comparator_se)
+})
+
+test_that("naive() rejects left/interval-censored survival data", {
+  skip_if_not_installed("survival")
+  dat <- sim_survival_data(seed = 2026, n_ipd = 40, n_agd = 40, n_int = 8)
+  res <- naive(dat)
+  expect_s3_class(res, "mlumr_naive")
+  expect_true(is.finite(res$estimate))
+  dat_left <- dat
+  dat_left$ipd$data$.status[1] <- 2L
+  expect_error(naive(dat_left), "left- or interval-censored")
+  dat_interval <- dat
+  dat_interval$agd$pseudo_ipd$.status[1] <- 3L
+  expect_error(naive(dat_interval), "left- or interval-censored")
 })

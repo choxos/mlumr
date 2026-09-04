@@ -2,11 +2,11 @@
 % Please edit documentation in R/prior_sensitivity.R
 \name{.rescale_prior_beta}
 \alias{.rescale_prior_beta}
-\title{Rescale a prior_beta's scale, preserving family / mean / df.}
+\title{Rescale a prior_beta's scale, preserving family, mean and df}
 \usage{
 .rescale_prior_beta(prior, new_scale)
 }
 \description{
-Rescale a prior_beta's scale, preserving family / mean / df.
+Rescale a prior_beta's scale, preserving family, mean and df
 }
 \keyword{internal}

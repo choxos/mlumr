@@ -39,7 +39,9 @@ check_link <- function(family, link = NULL) {
     binary     = "binomial",
     count      = "binomial",
     rate       = "poisson",
-    continuous = "normal"
+    continuous = "normal",
+    tte        = "survival",
+    surv       = "survival"
   )
   canonical <- unname(family_aliases[family])
   if (!is.na(canonical)) {
@@ -169,11 +171,6 @@ inverse_link <- function(x, link = c("identity", "log", "logit", "probit", "clog
   # is finite.
   small <- !is.na(log_event) & log_event < -18
   out[small] <- log_event[small]
-  # The opposite tail cannot be recovered here. log(1 - p) is -exp(eta) for this
-  # link, which overflows to -Inf above eta = 709.78, and -exp(710) has no
-  # double-precision representation to carry. `out` is then Inf: the correct
-  # transform of an input that has already lost the value. Recovering the finite
-  # link would mean the models emitting it as its own generated quantity.
   out
 }
 
@@ -231,9 +228,10 @@ inverse_link <- function(x, link = c("identity", "log", "logit", "probit", "clog
 #'
 #' Evaluates the difference from the logarithms so that cancellation happens
 #' before the return to the natural scale. Equal logarithms return exactly `0`,
-#' including `-Inf - -Inf` (both quantities are zero) and `Inf - Inf`, which is
-#' mathematically indeterminate and is reported as no difference rather than
-#' `NaN`. Arguments are recycled to a common length; `NA` propagates.
+#' including `-Inf - -Inf`, where both quantities are zero. Two `+Inf` logs are
+#' the exception: both quantities are unbounded, their difference has no value,
+#' and `NaN` is returned rather than a null effect. Arguments are recycled to a
+#' common length; `NA` propagates.
 #' @keywords internal
 .exp_difference_logs <- function(log_x, log_y) {
   # Recycle to a common length up front. Comparing vectors of different lengths
@@ -244,7 +242,12 @@ inverse_link <- function(x, link = c("identity", "log", "logit", "probit", "clog
   if (length(log_y) != n) log_y <- rep_len(log_y, n)
   out <- rep(NaN, n)
   known <- !is.na(log_x) & !is.na(log_y)
-  same <- known & log_x == log_y
+  # Two positive infinities mean both quantities are unbounded, so their
+  # difference is indeterminate. Without this guard the equality branch below
+  # would report an exact null effect. Equal finite logs, and two -Inf logs
+  # (both quantities zero), do legitimately give a difference of zero.
+  both_unbounded <- known & log_x == Inf & log_y == Inf
+  same <- known & !both_unbounded & log_x == log_y
   x_larger <- known & !same & log_x > log_y
   y_larger <- known & !same & log_y > log_x
 

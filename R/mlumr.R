@@ -10,19 +10,24 @@
 #'   `"relaxed"` (treatment-specific coefficients). Default `"spfa"`.
 #' @param link Link function. For binomial: `"logit"` (default), `"probit"`,
 #'   or `"cloglog"`. For normal: `"identity"` (default) or `"log"`. For
-#'   poisson: `"log"` (default, only option). If `NULL`, uses the canonical
-#'   default for the family.
+#'   poisson and survival: `"log"` (default, only option). If `NULL`, uses the
+#'   canonical default for the family.
 #' @param prior_intercept Prior for treatment intercepts. Default from
-#'   [default_prior_intercept()] (`prior_normal(0, 10)`, weakly informative
-#'   on the linear-predictor scale). See [prior_normal()] for guidance.
+#'   [default_prior_intercept()] (`prior_normal(0, 10)`). This is a generic
+#'   starting value on the linear-predictor scale, not a calibrated choice for
+#'   every family or outcome scale. See [prior_normal()] for guidance.
 #' @param prior_beta Prior for regression coefficients. May be a single
 #'   prior broadcast to all covariates, or a `list` of priors of length
 #'   `n_cov` for per-coefficient specification. All per-coefficient priors
 #'   must share the same family and (for Student-t) df. Default from
-#'   [default_prior_beta()] (`prior_normal(0, 2.5)`; Gelman et al. 2008;
-#'   Stan community prior-choice wiki). Set `autoscale = TRUE` on the
-#'   prior to divide the scale by each covariate's empirical SD — useful
-#'   when predictors are on very different scales.
+#'   [default_prior_beta()] (`prior_normal(0, 2.5)`). Gelman et al. (2008)
+#'   motivate a Cauchy prior after a particular predictor scaling, not this
+#'   normal prior as a universal default. Set `autoscale = TRUE` on the
+#'   prior to divide the scale by each covariate's empirical SD: useful
+#'   when predictors are on very different scales. For `model = "spfa"`
+#'   the single coefficient vector `beta` uses this prior; for
+#'   `model = "relaxed"` the index-arm coefficients `beta_index` use it
+#'   while `beta_comparator` uses `prior_beta_comparator` (see below).
 #' @param prior_beta_comparator (Relaxed model only.) Prior for the
 #'   comparator-arm regression coefficients `beta_comparator`. Same
 #'   specification rules as `prior_beta` (single prior or per-coefficient
@@ -75,7 +80,7 @@
 #' to the whole, the estimand does not change with how the aggregate evidence
 #' happens to be tabulated.
 #'
-#' **Weakly-identified coefficients in the relaxed model** —
+#' **Weakly-identified coefficients in the relaxed model**:
 #' `beta_comparator` is identified only through AgD, so the relaxed
 #' model needs informative priors (or many AgD rows) to estimate
 #' effect modification reliably. [prior_sensitivity()] is the
@@ -233,10 +238,70 @@
 #'   reparameterization. Useful with many correlated or ill-scaled covariates;
 #'   for the common few-covariate case the default fused-GLM path (with
 #'   `center = TRUE`) is usually faster.
+#' @details
+#' The model assumes that all AgD rows come from the same comparator treatment
+#' and that, conditional on covariates, there is no between-study heterogeneity.
+#' If AgD rows come from multiple studies with different designs or unmeasured
+#' confounders, this assumption may not hold. No random effects for study-level
+#' heterogeneity are included.
+#'
+#' **AgD scale assumptions (family = `"normal"`).** The AgD likelihood is
+#' `y_agd ~ normal(E[exp(eta)], se_agd)` under `link = "log"` and
+#' `y_agd ~ normal(E[eta], se_agd)` under `link = "identity"`. In both
+#' cases `set_agd()` expects `outcome_mean` and `outcome_se` on the
+#' **arithmetic (original, untransformed) scale**, not log-scale or
+#' geometric. Passing log-scale summaries silently misspecifies the
+#' likelihood. See [set_agd()] for details.
+#'
+#' **Comparator-population weighting is family-dependent.** Integrated
+#' marginal predictions in the comparator population (`*_comparator`
+#' generated quantities) are weighted by:
+#' \itemize{
+#'   \item **binomial**: `n_agd[k]` (AgD sample size), so larger
+#'     AgD rows contribute more to the marginal mean.
+#'   \item **normal**: `outcome_n[k]` (AgD sample size), which is required for
+#'     multiple rows; a single row has weight one when `outcome_n` is omitted.
+#'     These are the estimand's
+#'     mixing weights, not the likelihood's `1 / se^2` precision weights, so
+#'     splitting one comparator population into subgroup rows does not change
+#'     the target population.
+#'   \item **poisson**: `E_agd[k]` (AgD exposure), matching the
+#'     rate-based likelihood.
+#' }
+#' Each weighting is natural for the corresponding likelihood; users
+#' comparing marginal effects across families should be aware they are
+#' not identically weighted.
+#'
+#' **Weakly-identified coefficients in the relaxed model.**
+#' `beta_comparator` is identified only through AgD, so the relaxed
+#' model needs informative priors (or many AgD rows) to estimate
+#' effect modification reliably. [prior_sensitivity()] is the
+#' recommended diagnostic.
+#'
+#' **Identifying the relaxed model with subgroup AgD.** The strongest way to
+#' identify `beta_comparator` from data (rather than the prior) is to supply the
+#' comparator AgD as **joint subgroups**: mutually exclusive, collectively
+#' exhaustive strata of the comparator population, one [set_agd()] row per
+#' subgroup, each with its own covariate summaries and outcome. Each subgroup
+#' contributes a separate marginal likelihood term
+#' (`L_AgD = prod_s L_{AgD,s}`), and the variation in covariate means across
+#' subgroups identifies the treatment-specific covariate effects
+#' `beta_comparator` (the primary relaxed-SPFA strategy of Chandler & Ishak,
+#' Section 2.2.1). With only a single overall comparator AgD row,
+#' `beta_comparator` is identified by the prior alone; with subgroups it is
+#' informed by the data. (Marginal, overlapping subgroups would double-count
+#' patients and understate uncertainty; supply jointly-defined subgroups.)
+#'
+#' @seealso [prior_sensitivity()] for sensitivity of the posterior
+#'   to `prior_beta`; [set_agd()] for AgD scale requirements;
+#'   [prior_summary()] for introspection of the priors actually used.
+#'
 #' @param chains Number of MCMC chains (default 4)
 #' @param iter Total iterations per chain (default 2000)
 #' @param warmup Number of warmup iterations (default 1000)
-#' @param seed Random seed for reproducibility
+#' @param seed Random seed for reproducibility. If `NULL` (default), the fixed
+#'   seed 2026 is used and a warning says so, so an unseeded fit still
+#'   reproduces. The seed actually used is reported in the fitting messages.
 #' @param adapt_delta Target acceptance rate (default 0.95)
 #' @param max_treedepth Maximum tree depth for NUTS (default 15)
 #' @param refresh How often to print progress (0 = silent, default 200)
@@ -314,6 +379,8 @@ mlumr <- function(data,
     refresh = refresh
   )
   engine <- .resolve_mlumr_engine(engine)
+  seed_info <- .resolve_mlumr_seed(seed)
+  seed <- seed_info$value
 
   if (!inherits(data, "mlumr_data")) {
     stop("`data` must be created with combine_data()", call. = FALSE)
@@ -416,7 +483,8 @@ mlumr <- function(data,
     validate_prior(prior_smooth, "prior_smooth")
     .validate_survival_controls(pred_times, rmst_horizon, mspline_degree,
                                 n_knots, n_rmst_grid,
-                                distribution = distribution)
+                                distribution = distribution,
+                                knots = knots)
     invisible(.resolve_aux_strata(aux_by))   # fail on a bad value before fitting
     .validate_survival_studies(data, aux_by)
   } else {
@@ -468,7 +536,7 @@ mlumr <- function(data,
             call. = FALSE)
   }
 
-  # Weak identifiability of beta_comparator in relaxed models. It is informed
+  # Weak identifiability of `beta_comparator` in relaxed models. It is informed
   # only by the aggregate likelihood, so the note differs by what that
   # likelihood actually is.
   if (model == "relaxed") {
@@ -492,7 +560,35 @@ mlumr <- function(data,
              "index-population estimand moves, or add jointly-defined ",
              "subgroup rows.")
     }
-    if (family == "normal" && link_info$link == "identity") {
+    if (family == "survival") {
+      # A reconstructed comparator curve is NOT one scalar constraint. It
+      # contributes a likelihood term at every event and censoring time, so how
+      # much of (mu_c, beta_c) it pins down is model- and
+      # covariate-distribution-dependent, not a matter of counting rows. One
+      # binary covariate under exponential proportional hazards gives a
+      # known-weight two-component mixture whose two rates the curve shape can
+      # separate; several continuous covariates can leave the curve nearly
+      # invariant to rotations of beta_c that hold its norm fixed, identifying
+      # summaries but not the direction. Say what is true in both cases, and do
+      # not gate on a row count or an event count: neither bounds nor certifies
+      # identification here. See check_identification(), which refuses survival
+      # for the same reason.
+      warning(sprintf(
+        paste0("Relaxed survival model with %d covariate(s): the ",
+               "treatment-specific comparator coefficients are informed only ",
+               "through the marginal reconstructed comparator curve. Depending ",
+               "on the survival model and the covariate distribution that ",
+               "curve may identify some combinations of them while leaving ",
+               "other directions weakly determined. Inspect the coefficient ",
+               "posterior and run prior_sensitivity(), including ",
+               "`prior_beta_comparator_scales`, rather than assuming either ",
+               "outcome. Index-population effects are the most exposed, since ",
+               "they transport these coefficients to the IPD covariate ",
+               "distribution; `prior_beta_comparator` regularizes them, and ",
+               "model = \"spfa\" avoids them entirely."),
+        n_cov_check
+      ), call. = FALSE)
+    } else if (family == "normal" && link_info$link == "identity") {
       n_agd_rows_check <- nrow(data$agd$data)
       agd_rank <- .agd_covariate_rank(data)
       if (agd_rank < n_cov_check + 1L) {
@@ -508,18 +604,6 @@ mlumr <- function(data,
           n_agd_rows_check, agd_rank, n_cov_check, n_cov_check + 1L, remedy
         ), call. = FALSE)
       }
-    } else if (family == "survival") {
-      # No count-based warning here, for the reason check_identification()
-      # refuses the family outright: the premise that each aggregate row
-      # contributes one scalar constraint does not hold for a reconstructed
-      # curve. The comparator likelihood is the pseudo-IPD event and censoring
-      # times, one term each, so a single arm row can carry several hundred
-      # constraints. Counting the arm-summary rows would have reported a
-      # 300-patient reconstructed curve as one summary and told the user that
-      # two covariate coefficients "cannot all be separated", which is false.
-      # What can go wrong here is a genuinely uninformative curve, and a row
-      # count cannot see that either way; prior_sensitivity() can.
-      NULL
     } else {
       n_agd_rows_check <- nrow(data$agd$data)
       # Not the row count. Mean-profile rank is not available here either,
@@ -571,7 +655,8 @@ mlumr <- function(data,
   )
   stan_data <- prepared$stan_data
 
-  # Select Stan model (family_config is the single source of truth)
+  # Select Stan model. family_config gives the default prefix; the survival
+  # family overrides it for the flexible-baseline distributions.
   stan_prefix <- if (family == "survival") {
     surv_info$stan_prefix
   } else {
@@ -580,7 +665,7 @@ mlumr <- function(data,
   model_name <- paste0(stan_prefix, "_", model)
 
   .mlumr_log_fit_start(model_name, family, link_info$link, stan_data,
-                       engine, verbose)
+                       engine, seed_info, verbose)
 
   # Fit model
   result <- .mlumr_fit_backend(
@@ -600,6 +685,7 @@ mlumr <- function(data,
 
   fit <- result$native_fit
   draws <- result$draws
+  chain_ids <- result$chain_ids
   summary_df <- result$summary_df
   n_divergent <- result$n_divergent
   n_max_td <- result$n_max_td
@@ -616,21 +702,26 @@ mlumr <- function(data,
     prior_beta = prior_beta,
     prior_beta_comparator = prior_beta_comparator,
     prior_sigma = prior_sigma,
-    beta_fields = prepared$beta_fields,
-    beta_comparator_fields = prepared$beta_comparator_fields,
-    sd_x = prepared$sd_x,
     prior_aux = prior_aux,
     prior_smooth = prior_smooth,
-    surv_info = surv_info
+    surv_info = surv_info,
+    beta_fields = prepared$beta_fields,
+    beta_comparator_fields = prepared$beta_comparator_fields,
+    sd_x = prepared$sd_x
   )
 
   out <- list(
     stanfit = fit,
     draws = draws,
+    # Real per-draw chain labels from the backend (NULL if unavailable); used by
+    # diagnostics instead of reconstructing chain ids from row ordering.
+    chain_ids = chain_ids,
     summary = summary_df,
     diagnostics = list(
       n_divergent = n_divergent,
-      n_max_treedepth = n_max_td
+      n_max_treedepth = n_max_td,
+      n_chains_requested = result$n_chains_requested %||% as.integer(chains),
+      n_chains_returned = result$n_chains_returned %||% as.integer(chains)
     ),
     data = data,
     family = family,
@@ -649,12 +740,14 @@ mlumr <- function(data,
     distribution = if (!is.null(surv_info)) surv_info$distribution else NULL,
     surv_info = surv_info,
     pred_times = stan_data$pred_times,
-    # Baseline controls needed to reproduce this fit. Survival-only entries are
-    # NULL for other families, because mlumr() rejects them there and replaying
-    # a stored formal default into a refit would make it error.
+    # Survival controls needed to faithfully reproduce this fit (e.g. in
+    # prior_sensitivity refits); harmless/NULL for non-survival families.
     surv_controls = list(
       n_knots = n_knots,
       knots = if (!is.null(surv_info) && surv_info$kind == "flexible") knots else NULL,
+      # Survival-only, like rmst_horizon/n_rmst_grid below: mlumr() rejects
+      # `aux_by` for other families, so storing the formal default here would
+      # make prior_sensitivity() replay it into a refit that then errors.
       aux_by = if (family == "survival") aux_by else NULL,
       # NA for a parametric baseline, and a refit rejects mspline_degree unless
       # the baseline is flexible. Store the absence as NULL, like `knots` above,
@@ -716,9 +809,16 @@ mlumr <- function(data,
   agd_data <- data$agd$data
   X_ipd <- as.matrix(ipd_data[, data$covariates])
 
-  # Autoscaling is based on the IPD covariate scale because the regression
-  # coefficients are estimated from individual observations.
+  # Both coefficient blocks use the IPD SD as a common reference scale. For a
+  # relaxed comparator block this is a convention, not a claim that its
+  # coefficients are estimated from individual comparator observations.
   sd_x <- apply(X_ipd, 2, stats::sd)
+  # A single IPD row makes stats::sd() undefined rather than zero. That is the
+  # same situation as a constant covariate (no empirical scale to divide by),
+  # and .warn_constant_ipd_covariates() has already said so, so record it as
+  # zero variation. Leaving NA here aborted autoscaling with "missing value
+  # where TRUE/FALSE needed" and made the stored prior metadata unreadable.
+  sd_x[!is.finite(sd_x)] <- 0
   intercept_fields <- stan_prior_fields(prior_intercept)
   beta_fields <- stan_prior_fields_beta(
     prior_beta,
@@ -731,7 +831,7 @@ mlumr <- function(data,
   # *_dist and *_df, not the index ones), so a heavy-tailed comparator prior on
   # top of a normal index prior is fitted as requested. When the user leaves
   # prior_beta_comparator NULL we reuse the prior_beta values, which preserves
-  # the behavior of fits made before this argument existed.
+  # backward compatibility with pre-existing relaxed fits.
   beta_comparator_fields <- if (is.null(prior_beta_comparator)) {
     beta_fields
   } else {
@@ -758,6 +858,11 @@ mlumr <- function(data,
     prior_beta_sd = as.array(beta_fields$sd),
     prior_beta_dist = beta_fields$dist,
     prior_beta_df = beta_fields$df,
+    # Comparator-specific prior (location/scale + family/df), always passed;
+    # SPFA Stan models silently ignore unused data entries, so this is a no-op
+    # for SPFA. The family/df let a relaxed fit use a different prior family
+    # (e.g. heavy-tailed Student-t) on the comparator coefficients than on the
+    # index coefficients.
     prior_beta_comparator_mean = as.array(beta_comparator_fields$mean),
     prior_beta_comparator_sd = as.array(beta_comparator_fields$sd),
     prior_beta_comparator_dist = beta_comparator_fields$dist,
@@ -770,14 +875,22 @@ mlumr <- function(data,
     stan_data$n_agd <- array(as.integer(agd_data$.n))
     stan_data$r_agd <- array(as.integer(agd_data$.r))
   } else if (family == "normal") {
+    bad_n <- is.null(agd_data$.n) || any(!is.finite(agd_data$.n)) ||
+      any(agd_data$.n <= 0)
+    if (nrow(agd_data) > 1L && bad_n) {
+      stop("`outcome_n` is required when normal aggregate data contain ",
+           "multiple rows, because those rows are population strata and must ",
+           "be combined using their sample sizes.", call. = FALSE)
+    }
     sigma_fields <- stan_prior_fields(prior_sigma)
     stan_data$y_ipd <- as.numeric(ipd_data$.outcome)
     stan_data$y_agd <- array(as.numeric(agd_data$.y))
     stan_data$se_agd <- array(as.numeric(agd_data$.se))
-    # Target-population weights for the comparator estimand. These say which
-    # comparator population the standardized effect refers to, and are separate
-    # from the likelihood's 1/se^2 precision weights. set_agd() requires
-    # outcome_n for more than one row, so the fallback covers single-row data.
+    # Target-population weights for the comparator estimand: sample-size weights
+    # for multiple subgroup rows (so splitting one comparator population does
+    # not change the standardized effect), or weight one for a single row when
+    # outcome_n is omitted. These are mixing weights, not the likelihood's
+    # 1/se^2 precision weights.
     n_agd_rows <- length(stan_data$y_agd)
     agd_n <- agd_data$.n
     stan_data$agd_weight <- if (!is.null(agd_n) &&
@@ -807,15 +920,16 @@ mlumr <- function(data,
   }
 
   # Shared, all-family covariate centering and combined-design QR
-  # reparameterization. Centering is likelihood-invariant (the intercept absorbs
-  # the shift), so the estimands are unchanged. It is NOT prior-invariant: the
-  # intercept prior is placed on the centered intercept, so the center must not
-  # depend on tuning controls like `n_int` (see .mlumr_center_covariates(), which
-  # weights by AgD rows, not row*point, precisely so the induced prior does not
-  # move). QR is an affine reparameterization of the (intercepts + covariates)
-  # design that decorrelates the sampling geometry. These leave the likelihood
-  # family and response-scale estimands unchanged, but a fixed numerical prior
-  # need not represent the same prior after a change of parameterization.
+  # reparameterization, mirroring `center = TRUE` / `QR` machinery.
+  # Centering is likelihood-invariant (the intercept absorbs the shift), so the
+  # estimands are unchanged. It is NOT prior-invariant: the intercept prior is
+  # placed on the centered intercept, so the center must not depend on tuning
+  # controls like `n_int` (see .mlumr_center_covariates(), which weights by AgD
+  # rows, not row*point, precisely so the induced prior does not move). QR is an
+  # affine reparameterization of the (intercepts + covariates) design that
+  # decorrelates the sampling geometry. These leave the likelihood family and
+  # response-scale estimands unchanged, but a fixed numerical prior need not
+  # represent the same prior after a change of parameterization.
   agd_means <- as.matrix(agd_data[, paste0(data$covariates, "_mean"),
                                   drop = FALSE])
   stan_data <- .mlumr_center_covariates(
@@ -823,8 +937,10 @@ mlumr <- function(data,
   )
   stan_data <- .mlumr_qr_design(stan_data, model = model, qr = qr)
 
-  list(stan_data = stan_data, beta_fields = beta_fields,
-       beta_comparator_fields = beta_comparator_fields, sd_x = sd_x)
+  list(stan_data = stan_data,
+       beta_fields = beta_fields,
+       beta_comparator_fields = beta_comparator_fields,
+       sd_x = sd_x)
 }
 
 #' Population weights for the AgD rows used in covariate centering
@@ -899,6 +1015,7 @@ mlumr <- function(data,
   }
   w
 }
+
 
 #' Center IPD + integration covariates about their pooled mean (all families)
 #'
@@ -1058,7 +1175,10 @@ mlumr <- function(data,
 #' @return Integer rank, at least 1.
 #' @keywords internal
 .agd_covariate_rank <- function(data) {
-  .profile_rank(.agd_mean_profiles(data))
+  covs <- data$covariates
+  ipd_cov <- data$ipd$data[, covs, drop = FALSE]
+  ref_sd <- apply(as.matrix(ipd_cov), 2L, stats::sd)
+  .profile_rank(.agd_mean_profiles(data), ref_sd)
 }
 
 #' Map `aux_by` onto the Stan `n_strata` switch
@@ -1095,6 +1215,7 @@ mlumr <- function(data,
        "default, as in multinma), or \"none\" (one shared baseline). Got \"",
        aux_by, "\".", call. = FALSE)
 }
+
 
 #' Validate the two-source study contract of the survival Stan models
 #' @keywords internal
@@ -1327,6 +1448,7 @@ mlumr <- function(data,
   stan_data
 }
 
+
 #' Validate user-supplied flexible-baseline knots
 #' @keywords internal
 .validate_user_knots <- function(knots, max_time, label) {
@@ -1349,73 +1471,6 @@ mlumr <- function(data,
   }
   list(internal = internal, boundary = boundary,
        n_knots = length(internal))
-}
-
-#' Validate survival-specific prediction grids and spline controls
-#' @keywords internal
-.validate_survival_controls <- function(pred_times, rmst_horizon,
-                                        mspline_degree, n_knots,
-                                        n_rmst_grid = 100L,
-                                        distribution = NULL) {
-  valid_grid <- is.numeric(n_rmst_grid) && length(n_rmst_grid) == 1L &&
-    is.finite(n_rmst_grid) && n_rmst_grid >= 2 &&
-    n_rmst_grid == floor(n_rmst_grid)
-  if (!valid_grid) {
-    stop("`n_rmst_grid` must be a single integer >= 2 (RMST trapezoid nodes).",
-         call. = FALSE)
-  }
-  if (!is.null(pred_times)) {
-    valid <- is.numeric(pred_times) && length(pred_times) >= 1L &&
-      all(is.finite(pred_times)) && all(pred_times > 0)
-    if (!valid) {
-      stop("`pred_times` must be finite, positive numbers.", call. = FALSE)
-    }
-  }
-  if (!is.null(rmst_horizon)) {
-    valid <- is.numeric(rmst_horizon) && length(rmst_horizon) == 1L &&
-      is.finite(rmst_horizon) && rmst_horizon > 0
-    if (!valid) {
-      stop("`rmst_horizon` must be a single finite, positive number.",
-           call. = FALSE)
-    }
-  }
-  if (!is.null(mspline_degree)) {
-    valid <- is.numeric(mspline_degree) && length(mspline_degree) == 1L &&
-      is.finite(mspline_degree) && mspline_degree >= 0 &&
-      mspline_degree == floor(mspline_degree)
-    if (!valid) {
-      stop("`mspline_degree` must be a non-negative integer.", call. = FALSE)
-    }
-  }
-  valid_knots <- is.numeric(n_knots) && length(n_knots) == 1L &&
-    is.finite(n_knots) && n_knots >= 0 && n_knots == floor(n_knots) &&
-    n_knots <= 50
-  if (!valid_knots) {
-    stop("`n_knots` must be an integer in [0, 50]. (Flexible baselines rarely ",
-         "need more than a handful of internal knots; the cap also blocks ",
-         "accidental enormous allocations.)", call. = FALSE)
-  }
-  # `n_knots = 0` is in range for make_knots(), which is also called directly.
-  # Whether it yields a fittable baseline depends on the DEGREE, because
-  # `n_scoef = length(internal) + degree + 1`:
-  #   pexp    (degree 0) -> 0 + 0 + 1 = 1 coefficient. The random-walk smoothing
-  #                         prior is defined on the DIFFERENCES between
-  #                         coefficients, so one coefficient has no increments
-  #                         and the model cannot be built.
-  #   mspline (degree 3) -> 0 + 3 + 1 = 4 coefficients, with three RW1
-  #                         increments. That is a perfectly ordinary single-
-  #                         interval cubic M-spline and must NOT be rejected.
-  # Reject only the case that genuinely cannot work, and leave the general
-  # `n_scoef < 2` check to catch anything else.
-  if (!is.null(distribution) && identical(distribution, "pexp") && n_knots < 1) {
-    stop("`n_knots = 0` cannot be used with `distribution = \"pexp\"`: a ",
-         "degree-0 basis with no internal knots leaves a single spline ",
-         "coefficient, and the random-walk smoothing prior is defined on ",
-         "differences between coefficients, so it needs at least two. Use ",
-         "`n_knots >= 1`, or `distribution = \"exponential\"` for a constant ",
-         "baseline hazard.", call. = FALSE)
-  }
-  invisible(TRUE)
 }
 
 #' Validate mlumr() sampler controls before backend dispatch
@@ -1451,14 +1506,94 @@ mlumr <- function(data,
     length(x) == 1L &&
     is.finite(x) &&
     x == floor(x) &&
-    x >= lower
+    x >= lower &&
+    x <= .Machine$integer.max
   if (!valid) {
-    stop(sprintf("`%s` must be a single integer >= %d.", name, lower),
-         call. = FALSE)
+    # Enforce the upper bound too: without it a value such as seed = 2^31 passes
+    # every finite/floor check here and only becomes NA_integer_ later at
+    # as.integer(), silently discarding the seed.
+    stop(sprintf("`%s` must be a single integer >= %d and <= %.0f.",
+                 name, lower, .Machine$integer.max), call. = FALSE)
   }
   invisible(TRUE)
 }
 
+
+#' Validate survival-specific prediction grids and spline controls
+#' @keywords internal
+.validate_survival_controls <- function(pred_times, rmst_horizon,
+                                        mspline_degree, n_knots,
+                                        n_rmst_grid = 100L,
+                                        distribution = NULL,
+                                        knots = NULL) {
+  valid_grid <- is.numeric(n_rmst_grid) && length(n_rmst_grid) == 1L &&
+    is.finite(n_rmst_grid) && n_rmst_grid >= 2 &&
+    n_rmst_grid == floor(n_rmst_grid)
+  if (!valid_grid) {
+    stop("`n_rmst_grid` must be a single integer >= 2 (RMST trapezoid nodes).",
+         call. = FALSE)
+  }
+  if (!is.null(pred_times)) {
+    valid <- is.numeric(pred_times) && length(pred_times) >= 1L &&
+      all(is.finite(pred_times)) && all(pred_times > 0)
+    if (!valid) {
+      stop("`pred_times` must be finite, positive numbers.", call. = FALSE)
+    }
+  }
+  if (!is.null(rmst_horizon)) {
+    valid <- is.numeric(rmst_horizon) && length(rmst_horizon) == 1L &&
+      is.finite(rmst_horizon) && rmst_horizon > 0
+    if (!valid) {
+      stop("`rmst_horizon` must be a single finite, positive number.",
+           call. = FALSE)
+    }
+  }
+  if (!is.null(mspline_degree)) {
+    valid <- is.numeric(mspline_degree) && length(mspline_degree) == 1L &&
+      is.finite(mspline_degree) && mspline_degree >= 0 &&
+      mspline_degree == floor(mspline_degree)
+    if (!valid) {
+      stop("`mspline_degree` must be a non-negative integer.", call. = FALSE)
+    }
+  }
+  # `n_knots` only ever reaches make_knots(), and only when no custom `knots`
+  # were supplied. Checking it regardless rejected a perfectly good custom knot
+  # specification because an argument the fit never reads was out of range.
+  # The custom basis is validated on its own terms by .validate_user_knots()
+  # and the resolved `n_scoef < 2` check.
+  if (!is.null(knots)) {
+    return(invisible(TRUE))
+  }
+  valid_knots <- is.numeric(n_knots) && length(n_knots) == 1L &&
+    is.finite(n_knots) && n_knots >= 0 && n_knots == floor(n_knots) &&
+    n_knots <= 50
+  if (!valid_knots) {
+    stop("`n_knots` must be an integer in [0, 50]. (Flexible baselines rarely ",
+         "need more than a handful of internal knots; the cap also blocks ",
+         "accidental enormous allocations.)", call. = FALSE)
+  }
+  # `n_knots = 0` is in range for make_knots(), which is also called directly.
+  # Whether it yields a fittable baseline depends on the DEGREE, because
+  # `n_scoef = length(internal) + degree + 1`:
+  #   pexp    (degree 0) -> 0 + 0 + 1 = 1 coefficient. The random-walk smoothing
+  #                         prior is defined on the DIFFERENCES between
+  #                         coefficients, so one coefficient has no increments
+  #                         and the model cannot be built.
+  #   mspline (degree 3) -> 0 + 3 + 1 = 4 coefficients, with three RW1
+  #                         increments. That is a perfectly ordinary single-
+  #                         interval cubic M-spline and must NOT be rejected.
+  # Reject only the case that genuinely cannot work, and leave the general
+  # `n_scoef < 2` check to catch anything else.
+  if (!is.null(distribution) && identical(distribution, "pexp") && n_knots < 1) {
+    stop("`n_knots = 0` cannot be used with `distribution = \"pexp\"`: a ",
+         "degree-0 basis with no internal knots leaves a single spline ",
+         "coefficient, and the random-walk smoothing prior is defined on ",
+         "differences between coefficients, so it needs at least two. Use ",
+         "`n_knots >= 1`, or `distribution = \"exponential\"` for a constant ",
+         "baseline hazard.", call. = FALSE)
+  }
+  invisible(TRUE)
+}
 
 #' Resolve and validate mlumr() backend engine
 #' @keywords internal
@@ -1466,10 +1601,30 @@ mlumr <- function(data,
   .validate_engine_name(engine %||% get_engine())
 }
 
+#' Resolve the sampling seed
+#'
+#' An explicit `seed` argument wins; otherwise the fixed default 2026 is used
+#' and a warning says so. Returns `list(value, source)`.
+#'
+#' The seed is deliberately not derived from R's RNG state. R initializes
+#' `.Random.seed` on first use from the clock and the process id, so its
+#' presence does not establish that the user called set.seed(): drawing from it
+#' would make an unseeded fit silently irreproducible, and would advance the
+#' caller's RNG stream as a side effect.
+#' @keywords internal
+.resolve_mlumr_seed <- function(seed) {
+  if (!is.null(seed)) {
+    return(list(value = as.integer(seed), source = "user"))
+  }
+  warning("No `seed` supplied; using the default seed 2026 so the fit is ",
+          "reproducible. Pass `seed = ` to control it.", call. = FALSE)
+  list(value = 2026L, source = "default")
+}
+
 #' Log mlumr() fit metadata
 #' @keywords internal
 .mlumr_log_fit_start <- function(model_name, family, link, stan_data,
-                                 engine, verbose) {
+                                 engine, seed_info, verbose) {
   mlumr_message(sprintf("Fitting ML-UMR (%s, %s, link=%s)...",
                         model_name, family, link),
                 verbose = verbose)
@@ -1501,6 +1656,9 @@ mlumr <- function(data,
                         stan_data$n_cov, stan_data$n_int),
                 verbose = verbose)
   mlumr_message(sprintf("  Engine: %s", engine), verbose = verbose)
+  seed_note <- if (identical(seed_info$source, "default")) " (default)" else ""
+  mlumr_message(sprintf("  Seed: %d%s", seed_info$value, seed_note),
+                verbose = verbose)
 }
 
 #' Dispatch mlumr() sampling to the selected backend
@@ -1523,8 +1681,10 @@ mlumr <- function(data,
 .mlumr_prior_metadata <- function(data, family, model = "spfa",
                                   prior_intercept, prior_beta,
                                   prior_beta_comparator = NULL,
-                                  prior_sigma, beta_fields,
-                                  beta_comparator_fields = NULL, sd_x,
+                                  prior_sigma,
+                                  beta_fields,
+                                  beta_comparator_fields = NULL,
+                                  sd_x,
                                   prior_aux = NULL, prior_smooth = NULL,
                                   surv_info = NULL) {
   priors <- list(
@@ -1560,18 +1720,17 @@ mlumr <- function(data,
     }
   }
 
-  # Surface the survival baseline priors only where they are consumed.
-  if (identical(family, "survival")) {
+  if (family == "normal") {
+    priors$sigma <- prior_sigma
+  }
+
+  if (family == "survival") {
     if (!is.null(surv_info) && surv_info$n_aux > 0) {
       priors$aux <- prior_aux
     }
     if (!is.null(surv_info) && surv_info$kind == "flexible") {
       priors$smooth <- prior_smooth
     }
-  }
-
-  if (family == "normal") {
-    priors$sigma <- prior_sigma
   }
 
   priors

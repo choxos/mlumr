@@ -1,10 +1,10 @@
 # Pure-R tests for calculate_loo(), calculate_waic(), and mixed-criterion
-# compare_models(). No Stan compilation — we construct mock mlumr_fit
+# compare_models(). No Stan compilation: we construct mock mlumr_fit
 # objects whose $draws carries the vector-indexed `log_lik_ipd[i]` and
-# `log_lik_agd[i]` columns that all six shipping Stan models emit.
+# `log_lik_agd[i]` columns that all ten shipping Stan models emit.
 
 make_ll_fit <- function(model = "spfa", n_draws = 400,
-                        n_ipd = 12L, n_agd = 4L, seed = 1L) {
+                        n_ipd = 12L, n_agd = 4L, seed = 2026) {
   set.seed(seed)
   ll_ipd <- matrix(rnorm(n_draws * n_ipd, -5, 0.5), nrow = n_draws)
   ll_agd <- matrix(rnorm(n_draws * n_agd, -6, 0.5), nrow = n_draws)
@@ -100,8 +100,8 @@ test_that("calculate_loo errors informatively without pointwise log_lik", {
 
 test_that("compare_models with criterion = 'loo' returns a compare.loo", {
   skip_if_not_installed("loo")
-  fit1 <- make_ll_fit("spfa", seed = 1L)
-  fit2 <- make_ll_fit("relaxed", seed = 2L)
+  fit1 <- make_ll_fit("spfa", seed = 2026)
+  fit2 <- make_ll_fit("relaxed", seed = 2026)
   out <- suppressWarnings(
     capture.output(cmp <- compare_models(fit1, fit2, criterion = "loo"))
   )
@@ -114,8 +114,8 @@ test_that("compare_models with criterion = 'loo' returns a compare.loo", {
 
 test_that("compare_models with criterion = 'waic' returns a compare.loo", {
   skip_if_not_installed("loo")
-  fit1 <- make_ll_fit("spfa", seed = 1L)
-  fit2 <- make_ll_fit("relaxed", seed = 2L)
+  fit1 <- make_ll_fit("spfa", seed = 2026)
+  fit2 <- make_ll_fit("relaxed", seed = 2026)
   out <- suppressWarnings(
     capture.output(cmp <- compare_models(fit1, fit2, criterion = "waic"))
   )
@@ -143,4 +143,26 @@ test_that(".chain_id recovers chain ids in chain-major order", {
   # First and last 100 draws belong to different chains
   expect_equal(ids[1], 1L)
   expect_equal(ids[400], 4L)
+})
+
+test_that("survival LOO/WAIC can group the comparator pseudo-IPD by arm/aggregate", {
+  glb <- mlumr:::.survival_log_lik_by_unit
+  draws <- data.frame(
+    `log_lik_ipd[1]` = c(-1, -2), `log_lik_ipd[2]` = c(-1.5, -2.5),
+    `log_lik_agd[1]` = c(-0.1, -0.2), `log_lik_agd[2]` = c(-0.3, -0.4),
+    `log_lik_agd[3]` = c(-0.5, -0.6), `log_lik_agd[4]` = c(-0.7, -0.8),
+    check.names = FALSE
+  )
+  obj <- list(family = "survival", draws = draws,
+              stan_data = list(agd_arm = c(1L, 1L, 2L, 2L)))
+  arm <- glb(obj, "arm")
+  expect_equal(ncol(arm), 4L)
+  expect_equal(unname(arm[, 3]), c(-0.1 - 0.3, -0.2 - 0.4))
+  expect_equal(unname(arm[, 4]), c(-0.5 - 0.7, -0.6 - 0.8))
+  agg <- glb(obj, "aggregate")
+  expect_equal(ncol(agg), 3L)
+  expect_equal(unname(agg[, 3]), c(-1.6, -2.0))
+  bad <- obj
+  bad$stan_data$agd_arm <- c(1L, 2L)
+  expect_error(glb(bad, "arm"), "arm map")
 })

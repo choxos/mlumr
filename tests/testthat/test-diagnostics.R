@@ -2,8 +2,8 @@
 # (no Stan compilation needed)
 
 make_mock_fit <- function(model = "spfa", n_draws = 100,
-                           n_ipd = 10L, n_agd = 3L) {
-  set.seed(42)
+                          n_ipd = 10L, n_agd = 3L) {
+  set.seed(2026)
   # Stan models produce pointwise log_lik as vectors: log_lik_ipd[1..n_ipd]
   # and log_lik_agd[1..n_agd]. The test mock mirrors that contract so
   # extract_log_lik() / calculate_dic() parse the columns correctly.
@@ -62,17 +62,17 @@ test_that("calculate_dic uses variance-based pD", {
   agd_cols <- grep("^log_lik_agd\\[", colnames(fit$draws), value = TRUE)
   ll_total <- rowSums(fit$draws[, c(ipd_cols, agd_cols), drop = FALSE])
   D <- -2 * ll_total
-  expected_pD <- 0.5 * var(D)
+  expected_pd <- 0.5 * var(D)
   expected_D_bar <- mean(D)
 
-  expect_equal(dic$pD, expected_pD)
+  expect_equal(dic$pD, expected_pd)
   expect_equal(dic$D_bar, expected_D_bar)
-  expect_equal(dic$DIC, expected_D_bar + expected_pD)
+  expect_equal(dic$DIC, expected_D_bar + expected_pd)
 })
 
 test_that("extract_log_lik orders shuffled double-digit columns", {
   fit <- make_mock_fit(n_ipd = 12L, n_agd = 2L)
-  set.seed(99)
+  set.seed(2026)
   fit$draws <- fit$draws[, sample(names(fit$draws)), drop = FALSE]
 
   ll <- mlumr:::extract_log_lik(fit)
@@ -174,4 +174,70 @@ test_that("the tail-ESS check can actually fire", {
 
   fit$summary$ess_tail <- c(1000, 900)
   expect_no_warning(check_diagnostics(fit))
+})
+
+test_that(".chain_id() prefers stored real chain ids over reconstruction", {
+  fake <- list(
+    draws = data.frame(a = 1:6),
+    chain_ids = c(1L, 1L, 2L, 2L, 3L, 3L),
+    sampling_args = list(chains = 2L)
+  )
+  expect_equal(mlumr:::.chain_id(fake), c(1L, 1L, 2L, 2L, 3L, 3L))
+
+  fake2 <- list(draws = data.frame(a = 1:6), sampling_args = list(chains = 2L))
+  expect_equal(mlumr:::.chain_id(fake2), c(1L, 1L, 1L, 2L, 2L, 2L))
+
+  fake3 <- list(draws = data.frame(a = 1:6), chain_ids = c(1L, 2L),
+                sampling_args = list(chains = 3L))
+  expect_equal(mlumr:::.chain_id(fake3), c(1L, 1L, 2L, 2L, 3L, 3L))
+})
+
+test_that("diagnostics refuse a collapsed AgD log-likelihood", {
+  # Tie aggregation (staged for a later version) keeps one AgD row per distinct
+  # likelihood key and carries the multiplicity in `stan_data$agd_count`. The
+  # pointwise `log_lik_agd` is then one UNWEIGHTED value per UNIQUE row, and
+  # `stan_data$agd_arm` is the collapsed arm map. Both still agree in length, so
+  # nothing downstream errors on its own: LOO/WAIC/DIC would quietly count each
+  # tied observation once instead of `agd_count` times. Fail closed instead.
+  mk <- function(cnt, n_agd_cols) {
+    d <- as.data.frame(
+      setNames(as.list(rep(0, n_agd_cols)),
+               paste0("log_lik_agd[", seq_len(n_agd_cols), "]")),
+      check.names = FALSE)
+    d[["log_lik_ipd[1]"]] <- 0
+    structure(list(family = "survival",
+                   stan_data = list(agd_count = cnt),
+                   draws = d),
+              class = "mlumr_fit")
+  }
+
+  # Un-expanded: one column per unique row while a multiplicity exceeds one.
+  expect_error(extract_log_lik(mk(c(2L, 1L, 3L), 3L)), "one value per")
+  expect_error(mlumr:::.survival_log_lik_by_unit(mk(c(2L, 1L, 3L), 3L), "arm"),
+               "one value per")
+
+  # No-ops in every case that is not a collapse: v0.2.0 fits carry no
+  # `agd_count`, an uncollapsed run carries all ones, and an already-expanded
+  # matrix has one column per original observation (2 + 1 + 3 = 6).
+  expect_silent(mlumr:::.assert_agd_loglik_per_observation(mk(NULL, 5L)))
+  expect_silent(mlumr:::.assert_agd_loglik_per_observation(mk(rep(1L, 5), 5L)))
+  expect_silent(mlumr:::.assert_agd_loglik_per_observation(mk(c(2L, 1L, 3L), 6L)))
+})
+
+test_that("comparator centering weights count collapsed rows by multiplicity", {
+  # The weight a comparator row carries is the number of pseudo-individuals it
+  # represents, not the number of retained rows. Reading `agd_count` here is
+  # what makes the center independent of whether tied rows were collapsed
+  # before or after centering; getting it wrong would silently move the center
+  # and with it the induced raw-scale intercept prior.
+  w <- mlumr:::.agd_center_weights
+  base <- list(agd_arm = c(1L, 1L, 2L), n_agd = 3L)
+  expect_equal(w(base, "survival", 2L), c(2, 1))
+  expect_equal(w(c(base, list(agd_count = c(2L, 1L, 4L))), "survival", 2L),
+               c(3, 4))
+  # All-ones multiplicities must reproduce the uncollapsed weights exactly.
+  expect_equal(w(c(base, list(agd_count = rep(1L, 3))), "survival", 2L),
+               w(base, "survival", 2L))
+  expect_error(w(c(base, list(agd_count = c(1L, 0L, 2L))), "survival", 2L),
+               "positive multiplicity")
 })

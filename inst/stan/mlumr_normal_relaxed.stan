@@ -20,7 +20,7 @@ data {
   // y_agd and se_agd must be on the original outcome scale.
   int<lower=1> n_agd_rows;
   array[n_agd_rows] real y_agd;
-  array[n_agd_rows] real<lower=0> se_agd;
+  array[n_agd_rows] real<lower=1e-12> se_agd;
   // Target-population weights for the comparator estimand (sample-size weights
   // when outcome_n is supplied, else all 1 = equal per-row). Separate from the
   // likelihood's precision weighting; defines which comparator population the

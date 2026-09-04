@@ -4,7 +4,15 @@
 \alias{.mlumr_log_fit_start}
 \title{Log mlumr() fit metadata}
 \usage{
-.mlumr_log_fit_start(model_name, family, link, stan_data, engine, verbose)
+.mlumr_log_fit_start(
+  model_name,
+  family,
+  link,
+  stan_data,
+  engine,
+  seed_info,
+  verbose
+)
 }
 \description{
 Log mlumr() fit metadata

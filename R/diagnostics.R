@@ -613,6 +613,20 @@ check_diagnostics <- function(fit) {
   # them.
   n_req <- .diagnostic_count(diag$n_chains_requested)
   n_got <- .diagnostic_count(diag$n_chains_returned)
+  # `.diagnostic_count()` maps an unusable value to 0, so an unknown layout and
+  # a known-good one both leave `n_got` outside the comparison below. Separate
+  # them: the backend reports `NA` when it could not label the draws by chain,
+  # and that is a finding, not a pass.
+  if (n_req > 0 && !isTRUE(n_got > 0) &&
+        (is.null(diag$n_chains_returned) ||
+           any(is.na(diag$n_chains_returned)))) {
+    warning(paste0(
+      "The draws could not be labeled by chain, so it is not known whether ",
+      "all ", n_req, " requested chain(s) returned. Rhat and the effective ",
+      "sample sizes below are computed from the draws as stored. Refit, or ",
+      "inspect the backend fit object, before reporting these results."
+    ), call. = FALSE)
+  }
   if (n_req > 0 && n_got > 0 && n_got < n_req) {
     warning(sprintf(
       paste0("Only %d of %d requested chain(s) returned; the remaining chain(s) ",
@@ -669,12 +683,42 @@ check_diagnostics <- function(fit) {
 
   # Tail ESS (Vehtari et al. 2021): reliable tail quantiles (the q2.5/q97.5
   # reported by predict()/marginal_effects()) need ESS-tail >= 400 too, which the
-  # bulk n_eff above does not capture. The cmdstanr backend asks `posterior` for
-  # this column explicitly; rstan's classic summary reports bulk n_eff only, so
-  # the check is a no-op on that backend rather than a passing one.
-  if ("ess_tail" %in% names(fit$summary)) {
-    tail_vals <- .finite_numeric_values(fit$summary$ess_tail)
-    if (length(tail_vals) > 0L && min(tail_vals) < 400) {
+  # bulk n_eff above does not capture. Both backends supply the column when the
+  # `posterior` package is installed; rstan's classic summary does not report it,
+  # so the rstan backend computes it from the draws. Report an absent or
+  # all-missing column instead of passing silently, which is indistinguishable
+  # from a clean check.
+  #
+  # `posterior::ess_tail()` returns NA for several distinct reasons: a chain
+  # layout it cannot use, any non-finite draw, and a parameter that is constant
+  # across every chain. The backend does not record which, so name the outcome
+  # and not a cause, and count the parameters that lack a value instead of
+  # dropping them: a partly-missing column would otherwise be checked on its
+  # finite entries alone and read as clean.
+  tail_all <- if ("ess_tail" %in% names(fit$summary)) {
+    fit$summary$ess_tail
+  } else {
+    numeric(0)
+  }
+  tail_vals <- .finite_numeric_values(tail_all)
+  n_missing <- length(tail_all) - length(tail_vals)
+  if (length(tail_vals) == 0L) {
+    hint <- if (!requireNamespace("posterior", quietly = TRUE)) {
+      " Install the 'posterior' package to enable this check."
+    } else {
+      ""
+    }
+    message("Tail ESS is unavailable for this fit, so tail quantiles were not ",
+            "checked.", hint)
+  } else {
+    if (n_missing > 0L) {
+      message(sprintf(
+        paste0("Tail ESS is unavailable for %d of %d parameter(s), which were ",
+               "not checked; the remaining %d were."),
+        n_missing, length(tail_all), length(tail_vals)
+      ))
+    }
+    if (min(tail_vals) < 400) {
       msg <- paste0(
         "Some tail-ESS values < 400 (min = %.1f). Tail quantiles ",
         "(e.g. 2.5%%/97.5%%) may be unreliable; run more iterations."

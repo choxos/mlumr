@@ -80,6 +80,17 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
     stop("`link` is determined by the fitted object and cannot be overridden.",
          call. = FALSE)
   }
+  # The report is headed "relaxed model" and diagnoses `beta_comparator`. An
+  # SPFA fit shares one coefficient vector across treatments, so it has no
+  # comparator-only coefficients and the geometry below says nothing about it.
+  if (is_fit && !identical(x$model, "relaxed")) {
+    stop("check_identification() diagnoses the comparator coefficients of a ",
+         "relaxed fit. This fit used model = \"", x$model, "\", which shares ",
+         "one coefficient vector across treatments and so has no ",
+         "comparator-only coefficients to identify. Pass the mlumr_data ",
+         "object if you want the aggregate design geometry on its own.",
+         call. = FALSE)
+  }
   data <- if (inherits(x, "mlumr_fit")) x$data else x
   if (!inherits(data, "mlumr_data")) {
     stop("`x` must be an mlumr_data object (from combine_data()) or an ",
@@ -130,7 +141,7 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   out$flagged <- if (out$n_distinct < out$n_rows_needed) {
     TRUE
   } else if (out$diagnostic_scope == "identity") {
-    out$cond_inv < 0.2 || out$spread < 0.05
+    out$cond_inv < 0.2 || !.at_least(out$spread, 0.05)
   } else {
     NA
   }
@@ -160,15 +171,15 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
       # describe the design being fitted: a `distr()` that ignores the columns
       # it was meant to read (a fixed `distr(qnorm, mean = 0, sd = 1)` on every
       # row) leaves declared profiles that span directions the likelihood does
-      # not have. Comparing ranks catches that without needing a tolerance for
-      # quadrature noise, which a direct comparison of the means would.
-      if (!is.null(realized) &&
-            .profile_rank(realized) < .profile_rank(means)) {
+      # not have.
+      ipd_cov <- data$ipd$data[, covs, drop = FALSE]
+      ref_sd <- apply(as.matrix(ipd_cov), 2L, stats::sd)
+      if (!.realized_matches_declared(means, realized, ref_sd)) {
         warning("The integration distributions do not reproduce the declared ",
-                "aggregate covariate means: the realized profiles span fewer ",
-                "directions than the `<covariate>_mean` columns do. Reporting ",
-                "the realized geometry, which is what the likelihood sees. ",
-                "Check that each `distr()` reads its row's summaries.",
+                "aggregate covariate means: the realized profiles offer much ",
+                "less spread than the `<covariate>_mean` columns claim. ",
+                "Reporting the realized geometry, which is what the likelihood ",
+                "sees. Check that each `distr()` reads its row's summaries.",
                 call. = FALSE)
         return(realized)
       }
@@ -220,7 +231,15 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   degenerate <- list(cond_inv = 0, eff_dim = 0, spread = 0,
                      singular_values = rep(0, k), means = M)
   if (nrow(M) < 2L) return(degenerate)
-  d <- svd(M)$d
+  # Fail closed on a design that cannot be decomposed, exactly as
+  # `.profile_rank()` does. Both are handed the same matrix, and a legacy
+  # integration-mean matrix carrying NA reaches them both, so a hard LAPACK
+  # error here ("infinite or missing values in 'x'") against a quiet zero
+  # there would be the two screens disagreeing about one design. Zero spread
+  # is the conservative reading: no direction the likelihood can use.
+  if (!all(is.finite(M))) return(degenerate)
+  d <- tryCatch(svd(M)$d, error = function(e) NULL)
+  if (is.null(d)) return(degenerate)
   d <- d[is.finite(d)]
   if (!length(d) || max(d) <= 0) return(degenerate)
   if (length(d) < k) d <- c(d, rep(0, k - length(d)))
@@ -277,6 +296,52 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 }
 
 
+# Relative slack for every comparison of a spread against a threshold in this
+# file. `.profile_rank()`, the `counts` mask, both realized-grid tests and the
+# `flagged` screen measure the same geometry through different routes: a full
+# decomposition of the declared design, the column norms of a projection, a
+# second decomposition of that projection, and `.subgroup_geometry()`'s own
+# decomposition. The routes agree only to within a few ULPs, so comparing any
+# of them against a bare threshold lets one design fall on opposite sides of
+# the same question depending on which route asked it.
+#
+# That is not hypothetical in either direction. A grid identical to the
+# declared means was reported as failing to reproduce them, and adding a slack
+# to only one of the four comparisons merely moved the disagreement: a
+# realized spread in [0.05 * (1 - 1e-8), 0.05) then cleared the floor here
+# while `.profile_rank()` counted that direction as lost. Leaving the
+# `flagged` screen bare had the mirror effect: `.profile_rank()` counted a
+# spread inside the window as a direction, so `mlumr()` stayed silent, while
+# `check_identification()` reported the same design as WEAK. One tolerance
+# applied at every such comparison is what keeps the screens consistent.
+.spread_tol <- 1e-8
+
+# `x >= threshold`, tolerant of the ULP-scale disagreement between those
+# routes. Scaled by the threshold, so it means the same thing at any spread.
+.at_least <- function(x, threshold) {
+  # `NA` and `NaN` are not thresholds, and letting them through returns NA
+  # rather than a verdict: `.profile_rank()` then answers `NA_integer_` and
+  # `.realized_matches_declared()` dies at `if (!any(counts))` with "missing
+  # value where TRUE/FALSE needed", neither of which names the cause.
+  #
+  # The message names no argument and does not say "a number". This is called
+  # with three different thresholds, `min_spread`, the literal 0.05 of the
+  # identity-link screen, and the VECTOR `factor * declared_spread`, so naming
+  # one would misreport the other two, and the singular would imply a scalar
+  # constraint that does not exist.
+  if (anyNA(threshold)) {
+    stop("Spread threshold values must not be NA or NaN.", call. = FALSE)
+  }
+  # An infinite threshold is coherent (nothing clears `Inf`, everything clears
+  # `-Inf`) but has no slack to compute: `Inf - Inf * tol` is NaN. Compare
+  # bare, which is what the callers did before there was a tolerance.
+  if (!all(is.finite(threshold))) {
+    return(x >= threshold)
+  }
+  x >= threshold - abs(threshold) * .spread_tol
+}
+
+
 #' Numerical rank of an aggregate design, on a scale that can be judged
 #'
 #' `qr()` calls a column negligible relative to the norms it is handed, so an
@@ -285,21 +350,49 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #' fits, with covariates centered by default, is plainly rank 2. Centering and
 #' scaling first asks the question about the design being fitted.
 #'
+#' The scale has to come from OUTSIDE the profiles. Dividing each column by its
+#' own root-mean-square, which this did, stretches any separation back to unit
+#' size: aggregate means of `c(-1e-10, 1e-10)` became `c(-1, 1)` and the design
+#' was reported full rank, so the identity-link relaxed-model screen in
+#' [mlumr()] never fired on a comparator the likelihood cannot separate. The
+#' IPD standard deviations are an absolute scale and are what
+#' `.subgroup_geometry()` already uses, so the two diagnostics now agree.
+#'
+#' `qr()` cannot supply that judgment on its own either. LINPACK's `dqrdc2`
+#' compares each column's remaining norm against that SAME column's original
+#' norm, so a covariate separated by `1e-11` IPD SDs is still "independent" of
+#' the intercept and counts toward the rank. Directions are therefore counted
+#' by singular value against an absolute floor, the `spread` that
+#' [check_identification()] already screens on, so the two agree by
+#' construction.
+#'
 #' @param profiles Aggregate subgroup mean matrix, rows by covariates.
+#' @param ref_sd Reference SD per covariate (the IPD SDs), used to put the
+#'   profile separations on a scale that can be judged. Non-finite or
+#'   non-positive entries fall back to 1.
+#' @param min_spread Smallest RMS profile separation along a direction, in IPD
+#'   standard deviations, that counts as a direction. Defaults to the value
+#'   [check_identification()] screens on.
 #' @return Integer rank, or `0` when the design cannot be decomposed.
 #' @keywords internal
-.profile_rank <- function(profiles) {
+.profile_rank <- function(profiles, ref_sd, min_spread = 0.05) {
   M <- scale(as.matrix(profiles), center = TRUE, scale = FALSE)
-  sds <- apply(M, 2L, function(z) sqrt(mean(z^2)))
-  sds[!is.finite(sds) | sds <= 0] <- 1
-  M <- sweep(M, 2L, sds, "/")
-  rank <- tryCatch(qr(cbind(1, M))$rank, error = function(e) NA_integer_)
-  # Fail closed. A design qr() cannot decompose, a legacy integration-mean
+  ref_sd <- as.numeric(ref_sd)
+  ref_sd[!is.finite(ref_sd) | ref_sd <= 0] <- 1
+  M <- sweep(M, 2L, ref_sd, "/")
+  # Fail closed. A design that cannot be decomposed, a legacy integration-mean
   # matrix carrying NA for instance, used to fall back to the aggregate row
   # count, which is exactly the quantity this rank replaced: a padded table
   # then looked full rank and suppressed the warning it should have raised.
-  if (!is.finite(rank)) return(0L)
-  max(as.integer(rank), 1L)
+  if (!all(is.finite(M))) return(0L)
+  d <- tryCatch(svd(M)$d, error = function(e) NULL)
+  if (is.null(d) || !length(d) || any(!is.finite(d))) return(0L)
+  # `d / sqrt(nrow)` is the RMS distance of the profiles from their center
+  # along a direction, in IPD SDs: the same quantity `.subgroup_geometry()`
+  # reports as `spread`.
+  n_directions <- sum(.at_least(d / sqrt(nrow(M)), min_spread))
+  # Centering removed the mean, so the intercept is always one more direction.
+  as.integer(n_directions) + 1L
 }
 
 
@@ -328,17 +421,18 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   if (is.null(x_int) || length(dim(x_int)) != 3L) return(n_rows)
   n <- dim(x_int)[[1L]]
   if (n < 2L) return(n)
-  keep <- rep(TRUE, n)
-  for (i in seq_len(n - 1L)) {
-    if (!keep[i]) next
-    for (j in seq(i + 1L, n)) {
-      if (!keep[j]) next
-      if (identical(x_int[i, , , drop = TRUE], x_int[j, , , drop = TRUE])) {
-        keep[j] <- FALSE
-      }
-    }
-  }
-  sum(keep)
+  # The likelihood integrates over a row's points, so it sees the multiset of
+  # tuples and not their order. Sort each row's tuples into a canonical order
+  # before comparing; comparing the grids as stored counted two orderings of one
+  # grid as two constraints when they carry one. `%.17g` round-trips a double
+  # exactly, so equal grids always produce equal keys.
+  keys <- vapply(seq_len(n), function(i) {
+    grid <- x_int[i, , , drop = FALSE]
+    dim(grid) <- dim(x_int)[2:3]
+    ord <- do.call(order, as.data.frame(grid))
+    paste(sprintf("%.17g", grid[ord, , drop = FALSE]), collapse = "\r")
+  }, character(1))
+  length(unique(keys))
 }
 
 
@@ -383,7 +477,7 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
         "This is what happens when subgroups are reported one variable at a ",
         "time, or when cross-tabulated categorical cells all share nearly the ",
         "same mean on a continuous covariate.\n", sep = "")
-  } else if (x$spread < 0.05) {
+  } else if (!.at_least(x$spread, 0.05)) {
     cat("WEAK: the rows vary in every direction, but hardly at all. The ",
         "subgroup means sit within ", sprintf("%.3g", x$spread), " IPD ",
         "standard deviations of their own center, so every slope rests on a ",
@@ -415,4 +509,177 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
         "prior_sensitivity().\n", sep = "")
   }
   invisible(x)
+}
+
+
+#' Does the realized integration design reproduce the declared one?
+#'
+#' Projects the realized centered profiles onto the DECLARED design's principal
+#' directions and asks whether each one still carries its share of the spread
+#' the declared design claimed there. Each covariate is first scaled by the
+#' spread the declared design claims for it, so the comparison is unit-free.
+#'
+#' This replaces a comparison of ranks. A rank drop is the extreme case of a
+#' collapsed direction, so this test subsumes it, and it also catches the case
+#' the rank test could not see: declared means `c(-1, 1)` and realized means
+#' `c(-1e-10, 1e-10)` both have rank 2, yet the likelihood has almost no
+#' leverage along that direction and the reported geometry described a design
+#' that was not fitted. The `factor` is far above quadrature noise, which moves
+#' a singular value by a relative `O(1 / n_int)`.
+#'
+#' Comparing the two singular-value SPECTRA is not enough, because singular
+#' values arrive sorted and carry no direction. Declared spread in covariate 1
+#' and realized spread of the same size in covariate 2 produce identical
+#' spectra, so a spectrum test would report a match while the likelihood sees a
+#' different covariate entirely. Projecting onto the declared directions is
+#' what makes the comparison directional.
+#'
+#' The comparison uses the same absolute scale as [check_identification()] and
+#' `.profile_rank()`, not only a relative one. A purely relative test disagrees
+#' with them in a window: declared means `c(-0.08, 0.08)` against realized
+#' `c(-0.04, 0.04)` retain exactly half their spread, so a relative test passes
+#' and the declared profiles are reported, while the grid the likelihood
+#' actually integrates over sits at 0.04 IPD SDs, below the `0.05` floor those
+#' two screens use, and is the unidentified design they exist to catch. A
+#' direction must therefore keep BOTH its share of the declared spread and its
+#' standing above the floor.
+#'
+#' Declared directions already below the floor are skipped: they carry no
+#' separation the likelihood can use either way, so requiring the grid to
+#' reproduce them would flag noise.
+#'
+#' The projection is measured two ways, because neither alone suffices and each
+#' covers the other's blind spot.
+#'
+#' Per-axis LENGTHS are directional: they pair the k-th declared direction with
+#' the realized energy on that same direction, so they catch a grid that keeps
+#' its total spread but relocates it onto a different declared axis. They are
+#' not a rank. A grid collapsed onto a diagonal of two declared axes still has
+#' a long component on each of them separately, so lengths alone accept a grid
+#' spanning one direction where the declared design spans two; two `distr()`
+#' calls keyed off the same margin do exactly that, and in a jointly defined
+#' subgroup table it is one copy-and-paste away.
+#'
+#' SINGULAR VALUES of the projection count the directions actually spanned,
+#' which is what `.profile_rank()` screens, so they close that hole. On their
+#' own they are looser than the directional test, not stricter: they arrive
+#' sorted and carry no direction, so the largest realized combination is judged
+#' against the largest declared direction even when its energy sits on another,
+#' and a grid retaining 40 percent of the dominant direction passes on surplus
+#' it carries elsewhere.
+#'
+#' Requiring both means a direction must keep its own share of the declared
+#' spread AND remain a direction the grid genuinely spans.
+#'
+#' @param declared Matrix of declared mean profiles (rows are AgD rows).
+#' @param realized Matrix of realized integration means, or `NULL`.
+#' @param ref_sd Reference SD per covariate (the IPD SDs), to put both designs
+#'   on the scale the identification screens use. Non-finite or non-positive
+#'   entries fall back to 1.
+#' @param factor Smallest share of each declared singular value the realized
+#'   design must still provide along that same direction.
+#' @param min_spread Absolute floor, in IPD standard deviations, matching
+#'   [check_identification()] and `.profile_rank()`.
+#' @return `TRUE` when the realized design reproduces the declared one, or when
+#'   there is nothing to compare against.
+#' @keywords internal
+.realized_matches_declared <- function(declared, realized, ref_sd = NULL,
+                                       factor = 0.5, min_spread = 0.05) {
+  if (is.null(realized)) {
+    return(TRUE)
+  }
+  if (!identical(dim(declared), dim(realized))) {
+    # Not a match and not a mismatch: the grid cannot be compared at all. Say
+    # so rather than reporting the declared geometry as if it had been checked.
+    warning("The realized integration means could not be compared with the ",
+            "declared aggregate means, because the two have different shapes. ",
+            "The reported geometry describes the declared columns, which have ",
+            "not been checked against the design being fitted.", call. = FALSE)
+    return(TRUE)
+  }
+  scale_by <- if (is.null(ref_sd)) {
+    # No external scale supplied: fall back to the declared column spreads, so
+    # the relative half of the test still means something. The absolute floor
+    # is skipped in that case, since there is no scale to judge it on.
+    apply(declared, 2L, function(col) {
+      s <- diff(range(col))
+      if (!is.finite(s) || s <= 0) s <- max(abs(col))
+      if (!is.finite(s) || s <= 0) s <- 1
+      s
+    })
+  } else {
+    sd_vals <- as.numeric(ref_sd)
+    sd_vals[!is.finite(sd_vals) | sd_vals <= 0] <- 1
+    sd_vals
+  }
+  d <- sweep(scale(declared, center = TRUE, scale = FALSE), 2L, scale_by, "/")
+  r <- sweep(scale(realized, center = TRUE, scale = FALSE), 2L, scale_by, "/")
+  if (!all(is.finite(d)) || !all(is.finite(r))) {
+    warning("The realized integration means could not be compared with the ",
+            "declared aggregate means, because one of them is not finite. ",
+            "The reported geometry describes the declared columns, which have ",
+            "not been checked against the design being fitted.", call. = FALSE)
+    return(TRUE)
+  }
+  decomposition <- tryCatch(svd(d), error = function(e) NULL)
+  if (is.null(decomposition)) {
+    warning("The realized integration means could not be compared with the ",
+            "declared aggregate means, because the declared design could not ",
+            "be decomposed. The reported geometry describes the declared ",
+            "columns, which have not been checked against the design being ",
+            "fitted.", call. = FALSE)
+    return(TRUE)
+  }
+  # Length of each design along the declared principal directions. Dividing by
+  # sqrt(nrow) gives the RMS profile separation `.subgroup_geometry()` reports
+  # as `spread`, which is what the floor is stated in.
+  rows <- sqrt(nrow(d))
+  declared_spread <- decomposition$d / rows
+  counts <- .at_least(declared_spread, min_spread)
+  if (!any(counts)) {
+    return(TRUE)
+  }
+  # Project the realized grid onto the declared directions that count, and
+  # measure that projection TWO ways. Neither alone is enough, and each catches
+  # what the other misses.
+  #
+  # Per-axis lengths are directional: they pair the k-th declared direction
+  # with the realized energy on THAT direction, so they catch a grid that keeps
+  # its total spread but moves it onto a different declared axis. They are not
+  # a rank: a grid collapsed onto a diagonal of two declared axes still has a
+  # long component on each of them separately, so this test alone passes a grid
+  # spanning one direction where the declared design spans two. Two `distr()`
+  # calls keyed off the same margin do exactly that.
+  #
+  # Singular values count the directions actually spanned, which is the
+  # quantity `.profile_rank()` screens, so they close that hole. But they
+  # arrive sorted and carry no direction, so this test alone is LOOSER than the
+  # directional one: the largest realized combination gets judged against the
+  # largest declared direction even when its energy sits on another, and a grid
+  # keeping 40 percent of the dominant direction passes on the surplus it
+  # carries elsewhere.
+  #
+  # Requiring both means a direction must keep its own share AND still be a
+  # direction the grid genuinely spans.
+  projected <- r %*% decomposition$v[, counts, drop = FALSE]
+  realized_d <- tryCatch(svd(projected)$d, error = function(e) NULL)
+  if (is.null(realized_d) || any(!is.finite(realized_d))) {
+    return(FALSE)
+  }
+  declared_spread <- declared_spread[counts]
+  # Lengths along each declared direction, in the same RMS units as `spread`.
+  realized_axis <- sqrt(colSums(projected^2)) / rows
+  # Singular values of the same projection, sorted descending against the
+  # declared spreads, which `svd()` already returns sorted.
+  realized_sv <- realized_d[seq_along(declared_spread)] / rows
+  realized_sv[!is.finite(realized_sv)] <- 0
+  share_of <- factor * declared_spread
+  keeps_share <- .at_least(realized_axis, share_of) &
+    .at_least(realized_sv, share_of)
+  clears_floor <- if (is.null(ref_sd)) {
+    TRUE
+  } else {
+    .at_least(realized_axis, min_spread) & .at_least(realized_sv, min_spread)
+  }
+  all(keeps_share) && all(clears_floor)
 }

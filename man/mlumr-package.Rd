@@ -12,31 +12,32 @@ data (IPD) study on the index treatment and aggregate data (AgD) on a
 comparator. Two model variants are provided: a shared-prognostic-factor
 (SPFA) model and a relaxed-SPFA model that allows treatment-specific
 covariate coefficients. Supports binary (binomial), continuous (normal),
-and count (Poisson) outcomes, each with appropriate link functions.
-Frequentist outcome regression (Simulated Treatment Comparison) and a
-naive unadjusted benchmark are included for side-by-side comparison.
+count (Poisson), and time-to-event (survival) outcomes, each with
+appropriate link functions. Frequentist outcome regression (Simulated
+Treatment Comparison) and a naive unadjusted benchmark are included for
+side-by-side comparison.
 }
 \section{Typical workflow}{
 
 \enumerate{
-\item \code{\link[=set_ipd]{set_ipd()}} — declare the individual patient data and its
+\item \code{\link[=set_ipd]{set_ipd()}}: declare the individual patient data and its
 covariates.
-\item \code{\link[=set_agd]{set_agd()}} — declare the aggregate-data arm.
-\item \code{\link[=combine_data]{combine_data()}} — join the two into an \code{mlumr_data} object.
-\item \code{\link[=add_integration]{add_integration()}} — build the Gaussian-copula QMC
+\item \code{\link[=set_agd]{set_agd()}}: declare the aggregate-data arm.
+\item \code{\link[=combine_data]{combine_data()}}: join the two into an \code{mlumr_data} object.
+\item \code{\link[=add_integration]{add_integration()}}: build the Gaussian-copula QMC
 integration points used to marginalize over the AgD covariate
 distribution.
-\item \code{\link[=mlumr]{mlumr()}} — fit the Bayesian ML-UMR model (SPFA or relaxed).
-\item \code{\link[=prior_summary]{prior_summary()}}, \code{\link[=check_integration]{check_integration()}} — sanity-check the
+\item \code{\link[=mlumr]{mlumr()}}: fit the Bayesian ML-UMR model (SPFA or relaxed).
+\item \code{\link[=prior_summary]{prior_summary()}}, \code{\link[=check_integration]{check_integration()}}: sanity-check the
 model before inferring from it.
 \item \link[=predict.mlumr_fit]{predict()}, \code{\link[=marginal_effects]{marginal_effects()}},
-\code{\link[=conditional_effects]{conditional_effects()}}, \code{\link[=conditional_predict]{conditional_predict()}} — extract
+\code{\link[=conditional_effects]{conditional_effects()}}, \code{\link[=conditional_predict]{conditional_predict()}}: extract
 population-level and profile-specific quantities.
 \item \code{\link[=calculate_dic]{calculate_dic()}}, \code{\link[=calculate_loo]{calculate_loo()}}, \code{\link[=calculate_waic]{calculate_waic()}},
-\code{\link[=compare_models]{compare_models()}} — compare SPFA vs relaxed or competing
+\code{\link[=compare_models]{compare_models()}}: compare SPFA vs relaxed or competing
 specifications.
-\item \code{\link[=prior_sensitivity]{prior_sensitivity()}} — verify the posterior is data-driven
-rather than prior-driven.
+\item \code{\link[=prior_sensitivity]{prior_sensitivity()}}: examine robustness over specified prior
+choices.
 }
 }
 
@@ -45,16 +46,31 @@ rather than prior-driven.
 The prior constructors \code{\link[=prior_normal]{prior_normal()}}, \code{\link[=prior_student_t]{prior_student_t()}},
 \code{\link[=prior_cauchy]{prior_cauchy()}}, and \code{\link[=prior_exponential]{prior_exponential()}} all plug into \code{\link[=mlumr]{mlumr()}} via
 \code{prior_intercept}, \code{prior_beta}, and (normal family only) \code{prior_sigma}.
-Defaults follow the Stan community's prior-choice recommendations
-(Vehtari et al., 2025).
+Survival models add two further knobs: \code{prior_aux} for the parametric shape or
+scale parameter(s) (Weibull/Gompertz shape, log-normal sdlog, generalized
+gamma shapes; see \code{\link[=default_prior_aux]{default_prior_aux()}}) and \code{prior_smooth} for the M-spline /
+piecewise-exponential baseline smoothing standard deviation (see
+\code{\link[=default_prior_smooth]{default_prior_smooth()}}). The package defaults are generic starting values;
+calibrate them using prior predictive checks and subject-matter knowledge.
+}
+
+\section{Quiet mode}{
+
+Set \code{options(mlumr.quiet = TRUE)} to suppress the package startup banner in
+scripted sessions (in addition to the standard
+\code{suppressPackageStartupMessages()}).
 }
 
 \section{Alternative methods}{
 
-\code{\link[=stc]{stc()}} runs frequentist parametric G-computation (Simulated Treatment
-Comparison). \code{\link[=naive]{naive()}} computes an unadjusted crude-rate benchmark. Both
-consume the same \code{mlumr_data} object as \code{\link[=mlumr]{mlumr()}} so their estimands can
-be compared directly.
+\code{\link[=stc]{stc()}} performs G-computation by fitting a one-arm outcome model and
+standardizing index-treatment
+predictions to the comparator population before contrasting them with the
+observed comparator outcome there. It does not standardize to the index
+population. \code{\link[=naive]{naive()}} computes an unadjusted contrast between the observed
+index study and comparator study, so it does not have a single common target
+population. Both consume the same \code{mlumr_data} object as \code{\link[=mlumr]{mlumr()}}, but their
+estimands must be interpreted before numerical results are compared.
 }
 
 \seealso{

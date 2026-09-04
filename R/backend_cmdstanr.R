@@ -35,15 +35,14 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
     dots$parallel_chains <- min(chains,
                                 max(1L, as.integer(getOption("mc.cores", 1L))))
   }
-
   # cmdstanr writes its "Running MCMC with N chains / Chain k finished in ..."
   # banner to STDOUT, not through the condition system, so `refresh = 0` does
-  # not stop it and neither does suppressMessages(). That is roughly fifteen
-  # lines per fit, which buries anything real in a loop over many models.
-  # `verbose` is the argument a caller already reaches for, so honor it here
-  # too, while leaving an explicit `show_messages` / `show_exceptions` in `...`
-  # to win. `show_exceptions` was added to cmdstanr later than `show_messages`,
-  # so ask the method what it accepts rather than assuming a version.
+  # not stop it and neither does suppressMessages(). That is fifteen lines per
+  # fit, which buries anything real in a loop of a few hundred fits. `verbose`
+  # is the argument a caller already reaches for, so honor it here too, while
+  # leaving an explicit `show_messages` / `show_exceptions` in `...` to win.
+  # `show_exceptions` was added to cmdstanr later than `show_messages`, so ask
+  # the method what it accepts rather than assuming a version.
   sample_formals <- names(formals(mod$sample))
   for (nm in intersect(c("show_messages", "show_exceptions"), sample_formals)) {
     if (!nm %in% names(dots)) dots[[nm]] <- isTRUE(verbose)
@@ -64,13 +63,27 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
   )
   fit <- do.call(mod$sample, sample_args)
 
-  # Extract draws as plain data.frame (drop metadata columns)
+  # Extract draws as plain data.frame (drop metadata columns). Keep the real
+  # per-draw chain id before dropping it, so diagnostics (loo r_eff) use the
+  # actual chain labels rather than reconstructing them from row ordering.
   draws_df <- as.data.frame(fit$draws(format = "df"))
+  chain_ids <- if (".chain" %in% names(draws_df)) {
+    as.integer(draws_df$.chain)
+  } else {
+    NULL
+  }
   meta_cols <- c(".chain", ".iteration", ".draw")
   draws_df <- draws_df[, !names(draws_df) %in% meta_cols, drop = FALSE]
 
   # Build summary matching rstan column names:
   # variable, mean, se_mean, sd, 2.5%, 25%, 50%, 75%, 97.5%, n_eff, Rhat
+  #
+  # Note: `n_eff` and `se_mean` are necessarily engine-defined. Here n_eff is
+  # posterior::ess_bulk and se_mean = sd / sqrt(ess_bulk); rstan reports its own
+  # classic n_eff and Monte Carlo se_mean. The two are close but not identical,
+  # so head-to-head ESS / se_mean tables across engines are not exactly
+  # comparable. All downstream estimates/CIs are recomputed from raw draws and
+  # are unaffected.
   if (requireNamespace("posterior", quietly = TRUE)) {
     cmdstan_summ <- fit$summary(
       variables = NULL,
@@ -92,7 +105,7 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
     summary_df <- as.data.frame(cmdstan_summ)
   } else {
     # Fallback when posterior is not installed: basic summary with NA for
-    # ESS and Rhat. We deliberately do NOT impute n_eff with the total
+    # ESS and Rhat. We deliberately do not impute n_eff with the total
     # draw count (or any other plug-in) because that would silently report
     # wildly optimistic sample sizes and mask autocorrelation. Installing
     # 'posterior' is required for valid convergence diagnostics.
@@ -113,6 +126,7 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
       `75%` = vapply(draws_df, function(.x) stats::quantile(.x, 0.75), numeric(1)),
       `97.5%` = vapply(draws_df, function(.x) stats::quantile(.x, 0.975), numeric(1)),
       n_eff = rep(NA_real_, length(var_names)),
+      ess_tail = rep(NA_real_, length(var_names)),
       Rhat = rep(NA_real_, length(var_names)),
       check.names = FALSE, stringsAsFactors = FALSE
     )
@@ -126,10 +140,38 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
   list(
     native_fit = fit,
     draws = draws_df,
+    chain_ids = chain_ids,
     summary_df = summary_df,
     n_divergent = n_divergent,
-    n_max_td = n_max_td
+    n_max_td = n_max_td,
+    n_chains_requested = as.integer(chains),
+    n_chains_returned = .n_chains_returned(chain_ids, chains)
   )
+}
+
+
+#' Number of chains actually present in the returned draws
+#'
+#' A chain can terminate abnormally (for example a numerically fragile
+#' likelihood whose gradient fails to evaluate). Both backends then return a fit
+#' assembled from the surviving chains only, so the posterior silently
+#' represents fewer chains than were requested. Counting the distinct chain ids
+#' in the draws is the one check that catches this on either engine.
+#'
+#' @param chain_ids Per-draw chain labels, or `NULL` when unavailable.
+#' @param chains Number of chains requested.
+#' @return Integer count of chains present.
+#' @keywords internal
+.n_chains_returned <- function(chain_ids, chains) {
+  # `NULL` means the backend could not label the draws by chain, which happens
+  # exactly when the draw count does not divide by the fitted chain count: the
+  # abnormal layout this diagnostic exists to notice. Returning the REQUESTED
+  # count there asserts that every chain came back, which is the one thing not
+  # known. Report it as unknown and let the caller say so.
+  if (is.null(chain_ids) || !length(chain_ids)) {
+    return(NA_integer_)
+  }
+  length(unique(chain_ids))
 }
 
 

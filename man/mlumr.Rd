@@ -45,21 +45,26 @@ mlumr(
 
 \item{link}{Link function. For binomial: \code{"logit"} (default), \code{"probit"},
 or \code{"cloglog"}. For normal: \code{"identity"} (default) or \code{"log"}. For
-poisson: \code{"log"} (default, only option). If \code{NULL}, uses the canonical
-default for the family.}
+poisson and survival: \code{"log"} (default, only option). If \code{NULL}, uses the
+canonical default for the family.}
 
 \item{prior_intercept}{Prior for treatment intercepts. Default from
-\code{\link[=default_prior_intercept]{default_prior_intercept()}} (\code{prior_normal(0, 10)}, weakly informative
-on the linear-predictor scale). See \code{\link[=prior_normal]{prior_normal()}} for guidance.}
+\code{\link[=default_prior_intercept]{default_prior_intercept()}} (\code{prior_normal(0, 10)}). This is a generic
+starting value on the linear-predictor scale, not a calibrated choice for
+every family or outcome scale. See \code{\link[=prior_normal]{prior_normal()}} for guidance.}
 
 \item{prior_beta}{Prior for regression coefficients. May be a single
 prior broadcast to all covariates, or a \code{list} of priors of length
 \code{n_cov} for per-coefficient specification. All per-coefficient priors
 must share the same family and (for Student-t) df. Default from
-\code{\link[=default_prior_beta]{default_prior_beta()}} (\code{prior_normal(0, 2.5)}; Gelman et al. 2008;
-Stan community prior-choice wiki). Set \code{autoscale = TRUE} on the
-prior to divide the scale by each covariate's empirical SD — useful
-when predictors are on very different scales.}
+\code{\link[=default_prior_beta]{default_prior_beta()}} (\code{prior_normal(0, 2.5)}). Gelman et al. (2008)
+motivate a Cauchy prior after a particular predictor scaling, not this
+normal prior as a universal default. Set \code{autoscale = TRUE} on the
+prior to divide the scale by each covariate's empirical SD: useful
+when predictors are on very different scales. For \code{model = "spfa"}
+the single coefficient vector \code{beta} uses this prior; for
+\code{model = "relaxed"} the index-arm coefficients \code{beta_index} use it
+while \code{beta_comparator} uses \code{prior_beta_comparator} (see below).}
 
 \item{prior_sigma}{Prior for residual SD (normal family only). Default
 from \code{\link[=default_prior_sigma]{default_prior_sigma()}} (\code{prior_normal(0, 2.5)}, half-normal via
@@ -231,7 +236,9 @@ for the common few-covariate case the default fused-GLM path (with
 
 \item{warmup}{Number of warmup iterations (default 1000)}
 
-\item{seed}{Random seed for reproducibility}
+\item{seed}{Random seed for reproducibility. If \code{NULL} (default), the fixed
+seed 2026 is used and a warning says so, so an unseeded fit still
+reproduces. The seed actually used is reported in the fitting messages.}
 
 \item{adapt_delta}{Target acceptance rate (default 0.95)}
 
@@ -305,11 +312,64 @@ each row constrains the parameters. Because the parts of a split subgroup sum
 to the whole, the estimand does not change with how the aggregate evidence
 happens to be tabulated.
 
-\strong{Weakly-identified coefficients in the relaxed model} —
+\strong{Weakly-identified coefficients in the relaxed model}:
 \code{beta_comparator} is identified only through AgD, so the relaxed
 model needs informative priors (or many AgD rows) to estimate
 effect modification reliably. \code{\link[=prior_sensitivity]{prior_sensitivity()}} is the
 recommended diagnostic.
+
+The model assumes that all AgD rows come from the same comparator treatment
+and that, conditional on covariates, there is no between-study heterogeneity.
+If AgD rows come from multiple studies with different designs or unmeasured
+confounders, this assumption may not hold. No random effects for study-level
+heterogeneity are included.
+
+\strong{AgD scale assumptions (family = \code{"normal"}).} The AgD likelihood is
+\code{y_agd ~ normal(E[exp(eta)], se_agd)} under \code{link = "log"} and
+\code{y_agd ~ normal(E[eta], se_agd)} under \code{link = "identity"}. In both
+cases \code{set_agd()} expects \code{outcome_mean} and \code{outcome_se} on the
+\strong{arithmetic (original, untransformed) scale}, not log-scale or
+geometric. Passing log-scale summaries silently misspecifies the
+likelihood. See \code{\link[=set_agd]{set_agd()}} for details.
+
+\strong{Comparator-population weighting is family-dependent.} Integrated
+marginal predictions in the comparator population (\verb{*_comparator}
+generated quantities) are weighted by:
+\itemize{
+\item \strong{binomial}: \code{n_agd[k]} (AgD sample size), so larger
+AgD rows contribute more to the marginal mean.
+\item \strong{normal}: \code{outcome_n[k]} (AgD sample size), which is required for
+multiple rows; a single row has weight one when \code{outcome_n} is omitted.
+These are the estimand's
+mixing weights, not the likelihood's \code{1 / se^2} precision weights, so
+splitting one comparator population into subgroup rows does not change
+the target population.
+\item \strong{poisson}: \code{E_agd[k]} (AgD exposure), matching the
+rate-based likelihood.
+}
+Each weighting is natural for the corresponding likelihood; users
+comparing marginal effects across families should be aware they are
+not identically weighted.
+
+\strong{Weakly-identified coefficients in the relaxed model.}
+\code{beta_comparator} is identified only through AgD, so the relaxed
+model needs informative priors (or many AgD rows) to estimate
+effect modification reliably. \code{\link[=prior_sensitivity]{prior_sensitivity()}} is the
+recommended diagnostic.
+
+\strong{Identifying the relaxed model with subgroup AgD.} The strongest way to
+identify \code{beta_comparator} from data (rather than the prior) is to supply the
+comparator AgD as \strong{joint subgroups}: mutually exclusive, collectively
+exhaustive strata of the comparator population, one \code{\link[=set_agd]{set_agd()}} row per
+subgroup, each with its own covariate summaries and outcome. Each subgroup
+contributes a separate marginal likelihood term
+(\verb{L_AgD = prod_s L_\{AgD,s\}}), and the variation in covariate means across
+subgroups identifies the treatment-specific covariate effects
+\code{beta_comparator} (the primary relaxed-SPFA strategy of Chandler & Ishak,
+Section 2.2.1). With only a single overall comparator AgD row,
+\code{beta_comparator} is identified by the prior alone; with subgroups it is
+informed by the data. (Marginal, overlapping subgroups would double-count
+patients and understate uncertainty; supply jointly-defined subgroups.)
 }
 \examples{
 \dontrun{

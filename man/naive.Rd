@@ -11,7 +11,11 @@ naive(data, link = NULL, conf_level = 0.95)
 
 \item{link}{Link function. For binomial: \code{"logit"} (default), \code{"probit"},
 or \code{"cloglog"}. For normal/poisson: ignored (identity/log always used).
-If \code{NULL}, uses the canonical default.}
+For survival: ignored (an unadjusted Cox proportional-hazards log hazard
+ratio is returned). The naive Cox benchmark accepts only right-censored /
+event data (optionally with delayed entry); left- or interval-censored data
+(which the Bayesian \code{\link[=mlumr]{mlumr()}} model supports) are rejected. If \code{NULL}, uses
+the canonical default.}
 
 \item{conf_level}{Confidence level for the interval (default 0.95)}
 }
@@ -21,14 +25,35 @@ An object of class \code{mlumr_naive}
 \description{
 Compute an unadjusted (naive) indirect treatment comparison by comparing
 crude outcomes from the IPD and AgD without any covariate adjustment.
-Returns treatment effect on the link scale plus absolute predictions
-(event probabilities, risk difference, risk ratio) for both populations.
+The index outcome remains marginal over the index-study population and the
+comparator outcome remains marginal over the comparator population. The
+contrast therefore has no single standardized target population. It returns
+the link-scale contrast plus the two observed marginal outcomes and available
+natural-scale contrasts.
 }
 \details{
 For binomial outcomes, event-probability intervals use Wald standard errors
-and are bounded to \verb{[0, 1]}. For Poisson outcomes, the log-rate contrast
-uses a 0.5 continuity correction when an observed event count is zero.
+and are bounded to \verb{[0, 1]}. When an observed arm has zero or all events,
+transformed effect measures use the boundary-only pseudo-count
+\code{(r + 0.5) / (n + 1)}; the reported crude probabilities remain unchanged.
+For Poisson outcomes, the log-rate contrast uses a 0.5 continuity correction
+when an observed event count is zero.
+
+Scale note: \verb{$estimate} (and the binomial \verb{$log_rr}) is on the link / log
+scale, where the null is 0. To compare against the natural-scale risk ratio
+or rate ratio from \code{\link[=marginal_effects]{marginal_effects()}} (where the null is 1), exponentiate
+it (e.g. \code{exp(result$estimate)}).
 }
+\section{Normal-family weighting}{
+
+Across multiple AgD rows the normal-family comparator mean here is
+population weighted using \code{outcome_n}, matching the Bayesian ML-UMR
+comparator-population estimand. \code{outcome_n} is required when there is more
+than one row; a single row has weight one. The comparator-mean variance
+combines independent, mutually exclusive strata as \code{sum(w^2 * se^2)} using
+normalized population weights. The same weighting applies to \code{\link[=stc]{stc()}}.
+}
+
 \examples{
 \dontrun{
 result <- naive(dat)

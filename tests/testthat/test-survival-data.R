@@ -410,3 +410,17 @@ test_that("survival-only controls are rejected for the other families", {
                  "survival baseline hazard", info = names(a))
   }
 })
+
+
+test_that(".validate_survival_prediction_times rejects non-finite/non-positive", {
+  # Restored: the guard is live (three call sites in R/predict.R reach it), but
+  # its coverage was dropped when the survival prediction tests were merged.
+  vt <- mlumr:::.validate_survival_prediction_times
+  expect_equal(vt(c(1, 2, 3)), c(1, 2, 3))
+  expect_error(vt(NA), "finite")
+  expect_error(vt(c(1, Inf)), "finite")
+  expect_error(vt(-1), "positive|finite")
+  expect_error(vt(0), "positive|finite")
+  expect_error(vt("a"), "finite|positive")
+  expect_error(vt(numeric(0)), "finite|positive")
+})

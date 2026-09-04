@@ -152,7 +152,7 @@ real log_surv_scalar(int dist, real t, real eta, real aux, real aux2) {
 }
 
 // Closed-form log hazard log h(t | eta); returns 0 for dists handled via lpdf
-// (6, 8, 9) -- callers needing those use log_haz_full().
+// (6, 8, 9); callers needing those use log_haz_full().
 real log_haz_scalar(int dist, real t, real eta, real aux, real aux2) {
   if (dist == 1) return eta;                                        // Exp PH
   else if (dist == 2) return log(aux) + (aux * log(t) + eta) - log(t); // Weibull PH

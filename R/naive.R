@@ -2,18 +2,41 @@
 #'
 #' Compute an unadjusted (naive) indirect treatment comparison by comparing
 #' crude outcomes from the IPD and AgD without any covariate adjustment.
-#' Returns treatment effect on the link scale plus absolute predictions
-#' (event probabilities, risk difference, risk ratio) for both populations.
+#' The index outcome remains marginal over the index-study population and the
+#' comparator outcome remains marginal over the comparator population. The
+#' contrast therefore has no single standardized target population. It returns
+#' the link-scale contrast plus the two observed marginal outcomes and available
+#' natural-scale contrasts.
 #'
 #' For binomial outcomes, event-probability intervals use Wald standard errors
-#' and are bounded to `[0, 1]`. For Poisson outcomes, the log-rate contrast
-#' uses a 0.5 continuity correction when an observed event count is zero.
+#' and are bounded to `[0, 1]`. When an observed arm has zero or all events,
+#' transformed effect measures use the boundary-only pseudo-count
+#' `(r + 0.5) / (n + 1)`; the reported crude probabilities remain unchanged.
+#' For Poisson outcomes, the log-rate contrast uses a 0.5 continuity correction
+#' when an observed event count is zero.
+#'
+#' Scale note: `$estimate` (and the binomial `$log_rr`) is on the link / log
+#' scale, where the null is 0. To compare against the natural-scale risk ratio
+#' or rate ratio from [marginal_effects()] (where the null is 1), exponentiate
+#' it (e.g. `exp(result$estimate)`).
 #'
 #' @param data An `mlumr_data` object from [combine_data()]
 #' @param link Link function. For binomial: `"logit"` (default), `"probit"`,
 #'   or `"cloglog"`. For normal/poisson: ignored (identity/log always used).
-#'   If `NULL`, uses the canonical default.
+#'   For survival: ignored (an unadjusted Cox proportional-hazards log hazard
+#'   ratio is returned). The naive Cox benchmark accepts only right-censored /
+#'   event data (optionally with delayed entry); left- or interval-censored data
+#'   (which the Bayesian [mlumr()] model supports) are rejected. If `NULL`, uses
+#'   the canonical default.
 #' @param conf_level Confidence level for the interval (default 0.95)
+#'
+#' @section Normal-family weighting:
+#' Across multiple AgD rows the normal-family comparator mean here is
+#' population weighted using `outcome_n`, matching the Bayesian ML-UMR
+#' comparator-population estimand. `outcome_n` is required when there is more
+#' than one row; a single row has weight one. The comparator-mean variance
+#' combines independent, mutually exclusive strata as `sum(w^2 * se^2)` using
+#' normalized population weights. The same weighting applies to [stc()].
 #'
 #' @return An object of class `mlumr_naive`
 #' @export
@@ -54,9 +77,6 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
 
   n_index <- nrow(ipd)
   n_comparator <- sum(agd$.n)
-  # The reported rate is the observed proportion. The continuity correction is
-  # applied only inside the effect calculation, so a zero-event arm is still
-  # reported as zero events rather than as its corrected surrogate.
   p_index <- mean(ipd$.outcome)
   p_comparator <- sum(agd$.r) / n_comparator
   p_index_effect <- bound_probability(p_index, n_index)
@@ -155,17 +175,20 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
 .naive_normal <- function(data, ipd, agd, conf_level, z) {
   mean_index <- mean(ipd$.outcome)
   n_index <- nrow(ipd)
+  if (n_index < 2L) {
+    stop("The naive normal benchmark needs at least two IPD observations to ",
+         "estimate the index-mean variance; ", n_index, " supplied.",
+         call. = FALSE)
+  }
   var_index <- var(ipd$.outcome) / n_index
 
-  # Sample-size weights, not inverse-variance weights. An inverse-variance
-  # average estimates a common mean efficiently, but the estimand here is the
-  # comparator population's mean, which is the size-weighted mixture of its
-  # strata. This matches what the Stan models and stc() target. Both reduce to
-  # the same value for single-row aggregate data.
-  row_w <- if (!is.null(agd$.n)) .normalize_weights(agd$.n) else
-    rep(1 / nrow(agd), nrow(agd))
-  mean_comparator <- sum(row_w * agd$.y)
-  var_comparator <- sum(row_w^2 * agd$.se^2)
+  if (nrow(agd) > 1L && is.null(agd$.n)) {
+    stop("`outcome_n` is required for multiple normal AgD rows.", call. = FALSE)
+  }
+  agd_weights <- agd$.n %||% 1
+  w_norm <- .normalize_weights(agd_weights)
+  mean_comparator <- sum(w_norm * agd$.y)
+  var_comparator <- sum(w_norm^2 * agd$.se^2)
 
   estimate <- mean_index - mean_comparator
   se <- sqrt(var_index + var_comparator)

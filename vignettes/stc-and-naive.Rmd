@@ -116,10 +116,8 @@ uncertainty through the logit-of-mean transformation.
 ### Usage
 
 ```{r, eval = TRUE, purl = FALSE}
-# Without integration points (uses AgD means)
-result_stc <- stc(dat)
-
-# With integration points (better marginalization)
+# STC marginalizes over the comparator covariate distribution, so it needs
+# the integration points that describe it.
 dat <- add_integration(dat, n_int = 64,
                        age_cat = distr(qbern, prob = age_cat_mean),
                        sex = distr(qbern, prob = sex_mean))
@@ -130,12 +128,13 @@ print(result_stc)
 
 ### With vs without integration points
 
-- **Without integration points**: STC predicts only at the AgD covariate
-  **means** (a single point). This can introduce bias for non-linear
-  models (Jensen's inequality).
-- **With integration points**: STC marginalizes over the full covariate
-  distribution, giving a more accurate estimate. We recommend always using
-  integration points.
+- **At the AgD covariate means only** (a single point), a nonlinear model is
+  biased by Jensen's inequality: the mean of the predictions is not the
+  prediction at the mean. `stc()` therefore refuses this case rather than
+  returning a number that looks usable, unless the link is the identity, where
+  the two coincide.
+- **With integration points**, STC marginalizes over the full covariate
+  distribution, which is the estimand it is meant to report.
 
 For binary outcomes, event-probability confidence intervals are bounded to
 `[0, 1]`. For Poisson outcomes, STC uses a 0.5 continuity correction for the
@@ -205,6 +204,8 @@ agd_normal <- set_agd(
   cov_types = "binary"
 )
 dat_normal <- combine_data(ipd_normal, agd_normal)
+# The identity link is the one case where the mean of the predictions equals
+# the prediction at the mean, so no integration points are required here.
 naive(dat_normal)
 stc(dat_normal)
 ```
@@ -236,6 +237,10 @@ agd_poisson <- set_agd(
   cov_types = "binary"
 )
 dat_poisson <- combine_data(ipd_poisson, agd_poisson)
+# The log link is nonlinear, so STC needs the comparator distribution rather
+# than its means.
+dat_poisson <- add_integration(dat_poisson, n_int = 64,
+                               age_cat = distr(qbern, prob = age_cat_mean))
 naive(dat_poisson)
 stc(dat_poisson)
 ```

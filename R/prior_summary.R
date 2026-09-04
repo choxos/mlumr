@@ -48,6 +48,10 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
   if (!is.null(priors$beta_resolved)) {
     priors$beta_resolved <- .validate_resolved_beta_prior(priors$beta_resolved)
   }
+  if (!is.null(priors$beta_comparator_resolved)) {
+    priors$beta_comparator_resolved <-
+      .validate_resolved_beta_prior(priors$beta_comparator_resolved)
+  }
 
   cat("Priors for ML-UMR Fit\n")
   cat("=====================\n\n")
@@ -253,7 +257,7 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
     stop("Resolved beta prior metadata is malformed.", call. = FALSE)
   }
   if (!is.numeric(br$dist) || length(br$dist) != 1L ||
-      !is.finite(br$dist)) {
+        !is.finite(br$dist)) {
     stop("Resolved beta prior distribution code is malformed.", call. = FALSE)
   }
   if (!is.numeric(br$df) || length(br$df) != 1L || !is.finite(br$df)) {
