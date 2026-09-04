@@ -84,7 +84,8 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
 
   # Sigma (normal family only)
   if (!is.null(priors$sigma)) {
-    cat("Residual SD (sigma, half-distribution via <lower=0>):\n")
+    cat("Residual SD (sigma, ", .constrained_prior_label(priors$sigma),
+        "):\n", sep = "")
     cat("  ", .format_prior(priors$sigma, digits = digits), "\n", sep = "")
     .print_default_tag(priors$sigma)
     cat("\n")
@@ -96,10 +97,11 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
   # `aux` is the parametric shape/scale; `smooth` is the random-walk SD of a
   # flexible baseline. A fit carries whichever its distribution has.
   if (!is.null(priors$aux)) {
+    aux_label <- .constrained_prior_label(priors$aux)
     label <- if (is.null(priors$aux2)) {
-      "Survival auxiliary (shape / scale, half-distribution via <lower=0>):"
+      paste0("Survival auxiliary (shape / scale, ", aux_label, "):")
     } else {
-      "Survival auxiliary 1 (gengamma sigma, half-distribution via <lower=0>):"
+      paste0("Survival auxiliary 1 (gengamma sigma, ", aux_label, "):")
     }
     cat(label, "\n", sep = "")
     cat("  ", .format_prior(priors$aux, digits = digits), "\n", sep = "")
@@ -110,13 +112,15 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
   # different features of the hazard and can now carry different priors.
   if (!is.null(priors$aux2)) {
     cat("Survival auxiliary 2 (gengamma k = 1 / Q^2, where Q is the Lawless\n")
-    cat("  shape; half-distribution via <lower=0>):\n")
+    cat("  shape; ", .constrained_prior_label(priors$aux2), "):\n",
+        sep = "")
     cat("  ", .format_prior(priors$aux2, digits = digits), "\n", sep = "")
     .print_default_tag(priors$aux2)
     cat("\n")
   }
   if (!is.null(priors$smooth)) {
-    cat("Survival baseline smoothing (random-walk SD, half-distribution via <lower=0>):\n")
+    cat("Survival baseline smoothing (random-walk SD, ",
+        .constrained_prior_label(priors$smooth), "):\n", sep = "")
     cat("  ", .format_prior(priors$smooth, digits = digits), "\n", sep = "")
     .print_default_tag(priors$smooth)
     cat("\n")
@@ -308,4 +312,33 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
                   format(br$sd[[1L]], digits = digits)),
     sprintf("dist=%s(...)", br$dist)
   )
+}
+
+
+# Name the constrained prior precisely instead of calling every
+# positive-constrained prior a "half-distribution". Two of those labels were
+# wrong: an exponential is already supported on the positive half-line, so
+# `<lower=0>` truncates nothing, and a normal or t with a nonzero location
+# truncated at zero is not a half-normal or half-t, which are the zero-location
+# cases. Reporting a prior less precisely than the model parameterizes it
+# defeats the point of prior introspection.
+
+#' Describe how a positive-constrained prior is constrained
+#'
+#' @param prior A prior specification list.
+#' @return A one-line character label for the constrained form.
+#' @keywords internal
+.constrained_prior_label <- function(prior) {
+  dist <- prior$distribution %||% ""
+  loc <- suppressWarnings(as.numeric(prior$mean %||% NA_real_))
+  centered <- isTRUE(is.finite(loc) && loc == 0)
+  if (identical(dist, "exponential")) {
+    "already positive; <lower=0> truncates nothing"
+  } else if (identical(dist, "normal")) {
+    if (centered) "half-normal via <lower=0>" else "normal truncated at 0"
+  } else if (identical(dist, "student_t")) {
+    if (centered) "half-t via <lower=0>" else "t truncated at 0"
+  } else {
+    "truncated to positive values via <lower=0>"
+  }
 }

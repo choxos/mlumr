@@ -523,6 +523,14 @@ mlumr <- function(data,
               if ((surv_info$n_aux %||% 0L) == 0L) "no" else "one",
               " auxiliary parameter, so it is ignored. Use `prior_aux`.",
               call. = FALSE)
+      # Drop it here rather than letting it reach `validate_prior()` below.
+      # Announcing that a value is ignored and then erroring on its contents
+      # is two contracts for one argument: a well-formed ignored prior was
+      # discarded quietly while a malformed ignored prior aborted the fit, and
+      # which of the two happened depended on a distribution the argument does
+      # not even apply to. The non-survival branch already warns without
+      # validating; this makes the survival branch agree with it.
+      prior_aux2 <- NULL
     }
     # Falling back to `prior_aux` keeps the previous behavior exactly for every
     # fit that does not name the second auxiliary.

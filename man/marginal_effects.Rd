@@ -54,9 +54,16 @@ column names must match the model covariates. When \code{NULL} (default), effect
 are returned for the built-in \code{index} and/or \code{comparator} populations from
 the Stan generated quantities. When supplied, the marginal effect is
 recomputed by averaging model-based predictions over these rows at each
-posterior draw, and \code{population} is ignored. For survival, RMST effects and
-the time-specific target-standardized marginal hazard ratio are available;
-the latter uses \code{at_time} (the first fitted prediction time by default).}
+posterior draw, and \code{population} is ignored. For survival the SAME scalar
+selector applies as without \code{newdata}: supplying a target changes which
+population an effect is standardized to, not which effects exist. A
+proportional-hazards fit reports the time-specific target-standardized
+marginal hazard ratio, which uses \code{at_time} (the first fitted prediction
+time by default); an AFT fit reports its target-standardized location
+contrast, \code{exp(mean(eta_index) - mean(eta_comparator))} over the target
+rows, which is a \code{TR} when the coefficients are shared (and then identical
+for every target, since the covariate term cancels) and an
+\code{EXP_DELTA_ETA} when they are not. RMST effects are available throughout.}
 
 \item{at_time}{Evaluation time for the scalar marginal hazard ratio, for
 proportional-hazards fits whose two studies have different baseline shapes

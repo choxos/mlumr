@@ -97,11 +97,11 @@ prior_sensitivity <- function(fit,
     stop("`prior_beta_scales` must be one or more positive finite numbers",
          call. = FALSE)
   }
-  invalid_probs <- !is.numeric(probs) || length(probs) < 1L ||
-    any(!is.finite(probs)) || any(probs < 0) || any(probs > 1)
-  if (invalid_probs) {
-    stop("`probs` must be one or more numbers in [0, 1]", call. = FALSE)
-  }
+  # The shared validator, not a local copy of it. The copy omitted the
+  # duplicate check, so two equal probabilities produced two identically named
+  # `qNN` columns and the second silently overwrote the first: the caller asked
+  # for n quantiles and got fewer, with no error and no way to tell.
+  .validate_probs(probs)
   if (!is.logical(verbose) || length(verbose) != 1L || is.na(verbose)) {
     stop("`verbose` must be TRUE or FALSE.", call. = FALSE)
   }

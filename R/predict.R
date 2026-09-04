@@ -747,9 +747,16 @@ predict.mlumr_fit <- function(object,
 #'   are returned for the built-in `index` and/or `comparator` populations from
 #'   the Stan generated quantities. When supplied, the marginal effect is
 #'   recomputed by averaging model-based predictions over these rows at each
-#'   posterior draw, and `population` is ignored. For survival, RMST effects and
-#'   the time-specific target-standardized marginal hazard ratio are available;
-#'   the latter uses `at_time` (the first fitted prediction time by default).
+#'   posterior draw, and `population` is ignored. For survival the SAME scalar
+#'   selector applies as without `newdata`: supplying a target changes which
+#'   population an effect is standardized to, not which effects exist. A
+#'   proportional-hazards fit reports the time-specific target-standardized
+#'   marginal hazard ratio, which uses `at_time` (the first fitted prediction
+#'   time by default); an AFT fit reports its target-standardized location
+#'   contrast, `exp(mean(eta_index) - mean(eta_comparator))` over the target
+#'   rows, which is a `TR` when the coefficients are shared (and then identical
+#'   for every target, since the covariate term cancels) and an
+#'   `EXP_DELTA_ETA` when they are not. RMST effects are available throughout.
 #'
 #' @return A data frame. With `summary = FALSE` the raw posterior draws are
 #'   returned as a plain data frame (not plottable; plot methods need
@@ -1549,40 +1556,19 @@ marginal_effects <- function(object,
   # hazard ratio has a closed form; with differing shapes it can only be read
   # off the fitted grid.
   stratified <- .aux_shapes_differ(object)
-  # Literal selector, matching the built-in route: a PH fit supplies a hazard
-  # ratio and only `"hr"` names it.
-  #
-  # An AFT fit has no transported scalar contrast on this route at all, which is
-  # a NARROWER set than the built-in route offers rather than the same rule: a
-  # shared-shape SPFA AFT fit answers `effect = "tr"` without `newdata` and
-  # refuses it here, and `effect = "all"` correspondingly returns RMST effects
-  # only. The asymmetry predates the literal selector and is a gap, not a
-  # statement that the quantity does not exist; for a shared-shape SPFA fit the
-  # covariate term cancels, so the time ratio is population-invariant and the
-  # built-in value already applies to any target. The error below says so
-  # instead of leaving the caller to infer it.
-  valid_effects <- if (is_ph) c("all", "hr", "rmstd", "rmstr") else
-    c("all", "rmstd", "rmstr")
+  # The SAME literal selector the built-in route uses. Adding `newdata` changes
+  # which population an effect is standardized to, not which effects exist, so
+  # a fit whose scalar is a time ratio answers `effect = "tr"` on both routes
+  # and one whose scalar is a location contrast answers `"exp_delta_eta"` on
+  # both. This route used to offer no AFT scalar at all, which made
+  # `effect = "all"` silently return RMST effects only as soon as a target was
+  # supplied.
+  lab <- .surv_scalar_label(object)
+  scalar_effect <- .surv_scalar_effect_name(lab$label)
+  valid_effects <- c("all", scalar_effect, "rmstd", "rmstr")
   if (!effect %in% valid_effects) {
-    scale_note <- if (!is_ph && effect %in% c("hr", "tr", "exp_delta_eta")) {
-      paste0(" This fit uses an accelerated-failure-time distribution, whose",
-             " scalar contrast is not standardized to a `newdata` target here;",
-             " RMST effects are directly collapsible and are. Call",
-             " marginal_effects() without `newdata` for the scalar contrast",
-             " itself: for a shared-shape SPFA fit the covariate term cancels,",
-             " so that time ratio is population-invariant and already applies",
-             " to this target.")
-    } else if (is_ph && effect %in% c("tr", "exp_delta_eta")) {
-      paste0(" This fit uses a proportional-hazards distribution, so its scalar",
-             " contrast is a hazard ratio (`effect = \"hr\"`), not a time ratio",
-             " or a bare location contrast.")
-    } else {
-      ""
-    }
-    stop(sprintf(
-      "For this survival fit and a `newdata` target, `effect` must be one of: %s.%s",
-      paste(valid_effects, collapse = ", "), scale_note
-    ), call. = FALSE)
+    stop(.surv_effect_scale_error(effect, lab$label, scalar_effect, stratified,
+                                  valid_effects), call. = FALSE)
   }
   if (!is.null(at_time) && !is_ph) {
     stop("`at_time` applies to a time-specific marginal hazard ratio, but this ",
@@ -1661,6 +1647,21 @@ marginal_effects <- function(object,
       at_time = used_time, horizon = NA_real_, draws = hr_draws
     )
   }
+  if (!is_ph && effect %in% c("all", scalar_effect)) {
+    # An AFT model is linear in the covariates on the log-time scale, so the
+    # target-standardized location contrast is the difference of the mean
+    # linear predictors over the target rows. With shared coefficients (SPFA)
+    # the covariate term cancels draw by draw and this reproduces the built-in
+    # scalar EXACTLY, which is the sense in which a shared-shape time ratio is
+    # population-invariant. With relaxed coefficients it does not cancel, and
+    # the value genuinely belongs to this target.
+    spec[[length(spec) + 1L]] <- list(
+      variable = paste0(tolower(scalar_effect), "_target"),
+      effect = lab$label, population = "Target",
+      at_time = NA_real_, horizon = NA_real_,
+      draws = exp(.target_delta_eta(object, newdata))
+    )
+  }
   if (effect %in% c("all", "rmstd")) {
     spec[[length(spec) + 1L]] <- list(
       variable = "rmst_diff_target", effect = "RMSTD", population = "Target",
@@ -1675,6 +1676,33 @@ marginal_effects <- function(object,
   }
 
   .surv_effect_frame(spec, summary, probs, rmst_tau)
+}
+
+#' Target-standardized location contrast for an AFT fit
+#'
+#' The AFT linear predictor is a log-time location, so the contrast standardized
+#' to a target population is the difference of the ARITHMETIC mean linear
+#' predictors over its rows, `mean(eta_index) - mean(eta_comparator)`. Its
+#' exponential is a ratio of geometric-mean survival times. This is the
+#' log-scale counterpart of [.target_loghr_origin()], which averages on the
+#' hazard scale and therefore uses log-sum-exp; here the `1/M` does not cancel
+#' and is applied.
+#'
+#' With shared coefficients the covariate term drops out draw by draw, so the
+#' result equals the built-in `delta_eta` for every target.
+#' @keywords internal
+.target_delta_eta <- function(object, newdata) {
+  profiles <- .conditional_profiles(object, newdata)
+  params <- .conditional_parameters(object, profiles$covariates)
+  x_centered <- profiles$X
+  si <- NULL
+  sc <- NULL
+  for (i in seq_len(nrow(x_centered))) {
+    eta <- .conditional_eta(params, x_centered[i, , drop = FALSE])
+    si <- if (is.null(si)) eta$index else si + eta$index
+    sc <- if (is.null(sc)) eta$comparator else sc + eta$comparator
+  }
+  (si - sc) / nrow(x_centered)
 }
 
 #' Marginal log hazard ratio in a target population at the origin

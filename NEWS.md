@@ -16,13 +16,38 @@
   Asking for a scale the fit cannot supply is an error naming the one it can.
   `conditional_effects()` already worked this way, so the two APIs no longer
   disagree. Code that relied on the aliasing must name the measure it wants.
-  This applies to `marginal_effects()` on the built-in populations. The
-  `newdata` route is unchanged and still narrower: it offers the hazard ratio
-  for a proportional-hazards fit and no scalar at all for an AFT fit, so a
-  shared-shape SPFA AFT fit answers `effect = "tr"` without `newdata` and
-  refuses it with. That gap predates this change; the error now says so and
-  points at the built-in call, whose value is population-invariant for such a
-  fit and therefore already applies to any target.
+  The `newdata` route now uses the same selector. It previously offered the
+  hazard ratio for a proportional-hazards fit and no scalar at all for an AFT
+  fit, so a shared-shape SPFA AFT fit answered `effect = "tr"` without
+  `newdata` and refused it with, and `effect = "all"` quietly returned RMST
+  effects only as soon as a target was supplied. Supplying a target changes
+  which population an effect is standardized to, not which effects exist, so an
+  AFT fit now reports its target-standardized location contrast,
+  `exp(mean(eta_index) - mean(eta_comparator))` over the target rows. With
+  shared coefficients the covariate term cancels draw by draw and the value is
+  identical for every target, which is the sense in which a shared-shape time
+  ratio is population-invariant; with relaxed coefficients it does not cancel
+  and the value genuinely belongs to the target.
+
+* **`prior_sensitivity()` validates `probs` with the shared validator.** Its
+  local copy of the check omitted the duplicate test that `.validate_probs()`
+  applies everywhere else, so two equal probabilities produced two identically
+  named `qNN` columns and the second silently overwrote the first: the caller
+  asked for n quantiles and received fewer, with no error.
+
+* **An ignored `prior_aux2` is now ignored rather than validated.** For a
+  survival fit whose distribution has fewer than two auxiliary parameters, a
+  well-formed `prior_aux2` warned and was dropped while a malformed one warned
+  and then aborted the fit, so the same argument carried two contracts
+  depending on a distribution it does not apply to. It is now discarded before
+  validation, matching the non-survival families, which already warned without
+  validating.
+
+* **`prior_summary()` names the constrained prior instead of calling every
+  positive-constrained prior a "half-distribution".** Two of those labels were
+  wrong: an exponential is already supported on the positive half-line, so
+  `<lower=0>` truncates nothing, and a normal or t with a nonzero location
+  truncated at zero is a truncated normal or t, not a half-normal or half-t.
 
 * **`prior_sensitivity()` names its quantile columns like the rest of the
   package.** They were built with `paste0("q", round(100 * probs))`, which

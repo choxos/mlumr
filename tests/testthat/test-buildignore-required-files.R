@@ -87,3 +87,65 @@ test_that("the dotfile catch-all is the reason dotfiles are excluded", {
                 label = paste0("`.Rbuildignore` no longer excludes '", path, "'"))
   }
 })
+
+# The regex assertions above check what `.Rbuildignore` SAYS. They cannot see
+# what `R CMD build` DOES: files also leave the tarball through rules that live
+# nowhere in that file (an empty directory is dropped, `.Rinstignore` applies at
+# install time, vignette handling rewrites `inst/doc`), and a pattern can be
+# read correctly here and still not match the path `build` actually tests. The
+# only authority on the contents of the source package is the source package.
+test_that("the built source tarball contains what the package promises", {
+  skip_on_cran()
+  skip_if(nzchar(Sys.getenv("MLUMR_SKIP_TARBALL_TEST")),
+          "tarball inspection disabled by MLUMR_SKIP_TARBALL_TEST")
+  pkg <- normalizePath(testthat::test_path("..", ".."), mustWork = FALSE)
+  skip_if_not(file.exists(file.path(pkg, "DESCRIPTION")),
+              "run from a source checkout, not an installed package")
+  skip_if_not(nzchar(Sys.which("tar")), "tar not available")
+
+  out <- file.path(tempdir(), paste0("tarball-", Sys.getpid()))
+  dir.create(out, showWarnings = FALSE, recursive = TRUE)
+  on.exit(unlink(out, recursive = TRUE), add = TRUE)
+
+  # Vignettes are precompiled, so building them again would rerun Stan for
+  # tens of minutes and prove nothing about which files ship.
+  res <- suppressWarnings(system2(
+    file.path(R.home("bin"), "R"),
+    c("CMD", "build", "--no-build-vignettes", "--no-manual", shQuote(pkg)),
+    stdout = TRUE, stderr = TRUE, env = c("R_TESTS=")
+  ))
+  status <- attr(res, "status") %||% 0L
+  tarball <- list.files(getwd(), pattern = "^mlumr_.*\\.tar\\.gz$",
+                        full.names = TRUE)
+  if (length(tarball)) on.exit(unlink(tarball), add = TRUE)
+  skip_if(status != 0L || !length(tarball),
+          paste("R CMD build did not produce a tarball:",
+                paste(utils::tail(res, 3L), collapse = " | ")))
+
+  files <- utils::untar(tarball[[1]], list = TRUE)
+  # Paths inside the tarball are prefixed with the package directory.
+  files <- sub("^mlumr/", "", files)
+
+  must_ship <- c(
+    "DESCRIPTION", "NAMESPACE", "NEWS.md",
+    "R/predict.R", "R/survival.R",
+    "inst/stan/mlumr_binary_spfa.stan",
+    "data/psoriasis_ipd.rda",
+    "vignettes/binary-outcomes.html",
+    "vignettes/binary-outcomes.html.asis"
+  )
+  for (path in must_ship) {
+    expect_true(path %in% files,
+                info = paste("missing from the source tarball:", path))
+  }
+
+  # The development-only trees. `reporting/` is proprietary and
+  # `documentation/` and `inst/future/` are unreleased work; any of them
+  # reaching a tarball is a disclosure, not a size problem.
+  must_not_ship <- c("^data-raw/", "^reporting/", "^documentation/",
+                     "^inst/future/", "^\\.github/")
+  for (pattern in must_not_ship) {
+    hits <- grep(pattern, files, value = TRUE)
+    expect_length(hits, 0L)
+  }
+})
