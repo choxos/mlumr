@@ -1724,44 +1724,51 @@ index/comparator pair reported for ML-UMR.</p>
 <span id="cb31-72"><a href="#cb31-72" tabindex="-1"></a><span class="co"># position so the prose below cannot silently cite an empty result.</span></span>
 <span id="cb31-73"><a href="#cb31-73" tabindex="-1"></a>beta_mean <span class="ot">&lt;-</span> <span class="cf">function</span>(fit, cov) {</span>
 <span id="cb31-74"><a href="#cb31-74" tabindex="-1"></a>  k <span class="ot">&lt;-</span> <span class="fu">match</span>(cov, fit<span class="sc">$</span>data<span class="sc">$</span>covariates)</span>
-<span id="cb31-75"><a href="#cb31-75" tabindex="-1"></a>  fit<span class="sc">$</span>summary<span class="sc">$</span>mean[fit<span class="sc">$</span>summary<span class="sc">$</span>variable <span class="sc">==</span> <span class="fu">sprintf</span>(<span class="st">&quot;beta[%d]&quot;</span>, k)]</span>
-<span id="cb31-76"><a href="#cb31-76" tabindex="-1"></a>}</span>
-<span id="cb31-77"><a href="#cb31-77" tabindex="-1"></a>lhr_i     <span class="ot">&lt;-</span> <span class="fu">lhr_row</span>(fit_mspline, <span class="st">&quot;delta_index&quot;</span>)</span>
-<span id="cb31-78"><a href="#cb31-78" tabindex="-1"></a>lhr_c     <span class="ot">&lt;-</span> <span class="fu">lhr_row</span>(fit_mspline, <span class="st">&quot;delta_comparator&quot;</span>)</span>
-<span id="cb31-79"><a href="#cb31-79" tabindex="-1"></a>lhr_rel_i <span class="ot">&lt;-</span> <span class="fu">lhr_row</span>(fit_mspline_relaxed, <span class="st">&quot;delta_index&quot;</span>)</span>
-<span id="cb31-80"><a href="#cb31-80" tabindex="-1"></a>lhr_rel_c <span class="ot">&lt;-</span> <span class="fu">lhr_row</span>(fit_mspline_relaxed, <span class="st">&quot;delta_comparator&quot;</span>)</span>
-<span id="cb31-81"><a href="#cb31-81" tabindex="-1"></a></span>
-<span id="cb31-82"><a href="#cb31-82" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
-<span id="cb31-83"><a href="#cb31-83" tabindex="-1"></a>  <span class="at">Method =</span> <span class="fu">c</span>(<span class="st">&quot;Naive Cox (unadjusted)&quot;</span>,</span>
-<span id="cb31-84"><a href="#cb31-84" tabindex="-1"></a>             <span class="st">&quot;ML-UMR M-spline (SPFA, prognostic only)&quot;</span>,</span>
-<span id="cb31-85"><a href="#cb31-85" tabindex="-1"></a>             <span class="st">&quot;ML-UMR M-spline (SPFA, prognostic only)&quot;</span>,</span>
-<span id="cb31-86"><a href="#cb31-86" tabindex="-1"></a>             <span class="st">&quot;ML-UMR M-spline (relaxed, effect modification)&quot;</span>,</span>
-<span id="cb31-87"><a href="#cb31-87" tabindex="-1"></a>             <span class="st">&quot;ML-UMR M-spline (relaxed, effect modification)&quot;</span>,</span>
-<span id="cb31-88"><a href="#cb31-88" tabindex="-1"></a>             <span class="st">&quot;Anchored: Bucher / fixed-effect NMA&quot;</span>,</span>
-<span id="cb31-89"><a href="#cb31-89" tabindex="-1"></a>             <span class="st">&quot;Anchored: ML-NMR, prognostic only&quot;</span>,</span>
-<span id="cb31-90"><a href="#cb31-90" tabindex="-1"></a>             <span class="st">&quot;Anchored: ML-NMR, with * .trt (multinma&#39;s own model)&quot;</span>,</span>
-<span id="cb31-91"><a href="#cb31-91" tabindex="-1"></a>             <span class="st">&quot;Anchored: ML-NMR, with * .trt (multinma&#39;s own model)&quot;</span>),</span>
-<span id="cb31-92"><a href="#cb31-92" tabindex="-1"></a>  <span class="at">Anchored =</span> <span class="fu">c</span>(<span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;yes&quot;</span>),</span>
-<span id="cb31-93"><a href="#cb31-93" tabindex="-1"></a>  <span class="co"># The naive Cox row is standardized to no population; it contrasts the two</span></span>
-<span id="cb31-94"><a href="#cb31-94" tabindex="-1"></a>  <span class="co"># crude arms. `vignette(&quot;choosing-a-method&quot;)` uses the same label.</span></span>
-<span id="cb31-95"><a href="#cb31-95" tabindex="-1"></a>  <span class="at">Population =</span> <span class="fu">c</span>(<span class="st">&quot;unstandardized&quot;</span>, <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>, <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>,</span>
-<span id="cb31-96"><a href="#cb31-96" tabindex="-1"></a>                 <span class="st">&quot;not population-specific&quot;</span>, <span class="st">&quot;not population-specific&quot;</span>,</span>
-<span id="cb31-97"><a href="#cb31-97" tabindex="-1"></a>                 <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>),</span>
-<span id="cb31-98"><a href="#cb31-98" tabindex="-1"></a>  <span class="st">`</span><span class="at">log HR</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>estimate,</span>
-<span id="cb31-99"><a href="#cb31-99" tabindex="-1"></a>               lhr_i<span class="sc">$</span>mean, lhr_c<span class="sc">$</span>mean, lhr_rel_i<span class="sc">$</span>mean, lhr_rel_c<span class="sc">$</span>mean,</span>
-<span id="cb31-100"><a href="#cb31-100" tabindex="-1"></a>               anchored[<span class="dv">1</span>], <span class="sc">-</span>nmr<span class="sc">$</span>mean, <span class="sc">-</span>nmr_em_i<span class="sc">$</span>mean, <span class="sc">-</span>nmr_em_c<span class="sc">$</span>mean),</span>
-<span id="cb31-101"><a href="#cb31-101" tabindex="-1"></a>  <span class="st">`</span><span class="at">2.5%</span><span class="st">`</span>   <span class="ot">=</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>ci_lower,</span>
-<span id="cb31-102"><a href="#cb31-102" tabindex="-1"></a>               lhr_i[[<span class="st">&quot;2.5%&quot;</span>]], lhr_c[[<span class="st">&quot;2.5%&quot;</span>]],</span>
-<span id="cb31-103"><a href="#cb31-103" tabindex="-1"></a>               lhr_rel_i[[<span class="st">&quot;2.5%&quot;</span>]], lhr_rel_c[[<span class="st">&quot;2.5%&quot;</span>]],</span>
-<span id="cb31-104"><a href="#cb31-104" tabindex="-1"></a>               anchored_ci[<span class="dv">1</span>], <span class="sc">-</span>nmr[[<span class="st">&quot;97.5%&quot;</span>]],</span>
-<span id="cb31-105"><a href="#cb31-105" tabindex="-1"></a>               <span class="sc">-</span>nmr_em_i[[<span class="st">&quot;97.5%&quot;</span>]], <span class="sc">-</span>nmr_em_c[[<span class="st">&quot;97.5%&quot;</span>]]),</span>
-<span id="cb31-106"><a href="#cb31-106" tabindex="-1"></a>  <span class="st">`</span><span class="at">97.5%</span><span class="st">`</span>  <span class="ot">=</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>ci_upper,</span>
-<span id="cb31-107"><a href="#cb31-107" tabindex="-1"></a>               lhr_i[[<span class="st">&quot;97.5%&quot;</span>]], lhr_c[[<span class="st">&quot;97.5%&quot;</span>]],</span>
-<span id="cb31-108"><a href="#cb31-108" tabindex="-1"></a>               lhr_rel_i[[<span class="st">&quot;97.5%&quot;</span>]], lhr_rel_c[[<span class="st">&quot;97.5%&quot;</span>]],</span>
-<span id="cb31-109"><a href="#cb31-109" tabindex="-1"></a>               anchored_ci[<span class="dv">2</span>], <span class="sc">-</span>nmr[[<span class="st">&quot;2.5%&quot;</span>]],</span>
-<span id="cb31-110"><a href="#cb31-110" tabindex="-1"></a>               <span class="sc">-</span>nmr_em_i[[<span class="st">&quot;2.5%&quot;</span>]], <span class="sc">-</span>nmr_em_c[[<span class="st">&quot;2.5%&quot;</span>]]),</span>
-<span id="cb31-111"><a href="#cb31-111" tabindex="-1"></a>  <span class="at">check.names =</span> <span class="cn">FALSE</span>), <span class="at">digits =</span> <span class="dv">3</span>,</span>
-<span id="cb31-112"><a href="#cb31-112" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">&quot;Unanchored estimates against the anchored references, in both target populations (log hazard ratio, Len vs Thal)&quot;</span>)</span></code></pre></div>
+<span id="cb31-75"><a href="#cb31-75" tabindex="-1"></a>  <span class="co"># Fail loudly. An unmatched name gives `beta[NA]`, which matches nothing and</span></span>
+<span id="cb31-76"><a href="#cb31-76" tabindex="-1"></a>  <span class="co"># renders as blank prose with no error, which is the failure this helper</span></span>
+<span id="cb31-77"><a href="#cb31-77" tabindex="-1"></a>  <span class="co"># exists to avoid. A relaxed fit stores `beta_index[k]` and</span></span>
+<span id="cb31-78"><a href="#cb31-78" tabindex="-1"></a>  <span class="co"># `beta_comparator[k]`, so `beta[k]` would be empty there too.</span></span>
+<span id="cb31-79"><a href="#cb31-79" tabindex="-1"></a>  <span class="fu">stopifnot</span>(<span class="fu">length</span>(k) <span class="sc">==</span> <span class="dv">1</span><span class="dt">L</span>, <span class="sc">!</span><span class="fu">is.na</span>(k), fit<span class="sc">$</span>model <span class="sc">==</span> <span class="st">&quot;spfa&quot;</span>)</span>
+<span id="cb31-80"><a href="#cb31-80" tabindex="-1"></a>  out <span class="ot">&lt;-</span> fit<span class="sc">$</span>summary<span class="sc">$</span>mean[fit<span class="sc">$</span>summary<span class="sc">$</span>variable <span class="sc">==</span> <span class="fu">sprintf</span>(<span class="st">&quot;beta[%d]&quot;</span>, k)]</span>
+<span id="cb31-81"><a href="#cb31-81" tabindex="-1"></a>  <span class="fu">stopifnot</span>(<span class="fu">length</span>(out) <span class="sc">==</span> <span class="dv">1</span><span class="dt">L</span>)</span>
+<span id="cb31-82"><a href="#cb31-82" tabindex="-1"></a>  out</span>
+<span id="cb31-83"><a href="#cb31-83" tabindex="-1"></a>}</span>
+<span id="cb31-84"><a href="#cb31-84" tabindex="-1"></a>lhr_i     <span class="ot">&lt;-</span> <span class="fu">lhr_row</span>(fit_mspline, <span class="st">&quot;delta_index&quot;</span>)</span>
+<span id="cb31-85"><a href="#cb31-85" tabindex="-1"></a>lhr_c     <span class="ot">&lt;-</span> <span class="fu">lhr_row</span>(fit_mspline, <span class="st">&quot;delta_comparator&quot;</span>)</span>
+<span id="cb31-86"><a href="#cb31-86" tabindex="-1"></a>lhr_rel_i <span class="ot">&lt;-</span> <span class="fu">lhr_row</span>(fit_mspline_relaxed, <span class="st">&quot;delta_index&quot;</span>)</span>
+<span id="cb31-87"><a href="#cb31-87" tabindex="-1"></a>lhr_rel_c <span class="ot">&lt;-</span> <span class="fu">lhr_row</span>(fit_mspline_relaxed, <span class="st">&quot;delta_comparator&quot;</span>)</span>
+<span id="cb31-88"><a href="#cb31-88" tabindex="-1"></a></span>
+<span id="cb31-89"><a href="#cb31-89" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
+<span id="cb31-90"><a href="#cb31-90" tabindex="-1"></a>  <span class="at">Method =</span> <span class="fu">c</span>(<span class="st">&quot;Naive Cox (unadjusted)&quot;</span>,</span>
+<span id="cb31-91"><a href="#cb31-91" tabindex="-1"></a>             <span class="st">&quot;ML-UMR M-spline (SPFA, prognostic only)&quot;</span>,</span>
+<span id="cb31-92"><a href="#cb31-92" tabindex="-1"></a>             <span class="st">&quot;ML-UMR M-spline (SPFA, prognostic only)&quot;</span>,</span>
+<span id="cb31-93"><a href="#cb31-93" tabindex="-1"></a>             <span class="st">&quot;ML-UMR M-spline (relaxed, effect modification)&quot;</span>,</span>
+<span id="cb31-94"><a href="#cb31-94" tabindex="-1"></a>             <span class="st">&quot;ML-UMR M-spline (relaxed, effect modification)&quot;</span>,</span>
+<span id="cb31-95"><a href="#cb31-95" tabindex="-1"></a>             <span class="st">&quot;Anchored: Bucher / fixed-effect NMA&quot;</span>,</span>
+<span id="cb31-96"><a href="#cb31-96" tabindex="-1"></a>             <span class="st">&quot;Anchored: ML-NMR, prognostic only&quot;</span>,</span>
+<span id="cb31-97"><a href="#cb31-97" tabindex="-1"></a>             <span class="st">&quot;Anchored: ML-NMR, with * .trt (multinma&#39;s own model)&quot;</span>,</span>
+<span id="cb31-98"><a href="#cb31-98" tabindex="-1"></a>             <span class="st">&quot;Anchored: ML-NMR, with * .trt (multinma&#39;s own model)&quot;</span>),</span>
+<span id="cb31-99"><a href="#cb31-99" tabindex="-1"></a>  <span class="at">Anchored =</span> <span class="fu">c</span>(<span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;yes&quot;</span>),</span>
+<span id="cb31-100"><a href="#cb31-100" tabindex="-1"></a>  <span class="co"># The naive Cox row is standardized to no population; it contrasts the two</span></span>
+<span id="cb31-101"><a href="#cb31-101" tabindex="-1"></a>  <span class="co"># crude arms. `vignette(&quot;choosing-a-method&quot;)` uses the same label.</span></span>
+<span id="cb31-102"><a href="#cb31-102" tabindex="-1"></a>  <span class="at">Population =</span> <span class="fu">c</span>(<span class="st">&quot;unstandardized&quot;</span>, <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>, <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>,</span>
+<span id="cb31-103"><a href="#cb31-103" tabindex="-1"></a>                 <span class="st">&quot;not population-specific&quot;</span>, <span class="st">&quot;not population-specific&quot;</span>,</span>
+<span id="cb31-104"><a href="#cb31-104" tabindex="-1"></a>                 <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>),</span>
+<span id="cb31-105"><a href="#cb31-105" tabindex="-1"></a>  <span class="st">`</span><span class="at">log HR</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>estimate,</span>
+<span id="cb31-106"><a href="#cb31-106" tabindex="-1"></a>               lhr_i<span class="sc">$</span>mean, lhr_c<span class="sc">$</span>mean, lhr_rel_i<span class="sc">$</span>mean, lhr_rel_c<span class="sc">$</span>mean,</span>
+<span id="cb31-107"><a href="#cb31-107" tabindex="-1"></a>               anchored[<span class="dv">1</span>], <span class="sc">-</span>nmr<span class="sc">$</span>mean, <span class="sc">-</span>nmr_em_i<span class="sc">$</span>mean, <span class="sc">-</span>nmr_em_c<span class="sc">$</span>mean),</span>
+<span id="cb31-108"><a href="#cb31-108" tabindex="-1"></a>  <span class="st">`</span><span class="at">2.5%</span><span class="st">`</span>   <span class="ot">=</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>ci_lower,</span>
+<span id="cb31-109"><a href="#cb31-109" tabindex="-1"></a>               lhr_i[[<span class="st">&quot;2.5%&quot;</span>]], lhr_c[[<span class="st">&quot;2.5%&quot;</span>]],</span>
+<span id="cb31-110"><a href="#cb31-110" tabindex="-1"></a>               lhr_rel_i[[<span class="st">&quot;2.5%&quot;</span>]], lhr_rel_c[[<span class="st">&quot;2.5%&quot;</span>]],</span>
+<span id="cb31-111"><a href="#cb31-111" tabindex="-1"></a>               anchored_ci[<span class="dv">1</span>], <span class="sc">-</span>nmr[[<span class="st">&quot;97.5%&quot;</span>]],</span>
+<span id="cb31-112"><a href="#cb31-112" tabindex="-1"></a>               <span class="sc">-</span>nmr_em_i[[<span class="st">&quot;97.5%&quot;</span>]], <span class="sc">-</span>nmr_em_c[[<span class="st">&quot;97.5%&quot;</span>]]),</span>
+<span id="cb31-113"><a href="#cb31-113" tabindex="-1"></a>  <span class="st">`</span><span class="at">97.5%</span><span class="st">`</span>  <span class="ot">=</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>ci_upper,</span>
+<span id="cb31-114"><a href="#cb31-114" tabindex="-1"></a>               lhr_i[[<span class="st">&quot;97.5%&quot;</span>]], lhr_c[[<span class="st">&quot;97.5%&quot;</span>]],</span>
+<span id="cb31-115"><a href="#cb31-115" tabindex="-1"></a>               lhr_rel_i[[<span class="st">&quot;97.5%&quot;</span>]], lhr_rel_c[[<span class="st">&quot;97.5%&quot;</span>]],</span>
+<span id="cb31-116"><a href="#cb31-116" tabindex="-1"></a>               anchored_ci[<span class="dv">2</span>], <span class="sc">-</span>nmr[[<span class="st">&quot;2.5%&quot;</span>]],</span>
+<span id="cb31-117"><a href="#cb31-117" tabindex="-1"></a>               <span class="sc">-</span>nmr_em_i[[<span class="st">&quot;2.5%&quot;</span>]], <span class="sc">-</span>nmr_em_c[[<span class="st">&quot;2.5%&quot;</span>]]),</span>
+<span id="cb31-118"><a href="#cb31-118" tabindex="-1"></a>  <span class="at">check.names =</span> <span class="cn">FALSE</span>), <span class="at">digits =</span> <span class="dv">3</span>,</span>
+<span id="cb31-119"><a href="#cb31-119" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">&quot;Unanchored estimates against the anchored references, in both target populations (log hazard ratio, Len vs Thal)&quot;</span>)</span></code></pre></div>
 <table>
 <caption>Unanchored estimates against the anchored references, in both
 target populations (log hazard ratio, Len vs Thal)</caption>

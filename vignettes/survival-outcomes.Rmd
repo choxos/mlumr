@@ -1041,7 +1041,14 @@ lhr_row <- function(fit, var) fit$summary[fit$summary$variable == var, ]
 # position so the prose below cannot silently cite an empty result.
 beta_mean <- function(fit, cov) {
   k <- match(cov, fit$data$covariates)
-  fit$summary$mean[fit$summary$variable == sprintf("beta[%d]", k)]
+  # Fail loudly. An unmatched name gives `beta[NA]`, which matches nothing and
+  # renders as blank prose with no error, which is the failure this helper
+  # exists to avoid. A relaxed fit stores `beta_index[k]` and
+  # `beta_comparator[k]`, so `beta[k]` would be empty there too.
+  stopifnot(length(k) == 1L, !is.na(k), fit$model == "spfa")
+  out <- fit$summary$mean[fit$summary$variable == sprintf("beta[%d]", k)]
+  stopifnot(length(out) == 1L)
+  out
 }
 lhr_i     <- lhr_row(fit_mspline, "delta_index")
 lhr_c     <- lhr_row(fit_mspline, "delta_comparator")
