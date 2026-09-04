@@ -377,11 +377,50 @@ jobs:
           }
         shell: Rscript {0}
 
+      # The toolchain check is where the cost of pinning an old cmdstanr shows
+      # up, and it is platform-specific: cmdstanr 0.8.0 predates current Rtools
+      # and reports "Rtools44 was not found but is required to run CmdStan with
+      # R version 4.6.1" on Windows, while the same version is fine on Linux and
+      # macOS. Record the result rather than discovering it as an opaque failure
+      # three steps later.
+      - name: Check the CmdStan toolchain
+        id: toolchain
+        run: |
+          ok <- tryCatch({
+            cmdstanr::check_cmdstan_toolchain(fix = FALSE, quiet = TRUE)
+            TRUE
+          }, error = function(e) {
+            cat("toolchain unavailable:", conditionMessage(e), "\n")
+            FALSE
+          })
+          cat("cmdstanr:", as.character(utils::packageVersion("cmdstanr")), "\n")
+          cat("R:       ", R.version.string, "\n")
+          cat(sprintf("ok=%s\n", tolower(as.character(ok))),
+              file = Sys.getenv("GITHUB_OUTPUT"), append = TRUE)
+          # On the platforms where the pinned cmdstanr is known to work, a
+          # toolchain failure is a real regression and must stop the job.
+          if (!ok && .Platform$OS.type != "windows") {
+            stop("the cmdstanr from the declared chain cannot find a working ",
+                 "toolchain on this platform, which is a change from the known ",
+                 "state and needs investigating before release")
+          }
+          if (!ok) {
+            cat("\nKNOWN COST OF THE PINNED REPOSITORY: the declared chain ",
+                "supplies a cmdstanr too old to recognize this R version's ",
+                "Rtools, so CmdStan cannot be built here. Reverting the pin ",
+                "would fix this and reintroduce the rstan/StanHeaders ",
+                "resolution failure it exists to avoid; see the repository ",
+                "watch workflow.\n", sep = "")
+          }
+        shell: Rscript {0}
+
       - name: Install CmdStan
+        if: steps.toolchain.outputs.ok == 'true'
         run: cmdstanr::install_cmdstan(cores = 2)
         shell: Rscript {0}
 
       - name: Record the resolved software versions
+        if: steps.toolchain.outputs.ok == 'true'
         run: |
           cat("cmdstanr:", as.character(utils::packageVersion("cmdstanr")), "\n")
           cat("CmdStan: ", cmdstanr::cmdstan_version(), "\n")
@@ -389,6 +428,7 @@ jobs:
         shell: Rscript {0}
 
       - name: Sample through the chain this package declares
+        if: steps.toolchain.outputs.ok == 'true'
         run: |
           pkgload::load_all(".")
           options(mlumr.stan_engine = "cmdstanr")
