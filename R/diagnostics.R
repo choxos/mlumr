@@ -21,7 +21,20 @@
 #' @keywords internal
 .assert_agd_loglik_per_observation <- function(object) {
   cnt <- object$stan_data$agd_count
-  if (is.null(cnt) || !length(cnt) || all(cnt <= 1L)) return(invisible(TRUE))
+  if (is.null(cnt) || !length(cnt)) return(invisible(TRUE))
+  # A multiplicity is a count of observations, so validate it before drawing any
+  # conclusion from `sum(cnt)`. Non-integer counts passed the expanded-shape test
+  # below while `.agd_center_weights()` truncated them with `as.integer()`, so
+  # `agd_count = c(1.5, 1.5)` with three likelihood columns was accepted here and
+  # produced a two-element arm map there. `all(cnt <= 1)` also used to return
+  # early, which waved through fractional and zero counts.
+  if (!is.numeric(cnt) || anyNA(cnt) || !all(is.finite(cnt)) || any(cnt < 1) ||
+        any(cnt != trunc(cnt))) {
+    stop("`stan_data$agd_count` must hold finite whole-number multiplicities of ",
+         "at least one, since each is a count of observations that one retained ",
+         "AgD row stands for.", call. = FALSE)
+  }
+  if (all(cnt == 1)) return(invisible(TRUE))
   draws <- object$draws
   if (is.null(draws) || is.null(colnames(draws))) return(invisible(TRUE))
   n_cols <- length(.ordered_log_lik_columns(draws, "agd"))

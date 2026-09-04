@@ -231,6 +231,16 @@ test_that("the agd_count guard only passes a genuinely expanded likelihood", {
   expect_error(g(mk(cnt, 5L)), "neither one per")
   # No multiplicities at all is the ordinary case and stays silent.
   expect_true(g(mk(rep(1L, 3), 3L)))
+
+  # A multiplicity is a count of observations. A fractional one passed the
+  # expanded-shape test through `sum(cnt)` while `.agd_center_weights()`
+  # truncated it with `as.integer()`, so the likelihood columns and the arm map
+  # disagreed; `all(cnt <= 1)` also returned early on fractional and zero counts.
+  expect_error(g(mk(c(1.5, 1.5), 3L)), "whole-number")
+  expect_error(g(mk(c(0.5, 0.5), 1L)), "whole-number")
+  expect_error(g(mk(c(0, 2), 2L)), "whole-number")
+  expect_error(g(mk(c(2, NA), 2L)), "whole-number")
+  expect_error(g(mk(c(2, Inf), 2L)), "whole-number")
 })
 
 test_that("prior_aux2 reaches Stan through the public mlumr() call", {
