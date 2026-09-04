@@ -192,3 +192,65 @@ describe("survival Stan data assembly", () => {
     expect(j.R_inv).toBeDefined();
   });
 });
+
+// These variables were declared by the Stan models but never emitted by the app,
+// so the normal and survival models could not read their data at all. The two
+// matrix-valued ones were emitted, but flat, where Stan declares
+// `matrix[n_scoef - 1, n_strata]`. Both failures are invisible until a model is
+// actually run in a browser, which is why they are pinned here.
+describe("Stan data contract for variables the app used to omit", () => {
+  const ex = exampleForFamily("survival");
+  const ipd = parseCsv(ex.ipdCsv);
+  const agd = parseCsv(ex.agdCsv);
+  const specs = ex.covariateSpecs as Record<string, CovariateSpec>;
+
+  function survivalStan(distribution: string) {
+    const base = buildMlumrData("survival", ipd, agd, ex.mapping);
+    const data = addIntegration(base, specs, { nInt: 16 });
+    return JSON.parse(
+      stanDataJson(buildStanData(data, {
+        link: "log", survival: { distribution, nKnots: 5 }, model: "spfa"
+      }))
+    ) as Record<string, unknown>;
+  }
+
+  it("every survival variant declares a baseline stratum count", () => {
+    for (const d of ["weibull", "mspline"]) {
+      expect(survivalStan(d).n_strata, `n_strata missing for ${d}`).toBe(1);
+    }
+  });
+
+  it("the flexible baseline supplies the comparator bases", () => {
+    const j = survivalStan("mspline");
+    for (const k of ["pred_basis_cmp", "pred_ibasis_cmp", "rmst_ibasis_cmp"]) {
+      expect(j, `missing ${k}`).toHaveProperty(k);
+    }
+    // One shared baseline, so the comparator grids are the index grids.
+    expect(j.pred_basis_cmp).toEqual(j.pred_basis);
+    expect(j.rmst_ibasis_cmp).toEqual(j.rmst_ibasis);
+  });
+
+  it("the random-walk prior fields are matrices, one column per stratum", () => {
+    const j = survivalStan("mspline");
+    const nScoef = j.n_scoef as number;
+    const nStrata = j.n_strata as number;
+    for (const k of ["lscoef_prior_mean", "lscoef_weights"]) {
+      const m = j[k] as number[][];
+      expect(Array.isArray(m), `${k} is not an array`).toBe(true);
+      expect(Array.isArray(m[0]), `${k} is flat, Stan declares a matrix`).toBe(true);
+      expect(m.length, `${k} rows`).toBe(nScoef - 1);
+      expect(m[0].length, `${k} columns`).toBe(nStrata);
+    }
+  });
+
+  it("the normal family weights its comparator rows", () => {
+    const nex = exampleForFamily("normal");
+    const base = buildMlumrData("normal", parseCsv(nex.ipdCsv), parseCsv(nex.agdCsv), nex.mapping);
+    const data = addIntegration(base, nex.covariateSpecs as Record<string, CovariateSpec>, { nInt: 16 });
+    const j = JSON.parse(stanDataJson(buildStanData(data, { model: "spfa" }))) as Record<string, unknown>;
+    const w = j.agd_weight as number[];
+    expect(Array.isArray(w), "agd_weight missing").toBe(true);
+    expect(w.length).toBe(j.n_agd_rows);
+    expect(w.every((x) => Number.isFinite(x) && x > 0)).toBe(true);
+  });
+});
