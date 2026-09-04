@@ -15,7 +15,11 @@ permissions:
 
 jobs:
   stan-export-regeneration:
-    name: Stan export regeneration
+    # The name is load bearing: the ruleset protecting `main` requires a check
+    # called "Stan export parity", so renaming this job silently blocks every
+    # merge on a check that can never report. The job itself no longer merely
+    # compares field names; it regenerates and diffs.
+    name: Stan export parity
     runs-on: ubuntu-latest
     # Blocking gate: the committed src/stanExports_* must not lag inst/stan.
     # `configure` regenerates them at install time, so drift never reaches end
