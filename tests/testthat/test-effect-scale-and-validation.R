@@ -232,3 +232,34 @@ test_that("the agd_count guard only passes a genuinely expanded likelihood", {
   # No multiplicities at all is the ordinary case and stays silent.
   expect_true(g(mk(rep(1L, 3), 3L)))
 })
+
+test_that("prior_aux2 reaches Stan through the public mlumr() call", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  # The builder test above calls `.build_stan_data_survival()` directly, which
+  # cannot catch a break in the threading between mlumr(), the stan-data
+  # assembler and the survival branch. This exercises the public path, which is
+  # also what the signature move had to leave working.
+  set.seed(2026)
+  d <- sim_survival_data(n_ipd = 40, n_agd = 50, n_int = 8)
+  fit_gg <- function(...) {
+    suppressWarnings(suppressMessages(
+      mlumr(d, distribution = "gengamma", chains = 1, iter = 10, warmup = 5,
+            refresh = 0, seed = 2026, verbose = FALSE, ...)
+    ))
+  }
+
+  a <- fit_gg(prior_aux = prior_normal(0, 2))
+  expect_equal(a$stan_data$prior_aux_scale, 2)
+  expect_equal(a$stan_data$prior_aux2_scale, 2)   # unspecified reuses prior_aux
+
+  b <- fit_gg(prior_aux = prior_normal(0, 2), prior_aux2 = prior_normal(0, 0.5))
+  expect_equal(b$stan_data$prior_aux_scale, 2)
+  expect_equal(b$stan_data$prior_aux2_scale, 0.5)
+
+  # And prior_summary() names what each auxiliary is, since "auxiliary 2" alone
+  # does not tell a reader what scale to calibrate the prior on.
+  txt <- capture.output(prior_summary(b))
+  expect_true(any(grepl("gengamma sigma", txt, fixed = TRUE)))
+  expect_true(any(grepl("k = 1 / Q^2", txt, fixed = TRUE)))
+})
