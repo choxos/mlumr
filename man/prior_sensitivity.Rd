@@ -41,10 +41,13 @@ printed summary table.}
 from the original fit.}
 }
 \value{
-A data frame (tibble-style) with one row per
-(scale, population, quantile) combination and columns \code{scale},
-\code{parameter}, \code{mean}, \code{sd}, and the requested quantiles. Side effect:
-prints a summary table at the end.
+A data frame with one row per (prior scale, summarized parameter)
+pair, and columns \code{scale}, \code{scale_comparator} (dropped when the model has
+no comparator coefficient prior), \code{parameter}, \code{effect}, \code{at_time},
+\code{mean}, \code{sd}, and one column per requested quantile, named \code{q} followed by
+the rounded percentage (the default \code{probs} give \code{q2}, \code{q50}, \code{q98}).
+Quantiles are columns, not a row dimension.
+Side effect: prints a summary table at the end.
 }
 \description{
 Refit an \code{\link[=mlumr]{mlumr()}} model across a grid of \code{prior_beta} scales (keeping the

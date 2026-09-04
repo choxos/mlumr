@@ -12,6 +12,12 @@
 #' Fail closed instead. The multiplicities must be expanded back to the original
 #' observation sequence (repeat unique column `k` its `agd_count[k]` times, and
 #' expand the arm map with it) before any diagnostic reads them.
+#'
+#' No shipped code path sets `agd_count`, so this guard is inert today: it is a
+#' precondition on the pointwise likelihood that tie aggregation would violate,
+#' placed before that feature rather than after the first wrong LOO value.
+#' Deleting it as unused would remove the check at exactly the moment the
+#' feature that needs it arrives.
 #' @keywords internal
 .assert_agd_loglik_per_observation <- function(object) {
   cnt <- object$stan_data$agd_count

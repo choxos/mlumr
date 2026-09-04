@@ -59,10 +59,13 @@
 #' `scale_comparator`), so a row is never labeled by only half of the prior it
 #' was fitted under.
 #'
-#' @return A data frame (tibble-style) with one row per
-#'   (scale, population, quantile) combination and columns `scale`,
-#'   `parameter`, `mean`, `sd`, and the requested quantiles. Side effect:
-#'   prints a summary table at the end.
+#' @return A data frame with one row per (prior scale, summarized parameter)
+#'   pair, and columns `scale`, `scale_comparator` (dropped when the model has
+#'   no comparator coefficient prior), `parameter`, `effect`, `at_time`,
+#'   `mean`, `sd`, and one column per requested quantile, named `q` followed by
+#'   the rounded percentage (the default `probs` give `q2`, `q50`, `q98`).
+#'   Quantiles are columns, not a row dimension.
+#'   Side effect: prints a summary table at the end.
 #' @seealso [prior_summary()] for a one-shot description of the priors on
 #'   a fit; [marginal_effects()] for the posterior summary quantities this
 #'   sweep tracks.
@@ -233,8 +236,19 @@ prior_sensitivity <- function(fit,
     cat("\nPrior sensitivity: posterior of marginal treatment effects\n")
     cat("=========================================================\n\n")
     print(out, row.names = FALSE)
-    cat("\nInterpretation: if posterior summaries are approximately constant\n")
-    cat("across scales, the inference is data-driven rather than prior-driven.\n")
+    # What a scale sweep can support and no more. Constant summaries across a
+    # few scales of ONE prior family, at one location, on one model show
+    # insensitivity to those scales; they do not show that the data rather than
+    # the prior is driving the answer, which is the stronger claim this used to
+    # print. A weakly identified coefficient direction can be equally
+    # prior-determined at every scale tested.
+    cat("\nInterpretation: approximately constant summaries show the posterior\n")
+    cat("is insensitive to the beta-prior SCALES tested here. That is not the\n")
+    cat("same as the inference being data-driven: identification also depends\n")
+    cat("on the prior family and location, the comparator-specific and\n")
+    cat("auxiliary priors, and the model structure. Vary those too, and use\n")
+    cat("check_identification() to see which coefficient directions the AgD\n")
+    cat("rows actually inform.\n")
   }
 
   invisible(out)
@@ -300,6 +314,10 @@ prior_sensitivity <- function(fit,
     args <- c(args, list(
       distribution = fit$distribution,
       prior_aux    = fit$priors$aux,
+      # Present only for a generalized-gamma fit. NULL here means "reuse
+      # prior_aux", which is what every other distribution's refit needs, so
+      # this one is safe to pass unconditionally inside the survival branch.
+      prior_aux2   = fit$priors$aux2,
       prior_smooth = fit$priors$smooth,
       n_knots      = sc$n_knots      %||% 7L,
       knots        = sc$knots,

@@ -27,14 +27,18 @@ Ignored when \code{newdata} is supplied (the effect is standardized to the
 
 \item{effect}{Which effect measure. For binomial: \code{"all"}, \code{"lor"}, \code{"rd"},
 or \code{"rr"}. For normal: \code{"all"} or \code{"md"} (mean difference). For poisson:
-\code{"all"} or \code{"rr"} (rate ratio). For survival: \code{"all"}, \code{"hr"} (hazard ratio
-for PH, time ratio for AFT, natural scale, null 1; \code{"tr"} is an accepted
-alias), \code{"exp_delta_eta"}, \code{"rmstd"} (RMST difference, null 0), or
-\code{"rmstr"} (RMST ratio, natural scale, null 1). Requesting an effect the fit
-cannot produce is an error rather than a differently-named substitute: with
-an AFT distribution and \code{aux_by = ".study"} the study shapes differ, so
-\code{exp(eta_index - eta_comparator)} is not a time ratio and \code{"hr"} / \code{"tr"}
-are rejected in favor of the explicit \code{"exp_delta_eta"}.}
+\code{"all"} or \code{"rr"} (rate ratio). For survival the scalar selector is
+\strong{literal and distribution-specific}: each fit accepts \code{"all"}, the one
+scalar name that its contrast actually is, \code{"rmstd"} (RMST difference,
+null 0), and \code{"rmstr"} (RMST ratio, natural scale, null 1). The scalar name
+is \code{"hr"} (marginal hazard ratio, null 1) for a proportional-hazards fit,
+\code{"tr"} (time ratio, null 1) for a shared-shape SPFA accelerated-failure-time
+fit, and \code{"exp_delta_eta"} otherwise, meaning any relaxed AFT fit or an AFT
+fit with \code{aux_by = ".study"}, where the covariate term does not cancel or
+the shapes differ and no constant acceleration factor exists. There are no
+aliases: \code{"hr"} never returns a time ratio and \code{"tr"} never returns a
+hazard ratio. Requesting a scale the fit cannot supply is an error naming
+the one it can.}
 
 \item{summary}{Return summary (\code{TRUE}) or full draws (\code{FALSE})}
 

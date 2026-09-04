@@ -2,6 +2,43 @@
 
 ## Behavior and validation changes to existing functions
 
+* **The survival `effect` selector is now literal and distribution-specific.**
+  `marginal_effects()` accepted `"hr"`, `"tr"` and `"exp_delta_eta"` as
+  interchangeable names for one computation, and the label on the returned row
+  was the only thing that said which of the three you had been given. Requesting
+  `effect = "hr"` from a shared-shape accelerated-failure-time fit therefore
+  returned a time ratio, and `effect = "tr"` from a proportional-hazards fit
+  returned a hazard ratio. Each fit now accepts exactly one scalar name: `"hr"`
+  for proportional hazards, `"tr"` for a shared-shape SPFA AFT fit, and
+  `"exp_delta_eta"` for any relaxed AFT fit or one with `aux_by = ".study"`.
+  Asking for a scale the fit cannot supply is an error naming the one it can.
+  `conditional_effects()` already worked this way, so the two APIs no longer
+  disagree. Code that relied on the aliasing must name the measure it wants.
+
+* **The native logit-normal parameterization validates `mu` and `sigma`.** Only
+  the moment (`mean` / `sd`) parameterization was checked. A `sigma` of zero
+  returned `Inf` from `dlogitnorm()`, `1` from `plogitnorm()` and `0.5` from
+  `qlogitnorm()`, all finite and none flagged, while a negative `sigma` returned
+  `NA` from the density but `NaN` with a base warning from the other two.
+  Non-finite, missing, non-positive and non-numeric parameters are now one clear
+  error in all three functions, as they already were for `mean` / `sd`, and
+  lengths that would recycle partially are rejected rather than pairing values
+  with the wrong parameter.
+
+* **Requested survival prediction times report when they are snapped.**
+  `predict(..., times = )` selects the nearest fitted grid time, which is
+  unavoidable, but said nothing: a 12-month policy horizon could be reported at
+  11.8 months, and two requested times landing on one grid point silently
+  produced one row instead of two. Both now emit a message naming the requested
+  and the used times, and point at `pred_times` for exact evaluation. The
+  returned values are unchanged.
+
+* **`prior_sensitivity()` no longer claims a scale sweep proves the inference is
+  data-driven.** Constant summaries across the tested scales show insensitivity
+  to those scales, within one prior family at one location on one model. The
+  printed interpretation now says that, and points at `check_identification()`
+  for the question a scale sweep cannot answer.
+
 * **Marginal summaries are no longer clipped to finite reporting bounds.** The
   Stan models previously passed marginal probabilities through `safe_logit()`
   (clamping to `[1e-10, 1 - 1e-10]`) and ratios through `safe_divide()`
@@ -294,6 +331,16 @@
 
 ## Time-to-event (survival) outcomes
 
+* **New `prior_aux2` argument for the second generalized-gamma auxiliary
+  parameter.** The two auxiliaries govern different features of the hazard and
+  can need different regularization; both previously took whatever `prior_aux`
+  specified. `NULL` (the default) reuses `prior_aux`, so existing fits are
+  unchanged, and `prior_summary()` shows the two separately when they can
+  differ. `prior_aux`'s documentation now also records that one default is
+  reused across auxiliary parameters that do not share a scale: the Gompertz
+  shape has units of 1 / time, so the same trial expressed in days rather than
+  years gives a half-normal(0, 2) an entirely different meaning.
+
 * **New `"survival"` outcome family for data setup.** `set_ipd()` accepts
   time-to-event data, and **`set_agd_surv()`** takes the comparator arm as
   reconstructed pseudo-IPD (event and censoring times digitized from a published
@@ -537,6 +584,24 @@
   `qr = TRUE` offers a QR-rotated design as an alternative conditioning fix.
 
 ## Documentation
+
+* **The relaxed model's identification claim is corrected.**
+  `prior_beta_comparator` said the comparator-population effect "is identified
+  directly by the AgD". The AgD likelihood informs the comparator-population
+  outcome, but identifying `beta_comparator` or a treatment contrast depends on
+  the number and geometry of the independent aggregate summaries, the link, the
+  covariate distribution, the outcome precision, and the prior. The
+  documentation says so, and points at `check_identification()` and
+  `prior_sensitivity()`.
+
+* **`set_agd_surv()` states that reconstruction uncertainty is not propagated.**
+  Pseudo-individual records enter the likelihood as observed data, so a survival
+  posterior conditions on one digitization of one published curve and carries
+  none of the uncertainty in producing it: intervals are narrower than the
+  evidence supports, most visibly for flexible baselines, late-tail RMST and
+  medians, and weakly identified relaxed comparator coefficients. The help page
+  now says this and describes refitting across plausible reconstructions as the
+  way to see how much it matters.
 
 * Reorganized the vignettes into nine outcome-focused guides: `introduction`,
   `data-preparation`, `binary-outcomes`, `continuous-outcomes`,

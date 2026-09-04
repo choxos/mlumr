@@ -96,9 +96,22 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
   # `aux` is the parametric shape/scale; `smooth` is the random-walk SD of a
   # flexible baseline. A fit carries whichever its distribution has.
   if (!is.null(priors$aux)) {
-    cat("Survival auxiliary (shape / scale, half-distribution via <lower=0>):\n")
+    label <- if (is.null(priors$aux2)) {
+      "Survival auxiliary (shape / scale, half-distribution via <lower=0>):"
+    } else {
+      "Survival auxiliary 1 (shape / scale, half-distribution via <lower=0>):"
+    }
+    cat(label, "\n", sep = "")
     cat("  ", .format_prior(priors$aux, digits = digits), "\n", sep = "")
     .print_default_tag(priors$aux)
+    cat("\n")
+  }
+  # Generalized gamma only. Shown separately because the two auxiliaries govern
+  # different features of the hazard and can now carry different priors.
+  if (!is.null(priors$aux2)) {
+    cat("Survival auxiliary 2 (generalized gamma, half-distribution via <lower=0>):\n")
+    cat("  ", .format_prior(priors$aux2, digits = digits), "\n", sep = "")
+    .print_default_tag(priors$aux2)
     cat("\n")
   }
   if (!is.null(priors$smooth)) {

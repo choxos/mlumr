@@ -446,5 +446,49 @@ qlogitnorm <- function(p, mu = 0, sigma = 1, ..., mean, sd) {
          "`sd`. Supply the other one, or give `mu` and `sigma` on the logit ",
          "scale.", call. = FALSE)
   }
+  .validate_logitnorm_native(mu, sigma)
+}
+
+#' Validate native logit-normal `mu` / `sigma`
+#'
+#' The moment parameterization has always been checked; the native one was
+#' passed through untouched, so one invalid `sigma` produced three different
+#' answers depending on which function saw it. `sigma = 0` gave `Inf` from
+#' `dlogitnorm()`, `1` from `plogitnorm()` and `0.5` from `qlogitnorm()`, all
+#' finite and none flagged, while `sigma = -1` gave `NA` from the density and
+#' `NaN` with a base warning from the other two. A degenerate spike is not a
+#' distribution `add_integration()` can draw from, so this is an error in both
+#' parameterizations rather than a value that silently propagates.
+#' @param mu,sigma Logit-scale location and scale.
+#' @return A list with validated `mu` and `sigma`.
+#' @keywords internal
+.validate_logitnorm_native <- function(mu, sigma) {
+  # A bare `NA` is logical, so test missingness before type: "must be numeric"
+  # is a true but unhelpful answer to `sigma = NA`.
+  if (anyNA(mu) || anyNA(sigma)) {
+    stop("logit-normal `mu` and `sigma` must not be missing.", call. = FALSE)
+  }
+  if (!is.numeric(mu) || !is.numeric(sigma)) {
+    stop("logit-normal `mu` and `sigma` must be numeric.", call. = FALSE)
+  }
+  if (!length(mu) || !length(sigma)) return(list(mu = mu, sigma = sigma))
+  if (any(!is.finite(mu))) {
+    stop("logit-normal `mu` must be finite.", call. = FALSE)
+  }
+  if (any(!is.finite(sigma))) {
+    stop("logit-normal `sigma` must be finite.", call. = FALSE)
+  }
+  if (any(sigma <= 0)) {
+    stop("logit-normal `sigma` must be strictly positive: a negative scale is ",
+         "not a distribution at all, and `sigma = 0` is a point mass rather ",
+         "than one to integrate over.", call. = FALSE)
+  }
+  # Partial recycling silently pairs each value with the wrong parameter, which
+  # is the same failure `dlogitnorm()` was fixed for: say so instead. Equal
+  # lengths and scalar-against-vector both recycle unambiguously.
+  if (length(mu) != length(sigma) && length(mu) > 1L && length(sigma) > 1L) {
+    stop("logit-normal `mu` and `sigma` must be the same length, or one of ",
+         "them a single value.", call. = FALSE)
+  }
   list(mu = mu, sigma = sigma)
 }

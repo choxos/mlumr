@@ -184,8 +184,54 @@ predict.mlumr_fit <- function(object,
 .surv_time_selection <- function(times, pred_times) {
   if (is.null(times)) return(seq_along(pred_times))
   .validate_survival_prediction_times(times)
-  sort(unique(vapply(times, function(t) which.min(abs(pred_times - t)),
-                     integer(1))))
+  idx <- vapply(times, function(t) which.min(abs(pred_times - t)), integer(1))
+  .warn_snapped_prediction_times(times, pred_times[idx])
+  sort(unique(idx))
+}
+
+#' Say when requested prediction times were moved onto the fitted grid
+#'
+#' The returned frame carries the time it was evaluated at, but nothing said
+#' that it was not the time asked for. A policy horizon of 12 months reported at
+#' 11.8 looks like an answer to the question, and two requested times that land
+#' on one grid point silently become one row, so the output can have fewer rows
+#' than the request had times. Refit with `pred_times` containing the exact
+#' times to remove the approximation rather than only be told about it.
+#' @param requested The user's `times`, in the order given.
+#' @param used The fitted grid times actually selected, aligned to `requested`.
+#' @return `NULL`, invisibly; called for the message.
+#' @keywords internal
+.warn_snapped_prediction_times <- function(requested, used) {
+  # Relative, because a 0.2 gap means something different at t = 1 and t = 500.
+  moved <- abs(used - requested) > 1e-8 * pmax(1, abs(requested))
+  collapsed <- length(unique(used)) < length(used)
+  if (!any(moved) && !collapsed) return(invisible(NULL))
+  parts <- character(0)
+  if (any(moved)) {
+    show <- which(moved)
+    more <- if (length(show) > 5L) {
+      show <- show[seq_len(5L)]
+      sprintf(" (and %d more)", sum(moved) - 5L)
+    } else {
+      ""
+    }
+    moves <- paste(sprintf("%g -> %g", requested[show], used[show]),
+                   collapse = ", ")
+    parts <- c(parts,
+               paste0("Requested prediction time(s) were moved to the nearest ",
+                      "fitted grid time: ", moves, more, "."))
+  }
+  if (collapsed) {
+    parts <- c(parts,
+               sprintf(paste0("%d requested time(s) share a grid point, so the ",
+                              "result has %d time row(s) rather than %d."),
+                       length(used), length(unique(used)), length(used)))
+  }
+  message(paste(c(parts,
+                  paste0("Refit with `pred_times` containing the exact times ",
+                         "to evaluate them directly.")),
+                collapse = " "))
+  invisible(NULL)
 }
 
 #' Value of a survival curve at the origin, or `NA_real_` when it has none
@@ -652,14 +698,18 @@ predict.mlumr_fit <- function(object,
 #'   `newdata` target population instead).
 #' @param effect Which effect measure. For binomial: `"all"`, `"lor"`, `"rd"`,
 #'   or `"rr"`. For normal: `"all"` or `"md"` (mean difference). For poisson:
-#'   `"all"` or `"rr"` (rate ratio). For survival: `"all"`, `"hr"` (hazard ratio
-#'   for PH, time ratio for AFT, natural scale, null 1; `"tr"` is an accepted
-#'   alias), `"exp_delta_eta"`, `"rmstd"` (RMST difference, null 0), or
-#'   `"rmstr"` (RMST ratio, natural scale, null 1). Requesting an effect the fit
-#'   cannot produce is an error rather than a differently-named substitute: with
-#'   an AFT distribution and `aux_by = ".study"` the study shapes differ, so
-#'   `exp(eta_index - eta_comparator)` is not a time ratio and `"hr"` / `"tr"`
-#'   are rejected in favor of the explicit `"exp_delta_eta"`.
+#'   `"all"` or `"rr"` (rate ratio). For survival the scalar selector is
+#'   **literal and distribution-specific**: each fit accepts `"all"`, the one
+#'   scalar name that its contrast actually is, `"rmstd"` (RMST difference,
+#'   null 0), and `"rmstr"` (RMST ratio, natural scale, null 1). The scalar name
+#'   is `"hr"` (marginal hazard ratio, null 1) for a proportional-hazards fit,
+#'   `"tr"` (time ratio, null 1) for a shared-shape SPFA accelerated-failure-time
+#'   fit, and `"exp_delta_eta"` otherwise, meaning any relaxed AFT fit or an AFT
+#'   fit with `aux_by = ".study"`, where the covariate term does not cancel or
+#'   the shapes differ and no constant acceleration factor exists. There are no
+#'   aliases: `"hr"` never returns a time ratio and `"tr"` never returns a
+#'   hazard ratio. Requesting a scale the fit cannot supply is an error naming
+#'   the one it can.
 #' @param at_time Evaluation time for the scalar marginal hazard ratio, for
 #'   proportional-hazards fits whose two studies have different baseline shapes
 #'   (`aux_by = ".study"` with a distribution that has a shape parameter, or
@@ -1483,18 +1533,29 @@ marginal_effects <- function(object,
   # hazard ratio has a closed form; with differing shapes it can only be read
   # off the fitted grid.
   stratified <- .aux_shapes_differ(object)
-  # `tr` names the same scalar contrast as `hr` on the built-in route, which
-  # accepts it as an alias. Refusing it here made the same request succeed or
-  # fail depending only on whether `newdata` was supplied.
-  valid_effects <- if (is_ph) c("all", "hr", "tr", "rmstd", "rmstr") else
+  # Literal selector, matching the built-in route: a PH fit supplies a hazard
+  # ratio and only `"hr"` names it. An AFT fit has no transported scalar
+  # contrast on this route at all, so only the collapsible RMST effects are
+  # offered rather than a time ratio that is not computed here.
+  valid_effects <- if (is_ph) c("all", "hr", "rmstd", "rmstr") else
     c("all", "rmstd", "rmstr")
   if (!effect %in% valid_effects) {
+    scale_note <- if (!is_ph && effect %in% c("hr", "tr", "exp_delta_eta")) {
+      paste0(" This fit uses an accelerated-failure-time distribution, whose",
+             " scalar contrast is not standardized to a `newdata` target;",
+             " RMST effects are directly collapsible and are.")
+    } else if (is_ph && effect %in% c("tr", "exp_delta_eta")) {
+      paste0(" This fit uses a proportional-hazards distribution, so its scalar",
+             " contrast is a hazard ratio (`effect = \"hr\"`), not a time ratio",
+             " or a bare location contrast.")
+    } else {
+      ""
+    }
     stop(sprintf(
-      "For this survival fit and a `newdata` target, `effect` must be one of: %s.",
-      paste(valid_effects, collapse = ", ")
+      "For this survival fit and a `newdata` target, `effect` must be one of: %s.%s",
+      paste(valid_effects, collapse = ", "), scale_note
     ), call. = FALSE)
   }
-  if (effect == "tr") effect <- "hr"
   if (!is.null(at_time) && !is_ph) {
     stop("`at_time` applies to a time-specific marginal hazard ratio, but this ",
          "fit uses an accelerated-failure-time distribution. Use RMST effects ",
@@ -1648,49 +1709,22 @@ marginal_effects <- function(object,
   # time ratios, not one population acceleration factor.
   lab <- .surv_scalar_label(object)
   hr_label <- lab$label
-  # The estimand the caller asked for must be the estimand they get. When the
-  # AFT shapes differ there is no scalar time ratio, and returning the location
-  # contrast under the name `tr` would report one estimand under the name of
-  # another. Name the quantity that does exist and make the caller opt into it.
-  if (effect %in% c("hr", "tr") && identical(hr_label, "EXP_DELTA_ETA")) {
-    why <- if (stratified) {
-      paste0("each study has its own AFT shape (`aux_by = \".study\"`), so there ",
-             "is no constant acceleration factor at all (the Weibull quantile ",
-             "ratio picks up [-log S]^(1/a_i - 1/a_c), the log-normal ",
-             "exp(z_p (sigma_i - sigma_c)), and so on)")
-    } else {
-      paste0("this is a relaxed fit, so the two treatments have different ",
-             "coefficients and the covariate term does not cancel from ",
-             "mean(eta_index) - mean(eta_comparator). The time ratio varies by ",
-             "covariate profile, and exp(delta) is the geometric mean of those ",
-             "profile-specific ratios, not one population acceleration factor")
-    }
-    stop("`effect = \"", effect, "\"` is not available: ", why,
-         ". Use `effect = \"exp_delta_eta\"` for the location contrast itself, ",
-         "the collapsible `effect = \"rmstd\"` / \"rmstr\", or ",
-         "conditional_effects() for profile-specific time ratios.",
-         call. = FALSE)
-  }
-  if (identical(effect, "exp_delta_eta") && !identical(hr_label, "EXP_DELTA_ETA")) {
-    stop("`effect = \"exp_delta_eta\"` applies to an AFT distribution whose ",
-         "shapes differ by study (`aux_by = \".study\"`) or to any relaxed AFT ",
-         "fit, whose treatment-specific coefficients leave the covariate term ",
-         "in the contrast. This fit reports ", hr_label,
-         "; request `effect = \"", tolower(hr_label), "\"`.", call. = FALSE)
-  }
-
-  # `tr` (time ratio) is accepted as an alias for `hr`: for AFT distributions the
-  # returned effect is already labeled TR (see hr_label), so a user who thinks in
-  # time-ratio terms can request it by name; it routes to the same computation.
-  valid_effects <- c("all", "hr", "tr", "exp_delta_eta", "rmstd", "rmstr")
+  # The estimand the caller asked for must be the estimand they get, so the
+  # selector is LITERAL: exactly one scalar name is valid per fit, and it is the
+  # one that names what this fit's scalar contrast actually is. `hr`, `tr` and
+  # `exp_delta_eta` used to be interchangeable aliases for one computation,
+  # distinguished only by the label on the result; a caller could then request
+  # an HR from an AFT fit and receive a time ratio, which is the effect-scale
+  # error this API most needs to make impossible.
+  scalar_effect <- .surv_scalar_effect_name(hr_label)
+  valid_effects <- c("all", scalar_effect, "rmstd", "rmstr")
   if (!effect %in% valid_effects) {
-    stop(sprintf("For survival family, `effect` must be one of: %s",
-                 paste(valid_effects, collapse = ", ")), call. = FALSE)
+    stop(.surv_effect_scale_error(effect, hr_label, scalar_effect, stratified,
+                                  valid_effects), call. = FALSE)
   }
-  # `tr` and `exp_delta_eta` both name the exponentiated location contrast that
-  # `hr` computes; the LABEL on the result (HR / TR / EXP_DELTA_ETA) is what
-  # says which of the three it actually is, and the guards above have already
-  # rejected the combinations where the requested name is not the truth.
+  # The three scalar names all reach the same `hr` computation branch; the check
+  # above has already established that the requested name is the true one for
+  # this fit, so the mapping can no longer relabel one estimand as another.
   if (effect %in% c("tr", "exp_delta_eta")) effect <- "hr"
   # Resolve the evaluation time of the scalar marginal hazard ratio. This is a
   # genuine estimand choice, not a plotting control, so it is a named argument
@@ -1807,10 +1841,7 @@ marginal_effects <- function(object,
         # output is self-describing. `tr_*` would be a lie exactly where
         # hr_label has already established the quantity is NOT a time ratio, so
         # the raw name tracks the label rather than just the PH flag.
-        vname <- sprintf("%s_%s", switch(hr_label,
-                                         HR = "hr",
-                                         TR = "tr",
-                                         EXP_DELTA_ETA = "exp_delta_eta"), pop)
+        vname <- sprintf("%s_%s", .surv_scalar_effect_name(hr_label), pop)
         elabel <- hr_label
       } else if (eff == "rmstd") {
         vec <- draws[[sprintf("rmst_diff_%s", pop)]]
