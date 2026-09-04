@@ -95,7 +95,14 @@ test_that("prior_sensitivity validates its grid, probs, and dots (M9)", {
                     class = "mlumr_fit")
   expect_error(prior_sensitivity(stub, prior_beta_scales = numeric(0)),
                "one or more positive")
-  expect_error(prior_sensitivity(stub, probs = c(-0.1, 0.5)), "\\[0, 1\\]")
+  # `prior_sensitivity()` now defers to the shared `.validate_probs()` rather
+  # than carrying its own copy of the check, so the message is the package-wide
+  # one. Duplicates are the case the local copy missed: they produced two
+  # identically named `qNN` columns and only the last survived.
+  expect_error(prior_sensitivity(stub, probs = c(-0.1, 0.5)),
+               "unique finite numeric values between 0 and 1")
+  expect_error(prior_sensitivity(stub, probs = c(0.5, 0.5)),
+               "unique finite numeric values between 0 and 1")
   # Use a protected arg that reaches `...` (prior_beta* partial-match the
   # `_scales` formals and raise R's own ambiguity error instead).
   expect_error(prior_sensitivity(stub, prior_intercept = prior_normal(0, 5)),
