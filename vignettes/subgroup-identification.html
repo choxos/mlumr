@@ -644,9 +644,9 @@ not make them automatically transportable to another population.</p>
 <div id="simulation-evidence" class="section level2">
 <h2>Simulation evidence</h2>
 <p>The sections above argue from geometry. This section measures whether
-that geometry actually predicts anything, using a study whose script
-ships with the package at
-<code>data-raw/simulate_subgroup_identification.R</code>.</p>
+that geometry actually predicts anything. The script that produced it is
+a development file, kept in the package repository rather than installed
+with the package, and is read there: <a href="https://github.com/choxos/mlumr/blob/main/data-raw/simulate_subgroup_identification.R"><code>data-raw/simulate_subgroup_identification.R</code></a>.</p>
 <p>Six aggregate designs are crossed with the three non-survival
 families and 300 replications each, 5400 fits in total. Every
 replication draws a fresh index study and a fresh comparator, generated
@@ -662,19 +662,20 @@ single population of fixed total size, split across whichever design is
 in play. A design with more rows therefore has proportionally smaller
 rows. Without this, extra rows would buy information through sample size
 alone and “more rows is better” would be true by construction.</p>
-<table>
+<table style="width:100%;">
 <colgroup>
-<col width="8%" />
-<col width="10%" />
+<col width="7%" />
+<col width="9%" />
 <col width="4%" />
-<col width="7%" />
-<col width="8%" />
-<col width="7%" />
-<col width="5%" />
-<col width="8%" />
 <col width="6%" />
-<col width="11%" />
-<col width="8%" />
+<col width="7%" />
+<col width="6%" />
+<col width="6%" />
+<col width="5%" />
+<col width="7%" />
+<col width="6%" />
+<col width="10%" />
+<col width="7%" />
 <col width="13%" />
 </colgroup>
 <thead>
@@ -684,6 +685,7 @@ alone and “more rows is better” would be true by construction.</p>
 <th align="right">Rows</th>
 <th align="right">Per row</th>
 <th align="right">cond_inv</th>
+<th align="right">Fitted</th>
 <th align="right">eff_dim</th>
 <th align="right">Width</th>
 <th align="right">Width CV</th>
@@ -700,6 +702,7 @@ alone and “more rows is better” would be true by construction.</p>
 <td align="right">8</td>
 <td align="right">75</td>
 <td align="right">0.98</td>
+<td align="right">0.920</td>
 <td align="right">3.00</td>
 <td align="right">0.639</td>
 <td align="right">0.028</td>
@@ -714,6 +717,7 @@ alone and “more rows is better” would be true by construction.</p>
 <td align="right">6</td>
 <td align="right">100</td>
 <td align="right">0.71</td>
+<td align="right">0.700</td>
 <td align="right">2.76</td>
 <td align="right">0.653</td>
 <td align="right">0.027</td>
@@ -728,6 +732,7 @@ alone and “more rows is better” would be true by construction.</p>
 <td align="right">4</td>
 <td align="right">150</td>
 <td align="right">0.70</td>
+<td align="right">0.680</td>
 <td align="right">2.66</td>
 <td align="right">0.690</td>
 <td align="right">0.032</td>
@@ -742,6 +747,7 @@ alone and “more rows is better” would be true by construction.</p>
 <td align="right">3</td>
 <td align="right">200</td>
 <td align="right">0.00</td>
+<td align="right">0.000</td>
 <td align="right">1.00</td>
 <td align="right">0.736</td>
 <td align="right">0.120</td>
@@ -756,6 +762,7 @@ alone and “more rows is better” would be true by construction.</p>
 <td align="right">4</td>
 <td align="right">150</td>
 <td align="right">0.00</td>
+<td align="right">0.027</td>
 <td align="right">2.00</td>
 <td align="right">0.749</td>
 <td align="right">0.163</td>
@@ -770,6 +777,7 @@ alone and “more rows is better” would be true by construction.</p>
 <td align="right">6</td>
 <td align="right">100</td>
 <td align="right">0.00</td>
+<td align="right">0.046</td>
 <td align="right">1.00</td>
 <td align="right">0.721</td>
 <td align="right">0.104</td>
@@ -784,6 +792,7 @@ alone and “more rows is better” would be true by construction.</p>
 <td align="right">8</td>
 <td align="right">75</td>
 <td align="right">0.98</td>
+<td align="right">0.920</td>
 <td align="right">3.00</td>
 <td align="right">0.328</td>
 <td align="right">0.045</td>
@@ -798,6 +807,7 @@ alone and “more rows is better” would be true by construction.</p>
 <td align="right">6</td>
 <td align="right">100</td>
 <td align="right">0.71</td>
+<td align="right">0.700</td>
 <td align="right">2.76</td>
 <td align="right">0.330</td>
 <td align="right">0.044</td>
@@ -812,6 +822,7 @@ alone and “more rows is better” would be true by construction.</p>
 <td align="right">4</td>
 <td align="right">150</td>
 <td align="right">0.70</td>
+<td align="right">0.680</td>
 <td align="right">2.66</td>
 <td align="right">0.352</td>
 <td align="right">0.043</td>
@@ -826,6 +837,7 @@ alone and “more rows is better” would be true by construction.</p>
 <td align="right">3</td>
 <td align="right">200</td>
 <td align="right">0.00</td>
+<td align="right">0.000</td>
 <td align="right">1.00</td>
 <td align="right">0.534</td>
 <td align="right">0.366</td>
@@ -840,6 +852,7 @@ alone and “more rows is better” would be true by construction.</p>
 <td align="right">4</td>
 <td align="right">150</td>
 <td align="right">0.00</td>
+<td align="right">0.024</td>
 <td align="right">2.00</td>
 <td align="right">0.535</td>
 <td align="right">0.545</td>
@@ -854,6 +867,7 @@ alone and “more rows is better” would be true by construction.</p>
 <td align="right">6</td>
 <td align="right">100</td>
 <td align="right">0.00</td>
+<td align="right">0.045</td>
 <td align="right">1.00</td>
 <td align="right">0.418</td>
 <td align="right">0.234</td>
@@ -868,6 +882,7 @@ alone and “more rows is better” would be true by construction.</p>
 <td align="right">8</td>
 <td align="right">75</td>
 <td align="right">0.98</td>
+<td align="right">0.920</td>
 <td align="right">3.00</td>
 <td align="right">0.212</td>
 <td align="right">0.032</td>
@@ -882,6 +897,7 @@ alone and “more rows is better” would be true by construction.</p>
 <td align="right">6</td>
 <td align="right">100</td>
 <td align="right">0.71</td>
+<td align="right">0.700</td>
 <td align="right">2.76</td>
 <td align="right">0.216</td>
 <td align="right">0.031</td>
@@ -896,6 +912,7 @@ alone and “more rows is better” would be true by construction.</p>
 <td align="right">4</td>
 <td align="right">150</td>
 <td align="right">0.70</td>
+<td align="right">0.680</td>
 <td align="right">2.66</td>
 <td align="right">0.225</td>
 <td align="right">0.034</td>
@@ -910,6 +927,7 @@ alone and “more rows is better” would be true by construction.</p>
 <td align="right">3</td>
 <td align="right">200</td>
 <td align="right">0.00</td>
+<td align="right">0.000</td>
 <td align="right">1.00</td>
 <td align="right">0.322</td>
 <td align="right">0.286</td>
@@ -924,6 +942,7 @@ alone and “more rows is better” would be true by construction.</p>
 <td align="right">4</td>
 <td align="right">150</td>
 <td align="right">0.00</td>
+<td align="right">0.025</td>
 <td align="right">2.00</td>
 <td align="right">0.817</td>
 <td align="right">1.174</td>
@@ -938,6 +957,7 @@ alone and “more rows is better” would be true by construction.</p>
 <td align="right">6</td>
 <td align="right">100</td>
 <td align="right">0.00</td>
+<td align="right">0.046</td>
 <td align="right">1.00</td>
 <td align="right">0.264</td>
 <td align="right">0.223</td>
@@ -948,6 +968,23 @@ alone and “more rows is better” would be true by construction.</p>
 </tr>
 </tbody>
 </table>
+<p>The <code>cond_inv</code> column is the geometry of the design <em>as
+requested</em>, and it is zero for three designs because the requested
+profiles span fewer than three directions. The <code>Fitted</code>
+column is the same quantity computed from the rows the likelihood
+actually received. The two are not equal, and the difference matters for
+how the rest of this section should be read: a stratum defined as
+holding sex at one half realizes a proportion near one half but not
+exactly one half, so its profile matrix is numerically full rank. Only
+<code>ovat_age_3</code> is exactly rank deficient whatever the draw,
+because three rows cannot span three directions after centering.</p>
+<p>What survives is a separation, not an exact zero. Across all 5,400
+fits the fitted conditioning of the three failing designs never rises
+above 0.14, and that of the three identified designs never falls below
+0.56. The groups do not overlap. So “unidentified” below means a
+direction the design was never asked to supply and that sampling noise
+repays only at a conditioning an order of magnitude too small to be
+useful, not a matrix a computer would call singular.</p>
 <div id="row-count-does-not-order-the-designs-geometry-does" class="section level3">
 <h3>Row count does not order the designs; geometry does</h3>
 <table>
@@ -963,10 +1000,14 @@ alone and “more rows is better” would be true by construction.</p>
 <td align="right">-0.765</td>
 </tr>
 <tr class="even">
-<td align="left">cond_inv</td>
+<td align="left">cond_inv (requested)</td>
 <td align="right">-0.941</td>
 </tr>
 <tr class="odd">
+<td align="left">cond_inv (fitted)</td>
+<td align="right">-0.943</td>
+</tr>
+<tr class="even">
 <td align="left">eff_dim</td>
 <td align="right">-0.812</td>
 </tr>
@@ -988,12 +1029,13 @@ enough to establish it.</p>
 </div>
 <div id="the-two-failing-designs-lose-opposite-halves-of-the-space" class="section level3">
 <h3>The two failing designs lose opposite halves of the space</h3>
-<p>Both the one-variable-at-a-time bands and the bare cross-tab have
-<code>cond_inv</code> = 0, so neither is identified, but they are not
-the same failure. The bands vary only age, leaving <code>eff_dim</code>
-at 1 whether they have three rows or six. The cross-tab varies both
-binaries and holds age fixed, giving <code>eff_dim</code> = 2. One keeps
-the continuous covariate and loses the binaries; the other keeps the
+<p>Both the one-variable-at-a-time bands and the bare cross-tab were
+requested with <code>cond_inv</code> = 0, and neither recovers a usable
+third direction from sampling noise, but they do not fail in the same
+way. The bands vary only age, leaving <code>eff_dim</code> at 1 whether
+they have three rows or six. The cross-tab varies both binaries and
+holds age fixed, giving <code>eff_dim</code> = 2. One keeps the
+continuous covariate and loses the binaries; the other keeps the
 binaries and loses the continuous covariate.</p>
 </div>
 <div id="an-unidentified-design-is-unpredictable-not-merely-imprecise" class="section level3">
@@ -1009,10 +1051,10 @@ the standard deviation of the width exceeds its own mean.</p>
 <h3>The sampler notices, and only for the nonlinear families</h3>
 <p>Non-convergence tracks identification exactly in this study: no fit
 in any identified design reported a split-Rhat above 1.01, and every
-non-converged fit belongs to a design with <code>cond_inv</code> = 0. So
-a rank-deficient aggregate design does not merely widen the interval, it
-also makes the posterior harder to sample, and the diagnostics one would
-run anyway will often say so.</p>
+non-converged fit belongs to one of the three designs requested with
+<code>cond_inv</code> = 0. So a rank-deficient aggregate design does not
+merely widen the interval, it also makes the posterior harder to sample,
+and the diagnostics one would run anyway will often say so.</p>
 <p>They do not always say so. Every non-converged fit here is binomial
 or Poisson; the normal family sampled cleanly in the unidentified
 designs too. A plausible reading is that with an identity link the

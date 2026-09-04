@@ -301,8 +301,10 @@ n_fits <- nrow(sim)
 ```
 
 The sections above argue from geometry. This section measures whether that
-geometry actually predicts anything, using a study whose script ships with the
-package at `data-raw/simulate_subgroup_identification.R`.
+geometry actually predicts anything. The script that produced it is a
+development file, kept in the package repository rather than installed with the
+package, and is read there:
+[`data-raw/simulate_subgroup_identification.R`](https://github.com/choxos/mlumr/blob/main/data-raw/simulate_subgroup_identification.R).
 
 Six aggregate designs are crossed with the three non-survival families and
 `r n_rep` replications each, `r n_fits` fits in total. Every replication draws a
@@ -330,6 +332,10 @@ tab <- do.call(rbind, lapply(cells, function(d) {
   data.frame(
     Family = d$family[1], Design = d$design[1], Rows = d$n_rows[1],
     `Per row` = d$n_per_row[1], cond_inv = round(d$cond_inv[1], 2),
+    # `cond_inv` is the geometry of the design as REQUESTED. The rows the
+    # likelihood receives carry sampling noise, so their geometry is not
+    # identical to it and is reported beside it rather than assumed equal.
+    Fitted = signif(stats::median(d$pkg_cond_inv), 2),
     eff_dim = round(d$eff_dim[1], 2),
     Width = round(mean(ok$width), 3),
     `Width CV` = round(stats::sd(ok$width) / mean(ok$width), 3),
@@ -343,8 +349,27 @@ tab <- do.call(rbind, lapply(cells, function(d) {
 }))
 tab <- tab[order(tab$Family, -tab$cond_inv, tab$Rows), ]
 rownames(tab) <- NULL
-knitr::kable(tab, align = "llrrrrrrrrrr")
+knitr::kable(tab, align = "llrrrrrrrrrrr")
 ```
+
+The `cond_inv` column is the geometry of the design *as requested*, and it is
+zero for three designs because the requested profiles span fewer than three
+directions. The `Fitted` column is the same quantity computed from the rows the
+likelihood actually received. The two are not equal, and the difference matters
+for how the rest of this section should be read: a stratum defined as holding
+sex at one half realizes a proportion near one half but not exactly one half,
+so its profile matrix is numerically full rank. Only `ovat_age_3` is exactly
+rank deficient whatever the draw, because three rows cannot span three
+directions after centering.
+
+What survives is a separation, not an exact zero. Across all
+`r format(nrow(sim), big.mark = ",")` fits the fitted conditioning of the three
+failing designs never rises above `r signif(max(sim$pkg_cond_inv[sim$cond_inv == 0]), 2)`,
+and that of the three identified designs never falls below
+`r signif(min(sim$pkg_cond_inv[sim$cond_inv > 0]), 2)`. The groups do not
+overlap. So "unidentified" below means a direction the design was never asked
+to supply and that sampling noise repays only at a conditioning an order of
+magnitude too small to be useful, not a matrix a computer would call singular.
 
 ### Row count does not order the designs; geometry does
 
@@ -362,9 +387,10 @@ agree <- function(v) {
 }
 knitr::kable(
   data.frame(
-    Predictor = c("row count", "cond_inv", "eff_dim"),
+    Predictor = c("row count", "cond_inv (requested)",
+                  "cond_inv (fitted)", "eff_dim"),
     `Spearman with mean width` = round(c(agree("Rows"), agree("cond_inv"),
-                                         agree("eff_dim")), 3),
+                                         agree("Fitted"), agree("eff_dim")), 3),
     check.names = FALSE),
   align = "lr")
 ```
@@ -385,8 +411,9 @@ a missing direction, and one counterexample is enough to establish it.
 
 ### The two failing designs lose opposite halves of the space
 
-Both the one-variable-at-a-time bands and the bare cross-tab have
-`cond_inv` = 0, so neither is identified, but they are not the same failure.
+Both the one-variable-at-a-time bands and the bare cross-tab were requested
+with `cond_inv` = 0, and neither recovers a usable third direction from
+sampling noise, but they do not fail in the same way.
 The bands vary only age, leaving `eff_dim` at 1 whether they have three rows or
 six. The cross-tab varies both binaries and holds age fixed, giving
 `eff_dim` = 2. One keeps the continuous covariate and loses the binaries; the
@@ -405,7 +432,8 @@ exceeds its own mean.
 
 Non-convergence tracks identification exactly in this study: no fit in any
 identified design reported a split-Rhat above 1.01, and every non-converged fit
-belongs to a design with `cond_inv` = 0. So a rank-deficient aggregate design
+belongs to one of the three designs requested with `cond_inv` = 0. So a
+rank-deficient aggregate design
 does not merely widen the interval, it also makes the posterior harder to
 sample, and the diagnostics one would run anyway will often say so.
 

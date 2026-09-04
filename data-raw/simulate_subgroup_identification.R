@@ -73,6 +73,15 @@ REF_SD <- c(age = 1, sex = 0.5, prior = 0.49)
 COVS   <- c("age", "sex", "prior")
 LINK   <- list(normal = "identity", binomial = "logit", poisson = "log")
 
+# Fitting settings. These live here rather than inline in the call because the
+# checkpoint guard has to pin them: a cell fitted at iter = 3000 and a cell
+# fitted at iter = 6000 are not results from the same study, and nothing
+# downstream can tell them apart once they are rows in one CSV.
+MODEL  <- "relaxed"
+CHAINS <- 2L
+ITER   <- 3000L
+WARMUP <- 1500L
+
 DESIGNS <- list(
   ovat_age_6 = cbind(age = seq(-1.5, 1.5, length.out = 6), sex = 0.5, prior = 0.4),
   ovat_age_3 = cbind(age = seq(-1.2, 1.2, length.out = 3), sex = 0.5, prior = 0.4),
@@ -84,6 +93,12 @@ DESIGNS <- list(
                      prior = rep(c(0, 0, 1, 1), 2))
 )
 
+# Geometry of the design as REQUESTED. The rows the likelihood receives are not
+# this matrix: each stratum's covariate means are realized from its own members,
+# so a nominally constant column fluctuates and the fitted matrix is usually
+# full rank even where this one is not. That is why `pkg_cond_inv` from
+# `check_identification()` is recorded per fit beside this: the study reports
+# both rather than assuming the requested design is what was fitted.
 geometry <- function(M) {
   Ms <- sweep(scale(as.matrix(M), center = TRUE, scale = FALSE), 2, REF_SD, "/")
   d <- svd(Ms)$d
@@ -232,8 +247,8 @@ run_one <- function(family, design_name, rep_id, seed) {
 
   truth <- TRUTH[[family]]
 
-  fit <- try(suppressWarnings(mlumr(dat, model = "relaxed", chains = 2,
-                                    iter = 3000, warmup = 1500, seed = seed,
+  fit <- try(suppressWarnings(mlumr(dat, model = MODEL, chains = CHAINS,
+                                    iter = ITER, warmup = WARMUP, seed = seed,
                                     refresh = 0)), silent = TRUE)
   base <- data.frame(
     family = family, design = design_name, rep = rep_id, seed = seed,
@@ -300,20 +315,34 @@ grid$key <- sprintf("%s__%s__rep%04d", grid$family, grid$design, grid$rep)
 # the whole generative configuration next to the cells and refuse to reuse them
 # when it differs. `identical()` rather than a hash: this is a handful of small
 # objects, so there is no reason to accept collision risk for brevity.
+#
+# Pin the FITTING procedure too, not only the data-generating one. Everything
+# that moves an estimate has to be in here or the guard is decorative: the
+# model, the sampler settings, the estimand the coverage is measured against,
+# and the package version that supplies both the likelihood and the
+# integration. A patch release of mlumr is a different fitting procedure for
+# this purpose, and rerunning is cheaper than a CSV whose rows came from two of
+# them.
 CONFIG <- list(
   designs = DESIGNS, n_rep = N_REP, families = sort(unique(grid$family)),
   beta_a = BETA_A, beta_b = BETA_B, mu_a = MU_A, mu_b = MU_B,
   n_ipd = N_IPD, n_cmp = N_CMP, sigma = SIGMA, expo = EXPO, n_int = N_INT,
   k = K, ref_sd = REF_SD, covs = COVS, link = LINK,
+  model = MODEL, chains = CHAINS, iter = ITER, warmup = WARMUP,
+  truth = TRUTH, mlumr = as.character(utils::packageVersion("mlumr")),
   seeds = grid$seed[order(grid$key)]
 )
 config_file <- file.path(CELLS, "_config.rds")
 if (file.exists(config_file)) {
-  if (!identical(readRDS(config_file), CONFIG)) {
-    stop("`", CELLS, "` holds checkpoints from a DIFFERENT configuration ",
-         "(the designs, constants, replication count or seeds have changed). ",
-         "Reusing them would assemble one CSV out of two studies. Move or ",
-         "delete that directory to start a clean run.", call. = FALSE)
+  old <- readRDS(config_file)
+  if (!identical(old, CONFIG)) {
+    differs <- names(CONFIG)[!vapply(names(CONFIG), function(nm)
+      identical(old[[nm]], CONFIG[[nm]]), logical(1))]
+    stop("`", CELLS, "` holds checkpoints from a DIFFERENT configuration. ",
+         "Reusing them would assemble one CSV out of two studies. ",
+         if (length(differs)) paste0("Changed: ", paste(differs, collapse = ", "),
+                                     ". ") else "",
+         "Move or delete that directory to start a clean run.", call. = FALSE)
   }
 } else {
   saveRDS(CONFIG, config_file)
