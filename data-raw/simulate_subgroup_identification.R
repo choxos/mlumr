@@ -131,13 +131,22 @@ TRUTH <- local({
 # ---- one replication ---------------------------------------------------------
 #' Remove one fit's CmdStan draws files.
 #'
-#' `native_fit` is the cmdstanr fit the backend keeps; `output_files()` names the
-#' CSVs it wrote. The rstan backend has neither, and returns without doing
-#' anything. The draws are already in memory by the time this runs, so the
-#' summaries extracted below are unaffected.
+#' The fitted object stores the backend fit in `$stanfit`. It is a `CmdStanFit`
+#' under cmdstanr, whose `output_files()` names the per-chain CSVs it wrote, and
+#' an S4 `stanfit` under rstan, which writes no such files. `$` on an S4 object
+#' is not safe to probe blindly, so dispatch on the class rather than on whether
+#' a member happens to look like a function.
+#'
+#' This read `fit$native_fit`, which is what the BACKEND returns internally but
+#' is never attached to the object `mlumr()` hands back. It was therefore always
+#' NULL, the helper always returned early, and nothing was ever deleted; the
+#' disk filled anyway and only an external sweep kept it down.
+#'
+#' The draws are already in memory by the time this runs, so every summary
+#' extracted below is unaffected.
 .drop_cmdstan_output <- function(fit) {
-  nf <- tryCatch(fit$native_fit, error = function(e) NULL)
-  if (is.null(nf) || !is.function(nf$output_files)) return(invisible(NULL))
+  nf <- fit$stanfit
+  if (!inherits(nf, "CmdStanFit")) return(invisible(NULL))
   f <- tryCatch(nf$output_files(), error = function(e) character(0))
   unlink(f[file.exists(f)])
   invisible(NULL)
@@ -278,6 +287,12 @@ grid <- expand.grid(family = c("normal", "binomial", "poisson"),
 # One seed per cell, derived from a single root, so the whole study is
 # reproducible from that root alone.
 grid$seed <- 2026L + seq_len(nrow(grid)) * 7L
+# Checkpoints are named by the cell's IDENTITY, not by its position in the grid.
+# A positional name silently reuses a stale file whenever DESIGNS, N_REP or the
+# family list changes: index 42 becomes a different cell, its old .rds is taken
+# as finished work, and the assembled CSV mixes two configurations without an
+# error anywhere.
+grid$key <- sprintf("%s__%s__rep%04d", grid$family, grid$design, grid$rep)
 
 cores <- max(1L, min(parallel::detectCores() - 2L, 6L))
 cat("cells:", nrow(grid), " cores:", cores, "\n")
@@ -287,7 +302,7 @@ t0 <- Sys.time()
 invisible(parallel::mclapply(seq_len(nrow(grid)), function(i) {
   # Each cell writes its own file the moment it finishes, so a worker that dies
   # costs one cell rather than the run, and a rerun skips what is already done.
-  f <- file.path(CELLS, sprintf("%05d.rds", i))
+  f <- file.path(CELLS, paste0(grid$key[i], ".rds"))
   if (file.exists(f)) return(NULL)
   r <- try(suppressWarnings(suppressMessages(
     run_one(grid$family[i], grid$design[i], grid$rep[i], grid$seed[i])
@@ -302,8 +317,25 @@ invisible(parallel::mclapply(seq_len(nrow(grid)), function(i) {
   NULL
 }, mc.cores = cores, mc.preschedule = FALSE))
 
-files <- list.files(CELLS, pattern = "\\.rds$", full.names = TRUE)
-res <- do.call(rbind, lapply(files, readRDS))
+# Read only the cells THIS grid defines. Globbing the directory would sweep in
+# leftovers from a larger previous grid and silently append them.
+files <- file.path(CELLS, paste0(grid$key, ".rds"))
+files <- files[file.exists(files)]
+# One unreadable checkpoint must not destroy the assembly of every other cell.
+rows <- lapply(files, function(f) {
+  r <- try(readRDS(f), silent = TRUE)
+  if (inherits(r, "try-error")) {
+    unlink(f)
+    NULL
+  } else {
+    r
+  }
+})
+dropped <- sum(vapply(rows, is.null, logical(1)))
+if (dropped) {
+  cat("dropped", dropped, "unreadable cell(s); rerun to refill them\n")
+}
+res <- do.call(rbind, rows)
 write.csv(res, OUT_CSV, row.names = FALSE)
 cat("completed:", length(files), "of", nrow(grid),
     " minutes:", round(as.numeric(difftime(Sys.time(), t0, units = "mins")), 1),
