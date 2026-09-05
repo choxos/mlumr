@@ -316,11 +316,13 @@
 #' integrated against the covariate distribution among those who survived to
 #' ITS entry time, and later entrants are a more selected group than earlier
 #' ones. The model has one covariate distribution per arm and reuses it for
-#' every pseudo-individual, so pooled moments over everyone enrolled satisfy
-#' the contract above and can still give the wrong likelihood. Using them
-#' requires either a common entry time, or that the covariate distribution
-#' among survivors does not shift with entry time. Neither is checkable from
-#' the summaries supplied.
+#' every pseudo-individual. Pooled moments over everyone enrolled describe no
+#' single risk set: they mix the survivor populations of every entry time, so
+#' in general they do not meet the contract above even though everyone in them
+#' was observed at entry, and using them can give the wrong likelihood. They
+#' are right only under a common entry time, or when the covariate
+#' distribution among survivors does not shift with entry time. Neither is
+#' checkable from the summaries supplied.
 #'
 #' Published summaries are ordinarily reported for the enrolled population.
 #' Under a common entry time that is the population observed at entry, so they

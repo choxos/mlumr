@@ -97,25 +97,26 @@ regardless of how \code{outcome_r} is tabulated.
 for a row is the total exposure multiplied by the rate averaged over the
 covariate distribution you supply, while the quantity it stands in for is
 the sum over people of each person's own exposure times that person's rate.
-Those two agree when exposure carries no information about the
-covariate-specific rate within the row; they can differ substantially when
-it does. Two people with rates 1 and 3 and exposures 9 and 1 are expected to
-contribute \code{9 * 1 + 1 * 3 = 12} events, whereas a total exposure of 10 times
-the mean rate of 2 gives 20.
+The two agree exactly when the supplied distribution is the one \strong{weighted
+by exposure}, whatever the dependence between exposure and the covariates:
+two people with rates 1 and 3 and exposures 9 and 1 contribute
+\code{9 * 1 + 1 * 3 = 12} expected events, and \code{10 * (0.9 * 1 + 0.1 * 3)} is 12 as
+well. With the person-level distribution instead, the same row gives a total
+exposure of 10 times the mean rate of 2, which is 20. Person-level moments
+reproduce the sum only when exposure carries no information about the
+covariate-specific rate within the row.
 
 The assumption is therefore about person-time, not about people:
-\code{cov_means} and \code{cov_sds} must describe the covariate distribution
-\strong{weighted by exposure}. The exposure-weighted and unweighted distributions
-coincide when mean exposure does not vary with the covariates. That is
-sufficient for the condition above and stronger than it: the likelihood needs
-only that exposure carry no information about the covariate-specific rate,
-which constant mean exposure guarantees but which can also hold without it.
-Equal individual exposure is the simplest way to satisfy either, not the only
-one. Published
-subgroup tables almost always report person-level moments, and those do not
-identify the person-time distribution. Where follow-up varies with a
-prognostic covariate, prefer rows defined so that exposure is close to
-constant inside each one, and say which reading the reported moments
+\code{cov_means} and \code{cov_sds} should describe the covariate distribution
+weighted by exposure. Person-level moments stand in for it when exposure
+carries no information about the covariate-specific rate within the row.
+Mean exposure that does not vary with the covariates is a sufficient
+condition that does not depend on the model, because it makes the two
+distributions coincide, and equal individual exposure is its simplest case.
+Published subgroup tables almost always report person-level moments, and
+those do not identify the person-time distribution. Where follow-up varies
+with a prognostic covariate, prefer rows defined so that exposure is close
+to constant inside each one, and say which reading the reported moments
 support. Weighting across rows does not repair a dependence inside a row,
 and nothing in the supplied summaries reveals it, so this is not checked.
 

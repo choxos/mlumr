@@ -569,13 +569,14 @@
   and adds a relaxed-model effect-modification section.
 * `?set_agd` now states what an aggregate Poisson row assumes about exposure.
   The likelihood multiplies a row's total exposure by the rate averaged over
-  the supplied covariate distribution, which reproduces the sum of each
-  person's exposure times their own rate only when exposure carries no
-  information about the covariate-specific rate within the row. The covariate
-  moments therefore have to describe person-time rather than people, which
-  coincides with the person-level distribution whenever mean exposure does not
-  vary with the covariates; published subgroup tables usually report the
-  latter without saying which reading they support.
+  the supplied covariate distribution. That reproduces the sum of each
+  person's exposure times their own rate exactly when the distribution is
+  weighted by exposure, and, with person-level moments, only when exposure
+  carries no information about the covariate-specific rate within the row.
+  The covariate moments therefore have to describe person-time rather than
+  people; the two coincide whenever mean exposure does not vary with the
+  covariates, and published subgroup tables usually report the person-level
+  reading without saying which one they support.
 * `?set_agd_surv` now states which population the covariate moments must
   describe when the comparator has delayed entry. The model conditions on
   survival to entry inside the covariate integral and averages afterwards, so

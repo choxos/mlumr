@@ -8,9 +8,9 @@ on:
   # request can target: main, and the pre-release branch of an unreleased
   # version. The retired one-branch-per-release model is not among them.
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
-    branches: [main, master, 'pre-release/**']
+    branches: [main, 'pre-release/**']
   workflow_dispatch:
 
 permissions:
