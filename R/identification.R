@@ -667,7 +667,11 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
         "likelihood uses), so the rows pin it down even where they do not ",
         "separate the coefficients individually.", sep = "")
     gap <- x$target_span_gap
-    if (is.finite(gap) && .at_most(gap, 0.1)) {
+    # The gap is the residual OUTSIDE the well-spread directions, so any
+    # positive value means the estimand leans on a direction the rows barely
+    # move along; only a numerically zero gap (floating-point noise from the
+    # projection, not a real distance) earns the reassurance.
+    if (is.finite(gap) && gap <= 1e-8) {
       cat(" It also lies within the directions the rows spread along by at ",
           "least 0.05 IPD SD, so it does not lean on a direction they barely ",
           "move in.\n", sep = "")
