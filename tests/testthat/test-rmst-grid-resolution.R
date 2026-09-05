@@ -57,12 +57,30 @@ test_that("a minority of badly resolved draws is not averaged away", {
   expect_silent(.rmst_from_surv_matrix(many, times))
 })
 
-test_that("degenerate inputs do not warn", {
-  # A flat curve has no decay to apportion, and a two-point grid has no
-  # interior to compare against.
+test_that("a flat curve does not warn", {
+  # No decay to apportion.
   flat <- matrix(1, nrow = 1, ncol = 5)
   expect_silent(.rmst_from_surv_matrix(flat, seq(0, 1, length.out = 5)))
-  expect_silent(.rmst_from_surv_matrix(matrix(c(1, 0.5), nrow = 1), c(0, 1)))
+})
+
+test_that("a two-point grid warns whenever the curve decays at all", {
+  # The first interval IS the whole horizon, so all of the decay lands before
+  # the second point: this is the coarsest grid there is, not one with too
+  # little interior to judge. `mlumr()` accepts `n_rmst_grid = 2`, and left
+  # alone it integrates exponential curves with rates 100 and 200 over a
+  # horizon of 10 to the same RMST of 5.
+  expect_equal(.rmst_first_interval_share(matrix(c(1, 0.5), nrow = 1)), 1)
+  expect_warning(.rmst_from_surv_matrix(matrix(c(1, 0.5), nrow = 1), c(0, 1)),
+                 "In 100% of posterior draws")
+  tau <- 10
+  two <- c(0, tau)
+  fast <- exp(-100 * two)
+  faster <- exp(-200 * two)
+  r_fast <- suppressWarnings(.rmst_from_surv_matrix(matrix(fast, nrow = 1), two))
+  r_faster <- suppressWarnings(.rmst_from_surv_matrix(matrix(faster, nrow = 1),
+                                                      two))
+  expect_equal(unname(r_fast), tau / 2)
+  expect_equal(unname(r_faster), tau / 2)
 })
 
 # The `rmst_*` draws are integrated in Stan on the same grid by the same rule,
@@ -110,4 +128,27 @@ test_that("a fit without the pieces the check needs is left alone", {
   fit <- synthetic_survival_fit(log(100))
   fit$draws$mu_index <- NULL
   expect_silent(.warn_coarse_rmst_grid_builtin(fit))
+})
+
+# The median has the same blind spot as the RMST integral, one interval earlier:
+# when the curve is already at or below 0.5 at the first fitted prediction
+# time, the median is interpolated from S(0) = 1 across that interval.
+
+test_that("a median read off the first grid interval is reported per draw", {
+  times <- c(0.2, 0.4, 0.6)
+  early <- c(exp(-100 * times))              # median 0.0069, reported as 0.1
+  late <- c(0.9, 0.7, 0.4)                   # median inside the grid
+  expect_equal(.surv_median_from_draws(matrix(early, nrow = 1), times), 0.1,
+               tolerance = 1e-6)
+  expect_equal(.median_early_share(matrix(early, nrow = 1)), 1)
+  expect_equal(.median_early_share(matrix(late, nrow = 1)), 0)
+  mixed <- rbind(early, early, late, late, late)
+  expect_equal(.median_early_share(mixed), 0.4)
+  expect_warning(.warn_early_median(list(.median_early_share(mixed))),
+                 "In 40% of posterior draws")
+  expect_silent(.warn_early_median(list(.median_early_share(matrix(late, 1)))))
+  # One draw in a hundred is left alone.
+  many <- rbind(early, matrix(late, nrow = 99, ncol = 3, byrow = TRUE))
+  expect_equal(.median_early_share(many), 0.01)
+  expect_silent(.warn_early_median(list(.median_early_share(many))))
 })

@@ -384,6 +384,12 @@ predict.mlumr_fit <- function(object,
       matrix(.surv_median_from_draws(as.matrix(draws[, cols, drop = FALSE]),
                                      pred_times), ncol = 1)
     })
+    if (type == "median") {
+      .warn_early_median(lapply(seq_len(nrow(cells)), function(i) {
+        first <- sprintf("surv_%s_%s[1]", cells$trt[i], cells$pop[i])
+        .median_early_share(draws[[first]])
+      }))
+    }
     # RMST is an integral to a restriction time, so the number is only half the
     # estimand without it. Report the horizon actually integrated to, read off
     # the fitted grid: that is the requested `rmst_horizon` when one was given,
@@ -537,6 +543,42 @@ predict.mlumr_fit <- function(object,
   invisible()
 }
 
+
+#' Share of draws whose median falls before the first fitted prediction time
+#'
+#' There the median is interpolated between `S(0) = 1` and the first grid
+#' value, with nothing in between to say where inside that interval the curve
+#' crossed 0.5. The error is not small: an exponential curve with rate 100 has
+#' median 0.0069, and a grid whose first point is 0.2 reports 0.1. Per draw,
+#' like the RMST check, so a posterior in which some draws collapse early is
+#' not hidden by the ones that do not.
+#' @keywords internal
+.median_early_share <- function(surv_mat) {
+  s <- as.matrix(surv_mat)
+  if (!nrow(s) || !ncol(s)) return(NA_real_)
+  mean(s[, 1L] <= 0.5)
+}
+
+#' Warn when the median is being read off the first grid interval
+#' @param shares Per-curve values of [.median_early_share()].
+#' @keywords internal
+.warn_early_median <- function(shares) {
+  shares <- unlist(shares)
+  shares <- shares[is.finite(shares)]
+  if (!length(shares)) return(invisible(NULL))
+  worst <- max(shares)
+  if (worst > 0.05) {
+    msg <- paste0("In %.0f%% of posterior draws the survival curve is already ",
+                  "at or below 0.5 at the first fitted prediction time, so the ",
+                  "median is interpolated from S(0) = 1 across that whole first ",
+                  "interval and can be off by a large factor: an exponential ",
+                  "curve with median 0.007 is reported at 0.1 when the grid ",
+                  "starts at 0.2. Refit with `pred_times` that start earlier ",
+                  "and compare.")
+    warning(sprintf(msg, 100 * worst), call. = FALSE)
+  }
+  invisible(NULL)
+}
 
 #' Median survival time from posterior survival-curve draws (linear interp)
 #' @keywords internal
@@ -1072,6 +1114,8 @@ marginal_effects <- function(object,
       matrix(.surv_median_from_draws(sbar$index, pred_times), ncol = 1),
       matrix(.surv_median_from_draws(sbar$comparator, pred_times), ncol = 1)
     )
+    .warn_early_median(list(.median_early_share(sbar$index),
+                            .median_early_share(sbar$comparator)))
     out <- .surv_result_frame(values, cell_labels, type, summary, probs)
     if (!summary) return(out)
     return(.mlumr_result(out, "mlumr_prediction", ptype = type,
@@ -1492,7 +1536,7 @@ marginal_effects <- function(object,
 #' @return `NULL`, invisibly; called for the warning.
 #' @keywords internal
 .warn_coarse_rmst_grid <- function(s_mat, times) {
-  if (length(times) < 3L || !nrow(s_mat)) {
+  if (length(times) < 2L || !nrow(s_mat)) {
     return(invisible(NULL))
   }
   .warn_first_interval_share(list(.rmst_first_interval_share(s_mat)))
@@ -1508,6 +1552,14 @@ marginal_effects <- function(object,
 #' later averages to a share below the threshold while two fifths of the RMST
 #' draws are integrated from a single straight line. `NA` for a draw with no
 #' decay to apportion.
+#'
+#' A two-point grid is the limiting case, not an exception to it: the first
+#' interval is the whole horizon, so every bit of the decay lands before the
+#' second point and the share is 1. Treating that grid as "no interior to
+#' compare against" and staying silent let `n_rmst_grid = 2`, which
+#' [mlumr()] accepts, integrate two exponential curves with rates 100 and 200
+#' to the same RMST of half the horizon, an RMST ratio of exactly 1, with
+#' nothing said.
 #' @keywords internal
 .rmst_first_interval_share <- function(s_mat) {
   s_mat <- as.matrix(s_mat)
@@ -1534,7 +1586,7 @@ marginal_effects <- function(object,
 .warn_coarse_rmst_grid_builtin <- function(object) {
   tt <- object$stan_data$rmst_grid_times
   x_int <- object$stan_data$X_int
-  if (is.null(tt) || length(tt) < 3L || is.null(x_int)) {
+  if (is.null(tt) || length(tt) < 2L || is.null(x_int)) {
     return(invisible(NULL))
   }
   covariates <- object$data$covariates
