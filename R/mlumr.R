@@ -560,6 +560,23 @@ mlumr <- function(data,
              "index-population estimand moves, or add jointly-defined ",
              "subgroup rows.")
     }
+    # The spread warning below is a different claim: every direction IS
+    # separated by the likelihood, some of them with little leverage. Telling
+    # that user the data "cannot separate every direction" contradicted the
+    # sentence before it, and whether the prior or the data ends up
+    # determining those coefficients depends on the outcome precision along
+    # them, which the profiles cannot show.
+    remedy_spread <- if (is.null(prior_beta_comparator)) {
+      remedy
+    } else {
+      paste0("You have supplied `prior_beta_comparator`, which regularizes the ",
+             "coefficients along those directions; whether it or the data ",
+             "ends up determining them depends on how precisely the rows' ",
+             "outcomes are reported. Refit with different ",
+             "`prior_beta_comparator` scales to see how far the ",
+             "index-population estimand moves, or add jointly-defined ",
+             "subgroup rows.")
+    }
     if (family == "survival") {
       # A reconstructed comparator curve is NOT one scalar constraint. It
       # contributes a likelihood term at every event and censoring time, so how
@@ -627,7 +644,7 @@ mlumr <- function(data,
                  "screening heuristic about SPREAD, not a statement about the ",
                  "posterior; read it off the fitted intervals. %s"),
           n_agd_rows_check, n_cov_check, n_cov_check + 1L,
-          n_cov_check + 1L - agd_rank, remedy
+          n_cov_check + 1L - agd_rank, remedy_spread
         ), call. = FALSE)
       }
     } else {
