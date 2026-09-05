@@ -324,6 +324,22 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 
 # `x >= threshold`, tolerant of the ULP-scale disagreement between those
 # routes. Scaled by the threshold, so it means the same thing at any spread.
+# The upper-bound counterpart of `.at_least()`, sharing its tolerance and its
+# validation. The location test needs the realized profiles to sit CLOSE to the
+# declared ones, where every spread test asks for a lower bound. Sharing the
+# validation is the point: a bare `>` against an `NA` threshold aborted from
+# inside an `if` with "missing value where TRUE/FALSE needed", which names
+# nothing. Left undocumented, like `.at_least()` beside it.
+.at_most <- function(x, threshold) {
+  if (anyNA(threshold)) {
+    stop("Spread threshold values must not be NA or NaN.", call. = FALSE)
+  }
+  if (!all(is.finite(threshold))) {
+    return(x <= threshold)
+  }
+  x <= threshold + abs(threshold) * .spread_tol
+}
+
 .at_least <- function(x, threshold) {
   # `NA` and `NaN` are not thresholds, and letting them through returns NA
   # rather than a verdict: `.profile_rank()` then answers `NA_integer_` and
@@ -622,7 +638,8 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #'   there is nothing to compare against.
 #' @keywords internal
 .realized_matches_declared <- function(declared, realized, ref_sd = NULL,
-                                       factor = 0.5, min_spread = 0.05) {
+                                       factor = 0.5, min_spread = 0.05,
+                                       max_location_gap = 0.25) {
   if (is.null(realized)) {
     return(TRUE)
   }
@@ -657,9 +674,21 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   # whatever the means were, and the function returned TRUE. The declared
   # profiles were then used for the identification statement while the
   # likelihood integrated somewhere else entirely.
+  #
+  # `max_location_gap` is a separate threshold, not `min_spread`. A finite
+  # integration grid does not reproduce its own declared mean exactly: 32 QMC
+  # points against a normal margin land about 0.05 reference SD away, which is
+  # the spread floor itself, so reusing it here called correct specifications a
+  # mismatch. It then reported the realized geometry INSTEAD of the declared
+  # one, which changed the rank the identifiability warning quotes and
+  # suppressed the warning entirely for a design of four identical profiles.
+  # A quarter of a reference SD sits well above that integration error and well
+  # below a `distr()` that ignores its row, which misses by the full distance
+  # between the declared mean and whatever constant was hard-coded.
   loc_gap <- abs(colMeans(as.matrix(realized)) - colMeans(as.matrix(declared)))
   loc_gap <- loc_gap / scale_by
-  if (any(is.finite(loc_gap)) && max(loc_gap[is.finite(loc_gap)]) > min_spread) {
+  loc_gap <- loc_gap[is.finite(loc_gap)]
+  if (length(loc_gap) && any(!.at_most(loc_gap, max_location_gap))) {
     return(FALSE)
   }
 

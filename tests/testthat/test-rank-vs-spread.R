@@ -98,3 +98,53 @@ test_that("location is checked independently of spread", {
   # Identical spread, moved one reference SD: caught only by the location test.
   expect_false(.realized_matches_declared(d, d + 1, 1))
 })
+
+test_that("integration noise is not mistaken for a misread distr()", {
+  # The location test has to sit between two distances that are only a factor
+  # of ten apart, so the threshold is the whole content of it.
+  #
+  # BELOW: a finite integration grid does not land on its own declared mean. 32
+  # QMC points against a normal margin miss by about 0.05 reference SD, which
+  # was the spread floor this check first borrowed. Reusing that floor called a
+  # perfectly specified design a mismatch, and the cost was not a spurious
+  # warning: on a mismatch the caller reports the REALIZED geometry instead of
+  # the declared one, and four identical declared profiles then came back as a
+  # grid of numerically distinct ones. The rank-deficiency warning that design
+  # exists to trigger disappeared.
+  #
+  # ABOVE: a `distr()` that ignores the columns it should read misses by the
+  # full distance between the declared mean and whatever constant was written
+  # in its place, which is a whole SD or more.
+  declared <- cbind(x = c(0.5, 0.5, 0.5, 0.5), z = c(-0.2, -0.2, -0.2, -0.2))
+  ref_sd <- c(1, 1)
+
+  # Integration error, in the direction and of the size actually observed.
+  noisy <- declared
+  noisy[, "x"] <- noisy[, "x"] - 0.0515
+  noisy[, "z"] <- noisy[, "z"] - 0.0247
+  expect_true(mlumr:::.realized_matches_declared(declared, noisy, ref_sd))
+
+  # A hard-coded standard normal against declared means of 0.5 and -0.2.
+  ignored <- declared
+  ignored[, "x"] <- 0
+  ignored[, "z"] <- 0
+  expect_false(mlumr:::.realized_matches_declared(declared, ignored, ref_sd))
+
+  # The threshold is a parameter, so the boundary is testable rather than
+  # implied: just inside passes, just outside does not.
+  gap <- function(d) {
+    m <- declared
+    m[, "x"] <- m[, "x"] + d
+    mlumr:::.realized_matches_declared(declared, m, ref_sd)
+  }
+  expect_true(gap(0.24))
+  expect_false(gap(0.26))
+
+  # A threshold that is not a number is still rejected by name, on this path
+  # too. A bare comparison against NA aborted from inside an `if` with "missing
+  # value where TRUE/FALSE needed", which names nothing.
+  expect_error(
+    mlumr:::.realized_matches_declared(declared, declared, ref_sd,
+                                       max_location_gap = NA),
+    "Spread threshold values must not be")
+})
