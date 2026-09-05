@@ -19,9 +19,10 @@
   every covariate the fits share, are now compared across the fits row for
   row and a mismatch is an error. Covariates
   only one fit uses are not compared, since models of the same outcomes with
-  different covariate sets are exactly what gets compared. A model whose
-  object carries no data is reported as unverifiable rather than assumed to
-  match.
+  different covariate sets are exactly what gets compared. `calculate_dic()`
+  objects carry the same frames, so a DIC comparison is checked too. A model
+  whose object carries no data is reported as unverifiable rather than
+  assumed to match.
 
 * **The survival `effect` selector is now literal and distribution-specific.**
   `marginal_effects()` accepted `"hr"`, `"tr"` and `"exp_delta_eta"` as
