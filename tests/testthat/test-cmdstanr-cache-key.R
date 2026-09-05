@@ -49,12 +49,16 @@ test_that("two different include sets do not share a key", {
   dir <- file.path(tempdir(), paste0("cachekey3-", Sys.getpid()))
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   on.exit(unlink(dir, recursive = TRUE), add = TRUE)
-  main <- file.path(dir, "m.stan"); writeLines("// main", main)
-  i1 <- file.path(dir, "i1.stan"); writeLines("// one", i1)
-  i2 <- file.path(dir, "i2.stan"); writeLines("// two", i2)
+  main <- file.path(dir, "m.stan")
+  writeLines("// main", main)
+  i1 <- file.path(dir, "i1.stan")
+  writeLines("// one", i1)
+  i2 <- file.path(dir, "i2.stan")
+  writeLines("// two", i2)
 
-  old_style <- function(fs) substr(paste(unname(tools::md5sum(fs)),
-                                         collapse = ""), 1L, 32L)
+  old_style <- function(fs) {
+    substr(paste(unname(tools::md5sum(fs)), collapse = ""), 1L, 32L)
+  }
   # The old expression really did collide.
   expect_identical(old_style(c(main, i1)), old_style(c(main, i2)))
   # The new one does not.
@@ -66,7 +70,8 @@ test_that("a missing source does not collapse onto a shared key", {
   dir <- file.path(tempdir(), paste0("cachekey4-", Sys.getpid()))
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   on.exit(unlink(dir, recursive = TRUE), add = TRUE)
-  main <- file.path(dir, "m.stan"); writeLines("// main", main)
+  main <- file.path(dir, "m.stan")
+  writeLines("// main", main)
   gone1 <- file.path(dir, "absent1.stan")
   gone2 <- file.path(dir, "absent2.stan")
   # Different absent names are still different builds.
