@@ -225,7 +225,35 @@ test_that("the observation check compares values, not their representation", {
   # Only the internal names are reserved, so a covariate may begin with a dot;
   # one that appears in a single model is a covariate, not an observation.
   fit2$data$ipd$data$.age <- seq_len(12L)
-  expect_identical(.observation_fingerprint(fit1), .observation_fingerprint(fit2))
+  # Counts are accepted within rounding tolerance and rounded before Stan
+  # sees them; the same rounding applies here.
+  fit2$data$agd$data$.r[1] <- 2.9999999999
+  expect_true(.same_observations(.observation_frames(fit1),
+                                 .observation_frames(fit2)))
+  out <- suppressWarnings(capture.output(
+    compare_models(fit1, fit2, criterion = "loo")
+  ))
+  expect_true(length(out) > 0L)
+})
+
+test_that("a row swap is a mismatch exactly when a shared covariate moves", {
+  skip_if_not_installed("loo")
+  # Rows 1 and 3 have the same study, treatment and outcome and differ only
+  # in age. Swapping them leaves every observation column unchanged.
+  y <- rep(c(0L, 1L), 6L)
+  fit1 <- with_data(make_ll_fit("spfa", seed = 2026), y)
+  fit2 <- with_data(make_ll_fit("relaxed", seed = 2026), y)
+  fit2$data$ipd$data <- fit2$data$ipd$data[c(3L, 2L, 1L, 4:12), ]
+  # Both models use age, so their pointwise likelihoods for the two rows are
+  # different numbers, and the swap pairs each with the wrong one.
+  expect_error(compare_models(fit1, fit2, criterion = "loo"),
+               "not built on the same observations")
+  # One model does not use age: for it the two rows are exchangeable, its
+  # pointwise likelihood is the same for both, and either pairing gives the
+  # same comparison.
+  fit2$data$ipd$data$age <- NULL
+  expect_true(.same_observations(.observation_frames(fit1),
+                                 .observation_frames(fit2)))
   out <- suppressWarnings(capture.output(
     compare_models(fit1, fit2, criterion = "loo")
   ))
