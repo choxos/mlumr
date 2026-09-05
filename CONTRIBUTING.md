@@ -32,9 +32,15 @@ working C++ toolchain:
 
 ## Branches and Pull Requests
 
-`main` is the only integration branch. Everything reaches it through a pull
-request, including work by the maintainer, because the pull request is what runs
-the checks, produces a reviewable diff, and records why a change was made.
+Everything reaches an integration branch through a pull request, including work
+by the maintainer, because the pull request is what runs the checks, produces a
+reviewable diff, and records why a change was made.
+
+`main` always holds the released state. Work for a version that has not been
+released yet integrates on `pre-release/vX.Y.Z` instead, and that branch is
+merged into `main` as one reviewed step when the version is released. A single
+change therefore has one pull request, targeting whichever of the two is the
+current integration branch; it is not opened twice.
 
 - **One branch per logical change, never one branch per release.** A release is
   a milestone, a `NEWS.md` heading, and a tag; it is not a unit of review.
@@ -45,7 +51,8 @@ the checks, produces a reviewable diff, and records why a change was made.
   CI evidence, targeted reverts and cherry-picks, useful `git bisect`
   resolution, and informative blame. Keep changes separable.
 - Commit as often as is useful while working. Pull requests are squash-merged,
-  so each commit on `main` is one complete, tested, revertible change.
+  so each commit on the integration branch is one complete, tested, revertible
+  change.
 - Write commit subjects in the imperative ("Add M-spline survival baselines").
   Conventional Commit prefixes are not used here.
 - `git commit --amend` and `git push --force-with-lease` are acceptable only on
@@ -54,14 +61,17 @@ the checks, produces a reviewable diff, and records why a change was made.
 - Keep implementation, its tests, the roxygen source, the regenerated
   documentation, and the `NEWS.md` bullet together in the same pull request.
 
-Between releases `main` carries a development version (`0.1.0.9000`), so add
-`NEWS.md` entries as the work lands rather than reconstructing them later.
+Between releases the integration branch carries a development version
+(`0.1.0.9000`), so add `NEWS.md` entries as the work lands rather than
+reconstructing them later. The version in `DESCRIPTION` is not bumped as work
+accumulates; it is set once, during release preparation.
 
 ## Releases
 
-Release branches use `release/vX.Y.Z` and exist only for final preparation,
-after the changes they cover are already merged into `main`. They should live
-for hours, not weeks, and contain only:
+A version under development integrates on `pre-release/vX.Y.Z`, which collects
+the pull requests for that version while `main` continues to hold the released
+state. Final preparation happens on that same branch, and it contains, beyond
+the changes themselves:
 
 - the version bump in `DESCRIPTION`,
 - the finalized `NEWS.md` section,
@@ -69,8 +79,8 @@ for hours, not weeks, and contain only:
 - regenerated artifacts: roxygen documentation, `src/stanExports_*`, the
   precompiled vignettes, `CITATION.cff`, and `codemeta.json`.
 
-The release branch is merged into `main` by pull request once the full check
-matrix is green. The version tag `vX.Y.Z` and the GitHub release are created
+The pre-release branch is merged into `main` by pull request once the full
+check matrix is green. The version tag `vX.Y.Z` and the GitHub release are created
 from the merged commit only after CRAN accepts it; while a submission is
 pending, that commit is immutable. If CRAN asks for changes, increment to the
 next version rather than reusing the submitted one, and note the resubmission

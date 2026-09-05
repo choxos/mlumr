@@ -567,6 +567,19 @@
   vignette additionally calls one internal diagnostic helper. The survival
   vignette leads with the M-spline baseline, matching multinma's NDMM example,
   and adds a relaxed-model effect-modification section.
+* `?set_agd` now states what an aggregate Poisson row assumes about exposure.
+  The likelihood multiplies a row's total exposure by the rate averaged over
+  the supplied covariate distribution, which reproduces the sum of each
+  person's exposure times their own rate only when exposure carries no
+  information about the covariate-specific rate within the row. The covariate
+  moments therefore have to describe person-time rather than people, and
+  published subgroup tables usually report the latter.
+* `?set_agd_surv` now states which population the covariate moments must
+  describe when the comparator has delayed entry. The model conditions on
+  survival to entry inside the covariate integral and averages afterwards, so
+  the moments must be those of the population observed at entry rather than a
+  baseline, pre-selection population; surviving to entry selects on the very
+  covariates being integrated out.
 
 ## Dependencies
 

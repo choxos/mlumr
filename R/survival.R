@@ -292,6 +292,33 @@
 #'   Multi-arm reconstructed survival comparators are rejected until a
 #'   weighting estimand is implemented. Defaults to a single arm.
 #'
+#' @details
+#' **Which population the covariate moments must describe under delayed
+#' entry.** For individual data the covariates are known, so dividing each
+#' person's contribution by their own survival to entry is unambiguous. Here
+#' the covariates are not observed: they are integrated out against the
+#' distribution implied by `cov_means` and `cov_sds`, and the order of the two
+#' operations matters. This model conditions first and averages second, so each
+#' integration point contributes its own delayed-entry likelihood and the row
+#' likelihood is their average. That is the right quantity when the supplied
+#' moments describe the population **as observed at entry**, meaning those who
+#' survived to their entry time and are therefore in the risk set.
+#'
+#' It is not the right quantity when the moments describe a baseline,
+#' pre-selection population, because surviving to entry is itself selective:
+#' whichever covariate values carry lower hazard are over-represented at entry
+#' relative to baseline. Averaging first and conditioning second is the form
+#' that matches baseline moments, and the two differ in general, by more when
+#' entry times are late or the covariate effects are strong. Varying entry
+#' times sharpen the distinction further, since each entry time selects a
+#' different subgroup.
+#'
+#' Published summaries are ordinarily reported for the enrolled population and
+#' are usually the right ones; state which population they came from, and treat
+#' a delayed-entry comparator whose moments are known to be pre-selection as a
+#' misspecification that no diagnostic here can detect. Delayed entry in the
+#' individual arm is unaffected by any of this.
+#'
 #' @return An object of class `mlumr_agd_surv` (also inheriting `mlumr_agd`).
 #' @seealso [set_agd()] for non-survival aggregate data.
 #'   `multinma::set_agd_surv()` is the ML-NMR equivalent; the name is given as
