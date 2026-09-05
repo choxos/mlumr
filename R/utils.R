@@ -76,20 +76,28 @@ distr <- function(qfun, ...) {
 #' @keywords internal
 eval_distr <- function(d, p, data = list()) {
   # Build the call: d$qfun(p = p, arg1 = val1, arg2 = val2, ...)
-  call_args <- list(p = p)
-  for (nm in names(d$args)) {
-    call_args[[nm]] <- tryCatch(
-      eval(d$args[[nm]], envir = data,
-           enclos = if (is.environment(d$envir)) d$envir else parent.frame(2)),
+  # Iterate by POSITION, not by name. Arguments that could not be matched to a
+  # formal stay unnamed and are passed through in order, which is what R does
+  # with them; walking `names()` dropped them entirely.
+  nms <- names(d$args)
+  if (is.null(nms)) {
+    nms <- rep("", length(d$args))
+  }
+  enc <- if (is.environment(d$envir)) d$envir else parent.frame(2)
+  vals <- lapply(seq_along(d$args), function(i) {
+    label <- if (nzchar(nms[[i]])) nms[[i]] else paste0("[[", i, "]]")
+    tryCatch(
+      eval(d$args[[i]], envir = data, enclos = enc),
       error = function(e) {
         stop(sprintf(
           "Error evaluating distribution argument '%s': %s\nAvailable data columns: %s",
-          nm, e$message, paste(names(data), collapse = ", ")
+          label, e$message, paste(names(data), collapse = ", ")
         ), call. = FALSE)
       }
     )
-  }
-  do.call(d$qfun, call_args)
+  })
+  names(vals) <- nms
+  do.call(d$qfun, c(list(p = p), vals))
 }
 
 
@@ -417,19 +425,34 @@ cor_adjust_pearson <- function(X, types) {
   if (!length(unnamed)) {
     return(args)
   }
-  # `p` is supplied by the evaluator, so it is never one of these. `...` cannot
-  # be matched positionally at all.
-  formal_names <- setdiff(names(formals(qfun)), c("p", "..."))
-  available <- setdiff(formal_names, nms[nzchar(nms)])
-  if (length(unnamed) > length(available)) {
-    left <- if (length(available)) paste(available, collapse = ", ") else "none"
-    fmt <- paste0("`distr()` received %d unnamed argument(s) for `%s`, which ",
-                  "has only %d unmatched parameter(s) left (%s). Name them ",
-                  "explicitly.")
-    msg <- sprintf(fmt, length(unnamed), qfun_name, length(available), left)
-    stop(msg, call. = FALSE)
+  # `p` is supplied by the evaluator, so it is never one of these. R matches
+  # unnamed arguments only against formals that come BEFORE `...`; anything
+  # after it can be reached by name alone, and an unnamed value goes into the
+  # dots. Dropping `...` from this list rather than truncating at it would make
+  # `distr(qfun, 999)` bind 999 to a later formal for a function declared
+  # `function(p, ..., scale = 2)`, silently replacing a default and generating
+  # entirely different integration points.
+  formal_names <- names(formals(qfun))
+  dots <- match("...", formal_names)
+  if (!is.na(dots)) {
+    formal_names <- formal_names[seq_len(dots - 1L)]
   }
-  nms[unnamed] <- available[seq_along(unnamed)]
+  formal_names <- setdiff(formal_names, "p")
+  available <- setdiff(formal_names, nms[nzchar(nms)])
+  n_match <- min(length(unnamed), length(available))
+  if (n_match) {
+    nms[unnamed[seq_len(n_match)]] <- available[seq_len(n_match)]
+  }
+  # Anything left over belongs in `...`, if the function has one. If it does
+  # not, there is nowhere for the value to go and saying so now beats a
+  # confusing error from the quantile function later.
+  leftover <- length(unnamed) - n_match
+  if (leftover > 0L && !("..." %in% names(formals(qfun)))) {
+    fmt <- paste0("`distr()` received %d unnamed argument(s) for `%s`, which ",
+                  "has no remaining parameter to match them to and no `...`. ",
+                  "Name them explicitly or drop them.")
+    stop(sprintf(fmt, leftover, qfun_name), call. = FALSE)
+  }
   names(args) <- nms
   args
 }

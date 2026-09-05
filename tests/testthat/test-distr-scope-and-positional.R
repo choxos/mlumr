@@ -65,3 +65,26 @@ test_that("a specification stored without an environment still evaluates", {
   spec$envir <- NULL
   expect_equal(eval_distr(spec, 0.5), 2)
 })
+
+test_that("formals after `...` are not matched positionally", {
+  # R matches unnamed arguments only against formals declared BEFORE `...`.
+  # Anything after it is name-only, and an unnamed value goes into the dots.
+  # Treating a post-dots formal as positionally available would silently
+  # replace its default: `distr(qdots, 999)` would bind 999 to `scale`.
+  qdots <- function(p, ..., scale = 2) stats::qnorm(p) * scale
+
+  expect_equal(eval_distr(distr(qdots, 999), 0.975),
+               stats::qnorm(0.975) * 2)
+  # By name it does reach `scale`.
+  expect_equal(eval_distr(distr(qdots, scale = 5), 0.975),
+               stats::qnorm(0.975) * 5)
+  # The unnamed value is kept unnamed, so it travels through the dots.
+  spec <- distr(qdots, 999)
+  expect_true(is.null(names(spec$args)) || !nzchar(names(spec$args)[[1]]))
+})
+
+test_that("a function without dots rejects unmatched positional arguments", {
+  # Nowhere for the value to go, so say so at construction rather than letting
+  # the quantile function produce a confusing error later.
+  expect_error(distr(qbern, 0.3, 1, 2, 3), "no remaining parameter")
+})

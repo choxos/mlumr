@@ -17,12 +17,21 @@ jobs:
     runs-on: ubuntu-latest
     # Only restrict concurrency for non-PR jobs.
     #
-    # The group is deliberately NOT pkgdown-specific for real deployments: the
-    # app deploys to `app/` on the same gh-pages branch from its own workflow,
-    # and the action force-pushes, so two writers running at once can lose one
-    # of the two updates. Both writers must share one group to serialize them.
+    # Deliberately pkgdown-specific. Sharing one group with the app deployment
+    # looked like serialization, but GitHub concurrency does not queue: a newly
+    # queued member CANCELS the pending one, so a docs deployment arriving
+    # while an app deployment waited would have discarded the app update
+    # entirely. That is a worse failure than the overlap it was meant to
+    # prevent, and it would be silent.
+    #
+    # What actually protects the app is `clean-exclude` below: a docs
+    # deployment can no longer delete `app/`, whether or not the two overlap.
+    # A genuine simultaneous write remains possible, since the deploy action
+    # force-pushes; it would cost one app update, which is recoverable by
+    # re-running that workflow, and it is not made better by cancelling
+    # deployments in advance.
     concurrency:
-      group: ${{ github.event_name != 'pull_request' && 'github-pages' || format('pkgdown-{0}', github.run_id) }}
+      group: pkgdown-${{ github.event_name != 'pull_request' || github.run_id }}
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
     permissions:
