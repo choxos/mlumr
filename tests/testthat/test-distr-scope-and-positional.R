@@ -169,3 +169,12 @@ test_that("an abbreviated argument is stored under its full name", {
   expect_named(sp3$args, "scale")
   expect_equal(eval_distr(sp3, 0.975), stats::qnorm(0.975) * 2)
 })
+
+test_that("two abbreviations of one formal are refused, as R refuses them", {
+  q <- function(p, mean = 0, ...) stats::qnorm(p, mean)
+  expect_error(q(0.5, m = 1, me = 2), "matched by multiple actual arguments")
+  expect_error(distr(q, m = 1, me = 2), "both abbreviate parameter `mean`")
+  # An exact name takes the formal out of partial matching, so the
+  # abbreviation falls through to `...`, in R and here alike.
+  expect_equal(eval_distr(distr(q, mean = 1, me = 2), 0.5), q(0.5, mean = 1, me = 2))
+})
