@@ -106,9 +106,12 @@ the mean rate of 2 gives 20.
 The assumption is therefore about person-time, not about people:
 \code{cov_means} and \code{cov_sds} must describe the covariate distribution
 \strong{weighted by exposure}. The exposure-weighted and unweighted distributions
-coincide whenever mean exposure does not vary with the covariates, which is
-the same no-association condition stated above; equal individual exposure is
-the simplest way to satisfy it, not the only one. Published
+coincide when mean exposure does not vary with the covariates. That is
+sufficient for the condition above and stronger than it: the likelihood needs
+only that exposure carry no information about the covariate-specific rate,
+which constant mean exposure guarantees but which can also hold without it.
+Equal individual exposure is the simplest way to satisfy either, not the only
+one. Published
 subgroup tables almost always report person-level moments, and those do not
 identify the person-time distribution. Where follow-up varies with a
 prognostic covariate, prefer rows defined so that exposure is close to
