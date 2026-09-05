@@ -1596,9 +1596,19 @@ mlumr <- function(data,
 }
 
 #' Resolve and validate mlumr() backend engine
+#'
+#' The engine also arrives here through the option set in a profile or the
+#' per-fit `engine` argument, and neither passes through `mlumr_engine()`. So
+#' the Windows toolchain guard that `mlumr_engine()` applies runs here as
+#' well; otherwise the first fit reaches compilation and fails there, without
+#' the upgrade advice.
 #' @keywords internal
 .resolve_mlumr_engine <- function(engine) {
-  .validate_engine_name(engine %||% get_engine())
+  engine <- .validate_engine_name(engine %||% get_engine())
+  if (engine == "cmdstanr" && .cmdstanr_too_old_for_windows()) {
+    stop(.cmdstanr_upgrade_advice(), call. = FALSE)
+  }
+  engine
 }
 
 #' Resolve the sampling seed

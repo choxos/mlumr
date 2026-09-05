@@ -100,3 +100,20 @@ test_that("the pinned cmdstanr is told to upgrade only when its toolchain check 
   expect_false(.cmdstanr_too_old_for_windows("unix", "0.8.0", fails))
   expect_false(.cmdstanr_too_old_for_windows("windows", NULL, fails))
 })
+
+test_that("a fit that selects cmdstanr by argument or option meets the same guard", {
+  # mlumr_engine() is not the only way to select the backend: the option in a
+  # profile and the per-fit argument both bypass it, and the first fit used to
+  # reach compilation and fail there without the upgrade advice.
+  testthat::local_mocked_bindings(
+    .cmdstanr_too_old_for_windows = function(...) TRUE,
+    .cmdstanr_upgrade_advice = function() "upgrade cmdstanr first"
+  )
+  expect_error(.resolve_mlumr_engine("cmdstanr"), "upgrade cmdstanr first")
+  withr::local_options(mlumr.stan_engine = "cmdstanr")
+  expect_error(.resolve_mlumr_engine(NULL), "upgrade cmdstanr first")
+  # rstan is never held up by a cmdstanr problem.
+  expect_identical(.resolve_mlumr_engine("rstan"), "rstan")
+  testthat::local_mocked_bindings(.cmdstanr_too_old_for_windows = function(...) FALSE)
+  expect_identical(.resolve_mlumr_engine("cmdstanr"), "cmdstanr")
+})
