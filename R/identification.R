@@ -292,7 +292,13 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   w <- qr.coef(qr_at, b)
   w[is.na(w)] <- 0
   resid <- b - drop(t(A) %*% w)
-  max(abs(resid)) <= 1e-8 * max(1, max(abs(b)))
+  # Judge each coordinate against ITS OWN scale. A single tolerance taken from
+  # the largest coordinate of `b` lets one huge covariate excuse a complete
+  # failure elsewhere: one profile at 1e10 with a target at 2e10 leaves a
+  # residual of 1 on the intercept, which is the whole intercept, while the
+  # tolerance computed from `max(abs(b))` is 200. The target was reported as
+  # spanned when it is not in the span at all.
+  all(abs(resid) <= 1e-8 * pmax(1, abs(b)))
 }
 
 

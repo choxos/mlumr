@@ -51,3 +51,28 @@ test_that("the two ranks disagree exactly where the claim must change", {
   }, logical(1))
   expect_equal(unname(disagree), c(TRUE, FALSE, FALSE))
 })
+
+# `.target_in_span()` decides whether the index-population estimand is a linear
+# combination of the aggregate profiles, and its verdict is printed as an
+# identification statement. It compared the whole residual vector against one
+# tolerance taken from the largest coordinate of the target, so a single large
+# covariate could excuse a complete failure on another coordinate.
+
+test_that("a large covariate cannot excuse a failure on another coordinate", {
+  # One profile at 1e10, target at 2e10. The span of a single row is its
+  # multiples, and (1, 2e10) is not a multiple of (1, 1e10): the least-squares
+  # residual is 1, which is the entire intercept. The old tolerance was
+  # 1e-8 * 2e10 = 200, so this was reported as spanned.
+  expect_false(.target_in_span(matrix(1e10, nrow = 1, ncol = 1), 2e10, 1))
+  # The same profile with a target it really does span still passes.
+  expect_true(.target_in_span(matrix(1e10, nrow = 1, ncol = 1), 1e10, 1))
+})
+
+test_that("ordinary in-span and out-of-span cases are unchanged", {
+  expect_true(.target_in_span(matrix(c(0, 1, 2), ncol = 1), 1, 1))
+  expect_true(.target_in_span(matrix(c(0, 2), ncol = 1), 1, 1))
+  # Away from the origin: two profiles still span the point between them.
+  expect_true(.target_in_span(matrix(c(10, 12), ncol = 1), 11, 1))
+  # A single profile spans only itself.
+  expect_false(.target_in_span(matrix(0, nrow = 1, ncol = 1), 5, 1))
+})
