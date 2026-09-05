@@ -310,6 +310,17 @@
   custom knot specification was rejected because an argument the fit never
   reads was out of range. The resolved basis is still checked on its own terms.
 
+* **The cmdstanr executable cache now notices a changed include.** The cache
+  key concatenated the MD5 of the model file with the MD5 of every include and
+  kept the first 32 characters. An MD5 digest is already 32 characters, so the
+  key was the model file's digest alone and every include hash was discarded.
+  Editing a shared include, which is where the likelihood helpers and the
+  numerical guards live, produced the same key, and a previously compiled
+  executable was reused. The key is now a digest over a canonical payload
+  naming every source file with its own content, plus the CmdStan version, so a
+  changed include and a changed toolchain both invalidate it. Anyone carrying a
+  cache from an earlier version will get one recompile.
+
 ## Transportability to arbitrary target populations
 
 * **`newdata` argument** on `marginal_effects()` and `predict.mlumr_fit()`
@@ -559,6 +570,17 @@
   link because a repeated grid gives an identical likelihood term.
 
 ## Covariate distributions
+
+* **`distr()` now honors arguments passed by position.** It captures its `...`
+  unevaluated and evaluation walked `names(args)`, so anything supplied without
+  a name was never iterated and never reached the quantile function.
+  `distr(qnorm, 10, 2)` therefore integrated a STANDARD normal, silently, with
+  no warning and no error: the fit ran, converged, and answered a different
+  question than the one asked. Positional arguments are now matched against the
+  quantile function's own formals once, at construction, so the stored
+  specification says what each argument is. Arguments after `...` in the
+  quantile function's signature stay name-only, which is R's own rule, and an
+  argument that matches nothing is an error rather than a silent omission.
 
 * **New moment-parameterized marginal distributions**, mirroring the ones
   `multinma` exports so a published baseline table can be used as printed:
