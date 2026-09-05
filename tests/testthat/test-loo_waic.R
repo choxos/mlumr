@@ -287,6 +287,20 @@ test_that("a row swap is a mismatch exactly when a shared covariate moves", {
   expect_true(length(out) > 0L)
 })
 
+test_that("a DIC object carries its observations into the check", {
+  y <- rep(c(0L, 1L), 6L)
+  fit1 <- with_data(make_ll_fit("spfa", seed = 2026), y)
+  dic1 <- calculate_dic(fit1)
+  expect_true(.same_observations(dic1$observations, .observation_frames(fit1)))
+  fit2 <- with_data(make_ll_fit("relaxed", seed = 2026), y)
+  expect_no_message(capture.output(compare_models(dic1, fit2)))
+  fit3 <- with_data(make_ll_fit("relaxed", seed = 2026), rev(y))
+  fit3$data$ipd$data$.outcome[1] <- 1L - fit3$data$ipd$data$.outcome[1]
+  expect_error(compare_models(dic1, fit3), "not built on the same observations")
+  expect_error(compare_models(dic1, calculate_dic(fit3)),
+               "not built on the same observations")
+})
+
 test_that("compare_models says when it cannot verify the observations", {
   skip_if_not_installed("loo")
   fit1 <- make_ll_fit("spfa", seed = 2026)

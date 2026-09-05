@@ -193,7 +193,13 @@ extract_log_lik <- function(object) {
 #' @keywords internal
 .assert_same_observations <- function(models) {
   frames <- lapply(models, function(m) {
-    if (inherits(m, "mlumr_fit")) .observation_frames(m) else NULL
+    if (inherits(m, "mlumr_fit")) {
+      .observation_frames(m)
+    } else if (inherits(m, "mlumr_dic")) {
+      m$observations
+    } else {
+      NULL
+    }
   })
   known <- Filter(Negate(is.null), frames)
   for (other in known[-1L]) {
@@ -265,7 +271,10 @@ extract_log_lik <- function(object) {
 #'
 #' @param object An `mlumr_fit` object
 #'
-#' @return A list of class `mlumr_dic` with components `DIC`, `pD`, `D_bar`
+#' @return A list of class `mlumr_dic` with components `DIC`, `pD`, `D_bar`,
+#'   `n_obs`, `model`, and `observations`, the fit's observation frames as
+#'   kept for [compare_models()], so a DIC object can still be checked against
+#'   the fits it is compared with.
 #' @export
 #'
 #' @examples
@@ -293,7 +302,8 @@ calculate_dic <- function(object) {
     pD = pD,
     D_bar = D_bar,
     n_obs = ncol(log_lik),
-    model = .mlumr_model_label(object)
+    model = .mlumr_model_label(object),
+    observations = .observation_frames(object)
   )
 
   class(out) <- "mlumr_dic"
