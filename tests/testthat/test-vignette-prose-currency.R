@@ -36,6 +36,50 @@ test_that("every line of authored prose reached the knitted article", {
     out[nzchar(trimws(out))]
   }
 
+  # Code is compared line by line as well. Every chunk is echoed, so each line
+  # of a chunk's body reappears verbatim inside a fenced ``` r block of the
+  # knitted article, interleaved with the output it produced. A fitting call
+  # edited in the source without re-knitting therefore leaves a line that no
+  # echoed block contains, which is the change the prose check cannot see.
+  code_lines <- function(path) {
+    lines <- readLines(path, warn = FALSE)
+    out <- character(0)
+    inside <- FALSE
+    hidden <- FALSE
+    for (line in lines) {
+      if (!inside && grepl("^```\\{r", line)) {
+        inside <- TRUE
+        hidden <- grepl("(include|echo)\\s*=\\s*FALSE", line)
+        next
+      }
+      if (inside && grepl("^```", line)) {
+        inside <- FALSE
+        next
+      }
+      if (inside && !hidden) out <- c(out, line)
+    }
+    out <- trimws(out, which = "right")
+    out[nzchar(trimws(out))]
+  }
+  echoed_lines <- function(path) {
+    lines <- readLines(path, warn = FALSE)
+    out <- character(0)
+    inside <- FALSE
+    for (line in lines) {
+      if (!inside && grepl("^```\\s*r\\s*$", line)) {
+        inside <- TRUE
+        next
+      }
+      if (inside && grepl("^```", line)) {
+        inside <- FALSE
+        next
+      }
+      if (inside && !startsWith(line, "#>")) out <- c(out, line)
+    }
+    out <- trimws(out, which = "right")
+    out[nzchar(trimws(out))]
+  }
+
   checked <- 0L
   for (orig in origs) {
     rmd <- sub("[.]orig$", "", orig)
@@ -55,6 +99,13 @@ test_that("every line of authored prose reached the knitted article", {
         basename(orig), " has ", length(missing), " prose line(s) that never ",
         "reached ", basename(rmd), ", so the source was edited without ",
         "re-knitting. First: ", paste(utils::head(missing, 2L), collapse = " | ")))
+    missing_code <- setdiff(code_lines(orig), echoed_lines(rmd))
+    msg_code <- paste0(basename(orig), " has ", length(missing_code),
+                       " code line(s) that no echoed block of ", basename(rmd),
+                       " contains, so a chunk was edited without re-knitting. ",
+                       "First: ",
+                       paste(utils::head(missing_code, 2L), collapse = " | "))
+    expect_equal(length(missing_code), 0L, info = msg_code)
     checked <- checked + 1L
   }
   expect_gt(checked, 0L)

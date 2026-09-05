@@ -56,11 +56,14 @@ test_that("the precompiler gives every article its own figure directory", {
   script <- testthat::test_path("..", "..", "vignettes", "precompile.R")
   skip_if_not(file.exists(script),
               "run from a source checkout, not an installed package")
-  txt <- paste(readLines(script, warn = FALSE), collapse = "\n")
-  # The mechanism, not the wording: the figure path must be derived from the
-  # article being built rather than fixed.
-  expect_true(grepl("fig.path", txt, fixed = TRUE))
-  expect_true(grepl("stem", txt, fixed = TRUE))
+  lines <- readLines(script, warn = FALSE)
+  # The mechanism itself, on a line that runs: the figure path is set from the
+  # stem of the article being built. Looking for the two words anywhere in
+  # the file was satisfied by a comment describing the mechanism after the
+  # code had been removed.
+  code <- lines[!grepl("^\\s*#", lines)]
+  expect_true(any(grepl('fig.path = file.path("figure", stem, "")', code,
+                        fixed = TRUE)))
 })
 
 # The ownership test above catches the bug once it has FIRED: an article that
@@ -86,13 +89,27 @@ test_that("re-rendering an article cannot pick up another article's figures", {
               "run from a source checkout, not an installed package")
   # `xfun` ships with knitr, which the vignettes already need.
   skip_if_not_installed("xfun")
-  rmds <- list.files(vdir, pattern = "[.]Rmd$", full.names = TRUE)
-  skip_if(length(rmds) == 0L, "no knitted articles")
+  # The precompiled articles: each has a `.Rmd.orig` source, a knitted `.Rmd`
+  # and a rendered `.html`. Ordinary vignettes are built by R CMD build and
+  # have neither source nor rendered file here.
+  origs <- list.files(vdir, pattern = "[.]Rmd[.]orig$", full.names = TRUE)
+  skip_if(length(origs) == 0L, "no precompiled articles")
+  rmds <- sub("[.]orig$", "", origs)
 
   checked <- 0L
   for (rmd in rmds) {
     stem <- sub("[.]Rmd$", "", basename(rmd))
     html <- file.path(vdir, paste0(stem, ".html"))
+    # A precompiled article missing its knitted or rendered file is a broken
+    # artifact set, not one to look past: skipping it here is exactly how the
+    # gate would disappear while the build stayed green.
+    expect_true(file.exists(rmd),
+                info = paste0(basename(rmd), " has not been knitted from its ",
+                              "source; run vignettes/precompile.R"))
+    if (!file.exists(rmd)) next
+    expect_true(file.exists(html),
+                info = paste0(basename(rmd), " has no rendered .html beside ",
+                              "it; run vignettes/precompile.R"))
     if (!file.exists(html)) next
     txt <- paste(readLines(rmd, warn = FALSE), collapse = "\n")
     refs <- regmatches(txt, gregexpr('<img src="figure/[^"]+"', txt))[[1]]
