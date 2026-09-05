@@ -10,8 +10,8 @@
 \item{fit}{An \code{mlumr_fit}.}
 }
 \value{
-A list with elements \code{ipd} and \code{agd}, or \code{NULL} when the fit
-carries no data.
+A list with elements \code{ipd}, \code{agd} and \code{pseudo} (the last \code{NULL}
+outside survival), or \code{NULL} when the fit carries no data.
 }
 \description{
 Every comparison here is paired: \code{loo_compare()} differences pointwise
@@ -27,9 +27,10 @@ The frames returned hold, in stored row order, the internal columns that
 define an observation (\code{.study}, \code{.trt}, the outcome, exposure, and for
 survival the times and status; named explicitly, since only the internal
 names are reserved and a covariate may itself begin with a dot) together
-with the covariates the fit used. The comparator's reconstructed
-pseudo-individuals stand in for the aggregate rows when present, since they
-are the pointwise units.
+with the covariates the fit used. For survival comparators the aggregate
+rows carry the covariate summaries and the reconstructed pseudo-individuals
+carry the times and status, and the pointwise units are the latter; both
+frames are kept, since a change to either changes the likelihood.
 
 The values define an observation, not their representation. A factor and
 the character vector it codes, with or without unused levels, or an integer

@@ -123,9 +123,10 @@ extract_log_lik <- function(object) {
 #' define an observation (`.study`, `.trt`, the outcome, exposure, and for
 #' survival the times and status; named explicitly, since only the internal
 #' names are reserved and a covariate may itself begin with a dot) together
-#' with the covariates the fit used. The comparator's reconstructed
-#' pseudo-individuals stand in for the aggregate rows when present, since they
-#' are the pointwise units.
+#' with the covariates the fit used. For survival comparators the aggregate
+#' rows carry the covariate summaries and the reconstructed pseudo-individuals
+#' carry the times and status, and the pointwise units are the latter; both
+#' frames are kept, since a change to either changes the likelihood.
 #'
 #' The values define an observation, not their representation. A factor and
 #' the character vector it codes, with or without unused levels, or an integer
@@ -135,8 +136,8 @@ extract_log_lik <- function(object) {
 #' are rounded the same way here.
 #'
 #' @param fit An `mlumr_fit`.
-#' @return A list with elements `ipd` and `agd`, or `NULL` when the fit
-#'   carries no data.
+#' @return A list with elements `ipd`, `agd` and `pseudo` (the last `NULL`
+#'   outside survival), or `NULL` when the fit carries no data.
 #' @keywords internal
 .observation_frames <- function(fit) {
   data <- fit$data
@@ -153,8 +154,8 @@ extract_log_lik <- function(object) {
     }
     df
   }
-  agd <- if (!is.null(data$agd$pseudo_ipd)) data$agd$pseudo_ipd else data$agd$data
-  list(ipd = plain(data$ipd$data), agd = plain(agd))
+  list(ipd = plain(data$ipd$data), agd = plain(data$agd$data),
+       pseudo = plain(data$agd$pseudo_ipd))
 }
 
 #' The internal columns that define an observation, across the families
@@ -184,7 +185,8 @@ extract_log_lik <- function(object) {
     if (!all(obs %in% shared)) return(FALSE)
     identical(x[shared], y[shared])
   }
-  same_frame(a$ipd, b$ipd) && same_frame(a$agd, b$agd)
+  same_frame(a$ipd, b$ipd) && same_frame(a$agd, b$agd) &&
+    same_frame(a$pseudo, b$pseudo)
 }
 
 #' Refuse to compare fits that were not built on the same observations

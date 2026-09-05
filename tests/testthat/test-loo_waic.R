@@ -236,6 +236,33 @@ test_that("the observation check compares values, not their representation", {
   expect_true(length(out) > 0L)
 })
 
+test_that("survival comparators are compared on both their frames", {
+  skip_if_not_installed("loo")
+  # A survival comparator stores its covariate summaries on the aggregate
+  # rows and its times and status on the reconstructed pseudo-individuals.
+  # Either changing is a different comparator likelihood.
+  y <- rep(c(0L, 1L), 6L)
+  surv <- function() {
+    fit <- with_data(make_ll_fit("spfa", seed = 2026), y)
+    fit$data$agd$data <- data.frame(.study = "B", .trt = "z", .arm = "B",
+                                    age_mean = 50, age_sd = 8)
+    fit$data$agd$pseudo_ipd <- data.frame(.study = "B", .trt = "z", .arm = "B",
+                                          .time = c(3, 5, 8), .status = c(1L, 0L, 1L))
+    fit
+  }
+  fit1 <- surv()
+  fit2 <- surv()
+  expect_true(.same_observations(.observation_frames(fit1),
+                                 .observation_frames(fit2)))
+  fit2$data$agd$data$age_mean <- 70
+  expect_false(.same_observations(.observation_frames(fit1),
+                                  .observation_frames(fit2)))
+  fit3 <- surv()
+  fit3$data$agd$pseudo_ipd$.status[2] <- 1L
+  expect_false(.same_observations(.observation_frames(fit1),
+                                  .observation_frames(fit3)))
+})
+
 test_that("a row swap is a mismatch exactly when a shared covariate moves", {
   skip_if_not_installed("loo")
   # Rows 1 and 3 have the same study, treatment and outcome and differ only
