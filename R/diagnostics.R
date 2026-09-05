@@ -174,16 +174,30 @@ extract_log_lik <- function(object) {
 #' likelihood is the same for both, so either pairing gives that model the
 #' same comparison. A row swap that changes a shared covariate is a different
 #' pairing for both models and is a mismatch.
+#'
+#' The stored columns can only show what both fits kept. When the fits share
+#' no covariate, a swap of two rows that agree on the outcome columns moves
+#' both models' pointwise likelihoods and leaves nothing in those columns to
+#' see. The setup functions therefore record, for every row, a key built from
+#' the whole source row ([.source_row_keys()]). Two fits holding the same set
+#' of keys in a different order were built from one source reordered between
+#' them, and that is a mismatch whatever the columns say. Different sets mean
+#' the source itself changed between the fits, which the keys cannot judge,
+#' and the decision is left to the columns.
 #' @param a,b Results of [.observation_frames()].
 #' @keywords internal
 .same_observations <- function(a, b) {
   same_frame <- function(x, y) {
     if (is.null(x) && is.null(y)) return(TRUE)
     if (is.null(x) || is.null(y)) return(FALSE)
-    shared <- intersect(names(x), names(y))
+    shared <- setdiff(intersect(names(x), names(y)), ".source_key")
     obs <- intersect(.observation_columns, union(names(x), names(y)))
     if (!all(obs %in% shared)) return(FALSE)
-    identical(x[shared], y[shared])
+    if (!identical(x[shared], y[shared])) return(FALSE)
+    kx <- x$.source_key
+    ky <- y$.source_key
+    if (is.null(kx) || is.null(ky) || identical(kx, ky)) return(TRUE)
+    !identical(sort(kx), sort(ky))
   }
   same_frame(a$ipd, b$ipd) && same_frame(a$agd, b$agd) &&
     same_frame(a$pseudo, b$pseudo)
@@ -202,14 +216,19 @@ extract_log_lik <- function(object) {
     }
   })
   known <- Filter(Negate(is.null), frames)
-  for (other in known[-1L]) {
-    if (!.same_observations(known[[1L]], other)) {
-      stop("The compared fits were not built on the same observations in the ",
-           "same order: their stored data differ in the columns that define an ",
-           "observation, or in a covariate they share. Pointwise criteria are ",
-           "paired, column by column, so a comparison across different data, ",
-           "or the same data in a different order, is not a comparison of the ",
-           "models. Refit on one common data set.", call. = FALSE)
+  # Every pair, not each against the first: the relation is not transitive,
+  # since two fits may share a covariate that a third does not carry.
+  for (i in seq_along(known)) {
+    for (j in seq_len(i - 1L)) {
+      if (!.same_observations(known[[j]], known[[i]])) {
+        stop("The compared fits were not built on the same observations in ",
+             "the same order: their stored data differ in the columns that ",
+             "define an observation or in a covariate they share, or hold the ",
+             "rows of one source in a different order. Pointwise criteria are ",
+             "paired, column by column, so a comparison across different data, ",
+             "or the same data in a different order, is not a comparison of ",
+             "the models. Refit on one common data set.", call. = FALSE)
+      }
     }
   }
   unknown <- length(frames) - length(known)

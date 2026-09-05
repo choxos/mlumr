@@ -212,7 +212,8 @@
   .check_required_columns(data, required_cols)
   .validate_reserved_internal_names(
     c(covariates, treatment, study, time, status, entry_time),
-    c(".study", ".trt", ".time", ".start_time", ".delay_time", ".status"),
+    c(".study", ".trt", ".time", ".start_time", ".delay_time", ".status",
+      ".source_key"),
     "Column name(s)"
   )
   .validate_ipd_covariates(data, covariates)
@@ -227,6 +228,7 @@
   )
   ipd_data <- cbind(ipd_data, surv_df)
   for (cov in covariates) ipd_data[[cov]] <- data[[cov]]
+  ipd_data$.source_key <- .source_row_keys(data)
 
   # Drop incomplete rows on all setup columns (treatment, study, the four
   # survival columns, and covariates), mirroring the non-survival path's
@@ -395,7 +397,8 @@ set_agd_surv <- function(data, treatment, Surv = NULL,
   .validate_reserved_internal_names(
     c(cov_means, cov_sds[!is.na(cov_sds)], treatment, study, arm,
       time, status, entry_time),
-    c(".study", ".trt", ".arm", ".time", ".start_time", ".delay_time", ".status"),
+    c(".study", ".trt", ".arm", ".time", ".start_time", ".delay_time", ".status",
+      ".source_key"),
     "Column name(s)"
   )
   .validate_agd_covariate_names(cov_means)
@@ -426,6 +429,7 @@ set_agd_surv <- function(data, treatment, Surv = NULL,
     .study = study_vec, .trt = trt_vec, .arm = arm_vec,
     .time = surv_df$.time, .start_time = surv_df$.start_time,
     .delay_time = surv_df$.delay_time, .status = surv_df$.status,
+    .source_key = .source_row_keys(data),
     stringsAsFactors = FALSE
   )
 
