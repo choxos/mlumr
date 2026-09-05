@@ -572,14 +572,18 @@
   the supplied covariate distribution, which reproduces the sum of each
   person's exposure times their own rate only when exposure carries no
   information about the covariate-specific rate within the row. The covariate
-  moments therefore have to describe person-time rather than people, and
-  published subgroup tables usually report the latter.
+  moments therefore have to describe person-time rather than people, which
+  coincides with the person-level distribution whenever mean exposure does not
+  vary with the covariates; published subgroup tables usually report the
+  latter without saying which reading they support.
 * `?set_agd_surv` now states which population the covariate moments must
   describe when the comparator has delayed entry. The model conditions on
   survival to entry inside the covariate integral and averages afterwards, so
   the moments must be those of the population observed at entry rather than a
   baseline, pre-selection population; surviving to entry selects on the very
-  covariates being integrated out.
+  covariates being integrated out. Varying entry times need one assumption
+  more, since the model carries a single covariate distribution per arm and
+  each entry time selects a different subgroup.
 
 ## Dependencies
 

@@ -75,9 +75,17 @@ pre-selection population, because surviving to entry is itself selective:
 whichever covariate values carry lower hazard are over-represented at entry
 relative to baseline. Averaging first and conditioning second is the form
 that matches baseline moments, and the two differ in general, by more when
-entry times are late or the covariate effects are strong. Varying entry
-times sharpen the distinction further, since each entry time selects a
-different subgroup.
+entry times are late or the covariate effects are strong.
+
+Varying entry times need one assumption more, because then there is no single
+population observed at entry: each pseudo-individual should be integrated
+against the covariate distribution among those who survived to ITS entry time,
+and later entrants are a more selected group than earlier ones. The model has
+one covariate distribution per arm and reuses it for every pseudo-individual,
+so pooled moments over everyone enrolled satisfy the contract above and can
+still give the wrong likelihood. Using them requires either a common entry
+time, or that the covariate distribution among survivors does not shift with
+entry time. Neither is checkable from the summaries supplied.
 
 Published summaries are ordinarily reported for the enrolled population and
 are usually the right ones; state which population they came from, and treat
