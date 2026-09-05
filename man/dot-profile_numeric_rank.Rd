@@ -2,7 +2,7 @@
 % Please edit documentation in R/identification.R
 \name{.profile_numeric_rank}
 \alias{.profile_numeric_rank}
-\title{Numerical rank of an aggregate design, on a scale that can be judged}
+\title{Numerical rank of the centered aggregate profile matrix}
 \usage{
 .profile_numeric_rank(profiles, ref_sd)
 }
@@ -10,130 +10,23 @@
 \item{profiles}{Aggregate mean-profile matrix.}
 
 \item{ref_sd}{Reference SD per covariate.}
-
-\item{min_spread}{Smallest RMS profile separation along a direction, in IPD
-standard deviations, that counts as a direction. Defaults to the value
-\code{\link[=check_identification]{check_identification()}} screens on.}
 }
 \value{
-Integer rank, or \code{0} when the design cannot be decomposed.
-
 Integer rank INCLUDING the intercept direction.
 }
 \description{
-\code{qr()} calls a column negligible relative to the norms it is handed, so an
-uncentered covariate sitting on a large offset collapses:
-\code{qr(cbind(1, 1e7 + c(0, 1, 2)))$rank} is 1, although the design the model
-fits, with covariates centered by default, is plainly rank 2. Centering and
-scaling first asks the question about the design being fitted.
+\code{.profile_rank()} counts directions whose spread reaches a practical
+threshold, which is a statement about how much a design MOVES, not about
+whether the likelihood separates its parameters. The two are different
+claims, and only this one supports language about a direction the likelihood
+cannot see: profiles at -0.01 and +0.01 have spread 0.01 and numerical rank
+2, and with aggregate standard errors of 1e-6 the slope is pinned to about
+7e-5. Calling that "not separated by the likelihood" is wrong; calling it
+weakly informed is right.
 }
 \details{
-The scale has to come from OUTSIDE the profiles. Dividing each column by its
-own root-mean-square, which this did, stretches any separation back to unit
-size: aggregate means of \code{c(-1e-10, 1e-10)} became \code{c(-1, 1)} and the design
-was reported full rank, so the identity-link relaxed-model screen in
-\code{\link[=mlumr]{mlumr()}} never fired on a comparator the likelihood cannot separate. The
-IPD standard deviations are an absolute scale and are what
-\code{.subgroup_geometry()} already uses, so the two diagnostics now agree.
-
-\code{qr()} cannot supply that judgment on its own either. LINPACK's \code{dqrdc2}
-compares each column's remaining norm against that SAME column's original
-norm, so a covariate separated by \code{1e-11} IPD SDs is still "independent" of
-the intercept and counts toward the rank. Directions are therefore counted
-by singular value against an absolute floor, the \code{spread} that
-\code{\link[=check_identification]{check_identification()}} already screens on, so the two agree by
-construction.
+Tolerance follows the usual convention for a rank decision,
+\code{max(dim) * eps * max(d)}, so it tracks floating-point resolution rather
+than a chosen effect size.
 }
-\keyword{"not}
-\keyword{*}
-\keyword{+0.01}
-\keyword{-0.01}
-\keyword{0.01}
-\keyword{1e-6}
-\keyword{2,}
-\keyword{7e-5.}
-\keyword{Calling}
-\keyword{MOVES,}
-\keyword{Numerical}
-\keyword{The}
-\keyword{Tolerance}
-\keyword{`.profile_rank()`}
-\keyword{`max(dim)}
-\keyword{a}
-\keyword{about}
-\keyword{aggregate}
-\keyword{and}
-\keyword{are}
-\keyword{at}
-\keyword{by}
-\keyword{calling}
-\keyword{cannot}
-\keyword{centered}
-\keyword{chosen}
-\keyword{claims,}
-\keyword{convention}
-\keyword{counts}
-\keyword{decision,}
-\keyword{design}
-\keyword{different}
-\keyword{direction}
-\keyword{directions}
-\keyword{effect}
-\keyword{eps}
-\keyword{errors}
-\keyword{floating-point}
-\keyword{follows}
-\keyword{for}
-\keyword{have}
-\keyword{how}
-\keyword{informed}
 \keyword{internal}
-\keyword{is}
-\keyword{it}
-\keyword{its}
-\keyword{language}
-\keyword{likelihood}
-\keyword{likelihood"}
-\keyword{matrix}
-\keyword{max(d)`,}
-\keyword{much}
-\keyword{not}
-\keyword{numerical}
-\keyword{of}
-\keyword{one}
-\keyword{only}
-\keyword{parameters.}
-\keyword{pinned}
-\keyword{practical}
-\keyword{profile}
-\keyword{profiles}
-\keyword{rank}
-\keyword{rather}
-\keyword{reaches}
-\keyword{resolution}
-\keyword{right.}
-\keyword{see:}
-\keyword{separated}
-\keyword{separates}
-\keyword{size.}
-\keyword{slope}
-\keyword{so}
-\keyword{spread}
-\keyword{standard}
-\keyword{statement}
-\keyword{supports}
-\keyword{than}
-\keyword{that}
-\keyword{the}
-\keyword{this}
-\keyword{threshold,}
-\keyword{to}
-\keyword{tracks}
-\keyword{two}
-\keyword{usual}
-\keyword{weakly}
-\keyword{whether}
-\keyword{which}
-\keyword{whose}
-\keyword{with}
-\keyword{wrong;}

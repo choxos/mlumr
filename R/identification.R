@@ -375,6 +375,27 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #'   [check_identification()] screens on.
 #' @return Integer rank, or `0` when the design cannot be decomposed.
 #' @keywords internal
+.profile_rank <- function(profiles, ref_sd, min_spread = 0.05) {
+  M <- scale(as.matrix(profiles), center = TRUE, scale = FALSE)
+  ref_sd <- as.numeric(ref_sd)
+  ref_sd[!is.finite(ref_sd) | ref_sd <= 0] <- 1
+  M <- sweep(M, 2L, ref_sd, "/")
+  # Fail closed. A design that cannot be decomposed, a legacy integration-mean
+  # matrix carrying NA for instance, used to fall back to the aggregate row
+  # count, which is exactly the quantity this rank replaced: a padded table
+  # then looked full rank and suppressed the warning it should have raised.
+  if (!all(is.finite(M))) return(0L)
+  d <- tryCatch(svd(M)$d, error = function(e) NULL)
+  if (is.null(d) || !length(d) || any(!is.finite(d))) return(0L)
+  # `d / sqrt(nrow)` is the RMS distance of the profiles from their center
+  # along a direction, in IPD SDs: the same quantity `.subgroup_geometry()`
+  # reports as `spread`.
+  n_directions <- sum(.at_least(d / sqrt(nrow(M)), min_spread))
+  # Centering removed the mean, so the intercept is always one more direction.
+  as.integer(n_directions) + 1L
+}
+
+
 #' Numerical rank of the centered aggregate profile matrix
 #'
 #' `.profile_rank()` counts directions whose spread reaches a practical
@@ -404,27 +425,6 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   if (is.null(d) || !length(d) || any(!is.finite(d))) return(0L)
   tol <- max(dim(M)) * .Machine$double.eps * max(d)
   as.integer(sum(d > tol)) + 1L
-}
-
-
-.profile_rank <- function(profiles, ref_sd, min_spread = 0.05) {
-  M <- scale(as.matrix(profiles), center = TRUE, scale = FALSE)
-  ref_sd <- as.numeric(ref_sd)
-  ref_sd[!is.finite(ref_sd) | ref_sd <= 0] <- 1
-  M <- sweep(M, 2L, ref_sd, "/")
-  # Fail closed. A design that cannot be decomposed, a legacy integration-mean
-  # matrix carrying NA for instance, used to fall back to the aggregate row
-  # count, which is exactly the quantity this rank replaced: a padded table
-  # then looked full rank and suppressed the warning it should have raised.
-  if (!all(is.finite(M))) return(0L)
-  d <- tryCatch(svd(M)$d, error = function(e) NULL)
-  if (is.null(d) || !length(d) || any(!is.finite(d))) return(0L)
-  # `d / sqrt(nrow)` is the RMS distance of the profiles from their center
-  # along a direction, in IPD SDs: the same quantity `.subgroup_geometry()`
-  # reports as `spread`.
-  n_directions <- sum(.at_least(d / sqrt(nrow(M)), min_spread))
-  # Centering removed the mean, so the intercept is always one more direction.
-  as.integer(n_directions) + 1L
 }
 
 
