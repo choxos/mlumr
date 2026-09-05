@@ -1539,32 +1539,38 @@ marginal_effects <- function(object,
   if (length(times) < 2L || !nrow(s_mat)) {
     return(invisible(NULL))
   }
-  .warn_first_interval_share(list(.rmst_first_interval_share(s_mat)))
+  .warn_interval_share(list(.rmst_max_interval_share(s_mat)))
 }
 
-#' Share of the total survival decay that lands in the first grid interval
+#' Largest share of the total survival decay that lands in one grid interval
 #'
-#' One value per posterior draw. `s_mat` holds the curve at the grid's first
-#' point, its second point, and its horizon, in that order, with any points in
-#' between; only those three columns are read. Per draw, not on the posterior
-#' mean curve: averaging first can hide the problem, since a posterior in which
-#' two draws in five collapse inside the first interval and the rest decay
-#' later averages to a share below the threshold while two fifths of the RMST
-#' draws are integrated from a single straight line. `NA` for a draw with no
-#' decay to apportion.
+#' One value per posterior draw: the biggest drop between two adjacent grid
+#' points, as a fraction of the drop from the first point to the horizon. A
+#' curve that loses more than half of its decay inside a single interval is
+#' being integrated across that interval by one straight line, wherever the
+#' interval is. Looking only at the first interval missed the same fault one
+#' step later: a curve that stays near 1 through the first interval and
+#' collapses inside the second, a delayed parametric hazard or a localized
+#' flexible baseline, had a first-interval share of zero and passed. Per draw,
+#' not on the posterior mean curve: averaging first can hide the problem,
+#' since a posterior in which two draws in five collapse inside one interval
+#' and the rest decay smoothly averages to a share below the threshold while
+#' two fifths of the RMST draws are integrated from a single straight line.
+#' `NA` for a draw with no decay to apportion.
 #'
-#' A two-point grid is the limiting case, not an exception to it: the first
-#' interval is the whole horizon, so every bit of the decay lands before the
-#' second point and the share is 1. Treating that grid as "no interior to
-#' compare against" and staying silent let `n_rmst_grid = 2`, which
-#' [mlumr()] accepts, integrate two exponential curves with rates 100 and 200
-#' to the same RMST of half the horizon, an RMST ratio of exactly 1, with
-#' nothing said.
+#' A two-point grid is the limiting case, not an exception to it: the only
+#' interval is the whole horizon, so the share is 1. Treating that grid as "no
+#' interior to compare against" and staying silent let `n_rmst_grid = 2`,
+#' which [mlumr()] accepts, integrate two exponential curves with rates 100
+#' and 200 to the same RMST of half the horizon, an RMST ratio of exactly 1,
+#' with nothing said.
 #' @keywords internal
-.rmst_first_interval_share <- function(s_mat) {
+.rmst_max_interval_share <- function(s_mat) {
   s_mat <- as.matrix(s_mat)
+  if (ncol(s_mat) < 2L) return(rep(NA_real_, nrow(s_mat)))
   total_drop <- s_mat[, 1L] - s_mat[, ncol(s_mat)]
-  share <- (s_mat[, 1L] - s_mat[, 2L]) / total_drop
+  drops <- s_mat[, -ncol(s_mat), drop = FALSE] - s_mat[, -1L, drop = FALSE]
+  share <- apply(drops, 1L, max) / total_drop
   share[!is.finite(share) | !is.finite(total_drop) | total_drop <= 0] <- NA_real_
   share
 }
@@ -1575,11 +1581,11 @@ marginal_effects <- function(object,
 #' trapezoid rule, so the exponential example above distorts them just as
 #' badly, and `predict(type = "rmst")` and the RMST effects of
 #' [marginal_effects()] read them straight from the draws with nothing in the
-#' way. This evaluates the standardized curve at the first two grid points and
-#' the horizon, for both treatments in both populations, over exactly the rows
-#' Stan averaged: every IPD row for the index population and every integration
+#' way. This evaluates the standardized curve on the whole RMST grid, for both
+#' treatments in the requested populations, over exactly the rows Stan
+#' averaged: every IPD row for the index population and every integration
 #' point for the comparator one, equally weighted, un-centered here because
-#' [.conditional_profiles()] centers again. Three time points keep it cheap.
+#' [.conditional_profiles()] centers again.
 #' @param object A survival `mlumr_fit`.
 #' @param pops The populations whose RMST is being returned, `"index"`,
 #'   `"comparator"` or both. Only their curves are judged: the comparator
@@ -1601,40 +1607,49 @@ marginal_effects <- function(object,
   if (!n_cov) {
     return(invisible(NULL))
   }
-  sel <- c(1L, 2L, length(tt))
   ib <- object$stan_data$rmst_ibasis
   ib_cmp <- object$stan_data$rmst_ibasis_cmp
-  if (!is.null(ib)) ib <- ib[sel, , drop = FALSE]
-  if (!is.null(ib_cmp)) ib_cmp <- ib_cmp[sel, , drop = FALSE]
   cov_center <- object$stan_data$cov_center %||% rep(0, n_cov)
   index_rows <- object$data$ipd$data[, covariates, drop = FALSE]
   comparator_rows <- matrix(as.numeric(x_int), ncol = n_cov)
   comparator_rows <- as.data.frame(sweep(comparator_rows, 2L, cov_center, "+"))
   names(comparator_rows) <- covariates
 
+  # A diagnostic, not the estimate: the whole grid for every draw and every
+  # row is what Stan integrated, and reproducing it here took a minute and a
+  # half for a default fit. The statistic is a proportion of draws, so a
+  # deterministic, evenly spaced subset of at most 200 draws and 60 rows puts
+  # it within a couple of points of the full value at a small fraction of the
+  # cost.
+  thin <- function(n, keep) {
+    if (n <= keep) seq_len(n) else unique(round(seq(1, n, length.out = keep)))
+  }
+  object$draws <- object$draws[thin(nrow(object$draws), 200L), , drop = FALSE]
+
   shares <- list()
   row_sets <- list(index = index_rows, comparator = comparator_rows)
   for (rows in row_sets[intersect(c("index", "comparator"), pops)]) {
-    sbar <- tryCatch(.standardize_target_survival_s(object, rows, tt[sel], ib,
+    rows <- rows[thin(nrow(rows), 60L), , drop = FALSE]
+    sbar <- tryCatch(.standardize_target_survival_s(object, rows, tt, ib,
                                                     ib_cmp),
                      error = function(e) NULL)
     if (is.null(sbar)) next
-    shares <- c(shares, list(.rmst_first_interval_share(sbar$index),
-                             .rmst_first_interval_share(sbar$comparator)))
+    shares <- c(shares, list(.rmst_max_interval_share(sbar$index),
+                             .rmst_max_interval_share(sbar$comparator)))
   }
-  .warn_first_interval_share(shares)
+  .warn_interval_share(shares)
 }
 
 #' Warn when enough posterior draws are integrated from a single straight line
 #'
 #' `shares` is a list with one per-draw vector per curve (one treatment in one
 #' population). A curve is badly resolved in a draw when more than half of its
-#' decay falls in the first interval. The criterion is the FRACTION of draws in
+#' decay falls inside one grid interval. The criterion is the FRACTION of draws in
 #' which that happens, judged on the worst curve, so a minority of draws whose
 #' hazard runs ahead of the grid is reported rather than averaged away; below
 #' one draw in twenty it is left alone, since the summaries barely move.
 #' @keywords internal
-.warn_first_interval_share <- function(shares) {
+.warn_interval_share <- function(shares) {
   worst <- 0
   worst_share <- NA_real_
   for (share in shares) {
@@ -1648,8 +1663,8 @@ marginal_effects <- function(object,
   }
   if (worst > 0.05) {
     fmt <- paste0("In %.0f%% of posterior draws, more than half of the fitted ",
-                  "survival decay (median %.0f%% among them) happens before ",
-                  "the second point of the RMST grid, so the trapezoid rule ",
+                  "survival decay (median %.0f%% among them) happens inside a ",
+                  "single interval of the RMST grid, so the trapezoid rule ",
                   "is approximating the steepest part of the curve with a ",
                   "single straight line. RMST values, and especially their ",
                   "differences and ratios, can be badly wrong here without ",
