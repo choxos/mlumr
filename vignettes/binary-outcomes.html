@@ -1494,13 +1494,15 @@ with <code>multinma</code> on the same two trials, the anchored method
 ML-UMR is adapted from. We fit it twice: with the covariates as
 prognostic factors only, and with the full
 <code>~ (covariates) * .trt</code> interaction that multinma’s own
-plaque-psoriasis example uses. That example has five studies; this
-sub-network has two, and effect modification is not identifiable from
-two studies. Both are reported below so the difference is visible rather
-than asserted. Note also that once covariates interact with treatment
-the contrast becomes population-specific, so <code>multinma</code>
-returns one estimate per study; both are reported below, matching the
-index/comparator pair reported for ML-UMR.</p>
+plaque-psoriasis example uses. That example fits it on four studies with
+treatment classes sharing their interactions; here SEC_300 is seen only
+in aggregate data and shares with nothing, so its interactions are not
+identified (the table’s note below says why). Both are reported so the
+difference is visible rather than asserted. Note also that once
+covariates interact with treatment the contrast becomes
+population-specific, so <code>multinma</code> returns one estimate per
+study; both are reported below, matching the index/comparator pair
+reported for ML-UMR.</p>
 <div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" tabindex="-1"></a>keep_u2 <span class="ot">&lt;-</span> u2[u2<span class="sc">$</span>trtc <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;ETN&quot;</span>, <span class="st">&quot;IXE_Q4W&quot;</span>), ]</span>
 <span id="cb25-2"><a href="#cb25-2" tabindex="-1"></a>keep_u2 <span class="ot">&lt;-</span> keep_u2[stats<span class="sc">::</span><span class="fu">complete.cases</span>(keep_u2[, <span class="fu">c</span>(<span class="st">&quot;pasi75&quot;</span>, covs)]), ]</span>
 <span id="cb25-3"><a href="#cb25-3" tabindex="-1"></a>keep_u2<span class="sc">$</span>prevsys <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(keep_u2<span class="sc">$</span>prevsys)</span>
