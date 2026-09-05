@@ -112,6 +112,22 @@ mlumr_engine <- function(engine = NULL) {
 
   if (!.cmdstan_available()) {
     message("CmdStan is not installed.")
+    # The pinned repository's cmdstanr cannot build CmdStan on Windows with
+    # current R: it does not recognize the current Rtools, and
+    # install_cmdstan() fails with "Rtools was not found but is required".
+    # Offering that installation anyway sends the user into the failure the
+    # NEWS entry warns about. Say what to do first instead.
+    if (.cmdstanr_too_old_for_windows()) {
+      message(
+        "cmdstanr ", utils::packageVersion("cmdstanr"), " is installed, and ",
+        "on Windows a cmdstanr older than 0.9.0 cannot build CmdStan with ",
+        "current R: it does not recognize the current Rtools. Upgrade it ",
+        "first from stan-dev's maintained repository:\n",
+        '  install.packages("cmdstanr", repos = c("https://stan-dev.r-universe.dev", getOption("repos")))',
+        "\nthen run mlumr_engine(\"cmdstanr\") again."
+      )
+      return(.message_engine_unchanged())
+    }
     if (interactive()) {
       choice <- utils::menu(
         c("Yes", "No"),
@@ -195,6 +211,27 @@ get_engine <- function() {
     nzchar(cmdstanr::cmdstan_path()),
     error = function(e) FALSE
   ))
+}
+
+
+#' Is the installed cmdstanr the pinned one, on the platform where it cannot build CmdStan?
+#'
+#' The repository DESCRIPTION pins serves cmdstanr 0.8.0, which on Windows does
+#' not recognize the current Rtools and fails to build CmdStan; 0.9.0 from the
+#' maintained repository does. Arguments exist so the decision can be tested
+#' off Windows.
+#' @param os `.Platform$OS.type`.
+#' @param version The installed cmdstanr version, or `NULL` when it is absent.
+#' @keywords internal
+.cmdstanr_too_old_for_windows <- function(os = .Platform$OS.type,
+                                          version = .installed_cmdstanr_version()) {
+  identical(os, "windows") && !is.null(version) &&
+    utils::compareVersion(as.character(version), "0.9.0") < 0
+}
+
+#' @keywords internal
+.installed_cmdstanr_version <- function() {
+  tryCatch(utils::packageVersion("cmdstanr"), error = function(e) NULL)
 }
 
 
