@@ -500,9 +500,11 @@ The second is a population-adjusted **ML-NMR** fitted with `multinma` on the sam
 two trials, the anchored method ML-UMR is adapted from. We fit it twice: with the
 covariates as prognostic factors only, and with the full
 `~ (covariates) * .trt` interaction that multinma's own plaque-psoriasis example
-uses. That example has five studies; this sub-network has two, and effect
-modification is not identifiable from two studies. Both are reported below so the
-difference is visible rather than asserted. Note also that once covariates
+uses. That example fits it on four studies with treatment classes sharing their
+interactions; here SEC_300 is seen only in aggregate data and shares with
+nothing, so its interactions are not identified (the table's note below says
+why). Both are reported so the difference is visible rather than asserted. Note
+also that once covariates
 interact with treatment the contrast becomes population-specific, so `multinma`
 returns one estimate per study; both are reported below, matching the
 index/comparator pair reported for ML-UMR.
