@@ -33,6 +33,12 @@
 #'   distinct requested times can still share a grid point; both are answered,
 #'   by the same fitted time, and that is reported. Refit with `pred_times`
 #'   containing the exact times to remove the approximation.
+#'
+#'   With `summary = FALSE` the layout is one COLUMN per requested time, so the
+#'   mapping cannot be a column. It is carried as the `requested_time` and
+#'   `used_time` attributes instead, each a named vector with one entry per
+#'   time column, so two requests that snapped to the same grid point are still
+#'   distinguishable by name.
 #' @param newdata Optional data frame of covariate profiles defining an arbitrary
 #'   **target population**. When supplied, per-treatment absolute predictions are
 #'   standardized to this population by g-computation (averaging model-based
@@ -348,8 +354,12 @@ predict.mlumr_fit <- function(object,
       # can be numeric, and overwriting them here set every arm's t = 0 row to
       # the origin (1 for survival), so those rows claimed to belong to a
       # treatment called "1".
+      # `requested_time` is not a summarized quantity either: the origin row
+      # answers no request, so it was set to NA just above. Leaving it in here
+      # overwrote that NA with the origin value, and a survival origin row then
+      # claimed someone had asked for time 1.
       num_cols <- setdiff(names(o)[vapply(o, is.numeric, logical(1))],
-                          c("time", label_names))
+                          c("time", "requested_time", label_names))
       o[num_cols] <- origin
       if ("sd" %in% names(o)) o$sd <- 0
       df <- rbind(o, df)
@@ -358,6 +368,26 @@ predict.mlumr_fit <- function(object,
   })
   out <- do.call(rbind, rows)
   rownames(out) <- NULL
+
+  # The raw layout is one COLUMN per requested time, so it cannot carry the
+  # mapping as a column the way the summary layout does. Without this, two
+  # requests snapping to one grid point came back as `t_2` and `t_2_dup1` with
+  # nothing saying which request produced which, and the machine-readable
+  # contract held only for `summary = TRUE`. Name the mapping on the frame:
+  # one entry per time column, in column order.
+  if (!summary && !is.null(requested_times) && !is.null(times_out)) {
+    time_cols <- setdiff(names(out), c(label_names, "horizon"))
+    mapping <- times_out
+    if (!is.na(origin)) {
+      # The prepended origin column answers no request.
+      mapping <- c(NA_real_, mapping)
+    }
+    if (length(mapping) == length(time_cols)) {
+      req <- if (is.na(origin)) requested_times else c(NA_real_, requested_times)
+      attr(out, "requested_time") <- stats::setNames(req, time_cols)
+      attr(out, "used_time") <- stats::setNames(mapping, time_cols)
+    }
+  }
 
   # RMST is an integral to a restriction time, so the number is only half the
   # estimand without it. Report the horizon actually integrated to as a COLUMN

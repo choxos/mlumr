@@ -244,14 +244,8 @@ prior_sensitivity <- function(fit,
     # the prior is driving the answer, which is the stronger claim this used to
     # print. A weakly identified coefficient direction can be equally
     # prior-determined at every scale tested.
-    cat("\nInterpretation: approximately constant summaries show the posterior\n")
-    cat("is insensitive to the beta-prior SCALES tested here. That is not the\n")
-    cat("same as the inference being data-driven: identification also depends\n")
-    cat("on the prior family and location, the comparator-specific and\n")
-    cat("auxiliary priors, and the model structure. Vary those too. For a\n")
-    cat("non-survival fit, check_identification() adds the geometry of the\n")
-    cat("aggregate rows: exact for a normal identity-link model, descriptive\n")
-    cat("otherwise.\n")
+    cat(.prior_sensitivity_interpretation(), sep = "\n")
+    cat("\n")
   }
 
   invisible(out)
@@ -424,4 +418,26 @@ prior_sensitivity <- function(fit,
     row
   })
   do.call(rbind, rows)
+}
+
+
+#' The interpretation paragraph `prior_sensitivity()` prints
+#'
+#' Kept as a function rather than inline `cat()` calls so the shipped vignette
+#' can be checked against it by CALLING it. The check used to locate these
+#' lines by matching the source text and skipped when the markers moved, which
+#' turned the one edit the gate exists to catch into a silent pass.
+#'
+#' @return A character vector, one element per printed line.
+#' @keywords internal
+.prior_sensitivity_interpretation <- function() {
+  c("",
+    "Interpretation: approximately constant summaries show the posterior",
+    "is insensitive to the beta-prior SCALES tested here. That is not the",
+    "same as the inference being data-driven: identification also depends",
+    "on the prior family and location, the comparator-specific and",
+    "auxiliary priors, and the model structure. Vary those too. For a",
+    "non-survival fit, check_identification() adds the geometry of the",
+    "aggregate rows: exact for a normal identity-link model, descriptive",
+    "otherwise.")
 }

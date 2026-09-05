@@ -933,9 +933,9 @@ mlumr <- function(data,
   )
 
   if (family == "binomial") {
-    stan_data$y_ipd <- as.integer(ipd_data$.outcome)
-    stan_data$n_agd <- array(as.integer(agd_data$.n))
-    stan_data$r_agd <- array(as.integer(agd_data$.r))
+    stan_data$y_ipd <- .as_count_integer(ipd_data$.outcome)
+    stan_data$n_agd <- array(.as_count_integer(agd_data$.n))
+    stan_data$r_agd <- array(.as_count_integer(agd_data$.r))
   } else if (family == "normal") {
     bad_n <- is.null(agd_data$.n) || any(!is.finite(agd_data$.n)) ||
       any(agd_data$.n <= 0)
@@ -966,9 +966,9 @@ mlumr <- function(data,
     stan_data$prior_sigma_dist <- sigma_fields$dist
     stan_data$prior_sigma_df <- sigma_fields$df
   } else if (family == "poisson") {
-    stan_data$y_ipd <- as.integer(ipd_data$.outcome)
+    stan_data$y_ipd <- .as_count_integer(ipd_data$.outcome)
     stan_data$E_ipd <- as.numeric(ipd_data$.exposure)
-    stan_data$r_agd <- array(as.integer(agd_data$.r))
+    stan_data$r_agd <- array(.as_count_integer(agd_data$.r))
     stan_data$E_agd <- array(as.numeric(agd_data$.E))
   } else {
     stan_data <- .build_stan_data_survival(
@@ -1053,7 +1053,7 @@ mlumr <- function(data,
           stop("`stan_data$agd_count` must hold one positive multiplicity per ",
                "retained AgD row.", call. = FALSE)
         }
-        arm_int <- rep(arm_int, times = as.integer(cnt))
+        arm_int <- rep(arm_int, times = .as_count_integer(cnt))
       }
       counts <- tabulate(arm_int, nbins = n_agd_rows)
       # A zero means an arm carries no reconstructed pseudo-individuals, which

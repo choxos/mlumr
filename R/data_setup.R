@@ -388,7 +388,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
   if (family == "normal") {
     ipd_data$.outcome <- as.numeric(data[[outcome]])
   } else {
-    ipd_data$.outcome <- as.integer(data[[outcome]])
+    ipd_data$.outcome <- .as_count_integer(data[[outcome]])
   }
   if (family == "poisson") {
     ipd_data$.exposure <- as.numeric(data[[exposure]])

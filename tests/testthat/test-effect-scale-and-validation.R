@@ -343,3 +343,58 @@ test_that("exponential-aft keeps `tr` under aux_by = '.study'", {
   expect_equal(name_of(mk("exponential-aft", model = "relaxed")),
                "exp_delta_eta")
 })
+
+test_that("the raw-draw layout carries the requested-time mapping", {
+  # The summary layout reports the mapping as a `requested_time` COLUMN. The
+  # raw layout is one column per requested time, so it cannot, and without an
+  # attribute two requests snapping to the same grid point came back as `t_2`
+  # and `t_2_dup1` with nothing saying which request produced which.
+  vals <- list(matrix(rnorm(6), nrow = 3, ncol = 2))
+  cells <- data.frame(population = "Index", stringsAsFactors = FALSE)
+  out <- mlumr:::.surv_result_frame(
+    vals, cells, "survival", summary = FALSE,
+    probs = c(0.025, 0.5, 0.975),
+    times_out = c(2, 2), requested_times = c(2.1, 2.2))
+
+  time_cols <- setdiff(names(out), "population")
+  expect_length(time_cols, 2L)
+  expect_equal(unname(attr(out, "requested_time")[time_cols]), c(2.1, 2.2))
+  expect_equal(unname(attr(out, "used_time")[time_cols]), c(2, 2))
+  # Named by column, so the mapping survives reordering or subsetting by name.
+  expect_equal(names(attr(out, "requested_time")), time_cols)
+})
+
+test_that("the raw layout carries no mapping when times were not requested", {
+  vals <- list(matrix(rnorm(6), nrow = 3, ncol = 2))
+  cells <- data.frame(population = "Index", stringsAsFactors = FALSE)
+  out <- mlumr:::.surv_result_frame(
+    vals, cells, "survival", summary = FALSE,
+    probs = c(0.025, 0.5, 0.975), times_out = c(1, 2))
+  expect_null(attr(out, "requested_time"))
+})
+
+test_that("the origin row does not claim a requested time", {
+  # A survival curve gets an S(0) = 1 row prepended. That row answers no
+  # request, so `requested_time` is set to NA for it. It was then swept up by
+  # the numeric-column assignment that gives the origin value to the summarized
+  # quantities, so the row came back saying `requested_time = 1`: a claim that
+  # someone had asked for time 1, in the very column added to make the mapping
+  # machine-readable.
+  vals <- list(matrix(rnorm(6), nrow = 3, ncol = 2))
+  cells <- data.frame(treatment = "A", population = "Index",
+                      stringsAsFactors = FALSE)
+  out <- mlumr:::.surv_result_frame(
+    vals, cells, "survival", summary = TRUE,
+    probs = c(0.025, 0.5, 0.975),
+    times_out = c(2, 5), origin = 1, requested_times = c(2.1, 5))
+
+  expect_equal(out$time, c(0, 2, 5))
+  expect_true(is.na(out$requested_time[1]))
+  expect_equal(out$requested_time[-1], c(2.1, 5))
+  # The origin row still carries the origin in the quantities it belongs to,
+  # which is what the assignment is for.
+  expect_equal(out$mean[1], 1)
+  expect_equal(out$sd[1], 0)
+  # And the labels are untouched, the other half of the same assignment.
+  expect_equal(out$treatment[1], "A")
+})

@@ -506,9 +506,8 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic"),
   cat(strrep("=", 22), "\n\n", sep = "")
   cmp <- loo::loo_compare(ic_list)
   print(cmp)
-  cat("\nelpd_diff is the difference in expected log pointwise predictive\n")
-  cat("density vs the best model. se_diff > 2 is the conventional threshold\n")
-  cat("for a meaningful difference (|elpd_diff| > 4 * se_diff is stronger).\n")
+  cat(.model_comparison_interpretation(), sep = "\n")
+  cat("\n")
   invisible(cmp)
 }
 
@@ -787,4 +786,32 @@ check_diagnostics <- function(fit) {
     return(numeric())
   }
   x[is.finite(x)]
+}
+
+
+#' The interpretation paragraph the LOO/WAIC comparison prints
+#'
+#' Kept callable so a test can assert what users actually see rather than
+#' matching source text, which is brittle and, worse, matches comments about
+#' the wording as readily as the wording itself.
+#'
+#' The standard error of a difference measures UNCERTAINTY about that
+#' difference, not support for it. An earlier version of this paragraph
+#' presented a large `se_diff` as the threshold for a meaningful difference,
+#' under which an `elpd_diff` of 0.1 alongside an `se_diff` of 3 would have
+#' qualified as persuasive. It is the difference read against its own
+#' uncertainty that carries information, and even that is a heuristic.
+#'
+#' @return A character vector, one element per printed line.
+#' @keywords internal
+.model_comparison_interpretation <- function() {
+  c("",
+    "elpd_diff is the difference in expected log pointwise predictive",
+    "density vs the best model, and se_diff is its standard error: the",
+    "uncertainty about that difference, not evidence for it. Read the two",
+    "together. A difference small relative to se_diff is not distinguished",
+    "from zero by this comparison, whatever se_diff itself is.",
+    "Treat any ratio as a heuristic, not a decision rule, and check the",
+    "PSIS diagnostics and whether the difference matters for the",
+    "prediction you care about.")
 }

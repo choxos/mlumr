@@ -103,9 +103,16 @@ test_that("the built source tarball contains what the package promises", {
               "run from a source checkout, not an installed package")
   skip_if_not(nzchar(Sys.which("tar")), "tar not available")
 
+  # Build INSIDE a fresh directory. `R CMD build` writes the archive to the
+  # working directory, so an earlier version ran it in whatever directory the
+  # tests happened to start in, inspected the first matching archive found
+  # there, and then deleted every `mlumr_*.tar.gz` in it. That could inspect a
+  # stale tarball and destroy unrelated ones.
   out <- file.path(tempdir(), paste0("tarball-", Sys.getpid()))
   dir.create(out, showWarnings = FALSE, recursive = TRUE)
   on.exit(unlink(out, recursive = TRUE), add = TRUE)
+  old_wd <- setwd(out)
+  on.exit(setwd(old_wd), add = TRUE, after = FALSE)
 
   # Vignettes are precompiled, so building them again would rerun Stan for
   # tens of minutes and prove nothing about which files ship.
@@ -115,12 +122,20 @@ test_that("the built source tarball contains what the package promises", {
     stdout = TRUE, stderr = TRUE, env = c("R_TESTS=")
   ))
   status <- attr(res, "status") %||% 0L
-  tarball <- list.files(getwd(), pattern = "^mlumr_.*\\.tar\\.gz$",
+  # Only what this build just produced, in this directory, which is empty
+  # otherwise.
+  tarball <- list.files(out, pattern = "^mlumr_.*\\.tar\\.gz$",
                         full.names = TRUE)
-  if (length(tarball)) on.exit(unlink(tarball), add = TRUE)
-  skip_if(status != 0L || !length(tarball),
-          paste("R CMD build did not produce a tarball:",
-                paste(utils::tail(res, 3L), collapse = " | ")))
+  # A build that fails is a FAILURE of the release contract, not a reason to
+  # skip. Skipping here is how a required gate disappears while the job stays
+  # green, which is the whole thing this file exists to prevent.
+  expect_equal(status, 0L,
+               info = paste("R CMD build failed:",
+                            paste(utils::tail(res, 5L), collapse = " | ")))
+  expect_length(tarball, 1L)
+  if (status != 0L || length(tarball) != 1L) {
+    return(invisible(NULL))
+  }
 
   files <- utils::untar(tarball[[1]], list = TRUE)
   # Paths inside the tarball are prefixed with the package directory.
