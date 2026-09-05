@@ -199,38 +199,40 @@ test_that("the location threshold must be one non-negative number", {
                                                  max_location_gap = 0))
 })
 
-# `check_identification()` reports `target_in_span` on the rows the likelihood
-# integrates over, judged with the screen's own practical yardstick. An exact
-# test is wrong on either matrix: on the declared means it can certify a target
-# the fitted rows do not contain, because a realized grid a fifth of an SD away
-# still passes `.realized_matches_declared()`; on the realized means the
-# integration noise itself spans every direction.
+# `check_identification()` reports two things about the index-population
+# estimand, on the rows the likelihood integrates over. `target_in_span` is the
+# exact statement: is the target in the affine span of the fitted rows. It is
+# judged on the realized rows because a grid a fifth of an SD from its declared
+# mean still passes `.realized_matches_declared()`, and the declared row would
+# then certify a target the fitted row's span does not contain. It says nothing
+# about precision, and no tolerance is folded into it: a target 0.09 SD from a
+# single row is off that row's span however small 0.09 is. `target_span_gap`
+# carries the practical complement, the distance from the target to the span
+# of the directions the rows spread along by at least the screen's floor.
 
-test_that("the practical span test ignores directions below the spread floor", {
-  f <- .target_in_span_practical
-  # One row a quarter of an SD from the target: that row is the whole design,
-  # and the target is not on it.
-  expect_false(f(matrix(0.24, 1, 1), 0, 1))
-  # One row within integration error of the target.
-  expect_true(f(matrix(0.05, 1, 1), 0, 1))
-  # Four rows declared identical to the target, realized with grid noise: an
-  # exact test on these certifies ANY target, since the noise spans the line.
+test_that("the span gap ignores directions below the spread floor", {
+  g <- .target_span_gap
+  # One row: the whole design, and the gap is the distance to it.
+  expect_equal(g(matrix(0.24, 1, 1), 0, 1), 0.24)
+  expect_equal(g(matrix(0.05, 1, 1), 0, 1), 0.05)
+  # Four rows declared identical to the target, realized with grid noise: the
+  # noise is below the floor, so the gap is the distance to their center.
   set.seed(2026)
   noisy <- matrix(stats::rnorm(4, 0, 0.03), 4, 1)
-  expect_true(f(noisy, 0, 1))
-  expect_false(f(noisy, 0.5, 1))
-  expect_false(f(noisy + 0.5, 0, 1))
-  # Exact arithmetic on those same rows says the opposite, which is the
-  # failure this helper exists to avoid.
+  expect_lt(g(noisy, 0, 1), 0.1)
+  expect_gt(g(noisy + 0.5, 0, 1), 0.4)
+  # Exact arithmetic on those same rows says every target is in their span,
+  # which is true of the noise and useless about precision: that is why the
+  # gap is reported beside the verdict rather than replacing it.
   expect_true(.target_in_span(noisy + 0.5, 0, 1))
   # Rows that move in one covariate only: a target displaced along that
-  # direction is spanned, one displaced along the other is not.
+  # direction has no gap, one displaced along the other has the full one.
   two <- matrix(c(-1, 1, 0, 0), 2, 2)
-  expect_true(f(two, c(0.3, 0), c(1, 1)))
-  expect_false(f(two, c(0, 0.5), c(1, 1)))
-  # A span, not a hull: a well-spread design spans a target far outside it.
-  expect_true(f(matrix(c(-1, 1), 2, 1), 5, 1))
-  expect_true(is.na(f(matrix(NA_real_, 1, 1), 0, 1)))
+  expect_equal(g(two, c(0.3, 0), c(1, 1)), 0)
+  expect_equal(g(two, c(0, 0.5), c(1, 1)), 0.5)
+  # A span, not a hull: a well-spread design reaches a target far outside it.
+  expect_equal(g(matrix(c(-1, 1), 2, 1), 5, 1), 0)
+  expect_true(is.na(g(matrix(NA_real_, 1, 1), 0, 1)))
 })
 
 test_that("check_identification() judges the span on the fitted rows", {
@@ -248,17 +250,31 @@ test_that("check_identification() judges the span on the fitted rows", {
   }
   # Declared at the IPD mean, so the DECLARED row certifies the target; the
   # realized grid sits 0.24 SD away, inside the location tolerance, and it is
-  # the realized row the likelihood integrates over.
+  # the realized row the likelihood integrates over. Not in its span, and the
+  # gap says by how much.
   shifted <- suppressWarnings(check_identification(mk(m + 0.24 * s),
                                                    verbose = FALSE))
   expect_true(shifted$flagged)
   expect_false(shifted$target_in_span)
+  expect_equal(shifted$target_span_gap, 0.24, tolerance = 1e-6)
+  printed <- capture.output(suppressWarnings(check_identification(mk(m + 0.24 * s))))
+  expect_true(any(grepl("not in the row space", printed)))
+  expect_true(any(grepl("0.24 IPD SD", printed)))
+  expect_false(any(grepl("nonetheless identified", printed)))
+  # A grid within integration error of the target is still, exactly, off the
+  # span, and the report says so and says the gap is what a grid produces.
   close <- suppressWarnings(check_identification(mk(m + 0.04 * s),
                                                  verbose = FALSE))
-  expect_true(close$flagged)
-  expect_true(close$target_in_span)
+  expect_false(close$target_in_span)
+  expect_equal(close$target_span_gap, 0.04, tolerance = 1e-6)
   printed <- capture.output(suppressWarnings(check_identification(mk(m + 0.04 * s))))
+  expect_true(any(grepl("finite integration grid", printed)))
+  # A grid exactly at the target is in the span, and the report says so
+  # without calling the coefficients prior-driven.
+  exact <- suppressWarnings(check_identification(mk(m), verbose = FALSE))
+  expect_true(exact$target_in_span)
+  expect_equal(exact$target_span_gap, 0)
+  printed <- capture.output(suppressWarnings(check_identification(mk(m))))
   expect_true(any(grepl("nonetheless identified", printed)))
-  expect_true(any(grepl("read it off the posterior", printed)))
   expect_false(any(grepl("remain prior-driven", printed)))
 })
