@@ -62,3 +62,73 @@ test_that("the precompiler gives every article its own figure directory", {
   expect_true(grepl("fig.path", txt, fixed = TRUE))
   expect_true(grepl("stem", txt, fixed = TRUE))
 })
+
+# The ownership test above catches the bug once it has FIRED: an article that
+# already embeds someone else's plot. It cannot see the state that produces it.
+#
+# On 2026-09-05 the shipped HTML was correct in every article, and four of them
+# were nonetheless one command away from being wrong again. Their knitted `.Rmd`
+# still pointed at the shared `figure/forest-1.png` and `figure/prior-post-1.png`,
+# and those files by then held the SURVIVAL article's plots, because it rendered
+# last. Each HTML had embedded the right bytes at its own render time, so nothing
+# downstream disagreed; but re-rendering a `.Rmd` is the documented cheap way to
+# make a prose-only change, and doing it would have quietly replaced a count
+# rate-ratio forest with a survival RMST forest.
+#
+# What makes an article safe is that its sources belong to it: every figure it
+# references sits in its own namespace and holds the bytes its HTML actually
+# ships. That is the state this asserts, so the trap is caught while it is still
+# only a trap.
+
+test_that("re-rendering an article cannot pick up another article's figures", {
+  vdir <- testthat::test_path("..", "..", "vignettes")
+  skip_if_not(dir.exists(vdir),
+              "run from a source checkout, not an installed package")
+  # `xfun` ships with knitr, which the vignettes already need.
+  skip_if_not_installed("xfun")
+  rmds <- list.files(vdir, pattern = "[.]Rmd$", full.names = TRUE)
+  skip_if(length(rmds) == 0L, "no knitted articles")
+
+  checked <- 0L
+  for (rmd in rmds) {
+    stem <- sub("[.]Rmd$", "", basename(rmd))
+    html <- file.path(vdir, paste0(stem, ".html"))
+    if (!file.exists(html)) next
+    txt <- paste(readLines(rmd, warn = FALSE), collapse = "\n")
+    refs <- regmatches(txt, gregexpr('<img src="figure/[^"]+"', txt))[[1]]
+    if (!length(refs)) next
+    refs <- sub('^<img src="', "", sub('"$', "", refs))
+
+    # Owned: under this article's own namespace, and present.
+    own <- paste0("figure/", stem, "/")
+    expect_true(all(startsWith(refs, own)),
+                info = paste0(basename(rmd), " references figures outside ",
+                              own, ": ",
+                              paste(setdiff(refs, refs[startsWith(refs, own)]),
+                                    collapse = ", ")))
+    paths <- file.path(vdir, refs)
+    expect_true(all(file.exists(paths)),
+                info = paste0(basename(rmd), " references missing figures: ",
+                              paste(refs[!file.exists(paths)], collapse = ", ")))
+
+    # Current: the file on disk is the image the HTML actually ships, so a
+    # re-render reproduces the shipped article rather than changing it.
+    hh <- paste(readLines(html, warn = FALSE), collapse = "\n")
+    payload <- sub("^data:image/png;base64,", "",
+                   regmatches(hh, gregexpr("data:image/png;base64,[A-Za-z0-9+/=]+",
+                                           hh))[[1]])
+    expect_length(payload, length(refs))
+    if (length(payload) == length(refs)) {
+      on_disk <- vapply(paths[file.exists(paths)],
+                        function(p) xfun::base64_encode(readBin(p, "raw",
+                                                                file.size(p))),
+                        character(1), USE.NAMES = FALSE)
+      expect_equal(on_disk, payload[seq_along(on_disk)],
+                   info = paste0(basename(html), " embeds different bytes than ",
+                                 "the figures its source references; a ",
+                                 "re-render would change the shipped images."))
+    }
+    checked <- checked + 1L
+  }
+  expect_gt(checked, 0L)
+})

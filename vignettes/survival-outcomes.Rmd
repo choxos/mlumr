@@ -220,7 +220,7 @@ ggsurvfit::survfit2(survival::Surv(eventtime, status) ~ arm, data = km_obs) |>
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/km-1.png" alt="plot of chunk km"  />
+<img src="figure/survival-outcomes/km-1.png" alt="plot of chunk km"  />
 <p class="caption">plot of chunk km</p>
 </div>
 
@@ -522,7 +522,7 @@ plot_prior_posterior(fit_mspline, pars = c("mu_index", "mu_comparator"))
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/prior-post-1.png" alt="plot of chunk prior-post"  />
+<img src="figure/survival-outcomes/prior-post-1.png" alt="plot of chunk prior-post"  />
 <p class="caption">plot of chunk prior-post</p>
 </div>
 
@@ -588,7 +588,7 @@ plot(predict(fit_mspline, type = "loghr"))
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/loghr-1.png" alt="plot of chunk loghr"  />
+<img src="figure/survival-outcomes/loghr-1.png" alt="plot of chunk loghr"  />
 <p class="caption">plot of chunk loghr</p>
 </div>
 
@@ -639,7 +639,7 @@ mlumr_forest(forest_df, ref_line = 0,
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/forest-1.png" alt="plot of chunk forest"  />
+<img src="figure/survival-outcomes/forest-1.png" alt="plot of chunk forest"  />
 <p class="caption">plot of chunk forest</p>
 </div>
 
@@ -704,7 +704,7 @@ plot(predict(fit_mspline, type = "survival")) +
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/surv-curves-1.png" alt="plot of chunk surv-curves"  />
+<img src="figure/survival-outcomes/surv-curves-1.png" alt="plot of chunk surv-curves"  />
 <p class="caption">plot of chunk surv-curves</p>
 </div>
 
@@ -723,7 +723,7 @@ plot(predict(fit_mspline, population = "index", type = "survival")) +
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/surv-curves-km-1.png" alt="plot of chunk surv-curves-km"  />
+<img src="figure/survival-outcomes/surv-curves-km-1.png" alt="plot of chunk surv-curves-km"  />
 <p class="caption">plot of chunk surv-curves-km</p>
 </div>
 
@@ -736,7 +736,7 @@ plot(predict(fit_mspline, population = "comparator", type = "survival")) +
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/surv-curves-km-2.png" alt="plot of chunk surv-curves-km"  />
+<img src="figure/survival-outcomes/surv-curves-km-2.png" alt="plot of chunk surv-curves-km"  />
 <p class="caption">plot of chunk surv-curves-km</p>
 </div>
 
@@ -751,7 +751,7 @@ plot(predict(fit_mspline, type = "hazard")) +
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/hazard-curve-1.png" alt="plot of chunk hazard-curve"  />
+<img src="figure/survival-outcomes/hazard-curve-1.png" alt="plot of chunk hazard-curve"  />
 <p class="caption">plot of chunk hazard-curve</p>
 </div>
 
@@ -847,7 +847,7 @@ plot(predict(fit_weibull, type = "survival")) +
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/weibull-surv-1.png" alt="plot of chunk weibull-surv"  />
+<img src="figure/survival-outcomes/weibull-surv-1.png" alt="plot of chunk weibull-surv"  />
 <p class="caption">plot of chunk weibull-surv</p>
 </div>
 

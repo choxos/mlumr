@@ -148,7 +148,7 @@ plot_prior_posterior(fit, pars = c("mu_index", "mu_comparator"))
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/prior-post-1.png" alt="plot of chunk prior-post"  />
+<img src="figure/fitting-and-diagnostics/prior-post-1.png" alt="plot of chunk prior-post"  />
 <p class="caption">plot of chunk prior-post</p>
 </div>
 
@@ -302,7 +302,7 @@ plot(marginal_effects(fit, effect = "lor"))
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/intervals-1.png" alt="plot of chunk intervals"  />
+<img src="figure/fitting-and-diagnostics/intervals-1.png" alt="plot of chunk intervals"  />
 <p class="caption">plot of chunk intervals</p>
 </div>
 
@@ -316,7 +316,7 @@ bayesplot::mcmc_trace(fit$draws, pars = c("lor_index", "lor_comparator")) +
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/trace-1.png" alt="plot of chunk trace"  />
+<img src="figure/fitting-and-diagnostics/trace-1.png" alt="plot of chunk trace"  />
 <p class="caption">plot of chunk trace</p>
 </div>
 

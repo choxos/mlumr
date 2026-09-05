@@ -385,7 +385,7 @@ plot_prior_posterior(fit_spfa, pars = c("mu_index", "mu_comparator"))
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/prior-post-1.png" alt="plot of chunk prior-post"  />
+<img src="figure/count-outcomes/prior-post-1.png" alt="plot of chunk prior-post"  />
 <p class="caption">plot of chunk prior-post</p>
 </div>
 
@@ -497,7 +497,7 @@ mlumr_forest(forest_df, ref_line = 1, log_x = TRUE,
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/forest-1.png" alt="plot of chunk forest"  />
+<img src="figure/count-outcomes/forest-1.png" alt="plot of chunk forest"  />
 <p class="caption">plot of chunk forest</p>
 </div>
 
@@ -533,7 +533,7 @@ plot(marginal_effects(fit_spfa))
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/posterior-areas-1.png" alt="plot of chunk posterior-areas"  />
+<img src="figure/count-outcomes/posterior-areas-1.png" alt="plot of chunk posterior-areas"  />
 <p class="caption">plot of chunk posterior-areas</p>
 </div>
 
@@ -567,7 +567,7 @@ plot(predict(fit_spfa, population = "both", type = "response"))
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/predict-plot-1.png" alt="plot of chunk predict-plot"  />
+<img src="figure/count-outcomes/predict-plot-1.png" alt="plot of chunk predict-plot"  />
 <p class="caption">plot of chunk predict-plot</p>
 </div>
 

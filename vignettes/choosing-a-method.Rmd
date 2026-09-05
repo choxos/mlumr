@@ -242,7 +242,7 @@ mlumr_forest(forest_df, ref_line = 0,
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/forest-1.png" alt="plot of chunk forest"  />
+<img src="figure/choosing-a-method/forest-1.png" alt="plot of chunk forest"  />
 <p class="caption">plot of chunk forest</p>
 </div>
 
@@ -255,7 +255,7 @@ plot(marginal_effects(fit_spfa, effect = "lor"))
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/posterior-both-1.png" alt="plot of chunk posterior-both"  />
+<img src="figure/choosing-a-method/posterior-both-1.png" alt="plot of chunk posterior-both"  />
 <p class="caption">plot of chunk posterior-both</p>
 </div>
 
