@@ -287,6 +287,68 @@ test_that("a row swap is a mismatch exactly when a shared covariate moves", {
   expect_true(length(out) > 0L)
 })
 
+test_that("a reordered source is caught even when the fits share no covariate", {
+  skip_if_not_installed("loo")
+  # Rows 1 and 3 agree on treatment and outcome and differ in age and sex.
+  # A model on age and a model on sex share no covariate, so after a swap
+  # nothing in the stored columns can show that both models' pointwise
+  # likelihoods moved. The key the setup functions record from the whole
+  # source row can.
+  src <- data.frame(trt = "x", y = rep(c(0L, 1L), 6L),
+                    age = c(30, 41, 52, 63, 74, 85, 36, 47, 58, 69, 70, 81),
+                    sex = c(1L, 0L, 0L, 1L, 0L, 1L, 1L, 0L, 1L, 0L, 1L, 0L),
+                    stringsAsFactors = FALSE)
+  agd <- data.frame(trt = "z", n = 10L, r = c(3L, 5L, 2L, 4L),
+                    age_mean = 50, age_sd = 8, sex_prop = 0.5)
+  from <- function(model, ipd, covs, agd_covs, agd_sds = NULL) {
+    fit <- make_ll_fit(model, seed = 2026)
+    fit$data <- list(
+      ipd = suppressWarnings(set_ipd(ipd, treatment = "trt", outcome = "y",
+                                     covariates = covs, family = "binomial")),
+      agd = set_agd(agd, treatment = "trt", outcome_n = "n", outcome_r = "r",
+                    cov_means = agd_covs, cov_sds = agd_sds, family = "binomial")
+    )
+    fit
+  }
+  fit_age <- from("spfa", src, "age", c(age = "age_mean"), c(age = "age_sd"))
+  fit_sex <- from("relaxed", src[c(3L, 2L, 1L, 4:12), ], "sex", c(sex = "sex_prop"))
+  expect_true(all(c(".source_key") %in% names(fit_age$data$ipd$data)))
+  expect_error(compare_models(fit_age, fit_sex, criterion = "loo"),
+               "not built on the same observations")
+  # The same source in the same order compares as the same, whatever the
+  # covariate sets.
+  fit_sex2 <- from("relaxed", src, "sex", c(sex = "sex_prop"))
+  expect_true(.same_observations(.observation_frames(fit_age),
+                                 .observation_frames(fit_sex2)))
+  # A source that gained a column between the fits gives different keys, and
+  # then the keys cannot judge: the decision falls back to the columns.
+  src2 <- src
+  src2$age_dec <- src2$age / 10
+  fit_dec <- from("relaxed", src2, "age_dec", c(age_dec = "age_mean"),
+                  c(age_dec = "age_sd"))
+  expect_true(.same_observations(.observation_frames(fit_age),
+                                 .observation_frames(fit_dec)))
+  # Column order in the source is not part of the key.
+  fit_cols <- from("relaxed", src[, c("sex", "age", "y", "trt")], "sex",
+                   c(sex = "sex_prop"))
+  expect_identical(fit_cols$data$ipd$data$.source_key,
+                   fit_age$data$ipd$data$.source_key)
+})
+
+test_that("every pair of compared fits is checked, not each against the first", {
+  # Sharing a covariate is not transitive: A carries none, so A matches both
+  # B and C, while B and C share age and differ in it.
+  y <- rep(c(0L, 1L), 6L)
+  a <- with_data(make_ll_fit("spfa", seed = 2026), y)
+  a$data$ipd$data$age <- NULL
+  b <- with_data(make_ll_fit("relaxed", seed = 2026), y)
+  c3 <- with_data(make_ll_fit("relaxed", seed = 2026), y)
+  c3$data$ipd$data$age[1:2] <- c3$data$ipd$data$age[2:1]
+  expect_true(.same_observations(.observation_frames(a), .observation_frames(b)))
+  expect_true(.same_observations(.observation_frames(a), .observation_frames(c3)))
+  expect_error(compare_models(a, b, c3), "not built on the same observations")
+})
+
 test_that("a DIC object carries its observations into the check", {
   y <- rep(c(0L, 1L), 6L)
   fit1 <- with_data(make_ll_fit("spfa", seed = 2026), y)

@@ -82,7 +82,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
   .validate_ipd_outcome(data, outcome, family, exposure)
   .validate_reserved_internal_names(
     c(covariates, treatment, outcome, exposure, study),
-    c(".study", ".trt", ".outcome", ".exposure"),
+    c(".study", ".trt", ".outcome", ".exposure", ".source_key"),
     "Column name(s)"
   )
   .validate_ipd_covariates(data, covariates)
@@ -397,7 +397,36 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
   for (cov in covariates) {
     ipd_data[[cov]] <- data[[cov]]
   }
+  ipd_data$.source_key <- .source_row_keys(data)
   ipd_data
+}
+
+#' One key per row of a source data frame, built from every column it has
+#'
+#' The stored data keep only the columns a model needs. Two fits of one source
+#' with different covariate sets therefore cannot show, from their stored
+#' columns alone, that the source was reordered between them when the moved
+#' rows agree on everything both fits kept; [compare_models()] needs to know,
+#' because its pointwise comparison pairs rows by position. The key is the
+#' row's whole content, columns taken in name order so that column order does
+#' not matter, and it is only ever compared against keys from the same
+#' source: when two fits hold the same set of keys in a different order, the
+#' rows were reordered between them. A source that changed between the fits
+#' gives a different set, and then the keys say nothing.
+#' @keywords internal
+.source_row_keys <- function(data) {
+  # One string per row for every kind of column: a matrix column (a `Surv`
+  # object held in a data frame is one) and a list column would otherwise
+  # not give one value per row.
+  flat <- function(x) {
+    if (!is.null(dim(x))) return(apply(x, 1L, paste, collapse = ","))
+    if (is.list(x)) {
+      return(vapply(x, function(e) paste(format(e), collapse = ","), character(1)))
+    }
+    as.character(x)
+  }
+  cols <- lapply(data[sort(names(data))], flat)
+  do.call(paste, c(cols, sep = "\036"))
 }
 
 #' Summarize standardized IPD outcomes
@@ -555,7 +584,7 @@ set_agd <- function(data, treatment,
   .validate_reserved_internal_names(
     c(cov_means, cov_sds[!is.na(cov_sds)], treatment, study,
       outcome_n, outcome_r, outcome_mean, outcome_se, outcome_E),
-    c(".study", ".trt", ".n", ".r", ".y", ".se", ".E"),
+    c(".study", ".trt", ".n", ".r", ".y", ".se", ".E", ".source_key"),
     "Column name(s)"
   )
   .validate_agd_covariate_names(cov_means)
@@ -935,6 +964,7 @@ set_agd <- function(data, treatment,
       agd_data[[paste0(cov_name, "_sd")]] <- data[[cov_sds[[i]]]]
     }
   }
+  agd_data$.source_key <- .source_row_keys(data)
   agd_data
 }
 

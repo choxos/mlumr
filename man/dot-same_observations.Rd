@@ -19,4 +19,15 @@ likelihood is the same for both, so either pairing gives that model the
 same comparison. A row swap that changes a shared covariate is a different
 pairing for both models and is a mismatch.
 }
+\details{
+The stored columns can only show what both fits kept. When the fits share
+no covariate, a swap of two rows that agree on the outcome columns moves
+both models' pointwise likelihoods and leaves nothing in those columns to
+see. The setup functions therefore record, for every row, a key built from
+the whole source row (\code{\link[=.source_row_keys]{.source_row_keys()}}). Two fits holding the same set
+of keys in a different order were built from one source reordered between
+them, and that is a mismatch whatever the columns say. Different sets mean
+the source itself changed between the fits, which the keys cannot judge,
+and the decision is left to the columns.
+}
 \keyword{internal}
