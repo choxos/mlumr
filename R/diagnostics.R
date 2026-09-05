@@ -183,9 +183,13 @@ extract_log_lik <- function(object) {
 #' ([.source_row_keys()]). Two fits holding the same set of keys in a
 #' different order were built from one source reordered between them, and
 #' that is a mismatch whatever the columns say. Different sets mean the source
-#' itself changed between the fits, which the keys cannot judge, and the
-#' decision is left to the columns.
+#' itself changed between the fits, in columns the models did not use; the
+#' keys then cannot say whether the rows are in the same order, and neither
+#' can the columns, so the answer is `NA`: not a mismatch, and not verified
+#' either. A frame with one row cannot be reordered and needs no key.
 #' @param a,b Results of [.observation_frames()].
+#' @return `TRUE`, `FALSE`, or `NA` when the observations agree but the row
+#'   order could not be verified.
 #' @keywords internal
 .same_observations <- function(a, b) {
   same_frame <- function(x, y) {
@@ -195,10 +199,13 @@ extract_log_lik <- function(object) {
     obs <- intersect(.observation_columns, union(names(x), names(y)))
     if (!all(obs %in% shared)) return(FALSE)
     if (!identical(x[shared], y[shared])) return(FALSE)
+    if (nrow(x) < 2L) return(TRUE)
     kx <- x$.source_key
     ky <- y$.source_key
-    if (is.null(kx) || is.null(ky) || identical(kx, ky)) return(TRUE)
-    !identical(sort(kx), sort(ky))
+    if (is.null(kx) || is.null(ky)) return(NA)
+    if (identical(kx, ky)) return(TRUE)
+    if (identical(sort(kx), sort(ky))) return(FALSE)
+    NA
   }
   same_frame(a$ipd, b$ipd) && same_frame(a$agd, b$agd) &&
     same_frame(a$pseudo, b$pseudo)
@@ -219,9 +226,11 @@ extract_log_lik <- function(object) {
   known <- Filter(Negate(is.null), frames)
   # Every pair, not each against the first: the relation is not transitive,
   # since two fits may share a covariate that a third does not carry.
+  unverified <- FALSE
   for (i in seq_along(known)) {
     for (j in seq_len(i - 1L)) {
-      if (!.same_observations(known[[j]], known[[i]])) {
+      same <- .same_observations(known[[j]], known[[i]])
+      if (isFALSE(same)) {
         stop("The compared fits were not built on the same observations in ",
              "the same order: their stored data differ in the columns that ",
              "define an observation or in a covariate they share, or hold the ",
@@ -230,7 +239,17 @@ extract_log_lik <- function(object) {
              "or the same data in a different order, is not a comparison of ",
              "the models. Refit on one common data set.", call. = FALSE)
       }
+      if (is.na(same)) unverified <- TRUE
     }
+  }
+  if (unverified) {
+    warning("The compared fits agree on every observation column and every ",
+            "covariate they share, but whether their rows are in the same ",
+            "order could not be verified: they were built from sources that ",
+            "differ in columns the models did not use, or one of them predates ",
+            "the row keys. Pointwise criteria pair rows by position, so the ",
+            "comparison assumes the order is the same. Build both fits from ",
+            "one data frame to have it checked.", call. = FALSE)
   }
   unknown <- length(frames) - length(known)
   if (unknown > 0L) {

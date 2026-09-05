@@ -175,11 +175,16 @@ test_that("survival LOO/WAIC can group the comparator pseudo-IPD by arm/aggregat
 # checked, and a fit that carries none is reported rather than assumed.
 
 with_data <- function(fit, outcome, agd_r = c(3L, 5L, 2L, 4L)) {
+  # Keys as the setup functions would record them: one source, rows in the
+  # order given.
+  key <- function(n) paste0(strrep("0", 32L), ":", seq_len(n))
   fit$data <- list(
     ipd = list(data = data.frame(.study = "A", .trt = rep(c("x", "y"), 6L),
-                                 .outcome = outcome, age = seq_along(outcome))),
+                                 .outcome = outcome, age = seq_along(outcome),
+                                 .source_key = key(length(outcome)))),
     agd = list(data = data.frame(.study = "B", .trt = "z", .r = agd_r,
-                                 .n = 10L, age_mean = 50))
+                                 .n = 10L, age_mean = 50,
+                                 .source_key = key(length(agd_r))))
   )
   fit
 }
@@ -247,7 +252,8 @@ test_that("survival comparators are compared on both their frames", {
     fit$data$agd$data <- data.frame(.study = "B", .trt = "z", .arm = "B",
                                     age_mean = 50, age_sd = 8)
     fit$data$agd$pseudo_ipd <- data.frame(.study = "B", .trt = "z", .arm = "B",
-                                          .time = c(3, 5, 8), .status = c(1L, 0L, 1L))
+                                          .time = c(3, 5, 8), .status = c(1L, 0L, 1L),
+                                          .source_key = paste0(strrep("0", 32L), ":", 1:3))
     fit
   }
   fit1 <- surv()
@@ -257,6 +263,11 @@ test_that("survival comparators are compared on both their frames", {
   fit2$data$agd$data$age_mean <- 70
   expect_false(.same_observations(.observation_frames(fit1),
                                   .observation_frames(fit2)))
+  # A fit from before the row keys can be compared, with the caveat said.
+  fit4 <- surv()
+  fit4$data$ipd$data$.source_key <- NULL
+  expect_true(is.na(.same_observations(.observation_frames(fit1),
+                                       .observation_frames(fit4))))
   fit3 <- surv()
   fit3$data$agd$pseudo_ipd$.status[2] <- 1L
   expect_false(.same_observations(.observation_frames(fit1),
@@ -275,16 +286,30 @@ test_that("a row swap is a mismatch exactly when a shared covariate moves", {
   # different numbers, and the swap pairs each with the wrong one.
   expect_error(compare_models(fit1, fit2, criterion = "loo"),
                "not built on the same observations")
+  # With the row keys the swap is a reordering of one source whatever the
+  # covariates, and is refused as such.
+  fit2$data$ipd$data$age <- NULL
+  expect_false(.same_observations(.observation_frames(fit1),
+                                  .observation_frames(fit2)))
+  # Without keys, as in a fit from before they existed, the columns decide.
   # One model does not use age: for it the two rows are exchangeable, its
   # pointwise likelihood is the same for both, and either pairing gives the
-  # same comparison.
-  fit2$data$ipd$data$age <- NULL
-  expect_true(.same_observations(.observation_frames(fit1),
-                                 .observation_frames(fit2)))
-  out <- suppressWarnings(capture.output(
-    compare_models(fit1, fit2, criterion = "loo")
-  ))
-  expect_true(length(out) > 0L)
+  # same comparison; the order is unverified and the comparison says so.
+  drop_keys <- function(fit) {
+    fit$data$ipd$data$.source_key <- NULL
+    fit$data$agd$data$.source_key <- NULL
+    fit
+  }
+  fit1 <- drop_keys(fit1)
+  fit2 <- drop_keys(fit2)
+  expect_true(is.na(.same_observations(.observation_frames(fit1),
+                                       .observation_frames(fit2))))
+  expect_warning(capture.output(compare_models(fit1, fit2, criterion = "loo")),
+                 "could not be verified")
+  # Both keyless models use age: the shared covariate shows the swap.
+  fit2$data$ipd$data$age <- fit1$data$ipd$data$age[c(3L, 2L, 1L, 4:12)]
+  expect_error(compare_models(fit1, fit2, criterion = "loo"),
+               "not built on the same observations")
 })
 
 test_that("a reordered source is caught even when the fits share no covariate", {
@@ -321,13 +346,16 @@ test_that("a reordered source is caught even when the fits share no covariate", 
   expect_true(.same_observations(.observation_frames(fit_age),
                                  .observation_frames(fit_sex2)))
   # A source that gained a column between the fits gives different keys, and
-  # then the keys cannot judge: the decision falls back to the columns.
+  # then neither the keys nor the columns can say whether the rows are in the
+  # same order: the comparison runs, and says that it could not check.
   src2 <- src
   src2$age_dec <- src2$age / 10
   fit_dec <- from("relaxed", src2, "age_dec", c(age_dec = "age_mean"),
                   c(age_dec = "age_sd"))
-  expect_true(.same_observations(.observation_frames(fit_age),
-                                 .observation_frames(fit_dec)))
+  expect_true(is.na(.same_observations(.observation_frames(fit_age),
+                                       .observation_frames(fit_dec))))
+  expect_warning(capture.output(compare_models(fit_age, fit_dec, criterion = "loo")),
+                 "could not be verified")
   # Column order in the source is not part of the key.
   fit_cols <- from("relaxed", src[, c("sex", "age", "y", "trt")], "sex",
                    c(sex = "sex_prop"))
