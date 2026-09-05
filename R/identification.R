@@ -375,6 +375,38 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #'   [check_identification()] screens on.
 #' @return Integer rank, or `0` when the design cannot be decomposed.
 #' @keywords internal
+#' Numerical rank of the centered aggregate profile matrix
+#'
+#' `.profile_rank()` counts directions whose spread reaches a practical
+#' threshold, which is a statement about how much a design MOVES, not about
+#' whether the likelihood separates its parameters. The two are different
+#' claims, and only this one supports language about a direction the likelihood
+#' cannot see: profiles at -0.01 and +0.01 have spread 0.01 and numerical rank
+#' 2, and with aggregate standard errors of 1e-6 the slope is pinned to about
+#' 7e-5. Calling that "not separated by the likelihood" is wrong; calling it
+#' weakly informed is right.
+#'
+#' Tolerance follows the usual convention for a rank decision,
+#' `max(dim) * eps * max(d)`, so it tracks floating-point resolution rather
+#' than a chosen effect size.
+#'
+#' @param profiles Aggregate mean-profile matrix.
+#' @param ref_sd Reference SD per covariate.
+#' @return Integer rank INCLUDING the intercept direction.
+#' @keywords internal
+.profile_numeric_rank <- function(profiles, ref_sd) {
+  M <- scale(as.matrix(profiles), center = TRUE, scale = FALSE)
+  ref_sd <- as.numeric(ref_sd)
+  ref_sd[!is.finite(ref_sd) | ref_sd <= 0] <- 1
+  M <- sweep(M, 2L, ref_sd, "/")
+  if (!all(is.finite(M))) return(0L)
+  d <- tryCatch(svd(M)$d, error = function(e) NULL)
+  if (is.null(d) || !length(d) || any(!is.finite(d))) return(0L)
+  tol <- max(dim(M)) * .Machine$double.eps * max(d)
+  as.integer(sum(d > tol)) + 1L
+}
+
+
 .profile_rank <- function(profiles, ref_sd, min_spread = 0.05) {
   M <- scale(as.matrix(profiles), center = TRUE, scale = FALSE)
   ref_sd <- as.numeric(ref_sd)
