@@ -739,27 +739,27 @@ comparator-specific coefficients lean on one aggregate row.</p>
 <span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>                  <span class="at">prior_beta =</span> <span class="fu">prior_normal</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="at">autoscale =</span> <span class="cn">TRUE</span>),</span>
 <span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>                  <span class="at">chains =</span> <span class="dv">4</span>, <span class="at">iter =</span> <span class="dv">2000</span>, <span class="at">warmup =</span> <span class="dv">1000</span>, <span class="at">seed =</span> <span class="dv">2026</span>, <span class="at">refresh =</span> <span class="dv">0</span>)</span>
 <span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
-<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="co">#&gt; Chain 1 finished in 0.2 seconds.</span></span>
-<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a><span class="co">#&gt; Chain 2 finished in 0.2 seconds.</span></span>
-<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a><span class="co">#&gt; Chain 3 finished in 0.2 seconds.</span></span>
-<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a><span class="co">#&gt; Chain 4 finished in 0.2 seconds.</span></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="co">#&gt; Chain 1 finished in 0.3 seconds.</span></span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a><span class="co">#&gt; Chain 2 finished in 0.4 seconds.</span></span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a><span class="co">#&gt; Chain 3 finished in 0.4 seconds.</span></span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a><span class="co">#&gt; Chain 4 finished in 0.4 seconds.</span></span>
 <span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a><span class="co">#&gt; Mean chain execution time: 0.2 seconds.</span></span>
-<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a><span class="co">#&gt; Total execution time: 0.4 seconds.</span></span>
+<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a><span class="co">#&gt; Mean chain execution time: 0.4 seconds.</span></span>
+<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a><span class="co">#&gt; Total execution time: 0.6 seconds.</span></span>
 <span id="cb10-13"><a href="#cb10-13" tabindex="-1"></a>fit_relaxed <span class="ot">&lt;-</span> <span class="fu">mlumr</span>(dat, <span class="at">model =</span> <span class="st">&quot;relaxed&quot;</span>, <span class="at">link =</span> <span class="st">&quot;identity&quot;</span>,</span>
 <span id="cb10-14"><a href="#cb10-14" tabindex="-1"></a>                     <span class="at">prior_beta =</span> <span class="fu">prior_normal</span>(<span class="dv">0</span>, <span class="fl">0.75</span>, <span class="at">autoscale =</span> <span class="cn">TRUE</span>),</span>
 <span id="cb10-15"><a href="#cb10-15" tabindex="-1"></a>                     <span class="at">chains =</span> <span class="dv">4</span>, <span class="at">iter =</span> <span class="dv">2000</span>, <span class="at">warmup =</span> <span class="dv">1000</span>,</span>
 <span id="cb10-16"><a href="#cb10-16" tabindex="-1"></a>                     <span class="at">adapt_delta =</span> <span class="fl">0.95</span>, <span class="at">seed =</span> <span class="dv">2026</span>, <span class="at">refresh =</span> <span class="dv">0</span>)</span>
 <span id="cb10-17"><a href="#cb10-17" tabindex="-1"></a><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
-<span id="cb10-18"><a href="#cb10-18" tabindex="-1"></a><span class="co">#&gt; Chain 1 finished in 0.2 seconds.</span></span>
-<span id="cb10-19"><a href="#cb10-19" tabindex="-1"></a><span class="co">#&gt; Chain 2 finished in 0.2 seconds.</span></span>
-<span id="cb10-20"><a href="#cb10-20" tabindex="-1"></a><span class="co">#&gt; Chain 3 finished in 0.2 seconds.</span></span>
-<span id="cb10-21"><a href="#cb10-21" tabindex="-1"></a><span class="co">#&gt; Chain 4 finished in 0.3 seconds.</span></span>
+<span id="cb10-18"><a href="#cb10-18" tabindex="-1"></a><span class="co">#&gt; Chain 2 finished in 0.4 seconds.</span></span>
+<span id="cb10-19"><a href="#cb10-19" tabindex="-1"></a><span class="co">#&gt; Chain 3 finished in 0.4 seconds.</span></span>
+<span id="cb10-20"><a href="#cb10-20" tabindex="-1"></a><span class="co">#&gt; Chain 1 finished in 0.5 seconds.</span></span>
+<span id="cb10-21"><a href="#cb10-21" tabindex="-1"></a><span class="co">#&gt; Chain 4 finished in 0.4 seconds.</span></span>
 <span id="cb10-22"><a href="#cb10-22" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb10-23"><a href="#cb10-23" tabindex="-1"></a><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span id="cb10-24"><a href="#cb10-24" tabindex="-1"></a><span class="co">#&gt; Mean chain execution time: 0.2 seconds.</span></span>
-<span id="cb10-25"><a href="#cb10-25" tabindex="-1"></a><span class="co">#&gt; Total execution time: 0.3 seconds.</span></span>
+<span id="cb10-24"><a href="#cb10-24" tabindex="-1"></a><span class="co">#&gt; Mean chain execution time: 0.4 seconds.</span></span>
+<span id="cb10-25"><a href="#cb10-25" tabindex="-1"></a><span class="co">#&gt; Total execution time: 0.6 seconds.</span></span>
 <span id="cb10-26"><a href="#cb10-26" tabindex="-1"></a><span class="fu">summary</span>(fit_spfa)</span>
 <span id="cb10-27"><a href="#cb10-27" tabindex="-1"></a><span class="co">#&gt; ML-UMR Model Summary</span></span>
 <span id="cb10-28"><a href="#cb10-28" tabindex="-1"></a><span class="co">#&gt; ====================</span></span>
@@ -839,17 +839,25 @@ plot of chunk prior-post
 <code>outcome_se</code> must be on the <strong>original (arithmetic)
 scale</strong>, the same scale as the IPD outcome. If a published
 comparator reports a <em>geometric</em> mean, a mean on the log scale,
-or a change-from-baseline on a transformed scale, back-transform it
-(propagating the standard error by the delta method) before calling
-<code>set_agd()</code>. Passing a log-scale summary while fitting on the
-identity link silently biases the comparator likelihood. The residual
-likelihood here is Gaussian, so an influential observation in the IPD
-can pull the fit. A heavier-tailed prior on the coefficients does not
-address this: the prior governs the coefficients, not the residual
-distribution, and a heavier tail permits larger coefficients rather than
-suppressing them. mlumr’s normal family provides no heavy-tailed
-residual distribution, so identify influential observations directly,
-report their effect on the estimate, and use
+or a change-from-baseline on a transformed scale, that is a different
+quantity and not a rescaling of the one this argument wants.
+Exponentiating a log-scale mean returns the geometric mean: for a
+lognormal outcome with log-scale SD 1 the geometric mean is
+<code>exp(0) = 1</code> while the arithmetic mean is
+<code>exp(0.5) = 1.65</code>. Propagating the standard error does not
+fix it, because the mismatch is in the estimand rather than in its
+uncertainty. Ask for the arithmetic mean and its SE, or, if you are
+willing to assume lognormality and have the log-scale
+<strong>SD</strong>, compute <code>exp(m + s^2 / 2)</code> and propagate
+<code>m</code> and <code>s</code> jointly. Passing a log-scale summary
+while fitting on the identity link silently biases the comparator
+likelihood. The residual likelihood here is Gaussian, so an influential
+observation in the IPD can pull the fit. A heavier-tailed prior on the
+coefficients does not address this: the prior governs the coefficients,
+not the residual distribution, and a heavier tail permits larger
+coefficients rather than suppressing them. mlumr’s normal family
+provides no heavy-tailed residual distribution, so identify influential
+observations directly, report their effect on the estimate, and use
 <code>prior_sensitivity()</code> only for what it measures, namely
 sensitivity to the coefficient prior.</p>
 </div>

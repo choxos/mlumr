@@ -38,6 +38,12 @@ distr <- function(qfun, ...) {
 
   # Capture arguments as unevaluated expressions
   args <- as.list(match.call(expand.dots = FALSE))[["..."]]
+  # ... and NAME any that were supplied positionally. Evaluation below iterates
+  # over `names(args)`, so a fully positional spec such as `distr(qnorm, 10, 2)`
+  # had no names to iterate, passed nothing to the quantile function, and
+  # silently generated a standard normal: it evaluated to 0 at the median
+  # instead of 10, with no error and no warning.
+  args <- .name_distr_args(args, qfun_resolved, qfun_name)
 
   if (!"p" %in% names(formals(qfun_resolved))) {
     stop("`qfun` should be an inverse CDF function with a formal argument `p`",
@@ -47,6 +53,13 @@ distr <- function(qfun, ...) {
   d <- list(
     qfun = qfun_resolved,
     args = args,
+    # The environment the specification was WRITTEN in. Arguments are stored
+    # unevaluated so they can see a row of aggregate data at evaluation time,
+    # but they must also be able to see the variables that were in scope where
+    # the user wrote them. Falling back to `parent.frame()` at evaluation time
+    # landed inside this package instead, so a specification built in a
+    # function, or returned by one, could not resolve its own local variables.
+    envir = parent.frame(),
     qfun_name = qfun_name
   )
 
@@ -66,7 +79,8 @@ eval_distr <- function(d, p, data = list()) {
   call_args <- list(p = p)
   for (nm in names(d$args)) {
     call_args[[nm]] <- tryCatch(
-      eval(d$args[[nm]], envir = data, enclos = parent.frame(2)),
+      eval(d$args[[nm]], envir = data,
+           enclos = if (is.environment(d$envir)) d$envir else parent.frame(2)),
       error = function(e) {
         stop(sprintf(
           "Error evaluating distribution argument '%s': %s\nAvailable data columns: %s",
@@ -373,4 +387,49 @@ cor_adjust_pearson <- function(X, types) {
 
   diag(X) <- 1
   X
+}
+
+
+#' Give positional distribution arguments the names they matched
+#'
+#' `distr()` stores its arguments unevaluated, and evaluation walks
+#' `names(args)`. Anything supplied positionally therefore had no name, was
+#' never iterated, and never reached the quantile function: `distr(qnorm, 10, 2)`
+#' produced a standard normal rather than a normal with mean 10 and SD 2, with
+#' nothing reported. This applies R's own positional matching once, at
+#' construction, so the stored specification is explicit about what each
+#' argument is.
+#'
+#' @param args The captured `...`, possibly partly named.
+#' @param qfun The resolved quantile function.
+#' @param qfun_name Its name, for error messages.
+#' @return `args` with every element named.
+#' @keywords internal
+.name_distr_args <- function(args, qfun, qfun_name = "qfun") {
+  if (!length(args)) {
+    return(args)
+  }
+  nms <- names(args)
+  if (is.null(nms)) {
+    nms <- rep("", length(args))
+  }
+  unnamed <- which(!nzchar(nms))
+  if (!length(unnamed)) {
+    return(args)
+  }
+  # `p` is supplied by the evaluator, so it is never one of these. `...` cannot
+  # be matched positionally at all.
+  formal_names <- setdiff(names(formals(qfun)), c("p", "..."))
+  available <- setdiff(formal_names, nms[nzchar(nms)])
+  if (length(unnamed) > length(available)) {
+    left <- if (length(available)) paste(available, collapse = ", ") else "none"
+    fmt <- paste0("`distr()` received %d unnamed argument(s) for `%s`, which ",
+                  "has only %d unmatched parameter(s) left (%s). Name them ",
+                  "explicitly.")
+    msg <- sprintf(fmt, length(unnamed), qfun_name, length(available), left)
+    stop(msg, call. = FALSE)
+  }
+  nms[unnamed] <- available[seq_along(unnamed)]
+  names(args) <- nms
+  args
 }
