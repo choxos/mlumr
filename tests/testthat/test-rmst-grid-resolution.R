@@ -88,7 +88,8 @@ test_that("a two-point grid warns whenever the curve decays at all", {
 # exponential fit stands in for Stan here: one covariate, index rate 100 at the
 # covariate mean, so nearly all of the decay lands before the second of 100
 # grid points across a horizon of 10.
-synthetic_survival_fit <- function(log_rate, n_grid = 100L, tau = 10) {
+synthetic_survival_fit <- function(log_rate, n_grid = 100L, tau = 10,
+                                   beta = 0.01) {
   set.seed(2026)
   n_draws <- 40L
   ipd <- data.frame(age = rnorm(30, 50, 5))
@@ -101,7 +102,7 @@ synthetic_survival_fit <- function(log_rate, n_grid = 100L, tau = 10) {
                 index_treatment = "A", comparator_treatment = "B"),
     draws = data.frame(mu_index = rep(log_rate, n_draws),
                        mu_comparator = rep(log_rate + log(2), n_draws),
-                       `beta[1]` = rep(0.01, n_draws),
+                       `beta[1]` = rep(beta, n_draws),
                        check.names = FALSE),
     surv_info = list(kind = "parametric", dist_code = 1L,
                      distribution = "exponential"),
@@ -117,6 +118,19 @@ test_that("the fit's own populations get the same check as a target", {
   # The same fit with a hazard the grid resolves is silent.
   fine <- synthetic_survival_fit(log(0.2))
   expect_silent(.warn_coarse_rmst_grid_builtin(fine))
+})
+
+test_that("only the populations being returned are judged", {
+  # A strong covariate effect with the comparator population five years older:
+  # its curves collapse inside the first grid interval while the index
+  # population's are resolved. Asking for the index RMST must not be told to
+  # refit over curves that contribute nothing to it.
+  fit <- synthetic_survival_fit(log(0.2), beta = 1)
+  expect_warning(.warn_coarse_rmst_grid_builtin(fit),
+                 "before the second point of the RMST grid")
+  expect_warning(.warn_coarse_rmst_grid_builtin(fit, "comparator"),
+                 "before the second point of the RMST grid")
+  expect_silent(.warn_coarse_rmst_grid_builtin(fit, "index"))
 })
 
 test_that("a fit without the pieces the check needs is left alone", {

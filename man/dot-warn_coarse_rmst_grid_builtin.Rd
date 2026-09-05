@@ -4,10 +4,17 @@
 \alias{.warn_coarse_rmst_grid_builtin}
 \title{The same check for the fit's own populations}
 \usage{
-.warn_coarse_rmst_grid_builtin(object)
+.warn_coarse_rmst_grid_builtin(object, pops = c("index", "comparator"))
 }
 \arguments{
 \item{object}{A survival \code{mlumr_fit}.}
+
+\item{pops}{The populations whose RMST is being returned, \code{"index"},
+\code{"comparator"} or both. Only their curves are judged: the comparator
+population under a strong covariate effect can decay ahead of the grid
+while the index population, the one asked for, is resolved fine, and a
+warning about curves that contribute nothing to the result would tell the
+user to refit for no reason.}
 }
 \value{
 \code{NULL}, invisibly; called for the warning.
