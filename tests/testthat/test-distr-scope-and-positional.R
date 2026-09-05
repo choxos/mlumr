@@ -109,6 +109,21 @@ test_that("a partial name claims its formal before positional filling", {
   expect_equal(eval_distr(distr(q, m = 10, mean = 20, 2), 0.5), 30)
 })
 
+test_that("an abbreviation that fits two formals is refused, as R refuses it", {
+  # R rejects `q(0.5, a = 1, 2)` because `a` is ambiguous before the positional
+  # value is bound. Binding 2 to `alpha` first would leave `a` a unique match
+  # for `alpine` when the quantile function is finally called, so a call R
+  # refuses evaluated here with both parameters set, to values the caller
+  # never named.
+  q <- function(p, alpha = 0, alpine = 0, ...) stats::qnorm(p, alpha + 10 * alpine)
+  expect_error(q(0.5, a = 1, 2), "matches multiple formal arguments")
+  expect_error(distr(q, a = 1, 2), "matches more than one parameter")
+  # An abbreviation that fits exactly one formal still works, and the
+  # positional value takes the other.
+  expect_equal(eval_distr(distr(q, alph = 1, 2), 0.5), q(0.5, alph = 1, 2))
+  expect_equal(eval_distr(distr(q, alph = 1, 2), 0.5), 21)
+})
+
 test_that("classifying a qbinom margin sees the specification's scope", {
   # `eval_distr()` resolves a local variable of the function that built the
   # spec; the `qbinom` shortcut in get_distribution_type() evaluated `size`

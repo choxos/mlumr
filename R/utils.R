@@ -457,8 +457,18 @@ cor_adjust_pearson <- function(X, types) {
   exact <- intersect(named, formal_names)
   remaining <- setdiff(formal_names, exact)
   partial <- vapply(setdiff(named, exact), function(nm) {
-    hit <- pmatch(nm, remaining)
-    if (is.na(hit)) nm else remaining[[hit]]
+    hits <- remaining[startsWith(remaining, nm)]
+    # R refuses an abbreviation that fits more than one formal, and it does so
+    # BEFORE binding anything positional. Letting the positional value take one
+    # of the candidates would leave the abbreviation a unique match for the
+    # other at evaluation time, and a call R rejects would evaluate here with
+    # both arguments bound to parameters the caller never named.
+    if (length(hits) > 1L) {
+      stop(sprintf(paste0("`distr()` received argument `%s`, which matches more ",
+                          "than one parameter of `%s` (%s). Name it in full."),
+                   nm, qfun_name, paste(hits, collapse = ", ")), call. = FALSE)
+    }
+    if (length(hits) == 1L) hits else nm
   }, character(1), USE.NAMES = FALSE)
   available <- setdiff(formal_names, c(exact, partial))
   n_match <- min(length(unnamed), length(available))
