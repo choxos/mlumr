@@ -238,9 +238,13 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
 #' likelihood.
 #'
 #' The key is now a digest of a canonical payload naming every source and its
-#' content, plus the CmdStan version, since the same sources built against a
-#' different CmdStan are a different executable. Hashing goes through a temp
-#' file so this needs no dependency beyond base R.
+#' content, plus the CmdStan version, its installation path, and the content
+#' of that installation's `make/local`, since the same sources built against a
+#' different CmdStan, or the same CmdStan with different build flags (threads,
+#' say), are a different executable. A compiler upgrade with everything else
+#' unchanged is not recorded: the cached executable still runs, and the key
+#' does not claim otherwise. Hashing goes through a temp file so this needs no
+#' dependency beyond base R.
 #'
 #' @param source_files Character vector of `.stan` paths; the main model first,
 #'   then its includes in a stable order.
@@ -252,7 +256,16 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
   digests[is.na(digests)] <- "MISSING"
   cmdstan <- tryCatch(as.character(cmdstanr::cmdstan_version()),
                       error = function(e) "unknown")
+  cmdstan_path <- tryCatch(cmdstanr::cmdstan_path(), error = function(e) "unknown")
+  make_local <- file.path(cmdstan_path, "make", "local")
+  make_local <- if (file.exists(make_local)) {
+    unname(tools::md5sum(make_local))
+  } else {
+    "none"
+  }
   payload <- c(paste0("cmdstan=", cmdstan),
+               paste0("cmdstan_path=", cmdstan_path),
+               paste0("make_local=", make_local),
                paste0(basename(source_files), "=", digests))
   tmp <- tempfile("mlumr-cache-key-")
   on.exit(unlink(tmp), add = TRUE)

@@ -78,3 +78,28 @@ test_that("a missing source does not collapse onto a shared key", {
   expect_false(identical(.cmdstanr_cache_key(c(main, gone1)),
                          .cmdstanr_cache_key(c(main, gone2))))
 })
+
+test_that("the key follows the CmdStan installation and its build flags", {
+  skip_if_not_installed("cmdstanr")
+  main <- withr::local_tempfile(fileext = ".stan")
+  writeLines("data {} parameters {} model {}", main)
+  install_a <- withr::local_tempdir()
+  install_b <- withr::local_tempdir()
+  dir.create(file.path(install_a, "make"))
+  dir.create(file.path(install_b, "make"))
+  key_for <- function(path) {
+    testthat::local_mocked_bindings(cmdstan_path = function() path,
+                                    .package = "cmdstanr")
+    .cmdstanr_cache_key(main)
+  }
+  # Same sources, same version, different installation: not the same binary.
+  expect_false(identical(key_for(install_a), key_for(install_b)))
+  # The same installation with build flags added: the executable changes with
+  # them (threading, say), so the key must too, and it must settle once the
+  # flags are in place.
+  plain <- key_for(install_a)
+  writeLines("STAN_THREADS=true", file.path(install_a, "make", "local"))
+  threaded <- key_for(install_a)
+  expect_false(identical(plain, threaded))
+  expect_identical(key_for(install_a), threaded)
+})

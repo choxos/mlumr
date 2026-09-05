@@ -24,8 +24,12 @@ likelihood.
 }
 \details{
 The key is now a digest of a canonical payload naming every source and its
-content, plus the CmdStan version, since the same sources built against a
-different CmdStan are a different executable. Hashing goes through a temp
-file so this needs no dependency beyond base R.
+content, plus the CmdStan version, its installation path, and the content
+of that installation's \code{make/local}, since the same sources built against a
+different CmdStan, or the same CmdStan with different build flags (threads,
+say), are a different executable. A compiler upgrade with everything else
+unchanged is not recorded: the cached executable still runs, and the key
+does not claim otherwise. Hashing goes through a temp file so this needs no
+dependency beyond base R.
 }
 \keyword{internal}

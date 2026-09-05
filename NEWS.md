@@ -223,9 +223,11 @@
   Editing a shared include, which is where the likelihood helpers and the
   numerical guards live, produced the same key, and a previously compiled
   executable was reused. The key is now a digest over a canonical payload
-  naming every source file with its own content, plus the CmdStan version, so a
-  changed include and a changed toolchain both invalidate it. Anyone carrying a
-  cache from an earlier version will get one recompile.
+  naming every source file with its own content, plus the CmdStan version,
+  its installation path and the content of its `make/local`, so a changed
+  include, a different CmdStan, or changed build flags invalidate it. A
+  compiler upgrade with everything else unchanged does not, and does not need
+  to. Anyone carrying a cache from an earlier version will get one recompile.
 
 ## Transportability to arbitrary target populations
 
