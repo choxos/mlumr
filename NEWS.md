@@ -579,6 +579,29 @@
   (the observed Kaplan-Meier displays), and `R.rsp` (the precompiled-vignette
   engine) to Suggests, and `R.rsp` to `VignetteBuilder`.
 
+* **`Additional_repositories` is pinned, and the optional cmdstanr backend has
+  a Windows limitation because of it.** That field points at
+  `https://mc-stan.org/r-packages`, which the Stan project describes as
+  deprecated. The maintained repository is not usable there: adding it to the
+  resolution chain makes `rstan` resolve to a development snapshot while
+  `StanHeaders` still resolves to the released CRAN build, and that pair fails
+  to compile. Pinning a repository whose versions can never outrank CRAN keeps
+  the dependency graph deterministic.
+
+  The cost is that the pinned repository serves cmdstanr 0.8.0, which predates
+  current Rtools and cannot build CmdStan on Windows with R 4.6. **On Windows,
+  install cmdstanr from the maintained repository instead**:
+  `install.packages("cmdstanr", repos = c("https://stan-dev.r-universe.dev", getOption("repos")))`.
+  `mlumr_engine("cmdstanr")` offers that route interactively and names which
+  repository it is using. The default `rstan` backend is unaffected on every
+  platform; cmdstanr is optional throughout.
+
+  A scheduled job re-checks both halves of this: that the pinned repository
+  still serves cmdstanr, and whether `rstan` and `StanHeaders` have started
+  resolving from one source again, which is the condition that would let the
+  pin be reverted. It fails after a review date so the workaround cannot
+  outlive its reason unnoticed.
+
 ## Package logo
 
 * **New hex-sticker logo** using a broken-anchor motif, for the unanchored
