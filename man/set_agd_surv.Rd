@@ -97,7 +97,6 @@ delayed-entry comparator whose moments are known to be pre-selection as a
 misspecification that no diagnostic here can detect. Delayed entry in the
 individual arm is unaffected by any of this.
 }
-
 \section{Reconstruction uncertainty is not propagated}{
 
 The pseudo-individual records enter the likelihood as if they were observed
