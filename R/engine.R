@@ -47,12 +47,29 @@ mlumr_engine <- function(engine = NULL) {
     return(invisible(engine))
   }
 
+  # The installation route offered here is stan-dev's maintained repository,
+  # which is NOT the repository DESCRIPTION names in `Additional_repositories`.
+  # That is deliberate and the two are answering different questions.
+  #
+  # `Additional_repositories` is a hint for `R CMD check` and for build systems
+  # resolving the whole dependency graph. Naming stan-dev there exposes rstan
+  # and StanHeaders to development snapshots as well, and a development rstan
+  # beside a released StanHeaders fails to build; the older repository is
+  # pinned there precisely because its versions can never outrank CRAN, which
+  # keeps that resolution deterministic.
+  #
+  # A user installing cmdstanr on its own is not resolving that graph, and the
+  # pinned repository serves cmdstanr 0.8.0, which cannot build CmdStan on
+  # Windows with current R. So the route offered to a person is the maintained
+  # one. The message below says which repository it is using, so the difference
+  # is visible rather than something to discover from DESCRIPTION.
   if (!requireNamespace("cmdstanr", quietly = TRUE)) {
     message("cmdstanr is not installed.")
     if (interactive()) {
       choice <- utils::menu(
         c("Yes", "No"),
-        title = "Install cmdstanr from r-universe?"
+        title = paste0("Install cmdstanr from stan-dev.r-universe.dev, the ",
+                       "maintained repository?")
       )
       if (choice == 1L) {
         install_ok <- tryCatch(
@@ -77,7 +94,12 @@ mlumr_engine <- function(engine = NULL) {
     } else {
       message(
         "Install cmdstanr with:\n",
-        '  install.packages("cmdstanr", repos = c("https://stan-dev.r-universe.dev", getOption("repos")))'
+        '  install.packages("cmdstanr", repos = c("https://stan-dev.r-universe.dev", getOption("repos")))',
+        "\n\nThis is stan-dev's maintained repository, which is not the one ",
+        "DESCRIPTION lists in Additional_repositories. That field is a ",
+        "dependency-resolution hint for build systems and is pinned to an ",
+        "older repository so rstan and StanHeaders keep resolving together; ",
+        "for installing cmdstanr itself, use the maintained one above."
       )
       return(.message_engine_unchanged())
     }
