@@ -36,9 +36,11 @@ Everything reaches an integration branch through a pull request, including work
 by the maintainer, because the pull request is what runs the checks, produces a
 reviewable diff, and records why a change was made.
 
-`main` always holds the released state. Work for a version that has not been
-released yet integrates on `pre-release/vX.Y.Z` instead, and that branch is
-merged into `main` as one reviewed step when the version is released. A single
+`main` holds the released state, with one exception: from a CRAN submission
+until a version is accepted, it holds the most recent commit submitted to CRAN,
+and nothing else merges into it. Work for a version that has not been released
+yet integrates on `pre-release/vX.Y.Z` instead, and that branch is merged into
+`main` as one reviewed step when the version is ready to submit. A single
 change therefore has one pull request, targeting whichever of the two is the
 current integration branch; it is not opened twice.
 
@@ -80,11 +82,14 @@ the changes themselves:
   precompiled vignettes, `CITATION.cff`, and `codemeta.json`.
 
 The pre-release branch is merged into `main` by pull request once the full
-check matrix is green. The version tag `vX.Y.Z` and the GitHub release are created
-from the merged commit only after CRAN accepts it; while a submission is
-pending, that commit is immutable. If CRAN asks for changes, increment to the
-next version rather than reusing the submitted one, and note the resubmission
-in `cran-comments.md`.
+check matrix is green, and the merged commit is what is submitted to CRAN. The
+version tag `vX.Y.Z` and the GitHub release are created from that commit only
+after CRAN accepts it. While a submission is pending, the submitted commit is
+immutable and nothing else is merged into `main`, so `main` is either the
+released state or the most recent commit submitted to CRAN, never a mixture of
+a submitted version and later work. If CRAN asks for changes, increment to the
+next version rather than reusing the submitted one, merge the resubmission the
+same way, and note it in `cran-comments.md`.
 
 ## Code Style
 

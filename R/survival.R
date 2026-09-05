@@ -342,9 +342,12 @@
 #' among survivors does not shift with entry time. Neither is checkable from
 #' the summaries supplied.
 #'
-#' Published summaries are ordinarily reported for the enrolled population and
-#' are usually the right ones; state which population they came from, and treat
-#' a delayed-entry comparator whose moments are known to be pre-selection as a
+#' Published summaries are ordinarily reported for the enrolled population.
+#' Under a common entry time that is the population observed at entry, so they
+#' are the right moments; under varying entry times they are the right moments
+#' only when the covariate distribution among survivors does not shift with
+#' entry time, as above. State which population they came from, and treat a
+#' delayed-entry comparator whose moments are known to be pre-selection as a
 #' misspecification that no diagnostic here can detect. Delayed entry in the
 #' individual arm is unaffected by any of this.
 #'

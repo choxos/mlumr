@@ -77,19 +77,23 @@ relative to baseline. Averaging first and conditioning second is the form
 that matches baseline moments, and the two differ in general, by more when
 entry times are late or the covariate effects are strong.
 
-Varying entry times need one assumption more, because then there is no single
-population observed at entry: each pseudo-individual should be integrated
-against the covariate distribution among those who survived to ITS entry time,
-and later entrants are a more selected group than earlier ones. The model has
-one covariate distribution per arm and reuses it for every pseudo-individual,
-so pooled moments over everyone enrolled satisfy the contract above and can
-still give the wrong likelihood. Using them requires either a common entry
-time, or that the covariate distribution among survivors does not shift with
-entry time. Neither is checkable from the summaries supplied.
+Varying entry times need one assumption more, because then there is no
+single population observed at entry: each pseudo-individual should be
+integrated against the covariate distribution among those who survived to
+ITS entry time, and later entrants are a more selected group than earlier
+ones. The model has one covariate distribution per arm and reuses it for
+every pseudo-individual, so pooled moments over everyone enrolled satisfy
+the contract above and can still give the wrong likelihood. Using them
+requires either a common entry time, or that the covariate distribution
+among survivors does not shift with entry time. Neither is checkable from
+the summaries supplied.
 
-Published summaries are ordinarily reported for the enrolled population and
-are usually the right ones; state which population they came from, and treat
-a delayed-entry comparator whose moments are known to be pre-selection as a
+Published summaries are ordinarily reported for the enrolled population.
+Under a common entry time that is the population observed at entry, so they
+are the right moments; under varying entry times they are the right moments
+only when the covariate distribution among survivors does not shift with
+entry time, as above. State which population they came from, and treat a
+delayed-entry comparator whose moments are known to be pre-selection as a
 misspecification that no diagnostic here can detect. Delayed entry in the
 individual arm is unaffected by any of this.
 }
