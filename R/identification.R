@@ -635,15 +635,15 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #' @param min_spread Absolute floor, in IPD standard deviations, matching
 #'   [check_identification()] and `.profile_rank()`.
 #' @param max_location_gap Largest distance, in reference standard deviations,
-#'   that any realized integration mean may sit from the declared mean of its
-#'   own row. Separate from `min_spread`: a finite integration grid misses its
-#'   own declared mean by roughly the spread floor itself (32 QMC points
-#'   against a normal margin land about 0.05 SD away), so reusing that floor
-#'   here reported correct specifications as mismatches and switched the
-#'   identification statement onto the realized geometry, which suppressed the
-#'   rank-1 warning for a design of identical profiles. A quarter of an SD
-#'   clears the integration error and still catches a `distr()` that ignores
-#'   its row, or one attached to the wrong row.
+#'   that the realized column means may sit from the declared ones, and the
+#'   noise allowance in the row-by-row pairing check. Separate from
+#'   `min_spread`: a finite integration grid misses its own declared mean by
+#'   roughly the spread floor itself (32 QMC points against a normal margin
+#'   land about 0.05 SD away), so reusing that floor here reported correct
+#'   specifications as mismatches and switched the identification statement
+#'   onto the realized geometry, which suppressed the rank-1 warning for a
+#'   design of identical profiles. A quarter of an SD clears the integration
+#'   error and still catches a `distr()` that ignores its row.
 #' @return `TRUE` when the realized design reproduces the declared one, or when
 #'   there is nothing to compare against.
 #' @keywords internal
@@ -706,17 +706,8 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   # A quarter of a reference SD sits well above that integration error and well
   # below a `distr()` that ignores its row, which misses by the full distance
   # between the declared mean and whatever constant was hard-coded.
-  #
-  # Row by row, not column means. Everything after this point is invariant to
-  # the ORDER of the rows: permuting them leaves the column means alone and
-  # leaves the centered spectrum alone, so a grid whose rows were attached to
-  # the wrong aggregate rows reproduced the declared design exactly and was
-  # reported as such, while every distribution integrated against another
-  # row's outcome. Comparing each row with its own declared profile is what
-  # the question actually is, and it is stricter than the means in every case,
-  # so nothing the old test rejected passes now.
-  loc_gap <- sweep(abs(as.matrix(realized) - as.matrix(declared)), 2L,
-                   scale_by, "/")
+  loc_gap <- abs(colMeans(as.matrix(realized)) - colMeans(as.matrix(declared)))
+  loc_gap <- loc_gap / scale_by
   loc_gap <- loc_gap[is.finite(loc_gap)]
   if (length(loc_gap) && any(!.at_most(loc_gap, max_location_gap))) {
     return(FALSE)
@@ -730,6 +721,23 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
             "The reported geometry describes the declared columns, which have ",
             "not been checked against the design being fitted.", call. = FALSE)
     return(TRUE)
+  }
+
+  # ROW PAIRING. Everything after this point is invariant to the ORDER of the
+  # rows: permuting them leaves the column means alone and leaves the centered
+  # spectrum alone, so a grid whose rows were attached to the wrong aggregate
+  # rows reproduced the declared design exactly and was reported as such,
+  # while every distribution integrated against another row's outcome. Each
+  # centered realized row is therefore compared with its own centered declared
+  # row. The allowance is whichever is larger of the location tolerance, which
+  # is the integration noise a row can carry, and the share of its own
+  # deviation the spread test below already lets a row give up: a grid shrunk
+  # toward the center by `factor` moves every row by exactly `1 - factor` of
+  # its deviation and is a match by design, and must stay one here.
+  row_gap <- sqrt(rowSums((r - d)^2))
+  row_allow <- pmax(max_location_gap, (1 - factor) * sqrt(rowSums(d^2)))
+  if (any(!.at_most(row_gap, row_allow))) {
+    return(FALSE)
   }
   decomposition <- tryCatch(svd(d), error = function(e) NULL)
   if (is.null(decomposition)) {
