@@ -30,5 +30,10 @@ comparator's reconstructed pseudo-individuals stand in for the aggregate
 rows when present, since they are the pointwise units. Covariates are left
 out on purpose: two models of the same outcomes with different covariate
 sets are exactly what gets compared.
+
+The values define an observation, not their representation. A factor and
+the character vector it codes, with or without unused levels, or an integer
+count and the double that was read from a file, describe the same
+observations, so each column is reduced to its plain values before hashing.
 }
 \keyword{internal}

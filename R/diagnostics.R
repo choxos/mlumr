@@ -127,6 +127,11 @@ extract_log_lik <- function(object) {
 #' out on purpose: two models of the same outcomes with different covariate
 #' sets are exactly what gets compared.
 #'
+#' The values define an observation, not their representation. A factor and
+#' the character vector it codes, with or without unused levels, or an integer
+#' count and the double that was read from a file, describe the same
+#' observations, so each column is reduced to its plain values before hashing.
+#'
 #' @param fit An `mlumr_fit`.
 #' @return A 32-character digest, or `NA_character_` when the fit carries no
 #'   data to fingerprint.
@@ -139,6 +144,9 @@ extract_log_lik <- function(object) {
     df <- as.data.frame(df)
     df <- df[, grep("^\\.", names(df), value = TRUE), drop = FALSE]
     rownames(df) <- NULL
+    df[] <- lapply(df, function(x) {
+      if (is.factor(x)) as.character(x) else if (is.numeric(x)) as.numeric(x) else as.vector(x)
+    })
     df
   }
   agd <- if (!is.null(data$agd$pseudo_ipd)) data$agd$pseudo_ipd else data$agd$data

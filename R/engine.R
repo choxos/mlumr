@@ -122,15 +122,8 @@ mlumr_engine <- function(engine = NULL) {
   # Offering that installation anyway sends the user into the failure the
   # NEWS entry warns about. Say what to do first instead.
   if (.cmdstanr_too_old_for_windows()) {
-    message(
-      "cmdstanr ", utils::packageVersion("cmdstanr"), " is installed, and ",
-      "on this Windows R it cannot build CmdStan or compile a model: its ",
-      "toolchain check does not recognize the installed Rtools, which a ",
-      "cmdstanr older than 0.9.0 does for current R versions. Upgrade it ",
-      "first from stan-dev's maintained repository:\n",
-      '  install.packages("cmdstanr", repos = c("https://stan-dev.r-universe.dev", getOption("repos")))',
-      "\nthen run mlumr_engine(\"cmdstanr\") again."
-    )
+    message(.cmdstanr_upgrade_advice(),
+            "\nthen run mlumr_engine(\"cmdstanr\") again.")
     return(.message_engine_unchanged())
   }
 
@@ -251,6 +244,21 @@ get_engine <- function() {
   }, error = function(e) conditionMessage(e))
   !is.null(msg) &&
     grepl("was not found but is required to run CmdStan", msg, fixed = TRUE)
+}
+
+#' The advice that goes with a positive `.cmdstanr_too_old_for_windows()`.
+#' Shared by `mlumr_engine()`, which reports it and leaves the engine alone,
+#' and by the fit-time engine resolution, which stops with it.
+#' @keywords internal
+.cmdstanr_upgrade_advice <- function() {
+  paste0(
+    "cmdstanr ", utils::packageVersion("cmdstanr"), " is installed, and ",
+    "on this Windows R it cannot build CmdStan or compile a model: its ",
+    "toolchain check does not recognize the installed Rtools, which a ",
+    "cmdstanr older than 0.9.0 does for current R versions. Upgrade it ",
+    "first from stan-dev's maintained repository:\n",
+    '  install.packages("cmdstanr", repos = c("https://stan-dev.r-universe.dev", getOption("repos")))'
+  )
 }
 
 #' @keywords internal

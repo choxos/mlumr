@@ -211,6 +211,24 @@ test_that("compare_models refuses fits built on different observations", {
                "not built on the same observations")
 })
 
+test_that("the observation check compares values, not their representation", {
+  skip_if_not_installed("loo")
+  y <- rep(c(0L, 1L), 6L)
+  fit1 <- with_data(make_ll_fit("spfa", seed = 2026), y)
+  # The same treatments coded as a factor with an unused level, the same
+  # outcomes as doubles, the same counts read as doubles: one data set.
+  fit2 <- with_data(make_ll_fit("relaxed", seed = 2026), as.numeric(y),
+                    agd_r = c(3, 5, 2, 4))
+  fit2$data$ipd$data$.trt <- factor(fit2$data$ipd$data$.trt,
+                                    levels = c("y", "x", "unused"))
+  fit2$data$agd$data$.n <- 10
+  expect_identical(.observation_fingerprint(fit1), .observation_fingerprint(fit2))
+  out <- suppressWarnings(capture.output(
+    compare_models(fit1, fit2, criterion = "loo")
+  ))
+  expect_true(length(out) > 0L)
+})
+
 test_that("compare_models says when it cannot verify the observations", {
   skip_if_not_installed("loo")
   fit1 <- make_ll_fit("spfa", seed = 2026)
