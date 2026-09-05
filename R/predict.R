@@ -1495,25 +1495,26 @@ marginal_effects <- function(object,
   if (length(times) < 3L || !nrow(s_mat)) {
     return(invisible(NULL))
   }
-  .warn_first_interval_share(.rmst_first_interval_share(s_mat))
+  .warn_first_interval_share(list(.rmst_first_interval_share(s_mat)))
 }
 
 #' Share of the total survival decay that lands in the first grid interval
 #'
-#' `s_mat` holds the curve at the grid's first point, its second point, and
-#' its horizon, in that order, with any points in between; only those three
-#' columns are read. `NA` when there is no decay to apportion.
+#' One value per posterior draw. `s_mat` holds the curve at the grid's first
+#' point, its second point, and its horizon, in that order, with any points in
+#' between; only those three columns are read. Per draw, not on the posterior
+#' mean curve: averaging first can hide the problem, since a posterior in which
+#' two draws in five collapse inside the first interval and the rest decay
+#' later averages to a share below the threshold while two fifths of the RMST
+#' draws are integrated from a single straight line. `NA` for a draw with no
+#' decay to apportion.
 #' @keywords internal
 .rmst_first_interval_share <- function(s_mat) {
-  sbar <- colMeans(s_mat)
-  if (!all(is.finite(sbar))) {
-    return(NA_real_)
-  }
-  total_drop <- sbar[[1]] - sbar[[length(sbar)]]
-  if (!is.finite(total_drop) || total_drop <= 0) {
-    return(NA_real_)
-  }
-  (sbar[[1]] - sbar[[2]]) / total_drop
+  s_mat <- as.matrix(s_mat)
+  total_drop <- s_mat[, 1L] - s_mat[, ncol(s_mat)]
+  share <- (s_mat[, 1L] - s_mat[, 2L]) / total_drop
+  share[!is.finite(share) | !is.finite(total_drop) | total_drop <= 0] <- NA_real_
+  share
 }
 
 #' The same check for the fit's own populations
@@ -1552,25 +1553,42 @@ marginal_effects <- function(object,
   comparator_rows <- as.data.frame(sweep(comparator_rows, 2L, cov_center, "+"))
   names(comparator_rows) <- covariates
 
-  shares <- numeric(0)
+  shares <- list()
   for (rows in list(index_rows, comparator_rows)) {
-    sbar <- tryCatch(
-      .standardize_target_survival_s(object, rows, tt[sel], ib, ib_cmp),
-      error = function(e) NULL)
+    sbar <- tryCatch(.standardize_target_survival_s(object, rows, tt[sel], ib,
+                                                    ib_cmp),
+                     error = function(e) NULL)
     if (is.null(sbar)) next
-    shares <- c(shares, .rmst_first_interval_share(sbar$index),
-                .rmst_first_interval_share(sbar$comparator))
+    shares <- c(shares, list(.rmst_first_interval_share(sbar$index),
+                             .rmst_first_interval_share(sbar$comparator)))
   }
-  shares <- shares[is.finite(shares)]
-  if (!length(shares)) {
-    return(invisible(NULL))
-  }
-  .warn_first_interval_share(max(shares))
+  .warn_first_interval_share(shares)
 }
 
-.warn_first_interval_share <- function(first_drop) {
-  if (is.finite(first_drop) && first_drop > 0.5) {
-    fmt <- paste0("More than half of the fitted survival decay (%.0f%%) happens before ",
+#' Warn when enough posterior draws are integrated from a single straight line
+#'
+#' `shares` is a list with one per-draw vector per curve (one treatment in one
+#' population). A curve is badly resolved in a draw when more than half of its
+#' decay falls in the first interval. The criterion is the FRACTION of draws in
+#' which that happens, judged on the worst curve, so a minority of draws whose
+#' hazard runs ahead of the grid is reported rather than averaged away; below
+#' one draw in twenty it is left alone, since the summaries barely move.
+#' @keywords internal
+.warn_first_interval_share <- function(shares) {
+  worst <- 0
+  worst_share <- NA_real_
+  for (share in shares) {
+    share <- share[is.finite(share)]
+    if (!length(share)) next
+    bad <- mean(share > 0.5)
+    if (bad > worst) {
+      worst <- bad
+      worst_share <- stats::median(share[share > 0.5])
+    }
+  }
+  if (worst > 0.05) {
+    fmt <- paste0("In %.0f%% of posterior draws, more than half of the fitted ",
+                  "survival decay (median %.0f%% among them) happens before ",
                   "the second point of the RMST grid, so the trapezoid rule ",
                   "is approximating the steepest part of the curve with a ",
                   "single straight line. RMST values, and especially their ",
@@ -1579,7 +1597,7 @@ marginal_effects <- function(object,
                   "is 2 returns 1.0001 on a grid this coarse. Refit with a ",
                   "larger `n_rmst_grid`, and confirm the value has stopped ",
                   "moving by comparing it against twice that many points.")
-    warning(sprintf(fmt, 100 * first_drop), call. = FALSE)
+    warning(sprintf(fmt, 100 * worst, 100 * worst_share), call. = FALSE)
   }
   invisible(NULL)
 }

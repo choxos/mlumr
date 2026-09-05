@@ -7,8 +7,13 @@
 .rmst_first_interval_share(s_mat)
 }
 \description{
-\code{s_mat} holds the curve at the grid's first point, its second point, and
-its horizon, in that order, with any points in between; only those three
-columns are read. \code{NA} when there is no decay to apportion.
+One value per posterior draw. \code{s_mat} holds the curve at the grid's first
+point, its second point, and its horizon, in that order, with any points in
+between; only those three columns are read. Per draw, not on the posterior
+mean curve: averaging first can hide the problem, since a posterior in which
+two draws in five collapse inside the first interval and the rest decay
+later averages to a share below the threshold while two fifths of the RMST
+draws are integrated from a single straight line. \code{NA} for a draw with no
+decay to apportion.
 }
 \keyword{internal}
