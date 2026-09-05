@@ -212,10 +212,12 @@ jobs:
 
           # The point of this job is that NOT_CRAN=true actually runs the Stan
           # tests, so a skip whose reason is CRAN means the coverage silently
-          # went away and must fail the job. skip_on_ci() is a separate,
-          # deliberate decoration for the handful of tests that really are too
-          # slow for a runner (test-survival-predict.R's far-extrapolation sweep
-          # measures ~66 minutes); list those but do not fail on them.
+          # went away and must fail the job. Every OTHER skip reason is
+          # listed rather than failed on, because a test can legitimately skip
+          # for a missing optional dependency or an absent toolchain. No test
+          # currently carries skip_on_ci(); the listing is what makes one added
+          # later visible, instead of quietly removing coverage from the only
+          # job that runs the Stan suite.
           reasons <- unlist(lapply(res, function(f) {
             vapply(f$results, function(r) {
               if (inherits(r, "expectation_skip")) conditionMessage(r) else NA_character_
