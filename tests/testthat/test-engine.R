@@ -78,3 +78,14 @@ test_that("cmdstanr backend fits a model end-to-end", {
   expect_true(is.numeric(fit$diagnostics$n_max_treedepth))
   expect_false(file.exists(file.path("inst", "stan", "mlumr_binary_spfa")))
 })
+
+test_that("the pinned cmdstanr is recognized as unable to build CmdStan on Windows", {
+  # The repository DESCRIPTION pins serves 0.8.0, which does not recognize the
+  # current Rtools; 0.9.0 from the maintained repository does. Off Windows
+  # the version is irrelevant, and an absent cmdstanr is a different message.
+  expect_true(.cmdstanr_too_old_for_windows("windows", "0.8.0"))
+  expect_true(.cmdstanr_too_old_for_windows("windows", package_version("0.8.1")))
+  expect_false(.cmdstanr_too_old_for_windows("windows", "0.9.0"))
+  expect_false(.cmdstanr_too_old_for_windows("unix", "0.8.0"))
+  expect_false(.cmdstanr_too_old_for_windows("windows", NULL))
+})

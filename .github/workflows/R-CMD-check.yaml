@@ -399,9 +399,14 @@ jobs:
           # to recognize this R version's Rtools. Accepting every Windows
           # exception would let a runner regression, a different cmdstanr
           # failure, or a genuinely broken toolchain pass as the expected
-          # limitation, which is the opposite of what this job is for.
-          expected <- !is.null(msg) && grepl("Rtools", msg, fixed = TRUE) &&
-            grepl("not found", msg, fixed = TRUE)
+          # limitation, which is the opposite of what this job is for. So it
+          # takes cmdstanr's exact sentence for that condition, and only from
+          # the cmdstanr the pin is known to serve: the same sentence from a
+          # 0.9.0 would mean the runner's Rtools changed, which is new.
+          expected <- !is.null(msg) &&
+            grepl("was not found but is required to run CmdStan with R version",
+                  msg, fixed = TRUE) &&
+            utils::packageVersion("cmdstanr") < "0.9.0"
           cat("cmdstanr:", as.character(utils::packageVersion("cmdstanr")), "\n")
           cat("R:       ", R.version.string, "\n")
           cat(sprintf("ok=%s\n", tolower(as.character(ok))),

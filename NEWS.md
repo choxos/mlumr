@@ -593,8 +593,11 @@
   install cmdstanr from the maintained repository instead**:
   `install.packages("cmdstanr", repos = c("https://stan-dev.r-universe.dev", getOption("repos")))`.
   `mlumr_engine("cmdstanr")` offers that route interactively and names which
-  repository it is using. The default `rstan` backend is unaffected on every
-  platform; cmdstanr is optional throughout.
+  repository it is using, and when a cmdstanr older than 0.9.0 is already
+  installed on Windows it says to upgrade from there before trying to build
+  CmdStan, rather than offering an installation that fails. The default
+  `rstan` backend is unaffected on every platform; cmdstanr is optional
+  throughout.
 
   A scheduled job re-checks both halves of this: that the pinned repository
   still serves cmdstanr, and whether `rstan` and `StanHeaders` have started
