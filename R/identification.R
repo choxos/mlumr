@@ -76,7 +76,9 @@
 #'   the spectral variation is spread across directions; it is not a count of
 #'   identified coefficients), `spread`, `singular_values`, `means` (the scaled, centered
 #'   subgroup mean matrix), `diagnostic_scope`, `target_in_span`,
-#'   `target_span_gap`, and `flagged`: `TRUE` for too
+#'   `target_span_gap`, `target_in_declared_span` (the same exact statement
+#'   about the declared `<covariate>_mean` rows, which says whether a gap is
+#'   the integration grid's or the design's), and `flagged`: `TRUE` for too
 #'   few rows, otherwise the identity-link screen result, or `NA` when nonlinear
 #'   mean-profile geometry is descriptive only.
 #'
@@ -156,9 +158,20 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
     target <- colMeans(as.matrix(data$ipd$data[, covs, drop = FALSE]))
     out$target_in_span <- .target_in_span(fitted_rows, target, ref_sd)
     out$target_span_gap <- .target_span_gap(fitted_rows, target, ref_sd)
+    # Whether the gap is the integration grid's or the design's. A gap the
+    # declared rows do not have comes from the grid missing its declared
+    # means, and a larger `n_int` shrinks it; a gap the declared rows have too
+    # is the populations' actual difference, and no resolution removes it.
+    declared <- .agd_declared_profiles(data, covs)
+    out$target_in_declared_span <- if (is.null(declared)) {
+      NA
+    } else {
+      .target_in_span(declared, target, ref_sd)
+    }
   } else {
     out$target_in_span <- NA
     out$target_span_gap <- NA_real_
+    out$target_in_declared_span <- NA
   }
   out$flagged <- if (out$n_distinct < out$n_rows_needed) {
     TRUE
@@ -215,6 +228,20 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
          "integration means will be used instead.", call. = FALSE)
   }
   realized
+}
+
+
+#' Declared aggregate mean profiles, or NULL when the columns are absent
+#' @keywords internal
+.agd_declared_profiles <- function(data, covs) {
+  mean_cols <- paste0(covs, "_mean")
+  agd <- data$agd$data
+  if (!all(mean_cols %in% names(agd))) return(NULL)
+  means <- as.matrix(agd[, mean_cols, drop = FALSE])
+  storage.mode(means) <- "double"
+  if (!all(is.finite(means))) return(NULL)
+  colnames(means) <- covs
+  means
 }
 
 
@@ -662,10 +689,16 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
         " off the affine span of the directions the rows spread along, so ",
         "the estimand contains that much of comparator coefficients the rows ",
         "do not pin down, and that part comes from the prior.", sep = "")
-    if (is.finite(gap) && .at_most(gap, 0.1)) {
-      cat(" A gap this small is within what a finite integration grid ",
-          "produces on its own; a larger `n_int` shrinks it, and a row whose ",
-          "summaries equal the target's removes it.\n", sep = "")
+    if (is.finite(gap) && .at_most(gap, 0.1) &&
+          isTRUE(x$target_in_declared_span)) {
+      cat(" The declared `<covariate>_mean` rows do contain the target, so ",
+          "this gap is the integration grid missing its declared means; a ",
+          "larger `n_int` shrinks it.\n", sep = "")
+    } else if (is.finite(gap) && .at_most(gap, 0.1)) {
+      cat(" The gap is small, but it is the rows' actual distance from the ",
+          "target, not integration error, so no integration resolution ",
+          "removes it: a row whose summaries equal the target's would.\n",
+          sep = "")
     } else {
       cat(" Do not substitute the comparator population for the decision ",
           "target: report it as a sensitivity estimand, obtain subgroup rows ",
