@@ -579,8 +579,9 @@ which is why the index row usually carries the decision, but it is not
 automatically either trial’s. When the decision population is a third
 one, standardize to it directly by passing its covariate distribution as
 <code>newdata</code> rather than adopting whichever trial is nearer. The
-comparator rows are the like-for-like comparison against naive and
-STC.</p>
+comparator rows are the like-for-like comparison against STC, which
+standardizes to that population; naive standardizes to neither and is
+the unadjusted benchmark both rows are measured against.</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>me_spfa <span class="ot">&lt;-</span> <span class="fu">marginal_effects</span>(fit_spfa, <span class="at">effect =</span> <span class="st">&quot;lor&quot;</span>, <span class="at">population =</span> <span class="st">&quot;both&quot;</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>me_rel  <span class="ot">&lt;-</span> <span class="fu">marginal_effects</span>(fit_relaxed, <span class="at">effect =</span> <span class="st">&quot;lor&quot;</span>, <span class="at">population =</span> <span class="st">&quot;both&quot;</span>)</span>
 <span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="co"># One row per (model, population); `pop()` pulls the requested one.</span></span>
