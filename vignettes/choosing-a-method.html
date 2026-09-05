@@ -570,11 +570,16 @@ modification):</p>
 reported in <strong>both</strong> target populations. STC has a
 comparator-population estimand by construction; naive has no single
 standardized target and is labeled accordingly. Neither has an
-index-population row to show. The <strong>index</strong> population is
-normally the decision-relevant one for HTA, because cost-effectiveness
-models are built for the population a reimbursement decision is about,
-which is usually the index trial’s <span class="citation">(<a href="#ref-ChandlerIshakTransport">Chandler and Ishak 2026</a>)</span>;
-the comparator rows are the like-for-like comparison against naive and
+index-population row to show. Which of them is decision-relevant is a
+question about the application, not a property of the method: a
+cost-effectiveness model is built for the population the reimbursement
+decision covers, and that population has to be stated. It is often close
+to the index trial’s <span class="citation">(<a href="#ref-ChandlerIshakTransport">Chandler and Ishak 2026</a>)</span>,
+which is why the index row usually carries the decision, but it is not
+automatically either trial’s. When the decision population is a third
+one, standardize to it directly by passing its covariate distribution as
+<code>newdata</code> rather than adopting whichever trial is nearer. The
+comparator rows are the like-for-like comparison against naive and
 STC.</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>me_spfa <span class="ot">&lt;-</span> <span class="fu">marginal_effects</span>(fit_spfa, <span class="at">effect =</span> <span class="st">&quot;lor&quot;</span>, <span class="at">population =</span> <span class="st">&quot;both&quot;</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>me_rel  <span class="ot">&lt;-</span> <span class="fu">marginal_effects</span>(fit_relaxed, <span class="at">effect =</span> <span class="st">&quot;lor&quot;</span>, <span class="at">population =</span> <span class="st">&quot;both&quot;</span>)</span>
