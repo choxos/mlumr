@@ -54,7 +54,8 @@ current integration branch; it is not opened twice.
   resolution, and informative blame. Keep changes separable.
 - Commit as often as is useful while working. Pull requests are squash-merged,
   so each commit on the integration branch is one complete, tested, revertible
-  change.
+  change. The one exception is the pull request that merges a pre-release
+  branch into `main`; see Releases.
 - Write commit subjects in the imperative ("Add M-spline survival baselines").
   Conventional Commit prefixes are not used here.
 - `git commit --amend` and `git push --force-with-lease` are acceptable only on
@@ -82,9 +83,12 @@ the changes themselves:
   precompiled vignettes, `CITATION.cff`, and `codemeta.json`.
 
 The pre-release branch is merged into `main` by pull request once the full
-check matrix is green, and the merged commit is what is submitted to CRAN. The
-version tag `vX.Y.Z` and the GitHub release are created from that commit only
-after CRAN accepts it. While a submission is pending, the submitted commit is
+check matrix is green. That pull request is merged with a merge commit, not
+squashed: squashing would collapse every change on the pre-release branch into
+one commit on `main` and discard exactly the per-change history the branch was
+kept to preserve. The merge commit is what is submitted to CRAN. The version
+tag `vX.Y.Z` and the GitHub release are created from that commit only after
+CRAN accepts it. While a submission is pending, the submitted commit is
 immutable and nothing else is merged into `main`, so `main` is either the
 released state or the most recent commit submitted to CRAN, never a mixture of
 a submitted version and later work. If CRAN asks for changes, increment to the
