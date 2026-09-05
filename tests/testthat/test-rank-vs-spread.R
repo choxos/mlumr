@@ -76,3 +76,25 @@ test_that("ordinary in-span and out-of-span cases are unchanged", {
   # A single profile spans only itself.
   expect_false(.target_in_span(matrix(0, nrow = 1, ncol = 1), 5, 1))
 })
+
+# `.realized_matches_declared()` centered both matrices before comparing them,
+# which is blind to WHERE each design sits. A grid shifted bodily away from the
+# declared means therefore matched, and with a single row centering sends both
+# to zero whatever the means were. The declared profiles were then used for the
+# printed identification statement while the likelihood integrated elsewhere.
+
+test_that("a shifted realized grid does not match the declared means", {
+  one <- matrix(0, nrow = 1, ncol = 1)
+  expect_false(.realized_matches_declared(one, matrix(1, 1, 1), 1))
+  expect_true(.realized_matches_declared(one, one, 1))
+  # A shift well inside the screening threshold is still a match.
+  expect_true(.realized_matches_declared(one, matrix(0.01, 1, 1), 1))
+})
+
+test_that("location is checked independently of spread", {
+  d <- matrix(c(0, 1, 2), ncol = 1)
+  # Identical spread AND location.
+  expect_true(.realized_matches_declared(d, d, 1))
+  # Identical spread, moved one reference SD: caught only by the location test.
+  expect_false(.realized_matches_declared(d, d + 1, 1))
+})

@@ -176,11 +176,11 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
       ref_sd <- apply(as.matrix(ipd_cov), 2L, stats::sd)
       if (!.realized_matches_declared(means, realized, ref_sd)) {
         warning("The integration distributions do not reproduce the declared ",
-                "aggregate covariate means: the realized profiles offer much ",
-                "less spread than the `<covariate>_mean` columns claim. ",
-                "Reporting the realized geometry, which is what the likelihood ",
-                "sees. Check that each `distr()` reads its row's summaries.",
-                call. = FALSE)
+                "aggregate covariate means: the realized profiles sit in a ",
+                "different place, or offer much less spread, than the ",
+                "`<covariate>_mean` columns claim. Reporting the realized ",
+                "geometry, which is what the likelihood sees. Check that each ",
+                "`distr()` reads its row's summaries.", call. = FALSE)
         return(realized)
       }
       return(means)
@@ -650,6 +650,19 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
     sd_vals[!is.finite(sd_vals) | sd_vals <= 0] <- 1
     sd_vals
   }
+  # LOCATION first. Everything below centers both matrices and compares their
+  # spread along the declared directions, which is deliberately blind to where
+  # the two designs actually sit. A grid shifted bodily away from the declared
+  # means therefore "matched": with a single row, centering sends both to zero
+  # whatever the means were, and the function returned TRUE. The declared
+  # profiles were then used for the identification statement while the
+  # likelihood integrated somewhere else entirely.
+  loc_gap <- abs(colMeans(as.matrix(realized)) - colMeans(as.matrix(declared)))
+  loc_gap <- loc_gap / scale_by
+  if (any(is.finite(loc_gap)) && max(loc_gap[is.finite(loc_gap)]) > min_spread) {
+    return(FALSE)
+  }
+
   d <- sweep(scale(declared, center = TRUE, scale = FALSE), 2L, scale_by, "/")
   r <- sweep(scale(realized, center = TRUE, scale = FALSE), 2L, scale_by, "/")
   if (!all(is.finite(d)) || !all(is.finite(r))) {
