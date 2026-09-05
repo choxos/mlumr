@@ -24,10 +24,10 @@ The \verb{rmst_*} draws are integrated in Stan on the same grid, by the same
 trapezoid rule, so the exponential example above distorts them just as
 badly, and \code{predict(type = "rmst")} and the RMST effects of
 \code{\link[=marginal_effects]{marginal_effects()}} read them straight from the draws with nothing in the
-way. This evaluates the standardized curve at the first two grid points and
-the horizon, for both treatments in both populations, over exactly the rows
-Stan averaged: every IPD row for the index population and every integration
+way. This evaluates the standardized curve on the whole RMST grid, for both
+treatments in the requested populations, over exactly the rows Stan
+averaged: every IPD row for the index population and every integration
 point for the comparator one, equally weighted, un-centered here because
-\code{\link[=.conditional_profiles]{.conditional_profiles()}} centers again. Three time points keep it cheap.
+\code{\link[=.conditional_profiles]{.conditional_profiles()}} centers again.
 }
 \keyword{internal}

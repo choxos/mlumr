@@ -473,6 +473,7 @@ cor_adjust_pearson <- function(X, types) {
   named_idx <- which(nzchar(nms))
   exact <- intersect(nms[named_idx], formal_names)
   remaining <- setdiff(formal_names, exact)
+  claimed <- list()
   for (i in named_idx) {
     nm <- nms[i]
     if (nm %in% exact) {
@@ -490,12 +491,22 @@ cor_adjust_pearson <- function(X, types) {
                    nm, qfun_name, paste(hits, collapse = ", ")), call. = FALSE)
     }
     if (length(hits) == 1L) {
+      # R also refuses two abbreviations of the same formal, "matched by
+      # multiple actual arguments". Taking the formal for the first and
+      # letting the second fall through to `...` evaluated `m = 1, me = 2`
+      # with mean 1 and nothing said, for a call R rejects.
+      if (hits %in% names(claimed)) {
+        stop(sprintf(paste0("`distr()` received arguments `%s` and `%s`, which ",
+                            "both abbreviate parameter `%s` of `%s`."),
+                     claimed[[hits]], nm, hits, qfun_name), call. = FALSE)
+      }
+      claimed[[hits]] <- nm
       # Store the full name, so that everything reading the arguments by name
       # sees what the quantile function will see.
       nms[i] <- hits
-      remaining <- setdiff(remaining, hits)
     }
   }
+  remaining <- setdiff(remaining, names(claimed))
   unnamed <- which(!nzchar(nms))
   if (length(unnamed)) {
     available <- remaining

@@ -22,7 +22,7 @@ ratio of the squared singular-value spectrum, which summarizes how evenly
 the spectral variation is spread across directions; it is not a count of
 identified coefficients), \code{spread}, \code{singular_values}, \code{means} (the scaled, centered
 subgroup mean matrix), \code{diagnostic_scope}, \code{target_in_span},
-and \code{flagged}: \code{TRUE} for too
+\code{target_span_gap}, and \code{flagged}: \code{TRUE} for too
 few rows, otherwise the identity-link screen result, or \code{NA} when nonlinear
 mean-profile geometry is descriptive only.
 }
@@ -71,16 +71,22 @@ parameters, and the aggregate rows pin down every functional in their row
 space. A single row whose covariate means equal the IPD means identifies it
 exactly while separating neither the intercept nor the slope.
 \code{target_in_span} reports that case, so a coefficient verdict is not read as
-one about the estimand. It is judged on the integration profiles the
-likelihood actually uses, not on the declared \verb{<covariate>_mean} columns,
-and with the same practical yardstick as the rest of the screen: directions
-along which the rows move less than 0.05 IPD standard deviations are not
-counted as spanned, and the target counts as in the span when it sits
-within 0.1 IPD standard deviations of what is. Finite integration grids
-miss their declared means by a few hundredths of an SD, so an exact test on
-either matrix would answer the wrong question: on the declared one it can
-certify a target the fitted rows do not contain, and on the realized one
-the noise itself spans every direction.
+one about the estimand. It is an exact statement about the integration
+profiles the likelihood actually uses, not about the declared
+\verb{<covariate>_mean} columns: a realized grid can sit a fifth of an SD from
+its declared mean and still pass the declared-versus-realized check, and
+the declared row would then certify a target the fitted row's span does
+not contain. Being exact, it says nothing about how well the estimand is
+pinned down. \code{target_span_gap} carries the practical complement: the
+distance, in IPD standard deviations, from the target to the affine span of
+the directions along which the rows spread by at least 0.05 SD. Zero means
+the estimand rests on directions the rows genuinely move along; a small
+positive value with \code{target_in_span} FALSE means the estimand contains that
+much of a coefficient the rows do not pin down, which a finite integration
+grid can produce on its own; a large value with \code{target_in_span} TRUE means
+the estimand is identified only through directions the rows barely move
+along, where precision depends on the outcome standard errors and row
+sizes.
 
 This diagnostic concerns \code{model = "relaxed"} only. Under SPFA both treatments
 share one coefficient vector, which the IPD identifies, so a single aggregate

@@ -43,16 +43,22 @@
 #' space. A single row whose covariate means equal the IPD means identifies it
 #' exactly while separating neither the intercept nor the slope.
 #' `target_in_span` reports that case, so a coefficient verdict is not read as
-#' one about the estimand. It is judged on the integration profiles the
-#' likelihood actually uses, not on the declared `<covariate>_mean` columns,
-#' and with the same practical yardstick as the rest of the screen: directions
-#' along which the rows move less than 0.05 IPD standard deviations are not
-#' counted as spanned, and the target counts as in the span when it sits
-#' within 0.1 IPD standard deviations of what is. Finite integration grids
-#' miss their declared means by a few hundredths of an SD, so an exact test on
-#' either matrix would answer the wrong question: on the declared one it can
-#' certify a target the fitted rows do not contain, and on the realized one
-#' the noise itself spans every direction.
+#' one about the estimand. It is an exact statement about the integration
+#' profiles the likelihood actually uses, not about the declared
+#' `<covariate>_mean` columns: a realized grid can sit a fifth of an SD from
+#' its declared mean and still pass the declared-versus-realized check, and
+#' the declared row would then certify a target the fitted row's span does
+#' not contain. Being exact, it says nothing about how well the estimand is
+#' pinned down. `target_span_gap` carries the practical complement: the
+#' distance, in IPD standard deviations, from the target to the affine span of
+#' the directions along which the rows spread by at least 0.05 SD. Zero means
+#' the estimand rests on directions the rows genuinely move along; a small
+#' positive value with `target_in_span` FALSE means the estimand contains that
+#' much of a coefficient the rows do not pin down, which a finite integration
+#' grid can produce on its own; a large value with `target_in_span` TRUE means
+#' the estimand is identified only through directions the rows barely move
+#' along, where precision depends on the outcome standard errors and row
+#' sizes.
 #'
 #' This diagnostic concerns `model = "relaxed"` only. Under SPFA both treatments
 #' share one coefficient vector, which the IPD identifies, so a single aggregate
@@ -70,7 +76,7 @@
 #'   the spectral variation is spread across directions; it is not a count of
 #'   identified coefficients), `spread`, `singular_values`, `means` (the scaled, centered
 #'   subgroup mean matrix), `diagnostic_scope`, `target_in_span`,
-#'   and `flagged`: `TRUE` for too
+#'   `target_span_gap`, and `flagged`: `TRUE` for too
 #'   few rows, otherwise the identity-link screen result, or `NA` when nonlinear
 #'   mean-profile geometry is descriptive only.
 #'
@@ -140,19 +146,19 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   } else {
     "descriptive"
   }
-  out$target_in_span <- if (out$diagnostic_scope == "identity") {
+  if (out$diagnostic_scope == "identity") {
     # The rows the likelihood integrates over, when they exist. The declared
     # means are what the geometry above describes, and they are preferred
     # there because they do not move with the integration resolution; the
     # span statement is about the fitted design, and a realized grid can sit
     # a fifth of an SD from its declared mean and still pass the match above.
     fitted_rows <- .agd_realized_profiles(data, covs) %||% means
-    .target_in_span_practical(fitted_rows,
-                              colMeans(as.matrix(data$ipd$data[, covs,
-                                                               drop = FALSE])),
-                              ref_sd)
+    target <- colMeans(as.matrix(data$ipd$data[, covs, drop = FALSE]))
+    out$target_in_span <- .target_in_span(fitted_rows, target, ref_sd)
+    out$target_span_gap <- .target_span_gap(fitted_rows, target, ref_sd)
   } else {
-    NA
+    out$target_in_span <- NA
+    out$target_span_gap <- NA_real_
   }
   out$flagged <- if (out$n_distinct < out$n_rows_needed) {
     TRUE
@@ -325,26 +331,24 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 }
 
 
-#' Is the target within the practically spanned part of a fitted design?
+#' Distance from the target to the practically spanned part of a fitted design
 #'
-#' [.target_in_span()] is exact, and exactness is the wrong yardstick for the
-#' rows the likelihood actually integrates over. A finite grid misses its
-#' declared mean by a few hundredths of an SD, so realized rows that were
-#' declared identical are never quite identical: an exact test finds that the
-#' noise spans every direction and certifies any target, which is the
-#' opposite of what the identical declared rows mean. Testing the DECLARED
-#' rows exactly instead fails the other way: a single row realized 0.24 SD
-#' from its declared profile passes the tolerance in
-#' [.realized_matches_declared()], and the declared row then certifies a
-#' target that the fitted row's span does not contain.
+#' [.target_in_span()] is exact, and an exact answer is the wrong yardstick for
+#' judging how well an estimand is supported by the rows the likelihood
+#' actually integrates over. A finite grid misses its declared mean by a few
+#' hundredths of an SD, so realized rows that were declared identical are
+#' never quite identical: an exact test finds that the noise spans every
+#' direction and certifies any target, which says nothing about precision.
 #'
-#' So this asks the practical question the rest of the screen asks. Directions
+#' This asks the practical question the rest of the screen asks. Directions
 #' along which the rows move less than `min_spread` IPD SDs, the floor
 #' [.profile_rank()] counts by, are not treated as spanned; the target's
 #' deviation from the rows' center is projected onto the directions that
-#' remain, and the residual has to be within `tol` SDs, twice the integration
-#' error of a 32-point grid and well inside the location tolerance a
-#' misread `distr()` fails.
+#' remain, and the length of the residual is returned, in IPD SDs. It is not
+#' an identification verdict, and it is not folded into one: a target 0.09 SD
+#' from a single row is 0.09 SD off that row's span, and the estimand contains
+#' that much of a coefficient the row cannot pin down however small the
+#' number is. The verdict stays with the exact test; this says how far.
 #'
 #' @param profiles The fitted design, rows by covariates.
 #' @param target The target covariate profile.
@@ -352,25 +356,24 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #'   fall back to 1.
 #' @param min_spread Smallest RMS separation, in IPD SDs, that counts as a
 #'   spanned direction.
-#' @param tol Largest residual, in IPD SDs, that still counts as in the span.
-#' @return `TRUE`, `FALSE`, or `NA` when the inputs cannot be compared.
+#' @return A non-negative number, or `NA_real_` when the inputs cannot be
+#'   compared.
 #' @keywords internal
-.target_in_span_practical <- function(profiles, target, ref_sd,
-                                      min_spread = 0.05, tol = 0.1) {
+.target_span_gap <- function(profiles, target, ref_sd, min_spread = 0.05) {
   rows <- as.matrix(profiles)
   b <- as.numeric(target)
-  if (!nrow(rows) || length(b) != ncol(rows)) return(NA)
+  if (!nrow(rows) || length(b) != ncol(rows)) return(NA_real_)
   ref_sd <- as.numeric(ref_sd)
   ref_sd[!is.finite(ref_sd) | ref_sd <= 0] <- 1
   z <- sweep(rows, 2L, ref_sd, "/")
   center <- colMeans(z)
   d <- b / ref_sd - center
-  if (any(!is.finite(z)) || any(!is.finite(d))) return(NA)
+  if (any(!is.finite(z)) || any(!is.finite(d))) return(NA_real_)
   resid <- d
   if (nrow(z) > 1L) {
     centered <- sweep(z, 2L, center)
     s <- tryCatch(svd(centered), error = function(e) NULL)
-    if (is.null(s) || any(!is.finite(s$d))) return(NA)
+    if (is.null(s) || any(!is.finite(s$d))) return(NA_real_)
     # `d / sqrt(nrow)` is the RMS separation along a direction, the quantity
     # `.profile_rank()` counts and `.subgroup_geometry()` reports as `spread`.
     keep <- .at_least(s$d / sqrt(nrow(centered)), min_spread)
@@ -379,7 +382,7 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
       resid <- d - drop(v %*% crossprod(v, d))
     }
   }
-  sqrt(sum(resid^2)) <= tol
+  sqrt(sum(resid^2))
 }
 
 
@@ -632,15 +635,44 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   if (isTRUE(x$flagged) && isTRUE(x$target_in_span)) {
     cat("\nThe index-population estimand is nonetheless identified. Under an ",
         "identity link it is one linear functional of the comparator ",
-        "parameters, and the target covariate profile lies within the ",
-        "directions the fitted aggregate rows actually spread along (within ",
-        "0.1 IPD SD, on the integration profiles the likelihood uses), so the ",
-        "rows pin it down even where they barely separate the coefficients ",
-        "individually. How well those coefficients are estimated is not ",
-        "something this screen can see: along the directions the rows hardly ",
-        "move in it depends on the outcome precision and row sizes, so read ",
-        "it off the posterior and prior_sensitivity() rather than off this ",
-        "flag.\n", sep = "")
+        "parameters, and the target covariate profile lies in the row space ",
+        "of the fitted aggregate design (the integration profiles the ",
+        "likelihood uses), so the rows pin it down even where they do not ",
+        "separate the coefficients individually.", sep = "")
+    gap <- x$target_span_gap
+    if (is.finite(gap) && .at_most(gap, 0.1)) {
+      cat(" It also lies within the directions the rows spread along by at ",
+          "least 0.05 IPD SD, so it does not lean on a direction they barely ",
+          "move in.\n", sep = "")
+    } else if (is.finite(gap)) {
+      cat(" It is reached only through directions along which the rows move ",
+          "less than 0.05 IPD SD (", sprintf("%.2f", gap), " SD of it lies ",
+          "outside the well-spread ones), and how precisely it is estimated ",
+          "there is not something this screen can see: it depends on the ",
+          "outcome precision and row sizes, so read it off the posterior and ",
+          "prior_sensitivity().\n", sep = "")
+    } else {
+      cat("\n")
+    }
+  } else if (isTRUE(x$flagged) && isFALSE(x$target_in_span)) {
+    gap <- x$target_span_gap
+    cat("\nThe index-population estimand is not in the row space of the ",
+        "fitted aggregate design: the target profile sits ",
+        if (is.finite(gap)) sprintf("%.2f IPD SD", gap) else "outside",
+        " off the affine span of the directions the rows spread along, so ",
+        "the estimand contains that much of comparator coefficients the rows ",
+        "do not pin down, and that part comes from the prior.", sep = "")
+    if (is.finite(gap) && .at_most(gap, 0.1)) {
+      cat(" A gap this small is within what a finite integration grid ",
+          "produces on its own; a larger `n_int` shrinks it, and a row whose ",
+          "summaries equal the target's removes it.\n", sep = "")
+    } else {
+      cat(" Do not substitute the comparator population for the decision ",
+          "target: report it as a sensitivity estimand, obtain subgroup rows ",
+          "jointly defined across covariates, or use `model = \"spfa\"` with ",
+          "its shared-coefficient assumption stated. Confirm with ",
+          "prior_sensitivity().\n", sep = "")
+    }
   } else if (isTRUE(x$flagged)) {
     cat("\nThe index-population relaxed estimand averages `beta_comparator` ",
         "over the IPD covariates, so it depends on exactly the directions that ",

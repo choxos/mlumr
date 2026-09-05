@@ -13,7 +13,7 @@ test_that("a grid too coarse for the hazard is reported", {
   times <- seq(0, 10, length.out = 100)
   expect_warning(
     .rmst_from_surv_matrix(surv_rows(100, 10, 100), times),
-    "before the second point of the RMST grid"
+    "inside a single interval of the RMST grid"
   )
 })
 
@@ -48,9 +48,9 @@ test_that("a minority of badly resolved draws is not averaged away", {
   fast <- matrix(exp(-100 * times), nrow = 1)
   slow <- matrix(exp(-0.3 * times), nrow = 1)
   s <- rbind(fast, fast, slow, slow, slow)
-  shares <- .rmst_first_interval_share(s)
+  shares <- .rmst_max_interval_share(s)
   expect_equal(sum(shares > 0.5), 2L)
-  expect_lt(.rmst_first_interval_share(matrix(colMeans(s), nrow = 1)), 0.5)
+  expect_lt(.rmst_max_interval_share(matrix(colMeans(s), nrow = 1)), 0.5)
   expect_warning(.rmst_from_surv_matrix(s, times), "In 40% of posterior draws")
   # One draw in a hundred is left alone.
   many <- rbind(fast, slow[rep(1, 99), , drop = FALSE])
@@ -69,7 +69,7 @@ test_that("a two-point grid warns whenever the curve decays at all", {
   # little interior to judge. `mlumr()` accepts `n_rmst_grid = 2`, and left
   # alone it integrates exponential curves with rates 100 and 200 over a
   # horizon of 10 to the same RMST of 5.
-  expect_equal(.rmst_first_interval_share(matrix(c(1, 0.5), nrow = 1)), 1)
+  expect_equal(.rmst_max_interval_share(matrix(c(1, 0.5), nrow = 1)), 1)
   expect_warning(.rmst_from_surv_matrix(matrix(c(1, 0.5), nrow = 1), c(0, 1)),
                  "In 100% of posterior draws")
   tau <- 10
@@ -114,7 +114,7 @@ synthetic_survival_fit <- function(log_rate, n_grid = 100L, tau = 10,
 test_that("the fit's own populations get the same check as a target", {
   coarse <- synthetic_survival_fit(log(100))
   expect_warning(.warn_coarse_rmst_grid_builtin(coarse),
-                 "before the second point of the RMST grid")
+                 "inside a single interval of the RMST grid")
   # The same fit with a hazard the grid resolves is silent.
   fine <- synthetic_survival_fit(log(0.2))
   expect_silent(.warn_coarse_rmst_grid_builtin(fine))
@@ -127,9 +127,9 @@ test_that("only the populations being returned are judged", {
   # refit over curves that contribute nothing to it.
   fit <- synthetic_survival_fit(log(0.2), beta = 1)
   expect_warning(.warn_coarse_rmst_grid_builtin(fit),
-                 "before the second point of the RMST grid")
+                 "inside a single interval of the RMST grid")
   expect_warning(.warn_coarse_rmst_grid_builtin(fit, "comparator"),
-                 "before the second point of the RMST grid")
+                 "inside a single interval of the RMST grid")
   expect_silent(.warn_coarse_rmst_grid_builtin(fit, "index"))
 })
 
@@ -165,4 +165,18 @@ test_that("a median read off the first grid interval is reported per draw", {
   many <- rbind(early, matrix(late, nrow = 99, ncol = 3, byrow = TRUE))
   expect_equal(.median_early_share(many), 0.01)
   expect_silent(.warn_early_median(list(.median_early_share(many))))
+})
+
+test_that("a collapse inside a later interval is caught too", {
+  # Near 1 through the first interval, gone inside the second: a delayed
+  # hazard. The first-interval share is 0, and the trapezoid over the second
+  # interval overstates its area by close to half a grid width.
+  times <- c(0, 1, 2, 3)
+  later <- matrix(c(1, 0.999, 0.001, 0.001), nrow = 1)
+  expect_equal(.rmst_max_interval_share(later), 0.998 / 0.999, tolerance = 1e-6)
+  expect_warning(.rmst_from_surv_matrix(later, times),
+                 "inside a single interval of the RMST grid")
+  # Decay spread evenly across the intervals is resolved.
+  even <- matrix(seq(1, 0.1, length.out = 4), nrow = 1)
+  expect_silent(.rmst_from_surv_matrix(even, times))
 })
