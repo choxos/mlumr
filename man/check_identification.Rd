@@ -22,7 +22,9 @@ ratio of the squared singular-value spectrum, which summarizes how evenly
 the spectral variation is spread across directions; it is not a count of
 identified coefficients), \code{spread}, \code{singular_values}, \code{means} (the scaled, centered
 subgroup mean matrix), \code{diagnostic_scope}, \code{target_in_span},
-\code{target_span_gap}, and \code{flagged}: \code{TRUE} for too
+\code{target_span_gap}, \code{target_in_declared_span} (the same exact statement
+about the declared \verb{<covariate>_mean} rows, which says whether a gap is
+the integration grid's or the design's), and \code{flagged}: \code{TRUE} for too
 few rows, otherwise the identity-link screen result, or \code{NA} when nonlinear
 mean-profile geometry is descriptive only.
 }
