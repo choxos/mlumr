@@ -92,21 +92,32 @@ jobs:
 
           expires <- as.Date(Sys.getenv("EXPIRES_ON"))
           today <- Sys.Date()
+          pinned <- !identical(declared, maintained)
           problems <- character(0)
 
-          if (is.null(with_declared) ||
-                !"cmdstanr" %in% with_declared$package) {
+          if (pinned && (is.null(with_declared) ||
+                           !"cmdstanr" %in% with_declared$package)) {
             problems <- c(problems, paste0(
               "the declared repository (", declared, ") no longer serves ",
               "cmdstanr, so installing this package from DESCRIPTION alone ",
               "cannot get the optional backend"))
           }
-          if (today > expires) {
+          # The expiry belongs to the WORKAROUND, not to the calendar. Once
+          # DESCRIPTION points at the maintained repository the pin is gone and
+          # there is nothing left to expire; failing anyway would leave a
+          # scheduled red job with no action attached to it, which is exactly
+          # how a watch stops being read.
+          if (pinned && today > expires) {
             problems <- c(problems, paste0(
               "the pin to a deprecated repository passed its review date (",
               expires, "). Either revert Additional_repositories to ",
               maintained, " and confirm the dependency chain resolves, or ",
               "move EXPIRES_ON forward with a stated reason."))
+          }
+          if (!pinned) {
+            cat("\nThe pin has been removed: DESCRIPTION already declares ",
+                maintained, ". This job now only reports what that chain ",
+                "resolves to.\n", sep = "")
           }
           if (length(problems)) {
             stop(paste0("\n- ", problems, collapse = ""))
@@ -123,9 +134,14 @@ jobs:
                   "also lift the Windows toolchain limitation of the frozen ",
                   "cmdstanr.\n", sep = "")
             } else {
-              cat("\nStill pinned: rstan resolves from '", pair[["rstan"]],
-                  "' and StanHeaders from '", pair[["StanHeaders"]],
-                  "', the mismatch that fails at Module.cpp:105.\n", sep = "")
+              cat("\nThe split pair is still present: rstan resolves from '",
+                  pair[["rstan"]], "' and StanHeaders from '",
+                  pair[["StanHeaders"]],
+                  "', the mismatch that fails at Module.cpp:105.",
+                  if (pinned) " The pin is still needed."
+                  else paste0(" DESCRIPTION no longer pins, so installs from",
+                              " it can hit that failure."),
+                  "\n", sep = "")
             }
           }
         shell: Rscript {0}
