@@ -472,6 +472,10 @@
   specification says what each argument is. Arguments after `...` in the
   quantile function's signature stay name-only, which is R's own rule, and an
   argument that matches nothing is an error rather than a silent omission.
+  Abbreviated names are completed the same way: `distr(qbinom, si = 5, ...)`
+  evaluated with five trials, because R completes `si` at call time, but the
+  margin classification read `args$size`, found nothing, and labeled a
+  five-trial binomial binary. The stored name is now the full formal.
 
 * **New moment-parameterized marginal distributions**, mirroring the ones
   `multinma` exports so a published baseline table can be used as printed:
