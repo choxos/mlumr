@@ -88,3 +88,15 @@ test_that("a function without dots rejects unmatched positional arguments", {
   # the quantile function produce a confusing error later.
   expect_error(distr(qbern, 0.3, 1, 2, 3), "no remaining parameter")
 })
+
+test_that("a partial name claims its formal before positional filling", {
+  # R lets a caller abbreviate an argument name. `m` claims `mean`, so the
+  # unnamed value must go to `sd`; assigning it to `mean` as well handed the
+  # quantile function both `m` and `mean` and it failed with "matched by
+  # multiple actual arguments".
+  expect_equal(eval_distr(distr(qnorm, m = 10, 2), 0.5), 10)
+  expect_equal(eval_distr(distr(qnorm, m = 10, 2), stats::pnorm(1)),
+               10 + 2)
+  # An exact name still wins over a partial one for the same formal.
+  expect_equal(eval_distr(distr(qnorm, sd = 3, 10), 0.5), 10)
+})

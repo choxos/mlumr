@@ -25,16 +25,19 @@ entries fall back to 1.}
 \item{factor}{Smallest share of each declared singular value the realized
 design must still provide along that same direction.}
 
-\item{max_location_gap}{Largest distance, in reference standard deviations,
-that the realized column means may sit from the declared ones. Separate from
-\code{min_spread}: a finite integration grid misses its own declared mean by
-roughly the spread floor itself (32 QMC points against a normal margin land
-about 0.05 SD away), so reusing that floor here reported correct
-specifications as mismatches, while a \code{distr()} that ignores its row
-misses by a whole standard deviation or more.}
-
 \item{min_spread}{Absolute floor, in IPD standard deviations, matching
 \code{\link[=check_identification]{check_identification()}} and \code{.profile_rank()}.}
+
+\item{max_location_gap}{Largest distance, in reference standard deviations,
+that any realized integration mean may sit from the declared mean of its
+own row. Separate from \code{min_spread}: a finite integration grid misses its
+own declared mean by roughly the spread floor itself (32 QMC points
+against a normal margin land about 0.05 SD away), so reusing that floor
+here reported correct specifications as mismatches and switched the
+identification statement onto the realized geometry, which suppressed the
+rank-1 warning for a design of identical profiles. A quarter of an SD
+clears the integration error and still catches a \code{distr()} that ignores
+its row, or one attached to the wrong row.}
 }
 \value{
 \code{TRUE} when the realized design reproduces the declared one, or when

@@ -18,18 +18,15 @@ jobs:
     # Only restrict concurrency for non-PR jobs.
     #
     # Deliberately pkgdown-specific. Sharing one group with the app deployment
-    # looked like serialization, but GitHub concurrency does not queue: a newly
-    # queued member CANCELS the pending one, so a docs deployment arriving
-    # while an app deployment waited would have discarded the app update
-    # entirely. That is a worse failure than the overlap it was meant to
-    # prevent, and it would be silent.
-    #
-    # What actually protects the app is `clean-exclude` below: a docs
-    # deployment can no longer delete `app/`, whether or not the two overlap.
-    # A genuine simultaneous write remains possible, since the deploy action
-    # force-pushes; it would cost one app update, which is recoverable by
-    # re-running that workflow, and it is not made better by cancelling
-    # deployments in advance.
+    # looked like serialization, but with the default queue a newly queued
+    # member CANCELS the pending one, so a docs deployment arriving while an
+    # app deployment waited would have discarded the app update entirely, and
+    # silently. `queue: max` would serialize instead, but only if BOTH
+    # workflows opt in, and they live on different branches. The two writers
+    # are kept apart differently: `clean-exclude` below stops a docs
+    # deployment from deleting `app/`, and `force: false` makes a push that
+    # lands on a branch the app has just moved rebase onto it and retry rather
+    # than overwrite it. Neither side cancels, and neither side loses a write.
     concurrency:
       group: pkgdown-${{ github.event_name != 'pull_request' || github.run_id }}
     env:
@@ -74,5 +71,11 @@ jobs:
           clean-exclude: |
             app
             app/**
+          # The app workflow pushes the same branch. A forced push from here
+          # that raced it would replace its commit; without force the action
+          # fetches, rebases this deployment onto whatever is there, and
+          # retries, up to `attempt-limit` times. The two commits touch
+          # disjoint paths, so the rebase is clean.
+          force: false
           branch: gh-pages
           folder: docs
