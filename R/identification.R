@@ -282,23 +282,30 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   if (!nrow(A) || length(b) != ncol(A)) return(NA)
   ref_sd <- as.numeric(ref_sd)
   ref_sd[!is.finite(ref_sd) | ref_sd <= 0] <- 1
-  A <- cbind(1, sweep(A, 2, ref_sd, "/"))
-  b <- c(1, b / ref_sd)
-  if (any(!is.finite(A)) || any(!is.finite(b))) return(NA)
-  # b is a linear combination of the rows of A exactly when t(A) w = b is
-  # solvable. Take the least-squares solution and read the residual: a
-  # rank-deficient system gives NA coefficients, which contribute nothing.
+  # (1, b) is a combination of the rows of (1, A) exactly when some w has
+  # sum(w) = 1 and w'A = b, and that is the same as w'(A - 1 b') = 0 with
+  # sum(w) = 1. Solve THAT system: the profiles are measured from the target
+  # rather than from zero, so a covariate carried far from the origin, weight
+  # in grams or a calendar year, no longer enters the decomposition as a huge
+  # common offset. Uncentered, two profiles at 1e6 and 1e6 + 2 with a target
+  # between them were declared rank one by the QR and the target reported
+  # outside their span, which it plainly is not.
+  A <- cbind(1, sweep(sweep(A, 2, b), 2, ref_sd, "/"))
+  b <- c(1, rep(0, length(b)))
+  if (any(!is.finite(A))) return(NA)
+  # Take the least-squares solution and read the residual: a rank-deficient
+  # system gives NA coefficients, which contribute nothing.
   qr_at <- qr(t(A))
   w <- qr.coef(qr_at, b)
   w[is.na(w)] <- 0
   resid <- b - drop(t(A) %*% w)
-  # Judge each coordinate against ITS OWN scale. A single tolerance taken from
-  # the largest coordinate of `b` lets one huge covariate excuse a complete
-  # failure elsewhere: one profile at 1e10 with a target at 2e10 leaves a
-  # residual of 1 on the intercept, which is the whole intercept, while the
-  # tolerance computed from `max(abs(b))` is 200. The target was reported as
-  # spanned when it is not in the span at all.
-  all(abs(resid) <= 1e-8 * pmax(1, abs(b)))
+  # Every coordinate is now on its own unit scale: the intercept is 1 and the
+  # covariates are deviations in reference SDs, so one tolerance judges each
+  # of them by its own size. A single tolerance taken from the largest raw
+  # coordinate had let one huge covariate excuse a complete failure elsewhere:
+  # one profile at 1e10 with a target at 2e10 leaves a residual of 1 on the
+  # intercept, the whole intercept, against a tolerance of 200.
+  all(abs(resid) <= 1e-8)
 }
 
 
@@ -426,8 +433,10 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #' claims, and only this one supports language about a direction the likelihood
 #' cannot see: profiles at -0.01 and +0.01 have spread 0.01 and numerical rank
 #' 2, and with aggregate standard errors of 1e-6 the slope is pinned to about
-#' 7e-5. Calling that "not separated by the likelihood" is wrong; calling it
-#' weakly informed is right.
+#' 7e-5. Calling that "not separated by the likelihood" is wrong, and so is
+#' calling it weakly informed: from the profiles alone all that can be said is
+#' that the design moves little along that direction, and how well the
+#' coefficient is then estimated depends on the standard errors and row sizes.
 #'
 #' Tolerance follows the usual convention for a rank decision,
 #' `max(dim) * eps * max(d)`, so it tracks floating-point resolution rather

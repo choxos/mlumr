@@ -300,7 +300,11 @@ get_distribution_type <- function(..., data = list()) {
     } else if (di$qfun_name %in% known_binary) {
       out[i] <- "binary"
     } else if (di$qfun_name == "qbinom") {
-      size_val <- eval_distr_arg(di$args$size, data)
+      # Through the specification's own scope, like every other argument: a
+      # `size` naming a local variable of the function that built the spec
+      # evaluated fine in eval_distr() and failed here with "object not
+      # found", because this path still fell back to the package's frame.
+      size_val <- eval_distr_arg(di$args$size, data, di$envir)
       out[i] <- if (all(size_val == 1)) "binary" else "discrete"
     } else {
       # Test distribution on a grid
@@ -322,10 +326,13 @@ get_distribution_type <- function(..., data = list()) {
 #' Evaluate a single mlumr_distr argument expression
 #' @param expr An unevaluated expression
 #' @param data Data context
+#' @param enclos The environment the specification was written in, from
+#'   `distr()`; anything else falls back to the caller's frame, as before.
 #' @return Evaluated value
 #' @keywords internal
-eval_distr_arg <- function(expr, data) {
-  eval(expr, envir = data, enclos = parent.frame(2))
+eval_distr_arg <- function(expr, data, enclos = NULL) {
+  if (!is.environment(enclos)) enclos <- parent.frame(2)
+  eval(expr, envir = data, enclos = enclos)
 }
 
 #' Convert Spearman correlations to Gaussian copula correlations

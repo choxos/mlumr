@@ -38,6 +38,25 @@ test_that("the numbers behind the warning are what it claims", {
   expect_lt(abs(fine - 2), 0.01)     # and returns with resolution
 })
 
+test_that("a minority of badly resolved draws is not averaged away", {
+  # Two draws in five collapse inside the first interval and three decay
+  # later. The posterior mean curve puts 40 percent of its decay in the first
+  # interval, under the threshold, while 40 percent of the RMST draws are
+  # integrated from a single straight line. The share is per draw and the
+  # criterion is the fraction of draws, so this is reported.
+  times <- seq(0, 10, length.out = 100)
+  fast <- matrix(exp(-100 * times), nrow = 1)
+  slow <- matrix(exp(-0.3 * times), nrow = 1)
+  s <- rbind(fast, fast, slow, slow, slow)
+  shares <- .rmst_first_interval_share(s)
+  expect_equal(sum(shares > 0.5), 2L)
+  expect_lt(.rmst_first_interval_share(matrix(colMeans(s), nrow = 1)), 0.5)
+  expect_warning(.rmst_from_surv_matrix(s, times), "In 40% of posterior draws")
+  # One draw in a hundred is left alone.
+  many <- rbind(fast, slow[rep(1, 99), , drop = FALSE])
+  expect_silent(.rmst_from_surv_matrix(many, times))
+})
+
 test_that("degenerate inputs do not warn", {
   # A flat curve has no decay to apportion, and a two-point grid has no
   # interior to compare against.

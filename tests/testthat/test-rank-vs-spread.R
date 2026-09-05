@@ -77,6 +77,23 @@ test_that("ordinary in-span and out-of-span cases are unchanged", {
   expect_false(.target_in_span(matrix(0, nrow = 1, ncol = 1), 5, 1))
 })
 
+test_that("a common offset far from the origin does not hide the span", {
+  # Two profiles two SD apart span every one-covariate target, wherever they
+  # sit. Solved from the origin, the intercept column and a covariate column
+  # at 1e6 made the QR call the pair rank one, and the target between them
+  # was reported outside the span. Measured from the target, the offset is
+  # gone and the same pair spans it at any magnitude.
+  for (offset in c(1e3, 1e6, 1e8, 1e10)) {
+    A <- matrix(c(offset, offset + 2), ncol = 1)
+    expect_true(.target_in_span(A, offset + 1, 1))
+    expect_true(.target_in_span(A, offset + 1000, 1))
+  }
+  # Centering does not manufacture a span that is not there.
+  expect_false(.target_in_span(matrix(1e10, nrow = 1, ncol = 1), 1e10 + 1, 1))
+  two <- matrix(c(1e6, 1e6, 1e6 + 2, 1e6 + 2), ncol = 2)
+  expect_false(.target_in_span(two, c(1e6 + 1, 1e6 + 1.5), c(1, 1)))
+})
+
 # `.realized_matches_declared()` centered both matrices before comparing them,
 # which is blind to WHERE each design sits. A grid shifted bodily away from the
 # declared means therefore matched, and with a single row centering sends both
