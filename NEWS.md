@@ -594,7 +594,8 @@
   `install.packages("cmdstanr", repos = c("https://stan-dev.r-universe.dev", getOption("repos")))`.
   `mlumr_engine("cmdstanr")` offers that route interactively and names which
   repository it is using, and when a cmdstanr older than 0.9.0 is already
-  installed on Windows and its own toolchain check reports the missing Rtools,
+  installed on Windows, its own toolchain check reports the missing Rtools,
+  and R itself can compile, so the Rtools it does not recognize is there,
   it says to upgrade from there before trying to build CmdStan, rather than
   offering an installation that fails. A fit that selects cmdstanr through
   the `engine` argument or the option in a profile, neither of which passes
