@@ -229,18 +229,19 @@ get_engine <- function() {
 #' That message alone cannot tell an Rtools the old cmdstanr does not
 #' recognize from one that is genuinely absent: the sentence is the same. An
 #' upgrade restores nothing in the second case, so R is asked directly whether
-#' it can compile, through `R CMD SHLIB` on one empty C file, which needs
-#' Rtools and nothing from cmdstanr. Only when that works is the message the
-#' version limitation; otherwise cmdstanr's own error, which names the missing
-#' Rtools, is left to reach the user.
+#' it can compile, through `R CMD SHLIB` on one empty C++ file, which needs
+#' the Rtools C++ compiler that CmdStan itself uses and nothing from cmdstanr.
+#' Only when that works is the message the version limitation; otherwise
+#' cmdstanr's own error, which names the missing Rtools, is left to reach the
+#' user.
 #'
 #' Arguments exist so the decision can be tested off Windows.
 #' @param os `.Platform$OS.type`.
 #' @param version The installed cmdstanr version, or `NULL` when it is absent.
 #' @param check A function that runs the toolchain check and errors when it
 #'   fails, by default cmdstanr's.
-#' @param compiles A function returning whether R can compile a C file here,
-#'   by default the `R CMD SHLIB` probe.
+#' @param compiles A function returning whether R can compile a C++ file
+#'   here, by default the `R CMD SHLIB` probe.
 #' @keywords internal
 .cmdstanr_too_old_for_windows <- function(os = .Platform$OS.type,
                                           version = .installed_cmdstanr_version(),
@@ -261,11 +262,13 @@ get_engine <- function() {
   isTRUE(compiles())
 }
 
-#' Can R compile a C file on this machine?
+#' Can R compile a C++ file on this machine?
 #'
-#' Builds one empty C file through `R CMD SHLIB` in a temporary directory.
-#' That uses R's own configured toolchain, which on Windows means Rtools, and
-#' nothing from any package.
+#' Builds one empty C++ file through `R CMD SHLIB` in a temporary directory.
+#' That uses R's own configured C++ toolchain, which on Windows means Rtools,
+#' and nothing from any package. C++ rather than C because CmdStan is built
+#' and its models are compiled with the C++ compiler; a C-only probe would
+#' pass with a working `gcc` beside a broken `g++`.
 #' @keywords internal
 .r_can_compile <- function() {
   dir <- tempfile("mlumr-probe-")
@@ -275,9 +278,9 @@ get_engine <- function() {
   # Registered after the unlink so it runs before it: the directory cannot be
   # removed while it is the working directory.
   on.exit(setwd(old), add = TRUE, after = FALSE)
-  writeLines("void mlumr_probe(void) {}", "probe.c")
+  writeLines('extern "C" void mlumr_probe(void) {}', "probe.cpp")
   suppressWarnings(system2(file.path(R.home("bin"), "R"),
-                           c("CMD", "SHLIB", "probe.c"),
+                           c("CMD", "SHLIB", "probe.cpp"),
                            stdout = FALSE, stderr = FALSE))
   file.exists(paste0("probe", .Platform$dynlib.ext))
 }

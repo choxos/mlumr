@@ -19,8 +19,8 @@
 \item{check}{A function that runs the toolchain check and errors when it
 fails, by default cmdstanr's.}
 
-\item{compiles}{A function returning whether R can compile a C file here,
-by default the \verb{R CMD SHLIB} probe.}
+\item{compiles}{A function returning whether R can compile a C++ file
+here, by default the \verb{R CMD SHLIB} probe.}
 }
 \description{
 The repository DESCRIPTION pins serves cmdstanr 0.8.0, which does not
@@ -36,10 +36,11 @@ user told to upgrade rather than offered an installation that fails.
 That message alone cannot tell an Rtools the old cmdstanr does not
 recognize from one that is genuinely absent: the sentence is the same. An
 upgrade restores nothing in the second case, so R is asked directly whether
-it can compile, through \verb{R CMD SHLIB} on one empty C file, which needs
-Rtools and nothing from cmdstanr. Only when that works is the message the
-version limitation; otherwise cmdstanr's own error, which names the missing
-Rtools, is left to reach the user.
+it can compile, through \verb{R CMD SHLIB} on one empty C++ file, which needs
+the Rtools C++ compiler that CmdStan itself uses and nothing from cmdstanr.
+Only when that works is the message the version limitation; otherwise
+cmdstanr's own error, which names the missing Rtools, is left to reach the
+user.
 
 Arguments exist so the decision can be tested off Windows.
 }

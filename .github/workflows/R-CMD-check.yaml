@@ -433,17 +433,18 @@ jobs:
           # The sentence alone cannot tell an unrecognized Rtools from an
           # absent one: the pinned cmdstanr says the same thing when the
           # runner has lost its compiler. So R is asked directly, by building
-          # one empty C file through R CMD SHLIB, which needs the Rtools that
-          # setup-r installs and nothing from cmdstanr. Only when that works
-          # is cmdstanr's failure the documented version limitation.
+          # one empty C++ file through R CMD SHLIB, which needs the Rtools
+          # C++ compiler that CmdStan itself uses and nothing from cmdstanr.
+          # Only when that works is cmdstanr's failure the documented version
+          # limitation.
           compiler_works <- local({
             dir <- tempfile("probe")
             dir.create(dir)
             old <- setwd(dir)
             on.exit(setwd(old), add = TRUE)
-            writeLines("void mlumr_probe(void) {}", "probe.c")
+            writeLines('extern "C" void mlumr_probe(void) {}', "probe.cpp")
             out <- suppressWarnings(system2(file.path(R.home("bin"), "R"),
-                                            c("CMD", "SHLIB", "probe.c"),
+                                            c("CMD", "SHLIB", "probe.cpp"),
                                             stdout = TRUE, stderr = TRUE))
             built <- file.exists(paste0("probe", .Platform$dynlib.ext))
             if (!built) cat(out, sep = "\n")
@@ -466,7 +467,7 @@ jobs:
                  "state and needs investigating before release")
           }
           if (!ok && !compiler_works) {
-            stop("R cannot compile a C file on this runner, so Rtools is ",
+            stop("R cannot compile a C++ file on this runner, so Rtools is ",
                  "absent or broken here. That is a runner regression, not the ",
                  "documented limitation of the pinned cmdstanr, which only ",
                  "fails to recognize an Rtools that is present: ", msg)

@@ -111,7 +111,7 @@ test_that("the pinned cmdstanr is told to upgrade only when its toolchain check 
 
 test_that("the compiler probe reports what R CMD SHLIB can do here", {
   skip_on_cran()
-  # This machine builds the package's own Stan code, so it can compile C.
+  # This machine builds the package's own Stan code, so it can compile C++.
   expect_true(.r_can_compile())
   # The probe cleans up after itself and leaves the working directory alone.
   before <- getwd()
