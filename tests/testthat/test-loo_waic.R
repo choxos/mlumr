@@ -166,3 +166,57 @@ test_that("survival LOO/WAIC can group the comparator pseudo-IPD by arm/aggregat
   bad$stan_data$agd_arm <- c(1L, 2L)
   expect_error(glb(bad, "arm"), "arm map")
 })
+
+
+# Pointwise criteria are paired: loo_compare() differences the matrices column
+# by column, and loo can only check that they have the same shape. Two fits of
+# different data with the same number of rows, or the same rows in another
+# order, compared without complaint. Fits carry their data, so identity is
+# checked, and a fit that carries none is reported rather than assumed.
+
+with_data <- function(fit, outcome, agd_r = c(3L, 5L, 2L, 4L)) {
+  fit$data <- list(
+    ipd = list(data = data.frame(.study = "A", .trt = rep(c("x", "y"), 6L),
+                                 .outcome = outcome, age = seq_along(outcome))),
+    agd = list(data = data.frame(.study = "B", .trt = "z", .r = agd_r,
+                                 .n = 10L, age_mean = 50))
+  )
+  fit
+}
+
+test_that("compare_models refuses fits built on different observations", {
+  skip_if_not_installed("loo")
+  y <- rep(c(0L, 1L), 6L)
+  fit1 <- with_data(make_ll_fit("spfa", seed = 2026), y)
+  fit2 <- with_data(make_ll_fit("relaxed", seed = 2026), y)
+  # Same observations, different covariate sets: comparable.
+  fit2$data$ipd$data$age <- NULL
+  out <- suppressWarnings(capture.output(
+    compare_models(fit1, fit2, criterion = "loo")
+  ))
+  expect_true(length(out) > 0L)
+  # Same length, different outcomes.
+  fit3 <- with_data(make_ll_fit("relaxed", seed = 2026), rev(y))
+  fit3$data$ipd$data$.outcome[1] <- 1L - fit3$data$ipd$data$.outcome[1]
+  expect_error(compare_models(fit1, fit3, criterion = "loo"),
+               "not built on the same observations")
+  # Same rows, different order.
+  fit4 <- with_data(make_ll_fit("relaxed", seed = 2026), y)
+  fit4$data$ipd$data <- fit4$data$ipd$data[c(2:12, 1), ]
+  expect_error(compare_models(fit1, fit4, criterion = "dic"),
+               "not built on the same observations")
+  # A different aggregate row set is a different data set too.
+  fit5 <- with_data(make_ll_fit("relaxed", seed = 2026), y, agd_r = c(3L, 5L, 2L, 5L))
+  expect_error(compare_models(fit1, fit5, criterion = "waic"),
+               "not built on the same observations")
+})
+
+test_that("compare_models says when it cannot verify the observations", {
+  skip_if_not_installed("loo")
+  fit1 <- make_ll_fit("spfa", seed = 2026)
+  fit2 <- make_ll_fit("relaxed", seed = 2026)
+  run <- function() {
+    suppressWarnings(capture.output(compare_models(fit1, fit2, criterion = "loo")))
+  }
+  expect_message(run(), "Could not verify")
+})

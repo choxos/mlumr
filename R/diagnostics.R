@@ -109,6 +109,70 @@ extract_log_lik <- function(object) {
 }
 
 
+#' Fingerprint of the observations a fit's pointwise likelihood is over
+#'
+#' Every comparison here is paired: `loo_compare()` differences pointwise
+#' values column by column, and DIC ranks totals over one data set. An equal
+#' number of columns is all `loo` itself can check, and it is not enough:
+#' two fits of different data with the same number of rows, or of the same
+#' data in a different row order, produce a matrix of the right shape and a
+#' comparison that means nothing. The fit carries the data it was built from,
+#' so the identity can be checked rather than assumed.
+#'
+#' The fingerprint covers the columns that define an observation, which are
+#' the internal dot-prefixed ones (`.study`, `.trt`, the outcome, exposure,
+#' and for survival the times and status), in stored row order; the
+#' comparator's reconstructed pseudo-individuals stand in for the aggregate
+#' rows when present, since they are the pointwise units. Covariates are left
+#' out on purpose: two models of the same outcomes with different covariate
+#' sets are exactly what gets compared.
+#'
+#' @param fit An `mlumr_fit`.
+#' @return A 32-character digest, or `NA_character_` when the fit carries no
+#'   data to fingerprint.
+#' @keywords internal
+.observation_fingerprint <- function(fit) {
+  data <- fit$data
+  if (is.null(data) || is.null(data$ipd$data)) return(NA_character_)
+  keep <- function(df) {
+    if (is.null(df)) return(NULL)
+    df <- as.data.frame(df)
+    df <- df[, grep("^\\.", names(df), value = TRUE), drop = FALSE]
+    rownames(df) <- NULL
+    df
+  }
+  agd <- if (!is.null(data$agd$pseudo_ipd)) data$agd$pseudo_ipd else data$agd$data
+  tmp <- tempfile("mlumr-obs-")
+  on.exit(unlink(tmp), add = TRUE)
+  saveRDS(list(ipd = keep(data$ipd$data), agd = keep(agd)), tmp, version = 2L)
+  unname(tools::md5sum(tmp))
+}
+
+#' Refuse to compare fits that were not built on the same observations
+#' @keywords internal
+.assert_same_observations <- function(models) {
+  fps <- vapply(models, function(m) {
+    if (inherits(m, "mlumr_fit")) .observation_fingerprint(m) else NA_character_
+  }, character(1))
+  known <- fps[!is.na(fps)]
+  if (length(unique(known)) > 1L) {
+    stop("The compared fits were not built on the same observations in the ",
+         "same order: their stored data differ in the columns that define an ",
+         "observation. Pointwise criteria are paired, column by column, so a ",
+         "comparison across different data, or the same data in a different ",
+         "order, is not a comparison of the models. Refit on one common data ",
+         "set.", call. = FALSE)
+  }
+  if (anyNA(fps)) {
+    message("Could not verify that the compared models share the same ",
+            "observations: ", sum(is.na(fps)), " of them carr",
+            if (sum(is.na(fps)) == 1L) "ies" else "y",
+            " no data to check. The comparison assumes they do.")
+  }
+  invisible(fps)
+}
+
+
 #' Ordered pointwise log-likelihood columns for one data source
 #' @keywords internal
 .ordered_log_lik_columns <- function(draws, source) {
@@ -432,6 +496,7 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic"),
   survival_unit <- match.arg(survival_unit)
   models <- list(...)
   .validate_model_count(models)
+  .assert_same_observations(models)
 
   if (criterion == "dic") {
     dics <- lapply(models, function(m) {

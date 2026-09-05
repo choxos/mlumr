@@ -2,6 +2,23 @@
 
 ## Behavior and validation changes to existing functions
 
+* **`compare_models()` no longer reads a standard error as a threshold, and
+  refuses fits built on different observations.** The LOO/WAIC printout said
+  that `se_diff > 2` is the conventional threshold for a meaningful difference.
+  A large standard error is uncertainty about a difference, not evidence for
+  it; the paragraph now says to read `elpd_diff` against `se_diff`, to treat
+  any ratio as a heuristic rather than a decision rule, and to check the PSIS
+  diagnostics. Every comparison the function makes is also paired, column by
+  column, and `loo` can only check that the pointwise matrices have the same
+  shape: two fits of different data with the same number of rows, or of the
+  same rows in a different order, compared without complaint. The fits carry
+  the data they were built from, so the columns that define an observation
+  (`.study`, `.trt`, the outcome, exposure, and for survival the times and
+  status, with the reconstructed pseudo-individuals standing in for aggregate
+  survival rows) are now compared across the fits and a mismatch is an error;
+  a model whose object carries no data is reported as unverifiable rather than
+  assumed to match.
+
 * **The survival `effect` selector is now literal and distribution-specific.**
   `marginal_effects()` accepted `"hr"`, `"tr"` and `"exp_delta_eta"` as
   interchangeable names for one computation, and the label on the returned row
