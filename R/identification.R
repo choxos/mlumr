@@ -696,8 +696,12 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
     if (is.finite(gap) && .at_most(gap, 0.1) &&
           isTRUE(x$target_in_declared_span)) {
       cat(" The declared `<covariate>_mean` rows do contain the target, so ",
-          "this gap is the integration grid missing its declared means; a ",
-          "larger `n_int` shrinks it.\n", sep = "")
+          "the gap is between what was declared and what the integration ",
+          "grid realized. That is either the grid's finite resolution, which a ",
+          "larger `n_int` shrinks, or a `distr()` that does not reproduce the ",
+          "declared mean, which no `n_int` changes; compare the realized ",
+          "means at two grid sizes, or run check_integration(), to tell ",
+          "which.\n", sep = "")
     } else if (is.finite(gap) && .at_most(gap, 0.1)) {
       cat(" The gap is small, but it is the rows' actual distance from the ",
           "target, not integration error, so no integration resolution ",

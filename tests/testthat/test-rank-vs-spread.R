@@ -269,7 +269,8 @@ test_that("check_identification() judges the span on the fitted rows", {
   expect_equal(close$target_span_gap, 0.04, tolerance = 1e-6)
   expect_true(close$target_in_declared_span)
   printed <- capture.output(suppressWarnings(check_identification(mk(m + 0.04 * s))))
-  expect_true(any(grepl("integration grid missing its declared means", printed)))
+  expect_true(any(grepl("between what was declared and what the integration", printed)))
+  expect_true(any(grepl("does not reproduce the declared mean", printed)))
   # The same small gap when the DECLARED row is itself off the target is the
   # populations' difference, and no integration resolution changes it.
   mk_off <- function() {
@@ -283,7 +284,7 @@ test_that("check_identification() judges the span on the fitted rows", {
   expect_equal(off$target_span_gap, 0.04, tolerance = 1e-6)
   printed <- capture.output(suppressWarnings(check_identification(mk_off())))
   expect_true(any(grepl("not integration error", printed)))
-  expect_false(any(grepl("larger `n_int`", printed)))
+  expect_false(any(grepl("what the integration grid realized", printed)))
   # A grid exactly at the target is in the span, and the report says so
   # without calling the coefficients prior-driven.
   exact <- suppressWarnings(check_identification(mk(m), verbose = FALSE))
