@@ -303,7 +303,7 @@ fit_spfa <- mlumr(dat, model = "spfa", link = "identity",
                   prior_beta = prior_normal(0, 1, autoscale = TRUE),
                   chains = 4, iter = 2000, warmup = 1000, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
-#> Chain 1 finished in 0.1 seconds.
+#> Chain 1 finished in 0.2 seconds.
 #> Chain 2 finished in 0.2 seconds.
 #> Chain 3 finished in 0.2 seconds.
 #> Chain 4 finished in 0.2 seconds.
@@ -319,11 +319,11 @@ fit_relaxed <- mlumr(dat, model = "relaxed", link = "identity",
 #> Chain 1 finished in 0.2 seconds.
 #> Chain 2 finished in 0.2 seconds.
 #> Chain 3 finished in 0.2 seconds.
-#> Chain 4 finished in 0.2 seconds.
+#> Chain 4 finished in 0.3 seconds.
 #> 
 #> All 4 chains finished successfully.
 #> Mean chain execution time: 0.2 seconds.
-#> Total execution time: 0.5 seconds.
+#> Total execution time: 0.3 seconds.
 summary(fit_spfa)
 #> ML-UMR Model Summary
 #> ====================
@@ -401,7 +401,7 @@ plot_prior_posterior(fit_spfa, pars = c("mu_index", "mu_comparator"))
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/prior-post-1.png" alt="plot of chunk prior-post"  />
+<img src="figure/continuous-outcomes/prior-post-1.png" alt="plot of chunk prior-post"  />
 <p class="caption">plot of chunk prior-post</p>
 </div>
 
@@ -503,7 +503,7 @@ mlumr_forest(forest_df, ref_line = 0,
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/forest-1.png" alt="plot of chunk forest"  />
+<img src="figure/continuous-outcomes/forest-1.png" alt="plot of chunk forest"  />
 <p class="caption">plot of chunk forest</p>
 </div>
 
@@ -538,7 +538,7 @@ plot(marginal_effects(fit_spfa))
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/posterior-areas-1.png" alt="plot of chunk posterior-areas"  />
+<img src="figure/continuous-outcomes/posterior-areas-1.png" alt="plot of chunk posterior-areas"  />
 <p class="caption">plot of chunk posterior-areas</p>
 </div>
 
@@ -572,7 +572,7 @@ plot(predict(fit_spfa, population = "both", type = "response"))
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/predict-plot-1.png" alt="plot of chunk predict-plot"  />
+<img src="figure/continuous-outcomes/predict-plot-1.png" alt="plot of chunk predict-plot"  />
 <p class="caption">plot of chunk predict-plot</p>
 </div>
 
