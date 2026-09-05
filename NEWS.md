@@ -82,13 +82,13 @@
   nothing about it: a 12-month policy horizon could be reported at
   11.8 months, and two requested times landing on one grid point silently
   produced one row instead of two. Both now emit a message naming the requested
-  and the used times, and point at `pred_times` for exact evaluation. A repeated
-  request for the same time is reported as a duplicate rather than as an
-  approximation. The returned values are unchanged. Snapping itself remains: it
-  is a property of this implementation, not a necessity, since the parametric
-  distributions have closed forms at any positive time and the flexible bases
-  can be evaluated anywhere inside their support. Evaluating requested times
-  directly is still to do.
+  and the used times, and point at `pred_times` for exact evaluation. Asking for
+  the same time twice returns it twice and is not an approximation, so it
+  produces no message. The returned values are unchanged. Snapping itself
+  remains: it is a property of this implementation, not a necessity, since the
+  parametric distributions have closed forms at any positive time and the
+  flexible bases can be evaluated anywhere inside their support. Evaluating
+  requested times directly is still to do.
 
 * **`prior_sensitivity()` no longer claims a scale sweep proves the inference is
   data-driven.** Constant summaries across the tested scales show insensitivity
