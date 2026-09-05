@@ -2,15 +2,24 @@
 # publishes it at https://choxos.github.io/mlumr/app .
 #
 # How this coexists with the pkgdown site (which owns the gh-pages root):
-#   * pkgdown.yaml deploys docs/ to gh-pages with `clean: false`, so it overlays
-#     the package website and never deletes the /app subtree.
+#   * pkgdown.yaml deploys docs/ to gh-pages with `clean: true` and a
+#     `clean-exclude` of `app` and `app/**`, so it refreshes the package
+#     website and never deletes the /app subtree.
 #   * This workflow deploys ONLY into the gh-pages app/ subfolder
-#     (target-folder: app) with `clean: true`, which is scoped to app/ -- it
+#     (target-folder: app) with `clean: true`, which is scoped to app/: it
 #     purges stale hashed Vite bundles inside app/ but never touches pkgdown's
 #     root files.
-# The single load-bearing guardrail is pkgdown.yaml's `clean: false`; do not
-# change it to `clean: true` or switch to pkgdown::deploy_to_branch() (which
-# defaults to clean = TRUE) or the next docs build would wipe /app.
+#   * Both deployments push with `force: false`. The two workflows live on
+#     different branches, so a shared concurrency group cannot serialize them,
+#     and the action force-pushes by default: a push from either side that
+#     raced the other would have replaced the other's commit. Without force
+#     the action fetches, rebases its commit onto whatever is on gh-pages, and
+#     retries, and the two commits touch disjoint paths, so the rebase is
+#     clean.
+# The load-bearing guardrails are pkgdown.yaml's `clean-exclude` and the two
+# `force: false` lines; do not drop the exclusion or switch pkgdown to
+# pkgdown::deploy_to_branch() (which defaults to clean = TRUE with no
+# exclusion) or the next docs build would wipe /app.
 name: deploy-app.yaml
 
 on:
@@ -59,4 +68,8 @@ jobs:
           folder: dist
           target-folder: app           # confines deploy + clean to /app
           clean: true                  # purge stale bundles, scoped to /app only
+          # The docs workflow pushes the same branch. A forced push from here
+          # that raced it would replace its commit; without force the action
+          # rebases this deployment onto whatever is there and retries.
+          force: false
           commit-message: "Deploy mlumr app to /app [skip ci]"
