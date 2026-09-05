@@ -386,13 +386,22 @@ jobs:
       - name: Check the CmdStan toolchain
         id: toolchain
         run: |
+          msg <- NULL
           ok <- tryCatch({
             cmdstanr::check_cmdstan_toolchain(fix = FALSE, quiet = TRUE)
             TRUE
           }, error = function(e) {
-            cat("toolchain unavailable:", conditionMessage(e), "\n")
+            msg <<- conditionMessage(e)
+            cat("toolchain unavailable:", msg, "\n")
             FALSE
           })
+          # Tolerate ONLY the known consequence of the pin: a cmdstanr too old
+          # to recognize this R version's Rtools. Accepting every Windows
+          # exception would let a runner regression, a different cmdstanr
+          # failure, or a genuinely broken toolchain pass as the expected
+          # limitation, which is the opposite of what this job is for.
+          expected <- !is.null(msg) && grepl("Rtools", msg, fixed = TRUE) &&
+            grepl("not found", msg, fixed = TRUE)
           cat("cmdstanr:", as.character(utils::packageVersion("cmdstanr")), "\n")
           cat("R:       ", R.version.string, "\n")
           cat(sprintf("ok=%s\n", tolower(as.character(ok))),
@@ -403,6 +412,12 @@ jobs:
             stop("the cmdstanr from the declared chain cannot find a working ",
                  "toolchain on this platform, which is a change from the known ",
                  "state and needs investigating before release")
+          }
+          if (!ok && !expected) {
+            stop("the Windows toolchain check failed for a reason other than ",
+                 "the known missing-Rtools limitation of the pinned cmdstanr. ",
+                 "This is new breakage, not the documented cost of the pin: ",
+                 msg)
           }
           if (!ok) {
             cat("\nKNOWN COST OF THE PINNED REPOSITORY: the declared chain ",

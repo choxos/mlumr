@@ -102,6 +102,31 @@ jobs:
               "cmdstanr, so installing this package from DESCRIPTION alone ",
               "cannot get the optional backend"))
           }
+          # The pin exists to keep rstan and StanHeaders resolving together.
+          # Watching only cmdstanr would miss the failure it was put in place
+          # for: if CRAN archives rstan while keeping StanHeaders, the declared
+          # chain falls back to the frozen rstan beside CRAN headers, which is
+          # the same split pair, now reintroduced BY the pin. This job runs
+          # weekly while the declared-chain job runs only on code events, so
+          # nothing else would notice.
+          if (pinned && !is.null(with_declared)) {
+            src <- stats::setNames(with_declared$from, with_declared$package)
+            have <- c("rstan", "StanHeaders") %in% names(src)
+            if (!all(have)) {
+              problems <- c(problems, paste0(
+                "the declared chain no longer offers ",
+                paste(c("rstan", "StanHeaders")[!have], collapse = " and "),
+                ", so the dependency pair this pin exists to keep together ",
+                "cannot be resolved from it"))
+            } else if (length(unique(src[c("rstan", "StanHeaders")])) != 1L) {
+              problems <- c(problems, paste0(
+                "the declared chain now resolves rstan from '",
+                src[["rstan"]], "' and StanHeaders from '",
+                src[["StanHeaders"]], "'. That split is exactly the ",
+                "combination the pin exists to avoid, so the pin is no longer ",
+                "doing its job"))
+            }
+          }
           # The expiry belongs to the WORKAROUND, not to the calendar. Once
           # DESCRIPTION points at the maintained repository the pin is gone and
           # there is nothing left to expire; failing anyway would leave a
