@@ -222,6 +222,9 @@ test_that("the observation check compares values, not their representation", {
   fit2$data$ipd$data$.trt <- factor(fit2$data$ipd$data$.trt,
                                     levels = c("y", "x", "unused"))
   fit2$data$agd$data$.n <- 10
+  # Only the internal names are reserved, so a covariate may begin with a dot;
+  # one that appears in a single model is a covariate, not an observation.
+  fit2$data$ipd$data$.age <- seq_len(12L)
   expect_identical(.observation_fingerprint(fit1), .observation_fingerprint(fit2))
   out <- suppressWarnings(capture.output(
     compare_models(fit1, fit2, criterion = "loo")

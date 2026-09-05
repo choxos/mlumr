@@ -429,7 +429,28 @@ jobs:
           # takes cmdstanr's exact sentence for that condition, and only from
           # the cmdstanr the pin is known to serve: the same sentence from a
           # 0.9.0 would mean the runner's Rtools changed, which is new.
-          expected <- !is.null(msg) &&
+          #
+          # The sentence alone cannot tell an unrecognized Rtools from an
+          # absent one: the pinned cmdstanr says the same thing when the
+          # runner has lost its compiler. So R is asked directly, by building
+          # one empty C file through R CMD SHLIB, which needs the Rtools that
+          # setup-r installs and nothing from cmdstanr. Only when that works
+          # is cmdstanr's failure the documented version limitation.
+          compiler_works <- local({
+            dir <- tempfile("probe")
+            dir.create(dir)
+            old <- setwd(dir)
+            on.exit(setwd(old), add = TRUE)
+            writeLines("void mlumr_probe(void) {}", "probe.c")
+            out <- suppressWarnings(system2(file.path(R.home("bin"), "R"),
+                                            c("CMD", "SHLIB", "probe.c"),
+                                            stdout = TRUE, stderr = TRUE))
+            built <- file.exists(paste0("probe", .Platform$dynlib.ext))
+            if (!built) cat(out, sep = "\n")
+            built
+          })
+          cat("compiler works:", compiler_works, "\n")
+          expected <- !is.null(msg) && compiler_works &&
             grepl("was not found but is required to run CmdStan with R version",
                   msg, fixed = TRUE) &&
             utils::packageVersion("cmdstanr") < "0.9.0"
@@ -443,6 +464,12 @@ jobs:
             stop("the cmdstanr from the declared chain cannot find a working ",
                  "toolchain on this platform, which is a change from the known ",
                  "state and needs investigating before release")
+          }
+          if (!ok && !compiler_works) {
+            stop("R cannot compile a C file on this runner, so Rtools is ",
+                 "absent or broken here. That is a runner regression, not the ",
+                 "documented limitation of the pinned cmdstanr, which only ",
+                 "fails to recognize an Rtools that is present: ", msg)
           }
           if (!ok && !expected) {
             stop("the Windows toolchain check failed for a reason other than ",

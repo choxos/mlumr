@@ -120,12 +120,14 @@ extract_log_lik <- function(object) {
 #' so the identity can be checked rather than assumed.
 #'
 #' The fingerprint covers the columns that define an observation, which are
-#' the internal dot-prefixed ones (`.study`, `.trt`, the outcome, exposure,
-#' and for survival the times and status), in stored row order; the
-#' comparator's reconstructed pseudo-individuals stand in for the aggregate
-#' rows when present, since they are the pointwise units. Covariates are left
-#' out on purpose: two models of the same outcomes with different covariate
-#' sets are exactly what gets compared.
+#' the internal ones the setup functions write (`.study`, `.trt`, the outcome,
+#' exposure, and for survival the times and status), named explicitly rather
+#' than picked up by their leading dot, in stored row order; the comparator's
+#' reconstructed pseudo-individuals stand in for the aggregate rows when
+#' present, since they are the pointwise units. Covariates are left out on
+#' purpose: two models of the same outcomes with different covariate sets are
+#' exactly what gets compared, and the setup reserves only the internal names,
+#' so a covariate may itself begin with a dot.
 #'
 #' The values define an observation, not their representation. A factor and
 #' the character vector it codes, with or without unused levels, or an integer
@@ -142,7 +144,7 @@ extract_log_lik <- function(object) {
   keep <- function(df) {
     if (is.null(df)) return(NULL)
     df <- as.data.frame(df)
-    df <- df[, grep("^\\.", names(df), value = TRUE), drop = FALSE]
+    df <- df[, intersect(.observation_columns, names(df)), drop = FALSE]
     rownames(df) <- NULL
     df[] <- lapply(df, function(x) {
       if (is.factor(x)) as.character(x) else if (is.numeric(x)) as.numeric(x) else as.vector(x)
@@ -155,6 +157,12 @@ extract_log_lik <- function(object) {
   saveRDS(list(ipd = keep(data$ipd$data), agd = keep(agd)), tmp, version = 2L)
   unname(tools::md5sum(tmp))
 }
+
+#' The internal columns that define an observation, across the families
+#' @keywords internal
+.observation_columns <- c(".study", ".trt", ".arm", ".outcome", ".exposure",
+                          ".n", ".r", ".y", ".se", ".E",
+                          ".time", ".start_time", ".delay_time", ".status")
 
 #' Refuse to compare fits that were not built on the same observations
 #' @keywords internal

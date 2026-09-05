@@ -24,12 +24,14 @@ so the identity can be checked rather than assumed.
 }
 \details{
 The fingerprint covers the columns that define an observation, which are
-the internal dot-prefixed ones (\code{.study}, \code{.trt}, the outcome, exposure,
-and for survival the times and status), in stored row order; the
-comparator's reconstructed pseudo-individuals stand in for the aggregate
-rows when present, since they are the pointwise units. Covariates are left
-out on purpose: two models of the same outcomes with different covariate
-sets are exactly what gets compared.
+the internal ones the setup functions write (\code{.study}, \code{.trt}, the outcome,
+exposure, and for survival the times and status), named explicitly rather
+than picked up by their leading dot, in stored row order; the comparator's
+reconstructed pseudo-individuals stand in for the aggregate rows when
+present, since they are the pointwise units. Covariates are left out on
+purpose: two models of the same outcomes with different covariate sets are
+exactly what gets compared, and the setup reserves only the internal names,
+so a covariate may itself begin with a dot.
 
 The values define an observation, not their representation. A factor and
 the character vector it codes, with or without unused levels, or an integer
