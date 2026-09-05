@@ -116,7 +116,17 @@ test_that("prediction times moved onto the fitted grid are reported", {
 
   # An exact hit is not an approximation and must stay quiet.
   expect_silent(idx <- sel(c(2, 4), grid))
-  expect_equal(idx, c(2L, 4L))
+  expect_equal(as.integer(idx), c(2L, 4L))
+  # The requested times travel with the selection so the frame can report the
+  # mapping instead of leaving the caller to parse a message.
+  expect_equal(attr(idx, "requested"), c(2, 4))
+
+  # Request ORDER is preserved: the selection used to be sorted, so asking for
+  # a later time first came back the other way round.
+  expect_equal(as.integer(sel(c(4, 2), grid)), c(4L, 2L))
+  # And MULTIPLICITY: a time asked for twice is answered twice.
+  expect_silent(dup <- sel(c(2, 2), grid))
+  expect_equal(as.integer(dup), c(2L, 2L))
 
   # A moved time says what was asked for and what was used.
   expect_message(sel(c(2.4, 4.9), grid), "2.4 -> 2")
@@ -125,19 +135,18 @@ test_that("prediction times moved onto the fitted grid are reported", {
   # Two requested times collapsing to one grid point silently produced a result
   # with fewer rows than the request had times.
   expect_message(sel(c(2.1, 2.2), grid), "share a grid point")
-  expect_equal(suppressMessages(sel(c(2.1, 2.2), grid)), 2L)
+  # Both requests are still answered, by the same fitted time.
+  expect_equal(as.integer(suppressMessages(sel(c(2.1, 2.2), grid))), c(2L, 2L))
 
   # The whole-grid default is not a request and is not reported on.
   expect_silent(sel(NULL, grid))
 
   # A time asked for twice is a duplicate request, not a grid approximation.
-  # Deduplicating it changes the row count but not the answer, so advising a
-  # refit with a grid that already contains that exact time is wrong.
+  # It no longer changes the row count either, so there is nothing to report.
   msg_of <- function(times) {
     capture.output(sel(times, grid), type = "message")
   }
-  expect_message(sel(c(2, 2), grid), "Duplicate prediction time")
-  expect_false(any(grepl("Refit with", msg_of(c(2, 2)))))
+  expect_length(msg_of(c(2, 2)), 0L)
   # Two DISTINCT times landing on one point does lose information, so that case
   # keeps the refit advice.
   expect_true(any(grepl("Refit with", msg_of(c(2.1, 2.2)))))

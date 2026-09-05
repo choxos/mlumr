@@ -25,6 +25,14 @@
 #' @param times For survival fits, an optional vector of times at which to
 #'   report curve predictions; each is matched to the nearest fitted
 #'   `pred_times` grid point. If `NULL`, all fitted times are returned.
+#'
+#'   When supplied, the result has one row per requested time, **in the order
+#'   requested and including repeats**, and carries a `requested_time` column
+#'   beside `time` so the mapping from what was asked for to what was evaluated
+#'   is machine-readable rather than something to parse out of a message. Two
+#'   distinct requested times can still share a grid point; both are answered,
+#'   by the same fitted time, and that is reported. Refit with `pred_times`
+#'   containing the exact times to remove the approximation.
 #' @param newdata Optional data frame of covariate profiles defining an arbitrary
 #'   **target population**. When supplied, per-treatment absolute predictions are
 #'   standardized to this population by g-computation (averaging model-based
@@ -186,7 +194,14 @@ predict.mlumr_fit <- function(object,
   .validate_survival_prediction_times(times)
   idx <- vapply(times, function(t) which.min(abs(pred_times - t)), integer(1))
   .warn_snapped_prediction_times(times, pred_times[idx])
-  sort(unique(idx))
+  # Request ORDER and MULTIPLICITY are part of the request. Sorting and
+  # deduplicating produced a frame that did not line up with what the caller
+  # asked for: `times = c(10, 2)` came back in the other order and
+  # `times = c(2, 2)` came back with one row, so a programmatic caller could
+  # not zip its request against the result and had to reconstruct the mapping
+  # by parsing a message. The requested times ride along so the frame can carry
+  # them beside the times actually used.
+  structure(idx, requested = times)
 }
 
 #' Say when requested prediction times were moved onto the fitted grid
@@ -211,13 +226,11 @@ predict.mlumr_fit <- function(object,
   # be wrong. Separate the two rather than counting rows.
   n_distinct_requested <- length(unique(requested))
   distinct_collapse <- length(unique(used)) < n_distinct_requested
-  duplicated_request <- n_distinct_requested < length(requested)
+  # A duplicated request no longer changes the row count: the selection keeps
+  # multiplicity, so asking for a time twice returns it twice. Only a genuine
+  # loss is worth a message now, and that is a MOVE or two DISTINCT times
+  # collapsing onto one grid point.
   if (!any(moved) && !distinct_collapse) {
-    if (duplicated_request) {
-      message(sprintf(paste0("Duplicate prediction time(s) requested; the ",
-                             "result has %d time row(s) rather than %d."),
-                      length(unique(used)), length(used)))
-    }
     return(invisible(NULL))
   }
   parts <- character(0)
@@ -238,8 +251,9 @@ predict.mlumr_fit <- function(object,
   if (distinct_collapse) {
     parts <- c(parts,
                sprintf(paste0("Distinct requested time(s) share a grid point, ",
-                              "so the result has %d time row(s) rather than %d."),
-                       length(unique(used)), n_distinct_requested))
+                              "so %d requested time(s) are answered by %d ",
+                              "distinct fitted time(s)."),
+                       n_distinct_requested, length(unique(used))))
   }
   message(paste(c(parts,
                   paste0("Refit with `pred_times` containing the exact times ",
@@ -277,7 +291,7 @@ predict.mlumr_fit <- function(object,
 #' @keywords internal
 .surv_result_frame <- function(values, cells, type, summary, probs,
                                times_out = NULL, origin = NA_real_,
-                               horizon = NULL) {
+                               horizon = NULL, requested_times = NULL) {
   label_names <- intersect(c("treatment", "population"), names(cells))
 
   rows <- lapply(seq_along(values), function(i) {
@@ -300,6 +314,12 @@ predict.mlumr_fit <- function(object,
     }
     if (!summary) {
       colnames(m) <- sprintf("t_%.15g", times_out)
+      # The raw layout is one column per requested time, so duplicates would
+      # collide by name. Disambiguate rather than silently producing two
+      # identically named columns.
+      if (anyDuplicated(colnames(m))) {
+        colnames(m) <- make.unique(colnames(m), sep = "_dup")
+      }
       df <- data.frame(lab, m, row.names = NULL, check.names = FALSE)
       if (!is.na(origin)) {
         df <- data.frame(df[label_names], t_0 = origin,
@@ -309,11 +329,21 @@ predict.mlumr_fit <- function(object,
       return(df)
     }
     s <- .summarize_draw_matrix(m, probs)
-    df <- data.frame(lab, time = times_out, s, row.names = NULL,
-                     check.names = FALSE)
+    # When the caller named the times, report BOTH what was asked for and what
+    # was evaluated, in the order asked. A row saying only `time = 11.8` for a
+    # policy horizon of 12 reads as an answer to the question that was not
+    # asked, and a programmatic caller had no machine-readable way to tell.
+    df <- if (is.null(requested_times)) {
+      data.frame(lab, time = times_out, s, row.names = NULL,
+                 check.names = FALSE)
+    } else {
+      data.frame(lab, requested_time = requested_times, time = times_out, s,
+                 row.names = NULL, check.names = FALSE)
+    }
     if (!is.na(origin)) {
       o <- df[1, , drop = FALSE]
       o$time <- 0
+      if ("requested_time" %in% names(o)) o$requested_time <- NA_real_
       # Only the summarized quantities take the origin value. Treatment labels
       # can be numeric, and overwriting them here set every arm's t = 0 row to
       # the origin (1 for survival), so those rows claimed to belong to a
@@ -414,7 +444,8 @@ predict.mlumr_fit <- function(object,
       values,
       data.frame(population = vapply(pops, pop_label, character(1)),
                  stringsAsFactors = FALSE),
-      type, summary, probs, times_out = pred_times[sel]
+      type, summary, probs, times_out = pred_times[sel],
+      requested_times = attr(sel, "requested")
     ))
   }
 
@@ -468,6 +499,7 @@ predict.mlumr_fit <- function(object,
   })
   .surv_result_frame(values, cell_labels, type, summary, probs,
                      times_out = pred_times[sel],
+                     requested_times = attr(sel, "requested"),
                      origin = .surv_origin(type, times, pred_times))
 }
 
@@ -1120,7 +1152,8 @@ marginal_effects <- function(object,
       values <- list(log_h$index - log_h$comparator)
       out <- .surv_result_frame(
         values, data.frame(population = "Target", stringsAsFactors = FALSE),
-        type, summary, probs, times_out = pred_times[sel]
+        type, summary, probs, times_out = pred_times[sel],
+        requested_times = attr(sel, "requested")
       )
       if (!summary) return(out)
       return(.mlumr_result(out, "mlumr_prediction", ptype = type,
@@ -1129,6 +1162,7 @@ marginal_effects <- function(object,
     values <- list(exp(log_h$index), exp(log_h$comparator))
     out <- .surv_result_frame(values, cell_labels, type, summary, probs,
                               times_out = pred_times[sel],
+                              requested_times = attr(sel, "requested"),
                               origin = .surv_origin(type, times, pred_times))
     if (!summary) return(out)
     return(.mlumr_result(out, "mlumr_prediction", ptype = type,
@@ -1158,6 +1192,7 @@ marginal_effects <- function(object,
                  flip(sbar$comparator)[, sel, drop = FALSE])
   out <- .surv_result_frame(values, cell_labels, type, summary, probs,
                             times_out = pred_times[sel],
+                            requested_times = attr(sel, "requested"),
                             origin = .surv_origin(type, times, pred_times))
   if (!summary) return(out)
   .mlumr_result(out, "mlumr_prediction", ptype = type, family = "survival")

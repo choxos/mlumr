@@ -29,6 +29,16 @@
   ratio is population-invariant; with relaxed coefficients it does not cancel
   and the value genuinely belongs to the target.
 
+* **Requested survival prediction times keep their order and multiplicity.**
+  `predict()` selected the nearest fitted grid point for each requested time and
+  then sorted and deduplicated the result, so `times = c(10, 2)` came back in
+  the other order and `times = c(2, 2)` came back with one row. A caller could
+  not line its request up against the result and had to reconstruct the mapping
+  by parsing a message. The frame now has one row per requested time, in the
+  order requested, and carries a `requested_time` column beside `time` whenever
+  `times` is supplied. Two distinct requested times can still land on one grid
+  point; both are answered, by the same fitted time, and that is reported.
+
 * **`prior_sensitivity()` validates `probs` with the shared validator.** Its
   local copy of the check omitted the duplicate test that `.validate_probs()`
   applies everywhere else, so two equal probabilities produced two identically
