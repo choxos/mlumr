@@ -371,7 +371,7 @@ predict.mlumr_fit <- function(object,
            "median is searched over `pred_times`; change either by refitting.",
            call. = FALSE)
     }
-    if (type == "rmst") .warn_coarse_rmst_grid_builtin(object)
+    if (type == "rmst") .warn_coarse_rmst_grid_builtin(object, pops)
     values <- lapply(seq_len(nrow(cells)), function(i) {
       if (type == "rmst") {
         col <- sprintf("rmst_%s_%s", cells$trt[i], cells$pop[i])
@@ -1581,9 +1581,16 @@ marginal_effects <- function(object,
 #' point for the comparator one, equally weighted, un-centered here because
 #' [.conditional_profiles()] centers again. Three time points keep it cheap.
 #' @param object A survival `mlumr_fit`.
+#' @param pops The populations whose RMST is being returned, `"index"`,
+#'   `"comparator"` or both. Only their curves are judged: the comparator
+#'   population under a strong covariate effect can decay ahead of the grid
+#'   while the index population, the one asked for, is resolved fine, and a
+#'   warning about curves that contribute nothing to the result would tell the
+#'   user to refit for no reason.
 #' @return `NULL`, invisibly; called for the warning.
 #' @keywords internal
-.warn_coarse_rmst_grid_builtin <- function(object) {
+.warn_coarse_rmst_grid_builtin <- function(object,
+                                           pops = c("index", "comparator")) {
   tt <- object$stan_data$rmst_grid_times
   x_int <- object$stan_data$X_int
   if (is.null(tt) || length(tt) < 2L || is.null(x_int)) {
@@ -1606,7 +1613,8 @@ marginal_effects <- function(object,
   names(comparator_rows) <- covariates
 
   shares <- list()
-  for (rows in list(index_rows, comparator_rows)) {
+  row_sets <- list(index = index_rows, comparator = comparator_rows)
+  for (rows in row_sets[intersect(c("index", "comparator"), pops)]) {
     sbar <- tryCatch(.standardize_target_survival_s(object, rows, tt[sel], ib,
                                                     ib_cmp),
                      error = function(e) NULL)
@@ -1933,7 +1941,9 @@ marginal_effects <- function(object,
   pops <- switch(population, index = "index", comparator = "comparator",
                  both = c("index", "comparator"))
   effs <- if (effect == "all") c("hr", "rmstd", "rmstr") else effect
-  if (any(c("rmstd", "rmstr") %in% effs)) .warn_coarse_rmst_grid_builtin(object)
+  if (any(c("rmstd", "rmstr") %in% effs)) {
+    .warn_coarse_rmst_grid_builtin(object, pops)
+  }
 
   # The scalar HR is the marginal hazard ratio at the start of follow-up. Hazard
   # ratios are non-collapsible, so the marginal HR drifts with time in BOTH
