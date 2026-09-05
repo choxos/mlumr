@@ -44,8 +44,10 @@ yet integrates on `pre-release/vX.Y.Z` instead, and that branch is merged into
 change therefore has one pull request, targeting whichever of the two is the
 current integration branch; it is not opened twice.
 
-- **One branch per logical change, never one branch per release.** A release is
-  a milestone, a `NEWS.md` heading, and a tag; it is not a unit of review.
+- **One branch per logical change, never one change branch per release.** A
+  release is a milestone, a `NEWS.md` heading, and a tag; it is not a unit of
+  review. The pre-release integration branch is not what this rule is about: it
+  collects changes that were each reviewed on their own branch and pull request.
   Branch names should describe the change (`survival-rmst-predictions`,
   `interval-censoring-validation`). A prefix such as `feature/` or `fix/` is
   optional.
@@ -66,8 +68,10 @@ current integration branch; it is not opened twice.
 
 Between releases the integration branch carries a development version
 (`0.1.0.9000`), so add `NEWS.md` entries as the work lands rather than
-reconstructing them later. The version in `DESCRIPTION` is not bumped as work
-accumulates; it is set once, during release preparation.
+reconstructing them later. The development version is set in the first commit
+on a new pre-release branch, immediately after the release it follows, so no
+development commit carries a released version number. It is not bumped as work
+accumulates; the release version is set once, during release preparation.
 
 ## Releases
 
