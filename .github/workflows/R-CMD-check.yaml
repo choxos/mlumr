@@ -304,16 +304,26 @@ jobs:
 
       # DESCRIPTION is the single source of truth for the chain under test, so
       # the URL is read from it rather than repeated here, and handed to both
-      # the availability probe and the resolver below.
+      # the availability probe and the resolver below. It travels as DATA: a
+      # file the later R steps read, never a step output spliced into their
+      # source by the runner's expression syntax. Splicing it in would have let
+      # a pull request that put quotes or a newline into
+      # `Additional_repositories` run its own R code in this job, so the value
+      # is also checked to be one plain https URL before anything uses it.
       - name: Read the declared repository from DESCRIPTION
-        id: declared
         run: |
           extra <- read.dcf("DESCRIPTION", "Additional_repositories")[[1]]
           if (is.na(extra) || !nzchar(extra)) {
             stop("DESCRIPTION declares no Additional_repositories.")
           }
-          cat(sprintf("repo=%s\n", trimws(extra)),
-              file = Sys.getenv("GITHUB_OUTPUT"), append = TRUE)
+          extra <- trimws(extra)
+          if (length(extra) != 1L ||
+              !grepl("^https://[A-Za-z0-9.-]+(/[A-Za-z0-9._~/-]*)?$", extra)) {
+            stop("Additional_repositories must be a single plain https URL; got: ",
+                 deparse(extra))
+          }
+          writeLines(extra, file.path(Sys.getenv("RUNNER_TEMP"), "declared_repo.txt"))
+          cat("declared repository:", extra, "\n")
         shell: Rscript {0}
 
       # `setup-r-dependencies` resolves with pak, which does NOT read
@@ -334,7 +344,8 @@ jobs:
             '  if (is.na(r["CRAN"]) || identical(unname(r["CRAN"]), "@CRAN@")) {',
             '    r["CRAN"] <- "https://cloud.r-project.org"',
             '  }',
-            sprintf('  r["stan"] <- "%s"', "${{ steps.declared.outputs.repo }}"),
+            sprintf('  r["stan"] <- "%s"',
+                    readLines(file.path(Sys.getenv("RUNNER_TEMP"), "declared_repo.txt"))),
             '  options(repos = r)',
             '})')
           cat(block, sep = "\n", file = rprofile, append = TRUE)
@@ -365,8 +376,8 @@ jobs:
         run: |
           # The resolver must not have satisfied cmdstanr from somewhere else.
           # `available.packages()` on the declared chain is the reference.
-          declared_version <- available.packages(
-            repos = "${{ steps.declared.outputs.repo }}")["cmdstanr", "Version"]
+          declared <- readLines(file.path(Sys.getenv("RUNNER_TEMP"), "declared_repo.txt"))
+          declared_version <- available.packages(repos = declared)["cmdstanr", "Version"]
           installed <- as.character(utils::packageVersion("cmdstanr"))
           cat("declared:", declared_version, " installed:", installed, "\n")
           if (!identical(declared_version, installed)) {
@@ -374,6 +385,21 @@ jobs:
                  "repository chain offers ", declared_version,
                  ": the resolver fell back to another source, so this job is ",
                  "not testing the chain DESCRIPTION declares.")
+          }
+          # The same version can be served by more than one repository, so the
+          # version alone does not prove where pak took it from. pak records
+          # the repository it resolved against in the installed DESCRIPTION;
+          # when that record exists it has to name the declared repository.
+          desc <- utils::packageDescription("cmdstanr")
+          recorded <- unlist(desc[intersect(c("RemoteRepos", "RemoteUrl", "Repository"),
+                                            names(desc))])
+          recorded <- recorded[!is.na(recorded) & nzchar(recorded)]
+          cat("recorded provenance:", if (length(recorded)) recorded else "(none)", "\n")
+          host <- sub("^https://([^/]+).*$", "\\1", declared)
+          if (length(recorded) && !any(grepl(host, recorded, fixed = TRUE))) {
+            stop("cmdstanr's installed DESCRIPTION records it came from ",
+                 paste(recorded, collapse = ", "), ", not from the declared ",
+                 "repository ", declared, ".")
           }
         shell: Rscript {0}
 

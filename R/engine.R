@@ -120,9 +120,10 @@ mlumr_engine <- function(engine = NULL) {
     if (.cmdstanr_too_old_for_windows()) {
       message(
         "cmdstanr ", utils::packageVersion("cmdstanr"), " is installed, and ",
-        "on Windows a cmdstanr older than 0.9.0 cannot build CmdStan with ",
-        "current R: it does not recognize the current Rtools. Upgrade it ",
-        "first from stan-dev's maintained repository:\n",
+        "on this Windows R it cannot build CmdStan: its toolchain check does ",
+        "not recognize the installed Rtools, which a cmdstanr older than ",
+        "0.9.0 does for current R versions. Upgrade it first from stan-dev's ",
+        "maintained repository:\n",
         '  install.packages("cmdstanr", repos = c("https://stan-dev.r-universe.dev", getOption("repos")))',
         "\nthen run mlumr_engine(\"cmdstanr\") again."
       )
@@ -214,19 +215,40 @@ get_engine <- function() {
 }
 
 
-#' Is the installed cmdstanr the pinned one, on the platform where it cannot build CmdStan?
+#' Is the installed cmdstanr too old to build CmdStan on this Windows R?
 #'
-#' The repository DESCRIPTION pins serves cmdstanr 0.8.0, which on Windows does
-#' not recognize the current Rtools and fails to build CmdStan; 0.9.0 from the
-#' maintained repository does. Arguments exist so the decision can be tested
-#' off Windows.
+#' The repository DESCRIPTION pins serves cmdstanr 0.8.0, which does not
+#' recognize the Rtools that current R versions use and so refuses to build
+#' CmdStan there; 0.9.0 from the maintained repository does. The version alone
+#' does not decide it: 0.8.x with an older R and its matching Rtools, R 4.4
+#' with Rtools44 say, builds fine. So the decision is cmdstanr's own toolchain
+#' check: only on Windows, only for a cmdstanr older than 0.9.0, and only when
+#' that check fails with its "was not found but is required" message, is the
+#' user told to upgrade rather than offered an installation that fails.
+#' Arguments exist so the decision can be tested off Windows.
 #' @param os `.Platform$OS.type`.
 #' @param version The installed cmdstanr version, or `NULL` when it is absent.
+#' @param check A function that runs the toolchain check and errors when it
+#'   fails, by default cmdstanr's.
 #' @keywords internal
 .cmdstanr_too_old_for_windows <- function(os = .Platform$OS.type,
-                                          version = .installed_cmdstanr_version()) {
-  identical(os, "windows") && !is.null(version) &&
-    utils::compareVersion(as.character(version), "0.9.0") < 0
+                                          version = .installed_cmdstanr_version(),
+                                          check = .cmdstan_toolchain_check) {
+  if (!identical(os, "windows") || is.null(version) ||
+        utils::compareVersion(as.character(version), "0.9.0") >= 0) {
+    return(FALSE)
+  }
+  msg <- tryCatch({
+    check()
+    NULL
+  }, error = function(e) conditionMessage(e))
+  !is.null(msg) &&
+    grepl("was not found but is required to run CmdStan", msg, fixed = TRUE)
+}
+
+#' @keywords internal
+.cmdstan_toolchain_check <- function() {
+  cmdstanr::check_cmdstan_toolchain(fix = FALSE, quiet = TRUE)
 }
 
 #' @keywords internal
