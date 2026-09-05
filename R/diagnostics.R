@@ -109,7 +109,7 @@ extract_log_lik <- function(object) {
 }
 
 
-#' Fingerprint of the observations a fit's pointwise likelihood is over
+#' The observations a fit's pointwise likelihood is over
 #'
 #' Every comparison here is paired: `loo_compare()` differences pointwise
 #' values column by column, and DIC ranks totals over one data set. An equal
@@ -119,43 +119,42 @@ extract_log_lik <- function(object) {
 #' comparison that means nothing. The fit carries the data it was built from,
 #' so the identity can be checked rather than assumed.
 #'
-#' The fingerprint covers the columns that define an observation, which are
-#' the internal ones the setup functions write (`.study`, `.trt`, the outcome,
-#' exposure, and for survival the times and status), named explicitly rather
-#' than picked up by their leading dot, in stored row order; the comparator's
-#' reconstructed pseudo-individuals stand in for the aggregate rows when
-#' present, since they are the pointwise units. Covariates are left out on
-#' purpose: two models of the same outcomes with different covariate sets are
-#' exactly what gets compared, and the setup reserves only the internal names,
-#' so a covariate may itself begin with a dot.
+#' The frames returned hold, in stored row order, the internal columns that
+#' define an observation (`.study`, `.trt`, the outcome, exposure, and for
+#' survival the times and status; named explicitly, since only the internal
+#' names are reserved and a covariate may itself begin with a dot) together
+#' with the covariates the fit used. The comparator's reconstructed
+#' pseudo-individuals stand in for the aggregate rows when present, since they
+#' are the pointwise units.
 #'
 #' The values define an observation, not their representation. A factor and
 #' the character vector it codes, with or without unused levels, or an integer
 #' count and the double that was read from a file, describe the same
-#' observations, so each column is reduced to its plain values before hashing.
+#' observations, so each column is reduced to its plain values. Counts are
+#' accepted within rounding tolerance and rounded before Stan sees them, and
+#' are rounded the same way here.
 #'
 #' @param fit An `mlumr_fit`.
-#' @return A 32-character digest, or `NA_character_` when the fit carries no
-#'   data to fingerprint.
+#' @return A list with elements `ipd` and `agd`, or `NULL` when the fit
+#'   carries no data.
 #' @keywords internal
-.observation_fingerprint <- function(fit) {
+.observation_frames <- function(fit) {
   data <- fit$data
-  if (is.null(data) || is.null(data$ipd$data)) return(NA_character_)
-  keep <- function(df) {
+  if (is.null(data) || is.null(data$ipd$data)) return(NULL)
+  plain <- function(df) {
     if (is.null(df)) return(NULL)
     df <- as.data.frame(df)
-    df <- df[, intersect(.observation_columns, names(df)), drop = FALSE]
     rownames(df) <- NULL
     df[] <- lapply(df, function(x) {
       if (is.factor(x)) as.character(x) else if (is.numeric(x)) as.numeric(x) else as.vector(x)
     })
+    for (nm in intersect(c(".n", ".r"), names(df))) {
+      df[[nm]] <- as.numeric(.as_count_integer(df[[nm]]))
+    }
     df
   }
   agd <- if (!is.null(data$agd$pseudo_ipd)) data$agd$pseudo_ipd else data$agd$data
-  tmp <- tempfile("mlumr-obs-")
-  on.exit(unlink(tmp), add = TRUE)
-  saveRDS(list(ipd = keep(data$ipd$data), agd = keep(agd)), tmp, version = 2L)
-  unname(tools::md5sum(tmp))
+  list(ipd = plain(data$ipd$data), agd = plain(agd))
 }
 
 #' The internal columns that define an observation, across the families
@@ -164,28 +163,55 @@ extract_log_lik <- function(object) {
                           ".n", ".r", ".y", ".se", ".E",
                           ".time", ".start_time", ".delay_time", ".status")
 
+#' Were two fits built on the same observations, row for row?
+#'
+#' The observation columns must agree exactly, and so must every covariate
+#' column the two fits share. Covariates only one of them uses are left out on
+#' purpose: models of the same outcomes with different covariate sets are
+#' exactly what gets compared. Two rows that differ only in such a covariate
+#' are exchangeable for the model that does not use it, since its pointwise
+#' likelihood is the same for both, so either pairing gives that model the
+#' same comparison. A row swap that changes a shared covariate is a different
+#' pairing for both models and is a mismatch.
+#' @param a,b Results of [.observation_frames()].
+#' @keywords internal
+.same_observations <- function(a, b) {
+  same_frame <- function(x, y) {
+    if (is.null(x) && is.null(y)) return(TRUE)
+    if (is.null(x) || is.null(y)) return(FALSE)
+    shared <- intersect(names(x), names(y))
+    obs <- intersect(.observation_columns, union(names(x), names(y)))
+    if (!all(obs %in% shared)) return(FALSE)
+    identical(x[shared], y[shared])
+  }
+  same_frame(a$ipd, b$ipd) && same_frame(a$agd, b$agd)
+}
+
 #' Refuse to compare fits that were not built on the same observations
 #' @keywords internal
 .assert_same_observations <- function(models) {
-  fps <- vapply(models, function(m) {
-    if (inherits(m, "mlumr_fit")) .observation_fingerprint(m) else NA_character_
-  }, character(1))
-  known <- fps[!is.na(fps)]
-  if (length(unique(known)) > 1L) {
-    stop("The compared fits were not built on the same observations in the ",
-         "same order: their stored data differ in the columns that define an ",
-         "observation. Pointwise criteria are paired, column by column, so a ",
-         "comparison across different data, or the same data in a different ",
-         "order, is not a comparison of the models. Refit on one common data ",
-         "set.", call. = FALSE)
+  frames <- lapply(models, function(m) {
+    if (inherits(m, "mlumr_fit")) .observation_frames(m) else NULL
+  })
+  known <- Filter(Negate(is.null), frames)
+  for (other in known[-1L]) {
+    if (!.same_observations(known[[1L]], other)) {
+      stop("The compared fits were not built on the same observations in the ",
+           "same order: their stored data differ in the columns that define an ",
+           "observation, or in a covariate they share. Pointwise criteria are ",
+           "paired, column by column, so a comparison across different data, ",
+           "or the same data in a different order, is not a comparison of the ",
+           "models. Refit on one common data set.", call. = FALSE)
+    }
   }
-  if (anyNA(fps)) {
+  unknown <- length(frames) - length(known)
+  if (unknown > 0L) {
     message("Could not verify that the compared models share the same ",
-            "observations: ", sum(is.na(fps)), " of them carr",
-            if (sum(is.na(fps)) == 1L) "ies" else "y",
+            "observations: ", unknown, " of them carr",
+            if (unknown == 1L) "ies" else "y",
             " no data to check. The comparison assumes they do.")
   }
-  invisible(fps)
+  invisible(length(known))
 }
 
 

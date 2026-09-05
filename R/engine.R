@@ -225,15 +225,27 @@ get_engine <- function() {
 #' check: only on Windows, only for a cmdstanr older than 0.9.0, and only when
 #' that check fails with its "was not found but is required" message, is the
 #' user told to upgrade rather than offered an installation that fails.
+#'
+#' That message alone cannot tell an Rtools the old cmdstanr does not
+#' recognize from one that is genuinely absent: the sentence is the same. An
+#' upgrade restores nothing in the second case, so R is asked directly whether
+#' it can compile, through `R CMD SHLIB` on one empty C file, which needs
+#' Rtools and nothing from cmdstanr. Only when that works is the message the
+#' version limitation; otherwise cmdstanr's own error, which names the missing
+#' Rtools, is left to reach the user.
+#'
 #' Arguments exist so the decision can be tested off Windows.
 #' @param os `.Platform$OS.type`.
 #' @param version The installed cmdstanr version, or `NULL` when it is absent.
 #' @param check A function that runs the toolchain check and errors when it
 #'   fails, by default cmdstanr's.
+#' @param compiles A function returning whether R can compile a C file here,
+#'   by default the `R CMD SHLIB` probe.
 #' @keywords internal
 .cmdstanr_too_old_for_windows <- function(os = .Platform$OS.type,
                                           version = .installed_cmdstanr_version(),
-                                          check = .cmdstan_toolchain_check) {
+                                          check = .cmdstan_toolchain_check,
+                                          compiles = .r_can_compile) {
   if (!identical(os, "windows") || is.null(version) ||
         utils::compareVersion(as.character(version), "0.9.0") >= 0) {
     return(FALSE)
@@ -242,8 +254,32 @@ get_engine <- function() {
     check()
     NULL
   }, error = function(e) conditionMessage(e))
-  !is.null(msg) &&
-    grepl("was not found but is required to run CmdStan", msg, fixed = TRUE)
+  if (is.null(msg) ||
+        !grepl("was not found but is required to run CmdStan", msg, fixed = TRUE)) {
+    return(FALSE)
+  }
+  isTRUE(compiles())
+}
+
+#' Can R compile a C file on this machine?
+#'
+#' Builds one empty C file through `R CMD SHLIB` in a temporary directory.
+#' That uses R's own configured toolchain, which on Windows means Rtools, and
+#' nothing from any package.
+#' @keywords internal
+.r_can_compile <- function() {
+  dir <- tempfile("mlumr-probe-")
+  dir.create(dir)
+  on.exit(unlink(dir, recursive = TRUE), add = TRUE)
+  old <- setwd(dir)
+  # Registered after the unlink so it runs before it: the directory cannot be
+  # removed while it is the working directory.
+  on.exit(setwd(old), add = TRUE, after = FALSE)
+  writeLines("void mlumr_probe(void) {}", "probe.c")
+  suppressWarnings(system2(file.path(R.home("bin"), "R"),
+                           c("CMD", "SHLIB", "probe.c"),
+                           stdout = FALSE, stderr = FALSE))
+  file.exists(paste0("probe", .Platform$dynlib.ext))
 }
 
 #' The advice that goes with a positive `.cmdstanr_too_old_for_windows()`.

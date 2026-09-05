@@ -15,9 +15,12 @@
   the data they were built from, so the columns that define an observation
   (`.study`, `.trt`, the outcome, exposure, and for survival the times and
   status, with the reconstructed pseudo-individuals standing in for aggregate
-  survival rows) are now compared across the fits and a mismatch is an error;
-  a model whose object carries no data is reported as unverifiable rather than
-  assumed to match.
+  survival rows), together with every covariate the fits share, are now
+  compared across the fits row for row and a mismatch is an error. Covariates
+  only one fit uses are not compared, since models of the same outcomes with
+  different covariate sets are exactly what gets compared. A model whose
+  object carries no data is reported as unverifiable rather than assumed to
+  match.
 
 * **The survival `effect` selector is now literal and distribution-specific.**
   `marginal_effects()` accepted `"hr"`, `"tr"` and `"exp_delta_eta"` as
@@ -790,7 +793,8 @@
   `install.packages("cmdstanr", repos = c("https://stan-dev.r-universe.dev", getOption("repos")))`.
   `mlumr_engine("cmdstanr")` offers that route interactively and names which
   repository it is using, and when a cmdstanr older than 0.9.0 is already
-  installed on Windows and its own toolchain check reports the missing Rtools,
+  installed on Windows, its own toolchain check reports the missing Rtools,
+  and R itself can compile, so the Rtools it does not recognize is there,
   it says to upgrade from there before trying to build CmdStan, rather than
   offering an installation that fails. A fit that selects cmdstanr through
   the `engine` argument or the option in a profile, neither of which passes

@@ -89,16 +89,35 @@ test_that("the pinned cmdstanr is told to upgrade only when its toolchain check 
   }
   passes <- function() invisible(TRUE)
   other <- function() stop("something else entirely")
-  expect_true(.cmdstanr_too_old_for_windows("windows", "0.8.0", fails))
-  expect_true(.cmdstanr_too_old_for_windows("windows", package_version("0.8.1"), fails))
+  can <- function() TRUE
+  cannot <- function() FALSE
+  expect_true(.cmdstanr_too_old_for_windows("windows", "0.8.0", fails, can))
+  expect_true(.cmdstanr_too_old_for_windows("windows", package_version("0.8.1"), fails, can))
   # Same old version, a toolchain that works: offer the installation.
-  expect_false(.cmdstanr_too_old_for_windows("windows", "0.8.0", passes))
+  expect_false(.cmdstanr_too_old_for_windows("windows", "0.8.0", passes, can))
   # A different failure is not the known one and is not blamed on the version.
-  expect_false(.cmdstanr_too_old_for_windows("windows", "0.8.0", other))
-  # A current cmdstanr, another platform, or no cmdstanr: never.
-  expect_false(.cmdstanr_too_old_for_windows("windows", "0.9.0", fails))
-  expect_false(.cmdstanr_too_old_for_windows("unix", "0.8.0", fails))
-  expect_false(.cmdstanr_too_old_for_windows("windows", NULL, fails))
+  expect_false(.cmdstanr_too_old_for_windows("windows", "0.8.0", other, can))
+  # The same sentence from a machine where R itself cannot compile means
+  # Rtools is absent, which no cmdstanr upgrade restores; cmdstanr's own
+  # error, which names the missing Rtools, is the right one to reach the user.
+  expect_false(.cmdstanr_too_old_for_windows("windows", "0.8.0", fails, cannot))
+  # A current cmdstanr, another platform, or no cmdstanr: never, and without
+  # touching the toolchain or the compiler at all.
+  never <- function() stop("must not be consulted")
+  expect_false(.cmdstanr_too_old_for_windows("windows", "0.9.0", never, never))
+  expect_false(.cmdstanr_too_old_for_windows("unix", "0.8.0", never, never))
+  expect_false(.cmdstanr_too_old_for_windows("windows", NULL, never, never))
+})
+
+test_that("the compiler probe reports what R CMD SHLIB can do here", {
+  skip_on_cran()
+  # This machine builds the package's own Stan code, so it can compile C.
+  expect_true(.r_can_compile())
+  # The probe cleans up after itself and leaves the working directory alone.
+  before <- getwd()
+  .r_can_compile()
+  expect_identical(getwd(), before)
+  expect_length(list.files(tempdir(), pattern = "^mlumr-probe-"), 0L)
 })
 
 test_that("a fit that selects cmdstanr by argument or option meets the same guard", {
