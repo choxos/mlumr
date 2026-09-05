@@ -108,3 +108,25 @@ test_that("a partial name claims its formal before positional filling", {
                q(0.5, m = 10, mean = 20, 2))
   expect_equal(eval_distr(distr(q, m = 10, mean = 20, 2), 0.5), 30)
 })
+
+test_that("classifying a qbinom margin sees the specification's scope", {
+  # `eval_distr()` resolves a local variable of the function that built the
+  # spec; the `qbinom` shortcut in get_distribution_type() evaluated `size`
+  # from the package's own frame and failed with "object 'n_trials' not
+  # found" for the same specification.
+  make_spec <- function() {
+    n_trials <- 1L
+    distr(qbinom, size = n_trials, prob = x_mean)
+  }
+  sp <- make_spec()
+  expect_equal(eval_distr(sp, 0.5, list(x_mean = 0.3)), 0)
+  expect_equal(unname(get_distribution_type(x = sp, data = list(x_mean = 0.3))),
+               "binary")
+  make_many <- function() {
+    n_trials <- 5L
+    distr(qbinom, size = n_trials, prob = x_mean)
+  }
+  expect_equal(unname(get_distribution_type(x = make_many(),
+                                            data = list(x_mean = 0.3))),
+               "discrete")
+})
