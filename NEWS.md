@@ -773,8 +773,9 @@
   `install.packages("cmdstanr", repos = c("https://stan-dev.r-universe.dev", getOption("repos")))`.
   `mlumr_engine("cmdstanr")` offers that route interactively and names which
   repository it is using, and when a cmdstanr older than 0.9.0 is already
-  installed on Windows it says to upgrade from there before trying to build
-  CmdStan, rather than offering an installation that fails. The default
+  installed on Windows and its own toolchain check reports the missing Rtools,
+  it says to upgrade from there before trying to build CmdStan, rather than
+  offering an installation that fails. The default
   `rstan` backend is unaffected on every platform; cmdstanr is optional
   throughout.
 

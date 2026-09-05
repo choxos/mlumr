@@ -148,7 +148,26 @@ jobs:
             stop(paste0("\n- ", problems, collapse = ""))
           }
 
-          if (!is.null(with_maintained)) {
+          # `available.packages()` does not fail when one repository in the
+          # chain is unreachable: it warns and returns what the others serve.
+          # A maintained repository that was down, or had stopped serving its
+          # Stan packages, would then leave rstan and StanHeaders both coming
+          # from CRAN, which reads as "the pair resolves from one source" and
+          # would recommend reverting the pin on no evidence at all. So the
+          # recommendation needs proof that the maintained repository answered
+          # and offers the packages the chain is for.
+          maintained_only <- tryCatch(available.packages(repos = maintained),
+                                      warning = function(w) NULL,
+                                      error = function(e) NULL)
+          maintained_ok <- !is.null(maintained_only) &&
+            all(c("cmdstanr", "rstan") %in% rownames(maintained_only))
+          if (!maintained_ok) {
+            cat("\nThe maintained repository (", maintained, ") could not be ",
+                "queried, or does not currently serve cmdstanr and rstan, so ",
+                "this run says nothing about whether the pin can be ",
+                "reverted.\n", sep = "")
+          }
+          if (maintained_ok && !is.null(with_maintained)) {
             src <- stats::setNames(with_maintained$from, with_maintained$package)
             pair <- src[c("rstan", "StanHeaders")]
             if (all(!is.na(pair)) && length(unique(pair)) == 1L) {

@@ -79,13 +79,24 @@ test_that("cmdstanr backend fits a model end-to-end", {
   expect_false(file.exists(file.path("inst", "stan", "mlumr_binary_spfa")))
 })
 
-test_that("the pinned cmdstanr is recognized as unable to build CmdStan on Windows", {
+test_that("the pinned cmdstanr is told to upgrade only when its toolchain check fails", {
   # The repository DESCRIPTION pins serves 0.8.0, which does not recognize the
-  # current Rtools; 0.9.0 from the maintained repository does. Off Windows
-  # the version is irrelevant, and an absent cmdstanr is a different message.
-  expect_true(.cmdstanr_too_old_for_windows("windows", "0.8.0"))
-  expect_true(.cmdstanr_too_old_for_windows("windows", package_version("0.8.1")))
-  expect_false(.cmdstanr_too_old_for_windows("windows", "0.9.0"))
-  expect_false(.cmdstanr_too_old_for_windows("unix", "0.8.0"))
-  expect_false(.cmdstanr_too_old_for_windows("windows", NULL))
+  # Rtools of current R versions; 0.9.0 from the maintained repository does.
+  # The version alone does not decide it: 0.8.x on R 4.4 with Rtools44 builds
+  # fine, so the decision is cmdstanr's own toolchain check.
+  fails <- function() {
+    stop("Rtools45 was not found but is required to run CmdStan with R version 4.5.1.")
+  }
+  passes <- function() invisible(TRUE)
+  other <- function() stop("something else entirely")
+  expect_true(.cmdstanr_too_old_for_windows("windows", "0.8.0", fails))
+  expect_true(.cmdstanr_too_old_for_windows("windows", package_version("0.8.1"), fails))
+  # Same old version, a toolchain that works: offer the installation.
+  expect_false(.cmdstanr_too_old_for_windows("windows", "0.8.0", passes))
+  # A different failure is not the known one and is not blamed on the version.
+  expect_false(.cmdstanr_too_old_for_windows("windows", "0.8.0", other))
+  # A current cmdstanr, another platform, or no cmdstanr: never.
+  expect_false(.cmdstanr_too_old_for_windows("windows", "0.9.0", fails))
+  expect_false(.cmdstanr_too_old_for_windows("unix", "0.8.0", fails))
+  expect_false(.cmdstanr_too_old_for_windows("windows", NULL, fails))
 })
