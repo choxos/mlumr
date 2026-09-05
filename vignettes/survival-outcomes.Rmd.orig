@@ -530,9 +530,12 @@ knitr::kable(marginal_effects(fit_mspline_relaxed, effect = "rmstd"),
 
 Under the relaxed model the conditional hazard ratio depends on the covariates,
 so there is no single conditional HR. The scalar `HR` is then only the marginal
-hazard ratio at the **start of follow-up**; prefer `predict(type = "loghr")`
-for the time-varying contrast, or the collapsible RMST estimands
-(`effect = "rmstd"` / `"rmstr"`). **Caveat (unanchored two-study setting).**
+hazard ratio at one instant, and the `at_time` column says which: the
+$t \rightarrow 0$ limit for an unstratified fit, and otherwise the first
+prediction time, which is positive and set by `pred_times`. Prefer
+`predict(type = "loghr")` for the time-varying contrast, or the collapsible
+RMST estimands (`effect = "rmstd"` / `"rmstr"`), whose horizon is reported
+beside them. **Caveat (unanchored two-study setting).**
 Unlike multinma's connected network, here the comparator coefficients are
 identified *only* through the single reconstructed comparator likelihood, so the
 index-population relaxed estimand extrapolates them over the IPD covariate
