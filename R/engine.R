@@ -123,7 +123,7 @@ mlumr_engine <- function(engine = NULL) {
   # NEWS entry warns about. Say what to do first instead.
   if (.cmdstanr_too_old_for_windows()) {
     message(.cmdstanr_upgrade_advice(),
-            "\nthen run mlumr_engine(\"cmdstanr\") again.")
+            "\nand run mlumr_engine(\"cmdstanr\") again in the new session.")
     return(.message_engine_unchanged())
   }
 
@@ -293,7 +293,9 @@ get_engine <- function() {
     "toolchain check does not recognize the installed Rtools, which a ",
     "cmdstanr older than 0.9.0 does for current R versions. Upgrade it ",
     "first from stan-dev's maintained repository:\n",
-    '  install.packages("cmdstanr", repos = c("https://stan-dev.r-universe.dev", getOption("repos")))'
+    '  install.packages("cmdstanr", repos = c("https://stan-dev.r-universe.dev", getOption("repos")))',
+    "\nthen restart R: the cmdstanr already loaded in this session stays in ",
+    "use until then, whatever version is on disk"
   )
 }
 

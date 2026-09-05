@@ -596,8 +596,9 @@
   repository it is using, and when a cmdstanr older than 0.9.0 is already
   installed on Windows, its own toolchain check reports the missing Rtools,
   and R itself can compile, so the Rtools it does not recognize is there,
-  it says to upgrade from there before trying to build CmdStan, rather than
-  offering an installation that fails. A fit that selects cmdstanr through
+  it says to upgrade from there, and to restart R afterwards since the loaded
+  cmdstanr stays in use until then, before trying to build CmdStan, rather
+  than offering an installation that fails. A fit that selects cmdstanr through
   the `engine` argument or the option in a profile, neither of which passes
   through `mlumr_engine()`, meets the same check and stops with the same
   advice instead of reaching compilation and failing there. The default
