@@ -9,6 +9,10 @@
 \arguments{
 \item{a, b}{Results of \code{\link[=.observation_frames]{.observation_frames()}}.}
 }
+\value{
+\code{TRUE}, \code{FALSE}, or \code{NA} when the observations agree but the row
+order could not be verified.
+}
 \description{
 The observation columns must agree exactly, and so must every covariate
 column the two fits share. Covariates only one of them uses are left out on
@@ -28,7 +32,9 @@ fingerprint of the whole source and the row's rank within it
 (\code{\link[=.source_row_keys]{.source_row_keys()}}). Two fits holding the same set of keys in a
 different order were built from one source reordered between them, and
 that is a mismatch whatever the columns say. Different sets mean the source
-itself changed between the fits, which the keys cannot judge, and the
-decision is left to the columns.
+itself changed between the fits, in columns the models did not use; the
+keys then cannot say whether the rows are in the same order, and neither
+can the columns, so the answer is \code{NA}: not a mismatch, and not verified
+either. A frame with one row cannot be reordered and needs no key.
 }
 \keyword{internal}

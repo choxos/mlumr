@@ -26,7 +26,9 @@
   column, which is now a reserved name; nothing of the source's content is
   kept). Two fits holding the same keys in a different order were built from
   one source reordered between them, and are refused even when they share no
-  covariate.
+  covariate. Fits whose sources differ in columns the models did not use, or
+  a fit from before the keys existed, cannot have their row order verified;
+  the comparison then runs with a warning saying so.
   `calculate_dic()` objects carry the same frames, so a DIC comparison is
   checked too. A model whose object carries no data is reported as
   unverifiable rather than assumed to match.
