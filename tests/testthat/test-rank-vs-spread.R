@@ -291,5 +291,36 @@ test_that("check_identification() judges the span on the fitted rows", {
   expect_equal(exact$target_span_gap, 0)
   printed <- capture.output(suppressWarnings(check_identification(mk(m))))
   expect_true(any(grepl("nonetheless identified", printed)))
+  expect_true(any(grepl("does not lean on a direction", printed)))
   expect_false(any(grepl("remain prior-driven", printed)))
+  # Two rows a hundredth of an SD apart span the line, so a target 0.09 SD
+  # away is in the span exactly, but only through that barely-moving
+  # direction: the gap is 0.09, and the report must say the estimand leans on
+  # it rather than reassure.
+  mk2 <- function(realized) {
+    out <- list(family = "normal", covariates = "x1", n_covariates = 1L,
+                ipd = list(data = ipd),
+                agd = list(data = data.frame(x1_mean = m + c(-0.01, 0.01) * s)),
+                # Column-major: row i of the (rows x points) slab takes every
+                # other element, so repeating the pair keeps row 1 at the first
+                # value and row 2 at the second.
+                integration_points = array(rep(realized, times = 8L),
+                                           dim = c(2L, 8L, 1L)))
+    class(out) <- "mlumr_data"
+    out
+  }
+  weak <- suppressWarnings(check_identification(mk2(m + c(-0.01, 0.01) * s),
+                                                verbose = FALSE))
+  expect_true(weak$flagged)
+  expect_true(weak$target_in_span)
+  expect_equal(weak$target_span_gap, 0, tolerance = 1e-6)
+  narrow <- suppressWarnings(check_identification(mk2(m + c(-0.01, 0.01) * s +
+                                                        0.09 * s),
+                                                  verbose = FALSE))
+  expect_true(narrow$target_in_span)
+  expect_equal(narrow$target_span_gap, 0.09, tolerance = 1e-6)
+  narrow_data <- mk2(m + c(-0.01, 0.01) * s + 0.09 * s)
+  printed <- capture.output(suppressWarnings(check_identification(narrow_data)))
+  expect_true(any(grepl("reached only through directions", printed)))
+  expect_false(any(grepl("does not lean on a direction", printed)))
 })
