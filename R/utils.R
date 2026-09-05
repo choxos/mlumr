@@ -438,18 +438,22 @@ cor_adjust_pearson <- function(X, types) {
     formal_names <- formal_names[seq_len(dots - 1L)]
   }
   formal_names <- setdiff(formal_names, "p")
-  # A supplied name claims the formal R's matcher would give it: an exact
-  # match first, otherwise a unique partial match among the formals before
-  # `...`. Removing only exact names left `distr(qnorm, m = 10, 2)` assigning
-  # the unnamed 2 to `mean` as well, and the quantile function then received
-  # both `m` and `mean` and failed with "matched by multiple actual arguments".
+  # A supplied name claims the formal R's matcher would give it, in R's order:
+  # every exact name first, then each remaining name against the formals no
+  # exact name took, by unique partial match. Removing only exact names left
+  # `distr(qnorm, m = 10, 2)` assigning the unnamed 2 to `mean` as well, and
+  # the quantile function then received both `m` and `mean` and failed with
+  # "matched by multiple actual arguments". Matching partials against the
+  # full list was wrong too: with formals `mean` and `method`, `m = 10` beside
+  # `mean = 20` must reach `method`, not compete for a `mean` already taken.
   named <- nms[nzchar(nms)]
-  claimed <- vapply(named, function(nm) {
-    if (nm %in% formal_names) return(nm)
-    hit <- pmatch(nm, formal_names)
-    if (is.na(hit)) nm else formal_names[[hit]]
+  exact <- intersect(named, formal_names)
+  remaining <- setdiff(formal_names, exact)
+  partial <- vapply(setdiff(named, exact), function(nm) {
+    hit <- pmatch(nm, remaining)
+    if (is.na(hit)) nm else remaining[[hit]]
   }, character(1), USE.NAMES = FALSE)
-  available <- setdiff(formal_names, claimed)
+  available <- setdiff(formal_names, c(exact, partial))
   n_match <- min(length(unnamed), length(available))
   if (n_match) {
     nms[unnamed[seq_len(n_match)]] <- available[seq_len(n_match)]

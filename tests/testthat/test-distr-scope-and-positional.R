@@ -99,4 +99,12 @@ test_that("a partial name claims its formal before positional filling", {
                10 + 2)
   # An exact name still wins over a partial one for the same formal.
   expect_equal(eval_distr(distr(qnorm, sd = 3, 10), 0.5), 10)
+  # R resolves every exact name before any partial one, so with formals `mean`
+  # and `method` an abbreviated `m` beside an exact `mean` reaches `method`.
+  # Matching partials against the full list gave `m` nothing, handed the
+  # unnamed 2 to `method`, and moved the median from 30 to 22 without a word.
+  q <- function(p, mean = 0, method = 1, ...) stats::qnorm(p, mean + method)
+  expect_equal(eval_distr(distr(q, m = 10, mean = 20, 2), 0.5),
+               q(0.5, m = 10, mean = 20, 2))
+  expect_equal(eval_distr(distr(q, m = 10, mean = 20, 2), 0.5), 30)
 })
