@@ -374,3 +374,20 @@ cor_adjust_pearson <- function(X, types) {
   diag(X) <- 1
   X
 }
+
+
+#' Coerce a validated count to integer without truncating
+#'
+#' `as.integer()` truncates toward zero, while the count validators accept any
+#' value within `sqrt(.Machine$double.eps)` of a whole number. Those two rules
+#' disagree: `0.999999999` is accepted as the count 1 and then coerced to 0, so
+#' the package silently changed an event count it had just approved. Rounding
+#' first maps an accepted value onto the integer it was accepted FOR, and is a
+#' no-op for values that were already exact.
+#'
+#' @param x A numeric vector that has passed a whole-number count check.
+#' @return An integer vector.
+#' @keywords internal
+.as_count_integer <- function(x) {
+  as.integer(round(x))
+}

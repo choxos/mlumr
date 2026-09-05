@@ -37,13 +37,24 @@
 #'   a secondary, targeted regularization tool: for reliable relaxed-model
 #'   estimates first ensure adequate integration points
 #'   ([add_integration()] `n_int`) and post-warmup iterations. The
-#'   comparator-population effect is identified directly by the AgD; the
-#'   index-population effect additionally averages `beta_comparator` over
-#'   the IPD covariate distribution (an extrapolation, since
-#'   `beta_comparator` is informed only by the AgD likelihood), so its
-#'   residual width is identification-driven. Tightening this prior (for
-#'   example a smaller `prior_normal(0, 1)`) regularizes that residual
-#'   width. Ignored for `model = "spfa"` (which has a single shared `beta`).
+#'   AgD likelihood informs the comparator-population *outcome* directly,
+#'   but that does not by itself identify `beta_comparator` or the
+#'   comparator-population treatment contrast: how well either is determined
+#'   depends on the number and geometry of independent aggregate summaries,
+#'   the link, the covariate distribution, the outcome precision, and this
+#'   prior. A handful of aggregate rows can leave whole coefficient
+#'   directions informed only by the prior while the posterior still looks
+#'   narrow. [check_identification()] reports the geometry of the aggregate
+#'   rows, exactly for a normal identity-link model and descriptively for a
+#'   nonlinear mean (it does not accept survival fits); [prior_sensitivity()]
+#'   shows how much the posterior moves with the prior scale. Neither is a
+#'   sufficient test on its own. The index-population effect
+#'   additionally averages `beta_comparator` over the IPD covariate
+#'   distribution (an extrapolation, since `beta_comparator` is informed
+#'   only by the AgD likelihood), so its residual width is
+#'   identification-driven. Tightening this prior (for example a smaller
+#'   `prior_normal(0, 1)`) regularizes that residual width. Ignored for
+#'   `model = "spfa"` (which has a single shared `beta`).
 #' @param prior_sigma Prior for residual SD (normal family only). Default
 #'   from [default_prior_sigma()] (`prior_normal(0, 2.5)`, half-normal via
 #'   the Stan `<lower=0>` constraint). [prior_exponential()] is also
@@ -116,7 +127,26 @@
 #'   `"pexp"` for a decreasing or non-monotone baseline hazard.
 #' @param prior_aux For `family = "survival"` parametric distributions: prior
 #'   for the shape/scale parameter(s) (half-normal/half-t/exponential via the
-#'   `<lower=0>` constraint). Default [default_prior_aux()].
+#'   `<lower=0>` constraint). Default [default_prior_aux()]. One default is
+#'   reused across distributions whose auxiliary parameters do not share a
+#'   scale, so check it against your own time unit rather than assuming it is
+#'   weakly informative. The Weibull and gamma shapes and the log-normal
+#'   `sdlog` are dimensionless, but the Gompertz shape has units of 1 / time:
+#'   the same trial expressed in days, months, or years gives that parameter
+#'   values three orders of magnitude apart, and a half-normal(0, 2) is
+#'   near-flat on one scale and strongly informative on another. Set it
+#'   explicitly for a Gompertz baseline, and use [prior_sensitivity()] or a
+#'   prior-predictive check to see what hazard shapes it implies.
+#' @param prior_aux2 For `family = "survival"` with
+#'   `distribution = "gengamma"`: prior for the SECOND generalized-gamma
+#'   auxiliary parameter. `NULL` (the default) reuses `prior_aux`, which is the
+#'   previous behavior. The two auxiliaries control different features of the
+#'   hazard, so they can need different regularization; supply this when one of
+#'   them is poorly identified. Every other distribution has at most one
+#'   auxiliary parameter: supplying this for one of them warns and has no
+#'   effect on the fit, and the value is discarded WITHOUT being validated, so
+#'   a malformed prior in that position warns like any other ignored one rather
+#'   than aborting the fit. Non-survival families behave the same way.
 #' @param prior_smooth For `family = "survival"` flexible baselines
 #'   (`"mspline"`/`"pexp"`): prior for the random-walk smoothing SD. Default
 #'   [default_prior_smooth()].
@@ -356,6 +386,12 @@ mlumr <- function(data,
                   # passing prior_sigma positionally would have applied it to
                   # the comparator coefficients instead.
                   prior_beta_comparator = NULL,
+                  # Appended for the same reason, and it is the reason: placed
+                  # next to `prior_aux` where it reads better, it rebound every
+                  # positional argument from `prior_smooth` onward, so a call
+                  # passing `n_knots` positionally would have set the smoothing
+                  # prior instead.
+                  prior_aux2 = NULL,
                   ...) {
 
   model <- match.arg(model)
@@ -478,8 +514,31 @@ mlumr <- function(data,
       surv_info$mspline_degree <- requested
     }
     prior_aux <- prior_aux %||% default_prior_aux()
+    # Only the generalized gamma has a second auxiliary parameter. Everywhere
+    # else a supplied `prior_aux2` has nothing to apply to, and defaulting it
+    # silently would let a user believe they had regularized something.
+    if (!is.null(prior_aux2) && (surv_info$n_aux %||% 0L) < 2L) {
+      warning("`prior_aux2` applies to the second auxiliary parameter of ",
+              "`distribution = \"gengamma\"`; `distribution = \"",
+              surv_info$distribution, "\"` has ",
+              if ((surv_info$n_aux %||% 0L) == 0L) "no" else "one",
+              " auxiliary parameter, so it is ignored. Use `prior_aux`.",
+              call. = FALSE)
+      # Drop it here rather than letting it reach `validate_prior()` below.
+      # Announcing that a value is ignored and then erroring on its contents
+      # is two contracts for one argument: a well-formed ignored prior was
+      # discarded quietly while a malformed ignored prior aborted the fit, and
+      # which of the two happened depended on a distribution the argument does
+      # not even apply to. The non-survival branch already warns without
+      # validating; this makes the survival branch agree with it.
+      prior_aux2 <- NULL
+    }
+    # Falling back to `prior_aux` keeps the previous behavior exactly for every
+    # fit that does not name the second auxiliary.
+    prior_aux2 <- prior_aux2 %||% prior_aux
     prior_smooth <- prior_smooth %||% default_prior_smooth()
     validate_prior(prior_aux, "prior_aux")
+    validate_prior(prior_aux2, "prior_aux2")
     validate_prior(prior_smooth, "prior_smooth")
     .validate_survival_controls(pred_times, rmst_horizon, mspline_degree,
                                 n_knots, n_rmst_grid,
@@ -518,9 +577,9 @@ mlumr <- function(data,
            " a survival baseline hazard or its prediction grid, which ",
            "family = '", family, "' does not have.", call. = FALSE)
     }
-    if (!is.null(prior_aux) || !is.null(prior_smooth)) {
-      warning("`prior_aux` / `prior_smooth` are ignored for non-survival families.",
-              call. = FALSE)
+    if (!is.null(prior_aux) || !is.null(prior_aux2) || !is.null(prior_smooth)) {
+      warning("`prior_aux` / `prior_aux2` / `prior_smooth` are ignored for ",
+              "non-survival families.", call. = FALSE)
     }
   }
 
@@ -642,6 +701,7 @@ mlumr <- function(data,
     prior_sigma = prior_sigma,
     surv_info = surv_info,
     prior_aux = prior_aux,
+    prior_aux2 = prior_aux2,
     prior_smooth = prior_smooth,
     n_knots = n_knots,
     knots = knots,
@@ -703,6 +763,7 @@ mlumr <- function(data,
     prior_beta_comparator = prior_beta_comparator,
     prior_sigma = prior_sigma,
     prior_aux = prior_aux,
+    prior_aux2 = prior_aux2,
     prior_smooth = prior_smooth,
     surv_info = surv_info,
     beta_fields = prepared$beta_fields,
@@ -800,6 +861,7 @@ mlumr <- function(data,
                                    prior_beta, prior_beta_comparator = NULL,
                                    prior_sigma,
                                    surv_info = NULL, prior_aux = NULL,
+                                   prior_aux2 = NULL,
                                    prior_smooth = NULL, n_knots = 7L,
                                    knots = NULL,
                                    pred_times = NULL, rmst_horizon = NULL,
@@ -871,9 +933,9 @@ mlumr <- function(data,
   )
 
   if (family == "binomial") {
-    stan_data$y_ipd <- as.integer(ipd_data$.outcome)
-    stan_data$n_agd <- array(as.integer(agd_data$.n))
-    stan_data$r_agd <- array(as.integer(agd_data$.r))
+    stan_data$y_ipd <- .as_count_integer(ipd_data$.outcome)
+    stan_data$n_agd <- array(.as_count_integer(agd_data$.n))
+    stan_data$r_agd <- array(.as_count_integer(agd_data$.r))
   } else if (family == "normal") {
     bad_n <- is.null(agd_data$.n) || any(!is.finite(agd_data$.n)) ||
       any(agd_data$.n <= 0)
@@ -904,9 +966,9 @@ mlumr <- function(data,
     stan_data$prior_sigma_dist <- sigma_fields$dist
     stan_data$prior_sigma_df <- sigma_fields$df
   } else if (family == "poisson") {
-    stan_data$y_ipd <- as.integer(ipd_data$.outcome)
+    stan_data$y_ipd <- .as_count_integer(ipd_data$.outcome)
     stan_data$E_ipd <- as.numeric(ipd_data$.exposure)
-    stan_data$r_agd <- array(as.integer(agd_data$.r))
+    stan_data$r_agd <- array(.as_count_integer(agd_data$.r))
     stan_data$E_agd <- array(as.numeric(agd_data$.E))
   } else {
     stan_data <- .build_stan_data_survival(
@@ -914,7 +976,8 @@ mlumr <- function(data,
       pred_times = pred_times, n_knots = n_knots,
       knots = knots,
       rmst_horizon = rmst_horizon, n_rmst_grid = n_rmst_grid,
-      prior_aux = prior_aux, prior_smooth = prior_smooth,
+      prior_aux = prior_aux, prior_aux2 = prior_aux2,
+      prior_smooth = prior_smooth,
       n_strata = .resolve_aux_strata(aux_by)
     )
   }
@@ -990,7 +1053,7 @@ mlumr <- function(data,
           stop("`stan_data$agd_count` must hold one positive multiplicity per ",
                "retained AgD row.", call. = FALSE)
         }
-        arm_int <- rep(arm_int, times = as.integer(cnt))
+        arm_int <- rep(arm_int, times = .as_count_integer(cnt))
       }
       counts <- tabulate(arm_int, nbins = n_agd_rows)
       # A zero means an arm carries no reconstructed pseudo-individuals, which
@@ -1247,6 +1310,8 @@ mlumr <- function(data,
 #' @param rmst_horizon RMST restriction time, or `NULL` for the default.
 #' @param n_rmst_grid Number of RMST integration points.
 #' @param prior_aux Prior on the parametric auxiliary shape parameters.
+#' @param prior_aux2 Prior on the second generalized-gamma auxiliary parameter,
+#'   or `NULL` to reuse `prior_aux`.
 #' @param prior_smooth Prior on the flexible-baseline smoothing SD.
 #' @param n_strata Number of baseline strata (1 or 2), from `.resolve_aux_strata()`.
 #' @return `stan_data` with the survival arrays, bases and grids added.
@@ -1254,7 +1319,8 @@ mlumr <- function(data,
 .build_stan_data_survival <- function(stan_data, data, surv_info, pred_times,
                                       n_knots, knots = NULL, rmst_horizon,
                                       n_rmst_grid = 100L,
-                                      prior_aux, prior_smooth, n_strata = 1L) {
+                                      prior_aux, prior_aux2 = NULL,
+                                      prior_smooth, n_strata = 1L) {
   ipd <- data$ipd$data
   pseudo <- data$agd$pseudo_ipd
   arm_summary <- data$agd$data
@@ -1318,11 +1384,14 @@ mlumr <- function(data,
     stan_data$prior_aux_scale <- aux_fields$sd
     stan_data$prior_aux_dist <- aux_fields$dist
     stan_data$prior_aux_df <- aux_fields$df
-    # The second generalized-gamma shape reuses the prior_aux specification.
-    stan_data$prior_aux2_location <- aux_fields$mean
-    stan_data$prior_aux2_scale <- aux_fields$sd
-    stan_data$prior_aux2_dist <- aux_fields$dist
-    stan_data$prior_aux2_df <- aux_fields$df
+    # The second generalized-gamma shape has its own specification, defaulted to
+    # `prior_aux` by the caller. Stan has always read these four slots
+    # separately; they were simply fed the same numbers.
+    aux2_fields <- stan_prior_fields(prior_aux2 %||% prior_aux)
+    stan_data$prior_aux2_location <- aux2_fields$mean
+    stan_data$prior_aux2_scale <- aux2_fields$sd
+    stan_data$prior_aux2_dist <- aux2_fields$dist
+    stan_data$prior_aux2_df <- aux2_fields$df
   } else {
     # One basis per baseline stratum. With `aux_by = ".study"` each study gets
     # its own boundary and internal knots over its OWN observed support, which
@@ -1685,7 +1754,8 @@ mlumr <- function(data,
                                   beta_fields,
                                   beta_comparator_fields = NULL,
                                   sd_x,
-                                  prior_aux = NULL, prior_smooth = NULL,
+                                  prior_aux = NULL, prior_aux2 = NULL,
+                                  prior_smooth = NULL,
                                   surv_info = NULL) {
   priors <- list(
     intercept = prior_intercept,
@@ -1727,6 +1797,10 @@ mlumr <- function(data,
   if (family == "survival") {
     if (!is.null(surv_info) && surv_info$n_aux > 0) {
       priors$aux <- prior_aux
+      # Only gengamma has a second auxiliary. Recording it separately is what
+      # lets prior_summary() show a user who set `prior_aux2` that the model
+      # used it, rather than printing one prior for two parameters.
+      if (surv_info$n_aux > 1L) priors$aux2 <- prior_aux2 %||% prior_aux
     }
     if (!is.null(surv_info) && surv_info$kind == "flexible") {
       priors$smooth <- prior_smooth

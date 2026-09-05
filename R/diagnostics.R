@@ -12,14 +12,43 @@
 #' Fail closed instead. The multiplicities must be expanded back to the original
 #' observation sequence (repeat unique column `k` its `agd_count[k]` times, and
 #' expand the arm map with it) before any diagnostic reads them.
+#'
+#' No shipped code path sets `agd_count`, so this guard is inert today: it is a
+#' precondition on the pointwise likelihood that tie aggregation would violate,
+#' placed before that feature rather than after the first wrong LOO value.
+#' Deleting it as unused would remove the check at exactly the moment the
+#' feature that needs it arrives.
 #' @keywords internal
 .assert_agd_loglik_per_observation <- function(object) {
   cnt <- object$stan_data$agd_count
-  if (is.null(cnt) || !length(cnt) || all(cnt <= 1L)) return(invisible(TRUE))
+  if (is.null(cnt) || !length(cnt)) return(invisible(TRUE))
+  # A multiplicity is a count of observations, so validate it before drawing any
+  # conclusion from `sum(cnt)`. Non-integer counts passed the expanded-shape test
+  # below while `.agd_center_weights()` truncated them with `as.integer()`, so
+  # `agd_count = c(1.5, 1.5)` with three likelihood columns was accepted here and
+  # produced a two-element arm map there. `all(cnt <= 1)` also used to return
+  # early, which waved through fractional and zero counts.
+  if (!is.numeric(cnt) || anyNA(cnt) || !all(is.finite(cnt)) || any(cnt < 1) ||
+        any(cnt != trunc(cnt))) {
+    stop("`stan_data$agd_count` must hold finite whole-number multiplicities of ",
+         "at least one, since each is a count of observations that one retained ",
+         "AgD row stands for.", call. = FALSE)
+  }
+  if (all(cnt == 1)) return(invisible(TRUE))
   draws <- object$draws
   if (is.null(draws) || is.null(colnames(draws))) return(invisible(TRUE))
   n_cols <- length(.ordered_log_lik_columns(draws, "agd"))
-  if (n_cols != length(cnt)) return(invisible(TRUE))   # already expanded
+  # Only ONE column count means the multiplicities were expanded: one column per
+  # observation, `sum(cnt)`. Treating every count that merely differs from
+  # `length(cnt)` as expanded passed any other shape too, which is the state
+  # this guard exists to catch rather than wave through.
+  if (n_cols == sum(cnt)) return(invisible(TRUE))
+  if (n_cols != length(cnt)) {
+    stop("`log_lik_agd` has ", n_cols, " column(s), which is neither one per ",
+         "retained AgD row (", length(cnt), ") nor one per observation (",
+         sum(cnt), "). LOO, WAIC, and DIC cannot align the pointwise ",
+         "likelihood with the arm map in that state.", call. = FALSE)
+  }
   stop("This fit collapsed tied aggregate rows (`stan_data$agd_count` has ",
        "multiplicities above one), so `log_lik_agd` holds one value per ",
        "UNIQUE row rather than one per observation. LOO, WAIC, and DIC would ",
@@ -477,9 +506,8 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic"),
   cat(strrep("=", 22), "\n\n", sep = "")
   cmp <- loo::loo_compare(ic_list)
   print(cmp)
-  cat("\nelpd_diff is the difference in expected log pointwise predictive\n")
-  cat("density vs the best model. se_diff > 2 is the conventional threshold\n")
-  cat("for a meaningful difference (|elpd_diff| > 4 * se_diff is stronger).\n")
+  cat(.model_comparison_interpretation(), sep = "\n")
+  cat("\n")
   invisible(cmp)
 }
 
@@ -758,4 +786,32 @@ check_diagnostics <- function(fit) {
     return(numeric())
   }
   x[is.finite(x)]
+}
+
+
+#' The interpretation paragraph the LOO/WAIC comparison prints
+#'
+#' Kept callable so a test can assert what users actually see rather than
+#' matching source text, which is brittle and, worse, matches comments about
+#' the wording as readily as the wording itself.
+#'
+#' The standard error of a difference measures UNCERTAINTY about that
+#' difference, not support for it. An earlier version of this paragraph
+#' presented a large `se_diff` as the threshold for a meaningful difference,
+#' under which an `elpd_diff` of 0.1 alongside an `se_diff` of 3 would have
+#' qualified as persuasive. It is the difference read against its own
+#' uncertainty that carries information, and even that is a heuristic.
+#'
+#' @return A character vector, one element per printed line.
+#' @keywords internal
+.model_comparison_interpretation <- function() {
+  c("",
+    "elpd_diff is the difference in expected log pointwise predictive",
+    "density vs the best model, and se_diff is its standard error: the",
+    "uncertainty about that difference, not evidence for it. Read the two",
+    "together. A difference small relative to se_diff is not distinguished",
+    "from zero by this comparison, whatever se_diff itself is.",
+    "Treat any ratio as a heuristic, not a decision rule, and check the",
+    "PSIS diagnostics and whether the difference matters for the",
+    "prediction you care about.")
 }
