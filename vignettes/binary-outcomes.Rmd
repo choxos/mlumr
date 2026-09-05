@@ -685,9 +685,15 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "loo")
 #>  Relaxed       0.0     0.0      NA                 1 k_psis > 0.7
 #>     SPFA      -0.3     0.3    0.81 |elpd_diff| < 4 1 k_psis > 0.7
 #> 
+#> 
 #> elpd_diff is the difference in expected log pointwise predictive
-#> density vs the best model. se_diff > 2 is the conventional threshold
-#> for a meaningful difference (|elpd_diff| > 4 * se_diff is stronger).
+#> density vs the best model, and se_diff is its standard error: the
+#> uncertainty about that difference, not evidence for it. Read the two
+#> together. A difference small relative to se_diff is not distinguished
+#> from zero by this comparison, whatever se_diff itself is.
+#> Treat any ratio as a heuristic, not a decision rule, and check the
+#> PSIS diagnostics and whether the difference matters for the
+#> prediction you care about.
 compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "dic")
 #> 
 #> Model Comparison (DIC)
@@ -933,8 +939,12 @@ share, that fails to identify them, not the number of studies. The fits converge
 and return estimates, but the intervals are very wide, which is the expected
 signature of weak identification rather than a usable result. Reporting both
 populations makes this visible: the index and comparator values differ by more
-than two log odds ratios, whereas a well-identified contrast changes little
-between populations. The rows are included so that their width and their
+than two log odds ratios, and that difference is set by interaction slopes the
+data never informed, so it says nothing about how the contrast really varies
+between the populations. A large difference is not by itself a sign of weak
+identification, since strong, well-estimated effect modification would produce
+one too; the width of the intervals is, and here it is the width that rules
+these rows out. They are included so that both their width and their
 disagreement can be compared with the rows above.
 
 Setting those rows aside, the two identified anchored estimates agree with each

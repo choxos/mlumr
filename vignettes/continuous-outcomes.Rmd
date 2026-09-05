@@ -627,9 +627,15 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "loo")
 #>     SPFA       0.0     0.0      NA                 1 k_psis > 0.7
 #>  Relaxed      -1.0     0.7    0.90 |elpd_diff| < 4 1 k_psis > 0.7
 #> 
+#> 
 #> elpd_diff is the difference in expected log pointwise predictive
-#> density vs the best model. se_diff > 2 is the conventional threshold
-#> for a meaningful difference (|elpd_diff| > 4 * se_diff is stronger).
+#> density vs the best model, and se_diff is its standard error: the
+#> uncertainty about that difference, not evidence for it. Read the two
+#> together. A difference small relative to se_diff is not distinguished
+#> from zero by this comparison, whatever se_diff itself is.
+#> Treat any ratio as a heuristic, not a decision rule, and check the
+#> PSIS diagnostics and whether the difference matters for the
+#> prediction you care about.
 compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "dic")
 #> 
 #> Model Comparison (DIC)

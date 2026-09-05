@@ -1410,9 +1410,15 @@ form:</p>
 <span id="cb26-7"><a href="#cb26-7" tabindex="-1"></a><span class="co">#&gt;  MSpline       0.0     0.0      NA                    </span></span>
 <span id="cb26-8"><a href="#cb26-8" tabindex="-1"></a><span class="co">#&gt;  Weibull      -5.4     3.9    0.92                    </span></span>
 <span id="cb26-9"><a href="#cb26-9" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb26-10"><a href="#cb26-10" tabindex="-1"></a><span class="co">#&gt; elpd_diff is the difference in expected log pointwise predictive</span></span>
-<span id="cb26-11"><a href="#cb26-11" tabindex="-1"></a><span class="co">#&gt; density vs the best model. se_diff &gt; 2 is the conventional threshold</span></span>
-<span id="cb26-12"><a href="#cb26-12" tabindex="-1"></a><span class="co">#&gt; for a meaningful difference (|elpd_diff| &gt; 4 * se_diff is stronger).</span></span></code></pre></div>
+<span id="cb26-10"><a href="#cb26-10" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb26-11"><a href="#cb26-11" tabindex="-1"></a><span class="co">#&gt; elpd_diff is the difference in expected log pointwise predictive</span></span>
+<span id="cb26-12"><a href="#cb26-12" tabindex="-1"></a><span class="co">#&gt; density vs the best model, and se_diff is its standard error: the</span></span>
+<span id="cb26-13"><a href="#cb26-13" tabindex="-1"></a><span class="co">#&gt; uncertainty about that difference, not evidence for it. Read the two</span></span>
+<span id="cb26-14"><a href="#cb26-14" tabindex="-1"></a><span class="co">#&gt; together. A difference small relative to se_diff is not distinguished</span></span>
+<span id="cb26-15"><a href="#cb26-15" tabindex="-1"></a><span class="co">#&gt; from zero by this comparison, whatever se_diff itself is.</span></span>
+<span id="cb26-16"><a href="#cb26-16" tabindex="-1"></a><span class="co">#&gt; Treat any ratio as a heuristic, not a decision rule, and check the</span></span>
+<span id="cb26-17"><a href="#cb26-17" tabindex="-1"></a><span class="co">#&gt; PSIS diagnostics and whether the difference matters for the</span></span>
+<span id="cb26-18"><a href="#cb26-18" tabindex="-1"></a><span class="co">#&gt; prediction you care about.</span></span></code></pre></div>
 <p>The Weibull fit’s own standardized effects, in both populations, so
 the baseline-shape choice can be judged on the estimand and not only on
 <code>looic</code>:</p>

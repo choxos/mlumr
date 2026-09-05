@@ -110,3 +110,55 @@ test_that("every line of authored prose reached the knitted article", {
   }
   expect_gt(checked, 0L)
 })
+
+# Captured console output is prose too. Five articles print a model comparison,
+# and the paragraph `compare_models()` appends to it is a methodological claim:
+# the shipped articles carried a superseded version that read the standard
+# error of a difference as a threshold for the difference itself. This pins the
+# current wording in every article that prints a comparison, in the knitted
+# source and the rendered page, so the articles cannot lag the function again.
+# The expected lines are what `.model_comparison_interpretation()` prints; they
+# are written out here rather than taken from the function so the check holds
+# on a tree where the articles have been updated ahead of it.
+
+test_that("every article that prints a model comparison shows the current reading", {
+  vdir <- testthat::test_path("..", "..", "vignettes")
+  skip_if_not(dir.exists(vdir),
+              "run from a source checkout, not an installed package")
+  rmds <- list.files(vdir, pattern = "[.]Rmd$", full.names = TRUE)
+  skip_if(length(rmds) == 0L, "no knitted articles")
+  expected <- c("elpd_diff is the difference in expected log pointwise predictive",
+                "density vs the best model, and se_diff is its standard error: the",
+                "uncertainty about that difference, not evidence for it. Read the two",
+                "together. A difference small relative to se_diff is not distinguished",
+                "from zero by this comparison, whatever se_diff itself is.",
+                "Treat any ratio as a heuristic, not a decision rule, and check the",
+                "PSIS diagnostics and whether the difference matters for the",
+                "prediction you care about.")
+  stale <- "is the conventional threshold"
+  checked <- 0L
+  for (rmd in rmds) {
+    txt <- readLines(rmd, warn = FALSE)
+    html <- sub("[.]Rmd$", ".html", rmd)
+    html_txt <- if (file.exists(html)) {
+      paste(readLines(html, warn = FALSE), collapse = "\n")
+    } else {
+      ""
+    }
+    expect_false(any(grepl(stale, txt, fixed = TRUE)),
+                 info = paste0(basename(rmd), " still prints the superseded ",
+                               "model-comparison rule"))
+    expect_false(grepl(stale, html_txt, fixed = TRUE),
+                 info = paste0(basename(html), " still prints the superseded ",
+                               "model-comparison rule"))
+    if (!any(grepl("Model Comparison (", txt, fixed = TRUE))) next
+    for (line in expected) {
+      expect_true(any(grepl(line, txt, fixed = TRUE)),
+                  info = paste0(basename(rmd), " is missing: ", line))
+      expect_true(grepl(line, html_txt, fixed = TRUE),
+                  info = paste0(basename(html), " is missing: ", line))
+    }
+    checked <- checked + 1L
+  }
+  expect_gt(checked, 0L)
+})

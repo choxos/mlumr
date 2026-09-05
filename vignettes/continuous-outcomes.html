@@ -1210,21 +1210,27 @@ and check <code>prior_sensitivity()</code> (see
 <span id="cb21-7"><a href="#cb21-7" tabindex="-1"></a><span class="co">#&gt;     SPFA       0.0     0.0      NA                 1 k_psis &gt; 0.7</span></span>
 <span id="cb21-8"><a href="#cb21-8" tabindex="-1"></a><span class="co">#&gt;  Relaxed      -1.0     0.7    0.90 |elpd_diff| &lt; 4 1 k_psis &gt; 0.7</span></span>
 <span id="cb21-9"><a href="#cb21-9" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb21-10"><a href="#cb21-10" tabindex="-1"></a><span class="co">#&gt; elpd_diff is the difference in expected log pointwise predictive</span></span>
-<span id="cb21-11"><a href="#cb21-11" tabindex="-1"></a><span class="co">#&gt; density vs the best model. se_diff &gt; 2 is the conventional threshold</span></span>
-<span id="cb21-12"><a href="#cb21-12" tabindex="-1"></a><span class="co">#&gt; for a meaningful difference (|elpd_diff| &gt; 4 * se_diff is stronger).</span></span>
-<span id="cb21-13"><a href="#cb21-13" tabindex="-1"></a><span class="fu">compare_models</span>(<span class="at">SPFA =</span> fit_spfa, <span class="at">Relaxed =</span> fit_relaxed, <span class="at">criterion =</span> <span class="st">&quot;dic&quot;</span>)</span>
-<span id="cb21-14"><a href="#cb21-14" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb21-15"><a href="#cb21-15" tabindex="-1"></a><span class="co">#&gt; Model Comparison (DIC)</span></span>
-<span id="cb21-16"><a href="#cb21-16" tabindex="-1"></a><span class="co">#&gt; ======================</span></span>
-<span id="cb21-17"><a href="#cb21-17" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb21-18"><a href="#cb21-18" tabindex="-1"></a><span class="co">#&gt;    Model     DIC    pD Delta_DIC</span></span>
-<span id="cb21-19"><a href="#cb21-19" tabindex="-1"></a><span class="co">#&gt;     SPFA 1367.72 16.28      0.00</span></span>
-<span id="cb21-20"><a href="#cb21-20" tabindex="-1"></a><span class="co">#&gt;  Relaxed 1369.13 16.88      1.41</span></span>
-<span id="cb21-21"><a href="#cb21-21" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb21-22"><a href="#cb21-22" tabindex="-1"></a><span class="co">#&gt; Lower DIC = better fit. Delta_DIC &gt; 5 is a rough heuristic for</span></span>
-<span id="cb21-23"><a href="#cb21-23" tabindex="-1"></a><span class="co">#&gt; meaningful difference, not a formally calibrated threshold.</span></span>
-<span id="cb21-24"><a href="#cb21-24" tabindex="-1"></a><span class="co">#&gt; DIC should not be the sole basis for model selection.</span></span></code></pre></div>
+<span id="cb21-10"><a href="#cb21-10" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb21-11"><a href="#cb21-11" tabindex="-1"></a><span class="co">#&gt; elpd_diff is the difference in expected log pointwise predictive</span></span>
+<span id="cb21-12"><a href="#cb21-12" tabindex="-1"></a><span class="co">#&gt; density vs the best model, and se_diff is its standard error: the</span></span>
+<span id="cb21-13"><a href="#cb21-13" tabindex="-1"></a><span class="co">#&gt; uncertainty about that difference, not evidence for it. Read the two</span></span>
+<span id="cb21-14"><a href="#cb21-14" tabindex="-1"></a><span class="co">#&gt; together. A difference small relative to se_diff is not distinguished</span></span>
+<span id="cb21-15"><a href="#cb21-15" tabindex="-1"></a><span class="co">#&gt; from zero by this comparison, whatever se_diff itself is.</span></span>
+<span id="cb21-16"><a href="#cb21-16" tabindex="-1"></a><span class="co">#&gt; Treat any ratio as a heuristic, not a decision rule, and check the</span></span>
+<span id="cb21-17"><a href="#cb21-17" tabindex="-1"></a><span class="co">#&gt; PSIS diagnostics and whether the difference matters for the</span></span>
+<span id="cb21-18"><a href="#cb21-18" tabindex="-1"></a><span class="co">#&gt; prediction you care about.</span></span>
+<span id="cb21-19"><a href="#cb21-19" tabindex="-1"></a><span class="fu">compare_models</span>(<span class="at">SPFA =</span> fit_spfa, <span class="at">Relaxed =</span> fit_relaxed, <span class="at">criterion =</span> <span class="st">&quot;dic&quot;</span>)</span>
+<span id="cb21-20"><a href="#cb21-20" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb21-21"><a href="#cb21-21" tabindex="-1"></a><span class="co">#&gt; Model Comparison (DIC)</span></span>
+<span id="cb21-22"><a href="#cb21-22" tabindex="-1"></a><span class="co">#&gt; ======================</span></span>
+<span id="cb21-23"><a href="#cb21-23" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb21-24"><a href="#cb21-24" tabindex="-1"></a><span class="co">#&gt;    Model     DIC    pD Delta_DIC</span></span>
+<span id="cb21-25"><a href="#cb21-25" tabindex="-1"></a><span class="co">#&gt;     SPFA 1367.72 16.28      0.00</span></span>
+<span id="cb21-26"><a href="#cb21-26" tabindex="-1"></a><span class="co">#&gt;  Relaxed 1369.13 16.88      1.41</span></span>
+<span id="cb21-27"><a href="#cb21-27" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb21-28"><a href="#cb21-28" tabindex="-1"></a><span class="co">#&gt; Lower DIC = better fit. Delta_DIC &gt; 5 is a rough heuristic for</span></span>
+<span id="cb21-29"><a href="#cb21-29" tabindex="-1"></a><span class="co">#&gt; meaningful difference, not a formally calibrated threshold.</span></span>
+<span id="cb21-30"><a href="#cb21-30" tabindex="-1"></a><span class="co">#&gt; DIC should not be the sole basis for model selection.</span></span></code></pre></div>
 </div>
 <div id="interpretation" class="section level2">
 <h2>Interpretation</h2>
