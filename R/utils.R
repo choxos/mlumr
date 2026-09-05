@@ -421,20 +421,25 @@ cor_adjust_pearson <- function(X, types) {
   as.integer(round(x))
 }
 
-#' Give positional distribution arguments the names they matched
+#' Give distribution arguments the names R would match them to
 #'
-#' `distr()` stores its arguments unevaluated, and evaluation walks
-#' `names(args)`. Anything supplied positionally therefore had no name, was
+#' `distr()` stores its arguments unevaluated, and everything downstream reads
+#' them BY NAME: evaluation walks `names(args)`, and the margin classification
+#' reads `args$size`. Anything supplied positionally therefore had no name, was
 #' never iterated, and never reached the quantile function: `distr(qnorm, 10, 2)`
 #' produced a standard normal rather than a normal with mean 10 and SD 2, with
-#' nothing reported. This applies R's own positional matching once, at
-#' construction, so the stored specification is explicit about what each
-#' argument is.
+#' nothing reported. An abbreviated name was a quieter version of the same
+#' fault: `distr(qbinom, si = 5, prob = .5)` evaluated with size 5, because R
+#' completes `si` at call time, but the classification looked up `args$size`,
+#' found nothing, and `all(NULL == 1)` is `TRUE`, so a five-trial binomial was
+#' labeled binary and given the binary copula correction. This applies R's own
+#' matching once, at construction, so every stored argument carries the full
+#' name of the formal it binds.
 #'
-#' @param args The captured `...`, possibly partly named.
+#' @param args The captured `...`, possibly partly named or abbreviated.
 #' @param qfun The resolved quantile function.
 #' @param qfun_name Its name, for error messages.
-#' @return `args` with every element named.
+#' @return `args` with every element named in full.
 #' @keywords internal
 .name_distr_args <- function(args, qfun, qfun_name = "qfun") {
   if (!length(args)) {
@@ -444,17 +449,13 @@ cor_adjust_pearson <- function(X, types) {
   if (is.null(nms)) {
     nms <- rep("", length(args))
   }
-  unnamed <- which(!nzchar(nms))
-  if (!length(unnamed)) {
-    return(args)
-  }
   # `p` is supplied by the evaluator, so it is never one of these. R matches
-  # unnamed arguments only against formals that come BEFORE `...`; anything
-  # after it can be reached by name alone, and an unnamed value goes into the
-  # dots. Dropping `...` from this list rather than truncating at it would make
-  # `distr(qfun, 999)` bind 999 to a later formal for a function declared
-  # `function(p, ..., scale = 2)`, silently replacing a default and generating
-  # entirely different integration points.
+  # unnamed and abbreviated arguments only against formals that come BEFORE
+  # `...`; anything after it can be reached by its exact name alone, and an
+  # unnamed value goes into the dots. Dropping `...` from this list rather than
+  # truncating at it would make `distr(qfun, 999)` bind 999 to a later formal
+  # for a function declared `function(p, ..., scale = 2)`, silently replacing a
+  # default and generating entirely different integration points.
   formal_names <- names(formals(qfun))
   dots <- match("...", formal_names)
   if (!is.na(dots)) {
@@ -469,10 +470,14 @@ cor_adjust_pearson <- function(X, types) {
   # "matched by multiple actual arguments". Matching partials against the
   # full list was wrong too: with formals `mean` and `method`, `m = 10` beside
   # `mean = 20` must reach `method`, not compete for a `mean` already taken.
-  named <- nms[nzchar(nms)]
-  exact <- intersect(named, formal_names)
+  named_idx <- which(nzchar(nms))
+  exact <- intersect(nms[named_idx], formal_names)
   remaining <- setdiff(formal_names, exact)
-  partial <- vapply(setdiff(named, exact), function(nm) {
+  for (i in named_idx) {
+    nm <- nms[i]
+    if (nm %in% exact) {
+      next
+    }
     hits <- remaining[startsWith(remaining, nm)]
     # R refuses an abbreviation that fits more than one formal, and it does so
     # BEFORE binding anything positional. Letting the positional value take one
@@ -484,22 +489,30 @@ cor_adjust_pearson <- function(X, types) {
                           "than one parameter of `%s` (%s). Name it in full."),
                    nm, qfun_name, paste(hits, collapse = ", ")), call. = FALSE)
     }
-    if (length(hits) == 1L) hits else nm
-  }, character(1), USE.NAMES = FALSE)
-  available <- setdiff(formal_names, c(exact, partial))
-  n_match <- min(length(unnamed), length(available))
-  if (n_match) {
-    nms[unnamed[seq_len(n_match)]] <- available[seq_len(n_match)]
+    if (length(hits) == 1L) {
+      # Store the full name, so that everything reading the arguments by name
+      # sees what the quantile function will see.
+      nms[i] <- hits
+      remaining <- setdiff(remaining, hits)
+    }
   }
-  # Anything left over belongs in `...`, if the function has one. If it does
-  # not, there is nowhere for the value to go and saying so now beats a
-  # confusing error from the quantile function later.
-  leftover <- length(unnamed) - n_match
-  if (leftover > 0L && !("..." %in% names(formals(qfun)))) {
-    fmt <- paste0("`distr()` received %d unnamed argument(s) for `%s`, which ",
-                  "has no remaining parameter to match them to and no `...`. ",
-                  "Name them explicitly or drop them.")
-    stop(sprintf(fmt, leftover, qfun_name), call. = FALSE)
+  unnamed <- which(!nzchar(nms))
+  if (length(unnamed)) {
+    available <- remaining
+    n_match <- min(length(unnamed), length(available))
+    if (n_match) {
+      nms[unnamed[seq_len(n_match)]] <- available[seq_len(n_match)]
+    }
+    # Anything left over belongs in `...`, if the function has one. If it does
+    # not, there is nowhere for the value to go and saying so now beats a
+    # confusing error from the quantile function later.
+    leftover <- length(unnamed) - n_match
+    if (leftover > 0L && !("..." %in% names(formals(qfun)))) {
+      fmt <- paste0("`distr()` received %d unnamed argument(s) for `%s`, which ",
+                    "has no remaining parameter to match them to and no `...`. ",
+                    "Name them explicitly or drop them.")
+      stop(sprintf(fmt, leftover, qfun_name), call. = FALSE)
+    }
   }
   names(args) <- nms
   args

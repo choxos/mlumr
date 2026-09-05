@@ -145,3 +145,27 @@ test_that("classifying a qbinom margin sees the specification's scope", {
                                             data = list(x_mean = 0.3))),
                "discrete")
 })
+
+test_that("an abbreviated argument is stored under its full name", {
+  # R completes `si` to `size` when the quantile function is called, so the
+  # specification evaluated with five trials. Everything that reads the stored
+  # arguments BY NAME did not get that completion: the margin classification
+  # looked up `args$size`, found nothing, and `all(NULL == 1)` is TRUE, so a
+  # five-trial binomial was labeled binary. The stored name must be the one
+  # the quantile function will bind.
+  sp <- distr(qbinom, si = 5, pr = 0.5)
+  expect_named(sp$args, c("size", "prob"))
+  expect_equal(eval_distr(sp, 0.5), stats::qbinom(0.5, size = 5, prob = 0.5))
+  expect_equal(unname(get_distribution_type(x = sp)), "discrete")
+  expect_equal(unname(get_distribution_type(x = distr(qbinom, si = 1, pr = 0.5))),
+               "binary")
+  # The same completion with a positional value for the other formal.
+  sp2 <- distr(qgamma, sh = 2, 3)
+  expect_named(sp2$args, c("shape", "rate"))
+  expect_equal(eval_distr(sp2, 0.5), stats::qgamma(0.5, shape = 2, rate = 3))
+  # An exact name after `...` is left alone: R never completes those.
+  q <- function(p, ..., scale = 1) stats::qnorm(p) * scale
+  sp3 <- distr(q, scale = 2)
+  expect_named(sp3$args, "scale")
+  expect_equal(eval_distr(sp3, 0.975), stats::qnorm(0.975) * 2)
+})

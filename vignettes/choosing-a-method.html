@@ -725,21 +725,27 @@ against the relaxed model by leave-one-out cross-validation and DIC:</p>
 <span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a><span class="co">#&gt;  Relaxed       0.0     0.0      NA                 1 k_psis &gt; 0.7</span></span>
 <span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a><span class="co">#&gt;     SPFA      -0.2     0.1    0.99 |elpd_diff| &lt; 4 1 k_psis &gt; 0.7</span></span>
 <span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a><span class="co">#&gt; elpd_diff is the difference in expected log pointwise predictive</span></span>
-<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a><span class="co">#&gt; density vs the best model. se_diff &gt; 2 is the conventional threshold</span></span>
-<span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a><span class="co">#&gt; for a meaningful difference (|elpd_diff| &gt; 4 * se_diff is stronger).</span></span>
-<span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a><span class="fu">compare_models</span>(<span class="at">SPFA =</span> fit_spfa, <span class="at">Relaxed =</span> fit_relaxed)   <span class="co"># DIC-based (the default)</span></span>
-<span id="cb8-14"><a href="#cb8-14" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb8-15"><a href="#cb8-15" tabindex="-1"></a><span class="co">#&gt; Model Comparison (DIC)</span></span>
-<span id="cb8-16"><a href="#cb8-16" tabindex="-1"></a><span class="co">#&gt; ======================</span></span>
-<span id="cb8-17"><a href="#cb8-17" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb8-18"><a href="#cb8-18" tabindex="-1"></a><span class="co">#&gt;    Model    DIC   pD Delta_DIC</span></span>
-<span id="cb8-19"><a href="#cb8-19" tabindex="-1"></a><span class="co">#&gt;  Relaxed 366.10 4.84      0.00</span></span>
-<span id="cb8-20"><a href="#cb8-20" tabindex="-1"></a><span class="co">#&gt;     SPFA 366.17 4.74      0.07</span></span>
-<span id="cb8-21"><a href="#cb8-21" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb8-22"><a href="#cb8-22" tabindex="-1"></a><span class="co">#&gt; Lower DIC = better fit. Delta_DIC &gt; 5 is a rough heuristic for</span></span>
-<span id="cb8-23"><a href="#cb8-23" tabindex="-1"></a><span class="co">#&gt; meaningful difference, not a formally calibrated threshold.</span></span>
-<span id="cb8-24"><a href="#cb8-24" tabindex="-1"></a><span class="co">#&gt; DIC should not be the sole basis for model selection.</span></span></code></pre></div>
+<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a><span class="co">#&gt; elpd_diff is the difference in expected log pointwise predictive</span></span>
+<span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a><span class="co">#&gt; density vs the best model, and se_diff is its standard error: the</span></span>
+<span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a><span class="co">#&gt; uncertainty about that difference, not evidence for it. Read the two</span></span>
+<span id="cb8-14"><a href="#cb8-14" tabindex="-1"></a><span class="co">#&gt; together. A difference small relative to se_diff is not distinguished</span></span>
+<span id="cb8-15"><a href="#cb8-15" tabindex="-1"></a><span class="co">#&gt; from zero by this comparison, whatever se_diff itself is.</span></span>
+<span id="cb8-16"><a href="#cb8-16" tabindex="-1"></a><span class="co">#&gt; Treat any ratio as a heuristic, not a decision rule, and check the</span></span>
+<span id="cb8-17"><a href="#cb8-17" tabindex="-1"></a><span class="co">#&gt; PSIS diagnostics and whether the difference matters for the</span></span>
+<span id="cb8-18"><a href="#cb8-18" tabindex="-1"></a><span class="co">#&gt; prediction you care about.</span></span>
+<span id="cb8-19"><a href="#cb8-19" tabindex="-1"></a><span class="fu">compare_models</span>(<span class="at">SPFA =</span> fit_spfa, <span class="at">Relaxed =</span> fit_relaxed)   <span class="co"># DIC-based (the default)</span></span>
+<span id="cb8-20"><a href="#cb8-20" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-21"><a href="#cb8-21" tabindex="-1"></a><span class="co">#&gt; Model Comparison (DIC)</span></span>
+<span id="cb8-22"><a href="#cb8-22" tabindex="-1"></a><span class="co">#&gt; ======================</span></span>
+<span id="cb8-23"><a href="#cb8-23" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-24"><a href="#cb8-24" tabindex="-1"></a><span class="co">#&gt;    Model    DIC   pD Delta_DIC</span></span>
+<span id="cb8-25"><a href="#cb8-25" tabindex="-1"></a><span class="co">#&gt;  Relaxed 366.10 4.84      0.00</span></span>
+<span id="cb8-26"><a href="#cb8-26" tabindex="-1"></a><span class="co">#&gt;     SPFA 366.17 4.74      0.07</span></span>
+<span id="cb8-27"><a href="#cb8-27" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-28"><a href="#cb8-28" tabindex="-1"></a><span class="co">#&gt; Lower DIC = better fit. Delta_DIC &gt; 5 is a rough heuristic for</span></span>
+<span id="cb8-29"><a href="#cb8-29" tabindex="-1"></a><span class="co">#&gt; meaningful difference, not a formally calibrated threshold.</span></span>
+<span id="cb8-30"><a href="#cb8-30" tabindex="-1"></a><span class="co">#&gt; DIC should not be the sole basis for model selection.</span></span></code></pre></div>
 <p>LOO/WAIC are preferred over DIC where available; treat a
 better-fitting relaxed model as <em>suggestive</em> of effect
 modification, not proof, corroborate with <code>delta_beta</code>, prior

@@ -814,9 +814,15 @@ compare_models(Weibull = fit_weibull, MSpline = fit_mspline, criterion = "loo")
 #>  MSpline       0.0     0.0      NA                    
 #>  Weibull      -5.4     3.9    0.92                    
 #> 
+#> 
 #> elpd_diff is the difference in expected log pointwise predictive
-#> density vs the best model. se_diff > 2 is the conventional threshold
-#> for a meaningful difference (|elpd_diff| > 4 * se_diff is stronger).
+#> density vs the best model, and se_diff is its standard error: the
+#> uncertainty about that difference, not evidence for it. Read the two
+#> together. A difference small relative to se_diff is not distinguished
+#> from zero by this comparison, whatever se_diff itself is.
+#> Treat any ratio as a heuristic, not a decision rule, and check the
+#> PSIS diagnostics and whether the difference matters for the
+#> prediction you care about.
 ```
 
 The Weibull fit's own standardized effects, in both populations, so the

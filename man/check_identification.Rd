@@ -71,7 +71,16 @@ parameters, and the aggregate rows pin down every functional in their row
 space. A single row whose covariate means equal the IPD means identifies it
 exactly while separating neither the intercept nor the slope.
 \code{target_in_span} reports that case, so a coefficient verdict is not read as
-one about the estimand.
+one about the estimand. It is judged on the integration profiles the
+likelihood actually uses, not on the declared \verb{<covariate>_mean} columns,
+and with the same practical yardstick as the rest of the screen: directions
+along which the rows move less than 0.05 IPD standard deviations are not
+counted as spanned, and the target counts as in the span when it sits
+within 0.1 IPD standard deviations of what is. Finite integration grids
+miss their declared means by a few hundredths of an SD, so an exact test on
+either matrix would answer the wrong question: on the declared one it can
+certify a target the fitted rows do not contain, and on the realized one
+the noise itself spans every direction.
 
 This diagnostic concerns \code{model = "relaxed"} only. Under SPFA both treatments
 share one coefficient vector, which the IPD identifies, so a single aggregate

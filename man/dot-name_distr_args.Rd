@@ -2,27 +2,32 @@
 % Please edit documentation in R/utils.R
 \name{.name_distr_args}
 \alias{.name_distr_args}
-\title{Give positional distribution arguments the names they matched}
+\title{Give distribution arguments the names R would match them to}
 \usage{
 .name_distr_args(args, qfun, qfun_name = "qfun")
 }
 \arguments{
-\item{args}{The captured \code{...}, possibly partly named.}
+\item{args}{The captured \code{...}, possibly partly named or abbreviated.}
 
 \item{qfun}{The resolved quantile function.}
 
 \item{qfun_name}{Its name, for error messages.}
 }
 \value{
-\code{args} with every element named.
+\code{args} with every element named in full.
 }
 \description{
-\code{distr()} stores its arguments unevaluated, and evaluation walks
-\code{names(args)}. Anything supplied positionally therefore had no name, was
+\code{distr()} stores its arguments unevaluated, and everything downstream reads
+them BY NAME: evaluation walks \code{names(args)}, and the margin classification
+reads \code{args$size}. Anything supplied positionally therefore had no name, was
 never iterated, and never reached the quantile function: \code{distr(qnorm, 10, 2)}
 produced a standard normal rather than a normal with mean 10 and SD 2, with
-nothing reported. This applies R's own positional matching once, at
-construction, so the stored specification is explicit about what each
-argument is.
+nothing reported. An abbreviated name was a quieter version of the same
+fault: \code{distr(qbinom, si = 5, prob = .5)} evaluated with size 5, because R
+completes \code{si} at call time, but the classification looked up \code{args$size},
+found nothing, and \code{all(NULL == 1)} is \code{TRUE}, so a five-trial binomial was
+labeled binary and given the binary copula correction. This applies R's own
+matching once, at construction, so every stored argument carries the full
+name of the formal it binds.
 }
 \keyword{internal}

@@ -16,4 +16,13 @@ later averages to a share below the threshold while two fifths of the RMST
 draws are integrated from a single straight line. \code{NA} for a draw with no
 decay to apportion.
 }
+\details{
+A two-point grid is the limiting case, not an exception to it: the first
+interval is the whole horizon, so every bit of the decay lands before the
+second point and the share is 1. Treating that grid as "no interior to
+compare against" and staying silent let \code{n_rmst_grid = 2}, which
+\code{\link[=mlumr]{mlumr()}} accepts, integrate two exponential curves with rates 100 and 200
+to the same RMST of half the horizon, an RMST ratio of exactly 1, with
+nothing said.
+}
 \keyword{internal}

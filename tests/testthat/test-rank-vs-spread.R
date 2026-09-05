@@ -198,3 +198,67 @@ test_that("the location threshold must be one non-negative number", {
   expect_true(mlumr:::.realized_matches_declared(declared, declared, ref_sd,
                                                  max_location_gap = 0))
 })
+
+# `check_identification()` reports `target_in_span` on the rows the likelihood
+# integrates over, judged with the screen's own practical yardstick. An exact
+# test is wrong on either matrix: on the declared means it can certify a target
+# the fitted rows do not contain, because a realized grid a fifth of an SD away
+# still passes `.realized_matches_declared()`; on the realized means the
+# integration noise itself spans every direction.
+
+test_that("the practical span test ignores directions below the spread floor", {
+  f <- .target_in_span_practical
+  # One row a quarter of an SD from the target: that row is the whole design,
+  # and the target is not on it.
+  expect_false(f(matrix(0.24, 1, 1), 0, 1))
+  # One row within integration error of the target.
+  expect_true(f(matrix(0.05, 1, 1), 0, 1))
+  # Four rows declared identical to the target, realized with grid noise: an
+  # exact test on these certifies ANY target, since the noise spans the line.
+  set.seed(2026)
+  noisy <- matrix(stats::rnorm(4, 0, 0.03), 4, 1)
+  expect_true(f(noisy, 0, 1))
+  expect_false(f(noisy, 0.5, 1))
+  expect_false(f(noisy + 0.5, 0, 1))
+  # Exact arithmetic on those same rows says the opposite, which is the
+  # failure this helper exists to avoid.
+  expect_true(.target_in_span(noisy + 0.5, 0, 1))
+  # Rows that move in one covariate only: a target displaced along that
+  # direction is spanned, one displaced along the other is not.
+  two <- matrix(c(-1, 1, 0, 0), 2, 2)
+  expect_true(f(two, c(0.3, 0), c(1, 1)))
+  expect_false(f(two, c(0, 0.5), c(1, 1)))
+  # A span, not a hull: a well-spread design spans a target far outside it.
+  expect_true(f(matrix(c(-1, 1), 2, 1), 5, 1))
+  expect_true(is.na(f(matrix(NA_real_, 1, 1), 0, 1)))
+})
+
+test_that("check_identification() judges the span on the fitted rows", {
+  set.seed(2026)
+  ipd <- data.frame(x1 = stats::rnorm(200))
+  m <- mean(ipd$x1)
+  s <- stats::sd(ipd$x1)
+  mk <- function(realized) {
+    out <- list(family = "normal", covariates = "x1", n_covariates = 1L,
+                ipd = list(data = ipd),
+                agd = list(data = data.frame(x1_mean = m)),
+                integration_points = array(realized, dim = c(1L, 8L, 1L)))
+    class(out) <- "mlumr_data"
+    out
+  }
+  # Declared at the IPD mean, so the DECLARED row certifies the target; the
+  # realized grid sits 0.24 SD away, inside the location tolerance, and it is
+  # the realized row the likelihood integrates over.
+  shifted <- suppressWarnings(check_identification(mk(m + 0.24 * s),
+                                                   verbose = FALSE))
+  expect_true(shifted$flagged)
+  expect_false(shifted$target_in_span)
+  close <- suppressWarnings(check_identification(mk(m + 0.04 * s),
+                                                 verbose = FALSE))
+  expect_true(close$flagged)
+  expect_true(close$target_in_span)
+  printed <- capture.output(suppressWarnings(check_identification(mk(m + 0.04 * s))))
+  expect_true(any(grepl("nonetheless identified", printed)))
+  expect_true(any(grepl("read it off the posterior", printed)))
+  expect_false(any(grepl("remain prior-driven", printed)))
+})

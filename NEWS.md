@@ -317,9 +317,11 @@
   Editing a shared include, which is where the likelihood helpers and the
   numerical guards live, produced the same key, and a previously compiled
   executable was reused. The key is now a digest over a canonical payload
-  naming every source file with its own content, plus the CmdStan version, so a
-  changed include and a changed toolchain both invalidate it. Anyone carrying a
-  cache from an earlier version will get one recompile.
+  naming every source file with its own content, plus the CmdStan version,
+  its installation path and the content of its `make/local`, so a changed
+  include, a different CmdStan, or changed build flags invalidate it. A
+  compiler upgrade with everything else unchanged does not, and does not need
+  to. Anyone carrying a cache from an earlier version will get one recompile.
 
 ## Transportability to arbitrary target populations
 
@@ -458,7 +460,13 @@
   hazard ratio curve, null 0). `predict(type = "median")` carries a
   `p_not_reached` column reporting the posterior probability that the median is
   beyond follow-up. `conditional_effects()` / `conditional_predict()` give
-  covariate-conditional contrasts and survival curves.
+  covariate-conditional contrasts and survival curves. Both grid-based
+  quantities say when their grid is too coarse to trust, per posterior draw:
+  RMST warns when more than half of the fitted survival decay lands before the
+  second `n_rmst_grid` node (a two-node grid always does), and the median warns
+  when the curve is already at or below 0.5 at the first `pred_times` point,
+  where it can only be interpolated from `S(0) = 1` across the whole first
+  interval. Both point at a refit with a finer grid.
 
 * **`marginal_effects()` reports natural-scale survival effects** (null 1): the
   hazard ratio (`HR`) for proportional-hazards distributions, the time ratio
@@ -581,6 +589,10 @@
   specification says what each argument is. Arguments after `...` in the
   quantile function's signature stay name-only, which is R's own rule, and an
   argument that matches nothing is an error rather than a silent omission.
+  Abbreviated names are completed the same way: `distr(qbinom, si = 5, ...)`
+  evaluated with five trials, because R completes `si` at call time, but the
+  margin classification read `args$size`, found nothing, and labeled a
+  five-trial binomial binary. The stored name is now the full formal.
 
 * **New moment-parameterized marginal distributions**, mirroring the ones
   `multinma` exports so a published baseline table can be used as printed:
