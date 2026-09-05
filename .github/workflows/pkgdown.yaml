@@ -15,9 +15,14 @@ permissions: read-all
 jobs:
   pkgdown:
     runs-on: ubuntu-latest
-    # Only restrict concurrency for non-PR jobs
+    # Only restrict concurrency for non-PR jobs.
+    #
+    # The group is deliberately NOT pkgdown-specific for real deployments: the
+    # app deploys to `app/` on the same gh-pages branch from its own workflow,
+    # and the action force-pushes, so two writers running at once can lose one
+    # of the two updates. Both writers must share one group to serialize them.
     concurrency:
-      group: pkgdown-${{ github.event_name != 'pull_request' || github.run_id }}
+      group: ${{ github.event_name != 'pull_request' && 'github-pages' || format('pkgdown-{0}', github.run_id) }}
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
     permissions:
@@ -50,5 +55,15 @@ jobs:
           # articles are no longer generated. With `clean: false` they would
           # stay on gh-pages and keep serving a site that no longer exists.
           clean: true
+          # The web app is deployed separately into `app/` on this same
+          # branch, and it is NOT part of the pkgdown artifact. Without this
+          # exclusion, `clean: true` removes every destination file the docs
+          # build did not produce, which includes the entire app subtree, and
+          # the navbar's "Web app" entry starts serving a 404. Publishing a
+          # release triggers this deployment, so the release itself is what
+          # would have broken the link.
+          clean-exclude: |
+            app
+            app/**
           branch: gh-pages
           folder: docs
