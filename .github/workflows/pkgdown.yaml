@@ -15,7 +15,21 @@ permissions: read-all
 jobs:
   pkgdown:
     runs-on: ubuntu-latest
-    # Only restrict concurrency for non-PR jobs
+    # Only restrict concurrency for non-PR jobs.
+    #
+    # Deliberately pkgdown-specific. Sharing one group with the app deployment
+    # looked like serialization, but GitHub concurrency does not queue: a newly
+    # queued member CANCELS the pending one, so a docs deployment arriving
+    # while an app deployment waited would have discarded the app update
+    # entirely. That is a worse failure than the overlap it was meant to
+    # prevent, and it would be silent.
+    #
+    # What actually protects the app is `clean-exclude` below: a docs
+    # deployment can no longer delete `app/`, whether or not the two overlap.
+    # A genuine simultaneous write remains possible, since the deploy action
+    # force-pushes; it would cost one app update, which is recoverable by
+    # re-running that workflow, and it is not made better by cancelling
+    # deployments in advance.
     concurrency:
       group: pkgdown-${{ github.event_name != 'pull_request' || github.run_id }}
     env:
@@ -50,5 +64,15 @@ jobs:
           # articles are no longer generated. With `clean: false` they would
           # stay on gh-pages and keep serving a site that no longer exists.
           clean: true
+          # The web app is deployed separately into `app/` on this same
+          # branch, and it is NOT part of the pkgdown artifact. Without this
+          # exclusion, `clean: true` removes every destination file the docs
+          # build did not produce, which includes the entire app subtree, and
+          # the navbar's "Web app" entry starts serving a 404. Publishing a
+          # release triggers this deployment, so the release itself is what
+          # would have broken the link.
+          clean-exclude: |
+            app
+            app/**
           branch: gh-pages
           folder: docs

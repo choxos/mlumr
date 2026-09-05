@@ -1376,11 +1376,13 @@ collapsible summary)</caption>
 </table>
 <p>Under the relaxed model the conditional hazard ratio depends on the
 covariates, so there is no single conditional HR. The scalar
-<code>HR</code> is then only the marginal hazard ratio at the
-<strong>start of follow-up</strong>; prefer
-<code>predict(type = &quot;loghr&quot;)</code> for the time-varying contrast, or
-the collapsible RMST estimands (<code>effect = &quot;rmstd&quot;</code> /
-<code>&quot;rmstr&quot;</code>). <strong>Caveat (unanchored two-study
+<code>HR</code> is then only the marginal hazard ratio at one instant,
+and the <code>at_time</code> column says which: the <span class="math inline">\(t \rightarrow 0\)</span> limit for an unstratified
+fit, and otherwise the first prediction time, which is positive and set
+by <code>pred_times</code>. Prefer <code>predict(type = &quot;loghr&quot;)</code>
+for the time-varying contrast, or the collapsible RMST estimands
+(<code>effect = &quot;rmstd&quot;</code> / <code>&quot;rmstr&quot;</code>), whose horizon is
+reported beside them. <strong>Caveat (unanchored two-study
 setting).</strong> Unlike multinma’s connected network, here the
 comparator coefficients are identified <em>only</em> through the single
 reconstructed comparator likelihood, so the index-population relaxed

@@ -187,8 +187,7 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
   }
 
   source_files <- c(stan_file, include_files)
-  source_hash <- paste(unname(tools::md5sum(source_files)), collapse = "")
-  cache_key <- substr(source_hash, 1L, 32L)
+  cache_key <- .cmdstanr_cache_key(source_files)
   cache_dir <- file.path(.cmdstanr_cache_root(), paste0(model_name, "-", cache_key))
 
   if (!dir.exists(cache_dir)) {
@@ -225,4 +224,44 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
   } else {
     stop("Could not create a writable cmdstanr cache root.", call. = FALSE)
   }
+}
+
+
+#' Cache key covering every Stan source the model is built from
+#'
+#' The key used to be `substr(paste0(md5s), 1, 32)`. An MD5 digest is already
+#' 32 characters, so that expression returns the FIRST digest and discards
+#' every other one: the key was the main model's hash alone, and editing an
+#' include left it unchanged. A user upgrading to a version whose only change
+#' was inside an include, with the main file untouched and no newer than the
+#' cached executable, could keep running a binary compiled from the old
+#' likelihood.
+#'
+#' The key is now a digest of a canonical payload naming every source and its
+#' content, plus the CmdStan version, since the same sources built against a
+#' different CmdStan are a different executable. Hashing goes through a temp
+#' file so this needs no dependency beyond base R.
+#'
+#' @param source_files Character vector of `.stan` paths; the main model first,
+#'   then its includes in a stable order.
+#' @return A 32-character key.
+#' @keywords internal
+.cmdstanr_cache_key <- function(source_files) {
+  digests <- unname(tools::md5sum(source_files))
+  # A missing file must not silently collapse to a shared key.
+  digests[is.na(digests)] <- "MISSING"
+  cmdstan <- tryCatch(as.character(cmdstanr::cmdstan_version()),
+                      error = function(e) "unknown")
+  payload <- c(paste0("cmdstan=", cmdstan),
+               paste0(basename(source_files), "=", digests))
+  tmp <- tempfile("mlumr-cache-key-")
+  on.exit(unlink(tmp), add = TRUE)
+  writeLines(payload, tmp)
+  key <- unname(tools::md5sum(tmp))
+  if (is.na(key)) {
+    # Never fall back to a key that ignores the includes; a distinct random
+    # directory recompiles, which is slow but correct.
+    key <- paste0("nokey-", as.integer(Sys.time()), "-", Sys.getpid())
+  }
+  key
 }

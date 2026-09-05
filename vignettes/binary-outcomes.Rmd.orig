@@ -594,9 +594,13 @@ knitr::kable(data.frame(
 
 The last two rows should not be interpreted substantively. The `* .trt`
 specification is the one multinma's own plaque-psoriasis example uses, but that
-example has **five** studies to identify the interactions. This sub-network has
-two, and two studies cannot separate a treatment effect from a
-covariate-by-treatment interaction. The fits converge and return estimates, but
+example has **five** studies to identify the interactions. There the network is
+connected and its individual studies are randomized with both arms present, so
+a treatment-by-covariate interaction is identified within a study. Here each
+source contributes a single arm, so treatment never varies within a study and
+an interaction with a covariate is confounded with the difference between the
+two populations. It is the evidence structure that fails to separate them, not
+the number of studies. The fits converge and return estimates, but
 the intervals are very wide, which is the expected signature of weak
 identification rather than a usable result. Reporting both populations makes
 this visible: the index and comparator values differ by more than two log odds

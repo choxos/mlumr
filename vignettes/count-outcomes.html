@@ -830,14 +830,22 @@ needed.</p>
 counts are often <strong>overdispersed</strong> (variance &gt; mean,
 e.g. from unmodeled clustering), in which case the Poisson intervals are
 optimistically narrow. mlumr’s count family is Poisson and has no
-dispersion parameter. If the IPD shows clear overdispersion (compare
-<code>var(dmft)</code> against <code>mean(dmft)</code>), report the
-intervals as a lower bound on uncertainty and state the limitation.
-Prespecified prognostic covariates may explain part of the excess
-variation, but they are not a correction for it, and neither the naive
-contrast nor Poisson STC adjusts for residual overdispersion; both
-inherit the same assumption. Material overdispersion calls for a
-dispersion-aware model outside mlumr.</p>
+dispersion parameter. Diagnose it conditionally. Comparing
+<code>var(dmft)</code> against <code>mean(dmft)</code> answers a
+different question: a Poisson regression gives every subject its own
+fitted mean, so the marginal variance exceeds the marginal mean whenever
+the covariates explain anything, even when the model is exactly right.
+Fit the same regression with <code>glm(family = poisson)</code> on the
+IPD and compare its sum of squared Pearson residuals against the
+residual degrees of freedom; a ratio well above 1 is the evidence that
+matters. Where it is large, say that the reported intervals understate
+uncertainty. Do not call them a guaranteed lower bound: that follows for
+extra dispersion around a correct mean model, and a misspecified mean
+can move an interval either way. Prespecified prognostic covariates may
+explain part of the excess variation, but they are not a correction for
+it, and neither the naive contrast nor Poisson STC adjusts for residual
+overdispersion; both inherit the same assumption. Material
+overdispersion calls for a dispersion-aware model outside mlumr.</p>
 </div>
 <div id="convergence" class="section level3">
 <h3>Convergence</h3>

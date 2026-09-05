@@ -1599,7 +1599,61 @@ marginal_effects <- function(object,
   # trapezoid: sum_j (S[,j] + S[,j+1]) / 2 * (t[j+1] - t[j])
   left <- s_mat[, -ncol(s_mat), drop = FALSE]
   right <- s_mat[, -1, drop = FALSE]
+  .warn_coarse_rmst_grid(s_mat, times)
   as.numeric(((left + right) / 2) %*% dt)
+}
+
+
+#' Warn when the RMST grid is too coarse for the hazard it is integrating
+#'
+#' The trapezoid rule is accurate only where the curve is resolved. When events
+#' happen far earlier than the restriction time, almost all of the decay falls
+#' inside the FIRST interval, where a straight line between `S(0) = 1` and
+#' `S(t_1)` is a poor approximation of a steep exponential, and the integral is
+#' badly overstated. Because both arms are overstated in nearly the same way, a
+#' difference or ratio can lose the entire effect rather than merely blur it.
+#'
+#' Exponential rates 100 and 200 integrated to `tau = 10` on the default
+#' 100-node grid return an RMST ratio of 1.0001 against a true 2.0, and an RMST
+#' difference of 4e-6 against a true 5e-3. The same calculation on 1600 nodes
+#' gives 1.83, and converges to 2.0. Nothing about the result looks wrong, which
+#' is why this warns rather than relying on the user to check.
+#'
+#' The trigger is the share of the total decay that lands in the first
+#' interval: when the curve has already fallen most of the way before the
+#' second grid point, the grid is resolving the tail rather than the event
+#' times.
+#'
+#' @param s_mat Draws by times survival matrix.
+#' @param times The integration grid.
+#' @return `NULL`, invisibly; called for the warning.
+#' @keywords internal
+.warn_coarse_rmst_grid <- function(s_mat, times) {
+  if (length(times) < 3L || !nrow(s_mat)) {
+    return(invisible(NULL))
+  }
+  sbar <- colMeans(s_mat)
+  if (!all(is.finite(sbar))) {
+    return(invisible(NULL))
+  }
+  total_drop <- sbar[[1]] - sbar[[length(sbar)]]
+  if (!is.finite(total_drop) || total_drop <= 0) {
+    return(invisible(NULL))
+  }
+  first_drop <- (sbar[[1]] - sbar[[2]]) / total_drop
+  if (first_drop > 0.5) {
+    fmt <- paste0("More than half of the fitted survival decay (%.0f%%) happens before ",
+                  "the second point of the RMST grid, so the trapezoid rule ",
+                  "is approximating the steepest part of the curve with a ",
+                  "single straight line. RMST values, and especially their ",
+                  "differences and ratios, can be badly wrong here without ",
+                  "looking wrong: an exponential pair whose true RMST ratio ",
+                  "is 2 returns 1.0001 on a grid this coarse. Refit with a ",
+                  "larger `n_rmst_grid`, and confirm the value has stopped ",
+                  "moving by comparing it against twice that many points.")
+    warning(sprintf(fmt, 100 * first_drop), call. = FALSE)
+  }
+  invisible(NULL)
 }
 
 

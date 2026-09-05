@@ -176,11 +176,11 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
       ref_sd <- apply(as.matrix(ipd_cov), 2L, stats::sd)
       if (!.realized_matches_declared(means, realized, ref_sd)) {
         warning("The integration distributions do not reproduce the declared ",
-                "aggregate covariate means: the realized profiles offer much ",
-                "less spread than the `<covariate>_mean` columns claim. ",
-                "Reporting the realized geometry, which is what the likelihood ",
-                "sees. Check that each `distr()` reads its row's summaries.",
-                call. = FALSE)
+                "aggregate covariate means: the realized profiles sit in a ",
+                "different place, or offer much less spread, than the ",
+                "`<covariate>_mean` columns claim. Reporting the realized ",
+                "geometry, which is what the likelihood sees. Check that each ",
+                "`distr()` reads its row's summaries.", call. = FALSE)
         return(realized)
       }
       return(means)
@@ -292,7 +292,13 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   w <- qr.coef(qr_at, b)
   w[is.na(w)] <- 0
   resid <- b - drop(t(A) %*% w)
-  max(abs(resid)) <= 1e-8 * max(1, max(abs(b)))
+  # Judge each coordinate against ITS OWN scale. A single tolerance taken from
+  # the largest coordinate of `b` lets one huge covariate excuse a complete
+  # failure elsewhere: one profile at 1e10 with a target at 2e10 leaves a
+  # residual of 1 on the intercept, which is the whole intercept, while the
+  # tolerance computed from `max(abs(b))` is 200. The target was reported as
+  # spanned when it is not in the span at all.
+  all(abs(resid) <= 1e-8 * pmax(1, abs(b)))
 }
 
 
@@ -318,6 +324,22 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 
 # `x >= threshold`, tolerant of the ULP-scale disagreement between those
 # routes. Scaled by the threshold, so it means the same thing at any spread.
+# The upper-bound counterpart of `.at_least()`, sharing its tolerance and its
+# validation. The location test needs the realized profiles to sit CLOSE to the
+# declared ones, where every spread test asks for a lower bound. Sharing the
+# validation is the point: a bare `>` against an `NA` threshold aborted from
+# inside an `if` with "missing value where TRUE/FALSE needed", which names
+# nothing. Left undocumented, like `.at_least()` beside it.
+.at_most <- function(x, threshold) {
+  if (anyNA(threshold)) {
+    stop("Spread threshold values must not be NA or NaN.", call. = FALSE)
+  }
+  if (!all(is.finite(threshold))) {
+    return(x <= threshold)
+  }
+  x <= threshold + abs(threshold) * .spread_tol
+}
+
 .at_least <- function(x, threshold) {
   # `NA` and `NaN` are not thresholds, and letting them through returns NA
   # rather than a verdict: `.profile_rank()` then answers `NA_integer_` and
@@ -393,6 +415,38 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   n_directions <- sum(.at_least(d / sqrt(nrow(M)), min_spread))
   # Centering removed the mean, so the intercept is always one more direction.
   as.integer(n_directions) + 1L
+}
+
+
+#' Numerical rank of the centered aggregate profile matrix
+#'
+#' `.profile_rank()` counts directions whose spread reaches a practical
+#' threshold, which is a statement about how much a design MOVES, not about
+#' whether the likelihood separates its parameters. The two are different
+#' claims, and only this one supports language about a direction the likelihood
+#' cannot see: profiles at -0.01 and +0.01 have spread 0.01 and numerical rank
+#' 2, and with aggregate standard errors of 1e-6 the slope is pinned to about
+#' 7e-5. Calling that "not separated by the likelihood" is wrong; calling it
+#' weakly informed is right.
+#'
+#' Tolerance follows the usual convention for a rank decision,
+#' `max(dim) * eps * max(d)`, so it tracks floating-point resolution rather
+#' than a chosen effect size.
+#'
+#' @param profiles Aggregate mean-profile matrix.
+#' @param ref_sd Reference SD per covariate.
+#' @return Integer rank INCLUDING the intercept direction.
+#' @keywords internal
+.profile_numeric_rank <- function(profiles, ref_sd) {
+  M <- scale(as.matrix(profiles), center = TRUE, scale = FALSE)
+  ref_sd <- as.numeric(ref_sd)
+  ref_sd[!is.finite(ref_sd) | ref_sd <= 0] <- 1
+  M <- sweep(M, 2L, ref_sd, "/")
+  if (!all(is.finite(M))) return(0L)
+  d <- tryCatch(svd(M)$d, error = function(e) NULL)
+  if (is.null(d) || !length(d) || any(!is.finite(d))) return(0L)
+  tol <- max(dim(M)) * .Machine$double.eps * max(d)
+  as.integer(sum(d > tol)) + 1L
 }
 
 
@@ -584,7 +638,8 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #'   there is nothing to compare against.
 #' @keywords internal
 .realized_matches_declared <- function(declared, realized, ref_sd = NULL,
-                                       factor = 0.5, min_spread = 0.05) {
+                                       factor = 0.5, min_spread = 0.05,
+                                       max_location_gap = 0.25) {
   if (is.null(realized)) {
     return(TRUE)
   }
@@ -612,6 +667,31 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
     sd_vals[!is.finite(sd_vals) | sd_vals <= 0] <- 1
     sd_vals
   }
+  # LOCATION first. Everything below centers both matrices and compares their
+  # spread along the declared directions, which is deliberately blind to where
+  # the two designs actually sit. A grid shifted bodily away from the declared
+  # means therefore "matched": with a single row, centering sends both to zero
+  # whatever the means were, and the function returned TRUE. The declared
+  # profiles were then used for the identification statement while the
+  # likelihood integrated somewhere else entirely.
+  #
+  # `max_location_gap` is a separate threshold, not `min_spread`. A finite
+  # integration grid does not reproduce its own declared mean exactly: 32 QMC
+  # points against a normal margin land about 0.05 reference SD away, which is
+  # the spread floor itself, so reusing it here called correct specifications a
+  # mismatch. It then reported the realized geometry INSTEAD of the declared
+  # one, which changed the rank the identifiability warning quotes and
+  # suppressed the warning entirely for a design of four identical profiles.
+  # A quarter of a reference SD sits well above that integration error and well
+  # below a `distr()` that ignores its row, which misses by the full distance
+  # between the declared mean and whatever constant was hard-coded.
+  loc_gap <- abs(colMeans(as.matrix(realized)) - colMeans(as.matrix(declared)))
+  loc_gap <- loc_gap / scale_by
+  loc_gap <- loc_gap[is.finite(loc_gap)]
+  if (length(loc_gap) && any(!.at_most(loc_gap, max_location_gap))) {
+    return(FALSE)
+  }
+
   d <- sweep(scale(declared, center = TRUE, scale = FALSE), 2L, scale_by, "/")
   r <- sweep(scale(realized, center = TRUE, scale = FALSE), 2L, scale_by, "/")
   if (!all(is.finite(d)) || !all(is.finite(r))) {

@@ -650,17 +650,41 @@ mlumr <- function(data,
     } else if (family == "normal" && link_info$link == "identity") {
       n_agd_rows_check <- nrow(data$agd$data)
       agd_rank <- .agd_covariate_rank(data)
-      if (agd_rank < n_cov_check + 1L) {
+      # Two different claims, and only one of them is about the likelihood.
+      # `.profile_rank()` counts directions whose spread reaches a practical
+      # threshold; the numerical rank counts directions that exist at all.
+      # Profiles at -0.01 and +0.01 have spread 0.01 and numerical rank 2, and
+      # with aggregate standard errors of 1e-6 the slope is pinned to about
+      # 7e-5. Saying the likelihood does not separate those parameters is
+      # simply false, and precision cannot be judged from the profiles alone
+      # because it also depends on the reported standard errors and row sizes.
+      agd_numeric_rank <- .agd_covariate_numeric_rank(data)
+      if (agd_numeric_rank < n_cov_check + 1L) {
         warning(sprintf(
-          paste0("Relaxed model with %d AgD row(s), aggregate design rank %d, ",
-                 "and %d covariate(s): the identity-link ",
-                 "aggregate design needs at least %d independent profiles, so ",
-                 "some comparator-parameter combinations are not separated by ",
-                 "the likelihood. The most ",
+          paste0("Relaxed model with %d AgD row(s) and %d covariate(s): the ",
+                 "aggregate mean profiles span only %d independent ",
+                 "direction(s) including the intercept, and the identity-link ",
+                 "design needs %d. Some comparator-parameter combinations are ",
+                 "therefore not separated by the likelihood at all. The most ",
                  "effective fix is to supply the comparator as jointly-defined ",
                  "subgroup rows, one set_agd() row per stratum with its own ",
                  "covariate summaries. %s"),
-          n_agd_rows_check, agd_rank, n_cov_check, n_cov_check + 1L, remedy
+          n_agd_rows_check, n_cov_check, agd_numeric_rank, n_cov_check + 1L,
+          remedy
+        ), call. = FALSE)
+      } else if (agd_rank < n_cov_check + 1L) {
+        warning(sprintf(
+          paste0("Relaxed model with %d AgD row(s) and %d covariate(s): the ",
+                 "aggregate mean profiles span the %d direction(s) the ",
+                 "identity-link design needs, but %d of them move less than ",
+                 "the exploratory 0.05 IPD-SD screening threshold. Those ",
+                 "comparator coefficients are only weakly informed, so expect ",
+                 "wide and prior-sensitive intervals. This is a screening ",
+                 "heuristic about SPREAD, not a statement that the likelihood ",
+                 "is flat: how precisely such a direction is estimated also ",
+                 "depends on the reported standard errors and row sizes. %s"),
+          n_agd_rows_check, n_cov_check, n_cov_check + 1L,
+          n_cov_check + 1L - agd_rank, remedy
         ), call. = FALSE)
       }
     } else {
@@ -1242,6 +1266,21 @@ mlumr <- function(data,
   ipd_cov <- data$ipd$data[, covs, drop = FALSE]
   ref_sd <- apply(as.matrix(ipd_cov), 2L, stats::sd)
   .profile_rank(.agd_mean_profiles(data), ref_sd)
+}
+
+#' Numerical rank of the aggregate mean profiles
+#'
+#' The companion to [.agd_covariate_rank()] that answers the DIFFERENT question
+#' of whether the directions exist at all, rather than whether they are spread
+#' widely enough to be informative in practice.
+#' @param data An `mlumr_data` object.
+#' @return Integer rank including the intercept.
+#' @keywords internal
+.agd_covariate_numeric_rank <- function(data) {
+  covs <- data$covariates
+  ipd_cov <- data$ipd$data[, covs, drop = FALSE]
+  ref_sd <- apply(as.matrix(ipd_cov), 2L, stats::sd)
+  .profile_numeric_rank(.agd_mean_profiles(data), ref_sd)
 }
 
 #' Map `aux_by` onto the Stan `n_strata` switch
