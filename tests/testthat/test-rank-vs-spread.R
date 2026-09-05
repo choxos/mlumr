@@ -143,8 +143,41 @@ test_that("integration noise is not mistaken for a misread distr()", {
   # A threshold that is not a number is still rejected by name, on this path
   # too. A bare comparison against NA aborted from inside an `if` with "missing
   # value where TRUE/FALSE needed", which names nothing.
-  expect_error(
-    mlumr:::.realized_matches_declared(declared, declared, ref_sd,
-                                       max_location_gap = NA),
-    "Spread threshold values must not be")
+  expect_error(mlumr:::.realized_matches_declared(declared, declared, ref_sd,
+                                                  max_location_gap = NA),
+               "Spread threshold values must not be")
+})
+
+test_that("the location check compares each row with its own declared profile", {
+  # Everything after the location check is blind to row ORDER: permuting the
+  # rows leaves the column means alone and leaves the centered spectrum alone.
+  # A grid whose rows were attached to the wrong aggregate rows therefore
+  # reproduced the declared design exactly, and the function said so, while
+  # every distribution integrated against another row's outcome.
+  declared <- rbind(c(0, 1), c(1, 0))
+  ref_sd <- c(1, 1)
+  expect_true(mlumr:::.realized_matches_declared(declared, declared, ref_sd))
+  expect_false(mlumr:::.realized_matches_declared(declared, declared[2:1, ],
+                                                  ref_sd))
+  # Per-row is stricter than the means in every case, so a bodily shift is
+  # still caught.
+  expect_false(mlumr:::.realized_matches_declared(declared, declared + 0.5,
+                                                  ref_sd))
+})
+
+test_that("the location threshold must be one non-negative number", {
+  declared <- rbind(c(0, 1), c(1, 0))
+  ref_sd <- c(1, 1)
+  # Zero-length made the comparison zero-length, and `any()` of nothing is
+  # FALSE, so a grid five SD away was accepted without a word.
+  check <- function(realized, gap) {
+    mlumr:::.realized_matches_declared(declared, realized, ref_sd,
+                                       max_location_gap = gap)
+  }
+  expect_error(check(declared + 5, numeric(0)), "single non-negative number")
+  expect_error(check(declared + 5, NULL), "single non-negative number")
+  # Negative rejected identical designs.
+  expect_error(check(declared, -1), "single non-negative number")
+  expect_true(mlumr:::.realized_matches_declared(declared, declared, ref_sd,
+                                                 max_location_gap = 0))
 })

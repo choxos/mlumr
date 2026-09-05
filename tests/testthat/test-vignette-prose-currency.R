@@ -39,6 +39,12 @@ test_that("every line of authored prose reached the knitted article", {
   checked <- 0L
   for (orig in origs) {
     rmd <- sub("[.]orig$", "", orig)
+    # A source with no knitted counterpart is the drift this test exists for,
+    # not a reason to look elsewhere: the shipped article, if any, derives from
+    # nothing. The other pairs passing must not hide it.
+    expect_true(file.exists(rmd),
+                info = paste0(basename(orig), " has no knitted counterpart; ",
+                              "run vignettes/precompile.R"))
     if (!file.exists(rmd)) next
     src <- prose(orig)
     knitted <- prose(rmd)

@@ -150,8 +150,9 @@ index trial's [@ChandlerIshakTransport], which is why the index row usually
 carries the decision, but it is not automatically either trial's. When the
 decision population is a third one, standardize to it directly by passing its
 covariate distribution as `newdata` rather than adopting whichever trial is
-nearer. The comparator rows are the like-for-like comparison against naive and
-STC.
+nearer. The comparator rows are the like-for-like comparison against STC, which
+standardizes to that population; naive standardizes to neither and is the
+unadjusted benchmark both rows are measured against.
 
 ```{r comparison}
 me_spfa <- marginal_effects(fit_spfa, effect = "lor", population = "both")

@@ -634,6 +634,16 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #'   design must still provide along that same direction.
 #' @param min_spread Absolute floor, in IPD standard deviations, matching
 #'   [check_identification()] and `.profile_rank()`.
+#' @param max_location_gap Largest distance, in reference standard deviations,
+#'   that any realized integration mean may sit from the declared mean of its
+#'   own row. Separate from `min_spread`: a finite integration grid misses its
+#'   own declared mean by roughly the spread floor itself (32 QMC points
+#'   against a normal margin land about 0.05 SD away), so reusing that floor
+#'   here reported correct specifications as mismatches and switched the
+#'   identification statement onto the realized geometry, which suppressed the
+#'   rank-1 warning for a design of identical profiles. A quarter of an SD
+#'   clears the integration error and still catches a `distr()` that ignores
+#'   its row, or one attached to the wrong row.
 #' @return `TRUE` when the realized design reproduces the declared one, or when
 #'   there is nothing to compare against.
 #' @keywords internal
@@ -642,6 +652,17 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
                                        max_location_gap = 0.25) {
   if (is.null(realized)) {
     return(TRUE)
+  }
+  # A zero-length threshold made the location comparison zero-length, and
+  # `any()` of nothing is FALSE, so the check was skipped without a word; a
+  # negative one rejected identical designs. Neither is a threshold.
+  # `NA` passes through to `.at_most()`, which rejects it by name as it does
+  # every other threshold.
+  if (length(max_location_gap) != 1L ||
+        !(is.numeric(max_location_gap) || is.na(max_location_gap)) ||
+        (!is.na(max_location_gap) && max_location_gap < 0)) {
+    stop("`max_location_gap` must be a single non-negative number.",
+         call. = FALSE)
   }
   if (!identical(dim(declared), dim(realized))) {
     # Not a match and not a mismatch: the grid cannot be compared at all. Say
@@ -685,8 +706,17 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   # A quarter of a reference SD sits well above that integration error and well
   # below a `distr()` that ignores its row, which misses by the full distance
   # between the declared mean and whatever constant was hard-coded.
-  loc_gap <- abs(colMeans(as.matrix(realized)) - colMeans(as.matrix(declared)))
-  loc_gap <- loc_gap / scale_by
+  #
+  # Row by row, not column means. Everything after this point is invariant to
+  # the ORDER of the rows: permuting them leaves the column means alone and
+  # leaves the centered spectrum alone, so a grid whose rows were attached to
+  # the wrong aggregate rows reproduced the declared design exactly and was
+  # reported as such, while every distribution integrated against another
+  # row's outcome. Comparing each row with its own declared profile is what
+  # the question actually is, and it is stricter than the means in every case,
+  # so nothing the old test rejected passes now.
+  loc_gap <- sweep(abs(as.matrix(realized) - as.matrix(declared)), 2L,
+                   scale_by, "/")
   loc_gap <- loc_gap[is.finite(loc_gap)]
   if (length(loc_gap) && any(!.at_most(loc_gap, max_location_gap))) {
     return(FALSE)

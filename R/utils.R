@@ -454,7 +454,18 @@ cor_adjust_pearson <- function(X, types) {
     formal_names <- formal_names[seq_len(dots - 1L)]
   }
   formal_names <- setdiff(formal_names, "p")
-  available <- setdiff(formal_names, nms[nzchar(nms)])
+  # A supplied name claims the formal R's matcher would give it: an exact
+  # match first, otherwise a unique partial match among the formals before
+  # `...`. Removing only exact names left `distr(qnorm, m = 10, 2)` assigning
+  # the unnamed 2 to `mean` as well, and the quantile function then received
+  # both `m` and `mean` and failed with "matched by multiple actual arguments".
+  named <- nms[nzchar(nms)]
+  claimed <- vapply(named, function(nm) {
+    if (nm %in% formal_names) return(nm)
+    hit <- pmatch(nm, formal_names)
+    if (is.na(hit)) nm else formal_names[[hit]]
+  }, character(1), USE.NAMES = FALSE)
+  available <- setdiff(formal_names, claimed)
   n_match <- min(length(unnamed), length(available))
   if (n_match) {
     nms[unnamed[seq_len(n_match)]] <- available[seq_len(n_match)]

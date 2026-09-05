@@ -492,6 +492,7 @@ predict.mlumr_fit <- function(object,
            "median is searched over `pred_times`; change either by refitting.",
            call. = FALSE)
     }
+    if (type == "rmst") .warn_coarse_rmst_grid_builtin(object)
     values <- lapply(seq_len(nrow(cells)), function(i) {
       if (type == "rmst") {
         col <- sprintf("rmst_%s_%s", cells$trt[i], cells$pop[i])
@@ -1632,16 +1633,81 @@ marginal_effects <- function(object,
   if (length(times) < 3L || !nrow(s_mat)) {
     return(invisible(NULL))
   }
+  .warn_first_interval_share(.rmst_first_interval_share(s_mat))
+}
+
+#' Share of the total survival decay that lands in the first grid interval
+#'
+#' `s_mat` holds the curve at the grid's first point, its second point, and
+#' its horizon, in that order, with any points in between; only those three
+#' columns are read. `NA` when there is no decay to apportion.
+#' @keywords internal
+.rmst_first_interval_share <- function(s_mat) {
   sbar <- colMeans(s_mat)
   if (!all(is.finite(sbar))) {
-    return(invisible(NULL))
+    return(NA_real_)
   }
   total_drop <- sbar[[1]] - sbar[[length(sbar)]]
   if (!is.finite(total_drop) || total_drop <= 0) {
+    return(NA_real_)
+  }
+  (sbar[[1]] - sbar[[2]]) / total_drop
+}
+
+#' The same check for the fit's own populations
+#'
+#' The `rmst_*` draws are integrated in Stan on the same grid, by the same
+#' trapezoid rule, so the exponential example above distorts them just as
+#' badly, and `predict(type = "rmst")` and the RMST effects of
+#' [marginal_effects()] read them straight from the draws with nothing in the
+#' way. This evaluates the standardized curve at the first two grid points and
+#' the horizon, for both treatments in both populations, over exactly the rows
+#' Stan averaged: every IPD row for the index population and every integration
+#' point for the comparator one, equally weighted, un-centered here because
+#' [.conditional_profiles()] centers again. Three time points keep it cheap.
+#' @param object A survival `mlumr_fit`.
+#' @return `NULL`, invisibly; called for the warning.
+#' @keywords internal
+.warn_coarse_rmst_grid_builtin <- function(object) {
+  tt <- object$stan_data$rmst_grid_times
+  x_int <- object$stan_data$X_int
+  if (is.null(tt) || length(tt) < 3L || is.null(x_int)) {
     return(invisible(NULL))
   }
-  first_drop <- (sbar[[1]] - sbar[[2]]) / total_drop
-  if (first_drop > 0.5) {
+  covariates <- object$data$covariates
+  n_cov <- length(covariates)
+  if (!n_cov) {
+    return(invisible(NULL))
+  }
+  sel <- c(1L, 2L, length(tt))
+  ib <- object$stan_data$rmst_ibasis
+  ib_cmp <- object$stan_data$rmst_ibasis_cmp
+  if (!is.null(ib)) ib <- ib[sel, , drop = FALSE]
+  if (!is.null(ib_cmp)) ib_cmp <- ib_cmp[sel, , drop = FALSE]
+  cov_center <- object$stan_data$cov_center %||% rep(0, n_cov)
+  index_rows <- object$data$ipd$data[, covariates, drop = FALSE]
+  comparator_rows <- matrix(as.numeric(x_int), ncol = n_cov)
+  comparator_rows <- as.data.frame(sweep(comparator_rows, 2L, cov_center, "+"))
+  names(comparator_rows) <- covariates
+
+  shares <- numeric(0)
+  for (rows in list(index_rows, comparator_rows)) {
+    sbar <- tryCatch(
+      .standardize_target_survival_s(object, rows, tt[sel], ib, ib_cmp),
+      error = function(e) NULL)
+    if (is.null(sbar)) next
+    shares <- c(shares, .rmst_first_interval_share(sbar$index),
+                .rmst_first_interval_share(sbar$comparator))
+  }
+  shares <- shares[is.finite(shares)]
+  if (!length(shares)) {
+    return(invisible(NULL))
+  }
+  .warn_first_interval_share(max(shares))
+}
+
+.warn_first_interval_share <- function(first_drop) {
+  if (is.finite(first_drop) && first_drop > 0.5) {
     fmt <- paste0("More than half of the fitted survival decay (%.0f%%) happens before ",
                   "the second point of the RMST grid, so the trapezoid rule ",
                   "is approximating the steepest part of the curve with a ",
@@ -1952,6 +2018,7 @@ marginal_effects <- function(object,
   pops <- switch(population, index = "index", comparator = "comparator",
                  both = c("index", "comparator"))
   effs <- if (effect == "all") c("hr", "rmstd", "rmstr") else effect
+  if (any(c("rmstd", "rmstr") %in% effs)) .warn_coarse_rmst_grid_builtin(object)
 
   # The scalar HR is the marginal hazard ratio at the start of follow-up. Hazard
   # ratios are non-collapsible, so the marginal HR drifts with time in BOTH

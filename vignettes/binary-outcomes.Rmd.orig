@@ -536,9 +536,10 @@ nmr_fit <- function(form) {
 # Prognostic factors only: the anchored analogue of the SPFA model above.
 fit_nmr <- nmr_fit(~ age + bsa + weight + prevsys)
 
-# Full interaction, the specification multinma's own plaque-psoriasis example
-# uses: the anchored analogue of the relaxed model. multinma has five studies
-# to identify these interactions; this sub-network has two.
+# Full interaction, the formula multinma's own plaque-psoriasis example uses:
+# the anchored analogue of the relaxed model. multinma fits it with treatment
+# classes sharing their interactions; this sub-network has no classes, and
+# SEC_300 appears only in the aggregate study.
 fit_nmr_em <- nmr_fit(~ (age + bsa + weight + prevsys) * .trt)
 
 # multinma reports SEC_300 vs IXE_Q4W; flip to match this vignette's direction.
@@ -595,20 +596,29 @@ knitr::kable(data.frame(
 ```
 
 The last two rows should not be interpreted substantively. The `* .trt`
-specification is the one multinma's own plaque-psoriasis example uses, but that
-example has **five** studies to identify the interactions. There the network is
-connected and its individual studies are randomized with both arms present, so
-a treatment-by-covariate interaction is identified within a study. Here each
-source contributes a single arm, so treatment never varies within a study and
-an interaction with a covariate is confounded with the difference between the
-two populations. It is the evidence structure that fails to separate them, not
-the number of studies. The fits converge and return estimates, but
-the intervals are very wide, which is the expected signature of weak
-identification rather than a usable result. Reporting both populations makes
-this visible: the index and comparator values differ by more than two log odds
-ratios, whereas a well-identified contrast changes little between populations.
-The rows are included so that their width and their disagreement can be compared
-with the rows above.
+formula is the one multinma's own plaque-psoriasis example uses, but that
+example fits it on four studies, three of them patient-level, with the
+treatments grouped into classes and `class_interactions = "common"`, so every
+treatment in a class shares one set of interactions and that set is informed by
+every study in which any member of the class appears. Here both studies keep
+their ETN arm, so treatment does vary within each of them; what fails is the
+SEC_300 side of the network. UNCOVER-2 is patient-level data, and the IXE_Q4W
+interactions are identified from it because the contrast against ETN is observed
+across individuals with different covariate values. SEC_300 appears only in
+FIXTURE, which is aggregate: its arm is a single proportion, and with no class
+to borrow from, the SEC_300 side of the model has five parameters of its own, a
+main effect and four interaction slopes. One number cannot pin five parameters,
+so the SEC_300 interactions come from the prior rather than the data, and the
+IXE_Q4W versus SEC_300 contrast inherits that in both populations, because how
+it moves between them is set by the difference between the two interaction
+vectors. It is the evidence structure, aggregate on one side with nothing to
+share, that fails to identify them, not the number of studies. The fits converge
+and return estimates, but the intervals are very wide, which is the expected
+signature of weak identification rather than a usable result. Reporting both
+populations makes this visible: the index and comparator values differ by more
+than two log odds ratios, whereas a well-identified contrast changes little
+between populations. The rows are included so that their width and their
+disagreement can be compared with the rows above.
 
 Setting those rows aside, the two identified anchored estimates agree with each
 other, and the SPFA model agrees with both of them in **both** populations.
