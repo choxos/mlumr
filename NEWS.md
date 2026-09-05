@@ -14,9 +14,10 @@
   same rows in a different order, compared without complaint. The fits carry
   the data they were built from, so the columns that define an observation
   (`.study`, `.trt`, the outcome, exposure, and for survival the times and
-  status, with the reconstructed pseudo-individuals standing in for aggregate
-  survival rows), together with every covariate the fits share, are now
-  compared across the fits row for row and a mismatch is an error. Covariates
+  status, and for survival comparators both the aggregate rows with their
+  covariate summaries and the reconstructed pseudo-individuals), together with
+  every covariate the fits share, are now compared across the fits row for
+  row and a mismatch is an error. Covariates
   only one fit uses are not compared, since models of the same outcomes with
   different covariate sets are exactly what gets compared. A model whose
   object carries no data is reported as unverifiable rather than assumed to

@@ -514,8 +514,16 @@ jobs:
                                      stop_on_failure = FALSE)
           df <- as.data.frame(res)
           cat("pass", sum(df$passed), "fail", sum(df$failed),
-              "error", sum(df$error), "\n")
+              "error", sum(df$error), "skipped", sum(df$skipped), "\n")
           if (sum(df$failed) > 0 || any(df$error)) {
             stop("the declared repository chain does not produce a working cmdstanr")
+          }
+          # The model tests skip unless NOT_CRAN is true and rstan is
+          # installed. A skip leaves the pass count nonzero, from the one
+          # validation test that never skips, so counting passes alone would
+          # keep this step green while no model had been fitted at all.
+          if (sum(df$skipped) > 0) {
+            stop("the smoke test skipped ", sum(df$skipped), " test(s), so it ",
+                 "did not fit the models it exists to fit")
           }
         shell: Rscript {0}
