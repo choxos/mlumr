@@ -333,6 +333,19 @@ test_that("a reordered source is caught even when the fits share no covariate", 
                    c(sex = "sex_prop"))
   expect_identical(fit_cols$data$ipd$data$.source_key,
                    fit_age$data$ipd$data$.source_key)
+  # The key keeps nothing of the source: an unused identifier column changes
+  # the digest and appears nowhere in the fit.
+  src3 <- src
+  src3$patient <- sprintf("Patient %02d", seq_len(nrow(src3)))
+  keys <- from("relaxed", src3, "sex", c(sex = "sex_prop"))$data$ipd$data$.source_key
+  expect_match(keys, "^[0-9a-f]{32}:[0-9]+$")
+  expect_false(any(grepl("Patient", keys, fixed = TRUE)))
+  expect_false(identical(keys, fit_age$data$ipd$data$.source_key))
+  # Identical rows share a rank, so swapping them is not a reordering.
+  src4 <- rbind(src[1, ], src[1, ], src[3:12, ])
+  k4 <- .source_row_keys(src4)
+  expect_identical(k4[1], k4[2])
+  expect_identical(.source_row_keys(src4[c(2L, 1L, 3:12), ]), k4)
 })
 
 test_that("every pair of compared fits is checked, not each against the first", {

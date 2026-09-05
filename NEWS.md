@@ -21,10 +21,12 @@
   only one fit uses are not compared, since models of the same outcomes with
   different covariate sets are exactly what gets compared. Because the stored
   columns can only show what both fits kept, the setup functions now also
-  record for every row a key built from the whole source row (an internal
-  `.source_key` column, which is now a reserved name); two fits holding the
-  same keys in a different order were built from one source reordered
-  between them, and are refused even when they share no covariate.
+  record for every row a key made of a digest of the whole source and the
+  row's rank within a canonical ordering of it (an internal `.source_key`
+  column, which is now a reserved name; nothing of the source's content is
+  kept). Two fits holding the same keys in a different order were built from
+  one source reordered between them, and are refused even when they share no
+  covariate.
   `calculate_dic()` objects carry the same frames, so a DIC comparison is
   checked too. A model whose object carries no data is reported as
   unverifiable rather than assumed to match.

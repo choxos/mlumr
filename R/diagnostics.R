@@ -178,12 +178,13 @@ extract_log_lik <- function(object) {
 #' The stored columns can only show what both fits kept. When the fits share
 #' no covariate, a swap of two rows that agree on the outcome columns moves
 #' both models' pointwise likelihoods and leaves nothing in those columns to
-#' see. The setup functions therefore record, for every row, a key built from
-#' the whole source row ([.source_row_keys()]). Two fits holding the same set
-#' of keys in a different order were built from one source reordered between
-#' them, and that is a mismatch whatever the columns say. Different sets mean
-#' the source itself changed between the fits, which the keys cannot judge,
-#' and the decision is left to the columns.
+#' see. The setup functions therefore record, for every row, a key made of a
+#' fingerprint of the whole source and the row's rank within it
+#' ([.source_row_keys()]). Two fits holding the same set of keys in a
+#' different order were built from one source reordered between them, and
+#' that is a mismatch whatever the columns say. Different sets mean the source
+#' itself changed between the fits, which the keys cannot judge, and the
+#' decision is left to the columns.
 #' @param a,b Results of [.observation_frames()].
 #' @keywords internal
 .same_observations <- function(a, b) {

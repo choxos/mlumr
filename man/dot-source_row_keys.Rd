@@ -2,7 +2,7 @@
 % Please edit documentation in R/data_setup.R
 \name{.source_row_keys}
 \alias{.source_row_keys}
-\title{One key per row of a source data frame, built from every column it has}
+\title{One key per row of a source data frame, without keeping its content}
 \usage{
 .source_row_keys(data)
 }
@@ -11,11 +11,19 @@ The stored data keep only the columns a model needs. Two fits of one source
 with different covariate sets therefore cannot show, from their stored
 columns alone, that the source was reordered between them when the moved
 rows agree on everything both fits kept; \code{\link[=compare_models]{compare_models()}} needs to know,
-because its pointwise comparison pairs rows by position. The key is the
-row's whole content, columns taken in name order so that column order does
-not matter, and it is only ever compared against keys from the same
-source: when two fits hold the same set of keys in a different order, the
-rows were reordered between them. A source that changed between the fits
-gives a different set, and then the keys say nothing.
+because its pointwise comparison pairs rows by position.
+}
+\details{
+The key is two things, neither of which reveals the source. The first is a
+fingerprint of the whole source: its rows are written out with every
+column, columns in name order so that column order does not matter, sorted
+in byte order so that row order does not matter either, and the digest of
+that is taken. The second is the row's rank in that same sorted order,
+with identical rows sharing one rank. A fit built from the same source
+carries the same fingerprint and the same set of ranks, whatever order its
+rows came in; a source that changed in any column carries a different
+fingerprint, and then the ranks are never compared. Unused columns such as
+identifiers or free text go into the digest and are not kept: the fit
+object holds thirty-two hex digits and an integer per row.
 }
 \keyword{internal}
