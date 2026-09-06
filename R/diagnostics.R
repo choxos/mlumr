@@ -131,9 +131,12 @@ extract_log_lik <- function(object) {
 #' The values define an observation, not their representation. A factor and
 #' the character vector it codes, with or without unused levels, or an integer
 #' count and the double that was read from a file, describe the same
-#' observations, so each column is reduced to its plain values. Counts are
-#' accepted within rounding tolerance and rounded before Stan sees them, and
-#' are rounded the same way here.
+#' observations, so each column is reduced to its plain values. Study,
+#' treatment and arm are labels: a study numbered 1 is the same study whether
+#' the number was stored as a factor, an integer or a double, so those are
+#' compared as the strings that name them. Counts are accepted within
+#' rounding tolerance and rounded before Stan sees them, and are rounded the
+#' same way here.
 #'
 #' @param fit An `mlumr_fit`.
 #' @return A list with elements `ipd`, `agd` and `pseudo` (the last `NULL`
@@ -149,6 +152,9 @@ extract_log_lik <- function(object) {
     df[] <- lapply(df, function(x) {
       if (is.factor(x)) as.character(x) else if (is.numeric(x)) as.numeric(x) else as.vector(x)
     })
+    for (nm in intersect(c(".study", ".trt", ".arm"), names(df))) {
+      df[[nm]] <- as.character(df[[nm]])
+    }
     for (nm in intersect(c(".n", ".r"), names(df))) {
       df[[nm]] <- as.numeric(.as_count_integer(df[[nm]]))
     }

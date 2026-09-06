@@ -239,6 +239,20 @@ test_that("the observation check compares values, not their representation", {
     compare_models(fit1, fit2, criterion = "loo")
   ))
   expect_true(length(out) > 0L)
+  # A study or treatment numbered 1 is the same label as a factor, an
+  # integer or a double: the strings that name them are what is compared.
+  fit3 <- with_data(make_ll_fit("spfa", seed = 2026), y)
+  fit4 <- with_data(make_ll_fit("relaxed", seed = 2026), y)
+  fit3$data$ipd$data$.study <- factor(rep(1, 12L))
+  fit4$data$ipd$data$.study <- rep(1L, 12L)
+  fit3$data$agd$data$.trt <- 2
+  fit4$data$agd$data$.trt <- factor(rep(2L, 4L), levels = c(2L, 3L))
+  expect_true(.same_observations(.observation_frames(fit3),
+                                 .observation_frames(fit4)))
+  # And two different labels are still different, whatever their type.
+  fit4$data$ipd$data$.study <- rep(2L, 12L)
+  expect_false(.same_observations(.observation_frames(fit3),
+                                  .observation_frames(fit4)))
 })
 
 test_that("survival comparators are compared on both their frames", {
