@@ -326,9 +326,15 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
       call. = FALSE
     )
   }
-  # A relative margin, so this fires on "no better than the boundary" rather
-  # than on ordinary rounding.
-  if (dev >= at_zero * (1 - 1e-8)) {
+  # Exactly, with no margin. The all-zero boundary is the optimum precisely
+  # when no positive mean improves on zero, and then `sum((y - mu)^2)` exceeds
+  # `sum(y^2)` for the fitted mu, so the comparison needs no slack to fire: the
+  # measured gap is +8.9e-16 there. A margin is not merely unnecessary but
+  # wrong, because an interior optimum may improve on the boundary by very
+  # little and still be an optimum. At `y = c(-1, 1.00001, -1, 1.00001)` each
+  # stratum's optimum is a fitted mean of 5e-6, worth 1e-10 of deviance, which
+  # a relative margin of 1e-8 refused as though it were the boundary.
+  if (dev >= at_zero) {
     stop(
       paste(
         "The STC outcome model has no finite optimum: with a log link every",

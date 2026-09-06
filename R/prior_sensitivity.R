@@ -231,7 +231,16 @@ prior_sensitivity <- function(fit,
           utils::modifyList(ctl, dots$control)
       }
       call_args[names(dots)] <- dots
-      if (!is.null(ctl)) call_args$control <- ctl
+      # `control` is rstan's argument. Restoring the recorded one after a
+      # caller has switched engines would forward it to cmdstanr's `$sample()`,
+      # which has no such argument, so every refit would fail before sampling.
+      # The engine that will actually run is the caller's if they named one.
+      engine_used <- dots$engine %||% call_args$engine
+      if (!is.null(ctl) && identical(engine_used, "rstan")) {
+        call_args$control <- ctl
+      } else if (!identical(engine_used, "rstan")) {
+        call_args$control <- NULL
+      }
     }
     fit_i <- do.call(mlumr, call_args)
 

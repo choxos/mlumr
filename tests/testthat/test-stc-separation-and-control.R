@@ -405,3 +405,58 @@ test_that("a caller's sampler overrides refine the recorded control", {
   both <- refine(list(adapt_delta = 0.85, control = list(adapt_delta = 0.7)))
   expect_equal(both$adapt_delta, 0.7)
 })
+
+test_that("a small but real improvement over the boundary is still an optimum", {
+  fam <- stats::gaussian(link = "log")
+  # Each stratum's optimum here is a fitted mean of 5e-6, worth 1e-10 of
+  # deviance against the all-zero boundary. That is an optimum, and a relative
+  # margin on the comparison refused it as though it were the boundary. The
+  # comparison is exact for that reason: the boundary is the optimum precisely
+  # when no positive mean improves on zero, and then the deviance exceeds
+  # `sum(y^2)` rather than merely approaching it.
+  d <- data.frame(.outcome = c(-1, 1.00001, -1, 1.00001), x = c(-1, -1, 1, 1))
+  expect_true(all(tapply(d$.outcome, d$x, mean) > 0))
+  fit <- suppressWarnings(stats::glm(
+    .outcome ~ x, family = fam, data = d, start = c(0, 0),
+    control = list(epsilon = 1e-14, maxit = 5000)
+  ))
+  expect_lt(stats::deviance(fit), sum(d$.outcome^2))
+  expect_silent(mlumr:::.stc_refuse_boundary_mean(fit))
+
+  # The genuine boundary sits on the other side of the same exact comparison,
+  # so no slack is needed to tell them apart.
+  b <- data.frame(.outcome = c(-1, 1, -1, 1), x = c(-1, -1, 1, 1))
+  fit_b <- suppressWarnings(stats::glm(
+    .outcome ~ x, family = fam, data = b, start = c(0, 0),
+    control = list(epsilon = 1e-14, maxit = 5000)
+  ))
+  expect_gte(stats::deviance(fit_b), sum(b$.outcome^2))
+  expect_error(mlumr:::.stc_refuse_boundary_mean(fit_b), "no finite optimum")
+})
+
+test_that("a recorded rstan control is not carried onto another engine", {
+  # `control` is rstan's argument. Restoring the recorded one after a caller
+  # switched engines forwarded it to cmdstanr's `$sample()`, which has no such
+  # argument, so every refit would have failed before sampling.
+  recorded <- list(adapt_delta = 0.99, max_treedepth = 10, stepsize = 0.05)
+  `%||%` <- function(a, b) if (is.null(a)) b else a
+  resolve <- function(dots, fit_engine) {
+    call_args <- list(engine = fit_engine, control = recorded)
+    ctl <- call_args$control
+    call_args[names(dots)] <- dots
+    engine_used <- dots$engine %||% call_args$engine
+    if (!is.null(ctl) && identical(engine_used, "rstan")) {
+      call_args$control <- ctl
+    } else if (!identical(engine_used, "rstan")) {
+      call_args$control <- NULL
+    }
+    call_args
+  }
+  # Staying on rstan keeps the record.
+  expect_equal(resolve(list(), "rstan")$control, recorded)
+  # Switching engines drops it rather than handing cmdstanr an argument it
+  # does not have.
+  switched <- resolve(list(engine = "cmdstanr"), "rstan")
+  expect_equal(switched$engine, "cmdstanr")
+  expect_null(switched$control)
+})
