@@ -9,6 +9,11 @@ on:
   # version. The retired one-branch-per-release model is not among them.
   push:
     branches: [main]
+  # pre-release/** is where a version series is integrated before it reaches
+  # main, so a PR into it must face the same gate a PR into main does. Without
+  # it listed here the whole series accumulates with no check run at all: the
+  # matrix, the Stan export gate and the test suite are all skipped, and the
+  # only thing reporting is the docs build, which is not a check of the package.
   pull_request:
     branches: [main, 'pre-release/**']
   workflow_dispatch:
@@ -269,4 +274,262 @@ jobs:
           check_fit(fit_survival_test(dat, model = "relaxed",
                                       distribution = "weibull"),
                     "relaxed (weibull)")
+        shell: Rscript {0}
+
+  declared-repository-chain:
+    name: Declared repository chain (cmdstanr)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Windows is the platform where the two repositories most often carry
+        # different cmdstanr versions, and where a toolchain fix present in one
+        # and absent from the other actually changes whether a fit builds. It is
+        # the reason this job exists, so it is not optional here.
+        os: [ubuntu-latest, windows-latest]
+    # Every other job installs cmdstanr from stan-dev/cmdstanr on GitHub, which
+    # is NOT what DESCRIPTION selects. The repository chain this package
+    # declares was therefore never exercised: the whole matrix could stay green
+    # while `Additional_repositories` resolved to nothing installable, or to a
+    # version that cannot build a model. This job installs the way a user does,
+    # from the declared repositories and nothing else, and refuses to fall back.
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      NOT_CRAN: true
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: 'release'
+          use-public-rspm: true
+
+      # DESCRIPTION is the single source of truth for the chain under test, so
+      # the URL is read from it rather than repeated here, and handed to both
+      # the availability probe and the resolver below. It travels as DATA: a
+      # file the later R steps read, never a step output spliced into their
+      # source by the runner's expression syntax. Splicing it in would have let
+      # a pull request that put quotes or a newline into
+      # `Additional_repositories` run its own R code in this job, so the value
+      # is also checked to be one plain https URL before anything uses it.
+      - name: Read the declared repository from DESCRIPTION
+        run: |
+          extra <- read.dcf("DESCRIPTION", "Additional_repositories")[[1]]
+          if (is.na(extra) || !nzchar(extra)) {
+            stop("DESCRIPTION declares no Additional_repositories.")
+          }
+          extra <- trimws(extra)
+          if (length(extra) != 1L ||
+              !grepl("^https://[A-Za-z0-9.-]+(/[A-Za-z0-9._~/-]*)?$", extra)) {
+            stop("Additional_repositories must be a single plain https URL; got: ",
+                 deparse(extra))
+          }
+          writeLines(extra, file.path(Sys.getenv("RUNNER_TEMP"), "declared_repo.txt"))
+          cat("declared repository:", extra, "\n")
+        shell: Rscript {0}
+
+      # `setup-r-dependencies` resolves with pak, which does NOT read
+      # `Additional_repositories` out of DESCRIPTION, and the action has no
+      # input for adding a repository (passing `extra-repositories` is accepted
+      # silently and ignored: GitHub logs "Unexpected input(s)" and the resolver
+      # still reports "Can't find package called cmdstanr"). The portable way to
+      # reach every later R session, pak's subprocess included, is the user
+      # profile.
+      - name: Put the declared repository on the R repository list
+        run: |
+          rprofile <- path.expand("~/.Rprofile")
+          block <- c(
+            'local({',
+            '  r <- getOption("repos")',
+            # A bare "@CRAN@" placeholder makes available.packages() error out
+            # rather than resolve, so pin a mirror when one is not already set.
+            '  if (is.na(r["CRAN"]) || identical(unname(r["CRAN"]), "@CRAN@")) {',
+            '    r["CRAN"] <- "https://cloud.r-project.org"',
+            '  }',
+            sprintf('  r["stan"] <- "%s"',
+                    readLines(file.path(Sys.getenv("RUNNER_TEMP"), "declared_repo.txt"))),
+            '  options(repos = r)',
+            '})')
+          cat(block, sep = "\n", file = rprofile, append = TRUE)
+          cat("\n", file = rprofile, append = TRUE)
+          cat("appended to", rprofile, ":\n")
+          cat(block, sep = "\n"); cat("\n")
+        shell: Rscript {0}
+
+      - name: Check the declared chain offers cmdstanr, and record the version
+        run: |
+          cat("repositories:\n"); print(getOption("repos"))
+          av <- available.packages()
+          if (!"cmdstanr" %in% rownames(av)) {
+            stop("cmdstanr is not available from the declared repository chain: ",
+                 paste(getOption("repos"), collapse = ", "))
+          }
+          cat("resolved cmdstanr version:", av["cmdstanr", "Version"], "\n")
+        shell: Rscript {0}
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: |
+            any::testthat
+            any::pkgload
+          needs: check
+
+      - name: Confirm cmdstanr came from the declared chain
+        run: |
+          # The resolver must not have satisfied cmdstanr from somewhere else.
+          # `available.packages()` on the declared chain is the reference.
+          declared <- readLines(file.path(Sys.getenv("RUNNER_TEMP"), "declared_repo.txt"))
+          declared_version <- available.packages(repos = declared)["cmdstanr", "Version"]
+          installed <- as.character(utils::packageVersion("cmdstanr"))
+          cat("declared:", declared_version, " installed:", installed, "\n")
+          if (!identical(declared_version, installed)) {
+            stop("cmdstanr ", installed, " was installed, but the declared ",
+                 "repository chain offers ", declared_version,
+                 ": the resolver fell back to another source, so this job is ",
+                 "not testing the chain DESCRIPTION declares.")
+          }
+          # The same version can be served by more than one repository, so the
+          # version alone does not prove where pak took it from. pak records
+          # the repository it resolved against in the installed DESCRIPTION;
+          # when that record exists it has to name the declared repository.
+          desc <- utils::packageDescription("cmdstanr")
+          recorded <- unlist(desc[intersect(c("RemoteRepos", "RemoteUrl", "Repository"),
+                                            names(desc))])
+          recorded <- recorded[!is.na(recorded) & nzchar(recorded)]
+          cat("recorded provenance:", if (length(recorded)) recorded else "(none)", "\n")
+          host <- sub("^https://([^/]+).*$", "\\1", declared)
+          if (length(recorded) && !any(grepl(host, recorded, fixed = TRUE))) {
+            stop("cmdstanr's installed DESCRIPTION records it came from ",
+                 paste(recorded, collapse = ", "), ", not from the declared ",
+                 "repository ", declared, ".")
+          }
+        shell: Rscript {0}
+
+      # The toolchain check is where the cost of pinning an old cmdstanr shows
+      # up, and it is platform-specific: cmdstanr 0.8.0 predates current Rtools
+      # and reports "Rtools44 was not found but is required to run CmdStan with
+      # R version 4.6.1" on Windows, while the same version is fine on Linux and
+      # macOS. Record the result rather than discovering it as an opaque failure
+      # three steps later.
+      - name: Check the CmdStan toolchain
+        id: toolchain
+        run: |
+          msg <- NULL
+          ok <- tryCatch({
+            cmdstanr::check_cmdstan_toolchain(fix = FALSE, quiet = TRUE)
+            TRUE
+          }, error = function(e) {
+            msg <<- conditionMessage(e)
+            cat("toolchain unavailable:", msg, "\n")
+            FALSE
+          })
+          # Tolerate ONLY the known consequence of the pin: a cmdstanr too old
+          # to recognize this R version's Rtools. Accepting every Windows
+          # exception would let a runner regression, a different cmdstanr
+          # failure, or a genuinely broken toolchain pass as the expected
+          # limitation, which is the opposite of what this job is for. So it
+          # takes cmdstanr's exact sentence for that condition, and only from
+          # the cmdstanr the pin is known to serve: the same sentence from a
+          # 0.9.0 would mean the runner's Rtools changed, which is new.
+          #
+          # The sentence alone cannot tell an unrecognized Rtools from an
+          # absent one: the pinned cmdstanr says the same thing when the
+          # runner has lost its compiler. So R is asked directly, by building
+          # one empty C++ file through R CMD SHLIB, which needs the Rtools
+          # C++ compiler that CmdStan itself uses and nothing from cmdstanr.
+          # Only when that works is cmdstanr's failure the documented version
+          # limitation.
+          compiler_works <- local({
+            dir <- tempfile("probe")
+            dir.create(dir)
+            old <- setwd(dir)
+            on.exit(setwd(old), add = TRUE)
+            writeLines('extern "C" void mlumr_probe(void) {}', "probe.cpp")
+            out <- suppressWarnings(system2(file.path(R.home("bin"), "R"),
+                                            c("CMD", "SHLIB", "probe.cpp"),
+                                            stdout = TRUE, stderr = TRUE))
+            built <- file.exists(paste0("probe", .Platform$dynlib.ext))
+            if (!built) cat(out, sep = "\n")
+            built
+          })
+          cat("compiler works:", compiler_works, "\n")
+          expected <- !is.null(msg) && compiler_works &&
+            grepl("was not found but is required to run CmdStan with R version",
+                  msg, fixed = TRUE) &&
+            utils::packageVersion("cmdstanr") < "0.9.0"
+          cat("cmdstanr:", as.character(utils::packageVersion("cmdstanr")), "\n")
+          cat("R:       ", R.version.string, "\n")
+          cat(sprintf("ok=%s\n", tolower(as.character(ok))),
+              file = Sys.getenv("GITHUB_OUTPUT"), append = TRUE)
+          # On the platforms where the pinned cmdstanr is known to work, a
+          # toolchain failure is a real regression and must stop the job.
+          if (!ok && .Platform$OS.type != "windows") {
+            stop("the cmdstanr from the declared chain cannot find a working ",
+                 "toolchain on this platform, which is a change from the known ",
+                 "state and needs investigating before release")
+          }
+          if (!ok && !compiler_works) {
+            stop("R cannot compile a C++ file on this runner, so Rtools is ",
+                 "absent or broken here. That is a runner regression, not the ",
+                 "documented limitation of the pinned cmdstanr, which only ",
+                 "fails to recognize an Rtools that is present: ", msg)
+          }
+          if (!ok && !expected) {
+            stop("the Windows toolchain check failed for a reason other than ",
+                 "the known missing-Rtools limitation of the pinned cmdstanr. ",
+                 "This is new breakage, not the documented cost of the pin: ",
+                 msg)
+          }
+          if (!ok) {
+            cat("\nKNOWN COST OF THE PINNED REPOSITORY: the declared chain ",
+                "supplies a cmdstanr too old to recognize this R version's ",
+                "Rtools, so CmdStan cannot be built here. Reverting the pin ",
+                "would fix this and reintroduce the rstan/StanHeaders ",
+                "resolution failure it exists to avoid; see the repository ",
+                "watch workflow.\n", sep = "")
+          }
+        shell: Rscript {0}
+
+      - name: Install CmdStan
+        if: steps.toolchain.outputs.ok == 'true'
+        run: cmdstanr::install_cmdstan(cores = 2)
+        shell: Rscript {0}
+
+      - name: Record the resolved software versions
+        if: steps.toolchain.outputs.ok == 'true'
+        run: |
+          cat("cmdstanr:", as.character(utils::packageVersion("cmdstanr")), "\n")
+          cat("CmdStan: ", cmdstanr::cmdstan_version(), "\n")
+          cat("R:       ", R.version.string, "\n")
+        shell: Rscript {0}
+
+      - name: Sample through the chain this package declares
+        if: steps.toolchain.outputs.ok == 'true'
+        run: |
+          pkgload::load_all(".")
+          options(mlumr.stan_engine = "cmdstanr")
+          # A smoke test, not the suite: the question is whether the cmdstanr
+          # this chain resolves can compile and run one model end to end.
+          data("psoriasis_ipd", package = "mlumr")
+          data("psoriasis_agd", package = "mlumr")
+          res <- testthat::test_file("tests/testthat/test-mlumr.R",
+                                     package = "mlumr", reporter = "summary",
+                                     stop_on_failure = FALSE)
+          df <- as.data.frame(res)
+          cat("pass", sum(df$passed), "fail", sum(df$failed),
+              "error", sum(df$error), "skipped", sum(df$skipped), "\n")
+          if (sum(df$failed) > 0 || any(df$error)) {
+            stop("the declared repository chain does not produce a working cmdstanr")
+          }
+          # The model tests skip unless NOT_CRAN is true and rstan is
+          # installed. A skip leaves the pass count nonzero, from the one
+          # validation test that never skips, so counting passes alone would
+          # keep this step green while no model had been fitted at all.
+          if (sum(df$skipped) > 0) {
+            stop("the smoke test skipped ", sum(df$skipped), " test(s), so it ",
+                 "did not fit the models it exists to fit")
+          }
         shell: Rscript {0}
