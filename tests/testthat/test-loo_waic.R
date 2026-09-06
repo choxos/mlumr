@@ -416,6 +416,38 @@ test_that("a reordered source is caught even when the fits share no covariate", 
   expect_false(identical(.source_row_keys(l1), .source_row_keys(l2)))
 })
 
+test_that("a grouped survival unit allows a reordered comparator", {
+  # `survival_unit = "arm"` and `"aggregate"` sum a group's pointwise columns
+  # before anything is compared, so the order of the comparator's rows inside
+  # a group is not part of the comparison and rejecting it blocks valid work.
+  # What must still hold is that each group is made of the same rows.
+  pseudo <- function(order = 1:4, arms = c("a", "a", "b", "b"), time = 1:4) {
+    data.frame(.study = "S", .trt = "z", .arm = arms[order],
+               .time = time[order], .status = c(1, 0, 1, 0)[order],
+               .source_key = paste0(strrep("0", 32L), ":", order),
+               stringsAsFactors = FALSE)
+  }
+  frames <- function(p) list(ipd = NULL, agd = NULL, pseudo = p)
+  a <- frames(pseudo())
+  b <- frames(pseudo(c(2L, 1L, 4L, 3L)))
+  # Positional by default, order free once the unit groups them.
+  expect_false(.same_observations(a, b))
+  expect_true(.same_observations(a, b, pseudo_grouped = TRUE))
+  # A row moved to the other arm is a different comparator under either.
+  moved <- frames(pseudo(arms = c("a", "b", "a", "b")))
+  expect_false(.same_observations(a, moved, pseudo_grouped = TRUE))
+  # So is a changed value, even when the multiset of arms is unchanged.
+  changed <- frames(pseudo(time = c(1, 2, 3, 99)))
+  expect_false(.same_observations(a, changed, pseudo_grouped = TRUE))
+  # And the index rows stay positional whatever the unit.
+  y <- rep(c(0L, 1L), 6L)
+  f1 <- with_data(make_ll_fit("spfa", seed = 2026), y)
+  f2 <- with_data(make_ll_fit("relaxed", seed = 2026), y)
+  f2$data$ipd$data <- f2$data$ipd$data[c(2:12, 1), ]
+  expect_error(.assert_same_observations(list(f1, f2), "aggregate"),
+               "not built on the same observations")
+})
+
 test_that("every pair of compared fits is checked, not each against the first", {
   # Sharing a covariate is not transitive: A carries none, so A matches both
   # B and C, while B and C share age and differ in it.
