@@ -601,6 +601,23 @@ if (file.exists(config_file)) {
          "Move or delete that directory to start a clean run.", call. = FALSE)
   }
 } else {
+  # Cells with no configuration beside them are cells this run cannot vouch
+  # for. Writing the current configuration over them would say that they were
+  # computed under it, which is exactly the claim there is no evidence for:
+  # they predate the guard, or the file was removed, and the checks that
+  # remain cannot see it. A cell's name carries its family, design and
+  # replication, and the seed check below compares the seed it recorded, but
+  # neither says anything about the model, the sampler settings or the bodies
+  # of the functions that produced the number inside, so the assembled CSV
+  # could hold two studies with nothing to show it. Refuse instead, and say
+  # what to delete.
+  stale <- setdiff(list.files(CELLS, pattern = "[.]rds$"), basename(config_file))
+  if (length(stale)) {
+    stop("`", CELLS, "` holds ", length(stale), " checkpoint(s) but no ",
+         "configuration to describe them, so there is no way to tell which ",
+         "study they came from. Move or delete that directory to start a ",
+         "clean run.", call. = FALSE)
+  }
   # Write then rename, as the cell checkpoints already do. A rename within one
   # directory is atomic, so an interruption leaves either no configuration or a
   # complete one, never a half-written file that blocks every rerun.
