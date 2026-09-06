@@ -59,7 +59,8 @@ test_that("the results manifest matches the results it describes", {
   if (!file.exists(manifest)) return(invisible(NULL))
 
   fields <- read.dcf(manifest)
-  expect_true(all(c("Results-MD5", "Rows", "mlumr", "R") %in% colnames(fields)))
+  expect_true(all(c("Script-MD5", "Results-MD5", "Rows", "mlumr", "R") %in%
+                    colnames(fields)))
 
   expect_identical(unname(fields[1, "Results-MD5"]),
                    unname(tools::md5sum(csv)))
@@ -67,4 +68,27 @@ test_that("the results manifest matches the results it describes", {
   # truncated file has a different digest but nothing says WHAT changed.
   expect_identical(as.integer(fields[1, "Rows"]),
                    nrow(utils::read.csv(csv)))
+
+  # The other half of the provenance link, and the half nothing checked. The
+  # article's own digest test hashes the CSV, and the two assertions above
+  # hash the CSV, so editing the study script without rerunning it left every
+  # gate green while the manifest went on naming a script that no longer
+  # exists in the tree. A reader could then no longer tell whether the
+  # difference was a comment or a different data-generating process. This is
+  # what makes "these results came from this script" a statement about the
+  # files in front of you.
+  script <- .artifact_path("data-raw", "simulate_subgroup_identification.R")
+  expect_true(file.exists(script),
+              info = "the manifest describes a study script that is not here")
+  if (file.exists(script)) {
+    expect_identical(
+      unname(fields[1, "Script-MD5"]), unname(tools::md5sum(script)),
+      info = paste0("the committed study script is not the one that produced ",
+                    "the committed results. Rerun the study, which rewrites ",
+                    "both the results and the manifest, or keep the script as ",
+                    "it ran until the next run. The manifest is the run's own ",
+                    "record and must not be edited to agree with a script ",
+                    "that came after it.")
+    )
+  }
 })

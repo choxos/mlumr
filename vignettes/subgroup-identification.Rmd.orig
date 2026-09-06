@@ -759,6 +759,22 @@ which is a thin basis; read the ranking as a direction, not as a calibration.
 What it does establish is the inversion, and one counterexample is enough for
 that: a design with more rows can be strictly worse than a design with fewer.
 
+The generator draws each cohort at the individual level and each aggregate row
+reports the realized moments of its own members, so a row's members are exactly
+the people its summary describes. What the row does not carry is the SHAPE of
+that membership: a design that bands on age reports a mean and a standard
+deviation for a within-band age distribution that is truncated, while the fit
+integrates a normal with those two moments, and only `crosstab_4` leaves the
+age margin approximately Gaussian. This is a real misspecification, and it
+falls unevenly across the designs, so it is worth bounding rather than
+asserting away. Comparing each row's true mean response against the one the
+model integrates puts the discrepancy at most 4.2% of that row's own sampling
+standard error across every design and both nonlinear families, and the
+age-banded designs sit lower than that, below the sampling noise of the
+comparison itself. The width differences the table reports run to factors of
+two and three, so the shape of the within-row age distribution is not what
+produces them.
+
 A study that justified a `cond_inv` threshold for a specific application would
 need the actual within-stratum distributions of that application, its own
 effect size and sample sizes, a design sweep wide enough to place a cutoff,
