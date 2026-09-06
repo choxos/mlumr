@@ -290,32 +290,6 @@
   strong but identified fit needs an exact test rather than the fitted
   values.
 
-* **`stc()` fits a normal outcome with a log link whenever the means are
-  positive.** R initializes that link from the log of the outcome and stops on
-  any value at or below zero, although the model is defined whenever the mean
-  is positive. An outcome of `c(-1, 1, 2, 2, 3, 4)`, whose group means are both
-  positive, was refused with "cannot find valid starting values". The fit is
-  now initialized for that family and link, and only where R refuses: fits R
-  can initialize keep its own per-observation start, which is better than
-  anything substituted for it. Where R refuses, several starts are tried and
-  the one reaching the lowest deviance is kept, because no single start is
-  reliable and the failures point opposite ways. A pooled value lands wherever
-  the largest observations pull it, returning a first-group mean of 168 where
-  the optimum is 2 on outcomes spanning seven orders of magnitude, an error
-  invisible in the deviance; flooring the outcomes per observation fixes that
-  and stops short of an optimum at 5e-9 on another design. Fitting from each
-  and keeping the best reaches both. A log link
-  keeps every fitted mean positive, so data that pulls all of them downwards
-  has no interior optimum and the criterion is minimized only as the intercept
-  runs to negative infinity. Nothing reported that: the deviance stopped
-  changing, `glm()` returned convergence, and the intercept came back as -11 at
-  the default tolerance, -13 at 1e-10 and -15 at 1e-12. Such a fit is now
-  refused, on the ground that it is no better than setting every mean to zero,
-  which is scale free and needs no threshold at all. The same check also
-  catches a fit that had an optimum available and failed to reach it, which
-  iterative reweighting can do while reporting convergence, so the message
-  names both possibilities rather than asserting the data has no optimum.
-
 * **A caller's rstan `control` reaches the sampler.** `...` is documented as
   passing arguments to `rstan::sampling()`, but the backend supplied its own
   `control` beside the caller's, and `control` is a formal of that function, so

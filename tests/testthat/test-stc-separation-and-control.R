@@ -104,62 +104,6 @@ test_that("treedepth hits are counted against the limit the sampler ran under", 
   expect_equal(count(sp, plain$control$max_treedepth), 4)
 })
 
-test_that("the log link is fitted from several starts, only where R will not", {
-  cands <- mlumr:::.stc_start_candidates
-  fitg <- mlumr:::.stc_fit_glm
-  fam <- stats::gaussian(link = "log")
-
-  # All outcomes positive: R initializes this itself, per observation, better
-  # than anything offered here, so nothing is offered and nothing changes.
-  expect_equal(cands(list(.outcome = c(1, 2, 3)), fam), list())
-  wide_pos <- data.frame(.outcome = c(1, 2, 3, 1e7, 2e7, 3e7),
-                         x = rep(0:1, each = 3))
-  expect_equal(cands(wide_pos, fam), list())
-  by_r <- fitg(.outcome ~ x, fam, wide_pos)
-  expect_equal(unname(stats::fitted(by_r)[1]), 2, tolerance = 1e-6)
-
-  # Where R refuses, no single start is reliable, and the two failures point
-  # opposite ways. Each is checked against the start that loses it.
-  wide <- data.frame(.outcome = c(0, 2, 4, 1e7, 2e7, 3e7),
-                     x = rep(0:1, each = 3))
-  pooled <- suppressWarnings(stats::glm(
-    .outcome ~ x, family = fam, data = wide,
-    start = c(log(mean(wide$.outcome)), 0)
-  ))
-  expect_true(pooled$converged)
-  expect_gt(unname(stats::fitted(pooled)[1]), 100)   # 168, where the optimum is 2
-
-  ulp <- data.frame(.outcome = c(-1, 1.00000001, -1, 1.00000001),
-                    x = c(-1, -1, 1, 1))
-  floored <- suppressWarnings(stats::glm(
-    .outcome ~ x, family = fam, data = ulp,
-    mustart = pmax(ulp$.outcome, min(ulp$.outcome[ulp$.outcome > 0])),
-    control = list(epsilon = 1e-14, maxit = 5000)
-  ))
-  expect_gt(unname(stats::fitted(floored)[1]), 1e-8) # 1.8e-8, where it is 5e-9
-
-  # Taking the lowest deviance among the candidates reaches both optima.
-  expect_gt(length(cands(wide, fam)), 1L)
-  expect_equal(unname(stats::fitted(fitg(.outcome ~ x, fam, wide))[1]),
-               2, tolerance = 1e-6)
-  expect_equal(unname(stats::fitted(fitg(.outcome ~ x, fam, wide))[4]),
-               2e7, tolerance = 1e-6)
-  expect_equal(unname(stats::fitted(fitg(.outcome ~ x, fam, ulp))[1]),
-               5e-9, tolerance = 1e-6)
-
-  # Mixed signs reach the exact group means.
-  mixed <- data.frame(.outcome = c(-1, 1, 2, 2, 3, 4), x = rep(0:1, each = 3))
-  fm <- fitg(.outcome ~ x, fam, mixed)
-  expect_equal(unname(stats::fitted(fm)[1]), 2 / 3, tolerance = 1e-6)
-  expect_equal(unname(stats::fitted(fm)[4]), 3, tolerance = 1e-6)
-
-  # Nothing positive to scale by, and other families, are left to R.
-  expect_equal(cands(list(.outcome = c(0, 0, 0)), fam), list())
-  expect_equal(cands(list(.outcome = c(-1, -2)), fam), list())
-  expect_equal(cands(mixed, stats::gaussian(link = "identity")), list())
-  expect_equal(cands(mixed, stats::binomial()), list())
-})
-
 test_that("the deep-tail gamma series is normalized without a cancelling subtraction", {
   # The series sums terms relative to the first and divides by gamma(k + 1) at
   # the end. Carrying -log(k) inside the sum and finishing with -lgamma(k)
@@ -281,87 +225,6 @@ test_that("a prior sweep replays every sampler control, not only the two named",
   expect_equal(cmd$adapt_delta, 0.9)
 })
 
-test_that("a log-link mean fit with no interior optimum is refused", {
-  fam <- stats::gaussian(link = "log")
-  guard <- mlumr:::.stc_refuse_boundary_mean
-
-  # Every fitted mean must be positive, and this data pulls all of them down,
-  # so the criterion is minimized only as the intercept runs to negative
-  # infinity. Nothing reports it: the deviance stops changing and `glm()`
-  # returns convergence with coefficients set by the tolerance.
-  d <- data.frame(.outcome = c(-1, 1, -1, 1), x = c(-1, -1, 1, 1))
-  fit <- suppressWarnings(stats::glm(.outcome ~ x, family = fam, data = d,
-                                     start = c(0, 0)))
-  expect_true(fit$converged)
-  expect_true(all(is.finite(stats::coef(fit))))
-  # The estimate is a property of `epsilon`, not of the data.
-  eps_fit <- function(e) {
-    suppressWarnings(stats::glm(.outcome ~ x, family = fam, data = d,
-                                start = c(0, 0),
-                                control = list(epsilon = e, maxit = 100)))
-  }
-  expect_equal(unname(stats::coef(eps_fit(1e-8))[1]), -11, tolerance = 1e-6)
-  expect_equal(unname(stats::coef(eps_fit(1e-12))[1]), -15, tolerance = 1e-6)
-
-  # The fit buys nothing over setting every mean to zero, which is the test.
-  expect_equal(stats::deviance(fit), sum(d$.outcome^2))
-  expect_error(guard(fit), "did not reach a usable optimum")
-
-  # Ordinary fits pass, at any scale, since the comparison is a ratio.
-  ok <- data.frame(.outcome = c(-1, 1, 2, 2, 3, 4), x = rep(0:1, each = 3))
-  fit_ok <- suppressWarnings(stats::glm(
-    .outcome ~ x, family = fam, data = ok,
-    start = c(log(mean(ok$.outcome)), 0)
-  ))
-  expect_lt(stats::deviance(fit_ok), sum(ok$.outcome^2))
-  expect_silent(guard(fit_ok))
-
-  tiny <- data.frame(.outcome = c(1, 2, 3, 10, 20, 30) * 1e-6,
-                     x = rep(0:1, each = 3))
-  fit_tiny <- suppressWarnings(stats::glm(.outcome ~ x, family = fam,
-                                          data = tiny))
-  expect_silent(guard(fit_tiny))
-
-  # The separation guard cannot cover this: it needs a probability boundary,
-  # and this family has none. Other families and links are untouched here.
-  expect_silent(guard(stats::glm(.outcome ~ x, family = stats::gaussian(),
-                                 data = d)))
-  expect_silent(guard(stats::glm(y ~ x, family = stats::poisson(),
-                                 data = data.frame(y = c(1, 2, 3, 4),
-                                                   x = c(0, 0, 1, 1)))))
-})
-
-test_that("an all-zero outcome under a log link is the clearest boundary case", {
-  fam <- stats::gaussian(link = "log")
-  # `sum(y^2)` is zero here, and reading that as an unavailable comparison let
-  # the fit through. A log link keeps every mean strictly positive, so it can
-  # only approach these observations by sending the intercept to negative
-  # infinity: this is the boundary, not a missing measurement of it.
-  d <- data.frame(.outcome = c(0, 0, 0, 0), x = c(0, 0, 1, 1))
-  fit <- suppressWarnings(stats::glm(.outcome ~ x, family = fam, data = d,
-                                     start = c(0, 0)))
-  expect_true(fit$converged)
-  expect_true(all(is.finite(stats::coef(fit))))
-  expect_equal(sum(d$.outcome^2), 0)
-  # This branch keeps the stronger wording: with every outcome zero there is
-  # certainly no finite optimum, rather than possibly one the fitting missed.
-  expect_error(mlumr:::.stc_refuse_boundary_mean(fit), "no finite optimum")
-
-  # A stratum that is genuinely small, rather than at the boundary, still
-  # fits: both group means are positive, so the optimum is interior at a
-  # fitted mean of 1.5e-9. Refusing this would be worse than the gap it
-  # closes, and every summary statistic tried put it on the same side as the
-  # boundary cases, which is why the guard does not use one.
-  small <- data.frame(.outcome = c(1e-9, 2e-9, 5, 6), x = c(0, 0, 1, 1))
-  fit_small <- suppressWarnings(stats::glm(
-    .outcome ~ x, family = fam, data = small, start = c(0, 0),
-    control = list(epsilon = 1e-14, maxit = 5000)
-  ))
-  expect_true(fit_small$converged)
-  expect_lt(stats::deviance(fit_small), sum(small$.outcome^2))
-  expect_silent(mlumr:::.stc_refuse_boundary_mean(fit_small))
-})
-
 test_that("a caller's sampler overrides refine the recorded control", {
   # The recorded control describes the original fit. Assigning a caller's
   # wholesale dropped every recorded entry they did not name, and a scalar
@@ -404,34 +267,6 @@ test_that("a caller's sampler overrides refine the recorded control", {
   # Their control still beats their scalar, the order mlumr() itself uses.
   both <- refine(list(adapt_delta = 0.85, control = list(adapt_delta = 0.7)))
   expect_equal(both$adapt_delta, 0.7)
-})
-
-test_that("a small but real improvement over the boundary is still an optimum", {
-  fam <- stats::gaussian(link = "log")
-  # Each stratum's optimum here is a fitted mean of 5e-6, worth 1e-10 of
-  # deviance against the all-zero boundary. That is an optimum, and a relative
-  # margin on the comparison refused it as though it were the boundary. The
-  # comparison is exact for that reason: the boundary is the optimum precisely
-  # when no positive mean improves on zero, and then the deviance exceeds
-  # `sum(y^2)` rather than merely approaching it.
-  d <- data.frame(.outcome = c(-1, 1.00001, -1, 1.00001), x = c(-1, -1, 1, 1))
-  expect_true(all(tapply(d$.outcome, d$x, mean) > 0))
-  fit <- suppressWarnings(stats::glm(
-    .outcome ~ x, family = fam, data = d, start = c(0, 0),
-    control = list(epsilon = 1e-14, maxit = 5000)
-  ))
-  expect_lt(stats::deviance(fit), sum(d$.outcome^2))
-  expect_silent(mlumr:::.stc_refuse_boundary_mean(fit))
-
-  # The genuine boundary sits on the other side of the same exact comparison,
-  # so no slack is needed to tell them apart.
-  b <- data.frame(.outcome = c(-1, 1, -1, 1), x = c(-1, -1, 1, 1))
-  fit_b <- suppressWarnings(stats::glm(
-    .outcome ~ x, family = fam, data = b, start = c(0, 0),
-    control = list(epsilon = 1e-14, maxit = 5000)
-  ))
-  expect_gte(stats::deviance(fit_b), sum(b$.outcome^2))
-  expect_error(mlumr:::.stc_refuse_boundary_mean(fit_b), "did not reach a usable optimum")
 })
 
 test_that("a recorded rstan control is not carried onto another engine", {
@@ -541,55 +376,4 @@ test_that("a sampler setting is validated the same through either door", {
   ok <- merge(0.8, 10, list(control = list(adapt_delta = 0.99)))
   expect_equal(ok$control$adapt_delta, 0.99)
   expect_equal(ok$control$max_treedepth, 10)
-})
-
-test_that("an improvement smaller than an ulp of the sums is still an improvement", {
-  fam <- stats::gaussian(link = "log")
-  # The improvement over the boundary is `sum(y^2) - sum((y - mu)^2)`, which
-  # expands to `sum(mu * (2 * y - mu))`. Read as the difference of the two
-  # sums it cannot represent anything smaller than an ulp of them, and a real
-  # optimum can be smaller than that.
-  d <- data.frame(.outcome = c(-1, 1.00000001, -1, 1.00000001),
-                  x = c(-1, -1, 1, 1))
-  expect_true(all(tapply(d$.outcome, d$x, mean) > 0))
-  # From the starting values the package itself supplies. This matters: from
-  # zeros the fit lands at 4.4e-8, which is worse than the boundary, and is
-  # then refused correctly. The point being pinned is the arithmetic at the
-  # optimum, so the fit has to actually reach it.
-  fit <- suppressWarnings(stats::glm(
-    .outcome ~ x, family = fam, data = d,
-    start = c(log(mean(d$.outcome)), 0),
-    control = list(epsilon = 1e-14, maxit = 5000)
-  ))
-  y <- d$.outcome
-  mu <- stats::fitted(fit)
-  expect_equal(unname(mu), rep(5e-9, 4), tolerance = 1e-6)
-
-  # Both sums round to the same double, so subtracting them returns zero.
-  expect_equal(sum(y^2) - stats::deviance(fit), 0)
-  # The closed form recovers the improvement that the subtraction destroyed.
-  expect_gt(sum(mu * (2 * y - mu)), 0)
-  expect_silent(mlumr:::.stc_refuse_boundary_mean(fit))
-
-  # The genuine boundary has a negative improvement by the same measure, so
-  # one expression decides both without a threshold.
-  b <- data.frame(.outcome = c(-1, 1, -1, 1), x = c(-1, -1, 1, 1))
-  fit_b <- suppressWarnings(stats::glm(
-    .outcome ~ x, family = fam, data = b, start = c(0, 0),
-    control = list(epsilon = 1e-14, maxit = 5000)
-  ))
-  expect_lt(sum(stats::fitted(fit_b) * (2 * b$.outcome - stats::fitted(fit_b))), 0)
-  expect_error(mlumr:::.stc_refuse_boundary_mean(fit_b),
-               "did not reach a usable optimum")
-
-  # And the two ways of computing it agree wherever subtraction is safe.
-  ok <- data.frame(.outcome = c(-1, 1, 2, 2, 3, 4), x = rep(0:1, each = 3))
-  fit_ok <- suppressWarnings(stats::glm(
-    .outcome ~ x, family = fam, data = ok,
-    start = c(log(mean(ok$.outcome)), 0)
-  ))
-  mo <- stats::fitted(fit_ok)
-  expect_equal(sum(mo * (2 * ok$.outcome - mo)),
-               sum(ok$.outcome^2) - stats::deviance(fit_ok),
-               tolerance = 1e-8)
 })
