@@ -259,13 +259,16 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' Refuse a fit whose likelihood has no finite maximum
 #'
 #' The checks above look for a failure the fitting reports, and separation is
-#' not one. Iterative reweighting stops at its iteration limit rather than at
-#' a maximum, so a binomial arm with no events comes back with
-#' `converged = TRUE`, finite coefficients and a finite covariance: 100 rows
-#' with the outcome always zero produce a coefficient of about -26.6 and a
-#' largest fitted probability of 3e-12, with a confidence interval to match.
-#' Every number there is a property of where the iteration stopped, not of the
-#' data, and reporting it as an estimate is worse than reporting nothing,
+#' not one. Iterative reweighting stops when the deviance stops changing, and a
+#' separated fit has no maximum for it to stop at: the deviance falls to about
+#' 6e-10 while the intercept is still drifting, so the criterion fires anyway
+#' and a binomial arm with no events comes back with `converged = TRUE`, finite
+#' coefficients and a finite covariance. 100 rows with the outcome always zero
+#' produce a coefficient of about -26.6 and a largest fitted probability of
+#' 3e-12, with a confidence interval to match. Raising `maxit` changes none of
+#' those numbers, which is what shows the iteration limit is not what stopped
+#' it. Every number there is a property of where the iteration stopped, not of
+#' the data, and reporting it as an estimate is worse than reporting nothing,
 #' because nothing about it looks wrong.
 #'
 #' The symptom is the one thing separation always leaves: every fitted

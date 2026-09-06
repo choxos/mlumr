@@ -275,12 +275,13 @@
 
 * **`stc()` refuses a separated outcome model.** Its checks looked for a
   failure the fitting reports, and separation is not one: iterative
-  reweighting stops at its iteration limit rather than at a maximum, so a
-  binomial arm with no events returned convergence, finite coefficients and a
-  finite covariance. A hundred rows with the outcome always zero produced a
-  coefficient of -26.6 and a largest fitted probability of 3e-12, with a
-  confidence interval to match, every number a property of where the iteration
-  stopped rather than of the data. The symptom separation always leaves is now
+  reweighting stops when the deviance stops changing, and a separated fit has
+  no maximum for it to stop at, so a binomial arm with no events returned
+  convergence, finite coefficients and a finite covariance. A hundred rows with
+  the outcome always zero produced a coefficient of -26.6 and a largest fitted
+  probability of 3e-12, with a confidence interval to match, every number a
+  property of where the iteration stopped rather than of the data. Raising
+  `maxit` changes none of them. The symptom separation always leaves is now
   an error: every fitted probability against a boundary, tested only where a
   boundary exists, so a genuinely rare event still fits.
 
