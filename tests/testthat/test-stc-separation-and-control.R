@@ -226,4 +226,18 @@ test_that("the fit records the sampler settings that were in force", {
   reported <- list(adapt_delta_used = 0.99, max_treedepth_used = 10)
   expect_equal(reported$adapt_delta_used %||% 0.8, 0.99)
   expect_equal(reported$max_treedepth_used %||% 15, 10)
+
+  # `prior_sensitivity()` replays a fit from the same record, so an argument
+  # stored there instead of the effective value would have refit the sweep
+  # under different sampler settings from the fit it is a sweep of.
+  replayed <- mlumr:::.prior_sensitivity_args(
+    list(data = "DATA", model = "spfa", link = "identity", engine = "rstan",
+         priors = list(intercept = NULL, sigma = NULL),
+         sampling_args = list(chains = 4, iter = 2000, warmup = 1000,
+                              seed = 2026, adapt_delta = 0.99,
+                              max_treedepth = 10)),
+    prior_beta_i = NULL, verbose = FALSE
+  )
+  expect_equal(replayed$adapt_delta, 0.99)
+  expect_equal(replayed$max_treedepth, 10)
 })
