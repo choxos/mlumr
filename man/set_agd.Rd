@@ -106,22 +106,21 @@ exposure of 10 times the mean rate of 2, which is 20. Person-level moments
 reproduce the sum only when exposure carries no information about the
 covariate-specific rate within the row.
 
-The assumption is therefore about person-time, not about people:
-\code{cov_means} and \code{cov_sds} should describe the covariate distribution
-weighted by exposure. With one covariate its moments are the whole of that
-distribution, as far as the integration uses it. With two or more, the
-dependence between them belongs to it as well: the rate is averaged over
-the joint distribution that \code{\link[=add_integration]{add_integration()}} builds from the moments
-and its \code{cor}, and the \code{cor} it uses by default is estimated from the index
-sample. Exposure can leave every mean and standard deviation where it was
-and still change how the covariates go together, when it varies with
-their combination rather than with each on its own, so the correlation
-handed to \code{\link[=add_integration]{add_integration()}} has to describe the person-time population
-too. Person-level moments stand in for exposure-weighted ones when
-exposure carries no information about the covariate-specific rate within
-the row. Mean exposure that does not vary with the covariates is a
-sufficient condition that does not depend on the model, because it makes
-the two distributions coincide, joint distribution included, and equal
+The assumption is therefore about person-time, not about people, and it
+is about the whole distribution the rate is averaged over, not only the
+moments: the marginal shape that each \code{distr()} in \code{\link[=add_integration]{add_integration()}}
+assumes around \code{cov_means} and \code{cov_sds}, and with two or more covariates
+the correlation it combines them with, whose default is estimated from the
+index sample. All of it has to describe the covariates weighted by
+exposure. Exposure can leave every mean and standard deviation where it
+was and still change a covariate's skewness or tails, or how the
+covariates go together when it varies with their combination rather than
+with each on its own, and the averaged rate moves with any of these.
+Person-level summaries stand in for exposure-weighted ones when exposure
+carries no information about the covariate-specific rate within the row.
+Mean exposure that does not vary with the covariates is a sufficient
+condition that does not depend on the model, because it makes the two
+distributions coincide, shape and dependence included, and equal
 individual exposure is its simplest case.
 Published subgroup tables almost always report person-level moments, and
 those do not identify the person-time distribution. Where follow-up varies

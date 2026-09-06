@@ -573,22 +573,25 @@
   person's exposure times their own rate exactly when the distribution is
   weighted by exposure, and, with person-level moments, only when exposure
   carries no information about the covariate-specific rate within the row.
-  The covariate moments therefore have to describe person-time rather than
-  people, and with two or more covariates so does the correlation that
-  `add_integration()` combines them with, since its default is estimated from
-  the index sample and exposure can change how the covariates go together
-  without moving any of their moments. The two populations coincide whenever
-  mean exposure does not vary with the covariates, and published subgroup
-  tables usually report the person-level reading without saying which one
-  they support.
+  The whole covariate distribution the rate is averaged over therefore has
+  to describe person-time rather than people: the marginal shape each
+  `distr()` assumes around the moments, and with two or more covariates the
+  correlation `add_integration()` combines them with, whose default is
+  estimated from the index sample. Exposure can change a covariate's skewness
+  or how the covariates go together without moving any of their moments. The
+  two populations coincide whenever mean exposure does not vary with the
+  covariates, and published subgroup tables usually report the person-level
+  reading without saying which one they support.
 * `?set_agd_surv` now states which population the covariate moments must
   describe when the comparator has delayed entry. The model conditions on
   survival to entry inside the covariate integral and averages afterwards, so
   the moments must be those of the population observed at entry rather than a
   baseline, pre-selection population; surviving to entry selects on the very
   covariates being integrated out. Varying entry times need one assumption
-  more, since the model carries a single covariate distribution per arm and
-  each entry time selects a different subgroup. A test now compares the
+  more, since the model carries a single covariate distribution per arm while
+  the population observed at each entry time can differ, both because each
+  entry time selects a different subgroup and because who enters when can be
+  related to the covariates. A test now compares the
   model's aggregate delayed-entry likelihood, draw by draw, against direct
   integration under that definition over a two-component covariate mixture,
   and against the other order of conditioning and averaging, which gives a
