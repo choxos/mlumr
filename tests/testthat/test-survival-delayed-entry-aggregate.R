@@ -96,9 +96,13 @@ test_that("the aggregate delayed-entry likelihood conditions on entry before ave
       ll_other[s, j] <- log(sum(w * num)) - log(sum(w * exp(-h * d_j[j])))
     }
   }
-  expect_equal(ll_stan, ll_grid, tolerance = 1e-8, ignore_attr = TRUE)
-  expect_equal(ll_stan, ll_exact, tolerance = 1e-8, ignore_attr = TRUE)
-  # The two orders differ by more than the tolerance above, so the agreement
-  # is with the documented order and not with both.
-  expect_gt(max(abs(ll_stan - ll_other)), 1e-3)
+  # Absolute, not relative: the draws come back through the backend's output
+  # files, and CmdStan writes them with six significant figures, so a value
+  # recomputed from the rounded parameters differs at that level. The other
+  # order differs by orders of magnitude more, so the agreement is with the
+  # documented order and not with both.
+  expect_lt(max(abs(ll_stan - ll_grid)), 1e-4)
+  expect_lt(max(abs(ll_stan - ll_exact)), 1e-4)
+  expect_gt(max(abs(ll_stan - ll_other)), 1e-2)
+  expect_gt(stats::median(abs(ll_stan - ll_other)), 1e-2)
 })
