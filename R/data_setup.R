@@ -488,11 +488,21 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 #'
 #' The assumption is therefore about person-time, not about people:
 #' `cov_means` and `cov_sds` should describe the covariate distribution
-#' weighted by exposure. Person-level moments stand in for it when exposure
-#' carries no information about the covariate-specific rate within the row.
-#' Mean exposure that does not vary with the covariates is a sufficient
-#' condition that does not depend on the model, because it makes the two
-#' distributions coincide, and equal individual exposure is its simplest case.
+#' weighted by exposure. With one covariate its moments are the whole of that
+#' distribution, as far as the integration uses it. With two or more, the
+#' dependence between them belongs to it as well: the rate is averaged over
+#' the joint distribution that [add_integration()] builds from the moments
+#' and its `cor`, and the `cor` it uses by default is estimated from the index
+#' sample. Exposure can leave every mean and standard deviation where it was
+#' and still change how the covariates go together, when it varies with
+#' their combination rather than with each on its own, so the correlation
+#' handed to [add_integration()] has to describe the person-time population
+#' too. Person-level moments stand in for exposure-weighted ones when
+#' exposure carries no information about the covariate-specific rate within
+#' the row. Mean exposure that does not vary with the covariates is a
+#' sufficient condition that does not depend on the model, because it makes
+#' the two distributions coincide, joint distribution included, and equal
+#' individual exposure is its simplest case.
 #' Published subgroup tables almost always report person-level moments, and
 #' those do not identify the person-time distribution. Where follow-up varies
 #' with a prognostic covariate, prefer rows defined so that exposure is close

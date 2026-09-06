@@ -574,9 +574,13 @@
   weighted by exposure, and, with person-level moments, only when exposure
   carries no information about the covariate-specific rate within the row.
   The covariate moments therefore have to describe person-time rather than
-  people; the two coincide whenever mean exposure does not vary with the
-  covariates, and published subgroup tables usually report the person-level
-  reading without saying which one they support.
+  people, and with two or more covariates so does the correlation that
+  `add_integration()` combines them with, since its default is estimated from
+  the index sample and exposure can change how the covariates go together
+  without moving any of their moments. The two populations coincide whenever
+  mean exposure does not vary with the covariates, and published subgroup
+  tables usually report the person-level reading without saying which one
+  they support.
 * `?set_agd_surv` now states which population the covariate moments must
   describe when the comparator has delayed entry. The model conditions on
   survival to entry inside the covariate integral and averages afterwards, so
