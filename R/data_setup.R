@@ -417,35 +417,65 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 #' because its pointwise comparison pairs rows by position.
 #'
 #' The key is two things, neither of which reveals the source. The first is a
-#' fingerprint of the whole source: its rows are written out with every
-#' column, columns in name order so that column order does not matter, sorted
-#' in byte order so that row order does not matter either, and the digest of
-#' that is taken. The second is the row's rank in that same sorted order,
-#' with identical rows sharing one rank. A fit built from the same source
-#' carries the same fingerprint and the same set of ranks, whatever order its
-#' rows came in; a source that changed in any column carries a different
-#' fingerprint, and then the ranks are never compared. Unused columns such as
-#' identifiers or free text go into the digest and are not kept: the fit
-#' object holds thirty-two hex digits and an integer per row.
+#' fingerprint of the whole source: its schema and then its rows, columns in
+#' name order so that column order does not matter, rows sorted in byte order
+#' so that row order does not matter either, and the digest of that is taken.
+#' The second is the row's rank in that same sorted order, with identical rows
+#' sharing one rank. A fit built from the same source carries the same
+#' fingerprint and the same set of ranks, whatever order its rows came in; a
+#' source that changed in any column carries a different fingerprint, and then
+#' the ranks are never compared. Unused columns such as identifiers or free
+#' text go into the digest and are not kept: the fit object holds thirty-two
+#' hex digits and an integer per row.
+#'
+#' The schema is in the digest because the names are what put the columns in
+#' order, and a fingerprint that used them without recording them could be
+#' matched by a source they order differently. Rename a column across the sort
+#' boundary and every value moves to another position; a second source whose
+#' values happen to line up that way then produces the same rows, the same
+#' digest and the same ranks, and two fits with disjoint covariates and
+#' repeated treatments and outcomes would have their order certified on the
+#' strength of it. Each value is written with its own length as well, so that
+#' the separator between columns cannot be forged by a value that contains it.
 #' @keywords internal
 .source_row_keys <- function(data) {
   # One string per row for every kind of column: a matrix column (a `Surv`
   # object held in a data frame is one) and a list column would otherwise
   # not give one value per row.
+  # A value that contains a separator, or one whose flattening collides with
+  # another shape ("a,b" beside `c("a", "b")` in one list column), would make
+  # two different rows one string and cost the comparison a distinction it is
+  # there to make. Every part is written with its own length, at both levels,
+  # so no string is a rearrangement of another.
+  tag <- function(x) {
+    x <- enc2utf8(as.character(x))
+    x[is.na(x)] <- "\002NA"
+    paste0(nchar(x, type = "bytes"), ":", x)
+  }
+  join <- function(parts) paste(tag(parts), collapse = ",")
   flat <- function(x) {
-    if (!is.null(dim(x))) return(apply(x, 1L, paste, collapse = ","))
-    if (is.list(x)) {
-      return(vapply(x, function(e) paste(format(e), collapse = ","), character(1)))
-    }
+    if (!is.null(dim(x))) return(apply(x, 1L, join))
+    if (is.list(x)) return(vapply(x, function(e) join(format(e)), character(1)))
     as.character(x)
   }
-  cols <- lapply(data[sort(names(data))], flat)
-  rows <- enc2utf8(do.call(paste, c(cols, sep = "\036")))
+  nms <- sort(names(data))
+  cols <- lapply(nms, function(nm) tag(flat(data[[nm]])))
+  rows <- if (length(cols)) {
+    do.call(paste, c(cols, sep = "\036"))
+  } else {
+    rep("", nrow(data))
+  }
   # Byte order, so that the same source gives the same ranks in every locale.
   canon <- unique(sort(rows, method = "radix"))
+  # The schema first: the names that decided the order, and the type of each
+  # column, so that a source with the same values under different names or a
+  # different storage mode is a different source.
+  types <- vapply(data[nms], function(x) paste(class(x), collapse = ","),
+                  character(1))
+  schema <- paste(tag(paste0(nms, "\035", types)), collapse = "\036")
   tmp <- tempfile("mlumr-source-")
   on.exit(unlink(tmp), add = TRUE)
-  writeLines(canon, tmp, useBytes = TRUE)
+  writeLines(c(schema, canon), tmp, useBytes = TRUE)
   paste0(unname(tools::md5sum(tmp)), ":", match(rows, canon))
 }
 

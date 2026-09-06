@@ -388,6 +388,32 @@ test_that("a reordered source is caught even when the fits share no covariate", 
   k4 <- .source_row_keys(src4)
   expect_identical(k4[1], k4[2])
   expect_identical(.source_row_keys(src4[c(2L, 1L, 3:12), ]), k4)
+  # The names decide the column order, so they belong in the digest. Without
+  # them, renaming a column across the sort boundary moves every value to
+  # another position, and a source whose values line up that way produced the
+  # same rows, the same digest and the same ranks. Two fits with disjoint
+  # covariates and repeated treatments and outcomes would then have their row
+  # order certified on the strength of a coincidence.
+  a <- data.frame(age = c(1, 2), trt = c("x", "x"), y = c(5, 5),
+                  stringsAsFactors = FALSE)
+  b <- data.frame(trt = c(1, 2), weight = c("x", "x"), y = c(5, 5),
+                  stringsAsFactors = FALSE)
+  expect_false(identical(.source_row_keys(a), .source_row_keys(b)))
+  # Storage mode is part of it too: the same numbers written as text are a
+  # different source, not the same one.
+  expect_false(identical(.source_row_keys(a),
+                         .source_row_keys(transform(a, age = as.character(age)))))
+  # A value that contains the column separator cannot forge a row boundary.
+  sep <- data.frame(u = c("p", "q"), v = c("r", "s"), stringsAsFactors = FALSE)
+  forged <- data.frame(u = c(paste0("p\036r"), paste0("q\036s")),
+                       v = c("", ""), stringsAsFactors = FALSE)
+  expect_false(identical(.source_row_keys(sep), .source_row_keys(forged)))
+  # And two shapes that flatten alike in one list column stay distinct.
+  l1 <- data.frame(id = 1:2)
+  l1$v <- list(c("a", "b"), "z")
+  l2 <- data.frame(id = 1:2)
+  l2$v <- list("a,b", "z")
+  expect_false(identical(.source_row_keys(l1), .source_row_keys(l2)))
 })
 
 test_that("every pair of compared fits is checked, not each against the first", {

@@ -15,15 +15,25 @@ because its pointwise comparison pairs rows by position.
 }
 \details{
 The key is two things, neither of which reveals the source. The first is a
-fingerprint of the whole source: its rows are written out with every
-column, columns in name order so that column order does not matter, sorted
-in byte order so that row order does not matter either, and the digest of
-that is taken. The second is the row's rank in that same sorted order,
-with identical rows sharing one rank. A fit built from the same source
-carries the same fingerprint and the same set of ranks, whatever order its
-rows came in; a source that changed in any column carries a different
-fingerprint, and then the ranks are never compared. Unused columns such as
-identifiers or free text go into the digest and are not kept: the fit
-object holds thirty-two hex digits and an integer per row.
+fingerprint of the whole source: its schema and then its rows, columns in
+name order so that column order does not matter, rows sorted in byte order
+so that row order does not matter either, and the digest of that is taken.
+The second is the row's rank in that same sorted order, with identical rows
+sharing one rank. A fit built from the same source carries the same
+fingerprint and the same set of ranks, whatever order its rows came in; a
+source that changed in any column carries a different fingerprint, and then
+the ranks are never compared. Unused columns such as identifiers or free
+text go into the digest and are not kept: the fit object holds thirty-two
+hex digits and an integer per row.
+
+The schema is in the digest because the names are what put the columns in
+order, and a fingerprint that used them without recording them could be
+matched by a source they order differently. Rename a column across the sort
+boundary and every value moves to another position; a second source whose
+values happen to line up that way then produces the same rows, the same
+digest and the same ranks, and two fits with disjoint covariates and
+repeated treatments and outcomes would have their order certified on the
+strength of it. Each value is written with its own length as well, so that
+the separator between columns cannot be forged by a value that contains it.
 }
 \keyword{internal}
