@@ -33,56 +33,11 @@
   checked too. A model whose object carries no data is reported as
   unverifiable rather than assumed to match.
 
-* **The survival `effect` selector is now literal and distribution-specific.**
-  `marginal_effects()` accepted `"hr"`, `"tr"` and `"exp_delta_eta"` as
-  interchangeable names for one computation, and the label on the returned row
-  was the only thing that said which of the three you had been given. Requesting
-  `effect = "hr"` from a shared-shape accelerated-failure-time fit therefore
-  returned a time ratio, and `effect = "tr"` from a proportional-hazards fit
-  returned a hazard ratio. Each fit now accepts exactly one scalar name: `"hr"`
-  for proportional hazards, `"tr"` for a shared-shape SPFA AFT fit, and
-  `"exp_delta_eta"` for any relaxed AFT fit, or a shape-bearing one with
-  `aux_by = ".study"` (`"exponential-aft"` has no shape to stratify, so an SPFA
-  fit keeps `"tr"`).
-  Asking for a scale the fit cannot supply is an error naming the one it can.
-  `conditional_effects()` already worked this way, so the two APIs no longer
-  disagree. Code that relied on the aliasing must name the measure it wants.
-  The `newdata` route now uses the same selector. It previously offered the
-  hazard ratio for a proportional-hazards fit and no scalar at all for an AFT
-  fit, so a shared-shape SPFA AFT fit answered `effect = "tr"` without
-  `newdata` and refused it with, and `effect = "all"` quietly returned RMST
-  effects only as soon as a target was supplied. Supplying a target changes
-  which population an effect is standardized to, not which effects exist, so an
-  AFT fit now reports its target-standardized location contrast,
-  `exp(mean(eta_index) - mean(eta_comparator))` over the target rows. With
-  shared coefficients the covariate term cancels draw by draw and the value is
-  identical for every target, which is the sense in which a shared-shape time
-  ratio is population-invariant; with relaxed coefficients it does not cancel
-  and the value genuinely belongs to the target.
-
-* **Requested survival prediction times keep their order and multiplicity.**
-  `predict()` selected the nearest fitted grid point for each requested time and
-  then sorted and deduplicated the result, so `times = c(10, 2)` came back in
-  the other order and `times = c(2, 2)` came back with one row. A caller could
-  not line its request up against the result and had to reconstruct the mapping
-  by parsing a message. The frame now has one row per requested time, in the
-  order requested, and carries a `requested_time` column beside `time` whenever
-  `times` is supplied. Two distinct requested times can still land on one grid
-  point; both are answered, by the same fitted time, and that is reported.
-
 * **`prior_sensitivity()` validates `probs` with the shared validator.** Its
   local copy of the check omitted the duplicate test that `.validate_probs()`
   applies everywhere else, so two equal probabilities produced two identically
   named `qNN` columns and the second silently overwrote the first: the caller
   asked for n quantiles and received fewer, with no error.
-
-* **An ignored `prior_aux2` is now ignored rather than validated.** For a
-  survival fit whose distribution has fewer than two auxiliary parameters, a
-  well-formed `prior_aux2` warned and was dropped while a malformed one warned
-  and then aborted the fit, so the same argument carried two contracts
-  depending on a distribution it does not apply to. It is now discarded before
-  validation, matching the non-survival families, which already warned without
-  validating.
 
 * **`prior_summary()` names the constrained prior instead of calling every
   positive-constrained prior a "half-distribution".** Two of those labels were
@@ -97,29 +52,6 @@
   and the second silently overwrote the first. The columns are now `q2.5`,
   `q50`, `q97.5`, matching `marginal_effects()`, so the two can be joined by
   name. Code reading `q2` or `q98` must be updated.
-
-* **The native logit-normal parameterization validates `mu` and `sigma`.** Only
-  the moment (`mean` / `sd`) parameterization was checked. A `sigma` of zero
-  returned `Inf` from `dlogitnorm()`, `1` from `plogitnorm()` and `0.5` from
-  `qlogitnorm()`, all finite and none flagged, while a negative `sigma` returned
-  `NA` from the density but `NaN` with a base warning from the other two.
-  Non-finite, missing, non-positive and non-numeric parameters are now one clear
-  error in all three functions, as they already were for `mean` / `sd`, and
-  lengths that would recycle partially are rejected rather than pairing values
-  with the wrong parameter.
-
-* **Requested survival prediction times report when they are snapped.**
-  `predict(..., times = )` selects the nearest fitted grid time and said
-  nothing about it: a 12-month policy horizon could be reported at
-  11.8 months, and two requested times landing on one grid point silently
-  produced one row instead of two. Both now emit a message naming the requested
-  and the used times, and point at `pred_times` for exact evaluation. Asking for
-  the same time twice returns it twice and is not an approximation, so it
-  produces no message. The returned values are unchanged. Snapping itself
-  remains: it is a property of this implementation, not a necessity, since the
-  parametric distributions have closed forms at any positive time and the
-  flexible bases can be evaluated anywhere inside their support. Evaluating
-  requested times directly is still to do.
 
 * **`prior_sensitivity()` no longer claims a scale sweep proves the inference is
   data-driven.** Constant summaries across the tested scales show insensitivity
@@ -328,19 +260,6 @@
   estimate; that comparison is withheld and named instead of scored across the
   two scales.
 
-* **`check_identification()` declines a fitted SPFA object.** Its report is
-  headed "relaxed model" and diagnoses `beta_comparator`, which a
-  shared-coefficient model does not have. It also compares the realized
-  integration design against the declared one through singular-value spectra
-  rather than matrix rank, which could not distinguish declared means
-  `c(-1, 1)` from realized `c(-1e-10, 1e-10)`; and two aggregate rows built
-  from the same integration tuples in a different order now count as one
-  profile, since the likelihood averages over a row's points.
-
-* **`n_knots` is validated only when knots have to be generated.** A valid
-  custom knot specification was rejected because an argument the fit never
-  reads was out of range. The resolved basis is still checked on its own terms.
-
 ## Transportability to arbitrary target populations
 
 * **`newdata` argument** on `marginal_effects()` and `predict.mlumr_fit()`
@@ -356,7 +275,13 @@
   distribution by each arm's own survival. It follows the same
   evaluation-time convention as the built-in populations, the closed-form
   `t -> 0` limit when the two studies share a baseline shape and the requested
-  (or first) fitted time when they do not.
+  (or first) fitted time when they do not. An AFT fit reports its
+  target-standardized location contrast,
+  `exp(mean(eta_index) - mean(eta_comparator))` over the target rows: with
+  shared coefficients the covariate term cancels draw by draw and the value is
+  the same for every target, which is the sense in which a shared-shape time
+  ratio is population-invariant, while with relaxed coefficients it does not
+  cancel and the value belongs to that target.
 
   Standardizing to the index covariates reproduces `population = "index"`
   exactly, for every measure including the hazard ratio, which is the check
@@ -426,8 +351,8 @@
   unchanged, and `prior_summary()` shows the two separately when they can
   differ, naming them as the generalized-gamma `sigma` and `k = 1 / Q^2` for the
   Lawless shape `Q` rather than as anonymous auxiliaries. Supplying it for a
-  distribution with fewer than two auxiliary parameters warns rather than being
-  silently ignored, and `prior_sensitivity()` refuses to vary it mid-sweep like
+  distribution with fewer than two auxiliary parameters warns and is discarded
+  without being validated, rather than being silently ignored, and `prior_sensitivity()` refuses to vary it mid-sweep like
   every other scenario-defining argument. `prior_aux`'s documentation now also
   records that one default is reused across auxiliary parameters that do not
   share a scale: the Gompertz shape has units of 1 / time, so the same trial
@@ -477,7 +402,11 @@
   survival time), `"median"`, and `"loghr"` (the time-varying marginal log
   hazard ratio curve, null 0). `predict(type = "median")` carries a
   `p_not_reached` column reporting the posterior probability that the median is
-  beyond follow-up. `conditional_effects()` / `conditional_predict()` give
+  beyond follow-up. A `times` request is answered one row per requested time,
+  in the order asked, with a `requested_time` column beside `time`: each is
+  evaluated at the nearest fitted grid time, and a message names the requested
+  and the used time whenever the two differ or two requests land on one grid
+  point. `pred_times` sets the grid itself for exact evaluation. `conditional_effects()` / `conditional_predict()` give
   covariate-conditional contrasts and survival curves.
 
 * **`marginal_effects()` reports natural-scale survival effects** (null 1): the
@@ -552,6 +481,9 @@
   rather than prior-driven? In the relaxed model `beta_comparator` is identified
   only by the aggregate likelihood, so the answer is fixed by the aggregate
   subgroup rows before any model is fitted.
+
+  It answers that for a relaxed specification and declines a fitted SPFA
+  object, which has no `beta_comparator` for the question to be about.
 
   Each aggregate row contributes one constraint and the comparator side has
   `K + 1` unknowns (the intercept counts), so `S >= K + 1` rows are necessary.
