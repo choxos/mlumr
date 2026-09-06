@@ -256,7 +256,12 @@ prior_sensitivity <- function(fit,
         # one. A control the caller passed is a request, and dropping a request
         # silently is not an option; `$sample()` has no such argument, so it
         # cannot be honored either. Say so instead.
-        if ("control" %in% names(dots)) {
+        # The value, not merely the name. A wrapper building arguments
+        # programmatically can pass `control = NULL` to mean "nothing", which
+        # is how `.merge_sampler_control()` reads it too, and refusing that
+        # would close the documented engine-switch path over a request nobody
+        # made.
+        if (!is.null(dots$control)) {
           stop(
             sprintf(paste(
               "`control` is an rstan setting and these refits run on %s, which",

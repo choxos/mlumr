@@ -336,6 +336,17 @@ test_that("a control the caller passed is refused, not dropped, on another engin
     error = function(e) conditionMessage(e)
   )
   expect_no_match(inherited, "`control` is an rstan setting")
+
+  # `control = NULL` is a request for nothing, which is how
+  # `.merge_sampler_control()` reads it too. Testing the name rather than the
+  # value would refuse a wrapper that builds its arguments programmatically,
+  # over a request nobody made.
+  explicit_null <- tryCatch(
+    prior_sensitivity(fake, prior_beta_scales = 1, verbose = FALSE,
+                      engine = "cmdstanr", control = NULL),
+    error = function(e) conditionMessage(e)
+  )
+  expect_no_match(explicit_null, "`control` is an rstan setting")
 })
 
 test_that("an explicit NULL engine resolves before the control is judged", {
