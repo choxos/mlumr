@@ -45,6 +45,14 @@
             max_treedepth
         }
       }
+      # Through the same validators the arguments get. mlumr() checks these two
+      # when they arrive as arguments, and `control` reached the sampler
+      # without passing anything, so `adapt_delta = NA` or 5 went to rstan and
+      # into the recorded metadata unchallenged. A setting should not depend on
+      # which of two doors it came through.
+      .validate_mlumr_adapt_delta(control$adapt_delta)
+      .validate_mlumr_integer(control$max_treedepth, "max_treedepth",
+                              lower = 1L)
     }
     dots[["control"]] <- NULL
   }

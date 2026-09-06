@@ -490,3 +490,31 @@ test_that("a NULL entry does not delete a setting mlumr depends on", {
   expect_equal(given$control$adapt_delta, 0.99)
   expect_false("adapt_engaged" %in% names(given$control))
 })
+
+test_that("a sampler setting is validated the same through either door", {
+  merge <- mlumr:::.merge_sampler_control
+  # `mlumr()` checks these two when they arrive as arguments. Reaching the
+  # sampler through `control` skipped every check, so `adapt_delta = NA` or 5
+  # went to rstan and into the recorded metadata unchallenged, and the
+  # treedepth count then compared transitions against whatever arrived.
+  for (bad in list(NA_real_, 5, 0, -1, "x", c(0.8, 0.9), numeric(0))) {
+    expect_error(merge(0.8, 10, list(control = list(adapt_delta = bad))),
+                 "single finite number between 0 and 1")
+  }
+  expect_error(merge(0.8, 10, list(control = list(max_treedepth = 0))),
+               "max_treedepth")
+  expect_error(merge(0.8, 10, list(control = list(max_treedepth = 2.5))),
+               "max_treedepth")
+
+  # The message is the argument path's own, because both call one validator.
+  arg_msg <- tryCatch(mlumr:::.validate_mlumr_adapt_delta(NA),
+                      error = function(e) conditionMessage(e))
+  ctl_msg <- tryCatch(merge(0.8, 10, list(control = list(adapt_delta = NA))),
+                      error = function(e) conditionMessage(e))
+  expect_identical(arg_msg, ctl_msg)
+
+  # Valid settings still pass, and the defaults are still validated.
+  ok <- merge(0.8, 10, list(control = list(adapt_delta = 0.99)))
+  expect_equal(ok$control$adapt_delta, 0.99)
+  expect_equal(ok$control$max_treedepth, 10)
+})
