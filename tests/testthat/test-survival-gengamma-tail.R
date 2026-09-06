@@ -293,3 +293,60 @@ test_that("flexible target log survival combines the cumulative hazard scale", {
   )
   expect_equal(drop(out), c(-1, 0), tolerance = 1e-10)
 })
+
+# The underflow correction has to reach every site that needs it, not just the
+# one it was written for. Stan routes the gamma survival, the generalized-gamma
+# survival, and both hazards through one function; R at first corrected only
+# the generalized-gamma survival, which left the other three disagreeing with
+# the likelihood the models are fitted under.
+
+test_that("the underflow-safe upper gamma is used by every R site that needs it", {
+  safe <- mlumr:::.r_log_gamma_surv_from_log_x
+
+  # The reference: the leading series term below the underflow threshold, which
+  # is exact to double precision there, and R's own function above it.
+  ref <- function(k, log_x) {
+    if (log_x < -700) log(-expm1(min(k * log_x - lgamma(k + 1), 0)))
+    else stats::pgamma(exp(log_x), shape = k, lower.tail = FALSE, log.p = TRUE)
+  }
+  expect_equal(safe(1e-6, -1000), ref(1e-6, -1000))
+  expect_equal(safe(1e-6, -1), ref(1e-6, -1))
+  # Time zero is survival 1; an infinite argument is survival 0.
+  expect_equal(safe(1, -Inf), 0)
+  expect_equal(safe(1, Inf), -Inf)
+  # Vectorized over the draws, mixing both branches in one call.
+  expect_equal(safe(1e-6, c(-1000, -1)), c(ref(1e-6, -1000), ref(1e-6, -1)))
+
+  k <- 1e-6
+  # Gamma, dist 8. `t = 1` with `eta = 1000` puts log(t) - eta at -1000 while
+  # keeping the time itself representable.
+  expect_equal(mlumr:::.r_log_surv(8L, 1, 1000, k, NA), ref(k, -1000))
+  expect_gt(mlumr:::.r_log_surv(8L, 1, 1000, k, NA), -Inf)
+  # Reported as survival 1 before: the whole defect in one number.
+  expect_lt(mlumr:::.r_log_surv(8L, 1, 1000, k, NA), 0)
+
+  haz8 <- mlumr:::.r_log_haz(8L, 1, 1000, k, NA)
+  expect_equal(haz8,
+               (k - 1) * -1000 - 1000 - exp(-1000) - lgamma(k) - ref(k, -1000))
+
+  # Generalized gamma, dist 9. The hazard is the density over the survival, so
+  # a survival wrongly reported as 1 made the hazard smaller by that factor.
+  log_w <- (1 / sqrt(k)) * (log(1) - 1) / 1 + log(k)
+  expect_equal(mlumr:::.r_log_surv(9L, 1, 1, 1, k), ref(k, log_w))
+  expect_equal(mlumr:::.r_log_haz(9L, 1, 1, 1, k) -
+                 (-6.908769136), -ref(k, log_w), tolerance = 1e-6)
+})
+
+test_that("ordinary survival times are unchanged by the underflow correction", {
+  # A fix at the boundary must not move anything away from it.
+  for (k in c(0.5, 1, 2, 5)) {
+    expect_equal(mlumr:::.r_log_surv(8L, 2, 0, k, NA),
+                 stats::pgamma(2, shape = k, lower.tail = FALSE, log.p = TRUE))
+  }
+  # Shape 1 is the exponential: S(2) = exp(-2), and a constant unit hazard.
+  expect_equal(mlumr:::.r_log_surv(8L, 2, 0, 1, NA), -2)
+  expect_equal(mlumr:::.r_log_haz(8L, 2, 0, 1, NA), 0)
+  # Time zero survives with probability 1 in both distributions.
+  expect_equal(mlumr:::.r_log_surv(8L, 0, 0, 1, NA), 0)
+  expect_equal(mlumr:::.r_log_surv(9L, 0, 0, 1, 1), 0)
+})

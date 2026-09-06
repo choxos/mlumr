@@ -118,6 +118,11 @@ fit_rstan <- function(model_name, stan_data, chains, iter, warmup,
     # advising a change, so that the advice names the limit in force.
     adapt_delta_used = control$adapt_delta,
     max_treedepth_used = control$max_treedepth,
+    # The whole merged list, not only the two named above. A caller can set
+    # anything rstan accepts here, `adapt_engaged` and `stepsize` among them,
+    # and a refit that replays only two of them is not a refit of the same
+    # sampler configuration.
+    control_used = control,
     n_chains_requested = as.integer(chains),
     n_chains_returned = .n_chains_returned(chain_ids, chains)
   )

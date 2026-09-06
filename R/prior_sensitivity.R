@@ -296,6 +296,15 @@ prior_sensitivity <- function(fit,
     verbose = verbose
   )
 
+  # Every other sampler setting the original fit ran under. Recorded only by
+  # the rstan backend, which is the only one that takes a `control` list, so
+  # its absence is what keeps this off the cmdstanr path. `adapt_delta` and
+  # `max_treedepth` appear in both and agree by construction, since the stored
+  # scalars are taken from this same merged list.
+  if (!is.null(sa$control)) {
+    args$control <- sa$control
+  }
+
   # The comparator prior for this refit, already rescaled by the caller. NULL
   # for a non-relaxed fit, which has no comparator coefficients.
   if (!is.null(prior_beta_comparator_i)) {

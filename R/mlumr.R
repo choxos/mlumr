@@ -891,7 +891,11 @@ mlumr <- function(data,
       # number. The cmdstanr backend takes them as arguments and cannot
       # differ, so it reports nothing and these fall back.
       adapt_delta = result$adapt_delta_used %||% adapt_delta,
-      max_treedepth = result$max_treedepth_used %||% max_treedepth
+      max_treedepth = result$max_treedepth_used %||% max_treedepth,
+      # The full merged sampler control, so a replay reproduces every setting
+      # and not just the two this list names. NULL for cmdstanr, which has no
+      # `control` argument to reproduce.
+      control = result$control_used
     )
   )
 

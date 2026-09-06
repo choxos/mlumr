@@ -241,3 +241,37 @@ test_that("the fit records the sampler settings that were in force", {
   expect_equal(replayed$adapt_delta, 0.99)
   expect_equal(replayed$max_treedepth, 10)
 })
+
+test_that("a prior sweep replays every sampler control, not only the two named", {
+  # A caller can set anything rstan accepts, `adapt_engaged` and `stepsize`
+  # among them. Recording only adapt_delta and max_treedepth would refit the
+  # sweep under a different sampler configuration from the fit it sweeps,
+  # which changes more than the prior the sweep is varying.
+  full <- list(adapt_delta = 0.99, max_treedepth = 10,
+               adapt_engaged = FALSE, stepsize = 0.05)
+  args <- mlumr:::.prior_sensitivity_args(
+    list(data = "DATA", model = "spfa", link = "identity", engine = "rstan",
+         priors = list(intercept = NULL, sigma = NULL),
+         sampling_args = list(chains = 4, iter = 2000, warmup = 1000,
+                              seed = 2026, adapt_delta = 0.99,
+                              max_treedepth = 10, control = full)),
+    prior_beta_i = NULL, verbose = FALSE
+  )
+  expect_equal(args$control, full)
+  # The scalars come from the same merged list, so the two cannot disagree.
+  expect_equal(args$adapt_delta, args$control$adapt_delta)
+  expect_equal(args$max_treedepth, args$control$max_treedepth)
+
+  # cmdstanr has no `control` argument, and its backend records none, so
+  # nothing is forwarded down that path.
+  cmd <- mlumr:::.prior_sensitivity_args(
+    list(data = "DATA", model = "spfa", link = "identity", engine = "cmdstanr",
+         priors = list(intercept = NULL, sigma = NULL),
+         sampling_args = list(chains = 4, iter = 2000, warmup = 1000,
+                              seed = 2026, adapt_delta = 0.9,
+                              max_treedepth = 12)),
+    prior_beta_i = NULL, verbose = FALSE
+  )
+  expect_false("control" %in% names(cmd))
+  expect_equal(cmd$adapt_delta, 0.9)
+})
