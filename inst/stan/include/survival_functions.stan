@@ -125,6 +125,19 @@ real log_gamma_cdf_from_log_x(real k, real log_x) {
 real log_gamma_surv_from_log_x(real k, real log_x) {
   real x = exp(log_x);
   if (is_inf(x)) return negative_infinity();
+  // `exp(log_x)` underflows to zero below about -745, and `gamma_q(k, 0)` is
+  // exactly 1, so the survival comes back as certain and a censored
+  // observation contributes nothing. That is wrong whenever the shape is
+  // small, because the survival depends on `x^k`, which is `exp(k * log_x)`
+  // and stays of order one however far `log_x` has gone: at `k = 1e-6` and
+  // `log_x = -1013.8` the survival is 0.0010127, not 1. The series reads
+  // `log_x` directly and never forms `x`, so it is unaffected. A genuine
+  // `log_x` of negative infinity, which is `t = 0`, still means survival 1.
+  if (x == 0 && !is_inf(log_x)) {
+    real log_p = log_gamma_p_series(k, log_x);
+    if (log_p >= 0) return negative_infinity();
+    return log1m_exp(log_p);
+  }
   if (x > k + fmax(1, sqrt(k))) return log_gamma_q_cf(k, x);
   return log(gamma_q(k, x));
 }

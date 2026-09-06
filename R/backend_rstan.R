@@ -3,17 +3,37 @@
 fit_rstan <- function(model_name, stan_data, chains, iter, warmup,
                       seed, adapt_delta, max_treedepth, refresh, ...) {
 
-  fit <- rstan::sampling(
-    stanmodels[[model_name]],
-    data = stan_data,
-    chains = chains,
-    iter = iter,
-    warmup = warmup,
-    seed = seed,
-    control = list(adapt_delta = adapt_delta, max_treedepth = max_treedepth),
-    refresh = refresh,
-    ...
-  )
+  dots <- list(...)
+  # A caller's `control` has to be merged rather than forwarded beside this
+  # one. Passing both made `rstan::sampling()`, which has `control` as a
+  # formal, stop with "formal argument \"control\" matched by multiple actual
+  # arguments" before sampling began, so the documented way to reach the
+  # sampler's other settings could not be used at all. The two named here are
+  # the ones mlumr() exposes as its own arguments, so a caller who names them
+  # in `control` is asking for something mlumr() already asked for; theirs is
+  # kept, since it is the more specific request.
+  control <- list(adapt_delta = adapt_delta, max_treedepth = max_treedepth)
+  if (!is.null(dots$control)) {
+    if (!is.list(dots$control)) {
+      stop("`control` must be a list of sampler settings.", call. = FALSE)
+    }
+    control <- utils::modifyList(control, dots$control)
+    dots$control <- NULL
+  }
+
+  fit <- do.call(rstan::sampling, c(
+    list(
+      stanmodels[[model_name]],
+      data = stan_data,
+      chains = chains,
+      iter = iter,
+      warmup = warmup,
+      seed = seed,
+      control = control,
+      refresh = refresh
+    ),
+    dots
+  ))
 
   draws <- as.data.frame(fit)
 

@@ -677,9 +677,29 @@ conditional_predict <- function(object,
   # not reliable just above a very large shape parameter.
   q <- 1 / sqrt(aux2)
   log_w <- q * (log(t) - eta) / aux + log(aux2)
-  w <- exp(log_w)
-  stats::pgamma(w, shape = rep_len(aux2, length(w)),
-                lower.tail = FALSE, log.p = TRUE)
+  k <- rep_len(aux2, length(log_w))
+  out <- rep(NA_real_, length(log_w))
+  # `exp(log_w)` underflows to zero below about -745, and `pgamma(0, k)` then
+  # reports survival 1. For a small shape that is badly wrong: the survival
+  # depends on `w^k`, which is `exp(k * log_w)` and stays of order one however
+  # far `log_w` has gone. At `k = 1e-6` and `log_w = -1013.8` the true value is
+  # 0.0010127 and the underflowed one is exactly 1, so a censored observation
+  # contributes nothing to the likelihood instead of about -6.9.
+  #
+  # Below the threshold the leading term of the series for the lower
+  # regularized gamma, `w^k / gamma(k + 1)`, is exact to double precision,
+  # because the next term is smaller by a factor of `w`.
+  small <- !is.na(log_w) & log_w < -700
+  if (any(small)) {
+    log_p <- pmin(k[small] * log_w[small] - lgamma(k[small] + 1), 0)
+    out[small] <- log(-expm1(log_p))
+  }
+  rest <- !is.na(log_w) & !small
+  if (any(rest)) {
+    out[rest] <- stats::pgamma(exp(log_w[rest]), shape = k[rest],
+                               lower.tail = FALSE, log.p = TRUE)
+  }
+  out
 }
 
 

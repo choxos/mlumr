@@ -188,7 +188,8 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     glm_family <- poisson(link = link_resolved)
   }
 
-  fit <- glm(.stc_formula(cov_names, family), family = glm_family, data = ipd)
+  fit <- glm(.stc_formula(cov_names, family), family = glm_family, data = ipd,
+             start = .stc_start_values(ipd, cov_names, glm_family))
   glm_params <- .stc_glm_parameters(fit)
 
   comparator <- .stc_comparator_data(data, cov_names, family)
@@ -251,7 +252,84 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
       call. = FALSE
     )
   }
+  .stc_refuse_separation(fit)
   list(beta_hat = beta_hat, V = V)
+}
+
+#' Refuse a fit whose likelihood has no finite maximum
+#'
+#' The checks above look for a failure the fitting reports, and separation is
+#' not one. Iterative reweighting stops at its iteration limit rather than at
+#' a maximum, so a binomial arm with no events comes back with
+#' `converged = TRUE`, finite coefficients and a finite covariance: 100 rows
+#' with the outcome always zero produce a coefficient of about -26.6 and a
+#' largest fitted probability of 3e-12, with a confidence interval to match.
+#' Every number there is a property of where the iteration stopped, not of the
+#' data, and reporting it as an estimate is worse than reporting nothing,
+#' because nothing about it looks wrong.
+#'
+#' The symptom is the one thing separation always leaves: every fitted
+#' probability pinned against 0 or 1. A rate can legitimately be small, so the
+#' test is on the boundary rather than on smallness, and it applies only where
+#' a boundary exists.
+#' @param fit A fitted `glm`.
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+.stc_refuse_separation <- function(fit) {
+  fam <- tryCatch(stats::family(fit)$family, error = function(e) NA_character_)
+  if (!identical(fam, "binomial")) {
+    return(invisible(NULL))
+  }
+  mu <- stats::fitted(fit)
+  mu <- mu[is.finite(mu)]
+  if (!length(mu)) {
+    return(invisible(NULL))
+  }
+  eps <- .Machine$double.eps^0.5
+  if (all(mu < eps) || all(mu > 1 - eps)) {
+    stop(
+      paste(
+        "The STC outcome model is separated: every fitted probability sits at",
+        "0 or 1, which happens when an arm has no events or no non-events.",
+        "The likelihood has no finite maximum there, so the coefficients and",
+        "the interval would describe where the fitting stopped rather than",
+        "the data. Use mlumr(), whose prior makes the posterior proper."
+      ),
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
+}
+
+#' Starting values for the links that cannot find their own
+#'
+#' A Gaussian model with a log link has mean `exp(eta)`, which is defined for
+#' any outcome, but R's initialization takes `log(y)` and stops on any value
+#' at or below zero: an outcome of `c(-1, 1, 2, 2, 3, 4)`, whose group means
+#' are both positive and whose fit exists, was refused with "cannot find valid
+#' starting values". The intercept is put at the log of the mean outcome and
+#' the slopes at zero, which is inside the parameter space whenever the mean
+#' is positive, and the fitting proceeds from there.
+#'
+#' `NULL` everywhere else, so every other family and link keeps the
+#' initialization it already had.
+#' @param ipd The individual data being fitted.
+#' @param cov_names The covariates in the model.
+#' @param glm_family The resolved family object.
+#' @return A numeric vector of starting values, or `NULL`.
+#' @keywords internal
+.stc_start_values <- function(ipd, cov_names, glm_family) {
+  gaussian_log <- identical(glm_family$family, "gaussian") &&
+    identical(glm_family$link, "log")
+  if (!gaussian_log) {
+    return(NULL)
+  }
+  y <- ipd$.outcome
+  mu <- mean(y, na.rm = TRUE)
+  if (!is.finite(mu) || mu <= 0) {
+    return(NULL)
+  }
+  c(log(mu), rep(0, length(cov_names)))
 }
 
 #' Build a model matrix aligned with fitted GLM coefficients
