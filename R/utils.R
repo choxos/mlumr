@@ -113,9 +113,18 @@ eval_distr <- function(d, p, data = list()) {
 #' @return Named numeric vector: `c(mean, sd, <named quantiles>)`.
 #' @keywords internal
 .summarize_draw_vector <- function(x, probs) {
+  # The quantiles carry the package's own names, not R's. R names a quantile
+  # with `format()`, which prints to the display precision, while every
+  # lookup elsewhere builds the name from the probability itself. The two
+  # agree for a round probability and not otherwise: `1 / 3` is `33.33333%`
+  # to R and `q33.3333333333333` here, so asking for it returned a column of
+  # NA out of entirely finite draws.
   c(mean = mean(x, na.rm = TRUE),
     sd   = stats::sd(x, na.rm = TRUE),
-    stats::quantile(x, probs = probs, na.rm = TRUE))
+    stats::setNames(
+      stats::quantile(x, probs = probs, na.rm = TRUE, names = FALSE),
+      .quantile_names(probs)
+    ))
 }
 
 #' Summarize a draws matrix column-wise into a tidy data frame

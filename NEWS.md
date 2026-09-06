@@ -273,6 +273,39 @@
   compiler upgrade with everything else unchanged does not, and does not need
   to. Anyone carrying a cache from an earlier version will get one recompile.
 
+* **`stc()` refuses an outcome model whose fitted probabilities have all
+  reached a boundary.** Its checks looked for a failure the fitting reports,
+  and separation is not one: iterative
+  reweighting stops when the deviance stops changing, and a separated fit has
+  no maximum for it to stop at, so a binomial arm with no events returned
+  convergence, finite coefficients and a finite covariance. A hundred rows with
+  the outcome always zero produced a coefficient of -26.6 and a largest fitted
+  probability of 3e-12, with a confidence interval to match, every number a
+  property of where the iteration stopped rather than of the data. Raising
+  `maxit` changes none of them. The symptom separation always leaves is now
+  an error: every fitted probability against a boundary, either one, tested
+  only where a boundary exists, so a genuinely rare event still fits.
+  Quasi-complete separation, where rows sit on the separating hyperplane and
+  keep interior fitted probabilities, is not detected; separating that from a
+  strong but identified fit needs an exact test rather than the fitted
+  values.
+
+* **A caller's rstan `control` reaches the sampler.** `...` is documented as
+  passing arguments to `rstan::sampling()`, but the backend supplied its own
+  `control` beside the caller's, and `control` is a formal of that function, so
+  argument matching failed before sampling began and the sampler's other
+  settings could not be reached. The two are merged now, with the caller's
+  entries winning as the more specific request.
+
+* **`conditional_predict()` returns the quantiles it was asked for.**
+  `quantile()` names each result with `format()`, which prints to the display
+  precision, while every lookup in the package builds the name from the
+  probability itself. The two spellings agree for a round probability and not
+  otherwise: a third is `33.33333%` to R and `q33.3333333333333` here, so
+  asking for it returned NA for both treatments out of entirely finite draws,
+  and only the default probabilities happened to line up. The summaries now
+  carry the package's own names, so no lookup can disagree with them.
+
 ## Transportability to arbitrary target populations
 
 * **`newdata` argument** on `marginal_effects()` and `predict.mlumr_fit()`

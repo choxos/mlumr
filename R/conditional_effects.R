@@ -515,8 +515,7 @@ conditional_predict <- function(object,
       )
       for (j in seq_along(probs)) {
         qname <- qcols[j]
-        pname <- paste0(probs[j] * 100, "%")
-        results[[i]][[qname]] <- c(s_idx[pname], s_cmp[pname])
+        results[[i]][[qname]] <- c(s_idx[[qname]], s_cmp[[qname]])
       }
     }
   }
@@ -644,6 +643,50 @@ conditional_predict <- function(object,
 }
 
 
+#' Log upper regularized gamma from the log of its argument, in R
+#'
+#' Mirrors Stan's `log_gamma_surv_from_log_x()`. `exp(log_x)` underflows to
+#' zero below about -745 and `pgamma(0, k)` then reports survival 1, which is
+#' badly wrong for a small shape: the survival depends on `w^k`, which is
+#' `exp(k * log_x)` and stays of order one however far the log has gone. At
+#' `k = 1e-6` and `log_x = -1013.8` the true value is 0.0010127 and the
+#' underflowed one is exactly 1.
+#'
+#' Below the threshold the leading term of the series for the lower regularized
+#' gamma, `w^k / gamma(k + 1)`, is exact to double precision, because the next
+#' term is smaller by a factor of `w`. A `log_x` of negative infinity, which is
+#' time zero, still gives survival 1.
+#'
+#' Every R site needing this quantity calls here, so the survival and the
+#' hazard cannot disagree with each other or with Stan. They did: the
+#' correction was at first applied only to the generalized-gamma survival,
+#' which left the gamma survival reporting 1, the gamma hazard too small by a
+#' factor of 1000, and the generalized-gamma hazard by 987. Stan routes all
+#' four through one function, so R does too.
+#'
+#' @param k Shape, recycled to the length of `log_x`.
+#' @param log_x Log of the incomplete-gamma argument.
+#' @return Log survival, the same length as `log_x`.
+#' @keywords internal
+.r_log_gamma_surv_from_log_x <- function(k, log_x) {
+  k <- rep_len(k, length(log_x))
+  out <- rep(NA_real_, length(log_x))
+  ok <- !is.na(log_x)
+  big <- ok & is.infinite(log_x) & log_x > 0
+  out[big] <- -Inf
+  small <- ok & !big & log_x < -700
+  if (any(small)) {
+    log_p <- pmin(k[small] * log_x[small] - lgamma(k[small] + 1), 0)
+    out[small] <- log(-expm1(log_p))
+  }
+  rest <- ok & !big & !small
+  if (any(rest)) {
+    out[rest] <- stats::pgamma(exp(log_x[rest]), shape = k[rest],
+                               lower.tail = FALSE, log.p = TRUE)
+  }
+  out
+}
+
 #' Log survival S(t | eta) in R, mirroring the Stan log_surv_scalar()
 #'
 #' Vectorized over posterior draws (`eta`, `aux`, `aux2` are vectors). `t` is
@@ -668,8 +711,7 @@ conditional_predict <- function(object,
     return(-(pmax(z, 0) + log1p(exp(-abs(z)))))
   }
   if (dist == 8L) {
-    return(stats::pgamma(exp(log(t) - eta), shape = aux, rate = 1,
-                         lower.tail = FALSE, log.p = TRUE))
+    return(.r_log_gamma_surv_from_log_x(aux, log(t) - eta))
   }
   # Generalized gamma (dist 9). Form the incomplete-gamma argument in log
   # space and let R's upper-tail pgamma implementation choose its stable
@@ -677,9 +719,7 @@ conditional_predict <- function(object,
   # not reliable just above a very large shape parameter.
   q <- 1 / sqrt(aux2)
   log_w <- q * (log(t) - eta) / aux + log(aux2)
-  w <- exp(log_w)
-  stats::pgamma(w, shape = rep_len(aux2, length(w)),
-                lower.tail = FALSE, log.p = TRUE)
+  .r_log_gamma_surv_from_log_x(aux2, log_w)
 }
 
 
@@ -741,8 +781,7 @@ conditional_predict <- function(object,
     tail <- !infinite & z > a + pmax(1, sqrt(a))
     central <- !infinite & !tail
     if (any(central)) {
-      log_s <- stats::pgamma(z[central], shape = a[central],
-                             lower.tail = FALSE, log.p = TRUE)
+      log_s <- .r_log_gamma_surv_from_log_x(a[central], log_z[central])
       out[central] <- (a[central] - 1) * log_z[central] - eta[central] -
         z[central] - lgamma(a[central]) - log_s
     }
@@ -767,8 +806,7 @@ conditional_predict <- function(object,
     log_f <- -log(sigma[central]) - log_t -
       0.5 * log(k[central]) * (1 - 2 * k[central]) +
       k[central] * z[central] - w[central] - lgamma(k[central])
-    log_s <- stats::pgamma(w[central], shape = k[central],
-                           lower.tail = FALSE, log.p = TRUE)
+    log_s <- .r_log_gamma_surv_from_log_x(k[central], log_w[central])
     out[central] <- log_f - log_s
   }
   if (any(tail)) {

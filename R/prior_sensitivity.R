@@ -210,8 +210,7 @@ prior_sensitivity <- function(fit,
     # `iter` and the rest, so appending a `...` value would match the same
     # formal twice and R refuses the call. That made the one thing `...` is for
     # the one thing it could not do.
-    call_args <- args
-    if (length(dots)) call_args[names(dots)] <- dots
+    call_args <- .prior_sensitivity_merge_dots(args, dots)
     fit_i <- do.call(mlumr, call_args)
 
     results[[i]] <- .summarize_sensitivity(
@@ -251,6 +250,85 @@ prior_sensitivity <- function(fit,
   invisible(out)
 }
 
+#' A caller's `...` merged into the arguments that replay a fit
+#'
+#' The recorded `control` describes the original fit, so a caller's settings
+#' refine it rather than replace it, and the engine that will actually run has
+#' to be resolved the way `mlumr()` resolves it rather than read off the call.
+#' Split out from the refit loop so the merge can be checked without sampling:
+#' written out at the call site it could only be tested by a copy, and a copy
+#' passes whatever the loop itself then does.
+#'
+#' @param call_args The replay arguments built from the original fit.
+#' @param dots The caller's `...`, as a list.
+#' @return `call_args`, with the caller's settings merged in.
+#' @keywords internal
+.prior_sensitivity_merge_dots <- function(call_args, dots) {
+  if (!length(dots)) return(call_args)
+  # The recorded `control` describes the original fit, so a caller's
+  # settings refine it rather than replace it: assigning theirs wholesale
+  # dropped every recorded entry they did not happen to name, such as
+  # `adapt_engaged`. And a scalar they pass has to beat the recorded entry
+  # of the same name, because the merge downstream lets the control win and
+  # the recorded control would otherwise silently overrule this caller's
+  # own request. Their `control` still beats their scalar, which is the
+  # order `mlumr()` itself uses.
+  ctl <- call_args$control
+  if (!is.null(ctl)) {
+    for (nm in intersect(names(dots), c("adapt_delta", "max_treedepth"))) {
+      ctl[[nm]] <- dots[[nm]]
+    }
+  }
+  if (!is.null(dots$control)) {
+    ctl <- if (is.null(ctl)) dots$control else
+      utils::modifyList(ctl, dots$control)
+  }
+  fit_engine <- call_args$engine
+  call_args[names(dots)] <- dots
+  # `control` is rstan's argument. Restoring the recorded one after a
+  # caller has switched engines would forward it to cmdstanr's `$sample()`,
+  # which has no such argument, so every refit would fail before sampling.
+  #
+  # The engine that will actually run has to be resolved the way `mlumr()`
+  # resolves it, not read off the call. `engine = NULL` is a documented way
+  # to ask for the configured default, and assigning it removes the element
+  # entirely, so reading the call back gave NULL and the recorded controls
+  # were dropped even when the default is rstan and the refits therefore
+  # ran on the same backend with a different sampler configuration.
+  engine_used <- .validate_engine_name(
+    (if ("engine" %in% names(dots)) dots$engine else fit_engine) %||%
+      get_engine()
+  )
+  if (identical(engine_used, "rstan")) {
+    if (!is.null(ctl)) {
+      call_args$control <- ctl
+    }
+  } else {
+    # An inherited control is this function's own doing, so dropping it is
+    # right: it describes the fit's backend and means nothing to another
+    # one. A control the caller passed is a request, and dropping a request
+    # silently is not an option; `$sample()` has no such argument, so it
+    # cannot be honored either. Say so instead.
+    # The value, not merely the name. A wrapper building arguments
+    # programmatically can pass `control = NULL` to mean "nothing", which
+    # is how `.merge_sampler_control()` reads it too, and refusing that
+    # would close the documented engine-switch path over a request nobody
+    # made.
+    if (!is.null(dots$control)) {
+      stop(
+        sprintf(paste(
+          "`control` is an rstan setting and these refits run on %s, which",
+          "has no such argument. Pass `adapt_delta` and `max_treedepth`",
+          "directly, which both backends accept, or drop `engine` to sweep",
+          "on the engine the fit was made with."
+        ), engine_used),
+        call. = FALSE
+      )
+    }
+    call_args$control <- NULL
+  }
+  call_args
+}
 
 #' Arguments that replay a fit under a rescaled `prior_beta`
 #'
@@ -295,6 +373,15 @@ prior_sensitivity <- function(fit,
     engine = fit$engine,
     verbose = verbose
   )
+
+  # Every other sampler setting the original fit ran under. Recorded only by
+  # the rstan backend, which is the only one that takes a `control` list, so
+  # its absence is what keeps this off the cmdstanr path. `adapt_delta` and
+  # `max_treedepth` appear in both and agree by construction, since the stored
+  # scalars are taken from this same merged list.
+  if (!is.null(sa$control)) {
+    args$control <- sa$control
+  }
 
   # The comparator prior for this refit, already rescaled by the caller. NULL
   # for a non-relaxed fit, which has no comparator coefficients.

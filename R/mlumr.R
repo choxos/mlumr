@@ -885,8 +885,17 @@ mlumr <- function(data,
       iter = iter,
       warmup = warmup,
       seed = seed,
-      adapt_delta = adapt_delta,
-      max_treedepth = max_treedepth
+      # The effective settings when the backend reports them: a caller can
+      # reach both through rstan's `control`, and a diagnostic that told them
+      # to raise a limit they had already raised would be quoting the wrong
+      # number. The cmdstanr backend takes them as arguments and cannot
+      # differ, so it reports nothing and these fall back.
+      adapt_delta = result$adapt_delta_used %||% adapt_delta,
+      max_treedepth = result$max_treedepth_used %||% max_treedepth,
+      # The full merged sampler control, so a replay reproduces every setting
+      # and not just the two this list names. NULL for cmdstanr, which has no
+      # `control` argument to reproduce.
+      control = result$control_used
     )
   )
 
@@ -1600,6 +1609,24 @@ mlumr <- function(data,
        n_knots = length(internal))
 }
 
+#' Validate `adapt_delta`, wherever it arrived from
+#'
+#' Shared by the argument validator and the rstan control merge, so a setting
+#' is checked the same way whether it came in as an argument or inside
+#' `control`. It reached the sampler unchecked through the second door.
+#'
+#' @param adapt_delta The value to check.
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+.validate_mlumr_adapt_delta <- function(adapt_delta) {
+  if (!is.numeric(adapt_delta) || length(adapt_delta) != 1L ||
+        !is.finite(adapt_delta) || adapt_delta <= 0 || adapt_delta >= 1) {
+    stop("`adapt_delta` must be a single finite number between 0 and 1.",
+         call. = FALSE)
+  }
+  invisible(NULL)
+}
+
 #' Validate mlumr() sampler controls before backend dispatch
 #' @keywords internal
 .validate_mlumr_sampling_args <- function(chains, iter, warmup, seed,
@@ -1615,11 +1642,7 @@ mlumr <- function(data,
   if (!is.null(seed)) {
     .validate_mlumr_integer(seed, "seed", lower = 0L)
   }
-  if (!is.numeric(adapt_delta) || length(adapt_delta) != 1L ||
-        !is.finite(adapt_delta) || adapt_delta <= 0 || adapt_delta >= 1) {
-    stop("`adapt_delta` must be a single finite number between 0 and 1.",
-         call. = FALSE)
-  }
+  .validate_mlumr_adapt_delta(adapt_delta)
   .validate_mlumr_integer(max_treedepth, "max_treedepth", lower = 1L)
   .validate_mlumr_integer(refresh, "refresh", lower = 0L)
   invisible(TRUE)
