@@ -272,9 +272,11 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' because nothing about it looks wrong.
 #'
 #' The symptom is the one thing separation always leaves: every fitted
-#' probability pinned against 0 or 1. A rate can legitimately be small, so the
-#' test is on the boundary rather than on smallness, and it applies only where
-#' a boundary exists.
+#' probability pinned against 0 or 1, whether they all sit at one boundary
+#' (an arm with no events) or split between the two (a covariate that
+#' separates the outcome). A rate can legitimately be small, so the test is on
+#' the boundary rather than on smallness, and it applies only where a boundary
+#' exists.
 #' @param fit A fitted `glm`.
 #' @return `NULL`, invisibly; called for the error.
 #' @keywords internal
@@ -289,7 +291,12 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     return(invisible(NULL))
   }
   eps <- .Machine$double.eps^0.5
-  if (all(mu < eps) || all(mu > 1 - eps)) {
+  # Every fitted probability at *a* boundary, not all at the same one. A
+  # covariate that perfectly separates the outcome sends its two groups to
+  # opposite boundaries, which is the ordinary presentation of separation and
+  # the one an arm-level test misses: `y ~ x` with the two equal gives fitted
+  # probabilities of 2e-11 and 1, `converged = TRUE`, and a slope of 49.
+  if (all(mu < eps | mu > 1 - eps)) {
     stop(
       paste(
         "The STC outcome model is separated: every fitted probability sits at",

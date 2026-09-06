@@ -1,3 +1,33 @@
+#' Merge a caller's rstan `control` with the settings mlumr names itself
+#'
+#' Tested by name rather than by value. A caller who writes `control = NULL`
+#' leaves an element that is present and NULL, so `is.null(dots$control)` is
+#' true while the name is still in `dots`, and forwarding it would hand
+#' `rstan::sampling()` two `control` arguments: the collision this merge
+#' exists to prevent. `$` also matches partially, so an exact test on the
+#' names is the one that means what it says.
+#'
+#' @param adapt_delta,max_treedepth The settings mlumr exposes as arguments.
+#' @param dots The caller's `...`, as a list.
+#' @return A list with the merged `control` and `dots` with `control` removed.
+#' @keywords internal
+.merge_sampler_control <- function(adapt_delta, max_treedepth, dots) {
+  control <- list(adapt_delta = adapt_delta, max_treedepth = max_treedepth)
+  if ("control" %in% names(dots)) {
+    supplied <- dots[["control"]]
+    if (!is.null(supplied)) {
+      if (!is.list(supplied)) {
+        stop("`control` must be a list of sampler settings.", call. = FALSE)
+      }
+      # The caller's entries win: naming one in `control` is a more specific
+      # request than the argument mlumr() offers for the same setting.
+      control <- utils::modifyList(control, supplied)
+    }
+    dots[["control"]] <- NULL
+  }
+  list(control = control, dots = dots)
+}
+
 #' Fit a Stan model using rstan
 #' @keywords internal
 fit_rstan <- function(model_name, stan_data, chains, iter, warmup,
@@ -12,14 +42,9 @@ fit_rstan <- function(model_name, stan_data, chains, iter, warmup,
   # the ones mlumr() exposes as its own arguments, so a caller who names them
   # in `control` is asking for something mlumr() already asked for; theirs is
   # kept, since it is the more specific request.
-  control <- list(adapt_delta = adapt_delta, max_treedepth = max_treedepth)
-  if (!is.null(dots$control)) {
-    if (!is.list(dots$control)) {
-      stop("`control` must be a list of sampler settings.", call. = FALSE)
-    }
-    control <- utils::modifyList(control, dots$control)
-    dots$control <- NULL
-  }
+  merged <- .merge_sampler_control(adapt_delta, max_treedepth, dots)
+  control <- merged$control
+  dots <- merged$dots
 
   fit <- do.call(rstan::sampling, c(
     list(
