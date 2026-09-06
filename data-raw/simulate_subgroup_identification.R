@@ -67,6 +67,9 @@
 # checkpoints each fit so an interrupted run resumes where it stopped.
 
 suppressMessages(library(mlumr))
+# Base R gained `%||%` in 4.4.0 and mlumr does not export its own copy, so on
+# an older R the diagnostics below would stop with "could not find function".
+`%||%` <- function(x, y) if (is.null(x)) y else x
 options(mlumr.quiet_relaxed_index = TRUE)
 
 # Engine choice is not cosmetic here. The same fit takes about 4 seconds through
@@ -512,8 +515,22 @@ grid$key <- sprintf("%s__%s__rep%04d", grid$family, grid$design, grid$rep)
   rdb <- tryCatch(
     unname(tools::md5sum(file.path(find.package("mlumr"), "R", "mlumr.rdb"))),
     error = function(e) NA_character_)
+  # The Stan sources are the other material input the installed package
+  # supplies, and the lazy-load database says nothing about them. One digest
+  # over every installed .stan file, in a fixed order, records which models
+  # ran.
+  stan <- tryCatch({
+    dir <- system.file("stan", package = "mlumr")
+    files <- sort(list.files(dir, pattern = "[.]stan$", recursive = TRUE,
+                             full.names = TRUE))
+    tmp <- tempfile("mlumr-stan-")
+    on.exit(unlink(tmp), add = TRUE)
+    writeLines(paste(basename(files), unname(tools::md5sum(files))), tmp)
+    unname(tools::md5sum(tmp))
+  }, error = function(e) NA_character_)
   list(mlumr = as.character(utils::packageVersion("mlumr")),
        mlumr_code = if (length(rdb) && !is.na(rdb)) rdb else NA_character_,
+       mlumr_stan = if (length(stan) && !is.na(stan)) stan else NA_character_,
        r = paste0(R.version$major, ".", R.version$minor),
        cmdstanr = cmdstanr_v, cmdstan = cmdstan,
        platform = R.version$platform)
@@ -544,7 +561,10 @@ grid$key <- sprintf("%s__%s__rep%04d", grid$family, grid$design, grid$rep)
                               error = function(e) NA_character_),
          commit = git1(c("rev-parse", "HEAD")),
          tree = git1(c("rev-parse", "HEAD^{tree}")),
-         dirty = length(status) > 0L))
+         dirty = length(status) > 0L,
+         # Which paths were dirty, so a reader can tell a dirty vignette from a
+         # dirty Stan file; "dirty: true" alone cannot.
+         dirty_paths = if (length(status)) trimws(status) else character(0)))
 }
 
 CONFIG <- list(
@@ -742,10 +762,16 @@ write_manifest <- function(csv, rows) {
     sprintf("Warmup: %d", WARMUP),
     sprintf("mlumr: %s", sw$mlumr),
     sprintf("mlumr-code-MD5: %s", sw$mlumr_code),
+    sprintf("mlumr-stan-MD5: %s", sw$mlumr_stan),
     sprintf("mlumr-library: %s", sw$mlumr_lib),
     sprintf("Commit: %s", sw$commit),
     sprintf("Tree: %s", sw$tree),
     sprintf("Working-tree-dirty: %s", tolower(as.character(isTRUE(sw$dirty)))),
+    sprintf("Dirty-paths: %s", if (length(sw$dirty_paths)) {
+      paste(sw$dirty_paths, collapse = "; ")
+    } else {
+      "none"
+    }),
     sprintf("R: %s", sw$r),
     sprintf("cmdstanr: %s", sw$cmdstanr),
     sprintf("CmdStan: %s", sw$cmdstan),

@@ -660,7 +660,7 @@ stopifnot(
   # The normal family sampled cleanly, including in the deficient designs.
   !any(sim$family == "normal" & sim$ok & !sim$converged),
   # Rhat alone sees less than the full diagnostic set does.
-  sum(sim$ok & !sim$converged) > sum(sim$ok & sim$max_rhat > 1.01)
+  sum(sim$ok & !sim$converged) > sum(sim$ok & sim$max_rhat > 1.01, na.rm = TRUE)
 )
 ```
 
@@ -670,8 +670,8 @@ diagnostic recorded. No fit in an identified design failed any of them, and all
 deficient group.
 
 The diagnostics disagree sharply about how many fits are affected:
-`r sum(sim$ok & sim$max_rhat > 1.01)` exceed the split-Rhat threshold,
-`r sum(sim$ok & sim$min_ess < 400)` fall below the bulk effective sample size
+`r sum(sim$ok & sim$max_rhat > 1.01, na.rm = TRUE)` exceed the split-Rhat threshold,
+`r sum(sim$ok & sim$min_ess < 400, na.rm = TRUE)` fall below the bulk effective sample size
 one, `r sum(sim$ok & sim$min_ess_tail < 400, na.rm = TRUE)` below the tail one,
 `r sum(sim$ok & sim$divergent > 0, na.rm = TRUE)` report a divergent transition,
 `r sum(sim$ok & sim$max_treedepth > 0, na.rm = TRUE)` saturate the treedepth,
