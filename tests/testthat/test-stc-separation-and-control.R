@@ -310,16 +310,27 @@ test_that("an explicit NULL engine resolves before the control is judged", {
   }
   `%||%` <- function(a, b) if (is.null(a)) b else a
 
-  default <- mlumr:::get_engine()
-  # Passing NULL must land on the same engine as passing nothing.
-  expect_equal(resolve(list(engine = NULL), "rstan"),
-               resolve(list(), "rstan"))
-  expect_equal(resolve(list(engine = NULL), "rstan"), "rstan")
-  # A named engine still wins over both.
-  expect_equal(resolve(list(engine = "cmdstanr"), "rstan"), "cmdstanr")
-  expect_equal(resolve(list(engine = "rstan"), "cmdstanr"), "rstan")
-  # And the resolution is the package's own, not a second copy of the rule.
-  expect_equal(resolve(list(), NULL), default)
+  # Both configurations are exercised rather than whichever the machine
+  # happens to be set to. Asserting that NULL and omission agree holds only
+  # while the default matches the fit's engine, so it would pass here and fail
+  # on a runner configured for cmdstanr.
+  previous <- getOption("mlumr.stan_engine")
+  on.exit(options(mlumr.stan_engine = previous), add = TRUE)
+
+  for (configured in c("rstan", "cmdstanr")) {
+    options(mlumr.stan_engine = configured)
+    expect_equal(mlumr:::get_engine(), configured)
+    # An explicit NULL asks for the configured default, whatever it is.
+    expect_equal(resolve(list(engine = NULL), "rstan"), configured)
+    # Omitting it keeps the engine the fit was made with, whatever the default.
+    expect_equal(resolve(list(), "rstan"), "rstan")
+    expect_equal(resolve(list(), "cmdstanr"), "cmdstanr")
+    # A named engine wins over both.
+    expect_equal(resolve(list(engine = "cmdstanr"), "rstan"), "cmdstanr")
+    expect_equal(resolve(list(engine = "rstan"), "cmdstanr"), "rstan")
+    # And a fit that recorded no engine falls back to the default.
+    expect_equal(resolve(list(), NULL), configured)
+  }
 })
 
 test_that("a NULL entry does not delete a setting mlumr depends on", {
