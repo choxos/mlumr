@@ -144,3 +144,6 @@ Rplots.pdf
 # Simulation checkpoints. The study writes one file per fit so an
 # interrupted run resumes; only the assembled CSV and its manifest are results.
 data-raw/*.csv.cells/
+
+# testthat writes this beside the tests after a failing run
+tests/testthat/testthat-problems.rds
