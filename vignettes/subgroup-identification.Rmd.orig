@@ -393,6 +393,17 @@ replication-varying misspecification on top of the design being studied.
 # A missing diagnostic is not a passing one. Tolerating NA here would let a fit
 # whose divergences were never recorded count as clean, which is the opposite of
 # what "met every retained diagnostic" says, and it would do so silently.
+# What this catches is a diagnostic that was wholly unavailable, which is the
+# form the study's own recorder can produce: it reduces each fit's selected
+# parameters to a maximum or a minimum over the values that were reported, so a
+# fit in which ONE parameter's Rhat was missing while the others were reported
+# still arrives here as a finite number and passes. No fit in this study did
+# arrive with a missing aggregate, and none of the selected parameters (mu,
+# beta, sigma, and the contrasts) is constant across draws, which is what makes
+# a per-parameter diagnostic unavailable. Recording each fit's missing count
+# alongside the aggregate would close the gap, and it changes what the
+# checkpoints mean, so it belongs to the next run of the study rather than to a
+# reassembly of this one.
 # `n_chains_ok` is the number of chains whose draws came back, compared against
 # the number this fit asked for.
 sim$converged <- sim$ok &
