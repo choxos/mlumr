@@ -292,6 +292,59 @@
 #'   Multi-arm reconstructed survival comparators are rejected until a
 #'   weighting estimand is implemented. Defaults to a single arm.
 #'
+#' @details
+#' **Which population the covariate moments must describe under delayed
+#' entry.** For individual data the covariates are known, so dividing each
+#' person's contribution by their own survival to entry is unambiguous. Here
+#' the covariates are not observed: they are integrated out against the
+#' distribution [add_integration()] builds, and the order of the two
+#' operations matters. This model conditions first and averages second, so each
+#' integration point contributes its own delayed-entry likelihood and the row
+#' likelihood is their average. That is the right quantity when the
+#' distribution integrated over describes the population **as observed at
+#' entry**, meaning those who survived to their entry time and are therefore
+#' in the risk set. The whole distribution has to, not only `cov_means` and
+#' `cov_sds`: the delayed-entry contribution is nonlinear in the covariates,
+#' so the marginal shape each `distr()` assumes and the dependence its `cor`
+#' imposes change the average as surely as the moments do, and two populations
+#' can share every moment while differing in either.
+#'
+#' It is not the right quantity when the moments describe a baseline,
+#' pre-selection population, because surviving to entry is itself selective:
+#' whichever covariate values carry lower hazard are over-represented at entry
+#' relative to baseline. Averaging first and conditioning second is the form
+#' that matches baseline moments, and the two differ in general, by more when
+#' entry times are late or the covariate effects are strong.
+#'
+#' Varying entry times need one assumption more, because then there is no
+#' single population observed at entry: each pseudo-individual should be
+#' integrated against the covariate distribution among those observed at ITS
+#' entry time, the people who entered then and had survived to it. That
+#' distribution can differ from one entry time to the next for two reasons:
+#' later entrants are a more selected group than earlier ones, and who enters
+#' when may itself be related to the covariates, since cohorts enrolled at
+#' different times can differ even when survival does not depend on the
+#' covariates at all. The model has one covariate distribution per arm and
+#' reuses it for every pseudo-individual. Pooled moments over everyone
+#' enrolled describe no single risk set: they mix the populations observed at
+#' every entry time, so in general they do not meet the contract above even
+#' though everyone in them was observed at entry, and using them can give the
+#' wrong likelihood. They are right only under a common entry time, or when
+#' the covariate distribution among those observed at entry is the same at
+#' every entry time. That holds, for instance, when survival to entry selects
+#' the same way at every entry time and entry time is unrelated to the
+#' covariates; it is the sameness that matters, not how it comes about.
+#' Neither condition is checkable from the summaries supplied.
+#'
+#' Published summaries are ordinarily reported for the enrolled population.
+#' Under a common entry time that is the population observed at entry, so they
+#' are the right moments; under varying entry times they are the right moments
+#' only when the covariate distribution among those observed at entry is the
+#' same at every entry time, as above. State which population they came from,
+#' and treat a delayed-entry comparator whose moments are known to be
+#' pre-selection as a misspecification that no diagnostic here can detect.
+#' Delayed entry in the individual arm is unaffected by any of this.
+#'
 #' @return An object of class `mlumr_agd_surv` (also inheriting `mlumr_agd`).
 #' @seealso [set_agd()] for non-survival aggregate data.
 #'   `multinma::set_agd_surv()` is the ML-NMR equivalent; the name is given as
