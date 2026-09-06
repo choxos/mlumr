@@ -275,6 +275,11 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' needs no threshold at all, which is what makes it usable: the coefficients
 #' themselves are finite and unremarkable here.
 #'
+#' The improvement is computed as `sum(mu * (2 * y - mu))` rather than by
+#' subtracting the two residual sums of squares. They are the same quantity,
+#' but the difference of two large sums cannot represent an improvement smaller
+#' than an ulp of them, and such an improvement can still be a real optimum.
+#'
 #' It fires on two different situations, which is why the message names both.
 #' Sometimes no finite optimum exists. Sometimes one does and the fitting
 #' failed to reach it: on 600 random designs, 20 of the 535 that converged were
@@ -316,8 +321,8 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     return(invisible(NULL))
   }
   at_zero <- sum(y^2)
-  dev <- stats::deviance(fit)
-  if (!is.finite(dev) || !is.finite(at_zero)) {
+  mu <- stats::fitted(fit)
+  if (!is.finite(at_zero) || length(mu) != length(y) || !all(is.finite(mu))) {
     return(invisible(NULL))
   }
   # An outcome that is zero everywhere makes `at_zero` zero, and that is the
@@ -337,15 +342,19 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
       call. = FALSE
     )
   }
-  # Exactly, with no margin. The all-zero boundary is the optimum precisely
-  # when no positive mean improves on zero, and then `sum((y - mu)^2)` exceeds
-  # `sum(y^2)` for the fitted mu, so the comparison needs no slack to fire: the
-  # measured gap is +8.9e-16 there. A margin is not merely unnecessary but
-  # wrong, because an interior optimum may improve on the boundary by very
-  # little and still be an optimum. At `y = c(-1, 1.00001, -1, 1.00001)` each
-  # stratum's optimum is a fitted mean of 5e-6, worth 1e-10 of deviance, which
-  # a relative margin of 1e-8 refused as though it were the boundary.
-  if (dev >= at_zero) {
+  # How much the fit improves on the boundary, in closed form. The improvement
+  # is `sum(y^2) - sum((y - mu)^2)`, which expands to `sum(mu * (2 * y - mu))`
+  # and so can be built from terms the size of the improvement itself. Reading
+  # it as the difference of the two sums instead loses it whenever it falls
+  # below an ulp of them: at `y = c(-1, 1.00000001, -1, 1.00000001)` each
+  # stratum's optimum is a fitted mean of 5e-9 worth 1e-16, both sums round to
+  # 4.00000004, and the subtraction returns exactly 0, refusing an optimum the
+  # fit had already reached. The closed form returns 1e-16 there and agrees
+  # with the subtraction everywhere it is safe. It also carries the sign the
+  # test needs directly: no positive mean improves on zero exactly when this is
+  # not positive.
+  improvement <- sum(mu * (2 * y - mu))
+  if (!is.finite(improvement) || improvement <= 0) {
     stop(
       paste(
         "The STC outcome model did not reach a usable optimum: its residual",

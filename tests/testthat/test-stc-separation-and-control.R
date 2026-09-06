@@ -518,3 +518,54 @@ test_that("a sampler setting is validated the same through either door", {
   expect_equal(ok$control$adapt_delta, 0.99)
   expect_equal(ok$control$max_treedepth, 10)
 })
+
+test_that("an improvement smaller than an ulp of the sums is still an improvement", {
+  fam <- stats::gaussian(link = "log")
+  # The improvement over the boundary is `sum(y^2) - sum((y - mu)^2)`, which
+  # expands to `sum(mu * (2 * y - mu))`. Read as the difference of the two
+  # sums it cannot represent anything smaller than an ulp of them, and a real
+  # optimum can be smaller than that.
+  d <- data.frame(.outcome = c(-1, 1.00000001, -1, 1.00000001),
+                  x = c(-1, -1, 1, 1))
+  expect_true(all(tapply(d$.outcome, d$x, mean) > 0))
+  # From the starting values the package itself supplies. This matters: from
+  # zeros the fit lands at 4.4e-8, which is worse than the boundary, and is
+  # then refused correctly. The point being pinned is the arithmetic at the
+  # optimum, so the fit has to actually reach it.
+  fit <- suppressWarnings(stats::glm(
+    .outcome ~ x, family = fam, data = d,
+    start = mlumr:::.stc_start_values(d, "x", fam),
+    control = list(epsilon = 1e-14, maxit = 5000)
+  ))
+  y <- d$.outcome
+  mu <- stats::fitted(fit)
+  expect_equal(unname(mu), rep(5e-9, 4), tolerance = 1e-6)
+
+  # Both sums round to the same double, so subtracting them returns zero.
+  expect_equal(sum(y^2) - stats::deviance(fit), 0)
+  # The closed form recovers the improvement that the subtraction destroyed.
+  expect_gt(sum(mu * (2 * y - mu)), 0)
+  expect_silent(mlumr:::.stc_refuse_boundary_mean(fit))
+
+  # The genuine boundary has a negative improvement by the same measure, so
+  # one expression decides both without a threshold.
+  b <- data.frame(.outcome = c(-1, 1, -1, 1), x = c(-1, -1, 1, 1))
+  fit_b <- suppressWarnings(stats::glm(
+    .outcome ~ x, family = fam, data = b, start = c(0, 0),
+    control = list(epsilon = 1e-14, maxit = 5000)
+  ))
+  expect_lt(sum(stats::fitted(fit_b) * (2 * b$.outcome - stats::fitted(fit_b))), 0)
+  expect_error(mlumr:::.stc_refuse_boundary_mean(fit_b),
+               "did not reach a usable optimum")
+
+  # And the two ways of computing it agree wherever subtraction is safe.
+  ok <- data.frame(.outcome = c(-1, 1, 2, 2, 3, 4), x = rep(0:1, each = 3))
+  fit_ok <- suppressWarnings(stats::glm(
+    .outcome ~ x, family = fam, data = ok,
+    start = mlumr:::.stc_start_values(ok, "x", fam)
+  ))
+  mo <- stats::fitted(fit_ok)
+  expect_equal(sum(mo * (2 * ok$.outcome - mo)),
+               sum(ok$.outcome^2) - stats::deviance(fit_ok),
+               tolerance = 1e-8)
+})

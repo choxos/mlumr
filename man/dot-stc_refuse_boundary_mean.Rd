@@ -30,6 +30,11 @@ better than that has bought nothing by being fitted. This is scale free and
 needs no threshold at all, which is what makes it usable: the coefficients
 themselves are finite and unremarkable here.
 
+The improvement is computed as \code{sum(mu * (2 * y - mu))} rather than by
+subtracting the two residual sums of squares. They are the same quantity,
+but the difference of two large sums cannot represent an improvement smaller
+than an ulp of them, and such an improvement can still be a real optimum.
+
 It fires on two different situations, which is why the message names both.
 Sometimes no finite optimum exists. Sometimes one does and the fitting
 failed to reach it: on 600 random designs, 20 of the 535 that converged were
