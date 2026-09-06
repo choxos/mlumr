@@ -885,8 +885,13 @@ mlumr <- function(data,
       iter = iter,
       warmup = warmup,
       seed = seed,
-      adapt_delta = adapt_delta,
-      max_treedepth = max_treedepth
+      # The effective settings when the backend reports them: a caller can
+      # reach both through rstan's `control`, and a diagnostic that told them
+      # to raise a limit they had already raised would be quoting the wrong
+      # number. The cmdstanr backend takes them as arguments and cannot
+      # differ, so it reports nothing and these fall back.
+      adapt_delta = result$adapt_delta_used %||% adapt_delta,
+      max_treedepth = result$max_treedepth_used %||% max_treedepth
     )
   )
 

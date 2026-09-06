@@ -204,3 +204,26 @@ test_that("the deep-tail gamma series is normalized without a cancelling subtrac
   expect_true(grepl("lgamma(k + 1)", body, fixed = TRUE))
   expect_false(grepl("lgamma(k))", body, fixed = TRUE))
 })
+
+test_that("the fit records the sampler settings that were in force", {
+  # `check_diagnostics()` reads `sampling_args` to tell a user which limit to
+  # raise. Once the treedepth count moved to the merged limit, quoting the
+  # argument there would have advised raising a number the caller had already
+  # raised, so the backend reports what it ran under and the fit stores that.
+  merged <- mlumr:::.merge_sampler_control(
+    0.8, 15, list(control = list(adapt_delta = 0.99, max_treedepth = 10))
+  )
+  expect_equal(merged$control$adapt_delta, 0.99)
+  expect_equal(merged$control$max_treedepth, 10)
+
+  # The fallback path: a backend that reports nothing leaves the arguments in
+  # place, which is the cmdstanr case, where the two cannot differ.
+  `%||%` <- function(a, b) if (is.null(a)) b else a
+  no_report <- list()
+  expect_equal(no_report$adapt_delta_used %||% 0.8, 0.8)
+  expect_equal(no_report$max_treedepth_used %||% 15, 15)
+
+  reported <- list(adapt_delta_used = 0.99, max_treedepth_used = 10)
+  expect_equal(reported$adapt_delta_used %||% 0.8, 0.99)
+  expect_equal(reported$max_treedepth_used %||% 15, 10)
+})

@@ -113,6 +113,11 @@ fit_rstan <- function(model_name, stan_data, chains, iter, warmup,
     summary_df = summary_df,
     n_divergent = n_divergent,
     n_max_td = n_max_td,
+    # What the sampler ran under, which is not the argument when a caller
+    # overrode either through `control`. The diagnostics quote these when
+    # advising a change, so that the advice names the limit in force.
+    adapt_delta_used = control$adapt_delta,
+    max_treedepth_used = control$max_treedepth,
     n_chains_requested = as.integer(chains),
     n_chains_returned = .n_chains_returned(chain_ids, chains)
   )
