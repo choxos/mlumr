@@ -272,8 +272,19 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' The test is that the fit has to beat the limit it is running towards. Every
 #' mean at zero leaves a residual sum of squares of `sum(y^2)`, so a fit no
 #' better than that has bought nothing by being fitted. This is scale free and
-#' needs no threshold on the coefficients, which is what makes it usable: the
-#' coefficients themselves are finite and unremarkable here.
+#' needs no threshold at all, which is what makes it usable: the coefficients
+#' themselves are finite and unremarkable here.
+#'
+#' It fires on two different situations, which is why the message names both.
+#' Sometimes no finite optimum exists. Sometimes one does and the fitting
+#' failed to reach it: on 600 random designs, 20 of the 535 that converged were
+#' refused here while a multi-start BFGS found an interior optimum, and in
+#' every one of those the fit `glm()` returned was itself worse than the
+#' boundary. One had coefficients of -51296 and 17098 with `converged = TRUE`
+#' and a deviance of 5.550 against 5.538 at the boundary, where BFGS reached
+#' 5.294. Refusing is right in both situations, since neither produces
+#' coefficients worth reporting, but only the first is a statement about the
+#' data, so the message does not claim it.
 #'
 #' The separation guard cannot cover this, since it applies where a probability
 #' boundary exists and this family has none.
@@ -337,12 +348,14 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   if (dev >= at_zero) {
     stop(
       paste(
-        "The STC outcome model has no finite optimum: with a log link every",
-        "fitted mean must be positive, and this data pulls all of them to",
-        "zero, so the fit is no better than setting every mean to zero. The",
-        "coefficients would record where the fitting stopped rather than the",
-        "data. Use an identity link if the outcome can be negative, or",
-        "mlumr(), whose prior makes the posterior proper."
+        "The STC outcome model did not reach a usable optimum: its residual",
+        "sum of squares is no better than setting every fitted mean to zero,",
+        "which a log link can only approach by sending the intercept to",
+        "negative infinity. Either no finite optimum exists, or the fitting",
+        "failed to find one; in both cases the coefficients record where the",
+        "fitting stopped rather than the data. Use an identity link if the",
+        "outcome can be negative, or mlumr(), whose prior makes the posterior",
+        "proper."
       ),
       call. = FALSE
     )

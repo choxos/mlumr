@@ -307,7 +307,7 @@ test_that("a log-link mean fit with no interior optimum is refused", {
 
   # The fit buys nothing over setting every mean to zero, which is the test.
   expect_equal(stats::deviance(fit), sum(d$.outcome^2))
-  expect_error(guard(fit), "no finite optimum")
+  expect_error(guard(fit), "did not reach a usable optimum")
 
   # Ordinary fits pass, at any scale, since the comparison is a ratio.
   ok <- data.frame(.outcome = c(-1, 1, 2, 2, 3, 4), x = rep(0:1, each = 3))
@@ -345,6 +345,8 @@ test_that("an all-zero outcome under a log link is the clearest boundary case", 
   expect_true(fit$converged)
   expect_true(all(is.finite(stats::coef(fit))))
   expect_equal(sum(d$.outcome^2), 0)
+  # This branch keeps the stronger wording: with every outcome zero there is
+  # certainly no finite optimum, rather than possibly one the fitting missed.
   expect_error(mlumr:::.stc_refuse_boundary_mean(fit), "no finite optimum")
 
   # A stratum that is genuinely small, rather than at the boundary, still
@@ -431,7 +433,7 @@ test_that("a small but real improvement over the boundary is still an optimum", 
     control = list(epsilon = 1e-14, maxit = 5000)
   ))
   expect_gte(stats::deviance(fit_b), sum(b$.outcome^2))
-  expect_error(mlumr:::.stc_refuse_boundary_mean(fit_b), "no finite optimum")
+  expect_error(mlumr:::.stc_refuse_boundary_mean(fit_b), "did not reach a usable optimum")
 })
 
 test_that("a recorded rstan control is not carried onto another engine", {

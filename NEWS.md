@@ -306,8 +306,10 @@
   changing, `glm()` returned convergence, and the intercept came back as -11 at
   the default tolerance, -13 at 1e-10 and -15 at 1e-12. Such a fit is now
   refused, on the ground that it is no better than setting every mean to zero,
-  which is scale free and needs no threshold on coefficients that are finite
-  and unremarkable.
+  which is scale free and needs no threshold at all. The same check also
+  catches a fit that had an optimum available and failed to reach it, which
+  iterative reweighting can do while reporting convergence, so the message
+  names both possibilities rather than asserting the data has no optimum.
 
 * **A caller's rstan `control` reaches the sampler.** `...` is documented as
   passing arguments to `rstan::sampling()`, but the backend supplied its own

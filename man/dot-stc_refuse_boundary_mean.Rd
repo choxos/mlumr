@@ -27,8 +27,19 @@ the default tolerance, -13 at 1e-10 and -15 at 1e-12, which is a property of
 The test is that the fit has to beat the limit it is running towards. Every
 mean at zero leaves a residual sum of squares of \code{sum(y^2)}, so a fit no
 better than that has bought nothing by being fitted. This is scale free and
-needs no threshold on the coefficients, which is what makes it usable: the
-coefficients themselves are finite and unremarkable here.
+needs no threshold at all, which is what makes it usable: the coefficients
+themselves are finite and unremarkable here.
+
+It fires on two different situations, which is why the message names both.
+Sometimes no finite optimum exists. Sometimes one does and the fitting
+failed to reach it: on 600 random designs, 20 of the 535 that converged were
+refused here while a multi-start BFGS found an interior optimum, and in
+every one of those the fit \code{glm()} returned was itself worse than the
+boundary. One had coefficients of -51296 and 17098 with \code{converged = TRUE}
+and a deviance of 5.550 against 5.538 at the boundary, where BFGS reached
+5.294. Refusing is right in both situations, since neither produces
+coefficients worth reporting, but only the first is a statement about the
+data, so the message does not claim it.
 
 The separation guard cannot cover this, since it applies where a probability
 boundary exists and this family has none.
