@@ -77,13 +77,28 @@ options(mlumr.quiet_relaxed_index = TRUE)
 # Engine choice is not cosmetic here. The same fit takes about 4 seconds through
 # cmdstanr and about 27 through the rstan backend on this machine, which is the
 # difference between a study that runs overnight and one that does not finish in
-# a working week. Fall back rather than stop, but say so.
+# a working week. It used to warn and fall back, which was worse than useless
+# on both counts. Each fit asks for `parallel_chains = 1`, because the
+# parallelism here belongs at the cell level, and that argument is cmdstanr's:
+# the rstan backend forwards it straight to `rstan::sampling()`, which knows
+# `cores` instead, so every fallback fit would fail inside the per-cell `try()`
+# and the study would work through all 5400 of them and report an incomplete
+# run. Even with the argument translated, the engine is part of the pinned
+# configuration, so a fallback could never continue this study; it would start
+# a fresh one at six times the runtime, which is a week rather than a night.
+# Stop and say what to install.
 if (requireNamespace("cmdstanr", quietly = TRUE) &&
       !inherits(try(cmdstanr::cmdstan_path(), silent = TRUE), "try-error")) {
   mlumr_engine("cmdstanr")
 } else {
-  warning("cmdstanr is not available, so this runs on the rstan backend. ",
-          "Expect roughly six times the runtime.", call. = FALSE)
+  stop("This study runs on the cmdstanr backend, and either cmdstanr or its ",
+       "CmdStan installation is missing. Install both ",
+       "(`cmdstanr::install_cmdstan()`) and run this again. The rstan backend ",
+       "is not a substitute here: it does not take the per-fit ",
+       "`parallel_chains` argument the cells are fitted with, and the engine ",
+       "is part of the configuration the checkpoints are pinned to, so its ",
+       "fits could not be combined with these ones in any case.",
+       call. = FALSE)
 }
 # Recorded in CONFIG below, so a resumed run cannot silently continue a cmdstanr
 # study on the rstan backend and assemble one CSV out of two fitting procedures.
