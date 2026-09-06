@@ -130,11 +130,10 @@ test_that("the log link starts from a valid mean even when the sample mean is no
   expect_gt(unname(stats::fitted(pooled)[1]), 100)
   expect_true(by_r$converged && pooled$converged)
 
-  # A sample mean of exactly zero. `exp(0) = 1` is a valid mean for this link
-  # whatever the data, and a finite fit exists here: `y = c(-2, 1, 1)` on
-  # `x = c(-1, 0, 1)` fits from zeros. Returning NULL instead handed the
-  # problem back to the initialization that refuses any y <= 0, which is the
-  # failure this helper exists to avoid.
+  # A sample mean of exactly zero still gets a start, because `exp(0) = 1` is
+  # a valid mean for this link whatever the data and the sample mean does not
+  # say whether an interior optimum exists. Whether the fit is usable is
+  # decided afterwards by things that can tell, not guessed at from the mean.
   zero_mean <- list(.outcome = c(-2, 1, 1))
   expect_equal(mean(zero_mean$.outcome), 0)
   expect_equal(starts(zero_mean, "x", fam), c(0, 0))
@@ -144,11 +143,19 @@ test_that("the log link starts from a valid mean even when the sample mean is no
   mixed <- list(.outcome = c(-1, 1, 2, 2, 3, 4))
   expect_equal(starts(mixed, "x", fam), c(log(mean(mixed$.outcome)), 0))
 
-  fit <- stats::glm(y ~ x, family = fam,
-                    data = data.frame(y = c(-2, 1, 1), x = c(-1, 0, 1)),
-                    start = starts(zero_mean, "x", fam))
-  expect_true(all(is.finite(stats::coef(fit))))
-  expect_true(all(stats::fitted(fit) > 0))
+  # This particular design has an interior optimum, near (-1.567, 1.641) with a
+  # residual sum of squares of 4.795 against 6 at the boundary, but iterative
+  # reweighting oscillates and never reaches it: `converged` is FALSE at 25
+  # iterations and still FALSE at 10000. So the start does not rescue it, and
+  # the convergence check refuses it, which is the correct outcome and worth
+  # pinning because an earlier version of this test asserted the opposite from
+  # a fit it never checked the convergence of.
+  fit <- suppressWarnings(stats::glm(
+    y ~ x, family = fam, data = data.frame(y = c(-2, 1, 1), x = c(-1, 0, 1)),
+    start = starts(zero_mean, "x", fam), control = list(maxit = 10000)
+  ))
+  expect_false(fit$converged)
+  expect_error(mlumr:::.stc_glm_parameters(fit), "did not converge")
 
   # Other families and links are left to R's own initialization.
   expect_null(starts(mixed, "x", stats::gaussian(link = "identity")))
@@ -274,4 +281,54 @@ test_that("a prior sweep replays every sampler control, not only the two named",
   )
   expect_false("control" %in% names(cmd))
   expect_equal(cmd$adapt_delta, 0.9)
+})
+
+test_that("a log-link mean fit with no interior optimum is refused", {
+  fam <- stats::gaussian(link = "log")
+  guard <- mlumr:::.stc_refuse_boundary_mean
+
+  # Every fitted mean must be positive, and this data pulls all of them down,
+  # so the criterion is minimized only as the intercept runs to negative
+  # infinity. Nothing reports it: the deviance stops changing and `glm()`
+  # returns convergence with coefficients set by the tolerance.
+  d <- data.frame(.outcome = c(-1, 1, -1, 1), x = c(-1, -1, 1, 1))
+  fit <- suppressWarnings(stats::glm(.outcome ~ x, family = fam, data = d,
+                                     start = c(0, 0)))
+  expect_true(fit$converged)
+  expect_true(all(is.finite(stats::coef(fit))))
+  # The estimate is a property of `epsilon`, not of the data.
+  eps_fit <- function(e) {
+    suppressWarnings(stats::glm(.outcome ~ x, family = fam, data = d,
+                                start = c(0, 0),
+                                control = list(epsilon = e, maxit = 100)))
+  }
+  expect_equal(unname(stats::coef(eps_fit(1e-8))[1]), -11, tolerance = 1e-6)
+  expect_equal(unname(stats::coef(eps_fit(1e-12))[1]), -15, tolerance = 1e-6)
+
+  # The fit buys nothing over setting every mean to zero, which is the test.
+  expect_equal(stats::deviance(fit), sum(d$.outcome^2))
+  expect_error(guard(fit), "no finite optimum")
+
+  # Ordinary fits pass, at any scale, since the comparison is a ratio.
+  ok <- data.frame(.outcome = c(-1, 1, 2, 2, 3, 4), x = rep(0:1, each = 3))
+  fit_ok <- suppressWarnings(stats::glm(
+    .outcome ~ x, family = fam, data = ok,
+    start = mlumr:::.stc_start_values(ok, "x", fam)
+  ))
+  expect_lt(stats::deviance(fit_ok), sum(ok$.outcome^2))
+  expect_silent(guard(fit_ok))
+
+  tiny <- data.frame(.outcome = c(1, 2, 3, 10, 20, 30) * 1e-6,
+                     x = rep(0:1, each = 3))
+  fit_tiny <- suppressWarnings(stats::glm(.outcome ~ x, family = fam,
+                                          data = tiny))
+  expect_silent(guard(fit_tiny))
+
+  # The separation guard cannot cover this: it needs a probability boundary,
+  # and this family has none. Other families and links are untouched here.
+  expect_silent(guard(stats::glm(.outcome ~ x, family = stats::gaussian(),
+                                 data = d)))
+  expect_silent(guard(stats::glm(y ~ x, family = stats::poisson(),
+                                 data = data.frame(y = c(1, 2, 3, 4),
+                                                   x = c(0, 0, 1, 1)))))
 })

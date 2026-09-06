@@ -253,7 +253,65 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     )
   }
   .stc_refuse_separation(fit)
+  .stc_refuse_boundary_mean(fit)
   list(beta_hat = beta_hat, V = V)
+}
+
+#' Refuse a log-link mean fit whose optimum is at zero
+#'
+#' A Gaussian log link constrains every fitted mean to be positive, so when the
+#' data pull all of them downwards the least-squares criterion is minimized
+#' only as the intercept runs to negative infinity. There is no interior
+#' optimum, but nothing reports that: the deviance stops changing once the
+#' means are small enough, `glm()` returns `converged = TRUE`, and the
+#' coefficients are wherever the tolerance stopped it. On
+#' `y = c(-1, 1, -1, 1)` against `x = c(-1, -1, 1, 1)` the intercept is -11 at
+#' the default tolerance, -13 at 1e-10 and -15 at 1e-12, which is a property of
+#' `epsilon` rather than of the data.
+#'
+#' The test is that the fit has to beat the limit it is running towards. Every
+#' mean at zero leaves a residual sum of squares of `sum(y^2)`, so a fit no
+#' better than that has bought nothing by being fitted. This is scale free and
+#' needs no threshold on the coefficients, which is what makes it usable: the
+#' coefficients themselves are finite and unremarkable here.
+#'
+#' The separation guard cannot cover this, since it applies where a probability
+#' boundary exists and this family has none.
+#'
+#' @param fit A fitted `glm`.
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+.stc_refuse_boundary_mean <- function(fit) {
+  fam <- tryCatch(stats::family(fit), error = function(e) NULL)
+  if (is.null(fam) || !identical(fam$family, "gaussian") ||
+        !identical(fam$link, "log")) {
+    return(invisible(NULL))
+  }
+  y <- stats::model.response(stats::model.frame(fit))
+  if (!length(y) || anyNA(y)) {
+    return(invisible(NULL))
+  }
+  at_zero <- sum(y^2)
+  dev <- stats::deviance(fit)
+  if (!is.finite(dev) || !is.finite(at_zero) || at_zero <= 0) {
+    return(invisible(NULL))
+  }
+  # A relative margin, so this fires on "no better than the boundary" rather
+  # than on ordinary rounding.
+  if (dev >= at_zero * (1 - 1e-8)) {
+    stop(
+      paste(
+        "The STC outcome model has no finite optimum: with a log link every",
+        "fitted mean must be positive, and this data pulls all of them to",
+        "zero, so the fit is no better than setting every mean to zero. The",
+        "coefficients would record where the fitting stopped rather than the",
+        "data. Use an identity link if the outcome can be negative, or",
+        "mlumr(), whose prior makes the posterior proper."
+      ),
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
 }
 
 #' Refuse a fit whose likelihood has no finite maximum
@@ -354,10 +412,12 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     return(NULL)
   }
   # An intercept of 0 puts every starting mean at exp(0) = 1, which is valid
-  # for this link whatever the data, so a nonpositive sample mean is no reason
-  # to give up too: `y = c(-2, 1, 1)` on `x = c(-1, 0, 1)` has a sample mean of
-  # exactly 0 and fits from zeros. The sample mean is the better of the two
-  # whenever it is positive.
+  # for this link whatever the data, so a nonpositive sample mean is not by
+  # itself a reason to refuse: it does not tell you whether an interior
+  # optimum exists. Whether the resulting fit is usable is then decided by
+  # things that can actually tell, the convergence check and
+  # `.stc_refuse_boundary_mean()`, rather than guessed at from the mean. The
+  # sample mean is the better start of the two whenever it is positive.
   mu <- mean(y, na.rm = TRUE)
   intercept <- if (is.finite(mu) && mu > 0) log(mu) else 0
   c(intercept, rep(0, length(cov_names)))

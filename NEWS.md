@@ -299,7 +299,15 @@
   the log of the mean outcome with slopes at zero, or zeros when that mean is
   not positive. Fits R already initializes are left alone, because its
   per-observation start is the better one; substituting a pooled value cost
-  accuracy on designs whose groups differ by orders of magnitude.
+  accuracy on designs whose groups differ by orders of magnitude. A log link
+  keeps every fitted mean positive, so data that pulls all of them downwards
+  has no interior optimum and the criterion is minimized only as the intercept
+  runs to negative infinity. Nothing reported that: the deviance stopped
+  changing, `glm()` returned convergence, and the intercept came back as -11 at
+  the default tolerance, -13 at 1e-10 and -15 at 1e-12. Such a fit is now
+  refused, on the ground that it is no better than setting every mean to zero,
+  which is scale free and needs no threshold on coefficients that are finite
+  and unremarkable.
 
 * **A caller's rstan `control` reaches the sampler.** `...` is documented as
   passing arguments to `rstan::sampling()`, but the backend supplied its own
