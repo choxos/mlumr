@@ -61,6 +61,7 @@ Suggests:
     cmdstanr,
     withr,
     flexsurv,
+    xfun,
     multinma,
     R.rsp
 Additional_repositories: https://stan-dev.r-universe.dev
