@@ -92,9 +92,10 @@ every entry time, so in general they do not meet the contract above even
 though everyone in them was observed at entry, and using them can give the
 wrong likelihood. They are right only under a common entry time, or when
 the covariate distribution among those observed at entry is the same at
-every entry time, which needs both that survival to entry selects the same
-way at every entry time and that entry time is unrelated to the
-covariates. Neither is checkable from the summaries supplied.
+every entry time. That holds, for instance, when survival to entry selects
+the same way at every entry time and entry time is unrelated to the
+covariates; it is the sameness that matters, not how it comes about.
+Neither condition is checkable from the summaries supplied.
 
 Published summaries are ordinarily reported for the enrolled population.
 Under a common entry time that is the population observed at entry, so they
