@@ -278,6 +278,19 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' The separation guard cannot cover this, since it applies where a probability
 #' boundary exists and this family has none.
 #'
+#' What it does not cover is a boundary face that only some strata sit on:
+#' `y = c(-1, 1, 1, 2)` on `x = c(0, 0, 1, 1)` sends the first stratum's mean
+#' to zero while the second settles at 1.5, so the intercept and the slope
+#' diverge in opposite directions and the deviance reaches 2.5 against 7 at the
+#' all-zero boundary. The comparison here passes it. Nothing cheap separates it
+#' from data that is merely small: `y = c(1e-9, 2e-9, 5, 6)` has both stratum
+#' means positive and a genuine interior optimum at a fitted mean of 1.5e-9,
+#' and every test tried against these two, the smallest fitted mean relative to
+#' the outcome scale and the movement of the coefficients under a tightened
+#' tolerance, classifies the pair the same way. Deciding it needs the geometry
+#' of the boundary faces rather than a summary of the fit, which is the same
+#' shape of problem as quasi-complete separation above.
+#'
 #' @param fit A fitted `glm`.
 #' @return `NULL`, invisibly; called for the error.
 #' @keywords internal
@@ -293,8 +306,25 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   }
   at_zero <- sum(y^2)
   dev <- stats::deviance(fit)
-  if (!is.finite(dev) || !is.finite(at_zero) || at_zero <= 0) {
+  if (!is.finite(dev) || !is.finite(at_zero)) {
     return(invisible(NULL))
+  }
+  # An outcome that is zero everywhere makes `at_zero` zero, and that is the
+  # clearest boundary case rather than an unavailable comparison: a log link
+  # produces strictly positive means, so it can only approach these
+  # observations by sending the intercept to negative infinity. Treating it as
+  # unavailable let the fit through, with coefficients set by the tolerance.
+  if (at_zero == 0) {
+    stop(
+      paste(
+        "The STC outcome model has no finite optimum: every outcome is zero",
+        "and a log link keeps every fitted mean strictly positive, so the fit",
+        "can only approach the data by sending the intercept to negative",
+        "infinity. Use an identity link, or mlumr(), whose prior makes the",
+        "posterior proper."
+      ),
+      call. = FALSE
+    )
   }
   # A relative margin, so this fires on "no better than the boundary" rather
   # than on ordinary rounding.

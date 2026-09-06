@@ -32,5 +32,18 @@ coefficients themselves are finite and unremarkable here.
 
 The separation guard cannot cover this, since it applies where a probability
 boundary exists and this family has none.
+
+What it does not cover is a boundary face that only some strata sit on:
+\code{y = c(-1, 1, 1, 2)} on \code{x = c(0, 0, 1, 1)} sends the first stratum's mean
+to zero while the second settles at 1.5, so the intercept and the slope
+diverge in opposite directions and the deviance reaches 2.5 against 7 at the
+all-zero boundary. The comparison here passes it. Nothing cheap separates it
+from data that is merely small: \code{y = c(1e-9, 2e-9, 5, 6)} has both stratum
+means positive and a genuine interior optimum at a fitted mean of 1.5e-9,
+and every test tried against these two, the smallest fitted mean relative to
+the outcome scale and the movement of the coefficients under a tightened
+tolerance, classifies the pair the same way. Deciding it needs the geometry
+of the boundary faces rather than a summary of the fit, which is the same
+shape of problem as quasi-complete separation above.
 }
 \keyword{internal}

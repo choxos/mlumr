@@ -332,3 +332,76 @@ test_that("a log-link mean fit with no interior optimum is refused", {
                                  data = data.frame(y = c(1, 2, 3, 4),
                                                    x = c(0, 0, 1, 1)))))
 })
+
+test_that("an all-zero outcome under a log link is the clearest boundary case", {
+  fam <- stats::gaussian(link = "log")
+  # `sum(y^2)` is zero here, and reading that as an unavailable comparison let
+  # the fit through. A log link keeps every mean strictly positive, so it can
+  # only approach these observations by sending the intercept to negative
+  # infinity: this is the boundary, not a missing measurement of it.
+  d <- data.frame(.outcome = c(0, 0, 0, 0), x = c(0, 0, 1, 1))
+  fit <- suppressWarnings(stats::glm(.outcome ~ x, family = fam, data = d,
+                                     start = c(0, 0)))
+  expect_true(fit$converged)
+  expect_true(all(is.finite(stats::coef(fit))))
+  expect_equal(sum(d$.outcome^2), 0)
+  expect_error(mlumr:::.stc_refuse_boundary_mean(fit), "no finite optimum")
+
+  # A stratum that is genuinely small, rather than at the boundary, still
+  # fits: both group means are positive, so the optimum is interior at a
+  # fitted mean of 1.5e-9. Refusing this would be worse than the gap it
+  # closes, and every summary statistic tried put it on the same side as the
+  # boundary cases, which is why the guard does not use one.
+  small <- data.frame(.outcome = c(1e-9, 2e-9, 5, 6), x = c(0, 0, 1, 1))
+  fit_small <- suppressWarnings(stats::glm(
+    .outcome ~ x, family = fam, data = small, start = c(0, 0),
+    control = list(epsilon = 1e-14, maxit = 5000)
+  ))
+  expect_true(fit_small$converged)
+  expect_lt(stats::deviance(fit_small), sum(small$.outcome^2))
+  expect_silent(mlumr:::.stc_refuse_boundary_mean(fit_small))
+})
+
+test_that("a caller's sampler overrides refine the recorded control", {
+  # The recorded control describes the original fit. Assigning a caller's
+  # wholesale dropped every recorded entry they did not name, and a scalar
+  # they passed lost to the recorded entry of the same name, because the merge
+  # downstream lets the control win.
+  recorded <- list(adapt_delta = 0.99, max_treedepth = 10,
+                   adapt_engaged = FALSE, stepsize = 0.05)
+  refine <- function(dots) {
+    call_args <- list(adapt_delta = 0.99, max_treedepth = 10,
+                      control = recorded)
+    ctl <- call_args$control
+    if (!is.null(ctl)) {
+      for (nm in intersect(names(dots), c("adapt_delta", "max_treedepth"))) {
+        ctl[[nm]] <- dots[[nm]]
+      }
+    }
+    if (!is.null(dots$control)) {
+      ctl <- if (is.null(ctl)) dots$control else
+        utils::modifyList(ctl, dots$control)
+    }
+    call_args[names(dots)] <- dots
+    if (!is.null(ctl)) call_args$control <- ctl
+    call_args$control
+  }
+
+  expect_equal(refine(list()), recorded)
+
+  # A partial control keeps what it does not name.
+  partial <- refine(list(control = list(adapt_delta = 0.9)))
+  expect_equal(partial$adapt_delta, 0.9)
+  expect_false(partial$adapt_engaged)
+  expect_equal(partial$stepsize, 0.05)
+  expect_equal(partial$max_treedepth, 10)
+
+  # A scalar override reaches the sampler instead of losing to the record.
+  scalar <- refine(list(adapt_delta = 0.85))
+  expect_equal(scalar$adapt_delta, 0.85)
+  expect_equal(scalar$stepsize, 0.05)
+
+  # Their control still beats their scalar, the order mlumr() itself uses.
+  both <- refine(list(adapt_delta = 0.85, control = list(adapt_delta = 0.7)))
+  expect_equal(both$adapt_delta, 0.7)
+})

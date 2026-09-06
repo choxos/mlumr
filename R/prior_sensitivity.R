@@ -211,7 +211,28 @@ prior_sensitivity <- function(fit,
     # formal twice and R refuses the call. That made the one thing `...` is for
     # the one thing it could not do.
     call_args <- args
-    if (length(dots)) call_args[names(dots)] <- dots
+    if (length(dots)) {
+      # The recorded `control` describes the original fit, so a caller's
+      # settings refine it rather than replace it: assigning theirs wholesale
+      # dropped every recorded entry they did not happen to name, such as
+      # `adapt_engaged`. And a scalar they pass has to beat the recorded entry
+      # of the same name, because the merge downstream lets the control win and
+      # the recorded control would otherwise silently overrule this caller's
+      # own request. Their `control` still beats their scalar, which is the
+      # order `mlumr()` itself uses.
+      ctl <- call_args$control
+      if (!is.null(ctl)) {
+        for (nm in intersect(names(dots), c("adapt_delta", "max_treedepth"))) {
+          ctl[[nm]] <- dots[[nm]]
+        }
+      }
+      if (!is.null(dots$control)) {
+        ctl <- if (is.null(ctl)) dots$control else
+          utils::modifyList(ctl, dots$control)
+      }
+      call_args[names(dots)] <- dots
+      if (!is.null(ctl)) call_args$control <- ctl
+    }
     fit_i <- do.call(mlumr, call_args)
 
     results[[i]] <- .summarize_sensitivity(
