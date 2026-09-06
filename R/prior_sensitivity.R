@@ -59,10 +59,15 @@
 #' `scale_comparator`), so a row is never labeled by only half of the prior it
 #' was fitted under.
 #'
-#' @return A data frame (tibble-style) with one row per
-#'   (scale, population, quantile) combination and columns `scale`,
-#'   `parameter`, `mean`, `sd`, and the requested quantiles. Side effect:
-#'   prints a summary table at the end.
+#' @return A data frame with one row per (prior scale, summarized parameter)
+#'   pair, and columns `scale`, `scale_comparator` (dropped when the model has
+#'   no comparator coefficient prior), `parameter`, `effect`, `at_time` (present
+#'   only when the summarized effect has an evaluation time, so absent for every
+#'   non-survival family and for survival scalars that carry none),
+#'   `mean`, `sd`, and one column per requested quantile, named `q` followed by
+#'   the percentage (the default `probs` give `q2.5`, `q50`, `q97.5`), matching
+#'   [marginal_effects()]. Quantiles are columns, not a row dimension.
+#'   Side effect: prints a summary table at the end.
 #' @seealso [prior_summary()] for a one-shot description of the priors on
 #'   a fit; [marginal_effects()] for the posterior summary quantities this
 #'   sweep tracks.
@@ -92,11 +97,11 @@ prior_sensitivity <- function(fit,
     stop("`prior_beta_scales` must be one or more positive finite numbers",
          call. = FALSE)
   }
-  invalid_probs <- !is.numeric(probs) || length(probs) < 1L ||
-    any(!is.finite(probs)) || any(probs < 0) || any(probs > 1)
-  if (invalid_probs) {
-    stop("`probs` must be one or more numbers in [0, 1]", call. = FALSE)
-  }
+  # The shared validator, not a local copy of it. The copy omitted the
+  # duplicate check, so two equal probabilities produced two identically named
+  # `qNN` columns and the second silently overwrote the first: the caller asked
+  # for n quantiles and got fewer, with no error and no way to tell.
+  .validate_probs(probs)
   if (!is.logical(verbose) || length(verbose) != 1L || is.na(verbose)) {
     stop("`verbose` must be TRUE or FALSE.", call. = FALSE)
   }
@@ -147,9 +152,9 @@ prior_sensitivity <- function(fit,
     # movement in the output could no longer be attributed to the prior.
     protected <- c("data", "model", "link", "distribution", "prior_beta",
                    "prior_beta_comparator", "prior_intercept", "prior_sigma",
-                   "prior_aux", "prior_smooth", "center", "qr", "n_knots",
-                   "knots", "mspline_degree", "pred_times", "rmst_horizon",
-                   "n_rmst_grid", "aux_by")
+                   "prior_aux", "prior_aux2", "prior_smooth", "center", "qr",
+                   "n_knots", "knots", "mspline_degree", "pred_times",
+                   "rmst_horizon", "n_rmst_grid", "aux_by")
     clash <- intersect(names(dots), protected)
     if (length(clash)) {
       msg <- paste0(
@@ -233,8 +238,14 @@ prior_sensitivity <- function(fit,
     cat("\nPrior sensitivity: posterior of marginal treatment effects\n")
     cat("=========================================================\n\n")
     print(out, row.names = FALSE)
-    cat("\nInterpretation: if posterior summaries are approximately constant\n")
-    cat("across scales, the inference is data-driven rather than prior-driven.\n")
+    # What a scale sweep can support and no more. Constant summaries across a
+    # few scales of ONE prior family, at one location, on one model show
+    # insensitivity to those scales; they do not show that the data rather than
+    # the prior is driving the answer, which is the stronger claim this used to
+    # print. A weakly identified coefficient direction can be equally
+    # prior-determined at every scale tested.
+    cat(.prior_sensitivity_interpretation(), sep = "\n")
+    cat("\n")
   }
 
   invisible(out)
@@ -300,6 +311,10 @@ prior_sensitivity <- function(fit,
     args <- c(args, list(
       distribution = fit$distribution,
       prior_aux    = fit$priors$aux,
+      # Present only for a generalized-gamma fit. NULL here means "reuse
+      # prior_aux", which is what every other distribution's refit needs, so
+      # this one is safe to pass unconditionally inside the survival branch.
+      prior_aux2   = fit$priors$aux2,
       prior_smooth = fit$priors$smooth,
       n_knots      = sc$n_knots      %||% 7L,
       knots        = sc$knots,
@@ -379,7 +394,14 @@ prior_sensitivity <- function(fit,
     eff_at_time <- NA_real_
   }
 
-  qnames <- paste0("q", round(100 * probs))
+  # `round()` here both mislabeled the defaults (2.5 and 97.5 became `q2` and
+  # `q98`) and could collide: probs 0.024 and 0.025 both produced `q2`, and the
+  # assignment below then overwrote the first quantile with the second without a
+  # word. Name them the way the rest of the package does, so a caller can bind
+  # prior_sensitivity() output to marginal_effects() output by column name, and
+  # through the shared helper, whose names `.validate_probs()` has already
+  # checked for the collision that survives full precision.
+  qnames <- .quantile_names(probs)
 
   rows <- lapply(effect_names, function(nm) {
     x <- draws[, nm]
@@ -398,4 +420,26 @@ prior_sensitivity <- function(fit,
     row
   })
   do.call(rbind, rows)
+}
+
+
+#' The interpretation paragraph `prior_sensitivity()` prints
+#'
+#' Kept as a function rather than inline `cat()` calls so the shipped vignette
+#' can be checked against it by CALLING it. The check used to locate these
+#' lines by matching the source text and skipped when the markers moved, which
+#' turned the one edit the gate exists to catch into a silent pass.
+#'
+#' @return A character vector, one element per printed line.
+#' @keywords internal
+.prior_sensitivity_interpretation <- function() {
+  c("",
+    "Interpretation: approximately constant summaries show the posterior",
+    "is insensitive to the beta-prior SCALES tested here. That is not the",
+    "same as the inference being data-driven: identification also depends",
+    "on the prior family and location, the comparator-specific and",
+    "auxiliary priors, and the model structure. Vary those too. For a",
+    "non-survival fit, check_identification() adds the geometry of the",
+    "aggregate rows: exact for a normal identity-link model, descriptive",
+    "otherwise.")
 }

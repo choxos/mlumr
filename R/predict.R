@@ -25,6 +25,20 @@
 #' @param times For survival fits, an optional vector of times at which to
 #'   report curve predictions; each is matched to the nearest fitted
 #'   `pred_times` grid point. If `NULL`, all fitted times are returned.
+#'
+#'   When supplied, the result has one row per requested time, **in the order
+#'   requested and including repeats**, and carries a `requested_time` column
+#'   beside `time` so the mapping from what was asked for to what was evaluated
+#'   is machine-readable rather than something to parse out of a message. Two
+#'   distinct requested times can still share a grid point; both are answered,
+#'   by the same fitted time, and that is reported. Refit with `pred_times`
+#'   containing the exact times to remove the approximation.
+#'
+#'   With `summary = FALSE` the layout is one COLUMN per requested time, so the
+#'   mapping cannot be a column. It is carried as the `requested_time` and
+#'   `used_time` attributes instead, each a named vector with one entry per
+#'   time column, so two requests that snapped to the same grid point are still
+#'   distinguishable by name.
 #' @param newdata Optional data frame of covariate profiles defining an arbitrary
 #'   **target population**. When supplied, per-treatment absolute predictions are
 #'   standardized to this population by g-computation (averaging model-based
@@ -184,8 +198,74 @@ predict.mlumr_fit <- function(object,
 .surv_time_selection <- function(times, pred_times) {
   if (is.null(times)) return(seq_along(pred_times))
   .validate_survival_prediction_times(times)
-  sort(unique(vapply(times, function(t) which.min(abs(pred_times - t)),
-                     integer(1))))
+  idx <- vapply(times, function(t) which.min(abs(pred_times - t)), integer(1))
+  .warn_snapped_prediction_times(times, pred_times[idx])
+  # Request ORDER and MULTIPLICITY are part of the request. Sorting and
+  # deduplicating produced a frame that did not line up with what the caller
+  # asked for: `times = c(10, 2)` came back in the other order and
+  # `times = c(2, 2)` came back with one row, so a programmatic caller could
+  # not zip its request against the result and had to reconstruct the mapping
+  # by parsing a message. The requested times ride along so the frame can carry
+  # them beside the times actually used.
+  structure(idx, requested = times)
+}
+
+#' Say when requested prediction times were moved onto the fitted grid
+#'
+#' The returned frame carries the time it was evaluated at, but nothing said
+#' that it was not the time asked for. A policy horizon of 12 months reported at
+#' 11.8 looks like an answer to the question, and two requested times that land
+#' on one grid point silently become one row, so the output can have fewer rows
+#' than the request had times. Refit with `pred_times` containing the exact
+#' times to remove the approximation rather than only be told about it.
+#' @param requested The user's `times`, in the order given.
+#' @param used The fitted grid times actually selected, aligned to `requested`.
+#' @return `NULL`, invisibly; called for the message.
+#' @keywords internal
+.warn_snapped_prediction_times <- function(requested, used) {
+  # Relative, because a 0.2 gap means something different at t = 1 and t = 500.
+  moved <- abs(used - requested) > 1e-8 * pmax(1, abs(requested))
+  # Two DISTINCT requested times landing on one grid point loses information and
+  # is worth the refit advice. The same time asked for twice is a duplicate
+  # request: deduplicating it changes the row count but not the answer, and
+  # telling the user to refit with a grid that already contains that time would
+  # be wrong. Separate the two rather than counting rows.
+  n_distinct_requested <- length(unique(requested))
+  distinct_collapse <- length(unique(used)) < n_distinct_requested
+  # A duplicated request no longer changes the row count: the selection keeps
+  # multiplicity, so asking for a time twice returns it twice. Only a genuine
+  # loss is worth a message now, and that is a MOVE or two DISTINCT times
+  # collapsing onto one grid point.
+  if (!any(moved) && !distinct_collapse) {
+    return(invisible(NULL))
+  }
+  parts <- character(0)
+  if (any(moved)) {
+    show <- which(moved)
+    more <- if (length(show) > 5L) {
+      show <- show[seq_len(5L)]
+      sprintf(" (and %d more)", sum(moved) - 5L)
+    } else {
+      ""
+    }
+    moves <- paste(sprintf("%g -> %g", requested[show], used[show]),
+                   collapse = ", ")
+    parts <- c(parts,
+               paste0("Requested prediction time(s) were moved to the nearest ",
+                      "fitted grid time: ", moves, more, "."))
+  }
+  if (distinct_collapse) {
+    parts <- c(parts,
+               sprintf(paste0("Distinct requested time(s) share a grid point, ",
+                              "so %d requested time(s) are answered by %d ",
+                              "distinct fitted time(s)."),
+                       n_distinct_requested, length(unique(used))))
+  }
+  message(paste(c(parts,
+                  paste0("Refit with `pred_times` containing the exact times ",
+                         "to evaluate them directly.")),
+                collapse = " "))
+  invisible(NULL)
 }
 
 #' Value of a survival curve at the origin, or `NA_real_` when it has none
@@ -217,7 +297,7 @@ predict.mlumr_fit <- function(object,
 #' @keywords internal
 .surv_result_frame <- function(values, cells, type, summary, probs,
                                times_out = NULL, origin = NA_real_,
-                               horizon = NULL) {
+                               horizon = NULL, requested_times = NULL) {
   label_names <- intersect(c("treatment", "population"), names(cells))
 
   rows <- lapply(seq_along(values), function(i) {
@@ -240,6 +320,12 @@ predict.mlumr_fit <- function(object,
     }
     if (!summary) {
       colnames(m) <- sprintf("t_%.15g", times_out)
+      # The raw layout is one column per requested time, so duplicates would
+      # collide by name. Disambiguate rather than silently producing two
+      # identically named columns.
+      if (anyDuplicated(colnames(m))) {
+        colnames(m) <- make.unique(colnames(m), sep = "_dup")
+      }
       df <- data.frame(lab, m, row.names = NULL, check.names = FALSE)
       if (!is.na(origin)) {
         df <- data.frame(df[label_names], t_0 = origin,
@@ -249,17 +335,31 @@ predict.mlumr_fit <- function(object,
       return(df)
     }
     s <- .summarize_draw_matrix(m, probs)
-    df <- data.frame(lab, time = times_out, s, row.names = NULL,
-                     check.names = FALSE)
+    # When the caller named the times, report BOTH what was asked for and what
+    # was evaluated, in the order asked. A row saying only `time = 11.8` for a
+    # policy horizon of 12 reads as an answer to the question that was not
+    # asked, and a programmatic caller had no machine-readable way to tell.
+    df <- if (is.null(requested_times)) {
+      data.frame(lab, time = times_out, s, row.names = NULL,
+                 check.names = FALSE)
+    } else {
+      data.frame(lab, requested_time = requested_times, time = times_out, s,
+                 row.names = NULL, check.names = FALSE)
+    }
     if (!is.na(origin)) {
       o <- df[1, , drop = FALSE]
       o$time <- 0
+      if ("requested_time" %in% names(o)) o$requested_time <- NA_real_
       # Only the summarized quantities take the origin value. Treatment labels
       # can be numeric, and overwriting them here set every arm's t = 0 row to
       # the origin (1 for survival), so those rows claimed to belong to a
       # treatment called "1".
+      # `requested_time` is not a summarized quantity either: the origin row
+      # answers no request, so it was set to NA just above. Leaving it in here
+      # overwrote that NA with the origin value, and a survival origin row then
+      # claimed someone had asked for time 1.
       num_cols <- setdiff(names(o)[vapply(o, is.numeric, logical(1))],
-                          c("time", label_names))
+                          c("time", "requested_time", label_names))
       o[num_cols] <- origin
       if ("sd" %in% names(o)) o$sd <- 0
       df <- rbind(o, df)
@@ -268,6 +368,26 @@ predict.mlumr_fit <- function(object,
   })
   out <- do.call(rbind, rows)
   rownames(out) <- NULL
+
+  # The raw layout is one COLUMN per requested time, so it cannot carry the
+  # mapping as a column the way the summary layout does. Without this, two
+  # requests snapping to one grid point came back as `t_2` and `t_2_dup1` with
+  # nothing saying which request produced which, and the machine-readable
+  # contract held only for `summary = TRUE`. Name the mapping on the frame:
+  # one entry per time column, in column order.
+  if (!summary && !is.null(requested_times) && !is.null(times_out)) {
+    time_cols <- setdiff(names(out), c(label_names, "horizon"))
+    mapping <- times_out
+    if (!is.na(origin)) {
+      # The prepended origin column answers no request.
+      mapping <- c(NA_real_, mapping)
+    }
+    if (length(mapping) == length(time_cols)) {
+      req <- if (is.na(origin)) requested_times else c(NA_real_, requested_times)
+      attr(out, "requested_time") <- stats::setNames(req, time_cols)
+      attr(out, "used_time") <- stats::setNames(mapping, time_cols)
+    }
+  }
 
   # RMST is an integral to a restriction time, so the number is only half the
   # estimand without it. Report the horizon actually integrated to as a COLUMN
@@ -354,7 +474,8 @@ predict.mlumr_fit <- function(object,
       values,
       data.frame(population = vapply(pops, pop_label, character(1)),
                  stringsAsFactors = FALSE),
-      type, summary, probs, times_out = pred_times[sel]
+      type, summary, probs, times_out = pred_times[sel],
+      requested_times = attr(sel, "requested")
     ))
   }
 
@@ -415,6 +536,7 @@ predict.mlumr_fit <- function(object,
   })
   .surv_result_frame(values, cell_labels, type, summary, probs,
                      times_out = pred_times[sel],
+                     requested_times = attr(sel, "requested"),
                      origin = .surv_origin(type, times, pred_times))
 }
 
@@ -695,14 +817,20 @@ predict.mlumr_fit <- function(object,
 #'   `newdata` target population instead).
 #' @param effect Which effect measure. For binomial: `"all"`, `"lor"`, `"rd"`,
 #'   or `"rr"`. For normal: `"all"` or `"md"` (mean difference). For poisson:
-#'   `"all"` or `"rr"` (rate ratio). For survival: `"all"`, `"hr"` (hazard ratio
-#'   for PH, time ratio for AFT, natural scale, null 1; `"tr"` is an accepted
-#'   alias), `"exp_delta_eta"`, `"rmstd"` (RMST difference, null 0), or
-#'   `"rmstr"` (RMST ratio, natural scale, null 1). Requesting an effect the fit
-#'   cannot produce is an error rather than a differently-named substitute: with
-#'   an AFT distribution and `aux_by = ".study"` the study shapes differ, so
-#'   `exp(eta_index - eta_comparator)` is not a time ratio and `"hr"` / `"tr"`
-#'   are rejected in favor of the explicit `"exp_delta_eta"`.
+#'   `"all"` or `"rr"` (rate ratio). For survival the scalar selector is
+#'   **literal and distribution-specific**: each fit accepts `"all"`, the one
+#'   scalar name that its contrast actually is, `"rmstd"` (RMST difference,
+#'   null 0), and `"rmstr"` (RMST ratio, natural scale, null 1). The scalar name
+#'   is `"hr"` (marginal hazard ratio, null 1) for a proportional-hazards fit,
+#'   `"tr"` (time ratio, null 1) for a shared-shape SPFA accelerated-failure-time
+#'   fit, and `"exp_delta_eta"` otherwise, meaning any relaxed AFT fit or a
+#'   **shape-bearing** AFT fit with `aux_by = ".study"`, where the covariate term
+#'   does not cancel or the shapes differ and no constant acceleration factor
+#'   exists. `"exponential-aft"` has no shape parameter, so `aux_by = ".study"`
+#'   leaves its baseline unstratified and an SPFA fit keeps `"tr"`. There are no
+#'   aliases: `"hr"` never returns a time ratio and `"tr"` never returns a
+#'   hazard ratio. Requesting a scale the fit cannot supply is an error naming
+#'   the one it can.
 #' @param at_time Evaluation time for the scalar marginal hazard ratio, for
 #'   proportional-hazards fits whose two studies have different baseline shapes
 #'   (`aux_by = ".study"` with a distribution that has a shape parameter, or
@@ -724,9 +852,16 @@ predict.mlumr_fit <- function(object,
 #'   are returned for the built-in `index` and/or `comparator` populations from
 #'   the Stan generated quantities. When supplied, the marginal effect is
 #'   recomputed by averaging model-based predictions over these rows at each
-#'   posterior draw, and `population` is ignored. For survival, RMST effects and
-#'   the time-specific target-standardized marginal hazard ratio are available;
-#'   the latter uses `at_time` (the first fitted prediction time by default).
+#'   posterior draw, and `population` is ignored. For survival the SAME scalar
+#'   selector applies as without `newdata`: supplying a target changes which
+#'   population an effect is standardized to, not which effects exist. A
+#'   proportional-hazards fit reports the time-specific target-standardized
+#'   marginal hazard ratio, which uses `at_time` (the first fitted prediction
+#'   time by default); an AFT fit reports its target-standardized location
+#'   contrast, `exp(mean(eta_index) - mean(eta_comparator))` over the target
+#'   rows, which is a `TR` when the coefficients are shared (and then identical
+#'   for every target, since the covariate term cancels) and an
+#'   `EXP_DELTA_ETA` when they are not. RMST effects are available throughout.
 #'
 #' @return A data frame. With `summary = FALSE` the raw posterior draws are
 #'   returned as a plain data frame (not plottable; plot methods need
@@ -1092,7 +1227,8 @@ marginal_effects <- function(object,
       values <- list(log_h$index - log_h$comparator)
       out <- .surv_result_frame(
         values, data.frame(population = "Target", stringsAsFactors = FALSE),
-        type, summary, probs, times_out = pred_times[sel]
+        type, summary, probs, times_out = pred_times[sel],
+        requested_times = attr(sel, "requested")
       )
       if (!summary) return(out)
       return(.mlumr_result(out, "mlumr_prediction", ptype = type,
@@ -1101,6 +1237,7 @@ marginal_effects <- function(object,
     values <- list(exp(log_h$index), exp(log_h$comparator))
     out <- .surv_result_frame(values, cell_labels, type, summary, probs,
                               times_out = pred_times[sel],
+                              requested_times = attr(sel, "requested"),
                               origin = .surv_origin(type, times, pred_times))
     if (!summary) return(out)
     return(.mlumr_result(out, "mlumr_prediction", ptype = type,
@@ -1132,6 +1269,7 @@ marginal_effects <- function(object,
                  flip(sbar$comparator)[, sel, drop = FALSE])
   out <- .surv_result_frame(values, cell_labels, type, summary, probs,
                             times_out = pred_times[sel],
+                            requested_times = attr(sel, "requested"),
                             origin = .surv_origin(type, times, pred_times))
   if (!summary) return(out)
   .mlumr_result(out, "mlumr_prediction", ptype = type, family = "survival")
@@ -1752,18 +1890,20 @@ marginal_effects <- function(object,
   # hazard ratio has a closed form; with differing shapes it can only be read
   # off the fitted grid.
   stratified <- .aux_shapes_differ(object)
-  # `tr` names the same scalar contrast as `hr` on the built-in route, which
-  # accepts it as an alias. Refusing it here made the same request succeed or
-  # fail depending only on whether `newdata` was supplied.
-  valid_effects <- if (is_ph) c("all", "hr", "tr", "rmstd", "rmstr") else
-    c("all", "rmstd", "rmstr")
+  # The SAME literal selector the built-in route uses. Adding `newdata` changes
+  # which population an effect is standardized to, not which effects exist, so
+  # a fit whose scalar is a time ratio answers `effect = "tr"` on both routes
+  # and one whose scalar is a location contrast answers `"exp_delta_eta"` on
+  # both. This route used to offer no AFT scalar at all, which made
+  # `effect = "all"` silently return RMST effects only as soon as a target was
+  # supplied.
+  lab <- .surv_scalar_label(object)
+  scalar_effect <- .surv_scalar_effect_name(lab$label)
+  valid_effects <- c("all", scalar_effect, "rmstd", "rmstr")
   if (!effect %in% valid_effects) {
-    stop(sprintf(
-      "For this survival fit and a `newdata` target, `effect` must be one of: %s.",
-      paste(valid_effects, collapse = ", ")
-    ), call. = FALSE)
+    stop(.surv_effect_scale_error(effect, lab$label, scalar_effect, stratified,
+                                  valid_effects), call. = FALSE)
   }
-  if (effect == "tr") effect <- "hr"
   if (!is.null(at_time) && !is_ph) {
     stop("`at_time` applies to a time-specific marginal hazard ratio, but this ",
          "fit uses an accelerated-failure-time distribution. Use RMST effects ",
@@ -1842,6 +1982,21 @@ marginal_effects <- function(object,
       at_time = used_time, horizon = NA_real_, draws = hr_draws
     )
   }
+  if (!is_ph && effect %in% c("all", scalar_effect)) {
+    # An AFT model is linear in the covariates on the log-time scale, so the
+    # target-standardized location contrast is the difference of the mean
+    # linear predictors over the target rows. With shared coefficients (SPFA)
+    # the covariate term cancels draw by draw and this reproduces the built-in
+    # scalar EXACTLY, which is the sense in which a shared-shape time ratio is
+    # population-invariant. With relaxed coefficients it does not cancel, and
+    # the value genuinely belongs to this target.
+    spec[[length(spec) + 1L]] <- list(
+      variable = paste0(tolower(scalar_effect), "_target"),
+      effect = lab$label, population = "Target",
+      at_time = NA_real_, horizon = NA_real_,
+      draws = exp(.target_delta_eta(object, newdata))
+    )
+  }
   if (effect %in% c("all", "rmstd")) {
     spec[[length(spec) + 1L]] <- list(
       variable = "rmst_diff_target", effect = "RMSTD", population = "Target",
@@ -1856,6 +2011,33 @@ marginal_effects <- function(object,
   }
 
   .surv_effect_frame(spec, summary, probs, rmst_tau)
+}
+
+#' Target-standardized location contrast for an AFT fit
+#'
+#' The AFT linear predictor is a log-time location, so the contrast standardized
+#' to a target population is the difference of the ARITHMETIC mean linear
+#' predictors over its rows, `mean(eta_index) - mean(eta_comparator)`. Its
+#' exponential is a ratio of geometric-mean survival times. This is the
+#' log-scale counterpart of [.target_loghr_origin()], which averages on the
+#' hazard scale and therefore uses log-sum-exp; here the `1/M` does not cancel
+#' and is applied.
+#'
+#' With shared coefficients the covariate term drops out draw by draw, so the
+#' result equals the built-in `delta_eta` for every target.
+#' @keywords internal
+.target_delta_eta <- function(object, newdata) {
+  profiles <- .conditional_profiles(object, newdata)
+  params <- .conditional_parameters(object, profiles$covariates)
+  x_centered <- profiles$X
+  si <- NULL
+  sc <- NULL
+  for (i in seq_len(nrow(x_centered))) {
+    eta <- .conditional_eta(params, x_centered[i, , drop = FALSE])
+    si <- if (is.null(si)) eta$index else si + eta$index
+    sc <- if (is.null(sc)) eta$comparator else sc + eta$comparator
+  }
+  (si - sc) / nrow(x_centered)
 }
 
 #' Marginal log hazard ratio in a target population at the origin
@@ -1918,49 +2100,22 @@ marginal_effects <- function(object,
   # time ratios, not one population acceleration factor.
   lab <- .surv_scalar_label(object)
   hr_label <- lab$label
-  # The estimand the caller asked for must be the estimand they get. When the
-  # AFT shapes differ there is no scalar time ratio, and returning the location
-  # contrast under the name `tr` would report one estimand under the name of
-  # another. Name the quantity that does exist and make the caller opt into it.
-  if (effect %in% c("hr", "tr") && identical(hr_label, "EXP_DELTA_ETA")) {
-    why <- if (stratified) {
-      paste0("each study has its own AFT shape (`aux_by = \".study\"`), so there ",
-             "is no constant acceleration factor at all (the Weibull quantile ",
-             "ratio picks up [-log S]^(1/a_i - 1/a_c), the log-normal ",
-             "exp(z_p (sigma_i - sigma_c)), and so on)")
-    } else {
-      paste0("this is a relaxed fit, so the two treatments have different ",
-             "coefficients and the covariate term does not cancel from ",
-             "mean(eta_index) - mean(eta_comparator). The time ratio varies by ",
-             "covariate profile, and exp(delta) is the geometric mean of those ",
-             "profile-specific ratios, not one population acceleration factor")
-    }
-    stop("`effect = \"", effect, "\"` is not available: ", why,
-         ". Use `effect = \"exp_delta_eta\"` for the location contrast itself, ",
-         "the collapsible `effect = \"rmstd\"` / \"rmstr\", or ",
-         "conditional_effects() for profile-specific time ratios.",
-         call. = FALSE)
-  }
-  if (identical(effect, "exp_delta_eta") && !identical(hr_label, "EXP_DELTA_ETA")) {
-    stop("`effect = \"exp_delta_eta\"` applies to an AFT distribution whose ",
-         "shapes differ by study (`aux_by = \".study\"`) or to any relaxed AFT ",
-         "fit, whose treatment-specific coefficients leave the covariate term ",
-         "in the contrast. This fit reports ", hr_label,
-         "; request `effect = \"", tolower(hr_label), "\"`.", call. = FALSE)
-  }
-
-  # `tr` (time ratio) is accepted as an alias for `hr`: for AFT distributions the
-  # returned effect is already labeled TR (see hr_label), so a user who thinks in
-  # time-ratio terms can request it by name; it routes to the same computation.
-  valid_effects <- c("all", "hr", "tr", "exp_delta_eta", "rmstd", "rmstr")
+  # The estimand the caller asked for must be the estimand they get, so the
+  # selector is LITERAL: exactly one scalar name is valid per fit, and it is the
+  # one that names what this fit's scalar contrast actually is. `hr`, `tr` and
+  # `exp_delta_eta` used to be interchangeable aliases for one computation,
+  # distinguished only by the label on the result; a caller could then request
+  # an HR from an AFT fit and receive a time ratio, which is the effect-scale
+  # error this API most needs to make impossible.
+  scalar_effect <- .surv_scalar_effect_name(hr_label)
+  valid_effects <- c("all", scalar_effect, "rmstd", "rmstr")
   if (!effect %in% valid_effects) {
-    stop(sprintf("For survival family, `effect` must be one of: %s",
-                 paste(valid_effects, collapse = ", ")), call. = FALSE)
+    stop(.surv_effect_scale_error(effect, hr_label, scalar_effect, stratified,
+                                  valid_effects), call. = FALSE)
   }
-  # `tr` and `exp_delta_eta` both name the exponentiated location contrast that
-  # `hr` computes; the LABEL on the result (HR / TR / EXP_DELTA_ETA) is what
-  # says which of the three it actually is, and the guards above have already
-  # rejected the combinations where the requested name is not the truth.
+  # The three scalar names all reach the same `hr` computation branch; the check
+  # above has already established that the requested name is the true one for
+  # this fit, so the mapping can no longer relabel one estimand as another.
   if (effect %in% c("tr", "exp_delta_eta")) effect <- "hr"
   # Resolve the evaluation time of the scalar marginal hazard ratio. This is a
   # genuine estimand choice, not a plotting control, so it is a named argument
@@ -2080,10 +2235,7 @@ marginal_effects <- function(object,
         # output is self-describing. `tr_*` would be a lie exactly where
         # hr_label has already established the quantity is NOT a time ratio, so
         # the raw name tracks the label rather than just the PH flag.
-        vname <- sprintf("%s_%s", switch(hr_label,
-                                         HR = "hr",
-                                         TR = "tr",
-                                         EXP_DELTA_ETA = "exp_delta_eta"), pop)
+        vname <- sprintf("%s_%s", .surv_scalar_effect_name(hr_label), pop)
         elabel <- hr_label
       } else if (eff == "rmstd") {
         vec <- draws[[sprintf("rmst_diff_%s", pop)]]
@@ -2325,6 +2477,14 @@ marginal_effects <- function(object,
 
 
 #' Validate quantile probabilities
+#'
+#' Distinct probabilities are not enough: every summary in the package names
+#' its quantile columns `q` followed by the probability in percent, and two
+#' probabilities that differ far below the printed precision get one name.
+#' `(0.1 + 0.2) / 10` and `0.3 / 10` are different doubles and are both `q3`.
+#' The summaries then assign that column twice and the first quantile asked
+#' for disappears without a word, which is the failure the duplicate check
+#' above exists to prevent. Ask for the names instead of the numbers.
 #' @keywords internal
 .validate_probs <- function(probs) {
   valid <- is.numeric(probs) &&
@@ -2338,8 +2498,26 @@ marginal_effects <- function(object,
          call. = FALSE)
   }
 
+  names <- .quantile_names(probs)
+  if (anyDuplicated(names)) {
+    dup <- unique(names[duplicated(names)])
+    stop("`probs` values that differ only beyond the printed precision would ",
+         "share a summary column: ", paste(dup, collapse = ", "),
+         ". Ask for probabilities that are distinguishable once written as a ",
+         "percentage.", call. = FALSE)
+  }
+
   invisible(TRUE)
 }
+
+
+#' The column name a quantile probability is reported under
+#'
+#' One definition, because a summary that names its columns differently from
+#' the validator would be checked for a collision that cannot happen and
+#' would suffer one that was never checked.
+#' @keywords internal
+.quantile_names <- function(probs) paste0("q", probs * 100)
 
 
 #' Validate a scalar marginal-effect choice

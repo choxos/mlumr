@@ -2,6 +2,63 @@
 
 ## Behavior and validation changes to existing functions
 
+* **`compare_models()` no longer reads a standard error as a threshold, and
+  refuses fits built on different observations.** The LOO/WAIC printout said
+  that `se_diff > 2` is the conventional threshold for a meaningful difference.
+  A large standard error is uncertainty about a difference, not evidence for
+  it; the paragraph now says to read `elpd_diff` against `se_diff`, to treat
+  any ratio as a heuristic rather than a decision rule, and to check the PSIS
+  diagnostics. Every comparison the function makes is also paired, column by
+  column, and `loo` can only check that the pointwise matrices have the same
+  shape: two fits of different data with the same number of rows, or of the
+  same rows in a different order, compared without complaint. The fits carry
+  the data they were built from, so the columns that define an observation
+  (`.study`, `.trt`, the outcome, exposure, and for survival the times and
+  status, and for survival comparators both the aggregate rows with their
+  covariate summaries and the reconstructed pseudo-individuals), together with
+  every covariate the fits share, are now compared across the fits row for
+  row and a mismatch is an error. Covariates
+  only one fit uses are not compared, since models of the same outcomes with
+  different covariate sets are exactly what gets compared. Because the stored
+  columns can only show what both fits kept, the setup functions now also
+  record for every row a key made of a digest of the whole source and the
+  row's rank within a canonical ordering of it (an internal `.source_key`
+  column, which is now a reserved name; nothing of the source's content is
+  kept). Two fits holding the same keys in a different order were built from
+  one source reordered between them, and are refused even when they share no
+  covariate. Fits whose sources differ in columns the models did not use, or
+  a fit from before the keys existed, cannot have their row order verified;
+  the comparison then runs with a warning saying so.
+  `calculate_dic()` objects carry the same frames, so a DIC comparison is
+  checked too. A model whose object carries no data is reported as
+  unverifiable rather than assumed to match.
+
+* **`prior_sensitivity()` validates `probs` with the shared validator.** Its
+  local copy of the check omitted the duplicate test that `.validate_probs()`
+  applies everywhere else, so two equal probabilities produced two identically
+  named `qNN` columns and the second silently overwrote the first: the caller
+  asked for n quantiles and received fewer, with no error.
+
+* **`prior_summary()` names the constrained prior instead of calling every
+  positive-constrained prior a "half-distribution".** Two of those labels were
+  wrong: an exponential is already supported on the positive half-line, so
+  `<lower=0>` truncates nothing, and a normal or t with a nonzero location
+  truncated at zero is a truncated normal or t, not a half-normal or half-t.
+
+* **`prior_sensitivity()` names its quantile columns like the rest of the
+  package.** They were built with `paste0("q", round(100 * probs))`, which
+  labelled the default 2.5th and 97.5th percentiles `q2` and `q98`, and made
+  distinct probabilities collide: `probs = c(0.024, 0.025)` produced `q2` twice
+  and the second silently overwrote the first. The columns are now `q2.5`,
+  `q50`, `q97.5`, matching `marginal_effects()`, so the two can be joined by
+  name. Code reading `q2` or `q98` must be updated.
+
+* **`prior_sensitivity()` no longer claims a scale sweep proves the inference is
+  data-driven.** Constant summaries across the tested scales show insensitivity
+  to those scales, within one prior family at one location on one model. The
+  printed interpretation now says that, and points at `check_identification()`
+  for the question a scale sweep cannot answer.
+
 * **Marginal summaries are no longer clipped to finite reporting bounds.** The
   Stan models previously passed marginal probabilities through `safe_logit()`
   (clamping to `[1e-10, 1 - 1e-10]`) and ratios through `safe_divide()`
@@ -203,19 +260,6 @@
   estimate; that comparison is withheld and named instead of scored across the
   two scales.
 
-* **`check_identification()` declines a fitted SPFA object.** Its report is
-  headed "relaxed model" and diagnoses `beta_comparator`, which a
-  shared-coefficient model does not have. It also compares the realized
-  integration design against the declared one through singular-value spectra
-  rather than matrix rank, which could not distinguish declared means
-  `c(-1, 1)` from realized `c(-1e-10, 1e-10)`; and two aggregate rows built
-  from the same integration tuples in a different order now count as one
-  profile, since the likelihood averages over a row's points.
-
-* **`n_knots` is validated only when knots have to be generated.** A valid
-  custom knot specification was rejected because an argument the fit never
-  reads was out of range. The resolved basis is still checked on its own terms.
-
 * **The cmdstanr executable cache now notices a changed include.** The cache
   key concatenated the MD5 of the model file with the MD5 of every include and
   kept the first 32 characters. An MD5 digest is already 32 characters, so the
@@ -244,7 +288,13 @@
   distribution by each arm's own survival. It follows the same
   evaluation-time convention as the built-in populations, the closed-form
   `t -> 0` limit when the two studies share a baseline shape and the requested
-  (or first) fitted time when they do not.
+  (or first) fitted time when they do not. An AFT fit reports its
+  target-standardized location contrast,
+  `exp(mean(eta_index) - mean(eta_comparator))` over the target rows: with
+  shared coefficients the covariate term cancels draw by draw and the value is
+  the same for every target, which is the sense in which a shared-shape time
+  ratio is population-invariant, while with relaxed coefficients it does not
+  cancel and the value belongs to that target.
 
   Standardizing to the index covariates reproduces `population = "index"`
   exactly, for every measure including the hazard ratio, which is the check
@@ -307,6 +357,22 @@
 
 ## Time-to-event (survival) outcomes
 
+* **New `prior_aux2` argument for the second generalized-gamma auxiliary
+  parameter.** The two auxiliaries govern different features of the hazard and
+  can need different regularization; both previously took whatever `prior_aux`
+  specified. `NULL` (the default) reuses `prior_aux`, so existing fits are
+  unchanged, and `prior_summary()` shows the two separately when they can
+  differ, naming them as the generalized-gamma `sigma` and `k = 1 / Q^2` for the
+  Lawless shape `Q` rather than as anonymous auxiliaries. Supplying it for a
+  distribution with fewer than two auxiliary parameters warns and is discarded
+  without being validated, rather than being silently ignored, and
+  `prior_sensitivity()` refuses to vary it mid-sweep like
+  every other scenario-defining argument. `prior_aux`'s documentation now also
+  records that one default is reused across auxiliary parameters that do not
+  share a scale: the Gompertz shape has units of 1 / time, so the same trial
+  expressed in days rather than years gives a half-normal(0, 2) an entirely
+  different meaning.
+
 * **New `"survival"` outcome family for data setup.** `set_ipd()` accepts
   time-to-event data, and **`set_agd_surv()`** takes the comparator arm as
   reconstructed pseudo-IPD (event and censoring times digitized from a published
@@ -350,7 +416,12 @@
   survival time), `"median"`, and `"loghr"` (the time-varying marginal log
   hazard ratio curve, null 0). `predict(type = "median")` carries a
   `p_not_reached` column reporting the posterior probability that the median is
-  beyond follow-up. `conditional_effects()` / `conditional_predict()` give
+  beyond follow-up. A `times` request is answered one row per requested time,
+  in the order asked, with a `requested_time` column beside `time`: each is
+  evaluated at the nearest fitted grid time, and a message names the requested
+  and the used time whenever the two differ or two requests land on one grid
+  point. `pred_times` sets the grid itself for exact evaluation.
+  `conditional_effects()` / `conditional_predict()` give
   covariate-conditional contrasts and survival curves. Both grid-based
   quantities say when their grid is too coarse to trust, per posterior draw:
   RMST warns when more than half of the fitted survival decay lands inside a
@@ -434,6 +505,9 @@
   rather than prior-driven? In the relaxed model `beta_comparator` is identified
   only by the aggregate likelihood, so the answer is fixed by the aggregate
   subgroup rows before any model is fitted.
+
+  It answers that for a relaxed specification and declines a fitted SPFA
+  object, which has no `beta_comparator` for the question to be about.
 
   Each aggregate row contributes one constraint and the comparator side has
   `K + 1` unknowns (the intercept counts), so `S >= K + 1` rows are necessary.
@@ -574,6 +648,24 @@
   `qr = TRUE` offers a QR-rotated design as an alternative conditioning fix.
 
 ## Documentation
+
+* **The relaxed model's identification claim is corrected.**
+  `prior_beta_comparator` said the comparator-population effect "is identified
+  directly by the AgD". The AgD likelihood informs the comparator-population
+  outcome, but identifying `beta_comparator` or a treatment contrast depends on
+  the number and geometry of the independent aggregate summaries, the link, the
+  covariate distribution, the outcome precision, and the prior. The
+  documentation says so, and points at `check_identification()` and
+  `prior_sensitivity()`.
+
+* **`set_agd_surv()` states that reconstruction uncertainty is not propagated.**
+  Pseudo-individual records enter the likelihood as observed data, so a survival
+  posterior conditions on one digitization of one published curve and carries
+  none of the uncertainty in producing it: intervals are narrower than the
+  evidence supports, most visibly for flexible baselines, late-tail RMST and
+  medians, and weakly identified relaxed comparator coefficients. The help page
+  now says this and describes refitting across plausible reconstructions as the
+  way to see how much it matters.
 
 * Reorganized the vignettes into nine outcome-focused guides: `introduction`,
   `data-preparation`, `binary-outcomes`, `continuous-outcomes`,
