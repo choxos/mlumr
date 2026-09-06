@@ -103,6 +103,14 @@ test_that("prior_sensitivity validates its grid, probs, and dots (M9)", {
                "unique finite numeric values between 0 and 1")
   expect_error(prior_sensitivity(stub, probs = c(0.5, 0.5)),
                "unique finite numeric values between 0 and 1")
+  # Distinct doubles are not enough. These two differ, and both are written
+  # `q3`, so the loop below assigned that column twice and the first quantile
+  # asked for was gone. The check is on the names the summary will use.
+  collide <- c((0.1 + 0.2) / 10, 0.3 / 10)
+  expect_false(collide[[1]] == collide[[2]])
+  expect_identical(.quantile_names(collide), c("q3", "q3"))
+  expect_error(prior_sensitivity(stub, probs = collide),
+               "share a summary column: q3")
   # Use a protected arg that reaches `...` (prior_beta* partial-match the
   # `_scales` formals and raise R's own ambiguity error instead).
   expect_error(prior_sensitivity(stub, prior_intercept = prior_normal(0, 5)),

@@ -398,8 +398,10 @@ prior_sensitivity <- function(fit,
   # `q98`) and could collide: probs 0.024 and 0.025 both produced `q2`, and the
   # assignment below then overwrote the first quantile with the second without a
   # word. Name them the way the rest of the package does, so a caller can bind
-  # prior_sensitivity() output to marginal_effects() output by column name.
-  qnames <- paste0("q", probs * 100)
+  # prior_sensitivity() output to marginal_effects() output by column name, and
+  # through the shared helper, whose names `.validate_probs()` has already
+  # checked for the collision that survives full precision.
+  qnames <- .quantile_names(probs)
 
   rows <- lapply(effect_names, function(nm) {
     x <- draws[, nm]

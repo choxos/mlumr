@@ -110,7 +110,7 @@ eval_distr <- function(d, p, data = list()) {
 .summarize_draw_matrix <- function(draws, probs) {
   summary_mat <- t(apply(draws, 2, .summarize_draw_vector, probs = probs))
   summary_df <- as.data.frame(summary_mat)
-  colnames(summary_df) <- c("mean", "sd", paste0("q", probs * 100))
+  colnames(summary_df) <- c("mean", "sd", .quantile_names(probs))
   summary_df
 }
 

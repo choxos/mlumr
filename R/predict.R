@@ -2204,6 +2204,14 @@ marginal_effects <- function(object,
 
 
 #' Validate quantile probabilities
+#'
+#' Distinct probabilities are not enough: every summary in the package names
+#' its quantile columns `q` followed by the probability in percent, and two
+#' probabilities that differ far below the printed precision get one name.
+#' `(0.1 + 0.2) / 10` and `0.3 / 10` are different doubles and are both `q3`.
+#' The summaries then assign that column twice and the first quantile asked
+#' for disappears without a word, which is the failure the duplicate check
+#' above exists to prevent. Ask for the names instead of the numbers.
 #' @keywords internal
 .validate_probs <- function(probs) {
   valid <- is.numeric(probs) &&
@@ -2217,8 +2225,26 @@ marginal_effects <- function(object,
          call. = FALSE)
   }
 
+  names <- .quantile_names(probs)
+  if (anyDuplicated(names)) {
+    dup <- unique(names[duplicated(names)])
+    stop("`probs` values that differ only beyond the printed precision would ",
+         "share a summary column: ", paste(dup, collapse = ", "),
+         ". Ask for probabilities that are distinguishable once written as a ",
+         "percentage.", call. = FALSE)
+  }
+
   invisible(TRUE)
 }
+
+
+#' The column name a quantile probability is reported under
+#'
+#' One definition, because a summary that names its columns differently from
+#' the validator would be checked for a collision that cannot happen and
+#' would suffer one that was never checked.
+#' @keywords internal
+.quantile_names <- function(probs) paste0("q", probs * 100)
 
 
 #' Validate a scalar marginal-effect choice
