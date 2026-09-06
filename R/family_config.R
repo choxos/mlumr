@@ -18,7 +18,14 @@
 #'   \item{`links`}{Vector of supported links. Should match the branches
 #'     in [check_link()].}
 #'   \item{`effect_measures`}{Supported values of the `effect` argument in
-#'     [marginal_effects()] (excluding `"all"`).}
+#'     [marginal_effects()] (excluding `"all"`). Family-level, and for
+#'     `"survival"` NOT the whole accepted set: the scalar contrast is
+#'     distribution-specific, so a fit accepts exactly one of `"hr"`, `"tr"` or
+#'     `"exp_delta_eta"` and the choice is made per fit by
+#'     `.surv_scalar_effect_name()`, which cannot be expressed here because this
+#'     registry is keyed by family alone. The entry lists `"hr"` as the
+#'     representative scalar; treat the survival row as the RMST measures plus
+#'     one fit-specific scalar.}
 #'   \item{`marginal_effect_vars`}{Generated-quantity column names for each
 #'     effect measure, per population. Expanded in [marginal_effects()].}
 #'   \item{`comp_weight_field`}{Name of the Stan-data field used to

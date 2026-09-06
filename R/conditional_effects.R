@@ -299,7 +299,7 @@ conditional_effects <- function(object,
 
   out <- do.call(rbind, summary_list)
   out <- out[, c("profile", "effect", "mean", "sd",
-                 paste0("q", probs * 100)), drop = FALSE]
+                 .quantile_names(probs)), drop = FALSE]
   # Survival effects are on the natural scale (null 1): the effect label is
   # already HR (PH) or TR (AFT) from the hr / tr column name set above.
   rownames(out) <- NULL
@@ -502,7 +502,7 @@ conditional_predict <- function(object,
     } else {
       s_idx <- summarize_col(val_idx)
       s_cmp <- summarize_col(val_cmp)
-      qcols <- paste0("q", probs * 100)
+      qcols <- .quantile_names(probs)
 
       results[[i]] <- data.frame(
         profile = c(i, i),

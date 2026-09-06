@@ -11,7 +11,8 @@
   covariates,
   family,
   exposure = NULL,
-  study = NULL
+  study = NULL,
+  source_keys = .source_row_keys(data)
 )
 }
 \description{

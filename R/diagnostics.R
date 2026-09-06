@@ -12,14 +12,43 @@
 #' Fail closed instead. The multiplicities must be expanded back to the original
 #' observation sequence (repeat unique column `k` its `agd_count[k]` times, and
 #' expand the arm map with it) before any diagnostic reads them.
+#'
+#' No shipped code path sets `agd_count`, so this guard is inert today: it is a
+#' precondition on the pointwise likelihood that tie aggregation would violate,
+#' placed before that feature rather than after the first wrong LOO value.
+#' Deleting it as unused would remove the check at exactly the moment the
+#' feature that needs it arrives.
 #' @keywords internal
 .assert_agd_loglik_per_observation <- function(object) {
   cnt <- object$stan_data$agd_count
-  if (is.null(cnt) || !length(cnt) || all(cnt <= 1L)) return(invisible(TRUE))
+  if (is.null(cnt) || !length(cnt)) return(invisible(TRUE))
+  # A multiplicity is a count of observations, so validate it before drawing any
+  # conclusion from `sum(cnt)`. Non-integer counts passed the expanded-shape test
+  # below while `.agd_center_weights()` truncated them with `as.integer()`, so
+  # `agd_count = c(1.5, 1.5)` with three likelihood columns was accepted here and
+  # produced a two-element arm map there. `all(cnt <= 1)` also used to return
+  # early, which waved through fractional and zero counts.
+  if (!is.numeric(cnt) || anyNA(cnt) || !all(is.finite(cnt)) || any(cnt < 1) ||
+        any(cnt != trunc(cnt))) {
+    stop("`stan_data$agd_count` must hold finite whole-number multiplicities of ",
+         "at least one, since each is a count of observations that one retained ",
+         "AgD row stands for.", call. = FALSE)
+  }
+  if (all(cnt == 1)) return(invisible(TRUE))
   draws <- object$draws
   if (is.null(draws) || is.null(colnames(draws))) return(invisible(TRUE))
   n_cols <- length(.ordered_log_lik_columns(draws, "agd"))
-  if (n_cols != length(cnt)) return(invisible(TRUE))   # already expanded
+  # Only ONE column count means the multiplicities were expanded: one column per
+  # observation, `sum(cnt)`. Treating every count that merely differs from
+  # `length(cnt)` as expanded passed any other shape too, which is the state
+  # this guard exists to catch rather than wave through.
+  if (n_cols == sum(cnt)) return(invisible(TRUE))
+  if (n_cols != length(cnt)) {
+    stop("`log_lik_agd` has ", n_cols, " column(s), which is neither one per ",
+         "retained AgD row (", length(cnt), ") nor one per observation (",
+         sum(cnt), "). LOO, WAIC, and DIC cannot align the pointwise ",
+         "likelihood with the arm map in that state.", call. = FALSE)
+  }
   stop("This fit collapsed tied aggregate rows (`stan_data$agd_count` has ",
        "multiplicities above one), so `log_lik_agd` holds one value per ",
        "UNIQUE row rather than one per observation. LOO, WAIC, and DIC would ",
@@ -80,6 +109,228 @@ extract_log_lik <- function(object) {
 }
 
 
+#' The observations a fit's pointwise likelihood is over
+#'
+#' Every comparison here is paired: `loo_compare()` differences pointwise
+#' values column by column, and DIC ranks totals over one data set. An equal
+#' number of columns is all `loo` itself can check, and it is not enough:
+#' two fits of different data with the same number of rows, or of the same
+#' data in a different row order, produce a matrix of the right shape and a
+#' comparison that means nothing. The fit carries the data it was built from,
+#' so the identity can be checked rather than assumed.
+#'
+#' The frames returned hold, in stored row order, the internal columns that
+#' define an observation (`.study`, `.trt`, the outcome, exposure, and for
+#' survival the times and status; named explicitly, since only the internal
+#' names are reserved and a covariate may itself begin with a dot) together
+#' with the covariates the fit used. For survival comparators the aggregate
+#' rows carry the covariate summaries and the reconstructed pseudo-individuals
+#' carry the times and status, and the pointwise units are the latter; both
+#' frames are kept, since a change to either changes the likelihood.
+#'
+#' The values define an observation, not their representation. A factor and
+#' the character vector it codes, with or without unused levels, or an integer
+#' count and the double that was read from a file, describe the same
+#' observations, so each column is reduced to its plain values. Study,
+#' treatment and arm are labels: a study numbered 1 is the same study whether
+#' the number was stored as a factor, an integer or a double, so those are
+#' compared as the strings that name them. Counts are accepted within
+#' rounding tolerance and rounded before Stan sees them, and are rounded the
+#' same way here.
+#'
+#' @param fit An `mlumr_fit`.
+#' @return A list with elements `ipd`, `agd` and `pseudo` (the last `NULL`
+#'   outside survival), or `NULL` when the fit carries no data.
+#' @keywords internal
+.observation_frames <- function(fit) {
+  data <- fit$data
+  if (is.null(data) || is.null(data$ipd$data)) return(NULL)
+  plain <- function(df) {
+    if (is.null(df)) return(NULL)
+    df <- as.data.frame(df)
+    rownames(df) <- NULL
+    df[] <- lapply(df, function(x) {
+      if (is.factor(x)) as.character(x) else if (is.numeric(x)) as.numeric(x) else as.vector(x)
+    })
+    for (nm in intersect(c(".study", ".trt", ".arm"), names(df))) {
+      df[[nm]] <- as.character(df[[nm]])
+    }
+    for (nm in intersect(c(".n", ".r"), names(df))) {
+      df[[nm]] <- as.numeric(.as_count_integer(df[[nm]]))
+    }
+    df
+  }
+  list(ipd = plain(data$ipd$data), agd = plain(data$agd$data),
+       pseudo = plain(data$agd$pseudo_ipd))
+}
+
+#' The internal columns that define an observation, across the families
+#' @keywords internal
+.observation_columns <- c(".study", ".trt", ".arm", ".outcome", ".exposure",
+                          ".n", ".r", ".y", ".se", ".E",
+                          ".time", ".start_time", ".delay_time", ".status")
+
+#' Were two fits built on the same observations, row for row?
+#'
+#' The observation columns must agree exactly, and so must every covariate
+#' column the two fits share. Covariates only one of them uses are left out on
+#' purpose: models of the same outcomes with different covariate sets are
+#' exactly what gets compared. Two rows that differ only in such a covariate
+#' are exchangeable for the model that does not use it, since its pointwise
+#' likelihood is the same for both, so either pairing gives that model the
+#' same comparison. A row swap that changes a shared covariate is a different
+#' pairing for both models and is a mismatch.
+#'
+#' The stored columns can only show what both fits kept. When the fits share
+#' no covariate, a swap of two rows that agree on the outcome columns moves
+#' both models' pointwise likelihoods and leaves nothing in those columns to
+#' see. The setup functions therefore record, for every row, a key made of a
+#' fingerprint of the whole source and the row's rank within it
+#' ([.source_row_keys()]). Two fits holding the same set of keys in a
+#' different order were built from one source reordered between them, and
+#' that is a mismatch whatever the columns say. Different sets mean the source
+#' itself changed between the fits, in columns the models did not use; the
+#' keys then cannot say whether the rows are in the same order, and neither
+#' can the columns, so the answer is `NA`: not a mismatch, and not verified
+#' either. A frame with one row cannot be reordered and needs no key.
+#' @param a,b Results of [.observation_frames()].
+#' @return `TRUE`, `FALSE`, or `NA` when the observations agree but the row
+#'   order could not be verified.
+#' @keywords internal
+.same_observations <- function(a, b, pseudo_grouped = FALSE,
+                               unordered = FALSE) {
+  same_frame <- function(x, y, grouped = FALSE) {
+    if (is.null(x) && is.null(y)) return(TRUE)
+    if (is.null(x) || is.null(y)) return(FALSE)
+    shared <- setdiff(intersect(names(x), names(y)), ".source_key")
+    obs <- intersect(.observation_columns, union(names(x), names(y)))
+    if (!all(obs %in% shared)) return(FALSE)
+    if (unordered) return(.same_grouped_rows(x, y, shared, group = FALSE))
+    if (grouped) return(.same_grouped_rows(x, y, shared))
+    if (!identical(x[shared], y[shared])) return(FALSE)
+    if (nrow(x) < 2L) return(TRUE)
+    kx <- x$.source_key
+    ky <- y$.source_key
+    if (is.null(kx) || is.null(ky)) return(NA)
+    if (identical(kx, ky)) return(TRUE)
+    if (identical(sort(kx), sort(ky))) return(FALSE)
+    NA
+  }
+  same_frame(a$ipd, b$ipd) && same_frame(a$agd, b$agd) &&
+    same_frame(a$pseudo, b$pseudo, grouped = pseudo_grouped)
+}
+
+#' Do two frames hold the same rows within each arm, in any order?
+#'
+#' The grouped survival units sum their pointwise columns inside a group
+#' before anything is compared, so the order of the rows inside a group is
+#' not part of the comparison and requiring it rejects work that is valid.
+#' What still has to hold is that each group is made of the same rows: the
+#' groups themselves must match, and within each one the rows must agree as a
+#' multiset, so a row moved from one arm to another, or replaced, is still a
+#' different comparator.
+#'
+#' Each group's rows are put in one canonical order and then compared as the
+#' values they are. Rendering them as text would have been simpler and wrong:
+#' `format()` prints to the display precision, so two survival times that
+#' differ below `getOption("digits")` would render alike and two different
+#' comparators would be approved. Ordering is exact on doubles, so nothing is
+#' rounded on the way in, and rows that tie on every shared column are
+#' interchangeable by construction. The source keys take no part: they exist
+#' to detect a reordering, which is the very thing being allowed.
+#' @param group Split the rows by `.arm` before comparing, which is what a
+#'   per-arm unit needs. `FALSE` compares the whole frame as one multiset,
+#'   for a criterion whose value does not depend on the order at all.
+#' @keywords internal
+.same_grouped_rows <- function(x, y, shared, group = TRUE) {
+  if (nrow(x) != nrow(y)) return(FALSE)
+  if (!nrow(x)) return(TRUE)
+  # A non-empty label on purpose: `split()` keeps `""` as a name and
+  # `list[[""]]` matches nothing, so every group would have come back empty
+  # and every comparison would have passed.
+  arm <- function(df) {
+    if (group && ".arm" %in% names(df)) {
+      paste0("arm:", as.character(df$.arm))
+    } else {
+      rep("all", nrow(df))
+    }
+  }
+  gx <- split(seq_len(nrow(x)), arm(x))
+  gy <- split(seq_len(nrow(y)), arm(y))
+  if (!identical(sort(names(gx)), sort(names(gy)))) return(FALSE)
+  # Byte order, so the canonical order does not depend on the locale.
+  canonical <- function(df, idx) {
+    sub <- df[idx, shared, drop = FALSE]
+    ord <- do.call(order, c(unname(as.list(sub)), list(method = "radix")))
+    sub <- sub[ord, , drop = FALSE]
+    rownames(sub) <- NULL
+    sub
+  }
+  for (g in names(gx)) {
+    if (length(gx[[g]]) != length(gy[[g]])) return(FALSE)
+    if (!identical(canonical(x, gx[[g]]), canonical(y, gy[[g]]))) return(FALSE)
+  }
+  TRUE
+}
+
+#' Refuse to compare fits that were not built on the same observations
+#' @keywords internal
+.assert_same_observations <- function(models, survival_unit = "observation",
+                                      unordered = FALSE) {
+  # The grouped survival units sum a group's pointwise columns before the
+  # comparison, so the comparator's rows have to be the same rows in the same
+  # groups but not in the same order. The index rows stay positional under
+  # every unit.
+  pseudo_grouped <- !identical(survival_unit, "observation")
+  frames <- lapply(models, function(m) {
+    if (inherits(m, "mlumr_fit")) {
+      .observation_frames(m)
+    } else if (inherits(m, "mlumr_dic")) {
+      m$observations
+    } else {
+      NULL
+    }
+  })
+  known <- Filter(Negate(is.null), frames)
+  # Every pair, not each against the first: the relation is not transitive,
+  # since two fits may share a covariate that a third does not carry.
+  unverified <- FALSE
+  for (i in seq_along(known)) {
+    for (j in seq_len(i - 1L)) {
+      same <- .same_observations(known[[j]], known[[i]],
+                                 pseudo_grouped, unordered)
+      if (isFALSE(same)) {
+        stop("The compared fits were not built on the same observations in ",
+             "the same order: their stored data differ in the columns that ",
+             "define an observation or in a covariate they share, or hold the ",
+             "rows of one source in a different order. Pointwise criteria are ",
+             "paired, column by column, so a comparison across different data, ",
+             "or the same data in a different order, is not a comparison of ",
+             "the models. Refit on one common data set.", call. = FALSE)
+      }
+      if (is.na(same)) unverified <- TRUE
+    }
+  }
+  if (unverified) {
+    warning("The compared fits agree on every observation column and every ",
+            "covariate they share, but whether their rows are in the same ",
+            "order could not be verified: they were built from sources that ",
+            "differ in columns the models did not use, or one of them predates ",
+            "the row keys. Pointwise criteria pair rows by position, so the ",
+            "comparison assumes the order is the same. Build both fits from ",
+            "one data frame to have it checked.", call. = FALSE)
+  }
+  unknown <- length(frames) - length(known)
+  if (unknown > 0L) {
+    message("Could not verify that the compared models share the same ",
+            "observations: ", unknown, " of them carr",
+            if (unknown == 1L) "ies" else "y",
+            " no data to check. The comparison assumes they do.")
+  }
+  invisible(length(known))
+}
+
+
 #' Ordered pointwise log-likelihood columns for one data source
 #' @keywords internal
 .ordered_log_lik_columns <- function(draws, source) {
@@ -128,7 +379,10 @@ extract_log_lik <- function(object) {
 #'
 #' @param object An `mlumr_fit` object
 #'
-#' @return A list of class `mlumr_dic` with components `DIC`, `pD`, `D_bar`
+#' @return A list of class `mlumr_dic` with components `DIC`, `pD`, `D_bar`,
+#'   `n_obs`, `model`, and `observations`, the fit's observation frames as
+#'   kept for [compare_models()], so a DIC object can still be checked against
+#'   the fits it is compared with.
 #' @export
 #'
 #' @examples
@@ -156,7 +410,8 @@ calculate_dic <- function(object) {
     pD = pD,
     D_bar = D_bar,
     n_obs = ncol(log_lik),
-    model = .mlumr_model_label(object)
+    model = .mlumr_model_label(object),
+    observations = .observation_frames(object)
   )
 
   class(out) <- "mlumr_dic"
@@ -403,6 +658,16 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic"),
   survival_unit <- match.arg(survival_unit)
   models <- list(...)
   .validate_model_count(models)
+  # DIC sums each model's pointwise log-likelihood over observations before
+  # taking its mean and variance, so its value does not change under any
+  # permutation of them and there is nothing paired to line up. Only the LOO
+  # and WAIC standard error of the difference is formed column by column, so
+  # only it needs the rows in one order.
+  .assert_same_observations(
+    models,
+    if (criterion == "dic") "observation" else survival_unit,
+    unordered = identical(criterion, "dic")
+  )
 
   if (criterion == "dic") {
     dics <- lapply(models, function(m) {
@@ -477,9 +742,8 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic"),
   cat(strrep("=", 22), "\n\n", sep = "")
   cmp <- loo::loo_compare(ic_list)
   print(cmp)
-  cat("\nelpd_diff is the difference in expected log pointwise predictive\n")
-  cat("density vs the best model. se_diff > 2 is the conventional threshold\n")
-  cat("for a meaningful difference (|elpd_diff| > 4 * se_diff is stronger).\n")
+  cat(.model_comparison_interpretation(), sep = "\n")
+  cat("\n")
   invisible(cmp)
 }
 
@@ -758,4 +1022,32 @@ check_diagnostics <- function(fit) {
     return(numeric())
   }
   x[is.finite(x)]
+}
+
+
+#' The interpretation paragraph the LOO/WAIC comparison prints
+#'
+#' Kept callable so a test can assert what users actually see rather than
+#' matching source text, which is brittle and, worse, matches comments about
+#' the wording as readily as the wording itself.
+#'
+#' The standard error of a difference measures UNCERTAINTY about that
+#' difference, not support for it. An earlier version of this paragraph
+#' presented a large `se_diff` as the threshold for a meaningful difference,
+#' under which an `elpd_diff` of 0.1 alongside an `se_diff` of 3 would have
+#' qualified as persuasive. It is the difference read against its own
+#' uncertainty that carries information, and even that is a heuristic.
+#'
+#' @return A character vector, one element per printed line.
+#' @keywords internal
+.model_comparison_interpretation <- function() {
+  c("",
+    "elpd_diff is the difference in expected log pointwise predictive",
+    "density vs the best model, and se_diff is its standard error: the",
+    "uncertainty about that difference, not evidence for it. Read the two",
+    "together. A difference small relative to se_diff is not distinguished",
+    "from zero by this comparison, whatever se_diff itself is.",
+    "Treat any ratio as a heuristic, not a decision rule, and check the",
+    "PSIS diagnostics and whether the difference matters for the",
+    "prediction you care about.")
 }

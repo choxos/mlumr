@@ -20,7 +20,14 @@
 #'   names as an alternative to `Surv` (right-censoring with status `0`/`1`,
 #'   plus optional delayed entry).
 #'
-#' @return An object of class `mlumr_ipd`
+#' @return An object of class `mlumr_ipd`. Its `$data` holds the treatment,
+#'   study, outcome and covariate columns under internal names, and one more,
+#'   `.source_key`: a digest of the whole of `data` together with the row's
+#'   rank within a canonical ordering of it, which lets [compare_models()]
+#'   tell fits of one source apart from fits of that source reordered, whatever
+#'   covariates they use. Nothing of `data`'s content is kept in it. The
+#'   internal names, `.source_key` among them, cannot be used as column names
+#'   in `data`.
 #' @export
 #'
 #' @examples
@@ -82,19 +89,28 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
   .validate_ipd_outcome(data, outcome, family, exposure)
   .validate_reserved_internal_names(
     c(covariates, treatment, outcome, exposure, study),
-    c(".study", ".trt", ".outcome", ".exposure"),
+    c(".study", ".trt", ".outcome", ".exposure", ".source_key"),
     "Column name(s)"
   )
   .validate_ipd_covariates(data, covariates)
   .validate_ipd_finite_columns(data, outcome, exposure, family)
 
-  data <- .drop_missing_rows(data, required_cols)
+  # The key describes the SOURCE, so it is taken before the model's own
+  # complete-case filter. Two models with different covariates drop different
+  # incomplete rows, and a key taken afterwards makes one source look like
+  # two: the digests differ, the ranks are never compared, and two fits that
+  # kept different patients are reported as merely unverifiable. Taken here
+  # and carried through the drop, the digest is the source's and the ranks
+  # name its rows, so keeping different patients is a mismatch.
+  complete <- stats::complete.cases(data[, required_cols])
+  source_keys <- .source_row_keys(data)[complete]
+  data <- .drop_missing_rows(data, required_cols, complete)
   .validate_complete_rows_remain(data, "IPD")
   .warn_constant_ipd_covariates(data, covariates)
   .warn_collinear_ipd_covariates(data, covariates)
   .validate_single_treatment(data, treatment, "IPD")
   ipd_data <- .standardize_ipd_data(data, treatment, outcome, covariates,
-                                    family, exposure, study)
+                                    family, exposure, study, source_keys)
 
   out <- c(
     list(
@@ -272,8 +288,10 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 
 #' Drop rows with missing setup inputs
 #' @keywords internal
-.drop_missing_rows <- function(data, required_cols) {
-  complete <- complete.cases(data[, required_cols])
+.drop_missing_rows <- function(data, required_cols,
+                               complete = stats::complete.cases(
+                                 data[, required_cols]
+                               )) {
   if (!all(complete)) {
     n_missing <- sum(!complete)
     warning(sprintf("%d rows with missing values will be excluded", n_missing),
@@ -378,7 +396,8 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 #' Standardize IPD to mlumr's internal column contract
 #' @keywords internal
 .standardize_ipd_data <- function(data, treatment, outcome, covariates,
-                                  family, exposure = NULL, study = NULL) {
+                                  family, exposure = NULL, study = NULL,
+                                  source_keys = .source_row_keys(data)) {
   ipd_data <- data.frame(
     .study = if (!is.null(study)) data[[study]] else "IPD_Study",
     .trt = data[[treatment]],
@@ -388,7 +407,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
   if (family == "normal") {
     ipd_data$.outcome <- as.numeric(data[[outcome]])
   } else {
-    ipd_data$.outcome <- as.integer(data[[outcome]])
+    ipd_data$.outcome <- .as_count_integer(data[[outcome]])
   }
   if (family == "poisson") {
     ipd_data$.exposure <- as.numeric(data[[exposure]])
@@ -397,7 +416,91 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
   for (cov in covariates) {
     ipd_data[[cov]] <- data[[cov]]
   }
+  ipd_data$.source_key <- source_keys
   ipd_data
+}
+
+#' One key per row of a source data frame, without keeping its content
+#'
+#' The stored data keep only the columns a model needs. Two fits of one source
+#' with different covariate sets therefore cannot show, from their stored
+#' columns alone, that the source was reordered between them when the moved
+#' rows agree on everything both fits kept; [compare_models()] needs to know,
+#' because its pointwise comparison pairs rows by position.
+#'
+#' The key is two things, neither of which reveals the source. The first is a
+#' fingerprint of the whole source: its schema and then its rows, columns in
+#' name order so that column order does not matter, rows sorted in byte order
+#' so that row order does not matter either, and the digest of that is taken.
+#' The second is the row's rank in that same sorted order, with identical rows
+#' sharing one rank. A fit built from the same source carries the same
+#' fingerprint and the same set of ranks, whatever order its rows came in; a
+#' source that changed in any column carries a different fingerprint, and then
+#' the ranks are never compared. Unused columns such as identifiers or free
+#' text go into the digest and are not kept: the fit object holds thirty-two
+#' hex digits and an integer per row.
+#'
+#' The schema is in the digest because the names are what put the columns in
+#' order, and a fingerprint that used them without recording them could be
+#' matched by a source they order differently. Rename a column across the sort
+#' boundary and every value moves to another position; a second source whose
+#' values happen to line up that way then produces the same rows, the same
+#' digest and the same ranks, and two fits with disjoint covariates and
+#' repeated treatments and outcomes would have their order certified on the
+#' strength of it. Each value is written with its own length as well, so that
+#' the separator between columns cannot be forged by a value that contains it.
+#' @keywords internal
+.source_row_keys <- function(data) {
+  # One string per row for every kind of column: a matrix column (a `Surv`
+  # object held in a data frame is one) and a list column would otherwise
+  # not give one value per row.
+  # A value that contains a separator, or one whose flattening collides with
+  # another shape ("a,b" beside `c("a", "b")` in one list column), would make
+  # two different rows one string and cost the comparison a distinction it is
+  # there to make. Every part is written with its own length, at both levels,
+  # so no string is a rearrangement of another.
+  # `as.character()` on a double prints 15 significant digits, so two values
+  # that differ below that collapse to one string, share a rank, and let a
+  # swap of those rows pass as the same order. `%.17g` round-trips every
+  # finite double exactly.
+  render <- function(x) {
+    if (is.double(x)) {
+      out <- sprintf("%.17g", x)
+      out[!is.finite(x)] <- as.character(x[!is.finite(x)])
+      return(out)
+    }
+    as.character(x)
+  }
+  tag <- function(x) {
+    x <- enc2utf8(render(x))
+    x[is.na(x)] <- "\002NA"
+    paste0(nchar(x, type = "bytes"), ":", x)
+  }
+  join <- function(parts) paste(tag(parts), collapse = ",")
+  flat <- function(x) {
+    if (!is.null(dim(x))) return(apply(x, 1L, join))
+    if (is.list(x)) return(vapply(x, function(e) join(render(e)), character(1)))
+    as.character(x)
+  }
+  nms <- sort(names(data))
+  cols <- lapply(nms, function(nm) tag(flat(data[[nm]])))
+  rows <- if (length(cols)) {
+    do.call(paste, c(cols, sep = "\036"))
+  } else {
+    rep("", nrow(data))
+  }
+  # Byte order, so that the same source gives the same ranks in every locale.
+  canon <- unique(sort(rows, method = "radix"))
+  # The schema first: the names that decided the order, and the type of each
+  # column, so that a source with the same values under different names or a
+  # different storage mode is a different source.
+  types <- vapply(data[nms], function(x) paste(class(x), collapse = ","),
+                  character(1))
+  schema <- paste(tag(paste0(nms, "\035", types)), collapse = "\036")
+  tmp <- tempfile("mlumr-source-")
+  on.exit(unlink(tmp), add = TRUE)
+  writeLines(c(schema, canon), tmp, useBytes = TRUE)
+  paste0(unname(tools::md5sum(tmp)), ":", match(rows, canon))
 }
 
 #' Summarize standardized IPD outcomes
@@ -529,7 +632,12 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 #' probit / cloglog under alternative links) are formed from
 #' `outcome_r / outcome_n`, so no scale conversion is required.
 #'
-#' @return An object of class `mlumr_agd`
+#' @return An object of class `mlumr_agd`. As for [set_ipd()], its `$data`
+#'   carries a `.source_key` column, a digest of the whole of `data` with the
+#'   row's rank within a canonical ordering of it, holding nothing of the
+#'   content; it lets [compare_models()] recognize one source reordered
+#'   between two fits. The internal names, `.source_key` among them, cannot be
+#'   used as column names in `data`.
 #' @export
 #'
 #' @examples
@@ -606,7 +714,7 @@ set_agd <- function(data, treatment,
   .validate_reserved_internal_names(
     c(cov_means, cov_sds[!is.na(cov_sds)], treatment, study,
       outcome_n, outcome_r, outcome_mean, outcome_se, outcome_E),
-    c(".study", ".trt", ".n", ".r", ".y", ".se", ".E"),
+    c(".study", ".trt", ".n", ".r", ".y", ".se", ".E", ".source_key"),
     "Column name(s)"
   )
   .validate_agd_covariate_names(cov_means)
@@ -986,6 +1094,7 @@ set_agd <- function(data, treatment,
       agd_data[[paste0(cov_name, "_sd")]] <- data[[cov_sds[[i]]]]
     }
   }
+  agd_data$.source_key <- .source_row_keys(data)
   agd_data
 }
 
