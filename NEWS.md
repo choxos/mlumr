@@ -353,11 +353,14 @@
   beyond follow-up. `conditional_effects()` / `conditional_predict()` give
   covariate-conditional contrasts and survival curves. Both grid-based
   quantities say when their grid is too coarse to trust, per posterior draw:
-  RMST warns when more than half of the fitted survival decay lands before the
-  second `n_rmst_grid` node (a two-node grid always does), and the median warns
-  when the curve is already at or below 0.5 at the first `pred_times` point,
-  where it can only be interpolated from `S(0) = 1` across the whole first
-  interval. Both point at a refit with a finer grid.
+  RMST warns when more than half of the fitted survival decay lands inside a
+  single interval of the `n_rmst_grid` grid (a two-node grid always does),
+  judged on each target profile's own curve before the profiles are averaged,
+  since profiles that collapse inside different intervals average to a curve
+  that looks resolved while the trapezoid overstates every one of them; and
+  the median warns when the curve is already at or below 0.5 at the first
+  `pred_times` point, where it can only be interpolated from `S(0) = 1`
+  across the whole first interval. Both point at a refit with a finer grid.
 
 * **`marginal_effects()` reports natural-scale survival effects** (null 1): the
   hazard ratio (`HR`) for proportional-hazards distributions, the time ratio

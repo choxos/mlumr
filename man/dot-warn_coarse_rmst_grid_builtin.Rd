@@ -28,6 +28,8 @@ way. This evaluates the standardized curve on the whole RMST grid, for both
 treatments in the requested populations, over exactly the rows Stan
 averaged: every IPD row for the index population and every integration
 point for the comparator one, equally weighted, un-centered here because
-\code{\link[=.conditional_profiles]{.conditional_profiles()}} centers again.
+\code{\link[=.conditional_profiles]{.conditional_profiles()}} centers again. The share is judged on the rows'
+own curves, not on their average, for the reason given at
+\code{\link[=.standardize_target_survival_s]{.standardize_target_survival_s()}}.
 }
 \keyword{internal}

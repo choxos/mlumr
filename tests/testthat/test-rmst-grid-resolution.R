@@ -9,20 +9,27 @@ surv_rows <- function(rate, tau, n) {
   matrix(exp(-rate * seq(0, tau, length.out = n)), nrow = 1)
 }
 
+# The integrator takes the resolution share from the profiles behind the
+# curve rather than from the curve. These matrices are single profiles, so
+# the curve's own share is the profiles' share.
+rmst_of <- function(s_mat, times) {
+  .rmst_from_surv_matrix(s_mat, times, .rmst_max_interval_share(s_mat))
+}
+
 test_that("a grid too coarse for the hazard is reported", {
   times <- seq(0, 10, length.out = 100)
   expect_warning(
-    .rmst_from_surv_matrix(surv_rows(100, 10, 100), times),
+    rmst_of(surv_rows(100, 10, 100), times),
     "inside a single interval of the RMST grid"
   )
 })
 
 test_that("an adequately resolved curve is not reported", {
   times <- seq(0, 10, length.out = 100)
-  expect_silent(.rmst_from_surv_matrix(surv_rows(1, 10, 100), times))
+  expect_silent(rmst_of(surv_rows(1, 10, 100), times))
   # A slow curve over a short horizon is also fine.
   t2 <- seq(0, 1, length.out = 50)
-  expect_silent(.rmst_from_surv_matrix(surv_rows(0.5, 1, 50), t2))
+  expect_silent(rmst_of(surv_rows(0.5, 1, 50), t2))
 })
 
 test_that("the numbers behind the warning are what it claims", {
@@ -51,16 +58,16 @@ test_that("a minority of badly resolved draws is not averaged away", {
   shares <- .rmst_max_interval_share(s)
   expect_equal(sum(shares > 0.5), 2L)
   expect_lt(.rmst_max_interval_share(matrix(colMeans(s), nrow = 1)), 0.5)
-  expect_warning(.rmst_from_surv_matrix(s, times), "In 40% of posterior draws")
+  expect_warning(rmst_of(s, times), "In 40% of posterior draws")
   # One draw in a hundred is left alone.
   many <- rbind(fast, slow[rep(1, 99), , drop = FALSE])
-  expect_silent(.rmst_from_surv_matrix(many, times))
+  expect_silent(rmst_of(many, times))
 })
 
 test_that("a flat curve does not warn", {
   # No decay to apportion.
   flat <- matrix(1, nrow = 1, ncol = 5)
-  expect_silent(.rmst_from_surv_matrix(flat, seq(0, 1, length.out = 5)))
+  expect_silent(rmst_of(flat, seq(0, 1, length.out = 5)))
 })
 
 test_that("a two-point grid warns whenever the curve decays at all", {
@@ -70,15 +77,14 @@ test_that("a two-point grid warns whenever the curve decays at all", {
   # alone it integrates exponential curves with rates 100 and 200 over a
   # horizon of 10 to the same RMST of 5.
   expect_equal(.rmst_max_interval_share(matrix(c(1, 0.5), nrow = 1)), 1)
-  expect_warning(.rmst_from_surv_matrix(matrix(c(1, 0.5), nrow = 1), c(0, 1)),
+  expect_warning(rmst_of(matrix(c(1, 0.5), nrow = 1), c(0, 1)),
                  "In 100% of posterior draws")
   tau <- 10
   two <- c(0, tau)
   fast <- exp(-100 * two)
   faster <- exp(-200 * two)
-  r_fast <- suppressWarnings(.rmst_from_surv_matrix(matrix(fast, nrow = 1), two))
-  r_faster <- suppressWarnings(.rmst_from_surv_matrix(matrix(faster, nrow = 1),
-                                                      two))
+  r_fast <- suppressWarnings(rmst_of(matrix(fast, nrow = 1), two))
+  r_faster <- suppressWarnings(rmst_of(matrix(faster, nrow = 1), two))
   expect_equal(unname(r_fast), tau / 2)
   expect_equal(unname(r_faster), tau / 2)
 })
@@ -89,27 +95,69 @@ test_that("a two-point grid warns whenever the curve decays at all", {
 # covariate mean, so nearly all of the decay lands before the second of 100
 # grid points across a horizon of 10.
 synthetic_survival_fit <- function(log_rate, n_grid = 100L, tau = 10,
-                                   beta = 0.01) {
+                                   beta = 0.01, shape = NULL) {
   set.seed(2026)
   n_draws <- 40L
   ipd <- data.frame(age = rnorm(30, 50, 5))
   x_int <- array(rnorm(2 * 16, 55, 5), dim = c(2L, 16L, 1L))
   center <- mean(ipd$age)
+  draws <- data.frame(mu_index = rep(log_rate, n_draws),
+                      mu_comparator = rep(log_rate + log(2), n_draws),
+                      `beta[1]` = rep(beta, n_draws),
+                      check.names = FALSE)
+  # A shape makes it Weibull: `S(t) = exp(-t^shape * exp(eta))`, which stays
+  # near 1 and then collapses, so where it collapses depends on the profile.
+  if (!is.null(shape)) draws$aux_val <- rep(shape, n_draws)
   structure(list(
     family = "survival",
     model = "spfa",
     data = list(covariates = "age", ipd = list(data = ipd),
                 index_treatment = "A", comparator_treatment = "B"),
-    draws = data.frame(mu_index = rep(log_rate, n_draws),
-                       mu_comparator = rep(log_rate + log(2), n_draws),
-                       `beta[1]` = rep(beta, n_draws),
-                       check.names = FALSE),
-    surv_info = list(kind = "parametric", dist_code = 1L,
-                     distribution = "exponential"),
+    draws = draws,
+    surv_info = if (is.null(shape)) {
+      list(kind = "parametric", dist_code = 1L, distribution = "exponential")
+    } else {
+      list(kind = "parametric", dist_code = 2L, distribution = "weibull")
+    },
     stan_data = list(rmst_grid_times = seq(0, tau, length.out = n_grid),
                      X_int = x_int - center, cov_center = center)
   ), class = "mlumr_fit")
 }
+
+test_that("profiles that collapse in different intervals are not averaged away", {
+  # Three target profiles under a Weibull of shape 300, a curve that is 1
+  # until its scale and 0 after it. Their scales are 1.1, 2.2 and 4.4, so on
+  # the grid 0, 1, ..., 5 each collapses just inside a different interval.
+  # Their average is 1, 1, 2/3, 1/3, 1/3, 0: a third of its decay in each of
+  # three intervals, nowhere near the threshold, while the trapezoid
+  # overstates each profile's RMST by close to half a grid width and, being
+  # linear, overstates the average by the same amount.
+  shape <- 300
+  fit <- synthetic_survival_fit(-shape * log(1.1), shape = shape,
+                                beta = -shape * log(2) / 10)
+  center <- fit$stan_data$cov_center
+  target <- data.frame(age = center + c(0, 10, 20))
+  times <- 0:5
+  sbar <- .standardize_target_survival_s(fit, target, times, NULL)
+  expect_equal(unname(sbar$index[1, ]), c(1, 1, 2, 1, 1, 0) / c(1, 1, 3, 3, 3, 1),
+               tolerance = 1e-6)
+  # The averaged curve passes; the profiles behind it do not.
+  expect_equal(unname(.rmst_max_interval_share(sbar$index)[1]), 1 / 3,
+               tolerance = 1e-6)
+  expect_equal(unname(sbar$share$index[1]), 1, tolerance = 1e-6)
+  expect_silent(.warn_coarse_rmst_grid(.rmst_max_interval_share(sbar$index)))
+  expect_warning(.rmst_from_surv_matrix(sbar$index, times, sbar$share$index),
+                 "In 100% of posterior draws")
+  # And the number the warning protects: the true mean RMST of the three
+  # profiles is 2.57, the grid returns 2.83.
+  rmst <- suppressWarnings(.rmst_from_surv_matrix(sbar$index, times,
+                                                  sbar$share$index))
+  expect_equal(unname(rmst[1]), 17 / 6, tolerance = 1e-6)
+  # One profile alone is the single-curve share, as before.
+  one <- .standardize_target_survival_s(fit, target[1, , drop = FALSE], times,
+                                        NULL)
+  expect_equal(one$share$index, .rmst_max_interval_share(one$index))
+})
 
 test_that("the fit's own populations get the same check as a target", {
   coarse <- synthetic_survival_fit(log(100))
@@ -174,9 +222,9 @@ test_that("a collapse inside a later interval is caught too", {
   times <- c(0, 1, 2, 3)
   later <- matrix(c(1, 0.999, 0.001, 0.001), nrow = 1)
   expect_equal(.rmst_max_interval_share(later), 0.998 / 0.999, tolerance = 1e-6)
-  expect_warning(.rmst_from_surv_matrix(later, times),
+  expect_warning(rmst_of(later, times),
                  "inside a single interval of the RMST grid")
   # Decay spread evenly across the intervals is resolved.
   even <- matrix(seq(1, 0.1, length.out = 4), nrow = 1)
-  expect_silent(.rmst_from_surv_matrix(even, times))
+  expect_silent(rmst_of(even, times))
 })

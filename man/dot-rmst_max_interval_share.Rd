@@ -19,7 +19,9 @@ not on the posterior mean curve: averaging first can hide the problem,
 since a posterior in which two draws in five collapse inside one interval
 and the rest decay smoothly averages to a share below the threshold while
 two fifths of the RMST draws are integrated from a single straight line.
-\code{NA} for a draw with no decay to apportion.
+\code{NA} for a draw with no decay to apportion. For a curve that is itself an
+average over target profiles, \code{\link[=.standardize_target_survival_s]{.standardize_target_survival_s()}} computes
+the share from the profiles instead, since their average can hide it.
 }
 \details{
 A two-point grid is the limiting case, not an exception to it: the only

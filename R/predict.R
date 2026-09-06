@@ -1063,8 +1063,10 @@ marginal_effects <- function(object,
                                            object$stan_data$rmst_ibasis,
                                            object$stan_data$rmst_ibasis_cmp)
     values <- list(
-      matrix(.rmst_from_surv_matrix(sbar$index, tt), ncol = 1),
-      matrix(.rmst_from_surv_matrix(sbar$comparator, tt), ncol = 1)
+      matrix(.rmst_from_surv_matrix(sbar$index, tt, sbar$share$index),
+             ncol = 1),
+      matrix(.rmst_from_surv_matrix(sbar$comparator, tt,
+                                    sbar$share$comparator), ncol = 1)
     )
     tau <- max(tt)
     out <- .surv_result_frame(values, cell_labels, type, summary, probs,
@@ -1309,8 +1311,20 @@ marginal_effects <- function(object,
 #' g-computation of the population-average survival function over an arbitrary
 #' target population (Chandler & Ishak Eq 14): for each treatment,
 #' `S_bar_k(t) = (1/M) sum_m S_k(t | x_m)` over the `M` rows of `newdata`.
+#'
+#' The `share` element judges how well `times` resolves the curves that were
+#' averaged, one value per draw and treatment: the decay that the profiles
+#' lose inside their own steepest grid interval, summed over profiles, as a
+#' fraction of the decay they lose in total. It is measured on each profile's
+#' curve before the averaging, because the average can look resolved when
+#' none of its parts is. Two profiles that each collapse inside a different
+#' interval average to a curve that loses half its decay in each, under any
+#' threshold, while the trapezoid rule is linear and overstates the average
+#' RMST by exactly the mean of what it overstates for the two. With one
+#' profile the share is the one [.rmst_max_interval_share()] computes.
 #' @return A list with `index` and `comparator`, each an `[n_draws, length(times)]`
-#'   matrix of target-standardized survival probabilities.
+#'   matrix of target-standardized survival probabilities, and `share`, a
+#'   list of two per-draw vectors named the same way.
 #' @keywords internal
 .standardize_target_survival_s <- function(object, newdata, times, ibasis,
                                            ibasis_cmp = NULL,
@@ -1327,11 +1341,19 @@ marginal_effects <- function(object,
 
   s_idx <- NULL
   s_cmp <- NULL
+  decay_idx <- NULL
+  decay_cmp <- NULL
+  add_decay <- function(total, s) {
+    parts <- .decay_parts(if (log_scale) exp(s) else s)
+    if (is.null(total)) parts else Map(`+`, total, parts)
+  }
   for (i in seq_len(n_target)) {
     eta <- .conditional_eta(params, x_centered[i, , drop = FALSE])
     si <- .surv_s_at_times(object, eta$index, times, ibasis, "index", log_scale)
     sc <- .surv_s_at_times(object, eta$comparator, times, ibasis_cmp,
                            "comparator", log_scale)
+    decay_idx <- add_decay(decay_idx, si)
+    decay_cmp <- add_decay(decay_cmp, sc)
     if (is.null(s_idx)) {
       s_idx <- si
       s_cmp <- sc
@@ -1343,10 +1365,14 @@ marginal_effects <- function(object,
       s_cmp <- s_cmp + sc
     }
   }
+  share <- list(index = .decay_share(decay_idx$max, decay_idx$total),
+                comparator = .decay_share(decay_cmp$max, decay_cmp$total))
   if (log_scale) {
-    list(index = s_idx - log(n_target), comparator = s_cmp - log(n_target))
+    list(index = s_idx - log(n_target), comparator = s_cmp - log(n_target),
+         share = share)
   } else {
-    list(index = s_idx / n_target, comparator = s_cmp / n_target)
+    list(index = s_idx / n_target, comparator = s_cmp / n_target,
+         share = share)
   }
 }
 
@@ -1500,13 +1526,21 @@ marginal_effects <- function(object,
 
 
 #' RMST per draw from a target-standardized survival curve (trapezoid)
+#'
+#' @param s_mat Draws by times survival matrix, already averaged over the
+#'   target's profiles.
+#' @param times The integration grid.
+#' @param share The per-draw resolution share of the profiles behind `s_mat`,
+#'   the `share` element [.standardize_target_survival_s()] returns. It is
+#'   not derived from `s_mat` here on purpose: the average of the profiles can
+#'   pass the check when every profile fails it.
 #' @keywords internal
-.rmst_from_surv_matrix <- function(s_mat, times) {
+.rmst_from_surv_matrix <- function(s_mat, times, share) {
   dt <- diff(times)
   # trapezoid: sum_j (S[,j] + S[,j+1]) / 2 * (t[j+1] - t[j])
   left <- s_mat[, -ncol(s_mat), drop = FALSE]
   right <- s_mat[, -1, drop = FALSE]
-  .warn_coarse_rmst_grid(s_mat, times)
+  .warn_coarse_rmst_grid(share)
   as.numeric(((left + right) / 2) %*% dt)
 }
 
@@ -1526,20 +1560,18 @@ marginal_effects <- function(object,
 #' gives 1.83, and converges to 2.0. Nothing about the result looks wrong, which
 #' is why this warns rather than relying on the user to check.
 #'
-#' The trigger is the share of the total decay that lands in the first
-#' interval: when the curve has already fallen most of the way before the
-#' second grid point, the grid is resolving the tail rather than the event
+#' The trigger is the share of the total decay that lands in one grid
+#' interval: when a curve has already fallen most of the way between two
+#' adjacent grid points, the grid is resolving the tail rather than the event
 #' times.
 #'
-#' @param s_mat Draws by times survival matrix.
-#' @param times The integration grid.
+#' @param share Per-draw shares, one vector per curve as
+#'   [.rmst_max_interval_share()] or [.standardize_target_survival_s()]
+#'   computes them; `NA` where there is no decay to apportion.
 #' @return `NULL`, invisibly; called for the warning.
 #' @keywords internal
-.warn_coarse_rmst_grid <- function(s_mat, times) {
-  if (length(times) < 2L || !nrow(s_mat)) {
-    return(invisible(NULL))
-  }
-  .warn_interval_share(list(.rmst_max_interval_share(s_mat)))
+.warn_coarse_rmst_grid <- function(share) {
+  .warn_interval_share(list(share))
 }
 
 #' Largest share of the total survival decay that lands in one grid interval
@@ -1556,7 +1588,9 @@ marginal_effects <- function(object,
 #' since a posterior in which two draws in five collapse inside one interval
 #' and the rest decay smoothly averages to a share below the threshold while
 #' two fifths of the RMST draws are integrated from a single straight line.
-#' `NA` for a draw with no decay to apportion.
+#' `NA` for a draw with no decay to apportion. For a curve that is itself an
+#' average over target profiles, [.standardize_target_survival_s()] computes
+#' the share from the profiles instead, since their average can hide it.
 #'
 #' A two-point grid is the limiting case, not an exception to it: the only
 #' interval is the whole horizon, so the share is 1. Treating that grid as "no
@@ -1566,11 +1600,32 @@ marginal_effects <- function(object,
 #' with nothing said.
 #' @keywords internal
 .rmst_max_interval_share <- function(s_mat) {
+  parts <- .decay_parts(s_mat)
+  .decay_share(parts$max, parts$total)
+}
+
+#' The two pieces of the resolution share, per draw
+#'
+#' `max` is the largest drop between two adjacent grid points and `total` the
+#' drop from the first point to the last. Kept apart so that the pieces of
+#' several profiles can be summed before the ratio is taken. `NA` when the
+#' grid has fewer than two points.
+#' @keywords internal
+.decay_parts <- function(s_mat) {
   s_mat <- as.matrix(s_mat)
-  if (ncol(s_mat) < 2L) return(rep(NA_real_, nrow(s_mat)))
-  total_drop <- s_mat[, 1L] - s_mat[, ncol(s_mat)]
+  if (ncol(s_mat) < 2L) {
+    none <- rep(NA_real_, nrow(s_mat))
+    return(list(max = none, total = none))
+  }
   drops <- s_mat[, -ncol(s_mat), drop = FALSE] - s_mat[, -1L, drop = FALSE]
-  share <- apply(drops, 1L, max) / total_drop
+  list(max = apply(drops, 1L, max),
+       total = s_mat[, 1L] - s_mat[, ncol(s_mat)])
+}
+
+#' The resolution share from its pieces, `NA` where there is no decay
+#' @keywords internal
+.decay_share <- function(max_drop, total_drop) {
+  share <- max_drop / total_drop
   share[!is.finite(share) | !is.finite(total_drop) | total_drop <= 0] <- NA_real_
   share
 }
@@ -1585,7 +1640,9 @@ marginal_effects <- function(object,
 #' treatments in the requested populations, over exactly the rows Stan
 #' averaged: every IPD row for the index population and every integration
 #' point for the comparator one, equally weighted, un-centered here because
-#' [.conditional_profiles()] centers again.
+#' [.conditional_profiles()] centers again. The share is judged on the rows'
+#' own curves, not on their average, for the reason given at
+#' [.standardize_target_survival_s()].
 #' @param object A survival `mlumr_fit`.
 #' @param pops The populations whose RMST is being returned, `"index"`,
 #'   `"comparator"` or both. Only their curves are judged: the comparator
@@ -1634,8 +1691,7 @@ marginal_effects <- function(object,
                                                     ib_cmp),
                      error = function(e) NULL)
     if (is.null(sbar)) next
-    shares <- c(shares, list(.rmst_max_interval_share(sbar$index),
-                             .rmst_max_interval_share(sbar$comparator)))
+    shares <- c(shares, list(sbar$share$index, sbar$share$comparator))
   }
   .warn_interval_share(shares)
 }
@@ -1732,8 +1788,9 @@ marginal_effects <- function(object,
     sbar <- .standardize_target_survival_s(object, newdata, times,
                                            object$stan_data$rmst_ibasis,
                                            object$stan_data$rmst_ibasis_cmp)
-    rmst_i <- .rmst_from_surv_matrix(sbar$index, times)
-    rmst_c <- .rmst_from_surv_matrix(sbar$comparator, times)
+    rmst_i <- .rmst_from_surv_matrix(sbar$index, times, sbar$share$index)
+    rmst_c <- .rmst_from_surv_matrix(sbar$comparator, times,
+                                     sbar$share$comparator)
   }
 
   spec <- list()

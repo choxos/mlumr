@@ -4,12 +4,12 @@
 \alias{.warn_coarse_rmst_grid}
 \title{Warn when the RMST grid is too coarse for the hazard it is integrating}
 \usage{
-.warn_coarse_rmst_grid(s_mat, times)
+.warn_coarse_rmst_grid(share)
 }
 \arguments{
-\item{s_mat}{Draws by times survival matrix.}
-
-\item{times}{The integration grid.}
+\item{share}{Per-draw shares, one vector per curve as
+\code{\link[=.rmst_max_interval_share]{.rmst_max_interval_share()}} or \code{\link[=.standardize_target_survival_s]{.standardize_target_survival_s()}}
+computes them; \code{NA} where there is no decay to apportion.}
 }
 \value{
 \code{NULL}, invisibly; called for the warning.
@@ -29,9 +29,9 @@ difference of 4e-6 against a true 5e-3. The same calculation on 1600 nodes
 gives 1.83, and converges to 2.0. Nothing about the result looks wrong, which
 is why this warns rather than relying on the user to check.
 
-The trigger is the share of the total decay that lands in the first
-interval: when the curve has already fallen most of the way before the
-second grid point, the grid is resolving the tail rather than the event
+The trigger is the share of the total decay that lands in one grid
+interval: when a curve has already fallen most of the way between two
+adjacent grid points, the grid is resolving the tail rather than the event
 times.
 }
 \keyword{internal}
