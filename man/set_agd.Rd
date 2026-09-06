@@ -86,11 +86,26 @@ such rows the relaxed model needs.
 \code{y_agd ~ normal(E[exp(eta)], se_agd)} under \code{link = "log"} and
 \code{y_agd ~ normal(E[eta], se_agd)} under \code{link = "identity"}. In both
 cases \code{outcome_mean} and \code{outcome_se} must be on the \strong{arithmetic
-(original, untransformed) scale}. If a publication reports only a
-log-scale mean / SD or a geometric mean, back-transform before
-calling \code{set_agd()} and propagate uncertainty via the delta method;
-passing log-scale or geometric summaries silently misspecifies the
-likelihood and biases the posterior.
+(original, untransformed) scale}.
+
+A geometric mean is ALREADY on the original measurement scale, and it is a
+different quantity from the arithmetic mean: exponentiating a log-scale mean
+returns the geometric mean, not the arithmetic one. For a lognormal outcome
+with log-scale mean 0 and log-scale SD 1 the geometric mean is 1 while the
+arithmetic mean is \code{exp(0.5) = 1.65}, so substituting one for the other is a
+39\% error in the reported level. No amount of standard-error propagation
+repairs that: the delta method rescales uncertainty about a transformation,
+it does not convert one estimand into another.
+
+So do not "back-transform and apply the delta method". Ask for, or compute
+from the individual data, the arithmetic mean and its standard error. If you
+have only log-scale summaries and are willing to assume the outcome is
+lognormal, the arithmetic mean is \code{exp(m + s^2 / 2)} where \code{m} is the
+log-scale mean and \code{s} is the log-scale \strong{SD} of the outcome, not the
+standard error of \code{m}; propagate uncertainty in \code{m} and \code{s} jointly through
+that expression. A change score on a transformed scale generally cannot be
+reversed from a published mean alone at all. Passing log-scale or geometric
+summaries silently misspecifies the likelihood and biases the posterior.
 
 \strong{Scale assumptions for \code{family = "poisson"}.} \code{outcome_r} is the
 total count in each AgD row and \code{outcome_E} is the total

@@ -492,6 +492,7 @@ predict.mlumr_fit <- function(object,
            "median is searched over `pred_times`; change either by refitting.",
            call. = FALSE)
     }
+    if (type == "rmst") .warn_coarse_rmst_grid_builtin(object, pops)
     values <- lapply(seq_len(nrow(cells)), function(i) {
       if (type == "rmst") {
         col <- sprintf("rmst_%s_%s", cells$trt[i], cells$pop[i])
@@ -504,6 +505,12 @@ predict.mlumr_fit <- function(object,
       matrix(.surv_median_from_draws(as.matrix(draws[, cols, drop = FALSE]),
                                      pred_times), ncol = 1)
     })
+    if (type == "median") {
+      .warn_early_median(lapply(seq_len(nrow(cells)), function(i) {
+        first <- sprintf("surv_%s_%s[1]", cells$trt[i], cells$pop[i])
+        .median_early_share(draws[[first]])
+      }))
+    }
     # RMST is an integral to a restriction time, so the number is only half the
     # estimand without it. Report the horizon actually integrated to, read off
     # the fitted grid: that is the requested `rmst_horizon` when one was given,
@@ -658,6 +665,42 @@ predict.mlumr_fit <- function(object,
   invisible()
 }
 
+
+#' Share of draws whose median falls before the first fitted prediction time
+#'
+#' There the median is interpolated between `S(0) = 1` and the first grid
+#' value, with nothing in between to say where inside that interval the curve
+#' crossed 0.5. The error is not small: an exponential curve with rate 100 has
+#' median 0.0069, and a grid whose first point is 0.2 reports 0.1. Per draw,
+#' like the RMST check, so a posterior in which some draws collapse early is
+#' not hidden by the ones that do not.
+#' @keywords internal
+.median_early_share <- function(surv_mat) {
+  s <- as.matrix(surv_mat)
+  if (!nrow(s) || !ncol(s)) return(NA_real_)
+  mean(s[, 1L] <= 0.5)
+}
+
+#' Warn when the median is being read off the first grid interval
+#' @param shares Per-curve values of [.median_early_share()].
+#' @keywords internal
+.warn_early_median <- function(shares) {
+  shares <- unlist(shares)
+  shares <- shares[is.finite(shares)]
+  if (!length(shares)) return(invisible(NULL))
+  worst <- max(shares)
+  if (worst > 0.05) {
+    msg <- paste0("In %.0f%% of posterior draws the survival curve is already ",
+                  "at or below 0.5 at the first fitted prediction time, so the ",
+                  "median is interpolated from S(0) = 1 across that whole first ",
+                  "interval and can be off by a large factor: an exponential ",
+                  "curve with median 0.007 is reported at 0.1 when the grid ",
+                  "starts at 0.2. Refit with `pred_times` that start earlier ",
+                  "and compare.")
+    warning(sprintf(msg, 100 * worst), call. = FALSE)
+  }
+  invisible(NULL)
+}
 
 #' Median survival time from posterior survival-curve draws (linear interp)
 #' @keywords internal
@@ -1155,8 +1198,10 @@ marginal_effects <- function(object,
                                            object$stan_data$rmst_ibasis,
                                            object$stan_data$rmst_ibasis_cmp)
     values <- list(
-      matrix(.rmst_from_surv_matrix(sbar$index, tt), ncol = 1),
-      matrix(.rmst_from_surv_matrix(sbar$comparator, tt), ncol = 1)
+      matrix(.rmst_from_surv_matrix(sbar$index, tt, sbar$share$index),
+             ncol = 1),
+      matrix(.rmst_from_surv_matrix(sbar$comparator, tt,
+                                    sbar$share$comparator), ncol = 1)
     )
     tau <- max(tt)
     out <- .surv_result_frame(values, cell_labels, type, summary, probs,
@@ -1208,6 +1253,8 @@ marginal_effects <- function(object,
       matrix(.surv_median_from_draws(sbar$index, pred_times), ncol = 1),
       matrix(.surv_median_from_draws(sbar$comparator, pred_times), ncol = 1)
     )
+    .warn_early_median(list(.median_early_share(sbar$index),
+                            .median_early_share(sbar$comparator)))
     out <- .surv_result_frame(values, cell_labels, type, summary, probs)
     if (!summary) return(out)
     return(.mlumr_result(out, "mlumr_prediction", ptype = type,
@@ -1402,8 +1449,20 @@ marginal_effects <- function(object,
 #' g-computation of the population-average survival function over an arbitrary
 #' target population (Chandler & Ishak Eq 14): for each treatment,
 #' `S_bar_k(t) = (1/M) sum_m S_k(t | x_m)` over the `M` rows of `newdata`.
+#'
+#' The `share` element judges how well `times` resolves the curves that were
+#' averaged, one value per draw and treatment: the decay that the profiles
+#' lose inside their own steepest grid interval, summed over profiles, as a
+#' fraction of the decay they lose in total. It is measured on each profile's
+#' curve before the averaging, because the average can look resolved when
+#' none of its parts is. Two profiles that each collapse inside a different
+#' interval average to a curve that loses half its decay in each, under any
+#' threshold, while the trapezoid rule is linear and overstates the average
+#' RMST by exactly the mean of what it overstates for the two. With one
+#' profile the share is the one [.rmst_max_interval_share()] computes.
 #' @return A list with `index` and `comparator`, each an `[n_draws, length(times)]`
-#'   matrix of target-standardized survival probabilities.
+#'   matrix of target-standardized survival probabilities, and `share`, a
+#'   list of two per-draw vectors named the same way.
 #' @keywords internal
 .standardize_target_survival_s <- function(object, newdata, times, ibasis,
                                            ibasis_cmp = NULL,
@@ -1420,11 +1479,19 @@ marginal_effects <- function(object,
 
   s_idx <- NULL
   s_cmp <- NULL
+  decay_idx <- NULL
+  decay_cmp <- NULL
+  add_decay <- function(total, s) {
+    parts <- .decay_parts(if (log_scale) exp(s) else s)
+    if (is.null(total)) parts else Map(`+`, total, parts)
+  }
   for (i in seq_len(n_target)) {
     eta <- .conditional_eta(params, x_centered[i, , drop = FALSE])
     si <- .surv_s_at_times(object, eta$index, times, ibasis, "index", log_scale)
     sc <- .surv_s_at_times(object, eta$comparator, times, ibasis_cmp,
                            "comparator", log_scale)
+    decay_idx <- add_decay(decay_idx, si)
+    decay_cmp <- add_decay(decay_cmp, sc)
     if (is.null(s_idx)) {
       s_idx <- si
       s_cmp <- sc
@@ -1436,10 +1503,14 @@ marginal_effects <- function(object,
       s_cmp <- s_cmp + sc
     }
   }
+  share <- list(index = .decay_share(decay_idx$max, decay_idx$total),
+                comparator = .decay_share(decay_cmp$max, decay_cmp$total))
   if (log_scale) {
-    list(index = s_idx - log(n_target), comparator = s_cmp - log(n_target))
+    list(index = s_idx - log(n_target), comparator = s_cmp - log(n_target),
+         share = share)
   } else {
-    list(index = s_idx / n_target, comparator = s_cmp / n_target)
+    list(index = s_idx / n_target, comparator = s_cmp / n_target,
+         share = share)
   }
 }
 
@@ -1593,13 +1664,211 @@ marginal_effects <- function(object,
 
 
 #' RMST per draw from a target-standardized survival curve (trapezoid)
+#'
+#' @param s_mat Draws by times survival matrix, already averaged over the
+#'   target's profiles.
+#' @param times The integration grid.
+#' @param share The per-draw resolution share of the profiles behind `s_mat`,
+#'   the `share` element [.standardize_target_survival_s()] returns. It is
+#'   not derived from `s_mat` here on purpose: the average of the profiles can
+#'   pass the check when every profile fails it.
 #' @keywords internal
-.rmst_from_surv_matrix <- function(s_mat, times) {
+.rmst_from_surv_matrix <- function(s_mat, times, share) {
   dt <- diff(times)
   # trapezoid: sum_j (S[,j] + S[,j+1]) / 2 * (t[j+1] - t[j])
   left <- s_mat[, -ncol(s_mat), drop = FALSE]
   right <- s_mat[, -1, drop = FALSE]
+  .warn_coarse_rmst_grid(share)
   as.numeric(((left + right) / 2) %*% dt)
+}
+
+
+#' Warn when the RMST grid is too coarse for the hazard it is integrating
+#'
+#' The trapezoid rule is accurate only where the curve is resolved. When events
+#' happen far earlier than the restriction time, almost all of the decay falls
+#' inside the FIRST interval, where a straight line between `S(0) = 1` and
+#' `S(t_1)` is a poor approximation of a steep exponential, and the integral is
+#' badly overstated. Because both arms are overstated in nearly the same way, a
+#' difference or ratio can lose the entire effect rather than merely blur it.
+#'
+#' Exponential rates 100 and 200 integrated to `tau = 10` on the default
+#' 100-node grid return an RMST ratio of 1.0001 against a true 2.0, and an RMST
+#' difference of 4e-6 against a true 5e-3. The same calculation on 1600 nodes
+#' gives 1.83, and converges to 2.0. Nothing about the result looks wrong, which
+#' is why this warns rather than relying on the user to check.
+#'
+#' The trigger is the share of the total decay that lands in one grid
+#' interval: when a curve has already fallen most of the way between two
+#' adjacent grid points, the grid is resolving the tail rather than the event
+#' times.
+#'
+#' @param share Per-draw shares, one vector per curve as
+#'   [.rmst_max_interval_share()] or [.standardize_target_survival_s()]
+#'   computes them; `NA` where there is no decay to apportion.
+#' @return `NULL`, invisibly; called for the warning.
+#' @keywords internal
+.warn_coarse_rmst_grid <- function(share) {
+  .warn_interval_share(list(share))
+}
+
+#' Largest share of the total survival decay that lands in one grid interval
+#'
+#' One value per posterior draw: the biggest drop between two adjacent grid
+#' points, as a fraction of the drop from the first point to the horizon. A
+#' curve that loses more than half of its decay inside a single interval is
+#' being integrated across that interval by one straight line, wherever the
+#' interval is. Looking only at the first interval missed the same fault one
+#' step later: a curve that stays near 1 through the first interval and
+#' collapses inside the second, a delayed parametric hazard or a localized
+#' flexible baseline, had a first-interval share of zero and passed. Per draw,
+#' not on the posterior mean curve: averaging first can hide the problem,
+#' since a posterior in which two draws in five collapse inside one interval
+#' and the rest decay smoothly averages to a share below the threshold while
+#' two fifths of the RMST draws are integrated from a single straight line.
+#' `NA` for a draw with no decay to apportion. For a curve that is itself an
+#' average over target profiles, [.standardize_target_survival_s()] computes
+#' the share from the profiles instead, since their average can hide it.
+#'
+#' A two-point grid is the limiting case, not an exception to it: the only
+#' interval is the whole horizon, so the share is 1. Treating that grid as "no
+#' interior to compare against" and staying silent let `n_rmst_grid = 2`,
+#' which [mlumr()] accepts, integrate two exponential curves with rates 100
+#' and 200 to the same RMST of half the horizon, an RMST ratio of exactly 1,
+#' with nothing said.
+#' @keywords internal
+.rmst_max_interval_share <- function(s_mat) {
+  parts <- .decay_parts(s_mat)
+  .decay_share(parts$max, parts$total)
+}
+
+#' The two pieces of the resolution share, per draw
+#'
+#' `max` is the largest drop between two adjacent grid points and `total` the
+#' drop from the first point to the last. Kept apart so that the pieces of
+#' several profiles can be summed before the ratio is taken. `NA` when the
+#' grid has fewer than two points.
+#' @keywords internal
+.decay_parts <- function(s_mat) {
+  s_mat <- as.matrix(s_mat)
+  if (ncol(s_mat) < 2L) {
+    none <- rep(NA_real_, nrow(s_mat))
+    return(list(max = none, total = none))
+  }
+  drops <- s_mat[, -ncol(s_mat), drop = FALSE] - s_mat[, -1L, drop = FALSE]
+  list(max = apply(drops, 1L, max),
+       total = s_mat[, 1L] - s_mat[, ncol(s_mat)])
+}
+
+#' The resolution share from its pieces, `NA` where there is no decay
+#' @keywords internal
+.decay_share <- function(max_drop, total_drop) {
+  share <- max_drop / total_drop
+  share[!is.finite(share) | !is.finite(total_drop) | total_drop <= 0] <- NA_real_
+  share
+}
+
+#' The same check for the fit's own populations
+#'
+#' The `rmst_*` draws are integrated in Stan on the same grid, by the same
+#' trapezoid rule, so the exponential example above distorts them just as
+#' badly, and `predict(type = "rmst")` and the RMST effects of
+#' [marginal_effects()] read them straight from the draws with nothing in the
+#' way. This evaluates the standardized curve on the whole RMST grid, for both
+#' treatments in the requested populations, over exactly the rows Stan
+#' averaged: every IPD row for the index population and every integration
+#' point for the comparator one, equally weighted, un-centered here because
+#' [.conditional_profiles()] centers again. The share is judged on the rows'
+#' own curves, not on their average, for the reason given at
+#' [.standardize_target_survival_s()].
+#' @param object A survival `mlumr_fit`.
+#' @param pops The populations whose RMST is being returned, `"index"`,
+#'   `"comparator"` or both. Only their curves are judged: the comparator
+#'   population under a strong covariate effect can decay ahead of the grid
+#'   while the index population, the one asked for, is resolved fine, and a
+#'   warning about curves that contribute nothing to the result would tell the
+#'   user to refit for no reason.
+#' @return `NULL`, invisibly; called for the warning.
+#' @keywords internal
+.warn_coarse_rmst_grid_builtin <- function(object,
+                                           pops = c("index", "comparator")) {
+  tt <- object$stan_data$rmst_grid_times
+  x_int <- object$stan_data$X_int
+  if (is.null(tt) || length(tt) < 2L || is.null(x_int)) {
+    return(invisible(NULL))
+  }
+  covariates <- object$data$covariates
+  n_cov <- length(covariates)
+  if (!n_cov) {
+    return(invisible(NULL))
+  }
+  ib <- object$stan_data$rmst_ibasis
+  ib_cmp <- object$stan_data$rmst_ibasis_cmp
+  cov_center <- object$stan_data$cov_center %||% rep(0, n_cov)
+  index_rows <- object$data$ipd$data[, covariates, drop = FALSE]
+  comparator_rows <- matrix(as.numeric(x_int), ncol = n_cov)
+  comparator_rows <- as.data.frame(sweep(comparator_rows, 2L, cov_center, "+"))
+  names(comparator_rows) <- covariates
+
+  # A diagnostic, not the estimate: the whole grid for every draw and every
+  # row is what Stan integrated, and reproducing it here took a minute and a
+  # half for a default fit. The statistic is a proportion of draws, so a
+  # deterministic, evenly spaced subset of at most 200 draws and 60 rows puts
+  # it within a couple of points of the full value at a small fraction of the
+  # cost.
+  thin <- function(n, keep) {
+    if (n <= keep) seq_len(n) else unique(round(seq(1, n, length.out = keep)))
+  }
+  object$draws <- object$draws[thin(nrow(object$draws), 200L), , drop = FALSE]
+
+  shares <- list()
+  row_sets <- list(index = index_rows, comparator = comparator_rows)
+  for (rows in row_sets[intersect(c("index", "comparator"), pops)]) {
+    rows <- rows[thin(nrow(rows), 60L), , drop = FALSE]
+    sbar <- tryCatch(.standardize_target_survival_s(object, rows, tt, ib,
+                                                    ib_cmp),
+                     error = function(e) NULL)
+    if (is.null(sbar)) next
+    shares <- c(shares, list(sbar$share$index, sbar$share$comparator))
+  }
+  .warn_interval_share(shares)
+}
+
+#' Warn when enough posterior draws are integrated from a single straight line
+#'
+#' `shares` is a list with one per-draw vector per curve (one treatment in one
+#' population). A curve is badly resolved in a draw when more than half of its
+#' decay falls inside one grid interval. The criterion is the FRACTION of draws in
+#' which that happens, judged on the worst curve, so a minority of draws whose
+#' hazard runs ahead of the grid is reported rather than averaged away; below
+#' one draw in twenty it is left alone, since the summaries barely move.
+#' @keywords internal
+.warn_interval_share <- function(shares) {
+  worst <- 0
+  worst_share <- NA_real_
+  for (share in shares) {
+    share <- share[is.finite(share)]
+    if (!length(share)) next
+    bad <- mean(share > 0.5)
+    if (bad > worst) {
+      worst <- bad
+      worst_share <- stats::median(share[share > 0.5])
+    }
+  }
+  if (worst > 0.05) {
+    fmt <- paste0("In %.0f%% of posterior draws, more than half of the fitted ",
+                  "survival decay (median %.0f%% among them) happens inside a ",
+                  "single interval of the RMST grid, so the trapezoid rule ",
+                  "is approximating the steepest part of the curve with a ",
+                  "single straight line. RMST values, and especially their ",
+                  "differences and ratios, can be badly wrong here without ",
+                  "looking wrong: an exponential pair whose true RMST ratio ",
+                  "is 2 returns 1.0001 on a grid this coarse. Refit with a ",
+                  "larger `n_rmst_grid`, and confirm the value has stopped ",
+                  "moving by comparing it against twice that many points.")
+    warning(sprintf(fmt, 100 * worst, 100 * worst_share), call. = FALSE)
+  }
+  invisible(NULL)
 }
 
 
@@ -1659,8 +1928,9 @@ marginal_effects <- function(object,
     sbar <- .standardize_target_survival_s(object, newdata, times,
                                            object$stan_data$rmst_ibasis,
                                            object$stan_data$rmst_ibasis_cmp)
-    rmst_i <- .rmst_from_surv_matrix(sbar$index, times)
-    rmst_c <- .rmst_from_surv_matrix(sbar$comparator, times)
+    rmst_i <- .rmst_from_surv_matrix(sbar$index, times, sbar$share$index)
+    rmst_c <- .rmst_from_surv_matrix(sbar$comparator, times,
+                                     sbar$share$comparator)
   }
 
   spec <- list()
@@ -1898,6 +2168,9 @@ marginal_effects <- function(object,
   pops <- switch(population, index = "index", comparator = "comparator",
                  both = c("index", "comparator"))
   effs <- if (effect == "all") c("hr", "rmstd", "rmstr") else effect
+  if (any(c("rmstd", "rmstr") %in% effs)) {
+    .warn_coarse_rmst_grid_builtin(object, pops)
+  }
 
   # The scalar HR is the marginal hazard ratio at the start of follow-up. Hazard
   # ratios are non-collapsible, so the marginal HR drifts with time in BOTH

@@ -308,9 +308,17 @@ test_that("the relaxed identifiability warning counts distinct profiles, not row
       invokeRestart("muffleWarning")
     }
   )
-  expect_true(any(grepl("aggregate design rank 1", seen)))
-  expect_true(any(grepl("independent profiles", seen)))
+  # Four identical profiles span one direction including the intercept, so the
+  # message is the NUMERIC-rank one: those parameter combinations are genuinely
+  # not separated by the likelihood. It used to read "aggregate design rank 1"
+  # and to make that claim from the SPREAD screen, which is a different and
+  # weaker fact; profiles at -0.01 and +0.01 have tiny spread and are still
+  # separated. The wording changed with that distinction.
+  expect_true(any(grepl("span only 1 independent direction", seen)))
+  expect_true(any(grepl("not separated by the likelihood at all", seen)))
   expect_true(any(grepl("subgroup rows", seen)))
+  # And the message that belongs to the other branch does not appear here.
+  expect_false(any(grepl("screening threshold", seen)))
 })
 
 test_that("an incomplete chain set is recorded and reported, not hidden (C4)", {

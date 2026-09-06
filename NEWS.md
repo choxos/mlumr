@@ -260,6 +260,19 @@
   estimate; that comparison is withheld and named instead of scored across the
   two scales.
 
+* **The cmdstanr executable cache now notices a changed include.** The cache
+  key concatenated the MD5 of the model file with the MD5 of every include and
+  kept the first 32 characters. An MD5 digest is already 32 characters, so the
+  key was the model file's digest alone and every include hash was discarded.
+  Editing a shared include, which is where the likelihood helpers and the
+  numerical guards live, produced the same key, and a previously compiled
+  executable was reused. The key is now a digest over a canonical payload
+  naming every source file with its own content, plus the CmdStan version,
+  its installation path and the content of its `make/local`, so a changed
+  include, a different CmdStan, or changed build flags invalidate it. A
+  compiler upgrade with everything else unchanged does not, and does not need
+  to. Anyone carrying a cache from an earlier version will get one recompile.
+
 ## Transportability to arbitrary target populations
 
 * **`newdata` argument** on `marginal_effects()` and `predict.mlumr_fit()`
@@ -352,7 +365,8 @@
   differ, naming them as the generalized-gamma `sigma` and `k = 1 / Q^2` for the
   Lawless shape `Q` rather than as anonymous auxiliaries. Supplying it for a
   distribution with fewer than two auxiliary parameters warns and is discarded
-  without being validated, rather than being silently ignored, and `prior_sensitivity()` refuses to vary it mid-sweep like
+  without being validated, rather than being silently ignored, and
+  `prior_sensitivity()` refuses to vary it mid-sweep like
   every other scenario-defining argument. `prior_aux`'s documentation now also
   records that one default is reused across auxiliary parameters that do not
   share a scale: the Gompertz shape has units of 1 / time, so the same trial
@@ -406,8 +420,18 @@
   in the order asked, with a `requested_time` column beside `time`: each is
   evaluated at the nearest fitted grid time, and a message names the requested
   and the used time whenever the two differ or two requests land on one grid
-  point. `pred_times` sets the grid itself for exact evaluation. `conditional_effects()` / `conditional_predict()` give
-  covariate-conditional contrasts and survival curves.
+  point. `pred_times` sets the grid itself for exact evaluation.
+  `conditional_effects()` / `conditional_predict()` give
+  covariate-conditional contrasts and survival curves. Both grid-based
+  quantities say when their grid is too coarse to trust, per posterior draw:
+  RMST warns when more than half of the fitted survival decay lands inside a
+  single interval of the `n_rmst_grid` grid (a two-node grid always does),
+  judged on each target profile's own curve before the profiles are averaged,
+  since profiles that collapse inside different intervals average to a curve
+  that looks resolved while the trapezoid overstates every one of them; and
+  the median warns when the curve is already at or below 0.5 at the first
+  `pred_times` point, where it can only be interpolated from `S(0) = 1`
+  across the whole first interval. Both point at a refit with a finer grid.
 
 * **`marginal_effects()` reports natural-scale survival effects** (null 1): the
   hazard ratio (`HR`) for proportional-hazards distributions, the time ratio
@@ -522,6 +546,21 @@
   link because a repeated grid gives an identical likelihood term.
 
 ## Covariate distributions
+
+* **`distr()` now honors arguments passed by position.** It captures its `...`
+  unevaluated and evaluation walked `names(args)`, so anything supplied without
+  a name was never iterated and never reached the quantile function.
+  `distr(qnorm, 10, 2)` therefore integrated a STANDARD normal, silently, with
+  no warning and no error: the fit ran, converged, and answered a different
+  question than the one asked. Positional arguments are now matched against the
+  quantile function's own formals once, at construction, so the stored
+  specification says what each argument is. Arguments after `...` in the
+  quantile function's signature stay name-only, which is R's own rule, and an
+  argument that matches nothing is an error rather than a silent omission.
+  Abbreviated names are completed the same way: `distr(qbinom, si = 5, ...)`
+  evaluated with five trials, because R completes `si` at call time, but the
+  margin classification read `args$size`, found nothing, and labeled a
+  five-trial binomial binary. The stored name is now the full formal.
 
 * **New moment-parameterized marginal distributions**, mirroring the ones
   `multinma` exports so a published baseline table can be used as printed:

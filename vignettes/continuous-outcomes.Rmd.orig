@@ -251,8 +251,14 @@ plot_prior_posterior(fit_spfa, pars = c("mu_index", "mu_comparator"))
 For the **normal** family `outcome_mean` and `outcome_se` must be on the
 **original (arithmetic) scale**, the same scale as the IPD outcome. If a
 published comparator reports a *geometric* mean, a mean on the log scale, or a
-change-from-baseline on a transformed scale, back-transform it (propagating the
-standard error by the delta method) before calling `set_agd()`. Passing a
+change-from-baseline on a transformed scale, that is a different quantity and
+not a rescaling of the one this argument wants. Exponentiating a log-scale mean
+returns the geometric mean: for a lognormal outcome with log-scale SD 1 the
+geometric mean is `exp(0) = 1` while the arithmetic mean is `exp(0.5) = 1.65`.
+Propagating the standard error does not fix it, because the mismatch is in the
+estimand rather than in its uncertainty. Ask for the arithmetic mean and its SE,
+or, if you are willing to assume lognormality and have the log-scale **SD**,
+compute `exp(m + s^2 / 2)` and propagate `m` and `s` jointly. Passing a
 log-scale summary while fitting on the identity link silently biases the
 comparator likelihood. The residual likelihood here is Gaussian, so an influential
 observation in the IPD can pull the fit. A heavier-tailed prior on the
