@@ -188,8 +188,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     glm_family <- poisson(link = link_resolved)
   }
 
-  fit <- glm(.stc_formula(cov_names, family), family = glm_family, data = ipd,
-             start = .stc_start_values(ipd, cov_names, glm_family))
+  fit <- .stc_fit_glm(.stc_formula(cov_names, family), glm_family, ipd)
   glm_params <- .stc_glm_parameters(fit)
 
   comparator <- .stc_comparator_data(data, cov_names, family)
@@ -436,49 +435,110 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   invisible(NULL)
 }
 
-#' Starting values for the links that cannot find their own
+#' Candidate initializations for a link that cannot find its own
 #'
-#' A Gaussian model with a log link has mean `exp(eta)`, which is defined for
-#' any outcome, but R's initialization takes `log(y)` and stops on any value
-#' at or below zero: an outcome of `c(-1, 1, 2, 2, 3, 4)`, whose group means
-#' are both positive and whose fit exists, was refused with "cannot find valid
-#' starting values". The intercept is put at the log of the mean outcome and
-#' the slopes at zero, which is inside the parameter space whenever the mean
-#' is positive, and the fitting proceeds from there.
+#' R initializes a Gaussian log link from `mustart = y` and stops when any
+#' outcome is at or below zero, although the model is defined whenever the mean
+#' is positive. Only that case is handled here, and every other family and link
+#' is left to R, which does it better.
 #'
-#' `NULL` everywhere else, so every other family and link keeps the
-#' initialization it already had.
-#' @param ipd The individual data being fitted.
-#' @param cov_names The covariates in the model.
-#' @param glm_family The resolved family object.
-#' @return A numeric vector of starting values, or `NULL`.
+#' More than one candidate is offered because no single start is reliable, and
+#' the two failures point opposite ways. A pooled value lands wherever the
+#' largest observations pull it: on `y = c(0, 2, 4, 1e7, 2e7, 3e7)` split by
+#' group it converges, reports success, and returns a first-group mean of 168
+#' where the exact optimum is 2, an error that hides in the deviance because
+#' the second group dominates the residual sum of squares. A per-observation
+#' floor fixes that one and loses another: on
+#' `y = c(-1, 1.00000001, -1, 1.00000001)` it stops at 1.8e-08 where the
+#' optimum is 5e-9, which is then refused for sitting below the boundary.
+#' Fitting from each and keeping the lowest deviance reaches the optimum in
+#' both.
+#'
+#' @param ipd The individual data, carrying `.outcome`.
+#' @param glm_family The family and link the fit will use.
+#' @return A list of argument lists to splice into `glm()`, one per candidate,
+#'   empty when R can initialize the fit itself.
 #' @keywords internal
-.stc_start_values <- function(ipd, cov_names, glm_family) {
+.stc_start_candidates <- function(ipd, glm_family) {
   gaussian_log <- identical(glm_family$family, "gaussian") &&
     identical(glm_family$link, "log")
   if (!gaussian_log) {
-    return(NULL)
+    return(list())
   }
   y <- ipd$.outcome
-  # Only where R refuses outright. Its own initialization takes log(y) for each
-  # observation, which is a far better local start than any single pooled
-  # value, and substituting one silently costs accuracy: on a design whose two
-  # groups differ by a factor of 1e7, a pooled start converges to a fitted mean
-  # of 168 where R's own reaches 2, and both report convergence. R refuses only
-  # when an observation is at or below zero, so that is the only case to take.
-  if (all(is.finite(y)) && all(y > 0)) {
-    return(NULL)
+  # Only where R refuses outright. Its own initialization is per observation
+  # and better than anything offered here, so it keeps every fit it can take.
+  if (!length(y) || anyNA(y) || (all(is.finite(y)) && all(y > 0))) {
+    return(list())
   }
-  # An intercept of 0 puts every starting mean at exp(0) = 1, which is valid
-  # for this link whatever the data, so a nonpositive sample mean is not by
-  # itself a reason to refuse: it does not tell you whether an interior
-  # optimum exists. Whether the resulting fit is usable is then decided by
-  # things that can actually tell, the convergence check and
-  # `.stc_refuse_boundary_mean()`, rather than guessed at from the mean. The
-  # sample mean is the better start of the two whenever it is positive.
-  mu <- mean(y, na.rm = TRUE)
-  intercept <- if (is.finite(mu) && mu > 0) log(mu) else 0
-  c(intercept, rep(0, length(cov_names)))
+  positive <- y[is.finite(y) & y > 0]
+  if (!length(positive)) {
+    # A log link cannot fit means that are all at or below zero. Leave it to R
+    # to refuse, and to the boundary guard if it does not.
+    return(list())
+  }
+  candidates <- list(list(mustart = pmax(y, min(positive))))
+  # Pooled intercepts, recorded as a scalar so the fitting step can pad them to
+  # the width of the design. Both the positive mean and the overall mean are
+  # offered: they differ when negative outcomes are present, and which one is
+  # nearer the optimum depends on the data.
+  for (m in unique(c(mean(positive), mean(y)))) {
+    if (is.finite(m) && m > 0) {
+      candidates <- c(candidates, list(list(.intercept = log(m))))
+    }
+  }
+  candidates
+}
+
+#' Fit the STC outcome model, trying each candidate initialization
+#'
+#' Returns the converged fit with the lowest deviance. When none converges the
+#' first fit is returned unchanged, so `.stc_glm_parameters()` reports the
+#' non-convergence rather than this deciding what to do about it.
+#'
+#' @param formula,glm_family,ipd As passed to [stats::glm()].
+#' @return A fitted `glm`.
+#' @keywords internal
+.stc_fit_glm <- function(formula, glm_family, ipd) {
+  candidates <- .stc_start_candidates(ipd, glm_family)
+  if (!length(candidates)) {
+    return(stats::glm(formula, family = glm_family, data = ipd))
+  }
+  n_coef <- length(all.vars(formula[[3]])) + 1L
+  first <- NULL
+  best <- NULL
+  for (cand in candidates) {
+    args <- cand
+    if (!is.null(args$.intercept)) {
+      args <- list(start = c(args$.intercept, rep(0, n_coef - 1L)))
+    }
+    fit <- tryCatch(
+      suppressWarnings(do.call(stats::glm, c(
+        list(formula, family = glm_family, data = ipd), args
+      ))),
+      error = function(e) NULL
+    )
+    if (is.null(fit)) {
+      next
+    }
+    if (is.null(first)) {
+      first <- fit
+    }
+    dev <- stats::deviance(fit)
+    if (!isTRUE(fit$converged) || !is.finite(dev)) {
+      next
+    }
+    if (is.null(best) || dev < stats::deviance(best)) {
+      best <- fit
+    }
+  }
+  if (!is.null(best)) {
+    return(best)
+  }
+  if (!is.null(first)) {
+    return(first)
+  }
+  stats::glm(formula, family = glm_family, data = ipd)
 }
 
 #' Build a model matrix aligned with fitted GLM coefficients

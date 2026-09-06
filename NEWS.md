@@ -294,12 +294,17 @@
   positive.** R initializes that link from the log of the outcome and stops on
   any value at or below zero, although the model is defined whenever the mean
   is positive. An outcome of `c(-1, 1, 2, 2, 3, 4)`, whose group means are both
-  positive, was refused with "cannot find valid starting values". Starting
-  values are now supplied for that family and link, and only where R refuses:
-  the log of the mean outcome with slopes at zero, or zeros when that mean is
-  not positive. Fits R already initializes are left alone, because its
-  per-observation start is the better one; substituting a pooled value cost
-  accuracy on designs whose groups differ by orders of magnitude. A log link
+  positive, was refused with "cannot find valid starting values". The fit is
+  now initialized for that family and link, and only where R refuses: fits R
+  can initialize keep its own per-observation start, which is better than
+  anything substituted for it. Where R refuses, several starts are tried and
+  the one reaching the lowest deviance is kept, because no single start is
+  reliable and the failures point opposite ways. A pooled value lands wherever
+  the largest observations pull it, returning a first-group mean of 168 where
+  the optimum is 2 on outcomes spanning seven orders of magnitude, an error
+  invisible in the deviance; flooring the outcomes per observation fixes that
+  and stops short of an optimum at 5e-9 on another design. Fitting from each
+  and keeping the best reaches both. A log link
   keeps every fitted mean positive, so data that pulls all of them downwards
   has no interior optimum and the criterion is minimized only as the intercept
   runs to negative infinity. Nothing reported that: the deviance stopped

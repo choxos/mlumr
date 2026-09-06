@@ -104,62 +104,60 @@ test_that("treedepth hits are counted against the limit the sampler ran under", 
   expect_equal(count(sp, plain$control$max_treedepth), 4)
 })
 
-test_that("the log link starts from a valid mean even when the sample mean is not positive", {
-  starts <- mlumr:::.stc_start_values
-
+test_that("the log link is fitted from several starts, only where R will not", {
+  cands <- mlumr:::.stc_start_candidates
+  fitg <- mlumr:::.stc_fit_glm
   fam <- stats::gaussian(link = "log")
 
-  # All outcomes positive: R initializes this itself, from log(y) per
-  # observation, and that start is better than any pooled one. Taking over
-  # here does not fail loudly, it just lands somewhere worse: on two groups a
-  # factor of 1e7 apart, a pooled start reaches a fitted mean of 168 where R
-  # reaches 2, and BOTH report convergence.
-  pos <- list(.outcome = c(1, 2, 3))
-  expect_null(starts(pos, character(0), fam))
-  expect_null(starts(pos, c("a", "b"), fam))
-
-  wide <- data.frame(.outcome = c(1, 2, 3, 1e7, 2e7, 3e7),
-                     x = rep(0:1, each = 3))
-  expect_null(starts(wide, "x", fam))
-  by_r <- suppressWarnings(stats::glm(.outcome ~ x, family = fam, data = wide))
-  pooled <- suppressWarnings(
-    stats::glm(.outcome ~ x, family = fam, data = wide,
-               start = c(log(mean(wide$.outcome)), 0))
-  )
+  # All outcomes positive: R initializes this itself, per observation, better
+  # than anything offered here, so nothing is offered and nothing changes.
+  expect_equal(cands(list(.outcome = c(1, 2, 3)), fam), list())
+  wide_pos <- data.frame(.outcome = c(1, 2, 3, 1e7, 2e7, 3e7),
+                         x = rep(0:1, each = 3))
+  expect_equal(cands(wide_pos, fam), list())
+  by_r <- fitg(.outcome ~ x, fam, wide_pos)
   expect_equal(unname(stats::fitted(by_r)[1]), 2, tolerance = 1e-6)
-  expect_gt(unname(stats::fitted(pooled)[1]), 100)
-  expect_true(by_r$converged && pooled$converged)
 
-  # A sample mean of exactly zero still gets a start, because `exp(0) = 1` is
-  # a valid mean for this link whatever the data and the sample mean does not
-  # say whether an interior optimum exists. Whether the fit is usable is
-  # decided afterwards by things that can tell, not guessed at from the mean.
-  zero_mean <- list(.outcome = c(-2, 1, 1))
-  expect_equal(mean(zero_mean$.outcome), 0)
-  expect_equal(starts(zero_mean, "x", fam), c(0, 0))
-  expect_false(is.null(starts(zero_mean, "x", fam)))
-
-  # A nonpositive outcome with a positive mean takes the mean.
-  mixed <- list(.outcome = c(-1, 1, 2, 2, 3, 4))
-  expect_equal(starts(mixed, "x", fam), c(log(mean(mixed$.outcome)), 0))
-
-  # This particular design has an interior optimum, near (-1.567, 1.641) with a
-  # residual sum of squares of 4.795 against 6 at the boundary, but iterative
-  # reweighting oscillates and never reaches it: `converged` is FALSE at 25
-  # iterations and still FALSE at 10000. So the start does not rescue it, and
-  # the convergence check refuses it, which is the correct outcome and worth
-  # pinning because an earlier version of this test asserted the opposite from
-  # a fit it never checked the convergence of.
-  fit <- suppressWarnings(stats::glm(
-    y ~ x, family = fam, data = data.frame(y = c(-2, 1, 1), x = c(-1, 0, 1)),
-    start = starts(zero_mean, "x", fam), control = list(maxit = 10000)
+  # Where R refuses, no single start is reliable, and the two failures point
+  # opposite ways. Each is checked against the start that loses it.
+  wide <- data.frame(.outcome = c(0, 2, 4, 1e7, 2e7, 3e7),
+                     x = rep(0:1, each = 3))
+  pooled <- suppressWarnings(stats::glm(
+    .outcome ~ x, family = fam, data = wide,
+    start = c(log(mean(wide$.outcome)), 0)
   ))
-  expect_false(fit$converged)
-  expect_error(mlumr:::.stc_glm_parameters(fit), "did not converge")
+  expect_true(pooled$converged)
+  expect_gt(unname(stats::fitted(pooled)[1]), 100)   # 168, where the optimum is 2
 
-  # Other families and links are left to R's own initialization.
-  expect_null(starts(mixed, "x", stats::gaussian(link = "identity")))
-  expect_null(starts(mixed, "x", stats::binomial()))
+  ulp <- data.frame(.outcome = c(-1, 1.00000001, -1, 1.00000001),
+                    x = c(-1, -1, 1, 1))
+  floored <- suppressWarnings(stats::glm(
+    .outcome ~ x, family = fam, data = ulp,
+    mustart = pmax(ulp$.outcome, min(ulp$.outcome[ulp$.outcome > 0])),
+    control = list(epsilon = 1e-14, maxit = 5000)
+  ))
+  expect_gt(unname(stats::fitted(floored)[1]), 1e-8) # 1.8e-8, where it is 5e-9
+
+  # Taking the lowest deviance among the candidates reaches both optima.
+  expect_gt(length(cands(wide, fam)), 1L)
+  expect_equal(unname(stats::fitted(fitg(.outcome ~ x, fam, wide))[1]),
+               2, tolerance = 1e-6)
+  expect_equal(unname(stats::fitted(fitg(.outcome ~ x, fam, wide))[4]),
+               2e7, tolerance = 1e-6)
+  expect_equal(unname(stats::fitted(fitg(.outcome ~ x, fam, ulp))[1]),
+               5e-9, tolerance = 1e-6)
+
+  # Mixed signs reach the exact group means.
+  mixed <- data.frame(.outcome = c(-1, 1, 2, 2, 3, 4), x = rep(0:1, each = 3))
+  fm <- fitg(.outcome ~ x, fam, mixed)
+  expect_equal(unname(stats::fitted(fm)[1]), 2 / 3, tolerance = 1e-6)
+  expect_equal(unname(stats::fitted(fm)[4]), 3, tolerance = 1e-6)
+
+  # Nothing positive to scale by, and other families, are left to R.
+  expect_equal(cands(list(.outcome = c(0, 0, 0)), fam), list())
+  expect_equal(cands(list(.outcome = c(-1, -2)), fam), list())
+  expect_equal(cands(mixed, stats::gaussian(link = "identity")), list())
+  expect_equal(cands(mixed, stats::binomial()), list())
 })
 
 test_that("the deep-tail gamma series is normalized without a cancelling subtraction", {
@@ -313,7 +311,7 @@ test_that("a log-link mean fit with no interior optimum is refused", {
   ok <- data.frame(.outcome = c(-1, 1, 2, 2, 3, 4), x = rep(0:1, each = 3))
   fit_ok <- suppressWarnings(stats::glm(
     .outcome ~ x, family = fam, data = ok,
-    start = mlumr:::.stc_start_values(ok, "x", fam)
+    start = c(log(mean(ok$.outcome)), 0)
   ))
   expect_lt(stats::deviance(fit_ok), sum(ok$.outcome^2))
   expect_silent(guard(fit_ok))
@@ -560,7 +558,7 @@ test_that("an improvement smaller than an ulp of the sums is still an improvemen
   # optimum, so the fit has to actually reach it.
   fit <- suppressWarnings(stats::glm(
     .outcome ~ x, family = fam, data = d,
-    start = mlumr:::.stc_start_values(d, "x", fam),
+    start = c(log(mean(d$.outcome)), 0),
     control = list(epsilon = 1e-14, maxit = 5000)
   ))
   y <- d$.outcome
@@ -588,7 +586,7 @@ test_that("an improvement smaller than an ulp of the sums is still an improvemen
   ok <- data.frame(.outcome = c(-1, 1, 2, 2, 3, 4), x = rep(0:1, each = 3))
   fit_ok <- suppressWarnings(stats::glm(
     .outcome ~ x, family = fam, data = ok,
-    start = mlumr:::.stc_start_values(ok, "x", fam)
+    start = c(log(mean(ok$.outcome)), 0)
   ))
   mo <- stats::fitted(fit_ok)
   expect_equal(sum(mo * (2 * ok$.outcome - mo)),
