@@ -232,22 +232,15 @@ test_that("a caller's sampler overrides refine the recorded control", {
   # downstream lets the control win.
   recorded <- list(adapt_delta = 0.99, max_treedepth = 10,
                    adapt_engaged = FALSE, stepsize = 0.05)
+  # The engine is named rather than left out, because the merge resolves an
+  # absent one through `get_engine()`: on a machine configured for cmdstanr
+  # the control would be dropped and every assertion below would read NULL.
   refine <- function(dots) {
-    call_args <- list(adapt_delta = 0.99, max_treedepth = 10,
-                      control = recorded)
-    ctl <- call_args$control
-    if (!is.null(ctl)) {
-      for (nm in intersect(names(dots), c("adapt_delta", "max_treedepth"))) {
-        ctl[[nm]] <- dots[[nm]]
-      }
-    }
-    if (!is.null(dots$control)) {
-      ctl <- if (is.null(ctl)) dots$control else
-        utils::modifyList(ctl, dots$control)
-    }
-    call_args[names(dots)] <- dots
-    if (!is.null(ctl)) call_args$control <- ctl
-    call_args$control
+    mlumr:::.prior_sensitivity_merge_dots(
+      list(adapt_delta = 0.99, max_treedepth = 10, engine = "rstan",
+           control = recorded),
+      dots
+    )$control
   }
 
   expect_equal(refine(list()), recorded)
@@ -274,21 +267,15 @@ test_that("a recorded rstan control is not carried onto another engine", {
   # switched engines forwarded it to cmdstanr's `$sample()`, which has no such
   # argument, so every refit would have failed before sampling.
   recorded <- list(adapt_delta = 0.99, max_treedepth = 10, stepsize = 0.05)
-  `%||%` <- function(a, b) if (is.null(a)) b else a
   resolve <- function(dots, fit_engine) {
-    call_args <- list(engine = fit_engine, control = recorded)
-    ctl <- call_args$control
-    call_args[names(dots)] <- dots
-    engine_used <- dots$engine %||% call_args$engine
-    if (!is.null(ctl) && identical(engine_used, "rstan")) {
-      call_args$control <- ctl
-    } else if (!identical(engine_used, "rstan")) {
-      call_args$control <- NULL
-    }
-    call_args
+    mlumr:::.prior_sensitivity_merge_dots(
+      list(engine = fit_engine, control = recorded), dots
+    )
   }
-  # Staying on rstan keeps the record.
-  expect_equal(resolve(list(), "rstan")$control, recorded)
+  # Changing something unrelated keeps the record. The passed settings have to
+  # be non-empty for the merge to run at all: with nothing passed the sweep
+  # replays the fit's own arguments and there is nothing to resolve.
+  expect_equal(resolve(list(iter = 4000), "rstan")$control, recorded)
   # Switching engines drops it rather than handing cmdstanr an argument it
   # does not have. Dropping is right for a control this function inherited:
   # it describes the fit's backend and means nothing to another one.
@@ -356,12 +343,12 @@ test_that("an explicit NULL engine resolves before the control is judged", {
   # recorded controls were dropped. `mlumr()` then resolved NULL to the same
   # default, so the refits ran on the same backend with a different sampler
   # configuration: the failure is silent rather than an error.
-  resolve <- function(dots, fit_engine) {
-    fe <- fit_engine
-    supplied <- if ("engine" %in% names(dots)) dots$engine else fe
-    mlumr:::.validate_engine_name(supplied %||% mlumr:::get_engine())
+  recorded <- list(adapt_delta = 0.99, max_treedepth = 10, stepsize = 0.05)
+  kept <- function(dots, fit_engine) {
+    mlumr:::.prior_sensitivity_merge_dots(
+      list(engine = fit_engine, control = recorded), dots
+    )$control
   }
-  `%||%` <- function(a, b) if (is.null(a)) b else a
 
   # Both configurations are exercised rather than whichever the machine
   # happens to be set to. Asserting that NULL and omission agree holds only
@@ -373,16 +360,23 @@ test_that("an explicit NULL engine resolves before the control is judged", {
   for (configured in c("rstan", "cmdstanr")) {
     options(mlumr.stan_engine = configured)
     expect_equal(mlumr:::get_engine(), configured)
-    # An explicit NULL asks for the configured default, whatever it is.
-    expect_equal(resolve(list(engine = NULL), "rstan"), configured)
+
+    # An explicit NULL, and a fit that recorded no engine at all, both resolve
+    # to the configured default, so the record survives exactly when that
+    # default is the backend that has a `control` argument.
+    if (identical(configured, "rstan")) {
+      expect_equal(kept(list(engine = NULL), "rstan"), recorded)
+      expect_equal(kept(list(iter = 4000), NULL), recorded)
+    } else {
+      expect_null(kept(list(engine = NULL), "rstan"))
+      expect_null(kept(list(iter = 4000), NULL))
+    }
+
     # Omitting it keeps the engine the fit was made with, whatever the default.
-    expect_equal(resolve(list(), "rstan"), "rstan")
-    expect_equal(resolve(list(), "cmdstanr"), "cmdstanr")
+    expect_equal(kept(list(iter = 4000), "rstan"), recorded)
     # A named engine wins over both.
-    expect_equal(resolve(list(engine = "cmdstanr"), "rstan"), "cmdstanr")
-    expect_equal(resolve(list(engine = "rstan"), "cmdstanr"), "rstan")
-    # And a fit that recorded no engine falls back to the default.
-    expect_equal(resolve(list(), NULL), configured)
+    expect_null(kept(list(engine = "cmdstanr"), "rstan"))
+    expect_equal(kept(list(engine = "rstan"), "cmdstanr"), recorded)
   }
 })
 
