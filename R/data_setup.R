@@ -95,13 +95,22 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
   .validate_ipd_covariates(data, covariates)
   .validate_ipd_finite_columns(data, outcome, exposure, family)
 
-  data <- .drop_missing_rows(data, required_cols)
+  # The key describes the SOURCE, so it is taken before the model's own
+  # complete-case filter. Two models with different covariates drop different
+  # incomplete rows, and a key taken afterwards makes one source look like
+  # two: the digests differ, the ranks are never compared, and two fits that
+  # kept different patients are reported as merely unverifiable. Taken here
+  # and carried through the drop, the digest is the source's and the ranks
+  # name its rows, so keeping different patients is a mismatch.
+  complete <- stats::complete.cases(data[, required_cols])
+  source_keys <- .source_row_keys(data)[complete]
+  data <- .drop_missing_rows(data, required_cols, complete)
   .validate_complete_rows_remain(data, "IPD")
   .warn_constant_ipd_covariates(data, covariates)
   .warn_collinear_ipd_covariates(data, covariates)
   .validate_single_treatment(data, treatment, "IPD")
   ipd_data <- .standardize_ipd_data(data, treatment, outcome, covariates,
-                                    family, exposure, study)
+                                    family, exposure, study, source_keys)
 
   out <- c(
     list(
@@ -279,8 +288,10 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 
 #' Drop rows with missing setup inputs
 #' @keywords internal
-.drop_missing_rows <- function(data, required_cols) {
-  complete <- complete.cases(data[, required_cols])
+.drop_missing_rows <- function(data, required_cols,
+                               complete = stats::complete.cases(
+                                 data[, required_cols]
+                               )) {
   if (!all(complete)) {
     n_missing <- sum(!complete)
     warning(sprintf("%d rows with missing values will be excluded", n_missing),
@@ -385,7 +396,8 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 #' Standardize IPD to mlumr's internal column contract
 #' @keywords internal
 .standardize_ipd_data <- function(data, treatment, outcome, covariates,
-                                  family, exposure = NULL, study = NULL) {
+                                  family, exposure = NULL, study = NULL,
+                                  source_keys = .source_row_keys(data)) {
   ipd_data <- data.frame(
     .study = if (!is.null(study)) data[[study]] else "IPD_Study",
     .trt = data[[treatment]],
@@ -404,7 +416,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
   for (cov in covariates) {
     ipd_data[[cov]] <- data[[cov]]
   }
-  ipd_data$.source_key <- .source_row_keys(data)
+  ipd_data$.source_key <- source_keys
   ipd_data
 }
 
@@ -447,15 +459,27 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
   # two different rows one string and cost the comparison a distinction it is
   # there to make. Every part is written with its own length, at both levels,
   # so no string is a rearrangement of another.
+  # `as.character()` on a double prints 15 significant digits, so two values
+  # that differ below that collapse to one string, share a rank, and let a
+  # swap of those rows pass as the same order. `%.17g` round-trips every
+  # finite double exactly.
+  render <- function(x) {
+    if (is.double(x)) {
+      out <- sprintf("%.17g", x)
+      out[!is.finite(x)] <- as.character(x[!is.finite(x)])
+      return(out)
+    }
+    as.character(x)
+  }
   tag <- function(x) {
-    x <- enc2utf8(as.character(x))
+    x <- enc2utf8(render(x))
     x[is.na(x)] <- "\002NA"
     paste0(nchar(x, type = "bytes"), ":", x)
   }
   join <- function(parts) paste(tag(parts), collapse = ",")
   flat <- function(x) {
     if (!is.null(dim(x))) return(apply(x, 1L, join))
-    if (is.list(x)) return(vapply(x, function(e) join(format(e)), character(1)))
+    if (is.list(x)) return(vapply(x, function(e) join(render(e)), character(1)))
     as.character(x)
   }
   nms <- sort(names(data))

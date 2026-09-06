@@ -422,6 +422,15 @@ test_that("a reordered source is caught even when the fits share no covariate", 
   forged <- data.frame(u = c(paste0("p\036r"), paste0("q\036s")),
                        v = c("", ""), stringsAsFactors = FALSE)
   expect_false(identical(.source_row_keys(sep), .source_row_keys(forged)))
+  # Doubles are written at full precision. Printed at 15 significant digits
+  # these two collapse to one string, which would give them one rank and let
+  # a swap of the two rows pass as the same order.
+  tiny <- data.frame(v = c(1, 1 + 2e-16), w = c("p", "q"),
+                     stringsAsFactors = FALSE)
+  expect_identical(as.character(tiny$v[1]), as.character(tiny$v[2]))
+  kt <- .source_row_keys(tiny)
+  expect_false(identical(kt[1], kt[2]))
+  expect_false(identical(.source_row_keys(tiny[c(2L, 1L), ]), kt))
   # And two shapes that flatten alike in one list column stay distinct.
   l1 <- data.frame(id = 1:2)
   l1$v <- list(c("a", "b"), "z")
@@ -466,6 +475,41 @@ test_that("a grouped survival unit allows a reordered comparator", {
   f2$data$ipd$data <- f2$data$ipd$data[c(2:12, 1), ]
   expect_error(.assert_same_observations(list(f1, f2), "aggregate"),
                "not built on the same observations")
+})
+
+test_that("a key describes the source, not the rows one model kept", {
+  # Two models of one source with different covariates drop different
+  # incomplete rows. A key taken after that filter makes one source look like
+  # two, and two fits that kept different patients are then reported as
+  # merely unverifiable instead of refused.
+  src <- data.frame(
+    trt = rep("x", 6L),
+    y = c(0, 1, 0, 1, 0, 1),
+    a = c(1, NA, 3, 4, 5, 6),
+    b = c(1, 2, 3, NA, 5, 6),
+    c = seq_len(6L),
+    stringsAsFactors = FALSE
+  )
+  keys <- function(cov) {
+    suppressWarnings(
+      set_ipd(src, treatment = "trt", outcome = "y", covariates = cov,
+              family = "normal")$data$.source_key
+    )
+  }
+  ka <- keys("a")
+  kb <- keys("b")
+  # Same source, so the same digest, and the ranks name the rows each kept.
+  digest <- function(k) unique(sub(":.*$", "", k))
+  expect_identical(digest(ka), digest(kb))
+  expect_length(ka, 5L)
+  expect_length(kb, 5L)
+  expect_false(identical(sort(ka), sort(kb)))
+  # A model whose covariate has no missing values keeps every row, and its
+  # ranks are the whole source's.
+  kc <- keys("c")
+  expect_length(kc, 6L)
+  expect_identical(digest(kc), digest(ka))
+  expect_true(all(ka %in% kc))
 })
 
 test_that("every pair of compared fits is checked, not each against the first", {
