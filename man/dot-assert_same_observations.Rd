@@ -4,7 +4,11 @@
 \alias{.assert_same_observations}
 \title{Refuse to compare fits that were not built on the same observations}
 \usage{
-.assert_same_observations(models, survival_unit = "observation")
+.assert_same_observations(
+  models,
+  survival_unit = "observation",
+  unordered = FALSE
+)
 }
 \description{
 Refuse to compare fits that were not built on the same observations

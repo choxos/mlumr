@@ -197,13 +197,15 @@ extract_log_lik <- function(object) {
 #' @return `TRUE`, `FALSE`, or `NA` when the observations agree but the row
 #'   order could not be verified.
 #' @keywords internal
-.same_observations <- function(a, b, pseudo_grouped = FALSE) {
+.same_observations <- function(a, b, pseudo_grouped = FALSE,
+                               unordered = FALSE) {
   same_frame <- function(x, y, grouped = FALSE) {
     if (is.null(x) && is.null(y)) return(TRUE)
     if (is.null(x) || is.null(y)) return(FALSE)
     shared <- setdiff(intersect(names(x), names(y)), ".source_key")
     obs <- intersect(.observation_columns, union(names(x), names(y)))
     if (!all(obs %in% shared)) return(FALSE)
+    if (unordered) return(.same_grouped_rows(x, y, shared, group = FALSE))
     if (grouped) return(.same_grouped_rows(x, y, shared))
     if (!identical(x[shared], y[shared])) return(FALSE)
     if (nrow(x) < 2L) return(TRUE)
@@ -236,12 +238,22 @@ extract_log_lik <- function(object) {
 #' rounded on the way in, and rows that tie on every shared column are
 #' interchangeable by construction. The source keys take no part: they exist
 #' to detect a reordering, which is the very thing being allowed.
+#' @param group Split the rows by `.arm` before comparing, which is what a
+#'   per-arm unit needs. `FALSE` compares the whole frame as one multiset,
+#'   for a criterion whose value does not depend on the order at all.
 #' @keywords internal
-.same_grouped_rows <- function(x, y, shared) {
+.same_grouped_rows <- function(x, y, shared, group = TRUE) {
   if (nrow(x) != nrow(y)) return(FALSE)
   if (!nrow(x)) return(TRUE)
+  # A non-empty label on purpose: `split()` keeps `""` as a name and
+  # `list[[""]]` matches nothing, so every group would have come back empty
+  # and every comparison would have passed.
   arm <- function(df) {
-    if (".arm" %in% names(df)) as.character(df$.arm) else rep("", nrow(df))
+    if (group && ".arm" %in% names(df)) {
+      paste0("arm:", as.character(df$.arm))
+    } else {
+      rep("all", nrow(df))
+    }
   }
   gx <- split(seq_len(nrow(x)), arm(x))
   gy <- split(seq_len(nrow(y)), arm(y))
@@ -263,7 +275,8 @@ extract_log_lik <- function(object) {
 
 #' Refuse to compare fits that were not built on the same observations
 #' @keywords internal
-.assert_same_observations <- function(models, survival_unit = "observation") {
+.assert_same_observations <- function(models, survival_unit = "observation",
+                                      unordered = FALSE) {
   # The grouped survival units sum a group's pointwise columns before the
   # comparison, so the comparator's rows have to be the same rows in the same
   # groups but not in the same order. The index rows stay positional under
@@ -284,7 +297,8 @@ extract_log_lik <- function(object) {
   unverified <- FALSE
   for (i in seq_along(known)) {
     for (j in seq_len(i - 1L)) {
-      same <- .same_observations(known[[j]], known[[i]], pseudo_grouped)
+      same <- .same_observations(known[[j]], known[[i]],
+                                 pseudo_grouped, unordered)
       if (isFALSE(same)) {
         stop("The compared fits were not built on the same observations in ",
              "the same order: their stored data differ in the columns that ",
@@ -644,8 +658,16 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic"),
   survival_unit <- match.arg(survival_unit)
   models <- list(...)
   .validate_model_count(models)
-  .assert_same_observations(models,
-                            if (criterion == "dic") "observation" else survival_unit)
+  # DIC sums each model's pointwise log-likelihood over observations before
+  # taking its mean and variance, so its value does not change under any
+  # permutation of them and there is nothing paired to line up. Only the LOO
+  # and WAIC standard error of the difference is formed column by column, so
+  # only it needs the rows in one order.
+  .assert_same_observations(
+    models,
+    if (criterion == "dic") "observation" else survival_unit,
+    unordered = identical(criterion, "dic")
+  )
 
   if (criterion == "dic") {
     dics <- lapply(models, function(m) {

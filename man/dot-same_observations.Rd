@@ -4,7 +4,7 @@
 \alias{.same_observations}
 \title{Were two fits built on the same observations, row for row?}
 \usage{
-.same_observations(a, b, pseudo_grouped = FALSE)
+.same_observations(a, b, pseudo_grouped = FALSE, unordered = FALSE)
 }
 \arguments{
 \item{a, b}{Results of \code{\link[=.observation_frames]{.observation_frames()}}.}

@@ -205,10 +205,24 @@ test_that("compare_models refuses fits built on different observations", {
   fit3$data$ipd$data$.outcome[1] <- 1L - fit3$data$ipd$data$.outcome[1]
   expect_error(compare_models(fit1, fit3, criterion = "loo"),
                "not built on the same observations")
-  # Same rows, different order.
+  # Same rows, different order. LOO and WAIC form their standard error of the
+  # difference column by column, so the order is part of the comparison.
   fit4 <- with_data(make_ll_fit("relaxed", seed = 2026), y)
   fit4$data$ipd$data <- fit4$data$ipd$data[c(2:12, 1), ]
-  expect_error(compare_models(fit1, fit4, criterion = "dic"),
+  expect_error(compare_models(fit1, fit4, criterion = "loo"),
+               "not built on the same observations")
+  # DIC sums each model's pointwise log-likelihood before taking its mean and
+  # variance, so it is the same number under any permutation and there is
+  # nothing paired to line up. The same rows in another order are the same
+  # data for it, and refusing them refused valid work.
+  out4 <- suppressWarnings(capture.output(
+    compare_models(fit1, fit4, criterion = "dic")
+  ))
+  expect_true(length(out4) > 0L)
+  # A changed value is still refused, whatever the criterion.
+  fit4b <- with_data(make_ll_fit("relaxed", seed = 2026), y)
+  fit4b$data$ipd$data$.outcome[1] <- 1L - fit4b$data$ipd$data$.outcome[1]
+  expect_error(compare_models(fit1, fit4b, criterion = "dic"),
                "not built on the same observations")
   # A different aggregate row set is a different data set too.
   fit5 <- with_data(make_ll_fit("relaxed", seed = 2026), y, agd_r = c(3L, 5L, 2L, 5L))

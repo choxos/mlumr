@@ -4,7 +4,12 @@
 \alias{.same_grouped_rows}
 \title{Do two frames hold the same rows within each arm, in any order?}
 \usage{
-.same_grouped_rows(x, y, shared)
+.same_grouped_rows(x, y, shared, group = TRUE)
+}
+\arguments{
+\item{group}{Split the rows by \code{.arm} before comparing, which is what a
+per-arm unit needs. \code{FALSE} compares the whole frame as one multiset,
+for a criterion whose value does not depend on the order at all.}
 }
 \description{
 The grouped survival units sum their pointwise columns inside a group
