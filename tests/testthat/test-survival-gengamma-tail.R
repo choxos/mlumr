@@ -104,11 +104,25 @@ test_that("generalized-gamma survival is continuous across the evaluation switch
   skip_if_not_installed("rstan")
   env <- expose_survival_functions()
 
-  # Boost's gamma_q() is used at w <= k + 1 and the continued fraction above it.
-  # The two must agree at the boundary or the likelihood has a seam in it.
-  # With aux = 1 and eta = 0, w = k * t, so t = (k + 1) / k puts w on the switch.
+  # Boost's gamma_q() is used at w <= k + max(1, sqrt(k)) and the continued
+  # fraction above it. The two must agree at the boundary or the likelihood
+  # has a seam in it.
+  #
+  # The evaluation point has to come from the implementation's own formula.
+  # Assuming `w = k * t` and a switch at `k + 1` put three of these four
+  # shapes on one side of the real boundary, testing nothing: at k = 7 both
+  # points sat at w = 7.36 against a switch at 9.65, so a discontinuity
+  # introduced in the continued-fraction branch would have left this green.
+  # With eta = 0 and aux = 1 the argument is
+  #   log w = (1 / sqrt(k)) * log t + log k,
+  # so the time that puts w on the switch is solved for directly.
   for (k in c(0.3, 1, 2.5, 7)) {
-    t_switch <- (k + 1) / k
+    w_switch <- k + max(1, sqrt(k))
+    t_switch <- exp((log(w_switch) - log(k)) * sqrt(k))
+    # The point is only worth testing if it really straddles the branch.
+    log_w <- function(t) (1 / sqrt(k)) * log(t) + log(k)
+    expect_lt(exp(log_w(t_switch * (1 - 1e-9))), w_switch)
+    expect_gt(exp(log_w(t_switch * (1 + 1e-9))), w_switch)
     below <- env$log_surv_scalar(9L, t_switch * (1 - 1e-9), 0, 1, k)
     above <- env$log_surv_scalar(9L, t_switch * (1 + 1e-9), 0, 1, k)
     expect_equal(below, above, tolerance = 1e-7, info = sprintf("k = %g", k))
