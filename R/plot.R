@@ -662,8 +662,16 @@ plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
   }
   # Stan declares these <lower=0>, which truncates rather than folds.
   if (base == "sigma") return(list(prior = priors$sigma, lower = 0))
-  if (base %in% c("aux_val", "aux_val_cmp", "aux2_val", "aux2_val_cmp")) {
+  if (base %in% c("aux_val", "aux_val_cmp")) {
     return(list(prior = priors$aux, lower = 0))
+  }
+  # The second generalized-gamma auxiliary has its own prior, and the two
+  # govern different features of the hazard, so they can be deliberately
+  # different. Resolving both to `priors$aux` drew the FIRST prior against the
+  # SECOND posterior, which is precisely the comparison a prior-sensitivity
+  # plot exists to make. Fall back only for fits stored before `aux2` existed.
+  if (base %in% c("aux2_val", "aux2_val_cmp")) {
+    return(list(prior = priors$aux2 %||% priors$aux, lower = 0))
   }
   if (base == "sigma_smooth") return(list(prior = priors$smooth, lower = 0))
   res <- if (base %in% c("beta", "beta_index")) {

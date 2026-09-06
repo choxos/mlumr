@@ -397,7 +397,7 @@ prior_sensitivity(fit, prior_beta_scales = c(1, 2.5, 5))
 #> Prior sensitivity: posterior of marginal treatment effects
 #> =========================================================
 #> 
-#>  scale      parameter effect      mean        sd         q2       q50       q98
+#>  scale      parameter effect      mean        sd       q2.5       q50     q97.5
 #>    1.0      lor_index    LOR 0.2450842 0.2042432 -0.1572848 0.2449714 0.6380143
 #>    1.0 lor_comparator    LOR 0.2459477 0.2050747 -0.1581046 0.2454590 0.6396459
 #>    2.5      lor_index    LOR 0.2537767 0.2053081 -0.1526689 0.2538476 0.6555978
@@ -405,8 +405,14 @@ prior_sensitivity(fit, prior_beta_scales = c(1, 2.5, 5))
 #>    5.0      lor_index    LOR 0.2481648 0.2012573 -0.1446230 0.2465931 0.6394745
 #>    5.0 lor_comparator    LOR 0.2490404 0.2020809 -0.1439587 0.2471842 0.6418033
 #> 
-#> Interpretation: if posterior summaries are approximately constant
-#> across scales, the inference is data-driven rather than prior-driven.
+#> Interpretation: approximately constant summaries show the posterior
+#> is insensitive to the beta-prior SCALES tested here. That is not the
+#> same as the inference being data-driven: identification also depends
+#> on the prior family and location, the comparator-specific and
+#> auxiliary priors, and the model structure. Vary those too. For a
+#> non-survival fit, check_identification() adds the geometry of the
+#> aggregate rows: exact for a normal identity-link model, descriptive
+#> otherwise.
 ```
 
 The case that motivates the check is the relaxed model, whose comparator

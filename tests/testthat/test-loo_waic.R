@@ -166,3 +166,386 @@ test_that("survival LOO/WAIC can group the comparator pseudo-IPD by arm/aggregat
   bad$stan_data$agd_arm <- c(1L, 2L)
   expect_error(glb(bad, "arm"), "arm map")
 })
+
+
+# Pointwise criteria are paired: loo_compare() differences the matrices column
+# by column, and loo can only check that they have the same shape. Two fits of
+# different data with the same number of rows, or the same rows in another
+# order, compared without complaint. Fits carry their data, so identity is
+# checked, and a fit that carries none is reported rather than assumed.
+
+with_data <- function(fit, outcome, agd_r = c(3L, 5L, 2L, 4L)) {
+  # Keys as the setup functions would record them: one source, rows in the
+  # order given.
+  key <- function(n) paste0(strrep("0", 32L), ":", seq_len(n))
+  fit$data <- list(
+    ipd = list(data = data.frame(.study = "A", .trt = rep(c("x", "y"), 6L),
+                                 .outcome = outcome, age = seq_along(outcome),
+                                 .source_key = key(length(outcome)))),
+    agd = list(data = data.frame(.study = "B", .trt = "z", .r = agd_r,
+                                 .n = 10L, age_mean = 50,
+                                 .source_key = key(length(agd_r))))
+  )
+  fit
+}
+
+test_that("compare_models refuses fits built on different observations", {
+  skip_if_not_installed("loo")
+  y <- rep(c(0L, 1L), 6L)
+  fit1 <- with_data(make_ll_fit("spfa", seed = 2026), y)
+  fit2 <- with_data(make_ll_fit("relaxed", seed = 2026), y)
+  # Same observations, different covariate sets: comparable.
+  fit2$data$ipd$data$age <- NULL
+  out <- suppressWarnings(capture.output(
+    compare_models(fit1, fit2, criterion = "loo")
+  ))
+  expect_true(length(out) > 0L)
+  # Same length, different outcomes.
+  fit3 <- with_data(make_ll_fit("relaxed", seed = 2026), rev(y))
+  fit3$data$ipd$data$.outcome[1] <- 1L - fit3$data$ipd$data$.outcome[1]
+  expect_error(compare_models(fit1, fit3, criterion = "loo"),
+               "not built on the same observations")
+  # Same rows, different order. LOO and WAIC form their standard error of the
+  # difference column by column, so the order is part of the comparison.
+  fit4 <- with_data(make_ll_fit("relaxed", seed = 2026), y)
+  fit4$data$ipd$data <- fit4$data$ipd$data[c(2:12, 1), ]
+  expect_error(compare_models(fit1, fit4, criterion = "loo"),
+               "not built on the same observations")
+  # DIC sums each model's pointwise log-likelihood before taking its mean and
+  # variance, so it is the same number under any permutation and there is
+  # nothing paired to line up. The same rows in another order are the same
+  # data for it, and refusing them refused valid work.
+  out4 <- suppressWarnings(capture.output(
+    compare_models(fit1, fit4, criterion = "dic")
+  ))
+  expect_true(length(out4) > 0L)
+  # A changed value is still refused, whatever the criterion.
+  fit4b <- with_data(make_ll_fit("relaxed", seed = 2026), y)
+  fit4b$data$ipd$data$.outcome[1] <- 1L - fit4b$data$ipd$data$.outcome[1]
+  expect_error(compare_models(fit1, fit4b, criterion = "dic"),
+               "not built on the same observations")
+  # A different aggregate row set is a different data set too.
+  fit5 <- with_data(make_ll_fit("relaxed", seed = 2026), y, agd_r = c(3L, 5L, 2L, 5L))
+  expect_error(compare_models(fit1, fit5, criterion = "waic"),
+               "not built on the same observations")
+})
+
+test_that("the observation check compares values, not their representation", {
+  skip_if_not_installed("loo")
+  y <- rep(c(0L, 1L), 6L)
+  fit1 <- with_data(make_ll_fit("spfa", seed = 2026), y)
+  # The same treatments coded as a factor with an unused level, the same
+  # outcomes as doubles, the same counts read as doubles: one data set.
+  fit2 <- with_data(make_ll_fit("relaxed", seed = 2026), as.numeric(y),
+                    agd_r = c(3, 5, 2, 4))
+  fit2$data$ipd$data$.trt <- factor(fit2$data$ipd$data$.trt,
+                                    levels = c("y", "x", "unused"))
+  fit2$data$agd$data$.n <- 10
+  # Only the internal names are reserved, so a covariate may begin with a dot;
+  # one that appears in a single model is a covariate, not an observation.
+  fit2$data$ipd$data$.age <- seq_len(12L)
+  # Counts are accepted within rounding tolerance and rounded before Stan
+  # sees them; the same rounding applies here.
+  fit2$data$agd$data$.r[1] <- 2.9999999999
+  expect_true(.same_observations(.observation_frames(fit1),
+                                 .observation_frames(fit2)))
+  out <- suppressWarnings(capture.output(
+    compare_models(fit1, fit2, criterion = "loo")
+  ))
+  expect_true(length(out) > 0L)
+  # A study or treatment numbered 1 is the same label as a factor, an
+  # integer or a double: the strings that name them are what is compared.
+  fit3 <- with_data(make_ll_fit("spfa", seed = 2026), y)
+  fit4 <- with_data(make_ll_fit("relaxed", seed = 2026), y)
+  fit3$data$ipd$data$.study <- factor(rep(1, 12L))
+  fit4$data$ipd$data$.study <- rep(1L, 12L)
+  fit3$data$agd$data$.trt <- 2
+  fit4$data$agd$data$.trt <- factor(rep(2L, 4L), levels = c(2L, 3L))
+  expect_true(.same_observations(.observation_frames(fit3),
+                                 .observation_frames(fit4)))
+  # And two different labels are still different, whatever their type.
+  fit4$data$ipd$data$.study <- rep(2L, 12L)
+  expect_false(.same_observations(.observation_frames(fit3),
+                                  .observation_frames(fit4)))
+})
+
+test_that("survival comparators are compared on both their frames", {
+  skip_if_not_installed("loo")
+  # A survival comparator stores its covariate summaries on the aggregate
+  # rows and its times and status on the reconstructed pseudo-individuals.
+  # Either changing is a different comparator likelihood.
+  y <- rep(c(0L, 1L), 6L)
+  surv <- function() {
+    fit <- with_data(make_ll_fit("spfa", seed = 2026), y)
+    fit$data$agd$data <- data.frame(.study = "B", .trt = "z", .arm = "B",
+                                    age_mean = 50, age_sd = 8)
+    fit$data$agd$pseudo_ipd <- data.frame(.study = "B", .trt = "z", .arm = "B",
+                                          .time = c(3, 5, 8), .status = c(1L, 0L, 1L),
+                                          .source_key = paste0(strrep("0", 32L), ":", 1:3))
+    fit
+  }
+  fit1 <- surv()
+  fit2 <- surv()
+  expect_true(.same_observations(.observation_frames(fit1),
+                                 .observation_frames(fit2)))
+  fit2$data$agd$data$age_mean <- 70
+  expect_false(.same_observations(.observation_frames(fit1),
+                                  .observation_frames(fit2)))
+  # A fit from before the row keys can be compared, with the caveat said.
+  fit4 <- surv()
+  fit4$data$ipd$data$.source_key <- NULL
+  expect_true(is.na(.same_observations(.observation_frames(fit1),
+                                       .observation_frames(fit4))))
+  fit3 <- surv()
+  fit3$data$agd$pseudo_ipd$.status[2] <- 1L
+  expect_false(.same_observations(.observation_frames(fit1),
+                                  .observation_frames(fit3)))
+})
+
+test_that("a row swap is a mismatch exactly when a shared covariate moves", {
+  skip_if_not_installed("loo")
+  # Rows 1 and 3 have the same study, treatment and outcome and differ only
+  # in age. Swapping them leaves every observation column unchanged.
+  y <- rep(c(0L, 1L), 6L)
+  fit1 <- with_data(make_ll_fit("spfa", seed = 2026), y)
+  fit2 <- with_data(make_ll_fit("relaxed", seed = 2026), y)
+  fit2$data$ipd$data <- fit2$data$ipd$data[c(3L, 2L, 1L, 4:12), ]
+  # Both models use age, so their pointwise likelihoods for the two rows are
+  # different numbers, and the swap pairs each with the wrong one.
+  expect_error(compare_models(fit1, fit2, criterion = "loo"),
+               "not built on the same observations")
+  # With the row keys the swap is a reordering of one source whatever the
+  # covariates, and is refused as such.
+  fit2$data$ipd$data$age <- NULL
+  expect_false(.same_observations(.observation_frames(fit1),
+                                  .observation_frames(fit2)))
+  # Without keys, as in a fit from before they existed, the columns decide.
+  # One model does not use age: for it the two rows are exchangeable, its
+  # pointwise likelihood is the same for both, and either pairing gives the
+  # same comparison; the order is unverified and the comparison says so.
+  drop_keys <- function(fit) {
+    fit$data$ipd$data$.source_key <- NULL
+    fit$data$agd$data$.source_key <- NULL
+    fit
+  }
+  fit1 <- drop_keys(fit1)
+  fit2 <- drop_keys(fit2)
+  expect_true(is.na(.same_observations(.observation_frames(fit1),
+                                       .observation_frames(fit2))))
+  expect_warning(capture.output(compare_models(fit1, fit2, criterion = "loo")),
+                 "could not be verified")
+  # Both keyless models use age: the shared covariate shows the swap.
+  fit2$data$ipd$data$age <- fit1$data$ipd$data$age[c(3L, 2L, 1L, 4:12)]
+  expect_error(compare_models(fit1, fit2, criterion = "loo"),
+               "not built on the same observations")
+})
+
+test_that("a reordered source is caught even when the fits share no covariate", {
+  skip_if_not_installed("loo")
+  # Rows 1 and 3 agree on treatment and outcome and differ in age and sex.
+  # A model on age and a model on sex share no covariate, so after a swap
+  # nothing in the stored columns can show that both models' pointwise
+  # likelihoods moved. The key the setup functions record from the whole
+  # source row can.
+  src <- data.frame(trt = "x", y = rep(c(0L, 1L), 6L),
+                    age = c(30, 41, 52, 63, 74, 85, 36, 47, 58, 69, 70, 81),
+                    sex = c(1L, 0L, 0L, 1L, 0L, 1L, 1L, 0L, 1L, 0L, 1L, 0L),
+                    stringsAsFactors = FALSE)
+  agd <- data.frame(trt = "z", n = 10L, r = c(3L, 5L, 2L, 4L),
+                    age_mean = 50, age_sd = 8, sex_prop = 0.5)
+  from <- function(model, ipd, covs, agd_covs, agd_sds = NULL) {
+    fit <- make_ll_fit(model, seed = 2026)
+    fit$data <- list(
+      ipd = suppressWarnings(set_ipd(ipd, treatment = "trt", outcome = "y",
+                                     covariates = covs, family = "binomial")),
+      agd = set_agd(agd, treatment = "trt", outcome_n = "n", outcome_r = "r",
+                    cov_means = agd_covs, cov_sds = agd_sds, family = "binomial")
+    )
+    fit
+  }
+  fit_age <- from("spfa", src, "age", c(age = "age_mean"), c(age = "age_sd"))
+  fit_sex <- from("relaxed", src[c(3L, 2L, 1L, 4:12), ], "sex", c(sex = "sex_prop"))
+  expect_true(all(c(".source_key") %in% names(fit_age$data$ipd$data)))
+  expect_error(compare_models(fit_age, fit_sex, criterion = "loo"),
+               "not built on the same observations")
+  # The same source in the same order compares as the same, whatever the
+  # covariate sets.
+  fit_sex2 <- from("relaxed", src, "sex", c(sex = "sex_prop"))
+  expect_true(.same_observations(.observation_frames(fit_age),
+                                 .observation_frames(fit_sex2)))
+  # A source that gained a column between the fits gives different keys, and
+  # then neither the keys nor the columns can say whether the rows are in the
+  # same order: the comparison runs, and says that it could not check.
+  src2 <- src
+  src2$age_dec <- src2$age / 10
+  fit_dec <- from("relaxed", src2, "age_dec", c(age_dec = "age_mean"),
+                  c(age_dec = "age_sd"))
+  expect_true(is.na(.same_observations(.observation_frames(fit_age),
+                                       .observation_frames(fit_dec))))
+  expect_warning(capture.output(compare_models(fit_age, fit_dec, criterion = "loo")),
+                 "could not be verified")
+  # Column order in the source is not part of the key.
+  fit_cols <- from("relaxed", src[, c("sex", "age", "y", "trt")], "sex",
+                   c(sex = "sex_prop"))
+  expect_identical(fit_cols$data$ipd$data$.source_key,
+                   fit_age$data$ipd$data$.source_key)
+  # The key keeps nothing of the source: an unused identifier column changes
+  # the digest and appears nowhere in the fit.
+  src3 <- src
+  src3$patient <- sprintf("Patient %02d", seq_len(nrow(src3)))
+  keys <- from("relaxed", src3, "sex", c(sex = "sex_prop"))$data$ipd$data$.source_key
+  expect_match(keys, "^[0-9a-f]{32}:[0-9]+$")
+  expect_false(any(grepl("Patient", keys, fixed = TRUE)))
+  expect_false(identical(keys, fit_age$data$ipd$data$.source_key))
+  # Identical rows share a rank, so swapping them is not a reordering.
+  src4 <- rbind(src[1, ], src[1, ], src[3:12, ])
+  k4 <- .source_row_keys(src4)
+  expect_identical(k4[1], k4[2])
+  expect_identical(.source_row_keys(src4[c(2L, 1L, 3:12), ]), k4)
+  # The names decide the column order, so they belong in the digest. Without
+  # them, renaming a column across the sort boundary moves every value to
+  # another position, and a source whose values line up that way produced the
+  # same rows, the same digest and the same ranks. Two fits with disjoint
+  # covariates and repeated treatments and outcomes would then have their row
+  # order certified on the strength of a coincidence.
+  a <- data.frame(age = c(1, 2), trt = c("x", "x"), y = c(5, 5),
+                  stringsAsFactors = FALSE)
+  b <- data.frame(trt = c(1, 2), weight = c("x", "x"), y = c(5, 5),
+                  stringsAsFactors = FALSE)
+  expect_false(identical(.source_row_keys(a), .source_row_keys(b)))
+  # Storage mode is part of it too: the same numbers written as text are a
+  # different source, not the same one.
+  expect_false(identical(.source_row_keys(a),
+                         .source_row_keys(transform(a, age = as.character(age)))))
+  # A value that contains the column separator cannot forge a row boundary.
+  sep <- data.frame(u = c("p", "q"), v = c("r", "s"), stringsAsFactors = FALSE)
+  forged <- data.frame(u = c(paste0("p\036r"), paste0("q\036s")),
+                       v = c("", ""), stringsAsFactors = FALSE)
+  expect_false(identical(.source_row_keys(sep), .source_row_keys(forged)))
+  # Doubles are written at full precision. Printed at 15 significant digits
+  # these two collapse to one string, which would give them one rank and let
+  # a swap of the two rows pass as the same order.
+  tiny <- data.frame(v = c(1, 1 + 2e-16), w = c("p", "q"),
+                     stringsAsFactors = FALSE)
+  expect_identical(as.character(tiny$v[1]), as.character(tiny$v[2]))
+  kt <- .source_row_keys(tiny)
+  expect_false(identical(kt[1], kt[2]))
+  expect_false(identical(.source_row_keys(tiny[c(2L, 1L), ]), kt))
+  # And two shapes that flatten alike in one list column stay distinct.
+  l1 <- data.frame(id = 1:2)
+  l1$v <- list(c("a", "b"), "z")
+  l2 <- data.frame(id = 1:2)
+  l2$v <- list("a,b", "z")
+  expect_false(identical(.source_row_keys(l1), .source_row_keys(l2)))
+})
+
+test_that("a grouped survival unit allows a reordered comparator", {
+  # `survival_unit = "arm"` and `"aggregate"` sum a group's pointwise columns
+  # before anything is compared, so the order of the comparator's rows inside
+  # a group is not part of the comparison and rejecting it blocks valid work.
+  # What must still hold is that each group is made of the same rows.
+  pseudo <- function(order = 1:4, arms = c("a", "a", "b", "b"), time = 1:4) {
+    data.frame(.study = "S", .trt = "z", .arm = arms[order],
+               .time = time[order], .status = c(1, 0, 1, 0)[order],
+               .source_key = paste0(strrep("0", 32L), ":", order),
+               stringsAsFactors = FALSE)
+  }
+  frames <- function(p) list(ipd = NULL, agd = NULL, pseudo = p)
+  a <- frames(pseudo())
+  b <- frames(pseudo(c(2L, 1L, 4L, 3L)))
+  # Positional by default, order free once the unit groups them.
+  expect_false(.same_observations(a, b))
+  expect_true(.same_observations(a, b, pseudo_grouped = TRUE))
+  # A row moved to the other arm is a different comparator under either.
+  moved <- frames(pseudo(arms = c("a", "b", "a", "b")))
+  expect_false(.same_observations(a, moved, pseudo_grouped = TRUE))
+  # So is a changed value, even when the multiset of arms is unchanged.
+  changed <- frames(pseudo(time = c(1, 2, 3, 99)))
+  expect_false(.same_observations(a, changed, pseudo_grouped = TRUE))
+  # Down to a difference the display precision would have hidden. Rendering
+  # the rows as text compared them at `getOption("digits")`, where these two
+  # survival times print alike, and approved two different comparators.
+  tiny <- frames(pseudo(time = c(1, 2, 3, 4 + 1e-12)))
+  expect_identical(format(4), format(4 + 1e-12))
+  expect_false(.same_observations(a, tiny, pseudo_grouped = TRUE))
+  # And the index rows stay positional whatever the unit.
+  y <- rep(c(0L, 1L), 6L)
+  f1 <- with_data(make_ll_fit("spfa", seed = 2026), y)
+  f2 <- with_data(make_ll_fit("relaxed", seed = 2026), y)
+  f2$data$ipd$data <- f2$data$ipd$data[c(2:12, 1), ]
+  expect_error(.assert_same_observations(list(f1, f2), "aggregate"),
+               "not built on the same observations")
+})
+
+test_that("a key describes the source, not the rows one model kept", {
+  # Two models of one source with different covariates drop different
+  # incomplete rows. A key taken after that filter makes one source look like
+  # two, and two fits that kept different patients are then reported as
+  # merely unverifiable instead of refused.
+  src <- data.frame(
+    trt = rep("x", 6L),
+    y = c(0, 1, 0, 1, 0, 1),
+    a = c(1, NA, 3, 4, 5, 6),
+    b = c(1, 2, 3, NA, 5, 6),
+    c = seq_len(6L),
+    stringsAsFactors = FALSE
+  )
+  keys <- function(cov) {
+    suppressWarnings(
+      set_ipd(src, treatment = "trt", outcome = "y", covariates = cov,
+              family = "normal")$data$.source_key
+    )
+  }
+  ka <- keys("a")
+  kb <- keys("b")
+  # Same source, so the same digest, and the ranks name the rows each kept.
+  digest <- function(k) unique(sub(":.*$", "", k))
+  expect_identical(digest(ka), digest(kb))
+  expect_length(ka, 5L)
+  expect_length(kb, 5L)
+  expect_false(identical(sort(ka), sort(kb)))
+  # A model whose covariate has no missing values keeps every row, and its
+  # ranks are the whole source's.
+  kc <- keys("c")
+  expect_length(kc, 6L)
+  expect_identical(digest(kc), digest(ka))
+  expect_true(all(ka %in% kc))
+})
+
+test_that("every pair of compared fits is checked, not each against the first", {
+  # Sharing a covariate is not transitive: A carries none, so A matches both
+  # B and C, while B and C share age and differ in it.
+  y <- rep(c(0L, 1L), 6L)
+  a <- with_data(make_ll_fit("spfa", seed = 2026), y)
+  a$data$ipd$data$age <- NULL
+  b <- with_data(make_ll_fit("relaxed", seed = 2026), y)
+  c3 <- with_data(make_ll_fit("relaxed", seed = 2026), y)
+  c3$data$ipd$data$age[1:2] <- c3$data$ipd$data$age[2:1]
+  expect_true(.same_observations(.observation_frames(a), .observation_frames(b)))
+  expect_true(.same_observations(.observation_frames(a), .observation_frames(c3)))
+  expect_error(compare_models(a, b, c3), "not built on the same observations")
+})
+
+test_that("a DIC object carries its observations into the check", {
+  y <- rep(c(0L, 1L), 6L)
+  fit1 <- with_data(make_ll_fit("spfa", seed = 2026), y)
+  dic1 <- calculate_dic(fit1)
+  expect_true(.same_observations(dic1$observations, .observation_frames(fit1)))
+  fit2 <- with_data(make_ll_fit("relaxed", seed = 2026), y)
+  expect_no_message(capture.output(compare_models(dic1, fit2)))
+  fit3 <- with_data(make_ll_fit("relaxed", seed = 2026), rev(y))
+  fit3$data$ipd$data$.outcome[1] <- 1L - fit3$data$ipd$data$.outcome[1]
+  expect_error(compare_models(dic1, fit3), "not built on the same observations")
+  expect_error(compare_models(dic1, calculate_dic(fit3)),
+               "not built on the same observations")
+})
+
+test_that("compare_models says when it cannot verify the observations", {
+  skip_if_not_installed("loo")
+  fit1 <- make_ll_fit("spfa", seed = 2026)
+  fit2 <- make_ll_fit("relaxed", seed = 2026)
+  run <- function() {
+    suppressWarnings(capture.output(compare_models(fit1, fit2, criterion = "loo")))
+  }
+  expect_message(run(), "Could not verify")
+})

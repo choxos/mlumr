@@ -46,7 +46,14 @@ names as an alternative to \code{Surv} (right-censoring with status \code{0}/\co
 plus optional delayed entry).}
 }
 \value{
-An object of class \code{mlumr_ipd}
+An object of class \code{mlumr_ipd}. Its \verb{$data} holds the treatment,
+study, outcome and covariate columns under internal names, and one more,
+\code{.source_key}: a digest of the whole of \code{data} together with the row's
+rank within a canonical ordering of it, which lets \code{\link[=compare_models]{compare_models()}}
+tell fits of one source apart from fits of that source reordered, whatever
+covariates they use. Nothing of \code{data}'s content is kept in it. The
+internal names, \code{.source_key} among them, cannot be used as column names
+in \code{data}.
 }
 \description{
 Prepare IPD from the index treatment for an unanchored indirect comparison.

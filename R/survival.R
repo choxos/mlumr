@@ -212,7 +212,8 @@
   .check_required_columns(data, required_cols)
   .validate_reserved_internal_names(
     c(covariates, treatment, study, time, status, entry_time),
-    c(".study", ".trt", ".time", ".start_time", ".delay_time", ".status"),
+    c(".study", ".trt", ".time", ".start_time", ".delay_time", ".status",
+      ".source_key"),
     "Column name(s)"
   )
   .validate_ipd_covariates(data, covariates)
@@ -227,6 +228,7 @@
   )
   ipd_data <- cbind(ipd_data, surv_df)
   for (cov in covariates) ipd_data[[cov]] <- data[[cov]]
+  ipd_data$.source_key <- .source_row_keys(data)
 
   # Drop incomplete rows on all setup columns (treatment, study, the four
   # survival columns, and covariates), mirroring the non-survival path's
@@ -271,6 +273,26 @@
 #' via the Guyot algorithm) together with summary covariate moments
 #' (means/SDs). The Stan model integrates the comparator likelihood over the
 #' covariate distribution implied by those moments.
+#'
+#' @section Reconstruction uncertainty is not propagated:
+#' The pseudo-individual records enter the likelihood as if they were observed
+#' data. The posterior therefore carries outcome-model and parameter
+#' uncertainty *conditional on this one reconstruction*, and none of the
+#' uncertainty in the reconstruction itself: reading points off the published
+#' figure, rounding in the numbers at risk, the choice of reconstruction
+#' algorithm, and the fact that many pseudo-IPD sets are compatible with the
+#' same published curve. Credible intervals from a survival fit are for that
+#' reason narrower than the evidence supports, most visibly for flexible
+#' baselines, late-tail RMST and medians, and weakly identified relaxed
+#' comparator coefficients.
+#'
+#' There is no automatic correction for this. Treat the reconstruction as an
+#' analysis choice and vary it: digitize the curve more than once, or perturb
+#' the digitized points and the numbers at risk within their reading error,
+#' refit on each resulting pseudo-IPD set, and report the spread across refits
+#' alongside the within-fit interval. If that spread is comparable to the
+#' credible interval, the interval is describing the reconstruction as much as
+#' the data.
 #'
 #' @param data Data frame of reconstructed pseudo-IPD (one row per
 #'   pseudo-individual).
@@ -346,6 +368,12 @@
 #' Delayed entry in the individual arm is unaffected by any of this.
 #'
 #' @return An object of class `mlumr_agd_surv` (also inheriting `mlumr_agd`).
+#'   Its `$pseudo_ipd` carries a `.source_key` column as [set_ipd()] describes:
+#'   a digest of the whole of `data` with the row's rank within a canonical
+#'   ordering of it, holding nothing of the content, so that
+#'   [compare_models()] can recognize one source reordered between two fits.
+#'   The internal names, `.source_key` among them, cannot be used as column
+#'   names in `data`.
 #' @seealso [set_agd()] for non-survival aggregate data.
 #'   `multinma::set_agd_surv()` is the ML-NMR equivalent; the name is given as
 #'   code rather than as a link because multinma is not a dependency here, and
@@ -387,7 +415,8 @@ set_agd_surv <- function(data, treatment, Surv = NULL,
   .validate_reserved_internal_names(
     c(cov_means, cov_sds[!is.na(cov_sds)], treatment, study, arm,
       time, status, entry_time),
-    c(".study", ".trt", ".arm", ".time", ".start_time", ".delay_time", ".status"),
+    c(".study", ".trt", ".arm", ".time", ".start_time", ".delay_time", ".status",
+      ".source_key"),
     "Column name(s)"
   )
   .validate_agd_covariate_names(cov_means)
@@ -418,6 +447,7 @@ set_agd_surv <- function(data, treatment, Surv = NULL,
     .study = study_vec, .trt = trt_vec, .arm = arm_vec,
     .time = surv_df$.time, .start_time = surv_df$.start_time,
     .delay_time = surv_df$.delay_time, .status = surv_df$.status,
+    .source_key = .source_row_keys(data),
     stringsAsFactors = FALSE
   )
 
@@ -661,4 +691,76 @@ print.mlumr_agd_surv <- function(x, ...) {
   } else {
     list(label = if (log_scale) "LOG_TR" else "TR", at_time = NA_real_)
   }
+}
+
+#' The one scalar `effect` name a survival fit can legitimately supply
+#'
+#' Turns the natural-scale label into the `effect` selector that names it. Every
+#' fit has exactly one: a proportional-hazards fit supplies a hazard ratio, a
+#' shared-shape SPFA AFT fit supplies a time ratio, and anything else supplies
+#' only the exponentiated location contrast. Keeping this derivation in one
+#' place is what stops the selector and the label from disagreeing.
+#' @param label The `label` from [.surv_scalar_label()] (natural scale).
+#' @return One of `"hr"`, `"tr"`, `"exp_delta_eta"`.
+#' @keywords internal
+.surv_scalar_effect_name <- function(label) {
+  switch(label, HR = "hr", TR = "tr", EXP_DELTA_ETA = "exp_delta_eta",
+         stop("Unrecognized survival scalar label: ", label, call. = FALSE))
+}
+
+#' Message for an `effect` this survival fit cannot supply
+#'
+#' Says which estimand the fit does have and why the requested one does not
+#' exist for it, rather than only listing the accepted strings: asking for an
+#' HR from an AFT fit is a modeling misunderstanding, and "must be one of" does
+#' not correct it.
+#' @param effect The requested selector.
+#' @param label,scalar_effect The fit's natural-scale label and its selector.
+#' @param stratified `TRUE` when the baseline shapes differ by study.
+#' @param valid_effects The accepted selectors for this fit.
+#' @return A character message for [stop()].
+#' @keywords internal
+.surv_effect_scale_error <- function(effect, label, scalar_effect, stratified,
+                                     valid_effects) {
+  wrong_scalar <- effect %in% c("hr", "tr", "exp_delta_eta")
+  if (!wrong_scalar) {
+    return(sprintf("For survival family, `effect` must be one of: %s",
+                   paste(valid_effects, collapse = ", ")))
+  }
+  # Asking for the location contrast on a fit that has a real HR or TR is the
+  # mirror image of the other errors, and what the caller needs to hear is when
+  # `exp_delta_eta` does apply, not a restatement of what this fit is.
+  if (identical(effect, "exp_delta_eta")) {
+    return(paste0("`effect = \"exp_delta_eta\"` applies to an AFT distribution ",
+                  "whose shapes differ by study (`aux_by = \".study\"`) or to ",
+                  "any relaxed AFT fit, whose treatment-specific coefficients ",
+                  "leave the covariate term in the contrast. This fit reports ",
+                  label, "; request `effect = \"", scalar_effect, "\"`."))
+  }
+  why <- switch(
+    label,
+    HR = paste0("this fit uses a proportional-hazards distribution, whose ",
+                "scalar contrast is a marginal hazard ratio, not a time ratio ",
+                "or a bare location contrast"),
+    TR = paste0("this is a shared-shape SPFA accelerated-failure-time fit. Its ",
+                "scalar contrast is a time ratio: the covariate term cancels ",
+                "from mean(eta_index) - mean(eta_comparator), and the hazard ",
+                "ratio is not constant in time, so there is no scalar HR"),
+    EXP_DELTA_ETA = if (stratified) {
+      paste0("each study has its own AFT shape (`aux_by = \".study\"`), so there ",
+             "is no constant acceleration factor at all (the Weibull quantile ",
+             "ratio picks up [-log S]^(1/a_i - 1/a_c), the log-normal ",
+             "exp(z_p (sigma_i - sigma_c)), and so on)")
+    } else {
+      paste0("this is a relaxed fit, so the two treatments have different ",
+             "coefficients and the covariate term does not cancel from ",
+             "mean(eta_index) - mean(eta_comparator). The time ratio varies by ",
+             "covariate profile, and exp(delta) is the geometric mean of those ",
+             "profile-specific ratios, not one population acceleration factor")
+    }
+  )
+  paste0("`effect = \"", effect, "\"` is not available for this fit: ", why,
+         ". Request `effect = \"", scalar_effect, "\"` for the scalar contrast ",
+         "this fit does supply, the collapsible `effect = \"rmstd\"` / ",
+         "\"rmstr\", or conditional_effects() for profile-specific effects.")
 }

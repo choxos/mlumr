@@ -49,6 +49,12 @@ weighting estimand is implemented. Defaults to a single arm.}
 }
 \value{
 An object of class \code{mlumr_agd_surv} (also inheriting \code{mlumr_agd}).
+Its \verb{$pseudo_ipd} carries a \code{.source_key} column as \code{\link[=set_ipd]{set_ipd()}} describes:
+a digest of the whole of \code{data} with the row's rank within a canonical
+ordering of it, holding nothing of the content, so that
+\code{\link[=compare_models]{compare_models()}} can recognize one source reordered between two fits.
+The internal names, \code{.source_key} among them, cannot be used as column
+names in \code{data}.
 }
 \description{
 Prepare comparator aggregate survival data for an unanchored indirect
@@ -111,6 +117,28 @@ and treat a delayed-entry comparator whose moments are known to be
 pre-selection as a misspecification that no diagnostic here can detect.
 Delayed entry in the individual arm is unaffected by any of this.
 }
+\section{Reconstruction uncertainty is not propagated}{
+
+The pseudo-individual records enter the likelihood as if they were observed
+data. The posterior therefore carries outcome-model and parameter
+uncertainty \emph{conditional on this one reconstruction}, and none of the
+uncertainty in the reconstruction itself: reading points off the published
+figure, rounding in the numbers at risk, the choice of reconstruction
+algorithm, and the fact that many pseudo-IPD sets are compatible with the
+same published curve. Credible intervals from a survival fit are for that
+reason narrower than the evidence supports, most visibly for flexible
+baselines, late-tail RMST and medians, and weakly identified relaxed
+comparator coefficients.
+
+There is no automatic correction for this. Treat the reconstruction as an
+analysis choice and vary it: digitize the curve more than once, or perturb
+the digitized points and the numbers at risk within their reading error,
+refit on each resulting pseudo-IPD set, and report the spread across refits
+alongside the within-fit interval. If that spread is comparable to the
+credible interval, the interval is describing the reconstruction as much as
+the data.
+}
+
 \examples{
 \dontrun{
 agd <- set_agd_surv(

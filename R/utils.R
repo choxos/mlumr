@@ -132,7 +132,7 @@ eval_distr <- function(d, p, data = list()) {
 .summarize_draw_matrix <- function(draws, probs) {
   summary_mat <- t(apply(draws, 2, .summarize_draw_vector, probs = probs))
   summary_df <- as.data.frame(summary_mat)
-  colnames(summary_df) <- c("mean", "sd", paste0("q", probs * 100))
+  colnames(summary_df) <- c("mean", "sd", .quantile_names(probs))
   summary_df
 }
 
@@ -511,4 +511,20 @@ cor_adjust_pearson <- function(X, types) {
   }
   names(args) <- nms
   args
+}
+
+#' Coerce a validated count to integer without truncating
+#'
+#' `as.integer()` truncates toward zero, while the count validators accept any
+#' value within `sqrt(.Machine$double.eps)` of a whole number. Those two rules
+#' disagree: `0.999999999` is accepted as the count 1 and then coerced to 0, so
+#' the package silently changed an event count it had just approved. Rounding
+#' first maps an accepted value onto the integer it was accepted FOR, and is a
+#' no-op for values that were already exact.
+#'
+#' @param x A numeric vector that has passed a whole-number count check.
+#' @return An integer vector.
+#' @keywords internal
+.as_count_integer <- function(x) {
+  as.integer(round(x))
 }
