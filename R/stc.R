@@ -277,6 +277,15 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' separates the outcome). A rate can legitimately be small, so the test is on
 #' the boundary rather than on smallness, and it applies only where a boundary
 #' exists.
+#'
+#' What it does not catch is quasi-complete separation, where rows sit on the
+#' separating hyperplane: `y = c(0, 0, 1, 1)` on `x = c(-1, 0, 0, 1)` has no
+#' finite slope, yet the two tied rows keep fitted probabilities of exactly
+#' 0.5, so not every probability has reached a boundary. Telling that apart
+#' from a strong but identified fit takes more than the fitted values, since a
+#' legitimate signal here reaches a linear predictor of 20.1 while this case
+#' reaches 19.6. The exact test is a linear program rather than a threshold,
+#' so covering it is a dependency decision and not a correction to this test.
 #' @param fit A fitted `glm`.
 #' @return `NULL`, invisibly; called for the error.
 #' @keywords internal

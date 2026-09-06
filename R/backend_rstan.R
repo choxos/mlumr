@@ -1,3 +1,14 @@
+#' Count transitions that stopped at the sampler's treedepth limit
+#'
+#' @param sp Per-chain sampler parameter matrices from
+#'   [rstan::get_sampler_params()].
+#' @param limit The `max_treedepth` the sampler actually ran under.
+#' @return A single count across all chains.
+#' @keywords internal
+.count_treedepth_hits <- function(sp, limit) {
+  sum(vapply(sp, function(x) sum(x[, "treedepth__"] >= limit), numeric(1)))
+}
+
 #' Merge a caller's rstan `control` with the settings mlumr names itself
 #'
 #' Tested by name rather than by value. A caller who writes `control = NULL`
@@ -88,7 +99,12 @@ fit_rstan <- function(model_name, stan_data, chains, iter, warmup,
 
   sp <- rstan::get_sampler_params(fit, inc_warmup = FALSE)
   n_divergent <- sum(vapply(sp, function(x) sum(x[, "divergent__"]), numeric(1)))
-  n_max_td <- sum(vapply(sp, function(x) sum(x[, "treedepth__"] >= max_treedepth), numeric(1)))
+  # The limit the sampler actually ran under, which is the merged one. A
+  # caller who raised `max_treedepth` through `control` got the higher limit
+  # from `rstan::sampling()` while this count still used the argument, so
+  # transitions that stopped below the argument were reported as hitting a
+  # maximum they never reached, and an override the other way hid real ones.
+  n_max_td <- .count_treedepth_hits(sp, control$max_treedepth)
 
   list(
     native_fit = fit,

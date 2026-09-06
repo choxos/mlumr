@@ -273,8 +273,9 @@
   compiler upgrade with everything else unchanged does not, and does not need
   to. Anyone carrying a cache from an earlier version will get one recompile.
 
-* **`stc()` refuses a separated outcome model.** Its checks looked for a
-  failure the fitting reports, and separation is not one: iterative
+* **`stc()` refuses an outcome model whose fitted probabilities have all
+  reached a boundary.** Its checks looked for a failure the fitting reports,
+  and separation is not one: iterative
   reweighting stops when the deviance stops changing, and a separated fit has
   no maximum for it to stop at, so a binomial arm with no events returned
   convergence, finite coefficients and a finite covariance. A hundred rows with
@@ -282,8 +283,12 @@
   probability of 3e-12, with a confidence interval to match, every number a
   property of where the iteration stopped rather than of the data. Raising
   `maxit` changes none of them. The symptom separation always leaves is now
-  an error: every fitted probability against a boundary, tested only where a
-  boundary exists, so a genuinely rare event still fits.
+  an error: every fitted probability against a boundary, either one, tested
+  only where a boundary exists, so a genuinely rare event still fits.
+  Quasi-complete separation, where rows sit on the separating hyperplane and
+  keep interior fitted probabilities, is not detected; separating that from a
+  strong but identified fit needs an exact test rather than the fitted
+  values.
 
 * **`stc()` fits a normal outcome with a log link whenever the means are
   positive.** R initializes that link from the log of the outcome and stops on

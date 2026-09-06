@@ -78,3 +78,28 @@ test_that("a caller's sampler control is merged, never forwarded beside ours", {
   expect_error(merge(0.8, 10, list(control = "adapt_delta = 0.99")),
                "must be a list")
 })
+
+test_that("treedepth hits are counted against the limit the sampler ran under", {
+  merge <- mlumr:::.merge_sampler_control
+  count <- mlumr:::.count_treedepth_hits
+
+  # Two chains whose transitions stopped at depths 9 and 10.
+  sp <- list(
+    cbind(treedepth__ = c(9, 10, 10, 8), divergent__ = c(0, 0, 0, 0)),
+    cbind(treedepth__ = c(10, 7, 9, 10), divergent__ = c(0, 0, 0, 0))
+  )
+
+  # mlumr's argument says 15; the caller lowered it to 10 through `control`.
+  # The sampler ran at 10, so four transitions hit the maximum. Counting
+  # against 15 reports none of them, which is the reading that made a capped
+  # run look clean.
+  merged <- merge(0.8, 15, list(control = list(max_treedepth = 10)))
+  expect_equal(merged$control$max_treedepth, 10)
+  expect_equal(count(sp, merged$control$max_treedepth), 4)
+  expect_equal(count(sp, 15), 0)
+
+  # With no override the merged limit is the argument, so nothing changes for
+  # the ordinary path.
+  plain <- merge(0.8, 10, list())
+  expect_equal(count(sp, plain$control$max_treedepth), 4)
+})
