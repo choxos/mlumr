@@ -67,6 +67,11 @@
 # checkpoints each fit so an interrupted run resumes where it stopped.
 
 suppressMessages(library(mlumr))
+# Base R gained `%||%` in 4.4.0 and mlumr does not export its own copy, so on
+# an older R every fit's diagnostics would stop with "could not find
+# function". The per-cell `try()` would swallow each one and write no
+# checkpoint, so the whole study would run to the end and report nothing.
+`%||%` <- function(x, y) if (is.null(x)) y else x
 options(mlumr.quiet_relaxed_index = TRUE)
 
 # Engine choice is not cosmetic here. The same fit takes about 4 seconds through
