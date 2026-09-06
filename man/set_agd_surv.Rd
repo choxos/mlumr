@@ -63,12 +63,17 @@ covariate distribution implied by those moments.
 entry.} For individual data the covariates are known, so dividing each
 person's contribution by their own survival to entry is unambiguous. Here
 the covariates are not observed: they are integrated out against the
-distribution implied by \code{cov_means} and \code{cov_sds}, and the order of the two
+distribution \code{\link[=add_integration]{add_integration()}} builds, and the order of the two
 operations matters. This model conditions first and averages second, so each
 integration point contributes its own delayed-entry likelihood and the row
-likelihood is their average. That is the right quantity when the supplied
-moments describe the population \strong{as observed at entry}, meaning those who
-survived to their entry time and are therefore in the risk set.
+likelihood is their average. That is the right quantity when the
+distribution integrated over describes the population \strong{as observed at
+entry}, meaning those who survived to their entry time and are therefore
+in the risk set. The whole distribution has to, not only \code{cov_means} and
+\code{cov_sds}: the delayed-entry contribution is nonlinear in the covariates,
+so the marginal shape each \code{distr()} assumes and the dependence its \code{cor}
+imposes change the average as surely as the moments do, and two populations
+can share every moment while differing in either.
 
 It is not the right quantity when the moments describe a baseline,
 pre-selection population, because surviving to entry is itself selective:
