@@ -356,6 +356,12 @@
 #' individual arm is unaffected by any of this.
 #'
 #' @return An object of class `mlumr_agd_surv` (also inheriting `mlumr_agd`).
+#'   Its `$pseudo_ipd` carries a `.source_key` column as [set_ipd()] describes:
+#'   a digest of the whole of `data` with the row's rank within a canonical
+#'   ordering of it, holding nothing of the content, so that
+#'   [compare_models()] can recognize one source reordered between two fits.
+#'   The internal names, `.source_key` among them, cannot be used as column
+#'   names in `data`.
 #' @seealso [set_agd()] for non-survival aggregate data.
 #'   `multinma::set_agd_surv()` is the ML-NMR equivalent; the name is given as
 #'   code rather than as a link because multinma is not a dependency here, and

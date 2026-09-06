@@ -49,6 +49,12 @@ weighting estimand is implemented. Defaults to a single arm.}
 }
 \value{
 An object of class \code{mlumr_agd_surv} (also inheriting \code{mlumr_agd}).
+Its \verb{$pseudo_ipd} carries a \code{.source_key} column as \code{\link[=set_ipd]{set_ipd()}} describes:
+a digest of the whole of \code{data} with the row's rank within a canonical
+ordering of it, holding nothing of the content, so that
+\code{\link[=compare_models]{compare_models()}} can recognize one source reordered between two fits.
+The internal names, \code{.source_key} among them, cannot be used as column
+names in \code{data}.
 }
 \description{
 Prepare comparator aggregate survival data for an unanchored indirect

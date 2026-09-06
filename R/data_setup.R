@@ -20,7 +20,14 @@
 #'   names as an alternative to `Surv` (right-censoring with status `0`/`1`,
 #'   plus optional delayed entry).
 #'
-#' @return An object of class `mlumr_ipd`
+#' @return An object of class `mlumr_ipd`. Its `$data` holds the treatment,
+#'   study, outcome and covariate columns under internal names, and one more,
+#'   `.source_key`: a digest of the whole of `data` together with the row's
+#'   rank within a canonical ordering of it, which lets [compare_models()]
+#'   tell fits of one source apart from fits of that source reordered, whatever
+#'   covariates they use. Nothing of `data`'s content is kept in it. The
+#'   internal names, `.source_key` among them, cannot be used as column names
+#'   in `data`.
 #' @export
 #'
 #' @examples
@@ -562,7 +569,12 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 #' probit / cloglog under alternative links) are formed from
 #' `outcome_r / outcome_n`, so no scale conversion is required.
 #'
-#' @return An object of class `mlumr_agd`
+#' @return An object of class `mlumr_agd`. As for [set_ipd()], its `$data`
+#'   carries a `.source_key` column, a digest of the whole of `data` with the
+#'   row's rank within a canonical ordering of it, holding nothing of the
+#'   content; it lets [compare_models()] recognize one source reordered
+#'   between two fits. The internal names, `.source_key` among them, cannot be
+#'   used as column names in `data`.
 #' @export
 #'
 #' @examples
