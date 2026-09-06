@@ -477,10 +477,16 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
     paste0(nchar(x, type = "bytes"), ":", x)
   }
   join <- function(parts) paste(tag(parts), collapse = ",")
+  # The ordinary case, an atomic column, is returned as it is so that `tag()`
+  # renders it. Flattening it with `as.character()` here reached `render()`
+  # with a string and the `%.17g` path above never ran on the columns that
+  # almost always carry the doubles: `as.character()` prints 15 significant
+  # digits, so 2000 doubles one ulp apart collapse to 45 strings, share ranks,
+  # and let a swap of those rows pass as the same order.
   flat <- function(x) {
     if (!is.null(dim(x))) return(apply(x, 1L, join))
     if (is.list(x)) return(vapply(x, function(e) join(render(e)), character(1)))
-    as.character(x)
+    x
   }
   nms <- sort(names(data))
   cols <- lapply(nms, function(nm) tag(flat(data[[nm]])))
