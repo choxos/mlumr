@@ -55,7 +55,12 @@ each covariate. If \code{NULL}, inferred from presence of SD.}
 \item{study}{Column name for study identifier (optional)}
 }
 \value{
-An object of class \code{mlumr_agd}
+An object of class \code{mlumr_agd}. As for \code{\link[=set_ipd]{set_ipd()}}, its \verb{$data}
+carries a \code{.source_key} column, a digest of the whole of \code{data} with the
+row's rank within a canonical ordering of it, holding nothing of the
+content; it lets \code{\link[=compare_models]{compare_models()}} recognize one source reordered
+between two fits. The internal names, \code{.source_key} among them, cannot be
+used as column names in \code{data}.
 }
 \description{
 Prepare AgD from the comparator treatment for an unanchored indirect
