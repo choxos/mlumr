@@ -746,6 +746,11 @@
 * The binary-outcomes vignette covers quasi-complete separation, handled with
   a heavy-tailed coefficient prior (`prior_student_t()` / `prior_cauchy()`),
   following Gelman et al. (2008).
+* The fitting-and-diagnostics vignette's trace plot draws each chain
+  separately. `fit$draws` stacks the chains, so passing it to `bayesplot`
+  directly drew one merged line per parameter, which looks like a healthy
+  trace whatever the chains did; the example now reshapes the draws by the
+  chain labels the fit keeps in `fit$chain_ids`.
 * Covariate marginals follow multinma's own examples
   (`example_plaque_psoriasis.Rmd`, `example_ndmm.Rmd`): gamma for skewed
   continuous covariates, logit-normal for proportions, Bernoulli for binary,
