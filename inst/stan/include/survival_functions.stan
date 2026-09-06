@@ -118,6 +118,21 @@ real log_std_normal_surv(real z) {
 // reachable whenever a tiny scale parameter divides the standardized time.
 real log_std_normal_hazard(real z) {
   if (is_inf(z) && z > 0) return positive_infinity();
+  // Above z = 20, the asymptotic series for the inverse Mills ratio, which is
+  // the same one the R helper uses so the two agree exactly. The difference
+  // below subtracts two quantities that both grow like z^2/2, and that
+  // cancellation is what a large z destroys: at z = 1e4 the difference is
+  // already wrong in the tenth digit, at 1e6 in the sixth, and at 1e8 it
+  // returns 18 where the true value is 18.420680743952, because 5e15 has no
+  // representable neighbors 18.42 apart. Checked against the continued
+  // fraction z + 1/(z + 2/(z + 3/(z + ...))), which the series matches to
+  // every printed digit from z = 1e3 upward. A tiny scale parameter dividing
+  // the standardized time is what makes z that large, and the declaration
+  // permits it.
+  if (z > 20) {
+    real iz2 = 1 / square(z);
+    return log(z) + log1p(iz2 * (1 + iz2 * (-2 + iz2 * (10 - 74 * iz2))));
+  }
   return std_normal_lpdf(z) - log_std_normal_surv(z);
 }
 

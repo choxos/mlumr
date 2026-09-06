@@ -350,3 +350,63 @@ test_that("ordinary survival times are unchanged by the underflow correction", {
   expect_equal(mlumr:::.r_log_surv(8L, 0, 0, 1, NA), 0)
   expect_equal(mlumr:::.r_log_surv(9L, 0, 0, 1, 1), 0)
 })
+
+test_that("the lognormal hazard uses the series where the difference cannot hold", {
+  # The standard-normal hazard is log[phi(z) / Phi(-z)]. Written as a
+  # difference, both terms grow like -z^2/2, so a large z destroys it: at
+  # z = 1e8 the terms are about 5e15, where the representable numbers are
+  # further apart than the answer itself.
+  #
+  # The reference is the continued fraction for the inverse Mills ratio,
+  # z + 1/(z + 2/(z + 3/(z + ...))), which converges quickly for large z.
+  cf <- function(z, n = 200L) {
+    f <- 0
+    for (i in n:1) f <- i / (z + f)
+    log(z + f)
+  }
+  difference <- function(z) {
+    stats::dnorm(z, log = TRUE) - stats::pnorm(z, lower.tail = FALSE,
+                                               log.p = TRUE)
+  }
+  series <- function(z) {
+    iz2 <- 1 / z^2
+    log(z) + log(1 + iz2 * (1 + iz2 * (-2 + iz2 * (10 - 74 * iz2))))
+  }
+
+  # Where the difference still holds, the two agree.
+  for (z in c(25, 50, 100)) {
+    expect_equal(series(z), cf(z), tolerance = 1e-10)
+    expect_equal(difference(z), cf(z), tolerance = 1e-10)
+  }
+  # Where it does not, the series is the one that stays correct.
+  for (z in c(1e4, 1e6, 1e8)) {
+    expect_equal(series(z), cf(z), tolerance = 1e-12)
+  }
+  expect_gt(abs(difference(1e8) - cf(1e8)), 0.4)
+  expect_lt(abs(series(1e8) - cf(1e8)), 1e-12)
+
+  # R takes the series above z = 20, through `.r_log_haz()`. A lognormal
+  # hazard is the standardized hazard over sigma and t.
+  # A large z needs a small sigma if the time is to stay representable:
+  # `t = exp(eta + z * sigma)` overflows for any ordinary sigma, and a test
+  # written that way measures the overflow rather than the hazard.
+  z <- 1e4
+  sigma <- 1e-4
+  eta <- 0
+  t <- exp(eta + z * sigma)
+  expect_true(is.finite(t))
+  expect_equal((log(t) - eta) / sigma, z, tolerance = 1e-9)
+  expect_equal(mlumr:::.r_log_haz(6L, t, eta, sigma, NA),
+               cf(z) - log(sigma) - log(t), tolerance = 1e-9)
+
+  # Stan takes the same branch at the same threshold, so the two agree rather
+  # than diverging exactly where the numbers get hard.
+  stan <- testthat::test_path("..", "..", "inst", "stan", "include",
+                              "survival_functions.stan")
+  skip_if_not(file.exists(stan), "run from a source checkout")
+  src <- paste(readLines(stan, warn = FALSE), collapse = "\n")
+  body <- sub(".*real log_std_normal_hazard\\(real z\\) \\{", "", src)
+  body <- sub("\\n\\}.*", "", body)
+  expect_true(grepl("z > 20", body, fixed = TRUE))
+  expect_true(grepl("74 * iz2", body, fixed = TRUE))
+})
