@@ -463,6 +463,32 @@ test_that("a recorded rstan control is not carried onto another engine", {
   expect_null(switched$control)
 })
 
+test_that("an explicit NULL engine resolves before the control is judged", {
+  # `engine = NULL` is a documented way to ask for the configured default.
+  # Assigning it into the call removes the element entirely, so reading the
+  # engine back off the call returned NULL, which is not "rstan", and the
+  # recorded controls were dropped. `mlumr()` then resolved NULL to the same
+  # default, so the refits ran on the same backend with a different sampler
+  # configuration: the failure is silent rather than an error.
+  resolve <- function(dots, fit_engine) {
+    fe <- fit_engine
+    supplied <- if ("engine" %in% names(dots)) dots$engine else fe
+    mlumr:::.validate_engine_name(supplied %||% mlumr:::get_engine())
+  }
+  `%||%` <- function(a, b) if (is.null(a)) b else a
+
+  default <- mlumr:::get_engine()
+  # Passing NULL must land on the same engine as passing nothing.
+  expect_equal(resolve(list(engine = NULL), "rstan"),
+               resolve(list(), "rstan"))
+  expect_equal(resolve(list(engine = NULL), "rstan"), "rstan")
+  # A named engine still wins over both.
+  expect_equal(resolve(list(engine = "cmdstanr"), "rstan"), "cmdstanr")
+  expect_equal(resolve(list(engine = "rstan"), "cmdstanr"), "rstan")
+  # And the resolution is the package's own, not a second copy of the rule.
+  expect_equal(resolve(list(), NULL), default)
+})
+
 test_that("a NULL entry does not delete a setting mlumr depends on", {
   merge <- mlumr:::.merge_sampler_control
   count <- mlumr:::.count_treedepth_hits

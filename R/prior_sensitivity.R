@@ -230,12 +230,22 @@ prior_sensitivity <- function(fit,
         ctl <- if (is.null(ctl)) dots$control else
           utils::modifyList(ctl, dots$control)
       }
+      fit_engine <- call_args$engine
       call_args[names(dots)] <- dots
       # `control` is rstan's argument. Restoring the recorded one after a
       # caller has switched engines would forward it to cmdstanr's `$sample()`,
       # which has no such argument, so every refit would fail before sampling.
-      # The engine that will actually run is the caller's if they named one.
-      engine_used <- dots$engine %||% call_args$engine
+      #
+      # The engine that will actually run has to be resolved the way `mlumr()`
+      # resolves it, not read off the call. `engine = NULL` is a documented way
+      # to ask for the configured default, and assigning it removes the element
+      # entirely, so reading the call back gave NULL and the recorded controls
+      # were dropped even when the default is rstan and the refits therefore
+      # ran on the same backend with a different sampler configuration.
+      engine_used <- .validate_engine_name(
+        (if ("engine" %in% names(dots)) dots$engine else fit_engine) %||%
+          get_engine()
+      )
       if (!is.null(ctl) && identical(engine_used, "rstan")) {
         call_args$control <- ctl
       } else if (!identical(engine_used, "rstan")) {
