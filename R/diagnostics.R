@@ -228,10 +228,14 @@ extract_log_lik <- function(object) {
 #' multiset, so a row moved from one arm to another, or replaced, is still a
 #' different comparator.
 #'
-#' The rows are compared as their printed values rather than by permuting the
-#' frames, so nothing here depends on finding the permutation, and the source
-#' keys take no part: they exist to detect a reordering, which is the very
-#' thing being allowed.
+#' Each group's rows are put in one canonical order and then compared as the
+#' values they are. Rendering them as text would have been simpler and wrong:
+#' `format()` prints to the display precision, so two survival times that
+#' differ below `getOption("digits")` would render alike and two different
+#' comparators would be approved. Ordering is exact on doubles, so nothing is
+#' rounded on the way in, and rows that tie on every shared column are
+#' interchangeable by construction. The source keys take no part: they exist
+#' to detect a reordering, which is the very thing being allowed.
 #' @keywords internal
 .same_grouped_rows <- function(x, y, shared) {
   if (nrow(x) != nrow(y)) return(FALSE)
@@ -239,16 +243,20 @@ extract_log_lik <- function(object) {
   arm <- function(df) {
     if (".arm" %in% names(df)) as.character(df$.arm) else rep("", nrow(df))
   }
-  # One string per row, over the columns both fits kept, in one column order.
-  render <- function(df) {
-    cols <- lapply(df[shared], function(v) format(v, trim = TRUE))
-    do.call(paste, c(cols, sep = "\036"))
-  }
-  gx <- split(render(x), arm(x))
-  gy <- split(render(y), arm(y))
+  gx <- split(seq_len(nrow(x)), arm(x))
+  gy <- split(seq_len(nrow(y)), arm(y))
   if (!identical(sort(names(gx)), sort(names(gy)))) return(FALSE)
+  # Byte order, so the canonical order does not depend on the locale.
+  canonical <- function(df, idx) {
+    sub <- df[idx, shared, drop = FALSE]
+    ord <- do.call(order, c(unname(as.list(sub)), list(method = "radix")))
+    sub <- sub[ord, , drop = FALSE]
+    rownames(sub) <- NULL
+    sub
+  }
   for (g in names(gx)) {
-    if (!identical(sort(gx[[g]]), sort(gy[[g]]))) return(FALSE)
+    if (length(gx[[g]]) != length(gy[[g]])) return(FALSE)
+    if (!identical(canonical(x, gx[[g]]), canonical(y, gy[[g]]))) return(FALSE)
   }
   TRUE
 }

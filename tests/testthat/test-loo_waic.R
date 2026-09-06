@@ -439,6 +439,12 @@ test_that("a grouped survival unit allows a reordered comparator", {
   # So is a changed value, even when the multiset of arms is unchanged.
   changed <- frames(pseudo(time = c(1, 2, 3, 99)))
   expect_false(.same_observations(a, changed, pseudo_grouped = TRUE))
+  # Down to a difference the display precision would have hidden. Rendering
+  # the rows as text compared them at `getOption("digits")`, where these two
+  # survival times print alike, and approved two different comparators.
+  tiny <- frames(pseudo(time = c(1, 2, 3, 4 + 1e-12)))
+  expect_identical(format(4), format(4 + 1e-12))
+  expect_false(.same_observations(a, tiny, pseudo_grouped = TRUE))
   # And the index rows stay positional whatever the unit.
   y <- rep(c(0L, 1L), 6L)
   f1 <- with_data(make_ll_fit("spfa", seed = 2026), y)

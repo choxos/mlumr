@@ -16,9 +16,13 @@ multiset, so a row moved from one arm to another, or replaced, is still a
 different comparator.
 }
 \details{
-The rows are compared as their printed values rather than by permuting the
-frames, so nothing here depends on finding the permutation, and the source
-keys take no part: they exist to detect a reordering, which is the very
-thing being allowed.
+Each group's rows are put in one canonical order and then compared as the
+values they are. Rendering them as text would have been simpler and wrong:
+\code{format()} prints to the display precision, so two survival times that
+differ below \code{getOption("digits")} would render alike and two different
+comparators would be approved. Ordering is exact on doubles, so nothing is
+rounded on the way in, and rows that tie on every shared column are
+interchangeable by construction. The source keys take no part: they exist
+to detect a reordering, which is the very thing being allowed.
 }
 \keyword{internal}
