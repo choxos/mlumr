@@ -515,8 +515,7 @@ conditional_predict <- function(object,
       )
       for (j in seq_along(probs)) {
         qname <- qcols[j]
-        pname <- paste0(probs[j] * 100, "%")
-        results[[i]][[qname]] <- c(s_idx[pname], s_cmp[pname])
+        results[[i]][[qname]] <- c(s_idx[[qname]], s_cmp[[qname]])
       }
     }
   }
