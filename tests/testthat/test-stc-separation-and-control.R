@@ -290,10 +290,52 @@ test_that("a recorded rstan control is not carried onto another engine", {
   # Staying on rstan keeps the record.
   expect_equal(resolve(list(), "rstan")$control, recorded)
   # Switching engines drops it rather than handing cmdstanr an argument it
-  # does not have.
+  # does not have. Dropping is right for a control this function inherited:
+  # it describes the fit's backend and means nothing to another one.
   switched <- resolve(list(engine = "cmdstanr"), "rstan")
   expect_equal(switched$engine, "cmdstanr")
   expect_null(switched$control)
+})
+
+test_that("a control the caller passed is refused, not dropped, on another engine", {
+  # An inherited control is this function's own doing. A control the caller
+  # passed through the documented forwarding path is a request, and `$sample()`
+  # has no such argument, so it can be neither honored nor silently ignored.
+  fake <- list(
+    data = "D", model = "spfa", link = "identity", engine = "rstan",
+    family = "normal",
+    priors = list(intercept = default_prior_intercept(),
+                  beta = prior_normal(0, 1),
+                  sigma = default_prior_sigma()),
+    sampling_args = list(chains = 4, iter = 2000, warmup = 1000, seed = 2026,
+                         adapt_delta = 0.99, max_treedepth = 10,
+                         control = list(adapt_delta = 0.99, stepsize = 0.05))
+  )
+  class(fake) <- c("mlumr_fit", "list")
+  expect_error(
+    prior_sensitivity(fake, prior_beta_scales = 1, verbose = FALSE,
+                      engine = "cmdstanr", control = list(adapt_delta = 0.9)),
+    "`control` is an rstan setting"
+  )
+  # The message names the way to ask for the same thing on either backend.
+  err <- tryCatch(
+    prior_sensitivity(fake, prior_beta_scales = 1, verbose = FALSE,
+                      engine = "cmdstanr", control = list(adapt_delta = 0.9)),
+    error = function(e) conditionMessage(e)
+  )
+  expect_match(err, "adapt_delta")
+  expect_match(err, "max_treedepth")
+
+  # The same switch without an explicit control passes this check and goes on,
+  # so the refusal is about the caller's request and not about the engine
+  # switch itself. It then fails further along on this stub fit, which is what
+  # shows it got past here.
+  inherited <- tryCatch(
+    prior_sensitivity(fake, prior_beta_scales = 1, verbose = FALSE,
+                      engine = "cmdstanr"),
+    error = function(e) conditionMessage(e)
+  )
+  expect_no_match(inherited, "`control` is an rstan setting")
 })
 
 test_that("an explicit NULL engine resolves before the control is judged", {

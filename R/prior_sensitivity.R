@@ -246,9 +246,27 @@ prior_sensitivity <- function(fit,
         (if ("engine" %in% names(dots)) dots$engine else fit_engine) %||%
           get_engine()
       )
-      if (!is.null(ctl) && identical(engine_used, "rstan")) {
-        call_args$control <- ctl
-      } else if (!identical(engine_used, "rstan")) {
+      if (identical(engine_used, "rstan")) {
+        if (!is.null(ctl)) {
+          call_args$control <- ctl
+        }
+      } else {
+        # An inherited control is this function's own doing, so dropping it is
+        # right: it describes the fit's backend and means nothing to another
+        # one. A control the caller passed is a request, and dropping a request
+        # silently is not an option; `$sample()` has no such argument, so it
+        # cannot be honored either. Say so instead.
+        if ("control" %in% names(dots)) {
+          stop(
+            sprintf(paste(
+              "`control` is an rstan setting and these refits run on %s, which",
+              "has no such argument. Pass `adapt_delta` and `max_treedepth`",
+              "directly, which both backends accept, or drop `engine` to sweep",
+              "on the engine the fit was made with."
+            ), engine_used),
+            call. = FALSE
+          )
+        }
         call_args$control <- NULL
       }
     }
