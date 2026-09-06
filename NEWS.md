@@ -584,7 +584,11 @@
   baseline, pre-selection population; surviving to entry selects on the very
   covariates being integrated out. Varying entry times need one assumption
   more, since the model carries a single covariate distribution per arm and
-  each entry time selects a different subgroup.
+  each entry time selects a different subgroup. A test now compares the
+  model's aggregate delayed-entry likelihood, draw by draw, against direct
+  integration under that definition over a two-component covariate mixture,
+  and against the other order of conditioning and averaging, which gives a
+  different number.
 
 ## Dependencies
 
