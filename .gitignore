@@ -140,3 +140,6 @@ docs
 # Reporting
 reporting/
 Rplots.pdf
+
+# testthat writes this beside the tests after a failing run
+tests/testthat/testthat-problems.rds
