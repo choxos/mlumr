@@ -64,8 +64,18 @@ real log_gamma_q_cf(real k, real x) {
 // series without first forming x. This keeps left-tail probabilities finite
 // when log(x) is representable but x itself underflows to zero.
 real log_gamma_p_series(real k, real log_x) {
-  real log_term = -log(k);
-  real log_total = log_term;
+  // Terms are accumulated relative to the first, whose 1/k is folded into
+  // lgamma(k + 1) at the end. Carrying the -log(k) inside the sum instead and
+  // finishing with -lgamma(k) forms a difference of two quantities that both
+  // grow like -log(k) as the shape shrinks: at k = 1e-18 each is 41.4465, the
+  // rounding in their difference is about 9.2e-15, and the answer being sought
+  // is k * log_x = -1e-15. The difference therefore came out as exactly 0, and
+  // the caller read that as a survival of zero, putting an artificial
+  // zero-likelihood wall in a region the sampler can reach: aux2 is declared
+  // only `<lower=0>`. This form has no such subtraction and agrees with the R
+  // helper, which uses lgamma(k + 1) for the same reason.
+  real log_term = 0;
+  real log_total = 0;
   for (i in 1 : 300) {
     log_term += log_x - log(k + i);
     log_total = log_sum_exp(log_total, log_term);
@@ -73,7 +83,7 @@ real log_gamma_p_series(real k, real log_x) {
       break;
     }
   }
-  return -exp(log_x) + k * log_x - lgamma(k) + log_total;
+  return -exp(log_x) + k * log_x - lgamma(k + 1) + log_total;
 }
 
 // Generalized Gamma log density (Lawless parameterization).

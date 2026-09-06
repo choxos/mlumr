@@ -294,9 +294,12 @@
   positive.** R initializes that link from the log of the outcome and stops on
   any value at or below zero, although the model is defined whenever the mean
   is positive. An outcome of `c(-1, 1, 2, 2, 3, 4)`, whose group means are both
-  positive, was refused with "cannot find valid starting values". The fit now
-  starts from the log of the mean outcome with slopes at zero, for that family
-  and link alone.
+  positive, was refused with "cannot find valid starting values". Starting
+  values are now supplied for that family and link, and only where R refuses:
+  the log of the mean outcome with slopes at zero, or zeros when that mean is
+  not positive. Fits R already initializes are left alone, because its
+  per-observation start is the better one; substituting a pooled value cost
+  accuracy on designs whose groups differ by orders of magnitude.
 
 * **A caller's rstan `control` reaches the sampler.** `...` is documented as
   passing arguments to `rstan::sampling()`, but the backend supplied its own

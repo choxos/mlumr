@@ -344,11 +344,23 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     return(NULL)
   }
   y <- ipd$.outcome
-  mu <- mean(y, na.rm = TRUE)
-  if (!is.finite(mu) || mu <= 0) {
+  # Only where R refuses outright. Its own initialization takes log(y) for each
+  # observation, which is a far better local start than any single pooled
+  # value, and substituting one silently costs accuracy: on a design whose two
+  # groups differ by a factor of 1e7, a pooled start converges to a fitted mean
+  # of 168 where R's own reaches 2, and both report convergence. R refuses only
+  # when an observation is at or below zero, so that is the only case to take.
+  if (all(is.finite(y)) && all(y > 0)) {
     return(NULL)
   }
-  c(log(mu), rep(0, length(cov_names)))
+  # An intercept of 0 puts every starting mean at exp(0) = 1, which is valid
+  # for this link whatever the data, so a nonpositive sample mean is no reason
+  # to give up too: `y = c(-2, 1, 1)` on `x = c(-1, 0, 1)` has a sample mean of
+  # exactly 0 and fits from zeros. The sample mean is the better of the two
+  # whenever it is positive.
+  mu <- mean(y, na.rm = TRUE)
+  intercept <- if (is.finite(mu) && mu > 0) log(mu) else 0
+  c(intercept, rep(0, length(cov_names)))
 }
 
 #' Build a model matrix aligned with fitted GLM coefficients
