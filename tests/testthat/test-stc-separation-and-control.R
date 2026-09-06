@@ -462,3 +462,31 @@ test_that("a recorded rstan control is not carried onto another engine", {
   expect_equal(switched$engine, "cmdstanr")
   expect_null(switched$control)
 })
+
+test_that("a NULL entry does not delete a setting mlumr depends on", {
+  merge <- mlumr:::.merge_sampler_control
+  count <- mlumr:::.count_treedepth_hits
+  sp <- list(cbind(treedepth__ = c(9, 10, 10, 8)),
+             cbind(treedepth__ = c(10, 7, 9, 10)))
+
+  # `modifyList()` deletes an entry whose replacement is NULL. That is right
+  # for a setting rstan defaults on its own, and wrong for these two: mlumr
+  # always supplies them, counts treedepth against one and records both on the
+  # fit. Deleted, the count compared every transition against NULL, which
+  # matches nothing and reports zero hits out of four.
+  for (supplied in list(list(max_treedepth = NULL),
+                        list(adapt_delta = NULL),
+                        list(adapt_delta = NULL, max_treedepth = NULL))) {
+    m <- merge(0.8, 10, list(control = supplied))
+    expect_equal(m$control$adapt_delta, 0.8)
+    expect_equal(m$control$max_treedepth, 10)
+    expect_equal(count(sp, m$control$max_treedepth), 4)
+  }
+
+  # A real value still wins, and a NULL for an entry mlumr does not name is
+  # left to rstan, which is what deleting it means there.
+  given <- merge(0.8, 10, list(control = list(adapt_delta = 0.99,
+                                              adapt_engaged = NULL)))
+  expect_equal(given$control$adapt_delta, 0.99)
+  expect_false("adapt_engaged" %in% names(given$control))
+})

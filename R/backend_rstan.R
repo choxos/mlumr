@@ -33,6 +33,18 @@
       # The caller's entries win: naming one in `control` is a more specific
       # request than the argument mlumr() offers for the same setting.
       control <- utils::modifyList(control, supplied)
+      # `modifyList()` deletes an entry whose replacement is NULL, which is
+      # right for a setting rstan defaults on its own but not for these two.
+      # mlumr always supplies them, reports the treedepth count against one and
+      # records both on the fit, so dropping them counted every transition
+      # against NULL, which is no transitions at all, and recorded a value that
+      # never ran. A NULL from a caller therefore leaves mlumr's own in place.
+      for (nm in c("adapt_delta", "max_treedepth")) {
+        if (is.null(control[[nm]])) {
+          control[[nm]] <- if (identical(nm, "adapt_delta")) adapt_delta else
+            max_treedepth
+        }
+      }
     }
     dots[["control"]] <- NULL
   }
