@@ -743,3 +743,23 @@ test_that("a column name in an unsupported encoding does not stop the key", {
   expect_match(keys, "^[0-9a-f]{32}:[0-9]+$")
   expect_equal(length(unique(keys)), 2L)
 })
+
+test_that("a column with no name does not stop the key", {
+  # `sort()` drops an NA and `order()` keeps it, so putting the names in byte
+  # order carried the NA into `data[[nm]]` and refused a frame whose model
+  # columns are all named. Leaving an unnamed column out of the digest is what
+  # the previous sort did; the point here is that the setup still runs.
+  d <- data.frame(a = c(1, 2), b = c(3, 4))
+  names(d) <- c("a", NA)
+  expect_length(sort(names(d)), 1L)
+  expect_length(names(d)[order(names(d), method = "radix")], 2L)
+
+  keys <- .source_row_keys(d)
+  expect_length(keys, 2L)
+  expect_match(keys, "^[0-9a-f]{32}:[0-9]+$")
+  # The named column is what the digest sees, so rows that differ only there
+  # still separate.
+  same <- data.frame(a = c(1, 1), b = c(3, 4))
+  names(same) <- c("a", NA)
+  expect_equal(length(unique(.source_row_keys(same))), 1L)
+})

@@ -511,7 +511,13 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
   # character column, so a name it cannot convert stops the key either way and
   # names are not a special case. It converted every input tried, invalid
   # sequences included.
+  # `sort()` drops an NA by default and `order()` keeps it, so the NA has to go
+  # before the ordering or it survives into `data[[nm]]` and the setup refuses
+  # a frame whose model columns are all named. Leaving such a column out of the
+  # digest is what `sort()` already did; this keeps that rather than deciding
+  # it, and a column with no name is not one a model can ask for.
   nms <- names(data)
+  nms <- nms[!is.na(nms)]
   nms <- nms[order(enc2utf8(nms), method = "radix")]
   cols <- lapply(nms, function(nm) tag(flat(data[[nm]])))
   rows <- if (length(cols)) {
