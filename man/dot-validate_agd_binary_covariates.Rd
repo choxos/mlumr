@@ -4,7 +4,13 @@
 \alias{.validate_agd_binary_covariates}
 \title{Validate binary AgD covariate summaries}
 \usage{
-.validate_agd_binary_covariates(data, cov_means, cov_sds, cov_types)
+.validate_agd_binary_covariates(
+  data,
+  cov_means,
+  cov_sds,
+  cov_types,
+  outcome_n = NULL
+)
 }
 \description{
 Validate binary AgD covariate summaries

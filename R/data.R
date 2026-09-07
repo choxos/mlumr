@@ -151,7 +151,12 @@
 #' @details The index and comparator arms come from the SAME trial, so both
 #'   carry the study label \code{"FIMPACT"}. Splitting one randomized trial into a
 #'   single-arm IPD source and a single-arm aggregate source is what makes this
-#'   an unanchored example whose true answer is still known. Because the label
+#'   an unanchored example for which a randomized reference comparison is
+#'   still available: fitting the two arms together on the full data gives the
+#'   estimate the unanchored methods are trying to recover. That reference is
+#'   itself an estimate with sampling error, not an evaluated population
+#'   causal truth, since these data are synthesized rather than drawn from a
+#'   declared generating model. Because the label
 #'   is shared, \code{\link{combine_data}} warns that IPD and AgD come from
 #'   the same study; that warning is expected here and is the honest reading of
 #'   the data. It does not fire for \code{\link{psoriasis_ipd}} or
@@ -220,7 +225,12 @@
 #' @details The index and comparator arms come from the SAME trial, so both
 #'   carry the study label \code{"Ammar 2025"}. Splitting one randomized trial into a
 #'   single-arm IPD source and a single-arm aggregate source is what makes this
-#'   an unanchored example whose true answer is still known. Because the label
+#'   an unanchored example for which a randomized reference comparison is
+#'   still available: fitting the two arms together on the full data gives the
+#'   estimate the unanchored methods are trying to recover. That reference is
+#'   itself an estimate with sampling error, not an evaluated population
+#'   causal truth, since these data are synthesized rather than drawn from a
+#'   declared generating model. Because the label
 #'   is shared, \code{\link{combine_data}} warns that IPD and AgD come from
 #'   the same study; that warning is expected here and is the honest reading of
 #'   the data. It does not fire for \code{\link{psoriasis_ipd}} or

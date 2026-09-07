@@ -385,6 +385,23 @@ prior_sensitivity <- function(fit,
     args$control <- sa$control
   }
 
+  # `mlumr()` forwards `...` to the backend, so a fit can have run under
+  # settings this list never held: `thin` and `init` reach the sampler and
+  # nothing recorded their values. Refitting silently under the defaults would
+  # make the sensitivity analysis a comparison of two things at once, so say
+  # what is not being reproduced rather than let it pass.
+  extra <- sa$extra_backend_args
+  if (length(extra)) {
+    extra <- extra[nzchar(extra)]
+  }
+  if (length(extra)) {
+    warning("The original fit passed ", paste(sQuote(extra), collapse = ", "),
+            " through to the backend, and only their names were recorded. ",
+            "These refits run under the defaults for them, so any difference ",
+            "they make is inside this comparison as well as the priors. Pass ",
+            "them again through `...` to hold them fixed.", call. = FALSE)
+  }
+
   # The comparator prior for this refit, already rescaled by the caller. NULL
   # for a non-relaxed fit, which has no comparator coefficients.
   if (!is.null(prior_beta_comparator_i)) {

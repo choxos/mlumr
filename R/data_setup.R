@@ -758,7 +758,8 @@ set_agd <- function(data, treatment,
                          outcome_se, outcome_E)
   .validate_agd_covariates(data, cov_means, cov_sds)
   .validate_agd_cov_types(cov_types)
-  .validate_agd_binary_covariates(data, cov_means, cov_sds, cov_types)
+  .validate_agd_binary_covariates(data, cov_means, cov_sds, cov_types,
+                                  outcome_n)
 
   agd_data <- .standardize_agd_data(
     data = data,
@@ -1059,9 +1060,59 @@ set_agd <- function(data, treatment,
   invisible(TRUE)
 }
 
+#' Sample size to judge a reported binary SD against
+#'
+#' The outcome denominator is the only count `set_agd()` is given, and it is
+#' the right one when the covariate is complete. It is not guaranteed to be:
+#' a covariate with its own missingness was summarized over fewer rows, and
+#' that makes the finite-sample bound LOOSER, never tighter. Treating a
+#' missing or unusable count as "unknown" therefore fails safe.
+#'
+#' @param data The aggregate data frame.
+#' @param outcome_n Name of the outcome sample-size column, or `NULL`.
+#' @param n_rows Number of rows to return.
+#' @return Numeric vector of sample sizes, `NA` where unknown.
+#' @keywords internal
+.agd_binary_n <- function(data, outcome_n, n_rows) {
+  if (is.null(outcome_n) || length(outcome_n) != 1L || is.na(outcome_n) ||
+        !outcome_n %in% names(data)) {
+    return(rep(NA_real_, n_rows))
+  }
+  n <- suppressWarnings(as.numeric(data[[outcome_n]]))
+  if (length(n) != n_rows) {
+    return(rep(NA_real_, n_rows))
+  }
+  n
+}
+
+#' Half a unit in the last place a number was reported to
+#'
+#' A published table gives 0.53, not 0.5270463. Comparing the rounded figure
+#' against an exact bound rejects the row for the rounding rather than for the
+#' data, so the bound has to carry the precision the number arrived with. A
+#' value that was not rounded matches only at full precision and earns
+#' essentially no allowance, which is what keeps this from becoming a blanket
+#' slack term.
+#'
+#' @param x Numeric vector as reported.
+#' @return Numeric vector of tolerances, one per element.
+#' @keywords internal
+.reported_precision <- function(x) {
+  vapply(x, function(v) {
+    if (!is.finite(v)) return(0)
+    for (d in 0:8) {
+      if (isTRUE(all.equal(round(v, d), v, tolerance = 0))) {
+        return(0.5 * 10^(-d))
+      }
+    }
+    0
+  }, numeric(1))
+}
+
 #' Validate binary AgD covariate summaries
 #' @keywords internal
-.validate_agd_binary_covariates <- function(data, cov_means, cov_sds, cov_types) {
+.validate_agd_binary_covariates <- function(data, cov_means, cov_sds, cov_types,
+                                            outcome_n = NULL) {
   for (i in seq_along(cov_types)) {
     if (cov_types[[i]] != "binary") next
 
@@ -1079,12 +1130,24 @@ set_agd <- function(data, treatment,
 
     if (!is.na(cov_sds[[i]])) {
       sd_vals <- data[[cov_sds[[i]]]]
-      max_sd <- sqrt(mean_vals * (1 - mean_vals))
-      impossible <- sd_vals > max_sd + 1e-10
+      # sqrt(p(1-p)) is the POPULATION standard deviation. A sample standard
+      # deviation of a binary column uses the n-1 denominator, so it equals
+      # sqrt(n/(n-1) * p(1-p)) exactly and is ALWAYS above that bound: five
+      # zeros and five ones report mean 0.5 and sd 0.5270, and the old ceiling
+      # of 0.5 called that impossible. Use the finite-sample maximum instead.
+      # Without a sample size, n = 2 gives the loosest factor any sample can
+      # have, so sqrt(2 * p(1-p)) cannot reject a valid row while still
+      # refusing genuinely inconsistent ones (sd = 0.9 at p = 0.5).
+      n_vals <- .agd_binary_n(data, outcome_n, length(sd_vals))
+      factor <- ifelse(is.finite(n_vals) & n_vals > 1, n_vals / (n_vals - 1), 2)
+      max_sd <- sqrt(factor * mean_vals * (1 - mean_vals))
+      tol <- 1e-10 + .reported_precision(sd_vals)
+      impossible <- sd_vals > max_sd + tol
       if (any(impossible)) {
         msg <- sprintf(
           paste0(
-            "Binary covariate '%s': SD exceeds Bernoulli maximum sqrt(p*(1-p)). ",
+            "Binary covariate '%s': SD exceeds the largest a binary sample ",
+            "can have, sqrt(n/(n-1) * p*(1-p)). ",
             "Got SD=%s for p=%s (max SD=%s)"
           ),
           cov_label,

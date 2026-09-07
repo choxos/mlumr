@@ -110,7 +110,7 @@ test_that("survival marginal and conditional effects are labeled correctly", {
   # model has no constant time ratio at all, so the request names an estimand
   # that does not exist here rather than one this fit cannot isolate.
   expect_error(conditional_effects(fit_ph, effect = "tr"),
-               "only available for accelerated failure time")
+               "proportional-hazards.*log hazard ratio")
   # The default `effect = "all"` still returns it, under its own honest name.
   ce <- conditional_effects(fit_ph, effect = "all")
   expect_true(all(ce$effect == "EXP_ETA_CONTRAST"))
@@ -172,7 +172,7 @@ test_that("survival marginal and conditional effects are labeled correctly", {
   ce_aft_shared <- conditional_effects(fit_aft_shared, effect = "tr")
   expect_true(all(ce_aft_shared$effect == "TR"))
   expect_error(conditional_effects(fit_aft_shared, effect = "hr"),
-               "not a scalar conditional effect")
+               "accelerated failure time.*log time ratio")
   # Shared shapes: exp_delta_eta is not the right name for it, and saying so is
   # the mirror image of the guard above.
   expect_error(marginal_effects(fit_aft_shared, effect = "exp_delta_eta"),

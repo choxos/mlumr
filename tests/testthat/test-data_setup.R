@@ -314,13 +314,15 @@ test_that("set_agd validates binary covariate domains", {
     "Binary covariate.*must be in \\[0, 1\\]"
   )
 
-  # Impossible binary SD: p=0.9, max SD = sqrt(0.09) ~ 0.3, but SD=2
+  # Impossible binary SD: p=0.9 admits at most sqrt(200/199 * 0.09) ~ 0.301,
+  # and 2 is nowhere near it. The bound is the finite-sample one, so an
+  # ordinary sample SD is not caught by this; see test-agd-binary-sd.R.
   df_sd <- data.frame(trt = "B", n_total = 200, n_events = 60,
                       x1_mean = 0.9, x1_sd = 2)
   expect_error(
     set_agd(df_sd, "trt", outcome_n = "n_total", outcome_r = "n_events",
             cov_means = "x1_mean", cov_sds = "x1_sd", cov_types = "binary"),
-    "SD exceeds Bernoulli maximum"
+    "SD exceeds the largest a binary sample can have"
   )
 
   # Invalid cov_types value

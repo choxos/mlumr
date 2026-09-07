@@ -143,22 +143,21 @@ conditional_effects <- function(object,
   # explicit request either returns what was asked for or errors.
   if (identical(family, "survival") && effect %in% c("hr", "tr")) {
     is_ph <- isTRUE(object$surv_info$is_ph)
+    dist <- object$distribution %||% "survival"
     if (is_ph && identical(effect, "tr")) {
-      stop("`effect = \"tr\"` is only available for accelerated failure time ",
-           "distributions. This is a proportional-hazards '",
-           object$distribution %||% "survival",
-           "' fit, whose conditional treatment effect is a hazard ratio; a ",
-           "proportional-hazards model has no constant time ratio. Use ",
-           "`effect = \"hr\"`.",
+      stop("`effect = \"tr\"` is not what this fit parameterizes. This is a ",
+           "proportional-hazards '", dist,
+           "' fit, so the coefficient it estimates is a log hazard ratio and ",
+           "`effect = \"hr\"` is what returns it. ",
+           .dual_family_note(dist, "tr"),
            call. = FALSE)
     }
     if (!is_ph && identical(effect, "hr")) {
-      stop("`effect = \"hr\"` is not a scalar conditional effect for this ",
-           "accelerated failure time ('", object$distribution %||% "survival",
-           "') model: the conditional hazard ratio varies with time. Use ",
-           "`effect = \"tr\"` for the time ratio when the baseline shapes are ",
-           "shared, or predict(type = \"loghr\") for the population-",
-           "standardized time-varying hazard ratio.",
+      stop("`effect = \"hr\"` is not what this fit parameterizes. This is an ",
+           "accelerated failure time '", dist,
+           "' fit, so the coefficient it estimates is a log time ratio and ",
+           "`effect = \"tr\"` is what returns it. ",
+           .dual_family_note(dist, "hr"),
            call. = FALSE)
     }
     # Under differing baseline shapes exp(eta_index - eta_comparator) is
@@ -304,6 +303,51 @@ conditional_effects <- function(object,
   # already HR (PH) or TR (AFT) from the hr / tr column name set above.
   rownames(out) <- NULL
   .mlumr_result(out, "mlumr_conditional_effects", family = family)
+}
+
+#' Say whether the unrequested measure exists as a scalar for this family
+#'
+#' The refusal is about the parameterization the fit estimates, not about what
+#' the model can express, and the two are easy to conflate. The exponential and
+#' the Weibull are BOTH proportional hazards and accelerated failure time, so
+#' with a baseline shape shared across arms each has a constant hazard ratio
+#' AND a constant time ratio, related deterministically. Telling a Weibull user
+#' that "a proportional-hazards model has no constant time ratio" taught them
+#' something false in order to explain an interface limit. Only the log-normal,
+#' log-logistic and generalized gamma have a genuinely time-varying hazard
+#' ratio, and only there is the absence of a scalar a property of the model
+#' rather than of this function.
+#'
+#' @param dist The fitted distribution.
+#' @param asked The measure the caller asked for, `"hr"` or `"tr"`.
+#' @return A single string to append to the error message.
+#' @keywords internal
+.dual_family_note <- function(dist, asked) {
+  dual <- c("exponential", "weibull", "exponential-aft", "weibull-aft")
+  if (dist %in% dual) {
+    conversion <- if (grepl("^exponential", dist)) {
+      "TR = 1/HR for an exponential. "
+    } else {
+      "TR = HR^(-1/shape) for a Weibull. "
+    }
+    return(paste0(
+      "This distribution is both proportional-hazards and accelerated ",
+      "failure time, so with a baseline shape shared across arms the other ",
+      "measure is a deterministic transform of this one rather than a ",
+      "separate estimand: ", conversion,
+      "Read the shape from the fit and convert, or refit in the other ",
+      "parameterization to have it reported directly."
+    ))
+  }
+  if (identical(asked, "hr")) {
+    return(paste0(
+      "For this distribution the conditional hazard ratio genuinely varies ",
+      "with time, so there is no scalar to convert to. Use ",
+      "predict(type = \"loghr\") for the population-standardized ",
+      "time-varying hazard ratio."
+    ))
+  }
+  "For this distribution there is no constant time ratio to convert to."
 }
 
 #' Build covariate profiles for conditional summaries
