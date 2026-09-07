@@ -549,3 +549,95 @@ test_that("compare_models says when it cannot verify the observations", {
   }
   expect_message(run(), "Could not verify")
 })
+
+test_that("source row keys separate doubles that as.character() collapses", {
+  # The key ranks each row by its rendered text, and the renderer writes a
+  # double with `%.17g` so that every finite one round-trips. The flattener
+  # reached it with `as.character()` output instead, which prints 15
+  # significant digits: neighboring doubles then shared a string, shared a
+  # rank, and a swap of those rows read as the same order.
+  a <- 0.3
+  b <- 0.1 + 0.2
+  expect_false(identical(a, b))
+  expect_identical(as.character(a), as.character(b))
+  expect_equal(length(unique(.source_row_keys(data.frame(x = c(a, b))))), 2L)
+
+  # Wholesale, on a column of neighbors, which is where the collapse is not a
+  # curiosity: 200 distinct values had come back as a handful of ranks.
+  near <- 1 + seq_len(200L) * .Machine$double.eps
+  expect_equal(length(unique(as.character(near))) < 200L, TRUE)
+  expect_equal(length(unique(.source_row_keys(data.frame(x = near)))), 200L)
+
+  # And through the setup function, where a swap of two such rows has to be a
+  # reordering rather than the same source in the same order.
+  src <- data.frame(trt = "x", y = rep(c(0L, 1L), 3L),
+                    age = c(a, b, 41, 52, 63, 74), stringsAsFactors = FALSE)
+  keys <- .source_row_keys(src)
+  expect_equal(length(unique(keys)), 6L)
+  expect_false(identical(.source_row_keys(src[c(2L, 1L, 3:6), ]), keys))
+})
+
+test_that("one source filtered two ways is a mismatch, not unverifiable", {
+  # Two models whose covariates are missing on different rows keep different
+  # patients out of one source. The keys are taken before the drop, so both
+  # carry that source's digest while naming different rows, the row counts
+  # still match, and the shared columns still agree, so nothing else can see
+  # it. Reported as merely unverifiable, the comparison went on to pair one
+  # patient's pointwise likelihood with another's.
+  src <- data.frame(trt = "x", y = c(0L, 1L, 1L, 1L, 1L, 0L),
+                    age = c(30, NA, 52, 63, 74, 85),
+                    wt = c(70, 71, 72, 73, NA, 75), stringsAsFactors = FALSE)
+  agd <- data.frame(trt = "z", n = 10L, r = c(3L, 5L, 2L, 4L),
+                    age_mean = 50, age_sd = 8, wt_mean = 72, wt_sd = 2)
+  from <- function(cov, agd_cov, agd_sd) {
+    fit <- make_ll_fit("spfa", seed = 2026, n_ipd = 5L)
+    fit$data <- list(
+      ipd = suppressWarnings(set_ipd(src, treatment = "trt", outcome = "y",
+                                     covariates = cov, family = "binomial")),
+      agd = set_agd(agd, treatment = "trt", outcome_n = "n", outcome_r = "r",
+                    cov_means = agd_cov, cov_sds = agd_sd, family = "binomial")
+    )
+    fit
+  }
+  fit_age <- from("age", c(age = "age_mean"), c(age = "age_sd"))
+  fit_wt <- from("wt", c(wt = "wt_mean"), c(wt = "wt_sd"))
+
+  # The premise: one source, equal row counts, different patients kept, and
+  # the stored columns in agreement.
+  expect_equal(nrow(fit_age$data$ipd$data), nrow(fit_wt$data$ipd$data))
+  expect_identical(fit_age$data$ipd$data$.outcome, fit_wt$data$ipd$data$.outcome)
+  ka <- fit_age$data$ipd$data$.source_key
+  kw <- fit_wt$data$ipd$data$.source_key
+  expect_identical(.source_digests(ka), .source_digests(kw))
+  expect_false(identical(sort(ka), sort(kw)))
+
+  expect_false(.same_observations(.observation_frames(fit_age),
+                                  .observation_frames(fit_wt)))
+  skip_if_not_installed("loo")
+  expect_error(compare_models(fit_age, fit_wt, criterion = "loo"),
+               "not built on the same observations")
+})
+
+test_that("a source that changed is still reported as unverifiable", {
+  # The NA verdict belongs to a different source, where the digests differ and
+  # neither the keys nor the columns can say whether the rows line up. Turning
+  # the filtered case into a mismatch must not turn this one into a mismatch
+  # too, or a legitimate comparison across two sources would be refused.
+  shared <- data.frame(.outcome = c(1, 0, 1))
+  keyed <- function(digest, ranks) {
+    out <- shared
+    out$.source_key <- paste0(strrep(digest, 32L), ":", ranks)
+    out
+  }
+  same_source <- keyed("a", c(1L, 2L, 3L))
+  other_rows <- keyed("a", c(1L, 2L, 4L))
+  other_source <- keyed("b", c(1L, 2L, 3L))
+
+  expect_true(.same_observations(list(ipd = same_source), list(ipd = same_source)))
+  expect_false(.same_observations(list(ipd = same_source), list(ipd = other_rows)))
+  expect_true(is.na(.same_observations(list(ipd = same_source),
+                                       list(ipd = other_source))))
+  # A permutation of one source's own rows stays the reordering it was.
+  expect_false(.same_observations(list(ipd = same_source),
+                                  list(ipd = keyed("a", c(2L, 1L, 3L)))))
+})

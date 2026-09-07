@@ -214,10 +214,31 @@ extract_log_lik <- function(object) {
     if (is.null(kx) || is.null(ky)) return(NA)
     if (identical(kx, ky)) return(TRUE)
     if (identical(sort(kx), sort(ky))) return(FALSE)
+    # A key is a source digest and a rank within that source. Equal digests
+    # with different ranks are one source that two fits filtered differently,
+    # which is what happens when the models use covariates that are missing on
+    # different rows: the complete-case drop keeps different patients, the row
+    # counts can still match, and the shared columns can still agree. That
+    # pairs one patient's likelihood with another's, so it is a mismatch and
+    # not something the keys are unable to see. Only a different source leaves
+    # the order genuinely unverifiable.
+    if (identical(.source_digests(kx), .source_digests(ky))) return(FALSE)
     NA
   }
   same_frame(a$ipd, b$ipd) && same_frame(a$agd, b$agd) &&
     same_frame(a$pseudo, b$pseudo, grouped = pseudo_grouped)
+}
+
+#' The source digests a set of row keys was built from
+#'
+#' A key is `<digest>:<rank>`; the digest names the source and the rank names
+#' the row within it. Sorted and deduplicated so that two frames drawing on
+#' the same sources compare equal whatever order their rows arrived in.
+#' @param keys A `.source_key` column.
+#' @return The distinct digests, sorted.
+#' @keywords internal
+.source_digests <- function(keys) {
+  sort(unique(sub(":.*$", "", keys)))
 }
 
 #' Do two frames hold the same rows within each arm, in any order?
