@@ -14,7 +14,11 @@ rows agree on everything both fits kept; \code{\link[=compare_models]{compare_mo
 because its pointwise comparison pairs rows by position.
 }
 \details{
-The key is two things, neither of which reveals the source. The first is a
+The key is two things, neither of which carries any of the source's content.
+It is a fingerprint, not a concealment: an unkeyed digest can be recomputed,
+so a party holding a candidate source can confirm that it is the one, and a
+small enough space of candidates can be enumerated. What the fit does not
+hold is the values themselves. The first is a
 fingerprint of the whole source: its schema and then its rows, columns in
 name order so that column order does not matter, rows sorted in byte order
 so that row order does not matter either, and the digest of that is taken.

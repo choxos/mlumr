@@ -428,7 +428,11 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 #' rows agree on everything both fits kept; [compare_models()] needs to know,
 #' because its pointwise comparison pairs rows by position.
 #'
-#' The key is two things, neither of which reveals the source. The first is a
+#' The key is two things, neither of which carries any of the source's content.
+#' It is a fingerprint, not a concealment: an unkeyed digest can be recomputed,
+#' so a party holding a candidate source can confirm that it is the one, and a
+#' small enough space of candidates can be enumerated. What the fit does not
+#' hold is the values themselves. The first is a
 #' fingerprint of the whole source: its schema and then its rows, columns in
 #' name order so that column order does not matter, rows sorted in byte order
 #' so that row order does not matter either, and the digest of that is taken.
@@ -488,7 +492,33 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
     if (is.list(x)) return(vapply(x, function(e) join(render(e)), character(1)))
     x
   }
-  nms <- sort(names(data))
+  # Byte order here too, for the same reason the rows are sorted that way
+  # below. The default collation for a character vector follows LC_COLLATE, so
+  # the same source read under two locales put its columns in two orders, and
+  # column order decides the rendered row, the digest and the ranks. Two fits
+  # of one source made under different locales then carried different digests,
+  # which reads as two sources: the ranks are never compared, a reordering goes
+  # unseen, and one source filtered two ways is no longer a mismatch.
+  # Ordered on the names converted to UTF-8, not on the names themselves:
+  # radix ordering accepts UTF-8, Latin-1 and bytes and errors on anything
+  # else, so a column name in an unknown 8-bit encoding would stop the fit
+  # here, where the locale-dependent default had sorted it. The values go
+  # through `enc2utf8()` in `tag()` for the same reason. The originals are what
+  # index `data`, so the conversion decides the order and nothing else.
+  # The conversion is relied on, not guarded. A fallback here would only move
+  # the failure three lines down: `tag()` puts these same names through
+  # `enc2utf8()` to build the schema, as it does every value and every
+  # character column, so a name it cannot convert stops the key either way and
+  # names are not a special case. It converted every input tried, invalid
+  # sequences included.
+  # `sort()` drops an NA by default and `order()` keeps it, so the NA has to go
+  # before the ordering or it survives into `data[[nm]]` and the setup refuses
+  # a frame whose model columns are all named. Leaving such a column out of the
+  # digest is what `sort()` already did; this keeps that rather than deciding
+  # it, and a column with no name is not one a model can ask for.
+  nms <- names(data)
+  nms <- nms[!is.na(nms)]
+  nms <- nms[order(enc2utf8(nms), method = "radix")]
   cols <- lapply(nms, function(nm) tag(flat(data[[nm]])))
   rows <- if (length(cols)) {
     do.call(paste, c(cols, sep = "\036"))

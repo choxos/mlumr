@@ -220,7 +220,7 @@ extract_log_lik <- function(object) {
     if (nrow(x) < 2L) return(TRUE)
     if (is.null(kx) || is.null(ky)) return(NA)
     if (identical(kx, ky)) return(TRUE)
-    if (identical(sort(kx), sort(ky))) return(FALSE)
+    if (identical(.sorted_keys(kx), .sorted_keys(ky))) return(FALSE)
     # A key is a source digest and a rank within that source. Equal digests
     # with different ranks are one source that two fits filtered differently,
     # which is what happens when the models use covariates that are missing on
@@ -245,7 +245,22 @@ extract_log_lik <- function(object) {
 #' @return The distinct digests, sorted.
 #' @keywords internal
 .source_digests <- function(keys) {
-  sort(unique(sub(":.*$", "", keys)))
+  .sorted_keys(unique(sub(":.*$", "", keys)))
+}
+
+#' Sort key strings in byte order
+#'
+#' The keys are compared by sorting both sides and testing the results for
+#' equality, so the order has to be a total order on the strings themselves.
+#' The default collation follows `LC_COLLATE`, which can rank two distinct
+#' strings as equal, and two equal multisets then sort into two different
+#' vectors and read as a mismatch. Byte order is total and the same everywhere,
+#' which is what [.source_row_keys()] builds the keys in.
+#' @param keys A character vector of keys or digests.
+#' @return The same values in byte order.
+#' @keywords internal
+.sorted_keys <- function(keys) {
+  sort(keys, method = "radix")
 }
 
 #' Did two frames keep different rows of one source?
@@ -265,7 +280,7 @@ extract_log_lik <- function(object) {
 #' @keywords internal
 .kept_different_rows_of_one_source <- function(kx, ky) {
   !is.null(kx) && !is.null(ky) &&
-    !identical(sort(kx), sort(ky)) &&
+    !identical(.sorted_keys(kx), .sorted_keys(ky)) &&
     identical(.source_digests(kx), .source_digests(ky))
 }
 
