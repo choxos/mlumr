@@ -21,9 +21,9 @@ the Weibull are BOTH proportional hazards and accelerated failure time, so
 with a baseline shape shared across arms each has a constant hazard ratio
 AND a constant time ratio, related deterministically. Telling a Weibull user
 that "a proportional-hazards model has no constant time ratio" taught them
-something false in order to explain an interface limit. Only the log-normal,
-log-logistic and generalized gamma have a genuinely time-varying hazard
-ratio, and only there is the absence of a scalar a property of the model
-rather than of this function.
+something false in order to explain an interface limit. The log-normal, the
+log-logistic, the gamma and the generalized gamma have a genuinely
+time-varying hazard ratio, and only there is the absence of a scalar a
+property of the model rather than of this function.
 }
 \keyword{internal}

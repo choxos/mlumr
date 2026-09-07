@@ -902,7 +902,16 @@ mlumr <- function(data,
       # Recording that they existed is what lets a replay say so instead of
       # quietly running under different sampler settings; see
       # `prior_sensitivity()`, which cannot reproduce what it was never told.
-      extra_backend_args = names(list(...))
+      #
+      # `control` arrives through `...` on the rstan path and IS stored, three
+      # lines above, so listing it here would have a refit announce that it
+      # was falling back to defaults for the one setting it reproduces in
+      # full. Record what this list does not already carry.
+      extra_backend_args = setdiff(
+        names(list(...)),
+        c("chains", "iter", "warmup", "seed", "adapt_delta", "max_treedepth",
+          "control")
+      )
     )
   )
 

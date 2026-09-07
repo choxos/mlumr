@@ -291,3 +291,25 @@ test_that("dlogitnorm() refuses arguments it cannot use", {
   expect_false(is.na(dlogitnorm(0.5, mean = 0.34, sd = 0.19)))
   expect_equal(length(dlogitnorm(c(0.2, 0.5, 0.8))), 3L)
 })
+
+test_that("a replay warns only about settings it is actually missing", {
+  # `control` reaches the backend through `...` but IS stored and replayed, so
+  # recording it made a refit announce defaults for the one setting it
+  # reproduces in full.
+  expect_warning(
+    mlumr:::.warn_unreplayed_backend_args(c("thin", "init"), character(0)),
+    "'thin', 'init'"
+  )
+  # re-supplied through `...`, which is what the message asks for
+  expect_warning(
+    mlumr:::.warn_unreplayed_backend_args(c("thin", "init"), "thin"),
+    "'init'"
+  )
+  expect_warning(
+    mlumr:::.warn_unreplayed_backend_args(c("thin", "init"),
+                                          c("thin", "init")),
+    NA
+  )
+  expect_warning(mlumr:::.warn_unreplayed_backend_args(character(0), NULL), NA)
+  expect_warning(mlumr:::.warn_unreplayed_backend_args(NULL, NULL), NA)
+})

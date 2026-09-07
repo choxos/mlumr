@@ -1138,9 +1138,20 @@ set_agd <- function(data, treatment,
       # Without a sample size, n = 2 gives the loosest factor any sample can
       # have, so sqrt(2 * p(1-p)) cannot reject a valid row while still
       # refusing genuinely inconsistent ones (sd = 0.9 at p = 0.5).
+      #
+      # The proportion is reported to a precision too, and the ceiling has to
+      # be the largest one consistent with it. Computing p(1-p) from the
+      # displayed figure alone rejects valid rows: 493 ones out of 500 give
+      # p = 0.986 and a sample SD of 0.1176, and a table printing 0.99 and 0.12
+      # produced a ceiling near 0.0996. Take the variance at the point of the
+      # reported interval closest to 0.5, which is where p(1-p) is largest.
       n_vals <- .agd_binary_n(data, outcome_n, length(sd_vals))
       factor <- ifelse(is.finite(n_vals) & n_vals > 1, n_vals / (n_vals - 1), 2)
-      max_sd <- sqrt(factor * mean_vals * (1 - mean_vals))
+      p_tol <- .reported_precision(mean_vals)
+      p_lo <- pmax(0, mean_vals - p_tol)
+      p_hi <- pmin(1, mean_vals + p_tol)
+      p_worst <- pmin(pmax(0.5, p_lo), p_hi)
+      max_sd <- sqrt(factor * p_worst * (1 - p_worst))
       tol <- 1e-10 + .reported_precision(sd_vals)
       impossible <- sd_vals > max_sd + tol
       if (any(impossible)) {

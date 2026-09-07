@@ -49,3 +49,26 @@ test_that("the reported-precision allowance tracks the precision given", {
   # an unrounded value earns essentially nothing, so this is not blanket slack
   expect_lt(mlumr:::.reported_precision(0.5270462766947299), 1e-8)
 })
+
+test_that("the reported proportion's own rounding widens the ceiling", {
+  # 493 ones out of 500: p = 0.986, sample SD 0.1176. A table printing both to
+  # two decimals supplies 0.99 and 0.12, and a ceiling computed from 0.99 alone
+  # is about 0.0996, which refuses a perfectly ordinary summary.
+  x <- rep(c(0, 1), c(7, 493))
+  expect_equal(round(mean(x), 3), 0.986)
+  expect_equal(round(stats::sd(x), 4), 0.1176)
+  expect_true(accepts(0.99, 0.12, 500))
+
+  # one success in 25, reported to one decimal: p = 0.0 and SD = 0.2, for which
+  # the displayed proportion alone gives a ceiling of exactly zero
+  y <- rep(c(0, 1), c(24, 1))
+  expect_equal(round(stats::sd(y), 2), 0.2)
+  expect_true(accepts(0.0, 0.2, 25))
+
+  # and the ceiling still binds where it should
+  expect_false(accepts(0.99, 0.35, 500))
+  expect_false(accepts(0.0, 0.6, 25))
+  expect_false(accepts(0.5, 0.9, 10))
+  expect_false(accepts(0.5, 0.72, 10))
+  expect_false(accepts(0.05, 0.4, 100))
+})

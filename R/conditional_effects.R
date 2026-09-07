@@ -144,22 +144,12 @@ conditional_effects <- function(object,
   if (identical(family, "survival") && effect %in% c("hr", "tr")) {
     is_ph <- isTRUE(object$surv_info$is_ph)
     dist <- object$distribution %||% "survival"
-    if (is_ph && identical(effect, "tr")) {
-      stop("`effect = \"tr\"` is not what this fit parameterizes. This is a ",
-           "proportional-hazards '", dist,
-           "' fit, so the coefficient it estimates is a log hazard ratio and ",
-           "`effect = \"hr\"` is what returns it. ",
-           .dual_family_note(dist, "tr"),
-           call. = FALSE)
-    }
-    if (!is_ph && identical(effect, "hr")) {
-      stop("`effect = \"hr\"` is not what this fit parameterizes. This is an ",
-           "accelerated failure time '", dist,
-           "' fit, so the coefficient it estimates is a log time ratio and ",
-           "`effect = \"tr\"` is what returns it. ",
-           .dual_family_note(dist, "hr"),
-           call. = FALSE)
-    }
+    # Order matters here. The parameterization errors below explain the
+    # refusal by naming the measure this fit estimates, and for a dual family
+    # they give the conversion to the other one. That conversion reads "the
+    # shape", which presumes one: with `aux_by = ".study"` a Weibull has two
+    # and no constant time ratio to recover. The stratified case has its own
+    # accurate error, so let it answer first.
     # Under differing baseline shapes exp(eta_index - eta_comparator) is
     # neither a hazard ratio (the h0 ratio does not cancel) nor a time ratio
     # (differing shapes add quantile-dependent factors). Returning it under the
@@ -174,6 +164,22 @@ conditional_effects <- function(object,
            ". Use `effect = \"all\"` for the contrast under its own name, ",
            "predict(type = \"loghr\") for the time-varying hazard ratio, or ",
            "refit with `aux_by = \"none\"`.",
+           call. = FALSE)
+    }
+    if (is_ph && identical(effect, "tr")) {
+      stop("`effect = \"tr\"` is not what this fit parameterizes. This is a ",
+           "proportional-hazards '", dist,
+           "' fit, so the coefficient it estimates is a log hazard ratio and ",
+           "`effect = \"hr\"` is what returns it. ",
+           .dual_family_note(dist, "tr"),
+           call. = FALSE)
+    }
+    if (!is_ph && identical(effect, "hr")) {
+      stop("`effect = \"hr\"` is not what this fit parameterizes. This is an ",
+           "accelerated failure time '", dist,
+           "' fit, so the coefficient it estimates is a log time ratio and ",
+           "`effect = \"tr\"` is what returns it. ",
+           .dual_family_note(dist, "hr"),
            call. = FALSE)
     }
   }
@@ -313,10 +319,10 @@ conditional_effects <- function(object,
 #' with a baseline shape shared across arms each has a constant hazard ratio
 #' AND a constant time ratio, related deterministically. Telling a Weibull user
 #' that "a proportional-hazards model has no constant time ratio" taught them
-#' something false in order to explain an interface limit. Only the log-normal,
-#' log-logistic and generalized gamma have a genuinely time-varying hazard
-#' ratio, and only there is the absence of a scalar a property of the model
-#' rather than of this function.
+#' something false in order to explain an interface limit. The log-normal, the
+#' log-logistic, the gamma and the generalized gamma have a genuinely
+#' time-varying hazard ratio, and only there is the absence of a scalar a
+#' property of the model rather than of this function.
 #'
 #' @param dist The fitted distribution.
 #' @param asked The measure the caller asked for, `"hr"` or `"tr"`.

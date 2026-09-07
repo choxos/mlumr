@@ -42,8 +42,10 @@ an unanchored example for which a randomized reference comparison is
 still available: fitting the two arms together on the full data gives the
 estimate the unanchored methods are trying to recover. That reference is
 itself an estimate with sampling error, not an evaluated population
-causal truth, since these data are synthesized rather than drawn from a
-declared generating model. Because the label
+causal truth: the synthesis reproduces the covariate and
+covariate-outcome relationships of the source trial, which does not define
+a population causal effect that could be computed and compared against.
+Because the label
 is shared, \code{\link{combine_data}} warns that IPD and AgD come from
 the same study; that warning is expected here and is the honest reading of
 the data. It does not fire for \code{\link{psoriasis_ipd}} or

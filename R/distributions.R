@@ -187,7 +187,12 @@ dgamma <- function(x, shape, rate = 1, scale = 1 / rate, log = FALSE,
 #' @param p Vector of probabilities.
 #' @param mu,sigma Location and scale, on the logit scale.
 #' @param log Return the log density. Positional, as in [stats::dnorm()].
-#' @param ... Passed to the underlying \pkg{stats} normal function.
+#' @param ... For `plogitnorm()` and `qlogitnorm()`, passed to the underlying
+#'   \pkg{stats} normal function ([stats::pnorm()], [stats::qnorm()]), so
+#'   `lower.tail` and `log.p` work as usual. `dlogitnorm()` builds its density
+#'   from [stats::dnorm()] and a Jacobian rather than delegating, so it has
+#'   nothing to forward and refuses anything passed here; in its signature
+#'   `...` serves only to keep `mean` and `sd` from matching positionally.
 #' @param mean,sd Mean and standard deviation on the `(0, 1)` scale,
 #'   overriding `mu` and `sigma` when both are supplied.
 #'
