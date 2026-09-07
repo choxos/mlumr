@@ -36,13 +36,22 @@ Everything reaches an integration branch through a pull request, including work
 by the maintainer, because the pull request is what runs the checks, produces a
 reviewable diff, and records why a change was made.
 
-`main` holds the released state, with one exception: from a CRAN submission
-until a version is accepted, it holds the most recent commit submitted to CRAN,
-and nothing else merges into it. Work for a version that has not been released
-yet integrates on `pre-release/vX.Y.Z` instead, and that branch is merged into
+`main` holds the released state, with two exceptions: from a CRAN submission
+until a version is accepted it holds the most recent commit submitted to CRAN
+and nothing else merges into it, and between releases it may hold the
+development version. Work for a version that has not been released yet
+integrates on `pre-release/vX.Y.Z` instead, and that branch is merged into
 `main` as one reviewed step when the version is ready to submit. A single
 change therefore has one pull request, targeting whichever of the two is the
 current integration branch; it is not opened twice.
+
+The pre-release branch is also merged into `main` between releases, to keep the
+two from drifting while a version is still being built. Such a merge bumps no
+version of its own, and is neither tagged nor submitted; what it does change is
+which version `main` carries, from the released one to the development version
+already set on the pre-release branch, and its `DESCRIPTION` says so. It is the
+merge made when the version is ready to submit, and only that one, that becomes
+the CRAN commit.
 
 - **One branch per logical change, never one change branch per release.** A
   release is a milestone, a `NEWS.md` heading, and a tag; it is not a unit of
@@ -76,9 +85,11 @@ accumulates; the release version is set once, during release preparation.
 ## Releases
 
 A version under development integrates on `pre-release/vX.Y.Z`, which collects
-the pull requests for that version while `main` continues to hold the released
-state. Final preparation happens on that same branch, and it contains, beyond
-the changes themselves:
+the pull requests for that version. `main` holds the released state until that
+branch is first synchronized into it, and the development version after that.
+It carries `vX.Y.Z` itself only once the branch is merged for a submission,
+which is the merge described below. Final preparation happens on the
+pre-release branch, and it contains, beyond the changes themselves:
 
 - the version bump in `DESCRIPTION`,
 - the finalized `NEWS.md` section,
@@ -90,14 +101,18 @@ The pre-release branch is merged into `main` by pull request once the full
 check matrix is green. That pull request is merged with a merge commit, not
 squashed: squashing would collapse every change on the pre-release branch into
 one commit on `main` and discard exactly the per-change history the branch was
-kept to preserve. The merge commit is what is submitted to CRAN. The version
-tag `vX.Y.Z` and the GitHub release are created from that commit only after
-CRAN accepts it. While a submission is pending, the submitted commit is
-immutable and nothing else is merged into `main`, so `main` is either the
-released state or the most recent commit submitted to CRAN, never a mixture of
-a submitted version and later work. If CRAN asks for changes, increment to the
-next version rather than reusing the submitted one, merge the resubmission the
-same way, and note it in `cran-comments.md`.
+kept to preserve. A merge made because the version is ready to submit is the
+commit the submitted tarball is built from; CRAN receives the tarball, which is
+what `cran-comments.md` accompanies. A synchronizing merge between releases
+builds no tarball and is neither submitted nor tagged. The version tag `vX.Y.Z`
+and the GitHub release are created from the submitted commit only after CRAN
+accepts it. While a submission is pending, the submitted commit is immutable
+and nothing else is merged into `main`, a synchronizing merge included, so
+`main` is either the released state, the development version between releases,
+or the most recent commit submitted to CRAN, never a mixture of a submitted
+version and later work. If CRAN asks for changes, increment to the next version
+rather than reusing the submitted one, merge the resubmission the same way, and
+note it in `cran-comments.md`.
 
 ## Code Style
 

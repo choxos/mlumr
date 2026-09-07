@@ -691,3 +691,75 @@ test_that("a source that changed is still reported as unverifiable", {
   expect_false(.same_observations(list(ipd = same_source),
                                   list(ipd = keyed("a", c(2L, 1L, 3L)))))
 })
+
+test_that("source row keys do not move with the collation locale", {
+  # The rows are sorted in byte order so the ranks are the same everywhere, but
+  # the column names were sorted with the default collation, which follows
+  # `LC_COLLATE`. Column order decides the rendered row, so one source read
+  # under two locales carried two digests. Two fits of it then read as two
+  # sources: the ranks are never compared, a reordering goes unseen, and one
+  # source filtered two ways stops being a mismatch.
+  d <- data.frame(AB = c(1, 2), ab = c(3, 4), Age = c(5, 6),
+                  age_mean = c(7, 8), stringsAsFactors = FALSE)
+  previous <- Sys.getlocale("LC_COLLATE")
+  on.exit(suppressWarnings(Sys.setlocale("LC_COLLATE", previous)), add = TRUE)
+
+  orders <- list()
+  keys <- list()
+  for (loc in c("C", "en_US.UTF-8", "en_GB.UTF-8", "de_DE.UTF-8")) {
+    set <- suppressWarnings(Sys.setlocale("LC_COLLATE", loc))
+    if (!identical(set, loc)) next
+    orders[[loc]] <- sort(names(d))
+    keys[[loc]] <- .source_row_keys(d)
+  }
+  # Two collations that order these names differently have to be available for
+  # the test to mean anything; a runner with only C cannot show the difference.
+  differs <- length(orders) > 1L &&
+    !all(vapply(orders[-1L], identical, logical(1), orders[[1L]]))
+  skip_if_not(differs, "no two collations here order these names differently")
+
+  # The premise, and then the guarantee: the default order really does move,
+  # and the key does not move with it.
+  expect_true(length(unique(lapply(orders, identity))) > 1L)
+  expect_equal(length(unique(keys)), 1L)
+})
+
+test_that("a column name in an unsupported encoding does not stop the key", {
+  # Radix ordering accepts UTF-8, Latin-1 and bytes and errors on anything
+  # else, so putting the column names in byte order could refuse a frame the
+  # locale-dependent default had sorted. The names are ordered on their UTF-8
+  # conversion, which is what `tag()` already does to the values.
+  odd <- rawToChar(as.raw(c(0xfc, 0x62, 0x65, 0x72)))
+  Encoding(odd) <- "unknown"
+  # The premise: this really is the input radix ordering refuses.
+  skip_if_not(
+    inherits(try(sort(c(odd, "plain"), method = "radix"), silent = TRUE),
+             "try-error"),
+    "this platform's radix ordering accepts the name unchanged"
+  )
+  d <- data.frame(a = c(1, 2), b = c(3, 4))
+  names(d) <- c(odd, "plain")
+  keys <- .source_row_keys(d)
+  expect_match(keys, "^[0-9a-f]{32}:[0-9]+$")
+  expect_equal(length(unique(keys)), 2L)
+})
+
+test_that("a column with no name does not stop the key", {
+  # `sort()` drops an NA and `order()` keeps it, so putting the names in byte
+  # order carried the NA into `data[[nm]]` and refused a frame whose model
+  # columns are all named. Leaving an unnamed column out of the digest is what
+  # the previous sort did; the point here is that the setup still runs.
+  d <- data.frame(a = c(1, 2), b = c(3, 4))
+  names(d) <- c("a", NA)
+  expect_length(sort(names(d)), 1L)
+  expect_length(names(d)[order(names(d), method = "radix")], 2L)
+
+  keys <- .source_row_keys(d)
+  expect_length(keys, 2L)
+  expect_match(keys, "^[0-9a-f]{32}:[0-9]+$")
+  # The named column is what the digest sees, so rows that differ only there
+  # still separate.
+  same <- data.frame(a = c(1, 1), b = c(3, 4))
+  names(same) <- c("a", NA)
+  expect_equal(length(unique(.source_row_keys(same))), 1L)
+})

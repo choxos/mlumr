@@ -67,7 +67,9 @@
 #'   `mean`, `sd`, and one column per requested quantile, named `q` followed by
 #'   the percentage (the default `probs` give `q2.5`, `q50`, `q97.5`), matching
 #'   [marginal_effects()]. Quantiles are columns, not a row dimension.
-#'   Side effect: prints a summary table at the end.
+#'   Side effect: prints a summary table at the end when `verbose = TRUE`,
+#'   which is the default; `verbose = FALSE` returns the same data frame and
+#'   prints nothing.
 #' @seealso [prior_summary()] for a one-shot description of the priors on
 #'   a fit; [marginal_effects()] for the posterior summary quantities this
 #'   sweep tracks.
