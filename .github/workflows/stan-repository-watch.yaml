@@ -1,0 +1,191 @@
+name: Stan repository watch
+
+# `Additional_repositories` points at https://mc-stan.org/r-packages, which the
+# Stan project describes as deprecated and no longer updated. That is a
+# deliberate temporary choice, and cmdstanr is not what forced it: adding the
+# maintained stan-dev repository to the chain makes rstan resolve to its
+# development snapshot while StanHeaders still resolves to the released CRAN
+# build, and development rstan against released StanHeaders fails at
+# Module.cpp:105. Pinning a repository whose versions can never outrank CRAN
+# makes resolution deterministic again.
+#
+# The pin is not free. The frozen repository serves cmdstanr 0.8.0, which
+# predates current Rtools and cannot build CmdStan on Windows with R 4.6.
+#
+# A temporary workaround with nothing watching it becomes permanent. This job
+# exists so the decision is revisited on a schedule instead of on a memory:
+#
+#   1. it fails if the deprecated repository stops serving cmdstanr, which is
+#      the failure mode that would otherwise reach users as a broken install;
+#   2. it replays the resolution and reports whether rstan and StanHeaders come
+#      from the same source yet, which is the condition that would let the pin
+#      be reverted. Comparing cmdstanr versions instead would never fire: the
+#      frozen repository stays at 0.8.0 whatever the maintained one does, and
+#      cmdstanr was never the package that broke;
+#   3. it fails after EXPIRES_ON regardless, so the pin cannot outlive its
+#      reason without somebody deciding to extend it.
+
+on:
+  schedule:
+    # Weekly, Monday 06:00 UTC.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  watch:
+    name: Stan repository pin still needed and still working
+    runs-on: ubuntu-latest
+    env:
+      # Move this date forward only together with a note in the pull request
+      # saying why the pin is still needed. Reverting the pin is what clears it.
+      EXPIRES_ON: '2027-03-01'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: 'release'
+          use-public-rspm: true
+
+      - name: Check the condition that would let the pin be reverted
+        run: |
+          declared <- trimws(read.dcf("DESCRIPTION", "Additional_repositories")[[1]])
+          maintained <- "https://stan-dev.r-universe.dev"
+          cran <- "https://cloud.r-project.org"
+
+          # The pin exists because of ONE thing: adding stan-dev to the chain
+          # made rstan resolve to its development snapshot while StanHeaders
+          # still resolved to the released CRAN build, and development rstan
+          # against released StanHeaders fails at Module.cpp:105. cmdstanr is
+          # what the repository is FOR, not what broke, so cmdstanr versions
+          # are the wrong signal: the deprecated repository is frozen at 0.8.0
+          # and will never equal the maintained one, so a check on that
+          # equality can never fire at all.
+          #
+          # The condition to watch is whether the pair resolves from a single
+          # source again. It does when stan-dev's StanHeaders outranks CRAN's,
+          # which is what made the last working deploy a matched development
+          # pair.
+          resolve <- function(url) {
+            av <- tryCatch(available.packages(repos = c(CRAN = cran, X = url)),
+                           error = function(e) NULL)
+            if (is.null(av)) return(NULL)
+            want <- intersect(c("rstan", "StanHeaders", "cmdstanr"), rownames(av))
+            data.frame(package = want,
+                       version = unname(av[want, "Version"]),
+                       from = ifelse(grepl("r-universe|mc-stan", av[want, "Repository"]),
+                                     "extra", "CRAN"),
+                       stringsAsFactors = FALSE)
+          }
+          with_declared <- resolve(declared)
+          with_maintained <- resolve(maintained)
+          cat("=== with the declared repository (", declared, ") ===\n", sep = "")
+          print(with_declared)
+          cat("\n=== with the maintained repository (", maintained, ") ===\n", sep = "")
+          print(with_maintained)
+
+          expires <- as.Date(Sys.getenv("EXPIRES_ON"))
+          today <- Sys.Date()
+          pinned <- !identical(declared, maintained)
+          problems <- character(0)
+
+          if (pinned && (is.null(with_declared) ||
+                           !"cmdstanr" %in% with_declared$package)) {
+            problems <- c(problems, paste0(
+              "the declared repository (", declared, ") no longer serves ",
+              "cmdstanr, so installing this package from DESCRIPTION alone ",
+              "cannot get the optional backend"))
+          }
+          # The pin exists to keep rstan and StanHeaders resolving together.
+          # Watching only cmdstanr would miss the failure it was put in place
+          # for: if CRAN archives rstan while keeping StanHeaders, the declared
+          # chain falls back to the frozen rstan beside CRAN headers, which is
+          # the same split pair, now reintroduced BY the pin. This job runs
+          # weekly while the declared-chain job runs only on code events, so
+          # nothing else would notice.
+          if (pinned && !is.null(with_declared)) {
+            src <- stats::setNames(with_declared$from, with_declared$package)
+            have <- c("rstan", "StanHeaders") %in% names(src)
+            if (!all(have)) {
+              problems <- c(problems, paste0(
+                "the declared chain no longer offers ",
+                paste(c("rstan", "StanHeaders")[!have], collapse = " and "),
+                ", so the dependency pair this pin exists to keep together ",
+                "cannot be resolved from it"))
+            } else if (length(unique(src[c("rstan", "StanHeaders")])) != 1L) {
+              problems <- c(problems, paste0(
+                "the declared chain now resolves rstan from '",
+                src[["rstan"]], "' and StanHeaders from '",
+                src[["StanHeaders"]], "'. That split is exactly the ",
+                "combination the pin exists to avoid, so the pin is no longer ",
+                "doing its job"))
+            }
+          }
+          # The expiry belongs to the WORKAROUND, not to the calendar. Once
+          # DESCRIPTION points at the maintained repository the pin is gone and
+          # there is nothing left to expire; failing anyway would leave a
+          # scheduled red job with no action attached to it, which is exactly
+          # how a watch stops being read.
+          if (pinned && today > expires) {
+            problems <- c(problems, paste0(
+              "the pin to a deprecated repository passed its review date (",
+              expires, "). Either revert Additional_repositories to ",
+              maintained, " and confirm the dependency chain resolves, or ",
+              "move EXPIRES_ON forward with a stated reason."))
+          }
+          if (!pinned) {
+            cat("\nThe pin has been removed: DESCRIPTION already declares ",
+                maintained, ". This job now only reports what that chain ",
+                "resolves to.\n", sep = "")
+          }
+          if (length(problems)) {
+            stop(paste0("\n- ", problems, collapse = ""))
+          }
+
+          # `available.packages()` does not fail when one repository in the
+          # chain is unreachable: it warns and returns what the others serve.
+          # A maintained repository that was down, or had stopped serving its
+          # Stan packages, would then leave rstan and StanHeaders both coming
+          # from CRAN, which reads as "the pair resolves from one source" and
+          # would recommend reverting the pin on no evidence at all. So the
+          # recommendation needs proof that the maintained repository answered
+          # and offers the packages the chain is for.
+          maintained_only <- tryCatch(available.packages(repos = maintained),
+                                      warning = function(w) NULL,
+                                      error = function(e) NULL)
+          maintained_ok <- !is.null(maintained_only) &&
+            all(c("cmdstanr", "rstan") %in% rownames(maintained_only))
+          if (!maintained_ok) {
+            cat("\nThe maintained repository (", maintained, ") could not be ",
+                "queried, or does not currently serve cmdstanr and rstan, so ",
+                "this run says nothing about whether the pin can be ",
+                "reverted.\n", sep = "")
+          }
+          if (maintained_ok && !is.null(with_maintained)) {
+            src <- stats::setNames(with_maintained$from, with_maintained$package)
+            pair <- src[c("rstan", "StanHeaders")]
+            if (all(!is.na(pair)) && length(unique(pair)) == 1L) {
+              cat("\nNOTE: rstan and StanHeaders now resolve from the same ",
+                  "source with the maintained repository added, so the split ",
+                  "pair that motivated the pin appears resolved. Try reverting ",
+                  "Additional_repositories to ", maintained, ", which would ",
+                  "also lift the Windows toolchain limitation of the frozen ",
+                  "cmdstanr.\n", sep = "")
+            } else {
+              cat("\nThe split pair is still present: rstan resolves from '",
+                  pair[["rstan"]], "' and StanHeaders from '",
+                  pair[["StanHeaders"]],
+                  "', the mismatch that fails at Module.cpp:105.",
+                  if (pinned) " The pin is still needed."
+                  else paste0(" DESCRIPTION no longer pins, so installs from",
+                              " it can hit that failure."),
+                  "\n", sep = "")
+            }
+          }
+        shell: Rscript {0}

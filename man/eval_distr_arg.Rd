@@ -4,12 +4,15 @@
 \alias{eval_distr_arg}
 \title{Evaluate a single mlumr_distr argument expression}
 \usage{
-eval_distr_arg(expr, data)
+eval_distr_arg(expr, data, enclos = NULL)
 }
 \arguments{
 \item{expr}{An unevaluated expression}
 
 \item{data}{Data context}
+
+\item{enclos}{The environment the specification was written in, from
+\code{distr()}; anything else falls back to the caller's frame, as before.}
 }
 \value{
 Evaluated value

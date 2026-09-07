@@ -20,5 +20,11 @@ back quietly understating every tied observation.
 Fail closed instead. The multiplicities must be expanded back to the original
 observation sequence (repeat unique column \code{k} its \code{agd_count[k]} times, and
 expand the arm map with it) before any diagnostic reads them.
+
+No shipped code path sets \code{agd_count}, so this guard is inert today: it is a
+precondition on the pointwise likelihood that tie aggregation would violate,
+placed before that feature rather than after the first wrong LOO value.
+Deleting it as unused would remove the check at exactly the moment the
+feature that needs it arrives.
 }
 \keyword{internal}

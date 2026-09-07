@@ -2,6 +2,63 @@
 
 ## Behavior and validation changes to existing functions
 
+* **`compare_models()` no longer reads a standard error as a threshold, and
+  refuses fits built on different observations.** The LOO/WAIC printout said
+  that `se_diff > 2` is the conventional threshold for a meaningful difference.
+  A large standard error is uncertainty about a difference, not evidence for
+  it; the paragraph now says to read `elpd_diff` against `se_diff`, to treat
+  any ratio as a heuristic rather than a decision rule, and to check the PSIS
+  diagnostics. Every comparison the function makes is also paired, column by
+  column, and `loo` can only check that the pointwise matrices have the same
+  shape: two fits of different data with the same number of rows, or of the
+  same rows in a different order, compared without complaint. The fits carry
+  the data they were built from, so the columns that define an observation
+  (`.study`, `.trt`, the outcome, exposure, and for survival the times and
+  status, and for survival comparators both the aggregate rows with their
+  covariate summaries and the reconstructed pseudo-individuals), together with
+  every covariate the fits share, are now compared across the fits row for
+  row and a mismatch is an error. Covariates
+  only one fit uses are not compared, since models of the same outcomes with
+  different covariate sets are exactly what gets compared. Because the stored
+  columns can only show what both fits kept, the setup functions now also
+  record for every row a key made of a digest of the whole source and the
+  row's rank within a canonical ordering of it (an internal `.source_key`
+  column, which is now a reserved name; nothing of the source's content is
+  kept). Two fits holding the same keys in a different order were built from
+  one source reordered between them, and are refused even when they share no
+  covariate. Fits whose sources differ in columns the models did not use, or
+  a fit from before the keys existed, cannot have their row order verified;
+  the comparison then runs with a warning saying so.
+  `calculate_dic()` objects carry the same frames, so a DIC comparison is
+  checked too. A model whose object carries no data is reported as
+  unverifiable rather than assumed to match.
+
+* **`prior_sensitivity()` validates `probs` with the shared validator.** Its
+  local copy of the check omitted the duplicate test that `.validate_probs()`
+  applies everywhere else, so two equal probabilities produced two identically
+  named `qNN` columns and the second silently overwrote the first: the caller
+  asked for n quantiles and received fewer, with no error.
+
+* **`prior_summary()` names the constrained prior instead of calling every
+  positive-constrained prior a "half-distribution".** Two of those labels were
+  wrong: an exponential is already supported on the positive half-line, so
+  `<lower=0>` truncates nothing, and a normal or t with a nonzero location
+  truncated at zero is a truncated normal or t, not a half-normal or half-t.
+
+* **`prior_sensitivity()` names its quantile columns like the rest of the
+  package.** They were built with `paste0("q", round(100 * probs))`, which
+  labelled the default 2.5th and 97.5th percentiles `q2` and `q98`, and made
+  distinct probabilities collide: `probs = c(0.024, 0.025)` produced `q2` twice
+  and the second silently overwrote the first. The columns are now `q2.5`,
+  `q50`, `q97.5`, matching `marginal_effects()`, so the two can be joined by
+  name. Code reading `q2` or `q98` must be updated.
+
+* **`prior_sensitivity()` no longer claims a scale sweep proves the inference is
+  data-driven.** Constant summaries across the tested scales show insensitivity
+  to those scales, within one prior family at one location on one model. The
+  printed interpretation now says that, and points at `check_identification()`
+  for the question a scale sweep cannot answer.
+
 * **Marginal summaries are no longer clipped to finite reporting bounds.** The
   Stan models previously passed marginal probabilities through `safe_logit()`
   (clamping to `[1e-10, 1 - 1e-10]`) and ratios through `safe_divide()`
@@ -203,18 +260,51 @@
   estimate; that comparison is withheld and named instead of scored across the
   two scales.
 
-* **`check_identification()` declines a fitted SPFA object.** Its report is
-  headed "relaxed model" and diagnoses `beta_comparator`, which a
-  shared-coefficient model does not have. It also compares the realized
-  integration design against the declared one through singular-value spectra
-  rather than matrix rank, which could not distinguish declared means
-  `c(-1, 1)` from realized `c(-1e-10, 1e-10)`; and two aggregate rows built
-  from the same integration tuples in a different order now count as one
-  profile, since the likelihood averages over a row's points.
+* **The cmdstanr executable cache now notices a changed include.** The cache
+  key concatenated the MD5 of the model file with the MD5 of every include and
+  kept the first 32 characters. An MD5 digest is already 32 characters, so the
+  key was the model file's digest alone and every include hash was discarded.
+  Editing a shared include, which is where the likelihood helpers and the
+  numerical guards live, produced the same key, and a previously compiled
+  executable was reused. The key is now a digest over a canonical payload
+  naming every source file with its own content, plus the CmdStan version,
+  its installation path and the content of its `make/local`, so a changed
+  include, a different CmdStan, or changed build flags invalidate it. A
+  compiler upgrade with everything else unchanged does not, and does not need
+  to. Anyone carrying a cache from an earlier version will get one recompile.
 
-* **`n_knots` is validated only when knots have to be generated.** A valid
-  custom knot specification was rejected because an argument the fit never
-  reads was out of range. The resolved basis is still checked on its own terms.
+* **`stc()` refuses an outcome model whose fitted probabilities have all
+  reached a boundary.** Its checks looked for a failure the fitting reports,
+  and separation is not one: iterative
+  reweighting stops when the deviance stops changing, and a separated fit has
+  no maximum for it to stop at, so a binomial arm with no events returned
+  convergence, finite coefficients and a finite covariance. A hundred rows with
+  the outcome always zero produced a coefficient of -26.6 and a largest fitted
+  probability of 3e-12, with a confidence interval to match, every number a
+  property of where the iteration stopped rather than of the data. Raising
+  `maxit` changes none of them. The symptom separation always leaves is now
+  an error: every fitted probability against a boundary, either one, tested
+  only where a boundary exists, so a genuinely rare event still fits.
+  Quasi-complete separation, where rows sit on the separating hyperplane and
+  keep interior fitted probabilities, is not detected; separating that from a
+  strong but identified fit needs an exact test rather than the fitted
+  values.
+
+* **A caller's rstan `control` reaches the sampler.** `...` is documented as
+  passing arguments to `rstan::sampling()`, but the backend supplied its own
+  `control` beside the caller's, and `control` is a formal of that function, so
+  argument matching failed before sampling began and the sampler's other
+  settings could not be reached. The two are merged now, with the caller's
+  entries winning as the more specific request.
+
+* **`conditional_predict()` returns the quantiles it was asked for.**
+  `quantile()` names each result with `format()`, which prints to the display
+  precision, while every lookup in the package builds the name from the
+  probability itself. The two spellings agree for a round probability and not
+  otherwise: a third is `33.33333%` to R and `q33.3333333333333` here, so
+  asking for it returned NA for both treatments out of entirely finite draws,
+  and only the default probabilities happened to line up. The summaries now
+  carry the package's own names, so no lookup can disagree with them.
 
 ## Transportability to arbitrary target populations
 
@@ -231,7 +321,13 @@
   distribution by each arm's own survival. It follows the same
   evaluation-time convention as the built-in populations, the closed-form
   `t -> 0` limit when the two studies share a baseline shape and the requested
-  (or first) fitted time when they do not.
+  (or first) fitted time when they do not. An AFT fit reports its
+  target-standardized location contrast,
+  `exp(mean(eta_index) - mean(eta_comparator))` over the target rows: with
+  shared coefficients the covariate term cancels draw by draw and the value is
+  the same for every target, which is the sense in which a shared-shape time
+  ratio is population-invariant, while with relaxed coefficients it does not
+  cancel and the value belongs to that target.
 
   Standardizing to the index covariates reproduces `population = "index"`
   exactly, for every measure including the hazard ratio, which is the check
@@ -294,6 +390,22 @@
 
 ## Time-to-event (survival) outcomes
 
+* **New `prior_aux2` argument for the second generalized-gamma auxiliary
+  parameter.** The two auxiliaries govern different features of the hazard and
+  can need different regularization; both previously took whatever `prior_aux`
+  specified. `NULL` (the default) reuses `prior_aux`, so existing fits are
+  unchanged, and `prior_summary()` shows the two separately when they can
+  differ, naming them as the generalized-gamma `sigma` and `k = 1 / Q^2` for the
+  Lawless shape `Q` rather than as anonymous auxiliaries. Supplying it for a
+  distribution with fewer than two auxiliary parameters warns and is discarded
+  without being validated, rather than being silently ignored, and
+  `prior_sensitivity()` refuses to vary it mid-sweep like
+  every other scenario-defining argument. `prior_aux`'s documentation now also
+  records that one default is reused across auxiliary parameters that do not
+  share a scale: the Gompertz shape has units of 1 / time, so the same trial
+  expressed in days rather than years gives a half-normal(0, 2) an entirely
+  different meaning.
+
 * **New `"survival"` outcome family for data setup.** `set_ipd()` accepts
   time-to-event data, and **`set_agd_surv()`** takes the comparator arm as
   reconstructed pseudo-IPD (event and censoring times digitized from a published
@@ -337,8 +449,22 @@
   survival time), `"median"`, and `"loghr"` (the time-varying marginal log
   hazard ratio curve, null 0). `predict(type = "median")` carries a
   `p_not_reached` column reporting the posterior probability that the median is
-  beyond follow-up. `conditional_effects()` / `conditional_predict()` give
-  covariate-conditional contrasts and survival curves.
+  beyond follow-up. A `times` request is answered one row per requested time,
+  in the order asked, with a `requested_time` column beside `time`: each is
+  evaluated at the nearest fitted grid time, and a message names the requested
+  and the used time whenever the two differ or two requests land on one grid
+  point. `pred_times` sets the grid itself for exact evaluation.
+  `conditional_effects()` / `conditional_predict()` give
+  covariate-conditional contrasts and survival curves. Both grid-based
+  quantities say when their grid is too coarse to trust, per posterior draw:
+  RMST warns when more than half of the fitted survival decay lands inside a
+  single interval of the `n_rmst_grid` grid (a two-node grid always does),
+  judged on each target profile's own curve before the profiles are averaged,
+  since profiles that collapse inside different intervals average to a curve
+  that looks resolved while the trapezoid overstates every one of them; and
+  the median warns when the curve is already at or below 0.5 at the first
+  `pred_times` point, where it can only be interpolated from `S(0) = 1`
+  across the whole first interval. Both point at a refit with a finer grid.
 
 * **`marginal_effects()` reports natural-scale survival effects** (null 1): the
   hazard ratio (`HR`) for proportional-hazards distributions, the time ratio
@@ -413,6 +539,9 @@
   only by the aggregate likelihood, so the answer is fixed by the aggregate
   subgroup rows before any model is fitted.
 
+  It answers that for a relaxed specification and declines a fitted SPFA
+  object, which has no `beta_comparator` for the question to be about.
+
   Each aggregate row contributes one constraint and the comparator side has
   `K + 1` unknowns (the intercept counts), so `S >= K + 1` rows are necessary.
   They are not sufficient: the rows must also differ in **every** covariate
@@ -450,6 +579,21 @@
   link because a repeated grid gives an identical likelihood term.
 
 ## Covariate distributions
+
+* **`distr()` now honors arguments passed by position.** It captures its `...`
+  unevaluated and evaluation walked `names(args)`, so anything supplied without
+  a name was never iterated and never reached the quantile function.
+  `distr(qnorm, 10, 2)` therefore integrated a STANDARD normal, silently, with
+  no warning and no error: the fit ran, converged, and answered a different
+  question than the one asked. Positional arguments are now matched against the
+  quantile function's own formals once, at construction, so the stored
+  specification says what each argument is. Arguments after `...` in the
+  quantile function's signature stay name-only, which is R's own rule, and an
+  argument that matches nothing is an error rather than a silent omission.
+  Abbreviated names are completed the same way: `distr(qbinom, si = 5, ...)`
+  evaluated with five trials, because R completes `si` at call time, but the
+  margin classification read `args$size`, found nothing, and labeled a
+  five-trial binomial binary. The stored name is now the full formal.
 
 * **New moment-parameterized marginal distributions**, mirroring the ones
   `multinma` exports so a published baseline table can be used as printed:
@@ -538,6 +682,24 @@
 
 ## Documentation
 
+* **The relaxed model's identification claim is corrected.**
+  `prior_beta_comparator` said the comparator-population effect "is identified
+  directly by the AgD". The AgD likelihood informs the comparator-population
+  outcome, but identifying `beta_comparator` or a treatment contrast depends on
+  the number and geometry of the independent aggregate summaries, the link, the
+  covariate distribution, the outcome precision, and the prior. The
+  documentation says so, and points at `check_identification()` and
+  `prior_sensitivity()`.
+
+* **`set_agd_surv()` states that reconstruction uncertainty is not propagated.**
+  Pseudo-individual records enter the likelihood as observed data, so a survival
+  posterior conditions on one digitization of one published curve and carries
+  none of the uncertainty in producing it: intervals are narrower than the
+  evidence supports, most visibly for flexible baselines, late-tail RMST and
+  medians, and weakly identified relaxed comparator coefficients. The help page
+  now says this and describes refitting across plausible reconstructions as the
+  way to see how much it matters.
+
 * Reorganized the vignettes into nine outcome-focused guides: `introduction`,
   `data-preparation`, `binary-outcomes`, `continuous-outcomes`,
   `count-outcomes`, `survival-outcomes`, `subgroup-identification`,
@@ -567,6 +729,36 @@
   vignette additionally calls one internal diagnostic helper. The survival
   vignette leads with the M-spline baseline, matching multinma's NDMM example,
   and adds a relaxed-model effect-modification section.
+* `?set_agd` now states what an aggregate Poisson row assumes about exposure.
+  The likelihood multiplies a row's total exposure by the rate averaged over
+  the supplied covariate distribution. That reproduces the sum of each
+  person's exposure times their own rate exactly when the distribution is
+  weighted by exposure, and, with person-level moments, only when exposure
+  carries no information about the covariate-specific rate within the row.
+  The whole covariate distribution the rate is averaged over therefore has
+  to describe person-time rather than people: the marginal shape each
+  `distr()` assumes around the moments, and with two or more covariates the
+  correlation `add_integration()` combines them with, whose default is
+  estimated from the index sample. Exposure can change a covariate's skewness
+  or how the covariates go together without moving any of their moments. The
+  two populations coincide whenever mean exposure does not vary with the
+  covariates, and published subgroup tables usually report the person-level
+  reading without saying which one they support.
+* `?set_agd_surv` now states which population the covariate moments must
+  describe when the comparator has delayed entry. The model conditions on
+  survival to entry inside the covariate integral and averages afterwards, so
+  the distribution integrated over, its shape and dependence as well as its
+  moments, must be that of the population observed at entry rather than a
+  baseline, pre-selection population; surviving to entry selects on the very
+  covariates being integrated out. Varying entry times need one assumption
+  more, since the model carries a single covariate distribution per arm while
+  the population observed at each entry time can differ, both because each
+  entry time selects a different subgroup and because who enters when can be
+  related to the covariates. A test now compares the
+  model's aggregate delayed-entry likelihood, draw by draw, against direct
+  integration under that definition over a two-component covariate mixture,
+  and against the other order of conditioning and averaging, which gives a
+  different number.
 
 ## Dependencies
 
@@ -578,6 +770,38 @@
 * Added `multinma` (the anchored cross-check in the vignettes), `ggsurvfit`
   (the observed Kaplan-Meier displays), and `R.rsp` (the precompiled-vignette
   engine) to Suggests, and `R.rsp` to `VignetteBuilder`.
+
+* **`Additional_repositories` is pinned, and the optional cmdstanr backend has
+  a Windows limitation because of it.** That field points at
+  `https://mc-stan.org/r-packages`, which the Stan project describes as
+  deprecated. The maintained repository is not usable there: adding it to the
+  resolution chain makes `rstan` resolve to a development snapshot while
+  `StanHeaders` still resolves to the released CRAN build, and that pair fails
+  to compile. Pinning a repository whose versions can never outrank CRAN keeps
+  the dependency graph deterministic.
+
+  The cost is that the pinned repository serves cmdstanr 0.8.0, which predates
+  current Rtools and cannot build CmdStan on Windows with R 4.6. **On Windows,
+  install cmdstanr from the maintained repository instead**:
+  `install.packages("cmdstanr", repos = c("https://stan-dev.r-universe.dev", getOption("repos")))`.
+  `mlumr_engine("cmdstanr")` offers that route interactively and names which
+  repository it is using, and when a cmdstanr older than 0.9.0 is already
+  installed on Windows, its own toolchain check reports the missing Rtools,
+  and R itself can compile C++, so the Rtools it does not recognize is there,
+  it says to upgrade from there, and to restart R afterwards since the loaded
+  cmdstanr stays in use until then, before trying to build CmdStan, rather
+  than offering an installation that fails. A fit that selects cmdstanr through
+  the `engine` argument or the option in a profile, neither of which passes
+  through `mlumr_engine()`, meets the same check and stops with the same
+  advice instead of reaching compilation and failing there. The default
+  `rstan` backend is unaffected on every platform; cmdstanr is optional
+  throughout.
+
+  A scheduled job re-checks both halves of this: that the pinned repository
+  still serves cmdstanr, and whether `rstan` and `StanHeaders` have started
+  resolving from one source again, which is the condition that would let the
+  pin be reverted. It fails after a review date so the workaround cannot
+  outlive its reason unnoticed.
 
 ## Package logo
 

@@ -42,7 +42,21 @@ the mean conditional linear predictor \code{E[eta]}.}
 
 \item{times}{For survival fits, an optional vector of times at which to
 report curve predictions; each is matched to the nearest fitted
-\code{pred_times} grid point. If \code{NULL}, all fitted times are returned.}
+\code{pred_times} grid point. If \code{NULL}, all fitted times are returned.
+
+When supplied, the result has one row per requested time, \strong{in the order
+requested and including repeats}, and carries a \code{requested_time} column
+beside \code{time} so the mapping from what was asked for to what was evaluated
+is machine-readable rather than something to parse out of a message. Two
+distinct requested times can still share a grid point; both are answered,
+by the same fitted time, and that is reported. Refit with \code{pred_times}
+containing the exact times to remove the approximation.
+
+With \code{summary = FALSE} the layout is one COLUMN per requested time, so the
+mapping cannot be a column. It is carried as the \code{requested_time} and
+\code{used_time} attributes instead, each a named vector with one entry per
+time column, so two requests that snapped to the same grid point are still
+distinguishable by name.}
 
 \item{newdata}{Optional data frame of covariate profiles defining an arbitrary
 \strong{target population}. When supplied, per-treatment absolute predictions are

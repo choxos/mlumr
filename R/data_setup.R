@@ -20,7 +20,14 @@
 #'   names as an alternative to `Surv` (right-censoring with status `0`/`1`,
 #'   plus optional delayed entry).
 #'
-#' @return An object of class `mlumr_ipd`
+#' @return An object of class `mlumr_ipd`. Its `$data` holds the treatment,
+#'   study, outcome and covariate columns under internal names, and one more,
+#'   `.source_key`: a digest of the whole of `data` together with the row's
+#'   rank within a canonical ordering of it, which lets [compare_models()]
+#'   tell fits of one source apart from fits of that source reordered, whatever
+#'   covariates they use. Nothing of `data`'s content is kept in it. The
+#'   internal names, `.source_key` among them, cannot be used as column names
+#'   in `data`.
 #' @export
 #'
 #' @examples
@@ -82,19 +89,28 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
   .validate_ipd_outcome(data, outcome, family, exposure)
   .validate_reserved_internal_names(
     c(covariates, treatment, outcome, exposure, study),
-    c(".study", ".trt", ".outcome", ".exposure"),
+    c(".study", ".trt", ".outcome", ".exposure", ".source_key"),
     "Column name(s)"
   )
   .validate_ipd_covariates(data, covariates)
   .validate_ipd_finite_columns(data, outcome, exposure, family)
 
-  data <- .drop_missing_rows(data, required_cols)
+  # The key describes the SOURCE, so it is taken before the model's own
+  # complete-case filter. Two models with different covariates drop different
+  # incomplete rows, and a key taken afterwards makes one source look like
+  # two: the digests differ, the ranks are never compared, and two fits that
+  # kept different patients are reported as merely unverifiable. Taken here
+  # and carried through the drop, the digest is the source's and the ranks
+  # name its rows, so keeping different patients is a mismatch.
+  complete <- stats::complete.cases(data[, required_cols])
+  source_keys <- .source_row_keys(data)[complete]
+  data <- .drop_missing_rows(data, required_cols, complete)
   .validate_complete_rows_remain(data, "IPD")
   .warn_constant_ipd_covariates(data, covariates)
   .warn_collinear_ipd_covariates(data, covariates)
   .validate_single_treatment(data, treatment, "IPD")
   ipd_data <- .standardize_ipd_data(data, treatment, outcome, covariates,
-                                    family, exposure, study)
+                                    family, exposure, study, source_keys)
 
   out <- c(
     list(
@@ -272,8 +288,10 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 
 #' Drop rows with missing setup inputs
 #' @keywords internal
-.drop_missing_rows <- function(data, required_cols) {
-  complete <- complete.cases(data[, required_cols])
+.drop_missing_rows <- function(data, required_cols,
+                               complete = stats::complete.cases(
+                                 data[, required_cols]
+                               )) {
   if (!all(complete)) {
     n_missing <- sum(!complete)
     warning(sprintf("%d rows with missing values will be excluded", n_missing),
@@ -378,7 +396,8 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 #' Standardize IPD to mlumr's internal column contract
 #' @keywords internal
 .standardize_ipd_data <- function(data, treatment, outcome, covariates,
-                                  family, exposure = NULL, study = NULL) {
+                                  family, exposure = NULL, study = NULL,
+                                  source_keys = .source_row_keys(data)) {
   ipd_data <- data.frame(
     .study = if (!is.null(study)) data[[study]] else "IPD_Study",
     .trt = data[[treatment]],
@@ -388,7 +407,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
   if (family == "normal") {
     ipd_data$.outcome <- as.numeric(data[[outcome]])
   } else {
-    ipd_data$.outcome <- as.integer(data[[outcome]])
+    ipd_data$.outcome <- .as_count_integer(data[[outcome]])
   }
   if (family == "poisson") {
     ipd_data$.exposure <- as.numeric(data[[exposure]])
@@ -397,7 +416,97 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
   for (cov in covariates) {
     ipd_data[[cov]] <- data[[cov]]
   }
+  ipd_data$.source_key <- source_keys
   ipd_data
+}
+
+#' One key per row of a source data frame, without keeping its content
+#'
+#' The stored data keep only the columns a model needs. Two fits of one source
+#' with different covariate sets therefore cannot show, from their stored
+#' columns alone, that the source was reordered between them when the moved
+#' rows agree on everything both fits kept; [compare_models()] needs to know,
+#' because its pointwise comparison pairs rows by position.
+#'
+#' The key is two things, neither of which reveals the source. The first is a
+#' fingerprint of the whole source: its schema and then its rows, columns in
+#' name order so that column order does not matter, rows sorted in byte order
+#' so that row order does not matter either, and the digest of that is taken.
+#' The second is the row's rank in that same sorted order, with identical rows
+#' sharing one rank. A fit built from the same source carries the same
+#' fingerprint and the same set of ranks, whatever order its rows came in; a
+#' source that changed in any column carries a different fingerprint, and then
+#' the ranks are never compared. Unused columns such as identifiers or free
+#' text go into the digest and are not kept: the fit object holds thirty-two
+#' hex digits and an integer per row.
+#'
+#' The schema is in the digest because the names are what put the columns in
+#' order, and a fingerprint that used them without recording them could be
+#' matched by a source they order differently. Rename a column across the sort
+#' boundary and every value moves to another position; a second source whose
+#' values happen to line up that way then produces the same rows, the same
+#' digest and the same ranks, and two fits with disjoint covariates and
+#' repeated treatments and outcomes would have their order certified on the
+#' strength of it. Each value is written with its own length as well, so that
+#' the separator between columns cannot be forged by a value that contains it.
+#' @keywords internal
+.source_row_keys <- function(data) {
+  # One string per row for every kind of column: a matrix column (a `Surv`
+  # object held in a data frame is one) and a list column would otherwise
+  # not give one value per row.
+  # A value that contains a separator, or one whose flattening collides with
+  # another shape ("a,b" beside `c("a", "b")` in one list column), would make
+  # two different rows one string and cost the comparison a distinction it is
+  # there to make. Every part is written with its own length, at both levels,
+  # so no string is a rearrangement of another.
+  # `as.character()` on a double prints 15 significant digits, so two values
+  # that differ below that collapse to one string, share a rank, and let a
+  # swap of those rows pass as the same order. `%.17g` round-trips every
+  # finite double exactly.
+  render <- function(x) {
+    if (is.double(x)) {
+      out <- sprintf("%.17g", x)
+      out[!is.finite(x)] <- as.character(x[!is.finite(x)])
+      return(out)
+    }
+    as.character(x)
+  }
+  tag <- function(x) {
+    x <- enc2utf8(render(x))
+    x[is.na(x)] <- "\002NA"
+    paste0(nchar(x, type = "bytes"), ":", x)
+  }
+  join <- function(parts) paste(tag(parts), collapse = ",")
+  # The ordinary case, an atomic column, is returned as it is so that `tag()`
+  # renders it. Flattening it with `as.character()` here reached `render()`
+  # with a string and the `%.17g` path above never ran on the columns that
+  # almost always carry the doubles: `as.character()` prints 15 significant
+  # digits, so 2000 doubles one ulp apart collapse to 45 strings, share ranks,
+  # and let a swap of those rows pass as the same order.
+  flat <- function(x) {
+    if (!is.null(dim(x))) return(apply(x, 1L, join))
+    if (is.list(x)) return(vapply(x, function(e) join(render(e)), character(1)))
+    x
+  }
+  nms <- sort(names(data))
+  cols <- lapply(nms, function(nm) tag(flat(data[[nm]])))
+  rows <- if (length(cols)) {
+    do.call(paste, c(cols, sep = "\036"))
+  } else {
+    rep("", nrow(data))
+  }
+  # Byte order, so that the same source gives the same ranks in every locale.
+  canon <- unique(sort(rows, method = "radix"))
+  # The schema first: the names that decided the order, and the type of each
+  # column, so that a source with the same values under different names or a
+  # different storage mode is a different source.
+  types <- vapply(data[nms], function(x) paste(class(x), collapse = ","),
+                  character(1))
+  schema <- paste(tag(paste0(nms, "\035", types)), collapse = "\036")
+  tmp <- tempfile("mlumr-source-")
+  on.exit(unlink(tmp), add = TRUE)
+  writeLines(c(schema, canon), tmp, useBytes = TRUE)
+  paste0(unname(tools::md5sum(tmp)), ":", match(rows, canon))
 }
 
 #' Summarize standardized IPD outcomes
@@ -461,11 +570,26 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 #' `y_agd ~ normal(E[exp(eta)], se_agd)` under `link = "log"` and
 #' `y_agd ~ normal(E[eta], se_agd)` under `link = "identity"`. In both
 #' cases `outcome_mean` and `outcome_se` must be on the **arithmetic
-#' (original, untransformed) scale**. If a publication reports only a
-#' log-scale mean / SD or a geometric mean, back-transform before
-#' calling `set_agd()` and propagate uncertainty via the delta method;
-#' passing log-scale or geometric summaries silently misspecifies the
-#' likelihood and biases the posterior.
+#' (original, untransformed) scale**.
+#'
+#' A geometric mean is ALREADY on the original measurement scale, and it is a
+#' different quantity from the arithmetic mean: exponentiating a log-scale mean
+#' returns the geometric mean, not the arithmetic one. For a lognormal outcome
+#' with log-scale mean 0 and log-scale SD 1 the geometric mean is 1 while the
+#' arithmetic mean is `exp(0.5) = 1.65`, so substituting one for the other is a
+#' 39% error in the reported level. No amount of standard-error propagation
+#' repairs that: the delta method rescales uncertainty about a transformation,
+#' it does not convert one estimand into another.
+#'
+#' So do not "back-transform and apply the delta method". Ask for, or compute
+#' from the individual data, the arithmetic mean and its standard error. If you
+#' have only log-scale summaries and are willing to assume the outcome is
+#' lognormal, the arithmetic mean is `exp(m + s^2 / 2)` where `m` is the
+#' log-scale mean and `s` is the log-scale **SD** of the outcome, not the
+#' standard error of `m`; propagate uncertainty in `m` and `s` jointly through
+#' that expression. A change score on a transformed scale generally cannot be
+#' reversed from a published mean alone at all. Passing log-scale or geometric
+#' summaries silently misspecifies the likelihood and biases the posterior.
 #'
 #' **Scale assumptions for `family = "poisson"`.** `outcome_r` is the
 #' total count in each AgD row and `outcome_E` is the total
@@ -473,12 +597,53 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 #' `log(E_agd)` as an offset, so rates are modeled on the log scale
 #' regardless of how `outcome_r` is tabulated.
 #'
+#' **What the aggregate Poisson row assumes about exposure.** The likelihood
+#' for a row is the total exposure multiplied by the rate averaged over the
+#' covariate distribution you supply, while the quantity it stands in for is
+#' the sum over people of each person's own exposure times that person's rate.
+#' The two agree exactly when the supplied distribution is the one **weighted
+#' by exposure**, whatever the dependence between exposure and the covariates:
+#' two people with rates 1 and 3 and exposures 9 and 1 contribute
+#' `9 * 1 + 1 * 3 = 12` expected events, and `10 * (0.9 * 1 + 0.1 * 3)` is 12 as
+#' well. With the person-level distribution instead, the same row gives a total
+#' exposure of 10 times the mean rate of 2, which is 20. Person-level moments
+#' reproduce the sum only when exposure carries no information about the
+#' covariate-specific rate within the row.
+#'
+#' The assumption is therefore about person-time, not about people, and it
+#' is about the whole distribution the rate is averaged over, not only the
+#' moments: the marginal shape that each `distr()` in [add_integration()]
+#' assumes around `cov_means` and `cov_sds`, and with two or more covariates
+#' the correlation it combines them with, whose default is estimated from the
+#' index sample. All of it has to describe the covariates weighted by
+#' exposure. Exposure can leave every mean and standard deviation where it
+#' was and still change a covariate's skewness or tails, or how the
+#' covariates go together when it varies with their combination rather than
+#' with each on its own, and the averaged rate moves with any of these.
+#' Person-level summaries stand in for exposure-weighted ones when exposure
+#' carries no information about the covariate-specific rate within the row.
+#' Mean exposure that does not vary with the covariates is a sufficient
+#' condition that does not depend on the model, because it makes the two
+#' distributions coincide, shape and dependence included, and equal
+#' individual exposure is its simplest case.
+#' Published subgroup tables almost always report person-level moments, and
+#' those do not identify the person-time distribution. Where follow-up varies
+#' with a prognostic covariate, prefer rows defined so that exposure is close
+#' to constant inside each one, and say which reading the reported moments
+#' support. Weighting across rows does not repair a dependence inside a row,
+#' and nothing in the supplied summaries reveals it, so this is not checked.
+#'
 #' **Scale assumptions for `family = "binomial"`.** `outcome_r` /
 #' `outcome_n` are counts of events and trials. The log-odds (or
 #' probit / cloglog under alternative links) are formed from
 #' `outcome_r / outcome_n`, so no scale conversion is required.
 #'
-#' @return An object of class `mlumr_agd`
+#' @return An object of class `mlumr_agd`. As for [set_ipd()], its `$data`
+#'   carries a `.source_key` column, a digest of the whole of `data` with the
+#'   row's rank within a canonical ordering of it, holding nothing of the
+#'   content; it lets [compare_models()] recognize one source reordered
+#'   between two fits. The internal names, `.source_key` among them, cannot be
+#'   used as column names in `data`.
 #' @export
 #'
 #' @examples
@@ -555,7 +720,7 @@ set_agd <- function(data, treatment,
   .validate_reserved_internal_names(
     c(cov_means, cov_sds[!is.na(cov_sds)], treatment, study,
       outcome_n, outcome_r, outcome_mean, outcome_se, outcome_E),
-    c(".study", ".trt", ".n", ".r", ".y", ".se", ".E"),
+    c(".study", ".trt", ".n", ".r", ".y", ".se", ".E", ".source_key"),
     "Column name(s)"
   )
   .validate_agd_covariate_names(cov_means)
@@ -935,6 +1100,7 @@ set_agd <- function(data, treatment,
       agd_data[[paste0(cov_name, "_sd")]] <- data[[cov_sds[[i]]]]
     }
   }
+  agd_data$.source_key <- .source_row_keys(data)
   agd_data
 }
 

@@ -97,7 +97,7 @@ a covariate measured in large units from dominating a binary proportion merely
 because of units. The reported
 
 $$
-\texttt{cond_inv}=\frac{d_{\min}}{d_{\max}}
+\texttt{cond\_inv}=\frac{d_{\min}}{d_{\max}}
 $$
 
 approaches zero as the mean profiles collapse onto a lower-dimensional set.
@@ -294,15 +294,335 @@ plausible baseline assumptions, including `aux_by = ".study"` and
 collapsible within a specified population, but this does not make them
 automatically transportable to another population.
 
+## Simulation evidence
+
+
+
+The sections above argue from geometry. This section measures whether that
+geometry actually predicts anything. The script that produced it is a
+development file, kept in the package repository rather than installed with the
+package, and is read there:
+[`data-raw/simulate_subgroup_identification.R`](https://github.com/choxos/mlumr/blob/main/data-raw/simulate_subgroup_identification.R).
+It writes a manifest beside its results recording the software that produced
+them. The numbers below were read from a results file with MD5
+4dc62e120a5b2ad21733c13d843ef9ec; a test compares that against the file in the repository, so a
+regenerated result set that has not been written back into this article fails
+the build rather than shipping quietly.
+
+Six aggregate designs are crossed with the three non-survival families and
+300 replications each, 5400 fits in total.
+
+**Every design is a tabulation of the same people.** Each replication draws one
+index study and one comparator cohort at the individual level, then reports that
+single cohort six ways: as age bands, as a cross-tab of the two binary
+covariates, and as several designs that cut across all three. Each aggregate row
+carries the realized means and standard deviations of the members that fall in
+it, as a real report would, rather than a stratum mean pushed through the link.
+
+That control is what makes the comparison mean anything, and holding the total
+sample size fixed is not enough on its own. Designs built around separate target
+profiles also differ in their pooled covariate distribution, in how far that
+distribution sits from the index population, and in their expected outcome
+level; a width difference could then come from any of those rather than from the
+geometry under study. Under a partition all of them are identical by
+construction, and the only thing that varies is where the cuts fall.
+
+**The designs are compared within a replication, not across replications.**
+Because the six share one draw, the difference between two of them is a paired
+contrast: the replication-to-replication variation both designs see cancels, and
+what remains is the effect of the tabulation. The contrasts below are reported
+that way, with the Monte Carlo standard error computed from the paired
+differences, because that standard error describes the contrast rather than the
+two cell means separately. How much precision the pairing actually buys is
+reported with the contrasts, and it is not uniform.
+
+**Coverage is scored against the estimand the package reports.** The Stan models
+define `delta_index` as an average over the realized index rows, so it is a
+property of the index sample in hand and moves from one replication to the next.
+The truth is therefore recomputed on each replication's own covariates, which
+makes it exact for that replication rather than approximate: it evaluates the
+very same average the generated quantity estimates.
+
+**Non-convergence is an outcome, not an observation.** Interval width and
+coverage are summarized over fits that met every retained diagnostic (split-Rhat
+at most 1.01, bulk and tail effective sample size at least 400, no divergent
+transitions, no treedepth saturation, and every chain finished); the rest are
+counted in their own column. A posterior
+that has not converged is not a valid measurement of what a design can achieve,
+and pooling it into a width average measures the sampler as much as the design.
+The `Failed` column counts fits that errored outright, and the study records the
+condition class and message for each so a systematic failure can be told from a
+transient one.
+
+The comparator covariates are generated independently, and the integration is
+given that correlation structure rather than one estimated from the index
+sample. Left to itself the package estimates a matrix from the individual data
+and transports it to every aggregate row, which would add a second,
+replication-varying misspecification on top of the design being studied.
+
+
+
+|Family   |Design     | Rows|Row n   | cond_inv| Fitted| eff_dim| Width| Width CV| MCSE width| Coverage| MCSE cov| Failed| Not conv|
+|:--------|:----------|----:|:-------|--------:|------:|-------:|-----:|--------:|----------:|--------:|--------:|------:|--------:|
+|binomial |joint_8    |    8|39-115  |  0.78000|  0.780|    2.88| 0.677|    0.027|     0.0010|    0.953|    0.012|      0|        0|
+|binomial |joint_6    |    6|39-190  |  0.75000|  0.740|    2.83| 0.685|    0.028|     0.0011|    0.953|    0.012|      0|        0|
+|binomial |minimal_4  |    4|87-190  |  0.56000|  0.560|    2.46| 0.711|    0.037|     0.0015|    0.953|    0.012|      0|        0|
+|binomial |crosstab_4 |    4|87-210  |  0.00043|  0.025|    2.00| 1.872|    0.156|     0.0237|    0.987|    0.009|      0|      148|
+|binomial |ovat_age_6 |    6|100-100 |  0.00042|  0.052|    1.00| 1.171|    0.171|     0.0115|    0.993|    0.005|      0|        0|
+|binomial |ovat_age_3 |    3|200-200 |  0.00000|  0.000|    1.00| 1.251|    0.171|     0.0124|    0.993|    0.005|      0|        0|
+|normal   |joint_8    |    8|42-113  |  0.78000|  0.780|    2.88| 0.342|    0.042|     0.0008|    0.940|    0.014|      0|        0|
+|normal   |joint_6    |    6|42-187  |  0.75000|  0.740|    2.83| 0.345|    0.042|     0.0008|    0.953|    0.012|      0|        0|
+|normal   |minimal_4  |    4|90-188  |  0.56000|  0.560|    2.46| 0.362|    0.046|     0.0010|    0.940|    0.014|      0|        0|
+|normal   |crosstab_4 |    4|90-218  |  0.00043|  0.028|    2.00| 2.651|    0.487|     0.0745|    0.987|    0.007|      0|        0|
+|normal   |ovat_age_6 |    6|100-100 |  0.00042|  0.047|    1.00| 0.845|    0.329|     0.0160|    0.970|    0.010|      0|        0|
+|normal   |ovat_age_3 |    3|200-200 |  0.00000|  0.000|    1.00| 1.359|    0.308|     0.0242|    0.990|    0.006|      0|        0|
+|poisson  |joint_8    |    8|41-114  |  0.78000|  0.780|    2.88| 0.219|    0.034|     0.0004|    0.957|    0.012|      0|        0|
+|poisson  |joint_6    |    6|41-188  |  0.75000|  0.740|    2.83| 0.221|    0.033|     0.0004|    0.953|    0.012|      0|        0|
+|poisson  |minimal_4  |    4|93-189  |  0.56000|  0.560|    2.46| 0.229|    0.041|     0.0005|    0.950|    0.013|      0|        0|
+|poisson  |crosstab_4 |    4|93-220  |  0.00043|  0.027|    2.00| 1.543|    0.645|     0.0710|    0.970|    0.012|      0|      103|
+|poisson  |ovat_age_6 |    6|100-100 |  0.00042|  0.050|    1.00| 0.513|    0.352|     0.0105|    0.939|    0.014|      0|        6|
+|poisson  |ovat_age_3 |    3|200-200 |  0.00000|  0.000|    1.00| 0.719|    0.287|     0.0119|    0.997|    0.003|      0|        1|
+
+
+
+The `cond_inv` column is the geometry of the design *as requested*: the same
+statistic evaluated at the population profiles. It separates the six designs
+into two groups three orders of magnitude apart. `ovat_age_3`, `ovat_age_6` and
+`crosstab_4` fall below 0.001, because their requested
+profiles span fewer than three directions; the other three sit above 0.5. None
+of them is exactly zero, because that statistic is computed on a
+two-million-draw approximation of the population, so an exactly absent direction
+reads as the floor of the approximation rather than as 0.
+
+The `Fitted` column is the same quantity computed from the rows the likelihood
+actually received, and it is not that number. A stratum defined as holding sex
+at one half realizes a proportion near one half but not exactly one half, so its
+profile matrix is numerically full rank. Only `ovat_age_3` is exactly rank
+deficient whatever the draw, because three rows cannot span three directions
+after centering.
+
+What survives is a separation, not an exact zero. Across all
+5,400 fits the fitted conditioning of the three
+deficient designs never rises above 0.12,
+and that of the three identified designs never falls below
+0.47. The groups do not overlap,
+though the fitted gap is a factor of about
+4,
+far narrower than the requested one: sampling noise does repay some of the
+missing direction. So "unidentified" below means a direction the design was
+never asked to supply and that noise repays only at a conditioning too small to
+be useful, not a matrix a computer would call singular.
+
+### Row count does not order the designs; geometry does
+
+
+
+|Predictor            | binomial| normal| poisson|
+|:--------------------|--------:|------:|-------:|
+|row count            |    -0.77|  -0.77|   -0.77|
+|cond_inv (requested) |    -0.83|  -0.83|   -0.83|
+|cond_inv (fitted)    |    -0.94|  -0.94|   -0.94|
+|eff_dim              |    -0.81|  -0.81|   -0.81|
+
+
+
+Six designs per family is a coarse basis for a rank correlation, and ties are
+extensive, so read the table as a direction rather than a calibration. The
+paired contrasts below carry the weight, because they compare designs on the
+SAME draw and so are not limited by having only six of them.
+
+
+
+|Family   |Design     | Pairs| Width difference|   MCSE| Wider in|
+|:--------|:----------|-----:|----------------:|------:|--------:|
+|binomial |crosstab_4 |   152|            1.162| 0.0227|     100%|
+|binomial |joint_6    |   300|           -0.027| 0.0010|       5%|
+|binomial |joint_8    |   300|           -0.034| 0.0011|       1%|
+|binomial |ovat_age_3 |   300|            0.540| 0.0118|     100%|
+|binomial |ovat_age_6 |   300|            0.460| 0.0110|     100%|
+|normal   |crosstab_4 |   300|            2.289| 0.0742|     100%|
+|normal   |joint_6    |   300|           -0.017| 0.0006|       4%|
+|normal   |joint_8    |   300|           -0.020| 0.0005|       2%|
+|normal   |ovat_age_3 |   300|            0.997| 0.0240|     100%|
+|normal   |ovat_age_6 |   300|            0.483| 0.0159|     100%|
+|poisson  |crosstab_4 |   197|            1.313| 0.0708|     100%|
+|poisson  |joint_6    |   300|           -0.008| 0.0003|       9%|
+|poisson  |joint_8    |   300|           -0.010| 0.0004|       6%|
+|poisson  |ovat_age_3 |   299|            0.490| 0.0119|     100%|
+|poisson  |ovat_age_6 |   294|            0.284| 0.0106|     100%|
+
+
+
+Each row is that design minus the four-row `minimal_4`, over the replications
+where both converged. A positive difference is a wider, worse interval.
+
+What the pairing buys splits along the same line as everything else. For the
+identified designs the paired standard error is
+42% to 59%
+smaller than differencing two independently estimated cell means, because both
+designs respond to the shared draw in much the same way and that response
+cancels. For the deficient designs it is
+0% to 5%
+smaller, which is to say nothing at all: their width moves with the
+unidentified direction, which the reference design does not share, so there is
+little common variation left to cancel. Pairing is still the right standard
+error to report, and for these designs it is not a cheaper one.
+
+Two things are worth separating here, because they carry different weight.
+
+Ranked against the mean width, `cond_inv` orders these designs better than the
+row count does, but the margin is modest and rests on six designs per family,
+which is a thin basis for a correlation. Read it as a direction, not as a
+calibration.
+
+The inversion is the part that does not depend on how many designs were tried.
+The six-row one-variable-at-a-time design has more rows than the four-row
+minimal design and yields a wider, less stable interval, in every family. A
+reader counting rows would prefer the worse design. That is the concrete
+content of the claim that more rows along an existing direction cannot replace
+a missing direction, and one counterexample is enough to establish it.
+
+### The two failing designs lose opposite halves of the space
+
+Both the one-variable-at-a-time bands and the bare cross-tab fall in the
+deficient group, and neither recovers a usable third direction from sampling
+noise, but they do not fail in the same way.
+The bands vary only age, leaving `eff_dim` at 1 whether they have three rows or
+six. The cross-tab varies both binaries and holds age fixed, giving
+`eff_dim` = 2. One keeps the continuous covariate and loses the binaries; the
+other keeps the binaries and loses the continuous covariate.
+
+### An unidentified design is unpredictable, not merely imprecise
+
+The failing designs are not just wider. Their widths vary far more from one
+replication to the next than the identified designs do, so a single analysis
+cannot be read as representative of what that design would have produced. The
+coefficient of variation of the width separates the two groups completely:
+every identified cell is at or below 0.05 and every
+deficient one at or above 0.16, reaching
+0.64 in the worst cell. The widths themselves are far
+more separated than that; it is the *stability* of the width, not its size,
+that this measures.
+
+### The sampler notices, and only for the nonlinear families
+
+
+
+Non-convergence tracks identification exactly in this study, across every
+diagnostic recorded. No fit in an identified design failed any of them, and all
+258 fits that failed at least one belong to the
+deficient group.
+
+The diagnostics disagree sharply about how many fits are affected:
+130 exceed the split-Rhat threshold,
+115 fall below the bulk effective sample size
+one, 14 below the tail one,
+94 report a divergent transition,
+0 saturate the treedepth,
+and 0 lost a chain.
+A study reporting Rhat alone would have understated the problem, which is why
+the table above filters on all six rather than on the one that is easiest to
+extract. So a rank-deficient aggregate design does not merely widen the
+interval, it also makes the posterior harder to sample, and the diagnostics one
+would run anyway will often say so.
+
+The counts here come from the summaries the script retains rather than from what
+the sampler printed, because it suppresses fitting warnings; the two describe
+the same runs.
+
+They do not always say so. Every fit failing a diagnostic here is binomial or
+Poisson; the normal family sampled cleanly in the unidentified designs too. A
+plausible reading is that with an identity link the unidentified direction is
+a flat ridge, which the sampler traverses without difficulty, while a logit or
+log link curves it. That is an explanation for the pattern rather than something this
+study tested, and the practical point does not depend on it: a clean set of
+convergence diagnostics is not evidence that the design is identified.
+
+Coverage does not reveal any of this. The unidentified designs cover at or near
+the nominal rate, because a wide enough interval covers almost anything. An
+interval can be correct and useless at the same time, which is why the width and
+its variability, not the coverage, are what these designs should be judged on.
+
+### The shipped screen is exact where it speaks, and silent where it matters most
+
+`check_identification()` ran on every design in every replication and its
+verdict was kept, so the study also measures the diagnostic this article
+recommends.
+
+Under the identity link it is exact. Across the
+1800 normal fits it flagged
+900 and cleared
+900, and that split is the
+deficient and identified split above, fit for fit: no identified design was
+flagged and no deficient one was missed.
+
+Under the logit and log links it mostly declines. For
+3000 of the
+3600 binomial and Poisson fits it returns no
+verdict at all, which is the refusal documented in `?check_identification`: a
+subgroup-mean screen is an exact statement about the design matrix only when
+the link is the identity. The refusal is preserved here rather than collapsed
+into "not flagged", because reporting it as a clearance would publish a verdict
+the package deliberately withholds.
+
+What it still flags there is `ovat_age_3`, and on a different ground: three
+rows is fewer than the $K+1$ = 4 that three covariates need, and a row count is
+structural rather than link-dependent. So under a nonlinear link the screen
+catches the design that is short of rows, and says nothing about `crosstab_4`
+or `ovat_age_6`, which have rows enough and the wrong geometry.
+
+The sampler does not reliably cover that gap. Of the
+1200 deficient binomial and Poisson fits where the screen abstains,
+943 met every diagnostic, which is
+79% of them. The trouble is
+concentrated in `crosstab_4`; `ovat_age_6` samples cleanly in
+99%
+of its nonlinear fits while producing the second-widest intervals in the study.
+A clean set of diagnostics is not evidence that the design is identified, and
+here it is not even good evidence.
+
+That is the practical conclusion, and it is a negative one about the two signals
+that arrive *after* fitting. Under a nonlinear link the screen withholds a
+verdict, and the sampler mostly reports success, for a design whose intervals
+are among the worst here. What separates the designs in every family is the
+geometry, `cond_inv` and `eff_dim`, and that is computable from the aggregate
+table before anything is fitted. Compute it first; do not wait for the fit to
+object.
+
 ## What this vignette does not claim
 
 There is no universal minimum number of rows beyond the necessary $K+1$ count,
 no source-validated `cond_inv` cutoff, and no guarantee that a non-flagged
-design produces a practically precise target effect. A proper simulation study
-for a specific design must reconstruct the actual within-stratum
-distributions, use the correct exposure-weighted target for rates, report
-failures and Monte Carlo standard errors, and use enough replications for its
-claimed precision. The guidance here is structural and diagnostic, not a
-numerical calibration.
+design produces a practically precise target effect.
+
+The simulation above is deliberately narrow. It uses synthetic strata rather
+than a real trial's reported subgroups, six designs rather than a systematic
+sweep of the design space, three covariates, one effect size, one comparator
+size, and no survival family. Its correlations rest on six designs per family,
+which is a thin basis; read the ranking as a direction, not as a calibration.
+What it does establish is the inversion, and one counterexample is enough for
+that: a design with more rows can be strictly worse than a design with fewer.
+
+The generator draws each cohort at the individual level and each aggregate row
+reports the realized moments of its own members, so a row's members are exactly
+the people its summary describes. What the row does not carry is the SHAPE of
+that membership: a design that bands on age reports a mean and a standard
+deviation for a within-band age distribution that is truncated, while the fit
+integrates a normal with those two moments, and only `crosstab_4` leaves the
+age margin approximately Gaussian. This is a real misspecification, and it
+falls unevenly across the designs, so it is worth bounding rather than
+asserting away. Comparing each row's true mean response against the one the
+model integrates puts the discrepancy at most 4.2% of that row's own sampling
+standard error across every design and both nonlinear families, and the
+age-banded designs sit lower than that, below the sampling noise of the
+comparison itself. The width differences the table reports run to factors of
+two and three, so the shape of the within-row age distribution is not what
+produces them.
+
+A study that justified a `cond_inv` threshold for a specific application would
+need the actual within-stratum distributions of that application, its own
+effect size and sample sizes, a design sweep wide enough to place a cutoff,
+and the outcome family in use. The guidance here remains structural and
+diagnostic, not a numerical calibration.
 
 ## References

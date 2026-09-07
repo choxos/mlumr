@@ -4,7 +4,18 @@
 \alias{.rmst_from_surv_matrix}
 \title{RMST per draw from a target-standardized survival curve (trapezoid)}
 \usage{
-.rmst_from_surv_matrix(s_mat, times)
+.rmst_from_surv_matrix(s_mat, times, share)
+}
+\arguments{
+\item{s_mat}{Draws by times survival matrix, already averaged over the
+target's profiles.}
+
+\item{times}{The integration grid.}
+
+\item{share}{The per-draw resolution share of the profiles behind \code{s_mat},
+the \code{share} element \code{\link[=.standardize_target_survival_s]{.standardize_target_survival_s()}} returns. It is
+not derived from \code{s_mat} here on purpose: the average of the profiles can
+pass the check when every profile fails it.}
 }
 \description{
 RMST per draw from a target-standardized survival curve (trapezoid)

@@ -77,7 +77,7 @@ test_that("prior_sensitivity() omits the survival controls for other families", 
   # builds rather than paying for a sampling run.
   surv_only <- c("aux_by", "distribution", "n_knots", "knots",
                  "mspline_degree", "pred_times", "rmst_horizon",
-                 "n_rmst_grid", "prior_aux", "prior_smooth")
+                 "n_rmst_grid", "prior_aux", "prior_aux2", "prior_smooth")
   mk <- function(family) {
     structure(
       list(family = family, model = "spfa", link = NULL, engine = "rstan",
@@ -111,10 +111,22 @@ test_that("prior_sensitivity() lets `...` override the sampler controls", {
   # `...` is documented as the way to pass sampler and backend controls, but
   # the refit named chains/iter/... itself, so any such override matched the
   # same formal twice and R refused the call before sampling.
-  body_txt <- paste(deparse(body(prior_sensitivity)), collapse = "\n")
-  # dots are merged into the argument list, not concatenated onto it.
-  expect_match(body_txt, "call_args\\[names\\(dots\\)\\] <- dots")
-  expect_false(grepl("do.call(mlumr, c(args, list(...)))", body_txt, fixed = TRUE))
+  recorded <- list(chains = 4, iter = 2000, engine = "rstan")
+  merged <- mlumr:::.prior_sensitivity_merge_dots(recorded, list(chains = 1))
+  # Merged into the argument list rather than concatenated onto it: the name
+  # appears once, carrying the caller's value, and the rest of the record
+  # survives.
+  expect_equal(sum(names(merged) == "chains"), 1L)
+  expect_equal(merged$chains, 1)
+  expect_equal(merged$iter, 2000)
+
+  # The two forms are told apart by what `do.call()` does with them, not by
+  # reading the source: the merged list is a call R will make, and the
+  # concatenated one is refused before the sampler is reached.
+  accept <- function(chains, iter, engine) chains
+  expect_equal(do.call(accept, merged), 1)
+  expect_error(do.call(accept, c(recorded, list(chains = 1))),
+               "matched by multiple")
 })
 
 test_that("prior_sensitivity() validates prior_beta_comparator_scales", {
@@ -145,7 +157,7 @@ test_that("prior_sensitivity() refuses to vary anything but the prior", {
   scenario <- c("center", "qr", "n_knots", "mspline_degree", "pred_times",
                 "rmst_horizon", "n_rmst_grid", "aux_by", "data", "model",
                 "link", "distribution", "prior_intercept", "prior_sigma",
-                "prior_aux", "prior_smooth")
+                "prior_aux", "prior_aux2", "prior_smooth")
   for (nm in scenario) {
     args <- list(fit, prior_beta_scales = c(1, 2.5))
     args[[nm]] <- if (nm %in% c("center", "qr")) FALSE else 1

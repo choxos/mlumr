@@ -64,8 +64,18 @@ real log_gamma_q_cf(real k, real x) {
 // series without first forming x. This keeps left-tail probabilities finite
 // when log(x) is representable but x itself underflows to zero.
 real log_gamma_p_series(real k, real log_x) {
-  real log_term = -log(k);
-  real log_total = log_term;
+  // Terms are accumulated relative to the first, whose 1/k is folded into
+  // lgamma(k + 1) at the end. Carrying the -log(k) inside the sum instead and
+  // finishing with -lgamma(k) forms a difference of two quantities that both
+  // grow like -log(k) as the shape shrinks: at k = 1e-18 each is 41.4465, the
+  // rounding in their difference is about 9.2e-15, and the answer being sought
+  // is k * log_x = -1e-15. The difference therefore came out as exactly 0, and
+  // the caller read that as a survival of zero, putting an artificial
+  // zero-likelihood wall in a region the sampler can reach: aux2 is declared
+  // only `<lower=0>`. This form has no such subtraction and agrees with the R
+  // helper, which uses lgamma(k + 1) for the same reason.
+  real log_term = 0;
+  real log_total = 0;
   for (i in 1 : 300) {
     log_term += log_x - log(k + i);
     log_total = log_sum_exp(log_total, log_term);
@@ -73,7 +83,7 @@ real log_gamma_p_series(real k, real log_x) {
       break;
     }
   }
-  return -exp(log_x) + k * log_x - lgamma(k) + log_total;
+  return -exp(log_x) + k * log_x - lgamma(k + 1) + log_total;
 }
 
 // Generalized Gamma log density (Lawless parameterization).
@@ -108,6 +118,21 @@ real log_std_normal_surv(real z) {
 // reachable whenever a tiny scale parameter divides the standardized time.
 real log_std_normal_hazard(real z) {
   if (is_inf(z) && z > 0) return positive_infinity();
+  // Above z = 20, the asymptotic series for the inverse Mills ratio, which is
+  // the same one the R helper uses so the two agree exactly. The difference
+  // below subtracts two quantities that both grow like z^2/2, and that
+  // cancellation is what a large z destroys: at z = 1e4 the difference is
+  // already wrong in the tenth digit, at 1e6 in the sixth, and at 1e8 it
+  // returns 18 where the true value is 18.420680743952, because 5e15 has no
+  // representable neighbors 18.42 apart. Checked against the continued
+  // fraction z + 1/(z + 2/(z + 3/(z + ...))), which the series matches to
+  // every printed digit from z = 1e3 upward. A tiny scale parameter dividing
+  // the standardized time is what makes z that large, and the declaration
+  // permits it.
+  if (z > 20) {
+    real iz2 = 1 / square(z);
+    return log(z) + log1p(iz2 * (1 + iz2 * (-2 + iz2 * (10 - 74 * iz2))));
+  }
   return std_normal_lpdf(z) - log_std_normal_surv(z);
 }
 
@@ -125,6 +150,19 @@ real log_gamma_cdf_from_log_x(real k, real log_x) {
 real log_gamma_surv_from_log_x(real k, real log_x) {
   real x = exp(log_x);
   if (is_inf(x)) return negative_infinity();
+  // `exp(log_x)` underflows to zero below about -745, and `gamma_q(k, 0)` is
+  // exactly 1, so the survival comes back as certain and a censored
+  // observation contributes nothing. That is wrong whenever the shape is
+  // small, because the survival depends on `x^k`, which is `exp(k * log_x)`
+  // and stays of order one however far `log_x` has gone: at `k = 1e-6` and
+  // `log_x = -1013.8` the survival is 0.0010127, not 1. The series reads
+  // `log_x` directly and never forms `x`, so it is unaffected. A genuine
+  // `log_x` of negative infinity, which is `t = 0`, still means survival 1.
+  if (x == 0 && !is_inf(log_x)) {
+    real log_p = log_gamma_p_series(k, log_x);
+    if (log_p >= 0) return negative_infinity();
+    return log1m_exp(log_p);
+  }
   if (x > k + fmax(1, sqrt(k))) return log_gamma_q_cf(k, x);
   return log(gamma_q(k, x));
 }

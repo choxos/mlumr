@@ -251,7 +251,72 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
       call. = FALSE
     )
   }
+  .stc_refuse_separation(fit)
   list(beta_hat = beta_hat, V = V)
+}
+
+#' Refuse a fit whose likelihood has no finite maximum
+#'
+#' The checks above look for a failure the fitting reports, and separation is
+#' not one. Iterative reweighting stops when the deviance stops changing, and a
+#' separated fit has no maximum for it to stop at: the deviance falls to about
+#' 6e-10 while the intercept is still drifting, so the criterion fires anyway
+#' and a binomial arm with no events comes back with `converged = TRUE`, finite
+#' coefficients and a finite covariance. 100 rows with the outcome always zero
+#' produce a coefficient of about -26.6 and a largest fitted probability of
+#' 3e-12, with a confidence interval to match. Raising `maxit` changes none of
+#' those numbers, which is what shows the iteration limit is not what stopped
+#' it. Every number there is a property of where the iteration stopped, not of
+#' the data, and reporting it as an estimate is worse than reporting nothing,
+#' because nothing about it looks wrong.
+#'
+#' The symptom is the one thing separation always leaves: every fitted
+#' probability pinned against 0 or 1, whether they all sit at one boundary
+#' (an arm with no events) or split between the two (a covariate that
+#' separates the outcome). A rate can legitimately be small, so the test is on
+#' the boundary rather than on smallness, and it applies only where a boundary
+#' exists.
+#'
+#' What it does not catch is quasi-complete separation, where rows sit on the
+#' separating hyperplane: `y = c(0, 0, 1, 1)` on `x = c(-1, 0, 0, 1)` has no
+#' finite slope, yet the two tied rows keep fitted probabilities of exactly
+#' 0.5, so not every probability has reached a boundary. Telling that apart
+#' from a strong but identified fit takes more than the fitted values, since a
+#' legitimate signal here reaches a linear predictor of 20.1 while this case
+#' reaches 19.6. The exact test is a linear program rather than a threshold,
+#' so covering it is a dependency decision and not a correction to this test.
+#' @param fit A fitted `glm`.
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+.stc_refuse_separation <- function(fit) {
+  fam <- tryCatch(stats::family(fit)$family, error = function(e) NA_character_)
+  if (!identical(fam, "binomial")) {
+    return(invisible(NULL))
+  }
+  mu <- stats::fitted(fit)
+  mu <- mu[is.finite(mu)]
+  if (!length(mu)) {
+    return(invisible(NULL))
+  }
+  eps <- .Machine$double.eps^0.5
+  # Every fitted probability at *a* boundary, not all at the same one. A
+  # covariate that perfectly separates the outcome sends its two groups to
+  # opposite boundaries, which is the ordinary presentation of separation and
+  # the one an arm-level test misses: `y ~ x` with the two equal gives fitted
+  # probabilities of 2e-11 and 1, `converged = TRUE`, and a slope of 49.
+  if (all(mu < eps | mu > 1 - eps)) {
+    stop(
+      paste(
+        "The STC outcome model is separated: every fitted probability sits at",
+        "0 or 1, which happens when an arm has no events or no non-events.",
+        "The likelihood has no finite maximum there, so the coefficients and",
+        "the interval would describe where the fitting stopped rather than",
+        "the data. Use mlumr(), whose prior makes the posterior proper."
+      ),
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
 }
 
 #' Build a model matrix aligned with fitted GLM coefficients

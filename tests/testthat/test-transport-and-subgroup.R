@@ -158,12 +158,14 @@ test_that("shared baseline shapes: the target HR is the same estimand as index",
     hr_tgt$mean[1]
   )
 
-  # `tr` is an alias for `hr` on the built-in route; it has to be one here too.
-  expect_equal(
+  # `tr` is no longer an alias for `hr` on either route. This is a
+  # proportional-hazards fit, so the hazard ratio is the scalar it has and the
+  # error says so rather than quietly returning it under the other name.
+  expect_error(
     suppressMessages(
       marginal_effects(fit, newdata = ipd_cov, effect = "tr")
-    )$mean[1],
-    hr_tgt$mean[1]
+    ),
+    "proportional-hazards"
   )
 })
 
