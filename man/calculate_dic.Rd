@@ -10,7 +10,10 @@ calculate_dic(object)
 \item{object}{An \code{mlumr_fit} object}
 }
 \value{
-A list of class \code{mlumr_dic} with components \code{DIC}, \code{pD}, \code{D_bar}
+A list of class \code{mlumr_dic} with components \code{DIC}, \code{pD}, \code{D_bar},
+\code{n_obs}, \code{model}, and \code{observations}, the fit's observation frames as
+kept for \code{\link[=compare_models]{compare_models()}}, so a DIC object can still be checked against
+the fits it is compared with.
 }
 \description{
 Computes the Deviance Information Criterion using the variance-based

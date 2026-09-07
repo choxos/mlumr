@@ -4,7 +4,11 @@
 \alias{.drop_missing_rows}
 \title{Drop rows with missing setup inputs}
 \usage{
-.drop_missing_rows(data, required_cols)
+.drop_missing_rows(
+  data,
+  required_cols,
+  complete = stats::complete.cases(data[, required_cols])
+)
 }
 \description{
 Drop rows with missing setup inputs

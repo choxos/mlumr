@@ -95,7 +95,22 @@ test_that("prior_sensitivity validates its grid, probs, and dots (M9)", {
                     class = "mlumr_fit")
   expect_error(prior_sensitivity(stub, prior_beta_scales = numeric(0)),
                "one or more positive")
-  expect_error(prior_sensitivity(stub, probs = c(-0.1, 0.5)), "\\[0, 1\\]")
+  # `prior_sensitivity()` now defers to the shared `.validate_probs()` rather
+  # than carrying its own copy of the check, so the message is the package-wide
+  # one. Duplicates are the case the local copy missed: they produced two
+  # identically named `qNN` columns and only the last survived.
+  expect_error(prior_sensitivity(stub, probs = c(-0.1, 0.5)),
+               "unique finite numeric values between 0 and 1")
+  expect_error(prior_sensitivity(stub, probs = c(0.5, 0.5)),
+               "unique finite numeric values between 0 and 1")
+  # Distinct doubles are not enough. These two differ, and both are written
+  # `q3`, so the loop below assigned that column twice and the first quantile
+  # asked for was gone. The check is on the names the summary will use.
+  collide <- c((0.1 + 0.2) / 10, 0.3 / 10)
+  expect_false(collide[[1]] == collide[[2]])
+  expect_identical(.quantile_names(collide), c("q3", "q3"))
+  expect_error(prior_sensitivity(stub, probs = collide),
+               "share a summary column: q3")
   # Use a protected arg that reaches `...` (prior_beta* partial-match the
   # `_scales` formals and raise R's own ambiguity error instead).
   expect_error(prior_sensitivity(stub, prior_intercept = prior_normal(0, 5)),
@@ -293,9 +308,17 @@ test_that("the relaxed identifiability warning counts distinct profiles, not row
       invokeRestart("muffleWarning")
     }
   )
-  expect_true(any(grepl("aggregate design rank 1", seen)))
-  expect_true(any(grepl("independent profiles", seen)))
+  # Four identical profiles span one direction including the intercept, so the
+  # message is the NUMERIC-rank one: those parameter combinations are genuinely
+  # not separated by the likelihood. It used to read "aggregate design rank 1"
+  # and to make that claim from the SPREAD screen, which is a different and
+  # weaker fact; profiles at -0.01 and +0.01 have tiny spread and are still
+  # separated. The wording changed with that distinction.
+  expect_true(any(grepl("span only 1 independent direction", seen)))
+  expect_true(any(grepl("not separated by the likelihood at all", seen)))
   expect_true(any(grepl("subgroup rows", seen)))
+  # And the message that belongs to the other branch does not appear here.
+  expect_false(any(grepl("screening threshold", seen)))
 })
 
 test_that("an incomplete chain set is recorded and reported, not hidden (C4)", {

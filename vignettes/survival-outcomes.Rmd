@@ -220,7 +220,7 @@ ggsurvfit::survfit2(survival::Surv(eventtime, status) ~ arm, data = km_obs) |>
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/km-1.png" alt="plot of chunk km"  />
+<img src="figure/survival-outcomes/km-1.png" alt="plot of chunk km"  />
 <p class="caption">plot of chunk km</p>
 </div>
 
@@ -522,7 +522,7 @@ plot_prior_posterior(fit_mspline, pars = c("mu_index", "mu_comparator"))
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/prior-post-1.png" alt="plot of chunk prior-post"  />
+<img src="figure/survival-outcomes/prior-post-1.png" alt="plot of chunk prior-post"  />
 <p class="caption">plot of chunk prior-post</p>
 </div>
 
@@ -588,7 +588,7 @@ plot(predict(fit_mspline, type = "loghr"))
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/loghr-1.png" alt="plot of chunk loghr"  />
+<img src="figure/survival-outcomes/loghr-1.png" alt="plot of chunk loghr"  />
 <p class="caption">plot of chunk loghr</p>
 </div>
 
@@ -639,7 +639,7 @@ mlumr_forest(forest_df, ref_line = 0,
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/forest-1.png" alt="plot of chunk forest"  />
+<img src="figure/survival-outcomes/forest-1.png" alt="plot of chunk forest"  />
 <p class="caption">plot of chunk forest</p>
 </div>
 
@@ -704,7 +704,7 @@ plot(predict(fit_mspline, type = "survival")) +
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/surv-curves-1.png" alt="plot of chunk surv-curves"  />
+<img src="figure/survival-outcomes/surv-curves-1.png" alt="plot of chunk surv-curves"  />
 <p class="caption">plot of chunk surv-curves</p>
 </div>
 
@@ -723,7 +723,7 @@ plot(predict(fit_mspline, population = "index", type = "survival")) +
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/surv-curves-km-1.png" alt="plot of chunk surv-curves-km"  />
+<img src="figure/survival-outcomes/surv-curves-km-1.png" alt="plot of chunk surv-curves-km"  />
 <p class="caption">plot of chunk surv-curves-km</p>
 </div>
 
@@ -736,7 +736,7 @@ plot(predict(fit_mspline, population = "comparator", type = "survival")) +
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/surv-curves-km-2.png" alt="plot of chunk surv-curves-km"  />
+<img src="figure/survival-outcomes/surv-curves-km-2.png" alt="plot of chunk surv-curves-km"  />
 <p class="caption">plot of chunk surv-curves-km</p>
 </div>
 
@@ -751,7 +751,7 @@ plot(predict(fit_mspline, type = "hazard")) +
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/hazard-curve-1.png" alt="plot of chunk hazard-curve"  />
+<img src="figure/survival-outcomes/hazard-curve-1.png" alt="plot of chunk hazard-curve"  />
 <p class="caption">plot of chunk hazard-curve</p>
 </div>
 
@@ -781,9 +781,12 @@ Table: Relaxed M-spline RMST difference (effect modification, collapsible summar
 
 Under the relaxed model the conditional hazard ratio depends on the covariates,
 so there is no single conditional HR. The scalar `HR` is then only the marginal
-hazard ratio at the **start of follow-up**; prefer `predict(type = "loghr")`
-for the time-varying contrast, or the collapsible RMST estimands
-(`effect = "rmstd"` / `"rmstr"`). **Caveat (unanchored two-study setting).**
+hazard ratio at one instant, and the `at_time` column says which: the
+$t \rightarrow 0$ limit for an unstratified fit, and otherwise the first
+prediction time, which is positive and set by `pred_times`. Prefer
+`predict(type = "loghr")` for the time-varying contrast, or the collapsible
+RMST estimands (`effect = "rmstd"` / `"rmstr"`), whose horizon is reported
+beside them. **Caveat (unanchored two-study setting).**
 Unlike multinma's connected network, here the comparator coefficients are
 identified *only* through the single reconstructed comparator likelihood, so the
 index-population relaxed estimand extrapolates them over the IPD covariate
@@ -811,9 +814,15 @@ compare_models(Weibull = fit_weibull, MSpline = fit_mspline, criterion = "loo")
 #>  MSpline       0.0     0.0      NA                    
 #>  Weibull      -5.4     3.9    0.92                    
 #> 
+#> 
 #> elpd_diff is the difference in expected log pointwise predictive
-#> density vs the best model. se_diff > 2 is the conventional threshold
-#> for a meaningful difference (|elpd_diff| > 4 * se_diff is stronger).
+#> density vs the best model, and se_diff is its standard error: the
+#> uncertainty about that difference, not evidence for it. Read the two
+#> together. A difference small relative to se_diff is not distinguished
+#> from zero by this comparison, whatever se_diff itself is.
+#> Treat any ratio as a heuristic, not a decision rule, and check the
+#> PSIS diagnostics and whether the difference matters for the
+#> prediction you care about.
 ```
 
 The Weibull fit's own standardized effects, in both populations, so the
@@ -847,7 +856,7 @@ plot(predict(fit_weibull, type = "survival")) +
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/weibull-surv-1.png" alt="plot of chunk weibull-surv"  />
+<img src="figure/survival-outcomes/weibull-surv-1.png" alt="plot of chunk weibull-surv"  />
 <p class="caption">plot of chunk weibull-surv</p>
 </div>
 

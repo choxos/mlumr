@@ -453,12 +453,16 @@ populations.</p>
 assumption used in <em>anchored</em> comparisons, but it is a
 <strong>stronger</strong> assumption, so transportability is
 correspondingly harder to justify <span class="citation">(<a href="#ref-ChandlerIshak2025">Chandler and Ishak 2025</a>)</span>. A
-useful consequence, established by simulation <span class="citation">(<a href="#ref-ChandlerIshak2025">Chandler and Ishak 2025</a>)</span>: the
-<strong>comparator-population</strong> effect is robust, recovered with
-little bias even when SPFA is violated, because the prognostic
-coefficients are anchored by the index IPD, whereas the
-<strong>index-population</strong> effect is biased if SPFA is wrongly
-imposed under strong effect modification. (Restricted to the comparator
+useful consequence, reported from simulation <span class="citation">(<a href="#ref-ChandlerIshak2025">Chandler and Ishak 2025</a>)</span>: in
+the scenarios that study examined, the
+<strong>comparator-population</strong> effect was recovered with little
+bias even when SPFA was violated, because the prognostic coefficients
+are anchored by the index IPD, whereas the
+<strong>index-population</strong> effect was biased when SPFA was
+wrongly imposed under strong effect modification. Read that as evidence
+from the data-generating mechanisms, effect sizes and sample sizes that
+were simulated, not as a guarantee that the comparator-population
+estimand tolerates any violation. (Restricted to the comparator
 population, the SPFA estimand has the same standardization target as
 unanchored STC. The estimators still differ: ML-UMR fits a joint
 likelihood in which the aggregate outcome informs the comparator
@@ -1374,21 +1378,27 @@ and check <code>prior_sensitivity()</code> (see
 <span id="cb22-7"><a href="#cb22-7" tabindex="-1"></a><span class="co">#&gt;  Relaxed       0.0     0.0      NA                 1 k_psis &gt; 0.7</span></span>
 <span id="cb22-8"><a href="#cb22-8" tabindex="-1"></a><span class="co">#&gt;     SPFA      -0.3     0.3    0.81 |elpd_diff| &lt; 4 1 k_psis &gt; 0.7</span></span>
 <span id="cb22-9"><a href="#cb22-9" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb22-10"><a href="#cb22-10" tabindex="-1"></a><span class="co">#&gt; elpd_diff is the difference in expected log pointwise predictive</span></span>
-<span id="cb22-11"><a href="#cb22-11" tabindex="-1"></a><span class="co">#&gt; density vs the best model. se_diff &gt; 2 is the conventional threshold</span></span>
-<span id="cb22-12"><a href="#cb22-12" tabindex="-1"></a><span class="co">#&gt; for a meaningful difference (|elpd_diff| &gt; 4 * se_diff is stronger).</span></span>
-<span id="cb22-13"><a href="#cb22-13" tabindex="-1"></a><span class="fu">compare_models</span>(<span class="at">SPFA =</span> fit_spfa, <span class="at">Relaxed =</span> fit_relaxed, <span class="at">criterion =</span> <span class="st">&quot;dic&quot;</span>)</span>
-<span id="cb22-14"><a href="#cb22-14" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb22-15"><a href="#cb22-15" tabindex="-1"></a><span class="co">#&gt; Model Comparison (DIC)</span></span>
-<span id="cb22-16"><a href="#cb22-16" tabindex="-1"></a><span class="co">#&gt; ======================</span></span>
-<span id="cb22-17"><a href="#cb22-17" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb22-18"><a href="#cb22-18" tabindex="-1"></a><span class="co">#&gt;    Model    DIC   pD Delta_DIC</span></span>
-<span id="cb22-19"><a href="#cb22-19" tabindex="-1"></a><span class="co">#&gt;  Relaxed 368.56 6.19      0.00</span></span>
-<span id="cb22-20"><a href="#cb22-20" tabindex="-1"></a><span class="co">#&gt;     SPFA 368.67 6.33      0.12</span></span>
-<span id="cb22-21"><a href="#cb22-21" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb22-22"><a href="#cb22-22" tabindex="-1"></a><span class="co">#&gt; Lower DIC = better fit. Delta_DIC &gt; 5 is a rough heuristic for</span></span>
-<span id="cb22-23"><a href="#cb22-23" tabindex="-1"></a><span class="co">#&gt; meaningful difference, not a formally calibrated threshold.</span></span>
-<span id="cb22-24"><a href="#cb22-24" tabindex="-1"></a><span class="co">#&gt; DIC should not be the sole basis for model selection.</span></span></code></pre></div>
+<span id="cb22-10"><a href="#cb22-10" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb22-11"><a href="#cb22-11" tabindex="-1"></a><span class="co">#&gt; elpd_diff is the difference in expected log pointwise predictive</span></span>
+<span id="cb22-12"><a href="#cb22-12" tabindex="-1"></a><span class="co">#&gt; density vs the best model, and se_diff is its standard error: the</span></span>
+<span id="cb22-13"><a href="#cb22-13" tabindex="-1"></a><span class="co">#&gt; uncertainty about that difference, not evidence for it. Read the two</span></span>
+<span id="cb22-14"><a href="#cb22-14" tabindex="-1"></a><span class="co">#&gt; together. A difference small relative to se_diff is not distinguished</span></span>
+<span id="cb22-15"><a href="#cb22-15" tabindex="-1"></a><span class="co">#&gt; from zero by this comparison, whatever se_diff itself is.</span></span>
+<span id="cb22-16"><a href="#cb22-16" tabindex="-1"></a><span class="co">#&gt; Treat any ratio as a heuristic, not a decision rule, and check the</span></span>
+<span id="cb22-17"><a href="#cb22-17" tabindex="-1"></a><span class="co">#&gt; PSIS diagnostics and whether the difference matters for the</span></span>
+<span id="cb22-18"><a href="#cb22-18" tabindex="-1"></a><span class="co">#&gt; prediction you care about.</span></span>
+<span id="cb22-19"><a href="#cb22-19" tabindex="-1"></a><span class="fu">compare_models</span>(<span class="at">SPFA =</span> fit_spfa, <span class="at">Relaxed =</span> fit_relaxed, <span class="at">criterion =</span> <span class="st">&quot;dic&quot;</span>)</span>
+<span id="cb22-20"><a href="#cb22-20" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb22-21"><a href="#cb22-21" tabindex="-1"></a><span class="co">#&gt; Model Comparison (DIC)</span></span>
+<span id="cb22-22"><a href="#cb22-22" tabindex="-1"></a><span class="co">#&gt; ======================</span></span>
+<span id="cb22-23"><a href="#cb22-23" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb22-24"><a href="#cb22-24" tabindex="-1"></a><span class="co">#&gt;    Model    DIC   pD Delta_DIC</span></span>
+<span id="cb22-25"><a href="#cb22-25" tabindex="-1"></a><span class="co">#&gt;  Relaxed 368.56 6.19      0.00</span></span>
+<span id="cb22-26"><a href="#cb22-26" tabindex="-1"></a><span class="co">#&gt;     SPFA 368.67 6.33      0.12</span></span>
+<span id="cb22-27"><a href="#cb22-27" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb22-28"><a href="#cb22-28" tabindex="-1"></a><span class="co">#&gt; Lower DIC = better fit. Delta_DIC &gt; 5 is a rough heuristic for</span></span>
+<span id="cb22-29"><a href="#cb22-29" tabindex="-1"></a><span class="co">#&gt; meaningful difference, not a formally calibrated threshold.</span></span>
+<span id="cb22-30"><a href="#cb22-30" tabindex="-1"></a><span class="co">#&gt; DIC should not be the sole basis for model selection.</span></span></code></pre></div>
 </div>
 <div id="checking-against-the-anchored-comparison" class="section level2">
 <h2>Checking against the anchored comparison</h2>
@@ -1490,13 +1500,15 @@ with <code>multinma</code> on the same two trials, the anchored method
 ML-UMR is adapted from. We fit it twice: with the covariates as
 prognostic factors only, and with the full
 <code>~ (covariates) * .trt</code> interaction that multinma’s own
-plaque-psoriasis example uses. That example has five studies; this
-sub-network has two, and effect modification is not identifiable from
-two studies. Both are reported below so the difference is visible rather
-than asserted. Note also that once covariates interact with treatment
-the contrast becomes population-specific, so <code>multinma</code>
-returns one estimate per study; both are reported below, matching the
-index/comparator pair reported for ML-UMR.</p>
+plaque-psoriasis example uses. That example fits it on four studies with
+treatment classes sharing their interactions; here SEC_300 is seen only
+in aggregate data and shares with nothing, so its interactions are not
+identified (the table’s note below says why). Both are reported so the
+difference is visible rather than asserted. Note also that once
+covariates interact with treatment the contrast becomes
+population-specific, so <code>multinma</code> returns one estimate per
+study; both are reported below, matching the index/comparator pair
+reported for ML-UMR.</p>
 <div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" tabindex="-1"></a>keep_u2 <span class="ot">&lt;-</span> u2[u2<span class="sc">$</span>trtc <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;ETN&quot;</span>, <span class="st">&quot;IXE_Q4W&quot;</span>), ]</span>
 <span id="cb25-2"><a href="#cb25-2" tabindex="-1"></a>keep_u2 <span class="ot">&lt;-</span> keep_u2[stats<span class="sc">::</span><span class="fu">complete.cases</span>(keep_u2[, <span class="fu">c</span>(<span class="st">&quot;pasi75&quot;</span>, covs)]), ]</span>
 <span id="cb25-3"><a href="#cb25-3" tabindex="-1"></a>keep_u2<span class="sc">$</span>prevsys <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(keep_u2<span class="sc">$</span>prevsys)</span>
@@ -1525,62 +1537,63 @@ index/comparator pair reported for ML-UMR.</p>
 <span id="cb25-26"><a href="#cb25-26" tabindex="-1"></a><span class="co"># Prognostic factors only: the anchored analogue of the SPFA model above.</span></span>
 <span id="cb25-27"><a href="#cb25-27" tabindex="-1"></a>fit_nmr <span class="ot">&lt;-</span> <span class="fu">nmr_fit</span>(<span class="sc">~</span> age <span class="sc">+</span> bsa <span class="sc">+</span> weight <span class="sc">+</span> prevsys)</span>
 <span id="cb25-28"><a href="#cb25-28" tabindex="-1"></a></span>
-<span id="cb25-29"><a href="#cb25-29" tabindex="-1"></a><span class="co"># Full interaction, the specification multinma&#39;s own plaque-psoriasis example</span></span>
-<span id="cb25-30"><a href="#cb25-30" tabindex="-1"></a><span class="co"># uses: the anchored analogue of the relaxed model. multinma has five studies</span></span>
-<span id="cb25-31"><a href="#cb25-31" tabindex="-1"></a><span class="co"># to identify these interactions; this sub-network has two.</span></span>
-<span id="cb25-32"><a href="#cb25-32" tabindex="-1"></a>fit_nmr_em <span class="ot">&lt;-</span> <span class="fu">nmr_fit</span>(<span class="sc">~</span> (age <span class="sc">+</span> bsa <span class="sc">+</span> weight <span class="sc">+</span> prevsys) <span class="sc">*</span> .trt)</span>
-<span id="cb25-33"><a href="#cb25-33" tabindex="-1"></a></span>
-<span id="cb25-34"><a href="#cb25-34" tabindex="-1"></a><span class="co"># multinma reports SEC_300 vs IXE_Q4W; flip to match this vignette&#39;s direction.</span></span>
-<span id="cb25-35"><a href="#cb25-35" tabindex="-1"></a>nmr_contrast <span class="ot">&lt;-</span> <span class="cf">function</span>(f, <span class="at">study =</span> <span class="cn">NULL</span>) {</span>
-<span id="cb25-36"><a href="#cb25-36" tabindex="-1"></a>  d <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(multinma<span class="sc">::</span><span class="fu">relative_effects</span>(f, <span class="at">all_contrasts =</span> <span class="cn">TRUE</span>)<span class="sc">$</span>summary)</span>
-<span id="cb25-37"><a href="#cb25-37" tabindex="-1"></a>  d <span class="ot">&lt;-</span> d[<span class="fu">grepl</span>(<span class="st">&quot;SEC_300&quot;</span>, d<span class="sc">$</span>parameter) <span class="sc">&amp;</span> <span class="fu">grepl</span>(<span class="st">&quot;IXE_Q4W&quot;</span>, d<span class="sc">$</span>parameter), ]</span>
-<span id="cb25-38"><a href="#cb25-38" tabindex="-1"></a>  <span class="co"># Once covariates interact with treatment the contrast is population-specific,</span></span>
-<span id="cb25-39"><a href="#cb25-39" tabindex="-1"></a>  <span class="co"># so multinma returns one row per study: UNCOVER-2 is the index population and</span></span>
-<span id="cb25-40"><a href="#cb25-40" tabindex="-1"></a>  <span class="co"># FIXTURE the comparator, the same pair ML-UMR reports.</span></span>
-<span id="cb25-41"><a href="#cb25-41" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">nrow</span>(d) <span class="sc">&gt;</span> <span class="dv">1</span> <span class="sc">&amp;&amp;</span> <span class="sc">!</span><span class="fu">is.null</span>(study)) d <span class="ot">&lt;-</span> d[<span class="fu">grepl</span>(study, d<span class="sc">$</span>parameter), ]</span>
-<span id="cb25-42"><a href="#cb25-42" tabindex="-1"></a>  d[<span class="dv">1</span>, ]</span>
-<span id="cb25-43"><a href="#cb25-43" tabindex="-1"></a>}</span>
-<span id="cb25-44"><a href="#cb25-44" tabindex="-1"></a>nmr      <span class="ot">&lt;-</span> <span class="fu">nmr_contrast</span>(fit_nmr)</span>
-<span id="cb25-45"><a href="#cb25-45" tabindex="-1"></a>nmr_em_i <span class="ot">&lt;-</span> <span class="fu">nmr_contrast</span>(fit_nmr_em, <span class="at">study =</span> <span class="st">&quot;UNCOVER-2&quot;</span>)</span>
-<span id="cb25-46"><a href="#cb25-46" tabindex="-1"></a>nmr_em_c <span class="ot">&lt;-</span> <span class="fu">nmr_contrast</span>(fit_nmr_em, <span class="at">study =</span> <span class="st">&quot;FIXTURE&quot;</span>)</span>
-<span id="cb25-47"><a href="#cb25-47" tabindex="-1"></a></span>
-<span id="cb25-48"><a href="#cb25-48" tabindex="-1"></a><span class="co"># ML-UMR is reported in both target populations so the anchored rows, which</span></span>
-<span id="cb25-49"><a href="#cb25-49" tabindex="-1"></a><span class="co"># are comparator-population estimands, can be read against a like-for-like row.</span></span>
-<span id="cb25-50"><a href="#cb25-50" tabindex="-1"></a>me_spfa_i <span class="ot">&lt;-</span> <span class="fu">pop</span>(me_spfa_b, <span class="st">&quot;Index&quot;</span>)</span>
-<span id="cb25-51"><a href="#cb25-51" tabindex="-1"></a>me_spfa_c <span class="ot">&lt;-</span> <span class="fu">pop</span>(me_spfa_b, <span class="st">&quot;Comparator&quot;</span>)</span>
-<span id="cb25-52"><a href="#cb25-52" tabindex="-1"></a>me_rel_i  <span class="ot">&lt;-</span> <span class="fu">pop</span>(me_rel_b, <span class="st">&quot;Index&quot;</span>)</span>
-<span id="cb25-53"><a href="#cb25-53" tabindex="-1"></a>me_rel_c  <span class="ot">&lt;-</span> <span class="fu">pop</span>(me_rel_b, <span class="st">&quot;Comparator&quot;</span>)</span>
-<span id="cb25-54"><a href="#cb25-54" tabindex="-1"></a></span>
-<span id="cb25-55"><a href="#cb25-55" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
-<span id="cb25-56"><a href="#cb25-56" tabindex="-1"></a>  <span class="at">Method =</span> <span class="fu">c</span>(<span class="st">&quot;Naive (unadjusted)&quot;</span>, <span class="st">&quot;STC (G-computation)&quot;</span>,</span>
-<span id="cb25-57"><a href="#cb25-57" tabindex="-1"></a>             <span class="st">&quot;ML-UMR SPFA (prognostic only)&quot;</span>,</span>
+<span id="cb25-29"><a href="#cb25-29" tabindex="-1"></a><span class="co"># Full interaction, the formula multinma&#39;s own plaque-psoriasis example uses:</span></span>
+<span id="cb25-30"><a href="#cb25-30" tabindex="-1"></a><span class="co"># the anchored analogue of the relaxed model. multinma fits it with treatment</span></span>
+<span id="cb25-31"><a href="#cb25-31" tabindex="-1"></a><span class="co"># classes sharing their interactions; this sub-network has no classes, and</span></span>
+<span id="cb25-32"><a href="#cb25-32" tabindex="-1"></a><span class="co"># SEC_300 appears only in the aggregate study.</span></span>
+<span id="cb25-33"><a href="#cb25-33" tabindex="-1"></a>fit_nmr_em <span class="ot">&lt;-</span> <span class="fu">nmr_fit</span>(<span class="sc">~</span> (age <span class="sc">+</span> bsa <span class="sc">+</span> weight <span class="sc">+</span> prevsys) <span class="sc">*</span> .trt)</span>
+<span id="cb25-34"><a href="#cb25-34" tabindex="-1"></a></span>
+<span id="cb25-35"><a href="#cb25-35" tabindex="-1"></a><span class="co"># multinma reports SEC_300 vs IXE_Q4W; flip to match this vignette&#39;s direction.</span></span>
+<span id="cb25-36"><a href="#cb25-36" tabindex="-1"></a>nmr_contrast <span class="ot">&lt;-</span> <span class="cf">function</span>(f, <span class="at">study =</span> <span class="cn">NULL</span>) {</span>
+<span id="cb25-37"><a href="#cb25-37" tabindex="-1"></a>  d <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(multinma<span class="sc">::</span><span class="fu">relative_effects</span>(f, <span class="at">all_contrasts =</span> <span class="cn">TRUE</span>)<span class="sc">$</span>summary)</span>
+<span id="cb25-38"><a href="#cb25-38" tabindex="-1"></a>  d <span class="ot">&lt;-</span> d[<span class="fu">grepl</span>(<span class="st">&quot;SEC_300&quot;</span>, d<span class="sc">$</span>parameter) <span class="sc">&amp;</span> <span class="fu">grepl</span>(<span class="st">&quot;IXE_Q4W&quot;</span>, d<span class="sc">$</span>parameter), ]</span>
+<span id="cb25-39"><a href="#cb25-39" tabindex="-1"></a>  <span class="co"># Once covariates interact with treatment the contrast is population-specific,</span></span>
+<span id="cb25-40"><a href="#cb25-40" tabindex="-1"></a>  <span class="co"># so multinma returns one row per study: UNCOVER-2 is the index population and</span></span>
+<span id="cb25-41"><a href="#cb25-41" tabindex="-1"></a>  <span class="co"># FIXTURE the comparator, the same pair ML-UMR reports.</span></span>
+<span id="cb25-42"><a href="#cb25-42" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">nrow</span>(d) <span class="sc">&gt;</span> <span class="dv">1</span> <span class="sc">&amp;&amp;</span> <span class="sc">!</span><span class="fu">is.null</span>(study)) d <span class="ot">&lt;-</span> d[<span class="fu">grepl</span>(study, d<span class="sc">$</span>parameter), ]</span>
+<span id="cb25-43"><a href="#cb25-43" tabindex="-1"></a>  d[<span class="dv">1</span>, ]</span>
+<span id="cb25-44"><a href="#cb25-44" tabindex="-1"></a>}</span>
+<span id="cb25-45"><a href="#cb25-45" tabindex="-1"></a>nmr      <span class="ot">&lt;-</span> <span class="fu">nmr_contrast</span>(fit_nmr)</span>
+<span id="cb25-46"><a href="#cb25-46" tabindex="-1"></a>nmr_em_i <span class="ot">&lt;-</span> <span class="fu">nmr_contrast</span>(fit_nmr_em, <span class="at">study =</span> <span class="st">&quot;UNCOVER-2&quot;</span>)</span>
+<span id="cb25-47"><a href="#cb25-47" tabindex="-1"></a>nmr_em_c <span class="ot">&lt;-</span> <span class="fu">nmr_contrast</span>(fit_nmr_em, <span class="at">study =</span> <span class="st">&quot;FIXTURE&quot;</span>)</span>
+<span id="cb25-48"><a href="#cb25-48" tabindex="-1"></a></span>
+<span id="cb25-49"><a href="#cb25-49" tabindex="-1"></a><span class="co"># ML-UMR is reported in both target populations so the anchored rows, which</span></span>
+<span id="cb25-50"><a href="#cb25-50" tabindex="-1"></a><span class="co"># are comparator-population estimands, can be read against a like-for-like row.</span></span>
+<span id="cb25-51"><a href="#cb25-51" tabindex="-1"></a>me_spfa_i <span class="ot">&lt;-</span> <span class="fu">pop</span>(me_spfa_b, <span class="st">&quot;Index&quot;</span>)</span>
+<span id="cb25-52"><a href="#cb25-52" tabindex="-1"></a>me_spfa_c <span class="ot">&lt;-</span> <span class="fu">pop</span>(me_spfa_b, <span class="st">&quot;Comparator&quot;</span>)</span>
+<span id="cb25-53"><a href="#cb25-53" tabindex="-1"></a>me_rel_i  <span class="ot">&lt;-</span> <span class="fu">pop</span>(me_rel_b, <span class="st">&quot;Index&quot;</span>)</span>
+<span id="cb25-54"><a href="#cb25-54" tabindex="-1"></a>me_rel_c  <span class="ot">&lt;-</span> <span class="fu">pop</span>(me_rel_b, <span class="st">&quot;Comparator&quot;</span>)</span>
+<span id="cb25-55"><a href="#cb25-55" tabindex="-1"></a></span>
+<span id="cb25-56"><a href="#cb25-56" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
+<span id="cb25-57"><a href="#cb25-57" tabindex="-1"></a>  <span class="at">Method =</span> <span class="fu">c</span>(<span class="st">&quot;Naive (unadjusted)&quot;</span>, <span class="st">&quot;STC (G-computation)&quot;</span>,</span>
 <span id="cb25-58"><a href="#cb25-58" tabindex="-1"></a>             <span class="st">&quot;ML-UMR SPFA (prognostic only)&quot;</span>,</span>
-<span id="cb25-59"><a href="#cb25-59" tabindex="-1"></a>             <span class="st">&quot;ML-UMR relaxed (effect modification)&quot;</span>,</span>
+<span id="cb25-59"><a href="#cb25-59" tabindex="-1"></a>             <span class="st">&quot;ML-UMR SPFA (prognostic only)&quot;</span>,</span>
 <span id="cb25-60"><a href="#cb25-60" tabindex="-1"></a>             <span class="st">&quot;ML-UMR relaxed (effect modification)&quot;</span>,</span>
-<span id="cb25-61"><a href="#cb25-61" tabindex="-1"></a>             <span class="st">&quot;Anchored: Bucher / fixed-effect NMA&quot;</span>,</span>
-<span id="cb25-62"><a href="#cb25-62" tabindex="-1"></a>             <span class="st">&quot;Anchored: ML-NMR, prognostic only&quot;</span>,</span>
-<span id="cb25-63"><a href="#cb25-63" tabindex="-1"></a>             <span class="st">&quot;Anchored: ML-NMR, with * .trt (multinma&#39;s own model)&quot;</span>,</span>
-<span id="cb25-64"><a href="#cb25-64" tabindex="-1"></a>             <span class="st">&quot;Anchored: ML-NMR, with * .trt (multinma&#39;s own model)&quot;</span>),</span>
-<span id="cb25-65"><a href="#cb25-65" tabindex="-1"></a>  <span class="at">Anchored =</span> <span class="fu">c</span>(<span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;yes&quot;</span>),</span>
-<span id="cb25-66"><a href="#cb25-66" tabindex="-1"></a>  <span class="co"># `naive()` contrasts the two crude outcomes; it is standardized to no</span></span>
-<span id="cb25-67"><a href="#cb25-67" tabindex="-1"></a>  <span class="co"># population, which is the point of comparing it against the adjusted rows.</span></span>
-<span id="cb25-68"><a href="#cb25-68" tabindex="-1"></a>  <span class="co"># `vignette(&quot;choosing-a-method&quot;)` uses the same label for the same reason.</span></span>
-<span id="cb25-69"><a href="#cb25-69" tabindex="-1"></a>  <span class="at">Population =</span> <span class="fu">c</span>(<span class="st">&quot;unstandardized&quot;</span>, <span class="st">&quot;comparator&quot;</span>, <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>,</span>
-<span id="cb25-70"><a href="#cb25-70" tabindex="-1"></a>                 <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>, <span class="st">&quot;not population-specific&quot;</span>,</span>
-<span id="cb25-71"><a href="#cb25-71" tabindex="-1"></a>                 <span class="st">&quot;not population-specific&quot;</span>, <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>),</span>
-<span id="cb25-72"><a href="#cb25-72" tabindex="-1"></a>  <span class="at">LOR   =</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>link_effect, res_stc<span class="sc">$</span>link_effect,</span>
-<span id="cb25-73"><a href="#cb25-73" tabindex="-1"></a>            me_spfa_i<span class="sc">$</span>mean, me_spfa_c<span class="sc">$</span>mean, me_rel_i<span class="sc">$</span>mean, me_rel_c<span class="sc">$</span>mean,</span>
-<span id="cb25-74"><a href="#cb25-74" tabindex="-1"></a>            anchored[<span class="dv">1</span>], <span class="sc">-</span>nmr<span class="sc">$</span>mean, <span class="sc">-</span>nmr_em_i<span class="sc">$</span>mean, <span class="sc">-</span>nmr_em_c<span class="sc">$</span>mean),</span>
-<span id="cb25-75"><a href="#cb25-75" tabindex="-1"></a>  <span class="st">`</span><span class="at">2.5%</span><span class="st">`</span>  <span class="ot">=</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>ci_lower, res_stc<span class="sc">$</span>ci_lower,</span>
-<span id="cb25-76"><a href="#cb25-76" tabindex="-1"></a>              me_spfa_i<span class="sc">$</span>q2<span class="fl">.5</span>, me_spfa_c<span class="sc">$</span>q2<span class="fl">.5</span>, me_rel_i<span class="sc">$</span>q2<span class="fl">.5</span>, me_rel_c<span class="sc">$</span>q2<span class="fl">.5</span>,</span>
-<span id="cb25-77"><a href="#cb25-77" tabindex="-1"></a>              anchored_ci[<span class="dv">1</span>], <span class="sc">-</span>nmr[[<span class="st">&quot;97.5%&quot;</span>]],</span>
-<span id="cb25-78"><a href="#cb25-78" tabindex="-1"></a>              <span class="sc">-</span>nmr_em_i[[<span class="st">&quot;97.5%&quot;</span>]], <span class="sc">-</span>nmr_em_c[[<span class="st">&quot;97.5%&quot;</span>]]),</span>
-<span id="cb25-79"><a href="#cb25-79" tabindex="-1"></a>  <span class="st">`</span><span class="at">97.5%</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>ci_upper, res_stc<span class="sc">$</span>ci_upper,</span>
-<span id="cb25-80"><a href="#cb25-80" tabindex="-1"></a>              me_spfa_i<span class="sc">$</span>q97<span class="fl">.5</span>, me_spfa_c<span class="sc">$</span>q97<span class="fl">.5</span>, me_rel_i<span class="sc">$</span>q97<span class="fl">.5</span>, me_rel_c<span class="sc">$</span>q97<span class="fl">.5</span>,</span>
-<span id="cb25-81"><a href="#cb25-81" tabindex="-1"></a>              anchored_ci[<span class="dv">2</span>], <span class="sc">-</span>nmr[[<span class="st">&quot;2.5%&quot;</span>]],</span>
-<span id="cb25-82"><a href="#cb25-82" tabindex="-1"></a>              <span class="sc">-</span>nmr_em_i[[<span class="st">&quot;2.5%&quot;</span>]], <span class="sc">-</span>nmr_em_c[[<span class="st">&quot;2.5%&quot;</span>]]),</span>
-<span id="cb25-83"><a href="#cb25-83" tabindex="-1"></a>  <span class="at">check.names =</span> <span class="cn">FALSE</span>), <span class="at">digits =</span> <span class="dv">3</span>,</span>
-<span id="cb25-84"><a href="#cb25-84" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">&quot;Unanchored estimates against the anchored references, in both target populations (log odds ratio, IXE_Q4W vs SEC_300)&quot;</span>)</span></code></pre></div>
+<span id="cb25-61"><a href="#cb25-61" tabindex="-1"></a>             <span class="st">&quot;ML-UMR relaxed (effect modification)&quot;</span>,</span>
+<span id="cb25-62"><a href="#cb25-62" tabindex="-1"></a>             <span class="st">&quot;Anchored: Bucher / fixed-effect NMA&quot;</span>,</span>
+<span id="cb25-63"><a href="#cb25-63" tabindex="-1"></a>             <span class="st">&quot;Anchored: ML-NMR, prognostic only&quot;</span>,</span>
+<span id="cb25-64"><a href="#cb25-64" tabindex="-1"></a>             <span class="st">&quot;Anchored: ML-NMR, with * .trt (multinma&#39;s own model)&quot;</span>,</span>
+<span id="cb25-65"><a href="#cb25-65" tabindex="-1"></a>             <span class="st">&quot;Anchored: ML-NMR, with * .trt (multinma&#39;s own model)&quot;</span>),</span>
+<span id="cb25-66"><a href="#cb25-66" tabindex="-1"></a>  <span class="at">Anchored =</span> <span class="fu">c</span>(<span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;yes&quot;</span>),</span>
+<span id="cb25-67"><a href="#cb25-67" tabindex="-1"></a>  <span class="co"># `naive()` contrasts the two crude outcomes; it is standardized to no</span></span>
+<span id="cb25-68"><a href="#cb25-68" tabindex="-1"></a>  <span class="co"># population, which is the point of comparing it against the adjusted rows.</span></span>
+<span id="cb25-69"><a href="#cb25-69" tabindex="-1"></a>  <span class="co"># `vignette(&quot;choosing-a-method&quot;)` uses the same label for the same reason.</span></span>
+<span id="cb25-70"><a href="#cb25-70" tabindex="-1"></a>  <span class="at">Population =</span> <span class="fu">c</span>(<span class="st">&quot;unstandardized&quot;</span>, <span class="st">&quot;comparator&quot;</span>, <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>,</span>
+<span id="cb25-71"><a href="#cb25-71" tabindex="-1"></a>                 <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>, <span class="st">&quot;not population-specific&quot;</span>,</span>
+<span id="cb25-72"><a href="#cb25-72" tabindex="-1"></a>                 <span class="st">&quot;not population-specific&quot;</span>, <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>),</span>
+<span id="cb25-73"><a href="#cb25-73" tabindex="-1"></a>  <span class="at">LOR   =</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>link_effect, res_stc<span class="sc">$</span>link_effect,</span>
+<span id="cb25-74"><a href="#cb25-74" tabindex="-1"></a>            me_spfa_i<span class="sc">$</span>mean, me_spfa_c<span class="sc">$</span>mean, me_rel_i<span class="sc">$</span>mean, me_rel_c<span class="sc">$</span>mean,</span>
+<span id="cb25-75"><a href="#cb25-75" tabindex="-1"></a>            anchored[<span class="dv">1</span>], <span class="sc">-</span>nmr<span class="sc">$</span>mean, <span class="sc">-</span>nmr_em_i<span class="sc">$</span>mean, <span class="sc">-</span>nmr_em_c<span class="sc">$</span>mean),</span>
+<span id="cb25-76"><a href="#cb25-76" tabindex="-1"></a>  <span class="st">`</span><span class="at">2.5%</span><span class="st">`</span>  <span class="ot">=</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>ci_lower, res_stc<span class="sc">$</span>ci_lower,</span>
+<span id="cb25-77"><a href="#cb25-77" tabindex="-1"></a>              me_spfa_i<span class="sc">$</span>q2<span class="fl">.5</span>, me_spfa_c<span class="sc">$</span>q2<span class="fl">.5</span>, me_rel_i<span class="sc">$</span>q2<span class="fl">.5</span>, me_rel_c<span class="sc">$</span>q2<span class="fl">.5</span>,</span>
+<span id="cb25-78"><a href="#cb25-78" tabindex="-1"></a>              anchored_ci[<span class="dv">1</span>], <span class="sc">-</span>nmr[[<span class="st">&quot;97.5%&quot;</span>]],</span>
+<span id="cb25-79"><a href="#cb25-79" tabindex="-1"></a>              <span class="sc">-</span>nmr_em_i[[<span class="st">&quot;97.5%&quot;</span>]], <span class="sc">-</span>nmr_em_c[[<span class="st">&quot;97.5%&quot;</span>]]),</span>
+<span id="cb25-80"><a href="#cb25-80" tabindex="-1"></a>  <span class="st">`</span><span class="at">97.5%</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>ci_upper, res_stc<span class="sc">$</span>ci_upper,</span>
+<span id="cb25-81"><a href="#cb25-81" tabindex="-1"></a>              me_spfa_i<span class="sc">$</span>q97<span class="fl">.5</span>, me_spfa_c<span class="sc">$</span>q97<span class="fl">.5</span>, me_rel_i<span class="sc">$</span>q97<span class="fl">.5</span>, me_rel_c<span class="sc">$</span>q97<span class="fl">.5</span>,</span>
+<span id="cb25-82"><a href="#cb25-82" tabindex="-1"></a>              anchored_ci[<span class="dv">2</span>], <span class="sc">-</span>nmr[[<span class="st">&quot;2.5%&quot;</span>]],</span>
+<span id="cb25-83"><a href="#cb25-83" tabindex="-1"></a>              <span class="sc">-</span>nmr_em_i[[<span class="st">&quot;2.5%&quot;</span>]], <span class="sc">-</span>nmr_em_c[[<span class="st">&quot;2.5%&quot;</span>]]),</span>
+<span id="cb25-84"><a href="#cb25-84" tabindex="-1"></a>  <span class="at">check.names =</span> <span class="cn">FALSE</span>), <span class="at">digits =</span> <span class="dv">3</span>,</span>
+<span id="cb25-85"><a href="#cb25-85" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">&quot;Unanchored estimates against the anchored references, in both target populations (log odds ratio, IXE_Q4W vs SEC_300)&quot;</span>)</span></code></pre></div>
 <table>
 <caption>Unanchored estimates against the anchored references, in both
 target populations (log odds ratio, IXE_Q4W vs SEC_300)</caption>
@@ -1688,18 +1701,36 @@ model)</td>
 </tbody>
 </table>
 <p>The last two rows should not be interpreted substantively. The
-<code>* .trt</code> specification is the one multinma’s own
-plaque-psoriasis example uses, but that example has
-<strong>five</strong> studies to identify the interactions. This
-sub-network has two, and two studies cannot separate a treatment effect
-from a covariate-by-treatment interaction. The fits converge and return
-estimates, but the intervals are very wide, which is the expected
-signature of weak identification rather than a usable result. Reporting
-both populations makes this visible: the index and comparator values
-differ by more than two log odds ratios, whereas a well-identified
-contrast changes little between populations. The rows are included so
-that their width and their disagreement can be compared with the rows
-above.</p>
+<code>* .trt</code> formula is the one multinma’s own plaque-psoriasis
+example uses, but that example fits it on four studies, three of them
+patient-level, with the treatments grouped into classes and
+<code>class_interactions = &quot;common&quot;</code>, so every treatment in a
+class shares one set of interactions and that set is informed by every
+study in which any member of the class appears. Here both studies keep
+their ETN arm, so treatment does vary within each of them; what fails is
+the SEC_300 side of the network. UNCOVER-2 is patient-level data, and
+the IXE_Q4W interactions are identified from it because the contrast
+against ETN is observed across individuals with different covariate
+values. SEC_300 appears only in FIXTURE, which is aggregate: its arm is
+a single proportion, and with no class to borrow from, the SEC_300 side
+of the model has five parameters of its own, a main effect and four
+interaction slopes. One number cannot pin five parameters, so the
+SEC_300 interactions come from the prior rather than the data, and the
+IXE_Q4W versus SEC_300 contrast inherits that in both populations,
+because how it moves between them is set by the difference between the
+two interaction vectors. It is the evidence structure, aggregate on one
+side with nothing to share, that fails to identify them, not the number
+of studies. The fits converge and return estimates, but the intervals
+are very wide, which is the expected signature of weak identification
+rather than a usable result. Reporting both populations makes this
+visible: the index and comparator values differ by more than two log
+odds ratios, and that difference is set by interaction slopes the data
+never informed, so it says nothing about how the contrast really varies
+between the populations. A large difference is not by itself a sign of
+weak identification, since strong, well-estimated effect modification
+would produce one too; the width of the intervals is, and here it is the
+width that rules these rows out. They are included so that both their
+width and their disagreement can be compared with the rows above.</p>
 <p>Setting those rows aside, the two identified anchored estimates agree
 with each other, and the SPFA model agrees with both of them in
 <strong>both</strong> populations. Everything that adjusts for the

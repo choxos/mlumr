@@ -7,6 +7,10 @@
 .resolve_mlumr_engine(engine)
 }
 \description{
-Resolve and validate mlumr() backend engine
+The engine also arrives here through the option set in a profile or the
+per-fit \code{engine} argument, and neither passes through \code{mlumr_engine()}. So
+the Windows toolchain guard that \code{mlumr_engine()} applies runs here as
+well; otherwise the first fit reaches compilation and fails there, without
+the upgrade advice.
 }
 \keyword{internal}

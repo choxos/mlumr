@@ -43,7 +43,22 @@
 #' space. A single row whose covariate means equal the IPD means identifies it
 #' exactly while separating neither the intercept nor the slope.
 #' `target_in_span` reports that case, so a coefficient verdict is not read as
-#' one about the estimand.
+#' one about the estimand. It is an exact statement about the integration
+#' profiles the likelihood actually uses, not about the declared
+#' `<covariate>_mean` columns: a realized grid can sit a fifth of an SD from
+#' its declared mean and still pass the declared-versus-realized check, and
+#' the declared row would then certify a target the fitted row's span does
+#' not contain. Being exact, it says nothing about how well the estimand is
+#' pinned down. `target_span_gap` carries the practical complement: the
+#' distance, in IPD standard deviations, from the target to the affine span of
+#' the directions along which the rows spread by at least 0.05 SD. Zero means
+#' the estimand rests on directions the rows genuinely move along; a small
+#' positive value with `target_in_span` FALSE means the estimand contains that
+#' much of a coefficient the rows do not pin down, which a finite integration
+#' grid can produce on its own; a large value with `target_in_span` TRUE means
+#' the estimand is identified only through directions the rows barely move
+#' along, where precision depends on the outcome standard errors and row
+#' sizes.
 #'
 #' This diagnostic concerns `model = "relaxed"` only. Under SPFA both treatments
 #' share one coefficient vector, which the IPD identifies, so a single aggregate
@@ -61,7 +76,9 @@
 #'   the spectral variation is spread across directions; it is not a count of
 #'   identified coefficients), `spread`, `singular_values`, `means` (the scaled, centered
 #'   subgroup mean matrix), `diagnostic_scope`, `target_in_span`,
-#'   and `flagged`: `TRUE` for too
+#'   `target_span_gap`, `target_in_declared_span` (the same exact statement
+#'   about the declared `<covariate>_mean` rows, which says whether a gap is
+#'   the integration grid's or the design's), and `flagged`: `TRUE` for too
 #'   few rows, otherwise the identity-link screen result, or `NA` when nonlinear
 #'   mean-profile geometry is descriptive only.
 #'
@@ -131,12 +148,30 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   } else {
     "descriptive"
   }
-  out$target_in_span <- if (out$diagnostic_scope == "identity") {
-    .target_in_span(means, colMeans(as.matrix(data$ipd$data[, covs,
-                                                            drop = FALSE])),
-                    ref_sd)
+  if (out$diagnostic_scope == "identity") {
+    # The rows the likelihood integrates over, when they exist. The declared
+    # means are what the geometry above describes, and they are preferred
+    # there because they do not move with the integration resolution; the
+    # span statement is about the fitted design, and a realized grid can sit
+    # a fifth of an SD from its declared mean and still pass the match above.
+    fitted_rows <- .agd_realized_profiles(data, covs) %||% means
+    target <- colMeans(as.matrix(data$ipd$data[, covs, drop = FALSE]))
+    out$target_in_span <- .target_in_span(fitted_rows, target, ref_sd)
+    out$target_span_gap <- .target_span_gap(fitted_rows, target, ref_sd)
+    # Whether the gap is the integration grid's or the design's. A gap the
+    # declared rows do not have comes from the grid missing its declared
+    # means, and a larger `n_int` shrinks it; a gap the declared rows have too
+    # is the populations' actual difference, and no resolution removes it.
+    declared <- .agd_declared_profiles(data, covs)
+    out$target_in_declared_span <- if (is.null(declared)) {
+      NA
+    } else {
+      .target_in_span(declared, target, ref_sd)
+    }
   } else {
-    NA
+    out$target_in_span <- NA
+    out$target_span_gap <- NA_real_
+    out$target_in_declared_span <- NA
   }
   out$flagged <- if (out$n_distinct < out$n_rows_needed) {
     TRUE
@@ -176,11 +211,11 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
       ref_sd <- apply(as.matrix(ipd_cov), 2L, stats::sd)
       if (!.realized_matches_declared(means, realized, ref_sd)) {
         warning("The integration distributions do not reproduce the declared ",
-                "aggregate covariate means: the realized profiles offer much ",
-                "less spread than the `<covariate>_mean` columns claim. ",
-                "Reporting the realized geometry, which is what the likelihood ",
-                "sees. Check that each `distr()` reads its row's summaries.",
-                call. = FALSE)
+                "aggregate covariate means: the realized profiles sit in a ",
+                "different place, or offer much less spread, than the ",
+                "`<covariate>_mean` columns claim. Reporting the realized ",
+                "geometry, which is what the likelihood sees. Check that each ",
+                "`distr()` reads its row's summaries.", call. = FALSE)
         return(realized)
       }
       return(means)
@@ -193,6 +228,20 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
          "integration means will be used instead.", call. = FALSE)
   }
   realized
+}
+
+
+#' Declared aggregate mean profiles, or NULL when the columns are absent
+#' @keywords internal
+.agd_declared_profiles <- function(data, covs) {
+  mean_cols <- paste0(covs, "_mean")
+  agd <- data$agd$data
+  if (!all(mean_cols %in% names(agd))) return(NULL)
+  means <- as.matrix(agd[, mean_cols, drop = FALSE])
+  storage.mode(means) <- "double"
+  if (!all(is.finite(means))) return(NULL)
+  colnames(means) <- covs
+  means
 }
 
 
@@ -282,17 +331,85 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   if (!nrow(A) || length(b) != ncol(A)) return(NA)
   ref_sd <- as.numeric(ref_sd)
   ref_sd[!is.finite(ref_sd) | ref_sd <= 0] <- 1
-  A <- cbind(1, sweep(A, 2, ref_sd, "/"))
-  b <- c(1, b / ref_sd)
-  if (any(!is.finite(A)) || any(!is.finite(b))) return(NA)
-  # b is a linear combination of the rows of A exactly when t(A) w = b is
-  # solvable. Take the least-squares solution and read the residual: a
-  # rank-deficient system gives NA coefficients, which contribute nothing.
+  # (1, b) is a combination of the rows of (1, A) exactly when some w has
+  # sum(w) = 1 and w'A = b, and that is the same as w'(A - 1 b') = 0 with
+  # sum(w) = 1. Solve THAT system: the profiles are measured from the target
+  # rather than from zero, so a covariate carried far from the origin, weight
+  # in grams or a calendar year, no longer enters the decomposition as a huge
+  # common offset. Uncentered, two profiles at 1e6 and 1e6 + 2 with a target
+  # between them were declared rank one by the QR and the target reported
+  # outside their span, which it plainly is not.
+  A <- cbind(1, sweep(sweep(A, 2, b), 2, ref_sd, "/"))
+  b <- c(1, rep(0, length(b)))
+  if (any(!is.finite(A))) return(NA)
+  # Take the least-squares solution and read the residual: a rank-deficient
+  # system gives NA coefficients, which contribute nothing.
   qr_at <- qr(t(A))
   w <- qr.coef(qr_at, b)
   w[is.na(w)] <- 0
   resid <- b - drop(t(A) %*% w)
-  max(abs(resid)) <= 1e-8 * max(1, max(abs(b)))
+  # Every coordinate is now on its own unit scale: the intercept is 1 and the
+  # covariates are deviations in reference SDs, so one tolerance judges each
+  # of them by its own size. A single tolerance taken from the largest raw
+  # coordinate had let one huge covariate excuse a complete failure elsewhere:
+  # one profile at 1e10 with a target at 2e10 leaves a residual of 1 on the
+  # intercept, the whole intercept, against a tolerance of 200.
+  all(abs(resid) <= 1e-8)
+}
+
+
+#' Distance from the target to the practically spanned part of a fitted design
+#'
+#' [.target_in_span()] is exact, and an exact answer is the wrong yardstick for
+#' judging how well an estimand is supported by the rows the likelihood
+#' actually integrates over. A finite grid misses its declared mean by a few
+#' hundredths of an SD, so realized rows that were declared identical are
+#' never quite identical: an exact test finds that the noise spans every
+#' direction and certifies any target, which says nothing about precision.
+#'
+#' This asks the practical question the rest of the screen asks. Directions
+#' along which the rows move less than `min_spread` IPD SDs, the floor
+#' [.profile_rank()] counts by, are not treated as spanned; the target's
+#' deviation from the rows' center is projected onto the directions that
+#' remain, and the length of the residual is returned, in IPD SDs. It is not
+#' an identification verdict, and it is not folded into one: a target 0.09 SD
+#' from a single row is 0.09 SD off that row's span, and the estimand contains
+#' that much of a coefficient the row cannot pin down however small the
+#' number is. The verdict stays with the exact test; this says how far.
+#'
+#' @param profiles The fitted design, rows by covariates.
+#' @param target The target covariate profile.
+#' @param ref_sd Reference SD per covariate; non-finite or non-positive entries
+#'   fall back to 1.
+#' @param min_spread Smallest RMS separation, in IPD SDs, that counts as a
+#'   spanned direction.
+#' @return A non-negative number, or `NA_real_` when the inputs cannot be
+#'   compared.
+#' @keywords internal
+.target_span_gap <- function(profiles, target, ref_sd, min_spread = 0.05) {
+  rows <- as.matrix(profiles)
+  b <- as.numeric(target)
+  if (!nrow(rows) || length(b) != ncol(rows)) return(NA_real_)
+  ref_sd <- as.numeric(ref_sd)
+  ref_sd[!is.finite(ref_sd) | ref_sd <= 0] <- 1
+  z <- sweep(rows, 2L, ref_sd, "/")
+  center <- colMeans(z)
+  d <- b / ref_sd - center
+  if (any(!is.finite(z)) || any(!is.finite(d))) return(NA_real_)
+  resid <- d
+  if (nrow(z) > 1L) {
+    centered <- sweep(z, 2L, center)
+    s <- tryCatch(svd(centered), error = function(e) NULL)
+    if (is.null(s) || any(!is.finite(s$d))) return(NA_real_)
+    # `d / sqrt(nrow)` is the RMS separation along a direction, the quantity
+    # `.profile_rank()` counts and `.subgroup_geometry()` reports as `spread`.
+    keep <- .at_least(s$d / sqrt(nrow(centered)), min_spread)
+    if (any(keep)) {
+      v <- s$v[, keep, drop = FALSE]
+      resid <- d - drop(v %*% crossprod(v, d))
+    }
+  }
+  sqrt(sum(resid^2))
 }
 
 
@@ -318,6 +435,22 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 
 # `x >= threshold`, tolerant of the ULP-scale disagreement between those
 # routes. Scaled by the threshold, so it means the same thing at any spread.
+# The upper-bound counterpart of `.at_least()`, sharing its tolerance and its
+# validation. The location test needs the realized profiles to sit CLOSE to the
+# declared ones, where every spread test asks for a lower bound. Sharing the
+# validation is the point: a bare `>` against an `NA` threshold aborted from
+# inside an `if` with "missing value where TRUE/FALSE needed", which names
+# nothing. Left undocumented, like `.at_least()` beside it.
+.at_most <- function(x, threshold) {
+  if (anyNA(threshold)) {
+    stop("Spread threshold values must not be NA or NaN.", call. = FALSE)
+  }
+  if (!all(is.finite(threshold))) {
+    return(x <= threshold)
+  }
+  x <= threshold + abs(threshold) * .spread_tol
+}
+
 .at_least <- function(x, threshold) {
   # `NA` and `NaN` are not thresholds, and letting them through returns NA
   # rather than a verdict: `.profile_rank()` then answers `NA_integer_` and
@@ -393,6 +526,40 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   n_directions <- sum(.at_least(d / sqrt(nrow(M)), min_spread))
   # Centering removed the mean, so the intercept is always one more direction.
   as.integer(n_directions) + 1L
+}
+
+
+#' Numerical rank of the centered aggregate profile matrix
+#'
+#' `.profile_rank()` counts directions whose spread reaches a practical
+#' threshold, which is a statement about how much a design MOVES, not about
+#' whether the likelihood separates its parameters. The two are different
+#' claims, and only this one supports language about a direction the likelihood
+#' cannot see: profiles at -0.01 and +0.01 have spread 0.01 and numerical rank
+#' 2, and with aggregate standard errors of 1e-6 the slope is pinned to about
+#' 7e-5. Calling that "not separated by the likelihood" is wrong, and so is
+#' calling it weakly informed: from the profiles alone all that can be said is
+#' that the design moves little along that direction, and how well the
+#' coefficient is then estimated depends on the standard errors and row sizes.
+#'
+#' Tolerance follows the usual convention for a rank decision,
+#' `max(dim) * eps * max(d)`, so it tracks floating-point resolution rather
+#' than a chosen effect size.
+#'
+#' @param profiles Aggregate mean-profile matrix.
+#' @param ref_sd Reference SD per covariate.
+#' @return Integer rank INCLUDING the intercept direction.
+#' @keywords internal
+.profile_numeric_rank <- function(profiles, ref_sd) {
+  M <- scale(as.matrix(profiles), center = TRUE, scale = FALSE)
+  ref_sd <- as.numeric(ref_sd)
+  ref_sd[!is.finite(ref_sd) | ref_sd <= 0] <- 1
+  M <- sweep(M, 2L, ref_sd, "/")
+  if (!all(is.finite(M))) return(0L)
+  d <- tryCatch(svd(M)$d, error = function(e) NULL)
+  if (is.null(d) || !length(d) || any(!is.finite(d))) return(0L)
+  tol <- max(dim(M)) * .Machine$double.eps * max(d)
+  as.integer(sum(d > tol)) + 1L
 }
 
 
@@ -496,9 +663,57 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
     cat("\nThe index-population estimand is nonetheless identified. Under an ",
         "identity link it is one linear functional of the comparator ",
         "parameters, and the target covariate profile lies in the row space ",
-        "of the aggregate design, so the rows pin it down even where they do ",
-        "not separate the coefficients individually. Statements about ",
-        "individual coefficients remain prior-driven.\n", sep = "")
+        "of the fitted aggregate design (the integration profiles the ",
+        "likelihood uses), so the rows pin it down even where they do not ",
+        "separate the coefficients individually.", sep = "")
+    gap <- x$target_span_gap
+    # The gap is the residual OUTSIDE the well-spread directions, so any
+    # positive value means the estimand leans on a direction the rows barely
+    # move along; only a numerically zero gap (floating-point noise from the
+    # projection, not a real distance) earns the reassurance.
+    if (is.finite(gap) && gap <= 1e-8) {
+      cat(" It also lies within the directions the rows spread along by at ",
+          "least 0.05 IPD SD, so it does not lean on a direction they barely ",
+          "move in.\n", sep = "")
+    } else if (is.finite(gap)) {
+      cat(" It is reached only through directions along which the rows move ",
+          "less than 0.05 IPD SD (", sprintf("%.2f", gap), " SD of it lies ",
+          "outside the well-spread ones), and how precisely it is estimated ",
+          "there is not something this screen can see: it depends on the ",
+          "outcome precision and row sizes, so read it off the posterior and ",
+          "prior_sensitivity().\n", sep = "")
+    } else {
+      cat("\n")
+    }
+  } else if (isTRUE(x$flagged) && isFALSE(x$target_in_span)) {
+    gap <- x$target_span_gap
+    cat("\nThe index-population estimand is not in the row space of the ",
+        "fitted aggregate design: the target profile sits ",
+        if (is.finite(gap)) sprintf("%.2f IPD SD", gap) else "outside",
+        " off the affine span of the directions the rows spread along, so ",
+        "the estimand contains that much of comparator coefficients the rows ",
+        "do not pin down, and that part comes from the prior.", sep = "")
+    if (is.finite(gap) && .at_most(gap, 0.1) &&
+          isTRUE(x$target_in_declared_span)) {
+      cat(" The declared `<covariate>_mean` rows do contain the target, so ",
+          "the gap is between what was declared and what the integration ",
+          "grid realized. That is either the grid's finite resolution, which a ",
+          "larger `n_int` shrinks, or a `distr()` that does not reproduce the ",
+          "declared mean, which no `n_int` changes; compare the realized ",
+          "means at two grid sizes, or run check_integration(), to tell ",
+          "which.\n", sep = "")
+    } else if (is.finite(gap) && .at_most(gap, 0.1)) {
+      cat(" The gap is small, but it is the rows' actual distance from the ",
+          "target, not integration error, so no integration resolution ",
+          "removes it: a row whose summaries equal the target's would.\n",
+          sep = "")
+    } else {
+      cat(" Do not substitute the comparator population for the decision ",
+          "target: report it as a sensitivity estimand, obtain subgroup rows ",
+          "jointly defined across covariates, or use `model = \"spfa\"` with ",
+          "its shared-coefficient assumption stated. Confirm with ",
+          "prior_sensitivity().\n", sep = "")
+    }
   } else if (isTRUE(x$flagged)) {
     cat("\nThe index-population relaxed estimand averages `beta_comparator` ",
         "over the IPD covariates, so it depends on exactly the directions that ",
@@ -580,13 +795,35 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #'   design must still provide along that same direction.
 #' @param min_spread Absolute floor, in IPD standard deviations, matching
 #'   [check_identification()] and `.profile_rank()`.
+#' @param max_location_gap Largest distance, in reference standard deviations,
+#'   that the realized column means may sit from the declared ones, and the
+#'   noise allowance in the row-by-row pairing check. Separate from
+#'   `min_spread`: a finite integration grid misses its own declared mean by
+#'   roughly the spread floor itself (32 QMC points against a normal margin
+#'   land about 0.05 SD away), so reusing that floor here reported correct
+#'   specifications as mismatches and switched the identification statement
+#'   onto the realized geometry, which suppressed the rank-1 warning for a
+#'   design of identical profiles. A quarter of an SD clears the integration
+#'   error and still catches a `distr()` that ignores its row.
 #' @return `TRUE` when the realized design reproduces the declared one, or when
 #'   there is nothing to compare against.
 #' @keywords internal
 .realized_matches_declared <- function(declared, realized, ref_sd = NULL,
-                                       factor = 0.5, min_spread = 0.05) {
+                                       factor = 0.5, min_spread = 0.05,
+                                       max_location_gap = 0.25) {
   if (is.null(realized)) {
     return(TRUE)
+  }
+  # A zero-length threshold made the location comparison zero-length, and
+  # `any()` of nothing is FALSE, so the check was skipped without a word; a
+  # negative one rejected identical designs. Neither is a threshold.
+  # `NA` passes through to `.at_most()`, which rejects it by name as it does
+  # every other threshold.
+  if (length(max_location_gap) != 1L ||
+        !(is.numeric(max_location_gap) || is.na(max_location_gap)) ||
+        (!is.na(max_location_gap) && max_location_gap < 0)) {
+    stop("`max_location_gap` must be a single non-negative number.",
+         call. = FALSE)
   }
   if (!identical(dim(declared), dim(realized))) {
     # Not a match and not a mismatch: the grid cannot be compared at all. Say
@@ -612,6 +849,31 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
     sd_vals[!is.finite(sd_vals) | sd_vals <= 0] <- 1
     sd_vals
   }
+  # LOCATION first. Everything below centers both matrices and compares their
+  # spread along the declared directions, which is deliberately blind to where
+  # the two designs actually sit. A grid shifted bodily away from the declared
+  # means therefore "matched": with a single row, centering sends both to zero
+  # whatever the means were, and the function returned TRUE. The declared
+  # profiles were then used for the identification statement while the
+  # likelihood integrated somewhere else entirely.
+  #
+  # `max_location_gap` is a separate threshold, not `min_spread`. A finite
+  # integration grid does not reproduce its own declared mean exactly: 32 QMC
+  # points against a normal margin land about 0.05 reference SD away, which is
+  # the spread floor itself, so reusing it here called correct specifications a
+  # mismatch. It then reported the realized geometry INSTEAD of the declared
+  # one, which changed the rank the identifiability warning quotes and
+  # suppressed the warning entirely for a design of four identical profiles.
+  # A quarter of a reference SD sits well above that integration error and well
+  # below a `distr()` that ignores its row, which misses by the full distance
+  # between the declared mean and whatever constant was hard-coded.
+  loc_gap <- abs(colMeans(as.matrix(realized)) - colMeans(as.matrix(declared)))
+  loc_gap <- loc_gap / scale_by
+  loc_gap <- loc_gap[is.finite(loc_gap)]
+  if (length(loc_gap) && any(!.at_most(loc_gap, max_location_gap))) {
+    return(FALSE)
+  }
+
   d <- sweep(scale(declared, center = TRUE, scale = FALSE), 2L, scale_by, "/")
   r <- sweep(scale(realized, center = TRUE, scale = FALSE), 2L, scale_by, "/")
   if (!all(is.finite(d)) || !all(is.finite(r))) {
@@ -620,6 +882,23 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
             "The reported geometry describes the declared columns, which have ",
             "not been checked against the design being fitted.", call. = FALSE)
     return(TRUE)
+  }
+
+  # ROW PAIRING. Everything after this point is invariant to the ORDER of the
+  # rows: permuting them leaves the column means alone and leaves the centered
+  # spectrum alone, so a grid whose rows were attached to the wrong aggregate
+  # rows reproduced the declared design exactly and was reported as such,
+  # while every distribution integrated against another row's outcome. Each
+  # centered realized row is therefore compared with its own centered declared
+  # row. The allowance is whichever is larger of the location tolerance, which
+  # is the integration noise a row can carry, and the share of its own
+  # deviation the spread test below already lets a row give up: a grid shrunk
+  # toward the center by `factor` moves every row by exactly `1 - factor` of
+  # its deviation and is a match by design, and must stay one here.
+  row_gap <- sqrt(rowSums((r - d)^2))
+  row_allow <- pmax(max_location_gap, (1 - factor) * sqrt(rowSums(d^2)))
+  if (any(!.at_most(row_gap, row_allow))) {
+    return(FALSE)
   }
   decomposition <- tryCatch(svd(d), error = function(e) NULL)
   if (is.null(decomposition)) {

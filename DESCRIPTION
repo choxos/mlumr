@@ -50,7 +50,7 @@ LinkingTo:
     rstan (>= 2.26.0),
     StanHeaders (>= 2.26.0)
 Suggests:
-    testthat (>= 3.1.5),
+    testthat (>= 3.2.0),
     ggsurvfit,
     knitr,
     rmarkdown,
@@ -61,9 +61,10 @@ Suggests:
     cmdstanr,
     withr,
     flexsurv,
+    xfun,
     multinma,
     R.rsp
-Additional_repositories: https://stan-dev.r-universe.dev
+Additional_repositories: https://mc-stan.org/r-packages
 SystemRequirements: GNU make
 Config/testthat/edition: 3
 VignetteBuilder: knitr, R.rsp

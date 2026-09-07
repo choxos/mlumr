@@ -482,3 +482,45 @@ test_that("the KM layer stays two curves without a population facet", {
   built <- ggplot2::ggplot_build(p)$data[[1]]
   expect_equal(length(unique(built$group)), 2L)
 })
+
+test_that("a time asked for twice is not an ambiguous pair of series", {
+  # A survival `times` keeps the caller's order and multiplicity, so
+  # `times = c(2, 2)` is two rows and two times that snap to one fitted
+  # neighbor are two rows as well. The ambiguity guard keyed on
+  # (treatment, population, time) and read either as two arms sharing a label,
+  # so plot(predict(fit, type = "survival", times = c(2, 2))) was refused with
+  # a message about naming the arms, which were already distinct.
+  row <- function(trt, req, tm, est) {
+    data.frame(treatment = trt, population = "index", requested_time = req,
+               time = tm, estimate = est, stringsAsFactors = FALSE)
+  }
+  accepts <- function(df) {
+    tryCatch({
+      .reject_ambiguous_series(df)
+      TRUE
+    }, error = function(e) FALSE)
+  }
+
+  # One point asked for twice, under two distinct labels.
+  expect_true(accepts(rbind(row("A", 2, 2, 0.8), row("A", 2, 2, 0.8),
+                            row("B", 2, 2, 0.7), row("B", 2, 2, 0.7))))
+  # Two different requests that snap to the same fitted time. These differ in
+  # `requested_time`, which is what was asked for rather than what is drawn.
+  expect_true(accepts(rbind(row("A", 2, 2, 0.8), row("A", 2.0001, 2, 0.8),
+                            row("B", 2, 2, 0.7), row("B", 2.0001, 2, 0.7))))
+  # The ordinary case stays accepted.
+  expect_true(accepts(rbind(row("A", 2, 2, 0.8), row("A", 5, 5, 0.6),
+                            row("B", 2, 2, 0.7), row("B", 5, 5, 0.5))))
+  # And the case the guard exists for is still refused: one label, two values.
+  expect_false(accepts(rbind(row("A", 2, 2, 0.8), row("A", 2, 2, 0.7))))
+
+  # The message has to name the arm that clashes, not whichever arm happens to
+  # be first. Renaming a well-named front row would not fix anything.
+  msg <- tryCatch(
+    .reject_ambiguous_series(rbind(row("A", 2, 2, 0.9), row("B", 2, 2, 0.8),
+                                   row("C", 2, 2, 0.7), row("C", 2, 2, 0.6))),
+    error = function(e) conditionMessage(e)
+  )
+  expect_match(msg, "label 'C'", fixed = TRUE)
+  expect_false(grepl("label 'A'", msg, fixed = TRUE))
+})

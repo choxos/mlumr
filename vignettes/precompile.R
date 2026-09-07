@@ -51,6 +51,22 @@ precompile_one <- function(stem) {
   orig <- paste0(stem, ".Rmd.orig")
   rmd  <- paste0(stem, ".Rmd")
   message("\n=== precompiling ", orig, " ===")
+  # Give every article its own figure directory. Chunk names are not unique
+  # across these vignettes (23 of them collide: `forest`, `prior-post`,
+  # `predict-plot`, `posterior-areas`, and more), and knitr derives the image
+  # file name from the chunk name alone. With one shared `figure/` directory
+  # they all wrote to the same paths: `figure/forest-1.png` was claimed by five
+  # articles and `figure/prior-post-1.png` by five. Whichever article ran last
+  # owned the bytes, and any self-contained HTML rendered against that state
+  # embedded another outcome's plot.
+  #
+  # This is not hypothetical. Every one of the four images in the shipped
+  # continuous-outcomes.html belonged to a different article: a survival RMST
+  # forest in months, a count rate-ratio posterior, a psoriasis response
+  # prediction, and a survival prior-posterior overlay. The tables and prose
+  # around them were correct, which is what made it survive review.
+  knitr::opts_chunk$set(fig.path = file.path("figure", stem, ""))
+  on.exit(knitr::opts_chunk$set(fig.path = "figure/"), add = TRUE)
   knitr::knit(orig, output = rmd)            # runs the chunks -> fits Stan here
   rmarkdown::render(rmd, quiet = TRUE)       # output format taken from the YAML
   title <- rmarkdown::yaml_front_matter(orig)$title

@@ -16,6 +16,7 @@
   beta_comparator_fields = NULL,
   sd_x,
   prior_aux = NULL,
+  prior_aux2 = NULL,
   prior_smooth = NULL,
   surv_info = NULL
 )

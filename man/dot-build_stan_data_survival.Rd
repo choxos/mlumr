@@ -14,6 +14,7 @@
   rmst_horizon,
   n_rmst_grid = 100L,
   prior_aux,
+  prior_aux2 = NULL,
   prior_smooth,
   n_strata = 1L
 )
@@ -36,6 +37,9 @@
 \item{n_rmst_grid}{Number of RMST integration points.}
 
 \item{prior_aux}{Prior on the parametric auxiliary shape parameters.}
+
+\item{prior_aux2}{Prior on the second generalized-gamma auxiliary parameter,
+or \code{NULL} to reuse \code{prior_aux}.}
 
 \item{prior_smooth}{Prior on the flexible-baseline smoothing SD.}
 

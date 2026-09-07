@@ -23,7 +23,14 @@ in \code{\link[=predict.mlumr_fit]{predict.mlumr_fit()}} (e.g. \code{"p"}, \code
 \item{\code{links}}{Vector of supported links. Should match the branches
 in \code{\link[=check_link]{check_link()}}.}
 \item{\code{effect_measures}}{Supported values of the \code{effect} argument in
-\code{\link[=marginal_effects]{marginal_effects()}} (excluding \code{"all"}).}
+\code{\link[=marginal_effects]{marginal_effects()}} (excluding \code{"all"}). Family-level, and for
+\code{"survival"} NOT the whole accepted set: the scalar contrast is
+distribution-specific, so a fit accepts exactly one of \code{"hr"}, \code{"tr"} or
+\code{"exp_delta_eta"} and the choice is made per fit by
+\code{.surv_scalar_effect_name()}, which cannot be expressed here because this
+registry is keyed by family alone. The entry lists \code{"hr"} as the
+representative scalar; treat the survival row as the RMST measures plus
+one fit-specific scalar.}
 \item{\code{marginal_effect_vars}}{Generated-quantity column names for each
 effect measure, per population. Expanded in \code{\link[=marginal_effects]{marginal_effects()}}.}
 \item{\code{comp_weight_field}}{Name of the Stan-data field used to

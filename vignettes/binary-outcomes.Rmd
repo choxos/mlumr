@@ -81,12 +81,14 @@ populations.
 
 SPFA is the unanchored analogue of the shared-effect-modifier assumption used in
 *anchored* comparisons, but it is a **stronger** assumption, so transportability
-is correspondingly harder to justify [@ChandlerIshak2025]. A useful consequence,
-established by simulation [@ChandlerIshak2025]: the **comparator-population**
-effect is robust, recovered with little bias even when SPFA is violated, because
-the prognostic coefficients are anchored by the index IPD, whereas the
-**index-population** effect is biased if SPFA is wrongly imposed under strong
-effect modification. (Restricted to the comparator population, the SPFA
+is correspondingly harder to justify [@ChandlerIshak2025]. A useful consequence, reported
+from simulation [@ChandlerIshak2025]: in the scenarios that study examined, the
+**comparator-population** effect was recovered with little bias even when SPFA
+was violated, because the prognostic coefficients are anchored by the index IPD,
+whereas the **index-population** effect was biased when SPFA was wrongly imposed
+under strong effect modification. Read that as evidence from the data-generating
+mechanisms, effect sizes and sample sizes that were simulated, not as a
+guarantee that the comparator-population estimand tolerates any violation. (Restricted to the comparator population, the SPFA
 estimand has the same standardization target as unanchored STC. The estimators
 still differ: ML-UMR fits a joint likelihood in which the aggregate outcome
 informs the comparator intercept, whereas STC regresses on the IPD alone.)
@@ -443,7 +445,7 @@ plot_prior_posterior(fit_spfa, pars = c("mu_index", "mu_comparator"))
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/prior-post-1.png" alt="plot of chunk prior-post"  />
+<img src="figure/binary-outcomes/prior-post-1.png" alt="plot of chunk prior-post"  />
 <p class="caption">plot of chunk prior-post</p>
 </div>
 
@@ -551,7 +553,7 @@ mlumr_forest(forest_df, ref_line = 0,
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/forest-1.png" alt="plot of chunk forest"  />
+<img src="figure/binary-outcomes/forest-1.png" alt="plot of chunk forest"  />
 <p class="caption">plot of chunk forest</p>
 </div>
 
@@ -588,7 +590,7 @@ plot(marginal_effects(fit_spfa, effect = "lor"))
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/posterior-1.png" alt="plot of chunk posterior"  />
+<img src="figure/binary-outcomes/posterior-1.png" alt="plot of chunk posterior"  />
 <p class="caption">plot of chunk posterior</p>
 </div>
 
@@ -623,7 +625,7 @@ plot(predict(fit_spfa, population = "both", type = "response"))
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/predict-plot-1.png" alt="plot of chunk predict-plot"  />
+<img src="figure/binary-outcomes/predict-plot-1.png" alt="plot of chunk predict-plot"  />
 <p class="caption">plot of chunk predict-plot</p>
 </div>
 
@@ -683,9 +685,15 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "loo")
 #>  Relaxed       0.0     0.0      NA                 1 k_psis > 0.7
 #>     SPFA      -0.3     0.3    0.81 |elpd_diff| < 4 1 k_psis > 0.7
 #> 
+#> 
 #> elpd_diff is the difference in expected log pointwise predictive
-#> density vs the best model. se_diff > 2 is the conventional threshold
-#> for a meaningful difference (|elpd_diff| > 4 * se_diff is stronger).
+#> density vs the best model, and se_diff is its standard error: the
+#> uncertainty about that difference, not evidence for it. Read the two
+#> together. A difference small relative to se_diff is not distinguished
+#> from zero by this comparison, whatever se_diff itself is.
+#> Treat any ratio as a heuristic, not a decision rule, and check the
+#> PSIS diagnostics and whether the difference matters for the
+#> prediction you care about.
 compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "dic")
 #> 
 #> Model Comparison (DIC)
@@ -793,9 +801,11 @@ The second is a population-adjusted **ML-NMR** fitted with `multinma` on the sam
 two trials, the anchored method ML-UMR is adapted from. We fit it twice: with the
 covariates as prognostic factors only, and with the full
 `~ (covariates) * .trt` interaction that multinma's own plaque-psoriasis example
-uses. That example has five studies; this sub-network has two, and effect
-modification is not identifiable from two studies. Both are reported below so the
-difference is visible rather than asserted. Note also that once covariates
+uses. That example fits it on four studies with treatment classes sharing their
+interactions; here SEC_300 is seen only in aggregate data and shares with
+nothing, so its interactions are not identified (the table's note below says
+why). Both are reported so the difference is visible rather than asserted. Note
+also that once covariates
 interact with treatment the contrast becomes population-specific, so `multinma`
 returns one estimate per study; both are reported below, matching the
 index/comparator pair reported for ML-UMR.
@@ -830,9 +840,10 @@ nmr_fit <- function(form) {
 # Prognostic factors only: the anchored analogue of the SPFA model above.
 fit_nmr <- nmr_fit(~ age + bsa + weight + prevsys)
 
-# Full interaction, the specification multinma's own plaque-psoriasis example
-# uses: the anchored analogue of the relaxed model. multinma has five studies
-# to identify these interactions; this sub-network has two.
+# Full interaction, the formula multinma's own plaque-psoriasis example uses:
+# the anchored analogue of the relaxed model. multinma fits it with treatment
+# classes sharing their interactions; this sub-network has no classes, and
+# SEC_300 appears only in the aggregate study.
 fit_nmr_em <- nmr_fit(~ (age + bsa + weight + prevsys) * .trt)
 
 # multinma reports SEC_300 vs IXE_Q4W; flip to match this vignette's direction.
@@ -908,16 +919,33 @@ Table: Unanchored estimates against the anchored references, in both target popu
 
 
 The last two rows should not be interpreted substantively. The `* .trt`
-specification is the one multinma's own plaque-psoriasis example uses, but that
-example has **five** studies to identify the interactions. This sub-network has
-two, and two studies cannot separate a treatment effect from a
-covariate-by-treatment interaction. The fits converge and return estimates, but
-the intervals are very wide, which is the expected signature of weak
-identification rather than a usable result. Reporting both populations makes
-this visible: the index and comparator values differ by more than two log odds
-ratios, whereas a well-identified contrast changes little between populations.
-The rows are included so that their width and their disagreement can be compared
-with the rows above.
+formula is the one multinma's own plaque-psoriasis example uses, but that
+example fits it on four studies, three of them patient-level, with the
+treatments grouped into classes and `class_interactions = "common"`, so every
+treatment in a class shares one set of interactions and that set is informed by
+every study in which any member of the class appears. Here both studies keep
+their ETN arm, so treatment does vary within each of them; what fails is the
+SEC_300 side of the network. UNCOVER-2 is patient-level data, and the IXE_Q4W
+interactions are identified from it because the contrast against ETN is observed
+across individuals with different covariate values. SEC_300 appears only in
+FIXTURE, which is aggregate: its arm is a single proportion, and with no class
+to borrow from, the SEC_300 side of the model has five parameters of its own, a
+main effect and four interaction slopes. One number cannot pin five parameters,
+so the SEC_300 interactions come from the prior rather than the data, and the
+IXE_Q4W versus SEC_300 contrast inherits that in both populations, because how
+it moves between them is set by the difference between the two interaction
+vectors. It is the evidence structure, aggregate on one side with nothing to
+share, that fails to identify them, not the number of studies. The fits converge
+and return estimates, but the intervals are very wide, which is the expected
+signature of weak identification rather than a usable result. Reporting both
+populations makes this visible: the index and comparator values differ by more
+than two log odds ratios, and that difference is set by interaction slopes the
+data never informed, so it says nothing about how the contrast really varies
+between the populations. A large difference is not by itself a sign of weak
+identification, since strong, well-estimated effect modification would produce
+one too; the width of the intervals is, and here it is the width that rules
+these rows out. They are included so that both their width and their
+disagreement can be compared with the rows above.
 
 Setting those rows aside, the two identified anchored estimates agree with each
 other, and the SPFA model agrees with both of them in **both** populations.

@@ -167,9 +167,12 @@ test_that("the logit-normal density aligns x with its parameters", {
   expect_equal(got, c(0, stats::dnorm(0, 10, 1) / 0.25))
   expect_equal(dlogitnorm(c(0.5, 0.5), mu = c(0, 10), sigma = c(1, 2)),
                stats::dnorm(c(0, 0), c(0, 10), c(1, 2)) / 0.25)
-  # A parameter that cannot be used leaves the density unknown, not zero.
-  expect_true(is.na(dlogitnorm(0, mu = NA_real_)))
-  expect_true(is.na(dlogitnorm(0.5, mu = 0, sigma = NA_real_)))
+  # A parameter that cannot be used must never read as a density of zero. It is
+  # now an error rather than an NA, matching the moment parameterization, which
+  # has always rejected a non-finite `mean` / `sd`: one unusable parameter used
+  # to give three different answers depending on which of d/p/q saw it.
+  expect_error(dlogitnorm(0, mu = NA_real_), "must not be missing")
+  expect_error(dlogitnorm(0.5, mu = 0, sigma = NA_real_), "must not be missing")
   expect_equal(dlogitnorm(numeric(0), mu = 0, sigma = 1), numeric(0))
 })
 

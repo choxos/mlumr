@@ -27,14 +27,20 @@ Ignored when \code{newdata} is supplied (the effect is standardized to the
 
 \item{effect}{Which effect measure. For binomial: \code{"all"}, \code{"lor"}, \code{"rd"},
 or \code{"rr"}. For normal: \code{"all"} or \code{"md"} (mean difference). For poisson:
-\code{"all"} or \code{"rr"} (rate ratio). For survival: \code{"all"}, \code{"hr"} (hazard ratio
-for PH, time ratio for AFT, natural scale, null 1; \code{"tr"} is an accepted
-alias), \code{"exp_delta_eta"}, \code{"rmstd"} (RMST difference, null 0), or
-\code{"rmstr"} (RMST ratio, natural scale, null 1). Requesting an effect the fit
-cannot produce is an error rather than a differently-named substitute: with
-an AFT distribution and \code{aux_by = ".study"} the study shapes differ, so
-\code{exp(eta_index - eta_comparator)} is not a time ratio and \code{"hr"} / \code{"tr"}
-are rejected in favor of the explicit \code{"exp_delta_eta"}.}
+\code{"all"} or \code{"rr"} (rate ratio). For survival the scalar selector is
+\strong{literal and distribution-specific}: each fit accepts \code{"all"}, the one
+scalar name that its contrast actually is, \code{"rmstd"} (RMST difference,
+null 0), and \code{"rmstr"} (RMST ratio, natural scale, null 1). The scalar name
+is \code{"hr"} (marginal hazard ratio, null 1) for a proportional-hazards fit,
+\code{"tr"} (time ratio, null 1) for a shared-shape SPFA accelerated-failure-time
+fit, and \code{"exp_delta_eta"} otherwise, meaning any relaxed AFT fit or a
+\strong{shape-bearing} AFT fit with \code{aux_by = ".study"}, where the covariate term
+does not cancel or the shapes differ and no constant acceleration factor
+exists. \code{"exponential-aft"} has no shape parameter, so \code{aux_by = ".study"}
+leaves its baseline unstratified and an SPFA fit keeps \code{"tr"}. There are no
+aliases: \code{"hr"} never returns a time ratio and \code{"tr"} never returns a
+hazard ratio. Requesting a scale the fit cannot supply is an error naming
+the one it can.}
 
 \item{summary}{Return summary (\code{TRUE}) or full draws (\code{FALSE})}
 
@@ -48,9 +54,16 @@ column names must match the model covariates. When \code{NULL} (default), effect
 are returned for the built-in \code{index} and/or \code{comparator} populations from
 the Stan generated quantities. When supplied, the marginal effect is
 recomputed by averaging model-based predictions over these rows at each
-posterior draw, and \code{population} is ignored. For survival, RMST effects and
-the time-specific target-standardized marginal hazard ratio are available;
-the latter uses \code{at_time} (the first fitted prediction time by default).}
+posterior draw, and \code{population} is ignored. For survival the SAME scalar
+selector applies as without \code{newdata}: supplying a target changes which
+population an effect is standardized to, not which effects exist. A
+proportional-hazards fit reports the time-specific target-standardized
+marginal hazard ratio, which uses \code{at_time} (the first fitted prediction
+time by default); an AFT fit reports its target-standardized location
+contrast, \code{exp(mean(eta_index) - mean(eta_comparator))} over the target
+rows, which is a \code{TR} when the coefficients are shared (and then identical
+for every target, since the covariate term cancels) and an
+\code{EXP_DELTA_ETA} when they are not. RMST effects are available throughout.}
 
 \item{at_time}{Evaluation time for the scalar marginal hazard ratio, for
 proportional-hazards fits whose two studies have different baseline shapes

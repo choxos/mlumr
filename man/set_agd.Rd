@@ -55,7 +55,12 @@ each covariate. If \code{NULL}, inferred from presence of SD.}
 \item{study}{Column name for study identifier (optional)}
 }
 \value{
-An object of class \code{mlumr_agd}
+An object of class \code{mlumr_agd}. As for \code{\link[=set_ipd]{set_ipd()}}, its \verb{$data}
+carries a \code{.source_key} column, a digest of the whole of \code{data} with the
+row's rank within a canonical ordering of it, holding nothing of the
+content; it lets \code{\link[=compare_models]{compare_models()}} recognize one source reordered
+between two fits. The internal names, \code{.source_key} among them, cannot be
+used as column names in \code{data}.
 }
 \description{
 Prepare AgD from the comparator treatment for an unanchored indirect
@@ -81,17 +86,68 @@ such rows the relaxed model needs.
 \code{y_agd ~ normal(E[exp(eta)], se_agd)} under \code{link = "log"} and
 \code{y_agd ~ normal(E[eta], se_agd)} under \code{link = "identity"}. In both
 cases \code{outcome_mean} and \code{outcome_se} must be on the \strong{arithmetic
-(original, untransformed) scale}. If a publication reports only a
-log-scale mean / SD or a geometric mean, back-transform before
-calling \code{set_agd()} and propagate uncertainty via the delta method;
-passing log-scale or geometric summaries silently misspecifies the
-likelihood and biases the posterior.
+(original, untransformed) scale}.
+
+A geometric mean is ALREADY on the original measurement scale, and it is a
+different quantity from the arithmetic mean: exponentiating a log-scale mean
+returns the geometric mean, not the arithmetic one. For a lognormal outcome
+with log-scale mean 0 and log-scale SD 1 the geometric mean is 1 while the
+arithmetic mean is \code{exp(0.5) = 1.65}, so substituting one for the other is a
+39\% error in the reported level. No amount of standard-error propagation
+repairs that: the delta method rescales uncertainty about a transformation,
+it does not convert one estimand into another.
+
+So do not "back-transform and apply the delta method". Ask for, or compute
+from the individual data, the arithmetic mean and its standard error. If you
+have only log-scale summaries and are willing to assume the outcome is
+lognormal, the arithmetic mean is \code{exp(m + s^2 / 2)} where \code{m} is the
+log-scale mean and \code{s} is the log-scale \strong{SD} of the outcome, not the
+standard error of \code{m}; propagate uncertainty in \code{m} and \code{s} jointly through
+that expression. A change score on a transformed scale generally cannot be
+reversed from a published mean alone at all. Passing log-scale or geometric
+summaries silently misspecifies the likelihood and biases the posterior.
 
 \strong{Scale assumptions for \code{family = "poisson"}.} \code{outcome_r} is the
 total count in each AgD row and \code{outcome_E} is the total
 person-time (or other exposure). The Stan likelihood uses
 \code{log(E_agd)} as an offset, so rates are modeled on the log scale
 regardless of how \code{outcome_r} is tabulated.
+
+\strong{What the aggregate Poisson row assumes about exposure.} The likelihood
+for a row is the total exposure multiplied by the rate averaged over the
+covariate distribution you supply, while the quantity it stands in for is
+the sum over people of each person's own exposure times that person's rate.
+The two agree exactly when the supplied distribution is the one \strong{weighted
+by exposure}, whatever the dependence between exposure and the covariates:
+two people with rates 1 and 3 and exposures 9 and 1 contribute
+\code{9 * 1 + 1 * 3 = 12} expected events, and \code{10 * (0.9 * 1 + 0.1 * 3)} is 12 as
+well. With the person-level distribution instead, the same row gives a total
+exposure of 10 times the mean rate of 2, which is 20. Person-level moments
+reproduce the sum only when exposure carries no information about the
+covariate-specific rate within the row.
+
+The assumption is therefore about person-time, not about people, and it
+is about the whole distribution the rate is averaged over, not only the
+moments: the marginal shape that each \code{distr()} in \code{\link[=add_integration]{add_integration()}}
+assumes around \code{cov_means} and \code{cov_sds}, and with two or more covariates
+the correlation it combines them with, whose default is estimated from the
+index sample. All of it has to describe the covariates weighted by
+exposure. Exposure can leave every mean and standard deviation where it
+was and still change a covariate's skewness or tails, or how the
+covariates go together when it varies with their combination rather than
+with each on its own, and the averaged rate moves with any of these.
+Person-level summaries stand in for exposure-weighted ones when exposure
+carries no information about the covariate-specific rate within the row.
+Mean exposure that does not vary with the covariates is a sufficient
+condition that does not depend on the model, because it makes the two
+distributions coincide, shape and dependence included, and equal
+individual exposure is its simplest case.
+Published subgroup tables almost always report person-level moments, and
+those do not identify the person-time distribution. Where follow-up varies
+with a prognostic covariate, prefer rows defined so that exposure is close
+to constant inside each one, and say which reading the reported moments
+support. Weighting across rows does not repair a dependence inside a row,
+and nothing in the supplied summaries reveals it, so this is not checked.
 
 \strong{Scale assumptions for \code{family = "binomial"}.} \code{outcome_r} /
 \code{outcome_n} are counts of events and trials. The log-odds (or

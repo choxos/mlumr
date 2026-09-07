@@ -415,9 +415,25 @@ geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
   df <- as.data.frame(x)
   key <- intersect(c("treatment", "population", "time"), names(df))
   if (!all(c("treatment", "population") %in% key)) return(invisible())
-  if (anyDuplicated(df[, key, drop = FALSE])) {
+  # A survival `times` keeps the caller's order and multiplicity, so one point
+  # asked for twice is two rows, and two times that snap to the same fitted
+  # neighbor are two rows as well. Neither is an ambiguity: they draw the same
+  # point twice. `requested_time` is what the caller asked for rather than what
+  # is drawn, so it is dropped before the rows are collapsed, or
+  # `times = c(2, 2.0001)` would survive as two rows and be refused.
+  #
+  # What remains after collapsing is one row per point that gets drawn, so a
+  # key that still repeats is two different values under one label, which is
+  # the thing that cannot be drawn.
+  drawn <- unique(df[, setdiff(names(df), "requested_time"), drop = FALSE])
+  # `anyDuplicated()` gives the row where the key first repeats, which is the
+  # arm the message has to name. The first row of the frame is a different arm
+  # whenever the conflict is anywhere but the front, and renaming that one
+  # would not fix anything.
+  clash <- anyDuplicated(drawn[, key, drop = FALSE])
+  if (clash) {
     stop("This prediction has two series per population that share the ",
-         "treatment label '", df$treatment[1], "', so they cannot be drawn ",
+         "treatment label '", drawn$treatment[clash], "', so they cannot be drawn ",
          "as separate curves. Give the two arms distinct treatment names in ",
          "set_ipd() / set_agd_surv() and refit.", call. = FALSE)
   }
@@ -662,8 +678,16 @@ plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
   }
   # Stan declares these <lower=0>, which truncates rather than folds.
   if (base == "sigma") return(list(prior = priors$sigma, lower = 0))
-  if (base %in% c("aux_val", "aux_val_cmp", "aux2_val", "aux2_val_cmp")) {
+  if (base %in% c("aux_val", "aux_val_cmp")) {
     return(list(prior = priors$aux, lower = 0))
+  }
+  # The second generalized-gamma auxiliary has its own prior, and the two
+  # govern different features of the hazard, so they can be deliberately
+  # different. Resolving both to `priors$aux` drew the FIRST prior against the
+  # SECOND posterior, which is precisely the comparison a prior-sensitivity
+  # plot exists to make. Fall back only for fits stored before `aux2` existed.
+  if (base %in% c("aux2_val", "aux2_val_cmp")) {
+    return(list(prior = priors$aux2 %||% priors$aux, lower = 0))
   }
   if (base == "sigma_smooth") return(list(prior = priors$smooth, lower = 0))
   res <- if (base %in% c("beta", "beta_index")) {

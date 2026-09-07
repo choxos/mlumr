@@ -186,13 +186,46 @@ and its `plot()` method:
 plot(marginal_effects(fit, effect = "lor"))
 ```
 
-For convergence diagnostics on the raw draws, `bayesplot` works directly on
-`fit$draws`, here trace plots of the same parameters:
+For convergence diagnostics on the raw draws, `bayesplot` needs to know which
+chain each draw came from. `fit$draws` is a flat data frame with the chains
+already stacked, so passing it directly draws one merged line per parameter.
+That looks like a healthy trace whatever the chains did, because the thing a
+trace plot exists to show, whether the chains agree with each other, has been
+averaged away before plotting. The per-draw chain labels are kept beside the
+draws in `fit$chain_ids`, so reshape into the iteration by chain by parameter
+array `bayesplot` expects:
 
 ```{r trace, fig.height = 3}
-bayesplot::mcmc_trace(fit$draws, pars = c("lor_index", "lor_comparator")) +
+pars <- c("lor_index", "lor_comparator")
+chain <- fit$chain_ids
+# NULL means the backend could not label the draws, which is itself worth
+# knowing: without labels there is no chain comparison to draw.
+stopifnot(!is.null(chain))
+
+# `split()` keeps each chain's draws in iteration order, which is what a trace
+# needs. Indexing by a chain's own label rather than by arithmetic on the row
+# count avoids assuming the chains are equal length or stored in order.
+rows_by_chain <- split(seq_along(chain), chain)
+n_iter <- unique(lengths(rows_by_chain))
+stopifnot(length(n_iter) == 1L)
+
+draws_array <- array(
+  NA_real_,
+  dim = c(n_iter, length(rows_by_chain), length(pars)),
+  dimnames = list(NULL, paste("chain", names(rows_by_chain)), pars)
+)
+for (k in seq_along(rows_by_chain)) {
+  draws_array[, k, ] <- as.matrix(fit$draws[rows_by_chain[[k]], pars])
+}
+
+bayesplot::mcmc_trace(draws_array) +
   ggplot2::labs(title = "Trace plots")
 ```
+
+Each chain is drawn separately, which is what makes the plot readable as a
+diagnostic: chains that settled in different places show up as separated bands.
+`check_diagnostics()` answers the same question numerically through split-Rhat
+and effective sample size, and the two should agree.
 
 ## Prior sensitivity
 

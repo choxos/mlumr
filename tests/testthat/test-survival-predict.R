@@ -155,8 +155,15 @@ test_that("survival marginal and conditional effects are labeled correctly", {
 
   fit_aft_shared <- fit_survival_test(dat, distribution = "lognormal",
                                       aux_by = "none")
-  me_aft_shared <- marginal_effects(fit_aft_shared, effect = "hr")
+  me_aft_shared <- marginal_effects(fit_aft_shared, effect = "tr")
   expect_true(all(me_aft_shared$effect == "TR"))
+  # The selector is literal on the marginal route too. Asking a shared-shape AFT
+  # fit for a hazard ratio used to return the time ratio labeled TR, so a
+  # programmatic caller could request an HR and be handed a different estimand
+  # under a name it never asked for.
+  expect_error(marginal_effects(fit_aft_shared, effect = "hr"),
+               "not available for this fit")
+  expect_error(marginal_effects(fit_aft_shared, effect = "hr"), "time ratio")
   # With shared shapes the AFT time ratio exists and an explicit `tr` request
   # returns it. The mirrored `hr` request is an error: the conditional hazard
   # ratio of an AFT model varies with time, so there is no scalar to return and

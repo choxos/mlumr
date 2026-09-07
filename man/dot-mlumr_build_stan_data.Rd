@@ -14,6 +14,7 @@
   prior_sigma,
   surv_info = NULL,
   prior_aux = NULL,
+  prior_aux2 = NULL,
   prior_smooth = NULL,
   n_knots = 7L,
   knots = NULL,

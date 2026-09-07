@@ -1,19 +1,95 @@
+#' Count transitions that stopped at the sampler's treedepth limit
+#'
+#' @param sp Per-chain sampler parameter matrices from
+#'   [rstan::get_sampler_params()].
+#' @param limit The `max_treedepth` the sampler actually ran under.
+#' @return A single count across all chains.
+#' @keywords internal
+.count_treedepth_hits <- function(sp, limit) {
+  sum(vapply(sp, function(x) sum(x[, "treedepth__"] >= limit), numeric(1)))
+}
+
+#' Merge a caller's rstan `control` with the settings mlumr names itself
+#'
+#' Tested by name rather than by value. A caller who writes `control = NULL`
+#' leaves an element that is present and NULL, so `is.null(dots$control)` is
+#' true while the name is still in `dots`, and forwarding it would hand
+#' `rstan::sampling()` two `control` arguments: the collision this merge
+#' exists to prevent. `$` also matches partially, so an exact test on the
+#' names is the one that means what it says.
+#'
+#' @param adapt_delta,max_treedepth The settings mlumr exposes as arguments.
+#' @param dots The caller's `...`, as a list.
+#' @return A list with the merged `control` and `dots` with `control` removed.
+#' @keywords internal
+.merge_sampler_control <- function(adapt_delta, max_treedepth, dots) {
+  control <- list(adapt_delta = adapt_delta, max_treedepth = max_treedepth)
+  if ("control" %in% names(dots)) {
+    supplied <- dots[["control"]]
+    if (!is.null(supplied)) {
+      if (!is.list(supplied)) {
+        stop("`control` must be a list of sampler settings.", call. = FALSE)
+      }
+      # The caller's entries win: naming one in `control` is a more specific
+      # request than the argument mlumr() offers for the same setting.
+      control <- utils::modifyList(control, supplied)
+      # `modifyList()` deletes an entry whose replacement is NULL, which is
+      # right for a setting rstan defaults on its own but not for these two.
+      # mlumr always supplies them, reports the treedepth count against one and
+      # records both on the fit, so dropping them counted every transition
+      # against NULL, which is no transitions at all, and recorded a value that
+      # never ran. A NULL from a caller therefore leaves mlumr's own in place.
+      for (nm in c("adapt_delta", "max_treedepth")) {
+        if (is.null(control[[nm]])) {
+          control[[nm]] <- if (identical(nm, "adapt_delta")) adapt_delta else
+            max_treedepth
+        }
+      }
+      # Through the same validators the arguments get. mlumr() checks these two
+      # when they arrive as arguments, and `control` reached the sampler
+      # without passing anything, so `adapt_delta = NA` or 5 went to rstan and
+      # into the recorded metadata unchallenged. A setting should not depend on
+      # which of two doors it came through.
+      .validate_mlumr_adapt_delta(control$adapt_delta)
+      .validate_mlumr_integer(control$max_treedepth, "max_treedepth",
+                              lower = 1L)
+    }
+    dots[["control"]] <- NULL
+  }
+  list(control = control, dots = dots)
+}
+
 #' Fit a Stan model using rstan
 #' @keywords internal
 fit_rstan <- function(model_name, stan_data, chains, iter, warmup,
                       seed, adapt_delta, max_treedepth, refresh, ...) {
 
-  fit <- rstan::sampling(
-    stanmodels[[model_name]],
-    data = stan_data,
-    chains = chains,
-    iter = iter,
-    warmup = warmup,
-    seed = seed,
-    control = list(adapt_delta = adapt_delta, max_treedepth = max_treedepth),
-    refresh = refresh,
-    ...
-  )
+  dots <- list(...)
+  # A caller's `control` has to be merged rather than forwarded beside this
+  # one. Passing both made `rstan::sampling()`, which has `control` as a
+  # formal, stop with "formal argument \"control\" matched by multiple actual
+  # arguments" before sampling began, so the documented way to reach the
+  # sampler's other settings could not be used at all. The two named here are
+  # the ones mlumr() exposes as its own arguments, so a caller who names them
+  # in `control` is asking for something mlumr() already asked for; theirs is
+  # kept, since it is the more specific request.
+  merged <- .merge_sampler_control(adapt_delta, max_treedepth, dots)
+  control <- merged$control
+  dots <- merged$dots
+
+  fit <- do.call(rstan::sampling, c(
+    list(
+      stanmodels[[model_name]],
+      data = stan_data,
+      chains = chains,
+      iter = iter,
+      warmup = warmup,
+      seed = seed,
+      control = control,
+      refresh = refresh
+    ),
+    dots
+  ))
 
   draws <- as.data.frame(fit)
 
@@ -43,7 +119,12 @@ fit_rstan <- function(model_name, stan_data, chains, iter, warmup,
 
   sp <- rstan::get_sampler_params(fit, inc_warmup = FALSE)
   n_divergent <- sum(vapply(sp, function(x) sum(x[, "divergent__"]), numeric(1)))
-  n_max_td <- sum(vapply(sp, function(x) sum(x[, "treedepth__"] >= max_treedepth), numeric(1)))
+  # The limit the sampler actually ran under, which is the merged one. A
+  # caller who raised `max_treedepth` through `control` got the higher limit
+  # from `rstan::sampling()` while this count still used the argument, so
+  # transitions that stopped below the argument were reported as hitting a
+  # maximum they never reached, and an override the other way hid real ones.
+  n_max_td <- .count_treedepth_hits(sp, control$max_treedepth)
 
   list(
     native_fit = fit,
@@ -52,6 +133,16 @@ fit_rstan <- function(model_name, stan_data, chains, iter, warmup,
     summary_df = summary_df,
     n_divergent = n_divergent,
     n_max_td = n_max_td,
+    # What the sampler ran under, which is not the argument when a caller
+    # overrode either through `control`. The diagnostics quote these when
+    # advising a change, so that the advice names the limit in force.
+    adapt_delta_used = control$adapt_delta,
+    max_treedepth_used = control$max_treedepth,
+    # The whole merged list, not only the two named above. A caller can set
+    # anything rstan accepts here, `adapt_engaged` and `stepsize` among them,
+    # and a refit that replays only two of them is not a refit of the same
+    # sampler configuration.
+    control_used = control,
     n_chains_requested = as.integer(chains),
     n_chains_returned = .n_chains_returned(chain_ids, chains)
   )

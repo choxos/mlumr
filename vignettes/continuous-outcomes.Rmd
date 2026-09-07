@@ -303,27 +303,27 @@ fit_spfa <- mlumr(dat, model = "spfa", link = "identity",
                   prior_beta = prior_normal(0, 1, autoscale = TRUE),
                   chains = 4, iter = 2000, warmup = 1000, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
-#> Chain 1 finished in 0.1 seconds.
-#> Chain 2 finished in 0.2 seconds.
-#> Chain 3 finished in 0.2 seconds.
-#> Chain 4 finished in 0.2 seconds.
+#> Chain 1 finished in 0.3 seconds.
+#> Chain 2 finished in 0.4 seconds.
+#> Chain 3 finished in 0.4 seconds.
+#> Chain 4 finished in 0.4 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 0.2 seconds.
-#> Total execution time: 0.4 seconds.
+#> Mean chain execution time: 0.4 seconds.
+#> Total execution time: 0.6 seconds.
 fit_relaxed <- mlumr(dat, model = "relaxed", link = "identity",
                      prior_beta = prior_normal(0, 0.75, autoscale = TRUE),
                      chains = 4, iter = 2000, warmup = 1000,
                      adapt_delta = 0.95, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
-#> Chain 1 finished in 0.2 seconds.
-#> Chain 2 finished in 0.2 seconds.
-#> Chain 3 finished in 0.2 seconds.
-#> Chain 4 finished in 0.2 seconds.
+#> Chain 2 finished in 0.4 seconds.
+#> Chain 3 finished in 0.4 seconds.
+#> Chain 1 finished in 0.5 seconds.
+#> Chain 4 finished in 0.4 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 0.2 seconds.
-#> Total execution time: 0.5 seconds.
+#> Mean chain execution time: 0.4 seconds.
+#> Total execution time: 0.6 seconds.
 summary(fit_spfa)
 #> ML-UMR Model Summary
 #> ====================
@@ -401,7 +401,7 @@ plot_prior_posterior(fit_spfa, pars = c("mu_index", "mu_comparator"))
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/prior-post-1.png" alt="plot of chunk prior-post"  />
+<img src="figure/continuous-outcomes/prior-post-1.png" alt="plot of chunk prior-post"  />
 <p class="caption">plot of chunk prior-post</p>
 </div>
 
@@ -410,8 +410,14 @@ plot_prior_posterior(fit_spfa, pars = c("mu_index", "mu_comparator"))
 For the **normal** family `outcome_mean` and `outcome_se` must be on the
 **original (arithmetic) scale**, the same scale as the IPD outcome. If a
 published comparator reports a *geometric* mean, a mean on the log scale, or a
-change-from-baseline on a transformed scale, back-transform it (propagating the
-standard error by the delta method) before calling `set_agd()`. Passing a
+change-from-baseline on a transformed scale, that is a different quantity and
+not a rescaling of the one this argument wants. Exponentiating a log-scale mean
+returns the geometric mean: for a lognormal outcome with log-scale SD 1 the
+geometric mean is `exp(0) = 1` while the arithmetic mean is `exp(0.5) = 1.65`.
+Propagating the standard error does not fix it, because the mismatch is in the
+estimand rather than in its uncertainty. Ask for the arithmetic mean and its SE,
+or, if you are willing to assume lognormality and have the log-scale **SD**,
+compute `exp(m + s^2 / 2)` and propagate `m` and `s` jointly. Passing a
 log-scale summary while fitting on the identity link silently biases the
 comparator likelihood. The residual likelihood here is Gaussian, so an influential
 observation in the IPD can pull the fit. A heavier-tailed prior on the
@@ -503,7 +509,7 @@ mlumr_forest(forest_df, ref_line = 0,
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/forest-1.png" alt="plot of chunk forest"  />
+<img src="figure/continuous-outcomes/forest-1.png" alt="plot of chunk forest"  />
 <p class="caption">plot of chunk forest</p>
 </div>
 
@@ -538,7 +544,7 @@ plot(marginal_effects(fit_spfa))
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/posterior-areas-1.png" alt="plot of chunk posterior-areas"  />
+<img src="figure/continuous-outcomes/posterior-areas-1.png" alt="plot of chunk posterior-areas"  />
 <p class="caption">plot of chunk posterior-areas</p>
 </div>
 
@@ -572,7 +578,7 @@ plot(predict(fit_spfa, population = "both", type = "response"))
 ```
 
 <div class="figure" style="text-align: center">
-<img src="figure/predict-plot-1.png" alt="plot of chunk predict-plot"  />
+<img src="figure/continuous-outcomes/predict-plot-1.png" alt="plot of chunk predict-plot"  />
 <p class="caption">plot of chunk predict-plot</p>
 </div>
 
@@ -621,9 +627,15 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "loo")
 #>     SPFA       0.0     0.0      NA                 1 k_psis > 0.7
 #>  Relaxed      -1.0     0.7    0.90 |elpd_diff| < 4 1 k_psis > 0.7
 #> 
+#> 
 #> elpd_diff is the difference in expected log pointwise predictive
-#> density vs the best model. se_diff > 2 is the conventional threshold
-#> for a meaningful difference (|elpd_diff| > 4 * se_diff is stronger).
+#> density vs the best model, and se_diff is its standard error: the
+#> uncertainty about that difference, not evidence for it. Read the two
+#> together. A difference small relative to se_diff is not distinguished
+#> from zero by this comparison, whatever se_diff itself is.
+#> Treat any ratio as a heuristic, not a decision rule, and check the
+#> PSIS diagnostics and whether the difference matters for the
+#> prediction you care about.
 compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "dic")
 #> 
 #> Model Comparison (DIC)
