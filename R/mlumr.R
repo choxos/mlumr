@@ -1495,8 +1495,10 @@ mlumr <- function(data,
           stop("The index and comparator knot specifications must produce ",
                "the same number of spline coefficients.", call. = FALSE)
         }
-        .assert_basis_support(spec_idx, max(ipd$.time), "index")
-        .assert_basis_support(spec_cmp, max(pseudo$.time), "comparator")
+        .assert_basis_support(spec_idx, max(ipd$.time), "index",
+                              ipd$.delay_time, ipd$.time)
+        .assert_basis_support(spec_cmp, max(pseudo$.time), "comparator",
+                              pseudo$.delay_time, pseudo$.time)
       }
     } else {
       observed_max <- max(c(ipd$.time, pseudo$.time))
@@ -1515,7 +1517,9 @@ mlumr <- function(data,
       # one against the intercept, leaving the likelihood exactly flat along
       # that direction. Per-study boundaries are what remove it when strata
       # differ; when they do not, this assertion is what remains.
-      .assert_basis_support(spec_idx, observed_max, "shared")
+      .assert_basis_support(spec_idx, observed_max, "shared",
+                            c(ipd$.delay_time, pseudo$.delay_time),
+                            c(ipd$.time, pseudo$.time))
     }
     spec <- spec_idx
     if (spec$n_scoef < 2L) {

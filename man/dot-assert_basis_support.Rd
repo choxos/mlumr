@@ -4,7 +4,7 @@
 \alias{.assert_basis_support}
 \title{Stop if any basis column has no support over a study's observed period}
 \usage{
-.assert_basis_support(spec, observed_max, label, at_risk_start = 0)
+.assert_basis_support(spec, observed_max, label, entry = NULL, exit = NULL)
 }
 \arguments{
 \item{spec}{A basis spec from \code{\link[=.build_mspline_basis]{.build_mspline_basis()}}.}

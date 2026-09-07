@@ -323,9 +323,9 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
   # time, so a column living only there enters no event hazard and no exposure
   # increment, and is exactly as unidentified as one past the end of follow-up.
   .assert_basis_support(specs$index, max(ipd$.time), "index",
-                        .at_risk_start(ipd$.delay_time))
+                        ipd$.delay_time, ipd$.time)
   .assert_basis_support(specs$comparator, max(pseudo$.time), "comparator",
-                        .at_risk_start(pseudo$.delay_time))
+                        pseudo$.delay_time, pseudo$.time)
   specs
 }
 
@@ -342,7 +342,7 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
 #' @return `TRUE`, invisibly.
 #' @keywords internal
 .assert_basis_support <- function(spec, observed_max, label,
-                                  at_risk_start = 0) {
+                                  entry = NULL, exit = NULL) {
   # Evaluate at STRUCTURAL points, not a fixed uniform grid. A degree-0
   # (piecewise exponential) basis column is supported on exactly one inter-knot
   # interval, and a narrow interval can fall entirely between the points of a
@@ -351,13 +351,32 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
   # column of an M-spline basis of any degree is positive somewhere on the
   # interior of its own support, and its support always contains at least one
   # full inter-knot interval, hence at least one of these midpoints.
-  breaks <- sort(unique(c(spec$boundary, spec$internal)))
-  breaks <- breaks[breaks >= at_risk_start & breaks <= observed_max]
-  if (length(breaks) < 2L) breaks <- c(at_risk_start, observed_max)
-  mids <- (utils::head(breaks, -1L) + breaks[-1L]) / 2
-  grid <- sort(unique(c(breaks, mids, at_risk_start,
-                        seq(at_risk_start, observed_max, length.out = 256L))))
-  grid <- grid[is.finite(grid) & grid >= at_risk_start & grid <= observed_max]
+  risk <- .risk_intervals(entry, exit, observed_max)
+  at_risk_start <- risk[[1L]][["lo"]]
+  knots <- sort(unique(c(spec$boundary, spec$internal)))
+  # Structural points WITHIN each covered stretch. Sampling the whole span
+  # instead would put points in the gaps between risk intervals, where no
+  # subject is under observation and a basis column therefore enters no
+  # likelihood term.
+  grid <- unlist(lapply(risk, function(iv) {
+    b <- sort(unique(c(iv[["lo"]], iv[["hi"]],
+                       knots[knots > iv[["lo"]] & knots < iv[["hi"]]])))
+    if (length(b) < 2L) {
+      return(numeric(0))
+    }
+    mids <- (utils::head(b, -1L) + b[-1L]) / 2
+    inner <- seq(iv[["lo"]], iv[["hi"]], length.out = 66L)
+    # STRICTLY inside. A piecewise-constant column is positive at the closed
+    # left end of its own interval, so evaluating at a bare endpoint made a
+    # column live off a single instant: with exposure on [1, 2] and [8, 9], the
+    # column on [2, 8) is positive at t = 2 alone, contributes zero integrated
+    # hazard, and would have passed. A point carries no likelihood.
+    c(mids, inner[-c(1L, length(inner))])
+  }))
+  grid <- sort(unique(grid[is.finite(grid)]))
+  if (!length(grid)) {
+    return(invisible(TRUE))
+  }
   b <- .eval_basis(spec, grid, integral = FALSE)
   # M-spline values have units of inverse time. An absolute cutoff therefore
   # changes the answer when the same follow-up is expressed in days rather
@@ -366,9 +385,12 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
   live <- apply(is.finite(b) & b > 0, 2, any)
   dead <- which(!live)
   if (length(dead) > 0L) {
-    where <- if (at_risk_start > 0) {
-      paste0("its observed risk period [", format(at_risk_start, digits = 4),
-             ", ", format(observed_max, digits = 4), "]")
+    where <- if (length(risk) > 1L || at_risk_start > 0) {
+      paste0("its observed risk set (",
+             paste(vapply(risk, function(iv) {
+               sprintf("[%s, %s]", format(iv[["lo"]], digits = 4),
+                       format(iv[["hi"]], digits = 4))
+             }, character(1)), collapse = " and "), ")")
     } else {
       "its observed follow-up"
     }
@@ -376,11 +398,10 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
          " column(s) with no support over ", where, " (columns ",
          paste(dead, collapse = ", "), "). That is an exact likelihood ridge: ",
          "the spline scale is unidentified against the study intercept. ",
-         if (at_risk_start > 0) {
-           paste0("Under delayed entry nobody is observed before ",
-                  format(at_risk_start, digits = 4),
-                  ", so a column supported only there enters no event hazard ",
-                  "and no exposure increment. ")
+         if (length(risk) > 1L || at_risk_start > 0) {
+           paste0("Nobody is under observation outside that risk set, so a ",
+                  "column supported only there enters no event hazard and no ",
+                  "exposure increment. ")
          } else {
            ""
          },
@@ -406,22 +427,54 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
 }
 
 
-#' Earliest time a study was under observation
+#' The stretches of time a study actually had someone under observation
 #'
-#' Zero without delayed entry, which is what keeps the support check unchanged
-#' for ordinary data. A missing or unusable column is treated as no delay,
-#' since the alternative is to invent a risk period the data does not describe.
+#' The union of each subject's `[entry, exit]`, merged. Reducing this to a
+#' single span from the earliest entry to the last exit would treat a gap with
+#' an empty risk set as observed: subjects seen on `[1, 2]` and `[8, 9]` leave
+#' `(2, 8)` contributing no event hazard and no cumulative-hazard exposure, and
+#' a basis column living only there is as unidentified as one before the first
+#' entry. Without entry times this is a single interval from zero, which is
+#' what keeps the check unchanged for ordinary data.
 #'
-#' @param delay Entry times, or `NULL`.
-#' @return A single non-negative time.
+#' @param entry Entry times, or `NULL`.
+#' @param exit Exit times, or `NULL`.
+#' @param observed_max Last observed time, used when `exit` is absent.
+#' @return A list of `c(lo, hi)` intervals, in increasing order.
 #' @keywords internal
-.at_risk_start <- function(delay) {
-  if (is.null(delay) || !is.numeric(delay) || !length(delay)) {
-    return(0)
+.risk_intervals <- function(entry, exit, observed_max) {
+  whole <- list(c(lo = 0, hi = observed_max))
+  if (is.null(entry) || !is.numeric(entry) || !length(entry)) {
+    return(whole)
   }
-  d <- delay[is.finite(delay)]
-  if (!length(d)) {
-    return(0)
+  if (is.null(exit) || !is.numeric(exit) || length(exit) != length(entry)) {
+    # Entry times without matching exits still say where observation STARTS,
+    # which is the larger of the two errors; fall back to one interval from it.
+    lo <- suppressWarnings(min(entry[is.finite(entry)]))
+    if (!is.finite(lo)) {
+      return(whole)
+    }
+    return(list(c(lo = max(0, lo), hi = observed_max)))
   }
-  max(0, min(d))
+  keep <- is.finite(entry) & is.finite(exit) & exit > entry
+  if (!any(keep)) {
+    return(whole)
+  }
+  lo <- pmax(0, entry[keep])
+  hi <- exit[keep]
+  ord <- order(lo)
+  lo <- lo[ord]
+  hi <- hi[ord]
+  out <- list()
+  cur <- c(lo = lo[[1L]], hi = hi[[1L]])
+  for (i in seq_along(lo)[-1L]) {
+    if (lo[[i]] <= cur[["hi"]]) {
+      cur[["hi"]] <- max(cur[["hi"]], hi[[i]])
+    } else {
+      out[[length(out) + 1L]] <- cur
+      cur <- c(lo = lo[[i]], hi = hi[[i]])
+    }
+  }
+  out[[length(out) + 1L]] <- cur
+  out
 }

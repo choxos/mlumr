@@ -90,19 +90,71 @@ test_that("basis support is judged over the at-risk period, not from zero", {
   )
   expect_silent(mlumr:::.assert_basis_support(spec, 10, "index"))
   expect_error(
-    mlumr:::.assert_basis_support(spec, 10, "index", at_risk_start = 2),
-    "observed risk period"
-  )
-  expect_error(
-    mlumr:::.assert_basis_support(spec, 10, "index", at_risk_start = 2),
+    mlumr:::.assert_basis_support(spec, 10, "index", entry = c(2, 2),
+                                  exit = c(9, 10)),
     "no event hazard and no exposure increment"
   )
 
-  expect_identical(mlumr:::.at_risk_start(NULL), 0)
-  expect_identical(mlumr:::.at_risk_start(c(2, 3, 7)), 2)
-  expect_identical(mlumr:::.at_risk_start(c(NA, 4, 6)), 4)
-  expect_identical(mlumr:::.at_risk_start(c(-1, 3)), 0)
-  expect_identical(mlumr:::.at_risk_start(character(0)), 0)
+  expect_error(
+    mlumr:::.assert_basis_support(spec, 10, "index", entry = c(2, 2),
+                                  exit = c(9, 10)),
+    "observed risk set"
+  )
+})
+
+test_that("a gap with an empty risk set is not treated as observed", {
+  skip_if_not_installed("splines2")
+  # Subjects seen on [1, 2] and [8, 9]: nobody is under observation in (2, 8),
+  # so a degree-0 column living only there enters no likelihood term. Reducing
+  # the history to one span from the first entry to the last exit would call it
+  # supported.
+  spec <- mlumr:::.build_mspline_basis(
+    list(internal = c(2, 8), boundary = c(0, 9)), degree = 0L
+  )
+  expect_error(
+    mlumr:::.assert_basis_support(spec, 9, "index",
+                                  entry = c(1, 8), exit = c(2, 9)),
+    "observed risk set"
+  )
+  # the same basis IS supported when the risk set is continuous
+  expect_silent(
+    mlumr:::.assert_basis_support(spec, 9, "index",
+                                  entry = c(0, 0), exit = c(9, 9))
+  )
+})
+
+test_that("risk intervals are merged, and degrade safely", {
+  whole <- mlumr:::.risk_intervals(NULL, NULL, 10)
+  expect_length(whole, 1L)
+  expect_identical(unname(whole[[1L]]), c(0, 10))
+
+  # overlapping intervals collapse; [0,2] and [1,3] do, and [5,9] is a gap away
+  merged <- mlumr:::.risk_intervals(c(0, 1, 5), c(2, 3, 9), 9)
+  expect_length(merged, 2L)
+  expect_identical(unname(merged[[1L]]), c(0, 3))
+  expect_identical(unname(merged[[2L]]), c(5, 9))
+
+  # touching intervals do collapse
+  touching <- mlumr:::.risk_intervals(c(0, 3), c(3, 9), 9)
+  expect_length(touching, 1L)
+  expect_identical(unname(touching[[1L]]), c(0, 9))
+
+  # disjoint ones do not
+  split <- mlumr:::.risk_intervals(c(1, 8), c(2, 9), 9)
+  expect_length(split, 2L)
+  expect_identical(unname(split[[1L]]), c(1, 2))
+  expect_identical(unname(split[[2L]]), c(8, 9))
+
+  # entry times with no matching exits still say where observation starts
+  no_exit <- mlumr:::.risk_intervals(c(2, 3), NULL, 10)
+  expect_length(no_exit, 1L)
+  expect_identical(unname(no_exit[[1L]]), c(2, 10))
+
+  # nothing usable falls back to the whole span rather than inventing one
+  expect_identical(unname(mlumr:::.risk_intervals(c(NA, NA), c(NA, NA), 7)[[1L]]),
+                   c(0, 7))
+  expect_identical(unname(mlumr:::.risk_intervals(c(-1, 0), c(3, 4), 4)[[1L]]),
+                   c(0, 4))
 })
 
 test_that("delayed entry is reported as making absolute survival prior-driven", {
@@ -113,11 +165,13 @@ test_that("delayed entry is reported as making absolute survival prior-driven", 
     list(internal = c(3, 5), boundary = c(0, 8)), degree = 3L
   )
   expect_message(
-    mlumr:::.assert_basis_support(spec, 8, "index", at_risk_start = 2),
+    mlumr:::.assert_basis_support(spec, 8, "index",
+                                  entry = c(2, 2), exit = c(7, 8)),
     "prior-dependent over \\[0, 2\\]"
   )
   expect_message(
-    mlumr:::.assert_basis_support(spec, 8, "index", at_risk_start = 0),
+    mlumr:::.assert_basis_support(spec, 8, "index",
+                                  entry = c(0, 0), exit = c(7, 8)),
     NA
   )
 })
