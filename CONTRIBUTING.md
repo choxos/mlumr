@@ -84,9 +84,11 @@ accumulates; the release version is set once, during release preparation.
 ## Releases
 
 A version under development integrates on `pre-release/vX.Y.Z`, which collects
-the pull requests for that version while `main` continues to hold the released
-state. Final preparation happens on that same branch, and it contains, beyond
-the changes themselves:
+the pull requests for that version. `main` holds the released state until that
+branch is first synchronized into it, and the development version after that.
+It carries `vX.Y.Z` itself only once the branch is merged for a submission,
+which is the merge described below. Final preparation happens on the
+pre-release branch, and it contains, beyond the changes themselves:
 
 - the version bump in `DESCRIPTION`,
 - the finalized `NEWS.md` section,
