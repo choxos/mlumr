@@ -192,8 +192,11 @@ decision covers, and that population has to be stated. It is often close to the
 index trial's [@ChandlerIshakTransport], which is why the index row usually
 carries the decision, but it is not automatically either trial's. When the
 decision population is a third one, standardize to it directly by passing its
-covariate distribution as `newdata` rather than adopting whichever trial is
-nearer. The comparator rows are the like-for-like comparison against STC, which
+covariate distribution as `newdata` to `predict()` or `marginal_effects()`,
+which average over those rows, rather than adopting whichever trial is nearer.
+`conditional_effects()` takes the same data frame and evaluates at each profile
+separately rather than averaging over them, so what it returns is a set of
+conditional effects and not a transported marginal one. The comparator rows are the like-for-like comparison against STC, which
 standardizes to that population; naive standardizes to neither and is the
 unadjusted benchmark both rows are measured against.
 

@@ -1788,6 +1788,11 @@ marginal_effects <- function(object,
 #'   while the index population, the one asked for, is resolved fine, and a
 #'   warning about curves that contribute nothing to the result would tell the
 #'   user to refit for no reason.
+#' The fraction is measured on a deterministic, evenly spaced subset of at most
+#' 200 draws and 60 rows per population, not on every draw and every row, so it
+#' is an estimate of the share rather than a census of it. The subset is taken
+#' by position rather than at random, so the same fit reports the same number
+#' every time.
 #' @return `NULL`, invisibly; called for the warning.
 #' @keywords internal
 .warn_coarse_rmst_grid_builtin <- function(object,

@@ -17,6 +17,15 @@
 
 test_that("the aggregate delayed-entry likelihood conditions on entry before averaging", {
   skip_on_cran()
+  # This fits, so it needs whichever backend is configured to be usable.
+  # `mlumr()` resolves `engine = NULL` through `mlumr.stan_engine`, so a runner
+  # set to cmdstanr without CmdStan reaches compilation and errors here instead
+  # of skipping.
+  engine <- mlumr:::get_engine()
+  skip_if_not_installed(engine)
+  if (identical(engine, "cmdstanr")) {
+    skip_if_not(cmdstan_is_usable(), "CmdStan is not usable")
+  }
   set.seed(2026)
   beta <- 0.7
 
