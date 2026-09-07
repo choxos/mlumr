@@ -549,6 +549,33 @@ grid$key <- sprintf("%s__%s__rep%04d", grid$family, grid$design, grid$rep)
 # INSTALLED package, so a reader cannot tell from the version whether the rows
 # came from the tree in front of them. The library path and the working tree's
 # commit close that gap. `git` may be absent; that is recorded, not fatal.
+#
+# CALL THIS BEFORE THE STUDY WRITES ANYTHING. `dirty` asks whether the tree was
+# modified relative to the commit it names, and the run itself modifies the
+# tree: it publishes the results CSV, which is tracked. Asked afterwards the
+# answer is always "true", so the field said nothing about the state the run
+# started from and could never read false. The checkpoint directory is ignored
+# by git, so creating that does not count; the CSV is what does.
+
+# `find.package()` returns an absolute path, which pins the manifest to one
+# machine's home directory and tells a later reader nothing they can use. The
+# library still has to be identified, since it is what separates two installs
+# that report the same version, so record it relative to the home directory
+# rather than dropping it.
+.home_relative <- function(path) {
+  if (length(path) != 1L || is.na(path) || !nzchar(path)) return(path)
+  home <- tryCatch(normalizePath("~", mustWork = FALSE),
+                   error = function(e) "")
+  if (!nzchar(home)) return(path)
+  full <- tryCatch(normalizePath(path, mustWork = FALSE),
+                   error = function(e) path)
+  if (identical(full, home)) return("~")
+  if (startsWith(full, paste0(home, .Platform$file.sep))) {
+    return(paste0("~", substring(full, nchar(home) + 1L)))
+  }
+  full
+}
+
 .provenance <- function() {
   git1 <- function(args) {
     out <- tryCatch(suppressWarnings(
@@ -560,12 +587,18 @@ grid$key <- sprintf("%s__%s__rep%04d", grid$family, grid$design, grid$rep)
     system2("git", c("status", "--porcelain"), stdout = TRUE, stderr = FALSE)),
     error = function(e) character(0))
   c(.software(),
-    list(mlumr_lib = tryCatch(dirname(find.package("mlumr")),
-                              error = function(e) NA_character_),
+    list(mlumr_lib = .home_relative(tryCatch(dirname(find.package("mlumr")),
+                                             error = function(e) NA_character_)),
          commit = git1(c("rev-parse", "HEAD")),
          tree = git1(c("rev-parse", "HEAD^{tree}")),
          dirty = length(status) > 0L))
 }
+
+# Taken here, while the only thing this run has written is the ignored
+# checkpoint directory, and long before the results CSV is published. Deferring
+# it to `write_manifest()` is what made `Working-tree-dirty` unable to read
+# false.
+PROVENANCE <- .provenance()
 
 CONFIG <- list(
   partitions = lapply(PARTITIONS, function(f) deparse(body(f))),
@@ -763,8 +796,7 @@ if (!file.rename(csv_tmp, OUT_CSV)) {
 #
 # `tools::md5sum()` is base R, so this costs no dependency. It is a
 # drift detector, not a security control.
-write_manifest <- function(csv, rows) {
-  sw <- .provenance()
+write_manifest <- function(csv, rows, sw) {
   manifest <- c(
     sprintf("Generated: %s", format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z")),
     sprintf("Script: %s", basename(SCRIPT_PATH)),
@@ -790,7 +822,7 @@ write_manifest <- function(csv, rows) {
   writeLines(manifest, MANIFEST)
   cat("wrote", MANIFEST, "\n")
 }
-write_manifest(OUT_CSV, nrow(res))
+write_manifest(OUT_CSV, nrow(res), PROVENANCE)
 
 cat("completed:", nrow(reps), "replications,", nrow(res), "fits",
     " minutes:", round(as.numeric(difftime(Sys.time(), t0, units = "mins")), 1),
