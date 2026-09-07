@@ -27,7 +27,8 @@ values they are. Rendering them as text would have been simpler and wrong:
 differ below \code{getOption("digits")} would render alike and two different
 comparators would be approved. Ordering is exact on doubles, so nothing is
 rounded on the way in, and rows that tie on every shared column are
-interchangeable by construction. The source keys take no part: they exist
-to detect a reordering, which is the very thing being allowed.
+interchangeable by construction. The source keys take no part in the order,
+which is the very thing being allowed; \code{\link[=.same_observations]{.same_observations()}} still asks
+them, after this, whether the two frames kept different rows of one source.
 }
 \keyword{internal}
