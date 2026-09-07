@@ -428,7 +428,11 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 #' rows agree on everything both fits kept; [compare_models()] needs to know,
 #' because its pointwise comparison pairs rows by position.
 #'
-#' The key is two things, neither of which reveals the source. The first is a
+#' The key is two things, neither of which carries any of the source's content.
+#' It is a fingerprint, not a concealment: an unkeyed digest can be recomputed,
+#' so a party holding a candidate source can confirm that it is the one, and a
+#' small enough space of candidates can be enumerated. What the fit does not
+#' hold is the values themselves. The first is a
 #' fingerprint of the whole source: its schema and then its rows, columns in
 #' name order so that column order does not matter, rows sorted in byte order
 #' so that row order does not matter either, and the digest of that is taken.
@@ -488,7 +492,14 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
     if (is.list(x)) return(vapply(x, function(e) join(render(e)), character(1)))
     x
   }
-  nms <- sort(names(data))
+  # Byte order here too, for the same reason the rows are sorted that way
+  # below. The default collation for a character vector follows LC_COLLATE, so
+  # the same source read under two locales put its columns in two orders, and
+  # column order decides the rendered row, the digest and the ranks. Two fits
+  # of one source made under different locales then carried different digests,
+  # which reads as two sources: the ranks are never compared, a reordering goes
+  # unseen, and one source filtered two ways is no longer a mismatch.
+  nms <- sort(names(data), method = "radix")
   cols <- lapply(nms, function(nm) tag(flat(data[[nm]])))
   rows <- if (length(cols)) {
     do.call(paste, c(cols, sep = "\036"))

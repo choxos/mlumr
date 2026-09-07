@@ -49,7 +49,9 @@ non-survival family and for survival scalars that carry none),
 \code{mean}, \code{sd}, and one column per requested quantile, named \code{q} followed by
 the percentage (the default \code{probs} give \code{q2.5}, \code{q50}, \code{q97.5}), matching
 \code{\link[=marginal_effects]{marginal_effects()}}. Quantiles are columns, not a row dimension.
-Side effect: prints a summary table at the end.
+Side effect: prints a summary table at the end when \code{verbose = TRUE},
+which is the default; \code{verbose = FALSE} returns the same data frame and
+prints nothing.
 }
 \description{
 Refit an \code{\link[=mlumr]{mlumr()}} model across a grid of \code{prior_beta} scales (keeping the

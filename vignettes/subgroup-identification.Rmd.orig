@@ -744,7 +744,7 @@ The sampler does not reliably cover that gap. Of the
 `r sprintf("%.0f%%", 100 * n_abstain_clean / n_abstain)` of them. The trouble is
 concentrated in `crosstab_4`; `ovat_age_6` samples cleanly in
 `r sprintf("%.0f%%", 100 * mean(sim$converged[sim$scope == "descriptive" & sim$design == "ovat_age_6"]))`
-of its nonlinear fits while producing the second-widest intervals in the study.
+of its nonlinear fits while producing the third-widest intervals in the study.
 A clean set of diagnostics is not evidence that the design is identified, and
 here it is not even good evidence.
 

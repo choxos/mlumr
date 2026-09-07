@@ -691,3 +691,35 @@ test_that("a source that changed is still reported as unverifiable", {
   expect_false(.same_observations(list(ipd = same_source),
                                   list(ipd = keyed("a", c(2L, 1L, 3L)))))
 })
+
+test_that("source row keys do not move with the collation locale", {
+  # The rows are sorted in byte order so the ranks are the same everywhere, but
+  # the column names were sorted with the default collation, which follows
+  # `LC_COLLATE`. Column order decides the rendered row, so one source read
+  # under two locales carried two digests. Two fits of it then read as two
+  # sources: the ranks are never compared, a reordering goes unseen, and one
+  # source filtered two ways stops being a mismatch.
+  d <- data.frame(AB = c(1, 2), ab = c(3, 4), Age = c(5, 6),
+                  age_mean = c(7, 8), stringsAsFactors = FALSE)
+  previous <- Sys.getlocale("LC_COLLATE")
+  on.exit(suppressWarnings(Sys.setlocale("LC_COLLATE", previous)), add = TRUE)
+
+  orders <- list()
+  keys <- list()
+  for (loc in c("C", "en_US.UTF-8", "en_GB.UTF-8", "de_DE.UTF-8")) {
+    set <- suppressWarnings(Sys.setlocale("LC_COLLATE", loc))
+    if (!identical(set, loc)) next
+    orders[[loc]] <- sort(names(d))
+    keys[[loc]] <- .source_row_keys(d)
+  }
+  # Two collations that order these names differently have to be available for
+  # the test to mean anything; a runner with only C cannot show the difference.
+  differs <- length(orders) > 1L &&
+    !all(vapply(orders[-1L], identical, logical(1), orders[[1L]]))
+  skip_if_not(differs, "no two collations here order these names differently")
+
+  # The premise, and then the guarantee: the default order really does move,
+  # and the key does not move with it.
+  expect_true(length(unique(lapply(orders, identity))) > 1L)
+  expect_equal(length(unique(keys)), 1L)
+})

@@ -13,6 +13,7 @@ probabilities that differ far below the printed precision get one name.
 \code{(0.1 + 0.2) / 10} and \code{0.3 / 10} are different doubles and are both \code{q3}.
 The summaries then assign that column twice and the first quantile asked
 for disappears without a word, which is the failure the duplicate check
-above exists to prevent. Ask for the names instead of the numbers.
+above exists to prevent. Ask for probabilities that stay distinct once they
+are written as a percentage.
 }
 \keyword{internal}
