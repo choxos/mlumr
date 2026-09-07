@@ -318,8 +318,14 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
   # Belt and braces: with per-study boundaries every column is supported by
   # construction, but the identification guarantee is worth asserting rather
   # than assuming, since it is the whole reason this function exists.
-  .assert_basis_support(specs$index, max(ipd$.time), "index")
-  .assert_basis_support(specs$comparator, max(pseudo$.time), "comparator")
+  # Support has to be judged over the period each study was actually AT RISK.
+  # With delayed entry nobody is under observation before the earliest entry
+  # time, so a column living only there enters no event hazard and no exposure
+  # increment, and is exactly as unidentified as one past the end of follow-up.
+  .assert_basis_support(specs$index, max(ipd$.time), "index",
+                        .at_risk_start(ipd$.delay_time))
+  .assert_basis_support(specs$comparator, max(pseudo$.time), "comparator",
+                        .at_risk_start(pseudo$.delay_time))
   specs
 }
 
@@ -335,7 +341,8 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
 #' @param label Study label used in the error message.
 #' @return `TRUE`, invisibly.
 #' @keywords internal
-.assert_basis_support <- function(spec, observed_max, label) {
+.assert_basis_support <- function(spec, observed_max, label,
+                                  at_risk_start = 0) {
   # Evaluate at STRUCTURAL points, not a fixed uniform grid. A degree-0
   # (piecewise exponential) basis column is supported on exactly one inter-knot
   # interval, and a narrow interval can fall entirely between the points of a
@@ -345,12 +352,12 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
   # interior of its own support, and its support always contains at least one
   # full inter-knot interval, hence at least one of these midpoints.
   breaks <- sort(unique(c(spec$boundary, spec$internal)))
-  breaks <- breaks[breaks <= observed_max]
-  if (length(breaks) < 2L) breaks <- c(0, observed_max)
+  breaks <- breaks[breaks >= at_risk_start & breaks <= observed_max]
+  if (length(breaks) < 2L) breaks <- c(at_risk_start, observed_max)
   mids <- (utils::head(breaks, -1L) + breaks[-1L]) / 2
-  grid <- sort(unique(c(breaks, mids,
-                        seq(0, observed_max, length.out = 256L))))
-  grid <- grid[is.finite(grid) & grid >= 0 & grid <= observed_max]
+  grid <- sort(unique(c(breaks, mids, at_risk_start,
+                        seq(at_risk_start, observed_max, length.out = 256L))))
+  grid <- grid[is.finite(grid) & grid >= at_risk_start & grid <= observed_max]
   b <- .eval_basis(spec, grid, integral = FALSE)
   # M-spline values have units of inverse time. An absolute cutoff therefore
   # changes the answer when the same follow-up is expressed in days rather
@@ -359,11 +366,62 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
   live <- apply(is.finite(b) & b > 0, 2, any)
   dead <- which(!live)
   if (length(dead) > 0L) {
+    where <- if (at_risk_start > 0) {
+      paste0("its observed risk period [", format(at_risk_start, digits = 4),
+             ", ", format(observed_max, digits = 4), "]")
+    } else {
+      "its observed follow-up"
+    }
     stop("The ", label, " study's M-spline basis has ", length(dead),
-         " column(s) with no support over its observed follow-up (columns ",
+         " column(s) with no support over ", where, " (columns ",
          paste(dead, collapse = ", "), "). That is an exact likelihood ridge: ",
          "the spline scale is unidentified against the study intercept. ",
+         if (at_risk_start > 0) {
+           paste0("Under delayed entry nobody is observed before ",
+                  format(at_risk_start, digits = 4),
+                  ", so a column supported only there enters no event hazard ",
+                  "and no exposure increment. ")
+         } else {
+           ""
+         },
          "Reduce `n_knots`.", call. = FALSE)
   }
+  if (at_risk_start > 0) {
+    # Even with every column supported, the hazard BELOW the earliest entry
+    # time is not informed by these data at all. That does not affect a
+    # conditional quantity, but S(t) and RMST integrate the hazard from 0, so
+    # those carry whatever the prior says about a stretch nobody was observed
+    # in. A reader comparing absolute survival across arms deserves to know
+    # which part of the curve that is.
+    message("The ", label, " study enters at ",
+            format(at_risk_start, digits = 4),
+            ", so no observation informs its hazard below that time. ",
+            "Conditional quantities are unaffected, but absolute survival and ",
+            "RMST integrate from 0 and are therefore prior-dependent over ",
+            "[0, ", format(at_risk_start, digits = 4), "]. Compare survival ",
+            "conditional on reaching entry, or report RMST from a landmark at ",
+            "or after it.")
+  }
   invisible(TRUE)
+}
+
+
+#' Earliest time a study was under observation
+#'
+#' Zero without delayed entry, which is what keeps the support check unchanged
+#' for ordinary data. A missing or unusable column is treated as no delay,
+#' since the alternative is to invent a risk period the data does not describe.
+#'
+#' @param delay Entry times, or `NULL`.
+#' @return A single non-negative time.
+#' @keywords internal
+.at_risk_start <- function(delay) {
+  if (is.null(delay) || !is.numeric(delay) || !length(delay)) {
+    return(0)
+  }
+  d <- delay[is.finite(delay)]
+  if (!length(d)) {
+    return(0)
+  }
+  max(0, min(d))
 }

@@ -2,6 +2,45 @@
 
 ## Behavior and validation changes to existing functions
 
+* **`naive()` no longer reports a Cox comparison that has no maximum.** Events
+  in both arms are necessary for the partial likelihood to identify the
+  treatment coefficient and are not sufficient: if every event in one arm
+  precedes every event in the other, the likelihood is monotone and has no
+  interior maximum. `coxph()` stops on its convergence criterion and returns
+  finite numbers anyway (three events per arm in that arrangement give a
+  coefficient of 21.9 with a standard error of 24795), and it says so in a
+  warning that nothing read. That warning is now inspected and the comparison
+  refused; any other `coxph()` warning is passed through to the caller
+  unchanged rather than turned into a rejection.
+
+* **STC detects quasi-complete separation when \pkg{detectseparation} is
+  installed.** The existing screen requires every fitted probability to sit at
+  0 or 1, which complete separation produces and quasi-complete separation does
+  not: rows on the separating hyperplane keep fitted probabilities of exactly
+  0.5, so a fit with an infinite maximum likelihood estimate passed with
+  `converged = TRUE` and finite coefficients. Whether a finite maximum exists
+  is a linear program rather than a threshold, so the exact test lives behind a
+  new **Suggests** dependency and runs when it is available. Without it the
+  threshold screen still runs, and a check that cannot be completed is treated
+  as unknown rather than as separated.
+
+* **M-spline basis support is judged over the period a study was at risk.** The
+  check evaluated each basis column on `[0, max(time)]`. Under delayed entry
+  nobody is observed before the earliest entry time, so a column supported only
+  there multiplies no event hazard and no exposure increment and its
+  coefficient is moved by the prior alone, yet it counted as supported. The
+  grid now starts at the earliest entry time. Where entry is delayed, a message
+  also records that absolute survival and RMST integrate from 0 and are
+  therefore prior-dependent below it, while conditional quantities are not.
+
+* **Interval-censored likelihood under delayed entry is built from
+  increments.** The branch formed the unconditional interval probability and
+  then subtracted `log S(entry)`. That is correct algebra and poor arithmetic:
+  both terms grow without bound in the tail, so the subtraction cancels the
+  significant digits and yields `NaN` once either underflows. It now uses
+  `log S(lower)/S(entry) + log[1 - S(upper)/S(lower)]`, the form the three
+  other status branches already use.
+
 * **`compare_models()` no longer reads a standard error as a threshold, and
   refuses fits built on different observations.** The LOO/WAIC printout said
   that `se_diff > 2` is the conventional threshold for a meaningful difference.

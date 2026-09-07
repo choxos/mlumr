@@ -34,13 +34,15 @@ separates the outcome). A rate can legitimately be small, so the test is on
 the boundary rather than on smallness, and it applies only where a boundary
 exists.
 
-What it does not catch is quasi-complete separation, where rows sit on the
-separating hyperplane: \code{y = c(0, 0, 1, 1)} on \code{x = c(-1, 0, 0, 1)} has no
-finite slope, yet the two tied rows keep fitted probabilities of exactly
+The fitted values cannot catch quasi-complete separation, where rows sit on
+the separating hyperplane: \code{y = c(0, 0, 1, 1)} on \code{x = c(-1, 0, 0, 1)} has
+no finite slope, yet the two tied rows keep fitted probabilities of exactly
 0.5, so not every probability has reached a boundary. Telling that apart
 from a strong but identified fit takes more than the fitted values, since a
 legitimate signal here reaches a linear predictor of 20.1 while this case
-reaches 19.6. The exact test is a linear program rather than a threshold,
-so covering it is a dependency decision and not a correction to this test.
+reaches 19.6. The exact test is a linear program, so it lives behind
+\code{\link[=.stc_detect_separation]{.stc_detect_separation()}} and runs only when the optional
+\pkg{detectseparation} package is installed. The threshold test stays as
+the part that always runs.
 }
 \keyword{internal}

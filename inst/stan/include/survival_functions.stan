@@ -463,9 +463,22 @@ real surv_ll_status(int dist, real time, real start_time, real delay_time,
     else
       l = log_cdf_scalar(dist, time, eta, aux, aux2);
   } else {                       // interval-censored: log(S(lower) - S(upper))
-    l = log_interval_prob_scalar(dist, time, start_time, eta, aux, aux2);
+    // Under delayed entry the quantity is conditional on survival to entry,
+    // P(lower < T <= upper | T > entry). Forming the unconditional interval
+    // probability and then subtracting log S(entry) is that quantity
+    // algebraically, but both terms grow without bound in the tail, so the
+    // subtraction cancels away the significant digits and gives -Inf - -Inf,
+    // i.e. NaN, once either underflows. Build it from increments instead:
+    // log S(lower)/S(entry) + log[1 - S(upper)/S(lower)]. Each factor is a
+    // conditional probability computed directly, and `log_surv_increment()`
+    // already computes exactly these ratios stably. The three other status
+    // branches above take that route for the same reason; this one did not.
     if (delay_time > 0)
-      l -= log_surv_scalar(dist, delay_time, eta, aux, aux2);
+      l = log_surv_increment(dist, start_time, delay_time, eta, aux, aux2)
+          + log1m_exp(log_surv_increment(dist, time, start_time, eta, aux,
+                                         aux2));
+    else
+      l = log_interval_prob_scalar(dist, time, start_time, eta, aux, aux2);
   }
   return l;
 }
