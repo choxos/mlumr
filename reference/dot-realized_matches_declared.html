@@ -74,7 +74,8 @@ spread the declared design claims for it, so the comparison is unit-free.</p>
 <span>  <span class="va">realized</span>,</span>
 <span>  ref_sd <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  factor <span class="op">=</span> <span class="fl">0.5</span>,</span>
-<span>  min_spread <span class="op">=</span> <span class="fl">0.05</span></span>
+<span>  min_spread <span class="op">=</span> <span class="fl">0.05</span>,</span>
+<span>  max_location_gap <span class="op">=</span> <span class="fl">0.25</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -104,6 +105,19 @@ design must still provide along that same direction.</p></dd>
 <dt id="arg-min-spread">min_spread<a class="anchor" aria-label="anchor" href="#arg-min-spread"></a></dt>
 <dd><p>Absolute floor, in IPD standard deviations, matching
 <code><a href="check_identification.html">check_identification()</a></code> and <code><a href="dot-profile_rank.html">.profile_rank()</a></code>.</p></dd>
+
+
+<dt id="arg-max-location-gap">max_location_gap<a class="anchor" aria-label="anchor" href="#arg-max-location-gap"></a></dt>
+<dd><p>Largest distance, in reference standard deviations,
+that the realized column means may sit from the declared ones, and the
+noise allowance in the row-by-row pairing check. Separate from
+<code>min_spread</code>: a finite integration grid misses its own declared mean by
+roughly the spread floor itself (32 QMC points against a normal margin
+land about 0.05 SD away), so reusing that floor here reported correct
+specifications as mismatches and switched the identification statement
+onto the realized geometry, which suppressed the rank-1 warning for a
+design of identical profiles. A quarter of an SD clears the integration
+error and still catches a <code><a href="distr.html">distr()</a></code> that ignores its row.</p></dd>
 
 </dl></div>
     <div class="section level2">

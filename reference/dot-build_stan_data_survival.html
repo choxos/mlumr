@@ -70,6 +70,7 @@
 <span>  <span class="va">rmst_horizon</span>,</span>
 <span>  n_rmst_grid <span class="op">=</span> <span class="fl">100L</span>,</span>
 <span>  <span class="va">prior_aux</span>,</span>
+<span>  prior_aux2 <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  <span class="va">prior_smooth</span>,</span>
 <span>  n_strata <span class="op">=</span> <span class="fl">1L</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -113,6 +114,11 @@
 
 <dt id="arg-prior-aux">prior_aux<a class="anchor" aria-label="anchor" href="#arg-prior-aux"></a></dt>
 <dd><p>Prior on the parametric auxiliary shape parameters.</p></dd>
+
+
+<dt id="arg-prior-aux-">prior_aux2<a class="anchor" aria-label="anchor" href="#arg-prior-aux-"></a></dt>
+<dd><p>Prior on the second generalized-gamma auxiliary parameter,
+or <code>NULL</code> to reuse <code>prior_aux</code>.</p></dd>
 
 
 <dt id="arg-prior-smooth">prior_smooth<a class="anchor" aria-label="anchor" href="#arg-prior-smooth"></a></dt>

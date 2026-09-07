@@ -125,7 +125,14 @@ plus optional delayed entry).</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>An object of class <code>mlumr_ipd</code></p>
+    <p>An object of class <code>mlumr_ipd</code>. Its <code>$data</code> holds the treatment,
+study, outcome and covariate columns under internal names, and one more,
+<code>.source_key</code>: a digest of the whole of <code>data</code> together with the row's
+rank within a canonical ordering of it, which lets <code><a href="compare_models.html">compare_models()</a></code>
+tell fits of one source apart from fits of that source reordered, whatever
+covariates they use. Nothing of <code>data</code>'s content is kept in it. The
+internal names, <code>.source_key</code> among them, cannot be used as column names
+in <code>data</code>.</p>
     </div>
 
     <div class="section level2">

@@ -47,15 +47,21 @@ marginal_effects(
 
   Which effect measure. For binomial: `"all"`, `"lor"`, `"rd"`, or
   `"rr"`. For normal: `"all"` or `"md"` (mean difference). For poisson:
-  `"all"` or `"rr"` (rate ratio). For survival: `"all"`, `"hr"` (hazard
-  ratio for PH, time ratio for AFT, natural scale, null 1; `"tr"` is an
-  accepted alias), `"exp_delta_eta"`, `"rmstd"` (RMST difference, null
-  0), or `"rmstr"` (RMST ratio, natural scale, null 1). Requesting an
-  effect the fit cannot produce is an error rather than a
-  differently-named substitute: with an AFT distribution and
-  `aux_by = ".study"` the study shapes differ, so
-  `exp(eta_index - eta_comparator)` is not a time ratio and `"hr"` /
-  `"tr"` are rejected in favor of the explicit `"exp_delta_eta"`.
+  `"all"` or `"rr"` (rate ratio). For survival the scalar selector is
+  **literal and distribution-specific**: each fit accepts `"all"`, the
+  one scalar name that its contrast actually is, `"rmstd"` (RMST
+  difference, null 0), and `"rmstr"` (RMST ratio, natural scale, null
+  1). The scalar name is `"hr"` (marginal hazard ratio, null 1) for a
+  proportional-hazards fit, `"tr"` (time ratio, null 1) for a
+  shared-shape SPFA accelerated-failure-time fit, and `"exp_delta_eta"`
+  otherwise, meaning any relaxed AFT fit or a **shape-bearing** AFT fit
+  with `aux_by = ".study"`, where the covariate term does not cancel or
+  the shapes differ and no constant acceleration factor exists.
+  `"exponential-aft"` has no shape parameter, so `aux_by = ".study"`
+  leaves its baseline unstratified and an SPFA fit keeps `"tr"`. There
+  are no aliases: `"hr"` never returns a time ratio and `"tr"` never
+  returns a hazard ratio. Requesting a scale the fit cannot supply is an
+  error naming the one it can.
 
 - summary:
 
@@ -76,10 +82,18 @@ marginal_effects(
   built-in `index` and/or `comparator` populations from the Stan
   generated quantities. When supplied, the marginal effect is recomputed
   by averaging model-based predictions over these rows at each posterior
-  draw, and `population` is ignored. For survival, RMST effects and the
-  time-specific target-standardized marginal hazard ratio are available;
-  the latter uses `at_time` (the first fitted prediction time by
-  default).
+  draw, and `population` is ignored. For survival the SAME scalar
+  selector applies as without `newdata`: supplying a target changes
+  which population an effect is standardized to, not which effects
+  exist. A proportional-hazards fit reports the time-specific
+  target-standardized marginal hazard ratio, which uses `at_time` (the
+  first fitted prediction time by default); an AFT fit reports its
+  target-standardized location contrast,
+  `exp(mean(eta_index) - mean(eta_comparator))` over the target rows,
+  which is a `TR` when the coefficients are shared (and then identical
+  for every target, since the covariate term cancels) and an
+  `EXP_DELTA_ETA` when they are not. RMST effects are available
+  throughout.
 
 - at_time:
 

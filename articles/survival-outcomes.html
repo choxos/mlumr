@@ -366,7 +366,7 @@ difference:</p>
 <span>       title <span class="op">=</span> <span class="st">"Observed Kaplan-Meier curves"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span>base_size <span class="op">=</span> <span class="fl">11</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span>legend.position <span class="op">=</span> <span class="st">"bottom"</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
-<img src="figure/km-1.png" alt="plot of chunk km"><p class="caption">
+<img src="figure/survival-outcomes/km-1.png" alt="plot of chunk km"><p class="caption">
 plot of chunk km
 </p>
 </div>
@@ -655,7 +655,7 @@ Stan:</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_prior_posterior.html">plot_prior_posterior</a></span><span class="op">(</span><span class="va">fit_mspline</span>, pars <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"mu_index"</span>, <span class="st">"mu_comparator"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
-<img src="figure/prior-post-1.png" alt="plot of chunk prior-post"><p class="caption">
+<img src="figure/survival-outcomes/prior-post-1.png" alt="plot of chunk prior-post"><p class="caption">
 plot of chunk prior-post
 </p>
 </div>
@@ -805,7 +805,7 @@ population, and adds the null line at 0:</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_mspline</span>, type <span class="op">=</span> <span class="st">"loghr"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
-<img src="figure/loghr-1.png" alt="plot of chunk loghr"><p class="caption">
+<img src="figure/survival-outcomes/loghr-1.png" alt="plot of chunk loghr"><p class="caption">
 plot of chunk loghr
 </p>
 </div>
@@ -854,7 +854,7 @@ benchmarks</em> above rather than on this axis.)</p>
 <span>                                       <span class="st">" integrated to tau = %.4g months"</span><span class="op">)</span>,</span>
 <span>                                <span class="va">tau_rmst</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
-<img src="figure/forest-1.png" alt="plot of chunk forest"><p class="caption">
+<img src="figure/survival-outcomes/forest-1.png" alt="plot of chunk forest"><p class="caption">
 plot of chunk forest
 </p>
 </div>
@@ -1018,7 +1018,7 @@ red:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_mspline</span>, type <span class="op">=</span> <span class="st">"survival"</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_manual.html" class="external-link">scale_color_manual</a></span><span class="op">(</span>values <span class="op">=</span> <span class="va">surv_cols</span>, aesthetics <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"colour"</span>, <span class="st">"fill"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
-<img src="figure/surv-curves-1.png" alt="plot of chunk surv-curves"><p class="caption">
+<img src="figure/survival-outcomes/surv-curves-1.png" alt="plot of chunk surv-curves"><p class="caption">
 plot of chunk surv-curves
 </p>
 </div>
@@ -1033,7 +1033,7 @@ the comparator arm’s against the comparator- population curves:</p>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_manual.html" class="external-link">scale_color_manual</a></span><span class="op">(</span>values <span class="op">=</span> <span class="va">surv_cols</span>, aesthetics <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"colour"</span>, <span class="st">"fill"</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>subtitle <span class="op">=</span> <span class="st">"Index population, with the observed Len KM"</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
-<img src="figure/surv-curves-km-1.png" alt="plot of chunk surv-curves-km"><p class="caption">
+<img src="figure/survival-outcomes/surv-curves-km-1.png" alt="plot of chunk surv-curves-km"><p class="caption">
 plot of chunk surv-curves-km
 </p>
 </div>
@@ -1044,7 +1044,7 @@ plot of chunk surv-curves-km
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_manual.html" class="external-link">scale_color_manual</a></span><span class="op">(</span>values <span class="op">=</span> <span class="va">surv_cols</span>, aesthetics <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"colour"</span>, <span class="st">"fill"</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>subtitle <span class="op">=</span> <span class="st">"Comparator population, with the observed Thal KM"</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
-<img src="figure/surv-curves-km-2.png" alt="plot of chunk surv-curves-km"><p class="caption">
+<img src="figure/survival-outcomes/surv-curves-km-2.png" alt="plot of chunk surv-curves-km"><p class="caption">
 plot of chunk surv-curves-km
 </p>
 </div>
@@ -1056,7 +1056,7 @@ though the conditional model is PH:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_mspline</span>, type <span class="op">=</span> <span class="st">"hazard"</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_manual.html" class="external-link">scale_color_manual</a></span><span class="op">(</span>values <span class="op">=</span> <span class="va">surv_cols</span>, aesthetics <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"colour"</span>, <span class="st">"fill"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
-<img src="figure/hazard-curve-1.png" alt="plot of chunk hazard-curve"><p class="caption">
+<img src="figure/survival-outcomes/hazard-curve-1.png" alt="plot of chunk hazard-curve"><p class="caption">
 plot of chunk hazard-curve
 </p>
 </div>
@@ -1124,11 +1124,13 @@ collapsible summary)</caption>
 </table>
 <p>Under the relaxed model the conditional hazard ratio depends on the
 covariates, so there is no single conditional HR. The scalar
-<code>HR</code> is then only the marginal hazard ratio at the
-<strong>start of follow-up</strong>; prefer
-<code>predict(type = "loghr")</code> for the time-varying contrast, or
-the collapsible RMST estimands (<code>effect = "rmstd"</code> /
-<code>"rmstr"</code>). <strong>Caveat (unanchored two-study
+<code>HR</code> is then only the marginal hazard ratio at one instant,
+and the <code>at_time</code> column says which: the <span class="math inline">t \rightarrow 0</span> limit for an unstratified
+fit, and otherwise the first prediction time, which is positive and set
+by <code>pred_times</code>. Prefer <code>predict(type = "loghr")</code>
+for the time-varying contrast, or the collapsible RMST estimands
+(<code>effect = "rmstd"</code> / <code>"rmstr"</code>), whose horizon is
+reported beside them. <strong>Caveat (unanchored two-study
 setting).</strong> Unlike multinma’s connected network, here the
 comparator coefficients are identified <em>only</em> through the single
 reconstructed comparator likelihood, so the index-population relaxed
@@ -1158,9 +1160,15 @@ form:</p>
 <span><span class="co">#&gt;  MSpline       0.0     0.0      NA                    </span></span>
 <span><span class="co">#&gt;  Weibull      -5.4     3.9    0.92                    </span></span>
 <span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; elpd_diff is the difference in expected log pointwise predictive</span></span>
-<span><span class="co">#&gt; density vs the best model. se_diff &gt; 2 is the conventional threshold</span></span>
-<span><span class="co">#&gt; for a meaningful difference (|elpd_diff| &gt; 4 * se_diff is stronger).</span></span></code></pre></div>
+<span><span class="co">#&gt; density vs the best model, and se_diff is its standard error: the</span></span>
+<span><span class="co">#&gt; uncertainty about that difference, not evidence for it. Read the two</span></span>
+<span><span class="co">#&gt; together. A difference small relative to se_diff is not distinguished</span></span>
+<span><span class="co">#&gt; from zero by this comparison, whatever se_diff itself is.</span></span>
+<span><span class="co">#&gt; Treat any ratio as a heuristic, not a decision rule, and check the</span></span>
+<span><span class="co">#&gt; PSIS diagnostics and whether the difference matters for the</span></span>
+<span><span class="co">#&gt; prediction you care about.</span></span></code></pre></div>
 <p>The Weibull fit’s own standardized effects, in both populations, so
 the baseline-shape choice can be judged on the estimand and not only on
 <code>looic</code>:</p>
@@ -1273,7 +1281,7 @@ populations</caption>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_weibull</span>, type <span class="op">=</span> <span class="st">"survival"</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_manual.html" class="external-link">scale_color_manual</a></span><span class="op">(</span>values <span class="op">=</span> <span class="va">surv_cols</span>, aesthetics <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"colour"</span>, <span class="st">"fill"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
-<img src="figure/weibull-surv-1.png" alt="plot of chunk weibull-surv"><p class="caption">
+<img src="figure/survival-outcomes/weibull-surv-1.png" alt="plot of chunk weibull-surv"><p class="caption">
 plot of chunk weibull-surv
 </p>
 </div>

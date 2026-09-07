@@ -60,11 +60,32 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.rmst_from_surv_matrix</span><span class="op">(</span><span class="va">s_mat</span>, <span class="va">times</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.rmst_from_surv_matrix</span><span class="op">(</span><span class="va">s_mat</span>, <span class="va">times</span>, <span class="va">share</span><span class="op">)</span></span></code></pre></div>
     </div>
 
+    <div class="section level2">
+    <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
 
-  </main></div>
+
+<dl><dt id="arg-s-mat">s_mat<a class="anchor" aria-label="anchor" href="#arg-s-mat"></a></dt>
+<dd><p>Draws by times survival matrix, already averaged over the
+target's profiles.</p></dd>
+
+
+<dt id="arg-times">times<a class="anchor" aria-label="anchor" href="#arg-times"></a></dt>
+<dd><p>The integration grid.</p></dd>
+
+
+<dt id="arg-share">share<a class="anchor" aria-label="anchor" href="#arg-share"></a></dt>
+<dd><p>The per-draw resolution share of the profiles behind <code>s_mat</code>,
+the <code>share</code> element <code><a href="dot-standardize_target_survival_s.html">.standardize_target_survival_s()</a></code> returns. It is
+not derived from <code>s_mat</code> here on purpose: the average of the profiles can
+pass the check when every profile fails it.</p></dd>
+
+</dl></div>
+
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">

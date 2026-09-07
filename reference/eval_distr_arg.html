@@ -60,7 +60,7 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">eval_distr_arg</span><span class="op">(</span><span class="va">expr</span>, <span class="va">data</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">eval_distr_arg</span><span class="op">(</span><span class="va">expr</span>, <span class="va">data</span>, enclos <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -73,6 +73,11 @@
 
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
 <dd><p>Data context</p></dd>
+
+
+<dt id="arg-enclos">enclos<a class="anchor" aria-label="anchor" href="#arg-enclos"></a></dt>
+<dd><p>The environment the specification was written in, from
+<code><a href="distr.html">distr()</a></code>; anything else falls back to the caller's frame, as before.</p></dd>
 
 </dl></div>
     <div class="section level2">

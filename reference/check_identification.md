@@ -34,9 +34,11 @@ squared singular-value spectrum, which summarizes how evenly the
 spectral variation is spread across directions; it is not a count of
 identified coefficients), `spread`, `singular_values`, `means` (the
 scaled, centered subgroup mean matrix), `diagnostic_scope`,
-`target_in_span`, and `flagged`: `TRUE` for too few rows, otherwise the
-identity-link screen result, or `NA` when nonlinear mean-profile
-geometry is descriptive only.
+`target_in_span`, `target_span_gap`, `target_in_declared_span` (the same
+exact statement about the declared `<covariate>_mean` rows, which says
+whether a gap is the integration grid's or the design's), and `flagged`:
+`TRUE` for too few rows, otherwise the identity-link screen result, or
+`NA` when nonlinear mean-profile geometry is descriptive only.
 
 ## Details
 
@@ -82,7 +84,22 @@ comparator parameters, and the aggregate rows pin down every functional
 in their row space. A single row whose covariate means equal the IPD
 means identifies it exactly while separating neither the intercept nor
 the slope. `target_in_span` reports that case, so a coefficient verdict
-is not read as one about the estimand.
+is not read as one about the estimand. It is an exact statement about
+the integration profiles the likelihood actually uses, not about the
+declared `<covariate>_mean` columns: a realized grid can sit a fifth of
+an SD from its declared mean and still pass the declared-versus-realized
+check, and the declared row would then certify a target the fitted row's
+span does not contain. Being exact, it says nothing about how well the
+estimand is pinned down. `target_span_gap` carries the practical
+complement: the distance, in IPD standard deviations, from the target to
+the affine span of the directions along which the rows spread by at
+least 0.05 SD. Zero means the estimand rests on directions the rows
+genuinely move along; a small positive value with `target_in_span` FALSE
+means the estimand contains that much of a coefficient the rows do not
+pin down, which a finite integration grid can produce on its own; a
+large value with `target_in_span` TRUE means the estimand is identified
+only through directions the rows barely move along, where precision
+depends on the outcome standard errors and row sizes.
 
 This diagnostic concerns `model = "relaxed"` only. Under SPFA both
 treatments share one coefficient vector, which the IPD identifies, so a

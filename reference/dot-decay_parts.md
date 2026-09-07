@@ -1,0 +1,12 @@
+# The two pieces of the resolution share, per draw
+
+`max` is the largest drop between two adjacent grid points and `total`
+the drop from the first point to the last. Kept apart so that the pieces
+of several profiles can be summed before the ratio is taken. `NA` when
+the grid has fewer than two points.
+
+## Usage
+
+``` r
+.decay_parts(s_mat)
+```

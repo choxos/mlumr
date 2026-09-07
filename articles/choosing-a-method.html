@@ -300,12 +300,24 @@ modification):</p>
 reported in <strong>both</strong> target populations. STC has a
 comparator-population estimand by construction; naive has no single
 standardized target and is labeled accordingly. Neither has an
-index-population row to show. The <strong>index</strong> population is
-normally the decision-relevant one for HTA, because cost-effectiveness
-models are built for the population a reimbursement decision is about,
-which is usually the index trial’s <span class="citation">(<a href="#ref-ChandlerIshakTransport">Chandler and Ishak 2026</a>)</span>;
-the comparator rows are the like-for-like comparison against naive and
-STC.</p>
+index-population row to show. Which of them is decision-relevant is a
+question about the application, not a property of the method: a
+cost-effectiveness model is built for the population the reimbursement
+decision covers, and that population has to be stated. It is often close
+to the index trial’s <span class="citation">(<a href="#ref-ChandlerIshakTransport">Chandler and Ishak 2026</a>)</span>,
+which is why the index row usually carries the decision, but it is not
+automatically either trial’s. When the decision population is a third
+one, standardize to it directly by passing its covariate distribution as
+<code>newdata</code> to <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> or
+<code><a href="../reference/marginal_effects.html">marginal_effects()</a></code>, which average over those rows, rather
+than adopting whichever trial is nearer.
+<code><a href="../reference/conditional_effects.html">conditional_effects()</a></code> takes the same data frame and
+evaluates at each profile separately rather than averaging over them, so
+what it returns is a set of conditional effects and not a transported
+marginal one. The comparator rows are the like-for-like comparison
+against STC, which standardizes to that population; naive standardizes
+to neither and is the unadjusted benchmark both rows are measured
+against.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">me_spfa</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/marginal_effects.html">marginal_effects</a></span><span class="op">(</span><span class="va">fit_spfa</span>, effect <span class="op">=</span> <span class="st">"lor"</span>, population <span class="op">=</span> <span class="st">"both"</span><span class="op">)</span></span>
 <span><span class="va">me_rel</span>  <span class="op">&lt;-</span> <span class="fu"><a href="../reference/marginal_effects.html">marginal_effects</a></span><span class="op">(</span><span class="va">fit_relaxed</span>, effect <span class="op">=</span> <span class="st">"lor"</span>, population <span class="op">=</span> <span class="st">"both"</span><span class="op">)</span></span>
@@ -391,7 +403,7 @@ populations</caption>
 <span>             title <span class="op">=</span> <span class="st">"Methods compared: ixekizumab vs secukinumab"</span>,</span>
 <span>             subtitle <span class="op">=</span> <span class="st">"ML-UMR shown in both target populations"</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
-<img src="figure/forest-1.png" alt="plot of chunk forest"><p class="caption">
+<img src="figure/choosing-a-method/forest-1.png" alt="plot of chunk forest"><p class="caption">
 plot of chunk forest
 </p>
 </div>
@@ -401,7 +413,7 @@ both populations by default:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="../reference/marginal_effects.html">marginal_effects</a></span><span class="op">(</span><span class="va">fit_spfa</span>, effect <span class="op">=</span> <span class="st">"lor"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
-<img src="figure/posterior-both-1.png" alt="plot of chunk posterior-both"><p class="caption">
+<img src="figure/choosing-a-method/posterior-both-1.png" alt="plot of chunk posterior-both"><p class="caption">
 plot of chunk posterior-both
 </p>
 </div>
@@ -455,9 +467,15 @@ against the relaxed model by leave-one-out cross-validation and DIC:</p>
 <span><span class="co">#&gt;  Relaxed       0.0     0.0      NA                 1 k_psis &gt; 0.7</span></span>
 <span><span class="co">#&gt;     SPFA      -0.2     0.1    0.99 |elpd_diff| &lt; 4 1 k_psis &gt; 0.7</span></span>
 <span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; elpd_diff is the difference in expected log pointwise predictive</span></span>
-<span><span class="co">#&gt; density vs the best model. se_diff &gt; 2 is the conventional threshold</span></span>
-<span><span class="co">#&gt; for a meaningful difference (|elpd_diff| &gt; 4 * se_diff is stronger).</span></span>
+<span><span class="co">#&gt; density vs the best model, and se_diff is its standard error: the</span></span>
+<span><span class="co">#&gt; uncertainty about that difference, not evidence for it. Read the two</span></span>
+<span><span class="co">#&gt; together. A difference small relative to se_diff is not distinguished</span></span>
+<span><span class="co">#&gt; from zero by this comparison, whatever se_diff itself is.</span></span>
+<span><span class="co">#&gt; Treat any ratio as a heuristic, not a decision rule, and check the</span></span>
+<span><span class="co">#&gt; PSIS diagnostics and whether the difference matters for the</span></span>
+<span><span class="co">#&gt; prediction you care about.</span></span>
 <span><span class="fu"><a href="../reference/compare_models.html">compare_models</a></span><span class="op">(</span>SPFA <span class="op">=</span> <span class="va">fit_spfa</span>, Relaxed <span class="op">=</span> <span class="va">fit_relaxed</span><span class="op">)</span>   <span class="co"># DIC-based (the default)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Model Comparison (DIC)</span></span>

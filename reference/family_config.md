@@ -35,7 +35,15 @@ Fields:
 
   Supported values of the `effect` argument in
   [`marginal_effects()`](https://choxos.github.io/mlumr/reference/marginal_effects.md)
-  (excluding `"all"`).
+  (excluding `"all"`). Family-level, and for `"survival"` NOT the whole
+  accepted set: the scalar contrast is distribution-specific, so a fit
+  accepts exactly one of `"hr"`, `"tr"` or `"exp_delta_eta"` and the
+  choice is made per fit by
+  [`.surv_scalar_effect_name()`](https://choxos.github.io/mlumr/reference/dot-surv_scalar_effect_name.md),
+  which cannot be expressed here because this registry is keyed by
+  family alone. The entry lists `"hr"` as the representative scalar;
+  treat the survival row as the RMST measures plus one fit-specific
+  scalar.
 
 - `marginal_effect_vars`:
 

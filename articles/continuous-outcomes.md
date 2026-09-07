@@ -312,27 +312,27 @@ fit_spfa <- mlumr(dat, model = "spfa", link = "identity",
                   prior_beta = prior_normal(0, 1, autoscale = TRUE),
                   chains = 4, iter = 2000, warmup = 1000, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
-#> Chain 1 finished in 0.1 seconds.
-#> Chain 2 finished in 0.2 seconds.
-#> Chain 3 finished in 0.2 seconds.
-#> Chain 4 finished in 0.2 seconds.
+#> Chain 1 finished in 0.3 seconds.
+#> Chain 2 finished in 0.4 seconds.
+#> Chain 3 finished in 0.4 seconds.
+#> Chain 4 finished in 0.4 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 0.2 seconds.
-#> Total execution time: 0.4 seconds.
+#> Mean chain execution time: 0.4 seconds.
+#> Total execution time: 0.6 seconds.
 fit_relaxed <- mlumr(dat, model = "relaxed", link = "identity",
                      prior_beta = prior_normal(0, 0.75, autoscale = TRUE),
                      chains = 4, iter = 2000, warmup = 1000,
                      adapt_delta = 0.95, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
-#> Chain 1 finished in 0.2 seconds.
-#> Chain 2 finished in 0.2 seconds.
-#> Chain 3 finished in 0.2 seconds.
-#> Chain 4 finished in 0.2 seconds.
+#> Chain 2 finished in 0.4 seconds.
+#> Chain 3 finished in 0.4 seconds.
+#> Chain 1 finished in 0.5 seconds.
+#> Chain 4 finished in 0.4 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 0.2 seconds.
-#> Total execution time: 0.5 seconds.
+#> Mean chain execution time: 0.4 seconds.
+#> Total execution time: 0.6 seconds.
 summary(fit_spfa)
 #> ML-UMR Model Summary
 #> ====================
@@ -413,7 +413,7 @@ posterior intercepts are much tighter than the \mathrm{N}(0,10) prior:
 plot_prior_posterior(fit_spfa, pars = c("mu_index", "mu_comparator"))
 ```
 
-![plot of chunk prior-post](figure/prior-post-1.png)
+![plot of chunk prior-post](figure/continuous-outcomes/prior-post-1.png)
 
 plot of chunk prior-post
 
@@ -422,18 +422,23 @@ plot of chunk prior-post
 For the **normal** family `outcome_mean` and `outcome_se` must be on the
 **original (arithmetic) scale**, the same scale as the IPD outcome. If a
 published comparator reports a *geometric* mean, a mean on the log
-scale, or a change-from-baseline on a transformed scale, back-transform
-it (propagating the standard error by the delta method) before calling
-[`set_agd()`](https://choxos.github.io/mlumr/reference/set_agd.md).
-Passing a log-scale summary while fitting on the identity link silently
-biases the comparator likelihood. The residual likelihood here is
-Gaussian, so an influential observation in the IPD can pull the fit. A
-heavier-tailed prior on the coefficients does not address this: the
-prior governs the coefficients, not the residual distribution, and a
-heavier tail permits larger coefficients rather than suppressing them.
-mlumr’s normal family provides no heavy-tailed residual distribution, so
-identify influential observations directly, report their effect on the
-estimate, and use
+scale, or a change-from-baseline on a transformed scale, that is a
+different quantity and not a rescaling of the one this argument wants.
+Exponentiating a log-scale mean returns the geometric mean: for a
+lognormal outcome with log-scale SD 1 the geometric mean is `exp(0) = 1`
+while the arithmetic mean is `exp(0.5) = 1.65`. Propagating the standard
+error does not fix it, because the mismatch is in the estimand rather
+than in its uncertainty. Ask for the arithmetic mean and its SE, or, if
+you are willing to assume lognormality and have the log-scale **SD**,
+compute `exp(m + s^2 / 2)` and propagate `m` and `s` jointly. Passing a
+log-scale summary while fitting on the identity link silently biases the
+comparator likelihood. The residual likelihood here is Gaussian, so an
+influential observation in the IPD can pull the fit. A heavier-tailed
+prior on the coefficients does not address this: the prior governs the
+coefficients, not the residual distribution, and a heavier tail permits
+larger coefficients rather than suppressing them. mlumr’s normal family
+provides no heavy-tailed residual distribution, so identify influential
+observations directly, report their effect on the estimate, and use
 [`prior_sensitivity()`](https://choxos.github.io/mlumr/reference/prior_sensitivity.md)
 only for what it measures, namely sensitivity to the coefficient prior.
 
@@ -516,7 +521,7 @@ mlumr_forest(forest_df, ref_line = 0,
              subtitle = "Unadjusted vs population-adjusted, in both target populations")
 ```
 
-![plot of chunk forest](figure/forest-1.png)
+![plot of chunk forest](figure/continuous-outcomes/forest-1.png)
 
 plot of chunk forest
 
@@ -551,7 +556,8 @@ method:
 plot(marginal_effects(fit_spfa))
 ```
 
-![plot of chunk posterior-areas](figure/posterior-areas-1.png)
+![plot of chunk
+posterior-areas](figure/continuous-outcomes/posterior-areas-1.png)
 
 plot of chunk posterior-areas
 
@@ -580,7 +586,8 @@ Standardized mean pain VAS by treatment {.table style="width:100%;"}
 plot(predict(fit_spfa, population = "both", type = "response"))
 ```
 
-![plot of chunk predict-plot](figure/predict-plot-1.png)
+![plot of chunk
+predict-plot](figure/continuous-outcomes/predict-plot-1.png)
 
 plot of chunk predict-plot
 
@@ -627,9 +634,15 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "loo")
 #>     SPFA       0.0     0.0      NA                 1 k_psis > 0.7
 #>  Relaxed      -1.0     0.7    0.90 |elpd_diff| < 4 1 k_psis > 0.7
 #> 
+#> 
 #> elpd_diff is the difference in expected log pointwise predictive
-#> density vs the best model. se_diff > 2 is the conventional threshold
-#> for a meaningful difference (|elpd_diff| > 4 * se_diff is stronger).
+#> density vs the best model, and se_diff is its standard error: the
+#> uncertainty about that difference, not evidence for it. Read the two
+#> together. A difference small relative to se_diff is not distinguished
+#> from zero by this comparison, whatever se_diff itself is.
+#> Treat any ratio as a heuristic, not a decision rule, and check the
+#> PSIS diagnostics and whether the difference matters for the
+#> prediction you care about.
 compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "dic")
 #> 
 #> Model Comparison (DIC)

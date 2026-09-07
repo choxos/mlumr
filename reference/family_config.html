@@ -94,7 +94,14 @@ in <code><a href="check_link.html">check_link()</a></code>.</p></dd>
 
 <dt><code>effect_measures</code></dt>
 <dd><p>Supported values of the <code>effect</code> argument in
-<code><a href="marginal_effects.html">marginal_effects()</a></code> (excluding <code>"all"</code>).</p></dd>
+<code><a href="marginal_effects.html">marginal_effects()</a></code> (excluding <code>"all"</code>). Family-level, and for
+<code>"survival"</code> NOT the whole accepted set: the scalar contrast is
+distribution-specific, so a fit accepts exactly one of <code>"hr"</code>, <code>"tr"</code> or
+<code>"exp_delta_eta"</code> and the choice is made per fit by
+<code><a href="dot-surv_scalar_effect_name.html">.surv_scalar_effect_name()</a></code>, which cannot be expressed here because this
+registry is keyed by family alone. The entry lists <code>"hr"</code> as the
+representative scalar; treat the survival row as the RMST measures plus
+one fit-specific scalar.</p></dd>
 
 <dt><code>marginal_effect_vars</code></dt>
 <dd><p>Generated-quantity column names for each

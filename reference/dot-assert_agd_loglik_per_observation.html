@@ -89,6 +89,11 @@ back quietly understating every tied observation.</p>
     <p>Fail closed instead. The multiplicities must be expanded back to the original
 observation sequence (repeat unique column <code>k</code> its <code>agd_count[k]</code> times, and
 expand the arm map with it) before any diagnostic reads them.</p>
+<p>No shipped code path sets <code>agd_count</code>, so this guard is inert today: it is a
+precondition on the pointwise likelihood that tie aggregation would violate,
+placed before that feature rather than after the first wrong LOO value.
+Deleting it as unused would remove the check at exactly the moment the
+feature that needs it arrives.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -145,14 +145,14 @@ preparation is covered in <code><a href="../articles/binary-outcomes.html">vigne
 <span>             chains <span class="op">=</span> <span class="fl">4</span>, iter <span class="op">=</span> <span class="fl">2000</span>, warmup <span class="op">=</span> <span class="fl">1000</span>, seed <span class="op">=</span> <span class="fl">2026</span>, refresh <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Chain 1 finished in 0.8 seconds.</span></span>
-<span><span class="co">#&gt; Chain 2 finished in 0.8 seconds.</span></span>
-<span><span class="co">#&gt; Chain 3 finished in 0.8 seconds.</span></span>
-<span><span class="co">#&gt; Chain 4 finished in 0.8 seconds.</span></span>
+<span><span class="co">#&gt; Chain 2 finished in 1.3 seconds.</span></span>
+<span><span class="co">#&gt; Chain 3 finished in 1.3 seconds.</span></span>
+<span><span class="co">#&gt; Chain 4 finished in 1.2 seconds.</span></span>
+<span><span class="co">#&gt; Chain 1 finished in 1.4 seconds.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span><span class="co">#&gt; Mean chain execution time: 0.8 seconds.</span></span>
-<span><span class="co">#&gt; Total execution time: 1.1 seconds.</span></span></code></pre></div>
+<span><span class="co">#&gt; Mean chain execution time: 1.3 seconds.</span></span>
+<span><span class="co">#&gt; Total execution time: 1.6 seconds.</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="controlling-the-sampler">Controlling the sampler<a class="anchor" aria-label="anchor" href="#controlling-the-sampler"></a>
@@ -218,7 +218,7 @@ updated each parameter, the intercepts move sharply away from their
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_prior_posterior.html">plot_prior_posterior</a></span><span class="op">(</span><span class="va">fit</span>, pars <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"mu_index"</span>, <span class="st">"mu_comparator"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
-<img src="figure/prior-post-1.png" alt="plot of chunk prior-post"><p class="caption">
+<img src="figure/fitting-and-diagnostics/prior-post-1.png" alt="plot of chunk prior-post"><p class="caption">
 plot of chunk prior-post
 </p>
 </div>
@@ -440,21 +440,54 @@ Inspect them directly:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="../reference/marginal_effects.html">marginal_effects</a></span><span class="op">(</span><span class="va">fit</span>, effect <span class="op">=</span> <span class="st">"lor"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
-<img src="figure/intervals-1.png" alt="plot of chunk intervals"><p class="caption">
+<img src="figure/fitting-and-diagnostics/intervals-1.png" alt="plot of chunk intervals"><p class="caption">
 plot of chunk intervals
 </p>
 </div>
 <p>For convergence diagnostics on the raw draws, <code>bayesplot</code>
-works directly on <code>fit$draws</code>, here trace plots of the same
-parameters:</p>
+needs to know which chain each draw came from. <code>fit$draws</code> is
+a flat data frame with the chains already stacked, so passing it
+directly draws one merged line per parameter. That looks like a healthy
+trace whatever the chains did, because the thing a trace plot exists to
+show, whether the chains agree with each other, has been averaged away
+before plotting. The per-draw chain labels are kept beside the draws in
+<code>fit$chain_ids</code>, so reshape into the iteration by chain by
+parameter array <code>bayesplot</code> expects:</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">bayesplot</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/bayesplot/reference/MCMC-traces.html" class="external-link">mcmc_trace</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">draws</span>, pars <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"lor_index"</span>, <span class="st">"lor_comparator"</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<code class="sourceCode R"><span><span class="va">pars</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"lor_index"</span>, <span class="st">"lor_comparator"</span><span class="op">)</span></span>
+<span><span class="va">chain</span> <span class="op">&lt;-</span> <span class="va">fit</span><span class="op">$</span><span class="va">chain_ids</span></span>
+<span><span class="co"># NULL means the backend could not label the draws, which is itself worth</span></span>
+<span><span class="co"># knowing: without labels there is no chain comparison to draw.</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">chain</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># `split()` keeps each chain's draws in iteration order, which is what a trace</span></span>
+<span><span class="co"># needs. Indexing by a chain's own label rather than by arithmetic on the row</span></span>
+<span><span class="co"># count avoids assuming the chains are equal length or stored in order.</span></span>
+<span><span class="va">rows_by_chain</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/split.html" class="external-link">split</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">chain</span><span class="op">)</span>, <span class="va">chain</span><span class="op">)</span></span>
+<span><span class="va">n_iter</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lengths.html" class="external-link">lengths</a></span><span class="op">(</span><span class="va">rows_by_chain</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">n_iter</span><span class="op">)</span> <span class="op">==</span> <span class="fl">1L</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">draws_array</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/array.html" class="external-link">array</a></span><span class="op">(</span></span>
+<span>  <span class="cn">NA_real_</span>,</span>
+<span>  dim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">n_iter</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">rows_by_chain</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">pars</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  dimnames <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="cn">NULL</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"chain"</span>, <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">rows_by_chain</span><span class="op">)</span><span class="op">)</span>, <span class="va">pars</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="kw">for</span> <span class="op">(</span><span class="va">k</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">rows_by_chain</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">draws_array</span><span class="op">[</span>, <span class="va">k</span>, <span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">draws</span><span class="op">[</span><span class="va">rows_by_chain</span><span class="op">[[</span><span class="va">k</span><span class="op">]</span><span class="op">]</span>, <span class="va">pars</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="fu">bayesplot</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/bayesplot/reference/MCMC-traces.html" class="external-link">mcmc_trace</a></span><span class="op">(</span><span class="va">draws_array</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Trace plots"</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
-<img src="figure/trace-1.png" alt="plot of chunk trace"><p class="caption">
+<img src="figure/fitting-and-diagnostics/trace-1.png" alt="plot of chunk trace"><p class="caption">
 plot of chunk trace
 </p>
 </div>
+<p>Each chain is drawn separately, which is what makes the plot readable
+as a diagnostic: chains that settled in different places show up as
+separated bands. <code><a href="../reference/check_diagnostics.html">check_diagnostics()</a></code> answers the same
+question numerically through split-Rhat and effective sample size, and
+the two should agree.</p>
 </div>
 <div class="section level2">
 <h2 id="prior-sensitivity">Prior sensitivity<a class="anchor" aria-label="anchor" href="#prior-sensitivity"></a>
@@ -468,39 +501,39 @@ identified by the IPD and the sweep is expected to be flat:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/prior_sensitivity.html">prior_sensitivity</a></span><span class="op">(</span><span class="va">fit</span>, prior_beta_scales <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2.5</span>, <span class="fl">5</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Chain 1 finished in 0.6 seconds.</span></span>
-<span><span class="co">#&gt; Chain 2 finished in 0.5 seconds.</span></span>
-<span><span class="co">#&gt; Chain 3 finished in 0.5 seconds.</span></span>
-<span><span class="co">#&gt; Chain 4 finished in 0.6 seconds.</span></span>
+<span><span class="co">#&gt; Chain 1 finished in 1.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 2 finished in 1.3 seconds.</span></span>
+<span><span class="co">#&gt; Chain 3 finished in 1.2 seconds.</span></span>
+<span><span class="co">#&gt; Chain 4 finished in 1.3 seconds.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span><span class="co">#&gt; Mean chain execution time: 0.6 seconds.</span></span>
-<span><span class="co">#&gt; Total execution time: 0.8 seconds.</span></span>
+<span><span class="co">#&gt; Mean chain execution time: 1.3 seconds.</span></span>
+<span><span class="co">#&gt; Total execution time: 1.6 seconds.</span></span>
 <span><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Chain 1 finished in 0.6 seconds.</span></span>
-<span><span class="co">#&gt; Chain 2 finished in 0.6 seconds.</span></span>
-<span><span class="co">#&gt; Chain 3 finished in 0.6 seconds.</span></span>
-<span><span class="co">#&gt; Chain 4 finished in 0.6 seconds.</span></span>
+<span><span class="co">#&gt; Chain 1 finished in 1.6 seconds.</span></span>
+<span><span class="co">#&gt; Chain 2 finished in 1.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 3 finished in 1.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 4 finished in 1.4 seconds.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span><span class="co">#&gt; Mean chain execution time: 0.6 seconds.</span></span>
-<span><span class="co">#&gt; Total execution time: 0.9 seconds.</span></span>
+<span><span class="co">#&gt; Mean chain execution time: 1.5 seconds.</span></span>
+<span><span class="co">#&gt; Total execution time: 1.8 seconds.</span></span>
 <span><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Chain 1 finished in 1.0 seconds.</span></span>
+<span><span class="co">#&gt; Chain 1 finished in 1.1 seconds.</span></span>
+<span><span class="co">#&gt; Chain 4 finished in 1.0 seconds.</span></span>
 <span><span class="co">#&gt; Chain 2 finished in 1.1 seconds.</span></span>
-<span><span class="co">#&gt; Chain 3 finished in 1.0 seconds.</span></span>
-<span><span class="co">#&gt; Chain 4 finished in 0.9 seconds.</span></span>
+<span><span class="co">#&gt; Chain 3 finished in 1.1 seconds.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span><span class="co">#&gt; Mean chain execution time: 1.0 seconds.</span></span>
-<span><span class="co">#&gt; Total execution time: 1.5 seconds.</span></span>
+<span><span class="co">#&gt; Mean chain execution time: 1.1 seconds.</span></span>
+<span><span class="co">#&gt; Total execution time: 1.3 seconds.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Prior sensitivity: posterior of marginal treatment effects</span></span>
 <span><span class="co">#&gt; =========================================================</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  scale      parameter effect      mean        sd         q2       q50       q98</span></span>
+<span><span class="co">#&gt;  scale      parameter effect      mean        sd       q2.5       q50     q97.5</span></span>
 <span><span class="co">#&gt;    1.0      lor_index    LOR 0.2450842 0.2042432 -0.1572848 0.2449714 0.6380143</span></span>
 <span><span class="co">#&gt;    1.0 lor_comparator    LOR 0.2459477 0.2050747 -0.1581046 0.2454590 0.6396459</span></span>
 <span><span class="co">#&gt;    2.5      lor_index    LOR 0.2537767 0.2053081 -0.1526689 0.2538476 0.6555978</span></span>
@@ -508,8 +541,14 @@ identified by the IPD and the sweep is expected to be flat:</p>
 <span><span class="co">#&gt;    5.0      lor_index    LOR 0.2481648 0.2012573 -0.1446230 0.2465931 0.6394745</span></span>
 <span><span class="co">#&gt;    5.0 lor_comparator    LOR 0.2490404 0.2020809 -0.1439587 0.2471842 0.6418033</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Interpretation: if posterior summaries are approximately constant</span></span>
-<span><span class="co">#&gt; across scales, the inference is data-driven rather than prior-driven.</span></span></code></pre></div>
+<span><span class="co">#&gt; Interpretation: approximately constant summaries show the posterior</span></span>
+<span><span class="co">#&gt; is insensitive to the beta-prior SCALES tested here. That is not the</span></span>
+<span><span class="co">#&gt; same as the inference being data-driven: identification also depends</span></span>
+<span><span class="co">#&gt; on the prior family and location, the comparator-specific and</span></span>
+<span><span class="co">#&gt; auxiliary priors, and the model structure. Vary those too. For a</span></span>
+<span><span class="co">#&gt; non-survival fit, check_identification() adds the geometry of the</span></span>
+<span><span class="co">#&gt; aggregate rows: exact for a normal identity-link model, descriptive</span></span>
+<span><span class="co">#&gt; otherwise.</span></span></code></pre></div>
 <p>The case that motivates the check is the relaxed model, whose
 comparator coefficients are informed only through the aggregate
 likelihood and can therefore be prior-sensitive. For a relaxed binomial,

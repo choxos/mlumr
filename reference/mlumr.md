@@ -36,6 +36,7 @@ mlumr(
   engine = NULL,
   verbose = TRUE,
   prior_beta_comparator = NULL,
+  prior_aux2 = NULL,
   ...
 )
 ```
@@ -129,6 +130,16 @@ mlumr(
   shape/scale parameter(s) (half-normal/half-t/exponential via the
   `<lower=0>` constraint). Default
   [`default_prior_aux()`](https://choxos.github.io/mlumr/reference/default_priors.md).
+  One default is reused across distributions whose auxiliary parameters
+  do not share a scale, so check it against your own time unit rather
+  than assuming it is weakly informative. The Weibull and gamma shapes
+  and the log-normal `sdlog` are dimensionless, but the Gompertz shape
+  has units of 1 / time: the same trial expressed in days, months, or
+  years gives that parameter values three orders of magnitude apart, and
+  a half-normal(0, 2) is near-flat on one scale and strongly informative
+  on another. Set it explicitly for a Gompertz baseline, and use
+  [`prior_sensitivity()`](https://choxos.github.io/mlumr/reference/prior_sensitivity.md)
+  or a prior-predictive check to see what hazard shapes it implies.
 
 - prior_smooth:
 
@@ -349,14 +360,41 @@ mlumr(
   targeted regularization tool: for reliable relaxed-model estimates
   first ensure adequate integration points
   ([`add_integration()`](https://choxos.github.io/mlumr/reference/add_integration.md)
-  `n_int`) and post-warmup iterations. The comparator-population effect
-  is identified directly by the AgD; the index-population effect
-  additionally averages `beta_comparator` over the IPD covariate
-  distribution (an extrapolation, since `beta_comparator` is informed
-  only by the AgD likelihood), so its residual width is
-  identification-driven. Tightening this prior (for example a smaller
-  `prior_normal(0, 1)`) regularizes that residual width. Ignored for
-  `model = "spfa"` (which has a single shared `beta`).
+  `n_int`) and post-warmup iterations. The AgD likelihood informs the
+  comparator-population *outcome* directly, but that does not by itself
+  identify `beta_comparator` or the comparator-population treatment
+  contrast: how well either is determined depends on the number and
+  geometry of independent aggregate summaries, the link, the covariate
+  distribution, the outcome precision, and this prior. A handful of
+  aggregate rows can leave whole coefficient directions informed only by
+  the prior while the posterior still looks narrow.
+  [`check_identification()`](https://choxos.github.io/mlumr/reference/check_identification.md)
+  reports the geometry of the aggregate rows, exactly for a normal
+  identity-link model and descriptively for a nonlinear mean (it does
+  not accept survival fits);
+  [`prior_sensitivity()`](https://choxos.github.io/mlumr/reference/prior_sensitivity.md)
+  shows how much the posterior moves with the prior scale. Neither is a
+  sufficient test on its own. The index-population effect additionally
+  averages `beta_comparator` over the IPD covariate distribution (an
+  extrapolation, since `beta_comparator` is informed only by the AgD
+  likelihood), so its residual width is identification-driven.
+  Tightening this prior (for example a smaller `prior_normal(0, 1)`)
+  regularizes that residual width. Ignored for `model = "spfa"` (which
+  has a single shared `beta`).
+
+- prior_aux2:
+
+  For `family = "survival"` with `distribution = "gengamma"`: prior for
+  the SECOND generalized-gamma auxiliary parameter. `NULL` (the default)
+  reuses `prior_aux`, which is the previous behavior. The two
+  auxiliaries control different features of the hazard, so they can need
+  different regularization; supply this when one of them is poorly
+  identified. Every other distribution has at most one auxiliary
+  parameter: supplying this for one of them warns and has no effect on
+  the fit, and the value is discarded WITHOUT being validated, so a
+  malformed prior in that position warns like any other ignored one
+  rather than aborting the fit. Non-survival families behave the same
+  way.
 
 - ...:
 

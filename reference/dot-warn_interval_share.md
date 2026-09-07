@@ -1,0 +1,15 @@
+# Warn when enough posterior draws are integrated from a single straight line
+
+`shares` is a list with one per-draw vector per curve (one treatment in
+one population). A curve is badly resolved in a draw when more than half
+of its decay falls inside one grid interval. The criterion is the
+FRACTION of draws in which that happens, judged on the worst curve, so a
+minority of draws whose hazard runs ahead of the grid is reported rather
+than averaged away; below one draw in twenty it is left alone, since the
+summaries barely move.
+
+## Usage
+
+``` r
+.warn_interval_share(shares)
+```

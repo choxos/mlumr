@@ -14,7 +14,8 @@ comparison is unit-free.
   realized,
   ref_sd = NULL,
   factor = 0.5,
-  min_spread = 0.05
+  min_spread = 0.05,
+  max_location_gap = 0.25
 )
 ```
 
@@ -45,6 +46,21 @@ comparison is unit-free.
   [`check_identification()`](https://choxos.github.io/mlumr/reference/check_identification.md)
   and
   [`.profile_rank()`](https://choxos.github.io/mlumr/reference/dot-profile_rank.md).
+
+- max_location_gap:
+
+  Largest distance, in reference standard deviations, that the realized
+  column means may sit from the declared ones, and the noise allowance
+  in the row-by-row pairing check. Separate from `min_spread`: a finite
+  integration grid misses its own declared mean by roughly the spread
+  floor itself (32 QMC points against a normal margin land about 0.05 SD
+  away), so reusing that floor here reported correct specifications as
+  mismatches and switched the identification statement onto the realized
+  geometry, which suppressed the rank-1 warning for a design of
+  identical profiles. A quarter of an SD clears the integration error
+  and still catches a
+  [`distr()`](https://choxos.github.io/mlumr/reference/distr.md) that
+  ignores its row.
 
 ## Value
 

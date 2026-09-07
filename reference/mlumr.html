@@ -95,6 +95,7 @@ count, and time-to-event outcomes.</p>
 <span>  engine <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  prior_beta_comparator <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  prior_aux2 <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -178,7 +179,16 @@ available in some survival software, is not supported; use <code>"mspline"</code
 <dt id="arg-prior-aux">prior_aux<a class="anchor" aria-label="anchor" href="#arg-prior-aux"></a></dt>
 <dd><p>For <code>family = "survival"</code> parametric distributions: prior
 for the shape/scale parameter(s) (half-normal/half-t/exponential via the
-<code>&lt;lower=0&gt;</code> constraint). Default <code><a href="default_priors.html">default_prior_aux()</a></code>.</p></dd>
+<code>&lt;lower=0&gt;</code> constraint). Default <code><a href="default_priors.html">default_prior_aux()</a></code>. One default is
+reused across distributions whose auxiliary parameters do not share a
+scale, so check it against your own time unit rather than assuming it is
+weakly informative. The Weibull and gamma shapes and the log-normal
+<code>sdlog</code> are dimensionless, but the Gompertz shape has units of 1 / time:
+the same trial expressed in days, months, or years gives that parameter
+values three orders of magnitude apart, and a half-normal(0, 2) is
+near-flat on one scale and strongly informative on another. Set it
+explicitly for a Gompertz baseline, and use <code><a href="prior_sensitivity.html">prior_sensitivity()</a></code> or a
+prior-predictive check to see what hazard shapes it implies.</p></dd>
 
 
 <dt id="arg-prior-smooth">prior_smooth<a class="anchor" aria-label="anchor" href="#arg-prior-smooth"></a></dt>
@@ -375,13 +385,37 @@ allowed (for example a heavy-tailed Student-t). If <code>NULL</code> (the defaul
 a secondary, targeted regularization tool: for reliable relaxed-model
 estimates first ensure adequate integration points
 (<code><a href="add_integration.html">add_integration()</a></code> <code>n_int</code>) and post-warmup iterations. The
-comparator-population effect is identified directly by the AgD; the
-index-population effect additionally averages <code>beta_comparator</code> over
-the IPD covariate distribution (an extrapolation, since
-<code>beta_comparator</code> is informed only by the AgD likelihood), so its
-residual width is identification-driven. Tightening this prior (for
-example a smaller <code>prior_normal(0, 1)</code>) regularizes that residual
-width. Ignored for <code>model = "spfa"</code> (which has a single shared <code>beta</code>).</p></dd>
+AgD likelihood informs the comparator-population <em>outcome</em> directly,
+but that does not by itself identify <code>beta_comparator</code> or the
+comparator-population treatment contrast: how well either is determined
+depends on the number and geometry of independent aggregate summaries,
+the link, the covariate distribution, the outcome precision, and this
+prior. A handful of aggregate rows can leave whole coefficient
+directions informed only by the prior while the posterior still looks
+narrow. <code><a href="check_identification.html">check_identification()</a></code> reports the geometry of the aggregate
+rows, exactly for a normal identity-link model and descriptively for a
+nonlinear mean (it does not accept survival fits); <code><a href="prior_sensitivity.html">prior_sensitivity()</a></code>
+shows how much the posterior moves with the prior scale. Neither is a
+sufficient test on its own. The index-population effect
+additionally averages <code>beta_comparator</code> over the IPD covariate
+distribution (an extrapolation, since <code>beta_comparator</code> is informed
+only by the AgD likelihood), so its residual width is
+identification-driven. Tightening this prior (for example a smaller
+<code>prior_normal(0, 1)</code>) regularizes that residual width. Ignored for
+<code>model = "spfa"</code> (which has a single shared <code>beta</code>).</p></dd>
+
+
+<dt id="arg-prior-aux-">prior_aux2<a class="anchor" aria-label="anchor" href="#arg-prior-aux-"></a></dt>
+<dd><p>For <code>family = "survival"</code> with
+<code>distribution = "gengamma"</code>: prior for the SECOND generalized-gamma
+auxiliary parameter. <code>NULL</code> (the default) reuses <code>prior_aux</code>, which is the
+previous behavior. The two auxiliaries control different features of the
+hazard, so they can need different regularization; supply this when one of
+them is poorly identified. Every other distribution has at most one
+auxiliary parameter: supplying this for one of them warns and has no
+effect on the fit, and the value is discarded WITHOUT being validated, so
+a malformed prior in that position warns like any other ignored one rather
+than aborting the fit. Non-survival families behave the same way.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>

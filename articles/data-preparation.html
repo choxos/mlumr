@@ -243,9 +243,15 @@ standard-deviation column in <code>cov_sds</code>.</p>
 <p>For the <strong>normal</strong> family, <code>outcome_mean</code> and
 <code>outcome_se</code> must be on the <strong>original (arithmetic)
 scale</strong>, the same scale as the IPD outcome, even when fitting
-with <code>link = "log"</code>. Back-transform any geometric mean or
-log-scale summary (propagating the SE by the delta method) before
-calling <code><a href="../reference/set_agd.html">set_agd()</a></code>. See
+with <code>link = "log"</code>. A geometric mean will not do, and its
+units are what makes that easy to miss: it is in the original units and
+is still a different quantity. Exponentiating a log-scale mean gives the
+geometric mean, not the arithmetic one, and for a lognormal outcome with
+log-scale SD 1 the geometric mean is 39% below the arithmetic one, which
+is the same gap seen from the other side as the arithmetic mean being
+65% above it. Propagating the standard error does not repair that,
+because the mismatch is in the estimand rather than in its uncertainty.
+Ask for the arithmetic mean and its SE. See
 <code><a href="../articles/continuous-outcomes.html">vignette("continuous-outcomes")</a></code>.</p>
 </div>
 </div>

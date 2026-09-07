@@ -61,6 +61,21 @@ predict(
   curve predictions; each is matched to the nearest fitted `pred_times`
   grid point. If `NULL`, all fitted times are returned.
 
+  When supplied, the result has one row per requested time, **in the
+  order requested and including repeats**, and carries a
+  `requested_time` column beside `time` so the mapping from what was
+  asked for to what was evaluated is machine-readable rather than
+  something to parse out of a message. Two distinct requested times can
+  still share a grid point; both are answered, by the same fitted time,
+  and that is reported. Refit with `pred_times` containing the exact
+  times to remove the approximation.
+
+  With `summary = FALSE` the layout is one COLUMN per requested time, so
+  the mapping cannot be a column. It is carried as the `requested_time`
+  and `used_time` attributes instead, each a named vector with one entry
+  per time column, so two requests that snapped to the same grid point
+  are still distinguishable by name.
+
 - newdata:
 
   Optional data frame of covariate profiles defining an arbitrary

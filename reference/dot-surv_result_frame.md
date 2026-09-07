@@ -19,6 +19,7 @@ within-population contrast) followed by `population`.
   probs,
   times_out = NULL,
   origin = NA_real_,
-  horizon = NULL
+  horizon = NULL,
+  requested_times = NULL
 )
 ```

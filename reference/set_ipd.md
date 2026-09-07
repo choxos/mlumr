@@ -72,7 +72,15 @@ set_ipd(
 
 ## Value
 
-An object of class `mlumr_ipd`
+An object of class `mlumr_ipd`. Its `$data` holds the treatment, study,
+outcome and covariate columns under internal names, and one more,
+`.source_key`: a digest of the whole of `data` together with the row's
+rank within a canonical ordering of it, which lets
+[`compare_models()`](https://choxos.github.io/mlumr/reference/compare_models.md)
+tell fits of one source apart from fits of that source reordered,
+whatever covariates they use. Nothing of `data`'s content is kept in it.
+The internal names, `.source_key` among them, cannot be used as column
+names in `data`.
 
 ## Examples
 

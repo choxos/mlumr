@@ -15,6 +15,7 @@ Augment the Stan data list with survival-specific arrays
   rmst_horizon,
   n_rmst_grid = 100L,
   prior_aux,
+  prior_aux2 = NULL,
   prior_smooth,
   n_strata = 1L
 )
@@ -60,6 +61,11 @@ Augment the Stan data list with survival-specific arrays
 - prior_aux:
 
   Prior on the parametric auxiliary shape parameters.
+
+- prior_aux2:
+
+  Prior on the second generalized-gamma auxiliary parameter, or `NULL`
+  to reuse `prior_aux`.
 
 - prior_smooth:
 

@@ -1,0 +1,45 @@
+# Were two fits built on the same observations, row for row?
+
+The observation columns must agree exactly, and so must every covariate
+column the two fits share. Covariates only one of them uses are left out
+on purpose: models of the same outcomes with different covariate sets
+are exactly what gets compared. Two rows that differ only in such a
+covariate are exchangeable for the model that does not use it, since its
+pointwise likelihood is the same for both, so either pairing gives that
+model the same comparison. A row swap that changes a shared covariate is
+a different pairing for both models and is a mismatch.
+
+## Usage
+
+``` r
+.same_observations(a, b, pseudo_grouped = FALSE, unordered = FALSE)
+```
+
+## Arguments
+
+- a, b:
+
+  Results of
+  [`.observation_frames()`](https://choxos.github.io/mlumr/reference/dot-observation_frames.md).
+
+## Value
+
+`TRUE`, `FALSE`, or `NA` when the observations agree but the row order
+could not be verified.
+
+## Details
+
+The stored columns can only show what both fits kept. When the fits
+share no covariate, a swap of two rows that agree on the outcome columns
+moves both models' pointwise likelihoods and leaves nothing in those
+columns to see. The setup functions therefore record, for every row, a
+key made of a fingerprint of the whole source and the row's rank within
+it
+([`.source_row_keys()`](https://choxos.github.io/mlumr/reference/dot-source_row_keys.md)).
+Two fits holding the same set of keys in a different order were built
+from one source reordered between them, and that is a mismatch whatever
+the columns say. Different sets mean the source itself changed between
+the fits, in columns the models did not use; the keys then cannot say
+whether the rows are in the same order, and neither can the columns, so
+the answer is `NA`: not a mismatch, and not verified either. A frame
+with one row cannot be reordered and needs no key.

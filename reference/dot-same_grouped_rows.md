@@ -1,0 +1,38 @@
+# Do two frames hold the same rows within each arm, in any order?
+
+The grouped survival units sum their pointwise columns inside a group
+before anything is compared, so the order of the rows inside a group is
+not part of the comparison and requiring it rejects work that is valid.
+What still has to hold is that each group is made of the same rows: the
+groups themselves must match, and within each one the rows must agree as
+a multiset, so a row moved from one arm to another, or replaced, is
+still a different comparator.
+
+## Usage
+
+``` r
+.same_grouped_rows(x, y, shared, group = TRUE)
+```
+
+## Arguments
+
+- group:
+
+  Split the rows by `.arm` before comparing, which is what a per-arm
+  unit needs. `FALSE` compares the whole frame as one multiset, for a
+  criterion whose value does not depend on the order at all.
+
+## Details
+
+Each group's rows are put in one canonical order and then compared as
+the values they are. Rendering them as text would have been simpler and
+wrong: [`format()`](https://rdrr.io/r/base/format.html) prints to the
+display precision, so two survival times that differ below
+`getOption("digits")` would render alike and two different comparators
+would be approved. Ordering is exact on doubles, so nothing is rounded
+on the way in, and rows that tie on every shared column are
+interchangeable by construction. The source keys take no part in the
+order, which is the very thing being allowed;
+[`.same_observations()`](https://choxos.github.io/mlumr/reference/dot-same_observations.md)
+still asks them, after this, whether the two frames kept different rows
+of one source.

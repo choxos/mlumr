@@ -186,12 +186,26 @@ fit_relaxed <- mlumr(dat, model = "relaxed",
 All four methods, on the **log odds ratio**. ML-UMR is reported in
 **both** target populations. STC has a comparator-population estimand by
 construction; naive has no single standardized target and is labeled
-accordingly. Neither has an index-population row to show. The **index**
-population is normally the decision-relevant one for HTA, because
-cost-effectiveness models are built for the population a reimbursement
-decision is about, which is usually the index trial’s ([Chandler and
-Ishak 2026](#ref-ChandlerIshakTransport)); the comparator rows are the
-like-for-like comparison against naive and STC.
+accordingly. Neither has an index-population row to show. Which of them
+is decision-relevant is a question about the application, not a property
+of the method: a cost-effectiveness model is built for the population
+the reimbursement decision covers, and that population has to be stated.
+It is often close to the index trial’s ([Chandler and Ishak
+2026](#ref-ChandlerIshakTransport)), which is why the index row usually
+carries the decision, but it is not automatically either trial’s. When
+the decision population is a third one, standardize to it directly by
+passing its covariate distribution as `newdata` to
+[`predict()`](https://rdrr.io/r/stats/predict.html) or
+[`marginal_effects()`](https://choxos.github.io/mlumr/reference/marginal_effects.md),
+which average over those rows, rather than adopting whichever trial is
+nearer.
+[`conditional_effects()`](https://choxos.github.io/mlumr/reference/conditional_effects.md)
+takes the same data frame and evaluates at each profile separately
+rather than averaging over them, so what it returns is a set of
+conditional effects and not a transported marginal one. The comparator
+rows are the like-for-like comparison against STC, which standardizes to
+that population; naive standardizes to neither and is the unadjusted
+benchmark both rows are measured against.
 
 ``` r
 
@@ -239,7 +253,7 @@ mlumr_forest(forest_df, ref_line = 0,
              subtitle = "ML-UMR shown in both target populations")
 ```
 
-![plot of chunk forest](figure/forest-1.png)
+![plot of chunk forest](figure/choosing-a-method/forest-1.png)
 
 plot of chunk forest
 
@@ -253,7 +267,8 @@ shows both populations by default:
 plot(marginal_effects(fit_spfa, effect = "lor"))
 ```
 
-![plot of chunk posterior-both](figure/posterior-both-1.png)
+![plot of chunk
+posterior-both](figure/choosing-a-method/posterior-both-1.png)
 
 plot of chunk posterior-both
 
@@ -299,9 +314,15 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "loo")
 #>  Relaxed       0.0     0.0      NA                 1 k_psis > 0.7
 #>     SPFA      -0.2     0.1    0.99 |elpd_diff| < 4 1 k_psis > 0.7
 #> 
+#> 
 #> elpd_diff is the difference in expected log pointwise predictive
-#> density vs the best model. se_diff > 2 is the conventional threshold
-#> for a meaningful difference (|elpd_diff| > 4 * se_diff is stronger).
+#> density vs the best model, and se_diff is its standard error: the
+#> uncertainty about that difference, not evidence for it. Read the two
+#> together. A difference small relative to se_diff is not distinguished
+#> from zero by this comparison, whatever se_diff itself is.
+#> Treat any ratio as a heuristic, not a decision rule, and check the
+#> PSIS diagnostics and whether the difference matters for the
+#> prediction you care about.
 compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed)   # DIC-based (the default)
 #> 
 #> Model Comparison (DIC)

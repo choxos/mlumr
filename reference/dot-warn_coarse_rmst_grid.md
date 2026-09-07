@@ -1,0 +1,43 @@
+# Warn when the RMST grid is too coarse for the hazard it is integrating
+
+The trapezoid rule is accurate only where the curve is resolved. When
+events happen far earlier than the restriction time, almost all of the
+decay falls inside the FIRST interval, where a straight line between
+`S(0) = 1` and `S(t_1)` is a poor approximation of a steep exponential,
+and the integral is badly overstated. Because both arms are overstated
+in nearly the same way, a difference or ratio can lose the entire effect
+rather than merely blur it.
+
+## Usage
+
+``` r
+.warn_coarse_rmst_grid(share)
+```
+
+## Arguments
+
+- share:
+
+  Per-draw shares, one vector per curve as
+  [`.rmst_max_interval_share()`](https://choxos.github.io/mlumr/reference/dot-rmst_max_interval_share.md)
+  or
+  [`.standardize_target_survival_s()`](https://choxos.github.io/mlumr/reference/dot-standardize_target_survival_s.md)
+  computes them; `NA` where there is no decay to apportion.
+
+## Value
+
+`NULL`, invisibly; called for the warning.
+
+## Details
+
+Exponential rates 100 and 200 integrated to `tau = 10` on the default
+100-node grid return an RMST ratio of 1.0001 against a true 2.0, and an
+RMST difference of 4e-6 against a true 5e-3. The same calculation on
+1600 nodes gives 1.83, and converges to 2.0. Nothing about the result
+looks wrong, which is why this warns rather than relying on the user to
+check.
+
+The trigger is the share of the total decay that lands in one grid
+interval: when a curve has already fallen most of the way between two
+adjacent grid points, the grid is resolving the tail rather than the
+event times.

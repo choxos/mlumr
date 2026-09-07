@@ -64,10 +64,18 @@ prior_sensitivity(
 
 ## Value
 
-A data frame (tibble-style) with one row per (scale, population,
-quantile) combination and columns `scale`, `parameter`, `mean`, `sd`,
-and the requested quantiles. Side effect: prints a summary table at the
-end.
+A data frame with one row per (prior scale, summarized parameter) pair,
+and columns `scale`, `scale_comparator` (dropped when the model has no
+comparator coefficient prior), `parameter`, `effect`, `at_time` (present
+only when the summarized effect has an evaluation time, so absent for
+every non-survival family and for survival scalars that carry none),
+`mean`, `sd`, and one column per requested quantile, named `q` followed
+by the percentage (the default `probs` give `q2.5`, `q50`, `q97.5`),
+matching
+[`marginal_effects()`](https://choxos.github.io/mlumr/reference/marginal_effects.md).
+Quantiles are columns, not a row dimension. Side effect: prints a
+summary table at the end when `verbose = TRUE`, which is the default;
+`verbose = FALSE` returns the same data frame and prints nothing.
 
 ## Details
 

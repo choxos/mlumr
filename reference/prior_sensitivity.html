@@ -126,10 +126,17 @@ from the original fit.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A data frame (tibble-style) with one row per
-(scale, population, quantile) combination and columns <code>scale</code>,
-<code>parameter</code>, <code>mean</code>, <code>sd</code>, and the requested quantiles. Side effect:
-prints a summary table at the end.</p>
+    <p>A data frame with one row per (prior scale, summarized parameter)
+pair, and columns <code>scale</code>, <code>scale_comparator</code> (dropped when the model has
+no comparator coefficient prior), <code>parameter</code>, <code>effect</code>, <code>at_time</code> (present
+only when the summarized effect has an evaluation time, so absent for every
+non-survival family and for survival scalars that carry none),
+<code>mean</code>, <code>sd</code>, and one column per requested quantile, named <code>q</code> followed by
+the percentage (the default <code>probs</code> give <code>q2.5</code>, <code>q50</code>, <code>q97.5</code>), matching
+<code><a href="marginal_effects.html">marginal_effects()</a></code>. Quantiles are columns, not a row dimension.
+Side effect: prints a summary table at the end when <code>verbose = TRUE</code>,
+which is the default; <code>verbose = FALSE</code> returns the same data frame and
+prints nothing.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

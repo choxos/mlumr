@@ -33,23 +33,44 @@ a working C++ toolchain:
 
 ## Branches and Pull Requests
 
-`main` is the only integration branch. Everything reaches it through a
-pull request, including work by the maintainer, because the pull request
-is what runs the checks, produces a reviewable diff, and records why a
-change was made.
+Everything reaches an integration branch through a pull request,
+including work by the maintainer, because the pull request is what runs
+the checks, produces a reviewable diff, and records why a change was
+made.
 
-- **One branch per logical change, never one branch per release.** A
-  release is a milestone, a `NEWS.md` heading, and a tag; it is not a
-  unit of review. Branch names should describe the change
-  (`survival-rmst-predictions`, `interval-censoring-validation`). A
-  prefix such as `feature/` or `fix/` is optional.
+`main` holds the released state, with two exceptions: from a CRAN
+submission until a version is accepted it holds the most recent commit
+submitted to CRAN and nothing else merges into it, and between releases
+it may hold the development version. Work for a version that has not
+been released yet integrates on `pre-release/vX.Y.Z` instead, and that
+branch is merged into `main` as one reviewed step when the version is
+ready to submit. A single change therefore has one pull request,
+targeting whichever of the two is the current integration branch; it is
+not opened twice.
+
+The pre-release branch is also merged into `main` between releases, to
+keep the two from drifting while a version is still being built. Such a
+merge bumps no version of its own, and is neither tagged nor submitted;
+what it does change is which version `main` carries, from the released
+one to the development version already set on the pre-release branch,
+and its `DESCRIPTION` says so. It is the merge made when the version is
+ready to submit, and only that one, that becomes the CRAN commit.
+
+- **One branch per logical change, never one change branch per
+  release.** A release is a milestone, a `NEWS.md` heading, and a tag;
+  it is not a unit of review. The pre-release integration branch is not
+  what this rule is about: it collects changes that were each reviewed
+  on their own branch and pull request. Branch names should describe the
+  change (`survival-rmst-predictions`, `interval-censoring-validation`).
+  A prefix such as `feature/` or `fix/` is optional.
 - Bundling a whole version into one branch costs reviewable diffs,
   per-change CI evidence, targeted reverts and cherry-picks, useful
   `git bisect` resolution, and informative blame. Keep changes
   separable.
 - Commit as often as is useful while working. Pull requests are
-  squash-merged, so each commit on `main` is one complete, tested,
-  revertible change.
+  squash-merged, so each commit on the integration branch is one
+  complete, tested, revertible change. The one exception is the pull
+  request that merges a pre-release branch into `main`; see Releases.
 - Write commit subjects in the imperative (“Add M-spline survival
   baselines”). Conventional Commit prefixes are not used here.
 - `git commit --amend` and `git push --force-with-lease` are acceptable
@@ -59,15 +80,23 @@ change was made.
   documentation, and the `NEWS.md` bullet together in the same pull
   request.
 
-Between releases `main` carries a development version (`0.1.0.9000`), so
-add `NEWS.md` entries as the work lands rather than reconstructing them
-later.
+Between releases the integration branch carries a development version
+(`0.1.0.9000`), so add `NEWS.md` entries as the work lands rather than
+reconstructing them later. The development version is set in the first
+commit on a new pre-release branch, immediately after the release it
+follows, so no development commit carries a released version number. It
+is not bumped as work accumulates; the release version is set once,
+during release preparation.
 
 ## Releases
 
-Release branches use `release/vX.Y.Z` and exist only for final
-preparation, after the changes they cover are already merged into
-`main`. They should live for hours, not weeks, and contain only:
+A version under development integrates on `pre-release/vX.Y.Z`, which
+collects the pull requests for that version. `main` holds the released
+state until that branch is first synchronized into it, and the
+development version after that. It carries `vX.Y.Z` itself only once the
+branch is merged for a submission, which is the merge described below.
+Final preparation happens on the pre-release branch, and it contains,
+beyond the changes themselves:
 
 - the version bump in `DESCRIPTION`,
 - the finalized `NEWS.md` section,
@@ -75,12 +104,24 @@ preparation, after the changes they cover are already merged into
 - regenerated artifacts: roxygen documentation, `src/stanExports_*`, the
   precompiled vignettes, `CITATION.cff`, and `codemeta.json`.
 
-The release branch is merged into `main` by pull request once the full
-check matrix is green. The version tag `vX.Y.Z` and the GitHub release
-are created from the merged commit only after CRAN accepts it; while a
-submission is pending, that commit is immutable. If CRAN asks for
+The pre-release branch is merged into `main` by pull request once the
+full check matrix is green. That pull request is merged with a merge
+commit, not squashed: squashing would collapse every change on the
+pre-release branch into one commit on `main` and discard exactly the
+per-change history the branch was kept to preserve. A merge made because
+the version is ready to submit is the commit the submitted tarball is
+built from; CRAN receives the tarball, which is what `cran-comments.md`
+accompanies. A synchronizing merge between releases builds no tarball
+and is neither submitted nor tagged. The version tag `vX.Y.Z` and the
+GitHub release are created from the submitted commit only after CRAN
+accepts it. While a submission is pending, the submitted commit is
+immutable and nothing else is merged into `main`, a synchronizing merge
+included, so `main` is either the released state, the development
+version between releases, or the most recent commit submitted to CRAN,
+never a mixture of a submitted version and later work. If CRAN asks for
 changes, increment to the next version rather than reusing the submitted
-one, and note the resubmission in `cran-comments.md`.
+one, merge the resubmission the same way, and note it in
+`cran-comments.md`.
 
 ## Code Style
 

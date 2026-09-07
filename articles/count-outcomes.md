@@ -387,7 +387,7 @@ posterior intercepts are much tighter than the \mathrm{N}(0,10) prior:
 plot_prior_posterior(fit_spfa, pars = c("mu_index", "mu_comparator"))
 ```
 
-![plot of chunk prior-post](figure/prior-post-1.png)
+![plot of chunk prior-post](figure/count-outcomes/prior-post-1.png)
 
 plot of chunk prior-post
 
@@ -412,14 +412,22 @@ The Poisson model assumes the count mean equals its variance. Caries
 counts are often **overdispersed** (variance \> mean, e.g. from
 unmodeled clustering), in which case the Poisson intervals are
 optimistically narrow. mlumr’s count family is Poisson and has no
-dispersion parameter. If the IPD shows clear overdispersion (compare
-`var(dmft)` against `mean(dmft)`), report the intervals as a lower bound
-on uncertainty and state the limitation. Prespecified prognostic
-covariates may explain part of the excess variation, but they are not a
-correction for it, and neither the naive contrast nor Poisson STC
-adjusts for residual overdispersion; both inherit the same assumption.
-Material overdispersion calls for a dispersion-aware model outside
-mlumr.
+dispersion parameter. Diagnose it conditionally. Comparing `var(dmft)`
+against `mean(dmft)` answers a different question: a Poisson regression
+gives every subject its own fitted mean, so the marginal variance
+exceeds the marginal mean whenever the covariates explain anything, even
+when the model is exactly right. Fit the same regression with
+`glm(family = poisson)` on the IPD and compare its sum of squared
+Pearson residuals against the residual degrees of freedom; a ratio well
+above 1 is the evidence that matters. Where it is large, say that the
+reported intervals understate uncertainty. Do not call them a guaranteed
+lower bound: that follows for extra dispersion around a correct mean
+model, and a misspecified mean can move an interval either way.
+Prespecified prognostic covariates may explain part of the excess
+variation, but they are not a correction for it, and neither the naive
+contrast nor Poisson STC adjusts for residual overdispersion; both
+inherit the same assumption. Material overdispersion calls for a
+dispersion-aware model outside mlumr.
 
 ### Convergence
 
@@ -503,7 +511,7 @@ mlumr_forest(forest_df, ref_line = 1, log_x = TRUE,
              subtitle = "Unadjusted vs population-adjusted, in both target populations")
 ```
 
-![plot of chunk forest](figure/forest-1.png)
+![plot of chunk forest](figure/count-outcomes/forest-1.png)
 
 plot of chunk forest
 
@@ -536,7 +544,8 @@ with its [`plot()`](https://rdrr.io/r/graphics/plot.default.html) method
 plot(marginal_effects(fit_spfa))
 ```
 
-![plot of chunk posterior-areas](figure/posterior-areas-1.png)
+![plot of chunk
+posterior-areas](figure/count-outcomes/posterior-areas-1.png)
 
 plot of chunk posterior-areas
 
@@ -566,7 +575,7 @@ Standardized expected dmft by treatment {.table style="width:100%;"}
 plot(predict(fit_spfa, population = "both", type = "response"))
 ```
 
-![plot of chunk predict-plot](figure/predict-plot-1.png)
+![plot of chunk predict-plot](figure/count-outcomes/predict-plot-1.png)
 
 plot of chunk predict-plot
 
@@ -613,9 +622,15 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "loo")
 #>  Relaxed       0.0     0.0      NA                 1 k_psis > 0.7
 #>     SPFA      -0.3     0.2    0.95 |elpd_diff| < 4 1 k_psis > 0.7
 #> 
+#> 
 #> elpd_diff is the difference in expected log pointwise predictive
-#> density vs the best model. se_diff > 2 is the conventional threshold
-#> for a meaningful difference (|elpd_diff| > 4 * se_diff is stronger).
+#> density vs the best model, and se_diff is its standard error: the
+#> uncertainty about that difference, not evidence for it. Read the two
+#> together. A difference small relative to se_diff is not distinguished
+#> from zero by this comparison, whatever se_diff itself is.
+#> Treat any ratio as a heuristic, not a decision rule, and check the
+#> PSIS diagnostics and whether the difference matters for the
+#> prediction you care about.
 compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "dic")
 #> 
 #> Model Comparison (DIC)

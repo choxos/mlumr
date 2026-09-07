@@ -475,27 +475,27 @@ comparator-specific coefficients lean on one aggregate row.</p>
 <span>                  prior_beta <span class="op">=</span> <span class="fu"><a href="../reference/prior_normal.html">prior_normal</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span>, autoscale <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
 <span>                  chains <span class="op">=</span> <span class="fl">4</span>, iter <span class="op">=</span> <span class="fl">2000</span>, warmup <span class="op">=</span> <span class="fl">1000</span>, seed <span class="op">=</span> <span class="fl">2026</span>, refresh <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
-<span><span class="co">#&gt; Chain 1 finished in 0.1 seconds.</span></span>
-<span><span class="co">#&gt; Chain 2 finished in 0.2 seconds.</span></span>
-<span><span class="co">#&gt; Chain 3 finished in 0.2 seconds.</span></span>
-<span><span class="co">#&gt; Chain 4 finished in 0.2 seconds.</span></span>
+<span><span class="co">#&gt; Chain 1 finished in 0.3 seconds.</span></span>
+<span><span class="co">#&gt; Chain 2 finished in 0.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 3 finished in 0.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 4 finished in 0.4 seconds.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span><span class="co">#&gt; Mean chain execution time: 0.2 seconds.</span></span>
-<span><span class="co">#&gt; Total execution time: 0.4 seconds.</span></span>
+<span><span class="co">#&gt; Mean chain execution time: 0.4 seconds.</span></span>
+<span><span class="co">#&gt; Total execution time: 0.6 seconds.</span></span>
 <span><span class="va">fit_relaxed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mlumr.html">mlumr</a></span><span class="op">(</span><span class="va">dat</span>, model <span class="op">=</span> <span class="st">"relaxed"</span>, link <span class="op">=</span> <span class="st">"identity"</span>,</span>
 <span>                     prior_beta <span class="op">=</span> <span class="fu"><a href="../reference/prior_normal.html">prior_normal</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0.75</span>, autoscale <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
 <span>                     chains <span class="op">=</span> <span class="fl">4</span>, iter <span class="op">=</span> <span class="fl">2000</span>, warmup <span class="op">=</span> <span class="fl">1000</span>,</span>
 <span>                     adapt_delta <span class="op">=</span> <span class="fl">0.95</span>, seed <span class="op">=</span> <span class="fl">2026</span>, refresh <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
-<span><span class="co">#&gt; Chain 1 finished in 0.2 seconds.</span></span>
-<span><span class="co">#&gt; Chain 2 finished in 0.2 seconds.</span></span>
-<span><span class="co">#&gt; Chain 3 finished in 0.2 seconds.</span></span>
-<span><span class="co">#&gt; Chain 4 finished in 0.2 seconds.</span></span>
+<span><span class="co">#&gt; Chain 2 finished in 0.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 3 finished in 0.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 1 finished in 0.5 seconds.</span></span>
+<span><span class="co">#&gt; Chain 4 finished in 0.4 seconds.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span><span class="co">#&gt; Mean chain execution time: 0.2 seconds.</span></span>
-<span><span class="co">#&gt; Total execution time: 0.5 seconds.</span></span>
+<span><span class="co">#&gt; Mean chain execution time: 0.4 seconds.</span></span>
+<span><span class="co">#&gt; Total execution time: 0.6 seconds.</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_spfa</span><span class="op">)</span></span>
 <span><span class="co">#&gt; ML-UMR Model Summary</span></span>
 <span><span class="co">#&gt; ====================</span></span>
@@ -566,7 +566,7 @@ posterior intercepts are much tighter than the <span class="math inline">\mathrm
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_prior_posterior.html">plot_prior_posterior</a></span><span class="op">(</span><span class="va">fit_spfa</span>, pars <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"mu_index"</span>, <span class="st">"mu_comparator"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
-<img src="figure/prior-post-1.png" alt="plot of chunk prior-post"><p class="caption">
+<img src="figure/continuous-outcomes/prior-post-1.png" alt="plot of chunk prior-post"><p class="caption">
 plot of chunk prior-post
 </p>
 </div>
@@ -578,17 +578,25 @@ plot of chunk prior-post
 <code>outcome_se</code> must be on the <strong>original (arithmetic)
 scale</strong>, the same scale as the IPD outcome. If a published
 comparator reports a <em>geometric</em> mean, a mean on the log scale,
-or a change-from-baseline on a transformed scale, back-transform it
-(propagating the standard error by the delta method) before calling
-<code><a href="../reference/set_agd.html">set_agd()</a></code>. Passing a log-scale summary while fitting on the
-identity link silently biases the comparator likelihood. The residual
-likelihood here is Gaussian, so an influential observation in the IPD
-can pull the fit. A heavier-tailed prior on the coefficients does not
-address this: the prior governs the coefficients, not the residual
-distribution, and a heavier tail permits larger coefficients rather than
-suppressing them. mlumr’s normal family provides no heavy-tailed
-residual distribution, so identify influential observations directly,
-report their effect on the estimate, and use
+or a change-from-baseline on a transformed scale, that is a different
+quantity and not a rescaling of the one this argument wants.
+Exponentiating a log-scale mean returns the geometric mean: for a
+lognormal outcome with log-scale SD 1 the geometric mean is
+<code>exp(0) = 1</code> while the arithmetic mean is
+<code>exp(0.5) = 1.65</code>. Propagating the standard error does not
+fix it, because the mismatch is in the estimand rather than in its
+uncertainty. Ask for the arithmetic mean and its SE, or, if you are
+willing to assume lognormality and have the log-scale
+<strong>SD</strong>, compute <code>exp(m + s^2 / 2)</code> and propagate
+<code>m</code> and <code>s</code> jointly. Passing a log-scale summary
+while fitting on the identity link silently biases the comparator
+likelihood. The residual likelihood here is Gaussian, so an influential
+observation in the IPD can pull the fit. A heavier-tailed prior on the
+coefficients does not address this: the prior governs the coefficients,
+not the residual distribution, and a heavier tail permits larger
+coefficients rather than suppressing them. mlumr’s normal family
+provides no heavy-tailed residual distribution, so identify influential
+observations directly, report their effect on the estimate, and use
 <code><a href="../reference/prior_sensitivity.html">prior_sensitivity()</a></code> only for what it measures, namely
 sensitivity to the coefficient prior.</p>
 </div>
@@ -702,7 +710,7 @@ not aggregation bias.</p>
 <span>             title <span class="op">=</span> <span class="st">"Shoulder pain on activity: ASD vs ET"</span>,</span>
 <span>             subtitle <span class="op">=</span> <span class="st">"Unadjusted vs population-adjusted, in both target populations"</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
-<img src="figure/forest-1.png" alt="plot of chunk forest"><p class="caption">
+<img src="figure/continuous-outcomes/forest-1.png" alt="plot of chunk forest"><p class="caption">
 plot of chunk forest
 </p>
 </div>
@@ -790,7 +798,7 @@ straight from <code><a href="../reference/marginal_effects.html">marginal_effect
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="../reference/marginal_effects.html">marginal_effects</a></span><span class="op">(</span><span class="va">fit_spfa</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
-<img src="figure/posterior-areas-1.png" alt="plot of chunk posterior-areas"><p class="caption">
+<img src="figure/continuous-outcomes/posterior-areas-1.png" alt="plot of chunk posterior-areas"><p class="caption">
 plot of chunk posterior-areas
 </p>
 </div>
@@ -866,7 +874,7 @@ by color):</p>
 <div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit_spfa</span>, population <span class="op">=</span> <span class="st">"both"</span>, type <span class="op">=</span> <span class="st">"response"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
-<img src="figure/predict-plot-1.png" alt="plot of chunk predict-plot"><p class="caption">
+<img src="figure/continuous-outcomes/predict-plot-1.png" alt="plot of chunk predict-plot"><p class="caption">
 plot of chunk predict-plot
 </p>
 </div>
@@ -944,9 +952,15 @@ and check <code><a href="../reference/prior_sensitivity.html">prior_sensitivity(
 <span><span class="co">#&gt;     SPFA       0.0     0.0      NA                 1 k_psis &gt; 0.7</span></span>
 <span><span class="co">#&gt;  Relaxed      -1.0     0.7    0.90 |elpd_diff| &lt; 4 1 k_psis &gt; 0.7</span></span>
 <span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; elpd_diff is the difference in expected log pointwise predictive</span></span>
-<span><span class="co">#&gt; density vs the best model. se_diff &gt; 2 is the conventional threshold</span></span>
-<span><span class="co">#&gt; for a meaningful difference (|elpd_diff| &gt; 4 * se_diff is stronger).</span></span>
+<span><span class="co">#&gt; density vs the best model, and se_diff is its standard error: the</span></span>
+<span><span class="co">#&gt; uncertainty about that difference, not evidence for it. Read the two</span></span>
+<span><span class="co">#&gt; together. A difference small relative to se_diff is not distinguished</span></span>
+<span><span class="co">#&gt; from zero by this comparison, whatever se_diff itself is.</span></span>
+<span><span class="co">#&gt; Treat any ratio as a heuristic, not a decision rule, and check the</span></span>
+<span><span class="co">#&gt; PSIS diagnostics and whether the difference matters for the</span></span>
+<span><span class="co">#&gt; prediction you care about.</span></span>
 <span><span class="fu"><a href="../reference/compare_models.html">compare_models</a></span><span class="op">(</span>SPFA <span class="op">=</span> <span class="va">fit_spfa</span>, Relaxed <span class="op">=</span> <span class="va">fit_relaxed</span>, criterion <span class="op">=</span> <span class="st">"dic"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Model Comparison (DIC)</span></span>

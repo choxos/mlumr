@@ -228,7 +228,7 @@ ggsurvfit::survfit2(survival::Surv(eventtime, status) ~ arm, data = km_obs) |>
   theme_minimal(base_size = 11) + theme(legend.position = "bottom")
 ```
 
-![plot of chunk km](figure/km-1.png)
+![plot of chunk km](figure/survival-outcomes/km-1.png)
 
 plot of chunk km
 
@@ -541,7 +541,7 @@ The posterior intercepts (log-baseline scale) versus their
 plot_prior_posterior(fit_mspline, pars = c("mu_index", "mu_comparator"))
 ```
 
-![plot of chunk prior-post](figure/prior-post-1.png)
+![plot of chunk prior-post](figure/survival-outcomes/prior-post-1.png)
 
 plot of chunk prior-post
 
@@ -606,7 +606,7 @@ the credible band, facets by population, and adds the null line at 0:
 plot(predict(fit_mspline, type = "loghr"))
 ```
 
-![plot of chunk loghr](figure/loghr-1.png)
+![plot of chunk loghr](figure/survival-outcomes/loghr-1.png)
 
 plot of chunk loghr
 
@@ -658,7 +658,7 @@ mlumr_forest(forest_df, ref_line = 0,
                                 tau_rmst))
 ```
 
-![plot of chunk forest](figure/forest-1.png)
+![plot of chunk forest](figure/survival-outcomes/forest-1.png)
 
 plot of chunk forest
 
@@ -719,7 +719,7 @@ plot(predict(fit_mspline, type = "survival")) +
   scale_color_manual(values = surv_cols, aesthetics = c("colour", "fill"))
 ```
 
-![plot of chunk surv-curves](figure/surv-curves-1.png)
+![plot of chunk surv-curves](figure/survival-outcomes/surv-curves-1.png)
 
 plot of chunk surv-curves
 
@@ -738,7 +738,8 @@ plot(predict(fit_mspline, population = "index", type = "survival")) +
   ggplot2::labs(subtitle = "Index population, with the observed Len KM")
 ```
 
-![plot of chunk surv-curves-km](figure/surv-curves-km-1.png)
+![plot of chunk
+surv-curves-km](figure/survival-outcomes/surv-curves-km-1.png)
 
 plot of chunk surv-curves-km
 
@@ -751,7 +752,8 @@ plot(predict(fit_mspline, population = "comparator", type = "survival")) +
   ggplot2::labs(subtitle = "Comparator population, with the observed Thal KM")
 ```
 
-![plot of chunk surv-curves-km](figure/surv-curves-km-2.png)
+![plot of chunk
+surv-curves-km](figure/survival-outcomes/surv-curves-km-2.png)
 
 plot of chunk surv-curves-km
 
@@ -766,7 +768,8 @@ plot(predict(fit_mspline, type = "hazard")) +
   scale_color_manual(values = surv_cols, aesthetics = c("colour", "fill"))
 ```
 
-![plot of chunk hazard-curve](figure/hazard-curve-1.png)
+![plot of chunk
+hazard-curve](figure/survival-outcomes/hazard-curve-1.png)
 
 plot of chunk hazard-curve
 
@@ -793,17 +796,20 @@ summary) {.table}
 
 Under the relaxed model the conditional hazard ratio depends on the
 covariates, so there is no single conditional HR. The scalar `HR` is
-then only the marginal hazard ratio at the **start of follow-up**;
-prefer `predict(type = "loghr")` for the time-varying contrast, or the
-collapsible RMST estimands (`effect = "rmstd"` / `"rmstr"`). **Caveat
-(unanchored two-study setting).** Unlike multinma’s connected network,
-here the comparator coefficients are identified *only* through the
-single reconstructed comparator likelihood, so the index-population
-relaxed estimand extrapolates them over the IPD covariate distribution
-and is correspondingly wide. We regularize `beta_comparator` with a
-tighter autoscaled prior (set in the fit above), report both populations
-so the extra width of the index-population estimand is visible rather
-than hidden, and check
+then only the marginal hazard ratio at one instant, and the `at_time`
+column says which: the t \rightarrow 0 limit for an unstratified fit,
+and otherwise the first prediction time, which is positive and set by
+`pred_times`. Prefer `predict(type = "loghr")` for the time-varying
+contrast, or the collapsible RMST estimands (`effect = "rmstd"` /
+`"rmstr"`), whose horizon is reported beside them. **Caveat (unanchored
+two-study setting).** Unlike multinma’s connected network, here the
+comparator coefficients are identified *only* through the single
+reconstructed comparator likelihood, so the index-population relaxed
+estimand extrapolates them over the IPD covariate distribution and is
+correspondingly wide. We regularize `beta_comparator` with a tighter
+autoscaled prior (set in the fit above), report both populations so the
+extra width of the index-population estimand is visible rather than
+hidden, and check
 [`prior_sensitivity()`](https://choxos.github.io/mlumr/reference/prior_sensitivity.md);
 see the *Relaxed-model identification* notes in `NEWS` and
 [`?mlumr`](https://choxos.github.io/mlumr/reference/mlumr.md).
@@ -826,9 +832,15 @@ compare_models(Weibull = fit_weibull, MSpline = fit_mspline, criterion = "loo")
 #>  MSpline       0.0     0.0      NA                    
 #>  Weibull      -5.4     3.9    0.92                    
 #> 
+#> 
 #> elpd_diff is the difference in expected log pointwise predictive
-#> density vs the best model. se_diff > 2 is the conventional threshold
-#> for a meaningful difference (|elpd_diff| > 4 * se_diff is stronger).
+#> density vs the best model, and se_diff is its standard error: the
+#> uncertainty about that difference, not evidence for it. Read the two
+#> together. A difference small relative to se_diff is not distinguished
+#> from zero by this comparison, whatever se_diff itself is.
+#> Treat any ratio as a heuristic, not a decision rule, and check the
+#> PSIS diagnostics and whether the difference matters for the
+#> prediction you care about.
 ```
 
 The Weibull fit’s own standardized effects, in both populations, so the
@@ -859,7 +871,8 @@ plot(predict(fit_weibull, type = "survival")) +
   scale_color_manual(values = surv_cols, aesthetics = c("colour", "fill"))
 ```
 
-![plot of chunk weibull-surv](figure/weibull-surv-1.png)
+![plot of chunk
+weibull-surv](figure/survival-outcomes/weibull-surv-1.png)
 
 plot of chunk weibull-surv
 
