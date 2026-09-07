@@ -426,9 +426,14 @@ geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
   # key that still repeats is two different values under one label, which is
   # the thing that cannot be drawn.
   drawn <- unique(df[, setdiff(names(df), "requested_time"), drop = FALSE])
-  if (anyDuplicated(drawn[, key, drop = FALSE])) {
+  # `anyDuplicated()` gives the row where the key first repeats, which is the
+  # arm the message has to name. The first row of the frame is a different arm
+  # whenever the conflict is anywhere but the front, and renaming that one
+  # would not fix anything.
+  clash <- anyDuplicated(drawn[, key, drop = FALSE])
+  if (clash) {
     stop("This prediction has two series per population that share the ",
-         "treatment label '", drawn$treatment[1], "', so they cannot be drawn ",
+         "treatment label '", drawn$treatment[clash], "', so they cannot be drawn ",
          "as separate curves. Give the two arms distinct treatment names in ",
          "set_ipd() / set_agd_surv() and refit.", call. = FALSE)
   }

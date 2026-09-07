@@ -513,4 +513,14 @@ test_that("a time asked for twice is not an ambiguous pair of series", {
                             row("B", 2, 2, 0.7), row("B", 5, 5, 0.5))))
   # And the case the guard exists for is still refused: one label, two values.
   expect_false(accepts(rbind(row("A", 2, 2, 0.8), row("A", 2, 2, 0.7))))
+
+  # The message has to name the arm that clashes, not whichever arm happens to
+  # be first. Renaming a well-named front row would not fix anything.
+  msg <- tryCatch(
+    .reject_ambiguous_series(rbind(row("A", 2, 2, 0.9), row("B", 2, 2, 0.8),
+                                   row("C", 2, 2, 0.7), row("C", 2, 2, 0.6))),
+    error = function(e) conditionMessage(e)
+  )
+  expect_match(msg, "label 'C'", fixed = TRUE)
+  expect_false(grepl("label 'A'", msg, fixed = TRUE))
 })
