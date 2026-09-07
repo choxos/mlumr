@@ -723,3 +723,23 @@ test_that("source row keys do not move with the collation locale", {
   expect_true(length(unique(lapply(orders, identity))) > 1L)
   expect_equal(length(unique(keys)), 1L)
 })
+
+test_that("a column name in an unsupported encoding does not stop the key", {
+  # Radix ordering accepts UTF-8, Latin-1 and bytes and errors on anything
+  # else, so putting the column names in byte order could refuse a frame the
+  # locale-dependent default had sorted. The names are ordered on their UTF-8
+  # conversion, which is what `tag()` already does to the values.
+  odd <- rawToChar(as.raw(c(0xfc, 0x62, 0x65, 0x72)))
+  Encoding(odd) <- "unknown"
+  # The premise: this really is the input radix ordering refuses.
+  skip_if_not(
+    inherits(try(sort(c(odd, "plain"), method = "radix"), silent = TRUE),
+             "try-error"),
+    "this platform's radix ordering accepts the name unchanged"
+  )
+  d <- data.frame(a = c(1, 2), b = c(3, 4))
+  names(d) <- c(odd, "plain")
+  keys <- .source_row_keys(d)
+  expect_match(keys, "^[0-9a-f]{32}:[0-9]+$")
+  expect_equal(length(unique(keys)), 2L)
+})

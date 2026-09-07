@@ -46,11 +46,12 @@ change therefore has one pull request, targeting whichever of the two is the
 current integration branch; it is not opened twice.
 
 The pre-release branch is also merged into `main` between releases, to keep the
-two from drifting while a version is still being built. Such a merge carries no
-version change, no tag and no submission; `main` then holds the development
-version rather than the released one, which is what its `DESCRIPTION` says. It
-is the merge made when the version is ready to submit, and only that one, that
-becomes the CRAN commit.
+two from drifting while a version is still being built. Such a merge bumps no
+version of its own, and is neither tagged nor submitted; what it does change is
+which version `main` carries, from the released one to the development version
+already set on the pre-release branch, and its `DESCRIPTION` says so. It is the
+merge made when the version is ready to submit, and only that one, that becomes
+the CRAN commit.
 
 - **One branch per logical change, never one change branch per release.** A
   release is a milestone, a `NEWS.md` heading, and a tag; it is not a unit of

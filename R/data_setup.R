@@ -499,7 +499,14 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
   # of one source made under different locales then carried different digests,
   # which reads as two sources: the ranks are never compared, a reordering goes
   # unseen, and one source filtered two ways is no longer a mismatch.
-  nms <- sort(names(data), method = "radix")
+  # Ordered on the names converted to UTF-8, not on the names themselves:
+  # radix ordering accepts UTF-8, Latin-1 and bytes and errors on anything
+  # else, so a column name in an unknown 8-bit encoding would stop the fit
+  # here, where the locale-dependent default had sorted it. The values go
+  # through `enc2utf8()` in `tag()` for the same reason. The originals are what
+  # index `data`, so the conversion decides the order and nothing else.
+  nms <- names(data)
+  nms <- nms[order(enc2utf8(nms), method = "radix")]
   cols <- lapply(nms, function(nm) tag(flat(data[[nm]])))
   rows <- if (length(cols)) {
     do.call(paste, c(cols, sep = "\036"))
