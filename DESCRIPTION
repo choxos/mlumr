@@ -50,7 +50,7 @@ LinkingTo:
     rstan (>= 2.26.0),
     StanHeaders (>= 2.26.0)
 Suggests:
-    testthat (>= 3.1.5),
+    testthat (>= 3.2.0),
     ggsurvfit,
     knitr,
     rmarkdown,
