@@ -24,11 +24,13 @@ estimate from \code{est} / \code{estimate} / \code{mean}; the interval bounds fr
 \code{lo}/\code{hi}, \code{q2.5}/\code{q97.5}, \code{ci_lower}/\code{ci_upper}, \code{conf.low}/\code{conf.high}, or
 \code{lower}/\code{upper}.}
 
-\item{ref_line}{Null-effect reference line. Defaults to \code{1} when
-\code{log_x = TRUE} and \code{0} otherwise, so a ratio axis gets its own null rather
-than one that log-transforms to \code{-Inf} and disappears. Kept inside the
-clipping window, so a forest whose estimates sit far from the null still
-shows it.}
+\item{ref_line}{Null-effect reference line. By default it is read from the
+\code{effect} column when \code{data} has one, so a ratio measure (\code{HR}, \code{TR}, \code{RR},
+\code{RMSTR}) gets \code{1} and a difference (\code{RMSTD}, \code{MD}, \code{LOR}, a log-scale
+contrast) gets \code{0}, whichever axis it is drawn on. With no \code{effect} column
+there is nothing to read and the axis is the only hint left: \code{1} when
+\code{log_x = TRUE} and \code{0} otherwise. Kept inside the clipping window, so a
+forest whose estimates sit far from the null still shows it.}
 
 \item{log_x}{Draw the x axis on a log10 scale (for ratio measures).}
 
