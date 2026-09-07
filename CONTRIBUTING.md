@@ -102,9 +102,9 @@ check matrix is green. That pull request is merged with a merge commit, not
 squashed: squashing would collapse every change on the pre-release branch into
 one commit on `main` and discard exactly the per-change history the branch was
 kept to preserve. A merge made because the version is ready to submit is the
-commit that is submitted to CRAN; a synchronizing merge between releases is
-not, and neither is tagged. The version tag `vX.Y.Z` and the GitHub release are
-created from the submitted commit only after CRAN accepts it. While a
+commit that is submitted to CRAN. A synchronizing merge between releases is
+neither submitted nor tagged. The version tag `vX.Y.Z` and the GitHub release
+are created from the submitted commit only after CRAN accepts it. While a
 submission is pending, the submitted commit is immutable and nothing else is
 merged into `main`, a synchronizing merge included, so `main` is either the
 released state, the development version between releases, or the most recent
