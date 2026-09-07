@@ -743,3 +743,27 @@ test_that("a column name in an unsupported encoding does not stop the key", {
   expect_match(keys, "^[0-9a-f]{32}:[0-9]+$")
   expect_equal(length(unique(keys)), 2L)
 })
+
+test_that("the name ordering survives a conversion it cannot make", {
+  # `.name_order()` orders on the UTF-8 conversion so that two spellings of one
+  # name order together. It runs inside set_ipd() and set_agd(), so a
+  # conversion that throws must not refuse the data frame: byte order is still
+  # total and still the same on every machine.
+  nms <- c("b", "a", "c")
+  expect_identical(.name_order(nms), c(2L, 1L, 3L))
+
+  # The fallback, forced by making the conversion itself fail.
+  with_mocked_bindings(
+    expect_identical(.name_order(nms), c(2L, 1L, 3L)),
+    enc2utf8 = function(x) stop("invalid multibyte string"),
+    .package = "base"
+  )
+  # Byte order, not the collation the fallback replaces: upper case sorts
+  # before lower case, which an en_US collation does the other way around.
+  mixed <- c("ab", "AB", "Age")
+  with_mocked_bindings(
+    expect_identical(mixed[.name_order(mixed)], c("AB", "Age", "ab")),
+    enc2utf8 = function(x) stop("invalid multibyte string"),
+    .package = "base"
+  )
+})

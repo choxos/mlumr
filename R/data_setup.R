@@ -420,6 +420,33 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
   ipd_data
 }
 
+#' Order column names in byte order, whatever they are encoded in
+#'
+#' The order has to be the same on every machine, so it cannot come from
+#' `LC_COLLATE`. Radix ordering supplies that and accepts only UTF-8, Latin-1
+#' and bytes, so the names are converted first, which also makes a Latin-1 and
+#' a UTF-8 spelling of one name order together: that agreement is what the keys
+#' are compared for.
+#'
+#' A conversion that cannot be made falls back to the bytes as they stand.
+#' `enc2utf8()` returned a UTF-8 string for every input tried here, invalid
+#' sequences included, but it is documented to interpret the native encoding,
+#' and this runs inside [set_ipd()] and [set_agd()], where an error would
+#' refuse a data frame outright rather than order it oddly. Byte order is still
+#' total and still the same everywhere; what is lost is only the agreement
+#' between two spellings of one name, and a name that cannot be converted has
+#' no second spelling to agree with.
+#' @param nms A character vector of column names.
+#' @return The permutation that puts them in byte order.
+#' @keywords internal
+.name_order <- function(nms) {
+  tryCatch(order(enc2utf8(nms), method = "radix"), error = function(e) {
+    raw_nms <- nms
+    Encoding(raw_nms) <- "bytes"
+    order(raw_nms, method = "radix")
+  })
+}
+
 #' One key per row of a source data frame, without keeping its content
 #'
 #' The stored data keep only the columns a model needs. Two fits of one source
@@ -506,7 +533,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
   # through `enc2utf8()` in `tag()` for the same reason. The originals are what
   # index `data`, so the conversion decides the order and nothing else.
   nms <- names(data)
-  nms <- nms[order(enc2utf8(nms), method = "radix")]
+  nms <- nms[.name_order(nms)]
   cols <- lapply(nms, function(nm) tag(flat(data[[nm]])))
   rows <- if (length(cols)) {
     do.call(paste, c(cols, sep = "\036"))
