@@ -47,3 +47,23 @@ test_that("an explicit ref_line still wins, and a log axis still rejects 0", {
   expect_error(mlumr_forest(frame("LOR"), log_x = TRUE),
                "must be positive when `log_x = TRUE`")
 })
+
+test_that("an unrecognized label falls back to the axis, not to zero", {
+  # `mlumr_forest()` accepts any data frame, so `effect` can be a label the
+  # package never produces. Treating it as a difference gave "OR" a null of 0
+  # and, on a log axis, refused the plot outright, where reading the axis had
+  # been right.
+  expect_equal(ref_of(mlumr_forest(frame("OR"), log_x = TRUE)), 1)
+  expect_equal(ref_of(mlumr_forest(frame("OR"))), 0)
+  expect_equal(ref_of(mlumr_forest(frame("something else"), log_x = TRUE)), 1)
+
+  # a recognized difference on a log axis is still refused, because that is a
+  # real contradiction rather than an unknown
+  expect_error(mlumr_forest(frame("LOR"), log_x = TRUE),
+               "must be positive when `log_x = TRUE`")
+
+  expect_true(mlumr:::.known_measure("hr"))
+  expect_true(mlumr:::.known_measure("RMSTD"))
+  expect_false(mlumr:::.known_measure("OR"))
+  expect_false(mlumr:::.known_measure(NA))
+})
