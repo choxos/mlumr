@@ -94,8 +94,9 @@ For the **normal** family, `outcome_mean` and `outcome_se` must be on the
 fitting with `link = "log"`. A geometric mean will not do, and its units are
 what makes that easy to miss: it is in the original units and is still a
 different quantity. Exponentiating a log-scale mean gives the geometric mean,
-not the arithmetic one, and for a lognormal outcome with log-scale SD 1 the two
-differ by 39%. Propagating the standard error does not repair that, because the
+not the arithmetic one, and for a lognormal outcome with log-scale SD 1 the
+geometric mean is 39% below the arithmetic one, which is the same gap seen from
+the other side as the arithmetic mean being 65% above it. Propagating the standard error does not repair that, because the
 mismatch is in the estimand rather than in its uncertainty. Ask for the
 arithmetic mean and its SE. See `vignette("continuous-outcomes")`.
 

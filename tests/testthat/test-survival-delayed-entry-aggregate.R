@@ -24,13 +24,7 @@ test_that("the aggregate delayed-entry likelihood conditions on entry before ave
   engine <- mlumr:::get_engine()
   skip_if_not_installed(engine)
   if (identical(engine, "cmdstanr")) {
-    skip_if_not(
-      tryCatch({
-        cmdstanr::cmdstan_path()
-        TRUE
-      }, error = function(e) FALSE),
-      "CmdStan is not installed"
-    )
+    skip_if_not(cmdstan_is_usable(), "CmdStan is not usable")
   }
   set.seed(2026)
   beta <- 0.7

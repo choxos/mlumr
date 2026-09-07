@@ -42,13 +42,7 @@ test_that("get_engine defaults to rstan when option is NULL", {
 test_that("cmdstanr backend fits a model end-to-end", {
   skip_on_cran()
   skip_if_not_installed("cmdstanr")
-  skip_if_not(
-    tryCatch({
-      cmdstanr::cmdstan_path()
-      TRUE
-    }, error = function(e) FALSE),
-    "CmdStan not available"
-  )
+  skip_if_not(cmdstan_is_usable(), "CmdStan not available")
 
   set.seed(2026)
   n <- 50
