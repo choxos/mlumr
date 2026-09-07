@@ -613,9 +613,59 @@ test_that("one source filtered two ways is a mismatch, not unverifiable", {
 
   expect_false(.same_observations(.observation_frames(fit_age),
                                   .observation_frames(fit_wt)))
+  # DIC does not depend on the order, so it asks with `unordered = TRUE` and
+  # cannot consult the keys about order. It still must not rank two fits built
+  # on different patients.
+  expect_false(.same_observations(.observation_frames(fit_age),
+                                  .observation_frames(fit_wt),
+                                  unordered = TRUE))
+  expect_error(compare_models(fit_age, fit_wt, criterion = "dic"),
+               "not built on the same observations")
   skip_if_not_installed("loo")
   expect_error(compare_models(fit_age, fit_wt, criterion = "loo"),
                "not built on the same observations")
+})
+
+test_that("the source keys give one verdict on each of the three paths", {
+  # Three paths ask the keys a different question. The ordered one asks about
+  # the order. The two that allow a reordering cannot ask that, and still have
+  # to ask whether the rows are the same rows, because a criterion that does
+  # not depend on the order does depend on the observations. Written as a
+  # table because the last time it was not, the rule landed on one path and
+  # the other two kept the defect.
+  frame <- function(keys = NULL) {
+    out <- data.frame(.arm = c("a", "a", "b"), .outcome = c(1, 0, 1))
+    if (!is.null(keys)) out$.source_key <- keys
+    out
+  }
+  key <- function(digest, ranks) paste0(strrep(digest, 32L), ":", ranks)
+  base <- key("a", c(1L, 2L, 3L))
+  pairs <- list(
+    absent            = list(frame(),     frame()),
+    identical         = list(frame(base), frame(base)),
+    permuted          = list(frame(base), frame(key("a", c(3L, 2L, 1L)))),
+    filtered_two_ways = list(frame(base), frame(key("a", c(1L, 2L, 4L)))),
+    other_source      = list(frame(base), frame(key("b", c(1L, 2L, 3L))))
+  )
+  #                        ordered  unordered  grouped
+  expected <- list(
+    absent            = c(NA,       TRUE,      TRUE),
+    identical         = c(TRUE,     TRUE,      TRUE),
+    permuted          = c(FALSE,    TRUE,      TRUE),
+    filtered_two_ways = c(FALSE,    FALSE,     FALSE),
+    other_source      = c(NA,       TRUE,      TRUE)
+  )
+  for (nm in names(pairs)) {
+    x <- pairs[[nm]][[1L]]
+    y <- pairs[[nm]][[2L]]
+    got <- c(
+      .same_observations(list(ipd = x), list(ipd = y)),
+      .same_observations(list(ipd = x), list(ipd = y), unordered = TRUE),
+      .same_observations(list(pseudo = x), list(pseudo = y),
+                         pseudo_grouped = TRUE)
+    )
+    expect_identical(got, expected[[nm]], info = nm)
+  }
 })
 
 test_that("a source that changed is still reported as unverifiable", {

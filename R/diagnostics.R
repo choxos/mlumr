@@ -205,12 +205,19 @@ extract_log_lik <- function(object) {
     shared <- setdiff(intersect(names(x), names(y)), ".source_key")
     obs <- intersect(.observation_columns, union(names(x), names(y)))
     if (!all(obs %in% shared)) return(FALSE)
-    if (unordered) return(.same_grouped_rows(x, y, shared, group = FALSE))
-    if (grouped) return(.same_grouped_rows(x, y, shared))
-    if (!identical(x[shared], y[shared])) return(FALSE)
-    if (nrow(x) < 2L) return(TRUE)
     kx <- x$.source_key
     ky <- y$.source_key
+    if (unordered || grouped) {
+      # These two allow a reordering, so they cannot ask the keys about order.
+      # They still have to ask whether the rows are the same rows: a criterion
+      # that does not depend on the order still depends on the observations.
+      rows <- .same_grouped_rows(x, y, shared, group = grouped && !unordered)
+      if (!isTRUE(rows)) return(rows)
+      if (nrow(x) < 2L) return(TRUE)
+      return(!.kept_different_rows_of_one_source(kx, ky))
+    }
+    if (!identical(x[shared], y[shared])) return(FALSE)
+    if (nrow(x) < 2L) return(TRUE)
     if (is.null(kx) || is.null(ky)) return(NA)
     if (identical(kx, ky)) return(TRUE)
     if (identical(sort(kx), sort(ky))) return(FALSE)
@@ -222,7 +229,7 @@ extract_log_lik <- function(object) {
     # pairs one patient's likelihood with another's, so it is a mismatch and
     # not something the keys are unable to see. Only a different source leaves
     # the order genuinely unverifiable.
-    if (identical(.source_digests(kx), .source_digests(ky))) return(FALSE)
+    if (.kept_different_rows_of_one_source(kx, ky)) return(FALSE)
     NA
   }
   same_frame(a$ipd, b$ipd) && same_frame(a$agd, b$agd) &&
@@ -241,6 +248,27 @@ extract_log_lik <- function(object) {
   sort(unique(sub(":.*$", "", keys)))
 }
 
+#' Did two frames keep different rows of one source?
+#'
+#' Equal digests with unequal ranks are one source that two fits filtered
+#' differently, which is what happens when the models use covariates that are
+#' missing on different rows. That is a mismatch under every ordering
+#' semantics: it is not a reordering, so allowing one does not allow it. Every
+#' path through [.same_observations()] therefore asks this, and the paths that
+#' permit a reordering ask only this.
+#'
+#' Absent keys and different digests are left alone here. They say the rows
+#' could not be placed, which the ordered path reports as `NA` and the paths
+#' that do not depend on order have no reason to raise.
+#' @param kx,ky Two `.source_key` columns.
+#' @return `TRUE` when the keys show one source filtered two ways.
+#' @keywords internal
+.kept_different_rows_of_one_source <- function(kx, ky) {
+  !is.null(kx) && !is.null(ky) &&
+    !identical(sort(kx), sort(ky)) &&
+    identical(.source_digests(kx), .source_digests(ky))
+}
+
 #' Do two frames hold the same rows within each arm, in any order?
 #'
 #' The grouped survival units sum their pointwise columns inside a group
@@ -257,8 +285,9 @@ extract_log_lik <- function(object) {
 #' differ below `getOption("digits")` would render alike and two different
 #' comparators would be approved. Ordering is exact on doubles, so nothing is
 #' rounded on the way in, and rows that tie on every shared column are
-#' interchangeable by construction. The source keys take no part: they exist
-#' to detect a reordering, which is the very thing being allowed.
+#' interchangeable by construction. The source keys take no part in the order,
+#' which is the very thing being allowed; [.same_observations()] still asks
+#' them, after this, whether the two frames kept different rows of one source.
 #' @param group Split the rows by `.arm` before comparing, which is what a
 #'   per-arm unit needs. `FALSE` compares the whole frame as one multiset,
 #'   for a criterion whose value does not depend on the order at all.
@@ -324,7 +353,8 @@ extract_log_lik <- function(object) {
         stop("The compared fits were not built on the same observations in ",
              "the same order: their stored data differ in the columns that ",
              "define an observation or in a covariate they share, or hold the ",
-             "rows of one source in a different order. Pointwise criteria are ",
+             "rows of one source in a different order, or kept different rows ",
+             "of one source. Pointwise criteria are ",
              "paired, column by column, so a comparison across different data, ",
              "or the same data in a different order, is not a comparison of ",
              "the models. Refit on one common data set.", call. = FALSE)
