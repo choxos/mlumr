@@ -1,48 +1,81 @@
 # Two benchmarks packaged a non-existent maximum as an ordinary estimate. In
 # both cases every returned number is finite and the fitting reports success,
 # so nothing about the result looks wrong.
+#
+# These call the public functions. An earlier version of this file checked
+# that survival::coxph() warns and that grepl() matches a string, which would
+# have kept passing with naive()'s guard deleted.
+
+# A survival data set whose times and statuses are set outright, so the risk
+# sets are exactly the ones under test.
+.arm_timed_data <- function(index_time, index_status,
+                            comparator_time, comparator_status) {
+  dat <- sim_survival_data(seed = 2026, n_ipd = length(index_time),
+                           n_agd = length(comparator_time), n_int = 8)
+  dat$ipd$data$.time <- index_time
+  dat$ipd$data$.status <- as.integer(index_status)
+  dat$agd$pseudo_ipd$.time <- comparator_time
+  dat$agd$pseudo_ipd$.status <- as.integer(comparator_status)
+  dat
+}
 
 test_that("naive() refuses a monotone Cox partial likelihood", {
   skip_if_not_installed("survival")
-  # Events in BOTH arms, so the existing arm guard passes, but every index
-  # event precedes every comparator event, so the partial likelihood is
-  # monotone and has no interior maximum.
-  d <- data.frame(
-    time  = c(1, 2, 3, 4, 5, 6),
-    event = c(1, 1, 1, 1, 1, 1),
-    arm   = factor(c("index", "index", "index",
-                     "comparator", "comparator", "comparator"),
-                   levels = c("comparator", "index"))
-  )
-  surv <- survival::Surv(d$time, d$event)
-  w <- character(0)
-  fit <- withCallingHandlers(
-    survival::coxph(surv ~ arm, data = d),
-    warning = function(x) {
-      w <<- c(w, conditionMessage(x))
-      invokeRestart("muffleWarning")
-    }
-  )
-  b <- unname(stats::coef(fit)[1])
-  se <- sqrt(diag(stats::vcov(fit))[1])
-
-  # This is what made it slip through: the numbers are finite and positive.
-  expect_true(is.finite(b) && is.finite(se) && se > 0)
-  expect_true(any(grepl("may be infinite", w, fixed = TRUE)))
-  # and the interval built from them is meaningless
-  expect_gt(se, 1000)
+  # Events in BOTH arms, so the arm guard passes, every index event before
+  # every comparator event, and nothing censored, so no index subject is at
+  # risk when the comparator fails. The partial likelihood is monotone.
+  dat <- .arm_timed_data(1:10, rep(1, 10), 11:20, rep(1, 10))
+  expect_error(naive(dat), "no interior maximum")
 })
 
-test_that("the monotone-likelihood signature is matched, not every warning", {
-  # An unrelated coxph warning must not become a rejection.
-  expect_true(grepl("may be infinite",
-                    "Loglik converged before variable  1 ; coefficient may be infinite.",
-                    fixed = TRUE))
-  expect_false(grepl("may be infinite",
-                     "Ran out of iterations and did not converge", fixed = TRUE))
+test_that("ordered event times alone do not make naive() refuse", {
+  skip_if_not_installed("survival")
+  # The same ordering, with censoring. Every index event still precedes every
+  # comparator event, but the censored index subject is at risk when the
+  # comparator fails, and that one risk-set comparison gives the partial
+  # likelihood r/(2r + 2) * 1/(r + 2), whose maximum is at r = sqrt(2). A
+  # refusal here would be a false positive on an estimable fit.
+  dat <- .arm_timed_data(c(1, 4), c(1, 0), c(2, 3), c(1, 0))
+  res <- naive(dat)
+  expect_s3_class(res, "mlumr_naive")
+  expect_equal(res$estimate, log(sqrt(2)), tolerance = 1e-8)
 })
 
-test_that("quasi-complete separation is caught when the LP is available", {
+test_that("naive() refuses a Cox fit that stopped without converging", {
+  skip_if_not_installed("survival")
+  # coxph() documents several termination conditions and says its own
+  # detection of an infinite coefficient is not always successful, so the
+  # absence of the monotone warning is not a certificate that a finite maximum
+  # exists. Reissuing the nonconvergence warning and then returning a Wald
+  # interval presented the state the iteration stopped in as an estimate.
+  real_coxph <- survival::coxph
+  local_mocked_bindings(
+    coxph = function(...) {
+      warning("Ran out of iterations and did not converge")
+      real_coxph(...)
+    },
+    .package = "survival"
+  )
+  dat <- .arm_timed_data(c(1, 4), c(1, 0), c(2, 3), c(1, 0))
+  expect_error(naive(dat), "did not converge")
+})
+
+test_that("an unrelated coxph warning is passed on, not turned into a refusal", {
+  skip_if_not_installed("survival")
+  real_coxph <- survival::coxph
+  local_mocked_bindings(
+    coxph = function(...) {
+      warning("Loglik converged before variable 1")
+      real_coxph(...)
+    },
+    .package = "survival"
+  )
+  dat <- .arm_timed_data(c(1, 4), c(1, 0), c(2, 3), c(1, 0))
+  expect_warning(res <- naive(dat), "Loglik converged before variable 1")
+  expect_s3_class(res, "mlumr_naive")
+})
+
+test_that("quasi-complete separation is reported as separated, and refused", {
   skip_if_not_installed("detectseparation")
   # The case the fitted-value screen cannot see: the two tied rows keep fitted
   # probabilities of exactly 0.5, so not every probability is at a boundary.
@@ -53,45 +86,37 @@ test_that("quasi-complete separation is caught when the LP is available", {
   mu <- stats::fitted(g)
   expect_false(all(mu < eps | mu > 1 - eps))
 
-  # A warning during the probe must not be read as "cannot tell": a separated
-  # refit is the case that warns.
-  probe <- mlumr:::.stc_detect_separation(g)
-  # If this ever fails, the value and the reason are what identify the cause;
-  # a bare "expected TRUE" says nothing about whether the linear program ran.
-  raw <- tryCatch({
-    cl <- stats::getCall(g)
-    cl$method <- quote(detectseparation::detect_separation)
-    paste("outcome =",
-          format(eval(cl, environment(stats::formula(g)))$outcome))
-  },
-  error = function(e) paste("error:", conditionMessage(e)),
-  warning = function(w) paste("warning:", conditionMessage(w)))
-  expect_true(
-    isTRUE(probe),
-    info = paste0("probe returned ", format(probe),
-                  "; direct call gave ", raw,
-                  "; detectseparation ",
-                  as.character(utils::packageVersion("detectseparation")))
-  )
+  status <- mlumr:::.stc_separation_status(g)
+  expect_identical(status$status, "separated")
   expect_error(mlumr:::.stc_refuse_separation(g), "quasi-complete")
 })
 
-test_that("a strong but identified fit is not called separated", {
+test_that("a strong but identified fit is reported as not separated", {
   skip_if_not_installed("detectseparation")
   d <- data.frame(y = c(0, 0, 0, 1, 1, 1, 0, 1),
                   x = c(-3, -2, -1, 1, 2, 3, 2, -1))
   g <- stats::glm(y ~ x, family = stats::binomial(), data = d)
-  expect_false(isTRUE(mlumr:::.stc_detect_separation(g)))
+  # Explicitly NOT separated. `!isTRUE(...)` also passed for an unknown, which
+  # is what let a fit that was never checked look like one that was cleared.
+  expect_identical(mlumr:::.stc_separation_status(g)$status, "not_separated")
   expect_silent(mlumr:::.stc_refuse_separation(g))
 })
 
-test_that("an absent optional dependency leaves the screen weaker, not wrong", {
-  # `NA` means "not determined", and the caller must not treat that as
-  # "separated"; only an explicit TRUE refuses.
+test_that("an unknown separation status warns rather than passing silently", {
   d <- data.frame(y = c(0, 0, 1, 1), x = c(-1, 0, 0, 1))
   g <- stats::glm(y ~ x, family = stats::binomial(), data = d)
-  expect_false(isTRUE(NA))
-  # a non-binomial fit is out of scope for the whole check
+  # A fit the check cannot be run on. The estimate is still returned, which is
+  # the point: what must not happen is returning it as though it had been
+  # checked.
+  g$call <- NULL
+  status <- mlumr:::.stc_separation_status(g)
+  expect_identical(status$status, "unknown")
+  expect_match(status$reason, "no call")
+  expect_warning(mlumr:::.stc_refuse_separation(g), "did not run")
+  expect_warning(mlumr:::.stc_refuse_separation(g), "unverified")
+})
+
+test_that("a non-binomial fit is out of scope for the separation check", {
   dn <- data.frame(y = c(1.2, 2.3, 3.1, 4.8), x = c(1, 2, 3, 4))
   gn <- stats::glm(y ~ x, family = stats::gaussian(), data = dn)
   expect_silent(mlumr:::.stc_refuse_separation(gn))

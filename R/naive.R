@@ -353,15 +353,24 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
   }
 
   # Events in both arms is necessary for an interior maximum and not
-  # sufficient. If every event in one arm precedes every event in the other,
-  # the partial likelihood is monotone in the treatment coefficient and has no
-  # maximum, but coxph() stops on its convergence criterion and returns FINITE
-  # numbers: three events per arm in that arrangement give a coefficient of
-  # 21.9 with a standard error of 24795, which clears the check below and was
-  # packaged as an ordinary hazard ratio with an interval of roughly
-  # [-48576, 48620]. coxph() says so in a warning, which nothing read. Collect
-  # it, and match only the message that reports this, so an unrelated warning
-  # still passes through rather than rejecting an estimable fit.
+  # sufficient. The partial likelihood can be monotone in the treatment
+  # coefficient, in which case it has no maximum but coxph() stops on its
+  # convergence criterion and returns FINITE numbers: six uncensored subjects
+  # with the three index events all before the three comparator ones give a
+  # coefficient of 21.9 with a standard error of 24795, which clears the check
+  # below and was packaged as an ordinary hazard ratio with an interval of
+  # roughly [-48576, 48620].
+  #
+  # What makes it monotone is the RISK SETS, not the order of the event times.
+  # Ordered events are enough only when nobody from the earlier arm is still at
+  # risk when the later arm fails, which is why the six-subject example above
+  # is uncensored. Add censoring and the same ordering is perfectly estimable:
+  # A failing at 1 and censored at 4, B failing at 2 and censored at 3 puts
+  # every A event before every B event, yet an A subject is still at risk at
+  # B's event, the partial likelihood is r/(2r + 2) * 1/(r + 2), and its
+  # maximum is at r = sqrt(2), a log hazard ratio of 0.347. So the arrangement
+  # is not what is tested here: coxph() reports the monotone case in a warning,
+  # which nothing read, and that warning is what is read.
   cox_warnings <- character(0)
   cox <- withCallingHandlers(
     survival::coxph(surv_obj ~ arm, data = pooled),
@@ -371,22 +380,47 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
     }
   )
   monotone <- grepl("may be infinite", cox_warnings, fixed = TRUE)
-  # Anything coxph() reported that is NOT this is still the caller's to see.
-  for (w in cox_warnings[!monotone]) warning(w, call. = FALSE)
+  # Failing to converge is not an ordinary warning either. coxph() documents
+  # several termination conditions and says its detection of an infinite
+  # coefficient is not always successful, so the absence of the message above
+  # is not a certificate that a finite maximum exists. Reissuing "Ran out of
+  # iterations and did not converge" and then returning the coefficient and a
+  # Wald interval built from it presents the state the iteration stopped in as
+  # an estimate.
+  unconverged <- !monotone &
+    (grepl("did not converge", cox_warnings, fixed = TRUE) |
+       grepl("Ran out of iterations", cox_warnings, fixed = TRUE))
+  # Anything coxph() reported that is neither is still the caller's to see.
+  for (w in cox_warnings[!monotone & !unconverged]) warning(w, call. = FALSE)
 
   estimate <- unname(stats::coef(cox)[1])
   se <- sqrt(diag(stats::vcov(cox))[1])
   if (any(monotone)) {
     stop("The naive Cox comparison has no interior maximum: the partial ",
          "likelihood is monotone in the treatment coefficient, which happens ",
-         "when the event times of one arm all precede those of the other. ",
-         "coxph() stopped on its convergence criterion and returned a ",
+         "when no risk set ever compares the two arms in both directions. ",
+         "Event times ordered by arm are the usual way to reach that, and ",
+         "only when censoring leaves nobody from the earlier arm at risk when ",
+         "the later one fails. coxph() stopped on its convergence criterion ",
+         "and returned a ",
          "coefficient of ", format(estimate, digits = 4), " with a standard ",
          "error of ", format(se, digits = 4), "; both describe where the ",
          "iteration stopped rather than the data, and the interval built from ",
          "them spans essentially the whole real line. Events in both arms are ",
          "necessary for this comparison and are not sufficient. Use mlumr(), ",
          "whose prior makes the posterior proper.", call. = FALSE)
+  }
+  if (any(unconverged)) {
+    stop("The naive Cox comparison did not converge: coxph() reported ",
+         paste(sQuote(cox_warnings[unconverged]), collapse = "; "),
+         ". It returned a coefficient of ", format(estimate, digits = 4),
+         " with a standard error of ", format(se, digits = 4),
+         ", but those describe the state the iteration stopped in, so the ",
+         "Wald interval built from them does not have its nominal coverage. ",
+         "coxph() also documents that its own detection of an infinite ",
+         "coefficient is not always successful, so a fit that stops this way ",
+         "is not evidence that a finite maximum exists. Use mlumr(), whose ",
+         "prior makes the posterior proper.", call. = FALSE)
   }
   if (!is.finite(estimate) || !is.finite(se) || se <= 0) {
     stop("The naive Cox comparison did not produce an estimable treatment ",

@@ -60,16 +60,31 @@
   The names of those arguments are now stored with the fit, and a refit that
   cannot replay them warns and names them.
 
-* **`naive()` no longer reports a Cox comparison that has no maximum.** Events
-  in both arms are necessary for the partial likelihood to identify the
-  treatment coefficient and are not sufficient: if every event in one arm
-  precedes every event in the other, the likelihood is monotone and has no
-  interior maximum. `coxph()` stops on its convergence criterion and returns
-  finite numbers anyway (three events per arm in that arrangement give a
-  coefficient of 21.9 with a standard error of 24795), and it says so in a
-  warning that nothing read. That warning is now inspected and the comparison
-  refused; any other `coxph()` warning is passed through to the caller
-  unchanged rather than turned into a rejection.
+* **`naive()` no longer reports a Cox comparison that has no maximum, or one
+  that never converged.** Events in both arms are necessary for the partial
+  likelihood to identify the treatment coefficient and are not sufficient: the
+  likelihood can be monotone, with no interior maximum, while `coxph()` stops
+  on its convergence criterion and returns finite numbers anyway. Six
+  uncensored subjects with the three index events all before the three
+  comparator ones give a coefficient of 21.9 with a standard error of 24795,
+  and `coxph()` says so in a warning that nothing read. That warning is now
+  inspected and the comparison refused.
+
+  What makes the likelihood monotone is the risk sets, not the order of the
+  event times. Ordered events are enough only when censoring leaves nobody from
+  the earlier arm at risk when the later arm fails: with an index subject
+  failing at 1 and censored at 4, and a comparator failing at 2 and censored at
+  3, every index event still precedes every comparator event and the maximum is
+  a finite log hazard ratio of 0.347. Nothing refuses that fit, and the
+  explanation no longer claims the ordering alone is the problem.
+
+  A failure to converge is not an ordinary warning either. `coxph()` documents
+  several termination conditions and states that its own detection of an
+  infinite coefficient is not always successful, so the absence of the monotone
+  warning is not a certificate that a finite maximum exists. Nonconvergence was
+  reissued to the caller and the coefficient then packaged with a Wald
+  interval; it is now refused. Any other `coxph()` warning is still passed
+  through unchanged rather than turned into a rejection.
 
 * **STC detects quasi-complete separation when \pkg{detectseparation} is
   installed.** The existing screen requires every fitted probability to sit at
@@ -78,9 +93,15 @@
   0.5, so a fit with an infinite maximum likelihood estimate passed with
   `converged = TRUE` and finite coefficients. Whether a finite maximum exists
   is a linear program rather than a threshold, so the exact test lives behind a
-  new **Suggests** dependency and runs when it is available. Without it the
-  threshold screen still runs, and a check that cannot be completed is treated
-  as unknown rather than as separated.
+  new **Suggests** dependency and runs when it is available. A check that
+  cannot be completed is treated as unknown rather than as separated, which is
+  right, and it is no longer treated as a clean bill either. The result is a
+  status of `"separated"`, `"not_separated"` or `"unknown"` with a reason, and
+  an unknown one now warns: the estimate is still returned, but it says that
+  only the fitted-value screen ran, that the screen cannot see quasi-complete
+  separation, and that the interval is therefore unverified. Previously every
+  way of not knowing, an absent dependency most of all, took the same path as a
+  fit that had been checked and cleared.
 
 * **M-spline basis support is judged over the period a study was at risk.** The
   check evaluated each basis column on `[0, max(time)]`. A column supported
