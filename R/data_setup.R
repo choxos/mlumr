@@ -1059,9 +1059,44 @@ set_agd <- function(data, treatment,
   invisible(TRUE)
 }
 
+#' Half a unit in the last place a number was reported to
+#'
+#' A published table gives 0.53, not 0.5270463. Comparing the rounded figure
+#' against an exact bound rejects the row for the rounding rather than for the
+#' data, so the bound has to carry the precision the number arrived with. A
+#' value that was not rounded matches only at full precision and earns
+#' essentially no allowance, which is what keeps this from becoming a blanket
+#' slack term.
+#'
+#' The scan runs to the precision a double can actually distinguish. Stopping
+#' at eight decimals reported anything finer as exact and therefore as
+#' deserving no allowance at all, so a summary quoted to nine places was
+#' compared against a bound it could only miss: five zeros and five ones give a
+#' sample SD of 0.5270462766947299, and reporting that as 0.527046277 put it
+#' 2e-10 above its own ceiling.
+#'
+#' @param x Numeric vector as reported.
+#' @return Numeric vector of tolerances, one per element.
+#' @keywords internal
+.reported_precision <- function(x) {
+  # A double carries roughly 15 to 17 significant decimal digits; past that,
+  # rounding is not a property of the number as written.
+  max_digits <- 15L
+  vapply(x, function(v) {
+    if (!is.finite(v)) return(0)
+    for (d in 0:max_digits) {
+      if (isTRUE(all.equal(round(v, d), v, tolerance = 0))) {
+        return(0.5 * 10^(-d))
+      }
+    }
+    0
+  }, numeric(1))
+}
+
 #' Validate binary AgD covariate summaries
 #' @keywords internal
-.validate_agd_binary_covariates <- function(data, cov_means, cov_sds, cov_types) {
+.validate_agd_binary_covariates <- function(data, cov_means, cov_sds,
+                                            cov_types) {
   for (i in seq_along(cov_types)) {
     if (cov_types[[i]] != "binary") next
 
@@ -1079,12 +1114,40 @@ set_agd <- function(data, treatment,
 
     if (!is.na(cov_sds[[i]])) {
       sd_vals <- data[[cov_sds[[i]]]]
-      max_sd <- sqrt(mean_vals * (1 - mean_vals))
-      impossible <- sd_vals > max_sd + 1e-10
+      # sqrt(p(1-p)) is the POPULATION standard deviation. A sample standard
+      # deviation of a binary column uses the n-1 denominator, so it equals
+      # sqrt(n/(n-1) * p(1-p)) exactly and is ALWAYS above that bound: five
+      # zeros and five ones report mean 0.5 and sd 0.5270, and the old ceiling
+      # of 0.5 called that impossible. Use the finite-sample maximum instead.
+      # n = 2 gives the loosest factor any sample can have, so
+      # sqrt(2 * p(1-p)) cannot reject a valid row while still refusing
+      # genuinely inconsistent ones (sd = 0.9 at p = 0.5). Tightening it with
+      # the OUTCOME sample size was wrong: nothing makes a covariate's
+      # denominator equal the outcome's, a covariate with its own missingness
+      # was summarized over fewer rows, and fewer rows make the true bound
+      # LOOSER. Two observed values give p = 0.5 and sd = 0.7071, which an
+      # outcome count of 10 called impossible at 0.5270. It also made
+      # `set_agd()` and `set_agd_surv()` disagree about the same row, since
+      # only the first had a count to tighten with.
+      #
+      # The proportion is reported to a precision too, and the ceiling has to
+      # be the largest one consistent with it. Computing p(1-p) from the
+      # displayed figure alone rejects valid rows: 493 ones out of 500 give
+      # p = 0.986 and a sample SD of 0.1176, and a table printing 0.99 and 0.12
+      # produced a ceiling near 0.0996. Take the variance at the point of the
+      # reported interval closest to 0.5, which is where p(1-p) is largest.
+      p_tol <- .reported_precision(mean_vals)
+      p_lo <- pmax(0, mean_vals - p_tol)
+      p_hi <- pmin(1, mean_vals + p_tol)
+      p_worst <- pmin(pmax(0.5, p_lo), p_hi)
+      max_sd <- sqrt(2 * p_worst * (1 - p_worst))
+      tol <- 1e-10 + .reported_precision(sd_vals)
+      impossible <- sd_vals > max_sd + tol
       if (any(impossible)) {
         msg <- sprintf(
           paste0(
-            "Binary covariate '%s': SD exceeds Bernoulli maximum sqrt(p*(1-p)). ",
+            "Binary covariate '%s': SD exceeds the largest a binary sample ",
+            "can have, sqrt(2 * p*(1-p)). ",
             "Got SD=%s for p=%s (max SD=%s)"
           ),
           cov_label,

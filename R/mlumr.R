@@ -895,7 +895,23 @@ mlumr <- function(data,
       # The full merged sampler control, so a replay reproduces every setting
       # and not just the two this list names. NULL for cmdstanr, which has no
       # `control` argument to reproduce.
-      control = result$control_used
+      control = result$control_used,
+      # Anything else the caller passed straight through to the backend, such
+      # as `thin` or `init`. The NAMES only: an `init` can be a function or a
+      # list of matrices, and a fit is not the place to keep a copy of one.
+      # Recording that they existed is what lets a replay say so instead of
+      # quietly running under different sampler settings; see
+      # `prior_sensitivity()`, which cannot reproduce what it was never told.
+      #
+      # `control` arrives through `...` on the rstan path and IS stored, three
+      # lines above, so listing it here would have a refit announce that it
+      # was falling back to defaults for the one setting it reproduces in
+      # full. Record what this list does not already carry.
+      extra_backend_args = setdiff(
+        names(list(...)),
+        c("chains", "iter", "warmup", "seed", "adapt_delta", "max_treedepth",
+          "control")
+      )
     )
   )
 

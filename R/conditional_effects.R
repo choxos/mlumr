@@ -24,10 +24,18 @@
 #'       conditional hazard ratio, labeled `"HR"`, for a proportional-hazards
 #'       distribution, and `"tr"` the exact time ratio (`"TR"`) for an
 #'       accelerated failure time one. The two are different estimands and
-#'       `"tr"` is **not** an alias for `"hr"`: a proportional-hazards model
-#'       has no constant time ratio and an AFT model has no constant hazard
-#'       ratio, so `"tr"` on a PH fit and `"hr"` on an AFT fit are both errors
-#'       rather than the other measure returned under the label it does have.
+#'       `"tr"` is **not** an alias for `"hr"`, so `"tr"` on a
+#'       proportional-hazards fit and `"hr"` on an accelerated failure time fit
+#'       are both errors rather than the other measure returned under the label
+#'       it does have. That is a restriction on the label this function
+#'       answers to, not a claim that the other measure cannot exist: an
+#'       exponential and a Weibull are BOTH proportional hazards and
+#'       accelerated failure time, so with a shared shape each has a constant
+#'       hazard ratio and a constant time ratio, related by
+#'       `TR = HR^(-1/shape)` (`1/HR` for an exponential). For the log-normal,
+#'       log-logistic, gamma and generalized gamma the conditional hazard ratio
+#'       genuinely varies with time, and there the absence of a scalar is a
+#'       property of the model.
 #'     \item **Study-specific shape-bearing baseline** (`aux_by = ".study"`,
 #'       the default, with a distribution that has a shape parameter or either
 #'       flexible baseline): an explicit `"hr"` / `"tr"` request is an
@@ -143,24 +151,13 @@ conditional_effects <- function(object,
   # explicit request either returns what was asked for or errors.
   if (identical(family, "survival") && effect %in% c("hr", "tr")) {
     is_ph <- isTRUE(object$surv_info$is_ph)
-    if (is_ph && identical(effect, "tr")) {
-      stop("`effect = \"tr\"` is only available for accelerated failure time ",
-           "distributions. This is a proportional-hazards '",
-           object$distribution %||% "survival",
-           "' fit, whose conditional treatment effect is a hazard ratio; a ",
-           "proportional-hazards model has no constant time ratio. Use ",
-           "`effect = \"hr\"`.",
-           call. = FALSE)
-    }
-    if (!is_ph && identical(effect, "hr")) {
-      stop("`effect = \"hr\"` is not a scalar conditional effect for this ",
-           "accelerated failure time ('", object$distribution %||% "survival",
-           "') model: the conditional hazard ratio varies with time. Use ",
-           "`effect = \"tr\"` for the time ratio when the baseline shapes are ",
-           "shared, or predict(type = \"loghr\") for the population-",
-           "standardized time-varying hazard ratio.",
-           call. = FALSE)
-    }
+    dist <- object$distribution %||% "survival"
+    # Order matters here. The parameterization errors below explain the
+    # refusal by naming the measure this fit estimates, and for a dual family
+    # they give the conversion to the other one. That conversion reads "the
+    # shape", which presumes one: with `aux_by = ".study"` a Weibull has two
+    # and no constant time ratio to recover. The stratified case has its own
+    # accurate error, so let it answer first.
     # Under differing baseline shapes exp(eta_index - eta_comparator) is
     # neither a hazard ratio (the h0 ratio does not cancel) nor a time ratio
     # (differing shapes add quantile-dependent factors). Returning it under the
@@ -175,6 +172,22 @@ conditional_effects <- function(object,
            ". Use `effect = \"all\"` for the contrast under its own name, ",
            "predict(type = \"loghr\") for the time-varying hazard ratio, or ",
            "refit with `aux_by = \"none\"`.",
+           call. = FALSE)
+    }
+    if (is_ph && identical(effect, "tr")) {
+      stop("`effect = \"tr\"` is not what this fit parameterizes. This is a ",
+           "proportional-hazards '", dist,
+           "' fit, so the coefficient it estimates is a log hazard ratio and ",
+           "`effect = \"hr\"` is what returns it. ",
+           .dual_family_note(dist, "tr"),
+           call. = FALSE)
+    }
+    if (!is_ph && identical(effect, "hr")) {
+      stop("`effect = \"hr\"` is not what this fit parameterizes. This is an ",
+           "accelerated failure time '", dist,
+           "' fit, so the coefficient it estimates is a log time ratio and ",
+           "`effect = \"tr\"` is what returns it. ",
+           .dual_family_note(dist, "hr"),
            call. = FALSE)
     }
   }
@@ -304,6 +317,51 @@ conditional_effects <- function(object,
   # already HR (PH) or TR (AFT) from the hr / tr column name set above.
   rownames(out) <- NULL
   .mlumr_result(out, "mlumr_conditional_effects", family = family)
+}
+
+#' Say whether the unrequested measure exists as a scalar for this family
+#'
+#' The refusal is about the parameterization the fit estimates, not about what
+#' the model can express, and the two are easy to conflate. The exponential and
+#' the Weibull are BOTH proportional hazards and accelerated failure time, so
+#' with a baseline shape shared across arms each has a constant hazard ratio
+#' AND a constant time ratio, related deterministically. Telling a Weibull user
+#' that "a proportional-hazards model has no constant time ratio" taught them
+#' something false in order to explain an interface limit. The log-normal, the
+#' log-logistic, the gamma and the generalized gamma have a genuinely
+#' time-varying hazard ratio, and only there is the absence of a scalar a
+#' property of the model rather than of this function.
+#'
+#' @param dist The fitted distribution.
+#' @param asked The measure the caller asked for, `"hr"` or `"tr"`.
+#' @return A single string to append to the error message.
+#' @keywords internal
+.dual_family_note <- function(dist, asked) {
+  dual <- c("exponential", "weibull", "exponential-aft", "weibull-aft")
+  if (dist %in% dual) {
+    conversion <- if (grepl("^exponential", dist)) {
+      "TR = 1/HR for an exponential. "
+    } else {
+      "TR = HR^(-1/shape) for a Weibull. "
+    }
+    return(paste0(
+      "This distribution is both proportional-hazards and accelerated ",
+      "failure time, so with a baseline shape shared across arms the other ",
+      "measure is a deterministic transform of this one rather than a ",
+      "separate estimand: ", conversion,
+      "Read the shape from the fit and convert, or refit in the other ",
+      "parameterization to have it reported directly."
+    ))
+  }
+  if (identical(asked, "hr")) {
+    return(paste0(
+      "For this distribution the conditional hazard ratio genuinely varies ",
+      "with time, so there is no scalar to convert to. Use ",
+      "predict(type = \"loghr\") for the population-standardized ",
+      "time-varying hazard ratio."
+    ))
+  }
+  "For this distribution there is no constant time ratio to convert to."
 }
 
 #' Build covariate profiles for conditional summaries

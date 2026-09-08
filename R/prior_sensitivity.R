@@ -182,6 +182,18 @@ prior_sensitivity <- function(fit,
     NULL
   }
 
+  # `mlumr()` forwards `...` to the backend, so the original fit can have run
+  # under settings its record never held: `thin` and `init` reach the sampler
+  # and nothing kept their values. Refitting silently under the defaults would
+  # put a second difference inside a comparison that is supposed to isolate the
+  # prior, so name them. Only the ones this call has not re-supplied, since the
+  # message asks the caller to pass them again and repeating it afterwards
+  # would make that advice impossible to act on. Once per call, not once per
+  # scale.
+  .warn_unreplayed_backend_args(
+    (fit$sampling_args %||% list())$extra_backend_args, names(dots)
+  )
+
   results <- vector("list", length(prior_beta_scales))
 
   for (i in seq_along(prior_beta_scales)) {
@@ -251,6 +263,35 @@ prior_sensitivity <- function(fit,
 
   invisible(out)
 }
+
+#' Name the backend settings a refit is not reproducing
+#'
+#' `mlumr()` stores the NAMES of arguments it forwarded to the sampler but did
+#' not otherwise record. A refit cannot reproduce their values, so it says so,
+#' but only for the ones this call has not been given: the message asks the
+#' caller to pass them again, and repeating it after they have would make the
+#' advice impossible to act on.
+#'
+#' @param recorded Names the original fit passed through `...`.
+#' @param supplied Names the caller has re-supplied for these refits.
+#' @return `NULL`, invisibly; called for the warning.
+#' @keywords internal
+.warn_unreplayed_backend_args <- function(recorded, supplied) {
+  if (!length(recorded)) {
+    return(invisible(NULL))
+  }
+  absent <- setdiff(recorded[nzchar(recorded)], supplied)
+  if (!length(absent)) {
+    return(invisible(NULL))
+  }
+  warning("The original fit passed ", paste(sQuote(absent), collapse = ", "),
+          " through to the backend, and only their names were recorded. ",
+          "These refits run under the defaults for them, so any difference ",
+          "they make is inside this comparison as well as the priors. Pass ",
+          "them again through `...` to hold them fixed.", call. = FALSE)
+  invisible(NULL)
+}
+
 
 #' A caller's `...` merged into the arguments that replay a fit
 #'
@@ -384,6 +425,7 @@ prior_sensitivity <- function(fit,
   if (!is.null(sa$control)) {
     args$control <- sa$control
   }
+
 
   # The comparator prior for this refit, already rescaled by the caller. NULL
   # for a non-relaxed fit, which has no comparator coefficients.
