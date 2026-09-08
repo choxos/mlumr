@@ -29,12 +29,21 @@
   `sqrt(n / (n - 1) * p * (1 - p))`, so it is always larger: five zeros and
   five ones report a mean of 0.5 and an SD of 0.5270, and that was refused as
   impossible. The bound is now the finite-sample maximum at `n = 2`, the
-  loosest factor any sample can have, with an allowance for the precision the
-  figure was reported to. It does not tighten with the outcome sample size,
+  loosest factor any sample can have, with an allowance for rounding. It does not tighten with the outcome sample size,
   because that count is not the covariate's denominator: a covariate carrying
   its own missingness was summarized over fewer rows, and fewer rows make the
   bound looser rather than tighter. Genuinely inconsistent summaries are still
   refused.
+
+  The rounding allowance is half a unit of the coarsest decimal grid the stored
+  value lands on, and it does not claim to be the precision the figure was
+  reported to. `0.1`, `0.10` and `0.100000` are one double in R, so nothing can
+  be scanned out of the value to say which was printed, and all three get the
+  same allowance. That makes the check deliberately lenient, in the direction
+  that matters for reading published tables: it will not refuse a valid summary
+  for having been rounded, and it may accept a mean and SD pair that a more
+  precise report would have ruled out. A pair no rounding can reconcile is
+  still refused.
 
 * **`dlogitnorm()` rejects arguments it cannot use.** `plogitnorm()` and
   `qlogitnorm()` pass `...` to `pnorm()` and `qnorm()`, so a misspelled name

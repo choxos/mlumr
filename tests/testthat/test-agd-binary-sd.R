@@ -45,22 +45,53 @@ test_that("genuinely inconsistent binary summaries are still refused", {
   )
 })
 
-test_that("the reported-precision allowance tracks the precision given", {
-  # half a unit in the last place a number was actually written to
-  expect_equal(mlumr:::.reported_precision(0.53), 0.005)
-  expect_equal(mlumr:::.reported_precision(0.5), 0.05)
-  expect_equal(mlumr:::.reported_precision(2), 0.5)
-  # an unrounded value earns essentially nothing, so this is not blanket slack
-  expect_lt(mlumr:::.reported_precision(0.5270462766947299), 1e-8)
+test_that("the rounding allowance is half a unit of the grid a value sits on", {
+  # Half a unit in the coarsest decimal place the STORED value lands on.
+  expect_equal(mlumr:::.rounding_allowance(0.53), 0.005)
+  expect_equal(mlumr:::.rounding_allowance(0.5), 0.05)
+  expect_equal(mlumr:::.rounding_allowance(2), 0.5)
+  # A value that is not decimally simple earns essentially nothing, so this is
+  # not blanket slack.
+  expect_lt(mlumr:::.rounding_allowance(0.5270462766947299), 1e-8)
 
-  # and precision finer than eight decimals is still precision. Stopping there
+  # A coarse grid finer than eight decimals is still a grid. Stopping there
   # called a nine-decimal figure exact, so it was compared against a ceiling it
   # sat 2e-10 above and could only miss.
   x <- rep(c(0, 1), each = 5)
-  expect_equal(mlumr:::.reported_precision(round(stats::sd(x), 9)), 5e-10)
-  expect_equal(mlumr:::.reported_precision(0.123456789012), 5e-13)
+  expect_equal(mlumr:::.rounding_allowance(round(stats::sd(x), 9)), 5e-10)
+  expect_equal(mlumr:::.rounding_allowance(0.123456789012), 5e-13)
   expect_true(accepts(0.5, round(stats::sd(x), 9), 10))
   expect_true(accepts(0.5, round(stats::sd(x), 12), 10))
+})
+
+test_that("the allowance does not claim to know the reported precision", {
+  # 0.1, 0.10 and 0.100000 are ONE double in R. No scan of the stored value
+  # can say which of them was printed, and this does not pretend otherwise: it
+  # answers the same for all three, from the grid the number lands on.
+  expect_equal(mlumr:::.rounding_allowance(0.1), 0.05)
+  expect_equal(mlumr:::.rounding_allowance(0.10), 0.05)
+  expect_equal(mlumr:::.rounding_allowance(0.100000), 0.05)
+  # 0.40 is given the same tenths allowance as 0.4, although a table printing
+  # two decimals reported it ten times more precisely.
+  expect_equal(mlumr:::.rounding_allowance(0.40), 0.05)
+})
+
+test_that("the rounding policy is lenient, and lenient in the safe direction", {
+  # The consequence of the above, stated as behavior. With n = 100, p = 0.10
+  # and SD = 0.40, a table reporting two decimals could not describe a binary
+  # sample: the largest compatible SD is about 0.308. The allowance inferred
+  # from the stored values is wider than two decimals, so the pair is accepted.
+  # That is the policy, not recovered precision, and it is written down here
+  # so a future change to it is a decision rather than an accident.
+  expect_true(accepts(0.10, 0.40, 100))
+
+  # The direction that matters is the other one: a genuinely valid summary is
+  # never refused for having been rounded.
+  x <- rep(c(0, 1), each = 5)
+  expect_true(accepts(0.5, round(stats::sd(x), 2), 10))
+
+  # And leniency is bounded. A pair no rounding can reconcile is still refused.
+  expect_false(accepts(0.5, 0.9, 10))
 })
 
 test_that("the reported proportion's own rounding widens the ceiling", {
