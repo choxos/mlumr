@@ -1073,14 +1073,18 @@ mlumr_forest <- function(data, ref_line = NULL, log_x = FALSE,
     # the whole plot with arrows at both ends: an uncertainty nobody reported,
     # rendered as the widest one on the figure. Missing bounds stay missing and
     # the row is drawn as its point estimate alone.
-    have_lo <- !is.na(pdat$.lo)
-    have_hi <- !is.na(pdat$.hi)
-    pdat$.clo <- have_lo & (!is.finite(flo) | flo < lim[1])
-    pdat$.chi <- have_hi & (!is.finite(fhi) | fhi > lim[2])
-    dlo_w <- ifelse(have_lo,
+    # An arrow needs BOTH bounds, not just its own. With `lo = NA` and
+    # `hi = Inf` the upper flag alone was true, so the row got a lone arrow
+    # hanging off no segment, which is the same invented uncertainty in a
+    # smaller shape. A row is drawn as an interval or as a point, never as
+    # half of one.
+    have_both <- !is.na(pdat$.lo) & !is.na(pdat$.hi)
+    pdat$.clo <- have_both & (!is.finite(flo) | flo < lim[1])
+    pdat$.chi <- have_both & (!is.finite(fhi) | fhi > lim[2])
+    dlo_w <- ifelse(have_both,
                     ifelse(is.finite(flo), pmax(flo, lim[1]), lim[1]),
                     NA_real_)
-    dhi_w <- ifelse(have_hi,
+    dhi_w <- ifelse(have_both,
                     ifelse(is.finite(fhi), pmin(fhi, lim[2]), lim[2]),
                     NA_real_)
     alen <- 0.10 * (lim[2] - lim[1])

@@ -70,3 +70,17 @@ test_that("rows without intervals do not disturb the clipping window", {
   expect_equal(with_missing$coordinates$limits$x,
                without$coordinates$limits$x)
 })
+
+test_that("a half-missing interval gets neither a segment nor a lone arrow", {
+  skip_if_not_installed("ggplot2")
+  frame <- .clipping_frame()
+  # One bound supplied and genuinely infinite, the other never reported. The
+  # upper flag alone was true, so the row was given an arrow hanging off no
+  # segment: the same invented uncertainty in a smaller shape.
+  frame$lo[frame$label == "infinite-CI"] <- NA
+  p <- mlumr_forest(frame)
+  drawn <- unlist(lapply(seq(2, length(p$layers)), function(i) .drawn(p, i)))
+  expect_false("infinite-CI" %in% drawn)
+  # The genuine outlier still gets both.
+  expect_true("outlier" %in% drawn)
+})
