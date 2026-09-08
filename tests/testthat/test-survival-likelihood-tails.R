@@ -97,6 +97,39 @@ test_that("an interval too narrow to separate two CDFs still has a probability",
   )
 })
 
+test_that("a tiny but real CDF gap is not thrown away with the equal ones", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  env <- expose_survival_likelihood()
+
+  # Falling back to increments whenever the CDFs are CLOSE, rather than only
+  # when they are equal, rejects intervals the CDF can still resolve and hands
+  # them to increments that cannot. At shape 10 with entry 0.025, the interval
+  # (0.05, 0.050000000000003555] has log CDFs 7.2e-13 apart, so a margin of
+  # 1e-12 sent it to the increments, where every survival probability rounds to
+  # 1 and the answer is -Inf.
+  shape <- 10
+  lower <- 0.05
+  upper <- 0.050000000000003555
+  log_cdf <- function(t) pgamma(t, shape, log.p = TRUE)
+  expect_gt(log_cdf(upper), log_cdf(lower))
+  expect_lt(log_cdf(upper) - log_cdf(lower), 1e-12)
+  expect_true(all(pgamma(c(0.025, lower, upper), shape,
+                         lower.tail = FALSE) == 1))
+
+  got <- env$surv_ll_status(8L, upper, lower, 0.025, 3L, 0, shape, 0)
+  # Finiteness is the regression. The value itself cannot be pinned tightly:
+  # the two log CDFs agree to thirteen digits, so the gap is about a hundred
+  # units in the last place and one ULP of disagreement between two gamma-CDF
+  # implementations moves its log by about 0.01. R and Stan differ by 0.02
+  # here, which is that, not an error in either.
+  expect_true(is.finite(got))
+  expect_equal(got,
+               .log_diff(log_cdf(upper), log_cdf(lower)) -
+                 pgamma(0.025, shape, lower.tail = FALSE, log.p = TRUE),
+               tolerance = 0.05)
+})
+
 test_that("the right tail keeps the accuracy the conditional form gave it", {
   skip_on_cran()
   skip_if_not_installed("rstan")

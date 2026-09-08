@@ -462,17 +462,27 @@ real log_cond_interval_prob(int dist, real t_upper, real t_lower, real t_entry,
   real log_cdf_upper = log_cdf_scalar(dist, t_upper, eta, aux, aux2);
   if (log_cdf_upper < -0.6931471805599453) {
     real log_cdf_lower = log_cdf_scalar(dist, t_lower, eta, aux, aux2);
-    // The CDF has its own failure, and it is the mirror of the one above: a
-    // narrow enough interval rounds both bounds to the SAME double, and their
-    // difference is then zero although the interval has positive probability.
-    // With an exponential rate of 1, entry at 0.05 and the interval from 0.1
-    // to the next double after it, both log CDFs are -2.3521684610440907 and
-    // the difference is -inf, where the true value is about -38.87. The
-    // increments compute a RATIO and still resolve that, so hand those cases
-    // back to them rather than take a difference of digits that agree.
-    if (log_cdf_upper - log_cdf_lower > 1e-12) {
-      return log_diff_exp(log_cdf_upper, log_cdf_lower)
-             - log_surv_scalar(dist, t_entry, eta, aux, aux2);
+    // The CDF has its own failure, and it is the mirror of the one above: an
+    // interval narrow enough that both bounds round to the SAME double has a
+    // difference of zero although its probability is positive. With an
+    // exponential rate of 1, entry at 0.05 and the interval from 0.1 to the
+    // next double after it, both log CDFs are -2.3521684610440907 and the
+    // difference is -inf, where the value is about -38.87. The increments
+    // compute a RATIO and still resolve that, so those cases go back to them.
+    //
+    // The test is whether the two CDFs actually differ, not whether they
+    // differ by more than some margin. A margin rejects intervals the CDF can
+    // still resolve and hands them to increments that cannot: at shape 10 with
+    // entry 0.025 and the interval (0.05, 0.050000000000003555] the log CDFs
+    // are 7.2e-13 apart and give -73.07, while every survival probability
+    // there rounds to 1, so the increment route returns -inf. Take the CDF
+    // difference whenever it produces a usable number.
+    if (log_cdf_upper > log_cdf_lower) {
+      real cond = log_diff_exp(log_cdf_upper, log_cdf_lower)
+                  - log_surv_scalar(dist, t_entry, eta, aux, aux2);
+      if (!is_inf(cond) && !is_nan(cond)) {
+        return cond;
+      }
     }
   }
   // Left-censoring passes t_lower == t_entry, where the first factor is
