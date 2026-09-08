@@ -1066,10 +1066,27 @@ mlumr_forest <- function(data, ref_line = NULL, log_x = FALSE,
   if (!is.null(lim)) {
     flo <- fwd(pdat$.lo)
     fhi <- fwd(pdat$.hi)
-    pdat$.clo <- !is.finite(flo) | flo < lim[1]
-    pdat$.chi <- !is.finite(fhi) | fhi > lim[2]
-    dlo_w <- ifelse(is.finite(flo), pmax(flo, lim[1]), lim[1])
-    dhi_w <- ifelse(is.finite(fhi), pmin(fhi, lim[2]), lim[2])
+    # Non-finite covered two different things. An INFINITE bound is an interval
+    # that genuinely runs past the viewport, and clipping it to the limit with
+    # an arrow is exactly right. A MISSING one means no interval was supplied
+    # or estimated, and giving it the same treatment drew a row whose CI spans
+    # the whole plot with arrows at both ends: an uncertainty nobody reported,
+    # rendered as the widest one on the figure. Missing bounds stay missing and
+    # the row is drawn as its point estimate alone.
+    # An arrow needs BOTH bounds, not just its own. With `lo = NA` and
+    # `hi = Inf` the upper flag alone was true, so the row got a lone arrow
+    # hanging off no segment, which is the same invented uncertainty in a
+    # smaller shape. A row is drawn as an interval or as a point, never as
+    # half of one.
+    have_both <- !is.na(pdat$.lo) & !is.na(pdat$.hi)
+    pdat$.clo <- have_both & (!is.finite(flo) | flo < lim[1])
+    pdat$.chi <- have_both & (!is.finite(fhi) | fhi > lim[2])
+    dlo_w <- ifelse(have_both,
+                    ifelse(is.finite(flo), pmax(flo, lim[1]), lim[1]),
+                    NA_real_)
+    dhi_w <- ifelse(have_both,
+                    ifelse(is.finite(fhi), pmin(fhi, lim[2]), lim[2]),
+                    NA_real_)
     alen <- 0.10 * (lim[2] - lim[1])
     pdat$.dlo <- inv(dlo_w)
     pdat$.dhi <- inv(dhi_w)
@@ -1084,6 +1101,9 @@ mlumr_forest <- function(data, ref_line = NULL, log_x = FALSE,
       xintercept = ref_line, linetype = "dashed", color = "gray55"
     ) +
     ggplot2::geom_segment(
+      # A row with no interval contributes no segment, rather than one drawn
+      # from NA that ggplot2 then drops with a warning about missing values.
+      data = pdat[!is.na(pdat$.dlo) & !is.na(pdat$.dhi), , drop = FALSE],
       ggplot2::aes(x = .data$.dlo, xend = .data$.dhi,
                    y = .data$.label, yend = .data$.label),
       color = color, linewidth = 0.6

@@ -491,7 +491,12 @@
   they mix estimators: putting `naive()`, `stc()`, and both ML-UMR models on one
   axis, for instance. It takes the reference line, axis label, title, and
   subtitle as arguments so the caller sets the measure's null rather than
-  inheriting one.
+  inheriting one. One interval far wider than the rest is clipped to a viewport
+  built from the others, with an arrow on the side it runs past, so a single
+  wide row does not squeeze the rest into a line. A bound that is infinite is
+  clipped that way; a bound that is MISSING is not, because no interval was
+  reported and drawing one from edge to edge would put an uncertainty on the
+  figure that nobody estimated. Such a row shows its point estimate alone.
 * `marginal_effects()`, `predict()`, and `conditional_effects()` now return
   lightweight `data.frame` subclasses so these `plot()` methods can dispatch;
   all existing data-frame behavior (indexing, `knitr::kable()`, the reporting
