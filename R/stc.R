@@ -353,8 +353,9 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' to catch is the one that warns.
 #'
 #' @param fit A fitted binomial `glm`.
-#' @return `TRUE` if separated, `FALSE` if not, `NA` if it could not be
-#'   determined.
+#' @return `TRUE` if separated, `FALSE` if not, `NA` only when the refit
+#'   errored and there is no outcome to read. A warning is muffled and the
+#'   outcome used, since a separated refit is the case that warns.
 #' @keywords internal
 .stc_detect_separation <- function(fit) {
   if (!requireNamespace("detectseparation", quietly = TRUE)) {

@@ -25,13 +25,18 @@
   as unknown rather than as separated.
 
 * **M-spline basis support is judged over the period a study was at risk.** The
-  check evaluated each basis column on `[0, max(time)]`. Under delayed entry
-  nobody is observed before the earliest entry time, so a column supported only
-  there multiplies no event hazard and no exposure increment and its
-  coefficient is moved by the prior alone, yet it counted as supported. The
-  grid now starts at the earliest entry time. Where entry is delayed, a message
-  also records that absolute survival and RMST integrate from 0 and are
-  therefore prior-dependent below it, while conditional quantities are not.
+  check evaluated each basis column on `[0, max(time)]`. A column supported
+  only where nobody is under observation multiplies no event hazard and no
+  exposure increment, so its coefficient is moved by the prior alone, yet it
+  counted as supported. Support is now evaluated over the merged union of the
+  study's per-subject `[entry, exit]` intervals, and strictly inside them: that
+  excludes the stretch before the earliest entry under delayed entry, and also
+  any gap in which the risk set is empty, which a single span from first entry
+  to last exit would have treated as observed. Every path that builds a basis
+  passes those times, including user-supplied per-study knots and the shared
+  baseline. Where entry is delayed, a message also records that absolute
+  survival and RMST integrate from 0 and are therefore prior-dependent below
+  it, while conditional quantities are not.
 
 * **Interval-censored likelihood under delayed entry is built from
   increments.** The branch formed the unconditional interval probability and

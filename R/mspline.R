@@ -339,6 +339,9 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
 #' @param spec A basis spec from [.build_mspline_basis()].
 #' @param observed_max The largest time that study actually observed.
 #' @param label Study label used in the error message.
+#' @param entry,exit The study's per-subject entry and exit times, whose merged
+#'   union is the period it had someone under observation. Omit both for data
+#'   with no delayed entry, which is treated as one interval from zero.
 #' @return `TRUE`, invisibly.
 #' @keywords internal
 .assert_basis_support <- function(spec, observed_max, label,
