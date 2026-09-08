@@ -63,14 +63,56 @@ test_that("mlumr engine is scalar and supported", {
 
 
 test_that("check_diagnostics ignores unavailable Rhat and ESS cleanly", {
+  # A parameter that is constant across every draw legitimately has no Rhat and
+  # no ESS, so their absence is reported as a message and must not raise a
+  # warning. The transition counts are KNOWN here: an unknown one is a
+  # different situation, tested below.
   fit <- list(
-    diagnostics = list(n_divergent = NA_real_, n_max_treedepth = NA_real_),
+    diagnostics = list(n_divergent = 0, n_max_treedepth = 0),
     summary = data.frame(variable = "x", Rhat = NA_real_, n_eff = NA_real_),
     sampling_args = list(adapt_delta = 0.95, max_treedepth = 15)
   )
   class(fit) <- c("mlumr_fit", "list")
 
   expect_warning(check_diagnostics(fit), NA)
+  expect_message(check_diagnostics(fit), "Rhat is unavailable for 1 of 1")
+})
+
+
+test_that("check_diagnostics does not report an unknown count as no problem", {
+  # 0 divergences is the reassuring answer, and an absent count was read as
+  # exactly that: a fit whose sampler behavior nobody knows passed the check in
+  # silence, indistinguishable from a clean one.
+  fit <- list(
+    diagnostics = list(n_divergent = NA_real_, n_max_treedepth = NA_real_),
+    summary = data.frame(variable = "x", Rhat = 1.0, n_eff = 1000),
+    sampling_args = list(adapt_delta = 0.95, max_treedepth = 15)
+  )
+  class(fit) <- c("mlumr_fit", "list")
+
+  expect_warning(check_diagnostics(fit),
+                 "number of divergent transitions is not available")
+  expect_warning(check_diagnostics(fit),
+                 "hit maximum treedepth is not available")
+
+  # and a count that IS zero still passes without comment
+  fit$diagnostics <- list(n_divergent = 0, n_max_treedepth = 0)
+  expect_warning(check_diagnostics(fit), NA)
+})
+
+
+test_that("an infinite Rhat is reported rather than filtered away", {
+  # The whole point of a worst-case statistic. A column holding 1.001 and Inf
+  # reported a maximum of 1.001 and raised nothing at all.
+  fit <- list(
+    diagnostics = list(n_divergent = 0, n_max_treedepth = 0),
+    summary = data.frame(variable = c("a", "b"), Rhat = c(1.001, Inf),
+                         n_eff = c(1000, 1000)),
+    sampling_args = list(adapt_delta = 0.95, max_treedepth = 15)
+  )
+  class(fit) <- c("mlumr_fit", "list")
+
+  expect_warning(check_diagnostics(fit), "max = Inf")
 })
 
 

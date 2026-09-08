@@ -968,45 +968,64 @@ check_diagnostics <- function(fit) {
     ), call. = FALSE)
   }
 
-  n_divergent <- .diagnostic_count(diag$n_divergent)
-  if (n_divergent > 0) {
+  # A count the backend did not supply is not a count of zero. Reading it as
+  # one turned "this fit's sampler behavior is unknown" into "this fit had no
+  # divergences", which is the reassuring half of the two.
+  n_divergent <- .transition_count(diag$n_divergent)
+  if (is.na(n_divergent)) {
+    warning("The number of divergent transitions is not available for this ",
+            "fit, so it was not checked. A fit with divergences is not ",
+            "distinguishable from a clean one here; inspect the backend fit ",
+            "object before reporting these results.", call. = FALSE)
+  } else if (n_divergent > 0) {
     warning(sprintf(
       "%d divergent transitions detected. Consider increasing adapt_delta (currently %s).",
       n_divergent, .diagnostic_value(sampling_args$adapt_delta)
     ), call. = FALSE)
   }
 
-  n_max_treedepth <- .diagnostic_count(diag$n_max_treedepth)
-  if (n_max_treedepth > 0) {
+  n_max_treedepth <- .transition_count(diag$n_max_treedepth)
+  if (is.na(n_max_treedepth)) {
+    warning("The number of iterations that hit maximum treedepth is not ",
+            "available for this fit, so it was not checked.", call. = FALSE)
+  } else if (n_max_treedepth > 0) {
     warning(sprintf(
       "%d iterations hit max treedepth. Consider increasing max_treedepth (currently %s).",
       n_max_treedepth, .diagnostic_value(sampling_args$max_treedepth)
     ), call. = FALSE)
   }
 
-  rhat_vals <- .finite_numeric_values(fit$summary$Rhat)
-  if (length(rhat_vals) > 0L) {
-    max_rhat <- max(rhat_vals)
+  # An Rhat of Inf is a parameter whose chains did not mix at all, which is the
+  # single worst outcome this check exists to report, and dropping it left a
+  # column holding 1.001 and Inf with a reported maximum of 1.001 and no
+  # warning. Keep every value that is a number; a missing one is a parameter
+  # without an Rhat, which is counted and reported rather than silently
+  # excluded from a statistic that calls itself the maximum.
+  rhat <- .usable_diagnostic_values(fit$summary$Rhat)
+  .report_missing_diagnostics(rhat, "Rhat", "convergence")
+  if (length(rhat$values) > 0L) {
+    max_rhat <- max(rhat$values)
     if (max_rhat > 1.05) {
       warning(sprintf(
-        "Some Rhat values > 1.05 (max = %.3f). Chains have likely not converged.",
-        max_rhat
+        "Some Rhat values > 1.05 (max = %s). Chains have likely not converged.",
+        .format_diagnostic(max_rhat)
       ), call. = FALSE)
     } else if (max_rhat > 1.01) {
       warning(sprintf(
-        "Some Rhat values > 1.01 (max = %.3f). Chains may not have fully converged.",
-        max_rhat
+        "Some Rhat values > 1.01 (max = %s). Chains may not have fully converged.",
+        .format_diagnostic(max_rhat)
       ), call. = FALSE)
     }
   }
 
-  ess_vals <- .finite_numeric_values(fit$summary$n_eff)
-  if (length(ess_vals) > 0L) {
-    min_ess <- min(ess_vals)
+  ess <- .usable_diagnostic_values(fit$summary$n_eff)
+  .report_missing_diagnostics(ess, "Bulk ESS", "effective sample size")
+  if (length(ess$values) > 0L) {
+    min_ess <- min(ess$values)
     if (min_ess < 400) {
       warning(sprintf(
-        "Some ESS values < 400 (min = %.1f). Consider running more iterations.",
-        min_ess
+        "Some ESS values < 400 (min = %s). Consider running more iterations.",
+        .format_diagnostic(min_ess)
       ), call. = FALSE)
     }
   }
@@ -1088,6 +1107,117 @@ check_diagnostics <- function(fit) {
     return(numeric())
   }
   x[is.finite(x)]
+}
+
+
+#' Split a diagnostic column into usable values and missing ones
+#'
+#' Unlike [.finite_numeric_values()] this KEEPS an infinite value. The two
+#' cases it separates are not the same thing: `Inf` is a diagnostic that was
+#' computed and came out as bad as it can be, while `NA` or `NaN` is a
+#' parameter that has no diagnostic at all, which happens legitimately for a
+#' quantity that is constant across every draw. Filtering both away left a
+#' worst-case statistic that could not report the worst case, and reported a
+#' benign number in its place.
+#'
+#' @param x A summary column.
+#' @return A list with `values` (every number, infinities included) and
+#'   `n_missing` / `n_total` counts.
+#' @keywords internal
+.usable_diagnostic_values <- function(x) {
+  if (!is.numeric(x)) {
+    return(list(values = numeric(), n_missing = 0L, n_total = 0L))
+  }
+  keep <- !is.na(x)
+  list(values = x[keep],
+       n_missing = sum(!keep),
+       n_total = length(x))
+}
+
+
+#' Say how many parameters had no diagnostic, rather than dropping them
+#'
+#' A partly-missing column checked on its present entries alone reads exactly
+#' like a clean one. This follows the tail-ESS block below, which already
+#' counts and reports what it could not check.
+#'
+#' @param d A [.usable_diagnostic_values()] result.
+#' @param label Diagnostic name for the message.
+#' @param what What the diagnostic measures, for the message.
+#' @return `NULL`, invisibly.
+#' @keywords internal
+.report_missing_diagnostics <- function(d, label, what) {
+  if (d$n_missing > 0L && d$n_total > 0L) {
+    message(sprintf(
+      paste0("%s is unavailable for %d of %d parameter(s), which were not ",
+             "checked for %s; the remaining %d were. A constant generated ",
+             "quantity has no %s and is the usual reason."),
+      label, d$n_missing, d$n_total, what, d$n_total - d$n_missing, label
+    ))
+  }
+  invisible(NULL)
+}
+
+
+#' Format a diagnostic for a message without turning Inf into a number
+#'
+#' `sprintf("%.3f", Inf)` prints "Inf", which is right, but the same format
+#' applied to a very large finite value prints a wall of digits. Handle the
+#' non-finite case by name.
+#'
+#' @param x A single numeric value.
+#' @return A single string.
+#' @keywords internal
+.format_diagnostic <- function(x) {
+  if (!is.finite(x)) {
+    return(as.character(x))
+  }
+  format(x, digits = 4L)
+}
+
+
+#' Print an unknown count as unknown
+#'
+#' @param n A count, possibly `NA`.
+#' @return A single string.
+#' @keywords internal
+.diagnostic_display <- function(n) {
+  if (length(n) != 1L || is.na(n)) {
+    return("unknown")
+  }
+  as.character(n)
+}
+
+
+#' Note, inline, that a printed statistic was computed without some parameters
+#'
+#' @param d A [.usable_diagnostic_values()] result.
+#' @return A single string, empty when nothing was missing.
+#' @keywords internal
+.missing_suffix <- function(d) {
+  if (d$n_missing > 0L && d$n_total > 0L) {
+    return(sprintf("(over %d of %d parameters; %d unavailable)",
+                   d$n_total - d$n_missing, d$n_total, d$n_missing))
+  }
+  ""
+}
+
+
+#' Read a transition count that the backend may not have supplied
+#'
+#' [.diagnostic_count()] maps anything unusable to 0 and its callers guard that
+#' separately. Divergence and treedepth counts have no such guard, and 0 is the
+#' answer that says the sampler behaved, so an unreported count has to stay
+#' unknown instead.
+#'
+#' @param x The recorded count.
+#' @return A non-negative integer, or `NA_integer_` when unknown.
+#' @keywords internal
+.transition_count <- function(x) {
+  if (!is.numeric(x) || length(x) != 1L || !is.finite(x) || x < 0) {
+    return(NA_integer_)
+  }
+  as.integer(x)
 }
 
 
