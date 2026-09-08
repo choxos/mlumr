@@ -86,9 +86,8 @@ print.mlumr_fit <- function(x, ...) {
   idx <- x$summary$variable %in% params
   if (any(idx)) {
     cat("Key Parameters:\n")
-    sub_df <- .summary_columns(x$summary[idx, , drop = FALSE],
-                             c("variable", "mean", "sd", "2.5%",
-                               "97.5%", "Rhat"))
+    keep_cols <- c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")
+    sub_df <- .summary_columns(x$summary[idx, , drop = FALSE], keep_cols)
     print(sub_df, row.names = FALSE)
     # `delta_conditional` is mu_index - mu_comparator, which is eta_index(x) -
     # eta_comparator(x) evaluated at x = 0. Two separate conditions matter and
@@ -205,8 +204,8 @@ summary.mlumr_fit <- function(object, ...) {
   scale_label <- paste0(link_label, " scale")
   cat(sprintf("Intercepts (%s):\n", scale_label))
   mu_idx <- grep("^mu_", object$summary$variable)
-  print(.summary_columns(object$summary[mu_idx, , drop = FALSE],
-                       c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")),
+  keep_cols <- c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")
+  print(.summary_columns(object$summary[mu_idx, , drop = FALSE], keep_cols),
         row.names = FALSE)
 
   # Residual SD (normal only)
@@ -215,7 +214,7 @@ summary.mlumr_fit <- function(object, ...) {
     if (length(sigma_idx) > 0) {
       cat("\nResidual SD:\n")
       print(.summary_columns(object$summary[sigma_idx, , drop = FALSE],
-                       c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")),
+                             keep_cols),
             row.names = FALSE)
     }
   }
@@ -231,9 +230,8 @@ summary.mlumr_fit <- function(object, ...) {
     # Relabel beta[1] as beta[age] for readability. The underlying `variable`
     # strings in object$summary are untouched, so code indexing by name keeps
     # working; only this printed copy is relabeled.
-    beta_df <- .summary_columns(
-      object$summary[beta_idx, , drop = FALSE],
-      c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat"))
+    beta_df <- .summary_columns(object$summary[beta_idx, , drop = FALSE],
+                                keep_cols)
     print(.label_beta_rows(beta_df, object$data$covariates), row.names = FALSE)
 
   }
@@ -266,10 +264,9 @@ summary.mlumr_fit <- function(object, ...) {
                          "sigma_smooth", "sigma_smooth[1]", "sigma_smooth[2]"))
     if (length(aux_idx) > 0) {
       cat("\nShape / smoothing parameters:\n")
-      print(.summary_columns(
-        object$summary[aux_idx, , drop = FALSE],
-        c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")),
-        row.names = FALSE)
+      aux_df <- .summary_columns(object$summary[aux_idx, , drop = FALSE],
+                                 keep_cols)
+      print(aux_df, row.names = FALSE)
     }
   }
 
