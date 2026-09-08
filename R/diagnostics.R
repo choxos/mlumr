@@ -1001,8 +1001,10 @@ check_diagnostics <- function(fit) {
   # warning. Keep every value that is a number; a missing one is a parameter
   # without an Rhat, which is counted and reported rather than silently
   # excluded from a statistic that calls itself the maximum.
-  rhat <- .usable_diagnostic_values(fit$summary$Rhat)
-  .report_missing_diagnostics(rhat, "Rhat", "convergence")
+  n_par <- nrow(fit$summary)
+  rhat <- .usable_diagnostic_values(fit$summary$Rhat, n_par)
+  .report_missing_diagnostics(rhat, "Rhat", "convergence",
+                              fit$summary$variable)
   if (length(rhat$values) > 0L) {
     max_rhat <- max(rhat$values)
     if (max_rhat > 1.05) {
@@ -1018,8 +1020,9 @@ check_diagnostics <- function(fit) {
     }
   }
 
-  ess <- .usable_diagnostic_values(fit$summary$n_eff)
-  .report_missing_diagnostics(ess, "Bulk ESS", "effective sample size")
+  ess <- .usable_diagnostic_values(fit$summary$n_eff, n_par)
+  .report_missing_diagnostics(ess, "Bulk ESS", "effective sample size",
+                              fit$summary$variable)
   if (length(ess$values) > 0L) {
     min_ess <- min(ess$values)
     if (min_ess < 400) {
@@ -1120,18 +1123,32 @@ check_diagnostics <- function(fit) {
 #' worst-case statistic that could not report the worst case, and reported a
 #' benign number in its place.
 #'
-#' @param x A summary column.
+#' A column that is absent, or present but not numeric, is not zero
+#' diagnostics either. `c(NA, NA)` is a LOGICAL vector in R, so a backend that
+#' wrote missing values into a column it never filled produced two unavailable
+#' diagnostics, and this reported none: `n_total` came back 0, the reporter
+#' below says nothing when the total is 0, and the summary printed no line at
+#' all. `n_expected` is what the caller knows the count should be, normally the
+#' number of rows in the summary, so an absent column is reported as entirely
+#' missing rather than as an empty population of parameters.
+#'
+#' @param x A summary column, possibly `NULL`.
+#' @param n_expected How many parameters should have had a diagnostic. Defaults
+#'   to the length of `x`, which is right whenever the column is present.
 #' @return A list with `values` (every number, infinities included) and
 #'   `n_missing` / `n_total` counts.
 #' @keywords internal
-.usable_diagnostic_values <- function(x) {
+.usable_diagnostic_values <- function(x, n_expected = length(x)) {
   if (!is.numeric(x)) {
-    return(list(values = numeric(), n_missing = 0L, n_total = 0L))
+    n <- as.integer(max(n_expected, length(x)))
+    return(list(values = numeric(), n_missing = n, n_total = n,
+                missing_idx = seq_len(n)))
   }
   keep <- !is.na(x)
   list(values = x[keep],
        n_missing = sum(!keep),
-       n_total = length(x))
+       n_total = length(x),
+       missing_idx = which(!keep))
 }
 
 
@@ -1141,18 +1158,44 @@ check_diagnostics <- function(fit) {
 #' like a clean one. This follows the tail-ESS block below, which already
 #' counts and reports what it could not check.
 #'
+#' The message names the OUTCOME and not a cause. A missing diagnostic has
+#' several, and nothing here has looked at the draws to tell them apart: a
+#' quantity that is constant by construction has no Rhat, and neither does one
+#' whose chains are each stuck at a different constant, or whose draws are not
+#' finite. Calling the benign one "the usual reason" turned an unchecked
+#' parameter into a reassurance. Which parameters they were is something this
+#' does know, so it says that instead.
+#'
 #' @param d A [.usable_diagnostic_values()] result.
 #' @param label Diagnostic name for the message.
 #' @param what What the diagnostic measures, for the message.
+#' @param variables Parameter names in the same order as the column, or `NULL`.
 #' @return `NULL`, invisibly.
 #' @keywords internal
-.report_missing_diagnostics <- function(d, label, what) {
+.report_missing_diagnostics <- function(d, label, what, variables = NULL) {
   if (d$n_missing > 0L && d$n_total > 0L) {
+    named <- ""
+    if (!is.null(variables) && length(variables) == d$n_total) {
+      missing_names <- utils::head(as.character(variables)[d$missing_idx], 6L)
+      if (length(missing_names)) {
+        named <- paste0(" Unavailable for: ",
+                        paste(missing_names, collapse = ", "),
+                        if (d$n_missing > length(missing_names)) {
+                          sprintf(" and %d more.", d$n_missing -
+                                    length(missing_names))
+                        } else {
+                          "."
+                        })
+      }
+    }
     message(sprintf(
       paste0("%s is unavailable for %d of %d parameter(s), which were not ",
-             "checked for %s; the remaining %d were. A constant generated ",
-             "quantity has no %s and is the usual reason."),
-      label, d$n_missing, d$n_total, what, d$n_total - d$n_missing, label
+             "checked for %s; the remaining %d were.%s A diagnostic that ",
+             "could not be computed is not one that came out well: it is ",
+             "legitimately absent for a quantity that is constant across ",
+             "every draw, and equally absent when the chains are stuck or the ",
+             "draws are not finite."),
+      label, d$n_missing, d$n_total, what, d$n_total - d$n_missing, named
     ))
   }
   invisible(NULL)
@@ -1210,11 +1253,17 @@ check_diagnostics <- function(fit) {
 #' answer that says the sampler behaved, so an unreported count has to stay
 #' unknown instead.
 #'
+#' A count is a whole number, and `as.integer()` truncates rather than
+#' refusing: 0.5 became 0, which is exactly the value that says the sampler
+#' behaved, and a count past the integer range became `NA` with a coercion
+#' warning. Neither is a count, so both are reported as unknown.
+#'
 #' @param x The recorded count.
 #' @return A non-negative integer, or `NA_integer_` when unknown.
 #' @keywords internal
 .transition_count <- function(x) {
-  if (!is.numeric(x) || length(x) != 1L || !is.finite(x) || x < 0) {
+  if (!is.numeric(x) || length(x) != 1L || !is.finite(x) || x < 0 ||
+        x != trunc(x) || x > .Machine$integer.max) {
     return(NA_integer_)
   }
   as.integer(x)

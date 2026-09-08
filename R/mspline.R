@@ -332,26 +332,22 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
 }
 
 
-#' Stop if any basis column has no support over a study's observed period
+#' Which basis columns carry likelihood over one study's observed risk set
 #'
-#' An unsupported column is exactly the nonidentification condition: its
-#' coefficient cannot be moved by the likelihood, so simplex mass can be parked
-#' there and traded against the study intercept at no cost in fit.
+#' Split out of [.assert_basis_support()] so that
+#' [.assert_shared_basis_identified()] can ask the same question one study at a
+#' time. Every judgement about what counts as support lives here, so the two
+#' callers cannot drift apart.
 #'
 #' @param spec A basis spec from [.build_mspline_basis()].
-#' @param observed_max The largest time that study actually observed.
-#' @param label Study label used in the error message.
-#' @param entry,exit The study's per-subject entry and exit times, whose merged
-#'   union is the period it had someone under observation. Omit both for data
-#'   with no delayed entry, which is treated as one interval from zero.
-#' @param event The study's event times, or `NULL`. The cumulative hazard
-#'   integrates over the risk intervals and cannot see an isolated instant, but
-#'   the event term evaluates the hazard AT each event time, so a column
-#'   positive only there is supported after all.
-#' @return `TRUE`, invisibly.
+#' @param observed_max Largest observed time; used when `exit` is absent.
+#' @param entry,exit,event Delayed-entry, exit and event times.
+#' @return A logical vector with one entry per basis column. All `TRUE` when
+#'   there is no risk period to evaluate over, which is not this function's to
+#'   refuse.
 #' @keywords internal
-.assert_basis_support <- function(spec, observed_max, label,
-                                  entry = NULL, exit = NULL, event = NULL) {
+.live_basis_columns <- function(spec, observed_max, entry = NULL, exit = NULL,
+                                event = NULL) {
   # Evaluate at STRUCTURAL points, not a fixed uniform grid. A degree-0
   # (piecewise exponential) basis column is supported on exactly one inter-knot
   # interval, and a narrow interval can fall entirely between the points of a
@@ -361,7 +357,6 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
   # interior of its own support, and its support always contains at least one
   # full inter-knot interval, hence at least one of these midpoints.
   risk <- .risk_intervals(entry, exit, observed_max)
-  at_risk_start <- risk[[1L]][["lo"]]
   knots <- sort(unique(c(spec$boundary, spec$internal)))
   # Structural points WITHIN each covered stretch. Sampling the whole span
   # instead would put points in the gaps between risk intervals, where no
@@ -395,14 +390,122 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
   grid <- c(grid, event[is.finite(event)])
   grid <- sort(unique(grid[is.finite(grid)]))
   if (!length(grid)) {
-    return(invisible(TRUE))
+    return(rep(TRUE, spec$n_scoef))
   }
   b <- .eval_basis(spec, grid, integral = FALSE)
   # M-spline values have units of inverse time. An absolute cutoff therefore
   # changes the answer when the same follow-up is expressed in days rather
   # than seconds. Support is structural: a column is live if it is positive at
   # any structural point, regardless of its numerical scale.
-  live <- apply(is.finite(b) & b > 0, 2, any)
+  apply(is.finite(b) & b > 0, 2, any)
+}
+
+
+#' Refuse a shared baseline whose weights float against the study intercepts
+#'
+#' [.assert_basis_support()] asks whether every column is live SOMEWHERE in the
+#' pooled risk set. That is necessary and it is not sufficient. With
+#' `aux_by = "none"` the model carries ONE weight simplex and a SEPARATE
+#' intercept per study:
+#'
+#' ```
+#' h_s(t | x) = exp(mu_s + beta * x) * sum_k w_k M_k(t)
+#' ```
+#'
+#' so if the studies' observed exposure falls on disjoint sets of basis
+#' columns, mass can be moved between those sets and absorbed exactly by the
+#' intercepts. Take a degree-0 basis with boundary knots 0 and 3 and an
+#' internal knot at 1, the index study observed on `[0, 1]` and the comparator
+#' on `[2, 3]`. Every column is live in the pooled risk set, so the support
+#' check passes. But replacing `w` by any `w'` in (0, 1) and setting
+#' `mu_index' = mu_index + log(w / w')` and
+#' `mu_comparator' = mu_comparator + log((1 - w) / (1 - w'))` leaves every
+#' observed hazard, every cumulative-hazard increment and therefore every
+#' likelihood term unchanged, while the conditional hazard ratio moves from 1
+#' to 3. That is an exact likelihood-preserving transformation, not poor
+#' conditioning: a proper prior still gives a usable posterior, but the
+#' treatment contrast along that direction is coming from the prior.
+#'
+#' What rules it out is that the studies and the columns they touch form ONE
+#' connected component. Then no subset of the weights can be rescaled without
+#' changing a hazard some study observes.
+#'
+#' Connectivity is necessary, not a proof of identification. It is exact for a
+#' degree-0 basis, whose columns have disjoint supports, so a column belongs to
+#' a study or it does not. Above degree 0 the supports overlap, which makes
+#' disconnection harder to reach and makes a connected graph correspondingly
+#' weaker evidence: it rules out this failure mode and says nothing about the
+#' conditioning of the constrained parameter-to-likelihood map.
+#'
+#' @param spec A basis spec from [.build_mspline_basis()].
+#' @param studies A named list; each element a list with `observed_max`,
+#'   `entry`, `exit` and `event`.
+#' @return `TRUE`, invisibly.
+#' @keywords internal
+.assert_shared_basis_identified <- function(spec, studies) {
+  inc <- vapply(studies, function(st) {
+    .live_basis_columns(spec, st$observed_max, st$entry, st$exit, st$event)
+  }, logical(spec$n_scoef))
+  inc <- matrix(inc, nrow = spec$n_scoef, ncol = length(studies),
+                dimnames = list(NULL, names(studies)))
+  if (ncol(inc) < 2L) {
+    return(invisible(TRUE))
+  }
+  # Grow one component out from the first study, alternating between the
+  # columns its studies touch and the studies those columns reach.
+  seen_study <- c(TRUE, rep(FALSE, ncol(inc) - 1L))
+  seen_col <- rep(FALSE, nrow(inc))
+  repeat {
+    next_col <- seen_col | apply(inc[, seen_study, drop = FALSE], 1, any)
+    next_study <- seen_study | apply(inc[next_col, , drop = FALSE], 2, any)
+    if (identical(next_col, seen_col) && identical(next_study, seen_study)) {
+      break
+    }
+    seen_col <- next_col
+    seen_study <- next_study
+  }
+  if (all(seen_study)) {
+    return(invisible(TRUE))
+  }
+  reached <- names(studies)[seen_study]
+  cut_off <- names(studies)[!seen_study]
+  stop("The shared baseline is unidentified: ",
+       paste(reached, collapse = ", "), " and ",
+       paste(cut_off, collapse = ", "),
+       " are observed over disjoint sets of spline columns, so the weights on ",
+       "one set can be rescaled and absorbed exactly by the study intercepts. ",
+       "Every column has support somewhere in the pooled risk set, which is ",
+       "why the support check passed, but no likelihood term separates the ",
+       "shared weights from the intercepts along that direction, and the ",
+       "treatment contrast moves freely along it. Give each study its own ",
+       "baseline with `aux_by = \".study\"`, or reduce `n_knots` until the ",
+       "studies share a column.", call. = FALSE)
+}
+
+
+#' Stop if any basis column has no support over a study's observed period
+#'
+#' An unsupported column is exactly the nonidentification condition: its
+#' coefficient cannot be moved by the likelihood, so simplex mass can be parked
+#' there and traded against the study intercept at no cost in fit.
+#'
+#' @param spec A basis spec from [.build_mspline_basis()].
+#' @param observed_max The largest time that study actually observed.
+#' @param label Study label used in the error message.
+#' @param entry,exit The study's per-subject entry and exit times, whose merged
+#'   union is the period it had someone under observation. Omit both for data
+#'   with no delayed entry, which is treated as one interval from zero.
+#' @param event The study's event times, or `NULL`. The cumulative hazard
+#'   integrates over the risk intervals and cannot see an isolated instant, but
+#'   the event term evaluates the hazard AT each event time, so a column
+#'   positive only there is supported after all.
+#' @return `TRUE`, invisibly.
+#' @keywords internal
+.assert_basis_support <- function(spec, observed_max, label,
+                                  entry = NULL, exit = NULL, event = NULL) {
+  risk <- .risk_intervals(entry, exit, observed_max)
+  at_risk_start <- risk[[1L]][["lo"]]
+  live <- .live_basis_columns(spec, observed_max, entry, exit, event)
   dead <- which(!live)
   if (length(dead) > 0L) {
     where <- if (length(risk) > 1L || at_risk_start > 0) {

@@ -18,4 +18,10 @@ separately. Divergence and treedepth counts have no such guard, and 0 is the
 answer that says the sampler behaved, so an unreported count has to stay
 unknown instead.
 }
+\details{
+A count is a whole number, and \code{as.integer()} truncates rather than
+refusing: 0.5 became 0, which is exactly the value that says the sampler
+behaved, and a count past the integer range became \code{NA} with a coercion
+warning. Neither is a count, so both are reported as unknown.
+}
 \keyword{internal}
