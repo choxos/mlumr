@@ -284,7 +284,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' from a strong but identified fit takes more than the fitted values, since a
 #' legitimate signal here reaches a linear predictor of 20.1 while this case
 #' reaches 19.6. The exact test is a linear program, so it lives behind
-#' [.stc_detect_separation()] and runs only when the optional
+#' [.stc_separation_status()] and runs only when the optional
 #' \pkg{detectseparation} package is installed. The threshold test stays as
 #' the part that always runs.
 #' @param fit A fitted `glm`.
@@ -318,7 +318,26 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
       call. = FALSE
     )
   }
-  if (isTRUE(.stc_detect_separation(fit))) {
+  exact <- .stc_separation_status(fit)
+  if (identical(exact$status, "unknown")) {
+    # Not a refusal: the estimate is still returned. But an unchecked fit must
+    # not be handed back looking like a checked one, and the screen that DID
+    # run cannot see the quasi-complete case at all.
+    warning(
+      paste0(
+        "The exact separation check did not run for the STC outcome model, ",
+        "because ", exact$reason, ". Only the fitted-value screen was ",
+        "applied, and it cannot detect quasi-complete separation: rows on the ",
+        "separating hyperplane keep fitted probabilities away from 0 and 1, ",
+        "so a fit whose maximum likelihood estimate is infinite can pass it ",
+        "with converged = TRUE and finite coefficients. Treat this estimate ",
+        "and its interval as unverified. Install detectseparation to run the ",
+        "check, or use mlumr(), whose prior makes the posterior proper."
+      ),
+      call. = FALSE
+    )
+  }
+  if (identical(exact$status, "separated")) {
     stop(
       paste(
         "The STC outcome model is separated: a linear combination of the",
@@ -352,14 +371,23 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' error, and must not be read as one here, because the fit this check exists
 #' to catch is the one that warns.
 #'
+#' The result is a STATUS and not a logical, because `NA` was being read as
+#' permission to continue. The caller stopped on `isTRUE()`, so every way of
+#' not knowing, an absent dependency most of all, took the same path as a fit
+#' that had been checked and cleared. Those are different states and the caller
+#' now says which one it is in.
+#'
 #' @param fit A fitted binomial `glm`.
-#' @return `TRUE` if separated, `FALSE` if not, `NA` only when the refit
-#'   errored and there is no outcome to read. A warning is muffled and the
-#'   outcome used, since a separated refit is the case that warns.
+#' @return A list with `status`, one of `"separated"`, `"not_separated"` or
+#'   `"unknown"`, and `reason`, a string explaining an unknown. A warning is
+#'   muffled and the outcome used, since a separated refit is the case that
+#'   warns.
 #' @keywords internal
-.stc_detect_separation <- function(fit) {
+.stc_separation_status <- function(fit) {
+  unknown <- function(reason) list(status = "unknown", reason = reason)
   if (!requireNamespace("detectseparation", quietly = TRUE)) {
-    return(NA)
+    return(unknown(paste("the optional detectseparation package is not",
+                         "installed, so the linear program was not run")))
   }
   # Rebuild the fit's own call rather than going through `update()`. That
   # evaluates in its CALLER's frame, which here is this function, so the data
@@ -369,7 +397,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   # terms were built, and that is the environment the data was visible in.
   cl <- stats::getCall(fit)
   if (is.null(cl)) {
-    return(NA)
+    return(unknown("the fit records no call, so it could not be re-run"))
   }
   cl$method <- quote(detectseparation::detect_separation)
   env <- environment(stats::formula(fit))
@@ -381,15 +409,22 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   # so folding warnings into "unknown" blinded this check exactly when the
   # answer is TRUE, and did so only on the platforms that happen to emit one.
   # An error is a different matter: then there is no outcome to read.
+  failure <- NULL
   outcome <- tryCatch(
     withCallingHandlers(eval(cl, env)$outcome,
                         warning = function(w) invokeRestart("muffleWarning")),
-    error = function(e) NA
+    error = function(e) {
+      failure <<- conditionMessage(e)
+      NA
+    }
   )
-  if (length(outcome) != 1L || !is.logical(outcome) || is.na(outcome)) {
-    return(NA)
+  if (!is.null(failure)) {
+    return(unknown(paste0("the linear program could not be run: ", failure)))
   }
-  outcome
+  if (length(outcome) != 1L || !is.logical(outcome) || is.na(outcome)) {
+    return(unknown("the linear program returned no usable outcome"))
+  }
+  list(status = if (outcome) "separated" else "not_separated", reason = NA)
 }
 
 #' Build a model matrix aligned with fitted GLM coefficients

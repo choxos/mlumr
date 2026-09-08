@@ -41,7 +41,7 @@ no finite slope, yet the two tied rows keep fitted probabilities of exactly
 from a strong but identified fit takes more than the fitted values, since a
 legitimate signal here reaches a linear predictor of 20.1 while this case
 reaches 19.6. The exact test is a linear program, so it lives behind
-\code{\link[=.stc_detect_separation]{.stc_detect_separation()}} and runs only when the optional
+\code{\link[=.stc_separation_status]{.stc_separation_status()}} and runs only when the optional
 \pkg{detectseparation} package is installed. The threshold test stays as
 the part that always runs.
 }

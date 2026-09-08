@@ -7,11 +7,20 @@
   all, and it was filtered out before the maximum was taken, so a fit holding
   `1.001` and `Inf` reported a maximum Rhat of 1.001 and raised no warning.
   Infinite values now reach the worst-case statistic, in `check_diagnostics()`
-  and in the printed fit summary alike. A genuinely missing value, which a
-  constant generated quantity legitimately has, is counted and reported instead
-  of being dropped from a statistic that calls itself the maximum. Divergence
-  and treedepth counts the backend did not supply were read as zero, which is
-  the answer that says the sampler behaved; they are now reported as unknown.
+  and in the printed fit summary alike. A genuinely missing value is counted
+  and reported instead of being dropped from a statistic that calls itself the
+  maximum, and the report names the parameters it could not check. It does not
+  name a cause: a constant generated quantity has no Rhat, and neither does a
+  parameter whose chains are each stuck at a different constant or whose draws
+  are not finite, and nothing here has looked at the draws to tell those apart.
+  A column that is absent, or present but not numeric, is counted the same way.
+  `c(NA, NA)` is a logical vector in R, which is what a backend writes into a
+  column it never filled, and reading it as zero diagnostics rather than as two
+  missing ones meant the summary printed no line at all. Divergence and
+  treedepth counts the backend did not supply were read as zero, which is the
+  answer that says the sampler behaved; they are now reported as unknown, as is
+  a count that is not a whole number or is past the integer range, both of
+  which `as.integer()` had been turning into a clean zero or a silent `NA`.
 
 * **`mlumr_forest()` takes its null from the effect rather than from the
   axis.** The reference line defaulted to `1` when `log_x = TRUE` and `0`
@@ -29,12 +38,21 @@
   `sqrt(n / (n - 1) * p * (1 - p))`, so it is always larger: five zeros and
   five ones report a mean of 0.5 and an SD of 0.5270, and that was refused as
   impossible. The bound is now the finite-sample maximum at `n = 2`, the
-  loosest factor any sample can have, with an allowance for the precision the
-  figure was reported to. It does not tighten with the outcome sample size,
+  loosest factor any sample can have, with an allowance for rounding. It does not tighten with the outcome sample size,
   because that count is not the covariate's denominator: a covariate carrying
   its own missingness was summarized over fewer rows, and fewer rows make the
   bound looser rather than tighter. Genuinely inconsistent summaries are still
   refused.
+
+  The rounding allowance is half a unit of the coarsest decimal grid the stored
+  value lands on, and it does not claim to be the precision the figure was
+  reported to. `0.1`, `0.10` and `0.100000` are one double in R, so nothing can
+  be scanned out of the value to say which was printed, and all three get the
+  same allowance. That makes the check deliberately lenient, in the direction
+  that matters for reading published tables: it will not refuse a valid summary
+  for having been rounded, and it may accept a mean and SD pair that a more
+  precise report would have ruled out. A pair no rounding can reconcile is
+  still refused.
 
 * **`dlogitnorm()` rejects arguments it cannot use.** `plogitnorm()` and
   `qlogitnorm()` pass `...` to `pnorm()` and `qnorm()`, so a misspelled name
@@ -60,16 +78,31 @@
   The names of those arguments are now stored with the fit, and a refit that
   cannot replay them warns and names them.
 
-* **`naive()` no longer reports a Cox comparison that has no maximum.** Events
-  in both arms are necessary for the partial likelihood to identify the
-  treatment coefficient and are not sufficient: if every event in one arm
-  precedes every event in the other, the likelihood is monotone and has no
-  interior maximum. `coxph()` stops on its convergence criterion and returns
-  finite numbers anyway (three events per arm in that arrangement give a
-  coefficient of 21.9 with a standard error of 24795), and it says so in a
-  warning that nothing read. That warning is now inspected and the comparison
-  refused; any other `coxph()` warning is passed through to the caller
-  unchanged rather than turned into a rejection.
+* **`naive()` no longer reports a Cox comparison that has no maximum, or one
+  that never converged.** Events in both arms are necessary for the partial
+  likelihood to identify the treatment coefficient and are not sufficient: the
+  likelihood can be monotone, with no interior maximum, while `coxph()` stops
+  on its convergence criterion and returns finite numbers anyway. Six
+  uncensored subjects with the three index events all before the three
+  comparator ones give a coefficient of 21.9 with a standard error of 24795,
+  and `coxph()` says so in a warning that nothing read. That warning is now
+  inspected and the comparison refused.
+
+  What makes the likelihood monotone is the risk sets, not the order of the
+  event times. Ordered events are enough only when censoring leaves nobody from
+  the earlier arm at risk when the later arm fails: with an index subject
+  failing at 1 and censored at 4, and a comparator failing at 2 and censored at
+  3, every index event still precedes every comparator event and the maximum is
+  a finite log hazard ratio of 0.347. Nothing refuses that fit, and the
+  explanation no longer claims the ordering alone is the problem.
+
+  A failure to converge is not an ordinary warning either. `coxph()` documents
+  several termination conditions and states that its own detection of an
+  infinite coefficient is not always successful, so the absence of the monotone
+  warning is not a certificate that a finite maximum exists. Nonconvergence was
+  reissued to the caller and the coefficient then packaged with a Wald
+  interval; it is now refused. Any other `coxph()` warning is still passed
+  through unchanged rather than turned into a rejection.
 
 * **STC detects quasi-complete separation when \pkg{detectseparation} is
   installed.** The existing screen requires every fitted probability to sit at
@@ -78,9 +111,15 @@
   0.5, so a fit with an infinite maximum likelihood estimate passed with
   `converged = TRUE` and finite coefficients. Whether a finite maximum exists
   is a linear program rather than a threshold, so the exact test lives behind a
-  new **Suggests** dependency and runs when it is available. Without it the
-  threshold screen still runs, and a check that cannot be completed is treated
-  as unknown rather than as separated.
+  new **Suggests** dependency and runs when it is available. A check that
+  cannot be completed is treated as unknown rather than as separated, which is
+  right, and it is no longer treated as a clean bill either. The result is a
+  status of `"separated"`, `"not_separated"` or `"unknown"` with a reason, and
+  an unknown one now warns: the estimate is still returned, but it says that
+  only the fitted-value screen ran, that the screen cannot see quasi-complete
+  separation, and that the interval is therefore unverified. Previously every
+  way of not knowing, an absent dependency most of all, took the same path as a
+  fit that had been checked and cleared.
 
 * **M-spline basis support is judged over the period a study was at risk.** The
   check evaluated each basis column on `[0, max(time)]`. A column supported
@@ -95,6 +134,23 @@
   baseline. Where entry is delayed, a message also records that absolute
   survival and RMST integrate from 0 and are therefore prior-dependent below
   it, while conditional quantities are not.
+
+* **A shared baseline whose studies never overlap on a spline column is
+  refused.** Column support says every column carries likelihood for SOMEBODY.
+  It cannot say the studies are tied to each other, and with `aux_by = "none"`
+  they have to be: that model has one weight simplex and one intercept per
+  study, so if the studies' observed exposure falls on disjoint sets of
+  columns, mass can be moved between the sets and absorbed exactly by the
+  intercepts. With a piecewise-exponential baseline on `[0, 3]` split at 1, the
+  index study observed on `[0, 1]` and the comparator on `[2, 3]`, replacing
+  the weight `w` by any other value in (0, 1) and shifting the two intercepts
+  to match leaves every likelihood term identical while the conditional hazard
+  ratio moves from 1 to 3. Every column is supported, so nothing objected.
+  `mlumr()` now also requires the studies and the columns they touch to form
+  one connected component, and says which studies are cut off from which. This
+  is exact at degree 0, where columns have disjoint supports. Above it the
+  supports overlap, so connectivity rules out this failure mode and is not a
+  proof of identification.
 
 * **Interval- and left-censored likelihoods under delayed entry are evaluated
   in whichever form the numbers survive.** The interval branch formed the
@@ -492,7 +548,12 @@
   they mix estimators: putting `naive()`, `stc()`, and both ML-UMR models on one
   axis, for instance. It takes the reference line, axis label, title, and
   subtitle as arguments so the caller sets the measure's null rather than
-  inheriting one.
+  inheriting one. One interval far wider than the rest is clipped to a viewport
+  built from the others, with an arrow on the side it runs past, so a single
+  wide row does not squeeze the rest into a line. A bound that is infinite is
+  clipped that way; a bound that is MISSING is not, because no interval was
+  reported and drawing one from edge to edge would put an uncertainty on the
+  figure that nobody estimated. Such a row shows its point estimate alone.
 * `marginal_effects()`, `predict()`, and `conditional_effects()` now return
   lightweight `data.frame` subclasses so these `plot()` methods can dispatch;
   all existing data-frame behavior (indexing, `knitr::kable()`, the reporting
