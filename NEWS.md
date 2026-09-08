@@ -96,6 +96,23 @@
   survival and RMST integrate from 0 and are therefore prior-dependent below
   it, while conditional quantities are not.
 
+* **A shared baseline whose studies never overlap on a spline column is
+  refused.** Column support says every column carries likelihood for SOMEBODY.
+  It cannot say the studies are tied to each other, and with `aux_by = "none"`
+  they have to be: that model has one weight simplex and one intercept per
+  study, so if the studies' observed exposure falls on disjoint sets of
+  columns, mass can be moved between the sets and absorbed exactly by the
+  intercepts. With a piecewise-exponential baseline on `[0, 3]` split at 1, the
+  index study observed on `[0, 1]` and the comparator on `[2, 3]`, replacing
+  the weight `w` by any other value in (0, 1) and shifting the two intercepts
+  to match leaves every likelihood term identical while the conditional hazard
+  ratio moves from 1 to 3. Every column is supported, so nothing objected.
+  `mlumr()` now also requires the studies and the columns they touch to form
+  one connected component, and says which studies are cut off from which. This
+  is exact at degree 0, where columns have disjoint supports. Above it the
+  supports overlap, so connectivity rules out this failure mode and is not a
+  proof of identification.
+
 * **Interval-censored likelihood under delayed entry is built from
   increments.** The branch formed the unconditional interval probability and
   then subtracted `log S(entry)`. That is correct algebra and poor arithmetic:

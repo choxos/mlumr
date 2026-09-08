@@ -1540,6 +1540,21 @@ mlumr <- function(data,
                             c(ipd$.time, pseudo$.time),
                             c(ipd$.time[ipd$.status == 1],
                               pseudo$.time[pseudo$.status == 1]))
+      # Pooled support says every column carries likelihood for SOMEBODY. It
+      # cannot say the two studies are tied to each other, and with one shared
+      # simplex and an intercept each they have to be: exposure on disjoint
+      # column sets leaves the weights free to be rescaled against the
+      # intercepts with the likelihood exactly flat along that direction.
+      .assert_shared_basis_identified(
+        spec_idx,
+        list(index = list(observed_max = max(ipd$.time),
+                          entry = ipd$.delay_time,
+                          exit = ipd$.time,
+                          event = ipd$.time[ipd$.status == 1]),
+             comparator = list(observed_max = max(pseudo$.time),
+                               entry = pseudo$.delay_time,
+                               exit = pseudo$.time,
+                               event = pseudo$.time[pseudo$.status == 1])))
     }
     spec <- spec_idx
     if (spec$n_scoef < 2L) {
