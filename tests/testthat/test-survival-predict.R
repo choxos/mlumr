@@ -106,11 +106,14 @@ test_that("survival marginal and conditional effects are labeled correctly", {
   # under the name of another is what the guard exists to prevent.
   expect_error(conditional_effects(fit_ph, effect = "hr"),
                "not available")
-  # `tr` on a proportional-hazards fit fails for a second, prior reason: a PH
-  # model has no constant time ratio at all, so the request names an estimand
-  # that does not exist here rather than one this fit cannot isolate.
+  # `tr` on this fit fails for the SAME reason as `hr`, not a different one.
+  # The stratified baseline is what makes the contrast unusable, and that is
+  # true whichever measure is named. A Weibull with a shared shape would be a
+  # different case: it is both proportional-hazards and accelerated failure
+  # time, so a constant time ratio does exist there, which is why the message
+  # about parameterization belongs to that fit and not to this one.
   expect_error(conditional_effects(fit_ph, effect = "tr"),
-               "proportional-hazards.*log hazard ratio")
+               "not available")
   # The default `effect = "all"` still returns it, under its own honest name.
   ce <- conditional_effects(fit_ph, effect = "all")
   expect_true(all(ce$effect == "EXP_ETA_CONTRAST"))
@@ -120,6 +123,15 @@ test_that("survival marginal and conditional effects are labeled correctly", {
                                   aux_by = "none")
   ce_shared <- conditional_effects(fit_shared, effect = "hr")
   expect_true(all(ce_shared$effect == "HR"))
+  # With the shape shared, the refusal of `tr` is about what this fit
+  # parameterizes rather than about the baseline, and the message says so and
+  # gives the conversion. A Weibull is both families, so claiming no constant
+  # time ratio exists would be false here.
+  tr_msg <- tryCatch(conditional_effects(fit_shared, effect = "tr"),
+                     error = conditionMessage)
+  expect_match(tr_msg, "proportional-hazards.*log hazard ratio")
+  expect_match(tr_msg, "TR = HR\\^\\(-1/shape\\)")
+  expect_false(grepl("has no constant time ratio", tr_msg, fixed = TRUE))
 
   cp <- conditional_predict(fit_ph)
   expect_true(all(c("profile", "treatment", "time", "mean") %in% names(cp)))
