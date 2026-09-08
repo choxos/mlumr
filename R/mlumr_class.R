@@ -1,6 +1,24 @@
 
 
 #' @method print mlumr_fit
+#' Select summary columns that are actually there
+#'
+#' The printed summary reports "unavailable" for a diagnostic its column does
+#' not carry, and then the tables below it selected `"Rhat"` by name anyway, so
+#' a fit without that column announced the gap and died of it one line later
+#' with "undefined columns selected". Normal backend output always has the
+#' column; a legacy or hand-built fit is exactly the case the unavailable line
+#' exists for, so it has to survive the rest of the method too.
+#'
+#' @param df A summary data frame.
+#' @param cols Column names to take, in order.
+#' @return `df` with those of `cols` it has.
+#' @keywords internal
+.summary_columns <- function(df, cols) {
+  df[, intersect(cols, names(df)), drop = FALSE]
+}
+
+
 #' @export
 print.mlumr_fit <- function(x, ...) {
   cat("ML-UMR Fit\n")
@@ -68,7 +86,9 @@ print.mlumr_fit <- function(x, ...) {
   idx <- x$summary$variable %in% params
   if (any(idx)) {
     cat("Key Parameters:\n")
-    sub_df <- x$summary[idx, c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")]
+    sub_df <- .summary_columns(x$summary[idx, , drop = FALSE],
+                             c("variable", "mean", "sd", "2.5%",
+                               "97.5%", "Rhat"))
     print(sub_df, row.names = FALSE)
     # `delta_conditional` is mu_index - mu_comparator, which is eta_index(x) -
     # eta_comparator(x) evaluated at x = 0. Two separate conditions matter and
@@ -185,7 +205,8 @@ summary.mlumr_fit <- function(object, ...) {
   scale_label <- paste0(link_label, " scale")
   cat(sprintf("Intercepts (%s):\n", scale_label))
   mu_idx <- grep("^mu_", object$summary$variable)
-  print(object$summary[mu_idx, c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")],
+  print(.summary_columns(object$summary[mu_idx, , drop = FALSE],
+                       c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")),
         row.names = FALSE)
 
   # Residual SD (normal only)
@@ -193,7 +214,8 @@ summary.mlumr_fit <- function(object, ...) {
     sigma_idx <- which(object$summary$variable == "sigma")
     if (length(sigma_idx) > 0) {
       cat("\nResidual SD:\n")
-      print(object$summary[sigma_idx, c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")],
+      print(.summary_columns(object$summary[sigma_idx, , drop = FALSE],
+                       c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")),
             row.names = FALSE)
     }
   }
@@ -209,8 +231,9 @@ summary.mlumr_fit <- function(object, ...) {
     # Relabel beta[1] as beta[age] for readability. The underlying `variable`
     # strings in object$summary are untouched, so code indexing by name keeps
     # working; only this printed copy is relabeled.
-    beta_df <- object$summary[beta_idx,
-                              c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")]
+    beta_df <- .summary_columns(
+      object$summary[beta_idx, , drop = FALSE],
+      c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat"))
     print(.label_beta_rows(beta_df, object$data$covariates), row.names = FALSE)
 
   }
@@ -243,9 +266,10 @@ summary.mlumr_fit <- function(object, ...) {
                          "sigma_smooth", "sigma_smooth[1]", "sigma_smooth[2]"))
     if (length(aux_idx) > 0) {
       cat("\nShape / smoothing parameters:\n")
-      print(object$summary[aux_idx,
-                           c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")],
-            row.names = FALSE)
+      print(.summary_columns(
+        object$summary[aux_idx, , drop = FALSE],
+        c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")),
+        row.names = FALSE)
     }
   }
 

@@ -117,3 +117,27 @@ test_that("a fractional transition count is unknown, not zero", {
   expect_equal(.transition_count(0), 0L)
   expect_true(is.na(.transition_count(-1)))
 })
+
+test_that("a summary with no Rhat column still prints all the way through", {
+  # The unavailable line is for a fit whose column is absent, so the tables
+  # below it have to survive the same fit. Selecting "Rhat" by name raised
+  # "undefined columns selected" one line after announcing the gap.
+  df <- data.frame(
+    variable = c("mu_index", "mu_comparator", "beta[1]"),
+    mean = c(0, 1, 0.5), sd = c(1, 1, 1),
+    `2.5%` = c(-1, 0, -0.5), `97.5%` = c(1, 2, 1.5),
+    n_eff = c(500, 600, 550),
+    check.names = FALSE
+  )
+  expect_silent(cols <- mlumr:::.summary_columns(
+    df, c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")))
+  expect_false("Rhat" %in% names(cols))
+  expect_equal(names(cols), c("variable", "mean", "sd", "2.5%", "97.5%"))
+  # A summary that does carry the column is unchanged.
+  df$Rhat <- c(1.00, 1.01, 1.00)
+  expect_equal(
+    names(mlumr:::.summary_columns(
+      df, c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat"))),
+    c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")
+  )
+})
