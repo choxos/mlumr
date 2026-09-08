@@ -1,6 +1,6 @@
-Generated: 2026-09-08 07:04:57 EDT
+Generated: 2026-09-08 07:14:32 EDT
 Script: simulate_subgroup_identification.R
-Script-MD5: d30c2d1ac9d41d0b610d6d58cc730db4
+Script-MD5: 4167ff67e9617d2a8360e8d07ffe8f7f
 Results: subgroup_identification_results.csv
 Results-MD5: 4dc62e120a5b2ad21733c13d843ef9ec
 Rows: 5400
@@ -12,8 +12,8 @@ Warmup: 1500
 mlumr: 0.1.0.9000
 mlumr-code-MD5: 58163f2009a6fbd3538db253770e3365
 mlumr-library: ~/R/aarch64-apple-darwin23-library/shared
-Commit: 9a83c5bc49990176a03a903e0e141c852ad31545
-Tree: 8bbf25063757314741a8b4c6eedadca7212f9bb3
+Commit: 817cf1f81beee87030635b457e4e19f542fe82d8
+Tree: c53debf8416db5496a64d6bf61f19db2f651fe89
 Working-tree-dirty: false
 R: 4.6.0
 cmdstanr: 0.9.0
