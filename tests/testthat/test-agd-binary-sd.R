@@ -48,6 +48,15 @@ test_that("the reported-precision allowance tracks the precision given", {
   expect_equal(mlumr:::.reported_precision(2), 0.5)
   # an unrounded value earns essentially nothing, so this is not blanket slack
   expect_lt(mlumr:::.reported_precision(0.5270462766947299), 1e-8)
+
+  # and precision finer than eight decimals is still precision. Stopping there
+  # called a nine-decimal figure exact, so it was compared against a ceiling it
+  # sat 2e-10 above and could only miss.
+  x <- rep(c(0, 1), each = 5)
+  expect_equal(mlumr:::.reported_precision(round(stats::sd(x), 9)), 5e-10)
+  expect_equal(mlumr:::.reported_precision(0.123456789012), 5e-13)
+  expect_true(accepts(0.5, round(stats::sd(x), 9), 10))
+  expect_true(accepts(0.5, round(stats::sd(x), 12), 10))
 })
 
 test_that("the reported proportion's own rounding widens the ceiling", {

@@ -1094,13 +1094,23 @@ set_agd <- function(data, treatment,
 #' essentially no allowance, which is what keeps this from becoming a blanket
 #' slack term.
 #'
+#' The scan runs to the precision a double can actually distinguish. Stopping
+#' at eight decimals reported anything finer as exact and therefore as
+#' deserving no allowance at all, so a summary quoted to nine places was
+#' compared against a bound it could only miss: five zeros and five ones give a
+#' sample SD of 0.5270462766947299, and reporting that as 0.527046277 put it
+#' 2e-10 above its own ceiling.
+#'
 #' @param x Numeric vector as reported.
 #' @return Numeric vector of tolerances, one per element.
 #' @keywords internal
 .reported_precision <- function(x) {
+  # A double carries roughly 15 to 17 significant decimal digits; past that,
+  # rounding is not a property of the number as written.
+  max_digits <- 15L
   vapply(x, function(v) {
     if (!is.finite(v)) return(0)
-    for (d in 0:8) {
+    for (d in 0:max_digits) {
       if (isTRUE(all.equal(round(v, d), v, tolerance = 0))) {
         return(0.5 * 10^(-d))
       }
