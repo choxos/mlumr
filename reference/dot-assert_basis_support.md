@@ -7,7 +7,14 @@ parked there and traded against the study intercept at no cost in fit.
 ## Usage
 
 ``` r
-.assert_basis_support(spec, observed_max, label)
+.assert_basis_support(
+  spec,
+  observed_max,
+  label,
+  entry = NULL,
+  exit = NULL,
+  event = NULL
+)
 ```
 
 ## Arguments
@@ -24,6 +31,19 @@ parked there and traded against the study intercept at no cost in fit.
 - label:
 
   Study label used in the error message.
+
+- entry, exit:
+
+  The study's per-subject entry and exit times, whose merged union is
+  the period it had someone under observation. Omit both for data with
+  no delayed entry, which is treated as one interval from zero.
+
+- event:
+
+  The study's event times, or `NULL`. The cumulative hazard integrates
+  over the risk intervals and cannot see an isolated instant, but the
+  event term evaluates the hazard AT each event time, so a column
+  positive only there is supported after all.
 
 ## Value
 

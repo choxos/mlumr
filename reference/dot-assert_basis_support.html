@@ -66,7 +66,14 @@ there and traded against the study intercept at no cost in fit.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.assert_basis_support</span><span class="op">(</span><span class="va">spec</span>, <span class="va">observed_max</span>, <span class="va">label</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.assert_basis_support</span><span class="op">(</span></span>
+<span>  <span class="va">spec</span>,</span>
+<span>  <span class="va">observed_max</span>,</span>
+<span>  <span class="va">label</span>,</span>
+<span>  entry <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  exit <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  event <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -83,6 +90,19 @@ there and traded against the study intercept at no cost in fit.</p>
 
 <dt id="arg-label">label<a class="anchor" aria-label="anchor" href="#arg-label"></a></dt>
 <dd><p>Study label used in the error message.</p></dd>
+
+
+<dt id="arg-entry-exit">entry, exit<a class="anchor" aria-label="anchor" href="#arg-entry-exit"></a></dt>
+<dd><p>The study's per-subject entry and exit times, whose merged
+union is the period it had someone under observation. Omit both for data
+with no delayed entry, which is treated as one interval from zero.</p></dd>
+
+
+<dt id="arg-event">event<a class="anchor" aria-label="anchor" href="#arg-event"></a></dt>
+<dd><p>The study's event times, or <code>NULL</code>. The cumulative hazard
+integrates over the risk intervals and cannot see an isolated instant, but
+the event term evaluates the hazard AT each event time, so a column
+positive only there is supported after all.</p></dd>
 
 </dl></div>
     <div class="section level2">

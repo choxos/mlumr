@@ -186,6 +186,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-resolve_mlumr_seed.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-resolved_prior_broadcast_label.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-resolved_prior_family_label.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-risk_intervals.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-rmst_caption.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-rmst_from_surv_matrix.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-rmst_max_interval_share.html</loc></url>
@@ -208,6 +209,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_binomial.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_binomial_comparator_delta.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_comparator_data.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-stc_detect_separation.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_flexsurv_dist.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_formula.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_glm_parameters.html</loc></url>

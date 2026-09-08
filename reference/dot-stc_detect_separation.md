@@ -1,0 +1,36 @@
+# Exact separation test, when the optional dependency is present
+
+Whether a binomial likelihood has a finite maximum is a
+linear-programming question, not a threshold one: the fit is separated
+exactly when some linear combination of the covariates perfectly orders
+the outcome, and a fit that is merely strong can look identical in the
+coefficients and the fitted values. detectseparation solves that
+program. It is in Suggests, so this returns `NA` when it is absent and
+the caller keeps the fitted-value test as its only screen; that is a
+weaker guarantee, not a wrong one.
+
+## Usage
+
+``` r
+.stc_detect_separation(fit)
+```
+
+## Arguments
+
+- fit:
+
+  A fitted binomial `glm`.
+
+## Value
+
+`TRUE` if separated, `FALSE` if not, `NA` only when the refit errored
+and there is no outcome to read. A warning is muffled and the outcome
+used, since a separated refit is the case that warns.
+
+## Details
+
+An error here is reported as "unknown" rather than as "separated": a
+refit can fail for reasons that have nothing to do with separation, and
+turning those into a refusal would reject estimable models. A warning is
+not an error, and must not be read as one here, because the fit this
+check exists to catch is the one that warns.
