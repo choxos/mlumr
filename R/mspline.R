@@ -379,7 +379,10 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
     # left end of its own interval, so evaluating at a bare endpoint made a
     # column live off a single instant: with exposure on [1, 2] and [8, 9], the
     # column on [2, 8) is positive at t = 2 alone, contributes zero integrated
-    # hazard, and would have passed. A point carries no likelihood.
+    # hazard, and would have passed. An instant carries no EXPOSURE, which is
+    # what these points stand in for; an exact event at that instant does
+    # carry a hazard term, and the event times added below are how that case
+    # is kept.
     c(mids, inner[-c(1L, length(inner))])
   }))
   # The interiors above cover the CUMULATIVE hazard, which integrates over the
@@ -425,20 +428,32 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
          "Reduce `n_knots`.", call. = FALSE)
   }
   if (at_risk_start > 0) {
-    # Even with every column supported, the hazard BELOW the earliest entry
-    # time is not informed by these data at all. That does not affect a
-    # conditional quantity, but S(t) and RMST integrate the hazard from 0, so
-    # those carry whatever the prior says about a stretch nobody was observed
-    # in. A reader comparing absolute survival across arms deserves to know
-    # which part of the curve that is.
+    # Even with every column supported, nobody was AT RISK below the earliest
+    # entry time, so no observation bears on the hazard there directly. That is
+    # not the same as saying the prior alone decides it. A basis column
+    # straddling the entry time is one parameter governing both sides, so the
+    # observed part constrains the unobserved part through the fitted model:
+    # with a first interval of [0, 3) and entry at 2, what happens on [2, 3)
+    # informs the hazard on [0, 2). The pre-entry hazard is extrapolated under
+    # the spline restrictions, and the prior acts on whatever those leave
+    # weakly determined.
+    #
+    # Conditioning on survival to a landmark cancels the pre-landmark
+    # cumulative hazard, which is why that recommendation stands. It does not
+    # make a conditional contrast free of the smoothing prior or of shape
+    # uncertainty, so the message no longer says conditional quantities are
+    # unaffected outright.
     message("The ", label, " study enters at ",
             format(at_risk_start, digits = 4),
-            ", so no observation informs its hazard below that time. ",
-            "Conditional quantities are unaffected, but absolute survival and ",
-            "RMST integrate from 0 and are therefore prior-dependent over ",
-            "[0, ", format(at_risk_start, digits = 4), "]. Compare survival ",
-            "conditional on reaching entry, or report RMST from a landmark at ",
-            "or after it.")
+            ", so nobody was at risk below that time and its hazard there is ",
+            "not directly observed. Where a basis column straddles the entry ",
+            "time the observed part still informs it, so the hazard below is ",
+            "extrapolated under the spline restrictions rather than left to ",
+            "the prior alone; the prior decides whatever those leave weakly ",
+            "determined. Absolute survival and RMST integrate from 0 and so ",
+            "depend on that stretch, while conditioning on survival to a ",
+            "landmark cancels it. Compare survival conditional on reaching ",
+            "entry, or report RMST from a landmark at or after it.")
   }
   invisible(TRUE)
 }
