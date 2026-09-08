@@ -459,7 +459,13 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
     }
     return(list(c(lo = max(0, lo), hi = observed_max)))
   }
-  keep <- is.finite(entry) & is.finite(exit) & exit > entry
+  # Compare against the CLAMPED lower bound, which is what `lo` below uses.
+  # Testing the raw entry instead let an interval lying entirely before zero
+  # through: (-2, -1) satisfies exit > entry, and the clamp then turned it into
+  # (0, -1), an inverted interval that broke this function's own increasing
+  # order contract and would have handed `.assert_basis_support()` a grid to
+  # build over negative time.
+  keep <- is.finite(entry) & is.finite(exit) & exit > pmax(0, entry)
   if (!any(keep)) {
     return(whole)
   }

@@ -194,3 +194,29 @@ test_that("delayed entry is reported as making absolute survival prior-driven", 
     NA
   )
 })
+
+test_that("risk intervals never come back inverted", {
+  # `.validate_survival_times()` refuses a negative delayed-entry time, so the
+  # public path cannot deliver one. The clamp inside `.risk_intervals()` says
+  # the helper does not rely on that, and the keep filter has to agree with it:
+  # judging the RAW entry admitted an interval lying wholly before zero, which
+  # the clamp then inverted.
+  whole <- mlumr:::.risk_intervals(-2, -1, 10)
+  expect_length(whole, 1L)
+  expect_equal(unname(whole[[1L]]), c(0, 10))
+
+  # an interval that merely STARTS before zero still contributes, from zero
+  spanning <- mlumr:::.risk_intervals(-2, 5, 10)
+  expect_equal(unname(spanning[[1L]]), c(0, 5))
+
+  # and one bad row does not take a good one with it
+  mixed <- mlumr:::.risk_intervals(c(-4, 3), c(-3, 5), 10)
+  expect_length(mixed, 1L)
+  expect_equal(unname(mixed[[1L]]), c(3, 5))
+
+  # the contract, over every shape above
+  for (iv in c(whole, spanning, mixed)) {
+    expect_gte(iv[["hi"]], iv[["lo"]])
+    expect_gte(iv[["lo"]], 0)
+  }
+})
