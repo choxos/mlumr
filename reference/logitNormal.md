@@ -33,7 +33,15 @@ qlogitnorm(p, mu = 0, sigma = 1, ..., mean, sd)
 
 - ...:
 
-  Passed to the underlying stats normal function.
+  For `plogitnorm()` and `qlogitnorm()`, passed to the underlying stats
+  normal function
+  ([`stats::pnorm()`](https://rdrr.io/r/stats/Normal.html),
+  [`stats::qnorm()`](https://rdrr.io/r/stats/Normal.html)), so
+  `lower.tail` and `log.p` work as usual. `dlogitnorm()` builds its
+  density from [`stats::dnorm()`](https://rdrr.io/r/stats/Normal.html)
+  and a Jacobian rather than delegating, so it has nothing to forward
+  and refuses anything passed here; in its signature `...` serves only
+  to keep `mean` and `sd` from matching positionally.
 
 - mean, sd:
 

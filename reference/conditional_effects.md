@@ -47,11 +47,18 @@ conditional_effects(
     conditional hazard ratio, labeled `"HR"`, for a proportional-hazards
     distribution, and `"tr"` the exact time ratio (`"TR"`) for an
     accelerated failure time one. The two are different estimands and
-    `"tr"` is **not** an alias for `"hr"`: a proportional-hazards model
-    has no constant time ratio and an AFT model has no constant hazard
-    ratio, so `"tr"` on a PH fit and `"hr"` on an AFT fit are both
-    errors rather than the other measure returned under the label it
-    does have.
+    `"tr"` is **not** an alias for `"hr"`, so `"tr"` on a
+    proportional-hazards fit and `"hr"` on an accelerated failure time
+    fit are both errors rather than the other measure returned under the
+    label it does have. That is a restriction on the label this function
+    answers to, not a claim that the other measure cannot exist: an
+    exponential and a Weibull are BOTH proportional hazards and
+    accelerated failure time, so with a shared shape each has a constant
+    hazard ratio and a constant time ratio, related by
+    `TR = HR^(-1/shape)` (`1/HR` for an exponential). For the
+    log-normal, log-logistic, gamma and generalized gamma the
+    conditional hazard ratio genuinely varies with time, and there the
+    absence of a scalar is a property of the model.
 
   - **Study-specific shape-bearing baseline** (`aux_by = ".study"`, the
     default, with a distribution that has a shape parameter or either

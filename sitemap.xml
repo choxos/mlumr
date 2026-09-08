@@ -87,6 +87,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-diagnostic_display.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-diagnostic_value.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-drop_missing_rows.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-dual_family_note.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-ensure_positive_definite_cor.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-eval_basis.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-exp_difference_logs.html</loc></url>
@@ -169,10 +170,12 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-reject_factor_time.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-reject_gamma_dots.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-reject_rate_and_scale.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-reject_unused_dots.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-relative_eff_from_log_lik.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-relaxed_contraction.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-relaxed_index_note.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-report_missing_diagnostics.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-reported_precision.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-require_draw_columns.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-require_identity.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-require_single_identity.html</loc></url>
@@ -308,6 +311,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-warn_interval_share.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-warn_snapped_prediction_times.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-warn_survival_loo_unit.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-warn_unreplayed_backend_args.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-weighted_log_mean_exp.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-z_from_conf_level.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/eval_distr.html</loc></url>

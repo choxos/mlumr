@@ -84,8 +84,14 @@ characteristic in the source trial). See
 The index and comparator arms come from the SAME trial, so both carry
 the study label `"Ammar 2025"`. Splitting one randomized trial into a
 single-arm IPD source and a single-arm aggregate source is what makes
-this an unanchored example whose true answer is still known. Because the
-label is shared,
+this an unanchored example for which a randomized reference comparison
+is still available: fitting the two arms together on the full data gives
+the estimate the unanchored methods are trying to recover. That
+reference is itself an estimate with sampling error, not an evaluated
+population causal truth: the synthesis reproduces the covariate and
+covariate-outcome relationships of the source trial, which does not
+define a population causal effect that could be computed and compared
+against. Because the label is shared,
 [`combine_data`](https://choxos.github.io/mlumr/reference/combine_data.md)
 warns that IPD and AgD come from the same study; that warning is
 expected here and is the honest reading of the data. It does not fire

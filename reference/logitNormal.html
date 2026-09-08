@@ -96,7 +96,12 @@ area.</p>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>Passed to the underlying <span class="pkg">stats</span> normal function.</p></dd>
+<dd><p>For <code>plogitnorm()</code> and <code>qlogitnorm()</code>, passed to the underlying
+<span class="pkg">stats</span> normal function (<code><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">stats::pnorm()</a></code>, <code><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">stats::qnorm()</a></code>), so
+<code>lower.tail</code> and <code>log.p</code> work as usual. <code>dlogitnorm()</code> builds its density
+from <code><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">stats::dnorm()</a></code> and a Jacobian rather than delegating, so it has
+nothing to forward and refuses anything passed here; in its signature
+<code>...</code> serves only to keep <code>mean</code> and <code>sd</code> from matching positionally.</p></dd>
 
 
 <dt id="arg-mean-sd">mean, sd<a class="anchor" aria-label="anchor" href="#arg-mean-sd"></a></dt>
