@@ -42,15 +42,19 @@ answers to, not a claim that the other measure cannot exist: an
 exponential and a Weibull are BOTH proportional hazards and
 accelerated failure time, so with a shared shape each has a constant
 hazard ratio and a constant time ratio, related by
-\code{TR = HR^(-1/shape)} (\code{1/HR} for an exponential). Apply that
-conversion to PAIRED posterior draws, each effect draw with the shape
-draw it came with; transforming a posterior mean, or the endpoints of
-a reported interval with one shape estimate, does not in general give
-the posterior of the other measure. Refitting in the other
-parameterization is an equivalent analysis only when the priors are
-transformed to match: \code{log(HR) ~ Normal(0, s^2)} induces
+\code{TR = HR^(-1/shape)} (\code{1/HR} for an exponential). For the Weibull,
+apply that conversion to PAIRED posterior draws, each effect draw with
+the shape draw it came with; transforming a posterior mean, or the
+endpoints of a reported interval with one shape estimate, does not in
+general give the posterior of the other measure. Refitting in the
+other parameterization is then an equivalent analysis only when the
+priors are transformed to match: \code{log(HR) ~ Normal(0, s^2)} induces
 \code{log(TR) | k ~ Normal(0, s^2 / k^2)}, not the same fixed-variance
 normal, and the intercept and coefficient priors have to move with it.
+None of that applies to the exponential, which has no shape parameter:
+its conversion is a reciprocal applied draw by draw, and a normal
+prior on \code{log(HR)} is the same normal prior on \code{log(TR)} with the sign
+reversed.
 For the log-normal, log-logistic, gamma and generalized gamma the
 conditional hazard ratio generally varies with time, and there the
 absence of a scalar is a property of the model. Generally, not always:

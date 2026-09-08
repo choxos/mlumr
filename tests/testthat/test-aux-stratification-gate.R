@@ -159,3 +159,21 @@ test_that("conditional_effects() does not substitute HR for TR or TR for HR", {
                  error = conditionMessage)
   expect_match(ln, "generally varies with time")
 })
+
+test_that("the exponential is not told to pair draws with a shape it has not got", {
+  # Both exponential variants have n_aux == 0. The paired-draw advice and the
+  # shape-dependent prior transformation are Weibull facts, and repeating them
+  # here would send a caller looking for a parameter the fit does not carry.
+  for (d in c("exponential", "exponential-aft")) {
+    msg <- mlumr:::.dual_family_note(d, "tr")
+    expect_match(msg, "TR = 1/HR", fixed = TRUE)
+    expect_match(msg, "carries no shape parameter", fixed = TRUE)
+    expect_false(grepl("pairing each effect draw", msg, fixed = TRUE))
+    expect_false(grepl("scale depends on the shape", msg, fixed = TRUE))
+  }
+  for (d in c("weibull", "weibull-aft")) {
+    msg <- mlumr:::.dual_family_note(d, "tr")
+    expect_match(msg, "TR = HR^(-1/shape)", fixed = TRUE)
+    expect_match(msg, "pairing each effect draw", fixed = TRUE)
+  }
+})

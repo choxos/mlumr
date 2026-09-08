@@ -32,15 +32,19 @@
 #'       exponential and a Weibull are BOTH proportional hazards and
 #'       accelerated failure time, so with a shared shape each has a constant
 #'       hazard ratio and a constant time ratio, related by
-#'       `TR = HR^(-1/shape)` (`1/HR` for an exponential). Apply that
-#'       conversion to PAIRED posterior draws, each effect draw with the shape
-#'       draw it came with; transforming a posterior mean, or the endpoints of
-#'       a reported interval with one shape estimate, does not in general give
-#'       the posterior of the other measure. Refitting in the other
-#'       parameterization is an equivalent analysis only when the priors are
-#'       transformed to match: `log(HR) ~ Normal(0, s^2)` induces
+#'       `TR = HR^(-1/shape)` (`1/HR` for an exponential). For the Weibull,
+#'       apply that conversion to PAIRED posterior draws, each effect draw with
+#'       the shape draw it came with; transforming a posterior mean, or the
+#'       endpoints of a reported interval with one shape estimate, does not in
+#'       general give the posterior of the other measure. Refitting in the
+#'       other parameterization is then an equivalent analysis only when the
+#'       priors are transformed to match: `log(HR) ~ Normal(0, s^2)` induces
 #'       `log(TR) | k ~ Normal(0, s^2 / k^2)`, not the same fixed-variance
 #'       normal, and the intercept and coefficient priors have to move with it.
+#'       None of that applies to the exponential, which has no shape parameter:
+#'       its conversion is a reciprocal applied draw by draw, and a normal
+#'       prior on `log(HR)` is the same normal prior on `log(TR)` with the sign
+#'       reversed.
 #'       For the log-normal, log-logistic, gamma and generalized gamma the
 #'       conditional hazard ratio generally varies with time, and there the
 #'       absence of a scalar is a property of the model. Generally, not always:
@@ -350,15 +354,25 @@ conditional_effects <- function(object,
 .dual_family_note <- function(dist, asked) {
   dual <- c("exponential", "weibull", "exponential-aft", "weibull-aft")
   if (dist %in% dual) {
-    conversion <- if (grepl("^exponential", dist)) {
-      "TR = 1/HR for an exponential. "
-    } else {
-      "TR = HR^(-1/shape) for a Weibull. "
-    }
-    return(paste0(
+    common <- paste0(
       "This distribution is both proportional-hazards and accelerated ",
       "failure time, so with a baseline shape shared across arms the other ",
-      "measure is a deterministic transform of this one: ", conversion,
+      "measure is a deterministic transform of this one: "
+    )
+    # The exponential has NO shape parameter, so the paired-draw and
+    # transformed-prior advice below does not apply to it: its conversion is a
+    # reciprocal, and applying it to each draw is all there is to do.
+    if (grepl("^exponential", dist)) {
+      return(paste0(
+        common, "TR = 1/HR for an exponential. ",
+        "The exponential carries no shape parameter, so apply that to each ",
+        "draw; there is nothing further to pair it with, and a normal prior ",
+        "on log(HR) is the same normal prior on log(TR) with its sign ",
+        "reversed."
+      ))
+    }
+    return(paste0(
+      common, "TR = HR^(-1/shape) for a Weibull. ",
       "Convert DRAW BY DRAW, pairing each effect draw with the shape draw it ",
       "was sampled with: the shape is uncertain, and transforming a posterior ",
       "mean or the endpoints of a reported interval with a single shape ",
