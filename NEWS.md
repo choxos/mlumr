@@ -109,7 +109,10 @@
   increments it came back unusable, and left censoring under delayed entry took
   the same route. Both branches now switch on the same half-probability test
   the undelayed interval already applied, taking a difference of CDFs where the
-  CDF is representable and a ratio of survival probabilities where survival is.
+  CDF is representable and a ratio of survival probabilities where it is not.
+  A CDF difference has the mirror-image failure, on an interval narrow enough
+  that both bounds round to the same double, so it is used only where the two
+  are actually distinguishable.
 
 * **`compare_models()` no longer reads a standard error as a threshold, and
   refuses fits built on different observations.** The LOO/WAIC printout said

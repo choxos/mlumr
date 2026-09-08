@@ -76,6 +76,27 @@ test_that("a delayed-entry interval survives an underflowing hazard", {
   )
 })
 
+test_that("an interval too narrow to separate two CDFs still has a probability", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  env <- expose_survival_likelihood()
+
+  # The mirror of the failure above. Exponential rate 1, entry 0.05, event
+  # between 0.1 and the very next representable double: both bounds have the
+  # same log CDF, -2.3521684610440907, so a difference of CDFs is zero. The
+  # increments compute a ratio and still resolve it.
+  lower <- 0.1
+  upper <- lower + .Machine$double.eps / 8
+  expect_true(upper > lower)
+  expect_equal(pexp(upper, log.p = TRUE), pexp(lower, log.p = TRUE))
+
+  expect_equal(
+    env$surv_ll_status(1L, upper, lower, 0.05, 3L, 0, 0, 0),
+    -(lower - 0.05) + log(-expm1(-(upper - lower))),
+    tolerance = 1e-9
+  )
+})
+
 test_that("the right tail keeps the accuracy the conditional form gave it", {
   skip_on_cran()
   skip_if_not_installed("rstan")

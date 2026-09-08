@@ -461,9 +461,19 @@ real log_cond_interval_prob(int dist, real t_upper, real t_lower, real t_entry,
                             real eta, real aux, real aux2) {
   real log_cdf_upper = log_cdf_scalar(dist, t_upper, eta, aux, aux2);
   if (log_cdf_upper < -0.6931471805599453) {
-    return log_diff_exp(log_cdf_upper,
-                        log_cdf_scalar(dist, t_lower, eta, aux, aux2))
-           - log_surv_scalar(dist, t_entry, eta, aux, aux2);
+    real log_cdf_lower = log_cdf_scalar(dist, t_lower, eta, aux, aux2);
+    // The CDF has its own failure, and it is the mirror of the one above: a
+    // narrow enough interval rounds both bounds to the SAME double, and their
+    // difference is then zero although the interval has positive probability.
+    // With an exponential rate of 1, entry at 0.05 and the interval from 0.1
+    // to the next double after it, both log CDFs are -2.3521684610440907 and
+    // the difference is -inf, where the true value is about -38.87. The
+    // increments compute a RATIO and still resolve that, so hand those cases
+    // back to them rather than take a difference of digits that agree.
+    if (log_cdf_upper - log_cdf_lower > 1e-12) {
+      return log_diff_exp(log_cdf_upper, log_cdf_lower)
+             - log_surv_scalar(dist, t_entry, eta, aux, aux2);
+    }
   }
   // Left-censoring passes t_lower == t_entry, where the first factor is
   // log S(entry)/S(entry) = 0. Skip it rather than ask `log_surv_increment()`
