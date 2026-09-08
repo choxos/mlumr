@@ -111,7 +111,17 @@ test_that("an unknown separation status warns rather than passing silently", {
   g$call <- NULL
   status <- mlumr:::.stc_separation_status(g)
   expect_identical(status$status, "unknown")
-  expect_match(status$reason, "no call")
+  # Which unknown it is depends on the environment, and both are supported.
+  # detectseparation is a Suggests, so on a machine without it the function
+  # stops at the dependency before it ever looks at the call, and pinning the
+  # no-call wording would fail there.
+  if (requireNamespace("detectseparation", quietly = TRUE)) {
+    expect_match(status$reason, "no call")
+  } else {
+    expect_match(status$reason, "not\\s+installed")
+  }
+  # The behavior under test holds either way: unknown warns, and says what is
+  # unverified.
   expect_warning(mlumr:::.stc_refuse_separation(g), "did not run")
   expect_warning(mlumr:::.stc_refuse_separation(g), "unverified")
 })
