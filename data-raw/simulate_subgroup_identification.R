@@ -587,7 +587,13 @@ grid$key <- sprintf("%s__%s__rep%04d", grid$family, grid$design, grid$rep)
     system2("git", c("status", "--porcelain"), stdout = TRUE, stderr = FALSE)),
     error = function(e) character(0))
   c(.software(),
-    list(mlumr_lib = .home_relative(tryCatch(dirname(find.package("mlumr")),
+    # The script digest belongs to the snapshot, not to `write_manifest()`.
+    # Computed at the end it would name the file as it is THEN, so a mid-run
+    # edit produced a manifest pairing `Working-tree-dirty: false` from the
+    # start with a Script-MD5 of a script that never ran. R parses `--file=`
+    # incrementally, so such an edit can genuinely change what executes.
+    list(script_md5 = unname(tools::md5sum(SCRIPT_PATH)),
+         mlumr_lib = .home_relative(tryCatch(dirname(find.package("mlumr")),
                                              error = function(e) NA_character_)),
          commit = git1(c("rev-parse", "HEAD")),
          tree = git1(c("rev-parse", "HEAD^{tree}")),
@@ -797,10 +803,24 @@ if (!file.rename(csv_tmp, OUT_CSV)) {
 # `tools::md5sum()` is base R, so this costs no dependency. It is a
 # drift detector, not a security control.
 write_manifest <- function(csv, rows, sw) {
+  # Recomputing the digest here would describe the file as it is now rather
+  # than as it ran. Compare instead, and say so in the artifact when they
+  # differ: a run whose script moved under it is the one case where the
+  # manifest most needs to stop being reassuring.
+  now_md5 <- unname(tools::md5sum(SCRIPT_PATH))
+  drifted <- !is.na(sw$script_md5) && !is.na(now_md5) && !identical(sw$script_md5, now_md5)
+  if (drifted) {
+    warning("`", basename(SCRIPT_PATH), "` changed while the run was in ",
+            "progress. The manifest records the digest it STARTED with; ",
+            "because R parses --file= incrementally, later cells may have run ",
+            "different code. Revert the edit and re-run to reassemble from ",
+            "checkpoints.", immediate. = TRUE, call. = FALSE)
+  }
   manifest <- c(
     sprintf("Generated: %s", format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z")),
     sprintf("Script: %s", basename(SCRIPT_PATH)),
-    sprintf("Script-MD5: %s", unname(tools::md5sum(SCRIPT_PATH))),
+    sprintf("Script-MD5: %s", sw$script_md5),
+    if (drifted) sprintf("Script-Changed-During-Run: %s", now_md5),
     sprintf("Results: %s", basename(csv)),
     sprintf("Results-MD5: %s", unname(tools::md5sum(csv))),
     sprintf("Rows: %d", rows),
