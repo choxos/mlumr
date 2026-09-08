@@ -220,3 +220,38 @@ test_that("risk intervals never come back inverted", {
     expect_gte(iv[["lo"]], 0)
   }
 })
+
+test_that("a column alive only at an event time is supported", {
+  skip_if_not_installed("splines2")
+  # The mirror of the gap test above. The cumulative hazard integrates over the
+  # risk intervals, so a degree-0 column on [2, 8) that is positive only at
+  # t = 2 adds no exposure. The EVENT term does not integrate: it evaluates the
+  # hazard at each event time. So the same column is dead when nobody fails at
+  # 2 and live when somebody does, and the two cases differ only by `event`.
+  spec <- mlumr:::.build_mspline_basis(
+    list(internal = c(2, 8), boundary = c(0, 9)), degree = 0L
+  )
+  # nobody fails at the endpoint: still dead
+  expect_error(
+    mlumr:::.assert_basis_support(spec, 9, "index", entry = c(1, 8),
+                                  exit = c(2, 9), event = 9),
+    "observed risk set"
+  )
+  # the first subject fails exactly at 2, which the event term evaluates.
+  # Delayed entry emits its own note here, so this asserts the return value
+  # rather than silence.
+  expect_true(suppressMessages(
+    mlumr:::.assert_basis_support(spec, 9, "index", entry = c(1, 8),
+                                  exit = c(2, 9), event = c(2, 9))
+  ))
+  # An event time is not a licence to pass the rest of the basis: a column out
+  # past the last exit is still dead, event times or not.
+  far <- mlumr:::.build_mspline_basis(
+    list(internal = c(2, 8, 20), boundary = c(0, 40)), degree = 0L
+  )
+  expect_error(
+    mlumr:::.assert_basis_support(far, 9, "index", entry = c(1, 8),
+                                  exit = c(2, 9), event = c(2, 9)),
+    "no support"
+  )
+})

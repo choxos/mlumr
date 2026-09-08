@@ -323,9 +323,11 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
   # time, so a column living only there enters no event hazard and no exposure
   # increment, and is exactly as unidentified as one past the end of follow-up.
   .assert_basis_support(specs$index, max(ipd$.time), "index",
-                        ipd$.delay_time, ipd$.time)
+                        ipd$.delay_time, ipd$.time,
+                        ipd$.time[ipd$.status == 1])
   .assert_basis_support(specs$comparator, max(pseudo$.time), "comparator",
-                        pseudo$.delay_time, pseudo$.time)
+                        pseudo$.delay_time, pseudo$.time,
+                        pseudo$.time[pseudo$.status == 1])
   specs
 }
 
@@ -342,10 +344,14 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
 #' @param entry,exit The study's per-subject entry and exit times, whose merged
 #'   union is the period it had someone under observation. Omit both for data
 #'   with no delayed entry, which is treated as one interval from zero.
+#' @param event The study's event times, or `NULL`. The cumulative hazard
+#'   integrates over the risk intervals and cannot see an isolated instant, but
+#'   the event term evaluates the hazard AT each event time, so a column
+#'   positive only there is supported after all.
 #' @return `TRUE`, invisibly.
 #' @keywords internal
 .assert_basis_support <- function(spec, observed_max, label,
-                                  entry = NULL, exit = NULL) {
+                                  entry = NULL, exit = NULL, event = NULL) {
   # Evaluate at STRUCTURAL points, not a fixed uniform grid. A degree-0
   # (piecewise exponential) basis column is supported on exactly one inter-knot
   # interval, and a narrow interval can fall entirely between the points of a
@@ -376,6 +382,14 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
     # hazard, and would have passed. A point carries no likelihood.
     c(mids, inner[-c(1L, length(inner))])
   }))
+  # The interiors above cover the CUMULATIVE hazard, which integrates over the
+  # risk intervals and so cannot see an isolated instant. The event term is the
+  # other half of the likelihood: it evaluates the hazard AT each event time,
+  # so a column positive only there does carry likelihood after all. With
+  # exposure on [1, 2] and [8, 9] and a degree-0 basis, the column on [2, 8) is
+  # positive at t = 2 alone; that is dead when nobody fails at 2 and live when
+  # somebody does, and only the event times distinguish the two.
+  grid <- c(grid, event[is.finite(event)])
   grid <- sort(unique(grid[is.finite(grid)]))
   if (!length(grid)) {
     return(invisible(TRUE))

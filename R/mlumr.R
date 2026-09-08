@@ -1496,9 +1496,11 @@ mlumr <- function(data,
                "the same number of spline coefficients.", call. = FALSE)
         }
         .assert_basis_support(spec_idx, max(ipd$.time), "index",
-                              ipd$.delay_time, ipd$.time)
+                              ipd$.delay_time, ipd$.time,
+                              ipd$.time[ipd$.status == 1])
         .assert_basis_support(spec_cmp, max(pseudo$.time), "comparator",
-                              pseudo$.delay_time, pseudo$.time)
+                              pseudo$.delay_time, pseudo$.time,
+                              pseudo$.time[pseudo$.status == 1])
       }
     } else {
       observed_max <- max(c(ipd$.time, pseudo$.time))
@@ -1519,7 +1521,9 @@ mlumr <- function(data,
       # differ; when they do not, this assertion is what remains.
       .assert_basis_support(spec_idx, observed_max, "shared",
                             c(ipd$.delay_time, pseudo$.delay_time),
-                            c(ipd$.time, pseudo$.time))
+                            c(ipd$.time, pseudo$.time),
+                            c(ipd$.time[ipd$.status == 1],
+                              pseudo$.time[pseudo$.status == 1]))
     }
     spec <- spec_idx
     if (spec$n_scoef < 2L) {
