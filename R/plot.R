@@ -37,6 +37,24 @@
 .ratio_measures <- c("RR", "HR", "TR", "RMSTR",
                      "EXP_DELTA_ETA", "EXP_ETA_CONTRAST")
 
+# The additive counterparts. Together with `.ratio_measures` these are the
+# labels the package itself produces, and therefore the ones whose null it can
+# state. `mlumr_forest()` also accepts a hand-built frame, where `effect` is
+# whatever the caller wrote: `.null_ref_for()` answers 0 for anything it does
+# not recognize, which is right for a difference and wrong for a ratio it has
+# never heard of, so a frame labeled "OR" would be given a null of 0 and, on a
+# log axis, refused outright. An unrecognized label is not a difference; it is
+# an unknown, and the axis is the only thing left to read.
+#' @keywords internal
+.difference_measures <- c("RMSTD", "RD", "MD", "LINK_EFFECT", "LOR",
+                          "LOG_HR", "LOG_TR", "DELTA_ETA", "ETA_CONTRAST")
+
+#' Is this a label whose null the package can state?
+#' @keywords internal
+.known_measure <- function(effect) {
+  toupper(effect) %in% c(.ratio_measures, .difference_measures)
+}
+
 # Null reference line implied by an effect label: 1 for ratio measures, 0 for
 # differences and log-scale contrasts. Shared by both forest plots so a measure
 # added to `.ratio_measures` is right in every figure at once.
@@ -911,11 +929,16 @@ plot_prior_posterior <- function(object, pars = c("mu_index", "mu_comparator"),
 #'   estimate from `est` / `estimate` / `mean`; the interval bounds from
 #'   `lo`/`hi`, `q2.5`/`q97.5`, `ci_lower`/`ci_upper`, `conf.low`/`conf.high`, or
 #'   `lower`/`upper`.
-#' @param ref_line Null-effect reference line. Defaults to `1` when
-#'   `log_x = TRUE` and `0` otherwise, so a ratio axis gets its own null rather
-#'   than one that log-transforms to `-Inf` and disappears. Kept inside the
-#'   clipping window, so a forest whose estimates sit far from the null still
-#'   shows it.
+#' @param ref_line Null-effect reference line. By default it is read from the
+#'   `effect` column when `data` has one and the label is one the package
+#'   produces, so a ratio measure (`HR`, `TR`, `RR`, `RMSTR`) gets `1` and a
+#'   difference (`RMSTD`, `MD`, `LOR`, a log-scale contrast) gets `0`,
+#'   whichever axis it is drawn on. A label the package does not recognize is
+#'   an unknown rather than a difference, and with no `effect` column there is
+#'   nothing to read at all; in both cases the axis is the only hint left, so
+#'   the default is `1` when `log_x = TRUE` and `0` otherwise. Pass `ref_line`
+#'   explicitly for a measure this does not name. Kept inside the clipping
+#'   window, so a forest whose estimates sit far from the null still shows it.
 #' @param log_x Draw the x axis on a log10 scale (for ratio measures).
 #' @param x,title,subtitle Axis label and titles (passed to [ggplot2::labs()]).
 #' @param color Point and interval color.
@@ -943,23 +966,49 @@ mlumr_forest <- function(data, ref_line = NULL, log_x = FALSE,
                          color = "#3B6B9A", clip = TRUE, ...) {
   .need_ggplot2()
   df <- as.data.frame(data)
-  # The null of a ratio axis is 1, not 0. A fixed default of 0 was sent to
-  # log10(0) = -Inf by `log_x = TRUE`, so the reference line silently vanished
-  # from exactly the plots that most need one.
-  if (is.null(ref_line)) ref_line <- if (isTRUE(log_x)) 1 else 0
-  if (isTRUE(log_x) && any(ref_line <= 0)) {
-    stop("`ref_line` must be positive when `log_x = TRUE`: a log axis has no ",
-         "position for zero or a negative value.", call. = FALSE)
-  }
   # One axis carries one scale. A frame holding both LOG_HR and HR would put
   # log(2) and 2 against a single reference, which reads as two very different
   # effects when they are the same one written twice.
-  if ("effect" %in% names(df) && length(unique(df$effect)) > 1L) {
+  #
+  # Compare the labels the way `.null_ref_for()` reads them, which is case
+  # insensitively. Comparing them raw made "HR" and "hr" a mixture of two
+  # scales and refused the frame, while the resolver just below would have
+  # given both the same null. The message still shows the labels as written,
+  # since those are what the caller has to go and fix.
+  effect_key <- if ("effect" %in% names(df)) {
+    toupper(as.character(df$effect))
+  } else {
+    character(0)
+  }
+  if (length(effect_key) && length(unique(effect_key)) > 1L) {
     stop("mlumr_forest() draws one axis, so every row must be on the same ",
          "effect scale; this frame mixes ",
          paste(unique(df$effect), collapse = ", "),
          ". Split it, or drop the `effect` column if the rows really are ",
          "comparable.", call. = FALSE)
+  }
+  # The null belongs to the MEASURE, not to the axis it is drawn on. Choosing
+  # it from `log_x` was right whenever the two agreed and wrong whenever they
+  # did not: a risk ratio or a hazard ratio drawn on a linear axis is still a
+  # ratio, and it was given a reference line at 0, which is not a value the
+  # measure can take. `.null_ref_for()` is the same resolver the package's own
+  # forest method uses, so a frame carrying an `effect` column now gets the
+  # same line here as it would there. Without that column there is nothing to
+  # read, and the axis remains the only available hint.
+  if (is.null(ref_line)) {
+    known <- "effect" %in% names(df) && length(df$effect) &&
+      .known_measure(df$effect[[1]])
+    ref_line <- if (known) {
+      .null_ref_for(df$effect[[1]])
+    } else if (isTRUE(log_x)) {
+      1
+    } else {
+      0
+    }
+  }
+  if (isTRUE(log_x) && any(ref_line <= 0)) {
+    stop("`ref_line` must be positive when `log_x = TRUE`: a log axis has no ",
+         "position for zero or a negative value.", call. = FALSE)
   }
   pick <- function(cands, what) {
     hit <- intersect(cands, names(df))
