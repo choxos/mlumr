@@ -346,9 +346,11 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' this returns `NA` when it is absent and the caller keeps the fitted-value
 #' test as its only screen; that is a weaker guarantee, not a wrong one.
 #'
-#' Anything that goes wrong here is reported as "unknown" rather than as
-#' "separated". A refit can fail for reasons that have nothing to do with
-#' separation, and turning those into a refusal would reject estimable models.
+#' An error here is reported as "unknown" rather than as "separated": a refit
+#' can fail for reasons that have nothing to do with separation, and turning
+#' those into a refusal would reject estimable models. A warning is not an
+#' error, and must not be read as one here, because the fit this check exists
+#' to catch is the one that warns.
 #'
 #' @param fit A fitted binomial `glm`.
 #' @return `TRUE` if separated, `FALSE` if not, `NA` if it could not be
@@ -373,9 +375,16 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   if (!is.environment(env)) {
     env <- parent.frame()
   }
-  outcome <- tryCatch(eval(cl, env)$outcome,
-                      error = function(e) NA,
-                      warning = function(w) NA)
+  # Warnings are MUFFLED, not treated as failure. Fitting a separated model is
+  # the case that warns ("fitted probabilities numerically 0 or 1 occurred"),
+  # so folding warnings into "unknown" blinded this check exactly when the
+  # answer is TRUE, and did so only on the platforms that happen to emit one.
+  # An error is a different matter: then there is no outcome to read.
+  outcome <- tryCatch(
+    withCallingHandlers(eval(cl, env)$outcome,
+                        warning = function(w) invokeRestart("muffleWarning")),
+    error = function(e) NA
+  )
   if (length(outcome) != 1L || !is.logical(outcome) || is.na(outcome)) {
     return(NA)
   }

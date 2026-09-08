@@ -53,7 +53,26 @@ test_that("quasi-complete separation is caught when the LP is available", {
   mu <- stats::fitted(g)
   expect_false(all(mu < eps | mu > 1 - eps))
 
-  expect_true(isTRUE(mlumr:::.stc_detect_separation(g)))
+  # A warning during the probe must not be read as "cannot tell": a separated
+  # refit is the case that warns.
+  probe <- mlumr:::.stc_detect_separation(g)
+  # If this ever fails, the value and the reason are what identify the cause;
+  # a bare "expected TRUE" says nothing about whether the linear program ran.
+  raw <- tryCatch({
+    cl <- stats::getCall(g)
+    cl$method <- quote(detectseparation::detect_separation)
+    paste("outcome =",
+          format(eval(cl, environment(stats::formula(g)))$outcome))
+  },
+  error = function(e) paste("error:", conditionMessage(e)),
+  warning = function(w) paste("warning:", conditionMessage(w)))
+  expect_true(
+    isTRUE(probe),
+    info = paste0("probe returned ", format(probe),
+                  "; direct call gave ", raw,
+                  "; detectseparation ",
+                  as.character(utils::packageVersion("detectseparation")))
+  )
   expect_error(mlumr:::.stc_refuse_separation(g), "quasi-complete")
 })
 
