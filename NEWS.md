@@ -8,10 +8,12 @@
   standard deviation uses the n-1 denominator and equals
   `sqrt(n / (n - 1) * p * (1 - p))`, so it is always larger: five zeros and
   five ones report a mean of 0.5 and an SD of 0.5270, and that was refused as
-  impossible. The bound is now the finite-sample maximum, taken from the
-  outcome sample size when one is available and from the loosest case any
-  sample can have (n = 2) when it is not, with an allowance for the precision
-  the figure was reported to. Genuinely inconsistent summaries are still
+  impossible. The bound is now the finite-sample maximum at `n = 2`, the
+  loosest factor any sample can have, with an allowance for the precision the
+  figure was reported to. It does not tighten with the outcome sample size,
+  because that count is not the covariate's denominator: a covariate carrying
+  its own missingness was summarized over fewer rows, and fewer rows make the
+  bound looser rather than tighter. Genuinely inconsistent summaries are still
   refused.
 
 * **`dlogitnorm()` rejects arguments it cannot use.** `plogitnorm()` and
