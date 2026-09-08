@@ -1,0 +1,47 @@
+# Half a unit in the coarsest decimal place a value lands on exactly
+
+A published table gives 0.53, not 0.5270463. Comparing the rounded
+figure against an exact bound rejects the row for the rounding rather
+than for the data, so the bound needs an allowance for it. This is that
+allowance.
+
+## Usage
+
+``` r
+.rounding_allowance(x)
+```
+
+## Arguments
+
+- x:
+
+  Numeric vector as reported.
+
+## Value
+
+Numeric vector of allowances, one per element.
+
+## Details
+
+It is NOT the precision the figure was reported to, and does not claim
+to be. `0.1`, `0.10` and `0.100000` are one double in R, and nothing can
+be scanned out of that value to say which was printed. What this
+measures is how coarse a decimal grid the stored number already sits on:
+0.53 lands on the hundredths, so it is given 0.005; 0.5 lands on the
+tenths, so it is given 0.05, whether it was written `0.5` or `0.50000`.
+
+That makes the allowance a deliberately LENIENT validation policy, and
+the leniency runs one way. A decimally simple value gets a wider
+allowance than its report may deserve, so the check can accept a mean
+and SD pair that a two-decimal report would have ruled out. It will not
+reject a valid summary for having been rounded, which is the failure
+that matters for a validator reading published tables. A value that is
+not decimally simple earns essentially nothing, so this is not blanket
+slack.
+
+Callers that know the reporting precision should not infer it here. The
+scan runs to the precision a double can distinguish, since stopping at
+eight decimals reported anything finer as exact and therefore as
+deserving no allowance at all: five zeros and five ones give a sample SD
+of 0.5270462766947299, and quoting that to nine places put it 2e-10
+above its own ceiling.

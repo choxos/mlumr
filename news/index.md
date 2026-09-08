@@ -48,11 +48,22 @@
   and five ones report a mean of 0.5 and an SD of 0.5270, and that was
   refused as impossible. The bound is now the finite-sample maximum at
   `n = 2`, the loosest factor any sample can have, with an allowance for
-  the precision the figure was reported to. It does not tighten with the
-  outcome sample size, because that count is not the covariate’s
-  denominator: a covariate carrying its own missingness was summarized
-  over fewer rows, and fewer rows make the bound looser rather than
-  tighter. Genuinely inconsistent summaries are still refused.
+  rounding. It does not tighten with the outcome sample size, because
+  that count is not the covariate’s denominator: a covariate carrying
+  its own missingness was summarized over fewer rows, and fewer rows
+  make the bound looser rather than tighter. Genuinely inconsistent
+  summaries are still refused.
+
+  The rounding allowance is half a unit of the coarsest decimal grid the
+  stored value lands on, and it does not claim to be the precision the
+  figure was reported to. `0.1`, `0.10` and `0.100000` are one double in
+  R, so nothing can be scanned out of the value to say which was
+  printed, and all three get the same allowance. That makes the check
+  deliberately lenient, in the direction that matters for reading
+  published tables: it will not refuse a valid summary for having been
+  rounded, and it may accept a mean and SD pair that a more precise
+  report would have ruled out. A pair no rounding can reconcile is still
+  refused.
 
 - **[`dlogitnorm()`](https://choxos.github.io/mlumr/reference/logitNormal.md)
   rejects arguments it cannot use.**
@@ -89,19 +100,36 @@
   names them.
 
 - **[`naive()`](https://choxos.github.io/mlumr/reference/naive.md) no
-  longer reports a Cox comparison that has no maximum.** Events in both
-  arms are necessary for the partial likelihood to identify the
-  treatment coefficient and are not sufficient: if every event in one
-  arm precedes every event in the other, the likelihood is monotone and
-  has no interior maximum.
-  [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) stops on its
-  convergence criterion and returns finite numbers anyway (three events
-  per arm in that arrangement give a coefficient of 21.9 with a standard
-  error of 24795), and it says so in a warning that nothing read. That
-  warning is now inspected and the comparison refused; any other
+  longer reports a Cox comparison that has no maximum, or one that never
+  converged.** Events in both arms are necessary for the partial
+  likelihood to identify the treatment coefficient and are not
+  sufficient: the likelihood can be monotone, with no interior maximum,
+  while [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) stops
+  on its convergence criterion and returns finite numbers anyway. Six
+  uncensored subjects with the three index events all before the three
+  comparator ones give a coefficient of 21.9 with a standard error of
+  24795, and [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html)
+  says so in a warning that nothing read. That warning is now inspected
+  and the comparison refused.
+
+  What makes the likelihood monotone is the risk sets, not the order of
+  the event times. Ordered events are enough only when censoring leaves
+  nobody from the earlier arm at risk when the later arm fails: with an
+  index subject failing at 1 and censored at 4, and a comparator failing
+  at 2 and censored at 3, every index event still precedes every
+  comparator event and the maximum is a finite log hazard ratio of
+  0.347. Nothing refuses that fit, and the explanation no longer claims
+  the ordering alone is the problem.
+
+  A failure to converge is not an ordinary warning either.
+  [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) documents
+  several termination conditions and states that its own detection of an
+  infinite coefficient is not always successful, so the absence of the
+  monotone warning is not a certificate that a finite maximum exists.
+  Nonconvergence was reissued to the caller and the coefficient then
+  packaged with a Wald interval; it is now refused. Any other
   [`coxph()`](https://rdrr.io/pkg/survival/man/coxph.html) warning is
-  passed through to the caller unchanged rather than turned into a
-  rejection.
+  still passed through unchanged rather than turned into a rejection.
 
 - **STC detects quasi-complete separation when is installed.** The
   existing screen requires every fitted probability to sit at 0 or 1,
@@ -111,9 +139,16 @@
   passed with `converged = TRUE` and finite coefficients. Whether a
   finite maximum exists is a linear program rather than a threshold, so
   the exact test lives behind a new **Suggests** dependency and runs
-  when it is available. Without it the threshold screen still runs, and
-  a check that cannot be completed is treated as unknown rather than as
-  separated.
+  when it is available. A check that cannot be completed is treated as
+  unknown rather than as separated, which is right, and it is no longer
+  treated as a clean bill either. The result is a status of
+  `"separated"`, `"not_separated"` or `"unknown"` with a reason, and an
+  unknown one now warns: the estimate is still returned, but it says
+  that only the fitted-value screen ran, that the screen cannot see
+  quasi-complete separation, and that the interval is therefore
+  unverified. Previously every way of not knowing, an absent dependency
+  most of all, took the same path as a fit that had been checked and
+  cleared.
 
 - **M-spline basis support is judged over the period a study was at
   risk.** The check evaluated each basis column on `[0, max(time)]`. A
@@ -129,6 +164,25 @@
   baseline. Where entry is delayed, a message also records that absolute
   survival and RMST integrate from 0 and are therefore prior-dependent
   below it, while conditional quantities are not.
+
+- **A shared baseline whose studies never overlap on a spline column is
+  refused.** Column support says every column carries likelihood for
+  SOMEBODY. It cannot say the studies are tied to each other, and with
+  `aux_by = "none"` they have to be: that model has one weight simplex
+  and one intercept per study, so if the studies’ observed exposure
+  falls on disjoint sets of columns, mass can be moved between the sets
+  and absorbed exactly by the intercepts. With a piecewise-exponential
+  baseline on `[0, 3]` split at 1, the index study observed on `[0, 1]`
+  and the comparator on `[2, 3]`, replacing the weight `w` by any other
+  value in (0, 1) and shifting the two intercepts to match leaves every
+  likelihood term identical while the conditional hazard ratio moves
+  from 1 to 3. Every column is supported, so nothing objected.
+  [`mlumr()`](https://choxos.github.io/mlumr/reference/mlumr.md) now
+  also requires the studies and the columns they touch to form one
+  connected component, and says which studies are cut off from which.
+  This is exact at degree 0, where columns have disjoint supports. Above
+  it the supports overlap, so connectivity rules out this failure mode
+  and is not a proof of identification.
 
 - **Interval-censored likelihood under delayed entry is built from
   increments.** The branch formed the unconditional interval probability
@@ -610,7 +664,13 @@
   [`stc()`](https://choxos.github.io/mlumr/reference/stc.md), and both
   ML-UMR models on one axis, for instance. It takes the reference line,
   axis label, title, and subtitle as arguments so the caller sets the
-  measure’s null rather than inheriting one.
+  measure’s null rather than inheriting one. One interval far wider than
+  the rest is clipped to a viewport built from the others, with an arrow
+  on the side it runs past, so a single wide row does not squeeze the
+  rest into a line. A bound that is infinite is clipped that way; a
+  bound that is MISSING is not, because no interval was reported and
+  drawing one from edge to edge would put an uncertainty on the figure
+  that nobody estimated. Such a row shows its point estimate alone.
 - [`marginal_effects()`](https://choxos.github.io/mlumr/reference/marginal_effects.md),
   [`predict()`](https://rdrr.io/r/stats/predict.html), and
   [`conditional_effects()`](https://choxos.github.io/mlumr/reference/conditional_effects.md)

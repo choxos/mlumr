@@ -12,7 +12,7 @@ weaker guarantee, not a wrong one.
 ## Usage
 
 ``` r
-.stc_detect_separation(fit)
+.stc_separation_status(fit)
 ```
 
 ## Arguments
@@ -23,9 +23,10 @@ weaker guarantee, not a wrong one.
 
 ## Value
 
-`TRUE` if separated, `FALSE` if not, `NA` only when the refit errored
-and there is no outcome to read. A warning is muffled and the outcome
-used, since a separated refit is the case that warns.
+A list with `status`, one of `"separated"`, `"not_separated"` or
+`"unknown"`, and `reason`, a string explaining an unknown. A warning is
+muffled and the outcome used, since a separated refit is the case that
+warns.
 
 ## Details
 
@@ -34,3 +35,10 @@ refit can fail for reasons that have nothing to do with separation, and
 turning those into a refusal would reject estimable models. A warning is
 not an error, and must not be read as one here, because the fit this
 check exists to catch is the one that warns.
+
+The result is a STATUS and not a logical, because `NA` was being read as
+permission to continue. The caller stopped on
+[`isTRUE()`](https://rdrr.io/r/base/Logic.html), so every way of not
+knowing, an absent dependency most of all, took the same path as a fit
+that had been checked and cleared. Those are different states and the
+caller now says which one it is in.

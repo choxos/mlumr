@@ -47,6 +47,6 @@ reached a boundary. Telling that apart from a strong but identified fit
 takes more than the fitted values, since a legitimate signal here
 reaches a linear predictor of 20.1 while this case reaches 19.6. The
 exact test is a linear program, so it lives behind
-[`.stc_detect_separation()`](https://choxos.github.io/mlumr/reference/dot-stc_detect_separation.md)
+[`.stc_separation_status()`](https://choxos.github.io/mlumr/reference/dot-stc_separation_status.md)
 and runs only when the optional detectseparation package is installed.
 The threshold test stays as the part that always runs.

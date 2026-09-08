@@ -54,6 +54,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_agd_loglik_per_observation.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_basis_support.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_same_observations.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-assert_shared_basis_identified.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-attach_integration_points.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-aux_shapes_differ.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-basis_rows.html</loc></url>
@@ -106,6 +107,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-knots_from_times.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-known_measure.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-label_beta_rows.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-live_basis_columns.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-ln_moments.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-lndiff.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-lnopt.html</loc></url>
@@ -175,7 +177,6 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-relaxed_contraction.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-relaxed_index_note.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-report_missing_diagnostics.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-reported_precision.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-require_draw_columns.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-require_identity.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-require_single_identity.html</loc></url>
@@ -190,6 +191,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-rmst_caption.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-rmst_from_surv_matrix.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-rmst_max_interval_share.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-rounding_allowance.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-rstan_ess_tail.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-rw1_prior_weights.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-same_grouped_rows.html</loc></url>
@@ -209,7 +211,6 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_binomial.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_binomial_comparator_delta.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_comparator_data.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-stc_detect_separation.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_flexsurv_dist.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_formula.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_glm_parameters.html</loc></url>
@@ -219,6 +220,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_numeric_gradient.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_poisson.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_refuse_separation.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-stc_separation_status.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_survival.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_survival_point.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-strip_agd_cov_suffix.html</loc></url>
