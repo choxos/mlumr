@@ -67,3 +67,24 @@ test_that("an unrecognized label falls back to the axis, not to zero", {
   expect_false(mlumr:::.known_measure("OR"))
   expect_false(mlumr:::.known_measure(NA))
 })
+
+test_that("case variants of one measure are not a mixture of scales", {
+  # `.null_ref_for()` and `.known_measure()` both read labels case
+  # insensitively, so the guard in front of them must too: "HR" and "hr" are
+  # one measure written twice, not two scales on one axis.
+  mixed_case <- data.frame(label = c("A", "B"), est = c(1.2, 0.9),
+                           lo = c(0.8, 0.6), hi = c(1.8, 1.3),
+                           effect = c("HR", "hr"))
+  expect_equal(ref_of(mlumr_forest(mixed_case)), 1)
+
+  lower <- frame("hr")
+  expect_equal(ref_of(mlumr_forest(lower)), 1)
+  expect_equal(ref_of(mlumr_forest(frame("rmstd"))), 0)
+
+  # genuinely different scales are still refused, and the message shows the
+  # labels as the caller wrote them
+  really_mixed <- data.frame(label = c("A", "B"), est = c(1.2, 0.2),
+                             lo = c(0.8, 0.1), hi = c(1.8, 0.3),
+                             effect = c("HR", "LOG_HR"))
+  expect_error(mlumr_forest(really_mixed), "mixes HR, LOG_HR")
+})

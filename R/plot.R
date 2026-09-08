@@ -969,7 +969,18 @@ mlumr_forest <- function(data, ref_line = NULL, log_x = FALSE,
   # One axis carries one scale. A frame holding both LOG_HR and HR would put
   # log(2) and 2 against a single reference, which reads as two very different
   # effects when they are the same one written twice.
-  if ("effect" %in% names(df) && length(unique(df$effect)) > 1L) {
+  #
+  # Compare the labels the way `.null_ref_for()` reads them, which is case
+  # insensitively. Comparing them raw made "HR" and "hr" a mixture of two
+  # scales and refused the frame, while the resolver just below would have
+  # given both the same null. The message still shows the labels as written,
+  # since those are what the caller has to go and fix.
+  effect_key <- if ("effect" %in% names(df)) {
+    toupper(as.character(df$effect))
+  } else {
+    character(0)
+  }
+  if (length(effect_key) && length(unique(effect_key)) > 1L) {
     stop("mlumr_forest() draws one axis, so every row must be on the same ",
          "effect scale; this frame mixes ",
          paste(unique(df$effect), collapse = ", "),
