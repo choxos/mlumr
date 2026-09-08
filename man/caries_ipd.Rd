@@ -59,13 +59,22 @@ fluoride, SDF) in a count-outcome ML-UMR example; pair with
 The index and comparator arms come from the SAME trial, so both
 carry the study label \code{"Ammar 2025"}. Splitting one randomized trial into a
 single-arm IPD source and a single-arm aggregate source is what makes this
-an unanchored example for which a randomized reference comparison is
-still available: fitting the two arms together on the full data gives the
-estimate the unanchored methods are trying to recover. That reference is
-itself an estimate with sampling error, not an evaluated population
-causal truth: the synthesis reproduces the covariate and
-covariate-outcome relationships of the source trial, which does not define
-a population causal effect that could be computed and compared against.
+an unanchored example that still has a full-data comparison to be checked
+against: fitting the two arms together on the COMPLETE synthetic records
+gives the quantity the unanchored methods are trying to recover once one
+arm has been reduced to summaries. That is a data-reduction benchmark. It
+is not a randomized reference and not a known population causal effect.
+The generator draws treatment first and then synthesizes the covariates
+conditional on it, so the synthetic arms are not a fresh randomized
+assignment independent of the generated baseline variables; and the
+full-data estimate carries its own sampling error. Validating an estimator
+against a causal target would need a specified covariate distribution,
+potential-outcome mechanism, assignment rule and estimand, which these
+records do not provide. Here the treatment contrast itself was imposed:
+\code{dmft} was a balanced baseline characteristic in the source trial and
+the index arm's synthetic counts were thinned binomially to create an
+effect, so the benchmark recovers a contrast this package manufactured,
+not one the trial reported.
 Because the label
 is shared, \code{\link{combine_data}} warns that IPD and AgD come from
 the same study; that warning is expected here and is the honest reading of

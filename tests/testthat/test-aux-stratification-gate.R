@@ -109,10 +109,14 @@ test_that("conditional_effects() does not substitute HR for TR or TR for HR", {
   expect_match(ph_msg, "HR\\^\\(-1/shape\\)")
 
   # The log-normal is not dual-family, so here the time-varying hazard ratio
-  # is a genuine property of the model rather than an interface limit.
+  # is a property of the model rather than an interface limit. "Generally",
+  # not "genuinely": the generic families are not proportional-hazards, but
+  # the gamma contains the exponential at shape 1, the generalized gamma
+  # contains a Weibull subfamily, and a null comparison is constant at 1, so a
+  # blanket claim would be wrong for those.
   aft_msg <- tryCatch(conditional_effects(aft, effect = "hr"),
                       error = conditionMessage)
-  expect_match(aft_msg, "genuinely varies with time")
+  expect_match(aft_msg, "generally varies with time")
 
   # The two requests that do name an existing estimand must get past the guard.
   # They fail later, on the fixture's absent draws, not on the estimand check.
@@ -150,8 +154,26 @@ test_that("conditional_effects() does not substitute HR for TR or TR for HR", {
   }
 
   # The log-normal is not dual-family: there the time-varying hazard ratio is
-  # a real property of the model, and the message should still say so.
+  # a property of the model, and the message should still say so.
   ln <- tryCatch(conditional_effects(fake("lognormal", 1L), effect = "hr"),
                  error = conditionMessage)
-  expect_match(ln, "genuinely varies with time")
+  expect_match(ln, "generally varies with time")
+})
+
+test_that("the exponential is not told to pair draws with a shape it has not got", {
+  # Both exponential variants have n_aux == 0. The paired-draw advice and the
+  # shape-dependent prior transformation are Weibull facts, and repeating them
+  # here would send a caller looking for a parameter the fit does not carry.
+  for (d in c("exponential", "exponential-aft")) {
+    msg <- mlumr:::.dual_family_note(d, "tr")
+    expect_match(msg, "TR = 1/HR", fixed = TRUE)
+    expect_match(msg, "carries no shape parameter", fixed = TRUE)
+    expect_false(grepl("pairing each effect draw", msg, fixed = TRUE))
+    expect_false(grepl("scale depends on the shape", msg, fixed = TRUE))
+  }
+  for (d in c("weibull", "weibull-aft")) {
+    msg <- mlumr:::.dual_family_note(d, "tr")
+    expect_match(msg, "TR = HR^(-1/shape)", fixed = TRUE)
+    expect_match(msg, "pairing each effect draw", fixed = TRUE)
+  }
 })

@@ -131,9 +131,15 @@
   any gap in which the risk set is empty, which a single span from first entry
   to last exit would have treated as observed. Every path that builds a basis
   passes those times, including user-supplied per-study knots and the shared
-  baseline. Where entry is delayed, a message also records that absolute
-  survival and RMST integrate from 0 and are therefore prior-dependent below
-  it, while conditional quantities are not.
+  baseline. Where entry is delayed, a message also records which stretch of the
+  curve nobody was at risk over. It no longer calls that stretch prior-driven:
+  a basis column straddling the entry time is one parameter governing both
+  sides, so the observed part informs the unobserved part and the hazard below
+  entry is extrapolated under the spline restrictions, with the prior deciding
+  whatever those leave weakly determined. Absolute survival and RMST integrate
+  from 0 and so depend on it; conditioning on survival to a landmark cancels
+  the pre-landmark cumulative hazard, which is not the same as being free of
+  the smoothing prior or of shape uncertainty.
 
 * **A shared baseline whose studies never overlap on a spline column is
   refused.** Column support says every column carries likelihood for SOMEBODY.

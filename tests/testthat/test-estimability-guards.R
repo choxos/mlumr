@@ -211,18 +211,28 @@ test_that("risk intervals are merged, and degrade safely", {
                    c(0, 4))
 })
 
-test_that("delayed entry is reported as making absolute survival prior-driven", {
+test_that("delayed entry is reported, as extrapolation and not as prior alone", {
   # Everything supported, so no error; the point is that the caller is told
-  # which stretch of the curve no observation reaches.
+  # which stretch of the curve no observation reaches, and on what terms.
   skip_if_not_installed("splines2")
   spec <- mlumr:::.build_mspline_basis(
     list(internal = c(3, 5), boundary = c(0, 8)), degree = 3L
   )
-  expect_message(
+  msg <- testthat::capture_messages(
     mlumr:::.assert_basis_support(spec, 8, "index",
-                                  entry = c(2, 2), exit = c(7, 8)),
-    "prior-dependent over \\[0, 2\\]"
+                                  entry = c(2, 2), exit = c(7, 8))
   )
+  expect_match(msg, "nobody was at risk below that time", all = FALSE)
+  # Lack of direct observation is not lack of information. A column straddling
+  # the entry time is one parameter governing both sides, so the observed part
+  # informs the unobserved part through the fitted model.
+  expect_match(msg, "extrapolated under the spline restrictions", all = FALSE)
+  expect_false(any(grepl("Conditional quantities are unaffected", msg,
+                         fixed = TRUE)))
+  # The landmark recommendation stands: conditioning cancels the pre-landmark
+  # cumulative hazard.
+  expect_match(msg, "landmark", all = FALSE)
+
   expect_message(
     mlumr:::.assert_basis_support(spec, 8, "index",
                                   entry = c(0, 0), exit = c(7, 8)),

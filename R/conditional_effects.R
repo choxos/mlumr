@@ -23,7 +23,7 @@
 #'       fit, which has no shape to stratify): `"hr"` returns the exact
 #'       conditional hazard ratio, labeled `"HR"`, for a proportional-hazards
 #'       distribution, and `"tr"` the exact time ratio (`"TR"`) for an
-#'       accelerated failure time one. The two are different estimands and
+#'       accelerated failure time one. They are different measures and
 #'       `"tr"` is **not** an alias for `"hr"`, so `"tr"` on a
 #'       proportional-hazards fit and `"hr"` on an accelerated failure time fit
 #'       are both errors rather than the other measure returned under the label
@@ -32,10 +32,25 @@
 #'       exponential and a Weibull are BOTH proportional hazards and
 #'       accelerated failure time, so with a shared shape each has a constant
 #'       hazard ratio and a constant time ratio, related by
-#'       `TR = HR^(-1/shape)` (`1/HR` for an exponential). For the log-normal,
-#'       log-logistic, gamma and generalized gamma the conditional hazard ratio
-#'       genuinely varies with time, and there the absence of a scalar is a
-#'       property of the model.
+#'       `TR = HR^(-1/shape)` (`1/HR` for an exponential). For the Weibull,
+#'       apply that conversion to PAIRED posterior draws, each effect draw with
+#'       the shape draw it came with; transforming a posterior mean, or the
+#'       endpoints of a reported interval with one shape estimate, does not in
+#'       general give the posterior of the other measure. Refitting in the
+#'       other parameterization is then an equivalent analysis only when the
+#'       priors are transformed to match: `log(HR) ~ Normal(0, s^2)` induces
+#'       `log(TR) | k ~ Normal(0, s^2 / k^2)`, not the same fixed-variance
+#'       normal, and the intercept and coefficient priors have to move with it.
+#'       None of that applies to the exponential, which has no shape parameter:
+#'       its conversion is a reciprocal applied draw by draw, and a normal
+#'       prior on `log(HR)` is the same normal prior on `log(TR)` with the sign
+#'       reversed.
+#'       For the log-normal, log-logistic, gamma and generalized gamma the
+#'       conditional hazard ratio generally varies with time, and there the
+#'       absence of a scalar is a property of the model. Generally, not always:
+#'       the gamma family contains the exponential at shape 1, the implemented
+#'       generalized gamma contains a Weibull subfamily, and a null comparison
+#'       has a hazard ratio of 1 at every time.
 #'     \item **Study-specific shape-bearing baseline** (`aux_by = ".study"`,
 #'       the default, with a distribution that has a shape parameter or either
 #'       flexible baseline): an explicit `"hr"` / `"tr"` request is an
@@ -339,23 +354,37 @@ conditional_effects <- function(object,
 .dual_family_note <- function(dist, asked) {
   dual <- c("exponential", "weibull", "exponential-aft", "weibull-aft")
   if (dist %in% dual) {
-    conversion <- if (grepl("^exponential", dist)) {
-      "TR = 1/HR for an exponential. "
-    } else {
-      "TR = HR^(-1/shape) for a Weibull. "
-    }
-    return(paste0(
+    common <- paste0(
       "This distribution is both proportional-hazards and accelerated ",
       "failure time, so with a baseline shape shared across arms the other ",
-      "measure is a deterministic transform of this one rather than a ",
-      "separate estimand: ", conversion,
-      "Read the shape from the fit and convert, or refit in the other ",
-      "parameterization to have it reported directly."
+      "measure is a deterministic transform of this one: "
+    )
+    # The exponential has NO shape parameter, so the paired-draw and
+    # transformed-prior advice below does not apply to it: its conversion is a
+    # reciprocal, and applying it to each draw is all there is to do.
+    if (grepl("^exponential", dist)) {
+      return(paste0(
+        common, "TR = 1/HR for an exponential. ",
+        "The exponential carries no shape parameter, so apply that to each ",
+        "draw; there is nothing further to pair it with, and a normal prior ",
+        "on log(HR) is the same normal prior on log(TR) with its sign ",
+        "reversed."
+      ))
+    }
+    return(paste0(
+      common, "TR = HR^(-1/shape) for a Weibull. ",
+      "Convert DRAW BY DRAW, pairing each effect draw with the shape draw it ",
+      "was sampled with: the shape is uncertain, and transforming a posterior ",
+      "mean or the endpoints of a reported interval with a single shape ",
+      "estimate does not reproduce the posterior of the other measure. ",
+      "Refitting in the other parameterization is an equivalent analysis only ",
+      "if the priors are transformed to match, since a normal prior on ",
+      "log(HR) induces one on log(TR) whose scale depends on the shape."
     ))
   }
   if (identical(asked, "hr")) {
     return(paste0(
-      "For this distribution the conditional hazard ratio genuinely varies ",
+      "For this distribution the conditional hazard ratio generally varies ",
       "with time, so there is no scalar to convert to. Use ",
       "predict(type = \"loghr\") for the population-standardized ",
       "time-varying hazard ratio."
