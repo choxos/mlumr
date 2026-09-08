@@ -78,7 +78,7 @@ benign number in its place.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.usable_diagnostic_values</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.usable_diagnostic_values</span><span class="op">(</span><span class="va">x</span>, n_expected <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -86,13 +86,29 @@ benign number in its place.</p>
 
 
 <dl><dt id="arg-x">x<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
-<dd><p>A summary column.</p></dd>
+<dd><p>A summary column, possibly <code>NULL</code>.</p></dd>
+
+
+<dt id="arg-n-expected">n_expected<a class="anchor" aria-label="anchor" href="#arg-n-expected"></a></dt>
+<dd><p>How many parameters should have had a diagnostic. Defaults
+to the length of <code>x</code>, which is right whenever the column is present.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list with <code>values</code> (every number, infinities included) and
 <code>n_missing</code> / <code>n_total</code> counts.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>A column that is absent, or present but not numeric, is not zero
+diagnostics either. <code>c(NA, NA)</code> is a LOGICAL vector in R, so a backend that
+wrote missing values into a column it never filled produced two unavailable
+diagnostics, and this reported none: <code>n_total</code> came back 0, the reporter
+below says nothing when the total is 0, and the summary printed no line at
+all. <code>n_expected</code> is what the caller knows the count should be, normally the
+number of rows in the summary, so an absent column is reported as entirely
+missing rather than as an empty population of parameters.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

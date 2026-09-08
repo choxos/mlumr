@@ -21,3 +21,11 @@ unknown instead.
 ## Value
 
 A non-negative integer, or `NA_integer_` when unknown.
+
+## Details
+
+A count is a whole number, and
+[`as.integer()`](https://rdrr.io/r/base/integer.html) truncates rather
+than refusing: 0.5 became 0, which is exactly the value that says the
+sampler behaved, and a count past the integer range became `NA` with a
+coercion warning. Neither is a count, so both are reported as unknown.

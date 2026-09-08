@@ -11,12 +11,23 @@
   1.001 and raised no warning. Infinite values now reach the worst-case
   statistic, in
   [`check_diagnostics()`](https://choxos.github.io/mlumr/reference/check_diagnostics.md)
-  and in the printed fit summary alike. A genuinely missing value, which
-  a constant generated quantity legitimately has, is counted and
-  reported instead of being dropped from a statistic that calls itself
-  the maximum. Divergence and treedepth counts the backend did not
-  supply were read as zero, which is the answer that says the sampler
-  behaved; they are now reported as unknown.
+  and in the printed fit summary alike. A genuinely missing value is
+  counted and reported instead of being dropped from a statistic that
+  calls itself the maximum, and the report names the parameters it could
+  not check. It does not name a cause: a constant generated quantity has
+  no Rhat, and neither does a parameter whose chains are each stuck at a
+  different constant or whose draws are not finite, and nothing here has
+  looked at the draws to tell those apart. A column that is absent, or
+  present but not numeric, is counted the same way. `c(NA, NA)` is a
+  logical vector in R, which is what a backend writes into a column it
+  never filled, and reading it as zero diagnostics rather than as two
+  missing ones meant the summary printed no line at all. Divergence and
+  treedepth counts the backend did not supply were read as zero, which
+  is the answer that says the sampler behaved; they are now reported as
+  unknown, as is a count that is not a whole number or is past the
+  integer range, both of which
+  [`as.integer()`](https://rdrr.io/r/base/integer.html) had been turning
+  into a clean zero or a silent `NA`.
 
 - **[`mlumr_forest()`](https://choxos.github.io/mlumr/reference/mlumr_forest.md)
   takes its null from the effect rather than from the axis.** The

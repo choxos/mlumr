@@ -13,16 +13,33 @@ place.
 ## Usage
 
 ``` r
-.usable_diagnostic_values(x)
+.usable_diagnostic_values(x, n_expected = length(x))
 ```
 
 ## Arguments
 
 - x:
 
-  A summary column.
+  A summary column, possibly `NULL`.
+
+- n_expected:
+
+  How many parameters should have had a diagnostic. Defaults to the
+  length of `x`, which is right whenever the column is present.
 
 ## Value
 
 A list with `values` (every number, infinities included) and `n_missing`
 / `n_total` counts.
+
+## Details
+
+A column that is absent, or present but not numeric, is not zero
+diagnostics either. `c(NA, NA)` is a LOGICAL vector in R, so a backend
+that wrote missing values into a column it never filled produced two
+unavailable diagnostics, and this reported none: `n_total` came back 0,
+the reporter below says nothing when the total is 0, and the summary
+printed no line at all. `n_expected` is what the caller knows the count
+should be, normally the number of rows in the summary, so an absent
+column is reported as entirely missing rather than as an empty
+population of parameters.

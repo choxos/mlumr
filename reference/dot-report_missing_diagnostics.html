@@ -66,7 +66,7 @@ counts and reports what it could not check.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.report_missing_diagnostics</span><span class="op">(</span><span class="va">d</span>, <span class="va">label</span>, <span class="va">what</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.report_missing_diagnostics</span><span class="op">(</span><span class="va">d</span>, <span class="va">label</span>, <span class="va">what</span>, variables <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -84,10 +84,24 @@ counts and reports what it could not check.</p>
 <dt id="arg-what">what<a class="anchor" aria-label="anchor" href="#arg-what"></a></dt>
 <dd><p>What the diagnostic measures, for the message.</p></dd>
 
+
+<dt id="arg-variables">variables<a class="anchor" aria-label="anchor" href="#arg-variables"></a></dt>
+<dd><p>Parameter names in the same order as the column, or <code>NULL</code>.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p><code>NULL</code>, invisibly.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>The message names the OUTCOME and not a cause. A missing diagnostic has
+several, and nothing here has looked at the draws to tell them apart: a
+quantity that is constant by construction has no Rhat, and neither does one
+whose chains are each stuck at a different constant, or whose draws are not
+finite. Calling the benign one "the usual reason" turned an unchecked
+parameter into a reassurance. Which parameters they were is something this
+does know, so it says that instead.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

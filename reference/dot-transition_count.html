@@ -84,6 +84,13 @@ unknown instead.</p>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A non-negative integer, or <code>NA_integer_</code> when unknown.</p>
     </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>A count is a whole number, and <code><a href="https://rdrr.io/r/base/integer.html" class="external-link">as.integer()</a></code> truncates rather than
+refusing: 0.5 became 0, which is exactly the value that says the sampler
+behaved, and a count past the integer range became <code>NA</code> with a coercion
+warning. Neither is a count, so both are reported as unknown.</p>
+    </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
