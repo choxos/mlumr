@@ -102,11 +102,16 @@ estimate from <code>est</code> / <code>estimate</code> / <code>mean</code>; the 
 
 
 <dt id="arg-ref-line">ref_line<a class="anchor" aria-label="anchor" href="#arg-ref-line"></a></dt>
-<dd><p>Null-effect reference line. Defaults to <code>1</code> when
-<code>log_x = TRUE</code> and <code>0</code> otherwise, so a ratio axis gets its own null rather
-than one that log-transforms to <code>-Inf</code> and disappears. Kept inside the
-clipping window, so a forest whose estimates sit far from the null still
-shows it.</p></dd>
+<dd><p>Null-effect reference line. By default it is read from the
+<code>effect</code> column when <code>data</code> has one and the label is one the package
+produces, so a ratio measure (<code>HR</code>, <code>TR</code>, <code>RR</code>, <code>RMSTR</code>) gets <code>1</code> and a
+difference (<code>RMSTD</code>, <code>MD</code>, <code>LOR</code>, a log-scale contrast) gets <code>0</code>,
+whichever axis it is drawn on. A label the package does not recognize is
+an unknown rather than a difference, and with no <code>effect</code> column there is
+nothing to read at all; in both cases the axis is the only hint left, so
+the default is <code>1</code> when <code>log_x = TRUE</code> and <code>0</code> otherwise. Pass <code>ref_line</code>
+explicitly for a measure this does not name. Kept inside the clipping
+window, so a forest whose estimates sit far from the null still shows it.</p></dd>
 
 
 <dt id="arg-log-x">log_x<a class="anchor" aria-label="anchor" href="#arg-log-x"></a></dt>

@@ -36,11 +36,17 @@ mlumr_forest(
 
 - ref_line:
 
-  Null-effect reference line. Defaults to `1` when `log_x = TRUE` and
-  `0` otherwise, so a ratio axis gets its own null rather than one that
-  log-transforms to `-Inf` and disappears. Kept inside the clipping
-  window, so a forest whose estimates sit far from the null still shows
-  it.
+  Null-effect reference line. By default it is read from the `effect`
+  column when `data` has one and the label is one the package produces,
+  so a ratio measure (`HR`, `TR`, `RR`, `RMSTR`) gets `1` and a
+  difference (`RMSTD`, `MD`, `LOR`, a log-scale contrast) gets `0`,
+  whichever axis it is drawn on. A label the package does not recognize
+  is an unknown rather than a difference, and with no `effect` column
+  there is nothing to read at all; in both cases the axis is the only
+  hint left, so the default is `1` when `log_x = TRUE` and `0`
+  otherwise. Pass `ref_line` explicitly for a measure this does not
+  name. Kept inside the clipping window, so a forest whose estimates sit
+  far from the null still shows it.
 
 - log_x:
 

@@ -84,12 +84,14 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-decay_parts.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-decay_share.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-diagnostic_count.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-diagnostic_display.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-diagnostic_value.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-drop_missing_rows.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-ensure_positive_definite_cor.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-eval_basis.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-exp_difference_logs.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-finite_numeric_values.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-format_diagnostic.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-gamma_moment_pars.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-generate_copula_uniforms.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-get_surv_data.html</loc></url>
@@ -101,6 +103,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-kept_different_rows_of_one_source.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-km_observed.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-knots_from_times.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-known_measure.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-label_beta_rows.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-ln_moments.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-lndiff.html</loc></url>
@@ -117,6 +120,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-median_not_reached_note.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-merge_sampler_control.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-message_engine_unchanged.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-missing_suffix.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-mlumr_build_stan_data.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-mlumr_center_covariates.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-mlumr_fit_backend.html</loc></url>
@@ -168,6 +172,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-relative_eff_from_log_lik.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-relaxed_contraction.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-relaxed_index_note.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-report_missing_diagnostics.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-require_draw_columns.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-require_identity.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-require_single_identity.html</loc></url>
@@ -239,7 +244,9 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-target_loghr_origin.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-target_span_gap.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-transform_integration_points.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-transition_count.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-transported_baseline_note.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-usable_diagnostic_values.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_agd_binary_covariates.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_agd_binomial_outcomes.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_agd_cov_types.html</loc></url>

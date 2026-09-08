@@ -4,6 +4,30 @@
 
 ### Behavior and validation changes to existing functions
 
+- **A convergence diagnostic that cannot be computed is no longer
+  reported as a good one.** An Rhat of `Inf` is a parameter whose chains
+  did not mix at all, and it was filtered out before the maximum was
+  taken, so a fit holding `1.001` and `Inf` reported a maximum Rhat of
+  1.001 and raised no warning. Infinite values now reach the worst-case
+  statistic, in
+  [`check_diagnostics()`](https://choxos.github.io/mlumr/reference/check_diagnostics.md)
+  and in the printed fit summary alike. A genuinely missing value, which
+  a constant generated quantity legitimately has, is counted and
+  reported instead of being dropped from a statistic that calls itself
+  the maximum. Divergence and treedepth counts the backend did not
+  supply were read as zero, which is the answer that says the sampler
+  behaved; they are now reported as unknown.
+
+- **[`mlumr_forest()`](https://choxos.github.io/mlumr/reference/mlumr_forest.md)
+  takes its null from the effect rather than from the axis.** The
+  reference line defaulted to `1` when `log_x = TRUE` and `0` otherwise,
+  so a hazard ratio, risk ratio or RMST ratio drawn on a linear axis got
+  a null line at 0, which is not a value those measures can take. When
+  the frame carries an `effect` column the null is now read from it
+  through the same resolver the package’s own forest method uses, so
+  both figures agree. Without that column the axis remains the only hint
+  and the previous default applies.
+
 - **[`compare_models()`](https://choxos.github.io/mlumr/reference/compare_models.md)
   no longer reads a standard error as a threshold, and refuses fits
   built on different observations.** The LOO/WAIC printout said that
