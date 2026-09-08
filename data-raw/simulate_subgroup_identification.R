@@ -549,6 +549,38 @@ grid$key <- sprintf("%s__%s__rep%04d", grid$family, grid$design, grid$rep)
 # INSTALLED package, so a reader cannot tell from the version whether the rows
 # came from the tree in front of them. The library path and the working tree's
 # commit close that gap. `git` may be absent; that is recorded, not fatal.
+#
+# CALL THIS BEFORE THE STUDY WRITES ANYTHING. `dirty` asks whether the tree was
+# modified relative to the commit it names, and the run itself modifies the
+# tree: it publishes the results CSV, which is tracked. Asked afterwards the
+# answer is always "true", so the field said nothing about the state the run
+# started from and could never read false. The checkpoint directory is ignored
+# by git, so creating that does not count; the CSV is what does.
+
+# `find.package()` returns an absolute path, which pins the manifest to one
+# machine's home directory and tells a later reader nothing they can use. The
+# library still has to be identified, since it is what separates two installs
+# that report the same version, so record it relative to the home directory
+# rather than dropping it.
+.home_relative <- function(path) {
+  if (length(path) != 1L || is.na(path) || !nzchar(path)) return(path)
+  # `winslash = "/"` on both, because the comparison below uses
+  # `.Platform$file.sep`, which is "/" on EVERY platform including Windows,
+  # while `normalizePath()` there returns backslashes by default. Left to the
+  # defaults the prefix test can never match on Windows, and the helper
+  # silently records the absolute home path it exists to remove.
+  home <- tryCatch(normalizePath("~", winslash = "/", mustWork = FALSE),
+                   error = function(e) "")
+  if (!nzchar(home)) return(path)
+  full <- tryCatch(normalizePath(path, winslash = "/", mustWork = FALSE),
+                   error = function(e) path)
+  if (identical(full, home)) return("~")
+  if (startsWith(full, paste0(home, .Platform$file.sep))) {
+    return(paste0("~", substring(full, nchar(home) + 1L)))
+  }
+  full
+}
+
 .provenance <- function() {
   git1 <- function(args) {
     out <- tryCatch(suppressWarnings(
@@ -560,12 +592,24 @@ grid$key <- sprintf("%s__%s__rep%04d", grid$family, grid$design, grid$rep)
     system2("git", c("status", "--porcelain"), stdout = TRUE, stderr = FALSE)),
     error = function(e) character(0))
   c(.software(),
-    list(mlumr_lib = tryCatch(dirname(find.package("mlumr")),
-                              error = function(e) NA_character_),
+    # The script digest belongs to the snapshot, not to `write_manifest()`.
+    # Computed at the end it would name the file as it is THEN, so a mid-run
+    # edit produced a manifest pairing `Working-tree-dirty: false` from the
+    # start with a Script-MD5 of a script that never ran. R parses `--file=`
+    # incrementally, so such an edit can genuinely change what executes.
+    list(script_md5 = unname(tools::md5sum(SCRIPT_PATH)),
+         mlumr_lib = .home_relative(tryCatch(dirname(find.package("mlumr")),
+                                             error = function(e) NA_character_)),
          commit = git1(c("rev-parse", "HEAD")),
          tree = git1(c("rev-parse", "HEAD^{tree}")),
          dirty = length(status) > 0L))
 }
+
+# Taken here, while the only thing this run has written is the ignored
+# checkpoint directory, and long before the results CSV is published. Deferring
+# it to `write_manifest()` is what made `Working-tree-dirty` unable to read
+# false.
+PROVENANCE <- .provenance()
 
 CONFIG <- list(
   partitions = lapply(PARTITIONS, function(f) deparse(body(f))),
@@ -763,12 +807,40 @@ if (!file.rename(csv_tmp, OUT_CSV)) {
 #
 # `tools::md5sum()` is base R, so this costs no dependency. It is a
 # drift detector, not a security control.
-write_manifest <- function(csv, rows) {
-  sw <- .provenance()
+write_manifest <- function(csv, rows, sw) {
+  # Recomputing the digest here would describe the file as it is now rather
+  # than as it ran. Compare instead, and say so in the artifact when they
+  # differ: a run whose script moved under it is the one case where the
+  # manifest most needs to stop being reassuring.
+  now_md5 <- unname(tools::md5sum(SCRIPT_PATH))
+  # Three states, not two. `tools::md5sum()` returns NA for a file it cannot
+  # read, so treating that as "not drifted" would publish the starting digest
+  # with nothing to say the recheck never happened, which is the one shape of
+  # silence this field exists to remove.
+  unverifiable <- is.na(now_md5) && !is.na(sw$script_md5)
+  drifted <- !is.na(sw$script_md5) && !is.na(now_md5) &&
+    !identical(sw$script_md5, now_md5)
+  recheck <- if (unverifiable) "unknown" else if (drifted) now_md5 else NULL
+  if (drifted) {
+    warning("`", basename(SCRIPT_PATH), "` changed while the run was in ",
+            "progress. The manifest records the digest it STARTED with; ",
+            "because R parses --file= incrementally, later cells may have run ",
+            "different code. Revert the edit and re-run to reassemble from ",
+            "checkpoints.", immediate. = TRUE, call. = FALSE)
+  }
+  if (unverifiable) {
+    warning("`", basename(SCRIPT_PATH), "` could not be read when the manifest ",
+            "was written, so whether it changed during the run is unknown. ",
+            "The recorded digest is the one the run STARTED with.",
+            immediate. = TRUE, call. = FALSE)
+  }
   manifest <- c(
     sprintf("Generated: %s", format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z")),
     sprintf("Script: %s", basename(SCRIPT_PATH)),
-    sprintf("Script-MD5: %s", unname(tools::md5sum(SCRIPT_PATH))),
+    sprintf("Script-MD5: %s", sw$script_md5),
+    # Absent when the recheck confirmed the file is unchanged. `unknown` when
+    # it could not be done at all; otherwise the digest the file now carries.
+    if (!is.null(recheck)) sprintf("Script-Changed-During-Run: %s", recheck),
     sprintf("Results: %s", basename(csv)),
     sprintf("Results-MD5: %s", unname(tools::md5sum(csv))),
     sprintf("Rows: %d", rows),
@@ -790,7 +862,7 @@ write_manifest <- function(csv, rows) {
   writeLines(manifest, MANIFEST)
   cat("wrote", MANIFEST, "\n")
 }
-write_manifest(OUT_CSV, nrow(res))
+write_manifest(OUT_CSV, nrow(res), PROVENANCE)
 
 cat("completed:", nrow(reps), "replications,", nrow(res), "fits",
     " minutes:", round(as.numeric(difftime(Sys.time(), t0, units = "mins")), 1),

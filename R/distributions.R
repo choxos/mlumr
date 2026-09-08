@@ -187,7 +187,12 @@ dgamma <- function(x, shape, rate = 1, scale = 1 / rate, log = FALSE,
 #' @param p Vector of probabilities.
 #' @param mu,sigma Location and scale, on the logit scale.
 #' @param log Return the log density. Positional, as in [stats::dnorm()].
-#' @param ... Passed to the underlying \pkg{stats} normal function.
+#' @param ... For `plogitnorm()` and `qlogitnorm()`, passed to the underlying
+#'   \pkg{stats} normal function ([stats::pnorm()], [stats::qnorm()]), so
+#'   `lower.tail` and `log.p` work as usual. `dlogitnorm()` builds its density
+#'   from [stats::dnorm()] and a Jacobian rather than delegating, so it has
+#'   nothing to forward and refuses anything passed here; in its signature
+#'   `...` serves only to keep `mean` and `sd` from matching positionally.
 #' @param mean,sd Mean and standard deviation on the `(0, 1)` scale,
 #'   overriding `mu` and `sigma` when both are supplied.
 #'
@@ -198,12 +203,50 @@ dgamma <- function(x, shape, rate = 1, scale = 1 / rate, log = FALSE,
 #' qlogitnorm(0.5, mean = 0.34, sd = 0.19)
 NULL
 
+#' Refuse arguments a function has no use for
+#'
+#' A wrapper that delegates to `stats` gets this for free: an unknown name
+#' reaches the callee and errors there. One that computes its own answer
+#' silently discards whatever `...` collected, so a misspelled argument reads
+#' as a default. Name what was passed, since the point is to make the typo
+#' visible.
+#'
+#' @param ... Arguments the caller supplied and the function does not use.
+#' @return `NULL`, invisibly; called for the error.
+#' @keywords internal
+.reject_unused_dots <- function(...) {
+  n <- ...length()
+  if (n == 0L) {
+    return(invisible(NULL))
+  }
+  nms <- ...names()
+  labels <- vapply(seq_len(n), function(i) {
+    if (!is.null(nms) && !is.na(nms[[i]]) && nzchar(nms[[i]])) {
+      nms[[i]]
+    } else {
+      paste0("[[", i, "]] (unnamed)")
+    }
+  }, character(1))
+  stop(sprintf("unused argument%s: %s", if (n > 1L) "s" else "",
+               paste(labels, collapse = ", ")), call. = FALSE)
+}
+
 #' @rdname logitNormal
 #' @export
 dlogitnorm <- function(x, mu = 0, sigma = 1, log = FALSE, ..., mean, sd) {
   pars <- .logitnorm_pars(mu, sigma, if (missing(mean)) NULL else mean,
                           if (missing(sd)) NULL else sd,
                           !missing(mean), !missing(sd))
+  # `...` sits here so that `mean` and `sd` can only be matched by their full
+  # names, which is what keeps `sd` from swallowing a positional `sigma`. It is
+  # not a place to forward anything: this density is computed from `dnorm()`
+  # plus a Jacobian rather than delegated, so there is no callee to pass extra
+  # arguments to. Left unchecked they were absorbed in silence, and the one
+  # that matters is `log`: `dlogitnorm(0.5, lgo = TRUE)` returned the
+  # natural-scale density and looked like an answer. `plogitnorm()` and
+  # `qlogitnorm()` do delegate, so a typo there already reaches `pnorm()` and
+  # errors; this makes the density agree with them.
+  .reject_unused_dots(...)
   # The Jacobian form dnorm(qlogis(x)) / (x (1 - x)) is 0/0 at the support
   # boundaries, and on the log scale -Inf - (-Inf); both evaluate to NaN in
   # floating point although the density there is simply zero. Outside [0, 1]

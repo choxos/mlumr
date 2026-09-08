@@ -34,10 +34,18 @@ fit, which has no shape to stratify): \code{"hr"} returns the exact
 conditional hazard ratio, labeled \code{"HR"}, for a proportional-hazards
 distribution, and \code{"tr"} the exact time ratio (\code{"TR"}) for an
 accelerated failure time one. The two are different estimands and
-\code{"tr"} is \strong{not} an alias for \code{"hr"}: a proportional-hazards model
-has no constant time ratio and an AFT model has no constant hazard
-ratio, so \code{"tr"} on a PH fit and \code{"hr"} on an AFT fit are both errors
-rather than the other measure returned under the label it does have.
+\code{"tr"} is \strong{not} an alias for \code{"hr"}, so \code{"tr"} on a
+proportional-hazards fit and \code{"hr"} on an accelerated failure time fit
+are both errors rather than the other measure returned under the label
+it does have. That is a restriction on the label this function
+answers to, not a claim that the other measure cannot exist: an
+exponential and a Weibull are BOTH proportional hazards and
+accelerated failure time, so with a shared shape each has a constant
+hazard ratio and a constant time ratio, related by
+\code{TR = HR^(-1/shape)} (\code{1/HR} for an exponential). For the log-normal,
+log-logistic, gamma and generalized gamma the conditional hazard ratio
+genuinely varies with time, and there the absence of a scalar is a
+property of the model.
 \item \strong{Study-specific shape-bearing baseline} (\code{aux_by = ".study"},
 the default, with a distribution that has a shape parameter or either
 flexible baseline): an explicit \code{"hr"} / \code{"tr"} request is an

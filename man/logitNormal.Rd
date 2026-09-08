@@ -20,7 +20,12 @@ qlogitnorm(p, mu = 0, sigma = 1, ..., mean, sd)
 
 \item{log}{Return the log density. Positional, as in \code{\link[stats:dnorm]{stats::dnorm()}}.}
 
-\item{...}{Passed to the underlying \pkg{stats} normal function.}
+\item{...}{For \code{plogitnorm()} and \code{qlogitnorm()}, passed to the underlying
+\pkg{stats} normal function (\code{\link[stats:pnorm]{stats::pnorm()}}, \code{\link[stats:qnorm]{stats::qnorm()}}), so
+\code{lower.tail} and \code{log.p} work as usual. \code{dlogitnorm()} builds its density
+from \code{\link[stats:dnorm]{stats::dnorm()}} and a Jacobian rather than delegating, so it has
+nothing to forward and refuses anything passed here; in its signature
+\code{...} serves only to keep \code{mean} and \code{sd} from matching positionally.}
 
 \item{mean, sd}{Mean and standard deviation on the \verb{(0, 1)} scale,
 overriding \code{mu} and \code{sigma} when both are supplied.}

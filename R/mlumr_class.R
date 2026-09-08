@@ -150,17 +150,25 @@ summary.mlumr_fit <- function(object, ...) {
     cat(sprintf("  Chains: %d requested, layout UNKNOWN (see warnings)\n",
                 n_req))
   }
-  cat("  Divergent transitions:", object$diagnostics$n_divergent, "\n")
-  cat("  Max treedepth hits:", object$diagnostics$n_max_treedepth, "\n")
+  # The same resolver the warning path uses, so a printed summary and a warning
+  # cannot disagree about the same fit. Both keep an infinite Rhat, which is
+  # the worst case this line exists to show, and both say when a value is
+  # missing rather than quietly computing the statistic without it.
+  cat("  Divergent transitions:",
+      .diagnostic_display(.transition_count(object$diagnostics$n_divergent)), "\n")
+  cat("  Max treedepth hits:",
+      .diagnostic_display(.transition_count(object$diagnostics$n_max_treedepth)), "\n")
   if (!is.null(object$summary$Rhat)) {
-    finite_rhat <- object$summary$Rhat[is.finite(object$summary$Rhat)]
+    rhat <- .usable_diagnostic_values(object$summary$Rhat)
     cat("  Max Rhat:",
-        if (length(finite_rhat)) round(max(finite_rhat), 3) else "unavailable", "\n")
+        if (length(rhat$values)) .format_diagnostic(max(rhat$values)) else "unavailable",
+        .missing_suffix(rhat), "\n")
   }
   if (!is.null(object$summary$n_eff)) {
-    finite_ess <- object$summary$n_eff[is.finite(object$summary$n_eff)]
+    ess <- .usable_diagnostic_values(object$summary$n_eff)
     cat("  Min ESS:",
-        if (length(finite_ess)) round(min(finite_ess), 0) else "unavailable", "\n")
+        if (length(ess$values)) .format_diagnostic(min(ess$values)) else "unavailable",
+        .missing_suffix(ess), "\n")
   }
   cat("\n")
 

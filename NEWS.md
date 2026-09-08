@@ -2,6 +2,64 @@
 
 ## Behavior and validation changes to existing functions
 
+* **A convergence diagnostic that cannot be computed is no longer reported as
+  a good one.** An Rhat of `Inf` is a parameter whose chains did not mix at
+  all, and it was filtered out before the maximum was taken, so a fit holding
+  `1.001` and `Inf` reported a maximum Rhat of 1.001 and raised no warning.
+  Infinite values now reach the worst-case statistic, in `check_diagnostics()`
+  and in the printed fit summary alike. A genuinely missing value, which a
+  constant generated quantity legitimately has, is counted and reported instead
+  of being dropped from a statistic that calls itself the maximum. Divergence
+  and treedepth counts the backend did not supply were read as zero, which is
+  the answer that says the sampler behaved; they are now reported as unknown.
+
+* **`mlumr_forest()` takes its null from the effect rather than from the
+  axis.** The reference line defaulted to `1` when `log_x = TRUE` and `0`
+  otherwise, so a hazard ratio, risk ratio or RMST ratio drawn on a linear axis
+  got a null line at 0, which is not a value those measures can take. When the
+  frame carries an `effect` column the null is now read from it through the
+  same resolver the package's own forest method uses, so both figures agree.
+  Without that column the axis remains the only hint and the previous default
+  applies.
+
+* **`set_agd()` no longer rejects a valid binary covariate's standard
+  deviation.** The check compared a reported SD against `sqrt(p * (1 - p))`,
+  which is the POPULATION standard deviation of a Bernoulli variable. A sample
+  standard deviation uses the n-1 denominator and equals
+  `sqrt(n / (n - 1) * p * (1 - p))`, so it is always larger: five zeros and
+  five ones report a mean of 0.5 and an SD of 0.5270, and that was refused as
+  impossible. The bound is now the finite-sample maximum at `n = 2`, the
+  loosest factor any sample can have, with an allowance for the precision the
+  figure was reported to. It does not tighten with the outcome sample size,
+  because that count is not the covariate's denominator: a covariate carrying
+  its own missingness was summarized over fewer rows, and fewer rows make the
+  bound looser rather than tighter. Genuinely inconsistent summaries are still
+  refused.
+
+* **`dlogitnorm()` rejects arguments it cannot use.** `plogitnorm()` and
+  `qlogitnorm()` pass `...` to `pnorm()` and `qnorm()`, so a misspelled name
+  reaches those functions and errors. The density computes its own value and
+  silently discarded whatever `...` collected, so `dlogitnorm(0.5, lgo = TRUE)`
+  returned the natural-scale density and looked like an answer. Unused
+  arguments are now named in an error.
+
+* **`conditional_effects()` explains an `hr`/`tr` refusal without a false
+  claim about the model.** The messages said that a proportional-hazards model
+  has no constant time ratio and that an accelerated failure time model's
+  hazard ratio varies with time. Neither is true of the exponential or the
+  Weibull, which are both proportional-hazards AND accelerated failure time:
+  with a baseline shape shared across arms each has a constant hazard ratio and
+  a constant time ratio, related by `TR = HR^(-1/shape)` (`1/HR` for an
+  exponential). The refusal now describes the parameterization the fit
+  estimates, gives that conversion for the dual families, and reserves the
+  time-varying explanation for the log-normal and log-logistic, where it holds.
+
+* **`prior_sensitivity()` says what it cannot reproduce.** `mlumr()` forwards
+  `...` to the sampler, so a fit could have run with a non-default `thin` or
+  `init` that nothing recorded, and the refits then silently used the defaults.
+  The names of those arguments are now stored with the fit, and a refit that
+  cannot replay them warns and names them.
+
 * **`naive()` no longer reports a Cox comparison that has no maximum.** Events
   in both arms are necessary for the partial likelihood to identify the
   treatment coefficient and are not sufficient: if every event in one arm
@@ -725,6 +783,15 @@
   `qr = TRUE` offers a QR-rotated design as an alternative conditioning fix.
 
 ## Documentation
+
+* **The `shoulder` and `caries` examples no longer call a reference estimate
+  a known truth.** Both are synthesized from a single randomized trial and then
+  split into a single-arm IPD source and a single-arm aggregate source, and the
+  documentation said this made them examples "whose true answer is still
+  known". What is available is a randomized reference comparison, obtained by
+  fitting the two arms together on the full data. That is an estimate carrying
+  sampling error, not an evaluated population causal truth, since neither
+  dataset comes from a declared generating model with a computable estimand.
 
 * **The relaxed model's identification claim is corrected.**
   `prior_beta_comparator` said the comparator-population effect "is identified

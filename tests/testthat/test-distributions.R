@@ -274,3 +274,42 @@ test_that("qlogitnorm is classified as a continuous margin", {
                                                       sigma = 1))),
                "continuous")
 })
+
+test_that("dlogitnorm() refuses arguments it cannot use", {
+  # `plogitnorm()` and `qlogitnorm()` hand `...` to pnorm()/qnorm(), so a
+  # misspelled name errors there already. The density computes its own answer,
+  # so an unused name was absorbed in silence and the caller got a number:
+  # `log` misspelled returned the natural-scale density and looked right.
+  expect_error(dlogitnorm(0.5, lgo = TRUE), "unused argument.*lgo")
+  expect_error(dlogitnorm(0.5, mu = 0, sigma = 1, logg = TRUE), "unused")
+  expect_error(dlogitnorm(0.5, 0, 1, FALSE, 99), "unused argument")
+
+  # Everything the signature does support still works, including the
+  # positional `log` and the mean/sd parameterization that `...` exists to
+  # protect from positional matching.
+  expect_equal(dlogitnorm(0.5, 0, 1, TRUE), dlogitnorm(0.5, log = TRUE))
+  expect_false(is.na(dlogitnorm(0.5, mean = 0.34, sd = 0.19)))
+  expect_equal(length(dlogitnorm(c(0.2, 0.5, 0.8))), 3L)
+})
+
+test_that("a replay warns only about settings it is actually missing", {
+  # `control` reaches the backend through `...` but IS stored and replayed, so
+  # recording it made a refit announce defaults for the one setting it
+  # reproduces in full.
+  expect_warning(
+    mlumr:::.warn_unreplayed_backend_args(c("thin", "init"), character(0)),
+    "'thin', 'init'"
+  )
+  # re-supplied through `...`, which is what the message asks for
+  expect_warning(
+    mlumr:::.warn_unreplayed_backend_args(c("thin", "init"), "thin"),
+    "'init'"
+  )
+  expect_warning(
+    mlumr:::.warn_unreplayed_backend_args(c("thin", "init"),
+                                          c("thin", "init")),
+    NA
+  )
+  expect_warning(mlumr:::.warn_unreplayed_backend_args(character(0), NULL), NA)
+  expect_warning(mlumr:::.warn_unreplayed_backend_args(NULL, NULL), NA)
+})

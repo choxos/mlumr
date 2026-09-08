@@ -93,10 +93,26 @@ test_that("conditional_effects() does not substitute HR for TR or TR for HR", {
 
   # PH + "tr" -> error, and the message must name the reason, not the label.
   expect_error(conditional_effects(ph, effect = "tr"),
-               "only available for accelerated failure time")
+               "proportional-hazards.*log hazard ratio")
   # AFT + "hr" -> error.
   expect_error(conditional_effects(aft, effect = "hr"),
-               "not a scalar conditional effect")
+               "accelerated failure time.*log time ratio")
+
+  # The refusal is about what this fit parameterizes, so it must not claim the
+  # estimand cannot exist. A Weibull with a shared shape is BOTH proportional
+  # hazards and accelerated failure time, with a constant time ratio of
+  # HR^(-1/shape); an exponential has 1/HR. Saying otherwise taught the reader
+  # something false about the model in order to explain an interface limit.
+  ph_msg <- tryCatch(conditional_effects(ph, effect = "tr"),
+                     error = conditionMessage)
+  expect_false(grepl("has no constant time ratio", ph_msg, fixed = TRUE))
+  expect_match(ph_msg, "HR\\^\\(-1/shape\\)")
+
+  # The log-normal is not dual-family, so here the time-varying hazard ratio
+  # is a genuine property of the model rather than an interface limit.
+  aft_msg <- tryCatch(conditional_effects(aft, effect = "hr"),
+                      error = conditionMessage)
+  expect_match(aft_msg, "genuinely varies with time")
 
   # The two requests that do name an existing estimand must get past the guard.
   # They fail later, on the fixture's absent draws, not on the estimand check.
@@ -120,7 +136,22 @@ test_that("conditional_effects() does not substitute HR for TR or TR for HR", {
   # contrast is a hazard ratio and its reciprocal, not itself, is the time
   # ratio. Returning it under `tr` would flip the sign of the reported effect.
   expect_error(conditional_effects(fake("exponential", 2L), effect = "tr"),
-               "only available for accelerated failure time")
+               "proportional-hazards.*log hazard ratio")
   expect_error(conditional_effects(fake("exponential-aft", 2L), effect = "hr"),
-               "not a scalar conditional effect")
+               "accelerated failure time.*log time ratio")
+
+  # Both exponential parameterizations are dual-family, so neither refusal may
+  # claim the other measure fails to exist; each must name the conversion.
+  for (case in list(list("exponential", "tr"), list("exponential-aft", "hr"))) {
+    msg <- tryCatch(conditional_effects(fake(case[[1]], 2L), effect = case[[2]]),
+                    error = conditionMessage)
+    expect_match(msg, "TR = 1/HR for an exponential", fixed = TRUE)
+    expect_false(grepl("varies with time", msg, fixed = TRUE))
+  }
+
+  # The log-normal is not dual-family: there the time-varying hazard ratio is
+  # a real property of the model, and the message should still say so.
+  ln <- tryCatch(conditional_effects(fake("lognormal", 1L), effect = "hr"),
+                 error = conditionMessage)
+  expect_match(ln, "genuinely varies with time")
 })
