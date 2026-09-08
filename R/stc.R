@@ -277,14 +277,16 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' the boundary rather than on smallness, and it applies only where a boundary
 #' exists.
 #'
-#' What it does not catch is quasi-complete separation, where rows sit on the
-#' separating hyperplane: `y = c(0, 0, 1, 1)` on `x = c(-1, 0, 0, 1)` has no
-#' finite slope, yet the two tied rows keep fitted probabilities of exactly
+#' The fitted values cannot catch quasi-complete separation, where rows sit on
+#' the separating hyperplane: `y = c(0, 0, 1, 1)` on `x = c(-1, 0, 0, 1)` has
+#' no finite slope, yet the two tied rows keep fitted probabilities of exactly
 #' 0.5, so not every probability has reached a boundary. Telling that apart
 #' from a strong but identified fit takes more than the fitted values, since a
 #' legitimate signal here reaches a linear predictor of 20.1 while this case
-#' reaches 19.6. The exact test is a linear program rather than a threshold,
-#' so covering it is a dependency decision and not a correction to this test.
+#' reaches 19.6. The exact test is a linear program, so it lives behind
+#' [.stc_detect_separation()] and runs only when the optional
+#' \pkg{detectseparation} package is installed. The threshold test stays as
+#' the part that always runs.
 #' @param fit A fitted `glm`.
 #' @return `NULL`, invisibly; called for the error.
 #' @keywords internal
@@ -316,7 +318,78 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
       call. = FALSE
     )
   }
+  if (isTRUE(.stc_detect_separation(fit))) {
+    stop(
+      paste(
+        "The STC outcome model is separated: a linear combination of the",
+        "covariates separates the outcome, so the maximum likelihood estimate",
+        "is infinite even though the fitting reported convergence and every",
+        "returned number is finite. This is the quasi-complete case, where",
+        "rows on the separating hyperplane keep fitted probabilities away",
+        "from 0 and 1, so it cannot be seen in the fitted values. Use",
+        "mlumr(), whose prior makes the posterior proper."
+      ),
+      call. = FALSE
+    )
+  }
   invisible(NULL)
+}
+
+
+#' Exact separation test, when the optional dependency is present
+#'
+#' Whether a binomial likelihood has a finite maximum is a linear-programming
+#' question, not a threshold one: the fit is separated exactly when some linear
+#' combination of the covariates perfectly orders the outcome, and a fit that
+#' is merely strong can look identical in the coefficients and the fitted
+#' values. \pkg{detectseparation} solves that program. It is in Suggests, so
+#' this returns `NA` when it is absent and the caller keeps the fitted-value
+#' test as its only screen; that is a weaker guarantee, not a wrong one.
+#'
+#' An error here is reported as "unknown" rather than as "separated": a refit
+#' can fail for reasons that have nothing to do with separation, and turning
+#' those into a refusal would reject estimable models. A warning is not an
+#' error, and must not be read as one here, because the fit this check exists
+#' to catch is the one that warns.
+#'
+#' @param fit A fitted binomial `glm`.
+#' @return `TRUE` if separated, `FALSE` if not, `NA` only when the refit
+#'   errored and there is no outcome to read. A warning is muffled and the
+#'   outcome used, since a separated refit is the case that warns.
+#' @keywords internal
+.stc_detect_separation <- function(fit) {
+  if (!requireNamespace("detectseparation", quietly = TRUE)) {
+    return(NA)
+  }
+  # Rebuild the fit's own call rather than going through `update()`. That
+  # evaluates in its CALLER's frame, which here is this function, so the data
+  # argument is looked up from the package namespace outward: it resolves only
+  # when the data happens to sit in the global environment, and fails whenever
+  # the caller holds it in a local one. The fit already records where its own
+  # terms were built, and that is the environment the data was visible in.
+  cl <- stats::getCall(fit)
+  if (is.null(cl)) {
+    return(NA)
+  }
+  cl$method <- quote(detectseparation::detect_separation)
+  env <- environment(stats::formula(fit))
+  if (!is.environment(env)) {
+    env <- parent.frame()
+  }
+  # Warnings are MUFFLED, not treated as failure. Fitting a separated model is
+  # the case that warns ("fitted probabilities numerically 0 or 1 occurred"),
+  # so folding warnings into "unknown" blinded this check exactly when the
+  # answer is TRUE, and did so only on the platforms that happen to emit one.
+  # An error is a different matter: then there is no outcome to read.
+  outcome <- tryCatch(
+    withCallingHandlers(eval(cl, env)$outcome,
+                        warning = function(w) invokeRestart("muffleWarning")),
+    error = function(e) NA
+  )
+  if (length(outcome) != 1L || !is.logical(outcome) || is.na(outcome)) {
+    return(NA)
+  }
+  outcome
 }
 
 #' Build a model matrix aligned with fitted GLM coefficients

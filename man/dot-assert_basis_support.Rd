@@ -4,7 +4,14 @@
 \alias{.assert_basis_support}
 \title{Stop if any basis column has no support over a study's observed period}
 \usage{
-.assert_basis_support(spec, observed_max, label)
+.assert_basis_support(
+  spec,
+  observed_max,
+  label,
+  entry = NULL,
+  exit = NULL,
+  event = NULL
+)
 }
 \arguments{
 \item{spec}{A basis spec from \code{\link[=.build_mspline_basis]{.build_mspline_basis()}}.}
@@ -12,6 +19,15 @@
 \item{observed_max}{The largest time that study actually observed.}
 
 \item{label}{Study label used in the error message.}
+
+\item{entry, exit}{The study's per-subject entry and exit times, whose merged
+union is the period it had someone under observation. Omit both for data
+with no delayed entry, which is treated as one interval from zero.}
+
+\item{event}{The study's event times, or \code{NULL}. The cumulative hazard
+integrates over the risk intervals and cannot see an isolated instant, but
+the event term evaluates the hazard AT each event time, so a column
+positive only there is supported after all.}
 }
 \value{
 \code{TRUE}, invisibly.

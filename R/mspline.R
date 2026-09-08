@@ -318,8 +318,16 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
   # Belt and braces: with per-study boundaries every column is supported by
   # construction, but the identification guarantee is worth asserting rather
   # than assuming, since it is the whole reason this function exists.
-  .assert_basis_support(specs$index, max(ipd$.time), "index")
-  .assert_basis_support(specs$comparator, max(pseudo$.time), "comparator")
+  # Support has to be judged over the period each study was actually AT RISK.
+  # With delayed entry nobody is under observation before the earliest entry
+  # time, so a column living only there enters no event hazard and no exposure
+  # increment, and is exactly as unidentified as one past the end of follow-up.
+  .assert_basis_support(specs$index, max(ipd$.time), "index",
+                        ipd$.delay_time, ipd$.time,
+                        ipd$.time[ipd$.status == 1])
+  .assert_basis_support(specs$comparator, max(pseudo$.time), "comparator",
+                        pseudo$.delay_time, pseudo$.time,
+                        pseudo$.time[pseudo$.status == 1])
   specs
 }
 
@@ -333,9 +341,17 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
 #' @param spec A basis spec from [.build_mspline_basis()].
 #' @param observed_max The largest time that study actually observed.
 #' @param label Study label used in the error message.
+#' @param entry,exit The study's per-subject entry and exit times, whose merged
+#'   union is the period it had someone under observation. Omit both for data
+#'   with no delayed entry, which is treated as one interval from zero.
+#' @param event The study's event times, or `NULL`. The cumulative hazard
+#'   integrates over the risk intervals and cannot see an isolated instant, but
+#'   the event term evaluates the hazard AT each event time, so a column
+#'   positive only there is supported after all.
 #' @return `TRUE`, invisibly.
 #' @keywords internal
-.assert_basis_support <- function(spec, observed_max, label) {
+.assert_basis_support <- function(spec, observed_max, label,
+                                  entry = NULL, exit = NULL, event = NULL) {
   # Evaluate at STRUCTURAL points, not a fixed uniform grid. A degree-0
   # (piecewise exponential) basis column is supported on exactly one inter-knot
   # interval, and a narrow interval can fall entirely between the points of a
@@ -344,13 +360,40 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
   # column of an M-spline basis of any degree is positive somewhere on the
   # interior of its own support, and its support always contains at least one
   # full inter-knot interval, hence at least one of these midpoints.
-  breaks <- sort(unique(c(spec$boundary, spec$internal)))
-  breaks <- breaks[breaks <= observed_max]
-  if (length(breaks) < 2L) breaks <- c(0, observed_max)
-  mids <- (utils::head(breaks, -1L) + breaks[-1L]) / 2
-  grid <- sort(unique(c(breaks, mids,
-                        seq(0, observed_max, length.out = 256L))))
-  grid <- grid[is.finite(grid) & grid >= 0 & grid <= observed_max]
+  risk <- .risk_intervals(entry, exit, observed_max)
+  at_risk_start <- risk[[1L]][["lo"]]
+  knots <- sort(unique(c(spec$boundary, spec$internal)))
+  # Structural points WITHIN each covered stretch. Sampling the whole span
+  # instead would put points in the gaps between risk intervals, where no
+  # subject is under observation and a basis column therefore enters no
+  # likelihood term.
+  grid <- unlist(lapply(risk, function(iv) {
+    b <- sort(unique(c(iv[["lo"]], iv[["hi"]],
+                       knots[knots > iv[["lo"]] & knots < iv[["hi"]]])))
+    if (length(b) < 2L) {
+      return(numeric(0))
+    }
+    mids <- (utils::head(b, -1L) + b[-1L]) / 2
+    inner <- seq(iv[["lo"]], iv[["hi"]], length.out = 66L)
+    # STRICTLY inside. A piecewise-constant column is positive at the closed
+    # left end of its own interval, so evaluating at a bare endpoint made a
+    # column live off a single instant: with exposure on [1, 2] and [8, 9], the
+    # column on [2, 8) is positive at t = 2 alone, contributes zero integrated
+    # hazard, and would have passed. A point carries no likelihood.
+    c(mids, inner[-c(1L, length(inner))])
+  }))
+  # The interiors above cover the CUMULATIVE hazard, which integrates over the
+  # risk intervals and so cannot see an isolated instant. The event term is the
+  # other half of the likelihood: it evaluates the hazard AT each event time,
+  # so a column positive only there does carry likelihood after all. With
+  # exposure on [1, 2] and [8, 9] and a degree-0 basis, the column on [2, 8) is
+  # positive at t = 2 alone; that is dead when nobody fails at 2 and live when
+  # somebody does, and only the event times distinguish the two.
+  grid <- c(grid, event[is.finite(event)])
+  grid <- sort(unique(grid[is.finite(grid)]))
+  if (!length(grid)) {
+    return(invisible(TRUE))
+  }
   b <- .eval_basis(spec, grid, integral = FALSE)
   # M-spline values have units of inverse time. An absolute cutoff therefore
   # changes the answer when the same follow-up is expressed in days rather
@@ -359,11 +402,102 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
   live <- apply(is.finite(b) & b > 0, 2, any)
   dead <- which(!live)
   if (length(dead) > 0L) {
+    where <- if (length(risk) > 1L || at_risk_start > 0) {
+      paste0("its observed risk set (",
+             paste(vapply(risk, function(iv) {
+               sprintf("[%s, %s]", format(iv[["lo"]], digits = 4),
+                       format(iv[["hi"]], digits = 4))
+             }, character(1)), collapse = " and "), ")")
+    } else {
+      "its observed follow-up"
+    }
     stop("The ", label, " study's M-spline basis has ", length(dead),
-         " column(s) with no support over its observed follow-up (columns ",
+         " column(s) with no support over ", where, " (columns ",
          paste(dead, collapse = ", "), "). That is an exact likelihood ridge: ",
          "the spline scale is unidentified against the study intercept. ",
+         if (length(risk) > 1L || at_risk_start > 0) {
+           paste0("Nobody is under observation outside that risk set, so a ",
+                  "column supported only there enters no event hazard and no ",
+                  "exposure increment. ")
+         } else {
+           ""
+         },
          "Reduce `n_knots`.", call. = FALSE)
   }
+  if (at_risk_start > 0) {
+    # Even with every column supported, the hazard BELOW the earliest entry
+    # time is not informed by these data at all. That does not affect a
+    # conditional quantity, but S(t) and RMST integrate the hazard from 0, so
+    # those carry whatever the prior says about a stretch nobody was observed
+    # in. A reader comparing absolute survival across arms deserves to know
+    # which part of the curve that is.
+    message("The ", label, " study enters at ",
+            format(at_risk_start, digits = 4),
+            ", so no observation informs its hazard below that time. ",
+            "Conditional quantities are unaffected, but absolute survival and ",
+            "RMST integrate from 0 and are therefore prior-dependent over ",
+            "[0, ", format(at_risk_start, digits = 4), "]. Compare survival ",
+            "conditional on reaching entry, or report RMST from a landmark at ",
+            "or after it.")
+  }
   invisible(TRUE)
+}
+
+
+#' The stretches of time a study actually had someone under observation
+#'
+#' The union of each subject's `[entry, exit]`, merged. Reducing this to a
+#' single span from the earliest entry to the last exit would treat a gap with
+#' an empty risk set as observed: subjects seen on `[1, 2]` and `[8, 9]` leave
+#' `(2, 8)` contributing no event hazard and no cumulative-hazard exposure, and
+#' a basis column living only there is as unidentified as one before the first
+#' entry. Without entry times this is a single interval from zero, which is
+#' what keeps the check unchanged for ordinary data.
+#'
+#' @param entry Entry times, or `NULL`.
+#' @param exit Exit times, or `NULL`.
+#' @param observed_max Last observed time, used when `exit` is absent.
+#' @return A list of `c(lo, hi)` intervals, in increasing order.
+#' @keywords internal
+.risk_intervals <- function(entry, exit, observed_max) {
+  whole <- list(c(lo = 0, hi = observed_max))
+  if (is.null(entry) || !is.numeric(entry) || !length(entry)) {
+    return(whole)
+  }
+  if (is.null(exit) || !is.numeric(exit) || length(exit) != length(entry)) {
+    # Entry times without matching exits still say where observation STARTS,
+    # which is the larger of the two errors; fall back to one interval from it.
+    lo <- suppressWarnings(min(entry[is.finite(entry)]))
+    if (!is.finite(lo)) {
+      return(whole)
+    }
+    return(list(c(lo = max(0, lo), hi = observed_max)))
+  }
+  # Compare against the CLAMPED lower bound, which is what `lo` below uses.
+  # Testing the raw entry instead let an interval lying entirely before zero
+  # through: (-2, -1) satisfies exit > entry, and the clamp then turned it into
+  # (0, -1), an inverted interval that broke this function's own increasing
+  # order contract and would have handed `.assert_basis_support()` a grid to
+  # build over negative time.
+  keep <- is.finite(entry) & is.finite(exit) & exit > pmax(0, entry)
+  if (!any(keep)) {
+    return(whole)
+  }
+  lo <- pmax(0, entry[keep])
+  hi <- exit[keep]
+  ord <- order(lo)
+  lo <- lo[ord]
+  hi <- hi[ord]
+  out <- list()
+  cur <- c(lo = lo[[1L]], hi = hi[[1L]])
+  for (i in seq_along(lo)[-1L]) {
+    if (lo[[i]] <= cur[["hi"]]) {
+      cur[["hi"]] <- max(cur[["hi"]], hi[[i]])
+    } else {
+      out[[length(out) + 1L]] <- cur
+      cur <- c(lo = lo[[i]], hi = hi[[i]])
+    }
+  }
+  out[[length(out) + 1L]] <- cur
+  out
 }
