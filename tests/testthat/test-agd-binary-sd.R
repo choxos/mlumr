@@ -3,6 +3,10 @@
 # value sqrt(p(1-p)). Validating against the population figure therefore
 # rejected ordinary data: five zeros and five ones report mean 0.5 and sd
 # 0.5270, and that was called impossible.
+#
+# The ceiling uses n = 2, the loosest factor any sample can have. `n` below is
+# the row's OUTCOME count, which is not the covariate's denominator and must
+# not change the verdict.
 
 binary_agd <- function(p, s, n) {
   data.frame(study = "S", trt = "B", x_prop = p, x_sd = s, n = n, r = 5)
@@ -11,7 +15,7 @@ binary_agd <- function(p, s, n) {
 accepts <- function(p, s, n) {
   d <- binary_agd(p, s, n)
   isTRUE(tryCatch({
-    mlumr:::.validate_agd_binary_covariates(d, "x_prop", "x_sd", "binary", "n")
+    mlumr:::.validate_agd_binary_covariates(d, "x_prop", "x_sd", "binary")
     TRUE
   }, error = function(e) FALSE))
 }
@@ -36,8 +40,8 @@ test_that("genuinely inconsistent binary summaries are still refused", {
   expect_false(accepts(0.05, 0.4, 100))
   expect_error(
     mlumr:::.validate_agd_binary_covariates(binary_agd(0.5, 0.9, 10),
-                                            "x_prop", "x_sd", "binary", "n"),
-    "sqrt\\(n/\\(n-1\\)"
+                                            "x_prop", "x_sd", "binary"),
+    "sqrt\\(2 \\* p"
   )
 })
 
@@ -74,10 +78,35 @@ test_that("the reported proportion's own rounding widens the ceiling", {
   expect_equal(round(stats::sd(y), 2), 0.2)
   expect_true(accepts(0.0, 0.2, 25))
 
+  # A proportion printed with no decimals at all carries a half-unit
+  # allowance, so 0 is consistent with p up to 0.5 and the ceiling there is
+  # the full 0.7071. That is loose, and deliberately so: the alternative is
+  # deciding on the caller's behalf how many decimals a table "meant" to
+  # print. The guard still refuses what no binary sample can produce.
+  expect_true(accepts(0.0, 0.6, 25))
+  expect_false(accepts(0.0, 0.75, 25))
+
   # and the ceiling still binds where it should
   expect_false(accepts(0.99, 0.35, 500))
-  expect_false(accepts(0.0, 0.6, 25))
   expect_false(accepts(0.5, 0.9, 10))
   expect_false(accepts(0.5, 0.72, 10))
   expect_false(accepts(0.05, 0.4, 100))
+})
+
+test_that("the outcome's sample size is not the covariate's denominator", {
+  # A published table summarizes each covariate over whatever was observed for
+  # it, which is not in general the outcome's analysis set. A covariate with
+  # two observed values reports p = 0.5 and a sample SD of 0.7071; judging it
+  # against an outcome count of 10 gives a ceiling of 0.5270 and refuses it.
+  # Fewer rows make the true bound LOOSER, so the outcome count can only ever
+  # be too tight, which is the false-rejection direction.
+  x <- c(0, 1)
+  expect_equal(round(stats::sd(x), 4), 0.7071)
+  expect_true(accepts(0.5, round(stats::sd(x), 4), 10))
+  expect_true(accepts(0.5, round(stats::sd(x), 4), 500))
+
+  # and the same row must get the same verdict from both entry points, which
+  # it did not while only one of them had a count to tighten with
+  expect_false(accepts(0.5, 0.85, 10))
+  expect_false(accepts(0.5, 0.85, NA))
 })
