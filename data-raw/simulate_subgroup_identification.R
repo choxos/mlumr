@@ -808,7 +808,14 @@ write_manifest <- function(csv, rows, sw) {
   # differ: a run whose script moved under it is the one case where the
   # manifest most needs to stop being reassuring.
   now_md5 <- unname(tools::md5sum(SCRIPT_PATH))
-  drifted <- !is.na(sw$script_md5) && !is.na(now_md5) && !identical(sw$script_md5, now_md5)
+  # Three states, not two. `tools::md5sum()` returns NA for a file it cannot
+  # read, so treating that as "not drifted" would publish the starting digest
+  # with nothing to say the recheck never happened, which is the one shape of
+  # silence this field exists to remove.
+  unverifiable <- is.na(now_md5) && !is.na(sw$script_md5)
+  drifted <- !is.na(sw$script_md5) && !is.na(now_md5) &&
+    !identical(sw$script_md5, now_md5)
+  recheck <- if (unverifiable) "unknown" else if (drifted) now_md5 else NULL
   if (drifted) {
     warning("`", basename(SCRIPT_PATH), "` changed while the run was in ",
             "progress. The manifest records the digest it STARTED with; ",
@@ -816,11 +823,19 @@ write_manifest <- function(csv, rows, sw) {
             "different code. Revert the edit and re-run to reassemble from ",
             "checkpoints.", immediate. = TRUE, call. = FALSE)
   }
+  if (unverifiable) {
+    warning("`", basename(SCRIPT_PATH), "` could not be read when the manifest ",
+            "was written, so whether it changed during the run is unknown. ",
+            "The recorded digest is the one the run STARTED with.",
+            immediate. = TRUE, call. = FALSE)
+  }
   manifest <- c(
     sprintf("Generated: %s", format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z")),
     sprintf("Script: %s", basename(SCRIPT_PATH)),
     sprintf("Script-MD5: %s", sw$script_md5),
-    if (drifted) sprintf("Script-Changed-During-Run: %s", now_md5),
+    # Absent when the recheck confirmed the file is unchanged. `unknown` when
+    # it could not be done at all; otherwise the digest the file now carries.
+    if (!is.null(recheck)) sprintf("Script-Changed-During-Run: %s", recheck),
     sprintf("Results: %s", basename(csv)),
     sprintf("Results-MD5: %s", unname(tools::md5sum(csv))),
     sprintf("Rows: %d", rows),
