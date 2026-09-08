@@ -564,10 +564,15 @@ grid$key <- sprintf("%s__%s__rep%04d", grid$family, grid$design, grid$rep)
 # rather than dropping it.
 .home_relative <- function(path) {
   if (length(path) != 1L || is.na(path) || !nzchar(path)) return(path)
-  home <- tryCatch(normalizePath("~", mustWork = FALSE),
+  # `winslash = "/"` on both, because the comparison below uses
+  # `.Platform$file.sep`, which is "/" on EVERY platform including Windows,
+  # while `normalizePath()` there returns backslashes by default. Left to the
+  # defaults the prefix test can never match on Windows, and the helper
+  # silently records the absolute home path it exists to remove.
+  home <- tryCatch(normalizePath("~", winslash = "/", mustWork = FALSE),
                    error = function(e) "")
   if (!nzchar(home)) return(path)
-  full <- tryCatch(normalizePath(path, mustWork = FALSE),
+  full <- tryCatch(normalizePath(path, winslash = "/", mustWork = FALSE),
                    error = function(e) path)
   if (identical(full, home)) return("~")
   if (startsWith(full, paste0(home, .Platform$file.sep))) {
