@@ -158,18 +158,27 @@ summary.mlumr_fit <- function(object, ...) {
       .diagnostic_display(.transition_count(object$diagnostics$n_divergent)), "\n")
   cat("  Max treedepth hits:",
       .diagnostic_display(.transition_count(object$diagnostics$n_max_treedepth)), "\n")
-  if (!is.null(object$summary$Rhat)) {
-    rhat <- .usable_diagnostic_values(object$summary$Rhat)
-    cat("  Max Rhat:",
-        if (length(rhat$values)) .format_diagnostic(max(rhat$values)) else "unavailable",
-        .missing_suffix(rhat), "\n")
-  }
-  if (!is.null(object$summary$n_eff)) {
-    ess <- .usable_diagnostic_values(object$summary$n_eff)
-    cat("  Min ESS:",
-        if (length(ess$values)) .format_diagnostic(min(ess$values)) else "unavailable",
-        .missing_suffix(ess), "\n")
-  }
+  # Guarding on the column being present hid the case worth showing. A summary
+  # with no Rhat column at all printed no Rhat line, which reads as a fit that
+  # was not asked about rather than one that cannot answer. Ask for the count
+  # the summary should have and let the line say "unavailable".
+  n_par <- nrow(object$summary)
+  rhat <- .usable_diagnostic_values(object$summary$Rhat, n_par)
+  cat("  Max Rhat:",
+      if (length(rhat$values)) {
+        .format_diagnostic(max(rhat$values))
+      } else {
+        "unavailable"
+      },
+      .missing_suffix(rhat), "\n")
+  ess <- .usable_diagnostic_values(object$summary$n_eff, n_par)
+  cat("  Min ESS:",
+      if (length(ess$values)) {
+        .format_diagnostic(min(ess$values))
+      } else {
+        "unavailable"
+      },
+      .missing_suffix(ess), "\n")
   cat("\n")
 
   # Intercepts
