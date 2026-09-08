@@ -96,13 +96,20 @@
   survival and RMST integrate from 0 and are therefore prior-dependent below
   it, while conditional quantities are not.
 
-* **Interval-censored likelihood under delayed entry is built from
-  increments.** The branch formed the unconditional interval probability and
-  then subtracted `log S(entry)`. That is correct algebra and poor arithmetic:
-  both terms grow without bound in the tail, so the subtraction cancels the
-  significant digits and yields `NaN` once either underflows. It now uses
-  `log S(lower)/S(entry) + log[1 - S(upper)/S(lower)]`, the form the three
-  other status branches already use.
+* **Interval- and left-censored likelihoods under delayed entry are evaluated
+  in whichever form the numbers survive.** The interval branch formed the
+  unconditional interval probability and then subtracted `log S(entry)`. That
+  is correct algebra and poor arithmetic: both terms grow without bound in the
+  tail, so the subtraction cancels the significant digits and yields `NaN` once
+  either underflows. Rebuilding it from increments as
+  `log S(lower)/S(entry) + log[1 - S(upper)/S(lower)]` fixed that end and broke
+  the other, where survival rounds to exactly 1 and every increment collapses
+  to zero. A Gamma baseline with shape 10, entry at 0.025 and an event in
+  (0.05, 0.1] has a conditional log probability of -38.222; built from
+  increments it came back unusable, and left censoring under delayed entry took
+  the same route. Both branches now switch on the same half-probability test
+  the undelayed interval already applied, taking a difference of CDFs where the
+  CDF is representable and a ratio of survival probabilities where survival is.
 
 * **`compare_models()` no longer reads a standard error as a threshold, and
   refuses fits built on different observations.** The LOO/WAIC printout said

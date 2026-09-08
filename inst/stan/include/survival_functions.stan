@@ -440,6 +440,41 @@ real log_interval_prob_scalar(int dist, real t_upper, real t_lower, real eta,
          + log1m_exp(log_surv_increment(dist, t_upper, t_lower, eta, aux, aux2));
 }
 
+// Log P(t_lower < T <= t_upper | T > t_entry), for delayed entry.
+//
+// Two ways to write the same quantity, each stable where the other is not, so
+// this switches on the same half-probability test `log_interval_prob_scalar()`
+// uses just above.
+//
+// Deep in the LOWER tail, survival rounds to one. Gamma with shape 10 and
+// scale 1 puts S at exactly 1.0 in double precision at t = 0.025, 0.05 and
+// 0.1 alike, so any expression built from survival DIFFERENCES gets zero, and
+// its log is -inf; the conditional log probability is in fact -38.22216. The
+// CDF is still representable there, so take the CDF difference and divide by
+// S(entry). That division is safe in this regime: F(upper) < 1/2 forces
+// S(entry) > 1/2, so log S(entry) is a small negative number and cannot
+// reintroduce the huge right-tail terms the conditional form exists to avoid.
+//
+// In the right tail the CDF rounds to one instead, and the increments are the
+// accurate ones, so keep the conditional-ratio form there.
+real log_cond_interval_prob(int dist, real t_upper, real t_lower, real t_entry,
+                            real eta, real aux, real aux2) {
+  real log_cdf_upper = log_cdf_scalar(dist, t_upper, eta, aux, aux2);
+  if (log_cdf_upper < -0.6931471805599453) {
+    return log_diff_exp(log_cdf_upper,
+                        log_cdf_scalar(dist, t_lower, eta, aux, aux2))
+           - log_surv_scalar(dist, t_entry, eta, aux, aux2);
+  }
+  // Left-censoring passes t_lower == t_entry, where the first factor is
+  // log S(entry)/S(entry) = 0. Skip it rather than ask `log_surv_increment()`
+  // for a degenerate zero-width increment.
+  return (t_lower == t_entry
+            ? 0
+            : log_surv_increment(dist, t_lower, t_entry, eta, aux, aux2))
+         + log1m_exp(log_surv_increment(dist, t_upper, t_lower, eta, aux,
+                                        aux2));
+}
+
 // Status-aware single-observation log-likelihood with optional delayed entry.
 real surv_ll_status(int dist, real time, real start_time, real delay_time,
                     int status, real eta, real aux, real aux2) {
@@ -459,7 +494,8 @@ real surv_ll_status(int dist, real time, real start_time, real delay_time,
     // Under delayed entry this is the conditional probability of an event in
     // (delay, t]. With delay = 0 this reduces to log F(t).
     if (delay_time > 0)
-      l = log1m_exp(log_surv_increment(dist, time, delay_time, eta, aux, aux2));
+      l = log_cond_interval_prob(dist, time, delay_time, delay_time, eta, aux,
+                                 aux2);
     else
       l = log_cdf_scalar(dist, time, eta, aux, aux2);
   } else {                       // interval-censored: log(S(lower) - S(upper))
@@ -473,10 +509,13 @@ real surv_ll_status(int dist, real time, real start_time, real delay_time,
     // conditional probability computed directly, and `log_surv_increment()`
     // already computes exactly these ratios stably. The three other status
     // branches above take that route for the same reason; this one did not.
+    //
+    // That form is right in the right tail and wrong in the left one, where
+    // survival rounds to one and every increment collapses to zero.
+    // `log_cond_interval_prob()` picks whichever of the two is representable.
     if (delay_time > 0)
-      l = log_surv_increment(dist, start_time, delay_time, eta, aux, aux2)
-          + log1m_exp(log_surv_increment(dist, time, start_time, eta, aux,
-                                         aux2));
+      l = log_cond_interval_prob(dist, time, start_time, delay_time, eta, aux,
+                                 aux2);
     else
       l = log_interval_prob_scalar(dist, time, start_time, eta, aux, aux2);
   }
