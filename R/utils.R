@@ -112,7 +112,11 @@ eval_distr <- function(d, p, data = list()) {
 #' @param probs Quantile probabilities.
 #' @param warn Whether to report dropped draws. Callers that summarize many
 #'   vectors set this to `FALSE` and report once over the whole set instead.
-#' @return Named numeric vector: `c(mean, sd, <named quantiles>)`.
+#' @return Named numeric vector: `c(mean, sd, <named quantiles>, n_draws,
+#'   n_draws_used)`. The last two are the draw accounting: how many draws the
+#'   summary was offered and how many it used, so a summary built on a third
+#'   of its chain says so wherever it ends up. They differ exactly when NA or
+#'   NaN draws were dropped.
 #' @keywords internal
 .summarize_draw_vector <- function(x, probs, warn = TRUE) {
   if (warn) {
@@ -129,7 +133,9 @@ eval_distr <- function(d, p, data = list()) {
     stats::setNames(
       stats::quantile(x, probs = probs, na.rm = TRUE, names = FALSE),
       .quantile_names(probs)
-    ))
+    ),
+    n_draws = length(x),
+    n_draws_used = sum(!is.na(x)))
 }
 
 #' Summarize a draws matrix column-wise into a tidy data frame
@@ -142,8 +148,8 @@ eval_distr <- function(d, p, data = list()) {
 #' @param probs Quantile probabilities.
 #' @param warn Whether to report dropped draws. Set `FALSE` where a missing
 #'   draw is an expected outcome with a diagnostic of its own.
-#' @return Data frame with columns `mean`, `sd`, and one `qNN` column per
-#'   element of `probs`.
+#' @return Data frame with columns `mean`, `sd`, one `qNN` column per element
+#'   of `probs`, and the draw accounting `n_draws` and `n_draws_used`.
 #' @keywords internal
 .summarize_draw_matrix <- function(draws, probs, warn = TRUE) {
   if (warn) {
@@ -152,7 +158,8 @@ eval_distr <- function(d, p, data = list()) {
   summary_mat <- t(apply(draws, 2, .summarize_draw_vector, probs = probs,
                          warn = FALSE))
   summary_df <- as.data.frame(summary_mat)
-  colnames(summary_df) <- c("mean", "sd", .quantile_names(probs))
+  colnames(summary_df) <- c("mean", "sd", .quantile_names(probs), "n_draws",
+                            "n_draws_used")
   summary_df
 }
 
@@ -163,7 +170,8 @@ eval_distr <- function(d, p, data = list()) {
 #' draw should not erase an otherwise usable summary. It removes those draws
 #' without a trace, though, so a mean taken over a third of the chain reads
 #' exactly like a mean taken over all of it. Say what was dropped and leave the
-#' judgment to the reader.
+#' judgment to the reader. The warning is for the session; the `n_draws` and
+#' `n_draws_used` columns on every summary are what travels with the result.
 #'
 #' Only NA and NaN are counted, because only those are what `na.rm` removes.
 #' An infinite draw propagates into the mean and is visible on its own.

@@ -90,3 +90,92 @@ test_that("a clean tally says nothing", {
   tally$add(c(1, 2, 3))
   expect_silent(tally$report("conditional profiles"))
 })
+
+# A warning is for the session. A summary that outlives it, saved to disk or
+# handed to a report, has to carry its own accounting, or a mean over a third
+# of the chain reads exactly like a mean over all of it once the warning has
+# scrolled away.
+
+test_that("every summary carries how many draws it was offered and how many it used", {
+  v <- mlumr:::.summarize_draw_vector(c(1, NA, 3, NaN), probs = 0.5,
+                                      warn = FALSE)
+  expect_equal(v[["n_draws"]], 4)
+  expect_equal(v[["n_draws_used"]], 2)
+
+  m <- cbind(a = c(1, NA, 3), b = c(4, 5, 6))
+  s <- mlumr:::.summarize_draw_matrix(m, probs = c(0.1, 0.9), warn = FALSE)
+  expect_equal(names(s), c("mean", "sd", "q10", "q90", "n_draws",
+                           "n_draws_used"))
+  expect_equal(s$n_draws, c(3, 3))
+  expect_equal(s$n_draws_used, c(2, 3))
+})
+
+test_that("the accounting survives a public call and a round trip through disk", {
+  # A stub fit with one draw missing in the index arm: the public path warns,
+  # and the returned summaries say which rows the loss touched, in columns
+  # that saveRDS() keeps.
+  draws <- data.frame(mu_index = c(1, NA, 2), mu_comparator = c(0, 0.5, 1),
+                      check.names = FALSE)
+  draws[["beta[1]"]] <- c(0, 0.5, 0.2)
+  fit <- structure(
+    list(draws = draws, family = "binomial", link = "logit", model = "spfa",
+         data = list(covariates = "x",
+                     ipd = list(data = data.frame(x = c(0, 2))),
+                     index_treatment = "A", comparator_treatment = "B")),
+    class = c("mlumr_fit", "list")
+  )
+
+  expect_warning(ce <- conditional_effects(fit, newdata = data.frame(x = 0)),
+                 "dropped from their summaries")
+  expect_true(all(c("n_draws", "n_draws_used") %in% names(ce)))
+  expect_equal(unique(ce$n_draws), 3)
+  expect_equal(unique(ce$n_draws_used), 2)
+
+  expect_warning(cp <- conditional_predict(fit, newdata = data.frame(x = 0),
+                                           type = "link"),
+                 "dropped from their summaries")
+  expect_equal(cp$n_draws, c(3, 3))
+  expect_equal(cp$n_draws_used[cp$treatment == "A"], 2)
+  expect_equal(cp$n_draws_used[cp$treatment == "B"], 3)
+
+  path <- withr::local_tempfile(fileext = ".rds")
+  saveRDS(ce, path)
+  back <- readRDS(path)
+  expect_equal(back$n_draws_used, ce$n_draws_used)
+  expect_equal(back$n_draws, ce$n_draws)
+})
+
+test_that("a missing median is accounted for without being called a loss", {
+  # The survival frame exempts the median from the dropped-draw warning,
+  # because a median the grid never reaches is an outcome with its own
+  # diagnostic. The accounting still shows the summary rests on the draws
+  # that reached it, next to the probability that one does not.
+  m <- matrix(c(1.2, NA, 1.4, 1.1), ncol = 1)
+  cells <- data.frame(treatment = "A", population = "index",
+                      stringsAsFactors = FALSE)
+  # Its own diagnostic is a message, not the dropped-draw warning.
+  expect_no_warning(
+    out <- suppressMessages(
+      mlumr:::.surv_result_frame(list(m), cells, "median", summary = TRUE,
+                                 probs = 0.5)
+    )
+  )
+  expect_equal(out$n_draws, 4)
+  expect_equal(out$n_draws_used, 3)
+  expect_equal(out$p_not_reached, 0.25)
+
+  # A survival curve keeps the accounting on every time, and the origin row
+  # copies it rather than taking the origin value.
+  expect_warning(
+    curve <- mlumr:::.surv_result_frame(
+      list(cbind(c(1, NA, 0.9, 0.8), c(0.5, 0.4, NA, 0.3))),
+      cells, "survival", summary = TRUE, probs = 0.5, times_out = c(1, 2),
+      origin = 1
+    ),
+    "dropped from their summaries"
+  )
+  expect_equal(curve$time, c(0, 1, 2))
+  expect_equal(curve$n_draws, c(4, 4, 4))
+  expect_equal(curve$n_draws_used, c(3, 3, 3))
+  expect_equal(curve$mean[1], 1)
+})

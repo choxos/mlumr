@@ -107,7 +107,9 @@
 #' and therefore return `E[g^{-1}(eta)]`, not `g^{-1}(E[eta])`.
 #'
 #' @return A data frame. If `summary = TRUE`, contains columns `profile`,
-#'   `effect`, `mean`, `sd`, and quantile columns. If `summary = FALSE`,
+#'   `effect`, `mean`, `sd`, quantile columns, and the draw accounting
+#'   `n_draws` and `n_draws_used` (they differ when `NA` or `NaN` draws were
+#'   dropped from that row's summary). If `summary = FALSE`,
 #'   returns a single combined data frame of full posterior draws with a
 #'   `profile` column indicating which covariate profile each draw belongs
 #'   to.
@@ -333,7 +335,8 @@ conditional_effects <- function(object,
 
   out <- do.call(rbind, summary_list)
   out <- out[, c("profile", "effect", "mean", "sd",
-                 .quantile_names(probs)), drop = FALSE]
+                 .quantile_names(probs), "n_draws", "n_draws_used"),
+             drop = FALSE]
   # Survival effects are on the natural scale (null 1): the effect label is
   # already HR (PH) or TR (AFT) from the hr / tr column name set above.
   rownames(out) <- NULL
@@ -536,7 +539,9 @@ conditional_effects <- function(object,
 #' @param probs Quantiles for summary
 #'
 #' @return A data frame with predictions for each treatment at each profile.
-#'   For survival fits there is one row per profile, treatment, and time.
+#'   For survival fits there is one row per profile, treatment, and time. With
+#'   `summary = TRUE` each row carries `n_draws` and `n_draws_used`, the draw
+#'   accounting behind its summary.
 #' @seealso [conditional_effects()] for covariate-conditional treatment
 #'   *effects*; [predict.mlumr_fit()] for population-level predictions.
 #' @export
@@ -616,6 +621,9 @@ conditional_predict <- function(object,
         qname <- qcols[j]
         results[[i]][[qname]] <- c(s_idx[[qname]], s_cmp[[qname]])
       }
+      results[[i]]$n_draws <- c(s_idx[["n_draws"]], s_cmp[["n_draws"]])
+      results[[i]]$n_draws_used <- c(s_idx[["n_draws_used"]],
+                                     s_cmp[["n_draws_used"]])
     }
   }
 

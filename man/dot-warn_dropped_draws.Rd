@@ -17,7 +17,8 @@ The \code{na.rm = TRUE} in \code{.summarize_draw_vector()} is deliberate: one ba
 draw should not erase an otherwise usable summary. It removes those draws
 without a trace, though, so a mean taken over a third of the chain reads
 exactly like a mean taken over all of it. Say what was dropped and leave the
-judgment to the reader.
+judgment to the reader. The warning is for the session; the \code{n_draws} and
+\code{n_draws_used} columns on every summary are what travels with the result.
 }
 \details{
 Only NA and NaN are counted, because only those are what \code{na.rm} removes.

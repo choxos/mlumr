@@ -76,7 +76,12 @@
 #'   which for a study-stratified flexible baseline is the follow-up both
 #'   studies observed rather than the pooled maximum.
 #'   The plot methods require `summary = TRUE`; with `summary = FALSE` the raw
-#'   posterior draws are returned as a plain data frame.
+#'   posterior draws are returned as a plain data frame. Every summary row
+#'   carries `n_draws` and `n_draws_used`: how many draws it was offered and
+#'   how many it used, which differ when `NA` or `NaN` draws were dropped. For
+#'   `type = "median"` the summary is conditional on the median being reached,
+#'   so `n_draws_used` counts the draws that reached it and `p_not_reached`
+#'   gives the posterior probability that one does not.
 #' @seealso [marginal_effects()] for treatment-effect summaries;
 #'   [conditional_predict()] and [conditional_effects()] for predictions
 #'   at specific covariate profiles.
@@ -371,8 +376,11 @@ predict.mlumr_fit <- function(object,
       # answers no request, so it was set to NA just above. Leaving it in here
       # overwrote that NA with the origin value, and a survival origin row then
       # claimed someone had asked for time 1.
+      # The draw accounting is not a summarized quantity either: the origin
+      # row is built from the same draws as the row it copies.
       num_cols <- setdiff(names(o)[vapply(o, is.numeric, logical(1))],
-                          c("time", "requested_time", label_names))
+                          c("time", "requested_time", "n_draws",
+                            "n_draws_used", label_names))
       o[num_cols] <- origin
       if ("sd" %in% names(o)) o$sd <- 0
       df <- rbind(o, df)
@@ -885,6 +893,8 @@ predict.mlumr_fit <- function(object,
 #'   the exponentiated HR/TR). With `summary = TRUE` the `effect` column names
 #'   the measure; with `summary = FALSE` the scale is carried by the draw column
 #'   names themselves (`lor_*`, `rr_*`, `delta_*`, `hr_*` / `tr_*`, `rmst*`).
+#'   Each summary row also carries `n_draws` and `n_draws_used`, which differ
+#'   when `NA` or `NaN` draws were dropped from it.
 #'   For survival, RMST-based rows also carry a `horizon` column (the raw-draw
 #'   frame, a `horizon` attribute) giving the restriction time the integral runs
 #'   to. RMST at different horizons is a different estimand, so results are only

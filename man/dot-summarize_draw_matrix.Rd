@@ -16,8 +16,8 @@ per quantity, one row per draw).}
 draw is an expected outcome with a diagnostic of its own.}
 }
 \value{
-Data frame with columns \code{mean}, \code{sd}, and one \code{qNN} column per
-element of \code{probs}.
+Data frame with columns \code{mean}, \code{sd}, one \code{qNN} column per element
+of \code{probs}, and the draw accounting \code{n_draws} and \code{n_draws_used}.
 }
 \description{
 Applies \code{.summarize_draw_vector()} across columns of \code{draws} and renames
