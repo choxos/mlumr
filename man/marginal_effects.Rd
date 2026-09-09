@@ -150,15 +150,22 @@ population-standardized curves satisfy
 time ratio. The divisor is the acceleration factor, not the log contrast
 \code{a} itself.
 \item \strong{Otherwise} (\code{EXP_DELTA_ETA}; differing shapes, or the relaxed
-model). The conditional acceleration varies with \code{x}, so it is the
-exponentiated average log ratio: equivalently the conditional time ratio
-at the mean linear predictor, or the geometric mean of the
-profile-specific conditional time ratios. It is \strong{not} generally a time
-ratio between the two standardized survival distributions: there need be
-no single \code{a} with \code{S_index(t) = S_comparator(t / exp(a))} for all \code{t},
-and
-different survival quantiles can imply different apparent acceleration
-factors. It is labeled \code{EXP_DELTA_ETA} rather than \code{TR} for that reason.
+model). With shared shapes and SPFA, the exponentiated location contrast
+is a common acceleration factor and a population time ratio, which is
+the case above. With shared shapes and treatment-specific coefficients,
+profile-specific conditional acceleration factors exist; their geometric
+mean is not generally a common acceleration factor for the standardized
+population. With differing shapes, the exponentiated location contrast
+is not generally a scalar conditional time ratio, even at one profile:
+an index arm with Weibull AFT shape 1 and a comparator arm with shape 2,
+at equal locations for one profile, have \code{exp(delta_eta) = 1}, while
+the index arm's time to a survival of 0.75, 0.5 and 0.25 is 0.54, 0.83
+and 1.18 times the comparator's. In neither case is there a single \code{a}
+with
+\code{S_index(t) = S_comparator(t / exp(a))} for all \code{t}. Use explicitly
+indexed survival quantiles or other clearly defined survival contrasts
+instead. It is labeled \code{EXP_DELTA_ETA} rather than \code{TR} for that
+reason.
 }
 Neither carries an evaluation time (\code{at_time} is \code{NA}). For a population
 contrast under differing covariate effects use the RMST-based effects, which

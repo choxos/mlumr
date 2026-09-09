@@ -784,15 +784,22 @@ predict.mlumr_fit <- function(object,
 #'     time ratio. The divisor is the acceleration factor, not the log contrast
 #'     `a` itself.
 #'   \item **Otherwise** (`EXP_DELTA_ETA`; differing shapes, or the relaxed
-#'     model). The conditional acceleration varies with `x`, so it is the
-#'     exponentiated average log ratio: equivalently the conditional time ratio
-#'     at the mean linear predictor, or the geometric mean of the
-#'     profile-specific conditional time ratios. It is **not** generally a time
-#'     ratio between the two standardized survival distributions: there need be
-#'     no single `a` with `S_index(t) = S_comparator(t / exp(a))` for all `t`,
-#'     and
-#'     different survival quantiles can imply different apparent acceleration
-#'     factors. It is labeled `EXP_DELTA_ETA` rather than `TR` for that reason.
+#'     model). With shared shapes and SPFA, the exponentiated location contrast
+#'     is a common acceleration factor and a population time ratio, which is
+#'     the case above. With shared shapes and treatment-specific coefficients,
+#'     profile-specific conditional acceleration factors exist; their geometric
+#'     mean is not generally a common acceleration factor for the standardized
+#'     population. With differing shapes, the exponentiated location contrast
+#'     is not generally a scalar conditional time ratio, even at one profile:
+#'     an index arm with Weibull AFT shape 1 and a comparator arm with shape 2,
+#'     at equal locations for one profile, have `exp(delta_eta) = 1`, while
+#'     the index arm's time to a survival of 0.75, 0.5 and 0.25 is 0.54, 0.83
+#'     and 1.18 times the comparator's. In neither case is there a single `a`
+#'     with
+#'     `S_index(t) = S_comparator(t / exp(a))` for all `t`. Use explicitly
+#'     indexed survival quantiles or other clearly defined survival contrasts
+#'     instead. It is labeled `EXP_DELTA_ETA` rather than `TR` for that
+#'     reason.
 #' }
 #' Neither carries an evaluation time (`at_time` is `NA`). For a population
 #' contrast under differing covariate effects use the RMST-based effects, which
