@@ -1159,7 +1159,12 @@ mlumr_forest <- function(data, ref_line = NULL, log_x = FALSE,
   }
   keep <- ok
   keep[which(ok)[outlier]] <- FALSE
-  rng <- range(c(est[ok], lo[keep], hi[keep]), na.rm = TRUE)
+  # Every finite point estimate, not just the ones `ok` kept: a row whose
+  # interval is missing is absent from `ok`, and leaving its estimate out of
+  # the range lets coord_cartesian() clip the point itself out of the panel, so
+  # the row renders empty. Rows with an outlier interval already contribute
+  # their estimate this way; a row with no interval is the same case.
+  rng <- range(c(est[is.finite(est)], lo[keep], hi[keep]), na.rm = TRUE)
   if (!all(is.finite(rng)) || isTRUE(rng[1] == rng[2])) {
     return(NULL)
   }
