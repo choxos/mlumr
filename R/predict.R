@@ -300,6 +300,10 @@ predict.mlumr_fit <- function(object,
                                horizon = NULL, requested_times = NULL) {
   label_names <- intersect(c("treatment", "population"), names(cells))
 
+  # One cell per treatment and population, so up to four passes for
+  # `population = "both"`. Tally and report once, as the conditional paths do.
+  tally <- .draw_tally()
+
   rows <- lapply(seq_along(values), function(i) {
     m <- values[[i]]
     lab <- cells[i, label_names, drop = FALSE]
@@ -309,7 +313,15 @@ predict.mlumr_fit <- function(object,
         return(data.frame(lab, value = m[, 1], row.names = NULL,
                           check.names = FALSE))
       }
-      s <- .summarize_draw_matrix(m, probs)
+      # A missing median is an expected finite-grid outcome, not a lost draw:
+      # `p_not_reached` below and `.median_not_reached_note()` already report
+      # it, with a documented way to silence them. The generic dropped-draw
+      # warning would say the same thing once per cell, ignore that switch, and
+      # under `options(warn = 2)` turn an ordinary result into an error.
+      if (type != "median") {
+        tally$add(m)
+      }
+      s <- .summarize_draw_matrix(m, probs, warn = FALSE)
       # For median survival, draws whose fitted survival never reaches 0.5 over
       # the prediction grid have no finite median ("median not reached"). The
       # shared summarizer uses na.rm, so its mean/SD/quantiles are conditional
@@ -334,7 +346,8 @@ predict.mlumr_fit <- function(object,
       }
       return(df)
     }
-    s <- .summarize_draw_matrix(m, probs)
+    tally$add(m)
+    s <- .summarize_draw_matrix(m, probs, warn = FALSE)
     # When the caller named the times, report BOTH what was asked for and what
     # was evaluated, in the order asked. A row saying only `time = 11.8` for a
     # policy horizon of 12 reads as an answer to the question that was not
@@ -366,6 +379,8 @@ predict.mlumr_fit <- function(object,
     }
     df
   })
+  tally$report("survival result cells")
+
   out <- do.call(rbind, rows)
   rownames(out) <- NULL
 

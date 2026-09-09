@@ -4,12 +4,15 @@
 \alias{.summarize_draw_vector}
 \title{Summarize a single draw vector into mean, sd and quantiles}
 \usage{
-.summarize_draw_vector(x, probs)
+.summarize_draw_vector(x, probs, warn = TRUE)
 }
 \arguments{
 \item{x}{Numeric vector of posterior draws.}
 
 \item{probs}{Quantile probabilities.}
+
+\item{warn}{Whether to report dropped draws. Callers that summarize many
+vectors set this to \code{FALSE} and report once over the whole set instead.}
 }
 \value{
 Named numeric vector: \verb{c(mean, sd, <named quantiles>)}.

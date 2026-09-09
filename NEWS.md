@@ -2,6 +2,18 @@
 
 ## Behavior and validation changes to existing functions
 
+* **Posterior summaries now say how many draws they dropped.** The summaries
+  behind `predict()`, `marginal_effects()`, `conditional_effects()` and
+  `conditional_predict()` pass `na.rm = TRUE`, which is right: one bad draw
+  should not erase an otherwise usable summary. But they removed those draws
+  without a trace, so a mean taken over a third of the chain printed exactly
+  like a mean taken over all of it and nothing downstream could tell the two
+  apart. A single vector now reports how many of its draws went and how many
+  remain; a draws matrix reports once for the whole matrix, naming how many
+  quantities were affected and the worst loss, rather than once per column.
+  Only `NA` and `NaN` are counted, since those are what `na.rm` removes; an
+  infinite draw propagates into the mean and announces itself.
+
 * **A convergence diagnostic that cannot be computed is no longer reported as
   a good one.** An Rhat of `Inf` is a parameter whose chains did not mix at
   all, and it was filtered out before the maximum was taken, so a fit holding

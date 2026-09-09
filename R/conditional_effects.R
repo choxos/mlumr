@@ -317,13 +317,19 @@ conditional_effects <- function(object,
     return(do.call(rbind, out))
   }
 
+  # Once per profile, so it tallies like the other two loops rather than
+  # warning on each pass.
+  tally <- .draw_tally()
   summary_list <- lapply(seq_along(results), function(i) {
     d <- results[[i]][, keep_cols, drop = FALSE]
-    summary_df <- .summarize_draw_matrix(d, probs)
+    tally$add(d)
+    summary_df <- .summarize_draw_matrix(d, probs, warn = FALSE)
     summary_df$profile <- i
     summary_df$effect <- toupper(rownames(summary_df))
     summary_df
   })
+
+  tally$report("conditional effect profiles")
 
   out <- do.call(rbind, summary_list)
   out <- out[, c("profile", "effect", "mean", "sd",
@@ -563,7 +569,13 @@ conditional_predict <- function(object,
   params <- .conditional_parameters(object, profiles$covariates)
   lnk <- object$link %||% get_family_config(family)$link_default
 
-  summarize_col <- function(x) .summarize_draw_vector(x, probs)
+  # Summarizing inside the loop would report each profile separately, so count
+  # here and report once for the whole set below.
+  tally <- .draw_tally()
+  summarize_col <- function(x) {
+    tally$add(x)
+    .summarize_draw_vector(x, probs, warn = FALSE)
+  }
 
   results <- vector("list", n_profiles)
 
@@ -607,6 +619,8 @@ conditional_predict <- function(object,
     }
   }
 
+  tally$report("conditional profiles")
+
   out <- do.call(rbind, results)
   rownames(out) <- NULL
   out
@@ -630,6 +644,11 @@ conditional_predict <- function(object,
   idx_trt <- object$data$index_treatment
   cmp_trt <- object$data$comparator_treatment
 
+  # Same reason as the non-survival path above: the helper is called once per
+  # profile and treatment, so letting each one report would give a single bad
+  # draw dozens of identical warnings that name no profile between them.
+  tally <- .draw_tally()
+
   rows <- list()
   for (i in seq_len(n_profiles)) {
     eta <- .conditional_eta(params, X[i, , drop = FALSE])
@@ -646,7 +665,8 @@ conditional_predict <- function(object,
         df$treatment <- cell$trt
         rows[[length(rows) + 1L]] <- df
       } else {
-        sm <- .summarize_draw_matrix(cell$mat, probs)
+        tally$add(cell$mat)
+        sm <- .summarize_draw_matrix(cell$mat, probs, warn = FALSE)
         rows[[length(rows) + 1L]] <- data.frame(
           profile = i, treatment = cell$trt, time = pred_times, sm,
           row.names = NULL
@@ -654,6 +674,8 @@ conditional_predict <- function(object,
       }
     }
   }
+  tally$report("conditional survival profiles")
+
   out <- do.call(rbind, rows)
   rownames(out) <- NULL
   out

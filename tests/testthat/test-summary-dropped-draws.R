@@ -1,0 +1,92 @@
+# A posterior summary computed over some of the draws must not read like a
+# summary computed over all of them.
+
+test_that("a vector summary reports the draws it dropped", {
+  x <- c(rnorm(90), rep(NA_real_, 10))
+  expect_warning(s <- mlumr:::.summarize_draw_vector(x, probs = c(0.025, 0.975)),
+                 "10 of 100 posterior draws")
+  # The summary is still returned, and still describes the usable draws.
+  expect_equal(unname(s[["mean"]]), mean(x, na.rm = TRUE))
+})
+
+test_that("NaN counts as a dropped draw, and an infinity does not", {
+  expect_warning(mlumr:::.summarize_draw_vector(c(1, 2, NaN), probs = 0.5),
+                 "1 of 3 posterior draws")
+  # An infinite draw propagates into the mean, so it announces itself.
+  expect_silent(s <- mlumr:::.summarize_draw_vector(c(1, 2, Inf), probs = 0.5))
+  expect_true(is.infinite(s[["mean"]]))
+})
+
+test_that("complete draws are summarized without a warning", {
+  expect_silent(mlumr:::.summarize_draw_vector(rnorm(50), probs = 0.5))
+  expect_silent(mlumr:::.summarize_draw_matrix(matrix(rnorm(50), ncol = 5),
+                                               probs = 0.5))
+})
+
+test_that("a matrix summary reports once for the whole matrix", {
+  m <- matrix(rnorm(100), ncol = 4)
+  m[1:3, 2] <- NA
+  m[1:7, 4] <- NaN
+  w <- capture_warnings(mlumr:::.summarize_draw_matrix(m, probs = 0.5))
+  # One warning, not one per column, and it names the worst loss.
+  expect_length(w, 1L)
+  expect_match(w, "2 of 4 summarized quantities")
+  expect_match(w, "worst loses 7 of 25 draws")
+})
+
+test_that("the reported counts are the ones actually dropped", {
+  m <- matrix(rnorm(60), ncol = 3)
+  m[1:5, 1] <- NA
+  expect_warning(s <- mlumr:::.summarize_draw_matrix(m, probs = 0.5))
+  expect_equal(s$mean[1], mean(m[, 1], na.rm = TRUE))
+  expect_equal(s$mean[2], mean(m[, 2]))
+})
+
+test_that("an expected missing median is not reported as a lost draw", {
+  # A draw whose fitted survival never reaches 0.5 on the grid has no median.
+  # That is an outcome, not a loss, and `p_not_reached` plus
+  # .median_not_reached_note() already report it with their own switch. The
+  # generic warning would repeat it once per cell, ignore that switch, and
+  # under options(warn = 2) turn an ordinary result into an error.
+  m <- matrix(c(1.2, NA, 1.4, 1.1), ncol = 1)
+  expect_silent(mlumr:::.summarize_draw_matrix(m, probs = 0.5, warn = FALSE))
+  # The default is still to report.
+  expect_warning(mlumr:::.summarize_draw_matrix(m, probs = 0.5),
+                 "1 of 4 posterior draws")
+})
+
+test_that("the loop tally counts quantities and reports once", {
+  tally <- mlumr:::.draw_tally()
+  tally$add(data.frame(a = c(1, NA, 3), b = c(4, 5, 6)))
+  tally$add(c(NA, 2, 3, 4))
+  expect_equal(tally$units, 3)
+  expect_equal(tally$affected, 2)
+
+  # One warning for the whole loop, naming what was looped over.
+  w <- capture_warnings(tally$report("conditional profiles"))
+  expect_length(w, 1L)
+  expect_match(w, "2 of 3 summarized quantities across the conditional profiles")
+})
+
+test_that("a loss concentrated in one summary is not diluted by the others", {
+  # 99 complete profiles and one that keeps 10 of its 100 draws. Pooling the
+  # counts reports 90 of 10000 and reads as rounding; the number that matters
+  # is that one returned summary rests on 10 draws.
+  tally <- mlumr:::.draw_tally()
+  for (i in 1:99) tally$add(matrix(rnorm(100), ncol = 1))
+  bad <- matrix(rnorm(100), ncol = 1)
+  bad[1:90] <- NA
+  tally$add(bad)
+
+  w <- capture_warnings(tally$report("conditional profiles"))
+  expect_length(w, 1L)
+  expect_match(w, "1 of 100 summarized quantities")
+  expect_match(w, "worst loses 90 of 100 draws")
+  expect_false(any(grepl("10000", w, fixed = TRUE)))
+})
+
+test_that("a clean tally says nothing", {
+  tally <- mlumr:::.draw_tally()
+  tally$add(c(1, 2, 3))
+  expect_silent(tally$report("conditional profiles"))
+})
