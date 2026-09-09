@@ -24,7 +24,11 @@
   own diagnostics say how it went. Under `link = "log"` existence is decided
   on `log(y)`, a linear question that cannot overflow however wide the outcome
   is, and the near-exact screen is taken on the response scale the likelihood
-  uses. A saturated design is warned about rather than refused: its posterior
+  uses. An outcome identically zero under `link = "log"` is refused too: a
+  positive mean can only approach it as the intercept goes to `-Inf`, where
+  the likelihood grows without bound as the residual SD shrinks and only the
+  intercept prior's tails decide whether a posterior exists. A saturated
+  design is warned about rather than refused: its posterior
   is proper, but nothing in the data separates the residual SD from the
   coefficients, so the estimate of sigma is potentially strongly sensitive to
   the coefficient priors. The check runs in validation, so it costs no

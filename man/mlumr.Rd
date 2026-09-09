@@ -422,7 +422,9 @@ the residual SD will concentrate near zero and the sampler has to work
 there; that is a screen on the input, and the sampler's own diagnostics say
 how the fit went. Under \code{link = "log"} existence of an exact fit is decided
 on \code{log(y)}, where it is a linear question, and the near-exact screen on
-the response scale the likelihood uses. A saturated design, with as many
+the response scale the likelihood uses; an outcome identically zero is
+refused there, since a positive mean can only approach it at the boundary
+where the likelihood is unbounded. A saturated design, with as many
 free columns as rows, is warned about rather than refused: its posterior is
 proper, but nothing in the data separates the residual SD from the
 coefficients, so what is reported for sigma is potentially strongly

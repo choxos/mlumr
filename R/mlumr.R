@@ -70,6 +70,13 @@
 #' `epsilon`. At `1e-13` the pivot tolerance is `1e-16`, matching the linear
 #' fit.
 #'
+#' The fit is a Gaussian log-link IRLS, whose deviance is a sum of squared
+#' outcomes, so it cannot run on an outcome spanning more than about 700 log
+#' units however it is centered: the squares overflow. The caller centers
+#' `log(y)` on its midrange, which keeps both ends finite whenever the span
+#' fits at all. Beyond that there is no screen, and no verdict depends on
+#' one.
+#'
 #' @param X Design matrix, intercept included.
 #' @param y Positive outcome vector.
 #' @return The residual ratio, or `NA` when the fit did not converge.
@@ -187,6 +194,23 @@
     return(invisible(FALSE))
   }
   if (identical(link, "log") && any(y <= 0)) {
+    # A non-positive observation cannot be matched by a positive mean, so no
+    # exact fit exists and the residual is positive: proper. The one exception
+    # is an outcome that is identically zero, which the mean can approach but
+    # never reach. Along intercept -> -Inf with exp(intercept) / sigma held
+    # fixed the likelihood grows as sigma^(-n) without bound, and whether a
+    # posterior exists then depends on how fast the intercept prior decays: a
+    # normal prior tames it, a Student-t or Cauchy prior does not. The guard
+    # does not see the prior, so it refuses the case outright.
+    if (all(y == 0)) {
+      stop("The IPD outcome is identically zero, which a positive mean under ",
+           "link = \"log\" can only approach as the intercept goes to -Inf. ",
+           "There the likelihood grows without bound as the residual SD ",
+           "shrinks, and whether any posterior exists depends on the tails of ",
+           "the intercept prior, so the model is refused. The outcome needs ",
+           "variation the covariates do not explain, or a link whose mean can ",
+           "reach it.", call. = FALSE)
+    }
     return(invisible(FALSE))
   }
 
@@ -254,8 +278,12 @@
     # Existence of an exact fit is a linear question in log(y). Centering
     # log(y) shifts only the intercept, and keeps the response-scale screen
     # below from underflowing the small end of a wide outcome to zero, which
-    # is not a value a log link can start from.
-    log_y <- log(y) - mean(log(y))
+    # is not a value a log link can start from. The center is the midrange,
+    # not the mean: five outcomes near 1e-260 and one near 1e260 have a mean
+    # log far below the middle, and centering on it overflows the large one.
+    # The midrange keeps both ends finite whenever the span itself fits.
+    log_y <- log(y)
+    log_y <- log_y - (max(log_y) + min(log_y)) / 2
     fit <- .linear_fit_ratios(X, log_y)
     screen <- function() .log_link_response_ratio(X, exp(log_y))
   } else {
@@ -278,7 +306,19 @@
   # Only an exactly zero residual is improper. For any positive residual the
   # exp(-RSS / (2 sigma^2)) factor drives the density to zero as sigma does,
   # and the integral converges however small that residual is.
-  positive <- !replicates$consistent || fit$ratio > fit$zero_ratio
+  positive <- !replicates$consistent || isTRUE(fit$ratio > fit$zero_ratio)
+  if (!positive && !is.finite(fit$ratio)) {
+    # Outcomes near 1e300 that differ by a few units in the last place have
+    # identical logarithms, so the log-scale total sum of squares is zero and
+    # the ratio is undefined. The variation is real on the response scale, but
+    # it is at the resolution of double precision, which is the same
+    # undecidable regime as below.
+    stop("The IPD outcome varies by less than the resolution of its ",
+         "logarithm, so whether the covariates fit it exactly under ",
+         "link = \"log\" cannot be decided at double precision, and the ",
+         "model is refused rather than passed as proper. ", advice,
+         call. = FALSE)
+  }
   if (!positive) {
     fmt <- paste0(
       "The IPD covariates fit the outcome to within rounding: the residual ",
@@ -336,7 +376,9 @@
 #' there; that is a screen on the input, and the sampler's own diagnostics say
 #' how the fit went. Under `link = "log"` existence of an exact fit is decided
 #' on `log(y)`, where it is a linear question, and the near-exact screen on
-#' the response scale the likelihood uses. A saturated design, with as many
+#' the response scale the likelihood uses; an outcome identically zero is
+#' refused there, since a positive mean can only approach it at the boundary
+#' where the likelihood is unbounded. A saturated design, with as many
 #' free columns as rows, is warned about rather than refused: its posterior is
 #' proper, but nothing in the data separates the residual SD from the
 #' coefficients, so what is reported for sigma is potentially strongly

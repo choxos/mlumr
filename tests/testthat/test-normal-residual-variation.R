@@ -296,10 +296,14 @@ test_that("an offset predictor does not inflate the numerical zero", {
 
 test_that("an outcome spanning both extremes does not overflow the shift", {
   # y - min(y) is Inf here, and a non-finite response aborts the fit in a
-  # low-level error rather than a diagnosis.
-  y <- c(-1e308, -1e308, 1e308, 1e308)
-  x <- c(-0.5, -0.5, 0.5, 0.5)
+  # low-level error rather than a diagnosis. Four distinct profiles, so no
+  # structural rule decides it first and the numeric branch has to take the
+  # shift itself.
+  x <- c(-1.5, -0.5, 0.5, 1.5)
+  y <- 6e307 * x
+  expect_identical(max(y) - min(y), Inf)
   d <- .normal_stub(y, x)
+  expect_error(mlumr:::.check_normal_residual_variation(d), "within rounding")
   expect_error(mlumr:::.check_normal_residual_variation(d), "improper")
 })
 
@@ -378,4 +382,36 @@ test_that("agreeing replicates on as many profiles as the rank are an exact fit"
   expect_error(mlumr:::.check_normal_residual_variation(d),
                "distinct covariate profiles")
   expect_error(mlumr:::.check_normal_residual_variation(d), "improper")
+})
+
+test_that("an identically zero outcome is refused under a log link", {
+  # Zero is the one non-positive value a positive mean can approach, at the
+  # boundary intercept -> -Inf, where the likelihood grows as sigma^(-n) and
+  # only the intercept prior's tails decide whether a posterior exists. The
+  # guard does not see the prior, so it refuses.
+  x <- c(-1, 0, 1, 2)
+  expect_error(mlumr:::.check_normal_residual_variation(.normal_stub(rep(0, 4), x),
+                                                        "log"),
+               "identically zero")
+  # Any other non-positive value leaves a residual no positive mean removes.
+  expect_silent(mlumr:::.check_normal_residual_variation(.normal_stub(c(-1, 0, 1, 2), x),
+                                                         "log"))
+})
+
+test_that("an outcome that varies below the resolution of its log is refused, not crashed", {
+  # Four outcomes near 1e300 differing by units in the last place have
+  # identical logarithms. The log-scale total sum of squares is then zero and
+  # the ratio undefined, which used to reach `if (NA)`. It is the undecidable
+  # regime, and says so.
+  base <- 1e300
+  up <- function(v, k) {
+    for (i in seq_len(k)) v <- v + 2^(floor(log2(v)) - 52)
+    v
+  }
+  y <- c(base, up(base, 1), base, up(base, 2))
+  expect_false(all(y == y[1]))
+  expect_true(all(log(y) == log(y[1])))
+  d <- .normal_stub(y, 0:3)
+  expect_error(mlumr:::.check_normal_residual_variation(d, "log"),
+               "resolution of its logarithm")
 })

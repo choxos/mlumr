@@ -27,5 +27,12 @@ failure to converge costs nothing but the screen.
 the only way to stop it discarding a nearly collinear column is through
 \code{epsilon}. At \code{1e-13} the pivot tolerance is \code{1e-16}, matching the linear
 fit.
+
+The fit is a Gaussian log-link IRLS, whose deviance is a sum of squared
+outcomes, so it cannot run on an outcome spanning more than about 700 log
+units however it is centered: the squares overflow. The caller centers
+\code{log(y)} on its midrange, which keeps both ends finite whenever the span
+fits at all. Beyond that there is no screen, and no verdict depends on
+one.
 }
 \keyword{internal}
