@@ -12,7 +12,7 @@
 \item{link}{The resolved link, \code{"identity"} or \code{"log"}.}
 }
 \value{
-\code{TRUE} invisibly if the data were refused or warned about.
+\code{TRUE} invisibly if the data were warned about.
 }
 \description{
 The normal likelihood carries no information about the residual SD once the
@@ -21,36 +21,55 @@ coefficients leaves a marginal density for sigma proportional to
 \code{sigma^(r - n) * exp(-RSS / (2 * sigma^2))}. When \code{RSS} is zero that is
 \code{sigma^(r - n)} all the way down, whose integral to zero diverges for every
 \code{n > r}, and a proper prior on sigma does not repair it: a prior with
-positive density at zero leaves the divergence exactly where it was. The
-posterior is improper and nothing reports it. The sampler drifts toward zero
-and returns whatever it reached, with ordinary-looking diagnostics.
+positive density at zero leaves the divergence exactly where it was. Proper
+priors on the coefficients do not either; they scale the density by the
+prior at the exact solution and leave its shape in sigma. The posterior is
+improper and nothing reports it. The sampler drifts toward zero and returns
+whatever it reached, with ordinary-looking diagnostics.
 }
 \details{
-The test is the residual sum of squares against the outcome's own total sum
-of squares, so it is invariant to the units of the outcome. Two thresholds:
+The question is whether an exact fit exists, and it is settled in this
+order, stopping at the first that decides:
 \itemize{
-\item At or below the design's own numerical zero, refuse. Only an exactly zero
-residual sum of squares is improper, and where zero stops being tellable
-from small is the rounding the computed residual can carry when the true
-one is zero, which grows with the fitted coefficients.
-\item At or below \code{1e-6}, warn. The residual is small but real, so the posterior
-is proper; it is concentrated so hard against zero that the sampler will
-struggle, and the estimate of sigma is then an artifact of where it
-stopped.
+\item A saturated design (\code{n <= rank}) reproduces any outcome, and its posterior
+is proper: the marginal density for sigma is bounded at zero and falls as
+\code{sigma^(-n)} far out. Nothing in the data separates the residual SD from
+the coefficients there, so what is reported for sigma is potentially
+strongly sensitive to the coefficient priors. That warns.
+\item A constant outcome with \code{n > rank} is reproduced by the intercept alone.
+The exact fit is certain, and so is the impropriety. Refused.
+\item Replicate design rows carrying different outcomes prove the residual
+positive whatever the fit, since identical rows get identical fitted
+values. The posterior is proper.
+\item When every replicate group agrees and there are exactly \code{rank} distinct
+rows, the design reaches every outcome on those rows, so the fit is exact
+and the posterior improper. Refused.
+\item Otherwise the computed residual is compared with the rounding an exact fit
+can leave, \verb{p * eps * |X||b|} elementwise. Above it the residual is
+certainly real and the posterior proper. At or below it nothing at double
+precision tells an exact fit from one this close, and Stan computes the
+same likelihood at the same precision, so the model is refused as
+undecidable rather than passed as proper.
 }
 
-Under \code{link = "log"} the likelihood is \code{normal(exp(theta), sigma)}, so the
-residual that informs sigma is \code{y - exp(theta)} on the RESPONSE scale. Taking
-OLS residuals of \code{log(y)} instead would measure relative error: an outcome
-spanning many orders of magnitude can have an ordinary log-scale residual
-while the response-scale fit reproduces every large observation exactly and
-leaves a residual sum of squares near zero. The fit is therefore taken with
-the same family and link the model uses. A non-positive outcome cannot come
-from a log link at all, so there is nothing to test.
+A proper posterior whose residual is at most \code{1e-6} of the outcome's total
+sum of squares is warned about: the residual SD will concentrate near zero
+and the sampler has to work there. That is a screen on the input, not a
+verdict on the fit; the sampler's own diagnostics say how it went.
 
-A saturated design (\code{n == rank}) is warned about rather than refused. Its
-marginal density for sigma is \code{sigma^0} times the prior, which integrates,
-so the posterior is proper. Nothing in the data informs the residual SD
-there, but that is a prior-driven estimate, not an improper one.
+Under \code{link = "log"} an exact fit \verb{y = exp(X b)} exists exactly when
+\code{log(y)} lies in the column space of \code{X}, so existence is decided by a
+linear fit of \code{log(y)}, which cannot overflow however wide \code{y} is. The
+near-exact screen is then taken on the response scale, where the likelihood
+measures its residual, because an outcome spanning many orders of magnitude
+can have an ordinary residual in \code{log(y)} while the response-scale fit
+reproduces every large observation and leaves almost nothing. A
+non-positive observation cannot be matched by a positive mean, so with one
+present no exact fit exists and the posterior is proper. The observation is
+still a valid one under a log-link normal, which constrains the mean and
+not the data.
+
+The test is the residual sum of squares against the outcome's own total sum
+of squares, so it is invariant to the units of the outcome.
 }
 \keyword{internal}

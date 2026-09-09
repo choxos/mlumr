@@ -3,28 +3,32 @@
 ## Behavior and validation changes to existing functions
 
 * **A normal fit whose covariates reproduce the outcome exactly is now
-  refused.** The residual SD has no likelihood to inform it there: integrating
-  out the coefficients leaves a marginal density proportional to
-  `sigma^(rank - n)` near zero, which does not integrate for any `n` above the
-  rank, and a prior with positive density at zero leaves that divergence where
-  it is. The posterior is improper, nothing reported it, and the sampler
-  drifted toward zero and returned where it stopped with ordinary-looking
-  diagnostics. `mlumr()` now checks the residual sum of squares against the
-  outcome's own total, which makes the test independent of the outcome's units.
-  Only an exactly zero residual is improper, so the refusal fires at the
-  rounding the computed residual can carry when the true one is zero, which
-  grows with the fitted coefficients: an exactly fitting design whose
-  coefficients run to 4e7 leaves a residual a well-conditioned design would
-  only produce from real noise, and no fixed threshold separates the two. From
-  there up to `1e-6` of the total the residual is small but real and the
-  posterior is proper, but it is concentrated hard against zero, so that warns
-  rather than refuses. Under `link = "log"` the residual is taken on the response scale the
-  likelihood uses, since that is the one that informs sigma; an outcome
-  spanning many orders of magnitude can have an ordinary residual in `log(y)`
-  while the response-scale fit reproduces every large observation exactly. A
-  constant outcome is refused on the same grounds, and a saturated design is
-  warned about: its posterior is proper, but the residual SD is then entirely
-  the prior. The check runs in validation, so it costs no compilation.
+  refused.** Integrating out the coefficients leaves a marginal density for
+  the residual SD proportional to `sigma^(rank - n)` near zero, which does not
+  integrate for any `n` above the rank; a prior with positive density at zero
+  leaves that divergence where it is, and proper coefficient priors only scale
+  it. The posterior is improper, nothing reported it, and the sampler drifted
+  toward zero and returned where it stopped with ordinary-looking diagnostics.
+  `mlumr()` now decides before sampling whether an exact fit exists. Where the
+  data settle it structurally they are believed: a constant outcome, or one
+  with only as many distinct covariate profiles as the design has rank and
+  agreeing replicates, is fitted exactly and refused; replicate profiles with
+  different outcomes prove the residual positive, whatever a fit reports.
+  Otherwise the residual sum of squares is compared with the rounding an exact
+  fit can leave, `p * eps * |X||b|` elementwise, which grows with the fitted
+  coefficients. That bound is used only as a bound: a residual above it is
+  real, and a residual at or below it is refused as undecidable at double
+  precision, not declared improper. A proper posterior whose residual is at
+  most `1e-6` of the outcome's total is warned about, since the residual SD
+  will concentrate near zero and the sampler has to work there; the sampler's
+  own diagnostics say how it went. Under `link = "log"` existence is decided
+  on `log(y)`, a linear question that cannot overflow however wide the outcome
+  is, and the near-exact screen is taken on the response scale the likelihood
+  uses. A saturated design is warned about rather than refused: its posterior
+  is proper, but nothing in the data separates the residual SD from the
+  coefficients, so the estimate of sigma is potentially strongly sensitive to
+  the coefficient priors. The check runs in validation, so it costs no
+  compilation.
 
 * **A convergence diagnostic that cannot be computed is no longer reported as
   a good one.** An Rhat of `Inf` is a parameter whose chains did not mix at

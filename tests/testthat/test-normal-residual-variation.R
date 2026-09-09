@@ -33,15 +33,25 @@ test_that("the verdict does not depend on the units of the outcome", {
 test_that("a constant outcome and a saturated design are named for what they are", {
   flat <- .normal_stub(rep(2, 5), c(1, 2, 3, 4, 5))
   expect_error(mlumr:::.check_normal_residual_variation(flat), "constant")
-  # Two rows, intercept plus one covariate: rank equals n.
-  # Two rows, intercept plus one covariate: rank equals n. That leaves the
-  # residual SD to the prior, but the marginal density is sigma^0 times a prior
-  # that integrates, so the posterior is proper and this warns, not refuses.
+  expect_error(mlumr:::.check_normal_residual_variation(flat), "improper")
+  # Two rows, intercept plus one covariate: rank equals n. The posterior is
+  # proper, but the data do not separate the residual SD from the
+  # coefficients, so it is warned about as prior-sensitive. It is not "the
+  # prior": with proper coefficient priors the marginal likelihood in sigma is
+  # bounded at zero and falls as sigma^(-n), which is not flat.
   saturated <- .normal_stub(c(1, 3), c(0, 1))
   expect_warning(mlumr:::.check_normal_residual_variation(saturated),
                  "no residual degrees of freedom")
   expect_warning(mlumr:::.check_normal_residual_variation(saturated),
-                 "still")
+                 "sensitive to the coefficient priors")
+  expect_error(mlumr:::.check_normal_residual_variation(saturated), NA)
+  # A saturated CONSTANT outcome is still saturated, so it is the proper,
+  # prior-sensitive case and not the improper constant one. The rank check has
+  # to come first for that to hold.
+  flat_saturated <- .normal_stub(c(2, 2), c(0, 1))
+  expect_warning(mlumr:::.check_normal_residual_variation(flat_saturated),
+                 "no residual degrees of freedom")
+  expect_error(mlumr:::.check_normal_residual_variation(flat_saturated), NA)
 })
 
 test_that("a nearly exact fit warns instead of refusing", {
@@ -54,7 +64,7 @@ test_that("a nearly exact fit warns instead of refusing", {
   expect_gt(ratio, 60 * .Machine$double.eps^2)
   expect_lt(ratio, 1e-6)
   expect_warning(mlumr:::.check_normal_residual_variation(.normal_stub(y, x)),
-                 "concentrated hard against zero")
+                 "concentrate near zero")
 })
 
 test_that("ordinary data passes silently", {
@@ -66,20 +76,38 @@ test_that("ordinary data passes silently", {
 
 test_that("mlumr() refuses before it reaches the engine", {
   # No Stan model is compiled and no engine is chosen: the refusal happens in
-  # validation, which is what makes it cheap and unambiguous.
-  ipd <- set_ipd(data.frame(trt = "A", y = c(0, 0, 1, 1),
-                            x = c(-0.5, -0.5, 0.5, 0.5)),
-                 "trt", "y", "x", family = "normal")
-  agd <- set_agd(data.frame(trt = "B", n_total = 100, y_mean = 0.4,
-                            y_se = 0.1, x_mean = 0.1, x_sd = 0.5),
-                 "trt", family = "normal", outcome_n = "n_total",
-                 outcome_mean = "y_mean", outcome_se = "y_se",
-                 cov_means = "x_mean", cov_sds = "x_sd")
-  dat <- suppressWarnings(
-    add_integration(combine_data(ipd, agd), n_int = 32,
-                    x = distr(qnorm, mean = x_mean, sd = x_sd))
+  # validation, which is what makes it cheap and unambiguous. The backend is
+  # replaced by a spy that fails loudly, so a refusal that came AFTER dispatch
+  # would show as the spy's error rather than the guard's.
+  local_mocked_bindings(
+    .mlumr_fit_backend = function(...) stop("engine reached"),
+    .package = "mlumr"
   )
-  expect_error(suppressWarnings(mlumr(dat, family = "normal")), "improper")
+  make_data <- function(y, link = "identity") {
+    ipd <- set_ipd(data.frame(trt = "A", y = y, x = c(-0.5, -0.5, 0.5, 0.5)),
+                   "trt", "y", "x", family = "normal")
+    agd <- set_agd(data.frame(trt = "B", n_total = 100, y_mean = 0.4,
+                              y_se = 0.1, x_mean = 0.1, x_sd = 0.5),
+                   "trt", family = "normal", outcome_n = "n_total",
+                   outcome_mean = "y_mean", outcome_se = "y_se",
+                   cov_means = "x_mean", cov_sds = "x_sd")
+    suppressWarnings(
+      add_integration(combine_data(ipd, agd), n_int = 32,
+                      x = distr(qnorm, mean = x_mean, sd = x_sd))
+    )
+  }
+  expect_error(suppressWarnings(mlumr(make_data(c(0, 0, 1, 1)),
+                                      family = "normal")),
+               "improper")
+  # The log-link case whose response-scale fit overflows: the verdict comes
+  # from log(y) and still stops the dispatch.
+  expect_error(suppressWarnings(mlumr(make_data(exp(400 * c(-1, -1, 1, 1))),
+                                      family = "normal", link = "log")),
+               "improper")
+  # And ordinary data reaches the spy, which is what proves the spy is live.
+  set.seed(2026)
+  expect_error(suppressWarnings(mlumr(make_data(rnorm(4)), family = "normal")),
+               "engine reached")
 })
 
 test_that("a log link is tested where an exact log-link fit would show", {
@@ -94,10 +122,11 @@ test_that("a log link is tested where an exact log-link fit would show", {
   expect_silent(mlumr:::.check_normal_residual_variation(d, "identity"))
   expect_error(mlumr:::.check_normal_residual_variation(d, "log"), "improper")
 
-  # A non-positive outcome cannot come from a log link at all.
-  expect_silent(
-    mlumr:::.check_normal_residual_variation(.normal_stub(c(-1, 0, 1, 2), x),
-                                             "log"))
+  # A non-positive observation cannot be matched by a positive mean, so no
+  # exact fit exists and the posterior is proper. The observation itself is
+  # valid under a log-link normal, which constrains the mean and not the data.
+  nonpositive <- .normal_stub(c(-1, 0, 1, 2), x)
+  expect_silent(mlumr:::.check_normal_residual_variation(nonpositive, "log"))
 })
 
 test_that("the log link is measured on the scale its likelihood uses", {
@@ -118,7 +147,7 @@ test_that("the log link is measured on the scale its likelihood uses", {
   # rounding: it is 8.95e-27 where the same design fitted to points exactly on
   # the curve leaves 3.06e-29. The posterior is proper and this warns.
   expect_warning(mlumr:::.check_normal_residual_variation(d, "log"),
-                 "concentrated hard against zero")
+                 "concentrate near zero")
 
   # Its companion, and the pair is what pins the log branch: identical design,
   # every point on the curve, so the fit is exact and the posterior is not.
@@ -186,7 +215,7 @@ test_that("a small but real residual is proper, and warns rather than errors", {
 
   d <- .normal_stub(y, x)
   expect_warning(mlumr:::.check_normal_residual_variation(d),
-                 "concentrated hard against zero")
+                 "concentrate near zero")
   expect_error(mlumr:::.check_normal_residual_variation(d), NA)
 })
 
@@ -201,7 +230,7 @@ test_that("the verdict does not depend on the units of a predictor", {
   for (unit in c(1, 1e12)) {
     d <- .normal_stub(y, x * unit)
     expect_warning(mlumr:::.check_normal_residual_variation(d),
-                   "concentrated hard against zero")
+                   "concentrate near zero")
     expect_error(mlumr:::.check_normal_residual_variation(d), NA)
   }
 })
@@ -260,7 +289,7 @@ test_that("an offset predictor does not inflate the numerical zero", {
   for (shift in c(0, 1e12)) {
     d <- .normal_stub(y, x + shift)
     expect_warning(mlumr:::.check_normal_residual_variation(d),
-                   "concentrated hard against zero")
+                   "concentrate near zero")
     expect_error(mlumr:::.check_normal_residual_variation(d), NA)
   }
 })
@@ -274,29 +303,79 @@ test_that("an outcome spanning both extremes does not overflow the shift", {
   expect_error(mlumr:::.check_normal_residual_variation(d), "improper")
 })
 
-test_that("a wide log-link outcome is normalized without manufacturing zeros", {
-  # Dividing by the maximum underflowed the small end to exactly zero, and zero
-  # is not a value a log link can start from. Centering log(y) keeps every
-  # value positive, which is what the fit needs to run at all.
+test_that("a wide log-link outcome is decided on log(y), where nothing overflows", {
+  # Past about 700 log units of span the response-scale fit overflows
+  # internally whatever the normalization, and there used to be no verdict at
+  # all: the check warned that it could not run and the model went on to
+  # sample an improper posterior. Whether y = exp(X b) has an exact solution
+  # is whether log(y) lies in the column space of X, a linear question that
+  # cannot overflow, and here it does: two profiles, two coefficients.
   x <- c(-1, -1, 1, 1)
-  y <- exp(150 * x)
-  expect_equal(min(y) / max(y), 0)
-
-  log_y <- log(y)
-  centered <- exp(log_y - mean(log_y))
-  expect_true(all(centered > 0))
-
+  y <- exp(400 * x)
+  expect_identical(min(y) / max(y), 0)
   d <- .normal_stub(y, x)
   expect_error(mlumr:::.check_normal_residual_variation(d, "log"), "improper")
+  expect_warning(
+    tryCatch(mlumr:::.check_normal_residual_variation(d, "log"),
+             error = function(e) NULL),
+    NA
+  )
 })
 
-test_that("a check that cannot run says so instead of passing quietly", {
-  # Past about 700 log units of span the fit overflows internally whatever the
-  # normalization, so there is no verdict to give. Returning quietly would let
-  # an exactly fitting design reach the sampler unremarked, which is the case
-  # this whole check exists to catch, so it reports that it could not decide.
-  x <- c(-1, -1, 1, 1)
-  d <- .normal_stub(exp(400 * x), x)
-  expect_warning(mlumr:::.check_normal_residual_variation(d, "log"),
-                 "could not be checked")
+test_that("replicate profiles with different outcomes prove the residual real", {
+  # Two rows with identical covariates get identical fitted values under any
+  # fit, so their outcomes differing leaves a residual no fit can remove. That
+  # is a proof, and it decides the case where the rounding bound cannot: the
+  # design is so ill conditioned that its coefficients run to 2^40, the bound
+  # on an exact fit's rounding is about 1e-5 of the total, and the true
+  # residual of 9e-13 sits far below it. Reading the bound as a converse would
+  # refuse a proper posterior.
+  csmall <- 2^-40
+  enoise <- 2^-20
+  x1 <- rep(c(-3, -1, 1, 3), each = 2)
+  z <- rep(c(-1, 1, -1, 1), each = 2)
+  x2 <- x1 + csmall * z
+  y <- 2 + z + rep(c(-enoise, enoise), 4)
+  # The residual no fit can remove: each pair's outcomes straddle their mean
+  # by enoise, which is about 9e-13 of the total sum of squares.
+  within <- sum((y - ave(y, x1, z))^2) / sum((y - mean(y))^2)
+  expect_gt(within, 0)
+  expect_lt(within, 1e-6)
+  d <- list(ipd = list(data = data.frame(.outcome = y, x1 = x1, x2 = x2)),
+            covariates = c("x1", "x2"))
+  expect_warning(mlumr:::.check_normal_residual_variation(d),
+                 "concentrate near zero")
+  expect_error(mlumr:::.check_normal_residual_variation(d), NA)
+  # The same holds under a log link, where the replicate rows disagree just
+  # the same.
+  dl <- list(ipd = list(data = data.frame(.outcome = exp(y), x1 = x1,
+                                          x2 = x2)),
+             covariates = c("x1", "x2"))
+  expect_error(mlumr:::.check_normal_residual_variation(dl, "log"), NA)
+})
+
+test_that("a residual below the rounding bound is refused as undecidable, not as proven", {
+  # No replicate rows here, so nothing structural decides it, and the
+  # computed residual sits inside what rounding alone can leave. The message
+  # says the fit cannot be told from an exact one rather than that it is one.
+  set.seed(2026)
+  n <- 60
+  x1 <- rnorm(n)
+  z <- rnorm(n)
+  x2 <- x1 + 1e-8 * z
+  y <- x2 - x1
+  d <- list(ipd = list(data = data.frame(.outcome = y, x1 = x1, x2 = x2)),
+            covariates = c("x1", "x2"))
+  expect_error(mlumr:::.check_normal_residual_variation(d), "within rounding")
+  expect_error(mlumr:::.check_normal_residual_variation(d), "undecidable|refused")
+})
+
+test_that("agreeing replicates on as many profiles as the rank are an exact fit", {
+  # Two distinct profiles, intercept plus slope: the design reaches any pair
+  # of values, and each profile's replicates agree, so the fit is exact by
+  # construction and the refusal can say so.
+  d <- .normal_stub(c(0.3, 0.3, 0.7, 0.7), c(-0.5, -0.5, 0.5, 0.5))
+  expect_error(mlumr:::.check_normal_residual_variation(d),
+               "distinct covariate profiles")
+  expect_error(mlumr:::.check_normal_residual_variation(d), "improper")
 })

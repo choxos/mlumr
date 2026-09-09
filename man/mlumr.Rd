@@ -407,18 +407,26 @@ patients and understate uncertainty; supply jointly-defined subgroups.)
 
 A normal fit whose IPD covariates reproduce the outcome exactly has an
 improper posterior for the residual SD, so \code{mlumr()} refuses it before any
-sampling. Only an exactly zero residual sum of squares is improper, so the
-refusal fires at the rounding the computed residual can carry when the true
-one is zero. That bound grows with the fitted coefficients, because an
-exactly fitting design whose coefficients run large leaves a far bigger
-residual than one whose coefficients are small. From there up to \code{1e-6} of
-the outcome's total sum of squares the residual is small but real, so the
-posterior is proper; it is concentrated hard against zero, which warns. Under
-\code{link = "log"} the residual is taken on the response scale the likelihood
-uses, not on \code{log(y)}. A constant outcome is refused on the same grounds. A
-saturated design, with as many free columns as rows, is warned about rather
-than refused: its posterior is proper, but nothing in the data informs the
-residual SD, so what is reported for sigma is the prior.
+sampling. Whether an exact fit exists is settled structurally where it can
+be: a constant outcome, or one where every replicate of a covariate profile
+agrees and there are only as many distinct profiles as the design has rank,
+is fitted exactly and refused; replicate profiles carrying different
+outcomes prove the residual positive and the posterior proper. Otherwise
+the residual sum of squares is compared with the rounding an exact fit can
+leave, which grows with the fitted coefficients. Above it the residual is
+real and the posterior proper; at or below it nothing at double precision
+tells an exact fit from one this close, and the model is refused as
+undecidable rather than passed. A proper posterior whose residual is at
+most \code{1e-6} of the outcome's total sum of squares is warned about, since
+the residual SD will concentrate near zero and the sampler has to work
+there; that is a screen on the input, and the sampler's own diagnostics say
+how the fit went. Under \code{link = "log"} existence of an exact fit is decided
+on \code{log(y)}, where it is a linear question, and the near-exact screen on
+the response scale the likelihood uses. A saturated design, with as many
+free columns as rows, is warned about rather than refused: its posterior is
+proper, but nothing in the data separates the residual SD from the
+coefficients, so what is reported for sigma is potentially strongly
+sensitive to the coefficient priors.
 }
 
 \examples{

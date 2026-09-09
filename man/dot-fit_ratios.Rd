@@ -20,13 +20,21 @@
 \item{mu}{Fitted values for a nonlinear link, or \code{NULL}.}
 }
 \value{
-List with \code{ratio}, \code{zero_ratio} and \code{rank}.
+List with \code{ratio} (residual sum of squares over the total sum of
+squares), \code{zero_ratio} (the rounding bound on the same scale) and \code{rank}.
 }
 \description{
 Everything is divided by one common magnitude before being squared, so the
-ratios are unchanged while the sums stay in range. A log-link outcome
-spanning hundreds of log units has squares that overflow individually but a
-ratio that is perfectly ordinary; the small end underflows to zero there,
-which is right, since it contributes nothing beside the large end.
+ratios are unchanged while the sums stay in range.
+}
+\details{
+\code{zero_ratio} is what the computed residual can be when the true one is zero.
+For \verb{r = y - fl(X b)} the elementwise rounding is bounded by
+\verb{p * eps * (|X| |b|)}, which is small when the fitted coefficients are small
+and large when they are not. That is an UPPER bound on rounding, and it is
+used only in that direction: a residual above it is certainly real, while a
+residual at or below it is undecided, not proven zero. Coefficients dropped
+as redundant are \code{NA} and contribute nothing, so a constant covariate needs
+no special handling.
 }
 \keyword{internal}
