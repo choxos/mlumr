@@ -430,122 +430,167 @@ real log_surv_increment(int dist, real t_upper, real t_lower, real eta,
          - log_surv_scalar(dist, t_lower, eta, aux, aux2);
 }
 
-// Log P(t_lower < T <= t_upper) for an interval too narrow for either the CDF
-// difference or the survival increment to resolve. Both of those subtract one
-// double from another, so both collapse to zero once the interval's mass falls
-// below one ULP of the quantity being differenced, and the log of that zero is
-// -inf where the true value is an ordinary negative number. A first-order
-// expansion has no such floor, and it is accurate here to far beyond double
-// precision: the route is reached only for an interval whose mass is under
-// about 2e-16 of the differenced quantity, and across an interval that narrow
-// the density is constant to roughly thirty digits.
-real log_narrow_interval_prob(int dist, real t_upper, real t_lower, real eta,
-                              real aux, real aux2) {
+// Log P(t_lower < T <= t_upper) by quadrature of the density, for an interval
+// that neither the CDF difference nor the survival increment resolves. Both
+// of those subtract one double from another, and once the interval's mass is
+// a small fraction of the quantity being differenced the difference is mostly
+// rounding: a 4-ULP interval came back 16% low from one and 29% high from the
+// other. Integrating the density has no such floor, but a midpoint value times
+// the width is not enough either, since the interval need not be narrow: a
+// log-logistic with shape 1e-20 puts 1e-20 of its mass on (1, 100], where the
+// density falls a hundredfold, and the midpoint rule was 57% low there.
+//
+// So this is composite Simpson in s = log(t), on the integrand f(e^s) e^s
+// accumulated with log_sum_exp. The log substitution makes any density that
+// behaves as 1/t constant, which is the wide-interval case above, and leaves
+// every family here smooth. The panel count doubles until two successive
+// estimates agree to 1e-10 in relative terms; a genuinely narrow interval has
+// a constant integrand and passes at the first comparison.
+real log_interval_prob_quad(int dist, real t_upper, real t_lower, real eta,
+                            real aux, real aux2) {
+  real s_l = log(t_lower);
+  real width = log1p((t_upper - t_lower) / t_lower);
+  real f_l = log_density_scalar(dist, t_lower, eta, aux, aux2) + s_l;
+  real f_u = log_density_scalar(dist, t_upper, eta, aux, aux2) + s_l + width;
+  int n = 8;
+  real prev = not_a_number();
+  real cur = negative_infinity();
   if (t_upper <= t_lower) return negative_infinity();
-  return log_density_scalar(dist, 0.5 * (t_lower + t_upper), eta, aux, aux2)
-         + log(t_upper - t_lower);
+  for (level in 1:9) {
+    real h = width / n;
+    vector[n + 1] terms;
+    terms[1] = f_l;
+    terms[n + 1] = f_u;
+    for (i in 1:(n - 1)) {
+      real s = s_l + i * h;
+      real w = (i % 2 == 1) ? log(4.0) : log(2.0);
+      terms[i + 1] = log_density_scalar(dist, exp(s), eta, aux, aux2) + s + w;
+    }
+    cur = log_sum_exp(terms) + log(h) - log(3.0);
+    if (!is_nan(prev) && abs(cur - prev) < 1e-10) return cur;
+    prev = cur;
+    n = 2 * n;
+  }
+  return cur;
 }
 
-// log(1 - S(upper)/S(lower)): the interval's probability conditional on
-// reaching its start. For the five closed-form families the increment is
-// exp(-dH), and composing log1m_exp() with that exponentiation discards every
-// digit of a small dH, since exp(-1e-20) is exactly 1 and log1m_exp(0) is
-// -inf. Reading the same quantity off the log cumulative-hazard difference is
-// the identical value and keeps them.
-real log1m_exp_surv_increment(int dist, real t_upper, real t_lower, real eta,
-                              real aux, real aux2) {
-  if (dist <= 5)
-    return log1m_exp_neg_exp(log_cumhaz_diff(dist, t_upper, t_lower, eta,
-                                             aux));
-  return log1m_exp(log_surv_increment(dist, t_upper, t_lower, eta, aux, aux2));
+// log(F(u) - F(l)) for the log-logistic, in a closed form with no subtraction
+// of nearby numbers. With z = a (log t - eta), F = 1 / (1 + e^{-z}), and
+//   F(u) - F(l) = e^{z_l} (e^d - 1) / ((1 + e^{z_l}) (1 + e^{z_l + d}))
+// for d = a log(u / l). Every factor is a log1p_exp or an expm1, so this is
+// exact to rounding whether the interval is a ULP wide or a hundredfold, and
+// whatever the shape.
+real log_loglogistic_interval(real t_upper, real t_lower, real eta, real aux) {
+  real z_l = aux * (log(t_lower) - eta);
+  real d = aux * log1p((t_upper - t_lower) / t_lower);
+  return z_l + log_expm1_from_log_x(log(d)) - log1p_exp(z_l)
+         - log1p_exp(z_l + d);
 }
 
-// Three routes, tried in the order of the region each one owns: the CDF
-// difference for the lower tail, the survival increment for the right tail,
-// and the narrow-interval expansion for what neither can resolve.
+// Whether a CDF difference resolves the interval. The two log CDFs each carry
+// about eps of relative error in the log, so their difference has an absolute
+// error near eps * |log F(u)|, and it is trustworthy only when the interval's
+// mass is a good many multiples of that as a fraction of F(u). Below
+// 1e-5 * max(1, |log F(u)|) the relative error can exceed 1e-11, and the
+// quadrature is the better route.
+int cdf_diff_resolves(real log_cdf_upper, real log_cdf_lower) {
+  if (log_cdf_upper <= log_cdf_lower) return 0;
+  return -expm1(log_cdf_lower - log_cdf_upper)
+         > 1e-5 * fmax(1, -log_cdf_upper);
+}
+
+// The same test for the survival increment log S(u) - log S(l), whose error
+// is near eps * |log S(l)|.
+int surv_increment_resolves(real increment, real log_surv_lower) {
+  if (increment >= 0 || is_inf(increment)) return 0;
+  return -expm1(increment) > 1e-5 * fmax(1, -log_surv_lower);
+}
+
+// Log P(t_lower < T <= t_upper). The route is chosen by what resolves the
+// interval, not by which one returns a finite number:
+//
+// * The five exponential/Weibull/Gompertz families have a closed-form
+//   cumulative hazard whose difference is computed analytically, so
+//   log S(l) + log(1 - exp(-dH)) is exact to rounding in every regime and no
+//   other route is ever needed.
+// * The log-logistic has the closed form above.
+// * The log-normal, gamma and generalized gamma take the CDF difference in the
+//   lower half and the survival increment in the upper half, each only when
+//   the resolution test says its rounding is well below the mass, and fall
+//   back to quadrature of the density otherwise.
 real log_interval_prob_scalar(int dist, real t_upper, real t_lower, real eta,
                               real aux, real aux2) {
-  real log_cdf_upper = log_cdf_scalar(dist, t_upper, eta, aux, aux2);
-  if (log_cdf_upper < -0.6931471805599453) {
-    real log_cdf_lower = log_cdf_scalar(dist, t_lower, eta, aux, aux2);
-    if (log_cdf_upper > log_cdf_lower) {
-      real lp = log_diff_exp(log_cdf_upper, log_cdf_lower);
-      if (!is_inf(lp) && !is_nan(lp)) return lp;
+  if (t_upper <= t_lower) return negative_infinity();
+  if (t_lower == 0) return log_cdf_scalar(dist, t_upper, eta, aux, aux2);
+  if (dist <= 5)
+    return log_surv_scalar(dist, t_lower, eta, aux, aux2)
+           + log1m_exp_neg_exp(log_cumhaz_diff(dist, t_upper, t_lower, eta,
+                                               aux));
+  if (dist == 7) return log_loglogistic_interval(t_upper, t_lower, eta, aux);
+  {
+    real log_cdf_upper = log_cdf_scalar(dist, t_upper, eta, aux, aux2);
+    if (log_cdf_upper < -0.6931471805599453) {
+      real log_cdf_lower = log_cdf_scalar(dist, t_lower, eta, aux, aux2);
+      if (cdf_diff_resolves(log_cdf_upper, log_cdf_lower))
+        return log_diff_exp(log_cdf_upper, log_cdf_lower);
+    } else {
+      real log_surv_lower = log_surv_scalar(dist, t_lower, eta, aux, aux2);
+      real inc = log_surv_increment(dist, t_upper, t_lower, eta, aux, aux2);
+      if (surv_increment_resolves(inc, log_surv_lower))
+        return log_surv_lower + log1m_exp(inc);
     }
   }
-  {
-    real lp = log_surv_scalar(dist, t_lower, eta, aux, aux2)
-              + log1m_exp_surv_increment(dist, t_upper, t_lower, eta, aux,
-                                         aux2);
-    if (!is_inf(lp) && !is_nan(lp)) return lp;
-  }
-  return log_narrow_interval_prob(dist, t_upper, t_lower, eta, aux, aux2);
+  return log_interval_prob_quad(dist, t_upper, t_lower, eta, aux, aux2);
 }
 
-// Log P(t_lower < T <= t_upper | T > t_entry), for delayed entry.
+// Log P(t_lower < T <= t_upper | T > t_entry), for delayed entry. Left
+// censoring passes t_lower == t_entry.
 //
-// Two ways to write the same quantity, each stable where the other is not, so
-// this switches on the same half-probability test `log_interval_prob_scalar()`
-// uses just above.
-//
-// Deep in the LOWER tail, survival rounds to one. Gamma with shape 10 and
-// scale 1 puts S at exactly 1.0 in double precision at t = 0.025, 0.05 and
-// 0.1 alike, so any expression built from survival DIFFERENCES gets zero, and
-// its log is -inf; the conditional log probability is in fact -38.22216. The
-// CDF is still representable there, so take the CDF difference and divide by
-// S(entry). That division is safe in this regime: F(upper) < 1/2 forces
+// The same routing as log_interval_prob_scalar(), conditioned on entry. For
+// the closed-form families both factors, log S(l)/S(entry) = -dH(entry, l)
+// and log(1 - S(u)/S(l)) = log(1 - exp(-dH(l, u))), come from analytic
+// cumulative-hazard differences and are exact to rounding. For the others the
+// CDF difference over S(entry) is the lower-tail form: F(u) < 1/2 forces
 // S(entry) > 1/2, so log S(entry) is a small negative number and cannot
-// reintroduce the huge right-tail terms the conditional form exists to avoid.
-//
-// In the right tail the CDF rounds to one instead, and the increments are the
-// accurate ones, so keep the conditional-ratio form there.
+// reintroduce the huge right-tail terms the increment form exists to avoid.
+// Gamma with shape 10 puts S at exactly 1.0 in double precision at t = 0.025,
+// 0.05 and 0.1 alike, so every survival increment there is zero and only the
+// CDF route has the value, which is -38.22216 for the interval (0.05, 0.1]
+// with entry at 0.025. When neither difference resolves the interval, the
+// quadrature does, and S(entry) is divided out afterward.
 real log_cond_interval_prob(int dist, real t_upper, real t_lower, real t_entry,
                             real eta, real aux, real aux2) {
-  real log_cdf_upper = log_cdf_scalar(dist, t_upper, eta, aux, aux2);
-  if (log_cdf_upper < -0.6931471805599453) {
-    real log_cdf_lower = log_cdf_scalar(dist, t_lower, eta, aux, aux2);
-    // The CDF has its own failure, and it is the mirror of the one above: an
-    // interval narrow enough that both bounds round to the SAME double has a
-    // difference of zero although its probability is positive. With an
-    // exponential rate of 1, entry at 0.05 and the interval from 0.1 to the
-    // next double after it, both log CDFs are -2.3521684610440907 and the
-    // difference is -inf, where the value is about -38.87. The increments
-    // compute a RATIO and still resolve that, so those cases go back to them.
-    //
-    // The test is whether the two CDFs actually differ, not whether they
-    // differ by more than some margin. A margin rejects intervals the CDF can
-    // still resolve and hands them to increments that cannot: at shape 10 with
-    // entry 0.025 and the interval (0.05, 0.050000000000003555] the log CDFs
-    // are 7.2e-13 apart and give -73.07, while every survival probability
-    // there rounds to 1, so the increment route returns -inf. Take the CDF
-    // difference whenever it produces a usable number.
-    if (log_cdf_upper > log_cdf_lower) {
-      real cond = log_diff_exp(log_cdf_upper, log_cdf_lower)
-                  - log_surv_scalar(dist, t_entry, eta, aux, aux2);
-      if (!is_inf(cond) && !is_nan(cond)) {
-        return cond;
-      }
+  if (t_upper <= t_lower) return negative_infinity();
+  if (dist <= 5) {
+    real log_reach = t_lower == t_entry
+                       ? 0
+                       : -exp(log_cumhaz_diff(dist, t_lower, t_entry, eta,
+                                              aux));
+    return log_reach
+           + log1m_exp_neg_exp(log_cumhaz_diff(dist, t_upper, t_lower, eta,
+                                               aux));
+  }
+  if (dist == 7)
+    return log_loglogistic_interval(t_upper, t_lower, eta, aux)
+           + log1p_exp(aux * (log(t_entry) - eta));
+  {
+    real log_cdf_upper = log_cdf_scalar(dist, t_upper, eta, aux, aux2);
+    if (log_cdf_upper < -0.6931471805599453) {
+      real log_cdf_lower = log_cdf_scalar(dist, t_lower, eta, aux, aux2);
+      if (cdf_diff_resolves(log_cdf_upper, log_cdf_lower))
+        return log_diff_exp(log_cdf_upper, log_cdf_lower)
+               - log_surv_scalar(dist, t_entry, eta, aux, aux2);
+    } else {
+      real log_surv_lower = log_surv_scalar(dist, t_lower, eta, aux, aux2);
+      real inc = log_surv_increment(dist, t_upper, t_lower, eta, aux, aux2);
+      if (surv_increment_resolves(inc, log_surv_lower))
+        return (t_lower == t_entry
+                  ? 0
+                  : log_surv_increment(dist, t_lower, t_entry, eta, aux, aux2))
+               + log1m_exp(inc);
     }
   }
-  // Left-censoring passes t_lower == t_entry, where the first factor is
-  // log S(entry)/S(entry) = 0. Skip it rather than ask `log_surv_increment()`
-  // for a degenerate zero-width increment.
-  {
-    real lp = (t_lower == t_entry
-                 ? 0
-                 : log_surv_increment(dist, t_lower, t_entry, eta, aux, aux2))
-              + log1m_exp_surv_increment(dist, t_upper, t_lower, eta, aux,
-                                         aux2);
-    if (!is_inf(lp) && !is_nan(lp)) return lp;
-  }
-  // Neither route resolved the interval. That is not a wide-interval regime,
-  // so the density expansion is both available and accurate: Gamma with shape
-  // 10, entry 0.05 and the interval from 0.1 to one ULP above it coalesces the
-  // two log CDFs (the log compresses a distinction the linear CDFs still hold),
-  // declines the route above, and then finds every survival probability in the
-  // region rounding to exactly 1, so the increments give log1m_exp(0) = -inf
-  // for a conditional log probability whose value is -72.44.
-  return log_narrow_interval_prob(dist, t_upper, t_lower, eta, aux, aux2)
+  return log_interval_prob_quad(dist, t_upper, t_lower, eta, aux, aux2)
          - log_surv_scalar(dist, t_entry, eta, aux, aux2);
 }
 

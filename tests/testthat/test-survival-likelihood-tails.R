@@ -102,12 +102,11 @@ test_that("a tiny but real CDF gap is not thrown away with the equal ones", {
   skip_if_not_installed("rstan")
   env <- expose_survival_likelihood()
 
-  # Falling back to increments whenever the CDFs are CLOSE, rather than only
-  # when they are equal, rejects intervals the CDF can still resolve and hands
-  # them to increments that cannot. At shape 10 with entry 0.025, the interval
-  # (0.05, 0.050000000000003555] has log CDFs 7.2e-13 apart, so a margin of
-  # 1e-12 sent it to the increments, where every survival probability rounds to
-  # 1 and the answer is -Inf.
+  # At shape 10 with entry 0.025, the interval (0.05, 0.050000000000003555]
+  # has log CDFs 7.2e-13 apart. Every survival probability there rounds to 1,
+  # so the increments give -Inf, and a CDF difference this close to its own
+  # rounding is mostly rounding: the resolution test declines it, and the
+  # quadrature of the density has the value.
   shape <- 10
   lower <- 0.05
   upper <- 0.050000000000003555
@@ -130,6 +129,11 @@ test_that("a tiny but real CDF gap is not thrown away with the equal ones", {
   ref <- .log_diff(log_cdf(upper), log_cdf(lower)) -
     pgamma(0.025, shape, lower.tail = FALSE, log.p = TRUE)
   expect_lt(abs(got - ref), 0.05)
+  # The density is constant to thirty digits across 3.6e-15, so f(t) * width
+  # is the tight reference, and the quadrature meets it.
+  dens_ref <- dgamma(0.5 * (lower + upper), shape, log = TRUE) +
+    log(upper - lower) - pgamma(0.025, shape, lower.tail = FALSE, log.p = TRUE)
+  expect_lt(abs(got - dens_ref), 1e-9)
 })
 
 test_that("an interval too narrow for both differences keeps its probability", {
@@ -206,4 +210,127 @@ test_that("the right tail keeps the accuracy the conditional form gave it", {
     .log_diff(-60, -70) - (-50),
     tolerance = 1e-12
   )
+})
+
+test_that("the log-logistic interval is exact whatever its width or shape", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  env <- expose_survival_likelihood()
+
+  # Shape 1e-20 spreads the distribution so thin that (1, 100] holds 1e-20 of
+  # its mass, below one ULP of F(1) = 1/2, so neither difference resolves it,
+  # and across it the density falls a hundredfold, so a midpoint value times
+  # the width does not either: that gave -46.76 for -45.91. The closed form
+  # has no such regime. First order in the shape, F(t) = 1/2 + a log(t) / 4,
+  # so the mass is a log(100) / 4 to twenty digits.
+  a <- 1e-20
+  ref <- log(a * log(100) / 4)
+  expect_lt(abs(env$surv_ll_status(7L, 100, 1, 0, 3L, 0, a, 0) - ref), 1e-10)
+  # With entry at 1 the mass is divided by S(1) = 1/2.
+  expect_lt(abs(env$surv_ll_status(7L, 100, 1, 1, 3L, 0, a, 0) -
+                  (ref + log(2))), 1e-10)
+
+  # An ordinary interval agrees with the CDF difference where that is exact.
+  z <- function(t) 1.5 * (log(t) - 0.2)
+  ref <- log(plogis(z(2)) - plogis(z(0.5)))
+  expect_lt(abs(env$surv_ll_status(7L, 2, 0.5, 0, 3L, 0.2, 1.5, 0) - ref),
+            1e-12)
+  expect_lt(abs(env$surv_ll_status(7L, 2, 0.5, 0.3, 3L, 0.2, 1.5, 0) -
+                  (ref - plogis(z(0.3), lower.tail = FALSE, log.p = TRUE))),
+            1e-12)
+})
+
+test_that("a few-ULP interval is resolved to rounding on every route", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  skip_if_not_installed("flexsurv")
+  env <- expose_survival_likelihood()
+
+  # A CDF difference that is finite is not thereby accurate. Two CDFs each
+  # carry half an ULP of rounding, so a difference a few ULPs wide is mostly
+  # rounding: four ULPs from 0.1 with entry at 0.05 came back 16% low for the
+  # exponential and 29% high for the gamma. The route is now chosen by
+  # whether its rounding is well below the mass, and the five closed-form
+  # families never difference at all.
+  nextafter <- function(t) t + 2^(floor(log2(abs(t))) - 52)
+  ulps <- function(t, k) {
+    for (i in seq_len(k)) t <- nextafter(t)
+    t
+  }
+  cases <- list(
+    list(dist = 1L, aux = 0, aux2 = 0, dens = function(t) dexp(t, 1),
+         log_surv = function(t) -t),
+    list(dist = 2L, aux = 2, aux2 = 0,
+         dens = function(t) dweibull(t, shape = 2, scale = 1),
+         log_surv = function(t) -t^2),
+    list(dist = 6L, aux = 1, aux2 = 0, dens = function(t) dlnorm(t, 0, 1),
+         log_surv = function(t) {
+           plnorm(t, 0, 1, lower.tail = FALSE, log.p = TRUE)
+         }),
+    list(dist = 7L, aux = 1.5, aux2 = 0,
+         dens = function(t) {
+           z <- 1.5 * log(t)
+           1.5 / t * exp(z) / (1 + exp(z))^2
+         },
+         log_surv = function(t) -log1p(t^1.5)),
+    list(dist = 8L, aux = 10, aux2 = 0,
+         dens = function(t) dgamma(t, shape = 10, rate = 1),
+         log_surv = function(t) {
+           pgamma(t, 10, lower.tail = FALSE, log.p = TRUE)
+         }),
+    # Generalized gamma: aux is sigma, aux2 is 1 / Q^2, so Q = 0.5 is 4.
+    list(dist = 9L, aux = 0.8, aux2 = 4,
+         dens = function(t) flexsurv::dgengamma(t, 0, 0.8, 0.5),
+         log_surv = function(t) {
+           log(flexsurv::pgengamma(t, 0, 0.8, 0.5, lower.tail = FALSE))
+         })
+  )
+  lower <- 0.1
+  entry <- 0.05
+  for (cs in cases) {
+    for (k in c(1, 2, 4, 8, 16)) {
+      upper <- ulps(lower, k)
+      label <- sprintf("dist %d, %d ULPs", cs$dist, k)
+      # Across a few ULPs the density is constant to thirty digits, so
+      # f(t) * width is the reference, not an approximation to one.
+      ref <- log(cs$dens(0.5 * (lower + upper))) + log(upper - lower)
+      got <- env$surv_ll_status(cs$dist, upper, lower, 0, 3L, 0, cs$aux,
+                                cs$aux2)
+      expect_lt(abs(got - ref), 1e-10, label = label)
+      expect_lt(abs(expm1(got - ref)), 1e-10, label = label)
+      got_entry <- env$surv_ll_status(cs$dist, upper, lower, entry, 3L, 0,
+                                      cs$aux, cs$aux2)
+      ref_entry <- ref - cs$log_surv(entry)
+      expect_lt(abs(got_entry - ref_entry), 1e-10, label = label)
+      expect_lt(abs(expm1(got_entry - ref_entry)), 1e-10, label = label)
+    }
+  }
+})
+
+test_that("a wide interval with a small mass is integrated, not approximated", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  env <- expose_survival_likelihood()
+
+  # Small mass on a wide interval, where the density is anything but constant
+  # and the differences have no digits. The references are independent of the
+  # code under test: for a gamma with shape k near zero, F(u) - F(l) is
+  # k * int_l^u exp(-t) / t dt to first order in k, and for a log-normal with
+  # sigma huge it is log(u / l) / (sigma * sqrt(2 * pi)).
+  k <- 1e-12
+  ref <- log(k * integrate(function(t) exp(-t) / t, 1, 100,
+                           rel.tol = 1e-13)$value)
+  got <- env$surv_ll_status(8L, 100, 1, 0, 3L, 0, k, 0)
+  expect_lt(abs(got - ref), 1e-9)
+  got_entry <- env$surv_ll_status(8L, 100, 1, 0.5, 3L, 0, k, 0)
+  expect_lt(abs(got_entry - (ref - pgamma(0.5, k, lower.tail = FALSE,
+                                          log.p = TRUE))), 1e-9)
+
+  sigma <- 1e9
+  ref <- log(log(100) / (sigma * sqrt(2 * pi)))
+  got <- env$surv_ll_status(6L, 100, 1, 0, 3L, 0, sigma, 0)
+  expect_lt(abs(got - ref), 1e-9)
+  got_entry <- env$surv_ll_status(6L, 100, 1, 0.5, 3L, 0, sigma, 0)
+  expect_lt(abs(got_entry - (ref - plnorm(0.5, 0, sigma, lower.tail = FALSE,
+                                          log.p = TRUE))), 1e-9)
 })
