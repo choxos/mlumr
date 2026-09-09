@@ -1,3 +1,276 @@
+#' Residual sum of squares, rank, and the rounding that residual can carry
+#'
+#' Fitted with the family and link the model itself uses, so the residual is
+#' the one that appears in the likelihood. `lm.fit()`'s default pivot tolerance
+#' of `1e-7` can drop a column that is nearly but not exactly collinear with
+#' another, measuring the residual against a design smaller than the one that
+#' will be fitted, so it is lowered to the floor. `glm.fit()` takes the same
+#' tolerance as `min(1e-7, epsilon / 1000)`, so `epsilon` is its only lever.
+#'
+#' `zero` is what the computed residual can be when the true one is zero. For
+#' `r = y - fl(X b)` the elementwise rounding is bounded by
+#' `p * eps * (|X| |b|)`, which is small when the fitted coefficients are small
+#' and large when they are not. That is the whole discrimination: an exactly
+#' fitting design whose coefficients run to 4e7 leaves a residual that a
+#' well-conditioned design would only produce from real noise, and comparing
+#' both to their own bound separates them where a single threshold cannot.
+#' Coefficients dropped as redundant are `NA` and contribute nothing, so a
+#' constant covariate needs no special handling.
+#'
+#' @param X Design matrix, intercept included.
+#' @param y Outcome vector.
+#' @param link `"identity"` or `"log"`.
+#' @return List with `rss`, `rank` and `zero`, or `NULL` when the fit did not
+#'   converge.
+#' @keywords internal
+.exact_fit_rss <- function(X, y, link) {
+  if (identical(link, "log")) {
+    # glm.fit() takes its QR pivot tolerance as min(1e-7, epsilon / 1000), so
+    # the only way to stop it discarding a nearly collinear column is through
+    # `epsilon`. At 1e-13 the pivot tolerance is 1e-16, matching the identity
+    # branch below; without it a design that fits exactly through a column Stan
+    # can still distinguish reads as an ordinary residual.
+    fit <- tryCatch(
+      suppressWarnings(stats::glm.fit(
+        X, y, family = stats::gaussian("log"),
+        control = list(epsilon = 1e-13, maxit = 100, trace = FALSE)
+      )),
+      error = function(e) NULL
+    )
+    if (is.null(fit) || !isTRUE(fit$converged)) {
+      return(NULL)
+    }
+    # A perturbation d in the linear predictor moves the fitted value by
+    # mu * d, so the bound carries that factor onto the response scale.
+    return(.fit_ratios(X, y, fit$fitted.values, fit$coefficients, fit$rank,
+                       mu = fit$fitted.values))
+  }
+  fit <- stats::lm.fit(X, y, tol = .Machine$double.eps)
+  .fit_ratios(X, y, y - fit$residuals, fit$coefficients, fit$rank)
+}
+
+
+#' Residual and numerical-zero ratios, on a scale where squares cannot overflow
+#'
+#' Everything is divided by one common magnitude before being squared, so the
+#' ratios are unchanged while the sums stay in range. A log-link outcome
+#' spanning hundreds of log units has squares that overflow individually but a
+#' ratio that is perfectly ordinary; the small end underflows to zero there,
+#' which is right, since it contributes nothing beside the large end.
+#'
+#' @param X Design matrix.
+#' @param y Outcome.
+#' @param mu_hat Fitted values.
+#' @param b Fitted coefficients; `NA` for columns dropped as redundant.
+#' @param rank Fitted rank.
+#' @param mu Fitted values for a nonlinear link, or `NULL`.
+#' @return List with `ratio`, `zero_ratio` and `rank`.
+#' @keywords internal
+.fit_ratios <- function(X, y, mu_hat, b, rank, mu = NULL) {
+  m <- max(abs(y), abs(mu_hat))
+  if (!is.finite(m) || m == 0) {
+    m <- 1
+  }
+  tss <- sum(((y - mean(y)) / m)^2)
+  b[is.na(b)] <- 0
+  bound <- ncol(X) * .Machine$double.eps * (abs(X) %*% abs(b))
+  if (!is.null(mu)) {
+    bound <- bound * mu
+  }
+  list(ratio = sum(((y - mu_hat) / m)^2) / tss,
+       zero_ratio = sum((bound / m)^2) / tss,
+       rank = rank)
+}
+
+
+#' The residual a design can show when its true residual is zero
+#' @param X Design matrix.
+#' @param b Fitted coefficients; `NA` for columns dropped as redundant.
+#' @param mu Fitted values, for a nonlinear link.
+#' @return The bound's sum of squares.
+#' @keywords internal
+.fit_zero <- function(X, b, mu = NULL) {
+  b[is.na(b)] <- 0
+  bound <- ncol(X) * .Machine$double.eps * (abs(X) %*% abs(b))
+  if (!is.null(mu)) {
+    bound <- bound * mu
+  }
+  sum(bound^2)
+}
+
+
+#' Refuse normal IPD that its own covariates fit exactly
+#'
+#' The normal likelihood carries no information about the residual SD once the
+#' fit is exact. With `n` IPD rows and a design of rank `r`, integrating out the
+#' coefficients leaves a marginal density for sigma proportional to
+#' `sigma^(r - n) * exp(-RSS / (2 * sigma^2))`. When `RSS` is zero that is
+#' `sigma^(r - n)` all the way down, whose integral to zero diverges for every
+#' `n > r`, and a proper prior on sigma does not repair it: a prior with
+#' positive density at zero leaves the divergence exactly where it was. The
+#' posterior is improper and nothing reports it. The sampler drifts toward zero
+#' and returns whatever it reached, with ordinary-looking diagnostics.
+#'
+#' The test is the residual sum of squares against the outcome's own total sum
+#' of squares, so it is invariant to the units of the outcome. Two thresholds:
+#'
+#' * At or below the design's own numerical zero, refuse. Only an exactly zero
+#'   residual sum of squares is improper, and where zero stops being tellable
+#'   from small is the rounding the computed residual can carry when the true
+#'   one is zero, which grows with the fitted coefficients.
+#' * At or below `1e-6`, warn. The residual is small but real, so the posterior
+#'   is proper; it is concentrated so hard against zero that the sampler will
+#'   struggle, and the estimate of sigma is then an artifact of where it
+#'   stopped.
+#'
+#' Under `link = "log"` the likelihood is `normal(exp(theta), sigma)`, so the
+#' residual that informs sigma is `y - exp(theta)` on the RESPONSE scale. Taking
+#' OLS residuals of `log(y)` instead would measure relative error: an outcome
+#' spanning many orders of magnitude can have an ordinary log-scale residual
+#' while the response-scale fit reproduces every large observation exactly and
+#' leaves a residual sum of squares near zero. The fit is therefore taken with
+#' the same family and link the model uses. A non-positive outcome cannot come
+#' from a log link at all, so there is nothing to test.
+#'
+#' A saturated design (`n == rank`) is warned about rather than refused. Its
+#' marginal density for sigma is `sigma^0` times the prior, which integrates,
+#' so the posterior is proper. Nothing in the data informs the residual SD
+#' there, but that is a prior-driven estimate, not an improper one.
+#'
+#' @param data An `mlumr_data` object.
+#' @param link The resolved link, `"identity"` or `"log"`.
+#' @return `TRUE` invisibly if the data were refused or warned about.
+#' @keywords internal
+.check_normal_residual_variation <- function(data, link = "identity") {
+  ipd <- data$ipd$data
+  y <- suppressWarnings(as.numeric(ipd$.outcome))
+  X <- cbind(1, as.matrix(ipd[, data$covariates, drop = FALSE]))
+  # Center the predictors. This adds a multiple of the intercept column, so the
+  # column space, the fitted values and the residual are all unchanged, but the
+  # coefficients stop carrying the offset. Without it a predictor recorded as
+  # `x + 1e12` forces an intercept near `-1e12 * slope`, and the bound below
+  # counts that cancellation as rounding until it exceeds a genuine residual.
+  if (ncol(X) > 1L) {
+    for (j in 2:ncol(X)) {
+      X[, j] <- X[, j] - mean(X[, j])
+    }
+  }
+  # Not the place to diagnose non-finite inputs: the validators that own that
+  # question run their own checks and give their own messages.
+  if (length(y) == 0L || anyNA(y) || !all(is.finite(X))) {
+    return(invisible(FALSE))
+  }
+
+  if (identical(link, "log") && any(y <= 0)) {
+    return(invisible(FALSE))
+  }
+
+  # Both sums are squares, so an outcome in extreme units breaks the units
+  # invariance this test is built on: below about 1e-162 they both underflow to
+  # zero and a varying outcome reads as constant, and above about 1e154 they
+  # both overflow to Inf and the ratio is NaN. The ratio is what matters, so
+  # take it on a normalized outcome, where the largest square is 1.
+  #
+  # Normalize the VARIATION, not the level. `y = 1e15 + 3 * x` is stored
+  # exactly and fitted exactly, but dividing it by its own maximum leaves the
+  # whole 147-wide spread inside the last few digits and turns it into noise.
+  # Subtracting one of the data values first is exact whenever they share a
+  # scale, and with an intercept in the design it shifts only the intercept
+  # coefficient, so the residual is untouched. Under a log link that shift is
+  # not available, and not needed: dividing by a constant there is exactly the
+  # rescaling the model already absorbs.
+  if (identical(link, "log")) {
+    # Center log(y) instead of dividing by the maximum. A positive outcome can
+    # span hundreds of log units with both ends representable, and shifting it
+    # down by its own maximum underflows the small end to exactly zero. Zero is
+    # not a value a log link can start from, so glm.fit() then failed and this
+    # check returned no verdict at all.
+    log_y <- log(y)
+    y <- exp(log_y - mean(log_y))
+  } else {
+    # The span itself can overflow: y = c(-1e308, 1e308) makes y - min(y) Inf
+    # and sends a non-finite response into the fit. Halving is exact in binary,
+    # and the scaling below makes the factor irrelevant.
+    y <- if (is.finite(max(y) - min(y))) {
+      y - min(y)
+    } else {
+      y / 2 - min(y) / 2
+    }
+    scale <- max(abs(y))
+    if (is.finite(scale) && scale > 0) {
+      y <- y / scale
+    }
+  }
+
+  n <- length(y)
+  if (all(y == y[1])) {
+    stop("The IPD outcome is constant, so the normal model has no residual ",
+         "variation to estimate. The residual SD then has no likelihood to ",
+         "inform it: the outcome needs variation the covariates do not ",
+         "explain, or the model needs an observation process (a measurement ",
+         "error or rounding scale) that supplies one.", call. = FALSE)
+  }
+  fit <- .exact_fit_rss(X, y, link)
+  if (is.null(fit) || !is.finite(fit$ratio) || !is.finite(fit$zero_ratio)) {
+    # Returning quietly here would let an exactly fitting design through
+    # unremarked, which is the case this whole check exists to catch.
+    warning("The residual variation of the IPD could not be checked: the ",
+            "outcome model did not fit well enough to measure it. If the ",
+            "covariates reproduce the outcome exactly, the posterior for the ",
+            "residual SD is improper and nothing downstream will say so.",
+            call. = FALSE)
+    return(invisible(TRUE))
+  }
+  ratio <- fit$ratio
+  advice <- paste(
+    "The residual SD then has no likelihood to inform it, so what the sampler",
+    "returns for it is where it drifted rather than what the data say. This is",
+    "a property of the data, not a setting: the outcome needs variation the",
+    "covariates do not explain, or the model needs an observation process (a",
+    "measurement error or rounding scale) that supplies one."
+  )
+
+  # A saturated design leaves the residual SD entirely to the prior, but that
+  # is a prior-driven posterior, not an improper one: the marginal density is
+  # sigma^0 times a prior that integrates. Warn, and say which it is.
+  if (n <= fit$rank) {
+    warning("The IPD design has as many free columns as rows (", n,
+            " rows, rank ", fit$rank, "), so it reproduces the outcome exactly ",
+            "and leaves no residual degrees of freedom. The posterior is still ",
+            "proper, because the marginal density for the residual SD is then ",
+            "its prior, but nothing in the data informs it: what is reported ",
+            "for sigma is the prior.", call. = FALSE)
+    return(invisible(TRUE))
+  }
+  # Impropriety needs the residual sum of squares to be exactly zero. For any
+  # positive residual the exp(-RSS / (2 sigma^2)) factor drives the density to
+  # zero as sigma does, and the integral converges however small that residual
+  # is, so the hard error belongs at this design's own zero rather than at a
+  # fixed small ratio.
+  if (ratio <= fit$zero_ratio) {
+    stop(sprintf(paste0("The IPD covariates fit the outcome exactly (residual ",
+                        "sum of squares is %.3g of the total, at or below the ",
+                        "%.3g of rounding this design's own fitted ",
+                        "coefficients can produce from an exact fit). The ",
+                        "posterior for the residual SD is improper: its ",
+                        "density behaves as sigma^(rank - n) near zero and ",
+                        "does not integrate. "), ratio, fit$zero_ratio),
+         advice, call. = FALSE)
+  }
+  if (ratio <= 1e-6) {
+    warning(sprintf(paste0("The IPD covariates very nearly fit the outcome ",
+                           "exactly (residual sum of squares is %.3g of the ",
+                           "total). The posterior for the residual SD is ",
+                           "proper but concentrated hard against zero, so ",
+                           "expect poor sampling and treat the estimate of ",
+                           "sigma as unreliable."), ratio),
+            call. = FALSE)
+    return(invisible(TRUE))
+  }
+  invisible(FALSE)
+}
+
+
 #' Fit ML-UMR Model
 #'
 #' Fit a Bayesian multilevel unanchored meta-regression model using individual
@@ -8,6 +281,22 @@
 #'   [add_integration()])
 #' @param model Model type: `"spfa"` (shared prognostic factor assumption) or
 #'   `"relaxed"` (treatment-specific coefficients). Default `"spfa"`.
+#' @section Normal outcomes with no residual variation:
+#' A normal fit whose IPD covariates reproduce the outcome exactly has an
+#' improper posterior for the residual SD, so `mlumr()` refuses it before any
+#' sampling. Only an exactly zero residual sum of squares is improper, so the
+#' refusal fires at the rounding the computed residual can carry when the true
+#' one is zero. That bound grows with the fitted coefficients, because an
+#' exactly fitting design whose coefficients run large leaves a far bigger
+#' residual than one whose coefficients are small. From there up to `1e-6` of
+#' the outcome's total sum of squares the residual is small but real, so the
+#' posterior is proper; it is concentrated hard against zero, which warns. Under
+#' `link = "log"` the residual is taken on the response scale the likelihood
+#' uses, not on `log(y)`. A constant outcome is refused on the same grounds. A
+#' saturated design, with as many free columns as rows, is warned about rather
+#' than refused: its posterior is proper, but nothing in the data informs the
+#' residual SD, so what is reported for sigma is the prior.
+#'
 #' @param link Link function. For binomial: `"logit"` (default), `"probit"`,
 #'   or `"cloglog"`. For normal: `"identity"` (default) or `"log"`. For
 #'   poisson and survival: `"log"` (default, only option). If `NULL`, uses the
@@ -584,6 +873,7 @@ mlumr <- function(data,
   }
 
   if (family == "normal") {
+    .check_normal_residual_variation(data, link_info$link)
     validate_prior(prior_sigma, "sigma")
     if (isTRUE(prior_sigma$autoscale)) {
       warning("`autoscale = TRUE` on prior_sigma is ignored; ",

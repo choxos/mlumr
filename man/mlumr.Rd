@@ -403,6 +403,24 @@ Section 2.2.1). With only a single overall comparator AgD row,
 informed by the data. (Marginal, overlapping subgroups would double-count
 patients and understate uncertainty; supply jointly-defined subgroups.)
 }
+\section{Normal outcomes with no residual variation}{
+
+A normal fit whose IPD covariates reproduce the outcome exactly has an
+improper posterior for the residual SD, so \code{mlumr()} refuses it before any
+sampling. Only an exactly zero residual sum of squares is improper, so the
+refusal fires at the rounding the computed residual can carry when the true
+one is zero. That bound grows with the fitted coefficients, because an
+exactly fitting design whose coefficients run large leaves a far bigger
+residual than one whose coefficients are small. From there up to \code{1e-6} of
+the outcome's total sum of squares the residual is small but real, so the
+posterior is proper; it is concentrated hard against zero, which warns. Under
+\code{link = "log"} the residual is taken on the response scale the likelihood
+uses, not on \code{log(y)}. A constant outcome is refused on the same grounds. A
+saturated design, with as many free columns as rows, is warned about rather
+than refused: its posterior is proper, but nothing in the data informs the
+residual SD, so what is reported for sigma is the prior.
+}
+
 \examples{
 \dontrun{
 # Binary SPFA model
