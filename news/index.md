@@ -184,14 +184,25 @@
   it the supports overlap, so connectivity rules out this failure mode
   and is not a proof of identification.
 
-- **Interval-censored likelihood under delayed entry is built from
-  increments.** The branch formed the unconditional interval probability
-  and then subtracted `log S(entry)`. That is correct algebra and poor
-  arithmetic: both terms grow without bound in the tail, so the
-  subtraction cancels the significant digits and yields `NaN` once
-  either underflows. It now uses
-  `log S(lower)/S(entry) + log[1 - S(upper)/S(lower)]`, the form the
-  three other status branches already use.
+- **Interval- and left-censored likelihoods under delayed entry are
+  evaluated in whichever form the numbers survive.** The interval branch
+  formed the unconditional interval probability and then subtracted
+  `log S(entry)`. That is correct algebra and poor arithmetic: both
+  terms grow without bound in the tail, so the subtraction cancels the
+  significant digits and yields `NaN` once either underflows. Rebuilding
+  it from increments as
+  `log S(lower)/S(entry) + log[1 - S(upper)/S(lower)]` fixed that end
+  and broke the other, where survival rounds to exactly 1 and every
+  increment collapses to zero. A Gamma baseline with shape 10, entry at
+  0.025 and an event in (0.05, 0.1\] has a conditional log probability
+  of -38.222; built from increments it came back unusable, and left
+  censoring under delayed entry took the same route. Both branches now
+  switch on the same half-probability test the undelayed interval
+  already applied, taking a difference of CDFs where the CDF is
+  representable and a ratio of survival probabilities where it is not. A
+  CDF difference has the mirror-image failure, on an interval narrow
+  enough that both bounds round to the same double, so it is used only
+  where the two are actually distinguishable.
 
 - **[`compare_models()`](https://choxos.github.io/mlumr/reference/compare_models.md)
   no longer reads a standard error as a threshold, and refuses fits
