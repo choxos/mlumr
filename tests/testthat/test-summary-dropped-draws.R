@@ -164,8 +164,9 @@ test_that("a missing median is accounted for without being called a loss", {
   expect_equal(out$n_draws_used, 3)
   expect_equal(out$p_not_reached, 0.25)
 
-  # A survival curve keeps the accounting on every time, and the origin row
-  # copies it rather than taking the origin value.
+  # A survival curve keeps the accounting on every time. The origin row
+  # neither takes the origin value nor inherits the first time's loss: every
+  # draw contributes S(0) = 1 exactly, so it uses all of them.
   expect_warning(
     curve <- mlumr:::.surv_result_frame(
       list(cbind(c(1, NA, 0.9, 0.8), c(0.5, 0.4, NA, 0.3))),
@@ -176,6 +177,6 @@ test_that("a missing median is accounted for without being called a loss", {
   )
   expect_equal(curve$time, c(0, 1, 2))
   expect_equal(curve$n_draws, c(4, 4, 4))
-  expect_equal(curve$n_draws_used, c(3, 3, 3))
+  expect_equal(curve$n_draws_used, c(4, 3, 3))
   expect_equal(curve$mean[1], 1)
 })

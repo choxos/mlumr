@@ -376,13 +376,15 @@ predict.mlumr_fit <- function(object,
       # answers no request, so it was set to NA just above. Leaving it in here
       # overwrote that NA with the origin value, and a survival origin row then
       # claimed someone had asked for time 1.
-      # The draw accounting is not a summarized quantity either: the origin
-      # row is built from the same draws as the row it copies.
+      # The draw accounting is not a summarized quantity either. Every draw
+      # contributes the exact origin value (S(0) = 1, H(0) = 0), so the origin
+      # row uses all of them, whatever the first fitted time dropped.
       num_cols <- setdiff(names(o)[vapply(o, is.numeric, logical(1))],
                           c("time", "requested_time", "n_draws",
                             "n_draws_used", label_names))
       o[num_cols] <- origin
       if ("sd" %in% names(o)) o$sd <- 0
+      if ("n_draws_used" %in% names(o)) o$n_draws_used <- o$n_draws
       df <- rbind(o, df)
     }
     df
