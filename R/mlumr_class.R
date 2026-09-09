@@ -422,6 +422,14 @@ print.mlumr_stc <- function(x, ...) {
       "effect-equality assumption; this calculation does not transport to ",
       "the index population.\n\n", sep = "")
 
+  # The warning at fit time has long scrolled away by the time anyone reads
+  # this, and an unverified estimate must not print like a verified one.
+  if (identical((x$separation %||% list())$status, "unknown")) {
+    cat("Separation: NOT VERIFIED (", x$separation$reason, "). Only the ",
+        "fitted-value screen ran, which cannot see quasi-complete ",
+        "separation.\n\n", sep = "")
+  }
+
   if (family == "binomial") {
     cat(sprintf("Marginalized P(Y=1|index trt, comp pop): %.4f\n", x$p_hat_index))
     cat(sprintf("Observed P(Y=1|comp trt, comp pop):      %.4f\n", x$p_comparator))

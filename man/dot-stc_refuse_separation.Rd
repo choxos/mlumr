@@ -10,7 +10,11 @@
 \item{fit}{A fitted \code{glm}.}
 }
 \value{
-\code{NULL}, invisibly; called for the error.
+The separation status, invisibly: a list with \code{status}, one of
+\code{"not_separated"}, \code{"unknown"} or \code{"not_applicable"}, and \code{reason} for
+the latter two. \code{"separated"} is never returned, since it throws. Callers
+record it on the result so a verified estimate can be told apart from an
+unverified one after the warning has scrolled away.
 }
 \description{
 The checks above look for a failure the fitting reports, and separation is

@@ -69,7 +69,14 @@
 #'   range extrapolates the fitted parametric survival function and warns.
 #'   Ignored for other families.
 #'
-#' @return An object of class `mlumr_stc`
+#' @return An object of class `mlumr_stc`. Its `separation` component records
+#'   whether the outcome model's likelihood was verified to have a finite
+#'   maximum: `status` is `"not_separated"` when the exact check ran and found
+#'   none, `"unknown"` when it could not run (only the fitted-value screen was
+#'   applied, which cannot see quasi-complete separation), and
+#'   `"not_applicable"` for a family where the question does not arise. A
+#'   separated fit is refused rather than returned, so `"separated"` never
+#'   appears here.
 #' @importFrom stats gaussian poisson dnorm
 #' @export
 #'
@@ -162,6 +169,11 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     out <- .stc_survival(data, conf_level, z, distribution,
                          n_boot = as.integer(n_boot), seed = seed,
                          rmst_horizon = rmst_horizon)
+    # Survival STC fits a parametric survival model, not a binomial GLM, so the
+    # separation question does not arise. Say so rather than leave the field
+    # absent, so a caller can read it without knowing the family first.
+    out$separation <- list(status = "not_applicable",
+                           reason = "survival STC fits no binomial GLM")
     class(out) <- c("mlumr_stc", "list")
     return(out)
   }
@@ -207,6 +219,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
                            conf_level, z, beta_hat, V, n_int)
   )
 
+  out$separation <- glm_params$separation
   class(out) <- c("mlumr_stc", "list")
   out
 }
@@ -251,8 +264,8 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
       call. = FALSE
     )
   }
-  .stc_refuse_separation(fit)
-  list(beta_hat = beta_hat, V = V)
+  separation <- .stc_refuse_separation(fit)
+  list(beta_hat = beta_hat, V = V, separation = separation)
 }
 
 #' Refuse a fit whose likelihood has no finite maximum
@@ -288,17 +301,27 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' \pkg{detectseparation} package is installed. The threshold test stays as
 #' the part that always runs.
 #' @param fit A fitted `glm`.
-#' @return `NULL`, invisibly; called for the error.
+#' @return The separation status, invisibly: a list with `status`, one of
+#'   `"not_separated"`, `"unknown"` or `"not_applicable"`, and `reason` for
+#'   the latter two. `"separated"` is never returned, since it throws. Callers
+#'   record it on the result so a verified estimate can be told apart from an
+#'   unverified one after the warning has scrolled away.
 #' @keywords internal
 .stc_refuse_separation <- function(fit) {
   fam <- tryCatch(stats::family(fit)$family, error = function(e) NA_character_)
   if (!identical(fam, "binomial")) {
-    return(invisible(NULL))
+    return(invisible(list(
+      status = "not_applicable",
+      reason = "the outcome model is not binomial"
+    )))
   }
   mu <- stats::fitted(fit)
   mu <- mu[is.finite(mu)]
   if (!length(mu)) {
-    return(invisible(NULL))
+    return(invisible(list(
+      status = "unknown",
+      reason = "the fit has no finite fitted values to screen"
+    )))
   }
   eps <- .Machine$double.eps^0.5
   # Every fitted probability at *a* boundary, not all at the same one. A
@@ -351,7 +374,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
       call. = FALSE
     )
   }
-  invisible(NULL)
+  invisible(exact)
 }
 
 
