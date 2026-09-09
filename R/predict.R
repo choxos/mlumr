@@ -446,8 +446,14 @@ predict.mlumr_fit <- function(object,
 
   # Absolute predictions in the OTHER study's population carry this study's
   # baseline shape with them, which is an assumption the data cannot check.
-  # `loghr` is exempt: it is a contrast within one population.
-  if (type != "loghr") .transported_baseline_note(object)
+  # `loghr` is not exempt, though a contrast within one population was once
+  # taken to be. Being within one population settles the COVARIATE transport,
+  # not the shape: with one arm per study the two hazards in the ratio carry
+  # two different study-specific baseline shapes, so the ratio's time profile
+  # is the aliased quantity the note is about. It matters most here, because
+  # conditional_effects(effect = "hr") refuses under exactly these fits and
+  # sends the reader to this output.
+  .transported_baseline_note(object)
 
   # Time-varying marginal log hazard ratio (index vs comparator) by population:
   # log( h-bar_index(t | pop) / h-bar_comparator(t | pop) ) at each fitted time.
@@ -772,16 +778,19 @@ predict.mlumr_fit <- function(object,
 #'   \item **One shared shape, SPFA** (`TR`). The coefficients are shared, so
 #'     `eta_index(x) - eta_comparator(x)` is the same constant `a` at every
 #'     covariate profile. Every individual's survival time is accelerated by the
-#'     same factor, so the population-standardized curves satisfy
-#'     `S_index(t) = S_comparator(t / a)` exactly and this IS a population time
-#'     ratio.
+#'     same factor `exp(a)`, which is the returned scalar, so the
+#'     population-standardized curves satisfy
+#'     `S_index(t) = S_comparator(t / exp(a))` exactly and this IS a population
+#'     time ratio. The divisor is the acceleration factor, not the log contrast
+#'     `a` itself.
 #'   \item **Otherwise** (`EXP_DELTA_ETA`; differing shapes, or the relaxed
 #'     model). The conditional acceleration varies with `x`, so it is the
 #'     exponentiated average log ratio: equivalently the conditional time ratio
 #'     at the mean linear predictor, or the geometric mean of the
 #'     profile-specific conditional time ratios. It is **not** generally a time
 #'     ratio between the two standardized survival distributions: there need be
-#'     no single `a` with `S_index(t) = S_comparator(t / a)` for all `t`, and
+#'     no single `a` with `S_index(t) = S_comparator(t / exp(a))` for all `t`,
+#'     and
 #'     different survival quantiles can imply different apparent acceleration
 #'     factors. It is labeled `EXP_DELTA_ETA` rather than `TR` for that reason.
 #' }
@@ -1174,9 +1183,9 @@ marginal_effects <- function(object,
 
   # Absolute predictions in an arbitrary target population transport the fitted
   # study-specific baseline shape, same assumption as the built-in populations.
-  # `loghr` is exempt for the same reason it is on the built-in route: it is a
-  # contrast within one population, so no baseline is carried anywhere.
-  if (type != "loghr") .transported_baseline_note(object)
+  # `loghr` is included for the same reason it is on the built-in route: the
+  # contrast sits in one population but still spans two study-specific shapes.
+  .transported_baseline_note(object)
 
   if (type %in% c("rmst", "median")) {
     # `times` selects points on a curve. RMST is an integral to the fitted

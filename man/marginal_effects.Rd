@@ -144,16 +144,19 @@ on the fit:
 \item \strong{One shared shape, SPFA} (\code{TR}). The coefficients are shared, so
 \code{eta_index(x) - eta_comparator(x)} is the same constant \code{a} at every
 covariate profile. Every individual's survival time is accelerated by the
-same factor, so the population-standardized curves satisfy
-\code{S_index(t) = S_comparator(t / a)} exactly and this IS a population time
-ratio.
+same factor \code{exp(a)}, which is the returned scalar, so the
+population-standardized curves satisfy
+\code{S_index(t) = S_comparator(t / exp(a))} exactly and this IS a population
+time ratio. The divisor is the acceleration factor, not the log contrast
+\code{a} itself.
 \item \strong{Otherwise} (\code{EXP_DELTA_ETA}; differing shapes, or the relaxed
 model). The conditional acceleration varies with \code{x}, so it is the
 exponentiated average log ratio: equivalently the conditional time ratio
 at the mean linear predictor, or the geometric mean of the
 profile-specific conditional time ratios. It is \strong{not} generally a time
 ratio between the two standardized survival distributions: there need be
-no single \code{a} with \code{S_index(t) = S_comparator(t / a)} for all \code{t}, and
+no single \code{a} with \code{S_index(t) = S_comparator(t / exp(a))} for all \code{t},
+and
 different survival quantiles can imply different apparent acceleration
 factors. It is labeled \code{EXP_DELTA_ETA} rather than \code{TR} for that reason.
 }
