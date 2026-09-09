@@ -1434,13 +1434,83 @@ marginal_effects <- function(object,
        " baseline.", call. = FALSE)
 }
 
-#' Auxiliary (shape) draws for one treatment, defaulting to 1 when absent
+#' Auxiliary (shape) draws for one treatment
+#'
+#' Layouts in order, in the same spirit as [.surv_scoef_draws()]:
+#'   `aux_val` / `aux_val_cmp`   the named per-treatment views
+#'   `aux_raw[1,s]`              the underlying parameter matrix
+#' The second exists because the views are TRANSFORMED parameters, so a fit made
+#' with `pars = c("aux_val", "aux_val_cmp"), include = FALSE` drops them and
+#' keeps the raw matrix they are read off. Both are consulted for the treatment
+#' asked about before anything else is: the comparator falls back to the index
+#' view only when there is a single stratum, where Stan makes them the same
+#' number. Under `aux_by = ".study"` they are different studies' shapes.
+#'
+#' A shape of 1 is returned only where Stan itself fixes it at 1: a
+#' distribution that has no such shape, where the raw matrix has no rows at all.
+#' That is `dist` 1 and 4 for the first shape and every `dist` but 9 for the
+#' second. Substituting 1 for a shape that merely could not be found gives a
+#' different distribution without saying so: at `dist` 2 it turns a Weibull into
+#' an exponential.
+#'
+#' @param object A fitted `mlumr_fit`.
+#' @param base `"aux_val"` or `"aux2_val"`.
+#' @param treatment `"index"` or `"comparator"`.
+#' @param n Number of draws, for the fixed-at-one case.
+#' @return Numeric vector of `n` draws.
 #' @keywords internal
 .surv_aux_draws <- function(object, base, treatment, n) {
   draws <- object$draws
   cmp <- paste0(base, "_cmp")
-  nm <- if (identical(treatment, "comparator") && cmp %in% names(draws)) cmp else base
-  if (nm %in% names(draws)) draws[[nm]] else rep(1, n)
+  raw <- sub("_val$", "_raw", base)
+  n_strata <- object$stan_data$n_strata %||% 1L
+  comparator <- identical(treatment, "comparator")
+
+  # This treatment's own layouts, view before raw matrix. The comparator's
+  # stratum is the last one, which is stratum 1 when the baseline is shared.
+  own <- if (comparator) {
+    c(cmp, paste0(raw, "[1,", n_strata, "]"))
+  } else {
+    c(base, paste0(raw, "[1,1]"))
+  }
+  for (nm in own) {
+    if (nm %in% names(draws)) {
+      return(draws[[nm]])
+    }
+  }
+
+  # With one stratum Stan reads both views off the same `aux_raw[1,1]`, so
+  # either serves for either treatment and a fit that saved only one of them is
+  # still readable. With more than one they are different studies' shapes, and
+  # crossing over would hand a treatment the other study's baseline without
+  # saying so: the substitution this function exists to stop.
+  if (n_strata == 1L) {
+    for (nm in c(base, cmp, paste0(raw, "[1,1]"))) {
+      if (nm %in% names(draws)) {
+        return(draws[[nm]])
+      }
+    }
+  }
+
+  # Positive membership on both branches, never a negation. `!identical(dist,
+  # 9L)` was true for a dist_code arriving as the double 9, and for an absent or
+  # NA one, so a generalized gamma could still be handed a second shape of 1:
+  # the substitution this function exists to stop, in the one branch that had
+  # been left permitting it. An unrecognized code now takes the error path.
+  dist <- object$surv_info$dist_code
+  fixed_at_one <- if (identical(base, "aux2_val")) {
+    isTRUE(dist %in% 1L:8L)
+  } else {
+    isTRUE(dist %in% c(1L, 4L))
+  }
+  if (fixed_at_one) {
+    return(rep(1, n))
+  }
+  stop("Could not find ", base, " draws for the ", treatment, " baseline. ",
+       "The ", object$surv_info$distribution %||% "fitted",
+       " distribution has this shape, so it cannot be defaulted to 1. ",
+       "Refit without excluding `", base, "`, `", cmp, "` or `", raw,
+       "` from the saved parameters.", call. = FALSE)
 }
 
 
