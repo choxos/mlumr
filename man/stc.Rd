@@ -63,13 +63,16 @@ Ignored for other families.}
 }
 \value{
 An object of class \code{mlumr_stc}. Its \code{separation} component records
-whether the outcome model's likelihood was verified to have a finite
-maximum: \code{status} is \code{"not_separated"} when the exact check ran and found
-none, \code{"unknown"} when it could not run (only the fitted-value screen was
-applied, which cannot see quasi-complete separation), and
-\code{"not_applicable"} for a family where the question does not arise. A
-separated fit is refused rather than returned, so \code{"separated"} never
-appears here.
+the outcome of the binomial separation check, and only that: \code{status} is
+\code{"not_separated"} when the exact check ran on a binomial outcome model
+and found no separation, \code{"unknown"} when it could not run (only the
+fitted-value screen was applied, which cannot see quasi-complete
+separation), and \code{"not_applicable"} when the outcome model is not a
+binomial GLM, so this particular test has nothing to say. It is not a
+certificate that the likelihood has a finite maximum for other families;
+a Poisson outcome model can have an infinite maximum likelihood estimate
+of its own kind, and nothing here looks for it. A separated fit is refused
+rather than returned, so \code{"separated"} never appears here.
 }
 \description{
 Perform an unanchored simulated treatment comparison (STC) with marginal

@@ -70,13 +70,16 @@
 #'   Ignored for other families.
 #'
 #' @return An object of class `mlumr_stc`. Its `separation` component records
-#'   whether the outcome model's likelihood was verified to have a finite
-#'   maximum: `status` is `"not_separated"` when the exact check ran and found
-#'   none, `"unknown"` when it could not run (only the fitted-value screen was
-#'   applied, which cannot see quasi-complete separation), and
-#'   `"not_applicable"` for a family where the question does not arise. A
-#'   separated fit is refused rather than returned, so `"separated"` never
-#'   appears here.
+#'   the outcome of the binomial separation check, and only that: `status` is
+#'   `"not_separated"` when the exact check ran on a binomial outcome model
+#'   and found no separation, `"unknown"` when it could not run (only the
+#'   fitted-value screen was applied, which cannot see quasi-complete
+#'   separation), and `"not_applicable"` when the outcome model is not a
+#'   binomial GLM, so this particular test has nothing to say. It is not a
+#'   certificate that the likelihood has a finite maximum for other families;
+#'   a Poisson outcome model can have an infinite maximum likelihood estimate
+#'   of its own kind, and nothing here looks for it. A separated fit is refused
+#'   rather than returned, so `"separated"` never appears here.
 #' @importFrom stats gaussian poisson dnorm
 #' @export
 #'
@@ -172,8 +175,11 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     # Survival STC fits a parametric survival model, not a binomial GLM, so the
     # separation question does not arise. Say so rather than leave the field
     # absent, so a caller can read it without knowing the family first.
-    out$separation <- list(status = "not_applicable",
-                           reason = "survival STC fits no binomial GLM")
+    out$separation <- list(
+      status = "not_applicable",
+      reason = paste("survival STC fits no binomial GLM, so the separation",
+                     "test does not apply")
+    )
     class(out) <- c("mlumr_stc", "list")
     return(out)
   }
@@ -303,16 +309,19 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' @param fit A fitted `glm`.
 #' @return The separation status, invisibly: a list with `status`, one of
 #'   `"not_separated"`, `"unknown"` or `"not_applicable"`, and `reason` for
-#'   the latter two. `"separated"` is never returned, since it throws. Callers
-#'   record it on the result so a verified estimate can be told apart from an
-#'   unverified one after the warning has scrolled away.
+#'   the latter two. `"separated"` is never returned, since it throws.
+#'   `"not_applicable"` means this binomial separation test does not apply to
+#'   the fitted family, not that the family has no finite-maximum problem of
+#'   its own. Callers record it on the result so a verified estimate can be
+#'   told apart from an unverified one after the warning has scrolled away.
 #' @keywords internal
 .stc_refuse_separation <- function(fit) {
   fam <- tryCatch(stats::family(fit)$family, error = function(e) NA_character_)
   if (!identical(fam, "binomial")) {
     return(invisible(list(
       status = "not_applicable",
-      reason = "the outcome model is not binomial"
+      reason = paste("the outcome model is not binomial, so the separation",
+                     "test does not apply")
     )))
   }
   mu <- stats::fitted(fit)

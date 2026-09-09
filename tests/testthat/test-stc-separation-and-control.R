@@ -496,3 +496,36 @@ test_that("an unverified estimate does not print like a verified one", {
   expect_false(any(grepl("NOT VERIFIED",
                          utils::capture.output(print(result)))))
 })
+
+test_that("an unknown status travels from the checker to the saved result", {
+  # The printing test above sets the field by hand, which checks the printing
+  # and nothing else. This forces the checker itself to come back unknown, as
+  # it does without detectseparation, and follows the status through the
+  # public call, the warning, and a round trip through disk.
+  local_mocked_bindings(
+    .stc_separation_status = function(fit) {
+      list(status = "unknown", reason = "the linear program was not run")
+    },
+    .package = "mlumr"
+  )
+  expect_warning(result <- stc(.stc_binomial_fixture()),
+                 "exact separation check did not run")
+  expect_identical(result$separation$status, "unknown")
+  expect_identical(result$separation$reason, "the linear program was not run")
+
+  path <- withr::local_tempfile(fileext = ".rds")
+  saveRDS(result, path)
+  back <- readRDS(path)
+  expect_identical(back$separation, result$separation)
+  expect_output(print(back), "Separation: NOT VERIFIED")
+  expect_output(print(back), "the linear program was not run")
+})
+
+test_that("not_applicable names the test that does not apply, not a verdict", {
+  set.seed(2026)
+  d <- data.frame(y = stats::rpois(50, 2), x = stats::rnorm(50))
+  fit <- stats::glm(y ~ x, family = stats::poisson(), data = d)
+  got <- mlumr:::.stc_refuse_separation(fit)
+  expect_identical(got$status, "not_applicable")
+  expect_match(got$reason, "separation test does not apply")
+})
