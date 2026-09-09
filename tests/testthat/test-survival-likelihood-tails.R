@@ -124,10 +124,63 @@ test_that("a tiny but real CDF gap is not thrown away with the equal ones", {
   # implementations moves its log by about 0.01. R and Stan differ by 0.02
   # here, which is that, not an error in either.
   expect_true(is.finite(got))
-  expect_equal(got,
-               .log_diff(log_cdf(upper), log_cdf(lower)) -
-                 pgamma(0.025, shape, lower.tail = FALSE, log.p = TRUE),
-               tolerance = 0.05)
+  # Bound the log-scale gap directly. `expect_equal(tolerance = 0.05)` reads as
+  # an absolute 0.05 but testthat's tolerance is RELATIVE, and against a value
+  # near -73 it admits 3.6 log units, a factor of 36 in probability.
+  ref <- .log_diff(log_cdf(upper), log_cdf(lower)) -
+    pgamma(0.025, shape, lower.tail = FALSE, log.p = TRUE)
+  expect_lt(abs(got - ref), 0.05)
+})
+
+test_that("an interval too narrow for both differences keeps its probability", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  env <- expose_survival_likelihood()
+
+  # One ULP wide, which is narrower than the case above. Here the CDF route
+  # declines for a second reason: the two linear CDFs still differ, but taking
+  # their logs coalesces them, so there is no gap left to difference. The
+  # survival increments cannot resolve it either, since every survival
+  # probability in the region rounds to exactly 1. Neither difference has any
+  # digits, and the probability is an ordinary small number.
+  nextafter <- function(t) t + 2^(floor(log2(abs(t))) - 52)
+  lower <- 0.1
+  upper <- nextafter(lower)
+  entry <- 0.05
+  expect_gt(upper, lower)
+
+  cases <- list(
+    list(dist = 8L, aux = 10, log_dens = function(t) dgamma(t, 10, log = TRUE),
+         log_cdf = function(t) pgamma(t, 10, log.p = TRUE),
+         log_surv = function(t) {
+           pgamma(t, 10, lower.tail = FALSE, log.p = TRUE)
+         }),
+    list(dist = 1L, aux = 1, log_dens = function(t) dexp(t, log = TRUE),
+         log_cdf = function(t) pexp(t, log.p = TRUE),
+         log_surv = function(t) pexp(t, lower.tail = FALSE, log.p = TRUE))
+  )
+
+  for (cs in cases) {
+    label <- paste("dist", cs$dist)
+    # Neither difference has a digit left, stated as the exact doubles rather
+    # than through a tolerance: the two log CDFs are the same double, and
+    # exponentiating the survival increment gives exactly 1, which is what
+    # makes log1m_exp() of it -Inf.
+    expect_identical(cs$log_cdf(upper), cs$log_cdf(lower))
+    expect_identical(exp(cs$log_surv(upper) - cs$log_surv(lower)), 1)
+
+    # Across one ULP the density is constant to about thirty digits, so
+    # f(t) * width is the reference, not an approximation to one.
+    mass <- cs$log_dens(0.5 * (lower + upper)) + log(upper - lower)
+
+    got <- env$surv_ll_status(cs$dist, upper, lower, entry, 3L, 0, cs$aux, 0)
+    expect_true(is.finite(got), label = label)
+    expect_lt(abs(got - (mass - cs$log_surv(entry))), 1e-9)
+
+    plain <- env$log_interval_prob_scalar(cs$dist, upper, lower, 0, cs$aux, 0)
+    expect_true(is.finite(plain), label = label)
+    expect_lt(abs(plain - mass), 1e-9)
+  }
 })
 
 test_that("the right tail keeps the accuracy the conditional form gave it", {
