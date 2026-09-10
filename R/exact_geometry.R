@@ -378,7 +378,11 @@
     return("unreachable")
   }
   span <- qr(t(loadings), tol = tol)
-  if (span$rank < k) {
+  if (span$rank != k) {
+    # Below the exact count, a direction the zero rows load on is under the
+    # factorization's resolution; above it, a rounding residual was kept as
+    # a direction and could sit among the first `k` columns of Q ahead of a
+    # genuine one. Neither basis is one to read angles from.
     return("unknown")
   }
   loadings <- loadings %*% qr.Q(span)[, seq_len(k), drop = FALSE]
