@@ -653,6 +653,12 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 .stc_binomial_gradients <- function(X, eta, weights,
                                     link = c("logit", "probit", "cloglog")) {
   link <- match.arg(link)
+  # A point with no weight has no share; keeping it would put log(0) beside
+  # a log probability of -Inf and make NaN of nothing.
+  keep <- weights > 0
+  X <- X[keep, , drop = FALSE]
+  eta <- eta[keep]
+  weights <- weights[keep]
   lp <- .binary_log_probs(eta, link)
   if (link == "logit") {
     d_log_p <- exp(lp$nonevent)
@@ -663,7 +669,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     d_log_q <- -exp(log_phi - lp$nonevent)
   } else {
     d_log_p <- exp(eta - exp(eta) - lp$event)
-    d_log_q <- -exp(eta)
+    d_log_q <- NULL
   }
   log_w <- log(weights) - log(sum(weights))
   log_p_mean <- .weighted_log_mean_exp(lp$event, weights)
@@ -671,7 +677,17 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   share_p <- exp(log_w + lp$event - log_p_mean)
   share_q <- exp(log_w + lp$nonevent - log_q_mean)
   grad_log_p <- colSums(share_p * d_log_p * X)
-  grad_log_q <- colSums(share_q * d_log_q * X)
+  grad_log_q <- if (link == "cloglog") {
+    # The non-event derivative -exp(eta) overflows past eta = 709, where the
+    # point's share is 0, and 0 * -Inf is NaN. Formed as one exponent the
+    # product underflows to the 0 it is, and a saturated point beside an
+    # ordinary one leaves the gradient finite. When every point is
+    # saturated the non-event mean is 0 to double precision and the link
+    # itself is not representable; nothing here changes that.
+    colSums(-exp(log_w + lp$nonevent - log_q_mean + eta) * X)
+  } else {
+    colSums(share_q * d_log_q * X)
+  }
   grad_mean <- exp(log_p_mean) * grad_log_p
   grad_link <- if (link == "logit") {
     grad_log_p - grad_log_q

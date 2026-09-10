@@ -121,6 +121,8 @@ test_that("a heterogeneous target keeps its link-scale SE across units", {
 })
 
 test_that("the gradients stay finite in tails the probabilities cannot represent", {
+  # Event probabilities near 1e-18 and 1 - 1e-18: the log-scale forms keep
+  # each point's share where the probabilities themselves would round.
   set.seed(2026)
   X <- cbind(1, rnorm(20))
   for (link in c("logit", "probit", "cloglog")) {
@@ -130,4 +132,28 @@ test_that("the gradients stay finite in tails the probabilities cannot represent
       expect_true(all(is.finite(unlist(g))), label = paste(link, beta0))
     }
   }
+  # Logit and probit at eta = -800 and 800, beyond any representable
+  # probability: the log probabilities are still finite and so are the
+  # gradients, and the share of a point at -800 beside one at 0 is 0.
+  for (link in c("logit", "probit")) {
+    X <- cbind(1, c(0, 1))
+    g <- mlumr:::.stc_binomial_gradients(X, c(0, -800), c(1, 1), link)
+    expect_true(all(is.finite(unlist(g))), label = link)
+    expect_equal(g$log_mean, c(g$log_mean[1], 0), tolerance = 1e-12)
+  }
+  # Cloglog at eta = 800: exp(eta) overflows, the point's non-event
+  # probability is 0 and its share of the non-event mean is 0. The product
+  # 0 * -Inf used to be NaN and poisoned every SE while the estimate stayed
+  # finite. The point at eta = 0 carries the whole non-event mean, so the
+  # gradient of log q-bar is -X_1 and the link gradient is that over
+  # log q-bar = log(1/2) - 1.
+  X <- cbind(1, c(0, 1))
+  g <- mlumr:::.stc_binomial_gradients(X, c(0, 800), c(1, 1), "cloglog")
+  expect_true(all(is.finite(unlist(g))))
+  expect_equal(g$log_nonevent_mean, c(-1, 0), tolerance = 1e-12)
+  expect_equal(g$link, c(-1, 0) / (log(0.5) - 1), tolerance = 1e-12)
+  # A zero weight is no share, not NaN.
+  g0 <- mlumr:::.stc_binomial_gradients(X, c(800, 0), c(0, 1), "cloglog")
+  expect_true(all(is.finite(unlist(g0))))
+  expect_equal(g0$log_nonevent_mean, c(-1, -1), tolerance = 1e-12)
 })
