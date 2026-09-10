@@ -531,7 +531,8 @@ real log_interval_prob_quad(int dist, real t_upper, real t_lower, real eta,
 // log(expm1(d)) = d + log1m_exp(-d) and g(z_u) = z_u + log1p_exp(-z_u), the
 // large parts cancel algebraically and what is left is
 //   log1m_exp(-d) - log1p_exp(-z_u) - g(z_l),
-// every term of which is bounded by the size of the answer. Conditioning
+// every term of which is bounded by the size of the answer, with z_u taken
+// from the upper bound directly rather than as z_l + d. Conditioning
 // adds g(z_e), and g(z_e) - g(z_l) is taken by the signs of the two, with
 // g(z) = max(z, 0) + log1p(e^{-|z|}): both negative gives a difference of
 // two small log1p terms, both positive gives (z_e - z_l), the log of a time
@@ -543,9 +544,13 @@ real log_interval_prob_quad(int dist, real t_upper, real t_lower, real eta,
 real log_loglogistic_interval(real t_upper, real t_lower, real t_entry,
                               real eta, real aux) {
   real z_l = aux * (log(t_lower) - eta);
+  // z_u is formed from the upper bound directly. As z_l + d it is the sum
+  // of two values that cancel when the interval crosses the center at a
+  // large shape, each near 7e16 with a shape of 1e17 and bounds 0.5 and a
+  // hair under 1, and the rounding left -8 for a value of -11.1; formed
+  // directly it is one product of a small difference and exact to rounding.
+  real z_u = aux * (log(t_upper) - eta);
   real log_ratio = log_time_ratio(t_upper, t_lower);
-  real d = aux * log_ratio;
-  real z_u = z_l + d;
   real lp = log1m_exp_neg_prod(aux, log_ratio) - log1p_exp(-z_u);
   if (t_entry > 0) {
     real z_e = aux * (log(t_entry) - eta);

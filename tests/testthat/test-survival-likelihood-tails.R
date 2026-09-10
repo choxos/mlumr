@@ -453,6 +453,19 @@ test_that("the log-logistic conditional form does not cancel in a far tail", {
             1e-12)
   expect_lt(abs(env$surv_ll_status(7L, 2, 1, 0.5, 3L, 0, 1e17, 0) - log(0.5)),
             1e-12)
+  # An interval crossing the center at that shape: z_u formed as z_l + d is
+  # the sum of two values near 7e16 that cancel to -11.1, and rounding left
+  # -8; formed from the upper bound directly it is exact.
+  ref <- log(plogis(1e17 * log(0.9999999999999999)) - plogis(1e17 * log(0.5)))
+  expect_lt(abs(env$surv_ll_status(7L, 0.9999999999999999, 0.5, 0, 3L, 0,
+                                   1e17, 0) - ref), 1e-12)
+  lower <- 146514.5092358064
+  upper <- 151776.28223159446
+  eta <- 11.93016288820274
+  ref <- log(plogis(1e17 * (log(upper) - eta)) -
+               plogis(1e17 * (log(lower) - eta)))
+  expect_lt(abs(env$surv_ll_status(7L, upper, lower, 0, 3L, eta, 1e17, 0) -
+                  ref), 1e-12)
   # Entry and lower bound far below the center with the same shape: the
   # conditioning terms are each near 1e17 and the answer is log(1) = 0; the
   # sum of them returned 32. The difference of two g values is taken by the
