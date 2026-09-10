@@ -606,7 +606,18 @@ unnest_integration <- function(data) {
 #'   was made and met the heuristic, `"review"` when it did not, and
 #'   `"unavailable"` when there was nothing finite to compare. A declared
 #'   target the AgD does not supply, or a latent Gaussian-copula correlation
-#'   (`cor_adjust = "none"`), gives `"unavailable"` rather than a pass.
+#'   (`cor_adjust = "none"`), gives `"unavailable"` rather than a pass. The
+#'   correlation verdicts (`target_correlation`, `resolution_correlation`)
+#'   are `"partial"` when some pairs could not be measured, since a maximum
+#'   over the measured pairs says nothing about the rest; `correlation_pairs`
+#'   then counts the pairs expected and measured and names the omitted ones
+#'   with a reason, a margin declared with no variance or one the finite
+#'   grid never varied.
+#'
+#'   For a binary margin the declared-target SD is the distribution's,
+#'   `sqrt(p * (1 - p))` from the declared mean, whatever `_sd` column the
+#'   AgD carries: a sample SD of the source data has a size correction no
+#'   grid can reproduce. Grid SDs are population SDs for the same reason.
 #' @param verbose Logical; if `FALSE`, suppresses printed diagnostic messages.
 #' @export
 check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
@@ -669,6 +680,15 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
   # against a fabricated target and could be reported as off by a wide margin.
   # Ask the declared distributions what the margin is instead of guessing from
   # the mean.
+  #
+  # For a binary margin the target is the DISTRIBUTION's SD, whatever the
+  # AgD declares: a supplied `_sd` column there is a sample summary of the
+  # source data, and a sample of two zeros and two ones has SD sqrt(1/3),
+  # which no Bernoulli(0.5) grid can reproduce, since its largest possible
+  # sample SD is sqrt(m / (m - 1)) / 2 and it converges to 0.5. Comparing the
+  # grid with the summary said the grid was off by 13% at every resolution.
+  # Whether the summary is consistent with the declared mean is a question
+  # about the input, not about the grid, and set_agd() owns it.
   dtypes <- do.call(
     get_distribution_type,
     c(list(...), list(data = utils::head(agd)))
@@ -680,10 +700,14 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
     target_mean[i] <- as.numeric(agd[[paste0(cov, "_mean")]][row])
     sd_col <- paste0(cov, "_sd")
     is_binary <- isTRUE(unname(dtypes[cov]) == "binary")
-    target_sd[i] <- if (sd_col %in% names(agd)) {
+    target_sd[i] <- if (is_binary) {
+      if (isTRUE(target_mean[i] >= 0 && target_mean[i] <= 1)) {
+        sqrt(target_mean[i] * (1 - target_mean[i]))
+      } else {
+        NA_real_
+      }
+    } else if (sd_col %in% names(agd)) {
       as.numeric(agd[[sd_col]][row])
-    } else if (is_binary && isTRUE(target_mean[i] >= 0 && target_mean[i] <= 1)) {
-      sqrt(target_mean[i] * (1 - target_mean[i]))
     } else {
       NA_real_
     }
@@ -788,6 +812,16 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
     max_cor_diff <- .max_finite(cor_result$diff$abs_diff)
     max_target_cor_diff <- if (is.null(cor_target)) NA_real_ else
       .max_finite(cor_result$diff$abs_diff_target)
+    # A maximum over the pairs that could be measured is a maximum over
+    # those pairs only. A variable constant on the grid has no correlation
+    # with anything, so its pairs are NA and drop out of the maximum, and
+    # one measured pair out of three used to be reported as `close`. Count
+    # what was compared, name what was not, and say why: a declared margin
+    # with no variance has no correlation to realize, while a rare variable
+    # the finite grid never varied is a resolution failure a larger grid may
+    # or may not repair.
+    pairs <- .int_cor_pair_status(cor_result$diff, stats_orig, target_mean,
+                                  target_sd)
     if (verbose) {
       if (is.na(max_cor_diff)) {
         cat("Joint resolution: not available (no finite comparison).\n")
@@ -810,16 +844,35 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
       } else if (!is.null(cor_target)) {
         cat("Target correlation: not available (no finite comparison).\n")
       }
+      if (pairs$measured < pairs$expected) {
+        cat(sprintf(paste0("Pairs compared: %d of %d. Not measured: %s. ",
+                           "A maximum above is over the measured pairs ",
+                           "only.\n"),
+                    pairs$measured, pairs$expected,
+                    paste(sprintf("%s (row %d, %s)", pairs$omitted$pair,
+                                  pairs$omitted$agd_row,
+                                  pairs$omitted$reason),
+                          collapse = "; ")))
+      }
     }
     out$verdict$target_correlation <- if (is.null(cor_target)) {
       # Withheld on purpose under `cor_adjust = "none"`, where the supplied
       # matrix is the latent copula correlation. Leaving the field unset made
       # a deliberate abstention indistinguishable from a missing field.
       "unavailable"
+    } else if (pairs$measured > 0L && pairs$measured < pairs$expected) {
+      "partial"
     } else {
       .moment_verdict(max_target_cor_diff, 0.05, "close")
     }
+    out$verdict$resolution_correlation <- if (pairs$measured > 0L &&
+                                                pairs$measured < pairs$expected) {
+      "partial"
+    } else {
+      .moment_verdict(max_cor_diff, 0.05, "stable")
+    }
     out$correlations <- cor_result$diff
+    out$correlation_pairs <- pairs
   }
 
   invisible(out)
@@ -870,7 +923,46 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
 }
 
 
+#' Which correlation pairs were measured, and why the others were not
+#'
+#' @param diff The pair table from [.int_cor_stats()].
+#' @param stats The marginal statistics of the current grid.
+#' @param target_mean,target_sd Declared targets, one per row of `stats`.
+#' @return List with `expected`, the number of pairs the check set out to
+#'   compare, `measured`, how many had a finite realized correlation on the
+#'   doubled grid, and `omitted`, a data frame naming the rest with a
+#'   `reason`: `"declared_degenerate"` when a margin in the pair is declared
+#'   with no variance, so it has no correlation to realize, or
+#'   `"constant_on_grid"` when the grid did not vary a margin that is not
+#'   degenerate by declaration, which is a resolution failure.
+#' @keywords internal
+.int_cor_pair_status <- function(diff, stats, target_mean, target_sd) {
+  measured <- is.finite(diff$cor_doubled)
+  omitted <- diff[!measured, c("agd_row", "pair"), drop = FALSE]
+  reason <- character(nrow(omitted))
+  for (i in seq_len(nrow(omitted))) {
+    members <- strsplit(omitted$pair[i], "~", fixed = TRUE)[[1L]]
+    rows <- stats$covariate %in% members & stats$agd_row == omitted$agd_row[i]
+    degenerate <- is.finite(target_sd[rows]) & target_sd[rows] == 0
+    reason[i] <- if (any(degenerate)) {
+      "declared_degenerate"
+    } else {
+      "constant_on_grid"
+    }
+  }
+  omitted$reason <- reason
+  rownames(omitted) <- NULL
+  list(expected = nrow(diff), measured = sum(measured), omitted = omitted)
+}
+
+
 #' Compute summary statistics for integration points
+#'
+#' The SD is the population one, with the point count in the denominator:
+#' the grid is a deterministic representation of a distribution, not a
+#' sample from it, and its moments are compared with the distribution's. A
+#' sample SD carried a factor of `sqrt(m / (m - 1))` that no target shares,
+#' 0.8% at 64 points, most of the 1% heuristic.
 #' @keywords internal
 .int_stats <- function(X_int, cov_names, n_agd) {
   rows <- vector("list", n_agd * length(cov_names))
@@ -880,7 +972,7 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
       vals <- X_int[k, , j]
       rows[[idx]] <- data.frame(
         covariate = cov_names[j], agd_row = k,
-        mean = mean(vals), sd = sd(vals),
+        mean = mean(vals), sd = sqrt(mean((vals - mean(vals))^2)),
         stringsAsFactors = FALSE
       )
       idx <- idx + 1

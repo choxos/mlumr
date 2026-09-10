@@ -43,7 +43,18 @@ The \code{verdict} component reports \code{"stable"} / \code{"close"} when a com
 was made and met the heuristic, \code{"review"} when it did not, and
 \code{"unavailable"} when there was nothing finite to compare. A declared
 target the AgD does not supply, or a latent Gaussian-copula correlation
-(\code{cor_adjust = "none"}), gives \code{"unavailable"} rather than a pass.
+(\code{cor_adjust = "none"}), gives \code{"unavailable"} rather than a pass. The
+correlation verdicts (\code{target_correlation}, \code{resolution_correlation})
+are \code{"partial"} when some pairs could not be measured, since a maximum
+over the measured pairs says nothing about the rest; \code{correlation_pairs}
+then counts the pairs expected and measured and names the omitted ones
+with a reason, a margin declared with no variance or one the finite
+grid never varied.
+
+For a binary margin the declared-target SD is the distribution's,
+\code{sqrt(p * (1 - p))} from the declared mean, whatever \verb{_sd} column the
+AgD carries: a sample SD of the source data has a size correction no
+grid can reproduce. Grid SDs are population SDs for the same reason.
 }
 \description{
 Compare integration results at the current \code{n_int} against a doubled
