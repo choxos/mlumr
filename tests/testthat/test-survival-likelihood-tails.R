@@ -544,3 +544,28 @@ test_that("a shape near the bottom of the double range keeps a tiny increment", 
   expect_lt(abs(env$surv_ll_status(2L, nextafter(1), 1, 0, 3L, 0, 1e-320, 0) -
                   (log(1e-320) + log(width) - 1)), 1e-9)
 })
+
+test_that("a differenced CDF is not trusted where its logs carry rounding of order one", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  env <- expose_survival_likelihood()
+  previous <- function(t) t - 2^(floor(log2(abs(t))) - 52)
+
+  # Log-normal with sigma 1e-8 at t = exp(-1): z is -1e8 and the log CDFs
+  # near -5e15 carry rounding of order one, so a difference of two of them
+  # says nothing however much of F(u) the interval holds. The resolution
+  # threshold is uncapped, exceeds one here, and hands the interval to the
+  # density, which resolves it to the rounding of the value itself: one unit
+  # at that magnitude.
+  aux <- 1e-8
+  upper <- exp(-1)
+  lower <- previous(upper)
+  mid <- 0.5 * (lower + upper)
+  z <- log(mid) / aux
+  expect_lt(z, -1e7)
+  ref <- -0.5 * z^2 - log(aux) - log(mid) - 0.5 * log(2 * pi) +
+    log(upper - lower)
+  got <- env$surv_ll_status(6L, upper, lower, 0, 3L, 0, aux, 0)
+  expect_true(is.finite(got))
+  expect_lt(abs(got - ref) / abs(ref), 1e-15)
+})
