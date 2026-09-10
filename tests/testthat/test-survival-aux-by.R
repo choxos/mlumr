@@ -151,7 +151,7 @@ test_that("the R readers find the baseline under every draw-name layout", {
                mlumr:::.surv_scoef_draws(legacy, "comparator"))
 })
 
-test_that("the shape draws fall back to the index stratum and then to 1", {
+test_that("the shape draws read their own stratum, then fall back", {
   mk <- function(nms) {
     d <- as.data.frame(matrix(1.5, nrow = 2, ncol = max(length(nms), 1)))
     if (length(nms)) names(d) <- nms
@@ -162,10 +162,25 @@ test_that("the shape draws fall back to the index stratum and then to 1", {
                c(1.5, 1.5))
   expect_equal(unname(mlumr:::.surv_aux_draws(both, "aux_val", "comparator", 2)),
                c(2.5, 2.5))
-  # exponential has no shape at all: default to 1, never error
-  none <- structure(list(draws = data.frame(mu_index = c(0, 0))),
-                    class = "mlumr_fit")
+  # exponential has no shape at all: default to 1, never error. The fit has to
+  # SAY it is an exponential for that to hold. This stub previously carried no
+  # `surv_info` at all, so what it actually asserted was that any fit missing
+  # its shape draws gets 1, which is the case a shape of 1 must not cover: at
+  # dist 2 it turns the fitted Weibull into an exponential and reports every
+  # number that follows without a word.
+  none <- structure(
+    list(draws = data.frame(mu_index = c(0, 0)),
+         surv_info = list(dist_code = 1L, distribution = "exponential")),
+    class = "mlumr_fit")
   expect_equal(mlumr:::.surv_aux_draws(none, "aux_val", "index", 2), c(1, 1))
+
+  # The complement, which the old stub could not express.
+  weib <- structure(
+    list(draws = data.frame(mu_index = c(0, 0)),
+         surv_info = list(dist_code = 2L, distribution = "weibull")),
+    class = "mlumr_fit")
+  expect_error(mlumr:::.surv_aux_draws(weib, "aux_val", "index", 2),
+               "Could not find aux_val draws")
 })
 
 test_that("a stratified conditional hazard ratio warns instead of misreporting", {
