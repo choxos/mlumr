@@ -33,7 +33,7 @@ test_that("an index arm with no events is refused, not reported", {
                               family = poisson(), data = d$ipd$data))
   expect_true(fit$converged)
   expect_true(all(is.finite(coef(fit))))
-  expect_error(suppressWarnings(stc(d)), "no events")
+  expect_error(suppressWarnings(stc(d)), "has no events: the Poisson")
 })
 
 test_that("a subgroup with no events beside events elsewhere is refused", {
@@ -50,22 +50,36 @@ test_that("a subgroup with no events beside events elsewhere is refused", {
 
 test_that("ordinary Poisson data pass and the result says the maximum is finite", {
   set.seed(2026)
-  x <- rnorm(60)
+  x <- rep(c(-1, 0, 1), 20)
   y <- rpois(60, exp(0.2 + 0.5 * x))
-  skip_if(sum(y) == 0L)
+  skip_if(any(tapply(y, x, sum) == 0))
   d <- make_poisson(y, x)
   s <- suppressWarnings(stc(d))
   expect_s3_class(s, "mlumr_stc")
   expect_identical(s$separation$status, "not_applicable")
   expect_match(s$separation$reason, "finite")
-  expect_true(is.finite(s$se))
-  # Zero counts beside positive counts at the SAME profiles pin nothing
-  # down: the positive rows span the design, so no direction moves the
-  # zero rows alone.
+  # An interior maximum's standard error, not the tens of thousands a
+  # receding fit reported from where it stopped.
+  expect_lt(s$se, 2)
+  # Zero counts at the SAME profiles as positive counts, three profiles
+  # each carrying both: the positive rows span the design, so no direction
+  # moves a zero row while holding them.
   y2 <- y
-  y2[seq(1, 60, by = 3)] <- 0L
-  skip_if(sum(y2) == 0L)
+  y2[seq(1, 60, by = 2)] <- 0L
+  skip_if(any(tapply(y2, x, sum) == 0))
   expect_s3_class(suppressWarnings(stc(make_poisson(y2, x))), "mlumr_stc")
+})
+
+test_that("a pinned zero profile does not hide a receding one", {
+  # Positive counts at x = 0 pin the zeros at x = 0: every direction that
+  # holds the positive rates holds those too. The zeros at x = 1 still
+  # recede along (b0 - t, b1 + t). The strict reading, which the normal
+  # guard needs, calls the boundary unreachable as soon as a row is
+  # pinned; the Poisson question drops the pinned row and refuses.
+  y <- c(rep(1:2, 10), rep(0L, 40))
+  x <- c(rep(0, 20), rep(0, 20), rep(1, 20))
+  d <- make_poisson(y, x, binary = TRUE, target_mean = 0.5)
+  expect_error(suppressWarnings(stc(d)), "no finite maximum")
 })
 
 test_that("the weak boundary question drops pinned rows and needs no strictness", {
@@ -85,6 +99,20 @@ test_that("the weak boundary question drops pinned rows and needs no strictness"
                    "unreachable")
   # Positive rows spanning the design leave no free direction.
   X_pos <- cbind(1, c(0, 1))
+  expect_identical(mlumr:::.zero_boundary(X_pos, X_zero, strict = FALSE),
+                   "unreachable")
+  # Two free directions with a gap of exactly pi: positives at the origin,
+  # zeros at (1, 0), (-1, 0) and (0, 1). The direction (0, 0, -1) holds
+  # the first two zero rows and lowers the third, so the Poisson
+  # likelihood recedes, while no direction lowers all three. The two rows
+  # bounding the gap are exactly opposite, which is decided exactly.
+  X_pos <- cbind(1, c(0, 0), c(0, 0))
+  X_zero <- cbind(1, c(1, -1, 0), c(0, 0, 1))
+  expect_identical(mlumr:::.zero_boundary(X_pos, X_zero, strict = FALSE),
+                   "reachable")
+  expect_identical(mlumr:::.zero_boundary(X_pos, X_zero), "unreachable")
+  # With every row on the line there is no row to lower.
+  X_zero <- cbind(1, c(1, -1, 2), c(0, 0, 0))
   expect_identical(mlumr:::.zero_boundary(X_pos, X_zero, strict = FALSE),
                    "unreachable")
 })

@@ -254,6 +254,16 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     stop("STC GLM did not converge; check the IPD model or use mlumr().",
          call. = FALSE)
   }
+  # Whether the likelihood has a finite maximum is decided before the
+  # coefficients and covariance are read: a fit with none can stop at
+  # finite numbers, and on a platform where it stops at non-finite ones
+  # the message should still name the cause rather than the symptom.
+  fam <- tryCatch(stats::family(fit)$family, error = function(e) NA_character_)
+  separation <- if (identical(fam, "poisson")) {
+    .stc_refuse_poisson_recession(fit)
+  } else {
+    .stc_refuse_separation(fit)
+  }
   beta_hat <- coef(fit)
   V <- vcov(fit)
   if (anyNA(beta_hat) || anyNA(V)) {
@@ -274,12 +284,6 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
       ),
       call. = FALSE
     )
-  }
-  fam <- tryCatch(stats::family(fit)$family, error = function(e) NA_character_)
-  separation <- if (identical(fam, "poisson")) {
-    .stc_refuse_poisson_recession(fit)
-  } else {
-    .stc_refuse_separation(fit)
   }
   list(beta_hat = beta_hat, V = V, separation = separation)
 }
@@ -356,11 +360,12 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
       paste(
         "Whether the STC outcome model has a finite maximum likelihood",
         "estimate could not be decided: the rows without events could",
-        "load on more than two free directions of the coefficients, or lie",
-        "within rounding of the span of the rows with events, and this check",
-        "does not attempt those cases. A possibly infinite estimate is not",
-        "reported as an ordinary one. Use mlumr(), whose prior makes the",
-        "posterior proper."
+        "load on more than two free directions of the coefficients, lie",
+        "within rounding of the span of the rows with events, or point",
+        "opposite ways to within rounding, and this check does not attempt",
+        "those cases. A possibly infinite estimate is not reported as an",
+        "ordinary one. Use mlumr(), whose prior makes the posterior",
+        "proper."
       ),
       call. = FALSE
     )
