@@ -239,38 +239,52 @@ real log_haz_full(int dist, real t, real eta, real aux, real aux2) {
 // two terms can be +inf and -inf even when the density has the well-defined
 // limiting value zero. This helper is shared by the event likelihood and the
 // numerator of the marginal hazard.
-real log_density_scalar(int dist, real t, real eta, real aux, real aux2) {
-  real log_t = log(t);
+//
+// The time arrives as a base log time plus an offset, and the centered log
+// time is formed as (log_t_base - eta) + offset. The quadrature below places
+// its nodes at offsets far smaller than an ULP of the base: with bounds one
+// ULP apart at 0.1 and eta = log(0.1), every node's log time is eta to the
+// last bit, while the standardized endpoints at a scale of 1e-17 are -17 and
+// -3. Adding the offset to the small centered difference keeps that.
+real log_density_offset(int dist, real log_t_base, real shift, real eta,
+                        real aux, real aux2) {
+  real log_t = log_t_base + shift;
+  real centered = (log_t_base - eta) + shift;
   if (dist <= 5) {
+    real t = exp(log_t);
     real log_ch;
     if (dist == 1) log_ch = log_t + eta;
     else if (dist == 2) log_ch = aux * log_t + eta;
     else if (dist == 3)
       log_ch = eta - log(aux) + aux * t + log1m_exp(-aux * t);
-    else if (dist == 4) log_ch = log_t - eta;
-    else log_ch = aux * (log_t - eta);
+    else if (dist == 4) log_ch = centered;
+    else log_ch = aux * centered;
     if (log_ch > 700) return negative_infinity();
     return log_haz_scalar(dist, t, eta, aux, aux2) - exp(log_ch);
   } else if (dist == 6) {
-    real z = (log_t - eta) / aux;
+    real z = centered / aux;
     return -0.5 * square(z) - log(aux) - log_t - 0.5 * log(2 * pi());
   } else if (dist == 7) {
-    real z = aux * (log_t - eta);
+    real z = aux * centered;
     if (z >= 0)
       return log(aux) - log_t - z - 2 * log1p_exp(-z);
     return log(aux) - log_t + z - 2 * log1p_exp(z);
   } else if (dist == 8) {
-    real log_z = log_t - eta;
+    real log_z = centered;
     if (log_z > 700) return negative_infinity();
     return (aux - 1) * log_z - eta - exp(log_z) - lgamma(aux);
   } else {
     real Q = inv(sqrt(aux2));
-    real z = Q * (log_t - eta) / aux;
+    real z = Q * centered / aux;
     real log_w = log(aux2) + z;
     if (log_w > 700) return negative_infinity();
     return -log(aux) - log_t - 0.5 * log(aux2) * (1 - 2 * aux2)
            + aux2 * z - exp(log_w) - lgamma(aux2);
   }
+}
+
+real log_density_scalar(int dist, real t, real eta, real aux, real aux2) {
+  return log_density_offset(dist, log(t), 0, eta, aux, aux2);
 }
 
 real log1m_exp_neg_exp(real log_h) {
@@ -353,23 +367,52 @@ real log_expm1_from_log_x(real log_x) {
   return log(expm1(exp(log_x)));
 }
 
+// log(t_upper / t_lower) without cancellation for close bounds and without
+// overflow for a lower bound near the bottom of the double range. log1p of
+// the relative gap is exact for close bounds, and the quotient it takes
+// overflows to +inf once t_lower is a subnormal, where the difference of the
+// two logs has no cancellation left to fear.
+real log_time_ratio(real t_upper, real t_lower) {
+  if (t_lower < t_upper * 1e-8) return log(t_upper) - log(t_lower);
+  return log1p((t_upper - t_lower) / t_lower);
+}
+
+// log(1 - exp(-a b)) for positive a and b whose product can underflow to
+// zero: a Gompertz shape of 1e-310 times an interval of 1e-14, say. There the
+// value is log(a) + log(b) to within a relative a b / 2, which is the same
+// number the log-scale route took before the difference was rewritten.
+real log1m_exp_neg_prod(real a, real b) {
+  real ab = a * b;
+  if (ab == 0) return log(a) + log(b);
+  return log1m_exp(-ab);
+}
+
+// log(H(u) - H(l)). The Weibull and Gompertz differences are written from
+// the UPPER bound, as a log H(u) + log(1 - exp(-(a log(u / l)))), rather
+// than from the lower bound as a log t_l + log(expm1(a log(u / l))). The two
+// are the same number, but with a shape of 3e14, l = 0.5 and u a hair under
+// 1 the lower form adds -2e14 to +2e14 and keeps rounding of order 0.05 in
+// a value near -2.3, while the upper form's first term is that small value
+// itself and its second is zero. Where a log(u / l) is small the two forms
+// agree to rounding, so nothing is lost on narrow intervals.
 real log_cumhaz_diff(int dist, real t_upper, real t_lower, real eta,
                      real aux) {
   real dt = t_upper - t_lower;
   if (dt == 0) return negative_infinity();
   if (dist == 1) return eta + log(dt);
   if (dist == 4) return -eta + log(dt);
-  if (dist == 3) {
-    real log_ax = log(aux) + log(dt);
-    return eta - log(aux) + aux * t_lower + log_expm1_from_log_x(log_ax);
-  }
+  if (dist == 3)
+    return eta - log(aux) + aux * t_upper + log1m_exp_neg_prod(aux, dt);
   if (t_lower == 0) return log_cumhaz_scalar(dist, t_upper, eta, aux);
   {
-    real log_ratio = log1p(dt / t_lower);
-    real log_power_diff = aux * log(t_lower)
-                          + log_expm1_from_log_x(log(aux) + log(log_ratio));
-    if (dist == 2) return eta + log_power_diff;
-    return -aux * eta + log_power_diff; // Weibull AFT
+    real log_tail = log1m_exp_neg_prod(aux, log_time_ratio(t_upper,
+                                                           t_lower));
+    if (dist == 2) return eta + aux * log(t_upper) + log_tail;
+    // Weibull AFT: the shape multiplies log(t_upper) - eta as one small
+    // difference. As aux * log(t_upper) - aux * eta the two products are
+    // each 1e16 at a shape of 1e17 with the bound near exp(eta), and their
+    // rounding swallowed a difference of -1.39.
+    return aux * (log(t_upper) - eta) + log_tail;
   }
 }
 
@@ -382,7 +425,7 @@ real log_surv_increment(int dist, real t_upper, real t_lower, real eta,
   if (t_lower == 0)
     return log_surv_scalar(dist, t_upper, eta, aux, aux2);
   {
-    real log_ratio = log1p((t_upper - t_lower) / t_lower);
+    real log_ratio = log_time_ratio(t_upper, t_lower);
     if (dist == 6) {
       real z_lower = (log(t_lower) - eta) / aux;
       real dz = log_ratio / aux;
@@ -414,6 +457,16 @@ real log_surv_increment(int dist, real t_upper, real t_lower, real eta,
       if (log_x_lower > log(shape + fmax(1, sqrt(shape)))) {
         real log_dx = log_x_lower + log(expm1(dlog_x));
         real dx = exp(log_dx);
+        // The increment of the incomplete-gamma argument, or the upper
+        // argument itself, can overflow: a generalized gamma with sigma
+        // 0.0009 over (1, 2] has an upper argument of exp(780). The
+        // survival ratio is then zero to double precision and the
+        // increment -inf, which the caller reads as an interval holding
+        // everything that remains; the continued-fraction factor at an
+        // infinite argument gave NaN instead, and the interval fell to a
+        // quadrature whose grid cannot see the layer holding its mass.
+        if (is_inf(dx) || is_inf(exp(log_x_lower + dlog_x)))
+          return negative_infinity();
         if (is_inf(exp(log_x_lower)))
           return -dx + (shape - 1) * dlog_x;
         {
@@ -430,69 +483,339 @@ real log_surv_increment(int dist, real t_upper, real t_lower, real eta,
          - log_surv_scalar(dist, t_lower, eta, aux, aux2);
 }
 
-real log_interval_prob_scalar(int dist, real t_upper, real t_lower, real eta,
-                              real aux, real aux2) {
-  real log_cdf_upper = log_cdf_scalar(dist, t_upper, eta, aux, aux2);
-  if (log_cdf_upper < -0.6931471805599453)
-    return log_diff_exp(log_cdf_upper,
-                        log_cdf_scalar(dist, t_lower, eta, aux, aux2));
-  return log_surv_scalar(dist, t_lower, eta, aux, aux2)
-         + log1m_exp(log_surv_increment(dist, t_upper, t_lower, eta, aux, aux2));
+// Whether log_surv_increment() takes one of its tail branches for these
+// inputs, where the increment is formed without differencing two survival
+// logs and carries only rounding relative to itself. Mirrors the branch
+// conditions above; the closed-form families always do, and the log-logistic
+// never reaches here because its interval has its own closed form.
+int surv_increment_is_analytic(int dist, real t_lower, real eta, real aux,
+                               real aux2) {
+  if (dist <= 5) return 1;
+  if (t_lower == 0) return 1;
+  if (dist == 6) return (log(t_lower) - eta) / aux > 5;
+  if (dist == 7) return aux * (log(t_lower) - eta) > 0;
+  {
+    real shape = dist == 8 ? aux : aux2;
+    real log_x_lower = dist == 8
+                         ? log(t_lower) - eta
+                         : log(aux2) + inv(sqrt(aux2)) * (log(t_lower) - eta)
+                                       / aux;
+    return log_x_lower > log(shape + fmax(1, sqrt(shape)));
+  }
 }
 
-// Log P(t_lower < T <= t_upper | T > t_entry), for delayed entry.
+// Composite Simpson on the offset range [a, b] from the base log time s_l,
+// on the integrand f(e^s) e^s accumulated with log_sum_exp, doubling the
+// panel count until two successive estimates agree to 1e-9 in the log,
+// which puts the finer one within a few 1e-11 of the value, since the
+// difference of two Simpson estimates overstates the finer one's error
+// about sixteenfold. Every node is s_l plus an offset, and the offset travels separately
+// into the density: a node formed as exp(s_l + offset) and logged again
+// loses any offset below an ULP of s_l, which is every node of a narrow
+// interval. Returns NaN when eleven doublings do not converge.
+real log_simpson_offsets(int dist, real s_l, real a, real b, real eta,
+                         real aux, real aux2) {
+  real width = b - a;
+  real f_a = log_density_offset(dist, s_l, a, eta, aux, aux2) + s_l + a;
+  real f_b = log_density_offset(dist, s_l, b, eta, aux, aux2) + s_l + b;
+  int n = 8;
+  real prev = not_a_number();
+  real cur = negative_infinity();
+  if (width <= 0) return negative_infinity();
+  for (level in 1:11) {
+    real h = width / n;
+    vector[n + 1] terms;
+    terms[1] = f_a;
+    terms[n + 1] = f_b;
+    for (i in 1:(n - 1)) {
+      real shift = a + i * h;
+      real w = (i % 2 == 1) ? log(4.0) : log(2.0);
+      terms[i + 1] = log_density_offset(dist, s_l, shift, eta, aux, aux2)
+                     + s_l + shift + w;
+    }
+    cur = log_sum_exp(terms) + log(h) - log(3.0);
+    if (!is_nan(prev) && abs(cur - prev) < 1e-9) return cur;
+    prev = cur;
+    n = 2 * n;
+  }
+  return not_a_number();
+}
+
+// Log P(t_lower < T <= t_upper) by quadrature of the density, for an interval
+// that neither difference resolves. A single Simpson pass over the whole
+// interval serves when it converges. When the mass sits in a layer next to
+// one endpoint far narrower than any grid, it does not, and the interval is
+// then cut geometrically toward the heavier endpoint: piece j covers the
+// distances from that endpoint between width / 2^(j + 1) and width / 2^j,
+// so a layer of any scale down to width / 2^60 falls inside a piece where
+// the integrand varies by a bounded factor, and the innermost sliver, where
+// the density is constant to rounding, is its value times its length. A
+// piece that still does not converge is dropped only when its upper bound,
+// the larger endpoint value times its length, is below the total so far by
+// 25 in the log, under 1.4e-11 of it; otherwise the value is unknown and
+// NaN is returned, which the likelihood treats as a rejection rather than
+// a number. Returning the last unconverged estimate put a generalized-gamma
+// interval 8 log units high, a factor of 2700 in the likelihood.
+real log_interval_prob_quad(int dist, real t_upper, real t_lower, real eta,
+                            real aux, real aux2) {
+  real s_l = log(t_lower);
+  real width = log_time_ratio(t_upper, t_lower);
+  real whole;
+  real f_l;
+  real f_u;
+  real total = negative_infinity();
+  int from_upper;
+  if (t_upper <= t_lower) return negative_infinity();
+  whole = log_simpson_offsets(dist, s_l, 0, width, eta, aux, aux2);
+  if (!is_nan(whole)) return whole;
+  f_l = log_density_offset(dist, s_l, 0, eta, aux, aux2) + s_l;
+  f_u = log_density_offset(dist, s_l, width, eta, aux, aux2) + s_l + width;
+  from_upper = f_u > f_l;
+  // Innermost first, so the pieces that hold the mass are summed before
+  // the far ones are judged against the total.
+  {
+    real sliver = width / 2^60;
+    real edge = from_upper ? width - sliver : 0;
+    total = log_density_offset(dist, s_l, edge, eta, aux, aux2) + s_l + edge
+            + log(sliver);
+  }
+  for (k in 0:59) {
+    int j = 59 - k;
+    real far = width / 2^j;
+    real near = far / 2;
+    real a = from_upper ? width - far : near;
+    real b = from_upper ? width - near : far;
+    real piece = log_simpson_offsets(dist, s_l, a, b, eta, aux, aux2);
+    if (is_nan(piece)) {
+      // Unconverged, but bounded above by the larger endpoint value times
+      // the length; negligible beside what is already summed means it does
+      // not matter, and anything else means the answer is not known.
+      real bound = fmax(log_density_offset(dist, s_l, a, eta, aux, aux2) + s_l
+                        + a,
+                        log_density_offset(dist, s_l, b, eta, aux, aux2) + s_l
+                        + b) + log(b - a);
+      if (bound < total - 25) continue;
+      return not_a_number();
+    }
+    total = log_sum_exp(total, piece);
+  }
+  return total;
+}
+
+// log P(l < T <= u | T > e) for the log-logistic, in a closed form with no
+// subtraction of nearby numbers. With z = a (log t - eta), F = 1 / (1 +
+// e^{-z}), S = 1 / (1 + e^{z}) and g = log1p_exp,
+//   log(F(u) - F(l)) = z_l + log(expm1(d)) - g(z_l) - g(z_u)
+// for d = a log(u / l) and z_u = z_l + d. Written that way the terms in
+// z_u and d cancel each other, and with a shape of 1e17 they are each near
+// 7e16 while the answer is log(1/2): rounding in either swamped it. Using
+// log(expm1(d)) = d + log1m_exp(-d) and g(z_u) = z_u + log1p_exp(-z_u), the
+// large parts cancel algebraically and what is left is
+//   log1m_exp(-d) - log1p_exp(-z_u) - g(z_l),
+// every term of which is bounded by the size of the answer. Conditioning
+// adds g(z_e), and g(z_e) - g(z_l) is taken by the signs of the two, with
+// g(z) = max(z, 0) + log1p(e^{-|z|}): both negative gives a difference of
+// two small log1p terms, both positive gives (z_e - z_l), the log of a time
+// ratio, plus two small terms, and a straddle gives -z_l plus small terms.
+// Two enormous g values are never differenced: with eta = -1e16 the sum of
+// an unconditional log probability and -log S(e) returned 0 for a value of
+// -0.46, and with a shape of 1e17 and both z far negative it returned 32
+// for a value of 0. Unconditional is e = 0, where g(z_e) is 0.
+real log_loglogistic_interval(real t_upper, real t_lower, real t_entry,
+                              real eta, real aux) {
+  // The lower and upper centered log times each have two forms, and each
+  // fails somewhere. Formed from the previous point plus a log time ratio,
+  // (log e - eta) + log(l / e) say, a centered log time keeps an offset
+  // below an ULP of the log, but when the points straddle the center at a
+  // large shape the two terms cancel, each near 0.7 for bounds 0.5 and a
+  // hair under 1, and the shape turns the rounding into units. Formed
+  // directly as log t - eta it is exact there, one small difference, but
+  // two points an ULP apart have the same rounded log and the offset is
+  // gone. The form is chosen by which point sits nearer the center: when
+  // the later point is nearer, its own difference is the smaller and the
+  // more accurate, and otherwise the two terms of the sum share a sign and
+  // nothing cancels. Two points that straddle the center take the direct
+  // form whatever their distances: at equal distances the sum is two
+  // opposite terms that cancel to rounding. A difference of two scores is
+  // then taken from the ratio it was built from, never from the two rounded
+  // scores.
+  real centered_e = t_entry > 0 ? log(t_entry) - eta : negative_infinity();
+  real centered_l = log(t_lower) - eta;
+  int lower_from_entry = 0;
+  real lower_ratio = 0;
+  real log_ratio = log_time_ratio(t_upper, t_lower);
+  real centered_direct = log(t_upper) - eta;
+  real centered_u;
+  real z_l;
+  real z_u;
+  real lp;
+  if (t_entry > 0 && t_entry != t_lower && centered_l * centered_e >= 0
+      && !(abs(centered_l) < abs(centered_e))) {
+    lower_ratio = log_time_ratio(t_lower, t_entry);
+    centered_l = centered_e + lower_ratio;
+    lower_from_entry = 1;
+  } else if (t_entry == t_lower) {
+    centered_l = centered_e;
+    lower_from_entry = 1;
+  }
+  centered_u = centered_direct * centered_l < 0
+                 || abs(centered_direct) < abs(centered_l)
+                 ? centered_direct
+                 : centered_l + log_ratio;
+  z_l = aux * centered_l;
+  z_u = aux * centered_u;
+  lp = log1m_exp_neg_prod(aux, log_ratio) - log1p_exp(-z_u);
+  if (t_entry > 0) {
+    real z_e = aux * centered_e;
+    if (z_e >= 0) {
+      real drop = lower_from_entry
+                    ? -aux * lower_ratio
+                    : aux * (centered_e - centered_l);
+      return lp + drop + log1p(exp(-z_e)) - log1p(exp(-z_l));
+    }
+    if (z_l >= 0) return lp + log1p(exp(z_e)) - z_l - log1p(exp(-z_l));
+    return lp + log1p(exp(z_e)) - log1p(exp(z_l));
+  }
+  return lp - log1p_exp(z_l);
+}
+
+// Whether a CDF difference resolves the interval. The result is
+//   log F(u) + log(1 - exp(log F(l) - log F(u))),
+// and the two log CDFs each carry rounding near eps * |log F(u)|. The first
+// term carries that rounding whatever route is taken; it is the rounding of
+// the answer itself. The second term is where a difference goes wrong: an
+// error e in the exponent moves it by e (1 - m) / m, with m the interval's
+// mass as a fraction of F(u). So the cancellation error is
+//   eps * |log F(u)| * (1 - m) / m,
+// and the difference is trusted when that is below 1e-11, which is m above
+// 1e-5 * max(1, |log F(u)|), OR when (1 - m) / m is at most one, which is m
+// of at least one half: the cancellation then adds no more than the answer's
+// own rounding, however deep the tail. That second clause is what keeps a
+// wide lower-tail interval on the difference. With a log-normal at sigma
+// 1e-4 and eta = log(2) + 1, the interval (1, 2] has log F(2) near -5e7 and
+// F(1) negligible beside it; the answer is log F(2) to eleven digits, while
+// the density's mass sits in a layer next to the upper bound far narrower
+// than any grid, and the quadrature came back 9.3 log units high.
+int cdf_diff_resolves(real log_cdf_upper, real log_cdf_lower) {
+  real mass;
+  if (log_cdf_upper <= log_cdf_lower) return 0;
+  mass = -expm1(log_cdf_lower - log_cdf_upper);
+  return mass >= 0.5 || mass > 1e-5 * fmax(1, -log_cdf_upper);
+}
+
+// The same test for the survival increment log S(u) - log S(l). Formed by
+// differencing two survival logs its error is near eps * |log S(l)| and the
+// same two clauses apply. Formed in a tail branch it carries only rounding
+// relative to itself, so any negative value resolves the interval, negative
+// infinity included: that is an interval holding everything past S(l), for
+// which log1m_exp() is exactly zero. A log-normal with sigma 5e-8 at t = 1
+// has log S near -1.25e15 and an increment of -0.22 over one ULP, an
+// interval holding a fifth of what remains; the quadrature cannot resolve
+// the layer that mass sits in, and its result cancelled against
+// log S(entry) to the wrong conditional value.
+int surv_increment_resolves(real increment, real log_surv_lower,
+                            int analytic) {
+  real mass;
+  if (is_nan(increment) || increment >= 0) return 0;
+  // A -inf increment with a finite log S(l) is S(u) underflowing to zero
+  // beside a representable S(l): the interval holds all of what remains to
+  // within less than an ULP of it, whichever way the increment was formed.
+  // Both survivals underflowing gives NaN above, not -inf.
+  if (analytic || is_inf(increment)) return 1;
+  mass = -expm1(increment);
+  return mass >= 0.5 || mass > 1e-5 * fmax(1, -log_surv_lower);
+}
+
+// Log P(t_lower < T <= t_upper). The route is chosen by what resolves the
+// interval, not by which one returns a finite number:
 //
-// Two ways to write the same quantity, each stable where the other is not, so
-// this switches on the same half-probability test `log_interval_prob_scalar()`
-// uses just above.
-//
-// Deep in the LOWER tail, survival rounds to one. Gamma with shape 10 and
-// scale 1 puts S at exactly 1.0 in double precision at t = 0.025, 0.05 and
-// 0.1 alike, so any expression built from survival DIFFERENCES gets zero, and
-// its log is -inf; the conditional log probability is in fact -38.22216. The
-// CDF is still representable there, so take the CDF difference and divide by
-// S(entry). That division is safe in this regime: F(upper) < 1/2 forces
-// S(entry) > 1/2, so log S(entry) is a small negative number and cannot
-// reintroduce the huge right-tail terms the conditional form exists to avoid.
-//
-// In the right tail the CDF rounds to one instead, and the increments are the
-// accurate ones, so keep the conditional-ratio form there.
-real log_cond_interval_prob(int dist, real t_upper, real t_lower, real t_entry,
-                            real eta, real aux, real aux2) {
-  real log_cdf_upper = log_cdf_scalar(dist, t_upper, eta, aux, aux2);
-  if (log_cdf_upper < -0.6931471805599453) {
-    real log_cdf_lower = log_cdf_scalar(dist, t_lower, eta, aux, aux2);
-    // The CDF has its own failure, and it is the mirror of the one above: an
-    // interval narrow enough that both bounds round to the SAME double has a
-    // difference of zero although its probability is positive. With an
-    // exponential rate of 1, entry at 0.05 and the interval from 0.1 to the
-    // next double after it, both log CDFs are -2.3521684610440907 and the
-    // difference is -inf, where the value is about -38.87. The increments
-    // compute a RATIO and still resolve that, so those cases go back to them.
-    //
-    // The test is whether the two CDFs actually differ, not whether they
-    // differ by more than some margin. A margin rejects intervals the CDF can
-    // still resolve and hands them to increments that cannot: at shape 10 with
-    // entry 0.025 and the interval (0.05, 0.050000000000003555] the log CDFs
-    // are 7.2e-13 apart and give -73.07, while every survival probability
-    // there rounds to 1, so the increment route returns -inf. Take the CDF
-    // difference whenever it produces a usable number.
-    if (log_cdf_upper > log_cdf_lower) {
-      real cond = log_diff_exp(log_cdf_upper, log_cdf_lower)
-                  - log_surv_scalar(dist, t_entry, eta, aux, aux2);
-      if (!is_inf(cond) && !is_nan(cond)) {
-        return cond;
-      }
+// * The five exponential/Weibull/Gompertz families have a closed-form
+//   cumulative hazard whose difference is computed analytically, so
+//   log S(l) + log(1 - exp(-dH)) is exact to rounding wherever the bounds
+//   themselves are representable, and no other route is ever needed.
+// * The log-logistic has the closed form above.
+// * The log-normal, gamma and generalized gamma take the CDF difference in the
+//   lower half and the survival increment in the upper half, each only when
+//   the resolution test says its rounding is well below the mass, and fall
+//   back to quadrature of the density otherwise.
+real log_interval_prob_scalar(int dist, real t_upper, real t_lower, real eta,
+                              real aux, real aux2) {
+  if (t_upper <= t_lower) return negative_infinity();
+  if (t_lower == 0) return log_cdf_scalar(dist, t_upper, eta, aux, aux2);
+  if (dist <= 5)
+    return log_surv_scalar(dist, t_lower, eta, aux, aux2)
+           + log1m_exp_neg_exp(log_cumhaz_diff(dist, t_upper, t_lower, eta,
+                                               aux));
+  if (dist == 7)
+    return log_loglogistic_interval(t_upper, t_lower, 0, eta, aux);
+  {
+    real log_cdf_upper = log_cdf_scalar(dist, t_upper, eta, aux, aux2);
+    if (log_cdf_upper < -0.6931471805599453) {
+      real log_cdf_lower = log_cdf_scalar(dist, t_lower, eta, aux, aux2);
+      if (cdf_diff_resolves(log_cdf_upper, log_cdf_lower))
+        return log_diff_exp(log_cdf_upper, log_cdf_lower);
+    } else {
+      real log_surv_lower = log_surv_scalar(dist, t_lower, eta, aux, aux2);
+      real inc = log_surv_increment(dist, t_upper, t_lower, eta, aux, aux2);
+      if (surv_increment_resolves(inc, log_surv_lower,
+                                  surv_increment_is_analytic(dist, t_lower,
+                                                             eta, aux, aux2)))
+        return log_surv_lower + log1m_exp(inc);
     }
   }
-  // Left-censoring passes t_lower == t_entry, where the first factor is
-  // log S(entry)/S(entry) = 0. Skip it rather than ask `log_surv_increment()`
-  // for a degenerate zero-width increment.
-  return (t_lower == t_entry
-            ? 0
-            : log_surv_increment(dist, t_lower, t_entry, eta, aux, aux2))
-         + log1m_exp(log_surv_increment(dist, t_upper, t_lower, eta, aux,
-                                        aux2));
+  return log_interval_prob_quad(dist, t_upper, t_lower, eta, aux, aux2);
+}
+
+// Log P(t_lower < T <= t_upper | T > t_entry), for delayed entry. Left
+// censoring passes t_lower == t_entry.
+//
+// The same routing as log_interval_prob_scalar(), conditioned on entry. For
+// the closed-form families both factors, log S(l)/S(entry) = -dH(entry, l)
+// and log(1 - S(u)/S(l)) = log(1 - exp(-dH(l, u))), come from analytic
+// cumulative-hazard differences and are exact to rounding. For the others the
+// CDF difference over S(entry) is the lower-tail form: F(u) < 1/2 forces
+// S(entry) > 1/2, so log S(entry) is a small negative number and cannot
+// reintroduce the huge right-tail terms the increment form exists to avoid.
+// Gamma with shape 10 puts S at exactly 1.0 in double precision at t = 0.025,
+// 0.05 and 0.1 alike, so every survival increment there is zero and only the
+// CDF route has the value, which is -38.22216 for the interval (0.05, 0.1]
+// with entry at 0.025. When neither difference resolves the interval, the
+// quadrature does, and S(entry) is divided out afterward.
+real log_cond_interval_prob(int dist, real t_upper, real t_lower, real t_entry,
+                            real eta, real aux, real aux2) {
+  if (t_upper <= t_lower) return negative_infinity();
+  if (dist <= 5) {
+    real log_reach = t_lower == t_entry
+                       ? 0
+                       : -exp(log_cumhaz_diff(dist, t_lower, t_entry, eta,
+                                              aux));
+    return log_reach
+           + log1m_exp_neg_exp(log_cumhaz_diff(dist, t_upper, t_lower, eta,
+                                               aux));
+  }
+  if (dist == 7)
+    return log_loglogistic_interval(t_upper, t_lower, t_entry, eta, aux);
+  {
+    real log_cdf_upper = log_cdf_scalar(dist, t_upper, eta, aux, aux2);
+    if (log_cdf_upper < -0.6931471805599453) {
+      real log_cdf_lower = log_cdf_scalar(dist, t_lower, eta, aux, aux2);
+      if (cdf_diff_resolves(log_cdf_upper, log_cdf_lower))
+        return log_diff_exp(log_cdf_upper, log_cdf_lower)
+               - log_surv_scalar(dist, t_entry, eta, aux, aux2);
+    } else {
+      real log_surv_lower = log_surv_scalar(dist, t_lower, eta, aux, aux2);
+      real inc = log_surv_increment(dist, t_upper, t_lower, eta, aux, aux2);
+      if (surv_increment_resolves(inc, log_surv_lower,
+                                  surv_increment_is_analytic(dist, t_lower,
+                                                             eta, aux, aux2)))
+        return (t_lower == t_entry
+                  ? 0
+                  : log_surv_increment(dist, t_lower, t_entry, eta, aux, aux2))
+               + log1m_exp(inc);
+    }
+  }
+  return log_interval_prob_quad(dist, t_upper, t_lower, eta, aux, aux2)
+         - log_surv_scalar(dist, t_entry, eta, aux, aux2);
 }
 
 // Status-aware single-observation log-likelihood with optional delayed entry.
