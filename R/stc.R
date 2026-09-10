@@ -571,26 +571,35 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 }
 
 #' Comparator-population delta-method terms for binomial STC
+#'
+#' The standardized event probability is `p = sum(w_i p_i) / sum(w_i)` over
+#' the comparator grid, and its uncertainty comes through the delta method
+#' from the coefficient covariance. The gradients are analytic:
+#' `d p / d beta = sum(w_i p_i'(eta_i) X_i) / sum(w_i)`, with `p_i'` the
+#' inverse link's derivative, and the link-scale and log-scale functionals
+#' follow by the chain rule. A central difference in the coefficient
+#' coordinates was used before, with a step proportional to `max(1, |beta|)`;
+#' that step is not a property of the model. Multiply a predictor by 1e6 and
+#' its coefficient shrinks by 1e6 while the step stays near 6e-6, so the
+#' perturbation moved the target linear predictor by about 6, not a local
+#' derivative at all, and a comparator probability of 0.75 on 40 subjects
+#' at the observed profile reported a standard error of 0.032 instead of the
+#' 0.068 the same data give in any other units. Analytic gradients transform
+#' with the design, so equivalent units give equivalent uncertainty.
+#'
+#' Everything is formed on the log scale so that a tail probability outside
+#' double precision keeps its digits: see [.stc_binomial_gradients()].
 #' @keywords internal
 .stc_binomial_comparator_delta <- function(fit, newdata, weights,
                                            beta_hat, V, link_resolved,
                                            log_p_A, log_q_A, p_B,
                                            var_p_B) {
   X_comp_design <- .stc_model_matrix(fit, newdata)
-  log_means <- function(beta) {
-    lp <- .binary_log_probs(as.vector(X_comp_design %*% beta), link_resolved)
-    c(event = .weighted_log_mean_exp(lp$event, weights),
-      nonevent = .weighted_log_mean_exp(lp$nonevent, weights))
-  }
-  link_A <- function(beta) {
-    lm <- log_means(beta)
-    .binary_link_from_logs(lm["event"], lm["nonevent"], link_resolved)
-  }
-  p_A <- function(beta) exp(log_means(beta)["event"])
-  log_p <- function(beta) log_means(beta)["event"]
-  grad_link <- .stc_numeric_gradient(link_A, beta_hat)
-  grad_mean <- .stc_numeric_gradient(p_A, beta_hat)
-  grad_log_p <- .stc_numeric_gradient(log_p, beta_hat)
+  eta <- as.vector(X_comp_design %*% beta_hat)
+  grads <- .stc_binomial_gradients(X_comp_design, eta, weights, link_resolved)
+  grad_link <- grads$link
+  grad_mean <- grads$mean
+  grad_log_p <- grads$log_mean
 
   var_link_A <- as.numeric(t(grad_link) %*% V %*% grad_link)
   var_link_B <- link_derivative_response(p_B, link_resolved)^2 * var_p_B
@@ -613,16 +622,74 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   )
 }
 
-#' Numerical gradient for fixed-grid STC delta-method summaries
+#' Analytic gradients of the standardized binomial functionals
+#'
+#' With `log p_i` and `log q_i` the event and non-event log probabilities at
+#' each grid point (from [.binary_log_probs()]), the standardized log
+#' probability is `log(sum(w_i p_i) / sum(w_i))` and its gradient is
+#' `sum(c_i (d log p_i / d eta) X_i)` with `c_i = w_i p_i / sum(w p)`, the
+#' share of the standardized probability each point carries. The per-point
+#' derivative of the log probability is `q_i` under the logit, the inverse
+#' Mills ratio `phi(eta) / Phi(eta)` under the probit, and
+#' `exp(eta - exp(eta)) / p_i` under the complementary log-log; each is
+#' formed from the log probabilities so a point deep in either tail
+#' contributes its share rather than a rounded zero. The same for the
+#' non-event side, with `-p_i`, `-phi(eta) / Phi(-eta)` and `-exp(eta)`.
+#'
+#' The link-scale functional is then the chain rule on the two log means:
+#' the difference of the two gradients for the logit; for the probit,
+#' `d p / phi(z)` at the link value `z`, taken from whichever tail is the
+#' smaller one, as [.binary_link_from_logs()] does; for the complementary
+#' log-log, `d log q / log q`, or the log-probability gradient once
+#' `log q` has rounded to zero and the link is `log p` to double precision.
+#'
+#' @param X Comparator design, one row per grid point.
+#' @param eta Linear predictor at each grid point.
+#' @param weights Non-negative weights, one per grid point.
+#' @param link The binomial link.
+#' @return List of gradient vectors `log_mean`, `log_nonevent_mean`, `mean`
+#'   and `link`, one entry per coefficient.
 #' @keywords internal
-.stc_numeric_gradient <- function(fn, beta) {
-  step <- .Machine$double.eps^(1 / 3) * pmax(1, abs(beta))
-  vapply(seq_along(beta), function(j) {
-    upper <- lower <- beta
-    upper[j] <- upper[j] + step[j]
-    lower[j] <- lower[j] - step[j]
-    (fn(upper) - fn(lower)) / (2 * step[j])
-  }, numeric(1))
+.stc_binomial_gradients <- function(X, eta, weights,
+                                    link = c("logit", "probit", "cloglog")) {
+  link <- match.arg(link)
+  lp <- .binary_log_probs(eta, link)
+  if (link == "logit") {
+    d_log_p <- exp(lp$nonevent)
+    d_log_q <- -exp(lp$event)
+  } else if (link == "probit") {
+    log_phi <- stats::dnorm(eta, log = TRUE)
+    d_log_p <- exp(log_phi - lp$event)
+    d_log_q <- -exp(log_phi - lp$nonevent)
+  } else {
+    d_log_p <- exp(eta - exp(eta) - lp$event)
+    d_log_q <- -exp(eta)
+  }
+  log_w <- log(weights) - log(sum(weights))
+  log_p_mean <- .weighted_log_mean_exp(lp$event, weights)
+  log_q_mean <- .weighted_log_mean_exp(lp$nonevent, weights)
+  share_p <- exp(log_w + lp$event - log_p_mean)
+  share_q <- exp(log_w + lp$nonevent - log_q_mean)
+  grad_log_p <- colSums(share_p * d_log_p * X)
+  grad_log_q <- colSums(share_q * d_log_q * X)
+  grad_mean <- exp(log_p_mean) * grad_log_p
+  grad_link <- if (link == "logit") {
+    grad_log_p - grad_log_q
+  } else if (link == "probit") {
+    z <- .binary_link_from_logs(log_p_mean, log_q_mean, link)
+    log_phi_z <- stats::dnorm(z, log = TRUE)
+    if (log_p_mean <= log(0.5)) {
+      exp(log_p_mean - log_phi_z) * grad_log_p
+    } else {
+      -exp(log_q_mean - log_phi_z) * grad_log_q
+    }
+  } else if (log_p_mean < -18) {
+    grad_log_p
+  } else {
+    grad_log_q / log_q_mean
+  }
+  list(log_mean = grad_log_p, log_nonevent_mean = grad_log_q,
+       mean = grad_mean, link = grad_link)
 }
 
 #' Stable Euclidean norm of two standard errors
