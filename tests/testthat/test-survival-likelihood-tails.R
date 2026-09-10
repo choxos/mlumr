@@ -671,4 +671,12 @@ test_that("quadrature nodes keep offsets below an ULP of the log time", {
   ref <- log(plogis(1e17 * log1p((upper - 0.1) / 0.1)) - 0.5)
   expect_lt(abs(env$surv_ll_status(7L, upper, lower, 0, 3L, eta, 1e17, 0) -
                   ref), 1e-9)
+  # The same for the entry: entry at 0.1 and lower bound one ULP above it
+  # share a rounded log, and a direct lower score put the two at the same
+  # point while the conditioning still counted their separation.
+  score <- function(t) 1e17 * log1p((t - 0.1) / 0.1)
+  ref <- log(plogis(score(0.2)) - plogis(score(upper))) -
+    log(1 - plogis(score(lower)))
+  expect_lt(abs(env$surv_ll_status(7L, 0.2, upper, lower, 3L, eta, 1e17, 0) -
+                  ref), 1e-9)
 })

@@ -554,8 +554,7 @@ real log_interval_prob_quad(int dist, real t_upper, real t_lower, real eta,
 // log(expm1(d)) = d + log1m_exp(-d) and g(z_u) = z_u + log1p_exp(-z_u), the
 // large parts cancel algebraically and what is left is
 //   log1m_exp(-d) - log1p_exp(-z_u) - g(z_l),
-// every term of which is bounded by the size of the answer, with z_u taken
-// from the upper bound directly rather than as z_l + d. Conditioning
+// every term of which is bounded by the size of the answer. Conditioning
 // adds g(z_e), and g(z_e) - g(z_l) is taken by the signs of the two, with
 // g(z) = max(z, 0) + log1p(e^{-|z|}): both negative gives a difference of
 // two small log1p terms, both positive gives (z_e - z_l), the log of a time
@@ -566,31 +565,49 @@ real log_interval_prob_quad(int dist, real t_upper, real t_lower, real eta,
 // for a value of 0. Unconditional is e = 0, where g(z_e) is 0.
 real log_loglogistic_interval(real t_upper, real t_lower, real t_entry,
                               real eta, real aux) {
-  // The upper centered log time has two forms, and each fails somewhere.
-  // As (log l - eta) + log(u / l) it keeps an offset below an ULP of log l,
-  // but when the interval crosses the center at a large shape it is the sum
-  // of two values that cancel, each near 0.7 with bounds 0.5 and a hair
-  // under 1, and the shape turns the rounding into units. As log u - eta it
-  // is exact there, one small difference, but two bounds an ULP apart have
-  // the same rounded log and the offset is gone. The form is chosen by
-  // which bound sits nearer the center: when the upper is nearer its own
-  // difference is the smaller and the more accurate, and otherwise the two
-  // terms of the sum share a sign and nothing cancels.
+  // The lower and upper centered log times each have two forms, and each
+  // fails somewhere. Formed from the previous point plus a log time ratio,
+  // (log e - eta) + log(l / e) say, a centered log time keeps an offset
+  // below an ULP of the log, but when the points straddle the center at a
+  // large shape the two terms cancel, each near 0.7 for bounds 0.5 and a
+  // hair under 1, and the shape turns the rounding into units. Formed
+  // directly as log t - eta it is exact there, one small difference, but
+  // two points an ULP apart have the same rounded log and the offset is
+  // gone. The form is chosen by which point sits nearer the center: when
+  // the later point is nearer, its own difference is the smaller and the
+  // more accurate, and otherwise the two terms of the sum share a sign and
+  // nothing cancels. A difference of two scores is then taken from the
+  // ratio it was built from, never from the two rounded scores.
+  real centered_e = t_entry > 0 ? log(t_entry) - eta : negative_infinity();
   real centered_l = log(t_lower) - eta;
+  int lower_from_entry = 0;
+  real lower_ratio = 0;
   real log_ratio = log_time_ratio(t_upper, t_lower);
   real centered_direct = log(t_upper) - eta;
-  real centered_u = abs(centered_direct) < abs(centered_l)
-                      ? centered_direct
-                      : centered_l + log_ratio;
-  real z_l = aux * centered_l;
-  real z_u = aux * centered_u;
-  real lp = log1m_exp_neg_prod(aux, log_ratio) - log1p_exp(-z_u);
+  real centered_u;
+  real z_l;
+  real z_u;
+  real lp;
+  if (t_entry > 0 && t_entry != t_lower && !(abs(centered_l) < abs(centered_e))) {
+    lower_ratio = log_time_ratio(t_lower, t_entry);
+    centered_l = centered_e + lower_ratio;
+    lower_from_entry = 1;
+  } else if (t_entry == t_lower) {
+    centered_l = centered_e;
+    lower_from_entry = 1;
+  }
+  centered_u = abs(centered_direct) < abs(centered_l)
+                 ? centered_direct
+                 : centered_l + log_ratio;
+  z_l = aux * centered_l;
+  z_u = aux * centered_u;
+  lp = log1m_exp_neg_prod(aux, log_ratio) - log1p_exp(-z_u);
   if (t_entry > 0) {
-    real z_e = aux * (log(t_entry) - eta);
+    real z_e = aux * centered_e;
     if (z_e >= 0) {
-      real drop = t_entry == t_lower
-                    ? 0
-                    : -aux * log_time_ratio(t_lower, t_entry);
+      real drop = lower_from_entry
+                    ? -aux * lower_ratio
+                    : aux * (centered_e - centered_l);
       return lp + drop + log1p(exp(-z_e)) - log1p(exp(-z_l));
     }
     if (z_l >= 0) return lp + log1p(exp(z_e)) - z_l - log1p(exp(-z_l));
