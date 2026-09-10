@@ -1,3 +1,705 @@
+#' Residual and numerical-zero ratios, on a scale where squares cannot overflow
+#'
+#' Everything is divided by one common magnitude before being squared, so the
+#' ratios are unchanged while the sums stay in range.
+#'
+#' `zero_ratio` is what the computed residual can be when the true one is zero.
+#' For `r = y - fl(X b)` the elementwise rounding is bounded by
+#' `p * eps * (|X| |b|)`, which is small when the fitted coefficients are small
+#' and large when they are not. That is an UPPER bound on rounding, and it is
+#' used only in that direction: a residual above it is certainly real, while a
+#' residual at or below it is undecided, not proven zero. Coefficients dropped
+#' as redundant are `NA` and contribute nothing, so a constant covariate needs
+#' no special handling.
+#'
+#' @param X Design matrix.
+#' @param y Outcome.
+#' @param mu_hat Fitted values.
+#' @param b Fitted coefficients; `NA` for columns dropped as redundant.
+#' @param rank Fitted rank.
+#' @param mu Fitted values for a nonlinear link, or `NULL`.
+#' @return List with `ratio` (residual sum of squares over the total sum of
+#'   squares), `zero_ratio` (the rounding bound on the same scale) and `rank`.
+#' @keywords internal
+.fit_ratios <- function(X, y, mu_hat, b, rank, mu = NULL) {
+  m <- max(abs(y), abs(mu_hat))
+  if (!is.finite(m) || m == 0) {
+    m <- 1
+  }
+  tss <- sum(((y - mean(y)) / m)^2)
+  b[is.na(b)] <- 0
+  bound <- ncol(X) * .Machine$double.eps * (abs(X) %*% abs(b))
+  if (!is.null(mu)) {
+    bound <- bound * mu
+  }
+  list(ratio = sum(((y - mu_hat) / m)^2) / tss,
+       zero_ratio = sum((bound / m)^2) / tss,
+       rank = rank)
+}
+
+
+#' Least-squares residual ratios of a linear fit
+#'
+#' `lm.fit()`'s default pivot tolerance of `1e-7` can drop a column that is
+#' nearly but not exactly collinear with another, measuring the residual
+#' against a design smaller than the one that will be fitted, so it is lowered
+#' to the floor. A linear fit of finite data always returns, so this cannot
+#' fail to give a verdict.
+#'
+#' @param X Design matrix, intercept included.
+#' @param y Outcome vector.
+#' @return See [.fit_ratios()].
+#' @keywords internal
+.linear_fit_ratios <- function(X, y) {
+  fit <- stats::lm.fit(X, y, tol = .Machine$double.eps)
+  .fit_ratios(X, y, y - fit$residuals, fit$coefficients, fit$rank)
+}
+
+
+#' Response-scale residual ratio of a log-link normal fit
+#'
+#' The likelihood under `link = "log"` is `normal(exp(theta), sigma)`, so the
+#' residual that informs sigma is `y - exp(theta)` on the RESPONSE scale, and
+#' that is the one to measure when asking whether it is nearly zero. Whether
+#' it is EXACTLY zero is a different question, answered on the log scale by
+#' [.check_normal_residual_variation()], so this fit is only a screen and a
+#' failure to converge costs nothing but the screen.
+#'
+#' `glm.fit()` takes its QR pivot tolerance as `min(1e-7, epsilon / 1000)`, so
+#' the only way to stop it discarding a nearly collinear column is through
+#' `epsilon`. At `1e-13` the pivot tolerance is `1e-16`, matching the linear
+#' fit. Whether the iteration then reports convergence is not required: near
+#' an exact fit the deviance changes at rounding level from one iterate to the
+#' next, and whether that clears the tolerance differs between platforms. The
+#' residual of ANY iterate bounds the least-squares minimum from above, so a
+#' small one justifies the warning and a large one only withholds it, which is
+#' the safe direction for a screen.
+#'
+#' The fit is a Gaussian log-link IRLS, whose deviance is a sum of squared
+#' outcomes, so it cannot run on an outcome spanning more than about 700 log
+#' units however it is centered: the squares overflow. The caller centers
+#' `log(y)` on its midrange, which keeps both ends finite whenever the span
+#' fits at all. Beyond that there is no screen, and no verdict depends on
+#' one.
+#'
+#' @param X Design matrix, intercept included.
+#' @param y Non-negative outcome vector. Zeros are allowed when `start` is
+#'   given, since the default starting values take `log(y)`.
+#' @param start Starting coefficients, or `NULL` for `glm.fit()`'s own.
+#' @return The residual ratio, or `NA` when the fit could not run.
+#' @keywords internal
+.log_link_response_ratio <- function(X, y, start = NULL) {
+  fit <- tryCatch(
+    suppressWarnings(stats::glm.fit(
+      X, y, start = start, family = stats::gaussian("log"),
+      control = list(epsilon = 1e-13, maxit = 100, trace = FALSE)
+    )),
+    error = function(e) NULL
+  )
+  if (is.null(fit) || !all(is.finite(fit$fitted.values))) {
+    return(NA_real_)
+  }
+  # A perturbation d in the linear predictor moves the fitted value by mu * d,
+  # so the bound carries that factor onto the response scale.
+  .fit_ratios(X, y, fit$fitted.values, fit$coefficients, fit$rank,
+              mu = fit$fitted.values)$ratio
+}
+
+
+#' Exact keys for design rows
+#'
+#' The binary representation of every element, so two rows compare equal
+#' exactly when they are the same numbers. `paste()` on doubles keeps fifteen
+#' digits and could merge two rows that differ. A negative zero is the same
+#' number as a positive one, and every fit treats it so, but `%a` spells the
+#' two differently; adding zero to each element folds them together and
+#' changes nothing else.
+#'
+#' @param X Design matrix.
+#' @return Character vector, one key per row.
+#' @keywords internal
+.row_keys <- function(X) {
+  apply(X + 0, 1, function(r) paste(sprintf("%a", r), collapse = ","))
+}
+
+
+#' Replicate design rows, and whether their outcomes agree
+#'
+#' Rows with identical covariates get identical fitted values under any model,
+#' so two such rows with different outcomes leave a residual that no fit can
+#' remove. That is a structural fact, not a numerical one: it proves the
+#' residual sum of squares positive without measuring it. Rows are compared on
+#' their exact binary representation, since `paste()` on doubles keeps fifteen
+#' digits and could merge two rows that differ.
+#'
+#' @param X Raw design matrix.
+#' @param y Outcome vector.
+#' @return List with `n_distinct`, the number of distinct design rows, and
+#'   `consistent`, `FALSE` if some replicate group carries more than one
+#'   outcome value.
+#' @keywords internal
+.design_replicates <- function(X, y) {
+  groups <- split(y, .row_keys(X))
+  list(n_distinct = length(groups),
+       consistent = all(vapply(groups, function(g) all(g == g[1]),
+                               logical(1))))
+}
+
+
+#' Center a design's predictors on their midrange and scale them to unit size
+#'
+#' Centering adds a multiple of the intercept column, so the column space, the
+#' fitted values and the residual are all unchanged, but the coefficients stop
+#' carrying the offset. Without it a predictor recorded as `x + 1e12` forces an
+#' intercept near `-1e12 * slope`, and the rounding bound counts that
+#' cancellation as rounding until it exceeds a genuine residual.
+#'
+#' The center is the midrange, formed from halves so that neither the sum nor
+#' the shift can overflow: a column holding values near both 1e308 and -1e308
+#' has a mean that overflows on this platform's double accumulation and a
+#' shift from it that overflows for the far value, and either sends a
+#' non-finite design into `qr()`. Any center serves; only the offset matters.
+#'
+#' Scaling each centered column to a largest absolute value of one keeps the
+#' rank and pivot decisions independent of the predictor's units whatever the
+#' factorization's pivoting rule. R's `dqrdc2` judges a column against its own
+#' original norm, so a predictor whose whole range is `2^-60` survives beside
+#' an intercept of ones; a rule that judged it against the largest column
+#' would drop it, and an outcome exactly reproduced through it would then read
+#' as an ordinary residual against the intercept alone. Scaling a column by
+#' `c` scales its coefficient by `1 / c`, so the rounding bound
+#' `p * eps * |X||b|` is unchanged, and the column space, the fitted values
+#' and every feasibility question are too.
+#'
+#' @param X Design matrix, intercept first.
+#' @return The centered and scaled design.
+#' @keywords internal
+.center_design <- function(X) {
+  if (ncol(X) > 1L) {
+    for (j in 2:ncol(X)) {
+      X[, j] <- X[, j] - (max(X[, j]) / 2 + min(X[, j]) / 2)
+    }
+  }
+  .scale_design(X)
+}
+
+
+#' Scale a design's predictors by powers of two
+#'
+#' Division by a power of two is exact in binary, so this changes no
+#' distinction between rows: two rows that differ by 1e-20 in a column still
+#' do afterward. That is what the feasibility question needs, where centering
+#' would round a row at 1e-20 onto a row at 0 once both are shifted by 0.5 and
+#' read a free zero row as pinned. Only the size matters here, so the largest
+#' absolute value lands in [1, 2).
+#'
+#' @param X Design matrix, intercept first.
+#' @return The scaled design.
+#' @keywords internal
+.scale_design <- function(X) {
+  if (ncol(X) > 1L) {
+    for (j in 2:ncol(X)) {
+      size <- max(abs(X[, j]))
+      if (is.finite(size) && size > 0) {
+        # log2() of the largest double rounds to 1024, and 2^1024 is Inf,
+        # which would zero the column; below the normal range the power
+        # underflows to zero instead. Clamp to the representable exponents.
+        power <- min(max(floor(log2(size)), -1022), 1023)
+        X[, j] <- X[, j] / 2^power
+      }
+    }
+  }
+  X
+}
+
+
+#' Whether zero rows can be sent to the boundary while positive rows stay fit
+#'
+#' Under a log link a zero outcome is matched only in the limit where its
+#' linear predictor goes to `-Inf`. The residual goes to zero along a ray in
+#' coefficient space exactly when some direction `d` leaves every positive
+#' row's predictor unchanged, `X_pos d = 0`, and lowers every zero row's,
+#' `X_zero d < 0`. A rank deficit in `X_pos` is necessary for that and not
+#' sufficient: with positive rows at `x = 0` and zeros at `x = -1` and `x = 1`
+#' the one free direction moves the two zero rows in opposite directions, and
+#' their means stay bounded away from zero.
+#'
+#' The question is a linear feasibility one. With `k` free directions it is
+#' decided exactly for `k <= 2`: a zero row whose profile lies in the row space
+#' of the positive rows is pinned and settles it; for one direction the zero
+#' rows' loadings must share a sign; for two, their loadings must lie in an
+#' open half-plane through the origin, which is a gap of more than pi between
+#' consecutive angles. Beyond two, and for a gap within rounding of pi, the
+#' answer is left unknown and the caller refuses conservatively.
+#'
+#' The rows arrive scaled but not centered: centering rounds, and a zero row
+#' at `1e-20` shifted by `0.5` lands on the positive rows at `0` and reads as
+#' pinned when it is free.
+#'
+#' @param X_pos Scaled design rows of the positive outcomes.
+#' @param X_zero Scaled design rows of the zero outcomes.
+#' @param raw_pos,raw_zero The same rows unscaled, for the bitwise duplicate
+#'   test: scaling a column that spans most of the double range underflows
+#'   its smallest entries to zero, and a zero row at 1e-200 would then read
+#'   as a duplicate of a positive row at 0.
+#' @return `"reachable"`, `"unreachable"` or `"unknown"`.
+#' @keywords internal
+.zero_boundary <- function(X_pos, X_zero, raw_pos = X_pos, raw_zero = X_zero) {
+  tol <- .Machine$double.eps
+  r <- qr(X_pos, tol = tol)$rank
+  p <- ncol(X_pos)
+  if (r == p) {
+    return("unreachable")
+  }
+  # A zero row in the row space of the positive rows is pinned: every
+  # direction that leaves the positive predictors fixed leaves its own fixed
+  # too. A duplicate of a positive profile is read bitwise, so that holds
+  # whatever the size of the values; a row that is a combination of positive
+  # profiles, the midpoint of two say, is read at machine precision, since a
+  # contrast below that is below the resolution stated on the guard. A zero
+  # row merely close to the row space, within 1e-8 of its own size but not
+  # within rounding, is neither pinned nor safely free: the loadings that
+  # decide the rest are rounding at that point, so the answer is unknown.
+  if (any(.row_keys(raw_zero) %in% .row_keys(raw_pos))) {
+    return("unreachable")
+  }
+  row_space <- qr.Q(qr(t(X_pos), tol = tol))[, seq_len(r), drop = FALSE]
+  off_space <- X_zero - X_zero %*% row_space %*% t(row_space)
+  closeness <- sqrt(rowSums(off_space^2)) / sqrt(rowSums(X_zero^2))
+  if (any(closeness < 1e-14)) {
+    return("unreachable")
+  }
+  if (any(closeness < 1e-8)) {
+    return("unknown")
+  }
+  # An orthonormal basis of the null space of X_pos: the columns of the
+  # complete Q of t(X_pos) beyond its rank.
+  null_basis <- qr.Q(qr(t(X_pos), tol = tol), complete = TRUE)
+  null_basis <- null_basis[, seq.int(r + 1L, p), drop = FALSE]
+  loadings <- X_zero %*% null_basis
+  # Reduce the loadings to their effective span. A null direction that no
+  # zero row loads on, a constant covariate say, adds a dimension to the
+  # coordinates without adding one to the question: two zero rows loading
+  # (-1, 0) and (1, 0) are a one-direction problem with opposite signs, not a
+  # two-direction one with a gap of pi.
+  span <- qr(t(loadings), tol = tol)
+  k <- span$rank
+  if (k == 0L) {
+    return("unreachable")
+  }
+  loadings <- loadings %*% qr.Q(span)[, seq_len(k), drop = FALSE]
+  if (k == 1L) {
+    z <- loadings[, 1]
+    return(if (all(z < 0) || all(z > 0)) "reachable" else "unreachable")
+  }
+  if (k == 2L) {
+    angles <- sort(atan2(loadings[, 2], loadings[, 1]))
+    gap <- max(c(diff(angles), angles[1] + 2 * pi - angles[length(angles)]))
+    # A gap of exactly pi is two rows pointing opposite ways, which no
+    # direction lowers together; above pi a direction exists. Within rounding
+    # of pi the computed angles cannot say which, and that is left unknown
+    # rather than read either way.
+    if (gap > pi + 1e-12) {
+      return("reachable")
+    }
+    return(if (gap < pi - 1e-12) "unreachable" else "unknown")
+  }
+  "unknown"
+}
+
+
+#' Classify how much residual variation a normal IPD outcome has
+#'
+#' The decision core behind [.check_normal_residual_variation()], which turns
+#' the status into a refusal, a warning or silence. Kept separate so the
+#' mixed-zero log-link case can classify the positive rows on their own.
+#'
+#' Statuses, in the order they are decided:
+#'
+#' * `"saturated"`: `n <= rank`, the design reproduces any outcome.
+#' * `"constant"`: the outcome is constant with residual degrees of freedom,
+#'   so the intercept alone fits it exactly.
+#' * `"exact"`: every replicate group agrees and there are exactly `rank`
+#'   distinct design rows, so the design reaches every observed value.
+#' * `"unresolved_log"`: `log(y)` is constant although `y` is not, so the
+#'   log-scale total sum of squares is zero and the ratio undefined.
+#' * `"undecidable"`: the computed residual is at or below the rounding an
+#'   exact fit can leave.
+#' * `"near_exact"`: a real residual at most `1e-6` of the total.
+#' * `"positive"`: a real residual.
+#'
+#' @param X_raw Design matrix, intercept included, uncentered.
+#' @param y Outcome vector; positive under `link = "log"`.
+#' @param link `"identity"` or `"log"`.
+#' @param center Whether the model will center the covariates, or fit a QR
+#'   reparameterization of them, which decorrelates the design and removes
+#'   the same offset cancellation. The guard then works on a centered design
+#'   too, so a contrast between rows that centering rounds away is one the
+#'   fitted model loses as well; with neither, the design is only scaled,
+#'   which is exact, and the rounding bound carries whatever cancellation the
+#'   raw offsets impose, as the fitted model then does.
+#' @return List with `status` and, where they apply, `n`, `rank`, `ratio`
+#'   and `zero_ratio`.
+#' @keywords internal
+.residual_variation_status <- function(X_raw, y, link, center = TRUE) {
+  X <- if (center) .center_design(X_raw) else .scale_design(X_raw)
+  n <- length(y)
+  rank <- qr(X, tol = .Machine$double.eps)$rank
+  if (n <= rank) {
+    return(list(status = "saturated", n = n, rank = rank))
+  }
+  if (all(y == y[1])) {
+    return(list(status = "constant", n = n, rank = rank))
+  }
+  replicates <- .design_replicates(X_raw, y)
+  if (replicates$consistent && replicates$n_distinct == rank) {
+    return(list(status = "exact", n = n, rank = rank))
+  }
+
+  # Both sums are squares, so an outcome in extreme units breaks the units
+  # invariance this test is built on: below about 1e-162 they both underflow to
+  # zero and a varying outcome reads as constant, and above about 1e154 they
+  # both overflow to Inf and the ratio is NaN. The ratio is what matters, so
+  # take it on a normalized outcome, where the largest square is 1.
+  #
+  # Normalize the VARIATION, not the level. `y = 1e15 + 3 * x` is stored
+  # exactly and fitted exactly, but dividing it by its own maximum leaves the
+  # whole 147-wide spread inside the last few digits and turns it into noise.
+  # Subtracting one of the data values first is exact whenever they share a
+  # scale, and with an intercept in the design it shifts only the intercept
+  # coefficient, so the residual is untouched.
+  if (identical(link, "log")) {
+    # Existence of an exact fit is a linear question in log(y). Centering
+    # log(y) shifts only the intercept, and keeps the response-scale screen
+    # below from underflowing the small end of a wide outcome to zero, which
+    # is not a value a log link can start from. The center is the midrange,
+    # not the mean: five outcomes near 1e-260 and one near 1e260 have a mean
+    # log far below the middle, and centering on it overflows the large one.
+    # The midrange keeps both ends finite whenever the span itself fits.
+    log_y <- log(y)
+    log_y <- log_y - (max(log_y) + min(log_y)) / 2
+    fit <- .linear_fit_ratios(X, log_y)
+    screen <- function() .log_link_response_ratio(X, exp(log_y))
+  } else {
+    # The span itself can overflow: y = c(-1e308, 1e308) makes y - min(y) Inf
+    # and sends a non-finite response into the fit. Halving is exact in binary,
+    # and the scaling below makes the factor irrelevant.
+    y <- if (is.finite(max(y) - min(y))) {
+      y - min(y)
+    } else {
+      y / 2 - min(y) / 2
+    }
+    scale <- max(abs(y))
+    if (is.finite(scale) && scale > 0) {
+      y <- y / scale
+    }
+    fit <- .linear_fit_ratios(X, y)
+    screen <- function() fit$ratio
+  }
+
+  # Only an exactly zero residual is improper. For any positive residual the
+  # exp(-RSS / (2 sigma^2)) factor drives the density to zero as sigma does,
+  # and the integral converges however small that residual is. The bound is
+  # used only as a bound: above it the residual is certainly real, at or
+  # below it nothing at double precision decides.
+  positive <- !replicates$consistent || isTRUE(fit$ratio > fit$zero_ratio)
+  if (!positive && !is.finite(fit$ratio)) {
+    # Outcomes near 1e300 that differ by a few units in the last place have
+    # identical logarithms, so the log-scale total sum of squares is zero and
+    # the ratio is undefined. The variation is real on the response scale, but
+    # it is at the resolution of double precision.
+    return(list(status = "unresolved_log", n = n, rank = rank))
+  }
+  if (!positive) {
+    return(list(status = "undecidable", n = n, rank = rank,
+                ratio = fit$ratio, zero_ratio = fit$zero_ratio))
+  }
+  ratio <- screen()
+  if (is.finite(ratio) && ratio <= 1e-6) {
+    return(list(status = "near_exact", n = n, rank = rank, ratio = ratio))
+  }
+  list(status = "positive", n = n, rank = rank, ratio = ratio)
+}
+
+
+#' Refuse normal IPD that its own covariates fit exactly
+#'
+#' The normal likelihood carries no information about the residual SD once the
+#' fit is exact. With `n` IPD rows and a design of rank `r`, integrating out the
+#' coefficients leaves a marginal density for sigma proportional to
+#' `sigma^(r - n) * exp(-RSS / (2 * sigma^2))`. When `RSS` is zero that is
+#' `sigma^(r - n)` all the way down, whose integral to zero diverges for every
+#' `n > r`, and a proper prior on sigma does not repair it: a prior with
+#' positive density at zero leaves the divergence exactly where it was. Proper
+#' priors on the coefficients do not either; they scale the density by the
+#' prior at the exact solution and leave its shape in sigma. The posterior is
+#' improper and nothing reports it. The sampler drifts toward zero and returns
+#' whatever it reached, with ordinary-looking diagnostics.
+#'
+#' The question is whether an exact fit exists, and
+#' [.residual_variation_status()] settles it in this order, stopping at the
+#' first that decides:
+#'
+#' * A saturated design (`n <= rank`) reproduces any outcome, and its posterior
+#'   is proper: the marginal density for sigma is bounded at zero and falls as
+#'   `sigma^(-n)` far out. Nothing in the data separates the residual SD from
+#'   the coefficients there, so what is reported for sigma is potentially
+#'   strongly sensitive to the coefficient priors. That warns.
+#' * A constant outcome with `n > rank` is reproduced by the intercept alone.
+#'   The exact fit is certain, and so is the impropriety. Refused.
+#' * Replicate design rows carrying different outcomes prove the residual
+#'   positive whatever the fit, since identical rows get identical fitted
+#'   values. The posterior is proper.
+#' * When every replicate group agrees and there are exactly `rank` distinct
+#'   rows, the design reaches every outcome on those rows, so the fit is exact
+#'   and the posterior improper. Refused.
+#' * Otherwise the computed residual is compared with the rounding an exact fit
+#'   can leave, `p * eps * |X||b|` elementwise. Above it the residual is
+#'   certainly real and the posterior proper. At or below it nothing at double
+#'   precision tells an exact fit from one this close, and Stan computes the
+#'   same likelihood at the same precision, so the model is refused as
+#'   undecidable rather than passed as proper.
+#'
+#' A proper posterior whose residual is at most `1e-6` of the outcome's total
+#' sum of squares is warned about: the residual SD will concentrate near zero
+#' and the sampler has to work there. That is a screen on the input, not a
+#' verdict on the fit; the sampler's own diagnostics say how it went.
+#'
+#' Under `link = "log"` an exact fit `y = exp(X b)` exists exactly when
+#' `log(y)` lies in the column space of `X`, so existence is decided by a
+#' linear fit of `log(y)`, which cannot overflow however wide `y` is. The
+#' near-exact screen is then taken on the response scale, where the likelihood
+#' measures its residual, because an outcome spanning many orders of magnitude
+#' can have an ordinary residual in `log(y)` while the response-scale fit
+#' reproduces every large observation and leaves almost nothing.
+#'
+#' A non-positive observation is a valid one under a log-link normal, which
+#' constrains the mean and not the data, and a negative one cannot be matched
+#' by a positive mean at all, so its residual bounds the total away from zero
+#' and the posterior is proper. Zero is different: the mean can approach it at
+#' the boundary where the linear predictor goes to `-Inf`. If every row is
+#' zero, or the positive rows are fitted exactly while some direction of the
+#' coefficients leaves them fixed and drives the zero rows' predictors down,
+#' the likelihood grows as `sigma^(-n)` along that ray and whether a posterior
+#' exists depends on how fast the coefficient priors decay: a normal prior
+#' tames it, a Student-t or Cauchy prior does not. The guard does not see the
+#' prior, so it refuses those cases. It passes the mixed case when the positive
+#' rows leave a real residual, or when no such direction exists, which
+#' [.zero_boundary()] decides exactly for up to two free directions and leaves
+#' unknown, and therefore refused, beyond.
+#'
+#' The test is the residual sum of squares against the outcome's own total sum
+#' of squares, so it is invariant to the units of the outcome.
+#'
+#' Resolution. A contrast between design rows smaller than machine epsilon
+#' times the column's own size is below the pivot tolerance of the
+#' factorization and is treated as absent, as it is by the centered design
+#' the model fits by default. The structural rules see the raw rows exactly,
+#' so replicate profiles are matched bitwise whatever their size.
+#'
+#' @param data An `mlumr_data` object.
+#' @param link The resolved link, `"identity"` or `"log"`.
+#' @param center Whether the model will center the covariates or QR them;
+#'   see [.residual_variation_status()].
+#' @return `TRUE` invisibly if the data were warned about.
+#' @keywords internal
+.check_normal_residual_variation <- function(data, link = "identity",
+                                             center = TRUE) {
+  ipd <- data$ipd$data
+  y <- suppressWarnings(as.numeric(ipd$.outcome))
+  X_raw <- cbind(1, as.matrix(ipd[, data$covariates, drop = FALSE]))
+  # Not the place to diagnose non-finite inputs: the validators that own that
+  # question run their own checks and give their own messages.
+  if (length(y) == 0L || !all(is.finite(y)) || !all(is.finite(X_raw))) {
+    return(invisible(FALSE))
+  }
+  advice <- paste(
+    "This is a property of the data, not a setting: the outcome needs",
+    "variation the covariates do not explain, or the model needs an",
+    "observation process (a measurement error or rounding scale) that",
+    "supplies one."
+  )
+  improper <- paste(
+    "The posterior for the residual SD is improper: its density behaves as",
+    "sigma^(rank - n) near zero and does not integrate, and the sampler",
+    "would drift toward zero and report where it stopped."
+  )
+  boundary <- paste(
+    "There the likelihood grows without bound as the residual SD shrinks,",
+    "and whether any posterior exists depends on the tails of the",
+    "coefficient priors, so the model is refused. The outcome needs",
+    "variation the covariates do not explain, or a link whose mean can",
+    "reach it."
+  )
+
+  if (identical(link, "log") && any(y <= 0)) {
+    if (any(y < 0)) {
+      # No positive mean matches a negative outcome, so the residual is
+      # bounded away from zero and the posterior proper. The fit can still
+      # be near exact: the negative rows' means can be driven toward zero
+      # while the rest are fitted, and then the residual SD sits near the
+      # size of the negatives. The screen says so where it can run.
+      if (any(y > 0)) {
+        return(invisible(.screen_mixed_zero(X_raw, y, y > 0, center)))
+      }
+      return(invisible(FALSE))
+    }
+    if (all(y == 0)) {
+      stop("The IPD outcome is identically zero, which a positive mean under ",
+           "link = \"log\" can only approach as the intercept goes to -Inf. ",
+           boundary, call. = FALSE)
+    }
+    # Mixed zeros and positives. The boundary ray needs the positive rows
+    # fitted exactly AND a direction that leaves them fixed while driving
+    # every zero row's predictor to -Inf. The positive rows' own status
+    # settles the first, and .zero_boundary() the second.
+    pos <- y > 0
+    sub <- .residual_variation_status(X_raw[pos, , drop = FALSE], y[pos],
+                                      "log", center = center)
+    passes <- sub$status %in% c("positive", "near_exact")
+    if (!passes) {
+      X <- .scale_design(X_raw)
+      reach <- .zero_boundary(X[pos, , drop = FALSE],
+                              X[!pos, , drop = FALSE],
+                              X_raw[pos, , drop = FALSE],
+                              X_raw[!pos, , drop = FALSE])
+      passes <- identical(reach, "unreachable")
+    }
+    if (passes) {
+      # The near-exact screen has to see the whole outcome. The positive rows
+      # alone can have an ordinary residual relative to their own spread and
+      # a tiny one relative to the total, once the zero rows put the total
+      # sum of squares at the level squared: replicates at 1e6 - 1 and
+      # 1e6 + 1 beside zeros have a residual of 2 against a total near 1e12.
+      # The response-scale fit runs on everything, started from the positive
+      # rows' log-scale fit since the default start takes log(0).
+      return(invisible(.screen_mixed_zero(X_raw, y, pos, center)))
+    }
+    lead <- paste0("The IPD outcome has zeros, which a positive mean under ",
+                   "link = \"log\" can only approach as their linear ",
+                   "predictor goes to -Inf, and the positive rows are fitted ",
+                   "exactly. ")
+    if (identical(reach, "reachable")) {
+      stop(lead, "A direction of the coefficients leaves them fitted while ",
+           "taking every zero row there. ", boundary, call. = FALSE)
+    }
+    stop(lead, "Whether a direction of the coefficients leaves them fitted ",
+         "while taking every zero row there could not be decided: the ",
+         "question has more than two free directions, which this check does ",
+         "not attempt, or zero rows opposite to within rounding, so it ",
+         "refuses rather than pass a possibly unbounded likelihood. ",
+         boundary, call. = FALSE)
+  }
+
+  s <- .residual_variation_status(X_raw, y, link, center = center)
+  switch(
+    s$status,
+    saturated = {
+      warning("The IPD design has as many free columns as rows (", s$n,
+              " rows, rank ", s$rank, "), so it reproduces the outcome ",
+              "exactly and leaves no residual degrees of freedom. The ",
+              "posterior is proper, but nothing in the data separates the ",
+              "residual SD from the coefficients, so what is reported for ",
+              "sigma is potentially strongly sensitive to the coefficient ",
+              "priors.", call. = FALSE)
+      invisible(TRUE)
+    },
+    constant = stop("The IPD outcome is constant, so the intercept alone ",
+                    "reproduces it exactly and the normal model has no ",
+                    "residual variation. ", improper, " ", advice,
+                    call. = FALSE),
+    exact = stop("The IPD covariates fit the outcome exactly: there are only ",
+                 s$rank, " distinct covariate profiles for a design of rank ",
+                 s$rank, ", and every replicate of a profile carries the same ",
+                 "outcome, so the design reaches every observed value. ",
+                 improper, " ", advice, call. = FALSE),
+    unresolved_log = stop("The IPD outcome varies by less than the ",
+                          "resolution of its logarithm, so whether the ",
+                          "covariates fit it exactly under link = \"log\" ",
+                          "cannot be decided at double precision, and the ",
+                          "model is refused rather than passed as proper. ",
+                          advice, call. = FALSE),
+    undecidable = {
+      fmt <- paste0(
+        "The IPD covariates fit the outcome to within rounding: the residual ",
+        "sum of squares is %.3g of the total, at or below the %.3g that ",
+        "rounding alone can leave when the fit is exact. At double precision ",
+        "nothing tells an exact fit from one this close, and the likelihood ",
+        "is computed at the same precision, so the model is refused rather ",
+        "than passed as proper. An exact fit makes the posterior for the ",
+        "residual SD improper: its density behaves as sigma^(rank - n) near ",
+        "zero and does not integrate. "
+      )
+      stop(sprintf(fmt, s$ratio, s$zero_ratio), advice, call. = FALSE)
+    },
+    near_exact = {
+      .warn_near_exact(s$ratio)
+      invisible(TRUE)
+    },
+    invisible(FALSE)
+  )
+}
+
+
+#' The near-exact screen for a log-link outcome with non-positive values
+#'
+#' The response-scale fit on the whole outcome, started from the positive
+#' rows' log-scale fit. The outcome is scaled by a power of two, which is
+#' exact and only shifts the intercept under a log link. Any iterate's
+#' residual bounds the least-squares minimum from above, so a small one
+#' justifies the warning and a large one only withholds it.
+#'
+#' @param X_raw Raw design matrix, intercept included.
+#' @param y Outcome vector with at least one positive value and at least one
+#'   zero or negative one.
+#' @param pos Logical, which rows are positive.
+#' @param center Whether the model will center the covariates.
+#' @return `TRUE` invisibly if the warning was issued.
+#' @keywords internal
+.screen_mixed_zero <- function(X_raw, y, pos, center = TRUE) {
+  X <- if (center) .center_design(X_raw) else .scale_design(X_raw)
+  # Scale by a power of two at the midrange of the positive outcomes' log
+  # range, so both ends stay representable whenever the span fits at all:
+  # scaling to the maximum alone underflowed the small end of a wide outcome
+  # to zero, and the fit below then died on log(0) instead of standing aside.
+  # Zeros are zeros at any scale.
+  log2_pos <- log2(y[pos])
+  power <- floor((max(log2_pos) + min(log2_pos)) / 2)
+  power <- min(max(power, -1022), 1023)
+  y <- y / 2^power
+  # The screen is optional: an outcome it cannot represent, or a fit that
+  # cannot start, leaves the verdict where the structural checks put it.
+  ratio <- tryCatch({
+    start <- stats::lm.fit(X[pos, , drop = FALSE], log(y[pos]),
+                           tol = .Machine$double.eps)$coefficients
+    start[is.na(start)] <- 0
+    .log_link_response_ratio(X, y, start = start)
+  }, error = function(e) NA_real_)
+  if (is.finite(ratio) && ratio <= 1e-6) {
+    .warn_near_exact(ratio)
+    return(invisible(TRUE))
+  }
+  invisible(FALSE)
+}
+
+
+#' The near-exact warning, shared by the plain and the mixed-zero paths
+#' @param ratio Residual sum of squares over the total.
+#' @return `NULL`, invisibly; called for the warning.
+#' @keywords internal
+.warn_near_exact <- function(ratio) {
+  fmt <- paste0(
+    "The IPD covariates very nearly fit the outcome exactly (residual sum ",
+    "of squares is %.3g of the total). The residual is real, so the ",
+    "posterior is proper, but the residual SD will concentrate near zero ",
+    "and the sampler has to work there: check its diagnostics before ",
+    "reading the estimate of sigma."
+  )
+  warning(sprintf(fmt, ratio), call. = FALSE)
+  invisible(NULL)
+}
+
+
 #' Fit ML-UMR Model
 #'
 #' Fit a Bayesian multilevel unanchored meta-regression model using individual
@@ -8,6 +710,39 @@
 #'   [add_integration()])
 #' @param model Model type: `"spfa"` (shared prognostic factor assumption) or
 #'   `"relaxed"` (treatment-specific coefficients). Default `"spfa"`.
+#' @section Normal outcomes with no residual variation:
+#' A normal fit whose IPD covariates reproduce the outcome exactly has an
+#' improper posterior for the residual SD, so `mlumr()` refuses it before any
+#' sampling. Whether an exact fit exists is settled structurally where it can
+#' be: a constant outcome, or one where every replicate of a covariate profile
+#' agrees and there are only as many distinct profiles as the design has rank,
+#' is fitted exactly and refused; replicate profiles carrying different
+#' outcomes prove the residual positive and the posterior proper. Otherwise
+#' the residual sum of squares is compared with the rounding an exact fit can
+#' leave, which grows with the fitted coefficients. Above it the residual is
+#' real and the posterior proper; at or below it nothing at double precision
+#' tells an exact fit from one this close, and the model is refused as
+#' undecidable rather than passed. A proper posterior whose residual is at
+#' most `1e-6` of the outcome's total sum of squares is warned about, since
+#' the residual SD will concentrate near zero and the sampler has to work
+#' there; that is a screen on the input, and the sampler's own diagnostics say
+#' how the fit went. Under `link = "log"` existence of an exact fit is decided
+#' on `log(y)`, where it is a linear question, and the near-exact screen on
+#' the response scale the likelihood uses. Zeros are the boundary case there:
+#' an outcome identically zero is refused, and so is one whose positive rows
+#' are fitted exactly while a free direction of the coefficients can take the
+#' zero rows' predictors to `-Inf`, since along that ray the likelihood is
+#' unbounded and only the coefficient priors' tails decide whether a
+#' posterior exists. The check judges the design the model will fit: with
+#' `center = FALSE` the rounding bound carries the cancellation of the raw
+#' predictor offsets, as the likelihood then does, so a residual below that
+#' rounding is refused as undecidable where the centered fit would only warn.
+#' A saturated design, with as many
+#' free columns as rows, is warned about rather than refused: its posterior is
+#' proper, but nothing in the data separates the residual SD from the
+#' coefficients, so what is reported for sigma is potentially strongly
+#' sensitive to the coefficient priors.
+#'
 #' @param link Link function. For binomial: `"logit"` (default), `"probit"`,
 #'   or `"cloglog"`. For normal: `"identity"` (default) or `"log"`. For
 #'   poisson and survival: `"log"` (default, only option). If `NULL`, uses the
@@ -584,6 +1319,8 @@ mlumr <- function(data,
   }
 
   if (family == "normal") {
+    .check_normal_residual_variation(data, link_info$link,
+                                     center = center || qr)
     validate_prior(prior_sigma, "sigma")
     if (isTRUE(prior_sigma$autoscale)) {
       warning("`autoscale = TRUE` on prior_sigma is ignored; ",

@@ -403,6 +403,41 @@ Section 2.2.1). With only a single overall comparator AgD row,
 informed by the data. (Marginal, overlapping subgroups would double-count
 patients and understate uncertainty; supply jointly-defined subgroups.)
 }
+\section{Normal outcomes with no residual variation}{
+
+A normal fit whose IPD covariates reproduce the outcome exactly has an
+improper posterior for the residual SD, so \code{mlumr()} refuses it before any
+sampling. Whether an exact fit exists is settled structurally where it can
+be: a constant outcome, or one where every replicate of a covariate profile
+agrees and there are only as many distinct profiles as the design has rank,
+is fitted exactly and refused; replicate profiles carrying different
+outcomes prove the residual positive and the posterior proper. Otherwise
+the residual sum of squares is compared with the rounding an exact fit can
+leave, which grows with the fitted coefficients. Above it the residual is
+real and the posterior proper; at or below it nothing at double precision
+tells an exact fit from one this close, and the model is refused as
+undecidable rather than passed. A proper posterior whose residual is at
+most \code{1e-6} of the outcome's total sum of squares is warned about, since
+the residual SD will concentrate near zero and the sampler has to work
+there; that is a screen on the input, and the sampler's own diagnostics say
+how the fit went. Under \code{link = "log"} existence of an exact fit is decided
+on \code{log(y)}, where it is a linear question, and the near-exact screen on
+the response scale the likelihood uses. Zeros are the boundary case there:
+an outcome identically zero is refused, and so is one whose positive rows
+are fitted exactly while a free direction of the coefficients can take the
+zero rows' predictors to \code{-Inf}, since along that ray the likelihood is
+unbounded and only the coefficient priors' tails decide whether a
+posterior exists. The check judges the design the model will fit: with
+\code{center = FALSE} the rounding bound carries the cancellation of the raw
+predictor offsets, as the likelihood then does, so a residual below that
+rounding is refused as undecidable where the centered fit would only warn.
+A saturated design, with as many
+free columns as rows, is warned about rather than refused: its posterior is
+proper, but nothing in the data separates the residual SD from the
+coefficients, so what is reported for sigma is potentially strongly
+sensitive to the coefficient priors.
+}
+
 \examples{
 \dontrun{
 # Binary SPFA model
