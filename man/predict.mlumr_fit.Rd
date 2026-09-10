@@ -83,7 +83,12 @@ the one actually integrated to. That is the \code{rmst_horizon} given to
 which for a study-stratified flexible baseline is the follow-up both
 studies observed rather than the pooled maximum.
 The plot methods require \code{summary = TRUE}; with \code{summary = FALSE} the raw
-posterior draws are returned as a plain data frame.
+posterior draws are returned as a plain data frame. Every summary row
+carries \code{n_draws} and \code{n_draws_used}: how many draws it was offered and
+how many it used, which differ when \code{NA} or \code{NaN} draws were dropped. For
+\code{type = "median"} the summary is conditional on the median being reached,
+so \code{n_draws_used} counts the draws that reached it and \code{p_not_reached}
+gives the posterior probability that one does not.
 }
 \description{
 Generate population-average absolute-outcome predictions in the index and

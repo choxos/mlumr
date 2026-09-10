@@ -89,7 +89,9 @@ a different question rather than substituting for this one.
 }
 \value{
 A data frame. If \code{summary = TRUE}, contains columns \code{profile},
-\code{effect}, \code{mean}, \code{sd}, and quantile columns. If \code{summary = FALSE},
+\code{effect}, \code{mean}, \code{sd}, quantile columns, and the draw accounting
+\code{n_draws} and \code{n_draws_used} (they differ when \code{NA} or \code{NaN} draws were
+dropped from that row's summary). If \code{summary = FALSE},
 returns a single combined data frame of full posterior draws with a
 \code{profile} column indicating which covariate profile each draw belongs
 to.
