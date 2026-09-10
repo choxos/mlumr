@@ -87,6 +87,8 @@ the exponentiated scalar contrast). With \code{summary = TRUE} the \code{effect}
 column names the measure; with \code{summary = FALSE} the scale is carried by
 the draw column names themselves (\verb{lor_*}, \verb{rr_*}, \verb{delta_*}, \verb{hr_*} /
 \verb{tr_*} / \verb{exp_delta_eta_*} by what the fit's scalar is, \verb{rmst*}).
+Each summary row also carries \code{n_draws} and \code{n_draws_used}, which differ
+when \code{NA} or \code{NaN} draws were dropped from it.
 For survival, RMST-based rows also carry a \code{horizon} column (the raw-draw
 frame, a \code{horizon} attribute) giving the restriction time the integral runs
 to. RMST at different horizons is a different estimand, so results are only

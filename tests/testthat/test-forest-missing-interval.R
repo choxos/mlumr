@@ -62,8 +62,13 @@ test_that("the point estimate of an interval-less row is still plotted", {
   expect_equal(nrow(d), 6L)
 })
 
-test_that("rows without intervals do not disturb the clipping window", {
+test_that("an interval-less row inside the window does not widen it", {
   skip_if_not_installed("ggplot2")
+  # Only for an estimate the window already covers. A row with no interval DOES
+  # enter the range, and has to: otherwise its point is clipped out of the panel
+  # and the row renders empty, which is the case below. This fixture's estimate
+  # is 1.05, inside the window the other rows set, so removing the row changes
+  # nothing.
   frame <- .clipping_frame()
   with_missing <- mlumr_forest(frame)
   without <- mlumr_forest(frame[frame$label != "missing-CI", , drop = FALSE])
@@ -83,4 +88,25 @@ test_that("a half-missing interval gets neither a segment nor a lone arrow", {
   expect_false("infinite-CI" %in% drawn)
   # The genuine outlier still gets both.
   expect_true("outlier" %in% drawn)
+})
+
+test_that("a point estimate outside the typical range keeps the panel", {
+  skip_if_not_installed("ggplot2")
+  # The fixture above puts its interval-less estimate at 1.05, inside the
+  # window the other rows set, so it cannot tell whether the window was built
+  # from that estimate or merely happens to contain it. Move it out to 10.
+  frame <- .clipping_frame()
+  frame$est[frame$label == "missing-CI"] <- 10
+
+  p <- mlumr_forest(frame)
+  xlim <- p$coordinates$limits$x
+  expect_false(is.null(xlim))
+  # Clipping is still on, so the window is not simply the full data range.
+  expect_lt(xlim[2], 1000)
+  # The point is drawn, and it is inside the panel rather than clipped away.
+  expect_gte(xlim[2], 10)
+
+  # The row still gets no segment and no arrow: it has no interval to show.
+  drawn <- unlist(lapply(seq(2, length(p$layers)), function(i) .drawn(p, i)))
+  expect_false("missing-CI" %in% drawn)
 })

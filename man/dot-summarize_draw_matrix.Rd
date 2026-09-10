@@ -4,17 +4,20 @@
 \alias{.summarize_draw_matrix}
 \title{Summarize a draws matrix column-wise into a tidy data frame}
 \usage{
-.summarize_draw_matrix(draws, probs)
+.summarize_draw_matrix(draws, probs, warn = TRUE)
 }
 \arguments{
 \item{draws}{A numeric matrix or data frame of posterior draws (one column
 per quantity, one row per draw).}
 
 \item{probs}{Quantile probabilities.}
+
+\item{warn}{Whether to report dropped draws. Set \code{FALSE} where a missing
+draw is an expected outcome with a diagnostic of its own.}
 }
 \value{
-Data frame with columns \code{mean}, \code{sd}, and one \code{qNN} column per
-element of \code{probs}.
+Data frame with columns \code{mean}, \code{sd}, one \code{qNN} column per element
+of \code{probs}, and the draw accounting \code{n_draws} and \code{n_draws_used}.
 }
 \description{
 Applies \code{.summarize_draw_vector()} across columns of \code{draws} and renames
