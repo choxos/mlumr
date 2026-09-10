@@ -4,26 +4,19 @@
 \alias{.residual_variation_status}
 \title{Classify how much residual variation a normal IPD outcome has}
 \usage{
-.residual_variation_status(X_raw, y, link, center = TRUE)
+.residual_variation_status(X, y, link)
 }
 \arguments{
-\item{X_raw}{Design matrix, intercept included, uncentered.}
+\item{X}{Design matrix as the model fits it, intercept included: raw, or
+centered by the model's own centers.}
 
 \item{y}{Outcome vector; positive under \code{link = "log"}.}
 
 \item{link}{\code{"identity"} or \code{"log"}.}
-
-\item{center}{Whether the model will center the covariates, or fit a QR
-reparameterization of them, which decorrelates the design and removes
-the same offset cancellation. The guard then works on a centered design
-too, so a contrast between rows that centering rounds away is one the
-fitted model loses as well; with neither, the design is only scaled,
-which is exact, and the rounding bound carries whatever cancellation the
-raw offsets impose, as the fitted model then does.}
 }
 \value{
-List with \code{status} and, where they apply, \code{n}, \code{rank}, \code{ratio}
-and \code{zero_ratio}.
+List with \code{status} and, where they apply, \code{n}, \code{rank},
+\code{numerical_rank}, \code{ratio} and \code{zero_ratio}.
 }
 \description{
 The decision core behind \code{\link[=.check_normal_residual_variation]{.check_normal_residual_variation()}}, which turns
@@ -31,6 +24,15 @@ the status into a refusal, a warning or silence. Kept separate so the
 mixed-zero log-link case can classify the positive rows on their own.
 }
 \details{
+Everything here is about the design the model fits, \code{X}, whose exact rank
+and exactly independent pivot columns come from \code{\link[=.exact_rank]{.exact_rank()}}. A
+factorization at machine precision can find a lower rank, when a column
+differs from a combination of the others by less than rounding; the model
+still carries that column, and a fit through it can be exact where the
+reduced fit shows a residual. So the numerical fit is taken on the exact
+pivot columns, and if even those cannot be resolved the question is left
+open rather than answered from a design the model does not fit.
+
 Statuses, in the order they are decided:
 \itemize{
 \item \code{"saturated"}: \code{n <= rank}, the design reproduces any outcome.
@@ -38,6 +40,8 @@ Statuses, in the order they are decided:
 so the intercept alone fits it exactly.
 \item \code{"exact"}: every replicate group agrees and there are exactly \code{rank}
 distinct design rows, so the design reaches every observed value.
+\item \code{"unresolved"}: the exact pivot columns are dependent to within
+rounding, so no numerical fit spans the design the model fits.
 \item \code{"unresolved_log"}: \code{log(y)} is constant although \code{y} is not, so the
 log-scale total sum of squares is zero and the ratio undefined.
 \item \code{"undecidable"}: the computed residual is at or below the rounding an

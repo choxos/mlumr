@@ -427,15 +427,26 @@ an outcome identically zero is refused, and so is one whose positive rows
 are fitted exactly while a free direction of the coefficients can take the
 zero rows' predictors to \code{-Inf}, since along that ray the likelihood is
 unbounded and only the coefficient priors' tails decide whether a
-posterior exists. The check judges the design the model will fit: with
+posterior exists. A zero row is pinned, and the ray blocked, only when it
+lies exactly in the span of the positive rows; a row merely within
+rounding of that span is refused as undecided.
+
+The check judges the design the model fits, with the model's own
+centering (\code{center = TRUE}) or none, and its rank is the design's exact
+rank, computed in exact arithmetic rather than by a factorization at
+machine precision. A covariate that differs from a combination of the
+others by less than rounding is still a column of the model, and an
+outcome can be reproduced exactly through it with enormous coefficients
+where a fit without it shows an ordinary residual; such a design is
+refused as unresolved, since nothing at double precision decides the
+question, rather than passed on the strength of the reduced fit. With
 \code{center = FALSE} the rounding bound carries the cancellation of the raw
 predictor offsets, as the likelihood then does, so a residual below that
-rounding is refused as undecidable where the centered fit would only warn.
-A saturated design, with as many
-free columns as rows, is warned about rather than refused: its posterior is
-proper, but nothing in the data separates the residual SD from the
-coefficients, so what is reported for sigma is potentially strongly
-sensitive to the coefficient priors.
+rounding is refused as undecidable where the centered fit would only
+warn. A saturated design, with as many free columns as rows, is warned
+about rather than refused: its posterior is proper, but nothing in the
+data separates the residual SD from the coefficients, so what is reported
+for sigma is potentially strongly sensitive to the coefficient priors.
 }
 
 \examples{

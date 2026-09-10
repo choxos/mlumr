@@ -11,29 +11,33 @@
 
 \item{link}{The resolved link, \code{"identity"} or \code{"log"}.}
 
-\item{center}{Whether the model will center the covariates or QR them;
-see \code{\link[=.residual_variation_status]{.residual_variation_status()}}.}
+\item{center}{The centers the model subtracts from the covariates: the
+numeric vector \code{mlumr()} computes (zeros when it does not center), or
+\code{TRUE} for the IPD columns' midranges as a stand-in, or \code{FALSE} for the
+raw design. The guard judges the design the model fits, so the model's
+own centers are what \code{mlumr()} passes. A design the centering sends
+out of the double range is left to the validators that own it.}
 }
 \value{
 \code{TRUE} invisibly if the data were warned about.
 }
 \description{
-The normal likelihood carries no information about the residual SD once the
-fit is exact. With \code{n} IPD rows and a design of rank \code{r}, integrating out the
+With \code{n} IPD rows and a design of rank \code{r}, integrating out the
 coefficients leaves a marginal density for sigma proportional to
-\code{sigma^(r - n) * exp(-RSS / (2 * sigma^2))}. When \code{RSS} is zero that is
-\code{sigma^(r - n)} all the way down, whose integral to zero diverges for every
-\code{n > r}, and a proper prior on sigma does not repair it: a prior with
-positive density at zero leaves the divergence exactly where it was. Proper
-priors on the coefficients do not either; they scale the density by the
-prior at the exact solution and leave its shape in sigma. The posterior is
-improper and nothing reports it. The sampler drifts toward zero and returns
-whatever it reached, with ordinary-looking diagnostics.
+\code{sigma^(r - n) * exp(-RSS / (2 * sigma^2))}. When \code{RSS} is zero the
+likelihood is singular at sigma = 0 rather than flat: the density is
+\code{sigma^(r - n)} all the way down, whose integral to zero diverges for
+every \code{n > r}, and a proper prior on sigma does not repair it: a prior
+with positive density at zero leaves the divergence exactly where it was.
+Proper priors on the coefficients do not either; they scale the density
+by the prior at the exact solution and leave its shape in sigma. The
+posterior is improper and nothing reports it. The sampler drifts toward
+zero and returns whatever it reached, with ordinary-looking diagnostics.
 }
 \details{
-The question is whether an exact fit exists, and
-\code{\link[=.residual_variation_status]{.residual_variation_status()}} settles it in this order, stopping at the
-first that decides:
+The question is whether an exact fit exists in the design the model
+fits, and \code{\link[=.residual_variation_status]{.residual_variation_status()}} settles it in this order,
+stopping at the first that decides:
 \itemize{
 \item A saturated design (\code{n <= rank}) reproduces any outcome, and its posterior
 is proper: the marginal density for sigma is bounded at zero and falls as
@@ -55,6 +59,17 @@ precision tells an exact fit from one this close, and Stan computes the
 same likelihood at the same precision, so the model is refused as
 undecidable rather than passed as proper.
 }
+
+The rank throughout is the EXACT rank of the design, from
+\code{\link[=.exact_rank]{.exact_rank()}}, and the structural rules read the rows the model fits.
+A factorization at machine precision can find fewer independent columns
+than the design has, when one differs from a combination of the others
+by less than rounding; the model still carries that column, and an
+outcome can be fitted exactly through it with enormous coefficients
+where the reduced fit shows an ordinary residual. Such a design is
+refused as unresolved: nothing at double precision decides whether the
+fit through it is exact, and the guard does not answer from a design the
+model does not fit.
 
 A proper posterior whose residual is at most \code{1e-6} of the outcome's total
 sum of squares is warned about: the residual SD will concentrate near zero
@@ -82,15 +97,12 @@ tames it, a Student-t or Cauchy prior does not. The guard does not see the
 prior, so it refuses those cases. It passes the mixed case when the positive
 rows leave a real residual, or when no such direction exists, which
 \code{\link[=.zero_boundary]{.zero_boundary()}} decides exactly for up to two free directions and leaves
-unknown, and therefore refused, beyond.
+unknown, and therefore refused, beyond. A zero row is pinned only when it
+lies exactly in the row space of the positive rows; one merely close to
+it, within \code{1e-8} of its size, is neither pinned nor safely free, and the
+model is refused as undecided.
 
-The test is the residual sum of squares against the outcome's own total sum
-of squares, so it is invariant to the units of the outcome.
-
-Resolution. A contrast between design rows smaller than machine epsilon
-times the column's own size is below the pivot tolerance of the
-factorization and is treated as absent, as it is by the centered design
-the model fits by default. The structural rules see the raw rows exactly,
-so replicate profiles are matched bitwise whatever their size.
+The test is the residual sum of squares against the outcome's own total
+sum of squares, so it is invariant to the units of the outcome.
 }
 \keyword{internal}

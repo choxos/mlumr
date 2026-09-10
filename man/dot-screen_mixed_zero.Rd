@@ -4,17 +4,15 @@
 \alias{.screen_mixed_zero}
 \title{The near-exact screen for a log-link outcome with non-positive values}
 \usage{
-.screen_mixed_zero(X_raw, y, pos, center = TRUE)
+.screen_mixed_zero(X, y, pos)
 }
 \arguments{
-\item{X_raw}{Raw design matrix, intercept included.}
+\item{X}{Design matrix as the model fits it, intercept included.}
 
 \item{y}{Outcome vector with at least one positive value and at least one
 zero or negative one.}
 
 \item{pos}{Logical, which rows are positive.}
-
-\item{center}{Whether the model will center the covariates.}
 }
 \value{
 \code{TRUE} invisibly if the warning was issued.
