@@ -757,3 +757,56 @@ test_that("two log-logistic scores that straddle the center are taken directly",
   got <- env$surv_ll_status(7L, 0.2, lower, entry, 3L, eta, a, 0)
   expect_lt(abs(got - ref) / abs(ref), 1e-12)
 })
+
+test_that("an overflowing cumulative-hazard endpoint does not lose a finite increment", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  env <- expose_survival_likelihood()
+
+  # A Gamma of shape 1 is an exponential: at eta = -710 its rate is
+  # exp(710), so both cumulative hazards, at entry 1 and one ULP above it,
+  # are beyond the double range. Their difference is exp(710) * 2^-52, a
+  # finite log likelihood near -4.96e292. The tail branch returned -Inf as
+  # soon as an ENDPOINT overflowed, and this right-censored observation
+  # under delayed entry became impossible; the decision is now on the
+  # increment. This is the neighboring status to the interval test above:
+  # not an interval whose conditional probability rounds to one.
+  entry <- 1
+  upper <- 1 + .Machine$double.eps
+  for (eta in c(-710, -720)) {
+    ref <- -exp(-eta + log(upper - entry))
+    expect_true(is.finite(ref))
+    gamma <- env$surv_ll_status(8L, upper, 0, entry, 0L, eta, 1, 1)
+    expaft <- env$surv_ll_status(4L, upper, 0, entry, 0L, eta, 1, 1)
+    expect_true(is.finite(gamma))
+    expect_lt(abs(gamma / ref - 1), 1e-12)
+    expect_lt(abs(expaft / ref - 1), 1e-12)
+    # An exact event under the same entry takes the same branch and stays
+    # finite. Its log hazard, -eta, is below an ULP of the increment here,
+    # so this measures the branch, not the hazard term; that is pinned
+    # below at a scale where both are visible.
+    expect_lt(abs(env$surv_ll_status(8L, upper, 0, entry, 1L, eta, 1, 1) /
+                    ref - 1), 1e-12)
+    expect_lt(abs(env$surv_ll_status(4L, upper, 0, entry, 1L, eta, 1, 1) /
+                    ref - 1), 1e-12)
+    # The derivative in eta is representable too: d/d eta of
+    # -(u - e) exp(-eta) is (u - e) exp(-eta), the increment itself.
+    h <- 1e-6
+    fd <- (env$surv_ll_status(8L, upper, 0, entry, 0L, eta + h, 1, 1) -
+             env$surv_ll_status(8L, upper, 0, entry, 0L, eta - h, 1, 1)) /
+      (2 * h)
+    expect_lt(abs(fd / (-ref) - 1), 1e-8)
+  }
+  # The event path's two terms, log h(t) = -eta and the increment, at a
+  # scale where both count: entry 1 to 1.5 at eta = -5 is the same tail
+  # branch (x_lower = e^5 is past shape + 1) with an increment of
+  # -e^5 / 2 beside a log hazard of 5.
+  event_ref <- 5 - exp(5) * 0.5
+  expect_lt(abs(env$surv_ll_status(8L, 1.5, 0, 1, 1L, -5, 1, 1) /
+                  event_ref - 1), 1e-12)
+  expect_lt(abs(env$surv_ll_status(4L, 1.5, 0, 1, 1L, -5, 1, 1) /
+                  event_ref - 1), 1e-12)
+  # And an increment that itself exceeds the range is still the certain
+  # event it was: the survival ratio is zero to double precision.
+  expect_identical(env$surv_ll_status(8L, 2, 0, 1, 0L, -720, 1, 1), -Inf)
+})
