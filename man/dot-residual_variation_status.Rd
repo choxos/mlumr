@@ -13,12 +13,13 @@
 
 \item{link}{\code{"identity"} or \code{"log"}.}
 
-\item{center}{Whether the model will center the covariates. The guard
-then works on a centered design too, so a contrast between rows that
-centering rounds away is one the fitted model loses as well; with
-\code{center = FALSE} the design is only scaled, which is exact, and the
-rounding bound carries whatever cancellation the raw offsets impose,
-as the fitted model then does.}
+\item{center}{Whether the model will center the covariates, or fit a QR
+reparameterization of them, which decorrelates the design and removes
+the same offset cancellation. The guard then works on a centered design
+too, so a contrast between rows that centering rounds away is one the
+fitted model loses as well; with neither, the design is only scaled,
+which is exact, and the rounding bound carries whatever cancellation the
+raw offsets impose, as the fitted model then does.}
 }
 \value{
 List with \code{status} and, where they apply, \code{n}, \code{rank}, \code{ratio}

@@ -11,8 +11,8 @@
 
 \item{link}{The resolved link, \code{"identity"} or \code{"log"}.}
 
-\item{center}{Whether the model will center the covariates; see
-\code{\link[=.residual_variation_status]{.residual_variation_status()}}.}
+\item{center}{Whether the model will center the covariates or QR them;
+see \code{\link[=.residual_variation_status]{.residual_variation_status()}}.}
 }
 \value{
 \code{TRUE} invisibly if the data were warned about.

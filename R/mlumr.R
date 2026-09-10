@@ -331,12 +331,13 @@
 #' @param X_raw Design matrix, intercept included, uncentered.
 #' @param y Outcome vector; positive under `link = "log"`.
 #' @param link `"identity"` or `"log"`.
-#' @param center Whether the model will center the covariates. The guard
-#'   then works on a centered design too, so a contrast between rows that
-#'   centering rounds away is one the fitted model loses as well; with
-#'   `center = FALSE` the design is only scaled, which is exact, and the
-#'   rounding bound carries whatever cancellation the raw offsets impose,
-#'   as the fitted model then does.
+#' @param center Whether the model will center the covariates, or fit a QR
+#'   reparameterization of them, which decorrelates the design and removes
+#'   the same offset cancellation. The guard then works on a centered design
+#'   too, so a contrast between rows that centering rounds away is one the
+#'   fitted model loses as well; with neither, the design is only scaled,
+#'   which is exact, and the rounding bound carries whatever cancellation the
+#'   raw offsets impose, as the fitted model then does.
 #' @return List with `status` and, where they apply, `n`, `rank`, `ratio`
 #'   and `zero_ratio`.
 #' @keywords internal
@@ -498,8 +499,8 @@
 #'
 #' @param data An `mlumr_data` object.
 #' @param link The resolved link, `"identity"` or `"log"`.
-#' @param center Whether the model will center the covariates; see
-#'   [.residual_variation_status()].
+#' @param center Whether the model will center the covariates or QR them;
+#'   see [.residual_variation_status()].
 #' @return `TRUE` invisibly if the data were warned about.
 #' @keywords internal
 .check_normal_residual_variation <- function(data, link = "identity",
@@ -533,6 +534,14 @@
 
   if (identical(link, "log") && any(y <= 0)) {
     if (any(y < 0)) {
+      # No positive mean matches a negative outcome, so the residual is
+      # bounded away from zero and the posterior proper. The fit can still
+      # be near exact: the negative rows' means can be driven toward zero
+      # while the rest are fitted, and then the residual SD sits near the
+      # size of the negatives. The screen says so where it can run.
+      if (any(y > 0)) {
+        return(invisible(.screen_mixed_zero(X_raw, y, y > 0, center)))
+      }
       return(invisible(FALSE))
     }
     if (all(y == 0)) {
@@ -632,7 +641,7 @@
 }
 
 
-#' The near-exact screen for a log-link outcome with zeros
+#' The near-exact screen for a log-link outcome with non-positive values
 #'
 #' The response-scale fit on the whole outcome, started from the positive
 #' rows' log-scale fit. The outcome is scaled by a power of two, which is
@@ -641,8 +650,8 @@
 #' justifies the warning and a large one only withholds it.
 #'
 #' @param X_raw Raw design matrix, intercept included.
-#' @param y Outcome vector, non-negative with at least one zero and one
-#'   positive value.
+#' @param y Outcome vector with at least one positive value and at least one
+#'   zero or negative one.
 #' @param pos Logical, which rows are positive.
 #' @param center Whether the model will center the covariates.
 #' @return `TRUE` invisibly if the warning was issued.
@@ -1310,7 +1319,8 @@ mlumr <- function(data,
   }
 
   if (family == "normal") {
-    .check_normal_residual_variation(data, link_info$link, center = center)
+    .check_normal_residual_variation(data, link_info$link,
+                                     center = center || qr)
     validate_prior(prior_sigma, "sigma")
     if (isTRUE(prior_sigma$autoscale)) {
       warning("`autoscale = TRUE` on prior_sigma is ignored; ",

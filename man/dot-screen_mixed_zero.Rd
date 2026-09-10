@@ -2,15 +2,15 @@
 % Please edit documentation in R/mlumr.R
 \name{.screen_mixed_zero}
 \alias{.screen_mixed_zero}
-\title{The near-exact screen for a log-link outcome with zeros}
+\title{The near-exact screen for a log-link outcome with non-positive values}
 \usage{
 .screen_mixed_zero(X_raw, y, pos, center = TRUE)
 }
 \arguments{
 \item{X_raw}{Raw design matrix, intercept included.}
 
-\item{y}{Outcome vector, non-negative with at least one zero and one
-positive value.}
+\item{y}{Outcome vector with at least one positive value and at least one
+zero or negative one.}
 
 \item{pos}{Logical, which rows are positive.}
 

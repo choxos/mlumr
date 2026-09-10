@@ -501,6 +501,13 @@ test_that("zeros mixed with positives are refused only where the boundary is rea
   # A negative outcome anywhere settles it in exact arithmetic.
   d <- .normal_stub(c(0, 0, 1, -1), c(-0.5, -0.5, 0.5, 0.5))
   expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
+  # Settled as proper, it can still be near exact: positives at one profile
+  # fitted exactly and a negative of 1e-6 at another, whose mean the slope
+  # can drive toward zero, leave a residual near 1e-12 of the total. The
+  # screen runs on negatives too and says so.
+  d <- .normal_stub(c(1, 1, -1e-6), c(0, 0, 1))
+  expect_warning(mlumr:::.check_normal_residual_variation(d, "log"),
+                 "concentrate near zero")
 })
 
 test_that("the near-exact screen for mixed zeros sees the whole outcome", {
@@ -633,4 +640,34 @@ test_that("an uncentered model is judged on the design it will fit", {
             covariates = c("x1", "x2"))
   expect_silent(mlumr:::.check_normal_residual_variation(d, "identity",
                                                          center = FALSE))
+})
+
+test_that("mlumr() tells the guard whether the design will be centered or QR-rotated", {
+  # A QR reparameterization decorrelates the design and removes the offset
+  # cancellation just as centering does, so the guard hears center || qr.
+  local_mocked_bindings(
+    .check_normal_residual_variation = function(data, link, center = TRUE) {
+      stop("guard saw center = ", center)
+    },
+    .package = "mlumr"
+  )
+  make_data <- function() {
+    ipd <- set_ipd(data.frame(trt = "A", y = c(1, 2, 3, 5),
+                              x = c(-1.5, -0.5, 0.5, 1.5)),
+                   "trt", "y", "x", family = "normal")
+    agd <- set_agd(data.frame(trt = "B", n_total = 100, y_mean = 0.4,
+                              y_se = 0.1, x_mean = 0.1, x_sd = 0.5),
+                   "trt", family = "normal", outcome_n = "n_total",
+                   outcome_mean = "y_mean", outcome_se = "y_se",
+                   cov_means = "x_mean", cov_sds = "x_sd")
+    suppressWarnings(
+      add_integration(combine_data(ipd, agd), n_int = 32,
+                      x = distr(qnorm, mean = x_mean, sd = x_sd))
+    )
+  }
+  expect_error(mlumr(make_data(), family = "normal", center = FALSE,
+                     qr = TRUE),
+               "guard saw center = TRUE")
+  expect_error(mlumr(make_data(), family = "normal", center = FALSE),
+               "guard saw center = FALSE")
 })
