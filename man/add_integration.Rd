@@ -76,11 +76,16 @@ with any margins.
 Both corrections branch on continuous versus \strong{binary}, and there is no
 branch for a nonbinary discrete margin (a count such as Poisson or negative
 binomial, or an ordered category). Such a covariate is mapped as if it were
-continuous, which understates the attenuation its discreteness causes; and
-because many latent Gaussian correlations induce the same observed ranks,
-there is no unique value to map to in the first place. \code{add_integration()}
-warns when it detects one. A finite Sobol grid approximates both marginal
-moments and dependence. Verify with
+continuous, which understates the attenuation its discreteness causes. The
+calibration such a margin needs is threshold-aware: within the Gaussian
+copula with the margin's thresholds fixed, the observed correlation is a
+strictly increasing function of the latent one, so a feasible target has
+a unique latent value (the map \pkg{GenOrd} implements for Pearson and
+Spearman targets), and what this package lacks is that numerical
+inversion, not the existence of a value to invert to. Not every target is
+feasible, and a matrix inverted pairwise need not stay positive definite.
+\code{add_integration()} warns when it detects such a margin. A finite Sobol
+grid approximates both marginal moments and dependence. Verify with
 \code{\link[=check_integration]{check_integration()}}, which reports the realized correlation and names the
 scale (\code{cor_method}) it was measured on.
 }

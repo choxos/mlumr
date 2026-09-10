@@ -1044,18 +1044,29 @@
 #' recommended diagnostic.
 #'
 #' **Identifying the relaxed model with subgroup AgD.** The strongest way to
-#' identify `beta_comparator` from data (rather than the prior) is to supply the
-#' comparator AgD as **joint subgroups**: mutually exclusive, collectively
-#' exhaustive strata of the comparator population, one [set_agd()] row per
-#' subgroup, each with its own covariate summaries and outcome. Each subgroup
-#' contributes a separate marginal likelihood term
-#' (`L_AgD = prod_s L_{AgD,s}`), and the variation in covariate means across
-#' subgroups identifies the treatment-specific covariate effects
-#' `beta_comparator` (the primary relaxed-SPFA strategy of Chandler & Ishak,
-#' Section 2.2.1). With only a single overall comparator AgD row,
-#' `beta_comparator` is identified by the prior alone; with subgroups it is
-#' informed by the data. (Marginal, overlapping subgroups would double-count
-#' patients and understate uncertainty; supply jointly-defined subgroups.)
+#' identify `beta_comparator` from data is to supply the comparator AgD as
+#' **joint subgroups**: mutually exclusive, collectively exhaustive strata of
+#' the comparator population, one [set_agd()] row per subgroup, each with its
+#' own covariate summaries and outcome. Each subgroup contributes a separate
+#' marginal likelihood term (`L_AgD = prod_s L_{AgD,s}`), and the variation in
+#' covariate means across subgroups is what can separate the
+#' treatment-specific covariate effects `beta_comparator` from the comparator
+#' intercept (the primary relaxed-SPFA strategy of Chandler & Ishak,
+#' Section 2.2.1). A single aggregate outcome summary generally cannot
+#' separately identify all comparator coefficients and the comparator
+#' intercept. It can constrain combinations of them, so marginal coefficient
+#' posteriors may still be updated by the data together with the priors: for
+#' an identity-link summary with mean covariate `m`, outcome SE `s` and
+#' independent normal priors of variance `a^2` on the intercept and `b^2` on
+#' the coefficient, the posterior variance of the coefficient is
+#' `1 / (1 / b^2 + m^2 / (a^2 + s^2))`, not `b^2`. Joint, nonoverlapping
+#' subgroup summaries can add independent constraints; their number, their
+#' covariate-distribution geometry, the outcome precision and the model
+#' determine which directions are identified, and for a nonlinear link
+#' differences in the distributions beyond the mean profiles matter too.
+#' Remaining directions require explicit prior sensitivity analysis. (Marginal,
+#' overlapping subgroups would double-count patients and understate
+#' uncertainty; supply jointly-defined subgroups.)
 #'
 #' @seealso [prior_sensitivity()] for sensitivity of the posterior
 #'   to `prior_beta`; [set_agd()] for AgD scale requirements;
