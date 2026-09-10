@@ -14,7 +14,10 @@ Character vector, one key per row.
 }
 \description{
 The binary representation of every element, so two rows compare equal
-exactly when they are the same doubles. \code{paste()} on doubles keeps fifteen
-digits and could merge two rows that differ.
+exactly when they are the same numbers. \code{paste()} on doubles keeps fifteen
+digits and could merge two rows that differ. A negative zero is the same
+number as a positive one, and every fit treats it so, but \verb{\%a} spells the
+two differently; adding zero to each element folds them together and
+changes nothing else.
 }
 \keyword{internal}

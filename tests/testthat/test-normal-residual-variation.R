@@ -425,8 +425,13 @@ test_that("zeros mixed with positives are refused only where the boundary is rea
   d <- list(ipd = list(data = one_side), covariates = c("x1", "x2"))
   expect_error(mlumr:::.check_normal_residual_variation(d, "log"),
                "taking every zero row there")
-  # A zero row on the positive rows' own profile is pinned outright.
+  # A zero row on the positive rows' own profile is pinned outright, and a
+  # negative zero is the same profile: the keys are exact in value, not in
+  # spelling.
   d <- .normal_stub(c(1, 1, 0, 0), c(0, 0, 0, 1))
+  expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
+  d <- .normal_stub(c(1, 1, 0), c(0, 0, -0))
+  expect_identical(sprintf("%a", -0), "-0x0p+0")
   expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
   # A zero row merely close to the positive rows' span, here off it by 1e-20
   # through a near-collinear column, is neither pinned nor safely free: the
