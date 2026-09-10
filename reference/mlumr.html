@@ -506,6 +506,42 @@ informed by the data. (Marginal, overlapping subgroups would double-count
 patients and understate uncertainty; supply jointly-defined subgroups.)</p>
     </div>
     <div class="section level2">
+    <h2 id="normal-outcomes-with-no-residual-variation">Normal outcomes with no residual variation<a class="anchor" aria-label="anchor" href="#normal-outcomes-with-no-residual-variation"></a></h2>
+
+
+<p>A normal fit whose IPD covariates reproduce the outcome exactly has an
+improper posterior for the residual SD, so <code>mlumr()</code> refuses it before any
+sampling. Whether an exact fit exists is settled structurally where it can
+be: a constant outcome, or one where every replicate of a covariate profile
+agrees and there are only as many distinct profiles as the design has rank,
+is fitted exactly and refused; replicate profiles carrying different
+outcomes prove the residual positive and the posterior proper. Otherwise
+the residual sum of squares is compared with the rounding an exact fit can
+leave, which grows with the fitted coefficients. Above it the residual is
+real and the posterior proper; at or below it nothing at double precision
+tells an exact fit from one this close, and the model is refused as
+undecidable rather than passed. A proper posterior whose residual is at
+most <code>1e-6</code> of the outcome's total sum of squares is warned about, since
+the residual SD will concentrate near zero and the sampler has to work
+there; that is a screen on the input, and the sampler's own diagnostics say
+how the fit went. Under <code>link = "log"</code> existence of an exact fit is decided
+on <code>log(y)</code>, where it is a linear question, and the near-exact screen on
+the response scale the likelihood uses. Zeros are the boundary case there:
+an outcome identically zero is refused, and so is one whose positive rows
+are fitted exactly while a free direction of the coefficients can take the
+zero rows' predictors to <code>-Inf</code>, since along that ray the likelihood is
+unbounded and only the coefficient priors' tails decide whether a
+posterior exists. The check judges the design the model will fit: with
+<code>center = FALSE</code> the rounding bound carries the cancellation of the raw
+predictor offsets, as the likelihood then does, so a residual below that
+rounding is refused as undecidable where the centered fit would only warn.
+A saturated design, with as many
+free columns as rows, is warned about rather than refused: its posterior is
+proper, but nothing in the data separates the residual SD from the
+coefficients, so what is reported for sigma is potentially strongly
+sensitive to the coefficient priors.</p>
+    </div>
+    <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="prior_sensitivity.html">prior_sensitivity()</a></code> for sensitivity of the posterior
 to <code>prior_beta</code>; <code><a href="set_agd.html">set_agd()</a></code> for AgD scale requirements;

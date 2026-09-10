@@ -4,6 +4,50 @@
 
 ### Behavior and validation changes to existing functions
 
+- **A normal fit whose covariates reproduce the outcome exactly is now
+  refused.** Integrating out the coefficients leaves a marginal density
+  for the residual SD proportional to `sigma^(rank - n)` near zero,
+  which does not integrate for any `n` above the rank; a prior with
+  positive density at zero leaves that divergence where it is, and
+  proper coefficient priors only scale it. The posterior is improper,
+  nothing reported it, and the sampler drifted toward zero and returned
+  where it stopped with ordinary-looking diagnostics.
+  [`mlumr()`](https://choxos.github.io/mlumr/reference/mlumr.md) now
+  decides before sampling whether an exact fit exists. Where the data
+  settle it structurally they are believed: a constant outcome, or one
+  with only as many distinct covariate profiles as the design has rank
+  and agreeing replicates, is fitted exactly and refused; replicate
+  profiles with different outcomes prove the residual positive, whatever
+  a fit reports. Otherwise the residual sum of squares is compared with
+  the rounding an exact fit can leave, `p * eps * |X||b|` elementwise,
+  which grows with the fitted coefficients. That bound is used only as a
+  bound: a residual above it is real, and a residual at or below it is
+  refused as undecidable at double precision, not declared improper. A
+  proper posterior whose residual is at most `1e-6` of the outcome’s
+  total is warned about, since the residual SD will concentrate near
+  zero and the sampler has to work there; the sampler’s own diagnostics
+  say how it went. Under `link = "log"` existence is decided on
+  `log(y)`, a linear question that cannot overflow however wide the
+  outcome is, and the near-exact screen is taken on the response scale
+  the likelihood uses. Zeros under `link = "log"` are the boundary case:
+  a positive mean can only approach them as their linear predictor goes
+  to `-Inf`, where the likelihood grows without bound as the residual SD
+  shrinks and only the coefficient priors’ tails decide whether a
+  posterior exists. An outcome identically zero is refused, and so is
+  one whose positive rows are fitted exactly while leaving a direction
+  of the coefficients free to take the zero rows there; zeros beside
+  positive rows that leave a real residual, or that pin every
+  coefficient, pass, and a negative outcome anywhere settles it. The
+  check judges the design the model will fit: with `center = FALSE` the
+  rounding bound carries the cancellation of the raw predictor offsets,
+  as the likelihood then does, so a residual below that rounding is
+  refused as undecidable where the centered fit would only warn. A
+  saturated design is warned about rather than refused: its posterior is
+  proper, but nothing in the data separates the residual SD from the
+  coefficients, so the estimate of sigma is potentially strongly
+  sensitive to the coefficient priors. The check runs in validation, so
+  it costs no compilation.
+
 - **Posterior summaries now carry how many draws they used.** The
   summaries behind [`predict()`](https://rdrr.io/r/stats/predict.html),
   [`marginal_effects()`](https://choxos.github.io/mlumr/reference/marginal_effects.md),

@@ -65,6 +65,8 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-build_arm_summary.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-build_mspline_basis.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-build_stan_data_survival.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-center_design.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-check_normal_residual_variation.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-check_required_columns.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-clamp_cor.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-cmdstan_available.html</loc></url>
@@ -84,6 +86,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-count_treedepth_hits.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-decay_parts.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-decay_share.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-design_replicates.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-diagnostic_count.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-diagnostic_display.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-diagnostic_value.html</loc></url>
@@ -94,6 +97,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-eval_basis.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-exp_difference_logs.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-finite_numeric_values.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-fit_ratios.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-format_diagnostic.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-gamma_moment_pars.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-generate_copula_uniforms.html</loc></url>
@@ -108,11 +112,13 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-knots_from_times.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-known_measure.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-label_beta_rows.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-linear_fit_ratios.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-live_basis_columns.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-ln_moments.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-lndiff.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-lnopt.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-log_lik_column_index.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-log_link_response_ratio.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-logitnorm_pars.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-logspace_add.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-marginal_effects_survival.html</loc></url>
@@ -182,6 +188,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-require_identity.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-require_single_identity.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-rescale_prior_beta.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-residual_variation_status.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-resolve_aux_strata.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-resolve_integration_cor.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-resolve_mlumr_engine.html</loc></url>
@@ -193,10 +200,13 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-rmst_from_surv_matrix.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-rmst_max_interval_share.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-rounding_allowance.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-row_keys.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-rstan_ess_tail.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-rw1_prior_weights.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-same_grouped_rows.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-same_observations.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-scale_design.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-screen_mixed_zero.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-set_ipd_survival.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-softmax.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-sorted_keys.html</loc></url>
@@ -315,11 +325,13 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-warn_integration_size.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-warn_integration_vs_agd_moments.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-warn_interval_share.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-warn_near_exact.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-warn_snapped_prediction_times.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-warn_survival_loo_unit.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-warn_unreplayed_backend_args.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-weighted_log_mean_exp.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-z_from_conf_level.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-zero_boundary.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/eval_distr.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/eval_distr_arg.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/extract_log_lik.html</loc></url>
