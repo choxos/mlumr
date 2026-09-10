@@ -185,6 +185,30 @@ test_that("a margin declared without variance leaves the other pairs an ordinary
   expect_identical(ck$correlation_pairs$measured, 1L)
   expect_identical(nrow(ck$correlation_pairs$omitted), 0L)
   expect_identical(ck$correlation_pairs$not_applicable$agd_row, 2L)
-  expect_true(ck$verdict$target_correlation %in% c("close", "review"))
-  expect_true(ck$verdict$resolution_correlation %in% c("stable", "review"))
+  expect_identical(ck$verdict$target_correlation, "close")
+  expect_identical(ck$verdict$resolution_correlation, "stable")
+  # A margin declared without variance but supplied a varying distribution
+  # realizes a correlation that must not decide anything: one row, sex
+  # declared all-male but drawn at prob = 0.5, has a finite age~sex
+  # correlation on the grid and no pair with a correlation to realize. The
+  # verdict is unavailable, where the realized value used to make it close.
+  ag1 <- set_agd(data.frame(trt = "B", n = 60L, r = 20L, age_mean = 0,
+                            age_sd = 1, sex_mean = 0),
+                 "trt", outcome_n = "n", outcome_r = "r",
+                 cov_means = c("age_mean", "sex_mean"),
+                 cov_sds = c("age_sd", NA), cov_types = c("continuous", "binary"))
+  d1 <- suppressWarnings(add_integration(
+    combine_data(ip, ag1), n_int = 256, cor = cor, cor_adjust = "pearson",
+    age = distr(qnorm, mean = age_mean, sd = age_sd),
+    sex = distr(qbern, prob = 0.5), verbose = FALSE
+  ))
+  ck1 <- suppressWarnings(check_integration(
+    d1, cor = cor, cor_adjust = "pearson",
+    age = distr(qnorm, mean = age_mean, sd = age_sd),
+    sex = distr(qbern, prob = 0.5), verbose = FALSE
+  ))
+  expect_true(is.finite(ck1$correlations$abs_diff_target))
+  expect_identical(ck1$correlation_pairs$expected, 0L)
+  expect_identical(ck1$verdict$target_correlation, "unavailable")
+  expect_identical(ck1$verdict$resolution_correlation, "unavailable")
 })

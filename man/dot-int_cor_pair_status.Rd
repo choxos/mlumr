@@ -26,7 +26,9 @@ resolution failures a larger grid may or may not repair; and
 \code{not_applicable}, the pairs in which a margin is declared with no
 variance and so has no correlation to realize at any resolution.
 Those are outside \code{expected}, so a subgroup row with an all-male
-membership does not keep every verdict at \code{partial} forever.
+membership does not keep every verdict at \code{partial} forever; and
+\code{applicable}, the logical over the rows of \code{diff} that the maxima are
+taken over.
 }
 \description{
 Which correlation pairs were measured, and why the others were not

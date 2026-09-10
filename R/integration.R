@@ -813,9 +813,6 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
     cor_result <- .int_cor_stats(X_orig, X_double, cov_names, n_agd,
                                  cor_target = cor_target,
                                  cor_method = target_method)
-    max_cor_diff <- .max_finite(cor_result$diff$abs_diff)
-    max_target_cor_diff <- if (is.null(cor_target)) NA_real_ else
-      .max_finite(cor_result$diff$abs_diff_target)
     # A maximum over the pairs that could be measured is a maximum over
     # those pairs only. A variable constant on the grid has no correlation
     # with anything, so its pairs are NA and drop out of the maximum, and
@@ -823,8 +820,14 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
     # what was compared, name what was not, and say why: a declared margin
     # with no variance has no correlation to realize, while a rare variable
     # the finite grid never varied is a resolution failure a larger grid may
-    # or may not repair.
+    # or may not repair. The maxima run over the pairs with a correlation
+    # to realize: a margin declared without variance but supplied a varying
+    # distribution has a realized correlation that decides nothing.
     pairs <- .int_cor_pair_status(cor_result$diff, stats_orig, target_sd)
+    applicable <- cor_result$diff[pairs$applicable, , drop = FALSE]
+    max_cor_diff <- .max_finite(applicable$abs_diff)
+    max_target_cor_diff <- if (is.null(cor_target)) NA_real_ else
+      .max_finite(applicable$abs_diff_target)
     if (verbose) {
       if (is.na(max_cor_diff)) {
         cat("Joint resolution: not available (no finite comparison).\n")
@@ -961,7 +964,9 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
 #'   `not_applicable`, the pairs in which a margin is declared with no
 #'   variance and so has no correlation to realize at any resolution.
 #'   Those are outside `expected`, so a subgroup row with an all-male
-#'   membership does not keep every verdict at `partial` forever.
+#'   membership does not keep every verdict at `partial` forever; and
+#'   `applicable`, the logical over the rows of `diff` that the maxima are
+#'   taken over.
 #' @keywords internal
 .int_cor_pair_status <- function(diff, stats, target_sd) {
   degenerate <- vapply(seq_len(nrow(diff)), function(i) {
@@ -981,7 +986,7 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
   rownames(not_applicable) <- NULL
   list(expected = sum(applicable), measured = sum(measured),
        measured_resolution = sum(measured_resolution), omitted = omitted,
-       not_applicable = not_applicable)
+       not_applicable = not_applicable, applicable = applicable)
 }
 
 
