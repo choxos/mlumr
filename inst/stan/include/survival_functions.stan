@@ -493,17 +493,25 @@ real log_loglogistic_interval(real t_upper, real t_lower, real eta, real aux) {
 // mass is a good many multiples of that as a fraction of F(u). Below
 // 1e-5 * max(1, |log F(u)|) the relative error can exceed 1e-11, and the
 // quadrature is the better route.
+//
+// The threshold is capped at one half. The relative mass cannot exceed one,
+// so past |log F(u)| = 1e5 an uncapped threshold would send every interval
+// to quadrature, including ones whose mass is most of F(u) and whose
+// difference is as accurate as anything in that regime; the quadrature,
+// meanwhile, cannot resolve the narrow layer where such a tail's mass sits.
 int cdf_diff_resolves(real log_cdf_upper, real log_cdf_lower) {
   if (log_cdf_upper <= log_cdf_lower) return 0;
   return -expm1(log_cdf_lower - log_cdf_upper)
-         > 1e-5 * fmax(1, -log_cdf_upper);
+         > fmin(0.5, 1e-5 * fmax(1, -log_cdf_upper));
 }
 
 // The same test for the survival increment log S(u) - log S(l), whose error
-// is near eps * |log S(l)|.
+// is near eps * |log S(l)|. A log-normal with sigma 1e-4 has log S near
+// -5e9 by t = 1e4, so the cap is what keeps the increment route, which the
+// tail branch computes without differencing, in charge there.
 int surv_increment_resolves(real increment, real log_surv_lower) {
   if (increment >= 0 || is_inf(increment)) return 0;
-  return -expm1(increment) > 1e-5 * fmax(1, -log_surv_lower);
+  return -expm1(increment) > fmin(0.5, 1e-5 * fmax(1, -log_surv_lower));
 }
 
 // Log P(t_lower < T <= t_upper). The route is chosen by what resolves the

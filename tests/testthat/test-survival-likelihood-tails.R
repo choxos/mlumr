@@ -334,3 +334,32 @@ test_that("a wide interval with a small mass is integrated, not approximated", {
   expect_lt(abs(got_entry - (ref - plnorm(0.5, 0, sigma, lower.tail = FALSE,
                                           log.p = TRUE))), 1e-9)
 })
+
+test_that("a deep right tail keeps the increment route", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  env <- expose_survival_likelihood()
+
+  # A log-normal with sigma 1e-4 has log S near -5e9 by t = 1e4. The
+  # resolution test asks the interval's mass to exceed 1e-5 of |log S(l)| as
+  # a fraction of S(l), and uncapped that is more than one, which no interval
+  # can meet: every interval out here went to quadrature, whose grid cannot
+  # resolve the layer next to the lower bound where the tail's mass sits, and
+  # the conditional log-likelihood came back 2.8 too high. The increment is
+  # computed in the tail branch without differencing and is the right route,
+  # so the threshold is capped at one half.
+  eta <- -1
+  aux <- 1e-4
+  log_surv <- function(t) {
+    pnorm((log(t) - eta) / aux, lower.tail = FALSE, log.p = TRUE)
+  }
+  lower <- 10000
+  upper <- 10001
+  entry <- 9999.9999
+  expect_lt(log_surv(lower), -1e9)
+  ref <- log_surv(lower) + log1p(-exp(log_surv(upper) - log_surv(lower)))
+  expect_lt(abs(env$surv_ll_status(6L, upper, lower, entry, 3L, eta, aux, 0) -
+                  (ref - log_surv(entry))), 1e-6)
+  expect_lt(abs(env$surv_ll_status(6L, upper, lower, 0, 3L, eta, aux, 0) - ref),
+            1e-6)
+})
