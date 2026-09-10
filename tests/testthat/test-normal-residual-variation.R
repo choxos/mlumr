@@ -428,12 +428,32 @@ test_that("zeros mixed with positives are refused only where the boundary is rea
   # A zero row on the positive rows' own profile is pinned outright.
   d <- .normal_stub(c(1, 1, 0, 0), c(0, 0, 0, 1))
   expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
-  # Beyond two free directions the check does not attempt the question.
-  wide <- data.frame(.outcome = c(1, 1, 0), x1 = c(0, 0, 1), x2 = c(0, 0, 1),
-                     x3 = c(0, 0, 1))
+  # A covariate no zero row loads on, here a constant, adds a null direction
+  # without adding to the question: the opposite-sign geometry above is still
+  # one-directional, not a two-direction problem with a gap of exactly pi.
+  padded <- data.frame(.outcome = c(1, 1, 0, 0), x1 = c(0, 0, -1, 1),
+                       x2 = c(0, 0, 0, 0))
+  d <- list(ipd = list(data = padded), covariates = c("x1", "x2"))
+  expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
+  # And two rows pointing opposite ways in a genuine two-direction problem
+  # cannot both be lowered, whatever the third does.
+  opposite <- data.frame(.outcome = c(1, 1, 0, 0, 0),
+                         x1 = c(0, 0, 1, -1, 0), x2 = c(0, 0, 0, 0, 1))
+  d <- list(ipd = list(data = opposite), covariates = c("x1", "x2"))
+  expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
+  # Beyond two effective directions the check does not attempt the question.
+  # Three zero rows spanning three null directions is that case; a single
+  # zero row with three free directions is not, since it loads on one.
+  wide <- data.frame(.outcome = c(1, 1, 0, 0, 0), x1 = c(0, 0, 1, 0, 0),
+                     x2 = c(0, 0, 0, 1, 0), x3 = c(0, 0, 0, 0, 1))
   d <- list(ipd = list(data = wide), covariates = c("x1", "x2", "x3"))
   expect_error(mlumr:::.check_normal_residual_variation(d, "log"),
                "does not attempt")
+  narrow <- data.frame(.outcome = c(1, 1, 0), x1 = c(0, 0, 1), x2 = c(0, 0, 1),
+                       x3 = c(0, 0, 1))
+  d <- list(ipd = list(data = narrow), covariates = c("x1", "x2", "x3"))
+  expect_error(mlumr:::.check_normal_residual_variation(d, "log"),
+               "taking every zero row there")
   # Four positive rows on distinct x pin both coefficients, so the zero row's
   # mean is a fixed positive number and its square bounds the residual away
   # from zero. Proper, and silent: the positive rows do not fit exactly.

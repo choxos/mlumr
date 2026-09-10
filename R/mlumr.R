@@ -211,7 +211,17 @@
   null_basis <- qr.Q(qr(t(X_pos), tol = tol), complete = TRUE)
   null_basis <- null_basis[, seq.int(r + 1L, p), drop = FALSE]
   loadings <- X_zero %*% null_basis
-  k <- ncol(loadings)
+  # Reduce the loadings to their effective span. A null direction that no
+  # zero row loads on, a constant covariate say, adds a dimension to the
+  # coordinates without adding one to the question: two zero rows loading
+  # (-1, 0) and (1, 0) are a one-direction problem with opposite signs, not a
+  # two-direction one with a gap of pi.
+  span <- qr(t(loadings), tol = tol)
+  k <- span$rank
+  if (k == 0L) {
+    return("unreachable")
+  }
+  loadings <- loadings %*% qr.Q(span)[, seq_len(k), drop = FALSE]
   if (k == 1L) {
     z <- loadings[, 1]
     return(if (all(z < 0) || all(z > 0)) "reachable" else "unreachable")
@@ -219,9 +229,12 @@
   if (k == 2L) {
     angles <- sort(atan2(loadings[, 2], loadings[, 1]))
     gaps <- c(diff(angles), angles[1] + 2 * pi - angles[length(angles)])
-    # A gap within rounding of pi is the degenerate case, and it is refused
-    # rather than passed, so the comparison leans that way.
-    return(if (max(gaps) >= pi - 1e-9) "reachable" else "unreachable")
+    # A gap of exactly pi is two rows pointing opposite ways, which no
+    # direction lowers together. Within rounding of pi the rows are opposite
+    # to that precision, and a ray that needs the coefficients to grow by
+    # 1e12 to move a predictor by one is not a boundary the sampler reaches,
+    # so that reads as unreachable too.
+    return(if (max(gaps) > pi + 1e-12) "reachable" else "unreachable")
   }
   "unknown"
 }
