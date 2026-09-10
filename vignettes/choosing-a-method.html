@@ -579,14 +579,15 @@ which is why the index row usually carries the decision, but it is not
 automatically either trial’s. When the decision population is a third
 one, standardize to it directly by passing its covariate distribution as
 <code>newdata</code> to <code>predict()</code> or
-<code>marginal_effects()</code>, which average over those rows, rather than
-adopting whichever trial is nearer. <code>conditional_effects()</code> takes
-the same data frame and evaluates at each profile separately rather than
-averaging over them, so what it returns is a set of conditional effects and not
-a transported marginal one. The
-comparator rows are the like-for-like comparison against STC, which
-standardizes to that population; naive standardizes to neither and is
-the unadjusted benchmark both rows are measured against.</p>
+<code>marginal_effects()</code>, which average over those rows, rather
+than adopting whichever trial is nearer.
+<code>conditional_effects()</code> takes the same data frame and
+evaluates at each profile separately rather than averaging over them, so
+what it returns is a set of conditional effects and not a transported
+marginal one. The comparator rows are the like-for-like comparison
+against STC, which standardizes to that population; naive standardizes
+to neither and is the unadjusted benchmark both rows are measured
+against.</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>me_spfa <span class="ot">&lt;-</span> <span class="fu">marginal_effects</span>(fit_spfa, <span class="at">effect =</span> <span class="st">&quot;lor&quot;</span>, <span class="at">population =</span> <span class="st">&quot;both&quot;</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>me_rel  <span class="ot">&lt;-</span> <span class="fu">marginal_effects</span>(fit_relaxed, <span class="at">effect =</span> <span class="st">&quot;lor&quot;</span>, <span class="at">population =</span> <span class="st">&quot;both&quot;</span>)</span>
 <span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="co"># One row per (model, population); `pop()` pulls the requested one.</span></span>
@@ -708,12 +709,12 @@ comparator coefficients are weakly identified with sparse AgD, so check
 <code>delta_beta</code> and <code>prior_sensitivity()</code>.</li>
 <li><strong>Index vs comparator within the relaxed model</strong>, note
 how much wider the index-population interval is than the comparator one
-in the table above. The comparator coefficients are informed by a single
-aggregate row, and the index-population estimand extrapolates them over
-the IPD covariate distribution, so the width is the identification
-problem showing itself. Under SPFA the two populations agree closely
-instead, because the coefficients are shared and anchored by the
-IPD.</li>
+in the table above. A single aggregate row constrains the comparator
+coefficients only through one combination with the comparator intercept,
+and the index-population estimand extrapolates them over the IPD
+covariate distribution, so the width is the identification problem
+showing itself. Under SPFA the two populations agree closely instead,
+because the coefficients are shared and anchored by the IPD.</li>
 </ul>
 </div>
 <div id="model-comparison" class="section level2">

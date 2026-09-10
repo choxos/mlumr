@@ -400,6 +400,77 @@ treatment-specific covariate effects \code{beta_comparator} from the comparator
 intercept (the primary relaxed-SPFA strategy of Chandler & Ishak,
 Section 2.2.1). A single aggregate outcome summary generally cannot
 separately identify all comparator coefficients and the comparator
+intercept. Its likelihood term constrains one combination of them, the
+comparator intercept plus the coefficients weighted by that row's
+covariate means on the model's scale, which under \code{center = TRUE} are the
+declared means minus the pooled center; only that direction of the
+comparator parameters is updated, and the directions orthogonal to it stay
+at their priors. Marginal coefficient posteriors can still move through
+the combination. For one covariate with an identity link, independent
+normal priors of variance \code{a^2} on the intercept and \code{b^2} on the
+coefficient, a centered mean \code{m} and an outcome SE \code{s}, the posterior
+variance of the coefficient is \code{1 / (1 / b^2 + m^2 / (a^2 + s^2))}: \code{b^2}
+when \code{m = 0}, which is a single row whose mean sits at the pooled center,
+and smaller the further the row's mean sits from it. Joint, nonoverlapping
+subgroup summaries each add a likelihood term; how many directions those
+terms identify depends on their number, their covariate-distribution
+geometry (rows with the same mean profile tighten one combination and add
+no direction), the outcome precision and the model, and for a nonlinear
+link differences in the distributions beyond the mean profiles matter too.
+Remaining directions require explicit prior sensitivity analysis. (Marginal,
+overlapping subgroups would double-count patients and understate
+uncertainty; supply jointly-defined subgroups.)
+
+The model assumes that all AgD rows come from the same comparator treatment
+and that, conditional on covariates, there is no between-study heterogeneity.
+If AgD rows come from multiple studies with different designs or unmeasured
+confounders, this assumption may not hold. No random effects for study-level
+heterogeneity are included.
+
+\strong{AgD scale assumptions (family = \code{"normal"}).} The AgD likelihood is
+\code{y_agd ~ normal(E[exp(eta)], se_agd)} under \code{link = "log"} and
+\code{y_agd ~ normal(E[eta], se_agd)} under \code{link = "identity"}. In both
+cases \code{set_agd()} expects \code{outcome_mean} and \code{outcome_se} on the
+\strong{arithmetic (original, untransformed) scale}, not log-scale or
+geometric. Passing log-scale summaries silently misspecifies the
+likelihood. See \code{\link[=set_agd]{set_agd()}} for details.
+
+\strong{Comparator-population weighting is family-dependent.} Integrated
+marginal predictions in the comparator population (\verb{*_comparator}
+generated quantities) are weighted by:
+\itemize{
+\item \strong{binomial}: \code{n_agd[k]} (AgD sample size), so larger
+AgD rows contribute more to the marginal mean.
+\item \strong{normal}: \code{outcome_n[k]} (AgD sample size), which is required for
+multiple rows; a single row has weight one when \code{outcome_n} is omitted.
+These are the estimand's
+mixing weights, not the likelihood's \code{1 / se^2} precision weights, so
+splitting one comparator population into subgroup rows does not change
+the target population.
+\item \strong{poisson}: \code{E_agd[k]} (AgD exposure), matching the
+rate-based likelihood.
+}
+Each weighting is natural for the corresponding likelihood; users
+comparing marginal effects across families should be aware they are
+not identically weighted.
+
+\strong{Weakly-identified coefficients in the relaxed model.}
+\code{beta_comparator} is identified only through AgD, so the relaxed
+model needs informative priors (or many AgD rows) to estimate
+effect modification reliably. \code{\link[=prior_sensitivity]{prior_sensitivity()}} is the
+recommended diagnostic.
+
+\strong{Identifying the relaxed model with subgroup AgD.} The strongest way to
+identify \code{beta_comparator} from data is to supply the comparator AgD as
+\strong{joint subgroups}: mutually exclusive, collectively exhaustive strata of
+the comparator population, one \code{\link[=set_agd]{set_agd()}} row per subgroup, each with its
+own covariate summaries and outcome. Each subgroup contributes a separate
+marginal likelihood term (\verb{L_AgD = prod_s L_\{AgD,s\}}), and the variation in
+covariate means across subgroups is what can separate the
+treatment-specific covariate effects \code{beta_comparator} from the comparator
+intercept (the primary relaxed-SPFA strategy of Chandler & Ishak,
+Section 2.2.1). A single aggregate outcome summary generally cannot
+separately identify all comparator coefficients and the comparator
 intercept. It can constrain combinations of them, so marginal coefficient
 posteriors may still be updated by the data together with the priors: for
 an identity-link summary with mean covariate \code{m}, outcome SE \code{s} and

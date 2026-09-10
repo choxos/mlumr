@@ -56,15 +56,18 @@
 #' Both corrections branch on continuous versus **binary**, and there is no
 #' branch for a nonbinary discrete margin (a count such as Poisson or negative
 #' binomial, or an ordered category). Such a covariate is mapped as if it were
-#' continuous, which understates the attenuation its discreteness causes. The
-#' calibration such a margin needs is threshold-aware: within the Gaussian
-#' copula with the margin's thresholds fixed, the observed correlation is a
-#' strictly increasing function of the latent one, so a feasible target has
-#' a unique latent value (the map \pkg{GenOrd} implements for Pearson and
-#' Spearman targets), and what this package lacks is that numerical
-#' inversion, not the existence of a value to invert to. Not every target is
-#' feasible, and a matrix inverted pairwise need not stay positive definite.
-#' `add_integration()` warns when it detects such a margin. A finite Sobol
+#' continuous, so the realized association need not match the target: a
+#' discrete margin beside a continuous one is attenuated, while one beside a
+#' binary margin goes through the continuous-binary heuristic, which can
+#' overshoot. The calibration such a margin needs is threshold-aware: within
+#' the Gaussian copula with the margin's thresholds fixed, the observed
+#' Pearson correlation is a strictly increasing function of the latent one,
+#' so a feasible target has a unique latent value (the inversion \pkg{GenOrd}
+#' implements for ordinal margins with finite support), and what this package
+#' lacks is that numerical inversion, not the existence of a value to invert
+#' to. Not every target is feasible, and a matrix inverted pairwise need not
+#' stay positive definite. `add_integration()` warns when it detects such a
+#' margin. A finite Sobol
 #' grid approximates both marginal moments and dependence. Verify with
 #' [check_integration()], which reports the realized correlation and names the
 #' scale (`cor_method`) it was measured on.
@@ -334,12 +337,14 @@ add_integration <- function(data, n_int = 64, cor = NULL,
 #' (exact) and anything paired with a BINARY margin (prevalence-independent
 #' heuristics). A count or ordinal margin (Poisson, negative binomial, an
 #' ordered category) is neither. It goes through the continuous branch, where
-#' the map is exact only for a continuous margin, and its own discreteness
-#' attenuates the realized correlation. The correction it needs depends on
-#' its thresholds: with those fixed, the observed correlation rises strictly
-#' with the latent one, so a feasible target has one latent value, and the
-#' package does not implement the numerical inversion that finds it. Say so
-#' rather than let the realized association quietly miss the target.
+#' the map is exact only for a continuous margin, so the realized association
+#' need not match the target: attenuated beside a continuous margin, and
+#' possibly overshooting beside a binary one, whose heuristic inflates the
+#' latent correlation. The correction it needs depends on its thresholds:
+#' with those fixed, the observed correlation rises strictly with the latent
+#' one, so a feasible target has one latent value, and the package does not
+#' implement the numerical inversion that finds it. Say so rather than let
+#' the realized association quietly miss the target.
 #'
 #' @param dtypes Distribution types from [get_distribution_type()].
 #' @param cov_names Covariate names, same order as `dtypes`.
@@ -356,7 +361,7 @@ add_integration <- function(data, n_int = 64, cor = NULL,
     "category). The `cor_adjust = \"%s\"` copula correction covers ",
     "continuous margins exactly and binary margins heuristically, but has no ",
     "branch for these: they are mapped as if continuous, so the realized ",
-    "pairwise association will fall short of the target. The threshold-aware ",
+    "pairwise association need not match the target. The threshold-aware ",
     "calibration a discrete margin needs is not implemented here. Check the ",
     "realized values with check_integration(), passing the same `cor`, and ",
     "treat the target as approximate."
