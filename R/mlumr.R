@@ -600,7 +600,9 @@
 #' machine precision. A covariate that differs from a combination of the
 #' others by less than rounding is still a column of the model, and an
 #' outcome can be reproduced exactly through it with enormous coefficients
-#' where a fit without it shows an ordinary residual; such a design is
+#' where a fit without it shows an ordinary residual. The structural rules
+#' see that with the exact rank, and refuse it as an exact fit when the
+#' distinct profiles are as few as the rank; otherwise such a design is
 #' refused as unresolved, since nothing at double precision decides the
 #' question, rather than passed on the strength of the reduced fit. With
 #' `center = FALSE` the rounding bound carries the cancellation of the raw

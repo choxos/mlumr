@@ -331,9 +331,14 @@
     null_basis <- diag(p)
   } else {
     qp <- qr(t(X_pos), tol = tol)
-    if (qp$rank < r) {
-      # The positive rows' own geometry is below the factorization's
-      # resolution, so no numerical basis of their row space exists.
+    if (qp$rank != r) {
+      # Below the exact rank, the positive rows' own geometry is under the
+      # factorization's resolution and no numerical basis of their row
+      # space exists. Above it, a row exactly in the span of earlier rows
+      # left a rounding residual the factorization kept as a direction,
+      # and that direction can sit among the first `r` columns of Q ahead
+      # of a genuine one; the row-space basis would then be wrong and the
+      # loadings with it. Neither is a geometry to decide from.
       return("unknown")
     }
     complete <- qr.Q(qp, complete = TRUE)
@@ -366,6 +371,12 @@
   # loading (-1, 0) and (1, 0) are a one-direction problem with opposite
   # signs, not a two-direction one with a gap of pi.
   k <- .exact_rank(rbind(raw_pos, raw_zero))$rank - r
+  if (k == 0L) {
+    # Every remaining zero row lies exactly in the positive rows' span
+    # after all, so every direction that holds the positive predictors
+    # holds theirs too.
+    return("unreachable")
+  }
   span <- qr(t(loadings), tol = tol)
   if (span$rank < k) {
     return("unknown")

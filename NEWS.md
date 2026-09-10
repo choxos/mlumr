@@ -40,8 +40,10 @@
   less than rounding is still a column of the model, and an outcome can be
   reproduced exactly through it with enormous coefficients where a
   factorization at machine precision, having dropped the column, shows an
-  ordinary residual. Such a design is refused as unresolved rather than
-  passed on the reduced fit. With `center = FALSE` the rounding bound
+  ordinary residual. The structural rules see that with the exact rank and
+  refuse it as an exact fit; otherwise such a design is refused as
+  unresolved rather than passed on the reduced fit. With `center = FALSE`
+  the rounding bound
   carries the cancellation of the raw predictor offsets, as the likelihood
   then does, so a residual below that rounding is refused as undecidable
   where the centered fit would only warn. A saturated design is warned
