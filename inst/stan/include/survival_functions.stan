@@ -516,11 +516,14 @@ real log_interval_prob_quad(int dist, real t_upper, real t_lower, real eta,
 // large parts cancel algebraically and what is left is
 //   log1m_exp(-d) - log1p_exp(-z_u) - g(z_l),
 // every term of which is bounded by the size of the answer. Conditioning
-// adds g(z_e), and g(z_e) - g(z_l) is taken as (z_e - z_l) + [log1p_exp(-z_e)
-// - log1p_exp(-z_l)], with z_e - z_l the log of a time ratio, so two
-// enormous g values are never differenced: with eta = -1e16 that returned 0
-// for a conditional value of -0.46. Unconditional is e = 0, where g(z_e)
-// is 0.
+// adds g(z_e), and g(z_e) - g(z_l) is taken by the signs of the two, with
+// g(z) = max(z, 0) + log1p(e^{-|z|}): both negative gives a difference of
+// two small log1p terms, both positive gives (z_e - z_l), the log of a time
+// ratio, plus two small terms, and a straddle gives -z_l plus small terms.
+// Two enormous g values are never differenced: with eta = -1e16 the sum of
+// an unconditional log probability and -log S(e) returned 0 for a value of
+// -0.46, and with a shape of 1e17 and both z far negative it returned 32
+// for a value of 0. Unconditional is e = 0, where g(z_e) is 0.
 real log_loglogistic_interval(real t_upper, real t_lower, real t_entry,
                               real eta, real aux) {
   real z_l = aux * (log(t_lower) - eta);
@@ -529,10 +532,14 @@ real log_loglogistic_interval(real t_upper, real t_lower, real t_entry,
   real lp = log1m_exp(-d) - log1p_exp(-z_u);
   if (t_entry > 0) {
     real z_e = aux * (log(t_entry) - eta);
-    real drop = t_entry == t_lower
-                  ? 0
-                  : -aux * log_time_ratio(t_lower, t_entry);
-    return lp + drop + log1p_exp(-z_e) - log1p_exp(-z_l);
+    if (z_e >= 0) {
+      real drop = t_entry == t_lower
+                    ? 0
+                    : -aux * log_time_ratio(t_lower, t_entry);
+      return lp + drop + log1p(exp(-z_e)) - log1p(exp(-z_l));
+    }
+    if (z_l >= 0) return lp + log1p(exp(z_e)) - z_l - log1p(exp(-z_l));
+    return lp + log1p(exp(z_e)) - log1p(exp(z_l));
   }
   return lp - log1p_exp(z_l);
 }

@@ -453,6 +453,17 @@ test_that("the log-logistic conditional form does not cancel in a far tail", {
             1e-12)
   expect_lt(abs(env$surv_ll_status(7L, 2, 1, 0.5, 3L, 0, 1e17, 0) - log(0.5)),
             1e-12)
+  # Entry and lower bound far below the center with the same shape: the
+  # conditioning terms are each near 1e17 and the answer is log(1) = 0; the
+  # sum of them returned 32. The difference of two g values is taken by the
+  # signs of the two arguments, never as two enormous numbers.
+  expect_lt(abs(env$surv_ll_status(7L, exp(2), exp(1), exp(-0.5), 3L, 1.5,
+                                   1e17, 0)), 1e-12)
+  # And a conditional interval straddling the center at an ordinary shape.
+  ref <- log(plogis(z(3)) - plogis(z(1.5))) -
+    plogis(z(0.5), lower.tail = FALSE, log.p = TRUE)
+  expect_lt(abs(env$surv_ll_status(7L, 3, 1.5, 0.5, 3L, 0.2, 1.5, 0) - ref),
+            1e-12)
 })
 
 test_that("a differenced increment of -Inf beside a finite log S(l) resolves too", {
