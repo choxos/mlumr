@@ -4,12 +4,15 @@
 \alias{.check_normal_residual_variation}
 \title{Refuse normal IPD that its own covariates fit exactly}
 \usage{
-.check_normal_residual_variation(data, link = "identity")
+.check_normal_residual_variation(data, link = "identity", center = TRUE)
 }
 \arguments{
 \item{data}{An \code{mlumr_data} object.}
 
 \item{link}{The resolved link, \code{"identity"} or \code{"log"}.}
+
+\item{center}{Whether the model will center the covariates; see
+\code{\link[=.residual_variation_status]{.residual_variation_status()}}.}
 }
 \value{
 \code{TRUE} invisibly if the data were warned about.
@@ -83,5 +86,11 @@ unknown, and therefore refused, beyond.
 
 The test is the residual sum of squares against the outcome's own total sum
 of squares, so it is invariant to the units of the outcome.
+
+Resolution. A contrast between design rows smaller than machine epsilon
+times the column's own size is below the pivot tolerance of the
+factorization and is treated as absent, as it is by the centered design
+the model fits by default. The structural rules see the raw rows exactly,
+so replicate profiles are matched bitwise whatever their size.
 }
 \keyword{internal}

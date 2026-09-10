@@ -106,6 +106,20 @@
 }
 
 
+#' Exact keys for design rows
+#'
+#' The binary representation of every element, so two rows compare equal
+#' exactly when they are the same doubles. `paste()` on doubles keeps fifteen
+#' digits and could merge two rows that differ.
+#'
+#' @param X Design matrix.
+#' @return Character vector, one key per row.
+#' @keywords internal
+.row_keys <- function(X) {
+  apply(X, 1, function(r) paste(sprintf("%a", r), collapse = ","))
+}
+
+
 #' Replicate design rows, and whether their outcomes agree
 #'
 #' Rows with identical covariates get identical fitted values under any model,
@@ -122,8 +136,7 @@
 #'   outcome value.
 #' @keywords internal
 .design_replicates <- function(X, y) {
-  keys <- apply(X, 1, function(r) paste(sprintf("%a", r), collapse = ","))
-  groups <- split(y, keys)
+  groups <- split(y, .row_keys(X))
   list(n_distinct = length(groups),
        consistent = all(vapply(groups, function(g) all(g == g[1]),
                                logical(1))))
@@ -231,11 +244,19 @@
   if (r == p) {
     return("unreachable")
   }
-  pinned <- vapply(seq_len(nrow(X_zero)), function(i) {
-    qr(rbind(X_pos, X_zero[i, ]), tol = tol)$rank == r
-  }, logical(1))
-  if (any(pinned)) {
+  # A zero row on a positive row's own profile is pinned, and that is read
+  # bitwise so it holds whatever the size of the values. A zero row that is
+  # merely close to the row space of the positive rows, to within 1e-8 of its
+  # own size, is neither pinned nor safely free: the loadings that decide the
+  # rest are rounding at that point, so the answer is unknown.
+  if (any(.row_keys(X_zero) %in% .row_keys(X_pos))) {
     return("unreachable")
+  }
+  row_space <- qr.Q(qr(t(X_pos), tol = tol))[, seq_len(r), drop = FALSE]
+  off_space <- X_zero - X_zero %*% row_space %*% t(row_space)
+  closeness <- sqrt(rowSums(off_space^2)) / sqrt(rowSums(X_zero^2))
+  if (any(closeness < 1e-8)) {
+    return("unknown")
   }
   # An orthonormal basis of the null space of X_pos: the columns of the
   # complete Q of t(X_pos) beyond its rank.
@@ -296,11 +317,17 @@
 #' @param X_raw Design matrix, intercept included, uncentered.
 #' @param y Outcome vector; positive under `link = "log"`.
 #' @param link `"identity"` or `"log"`.
+#' @param center Whether the model will center the covariates. The guard
+#'   then works on a centered design too, so a contrast between rows that
+#'   centering rounds away is one the fitted model loses as well; with
+#'   `center = FALSE` the design is only scaled, which is exact, and the
+#'   rounding bound carries whatever cancellation the raw offsets impose,
+#'   as the fitted model then does.
 #' @return List with `status` and, where they apply, `n`, `rank`, `ratio`
 #'   and `zero_ratio`.
 #' @keywords internal
-.residual_variation_status <- function(X_raw, y, link) {
-  X <- .center_design(X_raw)
+.residual_variation_status <- function(X_raw, y, link, center = TRUE) {
+  X <- if (center) .center_design(X_raw) else .scale_design(X_raw)
   n <- length(y)
   rank <- qr(X, tol = .Machine$double.eps)$rank
   if (n <= rank) {
@@ -449,11 +476,20 @@
 #' The test is the residual sum of squares against the outcome's own total sum
 #' of squares, so it is invariant to the units of the outcome.
 #'
+#' Resolution. A contrast between design rows smaller than machine epsilon
+#' times the column's own size is below the pivot tolerance of the
+#' factorization and is treated as absent, as it is by the centered design
+#' the model fits by default. The structural rules see the raw rows exactly,
+#' so replicate profiles are matched bitwise whatever their size.
+#'
 #' @param data An `mlumr_data` object.
 #' @param link The resolved link, `"identity"` or `"log"`.
+#' @param center Whether the model will center the covariates; see
+#'   [.residual_variation_status()].
 #' @return `TRUE` invisibly if the data were warned about.
 #' @keywords internal
-.check_normal_residual_variation <- function(data, link = "identity") {
+.check_normal_residual_variation <- function(data, link = "identity",
+                                             center = TRUE) {
   ipd <- data$ipd$data
   y <- suppressWarnings(as.numeric(ipd$.outcome))
   X_raw <- cbind(1, as.matrix(ipd[, data$covariates, drop = FALSE]))
@@ -496,7 +532,7 @@
     # settles the first, and .zero_boundary() the second.
     pos <- y > 0
     sub <- .residual_variation_status(X_raw[pos, , drop = FALSE], y[pos],
-                                      "log")
+                                      "log", center = center)
     passes <- sub$status %in% c("positive", "near_exact")
     if (!passes) {
       X <- .scale_design(X_raw)
@@ -512,7 +548,7 @@
       # 1e6 + 1 beside zeros have a residual of 2 against a total near 1e12.
       # The response-scale fit runs on everything, started from the positive
       # rows' log-scale fit since the default start takes log(0).
-      return(invisible(.screen_mixed_zero(X_raw, y, pos)))
+      return(invisible(.screen_mixed_zero(X_raw, y, pos, center)))
     }
     lead <- paste0("The IPD outcome has zeros, which a positive mean under ",
                    "link = \"log\" can only approach as their linear ",
@@ -530,7 +566,7 @@
          boundary, call. = FALSE)
   }
 
-  s <- .residual_variation_status(X_raw, y, link)
+  s <- .residual_variation_status(X_raw, y, link, center = center)
   switch(
     s$status,
     saturated = {
@@ -592,10 +628,11 @@
 #' @param y Outcome vector, non-negative with at least one zero and one
 #'   positive value.
 #' @param pos Logical, which rows are positive.
+#' @param center Whether the model will center the covariates.
 #' @return `TRUE` invisibly if the warning was issued.
 #' @keywords internal
-.screen_mixed_zero <- function(X_raw, y, pos) {
-  X <- .center_design(X_raw)
+.screen_mixed_zero <- function(X_raw, y, pos, center = TRUE) {
+  X <- if (center) .center_design(X_raw) else .scale_design(X_raw)
   power <- min(max(floor(log2(max(y))), -1022), 1023)
   y <- y / 2^power
   start <- stats::lm.fit(X[pos, , drop = FALSE], log(y[pos]),
@@ -1242,7 +1279,7 @@ mlumr <- function(data,
   }
 
   if (family == "normal") {
-    .check_normal_residual_variation(data, link_info$link)
+    .check_normal_residual_variation(data, link_info$link, center = center)
     validate_prior(prior_sigma, "sigma")
     if (isTRUE(prior_sigma$autoscale)) {
       warning("`autoscale = TRUE` on prior_sigma is ignored; ",

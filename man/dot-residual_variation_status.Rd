@@ -4,7 +4,7 @@
 \alias{.residual_variation_status}
 \title{Classify how much residual variation a normal IPD outcome has}
 \usage{
-.residual_variation_status(X_raw, y, link)
+.residual_variation_status(X_raw, y, link, center = TRUE)
 }
 \arguments{
 \item{X_raw}{Design matrix, intercept included, uncentered.}
@@ -12,6 +12,13 @@
 \item{y}{Outcome vector; positive under \code{link = "log"}.}
 
 \item{link}{\code{"identity"} or \code{"log"}.}
+
+\item{center}{Whether the model will center the covariates. The guard
+then works on a centered design too, so a contrast between rows that
+centering rounds away is one the fitted model loses as well; with
+\code{center = FALSE} the design is only scaled, which is exact, and the
+rounding bound carries whatever cancellation the raw offsets impose,
+as the fitted model then does.}
 }
 \value{
 List with \code{status} and, where they apply, \code{n}, \code{rank}, \code{ratio}

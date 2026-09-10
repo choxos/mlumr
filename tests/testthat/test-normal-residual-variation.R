@@ -428,6 +428,14 @@ test_that("zeros mixed with positives are refused only where the boundary is rea
   # A zero row on the positive rows' own profile is pinned outright.
   d <- .normal_stub(c(1, 1, 0, 0), c(0, 0, 0, 1))
   expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
+  # A zero row merely close to the positive rows' span, here off it by 1e-20
+  # through a near-collinear column, is neither pinned nor safely free: the
+  # loadings that would decide it are rounding, and the check declines.
+  near <- data.frame(.outcome = c(1, 1, 1, 1, 0),
+                     x1 = c(0, 0, 1, 1, 0), x2 = c(0, 0, 1, 1, 1e-20))
+  d <- list(ipd = list(data = near), covariates = c("x1", "x2"))
+  expect_error(mlumr:::.check_normal_residual_variation(d, "log"),
+               "could not be decided")
   # A covariate no zero row loads on, here a constant, adds a null direction
   # without adding to the question: the opposite-sign geometry above is still
   # one-directional, not a two-direction problem with a gap of exactly pi.
@@ -555,4 +563,35 @@ test_that("a predictor in tiny units is not dropped before the fit", {
   y <- 2 + 2^60 * x + rnorm(9, sd = 1e-6)
   expect_warning(mlumr:::.check_normal_residual_variation(.normal_stub(y, x)),
                  "concentrate near zero")
+})
+
+test_that("an uncentered model is judged on the design it will fit", {
+  # With center = TRUE the guard centers as the model will, and an offset of
+  # 1e12 in a predictor costs nothing: the intercept absorbs it before the
+  # fit. With center = FALSE the model fits the raw design, its linear
+  # predictor carries the cancellation of two terms near 3e12, and the
+  # rounding in that cancellation is larger than a residual of 1e-6. The
+  # guard sees the same design the model will, and refuses it as undecidable
+  # rather than promise a residual the likelihood cannot resolve.
+  set.seed(2026)
+  n <- 50
+  x <- rnorm(n) + 1e12
+  y <- 2 + 3 * (x - 1e12) + rnorm(n, sd = 1e-6)
+  d <- .normal_stub(y, x)
+  expect_warning(mlumr:::.check_normal_residual_variation(d),
+                 "concentrate near zero")
+  expect_error(mlumr:::.check_normal_residual_variation(d, center = FALSE),
+               "within rounding")
+
+  # A contrast below machine epsilon of the column's own size is below the
+  # factorization's resolution whether or not the model centers: x2 differs
+  # from x1 by 1e-20 on one row, and the column is dropped as redundant. The
+  # guard documents that limit rather than pretend to see past it.
+  x1 <- c(0, 0, 1, 1)
+  x2 <- c(0, 1e-20, 1, 1)
+  y <- (x2 - x1) / 1e-20
+  d <- list(ipd = list(data = data.frame(.outcome = y, x1 = x1, x2 = x2)),
+            covariates = c("x1", "x2"))
+  expect_silent(mlumr:::.check_normal_residual_variation(d, "identity",
+                                                         center = FALSE))
 })
