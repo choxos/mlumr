@@ -31,9 +31,61 @@ test_that("the exact binomial interval is Clopper-Pearson", {
   # 0 of 100: the exact upper bound, not the Wald 0.0138.
   expect_equal(mlumr:::.clopper_pearson_interval(0, 100, 0.95)$upper,
                0.03621669, tolerance = 1e-7)
-  # A non-integer pooled count is accepted.
+  # A non-integer count is taken as given, with the same quantiles.
   got <- mlumr:::.clopper_pearson_interval(2.5, 10, 0.95)
-  expect_true(got$lower > 0 && got$upper < 1 && got$lower < got$upper)
+  expect_equal(c(got$lower, got$upper),
+               c(qbeta(0.025, 2.5, 8.5), qbeta(0.975, 3.5, 7.5)),
+               tolerance = 1e-12)
+  # Vectors mixing boundary and interior counts: no quantile at shape zero
+  # is evaluated, so no warning and no NaN.
+  expect_silent(got <- mlumr:::.clopper_pearson_interval(c(0, 50, 100), 100,
+                                                         0.95))
+  expect_equal(got$lower, c(0, qbeta(0.025, 50, 51), qbeta(0.025, 100, 1)),
+               tolerance = 1e-12)
+  expect_equal(got$upper, c(qbeta(0.975, 1, 100), qbeta(0.975, 51, 50), 1),
+               tolerance = 1e-12)
+  expect_silent(got <- mlumr:::.garwood_interval(c(0, 3), 100, 0.95))
+  expect_equal(got$lower, c(0, qgamma(0.025, 3) / 100), tolerance = 1e-12)
+})
+
+test_that("the arm intervals follow the requested confidence level", {
+  d <- .arm_data(30L, 0L)
+  for (level in c(0.9, 0.99)) {
+    nv <- suppressWarnings(naive(d, conf_level = level))
+    expect_equal(c(nv$p_index_lower, nv$p_index_upper),
+                 as.numeric(stats::binom.test(30, 100,
+                                              conf.level = level)$conf.int),
+                 tolerance = 1e-12)
+    expect_equal(c(nv$p_comparator_lower, nv$p_comparator_upper),
+                 as.numeric(stats::binom.test(0, 100,
+                                              conf.level = level)$conf.int),
+                 tolerance = 1e-12)
+    di <- suppressWarnings(add_integration(d, n_int = 16,
+                                           x = distr(qbern, prob = x_mean),
+                                           verbose = FALSE))
+    st <- suppressWarnings(stc(di, conf_level = level))
+    expect_equal(c(st$p_comparator_lower, st$p_comparator_upper),
+                 c(nv$p_comparator_lower, nv$p_comparator_upper),
+                 tolerance = 1e-12)
+  }
+  ipd <- set_ipd(data.frame(trt = "A", y = c(3L, rep(0L, 9)), E = rep(10, 10),
+                            age = 1:10),
+                 "trt", outcome = "y", covariates = "age",
+                 family = "poisson", exposure = "E")
+  agd <- set_agd(data.frame(trt = "B", r = 0L, E = 100, age_mean = 5,
+                            age_sd = 3),
+                 "trt", family = "poisson", outcome_r = "r", outcome_E = "E",
+                 cov_means = "age_mean", cov_sds = "age_sd",
+                 cov_types = "continuous")
+  nv <- suppressWarnings(naive(combine_data(ipd, agd), conf_level = 0.9))
+  expect_equal(c(nv$rate_index_lower, nv$rate_index_upper),
+               as.numeric(stats::poisson.test(3, 100,
+                                              conf.level = 0.9)$conf.int),
+               tolerance = 1e-12)
+  expect_equal(c(nv$rate_comparator_lower, nv$rate_comparator_upper),
+               as.numeric(stats::poisson.test(0, 100,
+                                              conf.level = 0.9)$conf.int),
+               tolerance = 1e-12)
 })
 
 test_that("the exact Poisson interval is Garwood's", {
@@ -132,13 +184,24 @@ test_that("the naive contrast intervals are calibrated as documented", {
       sum(w[grid[, , 2 * k - 1] <= truth[k] & grid[, , 2 * k] >= truth[k]])
     }, numeric(1))
   }
-  pairs <- list(c(0.02, 0.02), c(0.014, 0.05), c(0.05, 0.05), c(0.1, 0.3),
-                c(0.5, 0.5), c(0.02, 0.5), c(0.98, 0.98), c(0.986, 0.5))
-  # Observed: LOR 0.944 to 0.999, LRR 0.949 to 0.999, RD 0.939 to 0.984.
-  for (pp in pairs) {
-    cov <- coverage(pp[1], pp[2])
-    expect_gte(cov[1], 0.94)
-    expect_gte(cov[2], 0.94)
-    expect_gte(cov[3], 0.93)
+  # Each row: p1, p2, then the observed coverage of the log odds ratio,
+  # the log risk ratio and the risk difference. A method change that
+  # lowers any of them by more than 0.001 fails here.
+  observed <- rbind(
+    c(0.014, 0.014, 0.9999, 0.9999, 0.9930),
+    c(0.020, 0.020, 0.9993, 0.9994, 0.9838),
+    c(0.014, 0.050, 0.9766, 0.9766, 0.9388),
+    c(0.050, 0.050, 0.9761, 0.9818, 0.9480),
+    c(0.100, 0.300, 0.9553, 0.9573, 0.9474),
+    c(0.500, 0.500, 0.9440, 0.9559, 0.9440),
+    c(0.020, 0.500, 0.9659, 0.9595, 0.9417),
+    c(0.980, 0.980, 0.9993, 0.9936, 0.9838),
+    c(0.986, 0.986, 0.9999, 0.9982, 0.9930),
+    c(0.986, 0.500, 0.9639, 0.9494, 0.9494)
+  )
+  for (i in seq_len(nrow(observed))) {
+    cov <- coverage(observed[i, 1], observed[i, 2])
+    expect_true(all(cov >= observed[i, 3:5] - 0.001),
+                label = paste(observed[i, 1], observed[i, 2]))
   }
 })

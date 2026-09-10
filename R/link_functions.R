@@ -324,9 +324,8 @@ bound_probability <- function(p, n, min_count = 0.5) {
 #' than shortest; it is used for arms that are observed directly, not for
 #' model predictions or contrasts.
 #'
-#' Formed from the beta quantiles rather than through `binom.test()` so a
-#' pooled count that is not an integer, as a size-weighted average of
-#' strata can be, is still accepted.
+#' Formed from the same beta quantiles `binom.test()` uses, without its
+#' integer check, so a count is taken as given.
 #'
 #' @param r Event count, in `[0, n]`.
 #' @param n Number of trials, positive.
@@ -340,10 +339,19 @@ bound_probability <- function(p, n, min_count = 0.5) {
     stop("`r` must lie in [0, n].", call. = FALSE)
   }
   alpha <- 1 - conf_level
-  list(
-    lower = ifelse(r == 0, 0, stats::qbeta(alpha / 2, r, n - r + 1)),
-    upper = ifelse(r == n, 1, stats::qbeta(1 - alpha / 2, r + 1, n - r))
-  )
+  len <- max(length(r), length(n))
+  r <- rep_len(r, len)
+  n <- rep_len(n, len)
+  # The bound at the boundary is set outright, so a beta quantile at shape
+  # zero is never asked for, not even for the elements of a vector that
+  # `ifelse()` would evaluate and discard with a warning.
+  lower <- numeric(len)
+  upper <- rep(1, len)
+  inner <- r > 0
+  lower[inner] <- stats::qbeta(alpha / 2, r[inner], n[inner] - r[inner] + 1)
+  inner <- r < n
+  upper[inner] <- stats::qbeta(1 - alpha / 2, r[inner] + 1, n[inner] - r[inner])
+  list(lower = lower, upper = upper)
 }
 
 #' Exact interval for a directly observed Poisson rate
@@ -368,10 +376,13 @@ bound_probability <- function(p, n, min_count = 0.5) {
     stop("`x` must be non-negative.", call. = FALSE)
   }
   alpha <- 1 - conf_level
-  list(
-    lower = ifelse(x == 0, 0, stats::qgamma(alpha / 2, x) / exposure),
-    upper = stats::qgamma(1 - alpha / 2, x + 1) / exposure
-  )
+  len <- max(length(x), length(exposure))
+  x <- rep_len(x, len)
+  exposure <- rep_len(exposure, len)
+  lower <- numeric(len)
+  inner <- x > 0
+  lower[inner] <- stats::qgamma(alpha / 2, x[inner]) / exposure[inner]
+  list(lower = lower, upper = stats::qgamma(1 - alpha / 2, x + 1) / exposure)
 }
 
 #' Derivative of a binomial link with respect to probability

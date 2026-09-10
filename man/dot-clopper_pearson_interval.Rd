@@ -30,8 +30,7 @@ than shortest; it is used for arms that are observed directly, not for
 model predictions or contrasts.
 }
 \details{
-Formed from the beta quantiles rather than through \code{binom.test()} so a
-pooled count that is not an integer, as a size-weighted average of
-strata can be, is still accepted.
+Formed from the same beta quantiles \code{binom.test()} uses, without its
+integer check, so a count is taken as given.
 }
 \keyword{internal}

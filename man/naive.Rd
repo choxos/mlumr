@@ -45,8 +45,8 @@ when a Poisson count is zero; the reported crude proportions and rates
 are unchanged. The contrasts' intervals are Wald intervals on the link
 scale around those corrected quantities. Enumerating every pair of counts
 at 100 per arm, their coverage of the true log odds ratio, log risk ratio
-and risk difference ranges from 0.94 to 0.999 over true probabilities
-from 0.014 to 0.986, with the risk difference nearest 0.94 beside a
+and risk difference ranges from 0.939 to 0.9999 over true probabilities
+from 0.014 to 0.986, with the risk difference lowest at 0.939 beside a
 boundary; they are approximate, not exact.
 
 Scale note: \verb{$estimate} (and the binomial \verb{$log_rr}) is on the link / log
