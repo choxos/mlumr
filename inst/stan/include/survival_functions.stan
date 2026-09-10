@@ -363,21 +363,27 @@ real log_time_ratio(real t_upper, real t_lower) {
   return log1p((t_upper - t_lower) / t_lower);
 }
 
+// log(H(u) - H(l)). The Weibull and Gompertz differences are written from
+// the UPPER bound, as a log H(u) + log(1 - exp(-(a log(u / l)))), rather
+// than from the lower bound as a log t_l + log(expm1(a log(u / l))). The two
+// are the same number, but with a shape of 3e14, l = 0.5 and u a hair under
+// 1 the lower form adds -2e14 to +2e14 and keeps rounding of order 0.05 in
+// a value near -2.3, while the upper form's first term is that small value
+// itself and its second is zero. Where a log(u / l) is small the two forms
+// agree to rounding, so nothing is lost on narrow intervals.
 real log_cumhaz_diff(int dist, real t_upper, real t_lower, real eta,
                      real aux) {
   real dt = t_upper - t_lower;
   if (dt == 0) return negative_infinity();
   if (dist == 1) return eta + log(dt);
   if (dist == 4) return -eta + log(dt);
-  if (dist == 3) {
-    real log_ax = log(aux) + log(dt);
-    return eta - log(aux) + aux * t_lower + log_expm1_from_log_x(log_ax);
-  }
+  if (dist == 3)
+    return eta - log(aux) + aux * t_upper + log1m_exp(-aux * dt);
   if (t_lower == 0) return log_cumhaz_scalar(dist, t_upper, eta, aux);
   {
-    real log_ratio = log_time_ratio(t_upper, t_lower);
-    real log_power_diff = aux * log(t_lower)
-                          + log_expm1_from_log_x(log(aux) + log(log_ratio));
+    real log_power_diff = aux * log(t_upper)
+                          + log1m_exp(-aux * log_time_ratio(t_upper,
+                                                            t_lower));
     if (dist == 2) return eta + log_power_diff;
     return -aux * eta + log_power_diff; // Weibull AFT
   }

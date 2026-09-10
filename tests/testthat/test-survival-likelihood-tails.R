@@ -482,3 +482,39 @@ test_that("a differenced increment of -Inf beside a finite log S(l) resolves too
   expect_lt(abs(env$surv_ll_status(6L, nextafter(1), 1, 0.5, 3L, 0, 1e-171,
                                    0) - log(0.5)), 1e-12)
 })
+
+test_that("a Weibull cumulative-hazard difference is written from the upper bound", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  env <- expose_survival_likelihood()
+  nextafter <- function(t) t + 2^(floor(log2(abs(t))) - 52)
+
+  # Shape 3e14, lower bound 0.5, upper a hair under 1: written from the
+  # lower bound the difference adds -2e14 to +2e14 and kept rounding of
+  # order 0.05 in a value near -2.35, returning -2.87. From the upper bound
+  # the first term is the value itself and the second is zero.
+  a <- 3e14
+  lower <- 0.5
+  upper <- exp(log(0.1) / a)
+  ref <- log(pweibull(upper, a, 1) - pweibull(lower, a, 1))
+  for (dist in c(2L, 5L)) {
+    expect_lt(abs(env$surv_ll_status(dist, upper, lower, 0, 3L, 0, a, 0) -
+                    ref), 1e-9)
+    expect_lt(abs(env$surv_ll_status(dist, upper, lower, 0.4, 3L, 0, a, 0) -
+                    (ref - pweibull(0.4, a, 1, lower.tail = FALSE,
+                                    log.p = TRUE))), 1e-9)
+  }
+  # Narrow intervals agree with the density to rounding, as before.
+  ref <- dweibull(0.1, 2, 1, log = TRUE) + log(nextafter(0.1) - 0.1) + 0.05^2
+  expect_lt(abs(env$surv_ll_status(2L, nextafter(0.1), 0.1, 0.05, 3L, 0, 2,
+                                   0) - ref), 1e-10)
+  # The Gompertz takes the same form, and keeps its accuracy at a tiny shape,
+  # where expm1() is what the reference needs too.
+  gomp_h <- function(t, eta, b) exp(eta) / b * expm1(b * t)
+  for (b in c(0.7, 1e-12)) {
+    ref <- -(gomp_h(1, 0.1, b) - gomp_h(0.5, 0.1, b)) +
+      log(-expm1(-(gomp_h(2, 0.1, b) - gomp_h(1, 0.1, b))))
+    expect_lt(abs(env$surv_ll_status(3L, 2, 1, 0.5, 3L, 0.1, b, 0) - ref),
+              1e-10)
+  }
+})
