@@ -239,38 +239,52 @@ real log_haz_full(int dist, real t, real eta, real aux, real aux2) {
 // two terms can be +inf and -inf even when the density has the well-defined
 // limiting value zero. This helper is shared by the event likelihood and the
 // numerator of the marginal hazard.
-real log_density_scalar(int dist, real t, real eta, real aux, real aux2) {
-  real log_t = log(t);
+//
+// The time arrives as a base log time plus an offset, and the centered log
+// time is formed as (log_t_base - eta) + offset. The quadrature below places
+// its nodes at offsets far smaller than an ULP of the base: with bounds one
+// ULP apart at 0.1 and eta = log(0.1), every node's log time is eta to the
+// last bit, while the standardized endpoints at a scale of 1e-17 are -17 and
+// -3. Adding the offset to the small centered difference keeps that.
+real log_density_offset(int dist, real log_t_base, real shift, real eta,
+                        real aux, real aux2) {
+  real log_t = log_t_base + shift;
+  real centered = (log_t_base - eta) + shift;
   if (dist <= 5) {
+    real t = exp(log_t);
     real log_ch;
     if (dist == 1) log_ch = log_t + eta;
     else if (dist == 2) log_ch = aux * log_t + eta;
     else if (dist == 3)
       log_ch = eta - log(aux) + aux * t + log1m_exp(-aux * t);
-    else if (dist == 4) log_ch = log_t - eta;
-    else log_ch = aux * (log_t - eta);
+    else if (dist == 4) log_ch = -centered;
+    else log_ch = aux * centered;
     if (log_ch > 700) return negative_infinity();
     return log_haz_scalar(dist, t, eta, aux, aux2) - exp(log_ch);
   } else if (dist == 6) {
-    real z = (log_t - eta) / aux;
+    real z = centered / aux;
     return -0.5 * square(z) - log(aux) - log_t - 0.5 * log(2 * pi());
   } else if (dist == 7) {
-    real z = aux * (log_t - eta);
+    real z = aux * centered;
     if (z >= 0)
       return log(aux) - log_t - z - 2 * log1p_exp(-z);
     return log(aux) - log_t + z - 2 * log1p_exp(z);
   } else if (dist == 8) {
-    real log_z = log_t - eta;
+    real log_z = centered;
     if (log_z > 700) return negative_infinity();
     return (aux - 1) * log_z - eta - exp(log_z) - lgamma(aux);
   } else {
     real Q = inv(sqrt(aux2));
-    real z = Q * (log_t - eta) / aux;
+    real z = Q * centered / aux;
     real log_w = log(aux2) + z;
     if (log_w > 700) return negative_infinity();
     return -log(aux) - log_t - 0.5 * log(aux2) * (1 - 2 * aux2)
            + aux2 * z - exp(log_w) - lgamma(aux2);
   }
+}
+
+real log_density_scalar(int dist, real t, real eta, real aux, real aux2) {
+  return log_density_offset(dist, log(t), 0, eta, aux, aux2);
 }
 
 real log1m_exp_neg_exp(real log_h) {
@@ -500,8 +514,13 @@ real log_interval_prob_quad(int dist, real t_upper, real t_lower, real eta,
                             real aux, real aux2) {
   real s_l = log(t_lower);
   real width = log_time_ratio(t_upper, t_lower);
-  real f_l = log_density_scalar(dist, t_lower, eta, aux, aux2) + s_l;
-  real f_u = log_density_scalar(dist, t_upper, eta, aux, aux2) + s_l + width;
+  // Every node is the base log time s_l plus an offset along the interval,
+  // and the offset travels separately into the density: a node formed as
+  // exp(s_l + offset) and logged again loses any offset below an ULP of
+  // s_l, which is every node of a narrow interval.
+  real f_l = log_density_offset(dist, s_l, 0, eta, aux, aux2) + s_l;
+  real f_u = log_density_offset(dist, s_l, width, eta, aux, aux2) + s_l
+             + width;
   int n = 8;
   real prev = not_a_number();
   real cur = negative_infinity();
@@ -512,9 +531,10 @@ real log_interval_prob_quad(int dist, real t_upper, real t_lower, real eta,
     terms[1] = f_l;
     terms[n + 1] = f_u;
     for (i in 1:(n - 1)) {
-      real s = s_l + i * h;
+      real shift = i * h;
       real w = (i % 2 == 1) ? log(4.0) : log(2.0);
-      terms[i + 1] = log_density_scalar(dist, exp(s), eta, aux, aux2) + s + w;
+      terms[i + 1] = log_density_offset(dist, s_l, shift, eta, aux, aux2)
+                     + s_l + shift + w;
     }
     cur = log_sum_exp(terms) + log(h) - log(3.0);
     if (!is_nan(prev) && abs(cur - prev) < 1e-10) return cur;

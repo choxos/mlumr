@@ -612,3 +612,32 @@ test_that("a differenced CDF is trusted by its cancellation error, not its finit
   expect_true(is.finite(got))
   expect_lt(abs(got - ref) / abs(ref), 1e-15)
 })
+
+test_that("quadrature nodes keep offsets below an ULP of the log time", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  env <- expose_survival_likelihood()
+  nextafter <- function(t) t + 2^(floor(log2(abs(t))) - 52)
+
+  # Bounds one ULP apart at 0.1 with eta = log(0.1) and a scale of 1e-17:
+  # every node's log time is eta to the last bit, so nodes formed as
+  # exp(s) and logged again all stood at z = 0 and the density read as
+  # constant across an interval whose standardized width is 14. The offset
+  # of each node travels separately into the density and is added to the
+  # small centered difference, which keeps it. The interval holds exactly
+  # half the distribution.
+  lower <- 0.1
+  upper <- nextafter(lower)
+  eta <- log(0.1)
+  aux <- 1e-17
+  z <- function(t) log1p((t - 0.1) / 0.1) / aux
+  expect_gt(z(upper) - z(lower), 10)
+  ref <- log(pnorm(z(upper)) - pnorm(z(lower)))
+  expect_lt(abs(env$surv_ll_status(6L, upper, lower, 0, 3L, eta, aux, 0) -
+                  ref), 1e-9)
+  # The event density is the same function at offset zero.
+  expect_lt(abs(env$surv_ll_status(6L, 2, 0, 0, 1L, 0.3, 0.8, 0) -
+                  dlnorm(2, 0.3, 0.8, log = TRUE)), 1e-12)
+  expect_lt(abs(env$surv_ll_status(9L, 2, 0, 0, 1L, 0.3, 0.8, 4) -
+                  flexsurv::dgengamma(2, 0.3, 0.8, 0.5, log = TRUE)), 1e-12)
+})
