@@ -435,12 +435,22 @@ test_that("zeros mixed with positives are refused only where the boundary is rea
                        x2 = c(0, 0, 0, 0))
   d <- list(ipd = list(data = padded), covariates = c("x1", "x2"))
   expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
-  # And two rows pointing opposite ways in a genuine two-direction problem
-  # cannot both be lowered, whatever the third does.
+  # Two rows pointing opposite ways in a genuine two-direction problem cannot
+  # both be lowered, whatever the third does. The computed angles put that
+  # gap within rounding of pi, where a direction may or may not exist, and
+  # the check declines rather than read the rounding either way.
   opposite <- data.frame(.outcome = c(1, 1, 0, 0, 0),
                          x1 = c(0, 0, 1, -1, 0), x2 = c(0, 0, 0, 0, 1))
   d <- list(ipd = list(data = opposite), covariates = c("x1", "x2"))
-  expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
+  expect_error(mlumr:::.check_normal_residual_variation(d, "log"),
+               "could not be decided")
+  # A row that differs from the positive profile by 1e-20 is free, not
+  # pinned: centering on the midrange would round it onto the profile and
+  # pass a reachable boundary, so the feasibility rows are scaled by powers
+  # of two and never shifted.
+  d <- .normal_stub(c(1, 1, 0, 0), c(0, 0, 1e-20, 1))
+  expect_error(mlumr:::.check_normal_residual_variation(d, "log"),
+               "taking every zero row there")
   # Beyond two effective directions the check does not attempt the question.
   # Three zero rows spanning three null directions is that case; a single
   # zero row with three free directions is not, since it loads on one.
@@ -448,7 +458,7 @@ test_that("zeros mixed with positives are refused only where the boundary is rea
                      x2 = c(0, 0, 0, 1, 0), x3 = c(0, 0, 0, 0, 1))
   d <- list(ipd = list(data = wide), covariates = c("x1", "x2", "x3"))
   expect_error(mlumr:::.check_normal_residual_variation(d, "log"),
-               "does not attempt")
+               "could not be decided")
   narrow <- data.frame(.outcome = c(1, 1, 0), x1 = c(0, 0, 1), x2 = c(0, 0, 1),
                        x3 = c(0, 0, 1))
   d <- list(ipd = list(data = narrow), covariates = c("x1", "x2", "x3"))

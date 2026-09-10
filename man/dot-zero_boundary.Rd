@@ -7,9 +7,9 @@
 .zero_boundary(X_pos, X_zero)
 }
 \arguments{
-\item{X_pos}{Centered design rows of the positive outcomes.}
+\item{X_pos}{Scaled design rows of the positive outcomes.}
 
-\item{X_zero}{Centered design rows of the zero outcomes.}
+\item{X_zero}{Scaled design rows of the zero outcomes.}
 }
 \value{
 \code{"reachable"}, \code{"unreachable"} or \code{"unknown"}.
@@ -30,7 +30,11 @@ decided exactly for \code{k <= 2}: a zero row whose profile lies in the row spac
 of the positive rows is pinned and settles it; for one direction the zero
 rows' loadings must share a sign; for two, their loadings must lie in an
 open half-plane through the origin, which is a gap of more than pi between
-consecutive angles. Beyond two the answer is left unknown, and the caller
-refuses conservatively.
+consecutive angles. Beyond two, and for a gap within rounding of pi, the
+answer is left unknown and the caller refuses conservatively.
+
+The rows arrive scaled but not centered: centering rounds, and a zero row
+at \code{1e-20} shifted by \code{0.5} lands on the positive rows at \code{0} and reads as
+pinned when it is free.
 }
 \keyword{internal}

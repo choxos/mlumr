@@ -160,9 +160,30 @@
   if (ncol(X) > 1L) {
     for (j in 2:ncol(X)) {
       X[, j] <- X[, j] - (max(X[, j]) / 2 + min(X[, j]) / 2)
+    }
+  }
+  .scale_design(X)
+}
+
+
+#' Scale a design's predictors by powers of two
+#'
+#' Division by a power of two is exact in binary, so this changes no
+#' distinction between rows: two rows that differ by 1e-20 in a column still
+#' do afterward. That is what the feasibility question needs, where centering
+#' would round a row at 1e-20 onto a row at 0 once both are shifted by 0.5 and
+#' read a free zero row as pinned. Only the size matters here, so the largest
+#' absolute value lands in [1, 2).
+#'
+#' @param X Design matrix, intercept first.
+#' @return The scaled design.
+#' @keywords internal
+.scale_design <- function(X) {
+  if (ncol(X) > 1L) {
+    for (j in 2:ncol(X)) {
       size <- max(abs(X[, j]))
       if (is.finite(size) && size > 0) {
-        X[, j] <- X[, j] / size
+        X[, j] <- X[, j] / 2^floor(log2(size))
       }
     }
   }
@@ -186,11 +207,15 @@
 #' of the positive rows is pinned and settles it; for one direction the zero
 #' rows' loadings must share a sign; for two, their loadings must lie in an
 #' open half-plane through the origin, which is a gap of more than pi between
-#' consecutive angles. Beyond two the answer is left unknown, and the caller
-#' refuses conservatively.
+#' consecutive angles. Beyond two, and for a gap within rounding of pi, the
+#' answer is left unknown and the caller refuses conservatively.
 #'
-#' @param X_pos Centered design rows of the positive outcomes.
-#' @param X_zero Centered design rows of the zero outcomes.
+#' The rows arrive scaled but not centered: centering rounds, and a zero row
+#' at `1e-20` shifted by `0.5` lands on the positive rows at `0` and reads as
+#' pinned when it is free.
+#'
+#' @param X_pos Scaled design rows of the positive outcomes.
+#' @param X_zero Scaled design rows of the zero outcomes.
 #' @return `"reachable"`, `"unreachable"` or `"unknown"`.
 #' @keywords internal
 .zero_boundary <- function(X_pos, X_zero) {
@@ -228,13 +253,15 @@
   }
   if (k == 2L) {
     angles <- sort(atan2(loadings[, 2], loadings[, 1]))
-    gaps <- c(diff(angles), angles[1] + 2 * pi - angles[length(angles)])
+    gap <- max(c(diff(angles), angles[1] + 2 * pi - angles[length(angles)]))
     # A gap of exactly pi is two rows pointing opposite ways, which no
-    # direction lowers together. Within rounding of pi the rows are opposite
-    # to that precision, and a ray that needs the coefficients to grow by
-    # 1e12 to move a predictor by one is not a boundary the sampler reaches,
-    # so that reads as unreachable too.
-    return(if (max(gaps) > pi + 1e-12) "reachable" else "unreachable")
+    # direction lowers together; above pi a direction exists. Within rounding
+    # of pi the computed angles cannot say which, and that is left unknown
+    # rather than read either way.
+    if (gap > pi + 1e-12) {
+      return("reachable")
+    }
+    return(if (gap < pi - 1e-12) "unreachable" else "unknown")
   }
   "unknown"
 }
@@ -471,7 +498,7 @@
       }
       return(invisible(FALSE))
     }
-    X <- .center_design(X_raw)
+    X <- .scale_design(X_raw)
     reach <- .zero_boundary(X[pos, , drop = FALSE], X[!pos, , drop = FALSE])
     if (identical(reach, "unreachable")) {
       return(invisible(FALSE))
@@ -485,9 +512,10 @@
            "taking every zero row there. ", boundary, call. = FALSE)
     }
     stop(lead, "Whether a direction of the coefficients leaves them fitted ",
-         "while taking every zero row there is a feasibility question in ",
-         "more than two free directions, which this check does not attempt, ",
-         "so it refuses rather than pass a possibly unbounded likelihood. ",
+         "while taking every zero row there could not be decided: the ",
+         "question has more than two free directions, which this check does ",
+         "not attempt, or zero rows opposite to within rounding, so it ",
+         "refuses rather than pass a possibly unbounded likelihood. ",
          boundary, call. = FALSE)
   }
 
