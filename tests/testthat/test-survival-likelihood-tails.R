@@ -517,6 +517,19 @@ test_that("a Weibull cumulative-hazard difference is written from the upper boun
                     (ref - pweibull(0.4, a, 1, lower.tail = FALSE,
                                     log.p = TRUE))), 1e-9)
   }
+  # Weibull AFT with the upper bound near exp(eta) at that shape: the shape
+  # multiplies log(t_upper) - eta as one small difference. As two products
+  # of 1e16 each the difference of -1.39 was lost to rounding and the log
+  # probability moved by a unit.
+  # The reference forms the same small difference, since exp(eta) rounded
+  # and logged again moves it by a few units in the last place, which the
+  # shape turns into hundredths.
+  upper <- 1.1051709180756477
+  eta <- 0.10000000000000009
+  cumhaz <- function(t) exp(a * (log(t) - eta))
+  ref <- log(-expm1(-(cumhaz(upper) - cumhaz(upper / 2)))) - cumhaz(upper / 2)
+  expect_lt(abs(env$surv_ll_status(5L, upper, upper / 2, 0, 3L, eta, a, 0) -
+                  ref), 1e-9)
   # Narrow intervals agree with the density to rounding, as before.
   ref <- dweibull(0.1, 2, 1, log = TRUE) + log(nextafter(0.1) - 0.1) + 0.05^2
   expect_lt(abs(env$surv_ll_status(2L, nextafter(0.1), 0.1, 0.05, 3L, 0, 2,

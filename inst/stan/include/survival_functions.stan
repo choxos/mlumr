@@ -391,11 +391,14 @@ real log_cumhaz_diff(int dist, real t_upper, real t_lower, real eta,
     return eta - log(aux) + aux * t_upper + log1m_exp_neg_prod(aux, dt);
   if (t_lower == 0) return log_cumhaz_scalar(dist, t_upper, eta, aux);
   {
-    real log_power_diff = aux * log(t_upper)
-                          + log1m_exp_neg_prod(aux, log_time_ratio(t_upper,
-                                                                   t_lower));
-    if (dist == 2) return eta + log_power_diff;
-    return -aux * eta + log_power_diff; // Weibull AFT
+    real log_tail = log1m_exp_neg_prod(aux, log_time_ratio(t_upper,
+                                                           t_lower));
+    if (dist == 2) return eta + aux * log(t_upper) + log_tail;
+    // Weibull AFT: the shape multiplies log(t_upper) - eta as one small
+    // difference. As aux * log(t_upper) - aux * eta the two products are
+    // each 1e16 at a shape of 1e17 with the bound near exp(eta), and their
+    // rounding swallowed a difference of -1.39.
+    return aux * (log(t_upper) - eta) + log_tail;
   }
 }
 
