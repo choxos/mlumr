@@ -35,11 +35,16 @@ test_that("a matrix summary reports once for the whole matrix", {
 })
 
 test_that("the reported counts are the ones actually dropped", {
+  set.seed(2026)
   m <- matrix(rnorm(60), ncol = 3)
   m[1:5, 1] <- NA
-  expect_warning(s <- mlumr:::.summarize_draw_matrix(m, probs = 0.5))
+  expect_warning(s <- mlumr:::.summarize_draw_matrix(m, probs = 0.5),
+                 "1 of 3 summarized quantities.*5 of 20 draws")
   expect_equal(s$mean[1], mean(m[, 1], na.rm = TRUE))
   expect_equal(s$mean[2], mean(m[, 2]))
+  # The accounting columns say the same thing the warning did, per column.
+  expect_equal(s$n_draws, c(20, 20, 20))
+  expect_equal(s$n_draws_used, c(15, 20, 20))
 })
 
 test_that("an expected missing median is not reported as a lost draw", {
