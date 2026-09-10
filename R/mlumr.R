@@ -83,13 +83,15 @@
 #' one.
 #'
 #' @param X Design matrix, intercept included.
-#' @param y Positive outcome vector.
+#' @param y Non-negative outcome vector. Zeros are allowed when `start` is
+#'   given, since the default starting values take `log(y)`.
+#' @param start Starting coefficients, or `NULL` for `glm.fit()`'s own.
 #' @return The residual ratio, or `NA` when the fit could not run.
 #' @keywords internal
-.log_link_response_ratio <- function(X, y) {
+.log_link_response_ratio <- function(X, y, start = NULL) {
   fit <- tryCatch(
     suppressWarnings(stats::glm.fit(
-      X, y, family = stats::gaussian("log"),
+      X, y, start = start, family = stats::gaussian("log"),
       control = list(epsilon = 1e-13, maxit = 100, trace = FALSE)
     )),
     error = function(e) NULL
@@ -183,7 +185,11 @@
     for (j in 2:ncol(X)) {
       size <- max(abs(X[, j]))
       if (is.finite(size) && size > 0) {
-        X[, j] <- X[, j] / 2^floor(log2(size))
+        # log2() of the largest double rounds to 1024, and 2^1024 is Inf,
+        # which would zero the column; below the normal range the power
+        # underflows to zero instead. Clamp to the representable exponents.
+        power <- min(max(floor(log2(size)), -1022), 1023)
+        X[, j] <- X[, j] / 2^power
       }
     }
   }
@@ -491,17 +497,22 @@
     pos <- y > 0
     sub <- .residual_variation_status(X_raw[pos, , drop = FALSE], y[pos],
                                       "log")
-    if (sub$status %in% c("positive", "near_exact")) {
-      if (identical(sub$status, "near_exact")) {
-        .warn_near_exact(sub$ratio)
-        return(invisible(TRUE))
-      }
-      return(invisible(FALSE))
+    passes <- sub$status %in% c("positive", "near_exact")
+    if (!passes) {
+      X <- .scale_design(X_raw)
+      reach <- .zero_boundary(X[pos, , drop = FALSE],
+                              X[!pos, , drop = FALSE])
+      passes <- identical(reach, "unreachable")
     }
-    X <- .scale_design(X_raw)
-    reach <- .zero_boundary(X[pos, , drop = FALSE], X[!pos, , drop = FALSE])
-    if (identical(reach, "unreachable")) {
-      return(invisible(FALSE))
+    if (passes) {
+      # The near-exact screen has to see the whole outcome. The positive rows
+      # alone can have an ordinary residual relative to their own spread and
+      # a tiny one relative to the total, once the zero rows put the total
+      # sum of squares at the level squared: replicates at 1e6 - 1 and
+      # 1e6 + 1 beside zeros have a residual of 2 against a total near 1e12.
+      # The response-scale fit runs on everything, started from the positive
+      # rows' log-scale fit since the default start takes log(0).
+      return(invisible(.screen_mixed_zero(X_raw, y, pos)))
     }
     lead <- paste0("The IPD outcome has zeros, which a positive mean under ",
                    "link = \"log\" can only approach as their linear ",
@@ -566,6 +577,36 @@
     },
     invisible(FALSE)
   )
+}
+
+
+#' The near-exact screen for a log-link outcome with zeros
+#'
+#' The response-scale fit on the whole outcome, started from the positive
+#' rows' log-scale fit. The outcome is scaled by a power of two, which is
+#' exact and only shifts the intercept under a log link. Any iterate's
+#' residual bounds the least-squares minimum from above, so a small one
+#' justifies the warning and a large one only withholds it.
+#'
+#' @param X_raw Raw design matrix, intercept included.
+#' @param y Outcome vector, non-negative with at least one zero and one
+#'   positive value.
+#' @param pos Logical, which rows are positive.
+#' @return `TRUE` invisibly if the warning was issued.
+#' @keywords internal
+.screen_mixed_zero <- function(X_raw, y, pos) {
+  X <- .center_design(X_raw)
+  power <- min(max(floor(log2(max(y))), -1022), 1023)
+  y <- y / 2^power
+  start <- stats::lm.fit(X[pos, , drop = FALSE], log(y[pos]),
+                         tol = .Machine$double.eps)$coefficients
+  start[is.na(start)] <- 0
+  ratio <- .log_link_response_ratio(X, y, start = start)
+  if (is.finite(ratio) && ratio <= 1e-6) {
+    .warn_near_exact(ratio)
+    return(invisible(TRUE))
+  }
+  invisible(FALSE)
 }
 
 

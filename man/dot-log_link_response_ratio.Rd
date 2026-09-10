@@ -4,12 +4,15 @@
 \alias{.log_link_response_ratio}
 \title{Response-scale residual ratio of a log-link normal fit}
 \usage{
-.log_link_response_ratio(X, y)
+.log_link_response_ratio(X, y, start = NULL)
 }
 \arguments{
 \item{X}{Design matrix, intercept included.}
 
-\item{y}{Positive outcome vector.}
+\item{y}{Non-negative outcome vector. Zeros are allowed when \code{start} is
+given, since the default starting values take \code{log(y)}.}
+
+\item{start}{Starting coefficients, or \code{NULL} for \code{glm.fit()}'s own.}
 }
 \value{
 The residual ratio, or \code{NA} when the fit could not run.

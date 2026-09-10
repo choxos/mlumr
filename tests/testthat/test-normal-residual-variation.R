@@ -478,6 +478,30 @@ test_that("zeros mixed with positives are refused only where the boundary is rea
   expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
 })
 
+test_that("the near-exact screen for mixed zeros sees the whole outcome", {
+  # Positive replicates at 1e6 - 1 and 1e6 + 1 have an ordinary residual
+  # against their own spread, and a residual of 2 against a total near 1e12
+  # once the zero rows are counted: the posterior is proper and the fit is
+  # near exact in the sense the screen exists to flag.
+  d <- .normal_stub(c(1e6 - 1, 1e6 + 1, 0, 0), c(0, 0, 1, 1))
+  expect_warning(mlumr:::.check_normal_residual_variation(d, "log"),
+                 "concentrate near zero")
+  # With the zero rows pinned to the positive profile their means are
+  # positive numbers of the outcome's own size, and nothing is near exact.
+  d <- .normal_stub(c(3, 5, 0, 0), c(0, 0, 0, 0))
+  expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
+})
+
+test_that("a predictor at the largest double is scaled, not zeroed", {
+  # log2() of the largest double rounds to 1024 and 2^1024 is Inf, so the
+  # power-of-two scaling divided the column by Inf and every profile read as
+  # the same one: two rows at +xmax and -xmax looked pinned to each other.
+  xmax <- .Machine$double.xmax
+  d <- .normal_stub(c(1, 1, 0, 0), c(xmax, xmax, -xmax, -xmax))
+  expect_error(mlumr:::.check_normal_residual_variation(d, "log"),
+               "taking every zero row there")
+})
+
 test_that("an outcome that varies below the resolution of its log is refused, not crashed", {
   # Four outcomes near 1e300 differing by units in the last place have
   # identical logarithms. The log-scale total sum of squares is then zero and
