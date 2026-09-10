@@ -31,8 +31,11 @@
   identically zero is refused, and so is one whose positive rows are fitted
   exactly while leaving a direction of the coefficients free to take the zero
   rows there; zeros beside positive rows that leave a real residual, or that
-  pin every coefficient, pass, and a negative outcome anywhere settles it. A
-  saturated
+  pin every coefficient, pass, and a negative outcome anywhere settles it.
+  The check judges the design the model will fit: with `center = FALSE` the
+  rounding bound carries the cancellation of the raw predictor offsets, as
+  the likelihood then does, so a residual below that rounding is refused as
+  undecidable where the centered fit would only warn. A saturated
   design is warned about rather than refused: its posterior
   is proper, but nothing in the data separates the residual SD from the
   coefficients, so the estimate of sigma is potentially strongly sensitive to

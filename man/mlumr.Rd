@@ -427,7 +427,11 @@ an outcome identically zero is refused, and so is one whose positive rows
 are fitted exactly while a free direction of the coefficients can take the
 zero rows' predictors to \code{-Inf}, since along that ray the likelihood is
 unbounded and only the coefficient priors' tails decide whether a
-posterior exists. A saturated design, with as many
+posterior exists. The check judges the design the model will fit: with
+\code{center = FALSE} the rounding bound carries the cancellation of the raw
+predictor offsets, as the likelihood then does, so a residual below that
+rounding is refused as undecidable where the centered fit would only warn.
+A saturated design, with as many
 free columns as rows, is warned about rather than refused: its posterior is
 proper, but nothing in the data separates the residual SD from the
 coefficients, so what is reported for sigma is potentially strongly
