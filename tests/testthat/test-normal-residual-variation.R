@@ -415,3 +415,21 @@ test_that("an outcome that varies below the resolution of its log is refused, no
   expect_error(mlumr:::.check_normal_residual_variation(d, "log"),
                "resolution of its logarithm")
 })
+
+test_that("a predictor spanning both extremes does not overflow the centering", {
+  # Centering on the mean overflows twice here: the column's sum, and the
+  # shift of the far value from a mean near -1e308. Either sends a
+  # non-finite design into qr() and the check dies in a low-level error
+  # instead of deciding. The data are ordinary otherwise: a real residual on
+  # a predictor with absurd units, which is proper and passes.
+  set.seed(2026)
+  n <- 40
+  x <- c(rep(-1e308, n - 1), 1e308)
+  y <- 1 + rnorm(n)
+  d <- .normal_stub(y, x)
+  expect_error(mlumr:::.check_normal_residual_variation(d), NA)
+  # And an exact fit on such a predictor is still caught.
+  x <- c(-1e308, -1e308, 1e308, 1e308)
+  d <- .normal_stub(c(0, 0, 1, 1), x)
+  expect_error(mlumr:::.check_normal_residual_variation(d), "improper")
+})

@@ -219,10 +219,15 @@
   # coefficients stop carrying the offset. Without it a predictor recorded as
   # `x + 1e12` forces an intercept near `-1e12 * slope`, and the bound below
   # counts that cancellation as rounding until it exceeds a genuine residual.
+  # The center is the midrange, formed from halves so that neither the sum
+  # nor the shift can overflow: a column holding values near both 1e308 and
+  # -1e308 has a mean that overflows on this platform's double accumulation
+  # and a shift from it that overflows for the far value, and either sends a
+  # non-finite design into qr(). Any center serves; only the offset matters.
   X <- X_raw
   if (ncol(X) > 1L) {
     for (j in 2:ncol(X)) {
-      X[, j] <- X[, j] - mean(X[, j])
+      X[, j] <- X[, j] - (max(X[, j]) / 2 + min(X[, j]) / 2)
     }
   }
   n <- length(y)
