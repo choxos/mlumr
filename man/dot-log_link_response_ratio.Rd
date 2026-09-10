@@ -12,7 +12,7 @@
 \item{y}{Positive outcome vector.}
 }
 \value{
-The residual ratio, or \code{NA} when the fit did not converge.
+The residual ratio, or \code{NA} when the fit could not run.
 }
 \description{
 The likelihood under \code{link = "log"} is \code{normal(exp(theta), sigma)}, so the
@@ -26,7 +26,12 @@ failure to converge costs nothing but the screen.
 \code{glm.fit()} takes its QR pivot tolerance as \code{min(1e-7, epsilon / 1000)}, so
 the only way to stop it discarding a nearly collinear column is through
 \code{epsilon}. At \code{1e-13} the pivot tolerance is \code{1e-16}, matching the linear
-fit.
+fit. Whether the iteration then reports convergence is not required: near
+an exact fit the deviance changes at rounding level from one iterate to the
+next, and whether that clears the tolerance differs between platforms. The
+residual of ANY iterate bounds the least-squares minimum from above, so a
+small one justifies the warning and a large one only withholds it, which is
+the safe direction for a screen.
 
 The fit is a Gaussian log-link IRLS, whose deviance is a sum of squared
 outcomes, so it cannot run on an outcome spanning more than about 700 log

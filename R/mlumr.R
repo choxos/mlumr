@@ -68,7 +68,12 @@
 #' `glm.fit()` takes its QR pivot tolerance as `min(1e-7, epsilon / 1000)`, so
 #' the only way to stop it discarding a nearly collinear column is through
 #' `epsilon`. At `1e-13` the pivot tolerance is `1e-16`, matching the linear
-#' fit.
+#' fit. Whether the iteration then reports convergence is not required: near
+#' an exact fit the deviance changes at rounding level from one iterate to the
+#' next, and whether that clears the tolerance differs between platforms. The
+#' residual of ANY iterate bounds the least-squares minimum from above, so a
+#' small one justifies the warning and a large one only withholds it, which is
+#' the safe direction for a screen.
 #'
 #' The fit is a Gaussian log-link IRLS, whose deviance is a sum of squared
 #' outcomes, so it cannot run on an outcome spanning more than about 700 log
@@ -79,7 +84,7 @@
 #'
 #' @param X Design matrix, intercept included.
 #' @param y Positive outcome vector.
-#' @return The residual ratio, or `NA` when the fit did not converge.
+#' @return The residual ratio, or `NA` when the fit could not run.
 #' @keywords internal
 .log_link_response_ratio <- function(X, y) {
   fit <- tryCatch(
@@ -89,7 +94,7 @@
     )),
     error = function(e) NULL
   )
-  if (is.null(fit) || !isTRUE(fit$converged)) {
+  if (is.null(fit) || !all(is.finite(fit$fitted.values))) {
     return(NA_real_)
   }
   # A perturbation d in the linear predictor moves the fitted value by mu * d,
