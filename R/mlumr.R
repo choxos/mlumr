@@ -128,6 +128,90 @@
 }
 
 
+#' Center a design's predictors on their midrange
+#'
+#' This adds a multiple of the intercept column, so the column space, the
+#' fitted values and the residual are all unchanged, but the coefficients stop
+#' carrying the offset. Without it a predictor recorded as `x + 1e12` forces an
+#' intercept near `-1e12 * slope`, and the rounding bound counts that
+#' cancellation as rounding until it exceeds a genuine residual.
+#'
+#' The center is the midrange, formed from halves so that neither the sum nor
+#' the shift can overflow: a column holding values near both 1e308 and -1e308
+#' has a mean that overflows on this platform's double accumulation and a
+#' shift from it that overflows for the far value, and either sends a
+#' non-finite design into `qr()`. Any center serves; only the offset matters.
+#'
+#' @param X Design matrix, intercept first.
+#' @return The centered design.
+#' @keywords internal
+.center_design <- function(X) {
+  if (ncol(X) > 1L) {
+    for (j in 2:ncol(X)) {
+      X[, j] <- X[, j] - (max(X[, j]) / 2 + min(X[, j]) / 2)
+    }
+  }
+  X
+}
+
+
+#' Whether zero rows can be sent to the boundary while positive rows stay fit
+#'
+#' Under a log link a zero outcome is matched only in the limit where its
+#' linear predictor goes to `-Inf`. The residual goes to zero along a ray in
+#' coefficient space exactly when some direction `d` leaves every positive
+#' row's predictor unchanged, `X_pos d = 0`, and lowers every zero row's,
+#' `X_zero d < 0`. A rank deficit in `X_pos` is necessary for that and not
+#' sufficient: with positive rows at `x = 0` and zeros at `x = -1` and `x = 1`
+#' the one free direction moves the two zero rows in opposite directions, and
+#' their means stay bounded away from zero.
+#'
+#' The question is a linear feasibility one. With `k` free directions it is
+#' decided exactly for `k <= 2`: a zero row whose profile lies in the row space
+#' of the positive rows is pinned and settles it; for one direction the zero
+#' rows' loadings must share a sign; for two, their loadings must lie in an
+#' open half-plane through the origin, which is a gap of more than pi between
+#' consecutive angles. Beyond two the answer is left unknown, and the caller
+#' refuses conservatively.
+#'
+#' @param X_pos Centered design rows of the positive outcomes.
+#' @param X_zero Centered design rows of the zero outcomes.
+#' @return `"reachable"`, `"unreachable"` or `"unknown"`.
+#' @keywords internal
+.zero_boundary <- function(X_pos, X_zero) {
+  tol <- .Machine$double.eps
+  r <- qr(X_pos, tol = tol)$rank
+  p <- ncol(X_pos)
+  if (r == p) {
+    return("unreachable")
+  }
+  pinned <- vapply(seq_len(nrow(X_zero)), function(i) {
+    qr(rbind(X_pos, X_zero[i, ]), tol = tol)$rank == r
+  }, logical(1))
+  if (any(pinned)) {
+    return("unreachable")
+  }
+  # An orthonormal basis of the null space of X_pos: the columns of the
+  # complete Q of t(X_pos) beyond its rank.
+  null_basis <- qr.Q(qr(t(X_pos), tol = tol), complete = TRUE)
+  null_basis <- null_basis[, seq.int(r + 1L, p), drop = FALSE]
+  loadings <- X_zero %*% null_basis
+  k <- ncol(loadings)
+  if (k == 1L) {
+    z <- loadings[, 1]
+    return(if (all(z < 0) || all(z > 0)) "reachable" else "unreachable")
+  }
+  if (k == 2L) {
+    angles <- sort(atan2(loadings[, 2], loadings[, 1]))
+    gaps <- c(diff(angles), angles[1] + 2 * pi - angles[length(angles)])
+    # A gap within rounding of pi is the degenerate case, and it is refused
+    # rather than passed, so the comparison leans that way.
+    return(if (max(gaps) >= pi - 1e-9) "reachable" else "unreachable")
+  }
+  "unknown"
+}
+
+
 #' Classify how much residual variation a normal IPD outcome has
 #'
 #' The decision core behind [.check_normal_residual_variation()], which turns
@@ -155,23 +239,7 @@
 #'   and `zero_ratio`.
 #' @keywords internal
 .residual_variation_status <- function(X_raw, y, link) {
-  # Center the predictors. This adds a multiple of the intercept column, so the
-  # column space, the fitted values and the residual are all unchanged, but the
-  # coefficients stop carrying the offset. Without it a predictor recorded as
-  # `x + 1e12` forces an intercept near `-1e12 * slope`, and the bound below
-  # counts that cancellation as rounding until it exceeds a genuine residual.
-  #
-  # The center is the midrange, formed from halves so that neither the sum
-  # nor the shift can overflow: a column holding values near both 1e308 and
-  # -1e308 has a mean that overflows on this platform's double accumulation
-  # and a shift from it that overflows for the far value, and either sends a
-  # non-finite design into qr(). Any center serves; only the offset matters.
-  X <- X_raw
-  if (ncol(X) > 1L) {
-    for (j in 2:ncol(X)) {
-      X[, j] <- X[, j] - (max(X[, j]) / 2 + min(X[, j]) / 2)
-    }
-  }
+  X <- .center_design(X_raw)
   n <- length(y)
   rank <- qr(X, tol = .Machine$double.eps)$rank
   if (n <= rank) {
@@ -313,8 +381,9 @@
 #' exists depends on how fast the coefficient priors decay: a normal prior
 #' tames it, a Student-t or Cauchy prior does not. The guard does not see the
 #' prior, so it refuses those cases. It passes the mixed case when the positive
-#' rows leave a real residual, or when they pin every coefficient (their design
-#' has the full rank), since the zero rows' means are then fixed and positive.
+#' rows leave a real residual, or when no such direction exists, which
+#' [.zero_boundary()] decides exactly for up to two free directions and leaves
+#' unknown, and therefore refused, beyond.
 #'
 #' The test is the residual sum of squares against the outcome's own total sum
 #' of squares, so it is invariant to the units of the outcome.
@@ -361,11 +430,9 @@
            boundary, call. = FALSE)
     }
     # Mixed zeros and positives. The boundary ray needs the positive rows
-    # fitted exactly AND a direction that leaves them fixed while driving the
-    # zero rows' predictors to -Inf. The positive rows' own status settles the
-    # first, and their design's rank the second: when it equals the full rank
-    # every coefficient is pinned by them and the zero rows' means are fixed
-    # positive numbers, whose squares bound the residual away from zero.
+    # fitted exactly AND a direction that leaves them fixed while driving
+    # every zero row's predictor to -Inf. The positive rows' own status
+    # settles the first, and .zero_boundary() the second.
     pos <- y > 0
     sub <- .residual_variation_status(X_raw[pos, , drop = FALSE], y[pos],
                                       "log")
@@ -376,15 +443,24 @@
       }
       return(invisible(FALSE))
     }
-    full_rank <- qr(X_raw, tol = .Machine$double.eps)$rank
-    if (sub$rank == full_rank) {
+    X <- .center_design(X_raw)
+    reach <- .zero_boundary(X[pos, , drop = FALSE], X[!pos, , drop = FALSE])
+    if (identical(reach, "unreachable")) {
       return(invisible(FALSE))
     }
-    stop("The IPD outcome has zeros, which a positive mean under link = ",
-         "\"log\" can only approach as their linear predictor goes to -Inf, ",
-         "and the positive rows are fitted exactly while leaving ",
-         full_rank - sub$rank, " direction(s) of the coefficients free to ",
-         "take the zero rows there. ", boundary, call. = FALSE)
+    lead <- paste0("The IPD outcome has zeros, which a positive mean under ",
+                   "link = \"log\" can only approach as their linear ",
+                   "predictor goes to -Inf, and the positive rows are fitted ",
+                   "exactly. ")
+    if (identical(reach, "reachable")) {
+      stop(lead, "A direction of the coefficients leaves them fitted while ",
+           "taking every zero row there. ", boundary, call. = FALSE)
+    }
+    stop(lead, "Whether a direction of the coefficients leaves them fitted ",
+         "while taking every zero row there is a feasibility question in ",
+         "more than two free directions, which this check does not attempt, ",
+         "so it refuses rather than pass a possibly unbounded likelihood. ",
+         boundary, call. = FALSE)
   }
 
   s <- .residual_variation_status(X_raw, y, link)

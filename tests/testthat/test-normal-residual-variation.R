@@ -406,7 +406,34 @@ test_that("zeros mixed with positives are refused only where the boundary is rea
   # bound and only the prior tails decide.
   d <- .normal_stub(c(0, 0, 1, 1), c(-0.5, -0.5, 0.5, 0.5))
   expect_error(mlumr:::.check_normal_residual_variation(d, "log"),
-               "direction")
+               "taking every zero row there")
+  # A rank deficit alone is not a reachable boundary. Positive rows at x = 0
+  # and zeros at x = -1 and x = 1: the one free direction moves the two zero
+  # rows in opposite directions, so their means stay bounded away from zero
+  # and the posterior is proper.
+  d <- .normal_stub(c(1, 1, 0, 0), c(0, 0, -1, 1))
+  expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
+  # Two free directions, decided by whether the zero rows' loadings share an
+  # open half-plane: three zero rows spread around the positive profile do
+  # not, three on one side do.
+  around <- data.frame(.outcome = c(1, 1, 0, 0, 0),
+                       x1 = c(0, 0, 1, -1, 0), x2 = c(0, 0, 0, -1, 1))
+  d <- list(ipd = list(data = around), covariates = c("x1", "x2"))
+  expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
+  one_side <- data.frame(.outcome = c(1, 1, 0, 0, 0),
+                         x1 = c(0, 0, 1, 1, 2), x2 = c(0, 0, 0, 1, 1))
+  d <- list(ipd = list(data = one_side), covariates = c("x1", "x2"))
+  expect_error(mlumr:::.check_normal_residual_variation(d, "log"),
+               "taking every zero row there")
+  # A zero row on the positive rows' own profile is pinned outright.
+  d <- .normal_stub(c(1, 1, 0, 0), c(0, 0, 0, 1))
+  expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
+  # Beyond two free directions the check does not attempt the question.
+  wide <- data.frame(.outcome = c(1, 1, 0), x1 = c(0, 0, 1), x2 = c(0, 0, 1),
+                     x3 = c(0, 0, 1))
+  d <- list(ipd = list(data = wide), covariates = c("x1", "x2", "x3"))
+  expect_error(mlumr:::.check_normal_residual_variation(d, "log"),
+               "does not attempt")
   # Four positive rows on distinct x pin both coefficients, so the zero row's
   # mean is a fixed positive number and its square bounds the residual away
   # from zero. Proper, and silent: the positive rows do not fit exactly.

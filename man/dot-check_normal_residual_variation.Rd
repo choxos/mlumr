@@ -77,8 +77,9 @@ the likelihood grows as \code{sigma^(-n)} along that ray and whether a posterior
 exists depends on how fast the coefficient priors decay: a normal prior
 tames it, a Student-t or Cauchy prior does not. The guard does not see the
 prior, so it refuses those cases. It passes the mixed case when the positive
-rows leave a real residual, or when they pin every coefficient (their design
-has the full rank), since the zero rows' means are then fixed and positive.
+rows leave a real residual, or when no such direction exists, which
+\code{\link[=.zero_boundary]{.zero_boundary()}} decides exactly for up to two free directions and leaves
+unknown, and therefore refused, beyond.
 
 The test is the residual sum of squares against the outcome's own total sum
 of squares, so it is invariant to the units of the outcome.
