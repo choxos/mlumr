@@ -445,4 +445,29 @@ test_that("the log-logistic conditional form does not cancel in a far tail", {
     plogis(z(0.001), lower.tail = FALSE, log.p = TRUE)
   expect_lt(abs(env$surv_ll_status(7L, 0.01, 0.005, 0.001, 3L, 0.2, 1.5, 0) -
                   ref), 1e-12)
+
+  # A shape of 1e17 across the center: log(expm1(d)) and the z_u term are
+  # each near 7e16 and cancel to an answer of log(1/2). Written so that the
+  # large parts cancel algebraically, the form is bounded by the answer.
+  expect_lt(abs(env$surv_ll_status(7L, 2, 1, 0, 3L, 0, 1e17, 0) - log(0.5)),
+            1e-12)
+  expect_lt(abs(env$surv_ll_status(7L, 2, 1, 0.5, 3L, 0, 1e17, 0) - log(0.5)),
+            1e-12)
+})
+
+test_that("a differenced increment of -Inf beside a finite log S(l) resolves too", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  env <- expose_survival_likelihood()
+  nextafter <- function(t) t + 2^(floor(log2(abs(t))) - 52)
+
+  # A log-normal centered at the lower bound with sigma 1e-171: S(1) is 1/2
+  # and S of the next double underflows to zero, so the differenced
+  # increment is -Inf and the interval holds everything that remains. That
+  # is a resolved interval whichever way the increment was formed, and it
+  # was sent to a quadrature whose grid cannot see the layer.
+  expect_lt(abs(env$surv_ll_status(6L, nextafter(1), 1, 0, 3L, 0, 1e-171, 0) -
+                  log(0.5)), 1e-12)
+  expect_lt(abs(env$surv_ll_status(6L, nextafter(1), 1, 0.5, 3L, 0, 1e-171,
+                                   0) - log(0.5)), 1e-12)
 })

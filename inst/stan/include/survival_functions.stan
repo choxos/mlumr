@@ -507,31 +507,34 @@ real log_interval_prob_quad(int dist, real t_upper, real t_lower, real eta,
 
 // log P(l < T <= u | T > e) for the log-logistic, in a closed form with no
 // subtraction of nearby numbers. With z = a (log t - eta), F = 1 / (1 +
-// e^{-z}) and S = 1 / (1 + e^{z}), so
-//   (F(u) - F(l)) / S(e) = e^{z_l} (e^d - 1) (1 + e^{z_e})
-//                          / ((1 + e^{z_l}) (1 + e^{z_u}))
-// for d = a log(u / l). Written as
-//   -log1p_exp(-z_l) + log(expm1(d)) + [g(z_e) - g(z_u)],  g = log1p_exp,
-// where the first term is what e^{z_l} / (1 + e^{z_l}) is, and the bracket
-// is taken as [max(z_e, 0) - max(z_u, 0)] + [log1p(e^{-|z_e|}) -
-// log1p(e^{-|z_u|})]. In a far right tail z_e and z_u are both enormous and
-// their difference is a (log e - log u), which log_time_ratio() supplies
-// without forming either; adding an unconditional log probability near
-// -1e16 to a -log S(e) of the same size returned 0 for a conditional value
-// of -0.46. Unconditional is e = 0, where z_e is -inf and g(z_e) is 0.
+// e^{-z}), S = 1 / (1 + e^{z}) and g = log1p_exp,
+//   log(F(u) - F(l)) = z_l + log(expm1(d)) - g(z_l) - g(z_u)
+// for d = a log(u / l) and z_u = z_l + d. Written that way the terms in
+// z_u and d cancel each other, and with a shape of 1e17 they are each near
+// 7e16 while the answer is log(1/2): rounding in either swamped it. Using
+// log(expm1(d)) = d + log1m_exp(-d) and g(z_u) = z_u + log1p_exp(-z_u), the
+// large parts cancel algebraically and what is left is
+//   log1m_exp(-d) - log1p_exp(-z_u) - g(z_l),
+// every term of which is bounded by the size of the answer. Conditioning
+// adds g(z_e), and g(z_e) - g(z_l) is taken as (z_e - z_l) + [log1p_exp(-z_e)
+// - log1p_exp(-z_l)], with z_e - z_l the log of a time ratio, so two
+// enormous g values are never differenced: with eta = -1e16 that returned 0
+// for a conditional value of -0.46. Unconditional is e = 0, where g(z_e)
+// is 0.
 real log_loglogistic_interval(real t_upper, real t_lower, real t_entry,
                               real eta, real aux) {
   real z_l = aux * (log(t_lower) - eta);
-  real z_u = aux * (log(t_upper) - eta);
   real d = aux * log_time_ratio(t_upper, t_lower);
-  real z_e = t_entry > 0 ? aux * (log(t_entry) - eta) : negative_infinity();
-  real ramp;
-  real curve;
-  if (z_e >= 0) ramp = -aux * log_time_ratio(t_upper, t_entry);
-  else if (z_u >= 0) ramp = -z_u;
-  else ramp = 0;
-  curve = log1p(exp(-abs(z_e))) - log1p(exp(-abs(z_u)));
-  return -log1p_exp(-z_l) + log_expm1_from_log_x(log(d)) + ramp + curve;
+  real z_u = z_l + d;
+  real lp = log1m_exp(-d) - log1p_exp(-z_u);
+  if (t_entry > 0) {
+    real z_e = aux * (log(t_entry) - eta);
+    real drop = t_entry == t_lower
+                  ? 0
+                  : -aux * log_time_ratio(t_lower, t_entry);
+    return lp + drop + log1p_exp(-z_e) - log1p_exp(-z_l);
+  }
+  return lp - log1p_exp(z_l);
 }
 
 // Whether a CDF difference resolves the interval. The two log CDFs each carry
@@ -565,8 +568,11 @@ int cdf_diff_resolves(real log_cdf_upper, real log_cdf_lower) {
 int surv_increment_resolves(real increment, real log_surv_lower,
                             int analytic) {
   if (is_nan(increment) || increment >= 0) return 0;
-  if (analytic) return 1;
-  if (is_inf(increment)) return 0;
+  // A -inf increment with a finite log S(l) is S(u) underflowing to zero
+  // beside a representable S(l): the interval holds all of what remains to
+  // within less than an ULP of it, whichever way the increment was formed.
+  // Both survivals underflowing gives NaN above, not -inf.
+  if (analytic || is_inf(increment)) return 1;
   return -expm1(increment) > fmin(0.5, 1e-5 * fmax(1, -log_surv_lower));
 }
 
