@@ -394,8 +394,9 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' combination of the covariates perfectly orders the outcome, and a fit that
 #' is merely strong can look identical in the coefficients and the fitted
 #' values. \pkg{detectseparation} solves that program. It is in Suggests, so
-#' this returns `NA` when it is absent and the caller keeps the fitted-value
-#' test as its only screen; that is a weaker guarantee, not a wrong one.
+#' when it is absent this returns the `"unknown"` status with the reason, and
+#' the caller keeps the fitted-value test as its only screen; that is a weaker
+#' guarantee, not a wrong one.
 #'
 #' An error here is reported as "unknown" rather than as "separated": a refit
 #' can fail for reasons that have nothing to do with separation, and turning

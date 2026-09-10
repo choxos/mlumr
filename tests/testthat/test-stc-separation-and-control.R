@@ -35,6 +35,9 @@ test_that("an ordinary fit and a genuinely rare event are still accepted", {
 
   ordinary <- data.frame(y = stats::rbinom(n, 1, stats::plogis(0.3 * x)), x = x)
   fit_ok <- stats::glm(y ~ x, family = stats::binomial(), data = ordinary)
+  # Silence needs the exact check to have run; without detectseparation the
+  # same fit warns that it did not, which is its own test below.
+  skip_if_not_installed("detectseparation")
   expect_silent(mlumr:::.stc_refuse_separation(fit_ok))
 
   # A small rate is not separation. The test is on the boundary rather than on

@@ -21,8 +21,9 @@ question, not a threshold one: the fit is separated exactly when some linear
 combination of the covariates perfectly orders the outcome, and a fit that
 is merely strong can look identical in the coefficients and the fitted
 values. \pkg{detectseparation} solves that program. It is in Suggests, so
-this returns \code{NA} when it is absent and the caller keeps the fitted-value
-test as its only screen; that is a weaker guarantee, not a wrong one.
+when it is absent this returns the \code{"unknown"} status with the reason, and
+the caller keeps the fitted-value test as its only screen; that is a weaker
+guarantee, not a wrong one.
 }
 \details{
 An error here is reported as "unknown" rather than as "separated": a refit
