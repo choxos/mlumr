@@ -561,46 +561,51 @@ real log_loglogistic_interval(real t_upper, real t_lower, real t_entry,
   return lp - log1p_exp(z_l);
 }
 
-// Whether a CDF difference resolves the interval. The two log CDFs each carry
-// about eps of relative error in the log, so their difference has an absolute
-// error near eps * |log F(u)|, and it is trustworthy only when the interval's
-// mass is a good many multiples of that as a fraction of F(u). Below
-// 1e-5 * max(1, |log F(u)|) the relative error can exceed 1e-11, and the
-// quadrature is the better route.
-//
-// The threshold is not capped. Past |log F(u)| = 1e5 it exceeds one and no
-// interval meets it, which is right: a log CDF near -5e15 carries rounding
-// of order one, so a difference of two of them says nothing however much
-// of F(u) the interval holds, while the quadrature of the density resolves
-// a one-ULP interval there to rounding. A cap that let the difference
-// through shifted such an interval's log probability by 0.6.
+// Whether a CDF difference resolves the interval. The result is
+//   log F(u) + log(1 - exp(log F(l) - log F(u))),
+// and the two log CDFs each carry rounding near eps * |log F(u)|. The first
+// term carries that rounding whatever route is taken; it is the rounding of
+// the answer itself. The second term is where a difference goes wrong: an
+// error e in the exponent moves it by e (1 - m) / m, with m the interval's
+// mass as a fraction of F(u). So the cancellation error is
+//   eps * |log F(u)| * (1 - m) / m,
+// and the difference is trusted when that is below 1e-11, which is m above
+// 1e-5 * max(1, |log F(u)|), OR when (1 - m) / m is at most one, which is m
+// of at least one half: the cancellation then adds no more than the answer's
+// own rounding, however deep the tail. That second clause is what keeps a
+// wide lower-tail interval on the difference. With a log-normal at sigma
+// 1e-4 and eta = log(2) + 1, the interval (1, 2] has log F(2) near -5e7 and
+// F(1) negligible beside it; the answer is log F(2) to eleven digits, while
+// the density's mass sits in a layer next to the upper bound far narrower
+// than any grid, and the quadrature came back 9.3 log units high.
 int cdf_diff_resolves(real log_cdf_upper, real log_cdf_lower) {
+  real mass;
   if (log_cdf_upper <= log_cdf_lower) return 0;
-  return -expm1(log_cdf_lower - log_cdf_upper)
-         > 1e-5 * fmax(1, -log_cdf_upper);
+  mass = -expm1(log_cdf_lower - log_cdf_upper);
+  return mass >= 0.5 || mass > 1e-5 * fmax(1, -log_cdf_upper);
 }
 
 // The same test for the survival increment log S(u) - log S(l). Formed by
-// differencing two survival logs its error is near eps * |log S(l)|, and
-// the mass test applies, uncapped for the same reason. Formed in a tail
-// branch it carries only rounding relative to itself, so any negative value
-// resolves the interval, negative infinity included: that is an interval
-// holding everything past S(l), for which log1m_exp() is exactly zero. A
-// log-normal with sigma 5e-8 at t = 1 has log S near -1.25e15 and an
-// increment of -0.22 over one ULP, an interval holding a fifth of what
-// remains; the quadrature cannot resolve the layer that mass sits in, and
-// its result cancelled against log S(entry) to the wrong conditional value.
-// The differenced route is taken only where no tail branch applies, which
-// is where log S(l) is moderate, so its threshold stays well below one.
+// differencing two survival logs its error is near eps * |log S(l)| and the
+// same two clauses apply. Formed in a tail branch it carries only rounding
+// relative to itself, so any negative value resolves the interval, negative
+// infinity included: that is an interval holding everything past S(l), for
+// which log1m_exp() is exactly zero. A log-normal with sigma 5e-8 at t = 1
+// has log S near -1.25e15 and an increment of -0.22 over one ULP, an
+// interval holding a fifth of what remains; the quadrature cannot resolve
+// the layer that mass sits in, and its result cancelled against
+// log S(entry) to the wrong conditional value.
 int surv_increment_resolves(real increment, real log_surv_lower,
                             int analytic) {
+  real mass;
   if (is_nan(increment) || increment >= 0) return 0;
   // A -inf increment with a finite log S(l) is S(u) underflowing to zero
   // beside a representable S(l): the interval holds all of what remains to
   // within less than an ULP of it, whichever way the increment was formed.
   // Both survivals underflowing gives NaN above, not -inf.
   if (analytic || is_inf(increment)) return 1;
-  return -expm1(increment) > 1e-5 * fmax(1, -log_surv_lower);
+  mass = -expm1(increment);
+  return mass >= 0.5 || mass > 1e-5 * fmax(1, -log_surv_lower);
 }
 
 // Log P(t_lower < T <= t_upper). The route is chosen by what resolves the

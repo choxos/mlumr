@@ -545,18 +545,35 @@ test_that("a shape near the bottom of the double range keeps a tiny increment", 
                   (log(1e-320) + log(width) - 1)), 1e-9)
 })
 
-test_that("a differenced CDF is not trusted where its logs carry rounding of order one", {
+test_that("a differenced CDF is trusted by its cancellation error, not its finiteness", {
   skip_on_cran()
   skip_if_not_installed("rstan")
   env <- expose_survival_likelihood()
   previous <- function(t) t - 2^(floor(log2(abs(t))) - 52)
 
+  # The cancellation error of log F(u) + log(1 - exp(log F(l) - log F(u)))
+  # is eps |log F(u)| (1 - m) / m for a mass fraction m. A wide interval in
+  # an extreme lower tail has m near one, so the difference is the answer to
+  # the rounding of the answer itself: a log-normal with sigma 1e-4 and
+  # eta = log(2) + 1 puts log F(2) near -5e7 with F(1) negligible beside it,
+  # and the density's mass sits in a layer next to the upper bound that no
+  # grid resolves, which came back 9.3 log units high when the difference
+  # was refused.
+  eta <- log(2) + 1
+  aux <- 1e-4
+  log_cdf <- function(t) pnorm((log(t) - eta) / aux, log.p = TRUE)
+  ref <- log_cdf(2) + log1p(-exp(log_cdf(1) - log_cdf(2)))
+  got <- env$surv_ll_status(6L, 2, 1, 0, 3L, eta, aux, 0)
+  expect_lt(abs(got - ref) / abs(ref), 1e-12)
+  entry <- pnorm((log(0.5) - eta) / aux, lower.tail = FALSE, log.p = TRUE)
+  got <- env$surv_ll_status(6L, 2, 1, 0.5, 3L, eta, aux, 0)
+  expect_lt(abs(got - (ref - entry)) / abs(ref), 1e-12)
+
   # Log-normal with sigma 1e-8 at t = exp(-1): z is -1e8 and the log CDFs
-  # near -5e15 carry rounding of order one, so a difference of two of them
-  # says nothing however much of F(u) the interval holds. The resolution
-  # threshold is uncapped, exceeds one here, and hands the interval to the
-  # density, which resolves it to the rounding of the value itself: one unit
-  # at that magnitude.
+  # near -5e15 carry rounding of order one, so over one ULP they round to
+  # the same double and no difference exists to take. The density resolves
+  # the interval to the rounding of the value itself: one unit at that
+  # magnitude.
   aux <- 1e-8
   upper <- exp(-1)
   lower <- previous(upper)
