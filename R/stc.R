@@ -75,11 +75,16 @@
 #'   and found no separation, `"unknown"` when it could not run (only the
 #'   fitted-value screen was applied, which cannot see quasi-complete
 #'   separation), and `"not_applicable"` when the outcome model is not a
-#'   binomial GLM, so this particular test has nothing to say. It is not a
-#'   certificate that the likelihood has a finite maximum for other families;
-#'   a Poisson outcome model can have an infinite maximum likelihood estimate
-#'   of its own kind, and nothing here looks for it. A separated fit is refused
-#'   rather than returned, so `"separated"` never appears here.
+#'   binomial GLM, so this particular test has nothing to say. A Poisson
+#'   outcome model has a boundary of its own kind: with no events, or with a
+#'   subgroup without events that a direction of the coefficients can send
+#'   to a rate of zero while every other row's rate stays fixed, the
+#'   likelihood rises without bound and the maximum likelihood estimate is
+#'   not finite, although the fitting reports convergence with finite
+#'   numbers. Such a fit is refused, as is one where the question could not
+#'   be decided, so a returned Poisson result has a finite maximum and its
+#'   `reason` says so. A separated fit is refused rather than returned, so
+#'   `"separated"` never appears here.
 #' @importFrom stats gaussian poisson dnorm
 #' @export
 #'
@@ -270,8 +275,103 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
       call. = FALSE
     )
   }
-  separation <- .stc_refuse_separation(fit)
+  fam <- tryCatch(stats::family(fit)$family, error = function(e) NA_character_)
+  separation <- if (identical(fam, "poisson")) {
+    .stc_refuse_poisson_recession(fit)
+  } else {
+    .stc_refuse_separation(fit)
+  }
   list(beta_hat = beta_hat, V = V, separation = separation)
+}
+
+
+#' Refuse a Poisson fit whose likelihood has no finite maximum
+#'
+#' The Poisson log-likelihood is `sum(y_i eta_i - E_i exp(eta_i))` up to a
+#' constant. Along a direction `d` of the coefficients that leaves every
+#' positive-count row's predictor fixed, `X_i d = 0`, and raises none of
+#' the zero-count rows', `X_i d <= 0` with some strictly below, the linear
+#' term is constant and the exponential terms fall, so the likelihood rises
+#' all the way out and has no maximum to reach. Iterative reweighting stops
+#' anyway, when the deviance stops changing: 80 zero counts on a nonconstant
+#' covariate stop after 25 iterations at an intercept near -27.3 with a
+#' standard error near 57,500, and 40 zeros beside 40 positive counts on a
+#' binary covariate stop at a slope near 21.2. Every number there describes
+#' where the iteration stopped, not the data, and the fitted-value screen
+#' for the binomial case does not apply: a rate can legitimately be small.
+#'
+#' A zero total count is the plain case and is refused outright. Otherwise
+#' the question is the linear feasibility one [.zero_boundary()] decides,
+#' in its weak form: positive rows spanning the design leave no such
+#' direction, which is where ordinary data land; a direction found is a
+#' refusal; and a question it cannot decide (more than two free directions,
+#' or zero rows within rounding of the positive rows' span) is refused too,
+#' since a possibly infinite estimate is not one to report.
+#'
+#' Some functionals can remain estimable when the coefficients are not,
+#' but estimating them needs a method built for that boundary, and the
+#' ordinary Wald machinery here is not it.
+#'
+#' @param fit A fitted Poisson `glm`.
+#' @return The status list recorded on the result, invisibly: `status`
+#'   `"not_applicable"` for the binomial separation test, with a `reason`
+#'   that records the finite-maximum check ran and passed.
+#' @keywords internal
+.stc_refuse_poisson_recession <- function(fit) {
+  y <- fit$y
+  X <- stats::model.matrix(fit)
+  if (all(y == 0)) {
+    stop(
+      paste(
+        "The STC outcome model has no events: the Poisson likelihood rises",
+        "without bound as the log rate falls, so the maximum likelihood",
+        "estimate is not finite, and the coefficients, the interval and the",
+        "standardized rate would describe where the fitting stopped rather",
+        "than the data. Use mlumr(), whose prior makes the posterior proper."
+      ),
+      call. = FALSE
+    )
+  }
+  pos <- y > 0
+  Xs <- .scale_design(X)
+  reach <- .zero_boundary(Xs[pos, , drop = FALSE], Xs[!pos, , drop = FALSE],
+                          X[pos, , drop = FALSE], X[!pos, , drop = FALSE],
+                          strict = FALSE)
+  if (identical(reach, "reachable")) {
+    stop(
+      paste(
+        "The STC outcome model has no finite maximum likelihood estimate: a",
+        "direction of the coefficients leaves the rate of every row with",
+        "events fixed while lowering the rate of rows without, so the",
+        "likelihood rises along it without bound, even though the fitting",
+        "reported convergence and every returned number is finite. A",
+        "subgroup with no events is the usual cause. Use mlumr(), whose",
+        "prior makes the posterior proper."
+      ),
+      call. = FALSE
+    )
+  }
+  if (!identical(reach, "unreachable")) {
+    stop(
+      paste(
+        "Whether the STC outcome model has a finite maximum likelihood",
+        "estimate could not be decided: the rows without events could",
+        "load on more than two free directions of the coefficients, or lie",
+        "within rounding of the span of the rows with events, and this check",
+        "does not attempt those cases. A possibly infinite estimate is not",
+        "reported as an ordinary one. Use mlumr(), whose prior makes the",
+        "posterior proper."
+      ),
+      call. = FALSE
+    )
+  }
+  invisible(list(
+    status = "not_applicable",
+    reason = paste("the outcome model is Poisson, so the binomial separation",
+                   "test does not apply; its likelihood was checked for a",
+                   "direction along which it rises without bound and has",
+                   "none, so the maximum likelihood estimate is finite")
+  ))
 }
 
 #' Refuse a fit whose likelihood has no finite maximum
@@ -748,20 +848,9 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     as.numeric(t(grad_rate) %*% V %*% grad_rate),
     "poisson STC rate variance"
   )
-  # With no events at all in the IPD the fitted rate is numerically 0, so the
-  # gradient lambda * X vanishes and the delta method reports the standardized
-  # rate as known to within ~1e-7. It is not: zero events over the observed
-  # exposure is consistent with a clearly positive rate, which is why the
-  # log-rate contrast on the same fit carries an SE in the tens of thousands.
-  # Floor the variance at the continuity-corrected plug-in the naive estimator
-  # would report from the same IPD, so the index arm still contributes to the
-  # rate difference. Only reached at the boundary; a fit with any event keeps
-  # its delta-method variance untouched.
-  events_index_total <- sum(ipd$.outcome)
-  if (events_index_total == 0) {
-    exposure_index_total <- sum(ipd$.exposure)
-    var_rate_A <- max(var_rate_A, 0.5 / exposure_index_total^2)
-  }
+  # A fit with no events, or with a direction along which the likelihood
+  # rises without bound, never reaches here: .stc_refuse_poisson_recession()
+  # refused it, so the delta-method variance is that of an interior maximum.
   # Rate difference on the natural per-unit-exposure scale: the standardized
   # index rate minus the observed comparator rate. The standardized rate's
   # variance is the delta-method one already computed for it, and the two arms

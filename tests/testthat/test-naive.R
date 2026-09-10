@@ -276,13 +276,11 @@ test_that("a zero-event poisson arm keeps its uncertainty", {
   expect_gte(nv$rate_index_upper, nv$rate_index)
   expect_equal(nv$rate_index_lower, 0)
 
-  # The STC index arm must still contribute to the rate difference. With no
-  # events the fitted rate is numerically 0, the gradient vanishes, and the
-  # delta method claimed the standardized rate to within ~1e-7 while the
-  # log-rate contrast on the same fit was uninformative.
-  st <- suppressWarnings(suppressMessages(stc(dat)))
-  expect_gt(st$rate_hat_index_se, 1e-4)
-  expect_gt(st$rd_se, st$rate_comparator_se)
+  # The STC on the same data has no finite maximum likelihood estimate: the
+  # likelihood rises as the log rate falls, and the iteration merely stops.
+  # It used to return where it stopped with a floored variance; it is now
+  # refused before any number is reported.
+  expect_error(suppressWarnings(suppressMessages(stc(dat))), "no events")
 })
 
 test_that("naive() rejects left/interval-censored survival data", {
