@@ -41,6 +41,20 @@
   coefficients, so the estimate of sigma is potentially strongly sensitive to
   the coefficient priors. The check runs in validation, so it costs no
   compilation.
+* **Posterior summaries now carry how many draws they used.** The summaries
+  behind `predict()`, `marginal_effects()`, `conditional_effects()` and
+  `conditional_predict()` pass `na.rm = TRUE`, which is right: one bad draw
+  should not erase an otherwise usable summary. But they removed those draws
+  without a trace, so a mean taken over a third of the chain printed exactly
+  like a mean taken over all of it and nothing downstream could tell the two
+  apart. Every summary row now has `n_draws` and `n_draws_used` columns, so
+  the accounting travels with the result through `saveRDS()`, a report, or a
+  table, and a warning at the call names how many quantities were affected
+  and the worst loss, once per call rather than once per column. A median
+  survival the grid never reaches is not a lost draw and keeps its own
+  `p_not_reached` diagnostic, with `n_draws_used` showing what the summary
+  rests on. Only `NA` and `NaN` are counted, since those are what `na.rm`
+  removes; an infinite draw propagates into the mean and announces itself.
 
 * **A convergence diagnostic that cannot be computed is no longer reported as
   a good one.** An Rhat of `Inf` is a parameter whose chains did not mix at

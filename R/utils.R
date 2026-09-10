@@ -110,9 +110,18 @@ eval_distr <- function(d, p, data = list()) {
 #'
 #' @param x Numeric vector of posterior draws.
 #' @param probs Quantile probabilities.
-#' @return Named numeric vector: `c(mean, sd, <named quantiles>)`.
+#' @param warn Whether to report dropped draws. Callers that summarize many
+#'   vectors set this to `FALSE` and report once over the whole set instead.
+#' @return Named numeric vector: `c(mean, sd, <named quantiles>, n_draws,
+#'   n_draws_used)`. The last two are the draw accounting: how many draws the
+#'   summary was offered and how many it used, so a summary built on a third
+#'   of its chain says so wherever it ends up. They differ exactly when NA or
+#'   NaN draws were dropped.
 #' @keywords internal
-.summarize_draw_vector <- function(x, probs) {
+.summarize_draw_vector <- function(x, probs, warn = TRUE) {
+  if (warn) {
+    .warn_dropped_draws(x)
+  }
   # The quantiles carry the package's own names, not R's. R names a quantile
   # with `format()`, which prints to the display precision, while every
   # lookup elsewhere builds the name from the probability itself. The two
@@ -124,7 +133,9 @@ eval_distr <- function(d, p, data = list()) {
     stats::setNames(
       stats::quantile(x, probs = probs, na.rm = TRUE, names = FALSE),
       .quantile_names(probs)
-    ))
+    ),
+    n_draws = length(x),
+    n_draws_used = sum(!is.na(x)))
 }
 
 #' Summarize a draws matrix column-wise into a tidy data frame
@@ -135,14 +146,114 @@ eval_distr <- function(d, p, data = list()) {
 #' @param draws A numeric matrix or data frame of posterior draws (one column
 #'   per quantity, one row per draw).
 #' @param probs Quantile probabilities.
-#' @return Data frame with columns `mean`, `sd`, and one `qNN` column per
-#'   element of `probs`.
+#' @param warn Whether to report dropped draws. Set `FALSE` where a missing
+#'   draw is an expected outcome with a diagnostic of its own.
+#' @return Data frame with columns `mean`, `sd`, one `qNN` column per element
+#'   of `probs`, and the draw accounting `n_draws` and `n_draws_used`.
 #' @keywords internal
-.summarize_draw_matrix <- function(draws, probs) {
-  summary_mat <- t(apply(draws, 2, .summarize_draw_vector, probs = probs))
+.summarize_draw_matrix <- function(draws, probs, warn = TRUE) {
+  if (warn) {
+    .warn_dropped_draws(draws)
+  }
+  summary_mat <- t(apply(draws, 2, .summarize_draw_vector, probs = probs,
+                         warn = FALSE))
   summary_df <- as.data.frame(summary_mat)
-  colnames(summary_df) <- c("mean", "sd", .quantile_names(probs))
+  colnames(summary_df) <- c("mean", "sd", .quantile_names(probs), "n_draws",
+                            "n_draws_used")
   summary_df
+}
+
+
+#' Report posterior draws dropped from a summary
+#'
+#' The `na.rm = TRUE` in `.summarize_draw_vector()` is deliberate: one bad
+#' draw should not erase an otherwise usable summary. It removes those draws
+#' without a trace, though, so a mean taken over a third of the chain reads
+#' exactly like a mean taken over all of it. Say what was dropped and leave the
+#' judgment to the reader. The warning is for the session; the `n_draws` and
+#' `n_draws_used` columns on every summary are what travels with the result.
+#'
+#' Only NA and NaN are counted, because only those are what `na.rm` removes.
+#' An infinite draw propagates into the mean and is visible on its own.
+#'
+#' @param draws Numeric vector, matrix or data frame of posterior draws.
+#' @return `TRUE` if a warning was issued, `FALSE` otherwise, invisibly.
+#' @keywords internal
+.warn_dropped_draws <- function(draws) {
+  m <- if (is.matrix(draws)) draws else as.matrix(draws)
+  if (nrow(m) == 0L || ncol(m) == 0L) {
+    return(invisible(FALSE))
+  }
+  dropped <- colSums(is.na(m))
+  if (!any(dropped > 0L)) {
+    return(invisible(FALSE))
+  }
+  n <- nrow(m)
+  msg <- if (ncol(m) == 1L) {
+    fmt <- paste0("%d of %d posterior draws are NA or NaN and were dropped ",
+                  "from the summary, which therefore describes the remaining ",
+                  "%d.")
+    sprintf(fmt, dropped[[1]], n, n - dropped[[1]])
+  } else {
+    fmt <- paste0("%d of %d summarized quantities have NA or NaN draws, which ",
+                  "were dropped from their summaries; the worst loses %d of ",
+                  "%d draws. Those summaries describe the remaining draws ",
+                  "only.")
+    sprintf(fmt, sum(dropped > 0L), ncol(m), max(dropped), n)
+  }
+  warning(msg, call. = FALSE)
+  invisible(TRUE)
+}
+
+#' Count draws dropped across a loop and report once
+#'
+#' Three callers summarize one profile, treatment or cell at a time. Letting
+#' each call report would give a single bad posterior draw dozens of identical
+#' warnings that name no profile between them, so they tally here and report
+#' once. The worst single quantity is carried through rather than pooled, since
+#' a loss concentrated in one summary is exactly what a pooled denominator
+#' hides.
+#'
+#' @return An environment with `affected`, `units`, `worst_dropped`, `worst_n`,
+#'   `add()` and `report()`.
+#' @keywords internal
+.draw_tally <- function() {
+  e <- new.env(parent = emptyenv())
+  e$affected <- 0L
+  e$units <- 0L
+  e$worst_dropped <- 0L
+  e$worst_n <- 0L
+  e$add <- function(x) {
+    m <- if (is.null(dim(x))) matrix(x, ncol = 1L) else as.matrix(x)
+    if (nrow(m) == 0L || ncol(m) == 0L) {
+      return(invisible(NULL))
+    }
+    dropped <- colSums(is.na(m))
+    e$units <- e$units + ncol(m)
+    e$affected <- e$affected + sum(dropped > 0L)
+    # Keep the worst single quantity, never a pooled total. One summary built
+    # on 10 of its 100 draws is the thing this warning exists to expose, and
+    # summing it into a denominator over every profile hides it: it would read
+    # as 90 of 10000 draws and sound like rounding.
+    if (max(dropped) > e$worst_dropped) {
+      e$worst_dropped <- max(dropped)
+      e$worst_n <- nrow(m)
+    }
+    invisible(NULL)
+  }
+  e$report <- function(what) {
+    if (e$affected > 0L) {
+      fmt <- paste0("%d of %d summarized quantities across the %s have NA or ",
+                    "NaN draws, which were dropped from their summaries; the ",
+                    "worst loses %d of %d draws. Those summaries describe the ",
+                    "remaining draws only.")
+      warning(sprintf(fmt, e$affected, e$units, what, e$worst_dropped,
+                      e$worst_n),
+              call. = FALSE)
+    }
+    invisible(e$affected > 0L)
+  }
+  e
 }
 
 

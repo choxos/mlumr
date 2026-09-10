@@ -4,15 +4,21 @@
 \alias{.summarize_draw_vector}
 \title{Summarize a single draw vector into mean, sd and quantiles}
 \usage{
-.summarize_draw_vector(x, probs)
+.summarize_draw_vector(x, probs, warn = TRUE)
 }
 \arguments{
 \item{x}{Numeric vector of posterior draws.}
 
 \item{probs}{Quantile probabilities.}
+
+\item{warn}{Whether to report dropped draws. Callers that summarize many
+vectors set this to \code{FALSE} and report once over the whole set instead.}
 }
 \value{
-Named numeric vector: \verb{c(mean, sd, <named quantiles>)}.
+Named numeric vector: \verb{c(mean, sd, <named quantiles>, n_draws, n_draws_used)}. The last two are the draw accounting: how many draws the
+summary was offered and how many it used, so a summary built on a third
+of its chain says so wherever it ends up. They differ exactly when NA or
+NaN draws were dropped.
 }
 \description{
 Internal helper. Centralizes the (mean, sd, quantile) triplet used by
