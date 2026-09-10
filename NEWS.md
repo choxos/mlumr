@@ -189,8 +189,8 @@
   The arm standard errors are unchanged and still feed the contrasts, whose
   intervals remain Wald on the link scale around the boundary-corrected
   quantities: enumerating every pair of counts at 100 per arm, they cover
-  the true log odds ratio, log risk ratio and risk difference between 0.94
-  and 0.999 of the time over true probabilities from 0.014 to 0.986, which
+  the true log odds ratio, log risk ratio and risk difference between 0.939
+  and 0.9999 of the time over true probabilities from 0.014 to 0.986, which
   the documentation now states. The standardized index probability of an
   STC is a model prediction and keeps its delta-method interval, documented
   as an asymptotic approximation.

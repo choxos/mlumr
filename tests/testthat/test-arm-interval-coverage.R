@@ -46,6 +46,7 @@ test_that("the exact binomial interval is Clopper-Pearson", {
                tolerance = 1e-12)
   expect_silent(got <- mlumr:::.garwood_interval(c(0, 3), 100, 0.95))
   expect_equal(got$lower, c(0, qgamma(0.025, 3) / 100), tolerance = 1e-12)
+  expect_equal(got$upper, qgamma(0.975, c(1, 4)) / 100, tolerance = 1e-12)
 })
 
 test_that("the arm intervals follow the requested confidence level", {
@@ -185,8 +186,9 @@ test_that("the naive contrast intervals are calibrated as documented", {
     }, numeric(1))
   }
   # Each row: p1, p2, then the observed coverage of the log odds ratio,
-  # the log risk ratio and the risk difference. A method change that
-  # lowers any of them by more than 0.001 fails here.
+  # the log risk ratio and the risk difference, from 0.939 to 0.9999. A
+  # method change that moves any of them by more than 0.001 in either
+  # direction fails here: wider intervals are a change too.
   observed <- rbind(
     c(0.014, 0.014, 0.9999, 0.9999, 0.9930),
     c(0.020, 0.020, 0.9993, 0.9994, 0.9838),
@@ -201,7 +203,7 @@ test_that("the naive contrast intervals are calibrated as documented", {
   )
   for (i in seq_len(nrow(observed))) {
     cov <- coverage(observed[i, 1], observed[i, 2])
-    expect_true(all(cov >= observed[i, 3:5] - 0.001),
+    expect_true(all(abs(cov - observed[i, 3:5]) <= 0.001),
                 label = paste(observed[i, 1], observed[i, 2]))
   }
 })

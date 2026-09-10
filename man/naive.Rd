@@ -37,8 +37,10 @@ Clopper-Pearson interval for a binomial proportion and the Garwood
 interval for a Poisson rate, the ones \code{binom.test()} and \code{poisson.test()}
 report, whose coverage is at least the nominal level for every true value
 (they are conservative rather than shortest). A comparator built from
-several aggregate rows is pooled for its interval, which is conservative
-for the size-weighted mean of its strata. The arm standard errors are
+several aggregate rows is pooled for its interval: independent Poisson
+counts add, so the pooled rate interval is exact for the exposure-weighted
+mean, and the pooled binomial interval is conservative for the
+size-weighted mean of its strata. The arm standard errors are
 still reported, and they and the contrasts use the boundary pseudo-count
 \code{(r + 0.5) / (n + 1)} when an arm has zero or all events, or 0.5 events
 when a Poisson count is zero; the reported crude proportions and rates
