@@ -61,9 +61,10 @@ proportional-hazards fit reports the time-specific target-standardized
 marginal hazard ratio, which uses \code{at_time} (the first fitted prediction
 time by default); an AFT fit reports its target-standardized location
 contrast, \code{exp(mean(eta_index) - mean(eta_comparator))} over the target
-rows, which is a \code{TR} when the coefficients are shared (and then identical
-for every target, since the covariate term cancels) and an
-\code{EXP_DELTA_ETA} when they are not. RMST effects are available throughout.}
+rows, which is a \code{TR} only when the coefficients AND the baseline shapes
+are shared (and then identical for every target, since the covariate
+term cancels) and an \code{EXP_DELTA_ETA} otherwise, including the default
+study-stratified shapes. RMST effects are available throughout.}
 
 \item{at_time}{Evaluation time for the scalar marginal hazard ratio, for
 proportional-hazards fits whose two studies have different baseline shapes
@@ -82,9 +83,10 @@ A data frame. With \code{summary = FALSE} the raw posterior draws are
 returned as a plain data frame (not plottable; plot methods need
 \code{summary = TRUE}); the column names encode the per-family effect scale
 (e.g. poisson \verb{delta_*} is a natural-scale rate ratio, null 1; survival is
-the exponentiated HR/TR). With \code{summary = TRUE} the \code{effect} column names
-the measure; with \code{summary = FALSE} the scale is carried by the draw column
-names themselves (\verb{lor_*}, \verb{rr_*}, \verb{delta_*}, \verb{hr_*} / \verb{tr_*}, \verb{rmst*}).
+the exponentiated scalar contrast). With \code{summary = TRUE} the \code{effect}
+column names the measure; with \code{summary = FALSE} the scale is carried by
+the draw column names themselves (\verb{lor_*}, \verb{rr_*}, \verb{delta_*}, \verb{hr_*} /
+\verb{tr_*} / \verb{exp_delta_eta_*} by what the fit's scalar is, \verb{rmst*}).
 Each summary row also carries \code{n_draws} and \code{n_draws_used}, which differ
 when \code{NA} or \code{NaN} draws were dropped from it.
 For survival, RMST-based rows also carry a \code{horizon} column (the raw-draw
@@ -146,18 +148,28 @@ on the fit:
 \item \strong{One shared shape, SPFA} (\code{TR}). The coefficients are shared, so
 \code{eta_index(x) - eta_comparator(x)} is the same constant \code{a} at every
 covariate profile. Every individual's survival time is accelerated by the
-same factor, so the population-standardized curves satisfy
-\code{S_index(t) = S_comparator(t / a)} exactly and this IS a population time
-ratio.
+same factor \code{exp(a)}, which is the returned scalar, so the
+population-standardized curves satisfy
+\code{S_index(t) = S_comparator(t / exp(a))} exactly and this IS a population
+time ratio. The divisor is the acceleration factor, not the log contrast
+\code{a} itself.
 \item \strong{Otherwise} (\code{EXP_DELTA_ETA}; differing shapes, or the relaxed
-model). The conditional acceleration varies with \code{x}, so it is the
-exponentiated average log ratio: equivalently the conditional time ratio
-at the mean linear predictor, or the geometric mean of the
-profile-specific conditional time ratios. It is \strong{not} generally a time
-ratio between the two standardized survival distributions: there need be
-no single \code{a} with \code{S_index(t) = S_comparator(t / a)} for all \code{t}, and
-different survival quantiles can imply different apparent acceleration
-factors. It is labeled \code{EXP_DELTA_ETA} rather than \code{TR} for that reason.
+model). With shared shapes and SPFA, the exponentiated location contrast
+is a common acceleration factor and a population time ratio, which is
+the case above. With shared shapes and treatment-specific coefficients,
+profile-specific conditional acceleration factors exist; their geometric
+mean is not generally a common acceleration factor for the standardized
+population. With differing shapes, the exponentiated location contrast
+is not generally a scalar conditional time ratio, even at one profile:
+an index arm with Weibull AFT shape 1 and a comparator arm with shape 2,
+at equal locations for one profile, have \code{exp(delta_eta) = 1}, while
+the index arm's time to a survival of 0.75, 0.5 and 0.25 is 0.54, 0.83
+and 1.18 times the comparator's. In neither case is there a single \code{a}
+with
+\code{S_index(t) = S_comparator(t / exp(a))} for all \code{t}. Use explicitly
+indexed survival quantiles or other clearly defined survival contrasts
+instead. It is labeled \code{EXP_DELTA_ETA} rather than \code{TR} for that
+reason.
 }
 Neither carries an evaluation time (\code{at_time} is \code{NA}). For a population
 contrast under differing covariate effects use the RMST-based effects, which

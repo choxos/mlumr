@@ -94,3 +94,27 @@ test_that("survival LOO consumes the pointwise log-likelihood", {
   expect_true(is.finite(l$estimates["elpd_loo", "Estimate"]))
 })
 
+
+test_that("a transported baseline shape is disclosed for loghr as well", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+
+  # conditional_effects(effect = "hr") refuses under study-specific shapes and
+  # sends the reader to predict(type = "loghr"). That made loghr the one output
+  # the package recommends here and the one that disclosed nothing. Being a
+  # contrast within one population settles the covariate transport, not the
+  # shape: with one arm per study the two hazards in the ratio carry two
+  # different study-specific baseline shapes.
+  dat <- sim_survival_data(seed = 2026)
+  fit <- fit_survival_test(dat, model = "spfa", distribution = "weibull")
+  expect_true(mlumr:::.aux_shapes_differ(fit))
+
+  withr::local_options(mlumr.transport_baseline_note = NULL)
+  expect_message(predict(fit, type = "loghr"), "baseline shape")
+
+  # And the note still fires only once per session, so adding loghr does not
+  # turn it into noise. Match on the note itself rather than asserting total
+  # silence: predict() is free to say other things.
+  again <- capture_messages(predict(fit, type = "loghr"))
+  expect_false(any(grepl("baseline shape", again, fixed = TRUE)))
+})
