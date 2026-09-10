@@ -433,11 +433,21 @@ test_that("zeros mixed with positives are refused only where the boundary is rea
   d <- .normal_stub(c(1, 1, 0), c(0, 0, -0))
   expect_identical(sprintf("%a", -0), "-0x0p+0")
   expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
-  # A zero row merely close to the positive rows' span, here off it by 1e-20
-  # through a near-collinear column, is neither pinned nor safely free: the
-  # loadings that would decide it are rounding, and the check declines.
+  # A zero row that is a combination of positive profiles, the midpoint of
+  # two here, is pinned as surely as a duplicate: every direction that leaves
+  # the positive predictors fixed leaves its own fixed too.
+  mid <- data.frame(.outcome = c(1, 1, 0), x1 = c(-1, 1, 0), x2 = c(-1, 1, 0))
+  d <- list(ipd = list(data = mid), covariates = c("x1", "x2"))
+  expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
+  # Off the span by 1e-20 of its size is within rounding of it, below the
+  # resolution stated on the guard, and reads as pinned too. Off by 1e-10 is
+  # neither pinned nor safely free: the loadings that would decide it are
+  # rounding, and the check declines.
   near <- data.frame(.outcome = c(1, 1, 1, 1, 0),
                      x1 = c(0, 0, 1, 1, 0), x2 = c(0, 0, 1, 1, 1e-20))
+  d <- list(ipd = list(data = near), covariates = c("x1", "x2"))
+  expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
+  near$x2[5] <- 1e-10
   d <- list(ipd = list(data = near), covariates = c("x1", "x2"))
   expect_error(mlumr:::.check_normal_residual_variation(d, "log"),
                "could not be decided")
@@ -457,11 +467,13 @@ test_that("zeros mixed with positives are refused only where the boundary is rea
   d <- list(ipd = list(data = opposite), covariates = c("x1", "x2"))
   expect_error(mlumr:::.check_normal_residual_variation(d, "log"),
                "could not be decided")
-  # A row that differs from the positive profile by 1e-20 is free, not
-  # pinned: centering on the midrange would round it onto the profile and
-  # pass a reachable boundary, so the feasibility rows are scaled by powers
-  # of two and never shifted.
-  d <- .normal_stub(c(1, 1, 0, 0), c(0, 0, 1e-20, 1))
+  # A row that differs from the positive profile by 1e-6 of the column's
+  # size is free, and with the other zero row it loads the one direction
+  # with a common sign: reachable. The feasibility rows are scaled by powers
+  # of two and never shifted, so no centering can round such a row onto the
+  # profile; a row off it by 1e-20 is below the resolution stated on the
+  # guard and reads as pinned, which is the case two blocks above.
+  d <- .normal_stub(c(1, 1, 0, 0), c(0, 0, 1e-6, 1))
   expect_error(mlumr:::.check_normal_residual_variation(d, "log"),
                "taking every zero row there")
   # Beyond two effective directions the check does not attempt the question.
@@ -502,6 +514,12 @@ test_that("the near-exact screen for mixed zeros sees the whole outcome", {
   # With the zero rows pinned to the positive profile their means are
   # positive numbers of the outcome's own size, and nothing is near exact.
   d <- .normal_stub(c(3, 5, 0, 0), c(0, 0, 0, 0))
+  expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
+  # Positive outcomes spanning more than the exponent range cannot be
+  # represented on one scale for the response-scale fit. The screen stands
+  # aside and the structural verdict, proper, stands; it used to die on
+  # log(0) after scaling the small end to zero.
+  d <- .normal_stub(c(1e-200, 1e200, 0), c(0, 0, 1))
   expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
 })
 

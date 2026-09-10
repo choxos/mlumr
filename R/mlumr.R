@@ -247,17 +247,24 @@
   if (r == p) {
     return("unreachable")
   }
-  # A zero row on a positive row's own profile is pinned, and that is read
-  # bitwise so it holds whatever the size of the values. A zero row that is
-  # merely close to the row space of the positive rows, to within 1e-8 of its
-  # own size, is neither pinned nor safely free: the loadings that decide the
-  # rest are rounding at that point, so the answer is unknown.
+  # A zero row in the row space of the positive rows is pinned: every
+  # direction that leaves the positive predictors fixed leaves its own fixed
+  # too. A duplicate of a positive profile is read bitwise, so that holds
+  # whatever the size of the values; a row that is a combination of positive
+  # profiles, the midpoint of two say, is read at machine precision, since a
+  # contrast below that is below the resolution stated on the guard. A zero
+  # row merely close to the row space, within 1e-8 of its own size but not
+  # within rounding, is neither pinned nor safely free: the loadings that
+  # decide the rest are rounding at that point, so the answer is unknown.
   if (any(.row_keys(X_zero) %in% .row_keys(X_pos))) {
     return("unreachable")
   }
   row_space <- qr.Q(qr(t(X_pos), tol = tol))[, seq_len(r), drop = FALSE]
   off_space <- X_zero - X_zero %*% row_space %*% t(row_space)
   closeness <- sqrt(rowSums(off_space^2)) / sqrt(rowSums(X_zero^2))
+  if (any(closeness < 1e-14)) {
+    return("unreachable")
+  }
   if (any(closeness < 1e-8)) {
     return("unknown")
   }
@@ -636,12 +643,23 @@
 #' @keywords internal
 .screen_mixed_zero <- function(X_raw, y, pos, center = TRUE) {
   X <- if (center) .center_design(X_raw) else .scale_design(X_raw)
-  power <- min(max(floor(log2(max(y))), -1022), 1023)
+  # Scale by a power of two at the midrange of the positive outcomes' log
+  # range, so both ends stay representable whenever the span fits at all:
+  # scaling to the maximum alone underflowed the small end of a wide outcome
+  # to zero, and the fit below then died on log(0) instead of standing aside.
+  # Zeros are zeros at any scale.
+  log2_pos <- log2(y[pos])
+  power <- floor((max(log2_pos) + min(log2_pos)) / 2)
+  power <- min(max(power, -1022), 1023)
   y <- y / 2^power
-  start <- stats::lm.fit(X[pos, , drop = FALSE], log(y[pos]),
-                         tol = .Machine$double.eps)$coefficients
-  start[is.na(start)] <- 0
-  ratio <- .log_link_response_ratio(X, y, start = start)
+  # The screen is optional: an outcome it cannot represent, or a fit that
+  # cannot start, leaves the verdict where the structural checks put it.
+  ratio <- tryCatch({
+    start <- stats::lm.fit(X[pos, , drop = FALSE], log(y[pos]),
+                           tol = .Machine$double.eps)$coefficients
+    start[is.na(start)] <- 0
+    .log_link_response_ratio(X, y, start = start)
+  }, error = function(e) NA_real_)
   if (is.finite(ratio) && ratio <= 1e-6) {
     .warn_near_exact(ratio)
     return(invisible(TRUE))
