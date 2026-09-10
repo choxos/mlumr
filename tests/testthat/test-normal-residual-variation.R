@@ -742,13 +742,15 @@ test_that("the exact rank agrees with a QR wherever the QR is trustworthy", {
                                              c(1, 2)))$rank, 2L)
   wide <- c(tiny, 5e307)
   expect_identical(mlumr:::.exact_rank(cbind(wide, 2 * wide))$rank, 1L)
-  # And the decimal 1e308 is not twice the decimal 5e307 once both are
-  # doubles: they differ by a unit in the last place, and the exact rank
-  # says so where a QR at machine precision cannot.
-  expect_false(2 * 5e307 == 1e308)
-  expect_identical(mlumr:::.exact_rank(cbind(wide, c(2 * tiny, 1e308)))$rank,
-                   2L)
-  expect_identical(qr(cbind(wide, c(2 * tiny, 1e308)))$rank, 1L)
+  # One unit in the last place off exact proportionality at the top of the
+  # range is a distinct number, and the exact rank says so where a QR at
+  # machine precision cannot. (Built by multiplication: whether the decimal
+  # 1e308 parses to twice the decimal 5e307 differs between platforms.)
+  nudged <- 2 * wide
+  nudged[2] <- nudged[2] * (1 + .Machine$double.eps)
+  expect_false(nudged[2] == 2 * wide[2])
+  expect_identical(mlumr:::.exact_rank(cbind(wide, nudged))$rank, 2L)
+  expect_identical(qr(cbind(wide, nudged))$rank, 1L)
   expect_identical(mlumr:::.exact_rank(matrix(0, 3, 2))$rank, 0L)
   expect_identical(mlumr:::.exact_rank(matrix(0, 0, 2))$rank, 0L)
 })
