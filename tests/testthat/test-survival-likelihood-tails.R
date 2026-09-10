@@ -518,3 +518,29 @@ test_that("a Weibull cumulative-hazard difference is written from the upper boun
               1e-10)
   }
 })
+
+test_that("a shape near the bottom of the double range keeps a tiny increment", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  env <- expose_survival_likelihood()
+  nextafter <- function(t) t + 2^(floor(log2(abs(t))) - 52)
+
+  # The product of a shape of 1e-310 and an interval of 1e-14 underflows to
+  # zero, and log(1 - exp(-0)) is -Inf, where the log probability is an
+  # ordinary -33. The product's log is taken as the sum of the logs there.
+  upper <- 1 + 1e-14
+  dt <- upper - 1
+  expect_identical(1e-310 * dt, 0)
+  ref <- log(dt) - 1
+  expect_lt(abs(env$surv_ll_status(3L, upper, 1, 0, 3L, 0, 1e-310, 0) - ref),
+            1e-9)
+  # The log-logistic and Weibull forms take the same product of the shape
+  # and log(u / l), one ULP wide here, whose true log probability near -774
+  # is representable.
+  width <- nextafter(1) - 1
+  expect_identical(1e-320 * width, 0)
+  expect_lt(abs(env$surv_ll_status(7L, nextafter(1), 1, 0, 3L, 0, 1e-320, 0) -
+                  (log(1e-320) + log(width) - log(4))), 1e-9)
+  expect_lt(abs(env$surv_ll_status(2L, nextafter(1), 1, 0, 3L, 0, 1e-320, 0) -
+                  (log(1e-320) + log(width) - 1)), 1e-9)
+})

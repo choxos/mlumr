@@ -363,6 +363,16 @@ real log_time_ratio(real t_upper, real t_lower) {
   return log1p((t_upper - t_lower) / t_lower);
 }
 
+// log(1 - exp(-a b)) for positive a and b whose product can underflow to
+// zero: a Gompertz shape of 1e-310 times an interval of 1e-14, say. There the
+// value is log(a) + log(b) to within a relative a b / 2, which is the same
+// number the log-scale route took before the difference was rewritten.
+real log1m_exp_neg_prod(real a, real b) {
+  real ab = a * b;
+  if (ab == 0) return log(a) + log(b);
+  return log1m_exp(-ab);
+}
+
 // log(H(u) - H(l)). The Weibull and Gompertz differences are written from
 // the UPPER bound, as a log H(u) + log(1 - exp(-(a log(u / l)))), rather
 // than from the lower bound as a log t_l + log(expm1(a log(u / l))). The two
@@ -378,12 +388,12 @@ real log_cumhaz_diff(int dist, real t_upper, real t_lower, real eta,
   if (dist == 1) return eta + log(dt);
   if (dist == 4) return -eta + log(dt);
   if (dist == 3)
-    return eta - log(aux) + aux * t_upper + log1m_exp(-aux * dt);
+    return eta - log(aux) + aux * t_upper + log1m_exp_neg_prod(aux, dt);
   if (t_lower == 0) return log_cumhaz_scalar(dist, t_upper, eta, aux);
   {
     real log_power_diff = aux * log(t_upper)
-                          + log1m_exp(-aux * log_time_ratio(t_upper,
-                                                            t_lower));
+                          + log1m_exp_neg_prod(aux, log_time_ratio(t_upper,
+                                                                   t_lower));
     if (dist == 2) return eta + log_power_diff;
     return -aux * eta + log_power_diff; // Weibull AFT
   }
@@ -533,9 +543,10 @@ real log_interval_prob_quad(int dist, real t_upper, real t_lower, real eta,
 real log_loglogistic_interval(real t_upper, real t_lower, real t_entry,
                               real eta, real aux) {
   real z_l = aux * (log(t_lower) - eta);
-  real d = aux * log_time_ratio(t_upper, t_lower);
+  real log_ratio = log_time_ratio(t_upper, t_lower);
+  real d = aux * log_ratio;
   real z_u = z_l + d;
-  real lp = log1m_exp(-d) - log1p_exp(-z_u);
+  real lp = log1m_exp_neg_prod(aux, log_ratio) - log1p_exp(-z_u);
   if (t_entry > 0) {
     real z_e = aux * (log(t_entry) - eta);
     if (z_e >= 0) {
