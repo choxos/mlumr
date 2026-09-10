@@ -457,17 +457,27 @@ real log_surv_increment(int dist, real t_upper, real t_lower, real eta,
       if (log_x_lower > log(shape + fmax(1, sqrt(shape)))) {
         real log_dx = log_x_lower + log(expm1(dlog_x));
         real dx = exp(log_dx);
-        // The increment of the incomplete-gamma argument, or the upper
-        // argument itself, can overflow: a generalized gamma with sigma
-        // 0.0009 over (1, 2] has an upper argument of exp(780). The
-        // survival ratio is then zero to double precision and the
-        // increment -inf, which the caller reads as an interval holding
-        // everything that remains; the continued-fraction factor at an
-        // infinite argument gave NaN instead, and the interval fell to a
-        // quadrature whose grid cannot see the layer holding its mass.
-        if (is_inf(dx) || is_inf(exp(log_x_lower + dlog_x)))
+        // The increment of the incomplete-gamma argument can overflow: a
+        // generalized gamma with sigma 0.0009 over (1, 2] has an upper
+        // argument of exp(780). The survival ratio is then zero to double
+        // precision and the increment -inf, which the caller reads as an
+        // interval holding everything that remains; the continued-fraction
+        // factor at an infinite argument gave NaN instead, and the interval
+        // fell to a quadrature whose grid cannot see the layer holding its
+        // mass. The decision is on the increment, never on the endpoints:
+        // a Gamma of shape 1 at eta = -710 has both cumulative hazards
+        // beyond the double range at entry 1 and one ULP above it, and
+        // their difference, exp(710) * 2^-52, is a finite log likelihood
+        // near -4.96e292 that an endpoint test threw away as -inf.
+        if (is_inf(dx))
           return negative_infinity();
-        if (is_inf(exp(log_x_lower)))
+        // An overflowing upper argument with a finite increment means the
+        // increment itself is near the top of the double range. The tail
+        // form below drops the continued-fraction factors' ratio, which is
+        // exp(-dlog_x) times 1 + O(shape / x_lower), and that O() term is
+        // at most shape / x_lower in the log against a value near -1e308:
+        // nothing a double can see, whatever x_lower is.
+        if (is_inf(exp(log_x_lower + dlog_x)))
           return -dx + (shape - 1) * dlog_x;
         {
           real x_lower = exp(log_x_lower);
