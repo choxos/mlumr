@@ -5,9 +5,10 @@ linear-programming question, not a threshold one: the fit is separated
 exactly when some linear combination of the covariates perfectly orders
 the outcome, and a fit that is merely strong can look identical in the
 coefficients and the fitted values. detectseparation solves that
-program. It is in Suggests, so this returns `NA` when it is absent and
-the caller keeps the fitted-value test as its only screen; that is a
-weaker guarantee, not a wrong one.
+program. It is in Suggests, so when it is absent this returns the
+`"unknown"` status with the reason, and the caller keeps the
+fitted-value test as its only screen; that is a weaker guarantee, not a
+wrong one.
 
 ## Usage
 

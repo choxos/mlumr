@@ -28,7 +28,13 @@ nothing about it looks wrong.
 
 ## Value
 
-`NULL`, invisibly; called for the error.
+The separation status, invisibly: a list with `status`, one of
+`"not_separated"`, `"unknown"` or `"not_applicable"`, and `reason` for
+the latter two. `"separated"` is never returned, since it throws.
+`"not_applicable"` means this binomial separation test does not apply to
+the fitted family, not that the family has no finite-maximum problem of
+its own. Callers record it on the result so a verified estimate can be
+told apart from an unverified one after the warning has scrolled away.
 
 ## Details
 

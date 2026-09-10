@@ -90,7 +90,17 @@ stc(
 
 ## Value
 
-An object of class `mlumr_stc`
+An object of class `mlumr_stc`. Its `separation` component records the
+outcome of the binomial separation check, and only that: `status` is
+`"not_separated"` when the exact check ran on a binomial outcome model
+and found no separation, `"unknown"` when it could not run (only the
+fitted-value screen was applied, which cannot see quasi-complete
+separation), and `"not_applicable"` when the outcome model is not a
+binomial GLM, so this particular test has nothing to say. It is not a
+certificate that the likelihood has a finite maximum for other families;
+a Poisson outcome model can have an infinite maximum likelihood estimate
+of its own kind, and nothing here looks for it. A separated fit is
+refused rather than returned, so `"separated"` never appears here.
 
 ## Details
 

@@ -106,7 +106,13 @@ because nothing about it looks wrong.</p>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p><code>NULL</code>, invisibly; called for the error.</p>
+    <p>The separation status, invisibly: a list with <code>status</code>, one of
+<code>"not_separated"</code>, <code>"unknown"</code> or <code>"not_applicable"</code>, and <code>reason</code> for
+the latter two. <code>"separated"</code> is never returned, since it throws.
+<code>"not_applicable"</code> means this binomial separation test does not apply to
+the fitted family, not that the family has no finite-maximum problem of
+its own. Callers record it on the result so a verified estimate can be
+told apart from an unverified one after the warning has scrolled away.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
