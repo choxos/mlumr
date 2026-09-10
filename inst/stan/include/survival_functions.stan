@@ -440,6 +440,27 @@ real log_surv_increment(int dist, real t_upper, real t_lower, real eta,
          - log_surv_scalar(dist, t_lower, eta, aux, aux2);
 }
 
+// Whether log_surv_increment() takes one of its tail branches for these
+// inputs, where the increment is formed without differencing two survival
+// logs and carries only rounding relative to itself. Mirrors the branch
+// conditions above; the closed-form families always do, and the log-logistic
+// never reaches here because its interval has its own closed form.
+int surv_increment_is_analytic(int dist, real t_lower, real eta, real aux,
+                               real aux2) {
+  if (dist <= 5) return 1;
+  if (t_lower == 0) return 1;
+  if (dist == 6) return (log(t_lower) - eta) / aux > 5;
+  if (dist == 7) return aux * (log(t_lower) - eta) > 0;
+  {
+    real shape = dist == 8 ? aux : aux2;
+    real log_x_lower = dist == 8
+                         ? log(t_lower) - eta
+                         : log(aux2) + inv(sqrt(aux2)) * (log(t_lower) - eta)
+                                       / aux;
+    return log_x_lower > log(shape + fmax(1, sqrt(shape)));
+  }
+}
+
 // Log P(t_lower < T <= t_upper) by quadrature of the density, for an interval
 // that neither the CDF difference nor the survival increment resolves. Both
 // of those subtract one double from another, and once the interval's mass is
@@ -484,17 +505,33 @@ real log_interval_prob_quad(int dist, real t_upper, real t_lower, real eta,
   return cur;
 }
 
-// log(F(u) - F(l)) for the log-logistic, in a closed form with no subtraction
-// of nearby numbers. With z = a (log t - eta), F = 1 / (1 + e^{-z}), and
-//   F(u) - F(l) = e^{z_l} (e^d - 1) / ((1 + e^{z_l}) (1 + e^{z_l + d}))
-// for d = a log(u / l). Every factor is a log1p_exp or an expm1, so this is
-// exact to rounding whether the interval is a ULP wide or a hundredfold, and
-// whatever the shape.
-real log_loglogistic_interval(real t_upper, real t_lower, real eta, real aux) {
+// log P(l < T <= u | T > e) for the log-logistic, in a closed form with no
+// subtraction of nearby numbers. With z = a (log t - eta), F = 1 / (1 +
+// e^{-z}) and S = 1 / (1 + e^{z}), so
+//   (F(u) - F(l)) / S(e) = e^{z_l} (e^d - 1) (1 + e^{z_e})
+//                          / ((1 + e^{z_l}) (1 + e^{z_u}))
+// for d = a log(u / l). Written as
+//   -log1p_exp(-z_l) + log(expm1(d)) + [g(z_e) - g(z_u)],  g = log1p_exp,
+// where the first term is what e^{z_l} / (1 + e^{z_l}) is, and the bracket
+// is taken as [max(z_e, 0) - max(z_u, 0)] + [log1p(e^{-|z_e|}) -
+// log1p(e^{-|z_u|})]. In a far right tail z_e and z_u are both enormous and
+// their difference is a (log e - log u), which log_time_ratio() supplies
+// without forming either; adding an unconditional log probability near
+// -1e16 to a -log S(e) of the same size returned 0 for a conditional value
+// of -0.46. Unconditional is e = 0, where z_e is -inf and g(z_e) is 0.
+real log_loglogistic_interval(real t_upper, real t_lower, real t_entry,
+                              real eta, real aux) {
   real z_l = aux * (log(t_lower) - eta);
+  real z_u = aux * (log(t_upper) - eta);
   real d = aux * log_time_ratio(t_upper, t_lower);
-  return z_l + log_expm1_from_log_x(log(d)) - log1p_exp(z_l)
-         - log1p_exp(z_l + d);
+  real z_e = t_entry > 0 ? aux * (log(t_entry) - eta) : negative_infinity();
+  real ramp;
+  real curve;
+  if (z_e >= 0) ramp = -aux * log_time_ratio(t_upper, t_entry);
+  else if (z_u >= 0) ramp = -z_u;
+  else ramp = 0;
+  curve = log1p(exp(-abs(z_e))) - log1p(exp(-abs(z_u)));
+  return -log1p_exp(-z_l) + log_expm1_from_log_x(log(d)) + ramp + curve;
 }
 
 // Whether a CDF difference resolves the interval. The two log CDFs each carry
@@ -515,12 +552,21 @@ int cdf_diff_resolves(real log_cdf_upper, real log_cdf_lower) {
          > fmin(0.5, 1e-5 * fmax(1, -log_cdf_upper));
 }
 
-// The same test for the survival increment log S(u) - log S(l), whose error
-// is near eps * |log S(l)|. A log-normal with sigma 1e-4 has log S near
-// -5e9 by t = 1e4, so the cap is what keeps the increment route, which the
-// tail branch computes without differencing, in charge there.
-int surv_increment_resolves(real increment, real log_surv_lower) {
-  if (increment >= 0 || is_inf(increment)) return 0;
+// The same test for the survival increment log S(u) - log S(l). Formed by
+// differencing two survival logs its error is near eps * |log S(l)|, and
+// the mass test applies. Formed in a tail branch it carries only rounding
+// relative to itself, so any negative value resolves the interval, negative
+// infinity included: that is an interval holding everything past S(l), for
+// which log1m_exp() is exactly zero. A log-normal with sigma 5e-8 at
+// t = 1 has log S near -1.25e15 and an increment of -0.22 over one ULP, an
+// interval holding a fifth of what remains; the quadrature cannot resolve
+// the layer that mass sits in, and its result cancelled against
+// log S(entry) to the wrong conditional value.
+int surv_increment_resolves(real increment, real log_surv_lower,
+                            int analytic) {
+  if (is_nan(increment) || increment >= 0) return 0;
+  if (analytic) return 1;
+  if (is_inf(increment)) return 0;
   return -expm1(increment) > fmin(0.5, 1e-5 * fmax(1, -log_surv_lower));
 }
 
@@ -544,7 +590,8 @@ real log_interval_prob_scalar(int dist, real t_upper, real t_lower, real eta,
     return log_surv_scalar(dist, t_lower, eta, aux, aux2)
            + log1m_exp_neg_exp(log_cumhaz_diff(dist, t_upper, t_lower, eta,
                                                aux));
-  if (dist == 7) return log_loglogistic_interval(t_upper, t_lower, eta, aux);
+  if (dist == 7)
+    return log_loglogistic_interval(t_upper, t_lower, 0, eta, aux);
   {
     real log_cdf_upper = log_cdf_scalar(dist, t_upper, eta, aux, aux2);
     if (log_cdf_upper < -0.6931471805599453) {
@@ -554,7 +601,9 @@ real log_interval_prob_scalar(int dist, real t_upper, real t_lower, real eta,
     } else {
       real log_surv_lower = log_surv_scalar(dist, t_lower, eta, aux, aux2);
       real inc = log_surv_increment(dist, t_upper, t_lower, eta, aux, aux2);
-      if (surv_increment_resolves(inc, log_surv_lower))
+      if (surv_increment_resolves(inc, log_surv_lower,
+                                  surv_increment_is_analytic(dist, t_lower,
+                                                             eta, aux, aux2)))
         return log_surv_lower + log1m_exp(inc);
     }
   }
@@ -589,8 +638,7 @@ real log_cond_interval_prob(int dist, real t_upper, real t_lower, real t_entry,
                                                aux));
   }
   if (dist == 7)
-    return log_loglogistic_interval(t_upper, t_lower, eta, aux)
-           + log1p_exp(aux * (log(t_entry) - eta));
+    return log_loglogistic_interval(t_upper, t_lower, t_entry, eta, aux);
   {
     real log_cdf_upper = log_cdf_scalar(dist, t_upper, eta, aux, aux2);
     if (log_cdf_upper < -0.6931471805599453) {
@@ -601,7 +649,9 @@ real log_cond_interval_prob(int dist, real t_upper, real t_lower, real t_entry,
     } else {
       real log_surv_lower = log_surv_scalar(dist, t_lower, eta, aux, aux2);
       real inc = log_surv_increment(dist, t_upper, t_lower, eta, aux, aux2);
-      if (surv_increment_resolves(inc, log_surv_lower))
+      if (surv_increment_resolves(inc, log_surv_lower,
+                                  surv_increment_is_analytic(dist, t_lower,
+                                                             eta, aux, aux2)))
         return (t_lower == t_entry
                   ? 0
                   : log_surv_increment(dist, t_lower, t_entry, eta, aux, aux2))

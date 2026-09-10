@@ -396,3 +396,53 @@ test_that("a lower bound at the bottom of the double range does not overflow the
   expect_lt(abs(env$surv_ll_status(8L, upper, lower, 0, 3L, 0, 2, 0) -
                   pgamma(upper, 2, log.p = TRUE)), 1e-12)
 })
+
+test_that("an increment formed in a tail branch resolves its interval whatever its size", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  env <- expose_survival_likelihood()
+  nextafter <- function(t) t + 2^(floor(log2(abs(t))) - 52)
+
+  # Log-normal, sigma 5e-8, entry and lower bound at 1, upper one ULP above:
+  # z is 5e7 and log S near -1.25e15. The tail branch forms the increment
+  # from dz (z_u + z_l) / 2 without differencing, -0.222 here, an interval
+  # holding a fifth of what remains. The mass test sent it to quadrature,
+  # whose grid cannot resolve the layer next to the lower bound, and the
+  # result cancelled against log S(entry) to -1.25 for a value of -1.614.
+  eta <- -2.5
+  aux <- 5e-8
+  z_l <- (log(1) - eta) / aux
+  dz <- (log(nextafter(1)) - log(1)) / aux
+  ref <- log1p(-exp(-0.5 * dz * (2 * z_l + dz)))
+  expect_lt(abs(env$surv_ll_status(6L, nextafter(1), 1, 1, 3L, eta, aux, 0) -
+                  ref), 1e-6)
+
+  # An increment of -Inf from a tail branch is an interval holding everything
+  # past S(l), for which log1m_exp() is exactly zero: the log probability is
+  # log S(l). It was rejected as unresolved and sent to quadrature.
+  eta <- -1e-169
+  aux <- 1e-170
+  ref <- pnorm((log(1) - eta) / aux, lower.tail = FALSE, log.p = TRUE)
+  expect_lt(abs(env$surv_ll_status(6L, nextafter(1), 1, 0, 3L, eta, aux, 0) -
+                  ref), 1e-9)
+})
+
+test_that("the log-logistic conditional form does not cancel in a far tail", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  env <- expose_survival_likelihood()
+
+  # Entry and lower bound at 1, upper at e, eta -1e16: the unconditional log
+  # probability is near -1e16 and so is -log S(entry), and their sum
+  # returned 0 for a conditional value of log(1 - e^-1). The conditional
+  # form takes z_e - z_u as a log of a time ratio and never forms either.
+  ref <- log(-expm1(-1))
+  expect_lt(abs(env$surv_ll_status(7L, exp(1), 1, 1, 3L, -1e16, 1, 0) - ref),
+            1e-12)
+  # And the ordinary conditional case is unchanged by the rewrite.
+  z <- function(t) 1.5 * (log(t) - 0.2)
+  ref <- log(plogis(z(0.01)) - plogis(z(0.005))) -
+    plogis(z(0.001), lower.tail = FALSE, log.p = TRUE)
+  expect_lt(abs(env$surv_ll_status(7L, 0.01, 0.005, 0.001, 3L, 0.2, 1.5, 0) -
+                  ref), 1e-12)
+})
