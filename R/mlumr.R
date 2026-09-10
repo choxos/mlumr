@@ -238,9 +238,13 @@
 #'
 #' @param X_pos Scaled design rows of the positive outcomes.
 #' @param X_zero Scaled design rows of the zero outcomes.
+#' @param raw_pos,raw_zero The same rows unscaled, for the bitwise duplicate
+#'   test: scaling a column that spans most of the double range underflows
+#'   its smallest entries to zero, and a zero row at 1e-200 would then read
+#'   as a duplicate of a positive row at 0.
 #' @return `"reachable"`, `"unreachable"` or `"unknown"`.
 #' @keywords internal
-.zero_boundary <- function(X_pos, X_zero) {
+.zero_boundary <- function(X_pos, X_zero, raw_pos = X_pos, raw_zero = X_zero) {
   tol <- .Machine$double.eps
   r <- qr(X_pos, tol = tol)$rank
   p <- ncol(X_pos)
@@ -256,7 +260,7 @@
   # row merely close to the row space, within 1e-8 of its own size but not
   # within rounding, is neither pinned nor safely free: the loadings that
   # decide the rest are rounding at that point, so the answer is unknown.
-  if (any(.row_keys(X_zero) %in% .row_keys(X_pos))) {
+  if (any(.row_keys(raw_zero) %in% .row_keys(raw_pos))) {
     return("unreachable")
   }
   row_space <- qr.Q(qr(t(X_pos), tol = tol))[, seq_len(r), drop = FALSE]
@@ -547,7 +551,9 @@
     if (!passes) {
       X <- .scale_design(X_raw)
       reach <- .zero_boundary(X[pos, , drop = FALSE],
-                              X[!pos, , drop = FALSE])
+                              X[!pos, , drop = FALSE],
+                              X_raw[pos, , drop = FALSE],
+                              X_raw[!pos, , drop = FALSE])
       passes <- identical(reach, "unreachable")
     }
     if (passes) {

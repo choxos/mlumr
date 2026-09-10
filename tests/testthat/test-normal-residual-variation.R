@@ -523,6 +523,22 @@ test_that("the near-exact screen for mixed zeros sees the whole outcome", {
   expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
 })
 
+test_that("a column spanning the double range does not fake a duplicate", {
+  # Dividing a column that holds 1e308 by 2^1023 underflows an entry of
+  # 1e-200 to zero, and the bitwise duplicate test then read a zero row at
+  # 1e-200 as a positive row at 0. The duplicate test now sees the raw rows.
+  # The row is still below the resolution stated on the guard relative to
+  # the column, so it reads as pinned by the row-space test rather than as
+  # a duplicate; this pins the reason, not the verdict.
+  X_pos <- cbind(1, c(0, 0))
+  X_zero <- cbind(1, c(1e-200, 1e308))
+  scaled <- mlumr:::.scale_design(rbind(X_pos, X_zero))
+  expect_identical(scaled[3, 2], 0)
+  expect_false(any(mlumr:::.row_keys(X_zero) %in% mlumr:::.row_keys(X_pos)))
+  expect_true(any(mlumr:::.row_keys(scaled[3:4, , drop = FALSE]) %in%
+                    mlumr:::.row_keys(scaled[1:2, , drop = FALSE])))
+})
+
 test_that("a predictor at the largest double is scaled, not zeroed", {
   # log2() of the largest double rounds to 1024 and 2^1024 is Inf, so the
   # power-of-two scaling divided the column by Inf and every profile read as

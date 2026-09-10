@@ -4,12 +4,17 @@
 \alias{.zero_boundary}
 \title{Whether zero rows can be sent to the boundary while positive rows stay fit}
 \usage{
-.zero_boundary(X_pos, X_zero)
+.zero_boundary(X_pos, X_zero, raw_pos = X_pos, raw_zero = X_zero)
 }
 \arguments{
 \item{X_pos}{Scaled design rows of the positive outcomes.}
 
 \item{X_zero}{Scaled design rows of the zero outcomes.}
+
+\item{raw_pos, raw_zero}{The same rows unscaled, for the bitwise duplicate
+test: scaling a column that spans most of the double range underflows
+its smallest entries to zero, and a zero row at 1e-200 would then read
+as a duplicate of a positive row at 0.}
 }
 \value{
 \code{"reachable"}, \code{"unreachable"} or \code{"unknown"}.
