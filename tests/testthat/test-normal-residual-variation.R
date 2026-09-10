@@ -483,3 +483,22 @@ test_that("a predictor spanning both extremes does not overflow the centering", 
   d <- .normal_stub(c(0, 0, 1, 1), x)
   expect_error(mlumr:::.check_normal_residual_variation(d), "improper")
 })
+
+test_that("a predictor in tiny units is not dropped before the fit", {
+  # The intercept is a column of ones and this predictor's whole range is
+  # 2^-60, so a QR that judged columns against the largest one would discard
+  # it as redundant, and an outcome reproduced exactly through it, y = 2^60 x,
+  # would read as ordinary variation against the intercept alone. R's
+  # dqrdc2 judges a column against its own original norm and keeps it, but
+  # the design is scaled to unit columns before any factorization so the
+  # verdict does not hang on that detail of one QR routine.
+  x <- (0:8) * 2^-60
+  d <- .normal_stub(0:8, x)
+  expect_error(mlumr:::.check_normal_residual_variation(d), "improper")
+  # And a real residual through such a column is still seen as small but
+  # real, not as the whole outcome.
+  set.seed(2026)
+  y <- 2 + 2^60 * x + rnorm(9, sd = 1e-6)
+  expect_warning(mlumr:::.check_normal_residual_variation(.normal_stub(y, x)),
+                 "concentrate near zero")
+})

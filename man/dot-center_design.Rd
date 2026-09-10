@@ -2,7 +2,7 @@
 % Please edit documentation in R/mlumr.R
 \name{.center_design}
 \alias{.center_design}
-\title{Center a design's predictors on their midrange}
+\title{Center a design's predictors on their midrange and scale them to unit size}
 \usage{
 .center_design(X)
 }
@@ -10,10 +10,10 @@
 \item{X}{Design matrix, intercept first.}
 }
 \value{
-The centered design.
+The centered and scaled design.
 }
 \description{
-This adds a multiple of the intercept column, so the column space, the
+Centering adds a multiple of the intercept column, so the column space, the
 fitted values and the residual are all unchanged, but the coefficients stop
 carrying the offset. Without it a predictor recorded as \code{x + 1e12} forces an
 intercept near \code{-1e12 * slope}, and the rounding bound counts that
@@ -25,5 +25,16 @@ the shift can overflow: a column holding values near both 1e308 and -1e308
 has a mean that overflows on this platform's double accumulation and a
 shift from it that overflows for the far value, and either sends a
 non-finite design into \code{qr()}. Any center serves; only the offset matters.
+
+Scaling each centered column to a largest absolute value of one keeps the
+rank and pivot decisions independent of the predictor's units whatever the
+factorization's pivoting rule. R's \code{dqrdc2} judges a column against its own
+original norm, so a predictor whose whole range is \code{2^-60} survives beside
+an intercept of ones; a rule that judged it against the largest column
+would drop it, and an outcome exactly reproduced through it would then read
+as an ordinary residual against the intercept alone. Scaling a column by
+\code{c} scales its coefficient by \code{1 / c}, so the rounding bound
+\verb{p * eps * |X||b|} is unchanged, and the column space, the fitted values
+and every feasibility question are too.
 }
 \keyword{internal}
