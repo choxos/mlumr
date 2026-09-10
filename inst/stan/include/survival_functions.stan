@@ -457,6 +457,16 @@ real log_surv_increment(int dist, real t_upper, real t_lower, real eta,
       if (log_x_lower > log(shape + fmax(1, sqrt(shape)))) {
         real log_dx = log_x_lower + log(expm1(dlog_x));
         real dx = exp(log_dx);
+        // The increment of the incomplete-gamma argument, or the upper
+        // argument itself, can overflow: a generalized gamma with sigma
+        // 0.0009 over (1, 2] has an upper argument of exp(780). The
+        // survival ratio is then zero to double precision and the
+        // increment -inf, which the caller reads as an interval holding
+        // everything that remains; the continued-fraction factor at an
+        // infinite argument gave NaN instead, and the interval fell to a
+        // quadrature whose grid cannot see the layer holding its mass.
+        if (is_inf(dx) || is_inf(exp(log_x_lower + dlog_x)))
+          return negative_infinity();
         if (is_inf(exp(log_x_lower)))
           return -dx + (shape - 1) * dlog_x;
         {
@@ -494,54 +504,102 @@ int surv_increment_is_analytic(int dist, real t_lower, real eta, real aux,
   }
 }
 
-// Log P(t_lower < T <= t_upper) by quadrature of the density, for an interval
-// that neither the CDF difference nor the survival increment resolves. Both
-// of those subtract one double from another, and once the interval's mass is
-// a small fraction of the quantity being differenced the difference is mostly
-// rounding: a 4-ULP interval came back 16% low from one and 29% high from the
-// other. Integrating the density has no such floor, but a midpoint value times
-// the width is not enough either, since the interval need not be narrow: a
-// log-logistic with shape 1e-20 puts 1e-20 of its mass on (1, 100], where the
-// density falls a hundredfold, and the midpoint rule was 57% low there.
-//
-// So this is composite Simpson in s = log(t), on the integrand f(e^s) e^s
-// accumulated with log_sum_exp. The log substitution makes any density that
-// behaves as 1/t constant, which is the wide-interval case above, and leaves
-// every family here smooth. The panel count doubles until two successive
-// estimates agree to 1e-10 in relative terms; a genuinely narrow interval has
-// a constant integrand and passes at the first comparison.
-real log_interval_prob_quad(int dist, real t_upper, real t_lower, real eta,
-                            real aux, real aux2) {
-  real s_l = log(t_lower);
-  real width = log_time_ratio(t_upper, t_lower);
-  // Every node is the base log time s_l plus an offset along the interval,
-  // and the offset travels separately into the density: a node formed as
-  // exp(s_l + offset) and logged again loses any offset below an ULP of
-  // s_l, which is every node of a narrow interval.
-  real f_l = log_density_offset(dist, s_l, 0, eta, aux, aux2) + s_l;
-  real f_u = log_density_offset(dist, s_l, width, eta, aux, aux2) + s_l
-             + width;
+// Composite Simpson on the offset range [a, b] from the base log time s_l,
+// on the integrand f(e^s) e^s accumulated with log_sum_exp, doubling the
+// panel count until two successive estimates agree to 1e-9 in the log,
+// which puts the finer one within a few 1e-11 of the value, since the
+// difference of two Simpson estimates overstates the finer one's error
+// about sixteenfold. Every node is s_l plus an offset, and the offset travels separately
+// into the density: a node formed as exp(s_l + offset) and logged again
+// loses any offset below an ULP of s_l, which is every node of a narrow
+// interval. Returns NaN when eleven doublings do not converge.
+real log_simpson_offsets(int dist, real s_l, real a, real b, real eta,
+                         real aux, real aux2) {
+  real width = b - a;
+  real f_a = log_density_offset(dist, s_l, a, eta, aux, aux2) + s_l + a;
+  real f_b = log_density_offset(dist, s_l, b, eta, aux, aux2) + s_l + b;
   int n = 8;
   real prev = not_a_number();
   real cur = negative_infinity();
-  if (t_upper <= t_lower) return negative_infinity();
-  for (level in 1:9) {
+  if (width <= 0) return negative_infinity();
+  for (level in 1:11) {
     real h = width / n;
     vector[n + 1] terms;
-    terms[1] = f_l;
-    terms[n + 1] = f_u;
+    terms[1] = f_a;
+    terms[n + 1] = f_b;
     for (i in 1:(n - 1)) {
-      real shift = i * h;
+      real shift = a + i * h;
       real w = (i % 2 == 1) ? log(4.0) : log(2.0);
       terms[i + 1] = log_density_offset(dist, s_l, shift, eta, aux, aux2)
                      + s_l + shift + w;
     }
     cur = log_sum_exp(terms) + log(h) - log(3.0);
-    if (!is_nan(prev) && abs(cur - prev) < 1e-10) return cur;
+    if (!is_nan(prev) && abs(cur - prev) < 1e-9) return cur;
     prev = cur;
     n = 2 * n;
   }
-  return cur;
+  return not_a_number();
+}
+
+// Log P(t_lower < T <= t_upper) by quadrature of the density, for an interval
+// that neither difference resolves. A single Simpson pass over the whole
+// interval serves when it converges. When the mass sits in a layer next to
+// one endpoint far narrower than any grid, it does not, and the interval is
+// then cut geometrically toward the heavier endpoint: piece j covers the
+// distances from that endpoint between width / 2^(j + 1) and width / 2^j,
+// so a layer of any scale down to width / 2^60 falls inside a piece where
+// the integrand varies by a bounded factor, and the innermost sliver, where
+// the density is constant to rounding, is its value times its length. A
+// piece that still does not converge is dropped only when its upper bound,
+// the larger endpoint value times its length, is below the total so far by
+// 25 in the log, under 1.4e-11 of it; otherwise the value is unknown and
+// NaN is returned, which the likelihood treats as a rejection rather than
+// a number. Returning the last unconverged estimate put a generalized-gamma
+// interval 8 log units high, a factor of 2700 in the likelihood.
+real log_interval_prob_quad(int dist, real t_upper, real t_lower, real eta,
+                            real aux, real aux2) {
+  real s_l = log(t_lower);
+  real width = log_time_ratio(t_upper, t_lower);
+  real whole;
+  real f_l;
+  real f_u;
+  real total = negative_infinity();
+  int from_upper;
+  if (t_upper <= t_lower) return negative_infinity();
+  whole = log_simpson_offsets(dist, s_l, 0, width, eta, aux, aux2);
+  if (!is_nan(whole)) return whole;
+  f_l = log_density_offset(dist, s_l, 0, eta, aux, aux2) + s_l;
+  f_u = log_density_offset(dist, s_l, width, eta, aux, aux2) + s_l + width;
+  from_upper = f_u > f_l;
+  // Innermost first, so the pieces that hold the mass are summed before
+  // the far ones are judged against the total.
+  {
+    real sliver = width / 2^60;
+    real edge = from_upper ? width - sliver : 0;
+    total = log_density_offset(dist, s_l, edge, eta, aux, aux2) + s_l + edge
+            + log(sliver);
+  }
+  for (k in 0:59) {
+    int j = 59 - k;
+    real far = width / 2^j;
+    real near = far / 2;
+    real a = from_upper ? width - far : near;
+    real b = from_upper ? width - near : far;
+    real piece = log_simpson_offsets(dist, s_l, a, b, eta, aux, aux2);
+    if (is_nan(piece)) {
+      // Unconverged, but bounded above by the larger endpoint value times
+      // the length; negligible beside what is already summed means it does
+      // not matter, and anything else means the answer is not known.
+      real bound = fmax(log_density_offset(dist, s_l, a, eta, aux, aux2) + s_l
+                        + a,
+                        log_density_offset(dist, s_l, b, eta, aux, aux2) + s_l
+                        + b) + log(b - a);
+      if (bound < total - 25) continue;
+      return not_a_number();
+    }
+    total = log_sum_exp(total, piece);
+  }
+  return total;
 }
 
 // log P(l < T <= u | T > e) for the log-logistic, in a closed form with no
@@ -576,8 +634,11 @@ real log_loglogistic_interval(real t_upper, real t_lower, real t_entry,
   // gone. The form is chosen by which point sits nearer the center: when
   // the later point is nearer, its own difference is the smaller and the
   // more accurate, and otherwise the two terms of the sum share a sign and
-  // nothing cancels. A difference of two scores is then taken from the
-  // ratio it was built from, never from the two rounded scores.
+  // nothing cancels. Two points that straddle the center take the direct
+  // form whatever their distances: at equal distances the sum is two
+  // opposite terms that cancel to rounding. A difference of two scores is
+  // then taken from the ratio it was built from, never from the two rounded
+  // scores.
   real centered_e = t_entry > 0 ? log(t_entry) - eta : negative_infinity();
   real centered_l = log(t_lower) - eta;
   int lower_from_entry = 0;
@@ -588,7 +649,8 @@ real log_loglogistic_interval(real t_upper, real t_lower, real t_entry,
   real z_l;
   real z_u;
   real lp;
-  if (t_entry > 0 && t_entry != t_lower && !(abs(centered_l) < abs(centered_e))) {
+  if (t_entry > 0 && t_entry != t_lower && centered_l * centered_e >= 0
+      && !(abs(centered_l) < abs(centered_e))) {
     lower_ratio = log_time_ratio(t_lower, t_entry);
     centered_l = centered_e + lower_ratio;
     lower_from_entry = 1;
@@ -596,7 +658,8 @@ real log_loglogistic_interval(real t_upper, real t_lower, real t_entry,
     centered_l = centered_e;
     lower_from_entry = 1;
   }
-  centered_u = abs(centered_direct) < abs(centered_l)
+  centered_u = centered_direct * centered_l < 0
+                 || abs(centered_direct) < abs(centered_l)
                  ? centered_direct
                  : centered_l + log_ratio;
   z_l = aux * centered_l;

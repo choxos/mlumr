@@ -13,231 +13,231 @@ namespace model_mlumr_survival_spfa_namespace {
 using stan::model::model_base_crtp;
 using namespace stan::math;
 stan::math::profile_map profiles__;
-static constexpr std::array<const char*, 766> locations_array__ =
+static constexpr std::array<const char*, 803> locations_array__ =
   {" (found before start of program)",
-  " (in 'mlumr_survival_spfa', line 1046, column 2 to column 24)",
-  " (in 'mlumr_survival_spfa', line 1047, column 2 to column 44)",
-  " (in 'mlumr_survival_spfa', line 1048, column 2 to column 50)",
-  " (in 'mlumr_survival_spfa', line 1052, column 2 to column 60)",
-  " (in 'mlumr_survival_spfa', line 1053, column 2 to column 29)",
-  " (in 'mlumr_survival_spfa', line 1054, column 2 to column 34)",
-  " (in 'mlumr_survival_spfa', line 1055, column 2 to column 50)",
-  " (in 'mlumr_survival_spfa', line 1056, column 2 to column 46)",
-  " (in 'mlumr_survival_spfa', line 1060, column 2 to column 51)",
-  " (in 'mlumr_survival_spfa', line 1061, column 2 to column 58)",
-  " (in 'mlumr_survival_spfa', line 1062, column 2 to column 57)",
-  " (in 'mlumr_survival_spfa', line 1063, column 2 to column 64)",
-  " (in 'mlumr_survival_spfa', line 1115, column 2 to column 52)",
-  " (in 'mlumr_survival_spfa', line 1116, column 2 to column 19)",
-  " (in 'mlumr_survival_spfa', line 1117, column 2 to column 24)",
-  " (in 'mlumr_survival_spfa', line 1119, column 2 to column 44)",
-  " (in 'mlumr_survival_spfa', line 1120, column 2 to column 49)",
-  " (in 'mlumr_survival_spfa', line 1121, column 2 to column 49)",
-  " (in 'mlumr_survival_spfa', line 1122, column 2 to column 54)",
-  " (in 'mlumr_survival_spfa', line 1123, column 2 to column 43)",
-  " (in 'mlumr_survival_spfa', line 1124, column 2 to column 48)",
-  " (in 'mlumr_survival_spfa', line 1125, column 2 to column 48)",
-  " (in 'mlumr_survival_spfa', line 1126, column 2 to column 53)",
-  " (in 'mlumr_survival_spfa', line 1127, column 2 to column 46)",
-  " (in 'mlumr_survival_spfa', line 1128, column 2 to column 51)",
-  " (in 'mlumr_survival_spfa', line 1129, column 2 to column 51)",
-  " (in 'mlumr_survival_spfa', line 1130, column 2 to column 56)",
-  " (in 'mlumr_survival_spfa', line 1134, column 2 to column 39)",
-  " (in 'mlumr_survival_spfa', line 1135, column 2 to column 44)",
-  " (in 'mlumr_survival_spfa', line 1137, column 2 to column 24)",
-  " (in 'mlumr_survival_spfa', line 1138, column 2 to column 29)",
-  " (in 'mlumr_survival_spfa', line 1139, column 2 to column 29)",
-  " (in 'mlumr_survival_spfa', line 1140, column 2 to column 34)",
-  " (in 'mlumr_survival_spfa', line 1141, column 2 to column 23)",
-  " (in 'mlumr_survival_spfa', line 1142, column 2 to column 28)",
-  " (in 'mlumr_survival_spfa', line 1144, column 2 to column 28)",
-  " (in 'mlumr_survival_spfa', line 1145, column 2 to column 28)",
-  " (in 'mlumr_survival_spfa', line 1149, column 11 to column 16)",
-  " (in 'mlumr_survival_spfa', line 1149, column 4 to column 55)",
-  " (in 'mlumr_survival_spfa', line 1150, column 11 to column 16)",
-  " (in 'mlumr_survival_spfa', line 1150, column 4 to column 60)",
-  " (in 'mlumr_survival_spfa', line 1151, column 11 to column 20)",
-  " (in 'mlumr_survival_spfa', line 1151, column 4 to column 63)",
-  " (in 'mlumr_survival_spfa', line 1152, column 11 to column 20)",
-  " (in 'mlumr_survival_spfa', line 1152, column 4 to column 68)",
-  " (in 'mlumr_survival_spfa', line 1157, column 6 to column 56)",
-  " (in 'mlumr_survival_spfa', line 1158, column 6 to column 61)",
-  " (in 'mlumr_survival_spfa', line 1156, column 11 to line 1159, column 5)",
-  " (in 'mlumr_survival_spfa', line 1154, column 6 to column 70)",
-  " (in 'mlumr_survival_spfa', line 1155, column 6 to column 75)",
-  " (in 'mlumr_survival_spfa', line 1153, column 19 to line 1156, column 5)",
-  " (in 'mlumr_survival_spfa', line 1153, column 4 to line 1159, column 5)",
-  " (in 'mlumr_survival_spfa', line 1161, column 6 to column 29)",
-  " (in 'mlumr_survival_spfa', line 1162, column 6 to column 88)",
-  " (in 'mlumr_survival_spfa', line 1163, column 6 to column 96)",
-  " (in 'mlumr_survival_spfa', line 1164, column 6 to column 88)",
-  " (in 'mlumr_survival_spfa', line 1165, column 6 to column 96)",
-  " (in 'mlumr_survival_spfa', line 1166, column 6 to column 73)",
-  " (in 'mlumr_survival_spfa', line 1167, column 6 to column 81)",
-  " (in 'mlumr_survival_spfa', line 1168, column 6 to column 73)",
-  " (in 'mlumr_survival_spfa', line 1169, column 6 to column 81)",
-  " (in 'mlumr_survival_spfa', line 1170, column 6 to column 50)",
-  " (in 'mlumr_survival_spfa', line 1171, column 6 to column 50)",
-  " (in 'mlumr_survival_spfa', line 1172, column 6 to column 50)",
-  " (in 'mlumr_survival_spfa', line 1173, column 6 to column 50)",
-  " (in 'mlumr_survival_spfa', line 1174, column 6 to column 54)",
-  " (in 'mlumr_survival_spfa', line 1175, column 6 to column 54)",
-  " (in 'mlumr_survival_spfa', line 1176, column 6 to column 96)",
-  " (in 'mlumr_survival_spfa', line 1177, column 6 to column 104)",
-  " (in 'mlumr_survival_spfa', line 1178, column 6 to column 96)",
-  " (in 'mlumr_survival_spfa', line 1179, column 6 to column 104)",
-  " (in 'mlumr_survival_spfa', line 1160, column 30 to line 1180, column 5)",
-  " (in 'mlumr_survival_spfa', line 1160, column 4 to line 1180, column 5)",
-  " (in 'mlumr_survival_spfa', line 1201, column 6 to column 40)",
-  " (in 'mlumr_survival_spfa', line 1202, column 6 to column 45)",
-  " (in 'mlumr_survival_spfa', line 1200, column 45 to line 1203, column 5)",
-  " (in 'mlumr_survival_spfa', line 1200, column 4 to line 1203, column 5)",
-  " (in 'mlumr_survival_spfa', line 1204, column 4 to column 98)",
-  " (in 'mlumr_survival_spfa', line 1205, column 4 to column 106)",
-  " (in 'mlumr_survival_spfa', line 1206, column 4 to column 98)",
-  " (in 'mlumr_survival_spfa', line 1207, column 4 to column 106)",
-  " (in 'mlumr_survival_spfa', line 1208, column 4 to column 68)",
-  " (in 'mlumr_survival_spfa', line 1209, column 4 to column 78)",
-  " (in 'mlumr_survival_spfa', line 1211, column 6 to line 1213, column 69)",
-  " (in 'mlumr_survival_spfa', line 1210, column 4 to line 1213, column 69)",
-  " (in 'mlumr_survival_spfa', line 1216, column 8 to column 27)",
-  " (in 'mlumr_survival_spfa', line 1217, column 15 to column 20)",
-  " (in 'mlumr_survival_spfa', line 1217, column 8 to column 51)",
-  " (in 'mlumr_survival_spfa', line 1218, column 15 to column 20)",
-  " (in 'mlumr_survival_spfa', line 1218, column 8 to column 25)",
-  " (in 'mlumr_survival_spfa', line 1220, column 10 to line 1222, column 68)",
-  " (in 'mlumr_survival_spfa', line 1219, column 8 to line 1222, column 68)",
-  " (in 'mlumr_survival_spfa', line 1223, column 8 to column 54)",
-  " (in 'mlumr_survival_spfa', line 1215, column 25 to line 1224, column 7)",
-  " (in 'mlumr_survival_spfa', line 1215, column 6 to line 1224, column 7)",
-  " (in 'mlumr_survival_spfa', line 1214, column 4 to line 1225, column 5)",
-  " (in 'mlumr_survival_spfa', line 1146, column 2 to line 1226, column 3)",
-  " (in 'mlumr_survival_spfa', line 1067, column 2 to line 1068, column 71)",
-  " (in 'mlumr_survival_spfa', line 1069, column 2 to line 1070, column 71)",
-  " (in 'mlumr_survival_spfa', line 1071, column 2 to line 1072, column 61)",
-  " (in 'mlumr_survival_spfa', line 1075, column 6 to line 1076, column 62)",
-  " (in 'mlumr_survival_spfa', line 1074, column 4 to line 1076, column 62)",
-  " (in 'mlumr_survival_spfa', line 1078, column 6 to line 1079, column 64)",
-  " (in 'mlumr_survival_spfa', line 1077, column 4 to line 1079, column 64)",
-  " (in 'mlumr_survival_spfa', line 1073, column 24 to line 1080, column 3)",
-  " (in 'mlumr_survival_spfa', line 1073, column 2 to line 1080, column 3)",
-  " (in 'mlumr_survival_spfa', line 1083, column 4 to line 1085, column 60)",
-  " (in 'mlumr_survival_spfa', line 1082, column 2 to line 1085, column 60)",
-  " (in 'mlumr_survival_spfa', line 1092, column 11 to column 16)",
-  " (in 'mlumr_survival_spfa', line 1092, column 4 to column 25)",
-  " (in 'mlumr_survival_spfa', line 1094, column 6 to column 25)",
-  " (in 'mlumr_survival_spfa', line 1095, column 13 to column 18)",
-  " (in 'mlumr_survival_spfa', line 1095, column 6 to column 49)",
-  " (in 'mlumr_survival_spfa', line 1096, column 13 to column 18)",
-  " (in 'mlumr_survival_spfa', line 1096, column 6 to column 23)",
-  " (in 'mlumr_survival_spfa', line 1098, column 8 to line 1100, column 66)",
-  " (in 'mlumr_survival_spfa', line 1097, column 6 to line 1100, column 66)",
-  " (in 'mlumr_survival_spfa', line 1101, column 6 to column 47)",
-  " (in 'mlumr_survival_spfa', line 1093, column 23 to line 1102, column 5)",
-  " (in 'mlumr_survival_spfa', line 1093, column 4 to line 1102, column 5)",
-  " (in 'mlumr_survival_spfa', line 1103, column 4 to column 26)",
-  " (in 'mlumr_survival_spfa', line 1089, column 2 to line 1104, column 3)",
-  " (in 'mlumr_survival_spfa', line 947, column 2 to column 21)",
-  " (in 'mlumr_survival_spfa', line 948, column 2 to column 21)",
-  " (in 'mlumr_survival_spfa', line 949, column 9 to column 14)",
-  " (in 'mlumr_survival_spfa', line 949, column 16 to column 21)",
-  " (in 'mlumr_survival_spfa', line 949, column 2 to column 29)",
-  " (in 'mlumr_survival_spfa', line 950, column 18 to column 23)",
-  " (in 'mlumr_survival_spfa', line 950, column 2 to column 34)",
-  " (in 'mlumr_survival_spfa', line 951, column 18 to column 23)",
-  " (in 'mlumr_survival_spfa', line 951, column 2 to column 40)",
-  " (in 'mlumr_survival_spfa', line 952, column 18 to column 23)",
-  " (in 'mlumr_survival_spfa', line 952, column 2 to column 40)",
-  " (in 'mlumr_survival_spfa', line 953, column 8 to column 13)",
-  " (in 'mlumr_survival_spfa', line 953, column 2 to column 47)",
-  " (in 'mlumr_survival_spfa', line 955, column 2 to column 21)",
-  " (in 'mlumr_survival_spfa', line 956, column 2 to column 26)",
-  " (in 'mlumr_survival_spfa', line 957, column 18 to column 23)",
-  " (in 'mlumr_survival_spfa', line 957, column 2 to column 34)",
-  " (in 'mlumr_survival_spfa', line 958, column 18 to column 23)",
-  " (in 'mlumr_survival_spfa', line 958, column 2 to column 40)",
-  " (in 'mlumr_survival_spfa', line 959, column 18 to column 23)",
-  " (in 'mlumr_survival_spfa', line 959, column 2 to column 40)",
-  " (in 'mlumr_survival_spfa', line 960, column 8 to column 13)",
-  " (in 'mlumr_survival_spfa', line 960, column 2 to column 47)",
-  " (in 'mlumr_survival_spfa', line 961, column 8 to column 13)",
-  " (in 'mlumr_survival_spfa', line 961, column 2 to column 53)",
-  " (in 'mlumr_survival_spfa', line 963, column 2 to column 21)",
-  " (in 'mlumr_survival_spfa', line 964, column 8 to column 18)",
-  " (in 'mlumr_survival_spfa', line 964, column 27 to column 32)",
-  " (in 'mlumr_survival_spfa', line 964, column 34 to column 39)",
-  " (in 'mlumr_survival_spfa', line 964, column 2 to column 47)",
-  " (in 'mlumr_survival_spfa', line 966, column 2 to column 26)",
-  " (in 'mlumr_survival_spfa', line 967, column 2 to column 18)",
-  " (in 'mlumr_survival_spfa', line 968, column 9 to column 14)",
-  " (in 'mlumr_survival_spfa', line 968, column 16 to column 18)",
-  " (in 'mlumr_survival_spfa', line 968, column 2 to column 27)",
-  " (in 'mlumr_survival_spfa', line 969, column 8 to column 18)",
-  " (in 'mlumr_survival_spfa', line 969, column 27 to column 32)",
-  " (in 'mlumr_survival_spfa', line 969, column 34 to column 36)",
-  " (in 'mlumr_survival_spfa', line 969, column 2 to column 45)",
-  " (in 'mlumr_survival_spfa', line 970, column 9 to column 11)",
-  " (in 'mlumr_survival_spfa', line 970, column 13 to column 15)",
-  " (in 'mlumr_survival_spfa', line 970, column 2 to column 23)",
-  " (in 'mlumr_survival_spfa', line 972, column 2 to column 28)",
-  " (in 'mlumr_survival_spfa', line 973, column 2 to column 28)",
-  " (in 'mlumr_survival_spfa', line 980, column 2 to column 32)",
-  " (in 'mlumr_survival_spfa', line 982, column 2 to column 28)",
-  " (in 'mlumr_survival_spfa', line 983, column 18 to column 30)",
-  " (in 'mlumr_survival_spfa', line 983, column 2 to column 43)",
-  " (in 'mlumr_survival_spfa', line 984, column 2 to column 27)",
-  " (in 'mlumr_survival_spfa', line 985, column 18 to column 29)",
-  " (in 'mlumr_survival_spfa', line 985, column 2 to column 47)",
-  " (in 'mlumr_survival_spfa', line 1002, column 0 to column 26)",
-  " (in 'mlumr_survival_spfa', line 1003, column 0 to column 33)",
-  " (in 'mlumr_survival_spfa', line 1004, column 0 to column 42)",
-  " (in 'mlumr_survival_spfa', line 1005, column 0 to column 33)",
-  " (in 'mlumr_survival_spfa', line 1007, column 7 to column 12)",
-  " (in 'mlumr_survival_spfa', line 1007, column 0 to column 30)",
-  " (in 'mlumr_survival_spfa', line 1008, column 16 to column 21)",
-  " (in 'mlumr_survival_spfa', line 1008, column 0 to column 37)",
-  " (in 'mlumr_survival_spfa', line 1009, column 0 to column 37)",
-  " (in 'mlumr_survival_spfa', line 1010, column 0 to column 28)",
-  " (in 'mlumr_survival_spfa', line 1025, column 0 to column 24)",
-  " (in 'mlumr_survival_spfa', line 1026, column 0 to column 30)",
-  " (in 'mlumr_survival_spfa', line 1027, column 0 to column 36)",
-  " (in 'mlumr_survival_spfa', line 1028, column 0 to column 27)",
-  " (in 'mlumr_survival_spfa', line 1030, column 0 to column 25)",
-  " (in 'mlumr_survival_spfa', line 1031, column 0 to column 31)",
-  " (in 'mlumr_survival_spfa', line 1032, column 0 to column 37)",
-  " (in 'mlumr_survival_spfa', line 1033, column 0 to column 28)",
-  " (in 'mlumr_survival_spfa', line 1036, column 2 to column 48)",
-  " (in 'mlumr_survival_spfa', line 1037, column 2 to column 40)",
-  " (in 'mlumr_survival_spfa', line 1038, column 2 to column 37)",
-  " (in 'mlumr_survival_spfa', line 1040, column 9 to column 18)",
-  " (in 'mlumr_survival_spfa', line 1040, column 20 to column 25)",
-  " (in 'mlumr_survival_spfa', line 1040, column 2 to column 37)",
-  " (in 'mlumr_survival_spfa', line 1042, column 4 to column 60)",
-  " (in 'mlumr_survival_spfa', line 1041, column 2 to line 1042, column 60)",
-  " (in 'mlumr_survival_spfa', line 1046, column 9 to column 11)",
-  " (in 'mlumr_survival_spfa', line 1047, column 18 to column 24)",
-  " (in 'mlumr_survival_spfa', line 1047, column 26 to column 34)",
+  " (in 'mlumr_survival_spfa', line 1109, column 2 to column 24)",
+  " (in 'mlumr_survival_spfa', line 1110, column 2 to column 44)",
+  " (in 'mlumr_survival_spfa', line 1111, column 2 to column 50)",
+  " (in 'mlumr_survival_spfa', line 1115, column 2 to column 60)",
+  " (in 'mlumr_survival_spfa', line 1116, column 2 to column 29)",
+  " (in 'mlumr_survival_spfa', line 1117, column 2 to column 34)",
+  " (in 'mlumr_survival_spfa', line 1118, column 2 to column 50)",
+  " (in 'mlumr_survival_spfa', line 1119, column 2 to column 46)",
+  " (in 'mlumr_survival_spfa', line 1123, column 2 to column 51)",
+  " (in 'mlumr_survival_spfa', line 1124, column 2 to column 58)",
+  " (in 'mlumr_survival_spfa', line 1125, column 2 to column 57)",
+  " (in 'mlumr_survival_spfa', line 1126, column 2 to column 64)",
+  " (in 'mlumr_survival_spfa', line 1178, column 2 to column 52)",
+  " (in 'mlumr_survival_spfa', line 1179, column 2 to column 19)",
+  " (in 'mlumr_survival_spfa', line 1180, column 2 to column 24)",
+  " (in 'mlumr_survival_spfa', line 1182, column 2 to column 44)",
+  " (in 'mlumr_survival_spfa', line 1183, column 2 to column 49)",
+  " (in 'mlumr_survival_spfa', line 1184, column 2 to column 49)",
+  " (in 'mlumr_survival_spfa', line 1185, column 2 to column 54)",
+  " (in 'mlumr_survival_spfa', line 1186, column 2 to column 43)",
+  " (in 'mlumr_survival_spfa', line 1187, column 2 to column 48)",
+  " (in 'mlumr_survival_spfa', line 1188, column 2 to column 48)",
+  " (in 'mlumr_survival_spfa', line 1189, column 2 to column 53)",
+  " (in 'mlumr_survival_spfa', line 1190, column 2 to column 46)",
+  " (in 'mlumr_survival_spfa', line 1191, column 2 to column 51)",
+  " (in 'mlumr_survival_spfa', line 1192, column 2 to column 51)",
+  " (in 'mlumr_survival_spfa', line 1193, column 2 to column 56)",
+  " (in 'mlumr_survival_spfa', line 1197, column 2 to column 39)",
+  " (in 'mlumr_survival_spfa', line 1198, column 2 to column 44)",
+  " (in 'mlumr_survival_spfa', line 1200, column 2 to column 24)",
+  " (in 'mlumr_survival_spfa', line 1201, column 2 to column 29)",
+  " (in 'mlumr_survival_spfa', line 1202, column 2 to column 29)",
+  " (in 'mlumr_survival_spfa', line 1203, column 2 to column 34)",
+  " (in 'mlumr_survival_spfa', line 1204, column 2 to column 23)",
+  " (in 'mlumr_survival_spfa', line 1205, column 2 to column 28)",
+  " (in 'mlumr_survival_spfa', line 1207, column 2 to column 28)",
+  " (in 'mlumr_survival_spfa', line 1208, column 2 to column 28)",
+  " (in 'mlumr_survival_spfa', line 1212, column 11 to column 16)",
+  " (in 'mlumr_survival_spfa', line 1212, column 4 to column 55)",
+  " (in 'mlumr_survival_spfa', line 1213, column 11 to column 16)",
+  " (in 'mlumr_survival_spfa', line 1213, column 4 to column 60)",
+  " (in 'mlumr_survival_spfa', line 1214, column 11 to column 20)",
+  " (in 'mlumr_survival_spfa', line 1214, column 4 to column 63)",
+  " (in 'mlumr_survival_spfa', line 1215, column 11 to column 20)",
+  " (in 'mlumr_survival_spfa', line 1215, column 4 to column 68)",
+  " (in 'mlumr_survival_spfa', line 1220, column 6 to column 56)",
+  " (in 'mlumr_survival_spfa', line 1221, column 6 to column 61)",
+  " (in 'mlumr_survival_spfa', line 1219, column 11 to line 1222, column 5)",
+  " (in 'mlumr_survival_spfa', line 1217, column 6 to column 70)",
+  " (in 'mlumr_survival_spfa', line 1218, column 6 to column 75)",
+  " (in 'mlumr_survival_spfa', line 1216, column 19 to line 1219, column 5)",
+  " (in 'mlumr_survival_spfa', line 1216, column 4 to line 1222, column 5)",
+  " (in 'mlumr_survival_spfa', line 1224, column 6 to column 29)",
+  " (in 'mlumr_survival_spfa', line 1225, column 6 to column 88)",
+  " (in 'mlumr_survival_spfa', line 1226, column 6 to column 96)",
+  " (in 'mlumr_survival_spfa', line 1227, column 6 to column 88)",
+  " (in 'mlumr_survival_spfa', line 1228, column 6 to column 96)",
+  " (in 'mlumr_survival_spfa', line 1229, column 6 to column 73)",
+  " (in 'mlumr_survival_spfa', line 1230, column 6 to column 81)",
+  " (in 'mlumr_survival_spfa', line 1231, column 6 to column 73)",
+  " (in 'mlumr_survival_spfa', line 1232, column 6 to column 81)",
+  " (in 'mlumr_survival_spfa', line 1233, column 6 to column 50)",
+  " (in 'mlumr_survival_spfa', line 1234, column 6 to column 50)",
+  " (in 'mlumr_survival_spfa', line 1235, column 6 to column 50)",
+  " (in 'mlumr_survival_spfa', line 1236, column 6 to column 50)",
+  " (in 'mlumr_survival_spfa', line 1237, column 6 to column 54)",
+  " (in 'mlumr_survival_spfa', line 1238, column 6 to column 54)",
+  " (in 'mlumr_survival_spfa', line 1239, column 6 to column 96)",
+  " (in 'mlumr_survival_spfa', line 1240, column 6 to column 104)",
+  " (in 'mlumr_survival_spfa', line 1241, column 6 to column 96)",
+  " (in 'mlumr_survival_spfa', line 1242, column 6 to column 104)",
+  " (in 'mlumr_survival_spfa', line 1223, column 30 to line 1243, column 5)",
+  " (in 'mlumr_survival_spfa', line 1223, column 4 to line 1243, column 5)",
+  " (in 'mlumr_survival_spfa', line 1264, column 6 to column 40)",
+  " (in 'mlumr_survival_spfa', line 1265, column 6 to column 45)",
+  " (in 'mlumr_survival_spfa', line 1263, column 45 to line 1266, column 5)",
+  " (in 'mlumr_survival_spfa', line 1263, column 4 to line 1266, column 5)",
+  " (in 'mlumr_survival_spfa', line 1267, column 4 to column 98)",
+  " (in 'mlumr_survival_spfa', line 1268, column 4 to column 106)",
+  " (in 'mlumr_survival_spfa', line 1269, column 4 to column 98)",
+  " (in 'mlumr_survival_spfa', line 1270, column 4 to column 106)",
+  " (in 'mlumr_survival_spfa', line 1271, column 4 to column 68)",
+  " (in 'mlumr_survival_spfa', line 1272, column 4 to column 78)",
+  " (in 'mlumr_survival_spfa', line 1274, column 6 to line 1276, column 69)",
+  " (in 'mlumr_survival_spfa', line 1273, column 4 to line 1276, column 69)",
+  " (in 'mlumr_survival_spfa', line 1279, column 8 to column 27)",
+  " (in 'mlumr_survival_spfa', line 1280, column 15 to column 20)",
+  " (in 'mlumr_survival_spfa', line 1280, column 8 to column 51)",
+  " (in 'mlumr_survival_spfa', line 1281, column 15 to column 20)",
+  " (in 'mlumr_survival_spfa', line 1281, column 8 to column 25)",
+  " (in 'mlumr_survival_spfa', line 1283, column 10 to line 1285, column 68)",
+  " (in 'mlumr_survival_spfa', line 1282, column 8 to line 1285, column 68)",
+  " (in 'mlumr_survival_spfa', line 1286, column 8 to column 54)",
+  " (in 'mlumr_survival_spfa', line 1278, column 25 to line 1287, column 7)",
+  " (in 'mlumr_survival_spfa', line 1278, column 6 to line 1287, column 7)",
+  " (in 'mlumr_survival_spfa', line 1277, column 4 to line 1288, column 5)",
+  " (in 'mlumr_survival_spfa', line 1209, column 2 to line 1289, column 3)",
+  " (in 'mlumr_survival_spfa', line 1130, column 2 to line 1131, column 71)",
+  " (in 'mlumr_survival_spfa', line 1132, column 2 to line 1133, column 71)",
+  " (in 'mlumr_survival_spfa', line 1134, column 2 to line 1135, column 61)",
+  " (in 'mlumr_survival_spfa', line 1138, column 6 to line 1139, column 62)",
+  " (in 'mlumr_survival_spfa', line 1137, column 4 to line 1139, column 62)",
+  " (in 'mlumr_survival_spfa', line 1141, column 6 to line 1142, column 64)",
+  " (in 'mlumr_survival_spfa', line 1140, column 4 to line 1142, column 64)",
+  " (in 'mlumr_survival_spfa', line 1136, column 24 to line 1143, column 3)",
+  " (in 'mlumr_survival_spfa', line 1136, column 2 to line 1143, column 3)",
+  " (in 'mlumr_survival_spfa', line 1146, column 4 to line 1148, column 60)",
+  " (in 'mlumr_survival_spfa', line 1145, column 2 to line 1148, column 60)",
+  " (in 'mlumr_survival_spfa', line 1155, column 11 to column 16)",
+  " (in 'mlumr_survival_spfa', line 1155, column 4 to column 25)",
+  " (in 'mlumr_survival_spfa', line 1157, column 6 to column 25)",
+  " (in 'mlumr_survival_spfa', line 1158, column 13 to column 18)",
+  " (in 'mlumr_survival_spfa', line 1158, column 6 to column 49)",
+  " (in 'mlumr_survival_spfa', line 1159, column 13 to column 18)",
+  " (in 'mlumr_survival_spfa', line 1159, column 6 to column 23)",
+  " (in 'mlumr_survival_spfa', line 1161, column 8 to line 1163, column 66)",
+  " (in 'mlumr_survival_spfa', line 1160, column 6 to line 1163, column 66)",
+  " (in 'mlumr_survival_spfa', line 1164, column 6 to column 47)",
+  " (in 'mlumr_survival_spfa', line 1156, column 23 to line 1165, column 5)",
+  " (in 'mlumr_survival_spfa', line 1156, column 4 to line 1165, column 5)",
+  " (in 'mlumr_survival_spfa', line 1166, column 4 to column 26)",
+  " (in 'mlumr_survival_spfa', line 1152, column 2 to line 1167, column 3)",
+  " (in 'mlumr_survival_spfa', line 1010, column 2 to column 21)",
+  " (in 'mlumr_survival_spfa', line 1011, column 2 to column 21)",
+  " (in 'mlumr_survival_spfa', line 1012, column 9 to column 14)",
+  " (in 'mlumr_survival_spfa', line 1012, column 16 to column 21)",
+  " (in 'mlumr_survival_spfa', line 1012, column 2 to column 29)",
+  " (in 'mlumr_survival_spfa', line 1013, column 18 to column 23)",
+  " (in 'mlumr_survival_spfa', line 1013, column 2 to column 34)",
+  " (in 'mlumr_survival_spfa', line 1014, column 18 to column 23)",
+  " (in 'mlumr_survival_spfa', line 1014, column 2 to column 40)",
+  " (in 'mlumr_survival_spfa', line 1015, column 18 to column 23)",
+  " (in 'mlumr_survival_spfa', line 1015, column 2 to column 40)",
+  " (in 'mlumr_survival_spfa', line 1016, column 8 to column 13)",
+  " (in 'mlumr_survival_spfa', line 1016, column 2 to column 47)",
+  " (in 'mlumr_survival_spfa', line 1018, column 2 to column 21)",
+  " (in 'mlumr_survival_spfa', line 1019, column 2 to column 26)",
+  " (in 'mlumr_survival_spfa', line 1020, column 18 to column 23)",
+  " (in 'mlumr_survival_spfa', line 1020, column 2 to column 34)",
+  " (in 'mlumr_survival_spfa', line 1021, column 18 to column 23)",
+  " (in 'mlumr_survival_spfa', line 1021, column 2 to column 40)",
+  " (in 'mlumr_survival_spfa', line 1022, column 18 to column 23)",
+  " (in 'mlumr_survival_spfa', line 1022, column 2 to column 40)",
+  " (in 'mlumr_survival_spfa', line 1023, column 8 to column 13)",
+  " (in 'mlumr_survival_spfa', line 1023, column 2 to column 47)",
+  " (in 'mlumr_survival_spfa', line 1024, column 8 to column 13)",
+  " (in 'mlumr_survival_spfa', line 1024, column 2 to column 53)",
+  " (in 'mlumr_survival_spfa', line 1026, column 2 to column 21)",
+  " (in 'mlumr_survival_spfa', line 1027, column 8 to column 18)",
+  " (in 'mlumr_survival_spfa', line 1027, column 27 to column 32)",
+  " (in 'mlumr_survival_spfa', line 1027, column 34 to column 39)",
+  " (in 'mlumr_survival_spfa', line 1027, column 2 to column 47)",
+  " (in 'mlumr_survival_spfa', line 1029, column 2 to column 26)",
+  " (in 'mlumr_survival_spfa', line 1030, column 2 to column 18)",
+  " (in 'mlumr_survival_spfa', line 1031, column 9 to column 14)",
+  " (in 'mlumr_survival_spfa', line 1031, column 16 to column 18)",
+  " (in 'mlumr_survival_spfa', line 1031, column 2 to column 27)",
+  " (in 'mlumr_survival_spfa', line 1032, column 8 to column 18)",
+  " (in 'mlumr_survival_spfa', line 1032, column 27 to column 32)",
+  " (in 'mlumr_survival_spfa', line 1032, column 34 to column 36)",
+  " (in 'mlumr_survival_spfa', line 1032, column 2 to column 45)",
+  " (in 'mlumr_survival_spfa', line 1033, column 9 to column 11)",
+  " (in 'mlumr_survival_spfa', line 1033, column 13 to column 15)",
+  " (in 'mlumr_survival_spfa', line 1033, column 2 to column 23)",
+  " (in 'mlumr_survival_spfa', line 1035, column 2 to column 28)",
+  " (in 'mlumr_survival_spfa', line 1036, column 2 to column 28)",
+  " (in 'mlumr_survival_spfa', line 1043, column 2 to column 32)",
+  " (in 'mlumr_survival_spfa', line 1045, column 2 to column 28)",
+  " (in 'mlumr_survival_spfa', line 1046, column 18 to column 30)",
+  " (in 'mlumr_survival_spfa', line 1046, column 2 to column 43)",
+  " (in 'mlumr_survival_spfa', line 1047, column 2 to column 27)",
   " (in 'mlumr_survival_spfa', line 1048, column 18 to column 29)",
-  " (in 'mlumr_survival_spfa', line 1048, column 31 to column 39)",
-  " (in 'mlumr_survival_spfa', line 1052, column 9 to column 11)",
-  " (in 'mlumr_survival_spfa', line 1055, column 9 to column 14)",
-  " (in 'mlumr_survival_spfa', line 1056, column 9 to column 14)",
-  " (in 'mlumr_survival_spfa', line 1119, column 8 to column 20)",
-  " (in 'mlumr_survival_spfa', line 1120, column 8 to column 20)",
-  " (in 'mlumr_survival_spfa', line 1121, column 8 to column 20)",
-  " (in 'mlumr_survival_spfa', line 1122, column 8 to column 20)",
-  " (in 'mlumr_survival_spfa', line 1123, column 8 to column 20)",
-  " (in 'mlumr_survival_spfa', line 1124, column 8 to column 20)",
-  " (in 'mlumr_survival_spfa', line 1125, column 8 to column 20)",
-  " (in 'mlumr_survival_spfa', line 1126, column 8 to column 20)",
-  " (in 'mlumr_survival_spfa', line 1127, column 8 to column 20)",
-  " (in 'mlumr_survival_spfa', line 1128, column 8 to column 20)",
-  " (in 'mlumr_survival_spfa', line 1129, column 8 to column 20)",
-  " (in 'mlumr_survival_spfa', line 1130, column 8 to column 20)",
-  " (in 'mlumr_survival_spfa', line 1134, column 8 to column 20)",
-  " (in 'mlumr_survival_spfa', line 1135, column 8 to column 20)",
-  " (in 'mlumr_survival_spfa', line 1144, column 9 to column 14)",
-  " (in 'mlumr_survival_spfa', line 1145, column 9 to column 14)",
+  " (in 'mlumr_survival_spfa', line 1048, column 2 to column 47)",
+  " (in 'mlumr_survival_spfa', line 1065, column 0 to column 26)",
+  " (in 'mlumr_survival_spfa', line 1066, column 0 to column 33)",
+  " (in 'mlumr_survival_spfa', line 1067, column 0 to column 42)",
+  " (in 'mlumr_survival_spfa', line 1068, column 0 to column 33)",
+  " (in 'mlumr_survival_spfa', line 1070, column 7 to column 12)",
+  " (in 'mlumr_survival_spfa', line 1070, column 0 to column 30)",
+  " (in 'mlumr_survival_spfa', line 1071, column 16 to column 21)",
+  " (in 'mlumr_survival_spfa', line 1071, column 0 to column 37)",
+  " (in 'mlumr_survival_spfa', line 1072, column 0 to column 37)",
+  " (in 'mlumr_survival_spfa', line 1073, column 0 to column 28)",
+  " (in 'mlumr_survival_spfa', line 1088, column 0 to column 24)",
+  " (in 'mlumr_survival_spfa', line 1089, column 0 to column 30)",
+  " (in 'mlumr_survival_spfa', line 1090, column 0 to column 36)",
+  " (in 'mlumr_survival_spfa', line 1091, column 0 to column 27)",
+  " (in 'mlumr_survival_spfa', line 1093, column 0 to column 25)",
+  " (in 'mlumr_survival_spfa', line 1094, column 0 to column 31)",
+  " (in 'mlumr_survival_spfa', line 1095, column 0 to column 37)",
+  " (in 'mlumr_survival_spfa', line 1096, column 0 to column 28)",
+  " (in 'mlumr_survival_spfa', line 1099, column 2 to column 48)",
+  " (in 'mlumr_survival_spfa', line 1100, column 2 to column 40)",
+  " (in 'mlumr_survival_spfa', line 1101, column 2 to column 37)",
+  " (in 'mlumr_survival_spfa', line 1103, column 9 to column 18)",
+  " (in 'mlumr_survival_spfa', line 1103, column 20 to column 25)",
+  " (in 'mlumr_survival_spfa', line 1103, column 2 to column 37)",
+  " (in 'mlumr_survival_spfa', line 1105, column 4 to column 60)",
+  " (in 'mlumr_survival_spfa', line 1104, column 2 to line 1105, column 60)",
+  " (in 'mlumr_survival_spfa', line 1109, column 9 to column 11)",
+  " (in 'mlumr_survival_spfa', line 1110, column 18 to column 24)",
+  " (in 'mlumr_survival_spfa', line 1110, column 26 to column 34)",
+  " (in 'mlumr_survival_spfa', line 1111, column 18 to column 29)",
+  " (in 'mlumr_survival_spfa', line 1111, column 31 to column 39)",
+  " (in 'mlumr_survival_spfa', line 1115, column 9 to column 11)",
+  " (in 'mlumr_survival_spfa', line 1118, column 9 to column 14)",
+  " (in 'mlumr_survival_spfa', line 1119, column 9 to column 14)",
+  " (in 'mlumr_survival_spfa', line 1182, column 8 to column 20)",
+  " (in 'mlumr_survival_spfa', line 1183, column 8 to column 20)",
+  " (in 'mlumr_survival_spfa', line 1184, column 8 to column 20)",
+  " (in 'mlumr_survival_spfa', line 1185, column 8 to column 20)",
+  " (in 'mlumr_survival_spfa', line 1186, column 8 to column 20)",
+  " (in 'mlumr_survival_spfa', line 1187, column 8 to column 20)",
+  " (in 'mlumr_survival_spfa', line 1188, column 8 to column 20)",
+  " (in 'mlumr_survival_spfa', line 1189, column 8 to column 20)",
+  " (in 'mlumr_survival_spfa', line 1190, column 8 to column 20)",
+  " (in 'mlumr_survival_spfa', line 1191, column 8 to column 20)",
+  " (in 'mlumr_survival_spfa', line 1192, column 8 to column 20)",
+  " (in 'mlumr_survival_spfa', line 1193, column 8 to column 20)",
+  " (in 'mlumr_survival_spfa', line 1197, column 8 to column 20)",
+  " (in 'mlumr_survival_spfa', line 1198, column 8 to column 20)",
+  " (in 'mlumr_survival_spfa', line 1207, column 9 to column 14)",
+  " (in 'mlumr_survival_spfa', line 1208, column 9 to column 14)",
   " (in 'mlumr_survival_spfa', line 36, column 7 to column 54)",
   " (in 'mlumr_survival_spfa', line 35, column 17 to column 57)",
   " (in 'mlumr_survival_spfa', line 35, column 2 to line 36, column 54)",
@@ -544,15 +544,17 @@ static constexpr std::array<const char*, 766> locations_array__ =
   " (in 'mlumr_survival_spfa', line 516, column 6 to line 523, column 7)",
   " (in 'mlumr_survival_spfa', line 525, column 8 to column 55)",
   " (in 'mlumr_survival_spfa', line 526, column 8 to column 30)",
-  " (in 'mlumr_survival_spfa', line 528, column 10 to column 44)",
-  " (in 'mlumr_survival_spfa', line 527, column 8 to line 528, column 44)",
-  " (in 'mlumr_survival_spfa', line 530, column 10 to column 42)",
-  " (in 'mlumr_survival_spfa', line 531, column 10 to column 51)",
-  " (in 'mlumr_survival_spfa', line 532, column 10 to line 534, column 57)",
-  " (in 'mlumr_survival_spfa', line 529, column 8 to line 535, column 9)",
-  " (in 'mlumr_survival_spfa', line 524, column 59 to line 536, column 7)",
-  " (in 'mlumr_survival_spfa', line 524, column 6 to line 536, column 7)",
-  " (in 'mlumr_survival_spfa', line 512, column 11 to line 537, column 5)",
+  " (in 'mlumr_survival_spfa', line 536, column 10 to column 37)",
+  " (in 'mlumr_survival_spfa', line 535, column 8 to line 536, column 37)",
+  " (in 'mlumr_survival_spfa', line 538, column 10 to column 44)",
+  " (in 'mlumr_survival_spfa', line 537, column 8 to line 538, column 44)",
+  " (in 'mlumr_survival_spfa', line 540, column 10 to column 42)",
+  " (in 'mlumr_survival_spfa', line 541, column 10 to column 51)",
+  " (in 'mlumr_survival_spfa', line 542, column 10 to line 544, column 57)",
+  " (in 'mlumr_survival_spfa', line 539, column 8 to line 545, column 9)",
+  " (in 'mlumr_survival_spfa', line 524, column 59 to line 546, column 7)",
+  " (in 'mlumr_survival_spfa', line 524, column 6 to line 546, column 7)",
+  " (in 'mlumr_survival_spfa', line 512, column 11 to line 547, column 5)",
   " (in 'mlumr_survival_spfa', line 506, column 6 to column 48)",
   " (in 'mlumr_survival_spfa', line 508, column 8 to column 34)",
   " (in 'mlumr_survival_spfa', line 509, column 8 to column 36)",
@@ -560,7 +562,7 @@ static constexpr std::array<const char*, 766> locations_array__ =
   " (in 'mlumr_survival_spfa', line 507, column 23 to line 511, column 7)",
   " (in 'mlumr_survival_spfa', line 507, column 6 to line 511, column 7)",
   " (in 'mlumr_survival_spfa', line 505, column 26 to line 512, column 5)",
-  " (in 'mlumr_survival_spfa', line 505, column 11 to line 537, column 5)",
+  " (in 'mlumr_survival_spfa', line 505, column 11 to line 547, column 5)",
   " (in 'mlumr_survival_spfa', line 497, column 6 to column 48)",
   " (in 'mlumr_survival_spfa', line 498, column 6 to column 32)",
   " (in 'mlumr_survival_spfa', line 499, column 6 to column 34)",
@@ -568,218 +570,253 @@ static constexpr std::array<const char*, 766> locations_array__ =
   " (in 'mlumr_survival_spfa', line 500, column 23 to line 504, column 7)",
   " (in 'mlumr_survival_spfa', line 500, column 6 to line 504, column 7)",
   " (in 'mlumr_survival_spfa', line 496, column 19 to line 505, column 5)",
-  " (in 'mlumr_survival_spfa', line 496, column 4 to line 537, column 5)",
-  " (in 'mlumr_survival_spfa', line 494, column 2 to line 538, column 3)",
-  " (in 'mlumr_survival_spfa', line 539, column 2 to line 540, column 58)",
-  " (in 'mlumr_survival_spfa', line 489, column 45 to line 541, column 1)",
-  " (in 'mlumr_survival_spfa', line 550, column 17 to column 26)",
-  " (in 'mlumr_survival_spfa', line 550, column 2 to column 26)",
-  " (in 'mlumr_survival_spfa', line 551, column 20 to column 29)",
-  " (in 'mlumr_survival_spfa', line 551, column 2 to column 29)",
-  " (in 'mlumr_survival_spfa', line 552, column 17 to column 55)",
-  " (in 'mlumr_survival_spfa', line 552, column 2 to column 55)",
-  " (in 'mlumr_survival_spfa', line 553, column 17 to column 55)",
-  " (in 'mlumr_survival_spfa', line 553, column 2 to column 55)",
-  " (in 'mlumr_survival_spfa', line 555, column 4 to column 40)",
-  " (in 'mlumr_survival_spfa', line 556, column 4 to line 559, column 45)",
-  " (in 'mlumr_survival_spfa', line 560, column 4 to column 59)",
-  " (in 'mlumr_survival_spfa', line 554, column 2 to line 561, column 3)",
-  " (in 'mlumr_survival_spfa', line 549, column 42 to line 562, column 1)",
-  " (in 'mlumr_survival_spfa', line 582, column 2 to column 26)",
-  " (in 'mlumr_survival_spfa', line 583, column 2 to column 48)",
-  " (in 'mlumr_survival_spfa', line 588, column 2 to column 68)",
-  " (in 'mlumr_survival_spfa', line 589, column 2 to line 590, column 21)",
-  " (in 'mlumr_survival_spfa', line 591, column 2 to column 12)",
-  " (in 'mlumr_survival_spfa', line 592, column 2 to column 29)",
-  " (in 'mlumr_survival_spfa', line 593, column 2 to column 33)",
-  " (in 'mlumr_survival_spfa', line 594, column 26 to column 53)",
-  " (in 'mlumr_survival_spfa', line 594, column 2 to column 53)",
+  " (in 'mlumr_survival_spfa', line 496, column 4 to line 547, column 5)",
+  " (in 'mlumr_survival_spfa', line 494, column 2 to line 548, column 3)",
+  " (in 'mlumr_survival_spfa', line 549, column 2 to line 550, column 58)",
+  " (in 'mlumr_survival_spfa', line 489, column 45 to line 551, column 1)",
+  " (in 'mlumr_survival_spfa', line 560, column 17 to column 26)",
+  " (in 'mlumr_survival_spfa', line 560, column 2 to column 26)",
+  " (in 'mlumr_survival_spfa', line 561, column 20 to column 29)",
+  " (in 'mlumr_survival_spfa', line 561, column 2 to column 29)",
+  " (in 'mlumr_survival_spfa', line 562, column 17 to column 55)",
+  " (in 'mlumr_survival_spfa', line 562, column 2 to column 55)",
+  " (in 'mlumr_survival_spfa', line 563, column 17 to column 55)",
+  " (in 'mlumr_survival_spfa', line 563, column 2 to column 55)",
+  " (in 'mlumr_survival_spfa', line 565, column 4 to column 40)",
+  " (in 'mlumr_survival_spfa', line 566, column 4 to line 569, column 45)",
+  " (in 'mlumr_survival_spfa', line 570, column 4 to column 59)",
+  " (in 'mlumr_survival_spfa', line 564, column 2 to line 571, column 3)",
+  " (in 'mlumr_survival_spfa', line 559, column 42 to line 572, column 1)",
+  " (in 'mlumr_survival_spfa', line 585, column 2 to column 21)",
+  " (in 'mlumr_survival_spfa', line 586, column 2 to column 72)",
+  " (in 'mlumr_survival_spfa', line 587, column 2 to column 72)",
+  " (in 'mlumr_survival_spfa', line 588, column 2 to column 12)",
+  " (in 'mlumr_survival_spfa', line 589, column 2 to column 29)",
+  " (in 'mlumr_survival_spfa', line 590, column 2 to column 33)",
+  " (in 'mlumr_survival_spfa', line 591, column 18 to column 45)",
+  " (in 'mlumr_survival_spfa', line 591, column 2 to column 45)",
+  " (in 'mlumr_survival_spfa', line 593, column 4 to column 23)",
+  " (in 'mlumr_survival_spfa', line 594, column 11 to column 16)",
+  " (in 'mlumr_survival_spfa', line 594, column 4 to column 24)",
+  " (in 'mlumr_survival_spfa', line 595, column 4 to column 19)",
   " (in 'mlumr_survival_spfa', line 596, column 4 to column 23)",
-  " (in 'mlumr_survival_spfa', line 597, column 11 to column 16)",
-  " (in 'mlumr_survival_spfa', line 597, column 4 to column 24)",
-  " (in 'mlumr_survival_spfa', line 598, column 4 to column 19)",
-  " (in 'mlumr_survival_spfa', line 599, column 4 to column 23)",
-  " (in 'mlumr_survival_spfa', line 601, column 6 to column 25)",
-  " (in 'mlumr_survival_spfa', line 602, column 6 to column 50)",
-  " (in 'mlumr_survival_spfa', line 603, column 6 to line 604, column 39)",
-  " (in 'mlumr_survival_spfa', line 600, column 25 to line 605, column 5)",
-  " (in 'mlumr_survival_spfa', line 600, column 4 to line 605, column 5)",
-  " (in 'mlumr_survival_spfa', line 606, column 4 to column 49)",
-  " (in 'mlumr_survival_spfa', line 607, column 50 to column 61)",
-  " (in 'mlumr_survival_spfa', line 607, column 4 to column 61)",
-  " (in 'mlumr_survival_spfa', line 608, column 4 to column 15)",
-  " (in 'mlumr_survival_spfa', line 609, column 4 to column 14)",
-  " (in 'mlumr_survival_spfa', line 595, column 21 to line 610, column 3)",
-  " (in 'mlumr_survival_spfa', line 595, column 2 to line 610, column 3)",
-  " (in 'mlumr_survival_spfa', line 611, column 2 to column 13)",
-  " (in 'mlumr_survival_spfa', line 581, column 49 to line 612, column 1)",
-  " (in 'mlumr_survival_spfa', line 648, column 2 to column 75)",
-  " (in 'mlumr_survival_spfa', line 649, column 2 to column 39)",
-  " (in 'mlumr_survival_spfa', line 650, column 2 to column 27)",
-  " (in 'mlumr_survival_spfa', line 651, column 2 to column 23)",
-  " (in 'mlumr_survival_spfa', line 652, column 2 to column 52)",
-  " (in 'mlumr_survival_spfa', line 653, column 2 to column 44)",
-  " (in 'mlumr_survival_spfa', line 654, column 2 to column 18)",
-  " (in 'mlumr_survival_spfa', line 655, column 2 to column 11)",
-  " (in 'mlumr_survival_spfa', line 656, column 2 to column 11)",
-  " (in 'mlumr_survival_spfa', line 657, column 2 to column 10)",
-  " (in 'mlumr_survival_spfa', line 663, column 4 to column 28)",
-  " (in 'mlumr_survival_spfa', line 664, column 4 to column 25)",
-  " (in 'mlumr_survival_spfa', line 662, column 33 to line 665, column 3)",
-  " (in 'mlumr_survival_spfa', line 662, column 9 to line 665, column 3)",
-  " (in 'mlumr_survival_spfa', line 659, column 4 to column 51)",
-  " (in 'mlumr_survival_spfa', line 660, column 4 to column 42)",
-  " (in 'mlumr_survival_spfa', line 661, column 4 to column 25)",
-  " (in 'mlumr_survival_spfa', line 658, column 81 to line 662, column 3)",
-  " (in 'mlumr_survival_spfa', line 658, column 2 to line 665, column 3)",
-  " (in 'mlumr_survival_spfa', line 666, column 2 to line 668, column 42)",
-  " (in 'mlumr_survival_spfa', line 669, column 2 to column 25)",
-  " (in 'mlumr_survival_spfa', line 670, column 2 to column 25)",
-  " (in 'mlumr_survival_spfa', line 671, column 2 to column 60)",
-  " (in 'mlumr_survival_spfa', line 673, column 4 to column 32)",
-  " (in 'mlumr_survival_spfa', line 675, column 6 to line 677, column 54)",
-  " (in 'mlumr_survival_spfa', line 678, column 6 to column 61)",
-  " (in 'mlumr_survival_spfa', line 674, column 18 to line 679, column 5)",
-  " (in 'mlumr_survival_spfa', line 674, column 4 to line 679, column 5)",
-  " (in 'mlumr_survival_spfa', line 680, column 18 to column 71)",
-  " (in 'mlumr_survival_spfa', line 680, column 4 to column 71)",
-  " (in 'mlumr_survival_spfa', line 681, column 4 to column 50)",
-  " (in 'mlumr_survival_spfa', line 672, column 19 to line 682, column 3)",
-  " (in 'mlumr_survival_spfa', line 672, column 2 to line 682, column 3)",
-  " (in 'mlumr_survival_spfa', line 683, column 2 to column 29)",
-  " (in 'mlumr_survival_spfa', line 634, column 50 to line 684, column 1)",
-  " (in 'mlumr_survival_spfa', line 704, column 2 to column 12)",
-  " (in 'mlumr_survival_spfa', line 705, column 38 to column 47)",
-  " (in 'mlumr_survival_spfa', line 705, column 2 to column 47)",
-  " (in 'mlumr_survival_spfa', line 706, column 2 to column 47)",
-  " (in 'mlumr_survival_spfa', line 707, column 2 to column 62)",
-  " (in 'mlumr_survival_spfa', line 703, column 62 to line 708, column 1)",
-  " (in 'mlumr_survival_spfa', line 722, column 2 to column 12)",
-  " (in 'mlumr_survival_spfa', line 723, column 43 to column 52)",
-  " (in 'mlumr_survival_spfa', line 723, column 2 to column 52)",
-  " (in 'mlumr_survival_spfa', line 728, column 37 to column 46)",
-  " (in 'mlumr_survival_spfa', line 728, column 2 to column 46)",
-  " (in 'mlumr_survival_spfa', line 729, column 2 to column 27)",
-  " (in 'mlumr_survival_spfa', line 730, column 2 to column 63)",
-  " (in 'mlumr_survival_spfa', line 721, column 42 to line 731, column 1)",
-  " (in 'mlumr_survival_spfa', line 747, column 26 to column 53)",
-  " (in 'mlumr_survival_spfa', line 747, column 2 to column 53)",
-  " (in 'mlumr_survival_spfa', line 748, column 20 to column 73)",
-  " (in 'mlumr_survival_spfa', line 748, column 2 to column 73)",
-  " (in 'mlumr_survival_spfa', line 750, column 4 to line 752, column 53)",
-  " (in 'mlumr_survival_spfa', line 749, column 2 to line 752, column 53)",
-  " (in 'mlumr_survival_spfa', line 754, column 4 to column 67)",
-  " (in 'mlumr_survival_spfa', line 753, column 2 to line 754, column 67)",
-  " (in 'mlumr_survival_spfa', line 756, column 4 to column 71)",
-  " (in 'mlumr_survival_spfa', line 762, column 6 to column 75)",
-  " (in 'mlumr_survival_spfa', line 763, column 6 to column 76)",
-  " (in 'mlumr_survival_spfa', line 767, column 8 to column 47)",
-  " (in 'mlumr_survival_spfa', line 764, column 6 to line 767, column 47)",
-  " (in 'mlumr_survival_spfa', line 761, column 11 to line 768, column 5)",
-  " (in 'mlumr_survival_spfa', line 758, column 6 to column 73)",
-  " (in 'mlumr_survival_spfa', line 760, column 8 to column 58)",
-  " (in 'mlumr_survival_spfa', line 759, column 6 to line 760, column 58)",
-  " (in 'mlumr_survival_spfa', line 757, column 45 to line 761, column 5)",
-  " (in 'mlumr_survival_spfa', line 757, column 4 to line 768, column 5)",
-  " (in 'mlumr_survival_spfa', line 755, column 2 to line 769, column 3)",
-  " (in 'mlumr_survival_spfa', line 770, column 2 to column 72)",
-  " (in 'mlumr_survival_spfa', line 746, column 51 to line 771, column 1)",
-  " (in 'mlumr_survival_spfa', line 790, column 26 to column 53)",
-  " (in 'mlumr_survival_spfa', line 790, column 2 to column 53)",
-  " (in 'mlumr_survival_spfa', line 792, column 4 to line 795, column 52)",
-  " (in 'mlumr_survival_spfa', line 796, column 4 to line 798, column 53)",
-  " (in 'mlumr_survival_spfa', line 791, column 17 to line 799, column 3)",
-  " (in 'mlumr_survival_spfa', line 791, column 2 to line 799, column 3)",
-  " (in 'mlumr_survival_spfa', line 801, column 4 to column 73)",
-  " (in 'mlumr_survival_spfa', line 800, column 2 to line 801, column 73)",
-  " (in 'mlumr_survival_spfa', line 803, column 4 to column 71)",
-  " (in 'mlumr_survival_spfa', line 810, column 6 to column 75)",
-  " (in 'mlumr_survival_spfa', line 811, column 6 to column 76)",
-  " (in 'mlumr_survival_spfa', line 815, column 8 to line 818, column 32)",
-  " (in 'mlumr_survival_spfa', line 812, column 6 to line 818, column 32)",
-  " (in 'mlumr_survival_spfa', line 809, column 11 to line 819, column 5)",
-  " (in 'mlumr_survival_spfa', line 805, column 6 to column 73)",
-  " (in 'mlumr_survival_spfa', line 807, column 8 to line 808, column 64)",
-  " (in 'mlumr_survival_spfa', line 806, column 6 to line 808, column 64)",
-  " (in 'mlumr_survival_spfa', line 804, column 45 to line 809, column 5)",
-  " (in 'mlumr_survival_spfa', line 804, column 4 to line 819, column 5)",
-  " (in 'mlumr_survival_spfa', line 802, column 2 to line 820, column 3)",
-  " (in 'mlumr_survival_spfa', line 821, column 2 to line 822, column 58)",
-  " (in 'mlumr_survival_spfa', line 789, column 59 to line 823, column 1)",
-  " (in 'mlumr_survival_spfa', line 828, column 2 to column 9)",
-  " (in 'mlumr_survival_spfa', line 867, column 6 to column 75)",
-  " (in 'mlumr_survival_spfa', line 864, column 6 to line 865, column 39)",
-  " (in 'mlumr_survival_spfa', line 863, column 4 to line 867, column 75)",
-  " (in 'mlumr_survival_spfa', line 848, column 9 to line 868, column 3)",
-  " (in 'mlumr_survival_spfa', line 847, column 6 to column 53)",
-  " (in 'mlumr_survival_spfa', line 844, column 6 to line 845, column 39)",
-  " (in 'mlumr_survival_spfa', line 843, column 4 to line 847, column 53)",
-  " (in 'mlumr_survival_spfa', line 840, column 26 to line 848, column 3)",
-  " (in 'mlumr_survival_spfa', line 840, column 9 to line 868, column 3)",
-  " (in 'mlumr_survival_spfa', line 839, column 6 to column 57)",
-  " (in 'mlumr_survival_spfa', line 836, column 6 to line 837, column 71)",
-  " (in 'mlumr_survival_spfa', line 835, column 4 to line 839, column 57)",
-  " (in 'mlumr_survival_spfa', line 834, column 26 to line 840, column 3)",
-  " (in 'mlumr_survival_spfa', line 834, column 9 to line 868, column 3)",
-  " (in 'mlumr_survival_spfa', line 833, column 6 to column 54)",
-  " (in 'mlumr_survival_spfa', line 831, column 6 to column 69)",
-  " (in 'mlumr_survival_spfa', line 830, column 4 to line 833, column 54)",
-  " (in 'mlumr_survival_spfa', line 829, column 19 to line 834, column 3)",
-  " (in 'mlumr_survival_spfa', line 829, column 2 to line 868, column 3)",
-  " (in 'mlumr_survival_spfa', line 869, column 2 to column 11)",
-  " (in 'mlumr_survival_spfa', line 827, column 63 to line 870, column 1)",
-  " (in 'mlumr_survival_spfa', line 876, column 2 to column 28)",
-  " (in 'mlumr_survival_spfa', line 877, column 9 to column 10)",
-  " (in 'mlumr_survival_spfa', line 877, column 2 to column 14)",
-  " (in 'mlumr_survival_spfa', line 878, column 17 to column 73)",
-  " (in 'mlumr_survival_spfa', line 878, column 2 to column 73)",
-  " (in 'mlumr_survival_spfa', line 879, column 2 to column 17)",
-  " (in 'mlumr_survival_spfa', line 875, column 66 to line 880, column 1)",
-  " (in 'mlumr_survival_spfa', line 888, column 2 to column 28)",
-  " (in 'mlumr_survival_spfa', line 889, column 9 to column 10)",
-  " (in 'mlumr_survival_spfa', line 889, column 2 to column 18)",
-  " (in 'mlumr_survival_spfa', line 890, column 17 to column 72)",
-  " (in 'mlumr_survival_spfa', line 890, column 2 to column 72)",
-  " (in 'mlumr_survival_spfa', line 891, column 2 to column 37)",
-  " (in 'mlumr_survival_spfa', line 887, column 70 to line 892, column 1)",
-  " (in 'mlumr_survival_spfa', line 900, column 2 to column 28)",
-  " (in 'mlumr_survival_spfa', line 901, column 9 to column 10)",
-  " (in 'mlumr_survival_spfa', line 901, column 2 to column 18)",
-  " (in 'mlumr_survival_spfa', line 902, column 9 to column 10)",
-  " (in 'mlumr_survival_spfa', line 902, column 2 to column 20)",
-  " (in 'mlumr_survival_spfa', line 903, column 2 to column 17)",
-  " (in 'mlumr_survival_spfa', line 905, column 4 to column 59)",
-  " (in 'mlumr_survival_spfa', line 904, column 17 to line 906, column 3)",
-  " (in 'mlumr_survival_spfa', line 904, column 2 to line 906, column 3)",
-  " (in 'mlumr_survival_spfa', line 907, column 2 to column 25)",
-  " (in 'mlumr_survival_spfa', line 909, column 4 to column 17)",
-  " (in 'mlumr_survival_spfa', line 912, column 48 to column 57)",
-  " (in 'mlumr_survival_spfa', line 911, column 6 to line 912, column 57)",
-  " (in 'mlumr_survival_spfa', line 910, column 19 to line 913, column 5)",
-  " (in 'mlumr_survival_spfa', line 910, column 4 to line 913, column 5)",
-  " (in 'mlumr_survival_spfa', line 914, column 4 to column 55)",
-  " (in 'mlumr_survival_spfa', line 908, column 25 to line 915, column 3)",
-  " (in 'mlumr_survival_spfa', line 908, column 2 to line 915, column 3)",
-  " (in 'mlumr_survival_spfa', line 917, column 4 to column 26)",
-  " (in 'mlumr_survival_spfa', line 918, column 4 to column 69)",
-  " (in 'mlumr_survival_spfa', line 920, column 6 to line 921, column 31)",
-  " (in 'mlumr_survival_spfa', line 919, column 4 to line 921, column 31)",
-  " (in 'mlumr_survival_spfa', line 916, column 17 to line 922, column 3)",
-  " (in 'mlumr_survival_spfa', line 916, column 2 to line 922, column 3)",
-  " (in 'mlumr_survival_spfa', line 923, column 2 to column 51)",
-  " (in 'mlumr_survival_spfa', line 899, column 69 to line 924, column 1)",
-  " (in 'mlumr_survival_spfa', line 931, column 2 to column 52)",
-  " (in 'mlumr_survival_spfa', line 930, column 65 to line 932, column 1)",
-  " (in 'mlumr_survival_spfa', line 937, column 2 to column 29)",
-  " (in 'mlumr_survival_spfa', line 938, column 9 to column 10)",
-  " (in 'mlumr_survival_spfa', line 938, column 2 to column 17)",
-  " (in 'mlumr_survival_spfa', line 939, column 2 to column 16)",
-  " (in 'mlumr_survival_spfa', line 940, column 17 to column 68)",
-  " (in 'mlumr_survival_spfa', line 940, column 2 to column 68)",
-  " (in 'mlumr_survival_spfa', line 941, column 17 to column 81)",
-  " (in 'mlumr_survival_spfa', line 941, column 2 to column 81)",
-  " (in 'mlumr_survival_spfa', line 942, column 2 to column 14)",
-  " (in 'mlumr_survival_spfa', line 936, column 72 to line 943, column 1)"};
+  " (in 'mlumr_survival_spfa', line 598, column 6 to column 29)",
+  " (in 'mlumr_survival_spfa', line 599, column 6 to column 50)",
+  " (in 'mlumr_survival_spfa', line 600, column 6 to line 601, column 39)",
+  " (in 'mlumr_survival_spfa', line 597, column 25 to line 602, column 5)",
+  " (in 'mlumr_survival_spfa', line 597, column 4 to line 602, column 5)",
+  " (in 'mlumr_survival_spfa', line 603, column 4 to column 49)",
+  " (in 'mlumr_survival_spfa', line 604, column 49 to column 60)",
+  " (in 'mlumr_survival_spfa', line 604, column 4 to column 60)",
+  " (in 'mlumr_survival_spfa', line 605, column 4 to column 15)",
+  " (in 'mlumr_survival_spfa', line 606, column 4 to column 14)",
+  " (in 'mlumr_survival_spfa', line 592, column 22 to line 607, column 3)",
+  " (in 'mlumr_survival_spfa', line 592, column 2 to line 607, column 3)",
+  " (in 'mlumr_survival_spfa', line 608, column 2 to column 24)",
+  " (in 'mlumr_survival_spfa', line 584, column 46 to line 609, column 1)",
+  " (in 'mlumr_survival_spfa', line 628, column 2 to column 26)",
+  " (in 'mlumr_survival_spfa', line 629, column 2 to column 48)",
+  " (in 'mlumr_survival_spfa', line 630, column 2 to column 13)",
+  " (in 'mlumr_survival_spfa', line 631, column 2 to column 11)",
+  " (in 'mlumr_survival_spfa', line 632, column 2 to column 11)",
+  " (in 'mlumr_survival_spfa', line 633, column 2 to column 35)",
+  " (in 'mlumr_survival_spfa', line 634, column 2 to column 17)",
+  " (in 'mlumr_survival_spfa', line 635, column 26 to column 53)",
+  " (in 'mlumr_survival_spfa', line 635, column 2 to column 53)",
+  " (in 'mlumr_survival_spfa', line 636, column 2 to column 67)",
+  " (in 'mlumr_survival_spfa', line 637, column 22 to column 35)",
+  " (in 'mlumr_survival_spfa', line 637, column 2 to column 35)",
+  " (in 'mlumr_survival_spfa', line 638, column 2 to column 63)",
+  " (in 'mlumr_survival_spfa', line 639, column 2 to column 75)",
+  " (in 'mlumr_survival_spfa', line 640, column 2 to column 25)",
+  " (in 'mlumr_survival_spfa', line 644, column 4 to column 31)",
+  " (in 'mlumr_survival_spfa', line 645, column 4 to column 48)",
+  " (in 'mlumr_survival_spfa', line 646, column 4 to line 647, column 26)",
+  " (in 'mlumr_survival_spfa', line 643, column 2 to line 648, column 3)",
+  " (in 'mlumr_survival_spfa', line 650, column 4 to column 19)",
+  " (in 'mlumr_survival_spfa', line 651, column 4 to column 27)",
+  " (in 'mlumr_survival_spfa', line 652, column 4 to column 24)",
+  " (in 'mlumr_survival_spfa', line 653, column 4 to column 45)",
+  " (in 'mlumr_survival_spfa', line 654, column 4 to column 45)",
+  " (in 'mlumr_survival_spfa', line 655, column 4 to column 70)",
+  " (in 'mlumr_survival_spfa', line 660, column 6 to line 663, column 42)",
+  " (in 'mlumr_survival_spfa', line 664, column 30 to column 39)",
+  " (in 'mlumr_survival_spfa', line 664, column 6 to column 39)",
+  " (in 'mlumr_survival_spfa', line 665, column 6 to column 28)",
+  " (in 'mlumr_survival_spfa', line 656, column 23 to line 666, column 5)",
+  " (in 'mlumr_survival_spfa', line 656, column 4 to line 666, column 5)",
+  " (in 'mlumr_survival_spfa', line 667, column 4 to column 38)",
+  " (in 'mlumr_survival_spfa', line 649, column 18 to line 668, column 3)",
+  " (in 'mlumr_survival_spfa', line 649, column 2 to line 668, column 3)",
+  " (in 'mlumr_survival_spfa', line 669, column 2 to column 15)",
+  " (in 'mlumr_survival_spfa', line 627, column 49 to line 670, column 1)",
+  " (in 'mlumr_survival_spfa', line 709, column 2 to column 75)",
+  " (in 'mlumr_survival_spfa', line 710, column 2 to column 39)",
+  " (in 'mlumr_survival_spfa', line 711, column 2 to column 27)",
+  " (in 'mlumr_survival_spfa', line 712, column 2 to column 23)",
+  " (in 'mlumr_survival_spfa', line 713, column 2 to column 52)",
+  " (in 'mlumr_survival_spfa', line 714, column 2 to column 44)",
+  " (in 'mlumr_survival_spfa', line 715, column 2 to column 18)",
+  " (in 'mlumr_survival_spfa', line 716, column 2 to column 11)",
+  " (in 'mlumr_survival_spfa', line 717, column 2 to column 11)",
+  " (in 'mlumr_survival_spfa', line 718, column 2 to column 10)",
+  " (in 'mlumr_survival_spfa', line 725, column 4 to column 28)",
+  " (in 'mlumr_survival_spfa', line 726, column 4 to column 25)",
+  " (in 'mlumr_survival_spfa', line 724, column 33 to line 727, column 3)",
+  " (in 'mlumr_survival_spfa', line 724, column 9 to line 727, column 3)",
+  " (in 'mlumr_survival_spfa', line 721, column 4 to column 51)",
+  " (in 'mlumr_survival_spfa', line 722, column 4 to column 42)",
+  " (in 'mlumr_survival_spfa', line 723, column 4 to column 25)",
+  " (in 'mlumr_survival_spfa', line 720, column 47 to line 724, column 3)",
+  " (in 'mlumr_survival_spfa', line 719, column 2 to line 727, column 3)",
+  " (in 'mlumr_survival_spfa', line 728, column 2 to line 731, column 42)",
+  " (in 'mlumr_survival_spfa', line 732, column 2 to column 25)",
+  " (in 'mlumr_survival_spfa', line 733, column 2 to column 25)",
+  " (in 'mlumr_survival_spfa', line 734, column 2 to column 60)",
+  " (in 'mlumr_survival_spfa', line 736, column 4 to column 32)",
+  " (in 'mlumr_survival_spfa', line 738, column 6 to line 740, column 54)",
+  " (in 'mlumr_survival_spfa', line 741, column 6 to column 61)",
+  " (in 'mlumr_survival_spfa', line 737, column 18 to line 742, column 5)",
+  " (in 'mlumr_survival_spfa', line 737, column 4 to line 742, column 5)",
+  " (in 'mlumr_survival_spfa', line 743, column 18 to column 71)",
+  " (in 'mlumr_survival_spfa', line 743, column 4 to column 71)",
+  " (in 'mlumr_survival_spfa', line 744, column 4 to column 50)",
+  " (in 'mlumr_survival_spfa', line 735, column 19 to line 745, column 3)",
+  " (in 'mlumr_survival_spfa', line 735, column 2 to line 745, column 3)",
+  " (in 'mlumr_survival_spfa', line 746, column 2 to column 29)",
+  " (in 'mlumr_survival_spfa', line 692, column 50 to line 747, column 1)",
+  " (in 'mlumr_survival_spfa', line 767, column 2 to column 12)",
+  " (in 'mlumr_survival_spfa', line 768, column 38 to column 47)",
+  " (in 'mlumr_survival_spfa', line 768, column 2 to column 47)",
+  " (in 'mlumr_survival_spfa', line 769, column 2 to column 47)",
+  " (in 'mlumr_survival_spfa', line 770, column 2 to column 62)",
+  " (in 'mlumr_survival_spfa', line 766, column 62 to line 771, column 1)",
+  " (in 'mlumr_survival_spfa', line 785, column 2 to column 12)",
+  " (in 'mlumr_survival_spfa', line 786, column 43 to column 52)",
+  " (in 'mlumr_survival_spfa', line 786, column 2 to column 52)",
+  " (in 'mlumr_survival_spfa', line 791, column 37 to column 46)",
+  " (in 'mlumr_survival_spfa', line 791, column 2 to column 46)",
+  " (in 'mlumr_survival_spfa', line 792, column 2 to column 27)",
+  " (in 'mlumr_survival_spfa', line 793, column 2 to column 63)",
+  " (in 'mlumr_survival_spfa', line 784, column 42 to line 794, column 1)",
+  " (in 'mlumr_survival_spfa', line 810, column 26 to column 53)",
+  " (in 'mlumr_survival_spfa', line 810, column 2 to column 53)",
+  " (in 'mlumr_survival_spfa', line 811, column 20 to column 73)",
+  " (in 'mlumr_survival_spfa', line 811, column 2 to column 73)",
+  " (in 'mlumr_survival_spfa', line 813, column 4 to line 815, column 53)",
+  " (in 'mlumr_survival_spfa', line 812, column 2 to line 815, column 53)",
+  " (in 'mlumr_survival_spfa', line 817, column 4 to column 67)",
+  " (in 'mlumr_survival_spfa', line 816, column 2 to line 817, column 67)",
+  " (in 'mlumr_survival_spfa', line 819, column 4 to column 71)",
+  " (in 'mlumr_survival_spfa', line 825, column 6 to column 75)",
+  " (in 'mlumr_survival_spfa', line 826, column 6 to column 76)",
+  " (in 'mlumr_survival_spfa', line 830, column 8 to column 47)",
+  " (in 'mlumr_survival_spfa', line 827, column 6 to line 830, column 47)",
+  " (in 'mlumr_survival_spfa', line 824, column 11 to line 831, column 5)",
+  " (in 'mlumr_survival_spfa', line 821, column 6 to column 73)",
+  " (in 'mlumr_survival_spfa', line 823, column 8 to column 58)",
+  " (in 'mlumr_survival_spfa', line 822, column 6 to line 823, column 58)",
+  " (in 'mlumr_survival_spfa', line 820, column 45 to line 824, column 5)",
+  " (in 'mlumr_survival_spfa', line 820, column 4 to line 831, column 5)",
+  " (in 'mlumr_survival_spfa', line 818, column 2 to line 832, column 3)",
+  " (in 'mlumr_survival_spfa', line 833, column 2 to column 72)",
+  " (in 'mlumr_survival_spfa', line 809, column 51 to line 834, column 1)",
+  " (in 'mlumr_survival_spfa', line 853, column 26 to column 53)",
+  " (in 'mlumr_survival_spfa', line 853, column 2 to column 53)",
+  " (in 'mlumr_survival_spfa', line 855, column 4 to line 858, column 52)",
+  " (in 'mlumr_survival_spfa', line 859, column 4 to line 861, column 53)",
+  " (in 'mlumr_survival_spfa', line 854, column 17 to line 862, column 3)",
+  " (in 'mlumr_survival_spfa', line 854, column 2 to line 862, column 3)",
+  " (in 'mlumr_survival_spfa', line 864, column 4 to column 73)",
+  " (in 'mlumr_survival_spfa', line 863, column 2 to line 864, column 73)",
+  " (in 'mlumr_survival_spfa', line 866, column 4 to column 71)",
+  " (in 'mlumr_survival_spfa', line 873, column 6 to column 75)",
+  " (in 'mlumr_survival_spfa', line 874, column 6 to column 76)",
+  " (in 'mlumr_survival_spfa', line 878, column 8 to line 881, column 32)",
+  " (in 'mlumr_survival_spfa', line 875, column 6 to line 881, column 32)",
+  " (in 'mlumr_survival_spfa', line 872, column 11 to line 882, column 5)",
+  " (in 'mlumr_survival_spfa', line 868, column 6 to column 73)",
+  " (in 'mlumr_survival_spfa', line 870, column 8 to line 871, column 64)",
+  " (in 'mlumr_survival_spfa', line 869, column 6 to line 871, column 64)",
+  " (in 'mlumr_survival_spfa', line 867, column 45 to line 872, column 5)",
+  " (in 'mlumr_survival_spfa', line 867, column 4 to line 882, column 5)",
+  " (in 'mlumr_survival_spfa', line 865, column 2 to line 883, column 3)",
+  " (in 'mlumr_survival_spfa', line 884, column 2 to line 885, column 58)",
+  " (in 'mlumr_survival_spfa', line 852, column 59 to line 886, column 1)",
+  " (in 'mlumr_survival_spfa', line 891, column 2 to column 9)",
+  " (in 'mlumr_survival_spfa', line 930, column 6 to column 75)",
+  " (in 'mlumr_survival_spfa', line 927, column 6 to line 928, column 39)",
+  " (in 'mlumr_survival_spfa', line 926, column 4 to line 930, column 75)",
+  " (in 'mlumr_survival_spfa', line 911, column 9 to line 931, column 3)",
+  " (in 'mlumr_survival_spfa', line 910, column 6 to column 53)",
+  " (in 'mlumr_survival_spfa', line 907, column 6 to line 908, column 39)",
+  " (in 'mlumr_survival_spfa', line 906, column 4 to line 910, column 53)",
+  " (in 'mlumr_survival_spfa', line 903, column 26 to line 911, column 3)",
+  " (in 'mlumr_survival_spfa', line 903, column 9 to line 931, column 3)",
+  " (in 'mlumr_survival_spfa', line 902, column 6 to column 57)",
+  " (in 'mlumr_survival_spfa', line 899, column 6 to line 900, column 71)",
+  " (in 'mlumr_survival_spfa', line 898, column 4 to line 902, column 57)",
+  " (in 'mlumr_survival_spfa', line 897, column 26 to line 903, column 3)",
+  " (in 'mlumr_survival_spfa', line 897, column 9 to line 931, column 3)",
+  " (in 'mlumr_survival_spfa', line 896, column 6 to column 54)",
+  " (in 'mlumr_survival_spfa', line 894, column 6 to column 69)",
+  " (in 'mlumr_survival_spfa', line 893, column 4 to line 896, column 54)",
+  " (in 'mlumr_survival_spfa', line 892, column 19 to line 897, column 3)",
+  " (in 'mlumr_survival_spfa', line 892, column 2 to line 931, column 3)",
+  " (in 'mlumr_survival_spfa', line 932, column 2 to column 11)",
+  " (in 'mlumr_survival_spfa', line 890, column 63 to line 933, column 1)",
+  " (in 'mlumr_survival_spfa', line 939, column 2 to column 28)",
+  " (in 'mlumr_survival_spfa', line 940, column 9 to column 10)",
+  " (in 'mlumr_survival_spfa', line 940, column 2 to column 14)",
+  " (in 'mlumr_survival_spfa', line 941, column 17 to column 73)",
+  " (in 'mlumr_survival_spfa', line 941, column 2 to column 73)",
+  " (in 'mlumr_survival_spfa', line 942, column 2 to column 17)",
+  " (in 'mlumr_survival_spfa', line 938, column 66 to line 943, column 1)",
+  " (in 'mlumr_survival_spfa', line 951, column 2 to column 28)",
+  " (in 'mlumr_survival_spfa', line 952, column 9 to column 10)",
+  " (in 'mlumr_survival_spfa', line 952, column 2 to column 18)",
+  " (in 'mlumr_survival_spfa', line 953, column 17 to column 72)",
+  " (in 'mlumr_survival_spfa', line 953, column 2 to column 72)",
+  " (in 'mlumr_survival_spfa', line 954, column 2 to column 37)",
+  " (in 'mlumr_survival_spfa', line 950, column 70 to line 955, column 1)",
+  " (in 'mlumr_survival_spfa', line 963, column 2 to column 28)",
+  " (in 'mlumr_survival_spfa', line 964, column 9 to column 10)",
+  " (in 'mlumr_survival_spfa', line 964, column 2 to column 18)",
+  " (in 'mlumr_survival_spfa', line 965, column 9 to column 10)",
+  " (in 'mlumr_survival_spfa', line 965, column 2 to column 20)",
+  " (in 'mlumr_survival_spfa', line 966, column 2 to column 17)",
+  " (in 'mlumr_survival_spfa', line 968, column 4 to column 59)",
+  " (in 'mlumr_survival_spfa', line 967, column 17 to line 969, column 3)",
+  " (in 'mlumr_survival_spfa', line 967, column 2 to line 969, column 3)",
+  " (in 'mlumr_survival_spfa', line 970, column 2 to column 25)",
+  " (in 'mlumr_survival_spfa', line 972, column 4 to column 17)",
+  " (in 'mlumr_survival_spfa', line 975, column 48 to column 57)",
+  " (in 'mlumr_survival_spfa', line 974, column 6 to line 975, column 57)",
+  " (in 'mlumr_survival_spfa', line 973, column 19 to line 976, column 5)",
+  " (in 'mlumr_survival_spfa', line 973, column 4 to line 976, column 5)",
+  " (in 'mlumr_survival_spfa', line 977, column 4 to column 55)",
+  " (in 'mlumr_survival_spfa', line 971, column 25 to line 978, column 3)",
+  " (in 'mlumr_survival_spfa', line 971, column 2 to line 978, column 3)",
+  " (in 'mlumr_survival_spfa', line 980, column 4 to column 26)",
+  " (in 'mlumr_survival_spfa', line 981, column 4 to column 69)",
+  " (in 'mlumr_survival_spfa', line 983, column 6 to line 984, column 31)",
+  " (in 'mlumr_survival_spfa', line 982, column 4 to line 984, column 31)",
+  " (in 'mlumr_survival_spfa', line 979, column 17 to line 985, column 3)",
+  " (in 'mlumr_survival_spfa', line 979, column 2 to line 985, column 3)",
+  " (in 'mlumr_survival_spfa', line 986, column 2 to column 51)",
+  " (in 'mlumr_survival_spfa', line 962, column 69 to line 987, column 1)",
+  " (in 'mlumr_survival_spfa', line 994, column 2 to column 52)",
+  " (in 'mlumr_survival_spfa', line 993, column 65 to line 995, column 1)",
+  " (in 'mlumr_survival_spfa', line 1000, column 2 to column 29)",
+  " (in 'mlumr_survival_spfa', line 1001, column 9 to column 10)",
+  " (in 'mlumr_survival_spfa', line 1001, column 2 to column 17)",
+  " (in 'mlumr_survival_spfa', line 1002, column 2 to column 16)",
+  " (in 'mlumr_survival_spfa', line 1003, column 17 to column 68)",
+  " (in 'mlumr_survival_spfa', line 1003, column 2 to column 68)",
+  " (in 'mlumr_survival_spfa', line 1004, column 17 to column 81)",
+  " (in 'mlumr_survival_spfa', line 1004, column 2 to column 81)",
+  " (in 'mlumr_survival_spfa', line 1005, column 2 to column 14)",
+  " (in 'mlumr_survival_spfa', line 999, column 72 to line 1006, column 1)"};
 template <typename T0__, typename T1__, typename T2__, typename T3__,
           typename T4__,
           stan::require_all_t<stan::math::disjunction<stan::is_autodiff_scalar<T0__>,
@@ -1062,6 +1099,25 @@ int
 surv_increment_is_analytic(const T0__& dist, const T1__& t_lower, const T2__&
                            eta, const T3__& aux, const T4__& aux2,
                            std::ostream* pstream__);
+template <typename T0__, typename T1__, typename T2__, typename T3__,
+          typename T4__, typename T5__, typename T6__,
+          stan::require_all_t<stan::is_integral<T0__>,
+                              stan::math::disjunction<stan::is_autodiff_scalar<T1__>,
+                                stan::is_floating_point<T1__>>,
+                              stan::math::disjunction<stan::is_autodiff_scalar<T2__>,
+                                stan::is_floating_point<T2__>>,
+                              stan::math::disjunction<stan::is_autodiff_scalar<T3__>,
+                                stan::is_floating_point<T3__>>,
+                              stan::math::disjunction<stan::is_autodiff_scalar<T4__>,
+                                stan::is_floating_point<T4__>>,
+                              stan::math::disjunction<stan::is_autodiff_scalar<T5__>,
+                                stan::is_floating_point<T5__>>,
+                              stan::math::disjunction<stan::is_autodiff_scalar<T6__>,
+                                stan::is_floating_point<T6__>>>* = nullptr>
+stan::return_type_t<T1__, T2__, T3__, T4__, T5__, stan::return_type_t<T6__>>
+log_simpson_offsets(const T0__& dist, const T1__& s_l, const T2__& a,
+                    const T3__& b, const T4__& eta, const T5__& aux,
+                    const T6__& aux2, std::ostream* pstream__);
 template <typename T0__, typename T1__, typename T2__, typename T3__,
           typename T4__, typename T5__,
           stan::require_all_t<stan::is_integral<T0__>,
@@ -2615,39 +2671,39 @@ log_surv_increment(const T0__& dist, const T1__& t_upper, const T2__&
       local_scalar_t__ log_ratio = DUMMY_VAR__;
       current_statement__ = 516;
       log_ratio = log_time_ratio(t_upper, t_lower, pstream__);
-      current_statement__ = 554;
+      current_statement__ = 556;
       if (stan::math::logical_eq(dist, 6)) {
         local_scalar_t__ z_lower = DUMMY_VAR__;
-        current_statement__ = 547;
+        current_statement__ = 549;
         z_lower = ((stan::math::log(t_lower) - eta) / aux);
         local_scalar_t__ dz = DUMMY_VAR__;
-        current_statement__ = 548;
+        current_statement__ = 550;
         dz = (log_ratio / aux);
         local_scalar_t__ z_upper = DUMMY_VAR__;
-        current_statement__ = 549;
+        current_statement__ = 551;
         z_upper = (z_lower + dz);
-        current_statement__ = 552;
+        current_statement__ = 554;
         if (stan::math::logical_gt(z_lower, 5)) {
-          current_statement__ = 550;
+          current_statement__ = 552;
           return (((-(0.5) * dz) * (z_upper + z_lower)) -
                  (log_std_normal_hazard(z_upper, pstream__) -
                  log_std_normal_hazard(z_lower, pstream__)));
         }
       } else {
-        current_statement__ = 546;
+        current_statement__ = 548;
         if (stan::math::logical_eq(dist, 7)) {
           local_scalar_t__ z_lower = DUMMY_VAR__;
-          current_statement__ = 539;
+          current_statement__ = 541;
           z_lower = (aux * (stan::math::log(t_lower) - eta));
-          current_statement__ = 544;
+          current_statement__ = 546;
           if (stan::math::logical_gt(z_lower, 0)) {
             local_scalar_t__ dz = DUMMY_VAR__;
-            current_statement__ = 540;
+            current_statement__ = 542;
             dz = (aux * log_ratio);
             local_scalar_t__ z_upper = DUMMY_VAR__;
-            current_statement__ = 541;
+            current_statement__ = 543;
             z_upper = (z_lower + dz);
-            current_statement__ = 542;
+            current_statement__ = 544;
             return (-(dz) - (stan::math::log1p_exp(-(z_upper)) -
                    stan::math::log1p_exp(-(z_lower))));
           }
@@ -2673,7 +2729,7 @@ log_surv_increment(const T0__& dist, const T1__& t_upper, const T2__&
             current_statement__ = 522;
             dlog_x = ((Q * log_ratio) / aux);
           }
-          current_statement__ = 537;
+          current_statement__ = 539;
           if (stan::math::logical_gt(log_x_lower,
                 stan::math::log((shape +
                   stan::math::fmax(1, stan::math::sqrt(shape)))))) {
@@ -2685,18 +2741,26 @@ log_surv_increment(const T0__& dist, const T1__& t_upper, const T2__&
             current_statement__ = 529;
             dx = stan::math::exp(log_dx);
             current_statement__ = 531;
-            if (stan::math::is_inf(stan::math::exp(log_x_lower))) {
+            if ((stan::math::primitive_value(stan::math::is_inf(dx)) ||
+                stan::math::primitive_value(
+                  stan::math::is_inf(stan::math::exp((log_x_lower + dlog_x)))))) {
               current_statement__ = 530;
+              return stan::math::promote_scalar<local_scalar_t__>(
+                       stan::math::negative_infinity());
+            }
+            current_statement__ = 533;
+            if (stan::math::is_inf(stan::math::exp(log_x_lower))) {
+              current_statement__ = 532;
               return (-(dx) + ((shape - 1) * dlog_x));
             }
             {
               local_scalar_t__ x_lower = DUMMY_VAR__;
-              current_statement__ = 532;
+              current_statement__ = 534;
               x_lower = stan::math::exp(log_x_lower);
               local_scalar_t__ x_upper = DUMMY_VAR__;
-              current_statement__ = 533;
+              current_statement__ = 535;
               x_upper = stan::math::exp((log_x_lower + dlog_x));
-              current_statement__ = 534;
+              current_statement__ = 536;
               return (((-(dx) + (shape * dlog_x)) +
                      log_gamma_q_cf_factor(shape, x_upper, pstream__)) -
                      log_gamma_q_cf_factor(shape, x_lower, pstream__));
@@ -2705,7 +2769,7 @@ log_surv_increment(const T0__& dist, const T1__& t_upper, const T2__&
         }
       }
     }
-    current_statement__ = 556;
+    current_statement__ = 558;
     return (log_surv_scalar(dist, t_upper, eta, aux, aux2, pstream__) -
            log_surv_scalar(dist, t_lower, eta, aux, aux2, pstream__));
   } catch (const std::exception& e) {
@@ -2739,44 +2803,157 @@ surv_increment_is_analytic(const T0__& dist, const T1__& t_lower, const T2__&
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 559;
-    if (stan::math::logical_lte(dist, 5)) {
-      current_statement__ = 558;
-      return 1;
-    }
     current_statement__ = 561;
-    if (stan::math::logical_eq(t_lower, 0)) {
+    if (stan::math::logical_lte(dist, 5)) {
       current_statement__ = 560;
       return 1;
     }
     current_statement__ = 563;
-    if (stan::math::logical_eq(dist, 6)) {
+    if (stan::math::logical_eq(t_lower, 0)) {
       current_statement__ = 562;
+      return 1;
+    }
+    current_statement__ = 565;
+    if (stan::math::logical_eq(dist, 6)) {
+      current_statement__ = 564;
       return stan::math::logical_gt(((stan::math::log(t_lower) - eta) / aux),
                5);
     }
-    current_statement__ = 565;
+    current_statement__ = 567;
     if (stan::math::logical_eq(dist, 7)) {
-      current_statement__ = 564;
+      current_statement__ = 566;
       return stan::math::logical_gt((aux * (stan::math::log(t_lower) - eta)),
                0);
     }
     {
       local_scalar_t__ shape = DUMMY_VAR__;
-      current_statement__ = 566;
+      current_statement__ = 568;
       shape = (stan::math::logical_eq(dist, 8) ? aux : aux2);
       local_scalar_t__ log_x_lower = DUMMY_VAR__;
-      current_statement__ = 567;
+      current_statement__ = 569;
       log_x_lower = (stan::math::logical_eq(dist, 8) ? (stan::math::log(
                                                           t_lower)
         - eta) : (stan::math::log(aux2) +
         ((stan::math::inv(stan::math::sqrt(aux2)) * (stan::math::log(t_lower)
         - eta)) / aux)));
-      current_statement__ = 568;
+      current_statement__ = 570;
       return stan::math::logical_gt(log_x_lower,
                stan::math::log((shape +
                  stan::math::fmax(1, stan::math::sqrt(shape)))));
     }
+  } catch (const std::exception& e) {
+    stan::lang::rethrow_located(e, locations_array__[current_statement__]);
+  }
+}
+// real log_simpson_offsets(int, real, real, real, real, real, real)
+template <typename T0__, typename T1__, typename T2__, typename T3__,
+          typename T4__, typename T5__, typename T6__,
+          stan::require_all_t<stan::is_integral<T0__>,
+                              stan::math::disjunction<stan::is_autodiff_scalar<T1__>,
+                                stan::is_floating_point<T1__>>,
+                              stan::math::disjunction<stan::is_autodiff_scalar<T2__>,
+                                stan::is_floating_point<T2__>>,
+                              stan::math::disjunction<stan::is_autodiff_scalar<T3__>,
+                                stan::is_floating_point<T3__>>,
+                              stan::math::disjunction<stan::is_autodiff_scalar<T4__>,
+                                stan::is_floating_point<T4__>>,
+                              stan::math::disjunction<stan::is_autodiff_scalar<T5__>,
+                                stan::is_floating_point<T5__>>,
+                              stan::math::disjunction<stan::is_autodiff_scalar<T6__>,
+                                stan::is_floating_point<T6__>>>*>
+stan::return_type_t<T1__, T2__, T3__, T4__, T5__, stan::return_type_t<T6__>>
+log_simpson_offsets(const T0__& dist, const T1__& s_l, const T2__& a,
+                    const T3__& b, const T4__& eta, const T5__& aux,
+                    const T6__& aux2, std::ostream* pstream__) {
+  using local_scalar_t__ = stan::return_type_t<T1__, T2__, T3__, T4__, T5__,
+                             stan::return_type_t<T6__>>;
+  int current_statement__ = 0;
+  // suppress unused var warning
+  (void) current_statement__;
+  static constexpr bool propto__ = true;
+  // suppress unused var warning
+  (void) propto__;
+  local_scalar_t__ DUMMY_VAR__(std::numeric_limits<double>::quiet_NaN());
+  // suppress unused var warning
+  (void) DUMMY_VAR__;
+  try {
+    local_scalar_t__ width = DUMMY_VAR__;
+    current_statement__ = 573;
+    width = (b - a);
+    local_scalar_t__ f_a = DUMMY_VAR__;
+    current_statement__ = 574;
+    f_a = ((log_density_offset(dist, s_l, a, eta, aux, aux2, pstream__) +
+      s_l) + a);
+    local_scalar_t__ f_b = DUMMY_VAR__;
+    current_statement__ = 575;
+    f_b = ((log_density_offset(dist, s_l, b, eta, aux, aux2, pstream__) +
+      s_l) + b);
+    int n = std::numeric_limits<int>::min();
+    current_statement__ = 576;
+    n = 8;
+    local_scalar_t__ prev = DUMMY_VAR__;
+    current_statement__ = 577;
+    prev = stan::math::not_a_number();
+    local_scalar_t__ cur = DUMMY_VAR__;
+    current_statement__ = 578;
+    cur = stan::math::negative_infinity();
+    current_statement__ = 580;
+    if (stan::math::logical_lte(width, 0)) {
+      current_statement__ = 579;
+      return stan::math::promote_scalar<local_scalar_t__>(
+               stan::math::negative_infinity());
+    }
+    current_statement__ = 597;
+    for (int level = 1; level <= 11; ++level) {
+      local_scalar_t__ h = DUMMY_VAR__;
+      current_statement__ = 581;
+      h = (width / n);
+      current_statement__ = 582;
+      stan::math::validate_non_negative_index("terms", "n + 1", (n + 1));
+      Eigen::Matrix<local_scalar_t__,-1,1> terms =
+        Eigen::Matrix<local_scalar_t__,-1,1>::Constant((n + 1), DUMMY_VAR__);
+      current_statement__ = 584;
+      stan::model::assign(terms, f_a, "assigning variable terms",
+        stan::model::index_uni(1));
+      current_statement__ = 585;
+      stan::model::assign(terms, f_b, "assigning variable terms",
+        stan::model::index_uni((n + 1)));
+      current_statement__ = 590;
+      for (int i = 1; i <= (n - 1); ++i) {
+        local_scalar_t__ shift = DUMMY_VAR__;
+        current_statement__ = 586;
+        shift = (a + (i * h));
+        local_scalar_t__ w = DUMMY_VAR__;
+        current_statement__ = 587;
+        w = (stan::math::logical_eq(stan::math::modulus(i, 2), 1) ? stan::math::log(
+                                                                    4.0) : 
+          stan::math::log(2.0));
+        current_statement__ = 588;
+        stan::model::assign(terms,
+          (((log_density_offset(dist, s_l, shift, eta, aux, aux2, pstream__)
+          + s_l) + shift) + w), "assigning variable terms",
+          stan::model::index_uni((i + 1)));
+      }
+      current_statement__ = 591;
+      cur = ((stan::math::log_sum_exp(terms) + stan::math::log(h)) -
+        stan::math::log(3.0));
+      current_statement__ = 593;
+      if ((stan::math::primitive_value(
+             stan::math::logical_negation(stan::math::is_nan(prev)))
+          &&
+          stan::math::primitive_value(
+            stan::math::logical_lt(stan::math::abs((cur - prev)), 1e-9)))) {
+        current_statement__ = 592;
+        return cur;
+      }
+      current_statement__ = 594;
+      prev = cur;
+      current_statement__ = 595;
+      n = (2 * n);
+    }
+    current_statement__ = 598;
+    return stan::math::promote_scalar<local_scalar_t__>(
+             stan::math::not_a_number());
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
   }
@@ -2811,85 +2988,97 @@ log_interval_prob_quad(const T0__& dist, const T1__& t_upper, const T2__&
   (void) DUMMY_VAR__;
   try {
     local_scalar_t__ s_l = DUMMY_VAR__;
-    current_statement__ = 571;
+    current_statement__ = 600;
     s_l = stan::math::log(t_lower);
     local_scalar_t__ width = DUMMY_VAR__;
-    current_statement__ = 572;
+    current_statement__ = 601;
     width = log_time_ratio(t_upper, t_lower, pstream__);
+    local_scalar_t__ whole = DUMMY_VAR__;
     local_scalar_t__ f_l = DUMMY_VAR__;
-    current_statement__ = 573;
-    f_l = (log_density_offset(dist, s_l, static_cast<double>(0), eta, aux,
-             aux2, pstream__)
-      + s_l);
     local_scalar_t__ f_u = DUMMY_VAR__;
-    current_statement__ = 574;
-    f_u = ((log_density_offset(dist, s_l, width, eta, aux, aux2, pstream__) +
-      s_l) + width);
-    int n = std::numeric_limits<int>::min();
-    current_statement__ = 575;
-    n = 8;
-    local_scalar_t__ prev = DUMMY_VAR__;
-    current_statement__ = 576;
-    prev = stan::math::not_a_number();
-    local_scalar_t__ cur = DUMMY_VAR__;
-    current_statement__ = 577;
-    cur = stan::math::negative_infinity();
-    current_statement__ = 579;
+    local_scalar_t__ total = DUMMY_VAR__;
+    current_statement__ = 605;
+    total = stan::math::negative_infinity();
+    int from_upper = std::numeric_limits<int>::min();
+    current_statement__ = 608;
     if (stan::math::logical_lte(t_upper, t_lower)) {
-      current_statement__ = 578;
+      current_statement__ = 607;
       return stan::math::promote_scalar<local_scalar_t__>(
                stan::math::negative_infinity());
     }
-    current_statement__ = 596;
-    for (int level = 1; level <= 9; ++level) {
-      local_scalar_t__ h = DUMMY_VAR__;
-      current_statement__ = 580;
-      h = (width / n);
-      current_statement__ = 581;
-      stan::math::validate_non_negative_index("terms", "n + 1", (n + 1));
-      Eigen::Matrix<local_scalar_t__,-1,1> terms =
-        Eigen::Matrix<local_scalar_t__,-1,1>::Constant((n + 1), DUMMY_VAR__);
-      current_statement__ = 583;
-      stan::model::assign(terms, f_l, "assigning variable terms",
-        stan::model::index_uni(1));
-      current_statement__ = 584;
-      stan::model::assign(terms, f_u, "assigning variable terms",
-        stan::model::index_uni((n + 1)));
-      current_statement__ = 589;
-      for (int i = 1; i <= (n - 1); ++i) {
-        local_scalar_t__ shift = DUMMY_VAR__;
-        current_statement__ = 585;
-        shift = (i * h);
-        local_scalar_t__ w = DUMMY_VAR__;
-        current_statement__ = 586;
-        w = (stan::math::logical_eq(stan::math::modulus(i, 2), 1) ? stan::math::log(
-                                                                    4.0) : 
-          stan::math::log(2.0));
-        current_statement__ = 587;
-        stan::model::assign(terms,
-          (((log_density_offset(dist, s_l, shift, eta, aux, aux2, pstream__)
-          + s_l) + shift) + w), "assigning variable terms",
-          stan::model::index_uni((i + 1)));
-      }
-      current_statement__ = 590;
-      cur = ((stan::math::log_sum_exp(terms) + stan::math::log(h)) -
-        stan::math::log(3.0));
-      current_statement__ = 592;
-      if ((stan::math::primitive_value(
-             stan::math::logical_negation(stan::math::is_nan(prev)))
-          &&
-          stan::math::primitive_value(
-            stan::math::logical_lt(stan::math::abs((cur - prev)), 1e-10)))) {
-        current_statement__ = 591;
-        return cur;
-      }
-      current_statement__ = 593;
-      prev = cur;
-      current_statement__ = 594;
-      n = (2 * n);
+    current_statement__ = 609;
+    whole = log_simpson_offsets(dist, s_l, static_cast<double>(0), width,
+              eta, aux, aux2, pstream__);
+    current_statement__ = 611;
+    if (stan::math::logical_negation(stan::math::is_nan(whole))) {
+      current_statement__ = 610;
+      return whole;
     }
-    current_statement__ = 597;
-    return cur;
+    current_statement__ = 612;
+    f_l = (log_density_offset(dist, s_l, static_cast<double>(0), eta, aux,
+             aux2, pstream__)
+      + s_l);
+    current_statement__ = 613;
+    f_u = ((log_density_offset(dist, s_l, width, eta, aux, aux2, pstream__) +
+      s_l) + width);
+    current_statement__ = 614;
+    from_upper = stan::math::logical_gt(f_u, f_l);
+    {
+      local_scalar_t__ sliver = DUMMY_VAR__;
+      current_statement__ = 615;
+      sliver = (width / stan::math::pow(2, 60));
+      local_scalar_t__ edge = DUMMY_VAR__;
+      current_statement__ = 616;
+      edge = (from_upper ? (width -
+        sliver) : stan::math::promote_scalar<local_scalar_t__>(0));
+      current_statement__ = 617;
+      total = (((log_density_offset(dist, s_l, edge, eta, aux, aux2,
+                   pstream__)
+        + s_l) + edge) + stan::math::log(sliver));
+    }
+    current_statement__ = 633;
+    for (int k = 0; k <= 59; ++k) {
+      int j = std::numeric_limits<int>::min();
+      current_statement__ = 619;
+      j = (59 - k);
+      local_scalar_t__ far = DUMMY_VAR__;
+      current_statement__ = 620;
+      far = (width / stan::math::pow(2, j));
+      local_scalar_t__ near = DUMMY_VAR__;
+      current_statement__ = 621;
+      near = (far / 2);
+      local_scalar_t__ a = DUMMY_VAR__;
+      current_statement__ = 622;
+      a = (from_upper ? (width - far) : near);
+      local_scalar_t__ b = DUMMY_VAR__;
+      current_statement__ = 623;
+      b = (from_upper ? (width - near) : far);
+      local_scalar_t__ piece = DUMMY_VAR__;
+      current_statement__ = 624;
+      piece = log_simpson_offsets(dist, s_l, a, b, eta, aux, aux2, pstream__);
+      current_statement__ = 630;
+      if (stan::math::is_nan(piece)) {
+        local_scalar_t__ bound = DUMMY_VAR__;
+        current_statement__ = 625;
+        bound = (stan::math::fmax(
+                   ((log_density_offset(dist, s_l, a, eta, aux, aux2,
+                       pstream__) + s_l) + a),
+                   ((log_density_offset(dist, s_l, b, eta, aux, aux2,
+                       pstream__) + s_l) + b))
+          + stan::math::log((b - a)));
+        current_statement__ = 627;
+        if (stan::math::logical_lt(bound, (total - 25))) {
+          continue;
+        }
+        current_statement__ = 628;
+        return stan::math::promote_scalar<local_scalar_t__>(
+                 stan::math::not_a_number());
+      }
+      current_statement__ = 631;
+      total = stan::math::log_sum_exp(total, piece);
+    }
+    current_statement__ = 634;
+    return total;
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
   }
@@ -2923,94 +3112,101 @@ log_loglogistic_interval(const T0__& t_upper, const T1__& t_lower,
   (void) DUMMY_VAR__;
   try {
     local_scalar_t__ centered_e = DUMMY_VAR__;
-    current_statement__ = 599;
+    current_statement__ = 636;
     centered_e = (stan::math::logical_gt(t_entry, 0) ? (stan::math::log(
                                                           t_entry)
       -
       eta) : stan::math::promote_scalar<local_scalar_t__>(
                stan::math::negative_infinity()));
     local_scalar_t__ centered_l = DUMMY_VAR__;
-    current_statement__ = 600;
+    current_statement__ = 637;
     centered_l = (stan::math::log(t_lower) - eta);
     int lower_from_entry = std::numeric_limits<int>::min();
-    current_statement__ = 601;
+    current_statement__ = 638;
     lower_from_entry = 0;
     local_scalar_t__ lower_ratio = DUMMY_VAR__;
-    current_statement__ = 602;
+    current_statement__ = 639;
     lower_ratio = stan::math::promote_scalar<local_scalar_t__>(0);
     local_scalar_t__ log_ratio = DUMMY_VAR__;
-    current_statement__ = 603;
+    current_statement__ = 640;
     log_ratio = log_time_ratio(t_upper, t_lower, pstream__);
     local_scalar_t__ centered_direct = DUMMY_VAR__;
-    current_statement__ = 604;
+    current_statement__ = 641;
     centered_direct = (stan::math::log(t_upper) - eta);
     local_scalar_t__ centered_u = DUMMY_VAR__;
     local_scalar_t__ z_l = DUMMY_VAR__;
     local_scalar_t__ z_u = DUMMY_VAR__;
     local_scalar_t__ lp = DUMMY_VAR__;
-    current_statement__ = 617;
+    current_statement__ = 654;
     if ((stan::math::primitive_value(
-           (stan::math::primitive_value(stan::math::logical_gt(t_entry, 0))
-           &&
+           (stan::math::primitive_value(
+              (stan::math::primitive_value(stan::math::logical_gt(t_entry, 0))
+              &&
+              stan::math::primitive_value(
+                stan::math::logical_neq(t_entry, t_lower)))) &&
            stan::math::primitive_value(
-             stan::math::logical_neq(t_entry, t_lower))))
+             stan::math::logical_gte((centered_l * centered_e), 0))))
         &&
         stan::math::primitive_value(
           stan::math::logical_negation(
             stan::math::logical_lt(stan::math::abs(centered_l),
               stan::math::abs(centered_e)))))) {
-      current_statement__ = 613;
+      current_statement__ = 650;
       lower_ratio = log_time_ratio(t_lower, t_entry, pstream__);
-      current_statement__ = 614;
+      current_statement__ = 651;
       centered_l = (centered_e + lower_ratio);
-      current_statement__ = 615;
+      current_statement__ = 652;
       lower_from_entry = 1;
     } else {
-      current_statement__ = 612;
+      current_statement__ = 649;
       if (stan::math::logical_eq(t_entry, t_lower)) {
-        current_statement__ = 609;
+        current_statement__ = 646;
         centered_l = centered_e;
-        current_statement__ = 610;
+        current_statement__ = 647;
         lower_from_entry = 1;
       }
     }
-    current_statement__ = 618;
-    centered_u = (stan::math::logical_lt(stan::math::abs(centered_direct),
-                    stan::math::abs(centered_l)) ? centered_direct : (centered_l
+    current_statement__ = 655;
+    centered_u = ((stan::math::primitive_value(
+                     stan::math::logical_lt((centered_direct * centered_l), 0))
+      ||
+      stan::math::primitive_value(
+        stan::math::logical_lt(stan::math::abs(centered_direct),
+          stan::math::abs(centered_l)))) ? centered_direct : (centered_l
       + log_ratio));
-    current_statement__ = 619;
+    current_statement__ = 656;
     z_l = (aux * centered_l);
-    current_statement__ = 620;
+    current_statement__ = 657;
     z_u = (aux * centered_u);
-    current_statement__ = 621;
+    current_statement__ = 658;
     lp = (log1m_exp_neg_prod(aux, log_ratio, pstream__) -
       stan::math::log1p_exp(-(z_u)));
-    current_statement__ = 631;
+    current_statement__ = 668;
     if (stan::math::logical_gt(t_entry, 0)) {
       local_scalar_t__ z_e = DUMMY_VAR__;
-      current_statement__ = 622;
+      current_statement__ = 659;
       z_e = (aux * centered_e);
-      current_statement__ = 626;
+      current_statement__ = 663;
       if (stan::math::logical_gte(z_e, 0)) {
         local_scalar_t__ drop = DUMMY_VAR__;
-        current_statement__ = 623;
+        current_statement__ = 660;
         drop = (lower_from_entry ? (-(aux) * lower_ratio) : (aux *
           (centered_e - centered_l)));
-        current_statement__ = 624;
+        current_statement__ = 661;
         return (((lp + drop) + stan::math::log1p(stan::math::exp(-(z_e)))) -
                stan::math::log1p(stan::math::exp(-(z_l))));
       }
-      current_statement__ = 628;
+      current_statement__ = 665;
       if (stan::math::logical_gte(z_l, 0)) {
-        current_statement__ = 627;
+        current_statement__ = 664;
         return (((lp + stan::math::log1p(stan::math::exp(z_e))) - z_l) -
                stan::math::log1p(stan::math::exp(-(z_l))));
       }
-      current_statement__ = 629;
+      current_statement__ = 666;
       return ((lp + stan::math::log1p(stan::math::exp(z_e))) -
              stan::math::log1p(stan::math::exp(z_l)));
     }
-    current_statement__ = 632;
+    current_statement__ = 669;
     return (lp - stan::math::log1p_exp(z_l));
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -3037,14 +3233,14 @@ cdf_diff_resolves(const T0__& log_cdf_upper, const T1__& log_cdf_lower,
   (void) DUMMY_VAR__;
   try {
     local_scalar_t__ mass = DUMMY_VAR__;
-    current_statement__ = 636;
+    current_statement__ = 673;
     if (stan::math::logical_lte(log_cdf_upper, log_cdf_lower)) {
-      current_statement__ = 635;
+      current_statement__ = 672;
       return 0;
     }
-    current_statement__ = 637;
+    current_statement__ = 674;
     mass = -(stan::math::expm1((log_cdf_lower - log_cdf_upper)));
-    current_statement__ = 638;
+    current_statement__ = 675;
     return (stan::math::primitive_value(stan::math::logical_gte(mass, 0.5))
            ||
            stan::math::primitive_value(
@@ -3076,21 +3272,21 @@ surv_increment_resolves(const T0__& increment, const T1__& log_surv_lower,
   (void) DUMMY_VAR__;
   try {
     local_scalar_t__ mass = DUMMY_VAR__;
-    current_statement__ = 642;
+    current_statement__ = 679;
     if ((stan::math::primitive_value(stan::math::is_nan(increment)) ||
         stan::math::primitive_value(stan::math::logical_gte(increment, 0)))) {
-      current_statement__ = 641;
+      current_statement__ = 678;
       return 0;
     }
-    current_statement__ = 644;
+    current_statement__ = 681;
     if ((stan::math::primitive_value(analytic) ||
         stan::math::primitive_value(stan::math::is_inf(increment)))) {
-      current_statement__ = 643;
+      current_statement__ = 680;
       return 1;
     }
-    current_statement__ = 645;
+    current_statement__ = 682;
     mass = -(stan::math::expm1(increment));
-    current_statement__ = 646;
+    current_statement__ = 683;
     return (stan::math::primitive_value(stan::math::logical_gte(mass, 0.5))
            ||
            stan::math::primitive_value(
@@ -3129,65 +3325,65 @@ log_interval_prob_scalar(const T0__& dist, const T1__& t_upper, const T2__&
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 649;
+    current_statement__ = 686;
     if (stan::math::logical_lte(t_upper, t_lower)) {
-      current_statement__ = 648;
+      current_statement__ = 685;
       return stan::math::promote_scalar<local_scalar_t__>(
                stan::math::negative_infinity());
     }
-    current_statement__ = 651;
+    current_statement__ = 688;
     if (stan::math::logical_eq(t_lower, 0)) {
-      current_statement__ = 650;
+      current_statement__ = 687;
       return log_cdf_scalar(dist, t_upper, eta, aux, aux2, pstream__);
     }
-    current_statement__ = 653;
+    current_statement__ = 690;
     if (stan::math::logical_lte(dist, 5)) {
-      current_statement__ = 652;
+      current_statement__ = 689;
       return (log_surv_scalar(dist, t_lower, eta, aux, aux2, pstream__) +
              log1m_exp_neg_exp(
                log_cumhaz_diff(dist, t_upper, t_lower, eta, aux, pstream__),
                pstream__));
     }
-    current_statement__ = 655;
+    current_statement__ = 692;
     if (stan::math::logical_eq(dist, 7)) {
-      current_statement__ = 654;
+      current_statement__ = 691;
       return log_loglogistic_interval(t_upper, t_lower,
                static_cast<double>(0), eta, aux, pstream__);
     }
     {
       local_scalar_t__ log_cdf_upper = DUMMY_VAR__;
-      current_statement__ = 656;
+      current_statement__ = 693;
       log_cdf_upper = log_cdf_scalar(dist, t_upper, eta, aux, aux2, pstream__);
-      current_statement__ = 666;
+      current_statement__ = 703;
       if (stan::math::logical_lt(log_cdf_upper, -(0.6931471805599453))) {
         local_scalar_t__ log_cdf_lower = DUMMY_VAR__;
-        current_statement__ = 662;
+        current_statement__ = 699;
         log_cdf_lower = log_cdf_scalar(dist, t_lower, eta, aux, aux2,
                           pstream__);
-        current_statement__ = 664;
+        current_statement__ = 701;
         if (cdf_diff_resolves(log_cdf_upper, log_cdf_lower, pstream__)) {
-          current_statement__ = 663;
+          current_statement__ = 700;
           return stan::math::log_diff_exp(log_cdf_upper, log_cdf_lower);
         }
       } else {
         local_scalar_t__ log_surv_lower = DUMMY_VAR__;
-        current_statement__ = 657;
+        current_statement__ = 694;
         log_surv_lower = log_surv_scalar(dist, t_lower, eta, aux, aux2,
                            pstream__);
         local_scalar_t__ inc = DUMMY_VAR__;
-        current_statement__ = 658;
+        current_statement__ = 695;
         inc = log_surv_increment(dist, t_upper, t_lower, eta, aux, aux2,
                 pstream__);
-        current_statement__ = 660;
+        current_statement__ = 697;
         if (surv_increment_resolves(inc, log_surv_lower,
               surv_increment_is_analytic(dist, t_lower, eta, aux, aux2,
                 pstream__), pstream__)) {
-          current_statement__ = 659;
+          current_statement__ = 696;
           return (log_surv_lower + stan::math::log1m_exp(inc));
         }
       }
     }
-    current_statement__ = 668;
+    current_statement__ = 705;
     return log_interval_prob_quad(dist, t_upper, t_lower, eta, aux, aux2,
              pstream__);
   } catch (const std::exception& e) {
@@ -3227,63 +3423,63 @@ log_cond_interval_prob(const T0__& dist, const T1__& t_upper, const T2__&
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 671;
+    current_statement__ = 708;
     if (stan::math::logical_lte(t_upper, t_lower)) {
-      current_statement__ = 670;
+      current_statement__ = 707;
       return stan::math::promote_scalar<local_scalar_t__>(
                stan::math::negative_infinity());
     }
-    current_statement__ = 675;
+    current_statement__ = 712;
     if (stan::math::logical_lte(dist, 5)) {
       local_scalar_t__ log_reach = DUMMY_VAR__;
-      current_statement__ = 672;
+      current_statement__ = 709;
       log_reach = (stan::math::logical_eq(t_lower, t_entry) ? stan::math::promote_scalar<
                                                                 local_scalar_t__>(
                                                                 0) : -(
         stan::math::exp(
           log_cumhaz_diff(dist, t_lower, t_entry, eta, aux, pstream__))));
-      current_statement__ = 673;
+      current_statement__ = 710;
       return (log_reach +
              log1m_exp_neg_exp(
                log_cumhaz_diff(dist, t_upper, t_lower, eta, aux, pstream__),
                pstream__));
     }
-    current_statement__ = 677;
+    current_statement__ = 714;
     if (stan::math::logical_eq(dist, 7)) {
-      current_statement__ = 676;
+      current_statement__ = 713;
       return log_loglogistic_interval(t_upper, t_lower, t_entry, eta, aux,
                pstream__);
     }
     {
       local_scalar_t__ log_cdf_upper = DUMMY_VAR__;
-      current_statement__ = 678;
+      current_statement__ = 715;
       log_cdf_upper = log_cdf_scalar(dist, t_upper, eta, aux, aux2, pstream__);
-      current_statement__ = 688;
+      current_statement__ = 725;
       if (stan::math::logical_lt(log_cdf_upper, -(0.6931471805599453))) {
         local_scalar_t__ log_cdf_lower = DUMMY_VAR__;
-        current_statement__ = 684;
+        current_statement__ = 721;
         log_cdf_lower = log_cdf_scalar(dist, t_lower, eta, aux, aux2,
                           pstream__);
-        current_statement__ = 686;
+        current_statement__ = 723;
         if (cdf_diff_resolves(log_cdf_upper, log_cdf_lower, pstream__)) {
-          current_statement__ = 685;
+          current_statement__ = 722;
           return (stan::math::log_diff_exp(log_cdf_upper, log_cdf_lower) -
                  log_surv_scalar(dist, t_entry, eta, aux, aux2, pstream__));
         }
       } else {
         local_scalar_t__ log_surv_lower = DUMMY_VAR__;
-        current_statement__ = 679;
+        current_statement__ = 716;
         log_surv_lower = log_surv_scalar(dist, t_lower, eta, aux, aux2,
                            pstream__);
         local_scalar_t__ inc = DUMMY_VAR__;
-        current_statement__ = 680;
+        current_statement__ = 717;
         inc = log_surv_increment(dist, t_upper, t_lower, eta, aux, aux2,
                 pstream__);
-        current_statement__ = 682;
+        current_statement__ = 719;
         if (surv_increment_resolves(inc, log_surv_lower,
               surv_increment_is_analytic(dist, t_lower, eta, aux, aux2,
                 pstream__), pstream__)) {
-          current_statement__ = 681;
+          current_statement__ = 718;
           return ((stan::math::logical_eq(t_lower, t_entry) ? stan::math::promote_scalar<
                                                                 local_scalar_t__>(
                                                                 0) : 
@@ -3293,7 +3489,7 @@ log_cond_interval_prob(const T0__& dist, const T1__& t_upper, const T2__&
         }
       }
     }
-    current_statement__ = 690;
+    current_statement__ = 727;
     return (log_interval_prob_quad(dist, t_upper, t_lower, eta, aux, aux2,
               pstream__)
            - log_surv_scalar(dist, t_entry, eta, aux, aux2, pstream__));
@@ -3335,57 +3531,57 @@ surv_ll_status(const T0__& dist, const T1__& time, const T2__& start_time,
   (void) DUMMY_VAR__;
   try {
     local_scalar_t__ l = DUMMY_VAR__;
-    current_statement__ = 711;
+    current_statement__ = 748;
     if (stan::math::logical_eq(status, 0)) {
-      current_statement__ = 709;
+      current_statement__ = 746;
       if (stan::math::logical_gt(delay_time, 0)) {
-        current_statement__ = 708;
+        current_statement__ = 745;
         l = log_surv_increment(dist, time, delay_time, eta, aux, aux2,
               pstream__);
       } else {
-        current_statement__ = 707;
+        current_statement__ = 744;
         l = log_surv_scalar(dist, time, eta, aux, aux2, pstream__);
       }
     } else {
-      current_statement__ = 706;
+      current_statement__ = 743;
       if (stan::math::logical_eq(status, 1)) {
-        current_statement__ = 704;
+        current_statement__ = 741;
         if (stan::math::logical_gt(delay_time, 0)) {
-          current_statement__ = 703;
+          current_statement__ = 740;
           l = (log_haz_full(dist, time, eta, aux, aux2, pstream__) +
             log_surv_increment(dist, time, delay_time, eta, aux, aux2,
               pstream__));
         } else {
-          current_statement__ = 702;
+          current_statement__ = 739;
           l = log_density_scalar(dist, time, eta, aux, aux2, pstream__);
         }
       } else {
-        current_statement__ = 701;
+        current_statement__ = 738;
         if (stan::math::logical_eq(status, 2)) {
-          current_statement__ = 699;
+          current_statement__ = 736;
           if (stan::math::logical_gt(delay_time, 0)) {
-            current_statement__ = 698;
+            current_statement__ = 735;
             l = log_cond_interval_prob(dist, time, delay_time, delay_time,
                   eta, aux, aux2, pstream__);
           } else {
-            current_statement__ = 697;
+            current_statement__ = 734;
             l = log_cdf_scalar(dist, time, eta, aux, aux2, pstream__);
           }
         } else {
-          current_statement__ = 695;
+          current_statement__ = 732;
           if (stan::math::logical_gt(delay_time, 0)) {
-            current_statement__ = 694;
+            current_statement__ = 731;
             l = log_cond_interval_prob(dist, time, start_time, delay_time,
                   eta, aux, aux2, pstream__);
           } else {
-            current_statement__ = 693;
+            current_statement__ = 730;
             l = log_interval_prob_scalar(dist, time, start_time, eta, aux,
                   aux2, pstream__);
           }
         }
       }
     }
-    current_statement__ = 712;
+    current_statement__ = 749;
     return l;
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -3420,15 +3616,15 @@ mean_surv(const T0__& dist, const T1__& t, const T2__& eta_arg__, const T3__&
   (void) DUMMY_VAR__;
   try {
     int n = std::numeric_limits<int>::min();
-    current_statement__ = 714;
+    current_statement__ = 751;
     n = stan::math::num_elements(eta);
-    current_statement__ = 715;
+    current_statement__ = 752;
     stan::math::validate_non_negative_index("s", "n", n);
     Eigen::Matrix<local_scalar_t__,-1,1> s =
       Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n, DUMMY_VAR__);
-    current_statement__ = 718;
+    current_statement__ = 755;
     for (int i = 1; i <= n; ++i) {
-      current_statement__ = 717;
+      current_statement__ = 754;
       stan::model::assign(s,
         stan::math::exp(
           log_surv_scalar(dist, t,
@@ -3436,7 +3632,7 @@ mean_surv(const T0__& dist, const T1__& t, const T2__& eta_arg__, const T3__&
             aux2, pstream__)), "assigning variable s",
         stan::model::index_uni(i));
     }
-    current_statement__ = 719;
+    current_statement__ = 756;
     return stan::math::mean(s);
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -3471,22 +3667,22 @@ log_mean_surv(const T0__& dist, const T1__& t, const T2__& eta_arg__,
   (void) DUMMY_VAR__;
   try {
     int n = std::numeric_limits<int>::min();
-    current_statement__ = 721;
+    current_statement__ = 758;
     n = stan::math::num_elements(eta);
-    current_statement__ = 722;
+    current_statement__ = 759;
     stan::math::validate_non_negative_index("log_s", "n", n);
     Eigen::Matrix<local_scalar_t__,-1,1> log_s =
       Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n, DUMMY_VAR__);
-    current_statement__ = 725;
+    current_statement__ = 762;
     for (int i = 1; i <= n; ++i) {
-      current_statement__ = 724;
+      current_statement__ = 761;
       stan::model::assign(log_s,
         log_surv_scalar(dist, t,
           stan::model::rvalue(eta, "eta", stan::model::index_uni(i)), aux,
           aux2, pstream__), "assigning variable log_s",
         stan::model::index_uni(i));
     }
-    current_statement__ = 726;
+    current_statement__ = 763;
     return (stan::math::log_sum_exp(log_s) - stan::math::log(n));
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -3521,36 +3717,36 @@ log_mean_haz(const T0__& dist, const T1__& t, const T2__& eta_arg__,
   (void) DUMMY_VAR__;
   try {
     int n = std::numeric_limits<int>::min();
-    current_statement__ = 728;
+    current_statement__ = 765;
     n = stan::math::num_elements(eta);
-    current_statement__ = 729;
+    current_statement__ = 766;
     stan::math::validate_non_negative_index("log_s", "n", n);
     Eigen::Matrix<local_scalar_t__,-1,1> log_s =
       Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n, DUMMY_VAR__);
-    current_statement__ = 731;
+    current_statement__ = 768;
     stan::math::validate_non_negative_index("log_num", "n", n);
     Eigen::Matrix<local_scalar_t__,-1,1> log_num =
       Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n, DUMMY_VAR__);
     local_scalar_t__ max_log_s = DUMMY_VAR__;
-    current_statement__ = 736;
+    current_statement__ = 773;
     for (int i = 1; i <= n; ++i) {
-      current_statement__ = 734;
+      current_statement__ = 771;
       stan::model::assign(log_s,
         log_surv_scalar(dist, t,
           stan::model::rvalue(eta, "eta", stan::model::index_uni(i)), aux,
           aux2, pstream__), "assigning variable log_s",
         stan::model::index_uni(i));
     }
-    current_statement__ = 737;
+    current_statement__ = 774;
     max_log_s = stan::math::max(log_s);
-    current_statement__ = 745;
+    current_statement__ = 782;
     if (stan::math::is_inf(max_log_s)) {
       int best = std::numeric_limits<int>::min();
-      current_statement__ = 738;
+      current_statement__ = 775;
       best = 1;
-      current_statement__ = 742;
+      current_statement__ = 779;
       for (int i = 2; i <= n; ++i) {
-        current_statement__ = 740;
+        current_statement__ = 777;
         if ((stan::math::primitive_value(
                (stan::math::primitive_value(stan::math::logical_lte(dist, 3))
                &&
@@ -3568,32 +3764,32 @@ log_mean_haz(const T0__& dist, const T1__& t, const T2__& eta_arg__,
                   stan::model::rvalue(eta, "eta", stan::model::index_uni(i)),
                   stan::model::rvalue(eta, "eta",
                     stan::model::index_uni(best)))))))) {
-          current_statement__ = 739;
+          current_statement__ = 776;
           best = i;
         }
       }
-      current_statement__ = 743;
+      current_statement__ = 780;
       return log_haz_full(dist, t,
                stan::model::rvalue(eta, "eta", stan::model::index_uni(best)),
                aux, aux2, pstream__);
     }
-    current_statement__ = 751;
+    current_statement__ = 788;
     for (int i = 1; i <= n; ++i) {
-      current_statement__ = 746;
+      current_statement__ = 783;
       stan::model::assign(log_s,
         (stan::model::rvalue(log_s, "log_s", stan::model::index_uni(i)) -
         max_log_s), "assigning variable log_s", stan::model::index_uni(i));
-      current_statement__ = 747;
+      current_statement__ = 784;
       stan::model::assign(log_num,
         (log_haz_full(dist, t,
            stan::model::rvalue(eta, "eta", stan::model::index_uni(i)), aux,
            aux2, pstream__) +
         stan::model::rvalue(log_s, "log_s", stan::model::index_uni(i))),
         "assigning variable log_num", stan::model::index_uni(i));
-      current_statement__ = 749;
+      current_statement__ = 786;
       if (stan::math::is_nan(
             stan::model::rvalue(log_num, "log_num", stan::model::index_uni(i)))) {
-        current_statement__ = 748;
+        current_statement__ = 785;
         stan::model::assign(log_num,
           (log_density_scalar(dist, t,
              stan::model::rvalue(eta, "eta", stan::model::index_uni(i)), aux,
@@ -3601,7 +3797,7 @@ log_mean_haz(const T0__& dist, const T1__& t, const T2__& eta_arg__,
           stan::model::index_uni(i));
       }
     }
-    current_statement__ = 752;
+    current_statement__ = 789;
     return (stan::math::log_sum_exp(log_num) -
            stan::math::log_sum_exp(log_s));
   } catch (const std::exception& e) {
@@ -3636,7 +3832,7 @@ mean_haz(const T0__& dist, const T1__& t, const T2__& eta_arg__, const T3__&
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 754;
+    current_statement__ = 791;
     return stan::math::exp(log_mean_haz(dist, t, eta, aux, aux2, pstream__));
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -3673,34 +3869,34 @@ rmst_param(const T0__& dist, const T1__& grid_arg__, const T2__& eta_arg__,
   (void) DUMMY_VAR__;
   try {
     int g = std::numeric_limits<int>::min();
-    current_statement__ = 756;
+    current_statement__ = 793;
     g = stan::math::num_elements(grid);
-    current_statement__ = 757;
+    current_statement__ = 794;
     stan::math::validate_non_negative_index("sbar", "g", g);
     Eigen::Matrix<local_scalar_t__,-1,1> sbar =
       Eigen::Matrix<local_scalar_t__,-1,1>::Constant(g, DUMMY_VAR__);
     local_scalar_t__ area = DUMMY_VAR__;
-    current_statement__ = 759;
+    current_statement__ = 796;
     area = stan::math::promote_scalar<local_scalar_t__>(0);
-    current_statement__ = 761;
+    current_statement__ = 798;
     for (int p = 1; p <= g; ++p) {
-      current_statement__ = 760;
+      current_statement__ = 797;
       stan::model::assign(sbar,
         mean_surv(dist,
           stan::model::rvalue(grid, "grid", stan::model::index_uni(p)), eta,
           aux, aux2, pstream__), "assigning variable sbar",
         stan::model::index_uni(p));
     }
-    current_statement__ = 763;
+    current_statement__ = 800;
     for (int p = 2; p <= g; ++p) {
-      current_statement__ = 762;
+      current_statement__ = 799;
       area = (area + ((0.5 *
         (stan::model::rvalue(grid, "grid", stan::model::index_uni(p)) -
         stan::model::rvalue(grid, "grid", stan::model::index_uni((p - 1)))))
         * (stan::model::rvalue(sbar, "sbar", stan::model::index_uni(p)) +
         stan::model::rvalue(sbar, "sbar", stan::model::index_uni((p - 1))))));
     }
-    current_statement__ = 764;
+    current_statement__ = 801;
     return area;
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);

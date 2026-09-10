@@ -680,3 +680,80 @@ test_that("quadrature nodes keep offsets below an ULP of the log time", {
   expect_lt(abs(env$surv_ll_status(7L, 0.2, upper, lower, 3L, eta, 1e17, 0) -
                   ref), 1e-9)
 })
+
+test_that("an overflowing incomplete-gamma increment is an interval holding the rest", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  skip_if_not_installed("flexsurv")
+  env <- expose_survival_likelihood()
+
+  # A generalized gamma with sigma 0.0009 over (1, 2] has an upper
+  # incomplete-gamma argument of exp(780). The survival ratio is zero to
+  # double precision and the increment -Inf, which resolves the interval as
+  # holding everything past S(1); the continued-fraction factor at an
+  # infinite argument gave NaN instead, and the interval fell to a
+  # quadrature whose grid could not see the layer next to the lower bound,
+  # 8 log units high.
+  ref <- flexsurv::pgengamma(1, mu = -0.009, sigma = 0.0009, Q = 1,
+                             lower.tail = FALSE, log.p = TRUE)
+  expect_lt(abs(env$surv_ll_status(9L, 2, 1, 0, 3L, -0.009, 0.0009, 1) - ref),
+            1e-6)
+  entry <- flexsurv::pgengamma(0.5, mu = -0.009, sigma = 0.0009, Q = 1,
+                               lower.tail = FALSE, log.p = TRUE)
+  expect_lt(abs(env$surv_ll_status(9L, 2, 1, 0.5, 3L, -0.009, 0.0009, 1) -
+                  (ref - entry)), 1e-6)
+})
+
+test_that("the quadrature resolves a layer next to either endpoint", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  env <- expose_survival_likelihood()
+
+  # Called directly, since the routes above keep these intervals off the
+  # quadrature. A log-normal with sigma 0.01 over (1, 2] puts the mass in a
+  # layer of width 1e-4 in log time next to whichever bound is nearer the
+  # center: a single Simpson pass does not converge, and returning its last
+  # estimate was the error. The interval is cut geometrically toward the
+  # heavier endpoint and the pieces summed innermost first.
+  log_surv <- function(t, eta) {
+    plnorm(t, eta, 0.01, lower.tail = FALSE, log.p = TRUE)
+  }
+  log_cdf <- function(t, eta) plnorm(t, eta, 0.01, log.p = TRUE)
+  ref <- log_surv(1, -0.5) + log1p(-exp(log_surv(2, -0.5) - log_surv(1, -0.5)))
+  got <- env$log_interval_prob_quad(6L, 2, 1, -0.5, 0.01, 0)
+  expect_lt(abs(got - ref) / abs(ref), 1e-12)
+  eta <- log(2) + 0.5
+  ref <- log_cdf(2, eta) + log1p(-exp(log_cdf(1, eta) - log_cdf(2, eta)))
+  got <- env$log_interval_prob_quad(6L, 2, 1, eta, 0.01, 0)
+  expect_lt(abs(got - ref) / abs(ref), 1e-12)
+  # And a gamma with shape 30 over (0.1, 0.2], whose mass sits at the upper
+  # bound of a lower-tail interval.
+  ref <- pgamma(0.2, 30, log.p = TRUE) +
+    log1p(-exp(pgamma(0.1, 30, log.p = TRUE) - pgamma(0.2, 30, log.p = TRUE)))
+  got <- env$log_interval_prob_quad(8L, 0.2, 0.1, 0, 30, 0)
+  expect_lt(abs(got - ref) / abs(ref), 1e-11)
+})
+
+test_that("two log-logistic scores that straddle the center are taken directly", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  env <- expose_survival_likelihood()
+
+  # Entry and lower bound at equal rounded distances on opposite sides of
+  # the center: formed as the entry score plus log(l / e) the lower score is
+  # two opposite terms that cancel to rounding, which a shape of 1e16 turns
+  # into units. Straddling points take the direct form. The reference is
+  # formed in the log domain, since both tails underflow.
+  entry <- 0.012532072394604387
+  lower <- 0.10318293758574673
+  eta <- -3.3253579511021445
+  expect_equal(abs(log(lower) - eta), abs(log(entry) - eta))
+  a <- 1e16
+  z <- function(t) a * (log(t) - eta)
+  # log(F(u) - F(l)) = -z_l + log1p(-exp(-(z_u - z_l))) for large z, and
+  # S(e) is 1 to rounding.
+  ref <- -z(lower) + log1p(-exp(-(z(0.2) - z(lower)))) -
+    plogis(z(entry), lower.tail = FALSE, log.p = TRUE)
+  got <- env$surv_ll_status(7L, 0.2, lower, entry, 3L, eta, a, 0)
+  expect_lt(abs(got - ref) / abs(ref), 1e-12)
+})
