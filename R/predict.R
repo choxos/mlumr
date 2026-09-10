@@ -875,17 +875,19 @@ predict.mlumr_fit <- function(object,
 #'   marginal hazard ratio, which uses `at_time` (the first fitted prediction
 #'   time by default); an AFT fit reports its target-standardized location
 #'   contrast, `exp(mean(eta_index) - mean(eta_comparator))` over the target
-#'   rows, which is a `TR` when the coefficients are shared (and then identical
-#'   for every target, since the covariate term cancels) and an
-#'   `EXP_DELTA_ETA` when they are not. RMST effects are available throughout.
+#'   rows, which is a `TR` only when the coefficients AND the baseline shapes
+#'   are shared (and then identical for every target, since the covariate
+#'   term cancels) and an `EXP_DELTA_ETA` otherwise, including the default
+#'   study-stratified shapes. RMST effects are available throughout.
 #'
 #' @return A data frame. With `summary = FALSE` the raw posterior draws are
 #'   returned as a plain data frame (not plottable; plot methods need
 #'   `summary = TRUE`); the column names encode the per-family effect scale
 #'   (e.g. poisson `delta_*` is a natural-scale rate ratio, null 1; survival is
-#'   the exponentiated HR/TR). With `summary = TRUE` the `effect` column names
-#'   the measure; with `summary = FALSE` the scale is carried by the draw column
-#'   names themselves (`lor_*`, `rr_*`, `delta_*`, `hr_*` / `tr_*`, `rmst*`).
+#'   the exponentiated scalar contrast). With `summary = TRUE` the `effect`
+#'   column names the measure; with `summary = FALSE` the scale is carried by
+#'   the draw column names themselves (`lor_*`, `rr_*`, `delta_*`, `hr_*` /
+#'   `tr_*` / `exp_delta_eta_*` by what the fit's scalar is, `rmst*`).
 #'   For survival, RMST-based rows also carry a `horizon` column (the raw-draw
 #'   frame, a `horizon` attribute) giving the restriction time the integral runs
 #'   to. RMST at different horizons is a different estimand, so results are only
@@ -2361,7 +2363,10 @@ marginal_effects <- function(object,
 #' assumption on top of the covariate adjustment, not a consequence of it. The
 #' contrast estimands are less exposed than the absolute curves, and the RMST
 #' estimands are collapsible, so say this where the absolute numbers are
-#' produced. Once per session, like the marginal-HR note.
+#' produced, and also for the time-varying log hazard ratio: with one arm per
+#' study the two hazards in that ratio carry two study-specific shapes, so the
+#' ratio's time profile is the aliased quantity itself. Once per session, like
+#' the marginal-HR note.
 #' @param object A fitted `mlumr_fit`.
 #' @return `TRUE` invisibly if the note was emitted.
 #' @keywords internal

@@ -61,9 +61,10 @@ proportional-hazards fit reports the time-specific target-standardized
 marginal hazard ratio, which uses \code{at_time} (the first fitted prediction
 time by default); an AFT fit reports its target-standardized location
 contrast, \code{exp(mean(eta_index) - mean(eta_comparator))} over the target
-rows, which is a \code{TR} when the coefficients are shared (and then identical
-for every target, since the covariate term cancels) and an
-\code{EXP_DELTA_ETA} when they are not. RMST effects are available throughout.}
+rows, which is a \code{TR} only when the coefficients AND the baseline shapes
+are shared (and then identical for every target, since the covariate
+term cancels) and an \code{EXP_DELTA_ETA} otherwise, including the default
+study-stratified shapes. RMST effects are available throughout.}
 
 \item{at_time}{Evaluation time for the scalar marginal hazard ratio, for
 proportional-hazards fits whose two studies have different baseline shapes
@@ -82,9 +83,10 @@ A data frame. With \code{summary = FALSE} the raw posterior draws are
 returned as a plain data frame (not plottable; plot methods need
 \code{summary = TRUE}); the column names encode the per-family effect scale
 (e.g. poisson \verb{delta_*} is a natural-scale rate ratio, null 1; survival is
-the exponentiated HR/TR). With \code{summary = TRUE} the \code{effect} column names
-the measure; with \code{summary = FALSE} the scale is carried by the draw column
-names themselves (\verb{lor_*}, \verb{rr_*}, \verb{delta_*}, \verb{hr_*} / \verb{tr_*}, \verb{rmst*}).
+the exponentiated scalar contrast). With \code{summary = TRUE} the \code{effect}
+column names the measure; with \code{summary = FALSE} the scale is carried by
+the draw column names themselves (\verb{lor_*}, \verb{rr_*}, \verb{delta_*}, \verb{hr_*} /
+\verb{tr_*} / \verb{exp_delta_eta_*} by what the fit's scalar is, \verb{rmst*}).
 For survival, RMST-based rows also carry a \code{horizon} column (the raw-draw
 frame, a \code{horizon} attribute) giving the restriction time the integral runs
 to. RMST at different horizons is a different estimand, so results are only
