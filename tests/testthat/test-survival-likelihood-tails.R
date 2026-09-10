@@ -363,3 +363,36 @@ test_that("a deep right tail keeps the increment route", {
   expect_lt(abs(env$surv_ll_status(6L, upper, lower, 0, 3L, eta, aux, 0) - ref),
             1e-6)
 })
+
+test_that("a lower bound at the bottom of the double range does not overflow the ratio", {
+  skip_on_cran()
+  skip_if_not_installed("rstan")
+  env <- expose_survival_likelihood()
+
+  # log(u / l) was taken as log1p((u - l) / l), exact for close bounds and
+  # +Inf once l is a subnormal: the Weibull cumulative-hazard difference then
+  # read as infinite and the interval's log probability as 0, and the
+  # log-logistic form produced NaN. The two logs are subtracted directly once
+  # the bounds are far apart, where no cancellation remains.
+  lower <- 1e-320
+  upper <- 0.5
+  expect_true(lower > 0)
+  expect_identical(lower / lower * (upper - lower) / lower, Inf)
+
+  weibull <- log(-expm1(-upper^1.5))
+  for (dist in c(2L, 5L)) {
+    expect_lt(abs(env$surv_ll_status(dist, upper, lower, 0, 3L, 0, 1.5, 0) -
+                    weibull), 1e-12)
+    expect_lt(abs(env$surv_ll_status(dist, upper, lower, 1e-321, 3L, 0, 1.5,
+                                     0) - weibull), 1e-12)
+  }
+  loglogistic <- log(plogis(log(upper)) - plogis(log(lower)))
+  expect_lt(abs(env$surv_ll_status(7L, upper, lower, 0, 3L, 0, 1, 0) -
+                  loglogistic), 1e-12)
+  expect_lt(abs(env$surv_ll_status(7L, upper, lower, 1e-321, 3L, 0, 1, 0) -
+                  loglogistic), 1e-12)
+  expect_lt(abs(env$surv_ll_status(6L, upper, lower, 0, 3L, 0, 1, 0) -
+                  plnorm(upper, log.p = TRUE)), 1e-12)
+  expect_lt(abs(env$surv_ll_status(8L, upper, lower, 0, 3L, 0, 2, 0) -
+                  pgamma(upper, 2, log.p = TRUE)), 1e-12)
+})

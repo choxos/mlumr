@@ -353,6 +353,16 @@ real log_expm1_from_log_x(real log_x) {
   return log(expm1(exp(log_x)));
 }
 
+// log(t_upper / t_lower) without cancellation for close bounds and without
+// overflow for a lower bound near the bottom of the double range. log1p of
+// the relative gap is exact for close bounds, and the quotient it takes
+// overflows to +inf once t_lower is a subnormal, where the difference of the
+// two logs has no cancellation left to fear.
+real log_time_ratio(real t_upper, real t_lower) {
+  if (t_lower < t_upper * 1e-8) return log(t_upper) - log(t_lower);
+  return log1p((t_upper - t_lower) / t_lower);
+}
+
 real log_cumhaz_diff(int dist, real t_upper, real t_lower, real eta,
                      real aux) {
   real dt = t_upper - t_lower;
@@ -365,7 +375,7 @@ real log_cumhaz_diff(int dist, real t_upper, real t_lower, real eta,
   }
   if (t_lower == 0) return log_cumhaz_scalar(dist, t_upper, eta, aux);
   {
-    real log_ratio = log1p(dt / t_lower);
+    real log_ratio = log_time_ratio(t_upper, t_lower);
     real log_power_diff = aux * log(t_lower)
                           + log_expm1_from_log_x(log(aux) + log(log_ratio));
     if (dist == 2) return eta + log_power_diff;
@@ -382,7 +392,7 @@ real log_surv_increment(int dist, real t_upper, real t_lower, real eta,
   if (t_lower == 0)
     return log_surv_scalar(dist, t_upper, eta, aux, aux2);
   {
-    real log_ratio = log1p((t_upper - t_lower) / t_lower);
+    real log_ratio = log_time_ratio(t_upper, t_lower);
     if (dist == 6) {
       real z_lower = (log(t_lower) - eta) / aux;
       real dz = log_ratio / aux;
@@ -449,7 +459,7 @@ real log_surv_increment(int dist, real t_upper, real t_lower, real eta,
 real log_interval_prob_quad(int dist, real t_upper, real t_lower, real eta,
                             real aux, real aux2) {
   real s_l = log(t_lower);
-  real width = log1p((t_upper - t_lower) / t_lower);
+  real width = log_time_ratio(t_upper, t_lower);
   real f_l = log_density_scalar(dist, t_lower, eta, aux, aux2) + s_l;
   real f_u = log_density_scalar(dist, t_upper, eta, aux, aux2) + s_l + width;
   int n = 8;
@@ -482,7 +492,7 @@ real log_interval_prob_quad(int dist, real t_upper, real t_lower, real eta,
 // whatever the shape.
 real log_loglogistic_interval(real t_upper, real t_lower, real eta, real aux) {
   real z_l = aux * (log(t_lower) - eta);
-  real d = aux * log1p((t_upper - t_lower) / t_lower);
+  real d = aux * log_time_ratio(t_upper, t_lower);
   return z_l + log_expm1_from_log_x(log(d)) - log1p_exp(z_l)
          - log1p_exp(z_l + d);
 }
@@ -519,8 +529,8 @@ int surv_increment_resolves(real increment, real log_surv_lower) {
 //
 // * The five exponential/Weibull/Gompertz families have a closed-form
 //   cumulative hazard whose difference is computed analytically, so
-//   log S(l) + log(1 - exp(-dH)) is exact to rounding in every regime and no
-//   other route is ever needed.
+//   log S(l) + log(1 - exp(-dH)) is exact to rounding wherever the bounds
+//   themselves are representable, and no other route is ever needed.
 // * The log-logistic has the closed form above.
 // * The log-normal, gamma and generalized gamma take the CDF difference in the
 //   lower half and the survival increment in the upper half, each only when
