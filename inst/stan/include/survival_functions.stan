@@ -257,7 +257,7 @@ real log_density_offset(int dist, real log_t_base, real shift, real eta,
     else if (dist == 2) log_ch = aux * log_t + eta;
     else if (dist == 3)
       log_ch = eta - log(aux) + aux * t + log1m_exp(-aux * t);
-    else if (dist == 4) log_ch = -centered;
+    else if (dist == 4) log_ch = centered;
     else log_ch = aux * centered;
     if (log_ch > 700) return negative_infinity();
     return log_haz_scalar(dist, t, eta, aux, aux2) - exp(log_ch);
@@ -566,14 +566,24 @@ real log_interval_prob_quad(int dist, real t_upper, real t_lower, real eta,
 // for a value of 0. Unconditional is e = 0, where g(z_e) is 0.
 real log_loglogistic_interval(real t_upper, real t_lower, real t_entry,
                               real eta, real aux) {
-  real z_l = aux * (log(t_lower) - eta);
-  // z_u is formed from the upper bound directly. As z_l + d it is the sum
-  // of two values that cancel when the interval crosses the center at a
-  // large shape, each near 7e16 with a shape of 1e17 and bounds 0.5 and a
-  // hair under 1, and the rounding left -8 for a value of -11.1; formed
-  // directly it is one product of a small difference and exact to rounding.
-  real z_u = aux * (log(t_upper) - eta);
+  // The upper centered log time has two forms, and each fails somewhere.
+  // As (log l - eta) + log(u / l) it keeps an offset below an ULP of log l,
+  // but when the interval crosses the center at a large shape it is the sum
+  // of two values that cancel, each near 0.7 with bounds 0.5 and a hair
+  // under 1, and the shape turns the rounding into units. As log u - eta it
+  // is exact there, one small difference, but two bounds an ULP apart have
+  // the same rounded log and the offset is gone. The form is chosen by
+  // which bound sits nearer the center: when the upper is nearer its own
+  // difference is the smaller and the more accurate, and otherwise the two
+  // terms of the sum share a sign and nothing cancels.
+  real centered_l = log(t_lower) - eta;
   real log_ratio = log_time_ratio(t_upper, t_lower);
+  real centered_direct = log(t_upper) - eta;
+  real centered_u = abs(centered_direct) < abs(centered_l)
+                      ? centered_direct
+                      : centered_l + log_ratio;
+  real z_l = aux * centered_l;
+  real z_u = aux * centered_u;
   real lp = log1m_exp_neg_prod(aux, log_ratio) - log1p_exp(-z_u);
   if (t_entry > 0) {
     real z_e = aux * (log(t_entry) - eta);

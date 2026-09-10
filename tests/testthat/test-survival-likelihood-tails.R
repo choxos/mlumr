@@ -616,6 +616,7 @@ test_that("a differenced CDF is trusted by its cancellation error, not its finit
 test_that("quadrature nodes keep offsets below an ULP of the log time", {
   skip_on_cran()
   skip_if_not_installed("rstan")
+  skip_if_not_installed("flexsurv")
   env <- expose_survival_likelihood()
   nextafter <- function(t) t + 2^(floor(log2(abs(t))) - 52)
 
@@ -635,9 +636,39 @@ test_that("quadrature nodes keep offsets below an ULP of the log time", {
   ref <- log(pnorm(z(upper)) - pnorm(z(lower)))
   expect_lt(abs(env$surv_ll_status(6L, upper, lower, 0, 3L, eta, aux, 0) -
                   ref), 1e-9)
-  # The event density is the same function at offset zero.
+  # The event density is the same function at offset zero, for every
+  # family. The exponential AFT is pinned separately: its log cumulative
+  # hazard is log(t) - eta itself, and a sign slip there once turned the
+  # event likelihood into -eta - exp(eta) / t.
   expect_lt(abs(env$surv_ll_status(6L, 2, 0, 0, 1L, 0.3, 0.8, 0) -
                   dlnorm(2, 0.3, 0.8, log = TRUE)), 1e-12)
   expect_lt(abs(env$surv_ll_status(9L, 2, 0, 0, 1L, 0.3, 0.8, 4) -
                   flexsurv::dgengamma(2, 0.3, 0.8, 0.5, log = TRUE)), 1e-12)
+  expect_lt(abs(env$surv_ll_status(4L, 1, 0, 0, 1L, log(2), 0, 0) -
+                  (-log(2) - 0.5)), 1e-12)
+  expect_lt(abs(env$surv_ll_status(4L, 3, 0, 0, 1L, 0.5, 0, 0) -
+                  dexp(3, exp(-0.5), log = TRUE)), 1e-12)
+  expect_lt(abs(env$surv_ll_status(1L, 3, 0, 0, 1L, 0.5, 0, 0) -
+                  dexp(3, exp(0.5), log = TRUE)), 1e-12)
+  expect_lt(abs(env$surv_ll_status(5L, 3, 0, 0, 1L, 0.5, 1.5, 0) -
+                  dweibull(3, 1.5, exp(0.5), log = TRUE)), 1e-12)
+  expect_lt(abs(env$surv_ll_status(2L, 3, 0, 0, 1L, 0.5, 1.5, 0) -
+                  (log(1.5) + 0.5 + 0.5 * log(3) - 3^1.5 * exp(0.5))), 1e-12)
+  expect_lt(abs(env$surv_ll_status(8L, 3, 0, 0, 1L, 0.5, 2, 0) -
+                  dgamma(3, 2, exp(-0.5), log = TRUE)), 1e-12)
+  expect_lt(abs(env$surv_ll_status(3L, 2, 0, 0, 1L, 0.1, 0.7, 0) -
+                  (0.1 + 0.7 * 2 - exp(0.1) / 0.7 * expm1(0.7 * 2))), 1e-12)
+  expect_lt(abs(env$surv_ll_status(7L, 3, 0, 0, 1L, 0.5, 1.5, 0) -
+                  (log(1.5) - log(3) + 1.5 * (log(3) - 0.5) -
+                     2 * log1p(exp(1.5 * (log(3) - 0.5))))), 1e-12)
+
+  # The log-logistic closed form keeps the same offset: bounds one ULP apart
+  # at 0.1 with eta = log(0.1) and a shape of 1e17 have the same rounded log,
+  # and a direct upper score read the interval as empty, -1.386 for
+  # log(1/2). The upper centered log time is formed from the lower one plus
+  # log(u / l) there, and directly where the upper bound is the one nearer
+  # the center, which is the crossing case pinned above.
+  ref <- log(plogis(1e17 * log1p((upper - 0.1) / 0.1)) - 0.5)
+  expect_lt(abs(env$surv_ll_status(7L, upper, lower, 0, 3L, eta, 1e17, 0) -
+                  ref), 1e-9)
 })
