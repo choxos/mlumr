@@ -444,8 +444,9 @@
          "question has more than two free directions, which this check does ",
          "not attempt, or a zero row within rounding of the positive rows' ",
          "span without lying in it, or zero rows opposite to within ",
-         "rounding, so it refuses rather than pass a possibly unbounded ",
-         "likelihood. ", boundary, call. = FALSE)
+         "rounding, or a design whose rank at machine precision differs ",
+         "from its exact rank, so it refuses rather than pass a possibly ",
+         "unbounded likelihood. ", boundary, call. = FALSE)
   }
 
   s <- .residual_variation_status(X, y, link)

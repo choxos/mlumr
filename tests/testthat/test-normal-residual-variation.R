@@ -480,8 +480,8 @@ test_that("zeros mixed with positives are refused only where the boundary is rea
   # size is free, and with the other zero row it loads the one direction
   # with a common sign: reachable. The feasibility rows are scaled by powers
   # of two and never shifted, so no centering can round such a row onto the
-  # profile; a row off it by 1e-20 is below the resolution stated on the
-  # guard and reads as pinned, which is the case two blocks above.
+  # profile; a row off it by 1e-20 is exactly off the span but within
+  # rounding of it, and the check declines, as two blocks above.
   d <- .normal_stub(c(1, 1, 0, 0), c(0, 0, 1e-6, 1))
   expect_error(mlumr:::.check_normal_residual_variation(d, "log"),
                "taking every zero row there")
@@ -543,9 +543,10 @@ test_that("a column spanning the double range does not fake a duplicate", {
   # Dividing a column that holds 1e308 by 2^1023 underflows an entry of
   # 1e-200 to zero, and the bitwise duplicate test then read a zero row at
   # 1e-200 as a positive row at 0. The duplicate test now sees the raw rows.
-  # The row is still below the resolution stated on the guard relative to
-  # the column, so it reads as pinned by the row-space test rather than as
-  # a duplicate; this pins the reason, not the verdict.
+  # The exact tests see the raw rows: the zero row at 1e-200 is a distinct
+  # number from the positive row at 0, exactly off its span, and is neither
+  # a duplicate nor pinned; this pins the reason the scaled rows cannot be
+  # used for that test.
   X_pos <- cbind(1, c(0, 0))
   X_zero <- cbind(1, c(1e-200, 1e308))
   scaled <- mlumr:::.scale_design(rbind(X_pos, X_zero))
