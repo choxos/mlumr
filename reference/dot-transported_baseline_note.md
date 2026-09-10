@@ -9,8 +9,11 @@ treatment in the other population therefore carries that study's shape
 across, which is a structural assumption on top of the covariate
 adjustment, not a consequence of it. The contrast estimands are less
 exposed than the absolute curves, and the RMST estimands are
-collapsible, so say this where the absolute numbers are produced. Once
-per session, like the marginal-HR note.
+collapsible, so say this where the absolute numbers are produced, and
+also for the time-varying log hazard ratio: with one arm per study the
+two hazards in that ratio carry two study-specific shapes, so the
+ratio's time profile is the aliased quantity itself. Once per session,
+like the marginal-HR note.
 
 ## Usage
 

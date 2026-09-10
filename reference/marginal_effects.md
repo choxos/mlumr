@@ -90,10 +90,10 @@ marginal_effects(
   first fitted prediction time by default); an AFT fit reports its
   target-standardized location contrast,
   `exp(mean(eta_index) - mean(eta_comparator))` over the target rows,
-  which is a `TR` when the coefficients are shared (and then identical
-  for every target, since the covariate term cancels) and an
-  `EXP_DELTA_ETA` when they are not. RMST effects are available
-  throughout.
+  which is a `TR` only when the coefficients AND the baseline shapes are
+  shared (and then identical for every target, since the covariate term
+  cancels) and an `EXP_DELTA_ETA` otherwise, including the default
+  study-stratified shapes. RMST effects are available throughout.
 
 - at_time:
 
@@ -116,15 +116,16 @@ A data frame. With `summary = FALSE` the raw posterior draws are
 returned as a plain data frame (not plottable; plot methods need
 `summary = TRUE`); the column names encode the per-family effect scale
 (e.g. poisson `delta_*` is a natural-scale rate ratio, null 1; survival
-is the exponentiated HR/TR). With `summary = TRUE` the `effect` column
-names the measure; with `summary = FALSE` the scale is carried by the
-draw column names themselves (`lor_*`, `rr_*`, `delta_*`, `hr_*` /
-`tr_*`, `rmst*`). Each summary row also carries `n_draws` and
-`n_draws_used`, which differ when `NA` or `NaN` draws were dropped from
-it. For survival, RMST-based rows also carry a `horizon` column (the
-raw-draw frame, a `horizon` attribute) giving the restriction time the
-integral runs to. RMST at different horizons is a different estimand, so
-results are only comparable across fits when this value matches.
+is the exponentiated scalar contrast). With `summary = TRUE` the
+`effect` column names the measure; with `summary = FALSE` the scale is
+carried by the draw column names themselves (`lor_*`, `rr_*`, `delta_*`,
+`hr_*` / `tr_*` / `exp_delta_eta_*` by what the fit's scalar is,
+`rmst*`). Each summary row also carries `n_draws` and `n_draws_used`,
+which differ when `NA` or `NaN` draws were dropped from it. For
+survival, RMST-based rows also carry a `horizon` column (the raw-draw
+frame, a `horizon` attribute) giving the restriction time the integral
+runs to. RMST at different horizons is a different estimand, so results
+are only comparable across fits when this value matches.
 
 For survival, the summary carries an `at_time` column and the raw-draw
 frame an `at_time` attribute (one named value per column, `NA` for
@@ -172,20 +173,29 @@ depends on the fit:
 - **One shared shape, SPFA** (`TR`). The coefficients are shared, so
   `eta_index(x) - eta_comparator(x)` is the same constant `a` at every
   covariate profile. Every individual's survival time is accelerated by
-  the same factor, so the population-standardized curves satisfy
-  `S_index(t) = S_comparator(t / a)` exactly and this IS a population
-  time ratio.
+  the same factor `exp(a)`, which is the returned scalar, so the
+  population-standardized curves satisfy
+  `S_index(t) = S_comparator(t / exp(a))` exactly and this IS a
+  population time ratio. The divisor is the acceleration factor, not the
+  log contrast `a` itself.
 
 - **Otherwise** (`EXP_DELTA_ETA`; differing shapes, or the relaxed
-  model). The conditional acceleration varies with `x`, so it is the
-  exponentiated average log ratio: equivalently the conditional time
-  ratio at the mean linear predictor, or the geometric mean of the
-  profile-specific conditional time ratios. It is **not** generally a
-  time ratio between the two standardized survival distributions: there
-  need be no single `a` with `S_index(t) = S_comparator(t / a)` for all
-  `t`, and different survival quantiles can imply different apparent
-  acceleration factors. It is labeled `EXP_DELTA_ETA` rather than `TR`
-  for that reason.
+  model). With shared shapes and SPFA, the exponentiated location
+  contrast is a common acceleration factor and a population time ratio,
+  which is the case above. With shared shapes and treatment-specific
+  coefficients, profile-specific conditional acceleration factors exist;
+  their geometric mean is not generally a common acceleration factor for
+  the standardized population. With differing shapes, the exponentiated
+  location contrast is not generally a scalar conditional time ratio,
+  even at one profile: an index arm with Weibull AFT shape 1 and a
+  comparator arm with shape 2, at equal locations for one profile, have
+  `exp(delta_eta) = 1`, while the index arm's time to a survival of
+  0.75, 0.5 and 0.25 is 0.54, 0.83 and 1.18 times the comparator's. In
+  neither case is there a single `a` with
+  `S_index(t) = S_comparator(t / exp(a))` for all `t`. Use explicitly
+  indexed survival quantiles or other clearly defined survival contrasts
+  instead. It is labeled `EXP_DELTA_ETA` rather than `TR` for that
+  reason.
 
 Neither carries an evaluation time (`at_time` is `NA`). For a population
 contrast under differing covariate effects use the RMST-based effects,
