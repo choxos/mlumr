@@ -87,6 +87,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-diagnostic_count.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-diagnostic_display.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-diagnostic_value.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-draw_tally.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-drop_missing_rows.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-dual_family_note.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-ensure_positive_definite_cor.html</loc></url>
@@ -309,6 +310,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-warn_coarse_rmst_grid_builtin.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-warn_constant_ipd_covariates.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-warn_discrete_copula.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-warn_dropped_draws.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-warn_early_median.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-warn_integration_size.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-warn_integration_vs_agd_moments.html</loc></url>

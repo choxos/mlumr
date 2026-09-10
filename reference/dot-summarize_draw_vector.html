@@ -69,7 +69,7 @@ summary only needs to happen in one place.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.summarize_draw_vector</span><span class="op">(</span><span class="va">x</span>, <span class="va">probs</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.summarize_draw_vector</span><span class="op">(</span><span class="va">x</span>, <span class="va">probs</span>, warn <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -83,10 +83,18 @@ summary only needs to happen in one place.</p>
 <dt id="arg-probs">probs<a class="anchor" aria-label="anchor" href="#arg-probs"></a></dt>
 <dd><p>Quantile probabilities.</p></dd>
 
+
+<dt id="arg-warn">warn<a class="anchor" aria-label="anchor" href="#arg-warn"></a></dt>
+<dd><p>Whether to report dropped draws. Callers that summarize many
+vectors set this to <code>FALSE</code> and report once over the whole set instead.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>Named numeric vector: <code>c(mean, sd, &lt;named quantiles&gt;)</code>.</p>
+    <p>Named numeric vector: <code>c(mean, sd, &lt;named quantiles&gt;, n_draws, n_draws_used)</code>. The last two are the draw accounting: how many draws the
+summary was offered and how many it used, so a summary built on a third
+of its chain says so wherever it ends up. They differ exactly when NA or
+NaN draws were dropped.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

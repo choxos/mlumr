@@ -166,7 +166,9 @@ a different question rather than substituting for this one.</p></li>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A data frame. If <code>summary = TRUE</code>, contains columns <code>profile</code>,
-<code>effect</code>, <code>mean</code>, <code>sd</code>, and quantile columns. If <code>summary = FALSE</code>,
+<code>effect</code>, <code>mean</code>, <code>sd</code>, quantile columns, and the draw accounting
+<code>n_draws</code> and <code>n_draws_used</code> (they differ when <code>NA</code> or <code>NaN</code> draws were
+dropped from that row's summary). If <code>summary = FALSE</code>,
 returns a single combined data frame of full posterior draws with a
 <code>profile</code> column indicating which covariate profile each draw belongs
 to.</p>

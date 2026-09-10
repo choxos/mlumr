@@ -110,9 +110,11 @@ conditional_effects(
 ## Value
 
 A data frame. If `summary = TRUE`, contains columns `profile`, `effect`,
-`mean`, `sd`, and quantile columns. If `summary = FALSE`, returns a
-single combined data frame of full posterior draws with a `profile`
-column indicating which covariate profile each draw belongs to.
+`mean`, `sd`, quantile columns, and the draw accounting `n_draws` and
+`n_draws_used` (they differ when `NA` or `NaN` draws were dropped from
+that row's summary). If `summary = FALSE`, returns a single combined
+data frame of full posterior draws with a `profile` column indicating
+which covariate profile each draw belongs to.
 
 ## Details
 

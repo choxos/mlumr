@@ -44,7 +44,9 @@ conditional_predict(
 ## Value
 
 A data frame with predictions for each treatment at each profile. For
-survival fits there is one row per profile, treatment, and time.
+survival fits there is one row per profile, treatment, and time. With
+`summary = TRUE` each row carries `n_draws` and `n_draws_used`, the draw
+accounting behind its summary.
 
 ## See also
 

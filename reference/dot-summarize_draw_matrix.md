@@ -8,7 +8,7 @@ across columns of `draws` and renames the quantile columns to `qNN` form
 ## Usage
 
 ``` r
-.summarize_draw_matrix(draws, probs)
+.summarize_draw_matrix(draws, probs, warn = TRUE)
 ```
 
 ## Arguments
@@ -22,7 +22,12 @@ across columns of `draws` and renames the quantile columns to `qNN` form
 
   Quantile probabilities.
 
+- warn:
+
+  Whether to report dropped draws. Set `FALSE` where a missing draw is
+  an expected outcome with a diagnostic of its own.
+
 ## Value
 
-Data frame with columns `mean`, `sd`, and one `qNN` column per element
-of `probs`.
+Data frame with columns `mean`, `sd`, one `qNN` column per element of
+`probs`, and the draw accounting `n_draws` and `n_draws_used`.

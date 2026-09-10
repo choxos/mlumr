@@ -162,7 +162,12 @@ the one actually integrated to. That is the <code>rmst_horizon</code> given to
 which for a study-stratified flexible baseline is the follow-up both
 studies observed rather than the pooled maximum.
 The plot methods require <code>summary = TRUE</code>; with <code>summary = FALSE</code> the raw
-posterior draws are returned as a plain data frame.</p>
+posterior draws are returned as a plain data frame. Every summary row
+carries <code>n_draws</code> and <code>n_draws_used</code>: how many draws it was offered and
+how many it used, which differ when <code>NA</code> or <code>NaN</code> draws were dropped. For
+<code>type = "median"</code> the summary is conditional on the median being reached,
+so <code>n_draws_used</code> counts the draws that reached it and <code>p_not_reached</code>
+gives the posterior probability that one does not.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

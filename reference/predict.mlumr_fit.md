@@ -109,7 +109,12 @@ was supplied; when it was left `NULL` it is the default, which for a
 study-stratified flexible baseline is the follow-up both studies
 observed rather than the pooled maximum. The plot methods require
 `summary = TRUE`; with `summary = FALSE` the raw posterior draws are
-returned as a plain data frame.
+returned as a plain data frame. Every summary row carries `n_draws` and
+`n_draws_used`: how many draws it was offered and how many it used,
+which differ when `NA` or `NaN` draws were dropped. For
+`type = "median"` the summary is conditional on the median being
+reached, so `n_draws_used` counts the draws that reached it and
+`p_not_reached` gives the posterior probability that one does not.
 
 ## Details
 

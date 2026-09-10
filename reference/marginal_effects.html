@@ -190,6 +190,8 @@ returned as a plain data frame (not plottable; plot methods need
 the exponentiated HR/TR). With <code>summary = TRUE</code> the <code>effect</code> column names
 the measure; with <code>summary = FALSE</code> the scale is carried by the draw column
 names themselves (<code>lor_*</code>, <code>rr_*</code>, <code>delta_*</code>, <code>hr_*</code> / <code>tr_*</code>, <code>rmst*</code>).
+Each summary row also carries <code>n_draws</code> and <code>n_draws_used</code>, which differ
+when <code>NA</code> or <code>NaN</code> draws were dropped from it.
 For survival, RMST-based rows also carry a <code>horizon</code> column (the raw-draw
 frame, a <code>horizon</code> attribute) giving the restriction time the integral runs
 to. RMST at different horizons is a different estimand, so results are only

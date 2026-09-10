@@ -119,11 +119,12 @@ returned as a plain data frame (not plottable; plot methods need
 is the exponentiated HR/TR). With `summary = TRUE` the `effect` column
 names the measure; with `summary = FALSE` the scale is carried by the
 draw column names themselves (`lor_*`, `rr_*`, `delta_*`, `hr_*` /
-`tr_*`, `rmst*`). For survival, RMST-based rows also carry a `horizon`
-column (the raw-draw frame, a `horizon` attribute) giving the
-restriction time the integral runs to. RMST at different horizons is a
-different estimand, so results are only comparable across fits when this
-value matches.
+`tr_*`, `rmst*`). Each summary row also carries `n_draws` and
+`n_draws_used`, which differ when `NA` or `NaN` draws were dropped from
+it. For survival, RMST-based rows also carry a `horizon` column (the
+raw-draw frame, a `horizon` attribute) giving the restriction time the
+integral runs to. RMST at different horizons is a different estimand, so
+results are only comparable across fits when this value matches.
 
 For survival, the summary carries an `at_time` column and the raw-draw
 frame an `at_time` attribute (one named value per column, `NA` for
