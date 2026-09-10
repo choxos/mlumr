@@ -402,8 +402,8 @@
     # Above pi the rows lie in an open half-plane and a direction lowers
     # them all; below pi no closed half-plane holds them and none lowers
     # any without raising another. The loadings of a row 1e-8 from the row
-    # space carry a relative rounding near 1e-8, so within that of pi the
-    # computed angles cannot say which side of pi the gap is on.
+    # space carry a relative rounding near 1e-8, so within a band of 1e-6
+    # around pi the computed angles cannot say which side the gap is on.
     if (gap > pi + 1e-6) {
       return("reachable")
     }
@@ -416,23 +416,18 @@
     # rows raises the exact rank by one. If they are not, the gap is on one
     # side of pi or the other and nothing here says which. If they are,
     # every row lies in the closed half-plane they bound: no direction
-    # lowers them all (the strict answer), and a direction lowers some
-    # while raising none exactly when some row is off their line.
+    # lowers them all (the strict answer), while a direction along the
+    # line's normal lowers every row off the line and holds the two on it.
+    # Some row is off the line, since the rows span two directions and
+    # one line holds only one.
     i <- which.max(gaps)
     a <- ord[i]
     b <- ord[if (i == length(gaps)) 1L else i + 1L]
-    collinear <- function(u, v) {
-      .exact_rank(rbind(raw_pos, raw_zero[u, ], raw_zero[v, ]))$rank == r + 1L
-    }
-    if (!collinear(a, b)) {
+    if (.exact_rank(rbind(raw_pos, raw_zero[a, ], raw_zero[b, ]))$rank !=
+          r + 1L) {
       return("unknown")
     }
-    if (strict) {
-      return("unreachable")
-    }
-    others <- setdiff(seq_len(nrow(raw_zero)), c(a, b))
-    inside <- vapply(others, function(j) !collinear(a, j), logical(1))
-    return(if (any(inside)) "reachable" else "unreachable")
+    return(if (strict) "unreachable" else "reachable")
   }
   "unknown"
 }
