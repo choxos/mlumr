@@ -57,7 +57,7 @@ test_that("ordinary Poisson data pass and the result says the maximum is finite"
   s <- suppressWarnings(stc(d))
   expect_s3_class(s, "mlumr_stc")
   expect_identical(s$separation$status, "not_applicable")
-  expect_match(s$separation$reason, "finite")
+  expect_match(s$separation$reason, "maximum likelihood estimate is finite")
   # An interior maximum's standard error, not the tens of thousands a
   # receding fit reported from where it stopped.
   expect_lt(s$se, 2)
@@ -111,8 +111,35 @@ test_that("the weak boundary question drops pinned rows and needs no strictness"
   expect_identical(mlumr:::.zero_boundary(X_pos, X_zero, strict = FALSE),
                    "reachable")
   expect_identical(mlumr:::.zero_boundary(X_pos, X_zero), "unreachable")
-  # With every row on the line there is no row to lower.
+  # Rows all on one line through the origin load one direction, not two,
+  # and opposite signs on it settle the question either way.
   X_zero <- cbind(1, c(1, -1, 2), c(0, 0, 0))
   expect_identical(mlumr:::.zero_boundary(X_pos, X_zero, strict = FALSE),
                    "unreachable")
+})
+
+test_that("the exactly opposite case is refused through stc() as receding", {
+  # Events at the origin, zero counts at (1, 0), (-1, 0) and (0, 1) on two
+  # binary-coded covariates: the third coordinate recedes while the first
+  # two are held, and the public path must call that a missing maximum,
+  # not an undecided question.
+  ipd <- data.frame(trt = "A", y = c(rep(1:2, 5), rep(0L, 30)),
+                    x1 = c(rep(0, 10), rep(1, 10), rep(-1, 10), rep(0, 10)),
+                    x2 = c(rep(0, 10), rep(0, 10), rep(0, 10), rep(1, 10)),
+                    E = 1)
+  ip <- set_ipd(ipd, treatment = "trt", outcome = "y",
+                covariates = c("x1", "x2"), family = "poisson",
+                exposure = "E")
+  ag <- set_agd(data.frame(trt = "B", r = 20, E = 100, x1_mean = 0,
+                           x1_sd = 1, x2_mean = 0.5, x2_sd = 0.5),
+                treatment = "trt", family = "poisson", outcome_r = "r",
+                outcome_E = "E", cov_means = c("x1_mean", "x2_mean"),
+                cov_sds = c("x1_sd", "x2_sd"),
+                cov_types = c("continuous", "continuous"))
+  d <- suppressWarnings(add_integration(
+    combine_data(ip, ag), n_int = 64,
+    x1 = distr(stats::qnorm, mean = x1_mean, sd = x1_sd),
+    x2 = distr(stats::qnorm, mean = x2_mean, sd = x2_sd), verbose = FALSE
+  ))
+  expect_error(suppressWarnings(stc(d)), "no finite maximum")
 })
