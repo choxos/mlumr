@@ -268,13 +268,20 @@
   increment collapses to zero. A Gamma baseline with shape 10, entry at
   0.025 and an event in (0.05, 0.1\] has a conditional log probability
   of -38.222; built from increments it came back unusable, and left
-  censoring under delayed entry took the same route. Both branches now
-  switch on the same half-probability test the undelayed interval
-  already applied, taking a difference of CDFs where the CDF is
-  representable and a ratio of survival probabilities where it is not. A
-  CDF difference has the mirror-image failure, on an interval narrow
-  enough that both bounds round to the same double, so it is used only
-  where the two are actually distinguishable.
+  censoring under delayed entry took the same route. Each route is now
+  used only where its rounding is well below the interval’s mass, and
+  neither is used at all where a closed form exists: the exponential,
+  Weibull and Gompertz families take analytic cumulative-hazard
+  differences in every regime, and the log-logistic has an exact
+  expression of its own. For the log-normal, gamma and generalized gamma
+  the CDF difference serves the lower half and the survival increment
+  the upper, each behind a resolution test, and an interval neither
+  resolves is integrated from the density by Simpson’s rule in log time,
+  refined until two estimates agree. A difference that is merely finite
+  is not thereby accurate: four ULPs from 0.1 came back 16% low from one
+  difference and 29% high from the other, and a midpoint density times
+  the width, the earlier fallback, was 57% low on a wide interval whose
+  mass is small because the density falls a hundredfold across it.
 
 - **[`compare_models()`](https://choxos.github.io/mlumr/reference/compare_models.md)
   no longer reads a standard error as a threshold, and refuses fits
