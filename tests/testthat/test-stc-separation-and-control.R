@@ -35,6 +35,9 @@ test_that("an ordinary fit and a genuinely rare event are still accepted", {
 
   ordinary <- data.frame(y = stats::rbinom(n, 1, stats::plogis(0.3 * x)), x = x)
   fit_ok <- stats::glm(y ~ x, family = stats::binomial(), data = ordinary)
+  # Silence needs the exact check to have run; without detectseparation the
+  # same fit warns that it did not, which is its own test below.
+  skip_if_not_installed("detectseparation")
   expect_silent(mlumr:::.stc_refuse_separation(fit_ok))
 
   # A small rate is not separation. The test is on the boundary rather than on
@@ -434,4 +437,98 @@ test_that("a sampler setting is validated the same through either door", {
   ok <- merge(0.8, 10, list(control = list(adapt_delta = 0.99)))
   expect_equal(ok$control$adapt_delta, 0.99)
   expect_equal(ok$control$max_treedepth, 10)
+})
+
+# The check runs, warns and is then thrown away, so nothing downstream can tell
+# a verified estimate from an unverified one once the warning has scrolled off.
+
+.stc_binomial_fixture <- function() {
+  set.seed(2026)
+  n <- 200
+  x1 <- stats::rbinom(n, 1, 0.4)
+  x2 <- stats::rbinom(n, 1, 0.6)
+  outcome <- stats::rbinom(n, 1, stats::plogis(-0.5 + x1 - 0.5 * x2))
+  ipd <- set_ipd(data.frame(trt = "A", outcome = outcome, x1 = x1, x2 = x2),
+                 "trt", "outcome", c("x1", "x2"))
+  agd <- set_agd(data.frame(trt = "B", n_total = 300, n_events = 120,
+                            x1_mean = 0.3, x2_mean = 0.7),
+                 "trt", outcome_n = "n_total", outcome_r = "n_events",
+                 cov_means = c("x1_mean", "x2_mean"))
+  dat <- combine_data(ipd, agd)
+  add_integration(dat, n_int = 32,
+                  x1 = distr(qbern, prob = x1_mean),
+                  x2 = distr(qbern, prob = x2_mean))
+}
+
+test_that("the separation check reports its outcome instead of discarding it", {
+  set.seed(2026)
+  n <- 200
+  x <- stats::rnorm(n)
+  ordinary <- data.frame(y = stats::rbinom(n, 1, stats::plogis(0.3 * x)), x = x)
+  fit_ok <- stats::glm(y ~ x, family = stats::binomial(), data = ordinary)
+
+  got <- mlumr:::.stc_refuse_separation(fit_ok)
+  expect_type(got, "list")
+  expect_true(got$status %in% c("not_separated", "unknown"))
+  # Only "separated" is withheld, because it throws rather than returns.
+  expect_false(identical(got$status, "separated"))
+})
+
+test_that("a family with no separation question says so rather than nothing", {
+  set.seed(2026)
+  d <- data.frame(y = stats::rnorm(50), x = stats::rnorm(50))
+  fit <- stats::glm(y ~ x, family = stats::gaussian(), data = d)
+  expect_identical(mlumr:::.stc_refuse_separation(fit)$status, "not_applicable")
+})
+
+test_that("an stc result records the separation status it was given", {
+  result <- suppressWarnings(stc(.stc_binomial_fixture()))
+  expect_false(is.null(result$separation))
+  expect_true(result$separation$status %in% c("not_separated", "unknown"))
+})
+
+test_that("an unverified estimate does not print like a verified one", {
+  result <- suppressWarnings(stc(.stc_binomial_fixture()))
+
+  result$separation <- list(status = "unknown",
+                            reason = "the optional package is not installed")
+  expect_output(print(result), "Separation: NOT VERIFIED")
+  expect_output(print(result), "the optional package is not installed")
+
+  result$separation <- list(status = "not_separated")
+  expect_false(any(grepl("NOT VERIFIED",
+                         utils::capture.output(print(result)))))
+})
+
+test_that("an unknown status travels from the checker to the saved result", {
+  # The printing test above sets the field by hand, which checks the printing
+  # and nothing else. This forces the checker itself to come back unknown, as
+  # it does without detectseparation, and follows the status through the
+  # public call, the warning, and a round trip through disk.
+  local_mocked_bindings(
+    .stc_separation_status = function(fit) {
+      list(status = "unknown", reason = "the linear program was not run")
+    },
+    .package = "mlumr"
+  )
+  expect_warning(result <- stc(.stc_binomial_fixture()),
+                 "exact separation check did not run")
+  expect_identical(result$separation$status, "unknown")
+  expect_identical(result$separation$reason, "the linear program was not run")
+
+  path <- withr::local_tempfile(fileext = ".rds")
+  saveRDS(result, path)
+  back <- readRDS(path)
+  expect_identical(back$separation, result$separation)
+  expect_output(print(back), "Separation: NOT VERIFIED")
+  expect_output(print(back), "the linear program was not run")
+})
+
+test_that("not_applicable names the test that does not apply, not a verdict", {
+  set.seed(2026)
+  d <- data.frame(y = stats::rpois(50, 2), x = stats::rnorm(50))
+  fit <- stats::glm(y ~ x, family = stats::poisson(), data = d)
+  got <- mlumr:::.stc_refuse_separation(fit)
+  expect_identical(got$status, "not_applicable")
+  expect_match(got$reason, "separation test does not apply")
 })

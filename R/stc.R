@@ -69,7 +69,17 @@
 #'   range extrapolates the fitted parametric survival function and warns.
 #'   Ignored for other families.
 #'
-#' @return An object of class `mlumr_stc`
+#' @return An object of class `mlumr_stc`. Its `separation` component records
+#'   the outcome of the binomial separation check, and only that: `status` is
+#'   `"not_separated"` when the exact check ran on a binomial outcome model
+#'   and found no separation, `"unknown"` when it could not run (only the
+#'   fitted-value screen was applied, which cannot see quasi-complete
+#'   separation), and `"not_applicable"` when the outcome model is not a
+#'   binomial GLM, so this particular test has nothing to say. It is not a
+#'   certificate that the likelihood has a finite maximum for other families;
+#'   a Poisson outcome model can have an infinite maximum likelihood estimate
+#'   of its own kind, and nothing here looks for it. A separated fit is refused
+#'   rather than returned, so `"separated"` never appears here.
 #' @importFrom stats gaussian poisson dnorm
 #' @export
 #'
@@ -162,6 +172,14 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     out <- .stc_survival(data, conf_level, z, distribution,
                          n_boot = as.integer(n_boot), seed = seed,
                          rmst_horizon = rmst_horizon)
+    # Survival STC fits a parametric survival model, not a binomial GLM, so the
+    # separation question does not arise. Say so rather than leave the field
+    # absent, so a caller can read it without knowing the family first.
+    out$separation <- list(
+      status = "not_applicable",
+      reason = paste("survival STC fits no binomial GLM, so the separation",
+                     "test does not apply")
+    )
     class(out) <- c("mlumr_stc", "list")
     return(out)
   }
@@ -207,6 +225,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
                            conf_level, z, beta_hat, V, n_int)
   )
 
+  out$separation <- glm_params$separation
   class(out) <- c("mlumr_stc", "list")
   out
 }
@@ -251,8 +270,8 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
       call. = FALSE
     )
   }
-  .stc_refuse_separation(fit)
-  list(beta_hat = beta_hat, V = V)
+  separation <- .stc_refuse_separation(fit)
+  list(beta_hat = beta_hat, V = V, separation = separation)
 }
 
 #' Refuse a fit whose likelihood has no finite maximum
@@ -288,17 +307,30 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' \pkg{detectseparation} package is installed. The threshold test stays as
 #' the part that always runs.
 #' @param fit A fitted `glm`.
-#' @return `NULL`, invisibly; called for the error.
+#' @return The separation status, invisibly: a list with `status`, one of
+#'   `"not_separated"`, `"unknown"` or `"not_applicable"`, and `reason` for
+#'   the latter two. `"separated"` is never returned, since it throws.
+#'   `"not_applicable"` means this binomial separation test does not apply to
+#'   the fitted family, not that the family has no finite-maximum problem of
+#'   its own. Callers record it on the result so a verified estimate can be
+#'   told apart from an unverified one after the warning has scrolled away.
 #' @keywords internal
 .stc_refuse_separation <- function(fit) {
   fam <- tryCatch(stats::family(fit)$family, error = function(e) NA_character_)
   if (!identical(fam, "binomial")) {
-    return(invisible(NULL))
+    return(invisible(list(
+      status = "not_applicable",
+      reason = paste("the outcome model is not binomial, so the separation",
+                     "test does not apply")
+    )))
   }
   mu <- stats::fitted(fit)
   mu <- mu[is.finite(mu)]
   if (!length(mu)) {
-    return(invisible(NULL))
+    return(invisible(list(
+      status = "unknown",
+      reason = "the fit has no finite fitted values to screen"
+    )))
   }
   eps <- .Machine$double.eps^0.5
   # Every fitted probability at *a* boundary, not all at the same one. A
@@ -351,7 +383,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
       call. = FALSE
     )
   }
-  invisible(NULL)
+  invisible(exact)
 }
 
 
@@ -362,8 +394,9 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' combination of the covariates perfectly orders the outcome, and a fit that
 #' is merely strong can look identical in the coefficients and the fitted
 #' values. \pkg{detectseparation} solves that program. It is in Suggests, so
-#' this returns `NA` when it is absent and the caller keeps the fitted-value
-#' test as its only screen; that is a weaker guarantee, not a wrong one.
+#' when it is absent this returns the `"unknown"` status with the reason, and
+#' the caller keeps the fitted-value test as its only screen; that is a weaker
+#' guarantee, not a wrong one.
 #'
 #' An error here is reported as "unknown" rather than as "separated": a refit
 #' can fail for reasons that have nothing to do with separation, and turning
