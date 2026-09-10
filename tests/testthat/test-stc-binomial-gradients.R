@@ -132,15 +132,18 @@ test_that("the gradients stay finite in tails the probabilities cannot represent
       expect_true(all(is.finite(unlist(g))), label = paste(link, beta0))
     }
   }
-  # Logit and probit at eta = -800 and 800, beyond any representable
-  # probability: the log probabilities are still finite and so are the
-  # gradients, and the share of a point at -800 beside one at 0 is 0.
-  for (link in c("logit", "probit")) {
-    X <- cbind(1, c(0, 1))
-    g <- mlumr:::.stc_binomial_gradients(X, c(0, -800), c(1, 1), link)
-    expect_true(all(is.finite(unlist(g))), label = link)
-    expect_equal(g$log_mean, c(g$log_mean[1], 0), tolerance = 1e-12)
-  }
+  # Logit and probit at eta = -800, beyond any representable probability:
+  # the log probabilities are still finite and so are the gradients, and
+  # the share of a point at -800 beside one at 0 is 0, so the gradient of
+  # log p-bar is the point at 0's own: q = 1/2 under the logit, and
+  # phi(0) / Phi(0) under the probit.
+  X <- cbind(1, c(0, 1))
+  g <- mlumr:::.stc_binomial_gradients(X, c(0, -800), c(1, 1), "logit")
+  expect_true(all(is.finite(unlist(g))))
+  expect_equal(g$log_mean, c(0.5, 0), tolerance = 1e-12)
+  g <- mlumr:::.stc_binomial_gradients(X, c(0, -800), c(1, 1), "probit")
+  expect_true(all(is.finite(unlist(g))))
+  expect_equal(g$log_mean, c(dnorm(0) / pnorm(0), 0), tolerance = 1e-12)
   # Cloglog at eta = 800: exp(eta) overflows, the point's non-event
   # probability is 0 and its share of the non-event mean is 0. The product
   # 0 * -Inf used to be NaN and poisoned every SE while the estimate stayed
@@ -152,8 +155,21 @@ test_that("the gradients stay finite in tails the probabilities cannot represent
   expect_true(all(is.finite(unlist(g))))
   expect_equal(g$log_nonevent_mean, c(-1, 0), tolerance = 1e-12)
   expect_equal(g$link, c(-1, 0) / (log(0.5) - 1), tolerance = 1e-12)
-  # A zero weight is no share, not NaN.
+  # A zero weight is no share, not NaN; a negative one is an error.
   g0 <- mlumr:::.stc_binomial_gradients(X, c(800, 0), c(0, 1), "cloglog")
   expect_true(all(is.finite(unlist(g0))))
   expect_equal(g0$log_nonevent_mean, c(-1, -1), tolerance = 1e-12)
+  expect_error(mlumr:::.stc_binomial_gradients(X, c(0, 0), c(-1, 1), "logit"),
+               "non-negative")
+  # Every point saturated under the cloglog: the non-event mean is 0 to
+  # double precision, the link the package reports for it is +Inf, and the
+  # gradient is not finite with it. The finite-variance guard refuses that
+  # fit rather than attach a finite SE to an infinite estimate.
+  lp <- mlumr:::.binary_log_probs(c(800, 800), "cloglog")
+  log_p <- mlumr:::.weighted_log_mean_exp(lp$event, c(1, 1))
+  log_q <- mlumr:::.weighted_log_mean_exp(lp$nonevent, c(1, 1))
+  expect_identical(mlumr:::.binary_link_from_logs(log_p, log_q, "cloglog"),
+                   Inf)
+  g_inf <- mlumr:::.stc_binomial_gradients(X, c(800, 800), c(1, 1), "cloglog")
+  expect_false(all(is.finite(g_inf$link)))
 })

@@ -653,6 +653,9 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 .stc_binomial_gradients <- function(X, eta, weights,
                                     link = c("logit", "probit", "cloglog")) {
   link <- match.arg(link)
+  if (any(!is.finite(weights)) || any(weights < 0)) {
+    stop("`weights` must be finite and non-negative.", call. = FALSE)
+  }
   # A point with no weight has no share; keeping it would put log(0) beside
   # a log probability of -Inf and make NaN of nothing.
   keep <- weights > 0
@@ -682,8 +685,10 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     # point's share is 0, and 0 * -Inf is NaN. Formed as one exponent the
     # product underflows to the 0 it is, and a saturated point beside an
     # ordinary one leaves the gradient finite. When every point is
-    # saturated the non-event mean is 0 to double precision and the link
-    # itself is not representable; nothing here changes that.
+    # saturated the non-event mean is 0 to double precision, the link
+    # `.binary_link_from_logs()` reports is +Inf, and the gradient is NaN
+    # with it; the finite-variance guard then refuses the fit, as it did
+    # before, rather than attach a finite SE to an infinite estimate.
     colSums(-exp(log_w + lp$nonevent - log_q_mean + eta) * X)
   } else {
     colSums(share_q * d_log_q * X)
