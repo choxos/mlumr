@@ -45,11 +45,15 @@ was made and met the heuristic, \code{"review"} when it did not, and
 target the AgD does not supply, or a latent Gaussian-copula correlation
 (\code{cor_adjust = "none"}), gives \code{"unavailable"} rather than a pass. The
 correlation verdicts (\code{target_correlation}, \code{resolution_correlation})
-are \code{"partial"} when some pairs could not be measured, since a maximum
-over the measured pairs says nothing about the rest; \code{correlation_pairs}
-then counts the pairs expected and measured and names the omitted ones
-with a reason, a margin declared with no variance or one the finite
-grid never varied.
+are \code{"partial"} when the measured pairs pass but some pair with a
+correlation to realize could not be measured, since a maximum over the
+measured pairs says nothing about the rest; a measured pair that misses
+the heuristic is \code{"review"} regardless. \code{correlation_pairs} counts the
+pairs expected and measured, against the target (the doubled grid) and
+between resolutions (both grids), names the omitted ones with a reason,
+and lists separately the pairs in which a margin is declared with no
+variance, which have no correlation to realize and are outside the
+count.
 
 For a binary margin the declared-target SD is the distribution's,
 \code{sqrt(p * (1 - p))} from the declared mean, whatever \verb{_sd} column the

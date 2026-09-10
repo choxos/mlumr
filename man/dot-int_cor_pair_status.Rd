@@ -4,23 +4,29 @@
 \alias{.int_cor_pair_status}
 \title{Which correlation pairs were measured, and why the others were not}
 \usage{
-.int_cor_pair_status(diff, stats, target_mean, target_sd)
+.int_cor_pair_status(diff, stats, target_sd)
 }
 \arguments{
 \item{diff}{The pair table from \code{\link[=.int_cor_stats]{.int_cor_stats()}}.}
 
 \item{stats}{The marginal statistics of the current grid.}
 
-\item{target_mean, target_sd}{Declared targets, one per row of \code{stats}.}
+\item{target_sd}{Declared target SDs, one per row of \code{stats}.}
 }
 \value{
-List with \code{expected}, the number of pairs the check set out to
-compare, \code{measured}, how many had a finite realized correlation on the
-doubled grid, and \code{omitted}, a data frame naming the rest with a
-\code{reason}: \code{"declared_degenerate"} when a margin in the pair is declared
-with no variance, so it has no correlation to realize, or
-\code{"constant_on_grid"} when the grid did not vary a margin that is not
-degenerate by declaration, which is a resolution failure.
+List with \code{expected}, the number of pairs that have a correlation
+to realize; \code{measured}, how many of those had a finite correlation on
+the doubled grid, which is what the target comparison reads;
+\code{measured_resolution}, how many had one on both grids, which is what
+the current-versus-doubled comparison reads; \code{omitted}, a data frame
+naming the expected pairs that fell short of either, with a \code{reason},
+\code{"constant_on_grid"} when the doubled grid did not vary a margin and
+\code{"constant_on_current_grid"} when only the current one did not, both
+resolution failures a larger grid may or may not repair; and
+\code{not_applicable}, the pairs in which a margin is declared with no
+variance and so has no correlation to realize at any resolution.
+Those are outside \code{expected}, so a subgroup row with an all-male
+membership does not keep every verdict at \code{partial} forever.
 }
 \description{
 Which correlation pairs were measured, and why the others were not

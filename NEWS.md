@@ -232,11 +232,15 @@
   joint side, the maximum discrepancy was taken over the pairs with a finite
   realized correlation, so a variable constant on the grid dropped its pairs
   and one measured pair out of three was summarized as `close`. The
-  correlation verdicts are now `"partial"` when any pair could not be
-  measured, and a new `correlation_pairs` component counts the pairs
-  expected and measured and names the omitted ones with a reason: a margin
-  declared with no variance has no correlation to realize, while a rare
-  variable the grid never varied is a resolution failure.
+  correlation verdicts are now `"partial"` when the measured pairs pass but
+  some pair with a correlation to realize could not be measured, and
+  `"review"` whenever a measured pair misses the heuristic, whatever else
+  is missing. A new `correlation_pairs` component counts the pairs
+  expected and measured, against the target and between resolutions, and
+  names the omitted ones with a reason; a margin declared with no variance
+  has no correlation to realize, so its pairs are listed separately and
+  kept out of the count, while a rare variable the grid never varied is a
+  resolution failure.
 
 * **M-spline basis support is judged over the period a study was at risk.** The
   check evaluated each basis column on `[0, max(time)]`. A column supported

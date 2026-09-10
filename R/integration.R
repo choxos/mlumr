@@ -608,11 +608,15 @@ unnest_integration <- function(data) {
 #'   target the AgD does not supply, or a latent Gaussian-copula correlation
 #'   (`cor_adjust = "none"`), gives `"unavailable"` rather than a pass. The
 #'   correlation verdicts (`target_correlation`, `resolution_correlation`)
-#'   are `"partial"` when some pairs could not be measured, since a maximum
-#'   over the measured pairs says nothing about the rest; `correlation_pairs`
-#'   then counts the pairs expected and measured and names the omitted ones
-#'   with a reason, a margin declared with no variance or one the finite
-#'   grid never varied.
+#'   are `"partial"` when the measured pairs pass but some pair with a
+#'   correlation to realize could not be measured, since a maximum over the
+#'   measured pairs says nothing about the rest; a measured pair that misses
+#'   the heuristic is `"review"` regardless. `correlation_pairs` counts the
+#'   pairs expected and measured, against the target (the doubled grid) and
+#'   between resolutions (both grids), names the omitted ones with a reason,
+#'   and lists separately the pairs in which a margin is declared with no
+#'   variance, which have no correlation to realize and are outside the
+#'   count.
 #'
 #'   For a binary margin the declared-target SD is the distribution's,
 #'   `sqrt(p * (1 - p))` from the declared mean, whatever `_sd` column the
@@ -820,8 +824,7 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
     # with no variance has no correlation to realize, while a rare variable
     # the finite grid never varied is a resolution failure a larger grid may
     # or may not repair.
-    pairs <- .int_cor_pair_status(cor_result$diff, stats_orig, target_mean,
-                                  target_sd)
+    pairs <- .int_cor_pair_status(cor_result$diff, stats_orig, target_sd)
     if (verbose) {
       if (is.na(max_cor_diff)) {
         cat("Joint resolution: not available (no finite comparison).\n")
@@ -844,15 +847,36 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
       } else if (!is.null(cor_target)) {
         cat("Target correlation: not available (no finite comparison).\n")
       }
-      if (pairs$measured < pairs$expected) {
-        cat(sprintf(paste0("Pairs compared: %d of %d. Not measured: %s. ",
+      if (nrow(pairs$omitted)) {
+        cat(sprintf(paste0("Pairs compared: %d of %d against the target, %d ",
+                           "of %d between resolutions. Not measured: %s. ",
                            "A maximum above is over the measured pairs ",
                            "only.\n"),
                     pairs$measured, pairs$expected,
+                    pairs$measured_resolution, pairs$expected,
                     paste(sprintf("%s (row %d, %s)", pairs$omitted$pair,
                                   pairs$omitted$agd_row,
                                   pairs$omitted$reason),
                           collapse = "; ")))
+      }
+      if (nrow(pairs$not_applicable)) {
+        cat(sprintf(paste0("Pairs with a margin declared without variance, ",
+                           "which have no correlation to realize: %s.\n"),
+                    paste(sprintf("%s (row %d)", pairs$not_applicable$pair,
+                                  pairs$not_applicable$agd_row),
+                          collapse = "; ")))
+      }
+    }
+    # `partial` is a qualified pass: the measured pairs met the heuristic
+    # and some pair that has a correlation to realize was not measured. A
+    # measured pair that misses the heuristic is `review` whatever else
+    # is missing, so a caller reading only for `review` is not passed a
+    # failure under another name.
+    qualify <- function(verdict, pass, measured) {
+      if (identical(verdict, pass) && measured < pairs$expected) {
+        "partial"
+      } else {
+        verdict
       }
     }
     out$verdict$target_correlation <- if (is.null(cor_target)) {
@@ -860,17 +884,14 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
       # matrix is the latent copula correlation. Leaving the field unset made
       # a deliberate abstention indistinguishable from a missing field.
       "unavailable"
-    } else if (pairs$measured > 0L && pairs$measured < pairs$expected) {
-      "partial"
     } else {
-      .moment_verdict(max_target_cor_diff, 0.05, "close")
+      qualify(.moment_verdict(max_target_cor_diff, 0.05, "close"), "close",
+              pairs$measured)
     }
-    out$verdict$resolution_correlation <- if (pairs$measured > 0L &&
-                                                pairs$measured < pairs$expected) {
-      "partial"
-    } else {
-      .moment_verdict(max_cor_diff, 0.05, "stable")
-    }
+    out$verdict$resolution_correlation <- qualify(
+      .moment_verdict(max_cor_diff, 0.05, "stable"), "stable",
+      pairs$measured_resolution
+    )
     out$correlations <- cor_result$diff
     out$correlation_pairs <- pairs
   }
@@ -927,32 +948,40 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
 #'
 #' @param diff The pair table from [.int_cor_stats()].
 #' @param stats The marginal statistics of the current grid.
-#' @param target_mean,target_sd Declared targets, one per row of `stats`.
-#' @return List with `expected`, the number of pairs the check set out to
-#'   compare, `measured`, how many had a finite realized correlation on the
-#'   doubled grid, and `omitted`, a data frame naming the rest with a
-#'   `reason`: `"declared_degenerate"` when a margin in the pair is declared
-#'   with no variance, so it has no correlation to realize, or
-#'   `"constant_on_grid"` when the grid did not vary a margin that is not
-#'   degenerate by declaration, which is a resolution failure.
+#' @param target_sd Declared target SDs, one per row of `stats`.
+#' @return List with `expected`, the number of pairs that have a correlation
+#'   to realize; `measured`, how many of those had a finite correlation on
+#'   the doubled grid, which is what the target comparison reads;
+#'   `measured_resolution`, how many had one on both grids, which is what
+#'   the current-versus-doubled comparison reads; `omitted`, a data frame
+#'   naming the expected pairs that fell short of either, with a `reason`,
+#'   `"constant_on_grid"` when the doubled grid did not vary a margin and
+#'   `"constant_on_current_grid"` when only the current one did not, both
+#'   resolution failures a larger grid may or may not repair; and
+#'   `not_applicable`, the pairs in which a margin is declared with no
+#'   variance and so has no correlation to realize at any resolution.
+#'   Those are outside `expected`, so a subgroup row with an all-male
+#'   membership does not keep every verdict at `partial` forever.
 #' @keywords internal
-.int_cor_pair_status <- function(diff, stats, target_mean, target_sd) {
-  measured <- is.finite(diff$cor_doubled)
-  omitted <- diff[!measured, c("agd_row", "pair"), drop = FALSE]
-  reason <- character(nrow(omitted))
-  for (i in seq_len(nrow(omitted))) {
-    members <- strsplit(omitted$pair[i], "~", fixed = TRUE)[[1L]]
-    rows <- stats$covariate %in% members & stats$agd_row == omitted$agd_row[i]
-    degenerate <- is.finite(target_sd[rows]) & target_sd[rows] == 0
-    reason[i] <- if (any(degenerate)) {
-      "declared_degenerate"
-    } else {
-      "constant_on_grid"
-    }
-  }
-  omitted$reason <- reason
+.int_cor_pair_status <- function(diff, stats, target_sd) {
+  degenerate <- vapply(seq_len(nrow(diff)), function(i) {
+    members <- strsplit(diff$pair[i], "~", fixed = TRUE)[[1L]]
+    rows <- stats$covariate %in% members & stats$agd_row == diff$agd_row[i]
+    any(is.finite(target_sd[rows]) & target_sd[rows] == 0)
+  }, logical(1))
+  applicable <- !degenerate
+  measured <- applicable & is.finite(diff$cor_doubled)
+  measured_resolution <- applicable & is.finite(diff$abs_diff)
+  short <- applicable & !(measured & measured_resolution)
+  omitted <- diff[short, c("agd_row", "pair"), drop = FALSE]
+  omitted$reason <- ifelse(measured[short], "constant_on_current_grid",
+                           "constant_on_grid")
   rownames(omitted) <- NULL
-  list(expected = nrow(diff), measured = sum(measured), omitted = omitted)
+  not_applicable <- diff[degenerate, c("agd_row", "pair"), drop = FALSE]
+  rownames(not_applicable) <- NULL
+  list(expected = sum(applicable), measured = sum(measured),
+       measured_resolution = sum(measured_resolution), omitted = omitted,
+       not_applicable = not_applicable)
 }
 
 

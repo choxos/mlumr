@@ -73,43 +73,69 @@ test_that("a correlation summary counts the pairs it could not measure", {
   expect_identical(sum(is.finite(tab$abs_diff_target)), 1L)
   expect_identical(mlumr:::.max_finite(tab$abs_diff_target), 0)
   stats <- mlumr:::.int_stats(original, colnames(m), 1L)
-  # z declared with variance: the grid failed to vary it.
-  pairs <- mlumr:::.int_cor_pair_status(tab, stats, c(0, 0, 0.01),
-                                        c(1, 1, 0.0995))
+  # z declared with variance: the grid failed to vary it, on both grids.
+  pairs <- mlumr:::.int_cor_pair_status(tab, stats, c(1, 1, 0.0995))
   expect_identical(pairs$expected, 3L)
   expect_identical(pairs$measured, 1L)
+  expect_identical(pairs$measured_resolution, 1L)
   expect_identical(sort(pairs$omitted$pair), c("x~z", "y~z"))
   expect_identical(unique(pairs$omitted$reason), "constant_on_grid")
-  # z declared with no variance: nothing to realize.
-  pairs <- mlumr:::.int_cor_pair_status(tab, stats, c(0, 0, 0), c(1, 1, 0))
-  expect_identical(unique(pairs$omitted$reason), "declared_degenerate")
+  expect_identical(nrow(pairs$not_applicable), 0L)
+  # z declared with no variance: nothing to realize, so its pairs are not
+  # expected and the one measured pair is the whole question.
+  pairs <- mlumr:::.int_cor_pair_status(tab, stats, c(1, 1, 0))
+  expect_identical(pairs$expected, 1L)
+  expect_identical(pairs$measured, 1L)
+  expect_identical(nrow(pairs$omitted), 0L)
+  expect_identical(sort(pairs$not_applicable$pair), c("x~z", "y~z"))
+  # A margin constant on the current grid but not on the doubled one: the
+  # target comparison can read it, the resolution comparison cannot.
+  m2 <- m
+  m2[64, "z"] <- 1
+  doubled2 <- array(rbind(m, m2), dim = c(1, 128, 3),
+                    dimnames = list(NULL, NULL, colnames(m)))
+  tab2 <- mlumr:::.int_cor_stats(original, doubled2, colnames(m), 1L,
+                                 cor_target = diag(3),
+                                 cor_method = "pearson")$diff
+  pairs <- mlumr:::.int_cor_pair_status(tab2, stats, c(1, 1, 0.0995))
+  expect_identical(pairs$measured, 3L)
+  expect_identical(pairs$measured_resolution, 1L)
+  expect_identical(unique(pairs$omitted$reason), "constant_on_current_grid")
 })
 
 test_that("check_integration() reports a partial correlation verdict", {
   # A binary covariate with prevalence 1e-6 never varies on a grid of 64
   # or 128 points, so its two pairs cannot be measured.
-  ip <- set_ipd(data.frame(trt = "A", y = rbinom(40, 1, 0.5),
-                           a = rnorm(40), b = rnorm(40),
-                           rare = rbinom(40, 1, 0.5)),
-                "trt", outcome = "y", covariates = c("a", "b", "rare"))
-  ag <- set_agd(data.frame(trt = "B", n = 100L, r = 40L, a_mean = 0,
-                           a_sd = 1, b_mean = 0, b_sd = 1, rare_mean = 1e-6),
-                "trt", outcome_n = "n", outcome_r = "r",
-                cov_means = c("a_mean", "b_mean", "rare_mean"),
-                cov_sds = c("a_sd", "b_sd", NA),
-                cov_types = c("continuous", "continuous", "binary"))
-  d <- suppressWarnings(add_integration(
-    combine_data(ip, ag), n_int = 64, cor = diag(3), cor_adjust = "pearson",
-    a = distr(qnorm, mean = a_mean, sd = a_sd),
-    b = distr(qnorm, mean = b_mean, sd = b_sd),
-    rare = distr(qbern, prob = rare_mean), verbose = FALSE
-  ))
-  ck <- suppressWarnings(check_integration(
-    d, cor = diag(3), cor_adjust = "pearson",
-    a = distr(qnorm, mean = a_mean, sd = a_sd),
-    b = distr(qnorm, mean = b_mean, sd = b_sd),
-    rare = distr(qbern, prob = rare_mean), verbose = FALSE
-  ))
+  make <- function(cor_ab = 0, n_int = 64, a_mean = 0.5, b_mean = 0.5) {
+    set.seed(2026)
+    ip <- set_ipd(data.frame(trt = "A", y = rbinom(40, 1, 0.5),
+                             a = rbinom(40, 1, 0.5), b = rbinom(40, 1, 0.5),
+                             rare = rbinom(40, 1, 0.5)),
+                  "trt", outcome = "y", covariates = c("a", "b", "rare"))
+    ag <- set_agd(data.frame(trt = "B", n = 100L, r = 40L, a_mean = a_mean,
+                             b_mean = b_mean, rare_mean = 1e-6),
+                  "trt", outcome_n = "n", outcome_r = "r",
+                  cov_means = c("a_mean", "b_mean", "rare_mean"),
+                  cov_sds = c(NA, NA, NA),
+                  cov_types = c("binary", "binary", "binary"))
+    cor <- diag(3)
+    cor[1, 2] <- cor[2, 1] <- cor_ab
+    dimnames(cor) <- list(c("a", "b", "rare"), c("a", "b", "rare"))
+    d <- suppressWarnings(add_integration(
+      combine_data(ip, ag), n_int = n_int, cor = cor, cor_adjust = "pearson",
+      a = distr(qbern, prob = a_mean), b = distr(qbern, prob = b_mean),
+      rare = distr(qbern, prob = rare_mean), verbose = FALSE
+    ))
+    list(data = d, cor = cor)
+  }
+  run <- function(made, verbose = FALSE) {
+    suppressWarnings(check_integration(
+      made$data, cor = made$cor, cor_adjust = "pearson",
+      a = distr(qbern, prob = a_mean), b = distr(qbern, prob = b_mean),
+      rare = distr(qbern, prob = rare_mean), verbose = verbose
+    ))
+  }
+  ck <- run(make())
   expect_identical(ck$verdict$target_correlation, "partial")
   expect_identical(ck$verdict$resolution_correlation, "partial")
   expect_identical(ck$correlation_pairs$expected, 3L)
@@ -118,12 +144,47 @@ test_that("check_integration() reports a partial correlation verdict", {
                    c("a~rare", "b~rare"))
   expect_identical(unique(ck$correlation_pairs$omitted$reason),
                    "constant_on_grid")
-  out <- capture.output(suppressWarnings(check_integration(
-    d, cor = diag(3), cor_adjust = "pearson",
-    a = distr(qnorm, mean = a_mean, sd = a_sd),
-    b = distr(qnorm, mean = b_mean, sd = b_sd),
-    rare = distr(qbern, prob = rare_mean), verbose = TRUE
-  )))
+  out <- capture.output(run(make(), verbose = TRUE))
   expect_true(any(grepl("Pairs compared: 1 of 3", out)))
   expect_true(any(grepl("a~rare", out)))
+  # A measured pair that misses the heuristic is `review`, whatever else is
+  # missing: a requested a~b correlation of 0.9 between margins of 0.1 and
+  # 0.9, whose Frechet bound is 0.11.
+  ck <- run(make(cor_ab = 0.9, a_mean = 0.1, b_mean = 0.9))
+  expect_gt(max(ck$correlations$abs_diff_target, na.rm = TRUE), 0.05)
+  expect_identical(ck$verdict$target_correlation, "review")
+})
+
+test_that("a margin declared without variance leaves the other pairs an ordinary verdict", {
+  # Two AgD rows; the second is an all-male subgroup, so its age~sex pair
+  # has no correlation to realize and is outside the count. The first
+  # row's pair decides the verdict, which used to stay `partial` forever.
+  set.seed(2026)
+  ip <- set_ipd(data.frame(trt = "A", y = rbinom(40, 1, 0.5),
+                           age = rnorm(40), sex = rbinom(40, 1, 0.5)),
+                "trt", outcome = "y", covariates = c("age", "sex"))
+  ag <- set_agd(data.frame(trt = "B", n = c(60L, 40L), r = c(20L, 15L),
+                           age_mean = c(0, 0.2), age_sd = c(1, 1),
+                           sex_mean = c(0.5, 0)),
+                "trt", outcome_n = "n", outcome_r = "r",
+                cov_means = c("age_mean", "sex_mean"),
+                cov_sds = c("age_sd", NA), cov_types = c("continuous", "binary"))
+  cor <- diag(2)
+  dimnames(cor) <- list(c("age", "sex"), c("age", "sex"))
+  d <- suppressWarnings(add_integration(
+    combine_data(ip, ag), n_int = 256, cor = cor, cor_adjust = "pearson",
+    age = distr(qnorm, mean = age_mean, sd = age_sd),
+    sex = distr(qbern, prob = sex_mean), verbose = FALSE
+  ))
+  ck <- suppressWarnings(check_integration(
+    d, cor = cor, cor_adjust = "pearson",
+    age = distr(qnorm, mean = age_mean, sd = age_sd),
+    sex = distr(qbern, prob = sex_mean), verbose = FALSE
+  ))
+  expect_identical(ck$correlation_pairs$expected, 1L)
+  expect_identical(ck$correlation_pairs$measured, 1L)
+  expect_identical(nrow(ck$correlation_pairs$omitted), 0L)
+  expect_identical(ck$correlation_pairs$not_applicable$agd_row, 2L)
+  expect_true(ck$verdict$target_correlation %in% c("close", "review"))
+  expect_true(ck$verdict$resolution_correlation %in% c("stable", "review"))
 })
