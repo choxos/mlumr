@@ -24,10 +24,15 @@
   own diagnostics say how it went. Under `link = "log"` existence is decided
   on `log(y)`, a linear question that cannot overflow however wide the outcome
   is, and the near-exact screen is taken on the response scale the likelihood
-  uses. An outcome identically zero under `link = "log"` is refused too: a
-  positive mean can only approach it as the intercept goes to `-Inf`, where
-  the likelihood grows without bound as the residual SD shrinks and only the
-  intercept prior's tails decide whether a posterior exists. A saturated
+  uses. Zeros under `link = "log"` are the boundary case: a positive mean
+  can only approach them as their linear predictor goes to `-Inf`, where the
+  likelihood grows without bound as the residual SD shrinks and only the
+  coefficient priors' tails decide whether a posterior exists. An outcome
+  identically zero is refused, and so is one whose positive rows are fitted
+  exactly while leaving a direction of the coefficients free to take the zero
+  rows there; zeros beside positive rows that leave a real residual, or that
+  pin every coefficient, pass, and a negative outcome anywhere settles it. A
+  saturated
   design is warned about rather than refused: its posterior
   is proper, but nothing in the data separates the residual SD from the
   coefficients, so the estimate of sigma is potentially strongly sensitive to

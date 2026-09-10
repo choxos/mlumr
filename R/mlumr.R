@@ -128,102 +128,39 @@
 }
 
 
-#' Refuse normal IPD that its own covariates fit exactly
+#' Classify how much residual variation a normal IPD outcome has
 #'
-#' The normal likelihood carries no information about the residual SD once the
-#' fit is exact. With `n` IPD rows and a design of rank `r`, integrating out the
-#' coefficients leaves a marginal density for sigma proportional to
-#' `sigma^(r - n) * exp(-RSS / (2 * sigma^2))`. When `RSS` is zero that is
-#' `sigma^(r - n)` all the way down, whose integral to zero diverges for every
-#' `n > r`, and a proper prior on sigma does not repair it: a prior with
-#' positive density at zero leaves the divergence exactly where it was. Proper
-#' priors on the coefficients do not either; they scale the density by the
-#' prior at the exact solution and leave its shape in sigma. The posterior is
-#' improper and nothing reports it. The sampler drifts toward zero and returns
-#' whatever it reached, with ordinary-looking diagnostics.
+#' The decision core behind [.check_normal_residual_variation()], which turns
+#' the status into a refusal, a warning or silence. Kept separate so the
+#' mixed-zero log-link case can classify the positive rows on their own.
 #'
-#' The question is whether an exact fit exists, and it is settled in this
-#' order, stopping at the first that decides:
+#' Statuses, in the order they are decided:
 #'
-#' * A saturated design (`n <= rank`) reproduces any outcome, and its posterior
-#'   is proper: the marginal density for sigma is bounded at zero and falls as
-#'   `sigma^(-n)` far out. Nothing in the data separates the residual SD from
-#'   the coefficients there, so what is reported for sigma is potentially
-#'   strongly sensitive to the coefficient priors. That warns.
-#' * A constant outcome with `n > rank` is reproduced by the intercept alone.
-#'   The exact fit is certain, and so is the impropriety. Refused.
-#' * Replicate design rows carrying different outcomes prove the residual
-#'   positive whatever the fit, since identical rows get identical fitted
-#'   values. The posterior is proper.
-#' * When every replicate group agrees and there are exactly `rank` distinct
-#'   rows, the design reaches every outcome on those rows, so the fit is exact
-#'   and the posterior improper. Refused.
-#' * Otherwise the computed residual is compared with the rounding an exact fit
-#'   can leave, `p * eps * |X||b|` elementwise. Above it the residual is
-#'   certainly real and the posterior proper. At or below it nothing at double
-#'   precision tells an exact fit from one this close, and Stan computes the
-#'   same likelihood at the same precision, so the model is refused as
-#'   undecidable rather than passed as proper.
+#' * `"saturated"`: `n <= rank`, the design reproduces any outcome.
+#' * `"constant"`: the outcome is constant with residual degrees of freedom,
+#'   so the intercept alone fits it exactly.
+#' * `"exact"`: every replicate group agrees and there are exactly `rank`
+#'   distinct design rows, so the design reaches every observed value.
+#' * `"unresolved_log"`: `log(y)` is constant although `y` is not, so the
+#'   log-scale total sum of squares is zero and the ratio undefined.
+#' * `"undecidable"`: the computed residual is at or below the rounding an
+#'   exact fit can leave.
+#' * `"near_exact"`: a real residual at most `1e-6` of the total.
+#' * `"positive"`: a real residual.
 #'
-#' A proper posterior whose residual is at most `1e-6` of the outcome's total
-#' sum of squares is warned about: the residual SD will concentrate near zero
-#' and the sampler has to work there. That is a screen on the input, not a
-#' verdict on the fit; the sampler's own diagnostics say how it went.
-#'
-#' Under `link = "log"` an exact fit `y = exp(X b)` exists exactly when
-#' `log(y)` lies in the column space of `X`, so existence is decided by a
-#' linear fit of `log(y)`, which cannot overflow however wide `y` is. The
-#' near-exact screen is then taken on the response scale, where the likelihood
-#' measures its residual, because an outcome spanning many orders of magnitude
-#' can have an ordinary residual in `log(y)` while the response-scale fit
-#' reproduces every large observation and leaves almost nothing. A
-#' non-positive observation cannot be matched by a positive mean, so with one
-#' present no exact fit exists and the posterior is proper. The observation is
-#' still a valid one under a log-link normal, which constrains the mean and
-#' not the data.
-#'
-#' The test is the residual sum of squares against the outcome's own total sum
-#' of squares, so it is invariant to the units of the outcome.
-#'
-#' @param data An `mlumr_data` object.
-#' @param link The resolved link, `"identity"` or `"log"`.
-#' @return `TRUE` invisibly if the data were warned about.
+#' @param X_raw Design matrix, intercept included, uncentered.
+#' @param y Outcome vector; positive under `link = "log"`.
+#' @param link `"identity"` or `"log"`.
+#' @return List with `status` and, where they apply, `n`, `rank`, `ratio`
+#'   and `zero_ratio`.
 #' @keywords internal
-.check_normal_residual_variation <- function(data, link = "identity") {
-  ipd <- data$ipd$data
-  y <- suppressWarnings(as.numeric(ipd$.outcome))
-  X_raw <- cbind(1, as.matrix(ipd[, data$covariates, drop = FALSE]))
-  # Not the place to diagnose non-finite inputs: the validators that own that
-  # question run their own checks and give their own messages.
-  if (length(y) == 0L || !all(is.finite(y)) || !all(is.finite(X_raw))) {
-    return(invisible(FALSE))
-  }
-  if (identical(link, "log") && any(y <= 0)) {
-    # A non-positive observation cannot be matched by a positive mean, so no
-    # exact fit exists and the residual is positive: proper. The one exception
-    # is an outcome that is identically zero, which the mean can approach but
-    # never reach. Along intercept -> -Inf with exp(intercept) / sigma held
-    # fixed the likelihood grows as sigma^(-n) without bound, and whether a
-    # posterior exists then depends on how fast the intercept prior decays: a
-    # normal prior tames it, a Student-t or Cauchy prior does not. The guard
-    # does not see the prior, so it refuses the case outright.
-    if (all(y == 0)) {
-      stop("The IPD outcome is identically zero, which a positive mean under ",
-           "link = \"log\" can only approach as the intercept goes to -Inf. ",
-           "There the likelihood grows without bound as the residual SD ",
-           "shrinks, and whether any posterior exists depends on the tails of ",
-           "the intercept prior, so the model is refused. The outcome needs ",
-           "variation the covariates do not explain, or a link whose mean can ",
-           "reach it.", call. = FALSE)
-    }
-    return(invisible(FALSE))
-  }
-
+.residual_variation_status <- function(X_raw, y, link) {
   # Center the predictors. This adds a multiple of the intercept column, so the
   # column space, the fitted values and the residual are all unchanged, but the
   # coefficients stop carrying the offset. Without it a predictor recorded as
   # `x + 1e12` forces an intercept near `-1e12 * slope`, and the bound below
   # counts that cancellation as rounding until it exceeds a genuine residual.
+  #
   # The center is the midrange, formed from halves so that neither the sum
   # nor the shift can overflow: a column holding values near both 1e308 and
   # -1e308 has a mean that overflows on this platform's double accumulation
@@ -237,39 +174,15 @@
   }
   n <- length(y)
   rank <- qr(X, tol = .Machine$double.eps)$rank
-
   if (n <= rank) {
-    warning("The IPD design has as many free columns as rows (", n,
-            " rows, rank ", rank, "), so it reproduces the outcome exactly ",
-            "and leaves no residual degrees of freedom. The posterior is ",
-            "proper, but nothing in the data separates the residual SD from ",
-            "the coefficients, so what is reported for sigma is potentially ",
-            "strongly sensitive to the coefficient priors.", call. = FALSE)
-    return(invisible(TRUE))
+    return(list(status = "saturated", n = n, rank = rank))
   }
-  advice <- paste(
-    "This is a property of the data, not a setting: the outcome needs",
-    "variation the covariates do not explain, or the model needs an",
-    "observation process (a measurement error or rounding scale) that",
-    "supplies one."
-  )
-  improper <- paste(
-    "The posterior for the residual SD is improper: its density behaves as",
-    "sigma^(rank - n) near zero and does not integrate, and the sampler",
-    "would drift toward zero and report where it stopped."
-  )
   if (all(y == y[1])) {
-    stop("The IPD outcome is constant, so the intercept alone reproduces it ",
-         "exactly and the normal model has no residual variation. ", improper,
-         " ", advice, call. = FALSE)
+    return(list(status = "constant", n = n, rank = rank))
   }
   replicates <- .design_replicates(X_raw, y)
   if (replicates$consistent && replicates$n_distinct == rank) {
-    stop("The IPD covariates fit the outcome exactly: there are only ", rank,
-         " distinct covariate profiles for a design of rank ", rank,
-         ", and every replicate of a profile carries the same outcome, so ",
-         "the design reaches every observed value. ", improper, " ", advice,
-         call. = FALSE)
+    return(list(status = "exact", n = n, rank = rank))
   }
 
   # Both sums are squares, so an outcome in extreme units breaks the units
@@ -315,46 +228,229 @@
 
   # Only an exactly zero residual is improper. For any positive residual the
   # exp(-RSS / (2 sigma^2)) factor drives the density to zero as sigma does,
-  # and the integral converges however small that residual is.
+  # and the integral converges however small that residual is. The bound is
+  # used only as a bound: above it the residual is certainly real, at or
+  # below it nothing at double precision decides.
   positive <- !replicates$consistent || isTRUE(fit$ratio > fit$zero_ratio)
   if (!positive && !is.finite(fit$ratio)) {
     # Outcomes near 1e300 that differ by a few units in the last place have
     # identical logarithms, so the log-scale total sum of squares is zero and
     # the ratio is undefined. The variation is real on the response scale, but
-    # it is at the resolution of double precision, which is the same
-    # undecidable regime as below.
-    stop("The IPD outcome varies by less than the resolution of its ",
-         "logarithm, so whether the covariates fit it exactly under ",
-         "link = \"log\" cannot be decided at double precision, and the ",
-         "model is refused rather than passed as proper. ", advice,
-         call. = FALSE)
+    # it is at the resolution of double precision.
+    return(list(status = "unresolved_log", n = n, rank = rank))
   }
   if (!positive) {
-    fmt <- paste0(
-      "The IPD covariates fit the outcome to within rounding: the residual ",
-      "sum of squares is %.3g of the total, at or below the %.3g that ",
-      "rounding alone can leave when the fit is exact. At double precision ",
-      "nothing tells an exact fit from one this close, and the likelihood is ",
-      "computed at the same precision, so the model is refused rather than ",
-      "passed as proper. An exact fit makes the posterior for the residual SD ",
-      "improper: its density behaves as sigma^(rank - n) near zero and does ",
-      "not integrate. "
-    )
-    stop(sprintf(fmt, fit$ratio, fit$zero_ratio), advice, call. = FALSE)
+    return(list(status = "undecidable", n = n, rank = rank,
+                ratio = fit$ratio, zero_ratio = fit$zero_ratio))
   }
   ratio <- screen()
   if (is.finite(ratio) && ratio <= 1e-6) {
-    fmt <- paste0(
-      "The IPD covariates very nearly fit the outcome exactly (residual sum ",
-      "of squares is %.3g of the total). The residual is real, so the ",
-      "posterior is proper, but the residual SD will concentrate near zero ",
-      "and the sampler has to work there: check its diagnostics before ",
-      "reading the estimate of sigma."
-    )
-    warning(sprintf(fmt, ratio), call. = FALSE)
-    return(invisible(TRUE))
+    return(list(status = "near_exact", n = n, rank = rank, ratio = ratio))
   }
-  invisible(FALSE)
+  list(status = "positive", n = n, rank = rank, ratio = ratio)
+}
+
+
+#' Refuse normal IPD that its own covariates fit exactly
+#'
+#' The normal likelihood carries no information about the residual SD once the
+#' fit is exact. With `n` IPD rows and a design of rank `r`, integrating out the
+#' coefficients leaves a marginal density for sigma proportional to
+#' `sigma^(r - n) * exp(-RSS / (2 * sigma^2))`. When `RSS` is zero that is
+#' `sigma^(r - n)` all the way down, whose integral to zero diverges for every
+#' `n > r`, and a proper prior on sigma does not repair it: a prior with
+#' positive density at zero leaves the divergence exactly where it was. Proper
+#' priors on the coefficients do not either; they scale the density by the
+#' prior at the exact solution and leave its shape in sigma. The posterior is
+#' improper and nothing reports it. The sampler drifts toward zero and returns
+#' whatever it reached, with ordinary-looking diagnostics.
+#'
+#' The question is whether an exact fit exists, and
+#' [.residual_variation_status()] settles it in this order, stopping at the
+#' first that decides:
+#'
+#' * A saturated design (`n <= rank`) reproduces any outcome, and its posterior
+#'   is proper: the marginal density for sigma is bounded at zero and falls as
+#'   `sigma^(-n)` far out. Nothing in the data separates the residual SD from
+#'   the coefficients there, so what is reported for sigma is potentially
+#'   strongly sensitive to the coefficient priors. That warns.
+#' * A constant outcome with `n > rank` is reproduced by the intercept alone.
+#'   The exact fit is certain, and so is the impropriety. Refused.
+#' * Replicate design rows carrying different outcomes prove the residual
+#'   positive whatever the fit, since identical rows get identical fitted
+#'   values. The posterior is proper.
+#' * When every replicate group agrees and there are exactly `rank` distinct
+#'   rows, the design reaches every outcome on those rows, so the fit is exact
+#'   and the posterior improper. Refused.
+#' * Otherwise the computed residual is compared with the rounding an exact fit
+#'   can leave, `p * eps * |X||b|` elementwise. Above it the residual is
+#'   certainly real and the posterior proper. At or below it nothing at double
+#'   precision tells an exact fit from one this close, and Stan computes the
+#'   same likelihood at the same precision, so the model is refused as
+#'   undecidable rather than passed as proper.
+#'
+#' A proper posterior whose residual is at most `1e-6` of the outcome's total
+#' sum of squares is warned about: the residual SD will concentrate near zero
+#' and the sampler has to work there. That is a screen on the input, not a
+#' verdict on the fit; the sampler's own diagnostics say how it went.
+#'
+#' Under `link = "log"` an exact fit `y = exp(X b)` exists exactly when
+#' `log(y)` lies in the column space of `X`, so existence is decided by a
+#' linear fit of `log(y)`, which cannot overflow however wide `y` is. The
+#' near-exact screen is then taken on the response scale, where the likelihood
+#' measures its residual, because an outcome spanning many orders of magnitude
+#' can have an ordinary residual in `log(y)` while the response-scale fit
+#' reproduces every large observation and leaves almost nothing.
+#'
+#' A non-positive observation is a valid one under a log-link normal, which
+#' constrains the mean and not the data, and a negative one cannot be matched
+#' by a positive mean at all, so its residual bounds the total away from zero
+#' and the posterior is proper. Zero is different: the mean can approach it at
+#' the boundary where the linear predictor goes to `-Inf`. If every row is
+#' zero, or the positive rows are fitted exactly while some direction of the
+#' coefficients leaves them fixed and drives the zero rows' predictors down,
+#' the likelihood grows as `sigma^(-n)` along that ray and whether a posterior
+#' exists depends on how fast the coefficient priors decay: a normal prior
+#' tames it, a Student-t or Cauchy prior does not. The guard does not see the
+#' prior, so it refuses those cases. It passes the mixed case when the positive
+#' rows leave a real residual, or when they pin every coefficient (their design
+#' has the full rank), since the zero rows' means are then fixed and positive.
+#'
+#' The test is the residual sum of squares against the outcome's own total sum
+#' of squares, so it is invariant to the units of the outcome.
+#'
+#' @param data An `mlumr_data` object.
+#' @param link The resolved link, `"identity"` or `"log"`.
+#' @return `TRUE` invisibly if the data were warned about.
+#' @keywords internal
+.check_normal_residual_variation <- function(data, link = "identity") {
+  ipd <- data$ipd$data
+  y <- suppressWarnings(as.numeric(ipd$.outcome))
+  X_raw <- cbind(1, as.matrix(ipd[, data$covariates, drop = FALSE]))
+  # Not the place to diagnose non-finite inputs: the validators that own that
+  # question run their own checks and give their own messages.
+  if (length(y) == 0L || !all(is.finite(y)) || !all(is.finite(X_raw))) {
+    return(invisible(FALSE))
+  }
+  advice <- paste(
+    "This is a property of the data, not a setting: the outcome needs",
+    "variation the covariates do not explain, or the model needs an",
+    "observation process (a measurement error or rounding scale) that",
+    "supplies one."
+  )
+  improper <- paste(
+    "The posterior for the residual SD is improper: its density behaves as",
+    "sigma^(rank - n) near zero and does not integrate, and the sampler",
+    "would drift toward zero and report where it stopped."
+  )
+  boundary <- paste(
+    "There the likelihood grows without bound as the residual SD shrinks,",
+    "and whether any posterior exists depends on the tails of the",
+    "coefficient priors, so the model is refused. The outcome needs",
+    "variation the covariates do not explain, or a link whose mean can",
+    "reach it."
+  )
+
+  if (identical(link, "log") && any(y <= 0)) {
+    if (any(y < 0)) {
+      return(invisible(FALSE))
+    }
+    if (all(y == 0)) {
+      stop("The IPD outcome is identically zero, which a positive mean under ",
+           "link = \"log\" can only approach as the intercept goes to -Inf. ",
+           boundary, call. = FALSE)
+    }
+    # Mixed zeros and positives. The boundary ray needs the positive rows
+    # fitted exactly AND a direction that leaves them fixed while driving the
+    # zero rows' predictors to -Inf. The positive rows' own status settles the
+    # first, and their design's rank the second: when it equals the full rank
+    # every coefficient is pinned by them and the zero rows' means are fixed
+    # positive numbers, whose squares bound the residual away from zero.
+    pos <- y > 0
+    sub <- .residual_variation_status(X_raw[pos, , drop = FALSE], y[pos],
+                                      "log")
+    if (sub$status %in% c("positive", "near_exact")) {
+      if (identical(sub$status, "near_exact")) {
+        .warn_near_exact(sub$ratio)
+        return(invisible(TRUE))
+      }
+      return(invisible(FALSE))
+    }
+    full_rank <- qr(X_raw, tol = .Machine$double.eps)$rank
+    if (sub$rank == full_rank) {
+      return(invisible(FALSE))
+    }
+    stop("The IPD outcome has zeros, which a positive mean under link = ",
+         "\"log\" can only approach as their linear predictor goes to -Inf, ",
+         "and the positive rows are fitted exactly while leaving ",
+         full_rank - sub$rank, " direction(s) of the coefficients free to ",
+         "take the zero rows there. ", boundary, call. = FALSE)
+  }
+
+  s <- .residual_variation_status(X_raw, y, link)
+  switch(
+    s$status,
+    saturated = {
+      warning("The IPD design has as many free columns as rows (", s$n,
+              " rows, rank ", s$rank, "), so it reproduces the outcome ",
+              "exactly and leaves no residual degrees of freedom. The ",
+              "posterior is proper, but nothing in the data separates the ",
+              "residual SD from the coefficients, so what is reported for ",
+              "sigma is potentially strongly sensitive to the coefficient ",
+              "priors.", call. = FALSE)
+      invisible(TRUE)
+    },
+    constant = stop("The IPD outcome is constant, so the intercept alone ",
+                    "reproduces it exactly and the normal model has no ",
+                    "residual variation. ", improper, " ", advice,
+                    call. = FALSE),
+    exact = stop("The IPD covariates fit the outcome exactly: there are only ",
+                 s$rank, " distinct covariate profiles for a design of rank ",
+                 s$rank, ", and every replicate of a profile carries the same ",
+                 "outcome, so the design reaches every observed value. ",
+                 improper, " ", advice, call. = FALSE),
+    unresolved_log = stop("The IPD outcome varies by less than the ",
+                          "resolution of its logarithm, so whether the ",
+                          "covariates fit it exactly under link = \"log\" ",
+                          "cannot be decided at double precision, and the ",
+                          "model is refused rather than passed as proper. ",
+                          advice, call. = FALSE),
+    undecidable = {
+      fmt <- paste0(
+        "The IPD covariates fit the outcome to within rounding: the residual ",
+        "sum of squares is %.3g of the total, at or below the %.3g that ",
+        "rounding alone can leave when the fit is exact. At double precision ",
+        "nothing tells an exact fit from one this close, and the likelihood ",
+        "is computed at the same precision, so the model is refused rather ",
+        "than passed as proper. An exact fit makes the posterior for the ",
+        "residual SD improper: its density behaves as sigma^(rank - n) near ",
+        "zero and does not integrate. "
+      )
+      stop(sprintf(fmt, s$ratio, s$zero_ratio), advice, call. = FALSE)
+    },
+    near_exact = {
+      .warn_near_exact(s$ratio)
+      invisible(TRUE)
+    },
+    invisible(FALSE)
+  )
+}
+
+
+#' The near-exact warning, shared by the plain and the mixed-zero paths
+#' @param ratio Residual sum of squares over the total.
+#' @return `NULL`, invisibly; called for the warning.
+#' @keywords internal
+.warn_near_exact <- function(ratio) {
+  fmt <- paste0(
+    "The IPD covariates very nearly fit the outcome exactly (residual sum ",
+    "of squares is %.3g of the total). The residual is real, so the ",
+    "posterior is proper, but the residual SD will concentrate near zero ",
+    "and the sampler has to work there: check its diagnostics before ",
+    "reading the estimate of sigma."
+  )
+  warning(sprintf(fmt, ratio), call. = FALSE)
+  invisible(NULL)
 }
 
 
@@ -386,9 +482,12 @@
 #' there; that is a screen on the input, and the sampler's own diagnostics say
 #' how the fit went. Under `link = "log"` existence of an exact fit is decided
 #' on `log(y)`, where it is a linear question, and the near-exact screen on
-#' the response scale the likelihood uses; an outcome identically zero is
-#' refused there, since a positive mean can only approach it at the boundary
-#' where the likelihood is unbounded. A saturated design, with as many
+#' the response scale the likelihood uses. Zeros are the boundary case there:
+#' an outcome identically zero is refused, and so is one whose positive rows
+#' are fitted exactly while a free direction of the coefficients can take the
+#' zero rows' predictors to `-Inf`, since along that ray the likelihood is
+#' unbounded and only the coefficient priors' tails decide whether a
+#' posterior exists. A saturated design, with as many
 #' free columns as rows, is warned about rather than refused: its posterior is
 #' proper, but nothing in the data separates the residual SD from the
 #' coefficients, so what is reported for sigma is potentially strongly

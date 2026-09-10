@@ -393,9 +393,32 @@ test_that("an identically zero outcome is refused under a log link", {
   expect_error(mlumr:::.check_normal_residual_variation(.normal_stub(rep(0, 4), x),
                                                         "log"),
                "identically zero")
-  # Any other non-positive value leaves a residual no positive mean removes.
+  # A negative value leaves a residual no positive mean removes.
   expect_silent(mlumr:::.check_normal_residual_variation(.normal_stub(c(-1, 0, 1, 2), x),
                                                          "log"))
+})
+
+test_that("zeros mixed with positives are refused only where the boundary is reachable", {
+  # Two profiles, zeros on one and ones on the other. The positive rows are
+  # fitted exactly by any coefficients with intercept + slope / 2 = 0, which
+  # leaves the slope free to send the zero rows' predictor to -Inf while the
+  # ones stay fitted: the boundary ray, where the likelihood grows without
+  # bound and only the prior tails decide.
+  d <- .normal_stub(c(0, 0, 1, 1), c(-0.5, -0.5, 0.5, 0.5))
+  expect_error(mlumr:::.check_normal_residual_variation(d, "log"),
+               "direction")
+  # Four positive rows on distinct x pin both coefficients, so the zero row's
+  # mean is a fixed positive number and its square bounds the residual away
+  # from zero. Proper, and silent: the positive rows do not fit exactly.
+  d <- .normal_stub(c(0, 1, 2, 3, 5), 1:5)
+  expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
+  # Positive rows on an exact curve, and still pinned: the zero row's mean is
+  # exp(eta) at its own x, fixed and positive.
+  d <- .normal_stub(c(0, exp(1:4)), c(0, 1:4))
+  expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
+  # A negative outcome anywhere settles it in exact arithmetic.
+  d <- .normal_stub(c(0, 0, 1, -1), c(-0.5, -0.5, 0.5, 0.5))
+  expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
 })
 
 test_that("an outcome that varies below the resolution of its log is refused, not crashed", {

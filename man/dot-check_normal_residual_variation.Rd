@@ -28,8 +28,9 @@ improper and nothing reports it. The sampler drifts toward zero and returns
 whatever it reached, with ordinary-looking diagnostics.
 }
 \details{
-The question is whether an exact fit exists, and it is settled in this
-order, stopping at the first that decides:
+The question is whether an exact fit exists, and
+\code{\link[=.residual_variation_status]{.residual_variation_status()}} settles it in this order, stopping at the
+first that decides:
 \itemize{
 \item A saturated design (\code{n <= rank}) reproduces any outcome, and its posterior
 is proper: the marginal density for sigma is bounded at zero and falls as
@@ -63,11 +64,21 @@ linear fit of \code{log(y)}, which cannot overflow however wide \code{y} is. The
 near-exact screen is then taken on the response scale, where the likelihood
 measures its residual, because an outcome spanning many orders of magnitude
 can have an ordinary residual in \code{log(y)} while the response-scale fit
-reproduces every large observation and leaves almost nothing. A
-non-positive observation cannot be matched by a positive mean, so with one
-present no exact fit exists and the posterior is proper. The observation is
-still a valid one under a log-link normal, which constrains the mean and
-not the data.
+reproduces every large observation and leaves almost nothing.
+
+A non-positive observation is a valid one under a log-link normal, which
+constrains the mean and not the data, and a negative one cannot be matched
+by a positive mean at all, so its residual bounds the total away from zero
+and the posterior is proper. Zero is different: the mean can approach it at
+the boundary where the linear predictor goes to \code{-Inf}. If every row is
+zero, or the positive rows are fitted exactly while some direction of the
+coefficients leaves them fixed and drives the zero rows' predictors down,
+the likelihood grows as \code{sigma^(-n)} along that ray and whether a posterior
+exists depends on how fast the coefficient priors decay: a normal prior
+tames it, a Student-t or Cauchy prior does not. The guard does not see the
+prior, so it refuses those cases. It passes the mixed case when the positive
+rows leave a real residual, or when they pin every coefficient (their design
+has the full rank), since the zero rows' means are then fixed and positive.
 
 The test is the residual sum of squares against the outcome's own total sum
 of squares, so it is invariant to the units of the outcome.
