@@ -31,12 +31,14 @@
 #' 95%. Their recorded coverage runs from 0.853 to 0.9999. Those are the
 #' values at those true probabilities and they bound nothing else: the
 #' twelve do not cover other probabilities, other sample sizes, other links,
-#' stratified AgD or a transported [stc()] contrast. Coverage is worst near
-#' opposite boundaries, where a true risk difference of 0.966 (0.986 against
-#' 0.020) is covered 85.3% of the time and a true log risk ratio at 0.986
-#' against 0.957 is covered 92.1%. The naive comparison is a crude
-#' benchmark, and a contrast between arms at opposite boundaries is not one
-#' of the things it does well.
+#' stratified AgD or a transported [stc()] contrast. The two contrasts are
+#' worst in different places. The risk difference is worst between opposite
+#' boundaries: a true difference of 0.966 (0.986 against 0.020) is covered
+#' 85.3% of the time. The log risk ratio is worst with both arms near the
+#' same boundary, where it is the log of a ratio of two probabilities near
+#' one: 0.986 against 0.957 is covered 92.1%. The naive comparison is a
+#' crude benchmark, and neither of those configurations is one of the things
+#' it does well.
 #'
 #' Scale note: `$estimate` (and the binomial `$log_rr`) is on the link / log
 #' scale, where the null is 0. To compare against the natural-scale risk ratio

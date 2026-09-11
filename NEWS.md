@@ -203,9 +203,11 @@
   difference of proportions. Twelve configurations at 100 observations per
   arm are pinned in the tests by enumerating every pair of counts, and the
   documentation now reports those twelve as the values at those true
-  probabilities rather than as a range: they run from 0.853 to 0.9999, and
-  coverage is worst near opposite boundaries, where a true risk difference
-  of 0.966 is covered 85.3% of the time. The standardized index probability
+  probabilities rather than as a range: they run from 0.853 to 0.9999. The
+  risk difference is worst between opposite boundaries, where a true
+  difference of 0.966 is covered 85.3% of the time, and the log risk ratio
+  is worst with both arms near the same boundary, where 0.986 against 0.957
+  is covered 92.1%. The standardized index probability
   of an STC is a model prediction and keeps its delta-method interval,
   documented as an asymptotic approximation.
 
