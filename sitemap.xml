@@ -68,6 +68,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-check_normal_residual_variation.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-check_required_columns.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-clamp_cor.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-clopper_pearson_interval.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-cmdstan_available.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-cmdstanr_cache_key.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-cmdstanr_cache_root.html</loc></url>
@@ -100,6 +101,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-fit_ratios.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-format_diagnostic.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-gamma_moment_pars.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-garwood_interval.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-generate_copula_uniforms.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-get_surv_data.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-int_cor_stats.html</loc></url>

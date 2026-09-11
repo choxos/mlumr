@@ -106,12 +106,17 @@ refused rather than returned, so `"separated"` never appears here.
 
 For binomial outcomes, returns the treatment effect on the link scale
 plus event probabilities, risk difference, and log risk ratio with SEs
-and CIs in the comparator population. Event-probability intervals use
-Wald standard errors and are bounded to `[0, 1]`. When an observed arm
-has zero or all events, transformed effect measures use the
-boundary-only pseudo-count `(r + 0.5) / (n + 1)`; model predictions are
-never corrected. For Poisson outcomes, the comparator log rate uses a
-0.5 continuity correction when the observed event count is zero.
+and CIs in the comparator population. The observed comparator proportion
+gets the exact Clopper-Pearson interval, as in
+[`naive()`](https://choxos.github.io/mlumr/reference/naive.md). The
+standardized index probability is a model prediction, and its interval
+is the delta-method Wald interval bounded to `[0, 1]`: an asymptotic
+approximation whose calibration has not been studied here, as are the
+intervals of the contrasts. When the observed comparator arm has zero or
+all events, transformed effect measures use the boundary-only
+pseudo-count `(r + 0.5) / (n + 1)`; model predictions are never
+corrected. For Poisson outcomes, the comparator log rate uses a 0.5
+continuity correction when the observed event count is zero.
 
 Scale note: `$estimate` (and the binomial `$log_rr`) is on the link /
 log scale, where the null is 0. To compare against the natural-scale
