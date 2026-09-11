@@ -25,8 +25,19 @@ the log-normal survival \verb{1 - Phi((log c - eta) / sigma)} goes to zero as
 \code{sigma} does, and \verb{exp(-(c e^-eta)^k)} goes to zero as \code{k} grows.
 }
 \details{
-It is a question about the exact solution, which is unique exactly when
-the event design has full column rank. Without that the exact solutions
-form an affine family and the censored predictors move with it.
+It is a question about a censored row's fitted value, not about the
+coefficients. Without full column rank the exact solutions form an affine
+family, but a row's fitted value is the same across the whole family
+whenever its covariate vector lies in the ROW SPACE of the event design,
+which is the usual estimability condition. That is strictly weaker than
+identifying every coefficient, and the difference is not a corner case:
+exact events and a censored row at the same covariate profile fix that
+row's predictor exactly, however deficient the design is, because the row
+is one of the event rows. Requiring the stronger condition refused fits
+that were proper.
+
+A row that is not estimable is not evidence in either direction, so it can
+produce \code{"bounded"} (never, since it is not consulted) or leave the answer
+\code{"undetermined"}, but it can never make the answer \code{"unbounded"}.
 }
 \keyword{internal}

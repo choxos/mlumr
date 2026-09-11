@@ -2,8 +2,8 @@
 
 ## Behavior and validation changes to existing functions
 
-* **A log-normal survival fit whose covariates reproduce every event time
-  exactly is now refused too.** The exact-fit guard ran only for
+* **A log-normal or generalized-gamma survival fit whose covariates
+  reproduce every event time exactly is now refused too.** The exact-fit guard ran only for
   `family = "normal"`, and a log-normal AFT is a normal model for `log(t)`
   with a positive scale: the same singularity is there. With `n` uncensored
   index rows, a design of rank `r` that reaches every `log(t)`, and the
@@ -15,25 +15,41 @@
   stopped. `mlumr()` now decides this before dispatch, with the same exact
   geometry the normal guard uses.
 
-  Four limits, each deliberate. Only `"lognormal"`, whose auxiliary
-  parameter *is* the log-scale SD: the Weibull, log-logistic, gamma and
-  generalized gamma are log-location-scale families too, but their auxiliary
-  is a shape, so the same exact fit sends it to `+Inf`, where a half-normal
-  or exponential prior's tail integrates the growth and a half-t's need not.
-  Propriety is then a property of the prior rather than of the data, and
-  refusing the data would refuse well-posed default fits, so those four
-  warn instead. Only when the index study holds the scale alone, which
-  `aux_by = ".study"` (the default) and `NULL` give it and `aux_by = "none"`
-  does not. Right-censored rows are consulted first, for the shape families
-  too: one whose fitted time falls below its censoring time has survival
-  going to zero faster than any power of the scale, and
+  Which families, decided by what the auxiliary *is* rather than by the
+  family's name. `"lognormal"` and `"gengamma"` are refused, because for
+  both of them the first auxiliary is a scale: the log-scale SD for one, and
+  the Lawless `sigma` for the other, which the density divides the log
+  residual by and carries a `-log(sigma)` term for. An exact fit sends
+  either to zero. The generalized gamma's *second* auxiliary is its shape,
+  and it is not what diverges: at an exact fit the density's dependence on
+  it is bounded. The Weibull, log-logistic and gamma carry a shape as their
+  only auxiliary, so the same exact fit sends it to `+Inf`, where a
+  half-normal or exponential prior's tail integrates the growth and a
+  half-t's need not. Propriety is then a property of the prior rather than
+  of the data, and refusing the data would refuse well-posed default fits,
+  so those three warn instead.
+
+  Right-censored rows are consulted before any of that is said, for the
+  shape families too: one whose fitted time falls below its censoring time
+  has survival going to zero faster than any power of the scale, and
   `exp(-(c e^-eta)^k)` goes to zero as `k` grows for exactly the same rows,
-  so either way the posterior is proper and nothing is said. One at or above
-  its censoring time does nothing, and when the fit on the event rows does
-  not determine those predictors the question is refused as undecided rather
-  than guessed. A fit that is nearly rather than exactly exact warns that
-  the auxiliary will concentrate against its boundary, as the normal guard
-  warns about sigma.
+  so either way the posterior is proper and nothing is said, including the
+  near-exact and saturated messages. One at or above its censoring time does
+  nothing. A censored row's predictor counts as determined when its
+  covariate vector lies in the row space of the event design, which is
+  weaker than every coefficient being identified: exact events and a
+  censored row at the same covariate profile fix that row's predictor
+  however deficient the design is. When it is not determined the question is
+  said to be undecided rather than guessed.
+
+  Under `aux_by = "none"` the comparator rows share the auxiliary. That does
+  not bound it on its own, since a comparator of right-censored rows whose
+  fitted times sit above their censoring times contributes a likelihood
+  tending to one at the boundary, and whether it does bound it belongs to
+  the marginalized aggregate likelihood, which this geometry does not see.
+  So that case warns and is not refused. A fit that is nearly rather than
+  exactly exact warns that the auxiliary will concentrate against its
+  boundary, as the normal guard warns about sigma.
   Delayed entry, left censoring and interval censoring are not examined, and
   neither is the comparator side.
 

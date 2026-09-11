@@ -796,9 +796,20 @@
 #' the log-normal survival `1 - Phi((log c - eta) / sigma)` goes to zero as
 #' `sigma` does, and `exp(-(c e^-eta)^k)` goes to zero as `k` grows.
 #'
-#' It is a question about the exact solution, which is unique exactly when
-#' the event design has full column rank. Without that the exact solutions
-#' form an affine family and the censored predictors move with it.
+#' It is a question about a censored row's fitted value, not about the
+#' coefficients. Without full column rank the exact solutions form an affine
+#' family, but a row's fitted value is the same across the whole family
+#' whenever its covariate vector lies in the ROW SPACE of the event design,
+#' which is the usual estimability condition. That is strictly weaker than
+#' identifying every coefficient, and the difference is not a corner case:
+#' exact events and a censored row at the same covariate profile fix that
+#' row's predictor exactly, however deficient the design is, because the row
+#' is one of the event rows. Requiring the stronger condition refused fits
+#' that were proper.
+#'
+#' A row that is not estimable is not evidence in either direction, so it can
+#' produce `"bounded"` (never, since it is not consulted) or leave the answer
+#' `"undetermined"`, but it can never make the answer `"unbounded"`.
 #'
 #' @param X The full centered design, intercept first.
 #' @param y `log(time)` for every row.
@@ -807,13 +818,47 @@
 #' @keywords internal
 .censoring_bounds_aux <- function(X, y, events) {
   Xe <- X[events, , drop = FALSE]
-  if (.exact_rank(Xe)$rank < ncol(X)) return("undetermined")
+  Xc <- X[!events, , drop = FALSE]
+  if (!nrow(Xc)) return("unbounded")
+  rank_e <- .exact_rank(Xe)$rank
   beta <- tryCatch(stats::lm.fit(Xe, y[events])$coefficients,
                    error = function(e) NULL)
-  if (is.null(beta) || !all(is.finite(beta))) return("undetermined")
-  eta <- as.vector(X[!events, , drop = FALSE] %*% beta)
+  if (is.null(beta)) return("undetermined")
+  # A rank-deficient event design leaves some coefficients aliased, and
+  # `lm.fit()` returns NA for them. Any one solution will do here: the fitted
+  # value of an ESTIMABLE row is the same for every solution, which is what
+  # estimability means, and setting the aliased entries to zero picks the
+  # solution that uses only the pivot columns.
+  beta[is.na(beta)] <- 0
+  if (!all(is.finite(beta))) return("undetermined")
+  eta <- as.vector(Xc %*% beta)
   if (!all(is.finite(eta))) return("undetermined")
-  if (any(eta < y[!events])) "bounded" else "unbounded"
+  # A censored row's predictor is determined whenever its covariate vector
+  # lies in the ROW SPACE of the event design. That is weaker than every
+  # coefficient being identified, and requiring the stronger condition
+  # refused fits that are proper: exact events and a censored row at the
+  # same covariate profile determine that row's predictor exactly, however
+  # deficient the design is, because the row is one of the event rows.
+  #
+  # Ask the cheap question first. If adding every censored row at once does
+  # not raise the rank, all of them are in the row space, which is the usual
+  # case; only otherwise is it worth asking row by row.
+  all_in_span <- .exact_rank(rbind(Xe, Xc))$rank == rank_e
+  estimable <- if (all_in_span) {
+    rep(TRUE, nrow(Xc))
+  } else {
+    vapply(
+      seq_len(nrow(Xc)),
+      function(i) {
+        .exact_rank(rbind(Xe, Xc[i, , drop = FALSE]))$rank == rank_e
+      },
+      logical(1L)
+    )
+  }
+  # A row that is not estimable is not evidence either way, so it cannot
+  # give "unbounded": it leaves the question undetermined instead.
+  if (any(estimable & eta < y[!events])) return("bounded")
+  if (all(estimable)) "unbounded" else "undetermined"
 }
 
 

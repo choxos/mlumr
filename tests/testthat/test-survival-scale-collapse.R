@@ -281,3 +281,38 @@ test_that("a shared auxiliary is reported, not assumed to be bounded", {
   expect_silent(check(.surv_stub(exp(c(-1, -1, 1, 1) + c(0, 1e-9, 0, 1e-9))),
                       aux_by = "none"))
 })
+
+test_that("a censored predictor fixed by a deficient design still bounds", {
+  # `.censoring_bounds_aux()` used to give up as soon as the event design was
+  # rank-deficient, on the stronger condition that every coefficient be
+  # identified. A censored row's predictor only needs to lie in the ROW
+  # SPACE of the event design, and the clearest case of that is a censored
+  # row at a covariate profile the events already occupy: its predictor is
+  # then fixed however deficient the design is.
+  #
+  # Two exact events at x = -0.5 leave the slope aliased, so the design has
+  # rank 1 out of 2 columns. The censored row sits at the same x, fitted to
+  # fail at log-time 0 against a censoring time of 3, so it bounds the
+  # parameter and the posterior is proper. This was REFUSED before.
+  # The constant covariate makes set_ipd() warn on its own account, which
+  # is a different check and not this one's business.
+  d <- suppressWarnings(.surv_stub(c(1, 1, exp(3)), status = c(1L, 1L, 0L),
+                                   x = c(-0.5, -0.5, -0.5)))
+  expect_silent(check(d))
+  expect_false(check(d))
+  expect_false(check(d, distribution = "gengamma"))
+  expect_silent(check(d, distribution = "weibull"))
+  # A censored row OUTSIDE that row space is still undetermined, and said to
+  # be, rather than assumed either way: x = 0.5 is not in the span of the
+  # single event profile.
+  out <- .surv_stub(c(1, 1, exp(3)), status = c(1L, 1L, 0L),
+                    x = c(-0.5, -0.5, 0.5))
+  expect_error(check(out), "could not be decided")
+  expect_warning(check(out, distribution = "weibull"), "could not be told")
+  # And one inside the row space whose censoring time is BELOW its fitted
+  # time bounds nothing, so it is refused on the merits, not as undecided.
+  above <- suppressWarnings(
+    .surv_stub(c(exp(2), exp(2), exp(1)), status = c(1L, 1L, 0L),
+               x = c(-0.5, -0.5, -0.5)))
+  expect_error(check(above), "improper")
+})
