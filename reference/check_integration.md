@@ -60,7 +60,9 @@ check_integration(
 A list with components `marginals` (the original data frame returned by
 previous versions) and, if `check_joint = TRUE`, `correlations`, a data
 frame of pairwise covariate correlations at the current and doubled
-`n_int` for each AgD row. Printed with a pass/warn verdict.
+`n_int` for each AgD row. Its `covariate_1` and `covariate_2` columns
+name the two margins; `pair` is a label built from them for reading.
+Printed with a pass/warn verdict.
 
 The `verdict` component reports `"stable"` / `"close"` when a comparison
 was made and met the heuristic, `"review"` when it did not, and

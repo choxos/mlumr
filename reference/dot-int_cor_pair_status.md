@@ -14,6 +14,11 @@ Which correlation pairs were measured, and why the others were not
 
   The pair table from
   [`.int_cor_stats()`](https://choxos.github.io/mlumr/reference/dot-int_cor_stats.md).
+  Its members are read from the `covariate_1` and `covariate_2` columns,
+  never from the `pair` label, which is presentation and does not
+  identify them: a covariate named `a~b` makes the label `a~b~c`, and a
+  name that is a substring of another would match the wrong margin
+  besides.
 
 - stats:
 

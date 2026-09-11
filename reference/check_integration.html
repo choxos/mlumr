@@ -127,8 +127,9 @@ dependence structure does not (rare in practice for QMC with sensible
     <p>A list with components <code>marginals</code> (the original data frame
 returned by previous versions) and, if <code>check_joint = TRUE</code>,
 <code>correlations</code>, a data frame of pairwise covariate correlations at
-the current and doubled <code>n_int</code> for each AgD row. Printed with a
-pass/warn verdict.</p>
+the current and doubled <code>n_int</code> for each AgD row. Its <code>covariate_1</code>
+and <code>covariate_2</code> columns name the two margins; <code>pair</code> is a label
+built from them for reading. Printed with a pass/warn verdict.</p>
 <p>The <code>verdict</code> component reports <code>"stable"</code> / <code>"close"</code> when a comparison
 was made and met the heuristic, <code>"review"</code> when it did not, and
 <code>"unavailable"</code> when there was nothing finite to compare. A declared
