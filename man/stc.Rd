@@ -158,17 +158,10 @@ link-scale contrast of the two standardized quantities, a marginal log
 odds ratio under a binomial logit, a log rate ratio under Poisson and a
 log mean ratio under a log link, as the scale note above says.
 
-The paragraph above is about the GLM families. Survival STC reaches its
-estimand by a different route: the comparator side is summarized by an
-intercept-only \code{\link[flexsurv:flexsurvreg]{flexsurv::flexsurvreg()}} fit to the reconstructed
-pseudo-IPD, and its fitted RMST is contrasted with the index RMST
-standardized to the comparator covariates. A comparator model is
-therefore fitted there, although it carries no covariates and so nothing
-is transported into it, which is why \code{beta_A = beta_B} is not among the
-assumptions on that path either. No comparator response model is
-fitted and none is transported, so \code{beta_A = beta_B} is not among the
-assumptions and effect modification by itself is not a reason to set STC
-aside. With a binary covariate at comparator prevalence 0.75 and index
+For the GLM families no comparator response model is fitted and none is
+transported, so \code{beta_A = beta_B} is not among the assumptions and effect
+modification by itself is not a reason to set STC aside. With a binary
+covariate at comparator prevalence 0.75 and index
 risks 0.2 and 0.8 against comparator risks 0.4 and 0.5, the slopes differ
 on both the risk and logit scales and the comparator-population risk
 difference is still 0.65 - 0.475 = 0.175. What the estimand does need is
@@ -176,6 +169,15 @@ an index outcome model that is correctly specified and applicable across
 the comparator covariate distribution, adequate overlap, and the
 unanchored no-unmeasured-confounding assumption; those, not shared slopes,
 are where comparator-target STC is weak.
+
+Survival STC reaches its estimand by a different route. The comparator
+side is summarized by an intercept-only \code{\link[flexsurv:flexsurvreg]{flexsurv::flexsurvreg()}} fit to
+the reconstructed pseudo-IPD, and its fitted RMST is contrasted with the
+index RMST standardized to the comparator covariates. So a comparator
+model \emph{is} fitted on that path. It carries no covariates, so nothing is
+transported into it and the conclusion above about \code{beta_A = beta_B}
+holds there too, but by a different argument: not that no comparator
+model exists, but that the one fitted has no slopes to share.
 
 Choose between this and \code{mlumr(..., model = "relaxed")} by the target,
 the evidence and the identification, not by the plausibility of effect
