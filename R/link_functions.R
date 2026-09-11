@@ -201,13 +201,23 @@ inverse_link <- function(x, link = c("identity", "log", "logit", "probit", "clog
   x <- x[keep]
   weights <- weights[keep]
   log_weights <- log(weights)
-  z <- x + log_weights
+  # Shift by the largest `x` before the weights are added, not after. A log
+  # probability can be enormous: the complementary log-log non-event one is
+  # -exp(eta), which is -3.2e16 at eta = 38, where the double's spacing is
+  # 4. Adding log(w) there rounds it to a multiple of 4, and the weights
+  # come back out of `exp(z - m)` as powers of e^4 that no data supplied.
+  # The shift is exact for values that close together, and what remains is
+  # of order one, where a weight is visible again. The mean of identical
+  # values is then exactly that value, however they are weighted, which is
+  # what makes the shares in [.stc_binomial_gradients()] normalize.
+  m_x <- max(x)
+  if (is.infinite(m_x)) return(m_x)
+  z <- (x - m_x) + log_weights
   m_num <- max(z)
-  if (is.infinite(m_num)) return(m_num)
   m_den <- max(log_weights)
   log_num <- m_num + log(sum(exp(z - m_num)))
   log_den <- m_den + log(sum(exp(log_weights - m_den)))
-  log_num - log_den
+  m_x + (log_num - log_den)
 }
 
 
