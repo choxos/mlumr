@@ -637,9 +637,10 @@ The relaxed model is the instructive exception, and it is only visible because
 both populations are shown. Its comparator-population estimate sits in the same
 narrow band as everything else, but its index-population estimate collapses back
 toward the naive value with an interval spanning more than two log odds ratios.
-Nothing about the data changed between those two rows: the comparator
-coefficients are identified by a single aggregate row, and the index-population
-estimand extrapolates them across the IPD covariate distribution. A reader shown
+Nothing about the data changed between those two rows: a single aggregate row
+constrains the comparator coefficients only through one combination with the
+comparator intercept, and the index-population estimand extrapolates them
+across the IPD covariate distribution. A reader shown
 only the comparator row would conclude the relaxed model was fine here.
 
 One detail worth noticing: the unanchored interval is *narrower* than either

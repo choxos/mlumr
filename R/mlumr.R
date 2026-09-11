@@ -1044,18 +1044,36 @@
 #' recommended diagnostic.
 #'
 #' **Identifying the relaxed model with subgroup AgD.** The strongest way to
-#' identify `beta_comparator` from data (rather than the prior) is to supply the
-#' comparator AgD as **joint subgroups**: mutually exclusive, collectively
-#' exhaustive strata of the comparator population, one [set_agd()] row per
-#' subgroup, each with its own covariate summaries and outcome. Each subgroup
-#' contributes a separate marginal likelihood term
-#' (`L_AgD = prod_s L_{AgD,s}`), and the variation in covariate means across
-#' subgroups identifies the treatment-specific covariate effects
-#' `beta_comparator` (the primary relaxed-SPFA strategy of Chandler & Ishak,
-#' Section 2.2.1). With only a single overall comparator AgD row,
-#' `beta_comparator` is identified by the prior alone; with subgroups it is
-#' informed by the data. (Marginal, overlapping subgroups would double-count
-#' patients and understate uncertainty; supply jointly-defined subgroups.)
+#' identify `beta_comparator` from data is to supply the comparator AgD as
+#' **joint subgroups**: mutually exclusive, collectively exhaustive strata of
+#' the comparator population, one [set_agd()] row per subgroup, each with its
+#' own covariate summaries and outcome. Each subgroup contributes a separate
+#' marginal likelihood term (`L_AgD = prod_s L_{AgD,s}`), and the variation in
+#' covariate means across subgroups is what can separate the
+#' treatment-specific covariate effects `beta_comparator` from the comparator
+#' intercept (the primary relaxed-SPFA strategy of Chandler & Ishak,
+#' Section 2.2.1). A single aggregate outcome summary generally cannot
+#' separately identify all comparator coefficients and the comparator
+#' intercept. Its likelihood term constrains one combination of them, the
+#' comparator intercept plus the coefficients weighted by that row's
+#' covariate means on the model's scale, which under `center = TRUE` are the
+#' declared means minus the pooled center; the directions the row does not
+#' constrain remain prior-driven, although their marginal posteriors can
+#' still move through the constrained combination. For one covariate with an
+#' identity link, independent normal priors of variance `a^2` on the
+#' intercept and `b^2` on the coefficient, a centered mean `m` and an outcome
+#' SE `s`, the posterior variance of the coefficient is
+#' `1 / (1 / b^2 + m^2 / (a^2 + s^2))`: `b^2` when `m = 0`, which is a single
+#' row whose mean sits at the pooled center, and smaller the further the
+#' row's mean sits from it. Joint, nonoverlapping subgroup summaries each add
+#' a likelihood term; how many directions those terms identify depends on
+#' their number, their covariate-distribution geometry (rows with the same
+#' mean profile tighten one combination and add no direction), the outcome
+#' precision and the model, and for a nonlinear link differences in the
+#' distributions beyond the mean profiles matter too. Remaining directions
+#' require explicit prior sensitivity analysis. (Marginal, overlapping
+#' subgroups would double-count patients and understate uncertainty; supply
+#' jointly-defined subgroups.)
 #'
 #' @seealso [prior_sensitivity()] for sensitivity of the posterior
 #'   to `prior_beta`; [set_agd()] for AgD scale requirements;
