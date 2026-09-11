@@ -32,12 +32,24 @@ the link-scale contrast plus the two observed marginal outcomes and available
 natural-scale contrasts.
 }
 \details{
-For binomial outcomes, event-probability intervals use Wald standard errors
-and are bounded to \verb{[0, 1]}. When an observed arm has zero or all events,
-transformed effect measures use the boundary-only pseudo-count
-\code{(r + 0.5) / (n + 1)}; the reported crude probabilities remain unchanged.
-For Poisson outcomes, the log-rate contrast uses a 0.5 continuity correction
-when an observed event count is zero.
+The two arms are observed directly, so their intervals are exact: the
+Clopper-Pearson interval for a binomial proportion and the Garwood
+interval for a Poisson rate, the ones \code{binom.test()} and \code{poisson.test()}
+report, whose coverage is at least the nominal level for every true value
+(they are conservative rather than shortest). A comparator built from
+several aggregate rows is pooled for its interval: independent Poisson
+counts add, so the pooled rate interval is exact for the exposure-weighted
+mean, and the pooled binomial interval is conservative for the
+size-weighted mean of its strata. The arm standard errors are
+still reported, and they and the contrasts use the boundary pseudo-count
+\code{(r + 0.5) / (n + 1)} when an arm has zero or all events, or 0.5 events
+when a Poisson count is zero; the reported crude proportions and rates
+are unchanged. The contrasts' intervals are Wald intervals on the link
+scale around those corrected quantities. Enumerating every pair of counts
+at 100 per arm, their coverage of the true log odds ratio, log risk ratio
+and risk difference ranges from 0.939 to 0.9999 over true probabilities
+from 0.014 to 0.986, with the risk difference lowest at 0.939 beside a
+boundary; they are approximate, not exact.
 
 Scale note: \verb{$estimate} (and the binomial \verb{$log_rr}) is on the link / log
 scale, where the null is 0. To compare against the natural-scale risk ratio

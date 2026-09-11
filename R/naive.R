@@ -8,12 +8,24 @@
 #' the link-scale contrast plus the two observed marginal outcomes and available
 #' natural-scale contrasts.
 #'
-#' For binomial outcomes, event-probability intervals use Wald standard errors
-#' and are bounded to `[0, 1]`. When an observed arm has zero or all events,
-#' transformed effect measures use the boundary-only pseudo-count
-#' `(r + 0.5) / (n + 1)`; the reported crude probabilities remain unchanged.
-#' For Poisson outcomes, the log-rate contrast uses a 0.5 continuity correction
-#' when an observed event count is zero.
+#' The two arms are observed directly, so their intervals are exact: the
+#' Clopper-Pearson interval for a binomial proportion and the Garwood
+#' interval for a Poisson rate, the ones `binom.test()` and `poisson.test()`
+#' report, whose coverage is at least the nominal level for every true value
+#' (they are conservative rather than shortest). A comparator built from
+#' several aggregate rows is pooled for its interval: independent Poisson
+#' counts add, so the pooled rate interval is exact for the exposure-weighted
+#' mean, and the pooled binomial interval is conservative for the
+#' size-weighted mean of its strata. The arm standard errors are
+#' still reported, and they and the contrasts use the boundary pseudo-count
+#' `(r + 0.5) / (n + 1)` when an arm has zero or all events, or 0.5 events
+#' when a Poisson count is zero; the reported crude proportions and rates
+#' are unchanged. The contrasts' intervals are Wald intervals on the link
+#' scale around those corrected quantities. Enumerating every pair of counts
+#' at 100 per arm, their coverage of the true log odds ratio, log risk ratio
+#' and risk difference ranges from 0.939 to 0.9999 over true probabilities
+#' from 0.014 to 0.986, with the risk difference lowest at 0.939 beside a
+#' boundary; they are approximate, not exact.
 #'
 #' Scale note: `$estimate` (and the binomial `$log_rr`) is on the link / log
 #' scale, where the null is 0. To compare against the natural-scale risk ratio
@@ -126,10 +138,15 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
   # although 0/100 alone is consistent with p up to roughly 0.03. The link-scale
   # effect and log_rr_se already use the corrected variance; these did not.
   p_comparator_se <- sqrt(var_p_comparator_effect)
-  p_index_ci <- .bounded_wald_interval(p_index, p_index_se, z,
-                                       lower = 0, upper = 1)
-  p_comparator_ci <- .bounded_wald_interval(p_comparator, p_comparator_se, z,
-                                            lower = 0, upper = 1)
+  # The arms are observed directly, so their intervals are exact. A bounded
+  # Wald interval around a boundary-corrected SE ended at 0.0138 for 0 of
+  # 100 and covered a true probability of 0.014 only 75.5% of the time. The
+  # size-weighted mean of the comparator strata is the pooled proportion,
+  # and the exact interval on the pooled count is conservative for it.
+  p_index_ci <- .clopper_pearson_interval(sum(ipd$.outcome), n_index,
+                                          conf_level)
+  p_comparator_ci <- .clopper_pearson_interval(sum(agd$.r), n_comparator,
+                                               conf_level)
   rd <- p_index - p_comparator
   rd_se <- sqrt(p_index_se^2 + p_comparator_se^2)
   log_rr <- log(p_index_effect) - log(p_comparator_effect)
@@ -248,15 +265,14 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
   # of the difference is the sum of the two rate variances already computed.
   rd <- rate_index - rate_comparator
   rd_se <- sqrt(rate_index_se^2 + rate_comparator_se^2)
-  # Bound the absolute-scale interval at 0 around the REPORTED rate, the way the
-  # binomial arm does. The previous interval was a log-scale Wald around the
-  # continuity-corrected rate 0.5 / exposure, so for a zero-event arm it did not
-  # contain the rate it was printed beside: rate 0 with interval
-  # [0.0004, 0.101]. Rates are non-negative, so the point sits on the bound.
-  rate_index_ci <- .bounded_wald_interval(rate_index, rate_index_se, z,
-                                          lower = 0)
-  rate_comparator_ci <- .bounded_wald_interval(rate_comparator,
-                                               rate_comparator_se, z, lower = 0)
+  # The arms are observed directly, so their intervals are exact (Garwood).
+  # A bounded Wald interval around the corrected SE ended at 0.0139 for 0
+  # events over an exposure of 100 and covered a true rate of 0.02 about
+  # 86% of the time; the exact interval's lower bound is 0 at 0 events, so
+  # the rate it is printed beside is inside it.
+  rate_index_ci <- .garwood_interval(events_index, exposure_index, conf_level)
+  rate_comparator_ci <- .garwood_interval(events_comparator,
+                                          exposure_comparator, conf_level)
 
   list(
     estimate = estimate,

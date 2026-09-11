@@ -185,6 +185,26 @@
   way of not knowing, an absent dependency most of all, took the same path as a
   fit that had been checked and cleared.
 
+* **Directly observed arms get exact intervals.** The proportions and
+  rates that `naive()` reports for each arm, and the observed comparator
+  proportion in a binomial `stc()`, had Wald intervals around a
+  boundary-corrected standard error, bounded to the parameter range. At 0
+  events of 100 that interval ended at 0.0138, and enumerating every count
+  put its coverage of a true probability of 0.014 at 75.5%, of 0.02 at
+  86.6%: the zero-count outcome alone excludes the truth. They are now the
+  exact Clopper-Pearson and Garwood intervals `binom.test()` and
+  `poisson.test()` report, whose coverage is at least the nominal level for
+  every true value; a comparator built from several aggregate rows is
+  pooled, which is conservative for the size-weighted mean of its strata.
+  The arm standard errors are unchanged and still feed the contrasts, whose
+  intervals remain Wald on the link scale around the boundary-corrected
+  quantities: enumerating every pair of counts at 100 per arm, they cover
+  the true log odds ratio, log risk ratio and risk difference between 0.939
+  and 0.9999 of the time over true probabilities from 0.014 to 0.986, which
+  the documentation now states. The standardized index probability of an
+  STC is a model prediction and keeps its delta-method interval, documented
+  as an asymptotic approximation.
+
 * **M-spline basis support is judged over the period a study was at risk.** The
   check evaluated each basis column on `[0, max(time)]`. A column supported
   only where nobody is under observation multiplies no event hazard and no

@@ -310,6 +310,81 @@ bound_probability <- function(p, n, min_count = 0.5) {
   ifelse(p == 0, lower, ifelse(p == 1, upper, p))
 }
 
+#' Exact interval for a directly observed binomial proportion
+#'
+#' Clopper and Pearson's interval, the one `stats::binom.test()` reports:
+#' the lower bound is the `alpha / 2` quantile of `Beta(r, n - r + 1)` and
+#' the upper the `1 - alpha / 2` quantile of `Beta(r + 1, n - r)`, with the
+#' bound at 0 or 1 when the count is. Its coverage is at least the nominal
+#' level for every true probability, which the bounded Wald interval it
+#' replaces did not have: at 0 events of 100 that interval ended at 0.0138,
+#' and enumerating every count at a true probability of 0.014 put its
+#' coverage at 75.5%, since the zero-count outcome alone has probability
+#' 0.24 and excludes the truth. The exact interval is conservative rather
+#' than shortest; it is used for arms that are observed directly, not for
+#' model predictions or contrasts.
+#'
+#' Formed from the same beta quantiles `binom.test()` uses, without its
+#' integer check, so a count is taken as given.
+#'
+#' @param r Event count, in `[0, n]`.
+#' @param n Number of trials, positive.
+#' @param conf_level Confidence level.
+#' @return List with `lower` and `upper`.
+#' @keywords internal
+.clopper_pearson_interval <- function(r, n, conf_level) {
+  .validate_numeric_vector(r, "r")
+  .validate_positive_numeric(n, "n")
+  if (any(r < 0 | r > n)) {
+    stop("`r` must lie in [0, n].", call. = FALSE)
+  }
+  alpha <- 1 - conf_level
+  len <- max(length(r), length(n))
+  r <- rep_len(r, len)
+  n <- rep_len(n, len)
+  # The bound at the boundary is set outright, so a beta quantile at shape
+  # zero is never asked for, not even for the elements of a vector that
+  # `ifelse()` would evaluate and discard with a warning.
+  lower <- numeric(len)
+  upper <- rep(1, len)
+  inner <- r > 0
+  lower[inner] <- stats::qbeta(alpha / 2, r[inner], n[inner] - r[inner] + 1)
+  inner <- r < n
+  upper[inner] <- stats::qbeta(1 - alpha / 2, r[inner] + 1, n[inner] - r[inner])
+  list(lower = lower, upper = upper)
+}
+
+#' Exact interval for a directly observed Poisson rate
+#'
+#' Garwood's interval, the one `stats::poisson.test()` reports: the lower
+#' bound is the `alpha / 2` quantile of `Gamma(x, 1)` over the exposure and
+#' the upper the `1 - alpha / 2` quantile of `Gamma(x + 1, 1)` over it,
+#' with the lower bound at 0 when the count is. Coverage is at least the
+#' nominal level for every true rate; the bounded Wald interval it replaces
+#' ended at 0.0139 for 0 events over an exposure of 100 and covered a true
+#' rate of 0.02 about 86% of the time.
+#'
+#' @param x Event count, non-negative.
+#' @param exposure Total exposure, positive.
+#' @param conf_level Confidence level.
+#' @return List with `lower` and `upper`.
+#' @keywords internal
+.garwood_interval <- function(x, exposure, conf_level) {
+  .validate_numeric_vector(x, "x")
+  .validate_positive_numeric(exposure, "exposure")
+  if (any(x < 0)) {
+    stop("`x` must be non-negative.", call. = FALSE)
+  }
+  alpha <- 1 - conf_level
+  len <- max(length(x), length(exposure))
+  x <- rep_len(x, len)
+  exposure <- rep_len(exposure, len)
+  lower <- numeric(len)
+  inner <- x > 0
+  lower[inner] <- stats::qgamma(alpha / 2, x[inner]) / exposure[inner]
+  list(lower = lower, upper = stats::qgamma(1 - alpha / 2, x + 1) / exposure)
+}
+
 #' Derivative of a binomial link with respect to probability
 #' @keywords internal
 link_derivative_response <- function(p, link = c("logit", "probit", "cloglog")) {
