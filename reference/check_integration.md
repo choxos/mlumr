@@ -66,4 +66,19 @@ The `verdict` component reports `"stable"` / `"close"` when a comparison
 was made and met the heuristic, `"review"` when it did not, and
 `"unavailable"` when there was nothing finite to compare. A declared
 target the AgD does not supply, or a latent Gaussian-copula correlation
-(`cor_adjust = "none"`), gives `"unavailable"` rather than a pass.
+(`cor_adjust = "none"`), gives `"unavailable"` rather than a pass. The
+correlation verdicts (`target_correlation`, `resolution_correlation`)
+are `"partial"` when the measured pairs pass but some pair with a
+correlation to realize could not be measured, since a maximum over the
+measured pairs says nothing about the rest; a measured pair that misses
+the heuristic is `"review"` regardless. `correlation_pairs` counts the
+pairs expected and measured, against the target (the doubled grid) and
+between resolutions (both grids), names the omitted ones with a reason,
+and lists separately the pairs in which a margin is declared with no
+variance, which have no correlation to realize and are outside the
+count.
+
+For a binary margin the declared-target SD is the distribution's,
+`sqrt(p * (1 - p))` from the declared mean, whatever `_sd` column the
+AgD carries: a sample SD of the source data has a size correction no
+grid can reproduce. Grid SDs are population SDs for the same reason.
