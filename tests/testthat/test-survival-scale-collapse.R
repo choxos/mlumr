@@ -276,10 +276,17 @@ test_that("a shared auxiliary is reported, not assumed to be bounded", {
   # A censored row that bounds the parameter still silences it.
   bounded <- .surv_stub(c(1, 1, 1, exp(3)), status = c(1L, 1L, 1L, 0L))
   expect_false(check(bounded, aux_by = "none"))
-  # A near-exact fit is proper whatever the comparator does, so it is left
-  # alone rather than warned about a second time.
-  expect_silent(check(.surv_stub(exp(c(-1, -1, 1, 1) + c(0, 1e-9, 0, 1e-9))),
-                      aux_by = "none"))
+  # A near-exact fit is proper whatever the comparator does, so it does not
+  # get the shared-auxiliary message. It does still get its own: sharing
+  # multiplies the index's near-boundary likelihood by whatever the
+  # comparator contributes there, and when that is a nonzero limit, which is
+  # the configuration this check cannot analyze, the concentration is
+  # unchanged. Silence would hide the sampler diagnostic in exactly the case
+  # that motivates the branch.
+  near <- .surv_stub(exp(c(-1, -1, 1, 1) + c(0, 1e-9, 0, 1e-9)))
+  w <- expect_warning(check(near, aux_by = "none"))
+  expect_match(conditionMessage(w), "concentrate against its boundary")
+  expect_false(grepl("sharing does not bound", conditionMessage(w)))
 })
 
 test_that("a censored predictor fixed by a deficient design still bounds", {
@@ -354,4 +361,66 @@ test_that("a numerical rank below the exact one answers nothing", {
                                   ev3),
     "undetermined"
   )
+})
+
+test_that("a rounding-sized gap at the censoring boundary decides nothing", {
+  # A censored row duplicating an event's covariate profile AND its time
+  # sits exactly on the fitted boundary: its survival tends to 1/2 and it
+  # bounds nothing. But `eta` comes from `lm.fit()`, so the computed gap is
+  # a rounding-sized number whose sign is not information. Over 4000 random
+  # boundary rows of this shape, a third came out strictly below and were
+  # read as bounding, which admits an improper fit in silence.
+  set.seed(2026)
+  verdicts <- vapply(seq_len(400L), function(i) {
+    x <- round(stats::rnorm(4L), 3L)
+    b <- stats::rnorm(2L)
+    ye <- b[1L] + b[2L] * x
+    xc <- x[sample.int(4L, 1L)]
+    mlumr:::.censoring_bounds_aux(
+      rbind(cbind(1, x), c(1, xc)), c(ye, b[1L] + b[2L] * xc),
+      c(rep(TRUE, 4L), FALSE)
+    )
+  }, character(1L))
+  # Never "bounded": the gap is rounding, not evidence.
+  expect_identical(sum(verdicts == "bounded"), 0L)
+  expect_true(all(verdicts %in% c("undetermined", "unbounded")))
+  # A gap that is real is still read as real, at a size far below anything
+  # the fit could have invented.
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(cbind(1, rep(-0.5, 3L)), c(0, 0, 1e-6),
+                                  c(TRUE, TRUE, FALSE)),
+    "bounded"
+  )
+  # And a censored row above its fitted time still bounds nothing.
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(cbind(1, rep(-0.5, 3L)), c(0, 0, -1e-6),
+                                  c(TRUE, TRUE, FALSE)),
+    "unbounded"
+  )
+})
+
+test_that("the shape warning names the prior that actually settles it", {
+  # The exact-fit ridge does not move the same way for all four. Under the
+  # AFT parameterizations an exact fit pins eta at log(t) and the ridge
+  # leaves the coefficients where they are, so `prior_aux` carries it alone.
+  # It does not under the other two, and pointing only at `prior_aux` there
+  # sends the reader to the wrong sensitivity analysis.
+  d <- .surv_stub(rep(1, 4))
+  # `t e^-eta` is Gamma(shape, 1), mode at shape - 1, so the intercept falls
+  # like -log(shape).
+  w <- expect_warning(check(d, distribution = "gamma"))
+  expect_match(conditionMessage(w), "prior_intercept")
+  expect_match(conditionMessage(w), "-log\\(shape\\)")
+  # Proportional-hazards Weibull: cumulative hazard t^shape exp(eta), so the
+  # whole linear predictor scales with the shape.
+  w <- expect_warning(check(d, distribution = "weibull"))
+  expect_match(conditionMessage(w), "prior_beta")
+  expect_match(conditionMessage(w), "proportional-hazards")
+  # The AFT forms hold eta fixed, so they say `prior_aux` and stop.
+  for (dist in c("weibull-aft", "loglogistic")) {
+    w <- expect_warning(check(d, distribution = dist))
+    expect_match(conditionMessage(w), "prior_aux")
+    expect_false(grepl("prior_intercept|prior_beta", conditionMessage(w)),
+                 label = dist)
+  }
 })

@@ -632,7 +632,9 @@
   }
   if (identical(bound, "bounded")) return(invisible(FALSE))
 
-  if (shared_aux) {
+  # Near-exact is excluded so it falls through to its own warning below,
+  # which is the accurate message for it: its residual is real.
+  if (shared_aux && !identical(s$status, "near_exact")) {
     # `aux_by = "none"` puts the comparator rows in the same parameter.
     # Sharing does not bound it by itself: a comparator of right-censored
     # rows whose fitted times sit above their censoring times contributes a
@@ -641,10 +643,14 @@
     # aggregate likelihood, which this geometry does not see, so the case is
     # reported rather than decided, and is not refused on a guess.
     #
-    # A near-exact fit is left alone here: its residual is real, so the
-    # posterior is proper whatever the comparator does, and the comparator
-    # sharing the parameter only makes concentration less likely.
-    if (identical(s$status, "near_exact")) return(invisible(FALSE))
+    # A near-exact fit is proper whatever the comparator does, so it is not
+    # this branch's business; but it still gets its own warning below rather
+    # than silence. Sharing multiplies the index's near-boundary likelihood
+    # by whatever the comparator contributes there, and when that is a
+    # nonzero limit, which is exactly the configuration this function admits
+    # it cannot analyze, the concentration is unchanged. Staying silent
+    # would hide the sampler diagnostic in the one case that motivates this
+    # branch existing.
     warning("The index event rows leave nothing to bound ",
             .aux_name(distribution), " away from its boundary, and no ",
             "censored index row bounds it either. Under `aux_by = \"none\"` ",
@@ -713,13 +719,39 @@
   } else {
     ""
   }
+  # Which prior settles it is not the same for all of them, because the
+  # exact-fit ridge does not move the same way. Under the AFT
+  # parameterizations (`weibull-aft`, `loglogistic`) an exact fit pins
+  # `eta` at `log(t)` and the ridge leaves the coefficients where they are,
+  # so `prior_aux` carries it alone. It does not under the other two, and
+  # pointing only at `prior_aux` there sends the reader to the wrong
+  # sensitivity analysis.
+  ridge_clause <- switch(
+    distribution,
+    gamma = paste0(
+      " The ridge here does not hold the coefficients fixed: `t e^-eta` is ",
+      "Gamma(shape, 1), whose mode is at `shape - 1`, so an exact fit needs ",
+      "the intercept to fall like `-log(shape)` as the shape grows. That ",
+      "makes `prior_intercept` bear on propriety as well, and a normal one ",
+      "integrates the ridge even where `prior_aux` alone would not."
+    ),
+    weibull = paste0(
+      " The ridge here does not hold the coefficients fixed: this is the ",
+      "proportional-hazards Weibull, with cumulative hazard ",
+      "`t^shape exp(eta)`, so an exact fit scales the whole linear ",
+      "predictor with the shape. `prior_beta` and `prior_intercept` bear on ",
+      "propriety alongside `prior_aux`, and a sensitivity analysis on the ",
+      "auxiliary prior alone would not see it."
+    ),
+    ""
+  )
   prior_clause <- paste0(
     "Whether a posterior exists then depends on the tail of `prior_aux`: a ",
     "half-normal or an exponential integrates it and a half-t need not, so ",
     "what is reported for the shape is a property of that prior rather than ",
-    "of the data. The event times need variation the covariates do not ",
-    "explain, or an observation process (a measurement error or a rounding ",
-    "scale) that supplies one."
+    "of the data.", ridge_clause, " The event times need variation the ",
+    "covariates do not explain, or an observation process (a measurement ",
+    "error or a rounding scale) that supplies one."
   )
   if (distribution %in% shape_families) {
     if (resolved_exact) {
@@ -870,8 +902,23 @@
   }
   # A row that is not estimable is not evidence either way, so it cannot
   # give "unbounded": it leaves the question undetermined instead.
-  if (any(estimable & eta < y[!events])) return("bounded")
-  if (all(estimable)) "unbounded" else "undetermined"
+  #
+  # `eta` is a computed least-squares value, not an exact one, so the sign of
+  # a rounding-sized gap is not information. A censored row sitting ON the
+  # fitted boundary has survival tending to 1/2 and bounds nothing, but over
+  # 4000 randomly generated boundary rows (a censored row duplicating an
+  # event's covariate profile and its time) a third came out strictly below
+  # and would have been read as bounding, which admits an improper fit in
+  # silence. Require the gap to exceed the rounding before calling it one,
+  # and where it does not, say the question is undetermined rather than
+  # guess the sign.
+  yc <- y[!events]
+  tol <- max(8, nrow(Xe)) * .Machine$double.eps *
+    pmax(1, abs(eta), abs(yc))
+  gap <- yc - eta
+  if (any(estimable & gap > tol)) return("bounded")
+  if (all(estimable) && !any(abs(gap) <= tol)) return("unbounded")
+  "undetermined"
 }
 
 
