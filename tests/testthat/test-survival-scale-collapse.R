@@ -316,3 +316,42 @@ test_that("a censored predictor fixed by a deficient design still bounds", {
                x = c(-0.5, -0.5, -0.5)))
   expect_error(check(above), "improper")
 })
+
+test_that("a numerical rank below the exact one answers nothing", {
+  # `lm.fit()` picks its own rank at a numerical tolerance and can drop a
+  # column `.exact_rank()` keeps. The estimability test runs on the exact
+  # rank, so the two would be answering about different models: fitted
+  # values from the reduced one, rows judged against the full one. Where the
+  # exact fit depends on the dropped direction that is not a rounding
+  # difference, and the error runs the wrong way, toward a silent pass.
+  #
+  # Events at x = (-1, 0, 1, 2) with a second column x + 1e-13, and event
+  # times equal to that second column. The exact rank is 3 of 3 columns, so
+  # every row is estimable, but lm.fit() resolves 2 and returns NA for the
+  # third coefficient.
+  x <- c(-1, 0, 1, 2)
+  Xe <- cbind(1, x, x + 1e-13)
+  ye <- x + 1e-13
+  expect_identical(mlumr:::.exact_rank(Xe)$rank, 3L)
+  expect_identical(stats::lm.fit(Xe, ye)$rank, 2L)
+  # The exact solution is (0, 0, 1) and the reduced one is (1e-13, 1, 0).
+  # They agree on every event row and not on this censored one: its true
+  # predictor is 10 and its reduced predictor is 1e-13, so against a
+  # censoring time of 5 the reduced fit says the row fails first and bounds
+  # the parameter, and the true fit says it does not.
+  X <- rbind(Xe, c(1, 0, 10))
+  y <- c(ye, 5)
+  events <- c(rep(TRUE, 4L), FALSE)
+  expect_identical(mlumr:::.censoring_bounds_aux(X, y, events), "undetermined")
+  # The two answers it must still give.
+  ev3 <- c(TRUE, TRUE, FALSE)
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(cbind(1, rep(-0.5, 3L)), c(0, 0, 3), ev3),
+    "bounded"
+  )
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(cbind(1, c(-0.5, -0.5, 0.5)), c(0, 0, 3),
+                                  ev3),
+    "undetermined"
+  )
+})

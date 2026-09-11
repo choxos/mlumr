@@ -821,9 +821,22 @@
   Xc <- X[!events, , drop = FALSE]
   if (!nrow(Xc)) return("unbounded")
   rank_e <- .exact_rank(Xe)$rank
-  beta <- tryCatch(stats::lm.fit(Xe, y[events])$coefficients,
-                   error = function(e) NULL)
-  if (is.null(beta)) return("undetermined")
+  fit <- tryCatch(stats::lm.fit(Xe, y[events]), error = function(e) NULL)
+  if (is.null(fit)) return("undetermined")
+  # `lm.fit()` decides its own rank at a numerical tolerance, and it can drop
+  # a column that `.exact_rank()` keeps. The estimability test below runs on
+  # the exact rank, so the two would be answering about different models: the
+  # fitted values would come from the reduced one while the rows were judged
+  # against the full one. When the exact fit depends on the dropped
+  # direction that is not a rounding difference. With events at
+  # `x = (-1, 0, 1, 2)`, a second column `x + 1e-13`, and event times equal
+  # to that second column, the exact solution is `(0, 0, 1)` and the reduced
+  # one is `(1e-13, 1, 0)`; a censored row at `(1, 0, 10)` has a true
+  # predictor of 10 and a reduced one of 1e-13, so a censoring time of 5
+  # came back "bounded" when the true answer is "unbounded", and an improper
+  # fit went to Stan in silence. Refuse to answer instead.
+  if (!is.numeric(fit$rank) || fit$rank < rank_e) return("undetermined")
+  beta <- fit$coefficients
   # A rank-deficient event design leaves some coefficients aliased, and
   # `lm.fit()` returns NA for them. Any one solution will do here: the fitted
   # value of an ESTIMABLE row is the same for every solution, which is what
