@@ -71,15 +71,22 @@
   ordinary `prior_beta` or `prior_intercept` can stop the shape before the
   residual does.
   Every censoring type is examined, through the OBSERVATION REGION each row
-  is known to lie in on the log scale: `[log c, Inf)` right-censored,
-  `(-Inf, log u]` left-censored, `[log l, log u]` interval-censored, with a
-  delayed entry raising the lower end of the closed ones. As the auxiliary
-  goes to its boundary the fitted distribution concentrates at the fitted
-  value, so a row's contribution tends to one when that value is strictly
-  inside its region and to zero when it is strictly outside, and only the
-  second bounds the auxiliary. Delayed entry therefore does not rescue an
-  exact fit, and neither does a left-censored row whose upper bound sits
-  above the fitted time. The comparator side is not examined.
+  is known to lie in on the log scale. A right-censored row runs from its
+  own time upwards with no upper end; a left-censored one runs up to its
+  own time with no lower end; an interval one runs between its two. As the
+  auxiliary goes to its boundary the fitted distribution concentrates at the
+  fitted value, so a row's contribution tends to one when that value is
+  strictly inside its region and to zero when it is strictly outside, and
+  only the second bounds the auxiliary.
+
+  A delayed entry is not a lower end of that region. It conditions the
+  observation on survival to it, and with the fitted value BELOW the entry
+  the conditional law piles up just above the entry, so the probability
+  tends to one rather than to zero. An interval that opens strictly above
+  its entry does still bound from below, since the pile is then outside it.
+  So neither delayed entry nor a left-censored row whose upper bound sits
+  above the fitted time rescues an exact fit. The comparator side is not
+  examined.
 
 * **A normal fit whose covariates reproduce the outcome exactly is now
   refused.** Integrating out the coefficients leaves a marginal density for

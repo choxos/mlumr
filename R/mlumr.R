@@ -1033,14 +1033,17 @@
   if (!nrow(Xc)) return("unbounded")
   # Every censoring type asks the same question of the same object: the
   # OBSERVATION REGION the row is known to lie in, on the log scale. A
-  # right-censored row at c is `[log c, Inf)`, a left-censored one at u is
-  # `(-Inf, log u]`, an interval one is `[log l, log u]`, and delayed entry
-  # raises the lower end of the last two. As the auxiliary goes to its
-  # boundary the fitted distribution concentrates at the fitted value, so
-  # the row's contribution tends to one when that value is strictly INSIDE
-  # its region and to zero when it is strictly outside. Only the second
-  # bounds the auxiliary. Defaulting to the right-censored region keeps the
-  # caller that passes only times.
+  # right-censored row runs from its own time upwards with no upper end, a
+  # left-censored one up to its own time with no lower end, an interval one
+  # between its two. As the auxiliary goes to its boundary the fitted
+  # distribution concentrates at the fitted value, so the row's contribution
+  # tends to one when that value is strictly INSIDE its region and to zero
+  # when it is strictly outside. Only the second bounds the auxiliary.
+  #
+  # The caller decides where a row's ends come from; a delayed entry is NOT
+  # one of them, since it conditions the observation rather than bounding
+  # it. Defaulting to the right-censored region keeps the caller that
+  # passes only times.
   yc <- y[!events]
   if (is.null(lower)) lower <- yc
   if (is.null(upper)) upper <- rep(Inf, length(yc))
