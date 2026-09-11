@@ -132,7 +132,10 @@ test_that("as many event rows as free columns warns about the prior instead", {
   # asserted to be silent in its own test.
   d <- .surv_stub(c(1, exp(1)), status = c(1L, 1L), x = c(-0.5, 0.5))
   expect_warning(check(d), "as many as the free columns")
-  expect_warning(check(d), "sensitive to `prior_beta`")
+  # Both coefficient priors, not just one: the exact-fit coefficient vector
+  # includes the intercept, and the two defaults are different widths.
+  expect_warning(check(d), "sensitive to `prior_intercept` and `prior_beta`")
+  expect_warning(check(d), "normal\\(0, 10\\)` against")
 })
 
 test_that("mlumr() refuses the log-normal collapse before it reaches the engine", {
@@ -223,8 +226,23 @@ test_that("a nearly exact fit warns about the boundary the sampler works at", {
   d <- .surv_stub(exp(c(-1, -1, 1, 1) + c(0, 1e-9, 0, 1e-9)))
   expect_warning(check(d), "very nearly fit the event times exactly")
   expect_warning(check(d), "`sdlog` will concentrate")
-  expect_warning(check(d, distribution = "weibull"),
-                 "the Weibull shape will concentrate")
+  # The PH Weibull says "may", not "will": its ridge scales the linear
+  # predictor with the shape, so ordinary normal coefficient priors can stop
+  # it before this residual does, and asserting concentration would be a
+  # sampler diagnosis the data do not support on their own.
+  w <- expect_warning(check(d, distribution = "weibull"))
+  expect_match(conditionMessage(w), "the Weibull shape may concentrate")
+  expect_match(conditionMessage(w), "conditional on `prior_beta`")
+  # The gamma names the intercept prior, for the same reason by a different
+  # route, and the AFT families keep the unconditional "will".
+  w <- expect_warning(check(d, distribution = "gamma"))
+  expect_match(conditionMessage(w), "may concentrate")
+  expect_match(conditionMessage(w), "conditional on `prior_intercept`")
+  for (dist in c("weibull-aft", "loglogistic", "lognormal")) {
+    w <- expect_warning(check(d, distribution = dist))
+    expect_match(conditionMessage(w), "will concentrate")
+    expect_false(grepl("conditional on", conditionMessage(w)), label = dist)
+  }
 })
 
 test_that("a bounding censored row is consulted before every boundary message", {

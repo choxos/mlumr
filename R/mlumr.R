@@ -675,16 +675,43 @@
 
   if (identical(s$status, "near_exact")) {
     # The same reasoning as [.warn_near_exact()], about this parameter: the
-    # residual is real and the posterior proper, and the auxiliary will
-    # still concentrate against its boundary.
+    # residual is real and the posterior proper, and the auxiliary still
+    # concentrates against its boundary.
+    #
+    # For the two whose ridge moves the coefficients, that is conditional
+    # rather than certain: ordinary normal coefficient priors can stop the
+    # shape well before a small event residual does, and the defaults are
+    # not wide, `normal(0, 10)` on the intercept and `normal(0, 2.5)` on the
+    # rest. Saying it will concentrate would be a sampler diagnosis the data
+    # do not support on their own.
+    conditional <- switch(
+      distribution,
+      gamma = paste0(
+        " Whether it does is conditional on `prior_intercept` here: the ",
+        "ridge shifts the intercept by about -log(shape), so an ordinary ",
+        "normal intercept prior can stop the shape before this residual ",
+        "does."
+      ),
+      weibull = paste0(
+        " Whether it does is conditional on `prior_beta` and ",
+        "`prior_intercept` here: this is the proportional-hazards Weibull, ",
+        "whose ridge scales the linear predictor with the shape, so ",
+        "ordinary normal coefficient priors can stop it before this ",
+        "residual does."
+      ),
+      ""
+    )
     fmt <- paste0(
       "The index covariates very nearly fit the event times exactly on the ",
       "log scale (residual sum of squares is %.3g of the total). The ",
-      "residual is real, so the posterior is proper, but %s will ",
+      "residual is real, so the posterior is proper, but %s %s ",
       "concentrate against its boundary and the sampler has to work there: ",
-      "check its diagnostics before reading the estimate."
+      "check its diagnostics before reading the estimate.%s"
     )
-    warning(sprintf(fmt, s$ratio, .aux_name(distribution)), call. = FALSE)
+    warning(sprintf(fmt, s$ratio, .aux_name(distribution),
+                    if (nzchar(conditional)) "may" else "will",
+                    conditional),
+            call. = FALSE)
     return(invisible(TRUE))
   }
   # Saturated is an exact fit, so a shape family diverges here for the same
@@ -704,7 +731,11 @@
             .aux_name(distribution), " carries the exponent `rank - n`, ",
             "which is zero here, but nothing in the index data separates ",
             "it from the coefficients, so what is reported for it is ",
-            "potentially strongly sensitive to `prior_beta`.", call. = FALSE)
+            "potentially strongly sensitive to `prior_intercept` and ",
+            "`prior_beta`. The exact-fit coefficient vector includes the ",
+            "intercept, and their defaults are not the same width, ",
+            "`normal(0, 10)` against `normal(0, 2.5)`, so a sensitivity ",
+            "analysis on one of them is not one on both.", call. = FALSE)
     return(invisible(TRUE))
   }
 
