@@ -145,7 +145,7 @@ test_that("check_integration() reports a partial correlation verdict", {
   expect_identical(unique(ck$correlation_pairs$omitted$reason),
                    "constant_on_grid")
   out <- capture.output(run(make(), verbose = TRUE))
-  expect_true(any(grepl("Pairs compared: 1 of 3", out)))
+  expect_true(any(grepl("Pairs measured: 1 of 3", out)))
   expect_true(any(grepl("a~rare", out)))
   # A measured pair that misses the heuristic is `review`, whatever else is
   # missing: a requested a~b correlation of 0.9 between margins of 0.1 and

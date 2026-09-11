@@ -49,11 +49,15 @@ are \code{"partial"} when the measured pairs pass but some pair with a
 correlation to realize could not be measured, since a maximum over the
 measured pairs says nothing about the rest; a measured pair that misses
 the heuristic is \code{"review"} regardless. \code{correlation_pairs} counts the
-pairs expected and measured, against the target (the doubled grid) and
-between resolutions (both grids), names the omitted ones with a reason,
-and lists separately the pairs in which a margin is declared with no
-variance, which have no correlation to realize and are outside the
-count.
+pairs expected and the pairs measured: \code{measured} is the number with a
+finite correlation on the doubled grid, the correlation the target
+comparison uses when there is a target to compare it with, and
+\code{measured_resolution} the number with a finite correlation on both
+grids. Neither count says whether a target comparison was made; with
+\code{cor_adjust = "none"} none is. It names the omitted pairs with a
+reason, and lists separately the pairs in which a margin is declared
+with no variance, which have no correlation to realize and are outside
+the count.
 
 For a binary margin the declared-target SD is the distribution's,
 \code{sqrt(p * (1 - p))} from the declared mean, whatever \verb{_sd} column the
