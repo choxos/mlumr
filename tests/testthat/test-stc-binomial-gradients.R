@@ -212,6 +212,15 @@ test_that("weights on identical profiles are a resolution, not an answer", {
                                                 link)
       expect_equal(scaled$link, g$link, tolerance = 1e-12)
       expect_equal(scaled$log_mean, g$log_mean, tolerance = 1e-12)
+      # Weights whose sum is not representable. Each is finite and their
+      # ratios are what a share is made of, so the answer is the same 1;
+      # dividing by log(sum(weights)) made every log share -Inf and the
+      # gradient 0.
+      huge <- mlumr:::.stc_binomial_gradients(
+        matrix(1, nrow = 2L, ncol = 1L), rep(eta, 2L), c(1e308, 1e308), link
+      )
+      expect_equal(unname(huge$link), 1, tolerance = 1e-9,
+                   label = paste(link, eta, "weights summing past the range"))
     }
   }
 })

@@ -779,7 +779,13 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     d_log_p <- exp(eta - exp(eta) - lp$event)
     d_log_q <- NULL
   }
-  log_w <- log(weights) - log(sum(weights))
+  # The log weights are normalized by a shifted log-sum-exp, not by
+  # log(sum(weights)): two weights of 1e308 are finite and their sum is not,
+  # which sent every log share to -Inf and the gradient of a point mass to 0.
+  # [.weighted_log_mean_exp()] normalizes its denominator the same way.
+  log_weights <- log(weights)
+  m_w <- max(log_weights)
+  log_w <- log_weights - (m_w + log(sum(exp(log_weights - m_w))))
   log_p_mean <- .weighted_log_mean_exp(lp$event, weights)
   log_q_mean <- .weighted_log_mean_exp(lp$nonevent, weights)
   # Subtract the mean first, then add the weight. The other order adds a
