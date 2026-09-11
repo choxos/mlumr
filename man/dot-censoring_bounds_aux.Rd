@@ -4,7 +4,14 @@
 \alias{.censoring_bounds_aux}
 \title{Whether a censored row bounds the auxiliary away from its boundary}
 \usage{
-.censoring_bounds_aux(X, y, events, exact_fit = FALSE)
+.censoring_bounds_aux(
+  X,
+  y,
+  events,
+  exact_fit = FALSE,
+  lower = NULL,
+  upper = NULL
+)
 }
 \arguments{
 \item{X}{The full centered design, intercept first.}

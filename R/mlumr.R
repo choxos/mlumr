@@ -556,17 +556,25 @@
 #' SPACE of the event design, which is weaker than that design having full
 #' column rank, and the difference is not a corner case, since a censored
 #' row at a covariate profile the events already occupy is always in it.
-#' A gap between the fitted predictor and `log(c)` that is no larger than
-#' the rounding in computing it does not count either, since its sign is
-#' not information. Otherwise
+#' A gap between the fitted predictor and the nearer end of the row's region
+#' that is no larger than the rounding in computing it does not count
+#' either, since its sign is not information. Otherwise
 #' the question is left undecided and said to be. They are consulted BEFORE
 #' any message is issued, including the near-exact and saturated ones: a row
 #' that bounds the parameter makes every one of those messages untrue, not
 #' just the refusal.
 #'
-#' **Delayed entry, left and interval censoring.** Not examined. Their
-#' contributions are conditional probabilities whose limits are a separate
-#' argument, and a guess in either direction would be worse than silence.
+#' **Delayed entry, left and interval censoring.** All examined, through the
+#' OBSERVATION REGION each row is known to lie in on the log scale: a
+#' right-censored row at `c` is `[log c, Inf)`, a left-censored one at `u` is
+#' `(-Inf, log u]`, an interval one is `[log l, log u]`, and a delayed entry
+#' raises the lower end of the last two. As the auxiliary goes to its
+#' boundary the fitted distribution concentrates at the fitted value, so a
+#' row's contribution tends to one when that value is strictly inside its
+#' region and to zero when it is strictly outside, and only the second bounds
+#' the auxiliary. Skipping a censoring type outright was not the safe choice
+#' it looked like: it let a row that suppresses nothing stand in for one that
+#' does, and sent an improper posterior to the sampler in silence.
 #'
 #' The comparator side is not examined either: its reconstructed rows enter a
 #' likelihood marginalized over the integration grid, which is not this
@@ -598,7 +606,18 @@
   delay <- ipd$.delay_time %||% rep(0, nrow(ipd))
   time <- suppressWarnings(as.numeric(ipd$.time))
   if (is.null(status) || !length(time)) return(invisible(FALSE))
-  if (any(!status %in% c(0L, 1L))) return(invisible(FALSE))
+  start <- suppressWarnings(as.numeric(ipd$.start_time %||% rep(0, nrow(ipd))))
+  # Every censoring type is examined now, through the observation region
+  # each one puts its row in. Skipping a type outright was not the safe
+  # choice it looked like: a left-censored row whose upper bound sits ABOVE
+  # the fitted time contributes a probability tending to one, so it
+  # suppresses nothing and the event singularity is exactly the one the
+  # undelayed right-censored case is refused for. Three repeated events at
+  # t = 1 on an intercept-only design with one left-censored row at upper
+  # bound 2 give `d log M / d log(1/sdlog)` of 2.000, identical to the same
+  # data with the row removed; at upper bound 0.5 the marginal collapses to
+  # -1.8e11 instead, which is the row genuinely bounding.
+  if (any(!status %in% c(0L, 1L, 2L, 3L))) return(invisible(FALSE))
   # Delayed entry does not rescue an exact fit, so skipping the whole
   # question for it admitted the collapse in silence. Each row contributes
   # `f(t) / S(entry)` or `S(c) / S(entry)`, and the entry time is strictly
@@ -616,7 +635,14 @@
   # argument does not cover. The validators do not admit one, so it is
   # refused rather than analyzed.
   if (any(!is.finite(delay), na.rm = TRUE)) return(invisible(FALSE))
+  if (any(!is.finite(start), na.rm = TRUE)) return(invisible(FALSE))
   if (any(delay >= time, na.rm = TRUE)) return(invisible(FALSE))
+  # An interval that does not open before it closes, or a lower end at or
+  # above the row's own upper end, leaves no region to be inside or outside
+  # of. The validators do not admit one.
+  if (any(status == 3L & !(start < time), na.rm = TRUE)) {
+    return(invisible(FALSE))
+  }
   events <- status == 1L
   if (!any(events)) return(invisible(FALSE))
   covariates <- as.matrix(ipd[, data$covariates, drop = FALSE])
@@ -654,9 +680,19 @@
     # has full row rank, and `constant` is reproduced by the intercept. A
     # `near_exact` or `unresolved` fit leaves a residual, so the structural
     # shortcut inside is not available to it.
+    # The region each censored row is observed to lie in, on the log scale.
+    # A right-censored row is `[log c, Inf)`; the other two close at their
+    # own upper bound and open at the later of their lower bound and their
+    # entry time, since a delayed entry conditions the probability on
+    # survival to it. `log(0)` is the -Inf that means "no lower end", which
+    # is what a left-censored row without delayed entry has.
+    log_open <- suppressWarnings(log(pmax(start, delay)))
+    right <- status[!events] == 0L
     .censoring_bounds_aux(
       X, y, events,
-      exact_fit = s$status %in% c("exact", "constant", "saturated")
+      exact_fit = s$status %in% c("exact", "constant", "saturated"),
+      lower = ifelse(right, y[!events], log_open[!events]),
+      upper = ifelse(right, Inf, y[!events])
     )
   } else {
     "unbounded"
@@ -970,10 +1006,30 @@
 #'   the shortcut is not taken for one.
 #' @return `"bounded"`, `"unbounded"`, or `"undetermined"`.
 #' @keywords internal
-.censoring_bounds_aux <- function(X, y, events, exact_fit = FALSE) {
+.censoring_bounds_aux <- function(X, y, events, exact_fit = FALSE,
+                                  lower = NULL, upper = NULL) {
   Xe <- X[events, , drop = FALSE]
   Xc <- X[!events, , drop = FALSE]
   if (!nrow(Xc)) return("unbounded")
+  # Every censoring type asks the same question of the same object: the
+  # OBSERVATION REGION the row is known to lie in, on the log scale. A
+  # right-censored row at c is `[log c, Inf)`, a left-censored one at u is
+  # `(-Inf, log u]`, an interval one is `[log l, log u]`, and delayed entry
+  # raises the lower end of the last two. As the auxiliary goes to its
+  # boundary the fitted distribution concentrates at the fitted value, so
+  # the row's contribution tends to one when that value is strictly INSIDE
+  # its region and to zero when it is strictly outside. Only the second
+  # bounds the auxiliary. Defaulting to the right-censored region keeps the
+  # caller that passes only times.
+  yc <- y[!events]
+  if (is.null(lower)) lower <- yc
+  if (is.null(upper)) upper <- rep(Inf, length(yc))
+  if (length(lower) != length(yc) || length(upper) != length(yc)) {
+    return("undetermined")
+  }
+  if (any(is.na(lower)) || any(is.na(upper)) || any(lower > upper)) {
+    return("undetermined")
+  }
   if (isTRUE(exact_fit)) {
     # Exact keys, not rounded ones: `x` and `x + 1e-13` are different
     # profiles, and a 15-digit character conversion would merge them and
@@ -985,10 +1041,12 @@
             collapse = "|")
     }
     twin <- match(row_keys(Xc), row_keys(Xe))
-    repeated <- !is.na(twin)
-    if (any(repeated) &&
-        any(y[!events][repeated] > y[events][twin[repeated]])) {
-      return("bounded")
+    repeated <- which(!is.na(twin))
+    if (length(repeated)) {
+      pinned <- y[events][twin[repeated]]
+      if (any(pinned < lower[repeated] | pinned > upper[repeated])) {
+        return("bounded")
+      }
     }
   }
   rank_e <- .exact_rank(Xe)$rank
@@ -1051,7 +1109,7 @@
   # silence. Require the gap to exceed the rounding before calling it one,
   # and where it does not, say the question is undetermined rather than
   # guess the sign.
-  yc <- y[!events]
+  #
   # The rounding in `Xc %*% beta` is governed by the size of the terms that
   # went into it, not by the size of what came out. An ill-conditioned design
   # with full numerical rank reaches an exact fit through large cancelling
@@ -1096,11 +1154,18 @@
   if (!all(is.finite(xc_norm)) || !is.finite(beta_norm)) {
     return("undetermined")
   }
+  edge <- pmax(ifelse(is.finite(lower), abs(lower), 0),
+               ifelse(is.finite(upper), abs(upper), 0))
   tol <- max(8, nrow(Xe)) * .Machine$double.eps * max(1, cond) *
-    pmax(xc_norm * beta_norm, abs(yc), 1)
-  gap <- yc - eta
-  if (any(estimable & gap > tol)) return("bounded")
-  if (all(estimable) && !any(abs(gap) <= tol)) return("unbounded")
+    pmax(xc_norm * beta_norm, edge, 1)
+  # Outside its region by more than the rounding, in either direction, is a
+  # bound; strictly inside it by more than the rounding is no bound at all.
+  # An infinite end never decides anything: `Inf - eta` is the whole real
+  # line of slack, which is what a right-censored row's upper end means.
+  outside <- pmax(lower - eta, eta - upper)
+  inside <- pmin(eta - lower, upper - eta)
+  if (any(estimable & outside > tol)) return("bounded")
+  if (all(estimable) && all(inside > tol)) return("unbounded")
   "undetermined"
 }
 

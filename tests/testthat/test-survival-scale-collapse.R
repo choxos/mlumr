@@ -111,12 +111,68 @@ test_that("censored rows the event fit does not determine are refused as undecid
   expect_error(check(d), "not determined by that fit")
 })
 
-test_that("left or interval censoring is not examined", {
-  # Their contributions are conditional probabilities whose limits are a
-  # separate argument. Silence, not a guess in either direction.
+test_that("a censored row bounds when the fit lands outside its region", {
+  # Every censoring type is the same question about the OBSERVATION REGION
+  # the row lies in: as the scale goes to zero the fitted distribution
+  # concentrates at the fitted value, so the row's contribution tends to one
+  # when that value is strictly inside its region and to zero when it is
+  # strictly outside. Only the second bounds the scale.
+  #
+  # Three events at t = 1 fix the fitted time at 1 for both profiles.
+  # Measured on three repeated events over an intercept-only design,
+  # `d log M / d log(1/sdlog)` with a left-censored row at upper bound 2 is
+  # 2.000, identical to the same data with the row removed; at upper bound
+  # 0.5 the marginal collapses to -1.8e11 instead.
+  left_at <- function(u) {
+    d <- .surv_stub(rep(1, 4))
+    d$ipd$data$.status[4L] <- 2L
+    d$ipd$data$.time[4L] <- u
+    d
+  }
+  # Upper bound above the fitted time: the probability tends to one, the row
+  # suppresses nothing, and the collapse is the one it was hiding.
+  expect_error(check(left_at(2)), "improper")
+  # Below it: the probability tends to zero and the fit is proper.
+  expect_false(check(left_at(0.5)))
+
+  interval_at <- function(lo, hi) {
+    d <- .surv_stub(rep(1, 4))
+    d$ipd$data$.status[4L] <- 3L
+    d$ipd$data$.start_time[4L] <- lo
+    d$ipd$data$.time[4L] <- hi
+    d
+  }
+  # An interval holding the fitted time bounds nothing; one that misses it
+  # on either side bounds.
+  expect_error(check(interval_at(0.5, 2)), "improper")
+  expect_false(check(interval_at(2, 3)))
+  expect_false(check(interval_at(0.2, 0.5)))
+
+  # An interval that does not open before it closes has no region at all.
+  bad <- interval_at(2, 3)
+  bad$ipd$data$.start_time[4L] <- 3
+  expect_false(check(bad))
+})
+
+test_that("delayed entry raises the lower end of a closed region", {
+  # A delayed entry conditions the probability on survival to it, so for a
+  # left- or interval-censored row it replaces the lower end when it is the
+  # later of the two. A left-censored row at upper bound 2 holds the fitted
+  # time of 1 and bounds nothing; entering at 1.5 moves its region to
+  # [log 1.5, log 2], which no longer holds it, and the row bounds.
   d <- .surv_stub(rep(1, 4))
-  d$ipd$data$.status <- c(1L, 1L, 2L, 1L)
+  d$ipd$data$.status[4L] <- 2L
+  d$ipd$data$.time[4L] <- 2
+  expect_error(check(d), "improper")
+  d$ipd$data$.delay_time[4L] <- 1.5
   expect_false(check(d))
+  # A right-censored row is not tightened by its entry: its region is
+  # [log c, Inf) whatever the entry is, since the entry is below c.
+  r <- .surv_stub(c(1, 1, 1, exp(-3)), status = c(1L, 1L, 1L, 0L),
+                  x = c(-0.5, -0.5, 0.5, 0.5))
+  expect_error(check(r), "improper")
+  r$ipd$data$.delay_time[4L] <- exp(-4)
+  expect_error(check(r), "improper")
 })
 
 test_that("delayed entry does not rescue an exact fit", {

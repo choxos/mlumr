@@ -80,20 +80,31 @@ predictor is determined whenever its covariate vector lies in the ROW
 SPACE of the event design, which is weaker than that design having full
 column rank, and the difference is not a corner case, since a censored
 row at a covariate profile the events already occupy is always in it.
-A gap between the fitted predictor and \code{log(c)} that is no larger than
-the rounding in computing it does not count either, since its sign is
-not information. Otherwise
+A gap between the fitted predictor and the nearer end of the row's region
+that is no larger than the rounding in computing it does not count
+either, since its sign is not information. Otherwise
 the question is left undecided and said to be. They are consulted BEFORE
 any message is issued, including the near-exact and saturated ones: a row
 that bounds the parameter makes every one of those messages untrue, not
 just the refusal.
 
-\strong{Delayed entry, left and interval censoring.} Not examined. Their
-contributions are conditional probabilities whose limits are a separate
-argument, and a guess in either direction would be worse than silence.
+\strong{Delayed entry, left and interval censoring.} All examined, through the
+OBSERVATION REGION each row is known to lie in on the log scale: a
+right-censored row at \code{c} is \verb{[log c, Inf)}, a left-censored one at \code{u} is
+\verb{(-Inf, log u]}, an interval one is \verb{[log l, log u]}, and a delayed entry
+raises the lower end of the last two. As the auxiliary goes to its
+boundary the fitted distribution concentrates at the fitted value, so a
+row's contribution tends to one when that value is strictly inside its
+region and to zero when it is strictly outside, and only the second bounds
+the auxiliary. Skipping a censoring type outright was not the safe choice
+it looked like: it let a row that suppresses nothing stand in for one that
+does, and sent an improper posterior to the sampler in silence.
 
 The comparator side is not examined either: its reconstructed rows enter a
 likelihood marginalized over the integration grid, which is not this
 geometry.
+
+[log c, Inf)\verb{, a left-censored one at }u\code{is}(-Inf, log u]: R:log\%20c,\%20Inf)\%60,\%20a\%20left-censored\%20one\%20at\%20\%60u\%60\%20is\%0A\%60(-Inf,\%20log\%20u
+[log l, log u]: R:log\%20l,\%20log\%20u
 }
 \keyword{internal}
