@@ -70,8 +70,11 @@
   rather than will, because the ridge moves the coefficients there and an
   ordinary `prior_beta` or `prior_intercept` can stop the shape before the
   residual does.
-  Delayed entry, left censoring and interval censoring are not examined, and
-  neither is the comparator side.
+  Delayed entry IS examined, since it does not rescue an exact fit: each row
+  contributes `f(t) / S(entry)` with the entry strictly below its own row's
+  time, so as the scale goes to zero the entry survival tends to one and
+  every term is the undelayed one. Left censoring and interval censoring are
+  not examined, and neither is the comparator side.
 
 * **A normal fit whose covariates reproduce the outcome exactly is now
   refused.** Integrating out the coefficients leaves a marginal density for

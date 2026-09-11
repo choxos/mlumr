@@ -111,12 +111,41 @@ test_that("censored rows the event fit does not determine are refused as undecid
   expect_error(check(d), "not determined by that fit")
 })
 
-test_that("delayed entry and left or interval censoring are not examined", {
+test_that("left or interval censoring is not examined", {
   # Their contributions are conditional probabilities whose limits are a
   # separate argument. Silence, not a guess in either direction.
-  expect_false(check(.surv_stub(rep(1, 4), entry = c(0.1, 0.1, 0.1, 0.1))))
   d <- .surv_stub(rep(1, 4))
   d$ipd$data$.status <- c(1L, 1L, 2L, 1L)
+  expect_false(check(d))
+})
+
+test_that("delayed entry does not rescue an exact fit", {
+  # It used to skip the question entirely, which admitted the collapse in
+  # silence. Each row contributes `f(t) / S(entry)` with the entry time
+  # strictly below its own row's time, so as the scale goes to zero the
+  # fitted distribution concentrates at the fitted time, `S(entry)` tends to
+  # one, and every term is the undelayed one. Measured on three exact events
+  # over a rank-2 design, `d log M / d log(1/sdlog)` is 1.000 with no delayed
+  # entry, 1.000 with entry at half the event time and 1.000 with entry at
+  # 99% of it, and from `sdlog = 1e-3` down the three marginals agree to
+  # every printed digit.
+  expect_error(check(.surv_stub(rep(1, 4), entry = rep(0.1, 4))), "improper")
+  expect_error(check(.surv_stub(rep(1, 4), entry = rep(0.99, 4))), "improper")
+  # A shape family is warned about under delayed entry for the same reason.
+  expect_warning(
+    check(.surv_stub(rep(1, 4), entry = rep(0.1, 4)), distribution = "weibull"),
+    "depends on the tail of `prior_aux`"
+  )
+  # And a censored row that bounds the scale still bounds it: the entry
+  # survival tends to one there too, so the row is exactly the undelayed
+  # one and the fit is proper.
+  expect_false(check(.surv_stub(c(1, 1, 1, exp(3)), status = c(1L, 1L, 1L, 0L),
+                                x = c(-0.5, -0.5, 0.5, 0.5),
+                                entry = rep(0.1, 4))))
+  # An entry at or above its own row's time is the one case the argument
+  # does not cover, and it is left alone rather than guessed at.
+  d <- .surv_stub(rep(1, 4))
+  d$ipd$data$.delay_time <- c(0.1, 0.1, 0.1, 1)
   expect_false(check(d))
 })
 
