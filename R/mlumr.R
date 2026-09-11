@@ -633,7 +633,15 @@
   # leaves no residual degree of freedom is not the only thing informing the
   # auxiliary once a censored row does.
   bound <- if (any(!events)) {
-    .censoring_bounds_aux(X, y, events)
+    # Only these three interpolate: `exact` is decided structurally (as many
+    # distinct event profiles as the rank, replicates agreeing), `saturated`
+    # has full row rank, and `constant` is reproduced by the intercept. A
+    # `near_exact` or `unresolved` fit leaves a residual, so the structural
+    # shortcut inside is not available to it.
+    .censoring_bounds_aux(
+      X, y, events,
+      exact_fit = s$status %in% c("exact", "constant", "saturated")
+    )
   } else {
     "unbounded"
   }
@@ -902,15 +910,45 @@
 #' produce `"bounded"` (never, since it is not consulted) or leave the answer
 #' `"undetermined"`, but it can never make the answer `"unbounded"`.
 #'
+#' A censored row that repeats an event row's covariate profile needs no
+#' solve at all. Where the event fit interpolates, its predictor IS that
+#' event's log time, for every exact solution and however deficient or
+#' ill-conditioned the design is, so the question reduces to comparing two
+#' stored data values. That is worth asking first: it is exact where the
+#' numerical path is not, and it answers cases the numerical path refuses,
+#' including a design whose numerical rank falls below its exact one.
+#'
 #' @param X The full centered design, intercept first.
 #' @param y `log(time)` for every row.
 #' @param events Logical, which rows are events.
+#' @param exact_fit Whether the event rows are known to be fitted exactly.
+#'   The structural shortcut above holds only then, and the caller knows it
+#'   from the geometry it already measured; a near-exact fit puts the
+#'   duplicated row at the fitted value rather than at the event's time, so
+#'   the shortcut is not taken for one.
 #' @return `"bounded"`, `"unbounded"`, or `"undetermined"`.
 #' @keywords internal
-.censoring_bounds_aux <- function(X, y, events) {
+.censoring_bounds_aux <- function(X, y, events, exact_fit = FALSE) {
   Xe <- X[events, , drop = FALSE]
   Xc <- X[!events, , drop = FALSE]
   if (!nrow(Xc)) return("unbounded")
+  if (isTRUE(exact_fit)) {
+    # Exact keys, not rounded ones: `x` and `x + 1e-13` are different
+    # profiles, and a 15-digit character conversion would merge them and
+    # pin a censored row to an event time that is not its own. `%a` is the
+    # binary value itself, and the `+ 0` normalizes a negative zero, which
+    # compares equal but prints differently.
+    row_keys <- function(M) {
+      apply(matrix(sprintf("%a", M + 0), nrow = nrow(M)), 1L, paste,
+            collapse = "|")
+    }
+    twin <- match(row_keys(Xc), row_keys(Xe))
+    repeated <- !is.na(twin)
+    if (any(repeated) &&
+        any(y[!events][repeated] > y[events][twin[repeated]])) {
+      return("bounded")
+    }
+  }
   rank_e <- .exact_rank(Xe)$rank
   fit <- tryCatch(stats::lm.fit(Xe, y[events]), error = function(e) NULL)
   if (is.null(fit)) return("undetermined")

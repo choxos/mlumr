@@ -4,7 +4,7 @@
 \alias{.censoring_bounds_aux}
 \title{Whether a censored row bounds the auxiliary away from its boundary}
 \usage{
-.censoring_bounds_aux(X, y, events)
+.censoring_bounds_aux(X, y, events, exact_fit = FALSE)
 }
 \arguments{
 \item{X}{The full centered design, intercept first.}
@@ -12,6 +12,12 @@
 \item{y}{\code{log(time)} for every row.}
 
 \item{events}{Logical, which rows are events.}
+
+\item{exact_fit}{Whether the event rows are known to be fitted exactly.
+The structural shortcut above holds only then, and the caller knows it
+from the geometry it already measured; a near-exact fit puts the
+duplicated row at the fitted value rather than at the event's time, so
+the shortcut is not taken for one.}
 }
 \value{
 \code{"bounded"}, \code{"unbounded"}, or \code{"undetermined"}.
@@ -39,5 +45,13 @@ that were proper.
 A row that is not estimable is not evidence in either direction, so it can
 produce \code{"bounded"} (never, since it is not consulted) or leave the answer
 \code{"undetermined"}, but it can never make the answer \code{"unbounded"}.
+
+A censored row that repeats an event row's covariate profile needs no
+solve at all. Where the event fit interpolates, its predictor IS that
+event's log time, for every exact solution and however deficient or
+ill-conditioned the design is, so the question reduces to comparing two
+stored data values. That is worth asking first: it is exact where the
+numerical path is not, and it answers cases the numerical path refuses,
+including a design whose numerical rank falls below its exact one.
 }
 \keyword{internal}

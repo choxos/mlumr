@@ -61,7 +61,11 @@
   the marginalized aggregate likelihood, which this geometry does not see.
   So that case warns and is not refused. A fit that is nearly rather than
   exactly exact warns that the auxiliary will concentrate against its
-  boundary, as the normal guard warns about sigma.
+  boundary, as the normal guard warns about sigma; under the
+  proportional-hazards Weibull and the gamma it says the auxiliary may
+  rather than will, because the ridge moves the coefficients there and an
+  ordinary `prior_beta` or `prior_intercept` can stop the shape before the
+  residual does.
   Delayed entry, left censoring and interval censoring are not examined, and
   neither is the comparator side.
 

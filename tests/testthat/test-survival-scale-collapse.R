@@ -381,6 +381,123 @@ test_that("a numerical rank below the exact one answers nothing", {
   )
 })
 
+test_that("a censored row repeating an event profile bounds without a solve", {
+  # A censored row at one of the event rows' covariate profiles has its
+  # predictor pinned to that event's fitted value, and where the event fit
+  # interpolates, that value IS the event's log time. No solve enters it, so
+  # the answer survives a design the numerical path refuses to fit: exact
+  # rank 3, numerical rank 2, which the guard above sends to
+  # "undetermined". The fit it was refusing is proper, and a log-normal was
+  # being rejected for it.
+  x <- c(-1, 0, 1, 1)
+  Xe <- cbind(1, x, x + 1e-13)
+  ye <- c(0.5, 1, 1.5, 1.5)
+  expect_identical(mlumr:::.exact_rank(Xe)$rank, 3L)
+  expect_identical(stats::lm.fit(Xe, ye)$rank, 2L)
+  X <- rbind(Xe, c(1, 0, 1e-13))
+  events <- c(rep(TRUE, 4L), FALSE)
+  y <- c(ye, log(20))
+  expect_identical(mlumr:::.censoring_bounds_aux(X, y, events), "undetermined")
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(X, y, events, exact_fit = TRUE),
+    "bounded"
+  )
+  # The shortcut only ever adds a bound. A twin censored before its event
+  # says nothing, and one censored exactly at it sits on the boundary, where
+  # survival tends to 1/2 and bounds nothing.
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(X, c(ye, 0.2), events, exact_fit = TRUE),
+    "undetermined"
+  )
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(X, c(ye, 1), events, exact_fit = TRUE),
+    "undetermined"
+  )
+  # A profile 1e-13 away is a different profile, not a twin: pinning it to
+  # an event time it does not share is the error the exact keys avoid, and a
+  # 15-digit character conversion would commit it.
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(rbind(Xe, c(1, 1e-13, 2e-13)), y, events,
+                                  exact_fit = TRUE),
+    "undetermined"
+  )
+  # A row that is an extrapolation rather than a repeat is still refused by
+  # the numerical rank guard, shortcut or not.
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(rbind(Xe, c(1, 0, 10)), c(ye, 5), events,
+                                  exact_fit = TRUE),
+    "undetermined"
+  )
+  # And the boundary sweep the tolerance exists for is unchanged by it: a
+  # twin at its event's own time is never read as a bound.
+  set.seed(2026)
+  verdicts <- vapply(seq_len(400L), function(i) {
+    xs <- round(stats::rnorm(4L), 3L)
+    b <- stats::rnorm(2L)
+    yes <- b[1L] + b[2L] * xs
+    xc <- xs[sample.int(4L, 1L)]
+    mlumr:::.censoring_bounds_aux(
+      rbind(cbind(1, xs), c(1, xc)), c(yes, b[1L] + b[2L] * xc),
+      c(rep(TRUE, 4L), FALSE), exact_fit = TRUE
+    )
+  }, character(1L))
+  expect_identical(sum(verdicts == "bounded"), 0L)
+})
+
+test_that("mlumr() no longer refuses a log-normal a repeated profile bounds", {
+  # The same geometry through the caller: the log-normal above was refused
+  # as undecided, and it is proper. Two covariates 1e-13 apart are what puts
+  # the numerical rank below the exact one, so this needs its own stub.
+  x <- c(-1, 0, 1, 1, 0)
+  d <- local({
+    source <- data.frame(trt = "A", time = c(exp(c(0.5, 1, 1.5, 1.5)), 20),
+                         status = c(1L, 1L, 1L, 1L, 0L), x = x, z = x + 1e-13)
+    ip <- set_ipd(source, treatment = "trt", covariates = c("x", "z"),
+                  family = "survival", time = "time", status = "status")
+    ag <- set_agd_surv(
+      data.frame(trt = "B", time = c(0.5, 1.5, 2.5, 4),
+                 status = c(1L, 1L, 0L, 1L), x_mean = 0, x_sd = 0.5,
+                 z_mean = 0, z_sd = 0.5),
+      treatment = "trt", time = "time", status = "status",
+      cov_means = c("x_mean", "z_mean"), cov_sds = c("x_sd", "z_sd"),
+      cov_types = c("continuous", "continuous")
+    )
+    suppressWarnings(add_integration(
+      combine_data(ip, ag), n_int = 32,
+      x = distr(stats::qnorm, mean = x_mean, sd = x_sd),
+      z = distr(stats::qnorm, mean = z_mean, sd = z_sd), verbose = FALSE
+    ))
+  })
+  expect_silent(check(d))
+  expect_false(check(d))
+})
+
+test_that("the exact-fit shortcut is only offered to an exact fit", {
+  # `.check_survival_scale_collapse()` consults the bound for every geometry
+  # that is not `positive`, and only three of those interpolate: `exact` is
+  # decided structurally, `saturated` has full row rank, and `constant` is
+  # reproduced by the intercept alone. A `near_exact` fit puts the twin at
+  # the fitted value instead of at the event's time, so it must not get the
+  # shortcut, and the argument the caller passes is what withholds it.
+  x <- c(-1, 0, 1, 1)
+  Xe <- cbind(1, x, x + 1e-13)
+  ye <- c(0.5, 1, 1.5, 1.5)
+  expect_identical(
+    mlumr:::.residual_variation_status(Xe, ye, "identity")$status,
+    "exact"
+  )
+  near <- ye + c(0, 0, 0, 1e-9)
+  expect_identical(
+    mlumr:::.residual_variation_status(Xe, near, "identity")$status,
+    "near_exact"
+  )
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(rbind(Xe, c(1, 0, 1e-13)), c(near, log(20)),
+                                  c(rep(TRUE, 4L), FALSE)),
+    "undetermined"
+  )
+})
+
 test_that("a rounding-sized gap at the censoring boundary decides nothing", {
   # A censored row duplicating an event's covariate profile AND its time
   # sits exactly on the fitted boundary: its survival tends to 1/2 and it
