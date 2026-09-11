@@ -2,6 +2,36 @@
 
 ## Behavior and validation changes to existing functions
 
+* **A log-normal survival fit whose covariates reproduce every event time
+  exactly is now refused too.** The exact-fit guard ran only for
+  `family = "normal"`, and a log-normal AFT is a normal model for `log(t)`
+  with a positive scale: the same singularity is there. With `n` uncensored
+  index rows, a design of rank `r` that reaches every `log(t)`, and the
+  coefficients integrated out, the density of `sdlog` behaves as
+  `sdlog^(r - n)` near zero and does not integrate for any `n` above `r`.
+  `prior_aux` defaults to a half-normal and every supported alternative has
+  positive density at zero, so none of them repairs it, and no convergence
+  diagnostic can: the sampler drifts toward zero and reports where it
+  stopped. `mlumr()` now decides this before dispatch, with the same exact
+  geometry the normal guard uses.
+
+  Four limits, each deliberate. Only `"lognormal"`, whose auxiliary
+  parameter *is* the log-scale SD: the Weibull, log-logistic, gamma and
+  generalized gamma are log-location-scale families too, but their auxiliary
+  is a shape, so the same exact fit sends it to `+Inf`, where a half-normal
+  or exponential prior's tail integrates the growth and a half-t's need not.
+  Propriety is then a property of the prior rather than of the data, and
+  refusing the data would refuse well-posed default fits, so those four
+  warn instead. Only when the index study holds the scale alone, which
+  `aux_by = ".study"` (the default) and `NULL` give it and `aux_by = "none"`
+  does not. Right-censored rows are consulted: one whose fitted time falls
+  below its censoring time has survival going to zero faster than any power
+  of the scale and makes the posterior proper on its own, while one at or
+  above does nothing, and when the fit on the event rows does not determine
+  those predictors the question is refused as undecided rather than guessed.
+  Delayed entry, left censoring and interval censoring are not examined, and
+  neither is the comparator side.
+
 * **A normal fit whose covariates reproduce the outcome exactly is now
   refused.** Integrating out the coefficients leaves a marginal density for
   the residual SD proportional to `sigma^(rank - n)` near zero, which does not

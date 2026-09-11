@@ -500,6 +500,213 @@
 }
 
 
+#' Refuse a log-normal survival fit whose exact events collapse its scale
+#'
+#' A log-normal AFT is a normal model for `log(t)` with a positive scale
+#' `sdlog`, and its exact-event density has exactly the singularity that
+#' [.check_normal_residual_variation()] refuses. With `n` uncensored index
+#' rows, a design of rank `r` that reproduces every `log(t)` exactly, and the
+#' coefficients integrated out, the marginal density of the scale behaves as
+#' `sdlog^(r - n)` near zero. Its integral diverges for every `n > r`, and no
+#' prior with positive density at zero repairs it: `prior_aux` defaults to a
+#' half-normal, and the half-t and exponential alternatives all have positive
+#' density there. The sampler would drift toward zero and report where it
+#' stopped.
+#'
+#' Four scopes, each a deliberate limit rather than a certificate.
+#'
+#' **The distribution.** Only `"lognormal"`, whose auxiliary parameter *is*
+#' the log-scale standard deviation. The Weibull, log-logistic, gamma and
+#' generalized gamma are log-location-scale families too, but their auxiliary
+#' is a shape, the reciprocal of a scale, so the same exact fit sends it to
+#' `+Inf` rather than to zero. The likelihood there grows polynomially in the
+#' shape and a half-normal or exponential prior's tail integrates it, while a
+#' half-t's may not: propriety is a property of the prior, not of the data,
+#' and refusing the data would refuse well-posed default fits. A warning says
+#' so instead.
+#'
+#' **The auxiliary stratification.** Only when the index study holds the scale
+#' alone, which `aux_by = ".study"` (the default) and `NULL` both give it.
+#' Under `aux_by = "none"` the comparator rows enter the same parameter and
+#' their own residuals bound it away from zero.
+#'
+#' **Censoring.** A right-censored row at `c` whose fitted `eta` is below
+#' `log(c)` has survival going to zero faster than any power of the scale, and
+#' it makes the posterior proper on its own. One at or above `log(c)` has
+#' survival going to one half or one and does nothing. So censored rows are
+#' consulted, and only when the fit on the event rows determines their linear
+#' predictors, which it does when that design has full column rank. Otherwise
+#' the question is left undecided and said to be.
+#'
+#' **Delayed entry, left and interval censoring.** Not examined. Their
+#' contributions are conditional probabilities whose limits are a separate
+#' argument, and a guess in either direction would be worse than silence.
+#'
+#' The comparator side is not examined either: its reconstructed rows enter a
+#' likelihood marginalized over the integration grid, which is not this
+#' geometry.
+#'
+#' @param data An `mlumr_data` object with `family = "survival"`.
+#' @param distribution The resolved survival distribution.
+#' @param aux_by The auxiliary stratification, as passed to [mlumr()].
+#' @param center The centers the model subtracts from the covariates, as for
+#'   [.check_normal_residual_variation()].
+#' @return `TRUE` invisibly if the data were warned about, `FALSE` otherwise.
+#' @keywords internal
+.check_survival_scale_collapse <- function(data, distribution,
+                                           aux_by = ".study",
+                                           center = TRUE) {
+  shape_families <- c("weibull", "weibull-aft", "loglogistic", "gamma",
+                      "gengamma")
+  if (!distribution %in% c("lognormal", shape_families)) {
+    return(invisible(FALSE))
+  }
+  if (!is.null(aux_by) && !identical(aux_by, ".study")) {
+    return(invisible(FALSE))
+  }
+  ipd <- data$ipd$data
+  status <- ipd$.status
+  delay <- ipd$.delay_time %||% rep(0, nrow(ipd))
+  time <- suppressWarnings(as.numeric(ipd$.time))
+  if (is.null(status) || !length(time)) return(invisible(FALSE))
+  if (any(!status %in% c(0L, 1L)) || any(delay > 0, na.rm = TRUE)) {
+    return(invisible(FALSE))
+  }
+  events <- status == 1L
+  if (!any(events)) return(invisible(FALSE))
+  covariates <- as.matrix(ipd[, data$covariates, drop = FALSE])
+  y <- suppressWarnings(log(time))
+  # Not the place to diagnose non-finite or non-positive inputs: the
+  # validators that own that question run their own checks.
+  if (!all(is.finite(y)) || !all(is.finite(covariates))) {
+    return(invisible(FALSE))
+  }
+  if (isTRUE(center)) {
+    center <- apply(covariates, 2, function(v) max(v) / 2 + min(v) / 2)
+  }
+  if (is.numeric(center)) {
+    covariates <- sweep(covariates, 2, as.numeric(center))
+    if (!all(is.finite(covariates))) return(invisible(FALSE))
+  }
+  X <- cbind(1, covariates)
+  s <- .residual_variation_status(X[events, , drop = FALSE], y[events],
+                                  "identity")
+  if (s$status %in% c("positive", "near_exact")) return(invisible(FALSE))
+  if (identical(s$status, "saturated")) {
+    warning("The uncensored index rows are as many as the free columns of ",
+            "their design (", s$n, " rows, rank ", s$rank, "), so it ",
+            "reproduces every event time exactly and leaves no residual ",
+            "degrees of freedom. The posterior is proper, but nothing in ",
+            "the index data separates ", .aux_name(distribution), " from ",
+            "the coefficients, so what is reported for it is potentially ",
+            "strongly sensitive to `prior_beta`.", call. = FALSE)
+    return(invisible(TRUE))
+  }
+  if (distribution %in% shape_families) {
+    warning("The index covariates fit every event time exactly on the log ",
+            "scale, so the likelihood grows without limit as the ",
+            distribution, " shape does. Whether a posterior exists then ",
+            "depends on the tail of `prior_aux`: a half-normal or an ",
+            "exponential integrates it and a half-t need not, so what is ",
+            "reported for the shape is a property of that prior rather than ",
+            "of the data. The event times need variation the covariates do ",
+            "not explain, or an observation process (a measurement error or ",
+            "a rounding scale) that supplies one.", call. = FALSE)
+    return(invisible(TRUE))
+  }
+  advice <- paste(
+    "This is a property of the data, not a setting: the event times need",
+    "variation the covariates do not explain, or the model needs an",
+    "observation process (a rounding or measurement scale) that supplies",
+    "one. Rounded times may need an interval-censored representation;",
+    "jitter and a hidden floor on the scale are not honest substitutes."
+  )
+  improper <- paste(
+    "The posterior for the log-normal `sdlog` is improper: with the",
+    "coefficients integrated out its density behaves as sdlog^(rank - n)",
+    "near zero and does not integrate, and the sampler would drift toward",
+    "zero and report where it stopped."
+  )
+  undecided <- function(why) {
+    stop("Whether the log-normal `sdlog` has a proper posterior could not be ",
+         "decided: ", why, ". A possibly improper posterior is not one to ",
+         "sample, so the model is refused rather than passed as proper. ",
+         advice, call. = FALSE)
+  }
+  if (identical(s$status, "unresolved")) {
+    undecided(sprintf(paste0("the index design has %d exactly independent ",
+                             "columns and a factorization at machine ",
+                             "precision resolves only %d, so whether the ",
+                             "event times are reproduced through that ",
+                             "column cannot be told at double precision"),
+                      s$rank, s$numerical_rank))
+  }
+  if (s$status %in% c("undecidable", "unresolved_log")) {
+    undecided(paste("the index covariates fit the log event times to within",
+                    "rounding, and at double precision nothing tells that",
+                    "from an exact fit"))
+  }
+  # An exact fit. A right-censored row can still bound the scale away from
+  # zero, but only one whose fitted time falls below its censoring time.
+  if (any(!events)) {
+    bound <- .lognormal_censoring_bound(X, y, events)
+    if (identical(bound, "bounded")) return(invisible(FALSE))
+    if (!identical(bound, "unbounded")) {
+      undecided(paste("the index covariates fit every event time exactly, and",
+                      "the censored rows' linear predictors are not",
+                      "determined by that fit, so whether one of them falls",
+                      "below its censoring time could not be told"))
+    }
+    stop("The index covariates fit every event time exactly on the log ",
+         "scale, and no censored row is predicted to fail before it was ",
+         "censored, so none of them bounds the scale away from zero. ",
+         improper, " ", advice, call. = FALSE)
+  }
+  stop("The index covariates fit every event time exactly on the log scale: ",
+       s$n, " uncensored rows against a design of rank ", s$rank,
+       ", with no censored row to bound the scale. ", improper, " ", advice,
+       call. = FALSE)
+}
+
+
+#' Whether a censored row bounds the log-normal scale away from zero
+#'
+#' The event rows are fitted exactly, so the scale collapses unless some
+#' censored row's survival goes to zero with it. That happens when the row's
+#' linear predictor is strictly below the log of its censoring time, and it
+#' is a question about the exact solution, which is unique exactly when the
+#' event design has full column rank. Without that the exact solutions form
+#' an affine family and the censored predictors move with it.
+#'
+#' @param X The full centered design, intercept first.
+#' @param y `log(time)` for every row.
+#' @param events Logical, which rows are events.
+#' @return `"bounded"`, `"unbounded"`, or `"undetermined"`.
+#' @keywords internal
+.lognormal_censoring_bound <- function(X, y, events) {
+  Xe <- X[events, , drop = FALSE]
+  if (.exact_rank(Xe)$rank < ncol(X)) return("undetermined")
+  beta <- tryCatch(stats::lm.fit(Xe, y[events])$coefficients,
+                   error = function(e) NULL)
+  if (is.null(beta) || !all(is.finite(beta))) return("undetermined")
+  eta <- as.vector(X[!events, , drop = FALSE] %*% beta)
+  if (!all(is.finite(eta))) return("undetermined")
+  if (any(eta < y[!events])) "bounded" else "unbounded"
+}
+
+
+#' The auxiliary parameter a survival distribution calls its own
+#' @keywords internal
+.aux_name <- function(distribution) {
+  switch(distribution,
+         lognormal = "`sdlog`",
+         loglogistic = "the log-logistic shape",
+         gamma = "the gamma shape",
+         gengamma = "the generalized-gamma shape",
+         "the Weibull shape")
+}
+
+
 #' The near-exact screen for a log-link outcome with non-positive values
 #'
 #' The response-scale fit on the whole outcome, started from the positive
@@ -1387,6 +1594,14 @@ mlumr <- function(data,
   if (family == "normal") {
     .check_normal_residual_variation(data, link_info$link,
                                      center = stan_data$cov_center)
+  }
+  # A log-normal AFT is a normal model for log(t), so the same exact fit
+  # makes the same improper posterior. The other log-location-scale
+  # distributions carry a shape rather than a scale and are warned about.
+  if (family == "survival") {
+    .check_survival_scale_collapse(data, surv_info$distribution,
+                                   aux_by = aux_by,
+                                   center = stan_data$cov_center)
   }
 
   # Select Stan model. family_config gives the default prefix; the survival
