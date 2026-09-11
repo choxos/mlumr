@@ -27,7 +27,11 @@
   half-normal or exponential prior's tail integrates the growth and a
   half-t's need not. Propriety is then a property of the prior rather than
   of the data, and refusing the data would refuse well-posed default fits,
-  so those three warn instead.
+  so those warn instead. The Gompertz is one of them: its hazard drives the
+  intercept to about `-shape` at an exact fit, and with the coefficient
+  integrated out the marginal goes as `shape^(n - rank - 1)`, so a Cauchy on
+  both `prior_aux` and `prior_intercept` leaves a tail that does not
+  integrate. It previously received no diagnosis at all.
 
   A saturated design, with as many uncensored rows as its design has free
   columns, is an exact fit too: it reproduces every event time and leaves no

@@ -601,7 +601,15 @@
   # `gengamma` belongs with `lognormal`, not with the shapes: its first
   # auxiliary is the Lawless `sigma`, a scale, and its shape is the second.
   scale_families <- c("lognormal", "gengamma")
-  shape_families <- c("weibull", "weibull-aft", "loglogistic", "gamma")
+  # Gompertz belongs here too. Left out, it got no diagnosis at all, not
+  # even the prior-sensitivity warning the others get. Three repeated events
+  # at t = 1 on an intercept-only design drive the intercept to
+  # `log(a) - log(expm1(a))`, about -a, and with the coefficient integrated
+  # out against a Cauchy `prior_intercept` the marginal slope
+  # `d log M / d log a` is 1.000 at a = 1e6. A Cauchy `prior_aux`
+  # contributes a^-2, which leaves a^-1 and does not integrate.
+  shape_families <- c("weibull", "weibull-aft", "loglogistic", "gamma",
+                      "gompertz")
   if (!distribution %in% c(scale_families, shape_families)) {
     return(invisible(FALSE))
   }
@@ -891,6 +899,17 @@
       "the intercept to fall like `-log(shape)` as the shape grows. That ",
       "makes `prior_intercept` bear on propriety as well, and a normal one ",
       "integrates the ridge even where `prior_aux` alone would not."
+    ),
+    gompertz = paste0(
+      " The ridge here does not hold the coefficients fixed: the hazard is ",
+      "`shape * exp(shape * t + eta)`, so an exact fit at a common event ",
+      "time drives the intercept to `log(shape) - log(expm1(shape))`, which ",
+      "is about `-shape`. With the coefficient integrated out on an ",
+      "intercept-only design the marginal goes as `shape^(n - rank - 1)`: ",
+      "measured slopes are -1.000 at `n = rank`, 0.000 one row above it and ",
+      "1.000 two rows above. `prior_intercept` therefore bears on propriety ",
+      "as much as `prior_aux` does, and an ordinary normal one integrates ",
+      "the ridge where a Cauchy on both does not."
     ),
     weibull = paste0(
       " The ridge here does not hold the coefficients fixed: this is the ",
@@ -1238,6 +1257,7 @@
          loglogistic = "the log-logistic shape",
          gamma = "the gamma shape",
          gengamma = "the generalized-gamma scale `sigma`",
+         gompertz = "the Gompertz shape",
          "the Weibull shape")
 }
 

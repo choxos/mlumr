@@ -733,6 +733,38 @@ test_that("the propriety verdict does not depend on the predictor's units", {
   }
 })
 
+test_that("gompertz is diagnosed rather than passed in silence", {
+  # It was in neither family list, so the guard returned before saying
+  # anything at all. Its hazard is `a exp(a t + eta)`, so an exact fit at a
+  # common event time drives the intercept to `log(a) - log(expm1(a))`,
+  # about -a. With the coefficient integrated out against a Cauchy
+  # `prior_intercept` on an intercept-only design, `d log M / d log a` at
+  # a = 1e6 is -1.000 with one event row, 0.000 with two and 1.000 with
+  # three: the marginal goes as `shape^(n - rank - 1)`. A Cauchy `prior_aux`
+  # contributes a^-2, so three rows leave a^-1, which does not integrate.
+  expect_warning(check(.surv_stub(rep(1, 4)), distribution = "gompertz"),
+                 "depends on the tail of `prior_aux`")
+  w <- expect_warning(check(.surv_stub(rep(1, 4)), distribution = "gompertz"))
+  # The intercept prior is named, since the ridge moves it rather than
+  # leaving it where it was.
+  expect_match(conditionMessage(w), "`prior_intercept` therefore bears")
+  expect_match(conditionMessage(w), "log\\(expm1\\(shape\\)\\)")
+  # A censored row that bounds the shape still suppresses the warning.
+  expect_false(check(.surv_stub(c(1, 1, 1, exp(3)), status = c(1L, 1L, 1L, 0L),
+                                x = c(-0.5, -0.5, 0.5, 0.5)),
+                     distribution = "gompertz"))
+  # And a saturated fit is proper for it: the measured slope there is
+  # -1.000, so it takes the branch that says so rather than the prior-tail
+  # warning, which only the proportional-hazards Weibull keeps.
+  sat <- .surv_stub(c(1, exp(1)), status = c(1L, 1L), x = c(-0.5, 0.5))
+  w2 <- expect_warning(check(sat, distribution = "gompertz"))
+  expect_match(conditionMessage(w2), "as many as the free columns")
+  expect_false(grepl("tail of `prior_aux`", conditionMessage(w2)))
+  # That branch names the auxiliary, and the name is the Gompertz one
+  # rather than the Weibull fallback it used to take.
+  expect_match(conditionMessage(w2), "the Gompertz shape")
+})
+
 test_that("the shape warning names the prior that actually settles it", {
   # The exact-fit ridge does not move the same way for all four. Under the
   # AFT parameterizations an exact fit pins eta at log(t) and the ridge
