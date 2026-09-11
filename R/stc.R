@@ -128,10 +128,21 @@
 #' response surface standardized to the comparator covariate distribution,
 #' contrasted with the comparator outcome as it was observed. That
 #' difference is what `$rd` reports for a binomial outcome and `$md` for a
-#' normal one; it is not `$estimate`, which is the link-scale contrast of
-#' the same two standardized quantities, a marginal log odds ratio under a
-#' binomial logit, a log rate ratio under Poisson and a log mean ratio under
-#' a log link, as the scale note above says. No comparator response model is
+#' normal one. Whether it is also `$estimate` depends on the link. Under the
+#' normal identity link it is: `$estimate` is that same mean difference.
+#' Under a nonlinear link it is not, and `$estimate` is instead the
+#' link-scale contrast of the two standardized quantities, a marginal log
+#' odds ratio under a binomial logit, a log rate ratio under Poisson and a
+#' log mean ratio under a log link, as the scale note above says.
+#'
+#' The paragraph above is about the GLM families. Survival STC reaches its
+#' estimand by a different route: the comparator side is summarized by an
+#' intercept-only [flexsurv::flexsurvreg()] fit to the reconstructed
+#' pseudo-IPD, and its fitted RMST is contrasted with the index RMST
+#' standardized to the comparator covariates. A comparator model is
+#' therefore fitted there, although it carries no covariates and so nothing
+#' is transported into it, which is why `beta_A = beta_B` is not among the
+#' assumptions on that path either. No comparator response model is
 #' fitted and none is transported, so `beta_A = beta_B` is not among the
 #' assumptions and effect modification by itself is not a reason to set STC
 #' aside. With a binary covariate at comparator prevalence 0.75 and index
