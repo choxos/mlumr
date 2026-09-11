@@ -46,10 +46,14 @@ test_that("event times with residual variation pass silently", {
   expect_false(check(d))
 })
 
-test_that("a shared auxiliary is not the index study's to collapse", {
-  # Under aux_by = "none" the comparator rows enter the same parameter and
-  # their own residuals bound it away from zero.
-  expect_false(check(.surv_stub(rep(1, 4)), aux_by = "none"))
+test_that("a shared auxiliary is not the index study's to refuse", {
+  # Under aux_by = "none" the comparator rows enter the same parameter, so
+  # the index geometry alone does not settle propriety and the fit is not
+  # refused on it. Sharing does not establish propriety either, which is the
+  # subject of its own test below.
+  expect_warning(check(.surv_stub(rep(1, 4)), aux_by = "none"))
+  expect_error(suppressWarnings(check(.surv_stub(rep(1, 4)), aux_by = "none")),
+               NA)
   # `.study` and NULL are the same stratification and both are examined.
   expect_error(check(.surv_stub(rep(1, 4)), aux_by = NULL), "improper")
 })
@@ -117,11 +121,16 @@ test_that("delayed entry and left or interval censoring are not examined", {
 })
 
 test_that("as many event rows as free columns warns about the prior instead", {
-  # Two events on a rank-2 design: the posterior is proper, and nothing in
-  # the index data separates the scale from the coefficients.
-  d <- .surv_stub(c(1, exp(1), exp(2), exp(3)),
-                  status = c(1L, 1L, 0L, 0L),
-                  x = c(-0.5, 0.5, -0.5, 0.5))
+  # Two events on a rank-2 design and nothing else: the posterior is proper,
+  # and nothing in the index data separates the scale from the coefficients.
+  #
+  # No censored row here, deliberately. This fixture used to carry two, at
+  # exp(2) and exp(3) against fitted times of 1 and exp(1), so both were
+  # predicted to fail long before they were censored and both bounded the
+  # scale. The warning below was false for that data, and the censored rows
+  # were not being consulted before it was issued. The bounded version is
+  # asserted to be silent in its own test.
+  d <- .surv_stub(c(1, exp(1)), status = c(1L, 1L), x = c(-0.5, 0.5))
   expect_warning(check(d), "as many as the free columns")
   expect_warning(check(d), "sensitive to `prior_beta`")
 })
@@ -216,4 +225,59 @@ test_that("a nearly exact fit warns about the boundary the sampler works at", {
   expect_warning(check(d), "`sdlog` will concentrate")
   expect_warning(check(d, distribution = "weibull"),
                  "the Weibull shape will concentrate")
+})
+
+test_that("a bounding censored row is consulted before every boundary message", {
+  # `near_exact` and `saturated` used to warn before the censored rows were
+  # looked at, so a row that holds the auxiliary away from its boundary got
+  # a warning saying it would concentrate there, or that nothing in the
+  # index data separates it from the coefficients. Both are untrue once such
+  # a row is present, and the documented behavior says censoring suppresses
+  # the message.
+  #
+  # Nearly exact events plus a censored row fitted to fail well before it
+  # was censored.
+  near <- .surv_stub(exp(c(-1, -1, 1, 1, 3) + c(0, 1e-9, 0, 1e-9, 0)),
+                     status = c(1L, 1L, 1L, 1L, 0L),
+                     x = c(-0.5, -0.5, 0.5, 0.5, -0.5))
+  expect_silent(check(near))
+  expect_false(check(near))
+  # Saturated events (two rows, rank two) plus the same kind of censored row.
+  sat <- .surv_stub(c(exp(-1), exp(1), exp(3)), status = c(1L, 1L, 0L),
+                    x = c(-0.5, 0.5, -0.5))
+  expect_silent(check(sat))
+  expect_false(check(sat))
+  # Without that row both still say what they said.
+  expect_warning(check(.surv_stub(exp(c(-1, -1, 1, 1) + c(0, 1e-9, 0, 1e-9)))),
+                 "concentrate against its boundary")
+  expect_warning(check(.surv_stub(c(exp(-1), exp(1)), status = c(1L, 1L),
+                                  x = c(-0.5, 0.5))),
+                 "as many as the free columns")
+})
+
+test_that("a shared auxiliary is reported, not assumed to be bounded", {
+  # `aux_by = "none"` returned silently, on the reading that the comparator
+  # rows sharing the parameter bound it. They need not: a comparator of
+  # right-censored rows whose fitted times sit above their censoring times
+  # contributes a likelihood tending to one at the boundary. That question
+  # belongs to the marginalized aggregate likelihood, which this check does
+  # not see, so it warns rather than either refusing or staying silent.
+  d <- .surv_stub(rep(1, 4))
+  expect_warning(out <- check(d, aux_by = "none"),
+                 "sharing does not bound it on its own")
+  expect_true(out)
+  for (dist in c("lognormal", "gengamma", "weibull", "gamma")) {
+    expect_warning(check(d, distribution = dist, aux_by = "none"),
+                   "does not examine")
+  }
+  # And it is a warning in place of the refusal, not beside it: the same
+  # data under the default stratification is refused.
+  expect_error(check(d), "improper")
+  # A censored row that bounds the parameter still silences it.
+  bounded <- .surv_stub(c(1, 1, 1, exp(3)), status = c(1L, 1L, 1L, 0L))
+  expect_false(check(bounded, aux_by = "none"))
+  # A near-exact fit is proper whatever the comparator does, so it is left
+  # alone rather than warned about a second time.
+  expect_silent(check(.surv_stub(exp(c(-1, -1, 1, 1) + c(0, 1e-9, 0, 1e-9))),
+                      aux_by = "none"))
 })

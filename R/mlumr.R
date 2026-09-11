@@ -535,10 +535,16 @@
 #' default fits. A warning says so instead, and a censored row that bounds
 #' the shape suppresses it, as it does for a scale.
 #'
-#' **The auxiliary stratification.** Only when the index study holds the scale
-#' alone, which `aux_by = ".study"` (the default) and `NULL` both give it.
-#' Under `aux_by = "none"` the comparator rows enter the same parameter and
-#' their own residuals bound it away from zero.
+#' **The auxiliary stratification.** Decided only when the index study holds
+#' the scale alone, which `aux_by = ".study"` (the default) and `NULL` both
+#' give it. Under `aux_by = "none"` the comparator rows enter the same
+#' parameter, and sharing does not bound it by itself: a comparator of
+#' right-censored rows whose fitted times sit above their censoring times
+#' contributes a likelihood tending to one as the scale goes to zero, which
+#' repairs nothing. Whether it bounds the parameter is a question about the
+#' marginalized aggregate likelihood, which this geometry does not see, so
+#' that case is reported rather than decided, and warned about rather than
+#' refused.
 #'
 #' **Censoring.** A right-censored row at `c` whose fitted `eta` is below
 #' `log(c)` has survival going to zero faster than any power of the scale, and
@@ -546,7 +552,10 @@
 #' survival going to one half or one and does nothing. So censored rows are
 #' consulted, and only when the fit on the event rows determines their linear
 #' predictors, which it does when that design has full column rank. Otherwise
-#' the question is left undecided and said to be.
+#' the question is left undecided and said to be. They are consulted BEFORE
+#' any message is issued, including the near-exact and saturated ones: a row
+#' that bounds the parameter makes every one of those messages untrue, not
+#' just the refusal.
 #'
 #' **Delayed entry, left and interval censoring.** Not examined. Their
 #' contributions are conditional probabilities whose limits are a separate
@@ -573,7 +582,8 @@
   if (!distribution %in% c(scale_families, shape_families)) {
     return(invisible(FALSE))
   }
-  if (!is.null(aux_by) && !identical(aux_by, ".study")) {
+  shared_aux <- identical(aux_by, "none")
+  if (!is.null(aux_by) && !identical(aux_by, ".study") && !shared_aux) {
     return(invisible(FALSE))
   }
   ipd <- data$ipd$data
@@ -604,6 +614,52 @@
   s <- .residual_variation_status(X[events, , drop = FALSE], y[events],
                                   "identity")
   if (identical(s$status, "positive")) return(invisible(FALSE))
+  # A right-censored row can bound the auxiliary away from its boundary, but
+  # only one whose fitted time falls below its censoring time. The argument
+  # is the same whichever boundary it is: S(c) = 1 - Phi((log c - eta) / sigma)
+  # goes to zero as sigma does, and exp(-(c e^-eta)^k) goes to zero as k
+  # grows, both faster than the likelihood's polynomial growth.
+  #
+  # This is consulted BEFORE any message below, not between them. Such a row
+  # makes every one of these untrue, not only the refusal: an auxiliary held
+  # away from its boundary does not concentrate against it, and a design that
+  # leaves no residual degree of freedom is not the only thing informing the
+  # auxiliary once a censored row does.
+  bound <- if (any(!events)) {
+    .censoring_bounds_aux(X, y, events)
+  } else {
+    "unbounded"
+  }
+  if (identical(bound, "bounded")) return(invisible(FALSE))
+
+  if (shared_aux) {
+    # `aux_by = "none"` puts the comparator rows in the same parameter.
+    # Sharing does not bound it by itself: a comparator of right-censored
+    # rows whose fitted times sit above their censoring times contributes a
+    # likelihood tending to one as the scale goes to zero, and repairs
+    # nothing. Whether it does bound it is a property of the marginalized
+    # aggregate likelihood, which this geometry does not see, so the case is
+    # reported rather than decided, and is not refused on a guess.
+    #
+    # A near-exact fit is left alone here: its residual is real, so the
+    # posterior is proper whatever the comparator does, and the comparator
+    # sharing the parameter only makes concentration less likely.
+    if (identical(s$status, "near_exact")) return(invisible(FALSE))
+    warning("The index event rows leave nothing to bound ",
+            .aux_name(distribution), " away from its boundary, and no ",
+            "censored index row bounds it either. Under `aux_by = \"none\"` ",
+            "the comparator rows share that parameter, but sharing does not ",
+            "bound it on its own: a comparator of right-censored rows whose ",
+            "fitted times sit above their censoring times contributes a ",
+            "likelihood tending to one at the boundary. Whether the ",
+            "comparator bounds it is a property of the marginalized ",
+            "aggregate likelihood, which this check does not examine, so ",
+            "the fit is neither refused nor passed as proper: check the ",
+            "sampler's behavior near the boundary and the sensitivity to ",
+            "`prior_aux`.", call. = FALSE)
+    return(invisible(TRUE))
+  }
+
   if (identical(s$status, "near_exact")) {
     # The same reasoning as [.warn_near_exact()], about this parameter: the
     # residual is real and the posterior proper, and the auxiliary will
@@ -628,18 +684,6 @@
             "strongly sensitive to `prior_beta`.", call. = FALSE)
     return(invisible(TRUE))
   }
-  # An exact fit. A right-censored row can still bound the auxiliary away
-  # from its boundary, but only one whose fitted time falls below its
-  # censoring time. The argument is the same whichever boundary it is:
-  # S(c) = 1 - Phi((log c - eta) / sigma) goes to zero as sigma does, and
-  # exp(-(c e^-eta)^k) goes to zero as k grows, both faster than the
-  # likelihood's polynomial growth.
-  bound <- if (any(!events)) {
-    .censoring_bounds_aux(X, y, events)
-  } else {
-    "unbounded"
-  }
-  if (identical(bound, "bounded")) return(invisible(FALSE))
 
   # Only `exact` and `constant` are exact fits. `constant` is one because the
   # design carries an intercept, so identical event times are reproduced by

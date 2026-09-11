@@ -59,10 +59,16 @@ the prior, not of the data, and refusing the data would refuse well-posed
 default fits. A warning says so instead, and a censored row that bounds
 the shape suppresses it, as it does for a scale.
 
-\strong{The auxiliary stratification.} Only when the index study holds the scale
-alone, which \code{aux_by = ".study"} (the default) and \code{NULL} both give it.
-Under \code{aux_by = "none"} the comparator rows enter the same parameter and
-their own residuals bound it away from zero.
+\strong{The auxiliary stratification.} Decided only when the index study holds
+the scale alone, which \code{aux_by = ".study"} (the default) and \code{NULL} both
+give it. Under \code{aux_by = "none"} the comparator rows enter the same
+parameter, and sharing does not bound it by itself: a comparator of
+right-censored rows whose fitted times sit above their censoring times
+contributes a likelihood tending to one as the scale goes to zero, which
+repairs nothing. Whether it bounds the parameter is a question about the
+marginalized aggregate likelihood, which this geometry does not see, so
+that case is reported rather than decided, and warned about rather than
+refused.
 
 \strong{Censoring.} A right-censored row at \code{c} whose fitted \code{eta} is below
 \code{log(c)} has survival going to zero faster than any power of the scale, and
@@ -70,7 +76,10 @@ it makes the posterior proper on its own. One at or above \code{log(c)} has
 survival going to one half or one and does nothing. So censored rows are
 consulted, and only when the fit on the event rows determines their linear
 predictors, which it does when that design has full column rank. Otherwise
-the question is left undecided and said to be.
+the question is left undecided and said to be. They are consulted BEFORE
+any message is issued, including the near-exact and saturated ones: a row
+that bounds the parameter makes every one of those messages untrue, not
+just the refusal.
 
 \strong{Delayed entry, left and interval censoring.} Not examined. Their
 contributions are conditional probabilities whose limits are a separate
