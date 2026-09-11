@@ -633,26 +633,38 @@ test_that("the shape warning names the prior that actually settles it", {
   }
 })
 
-test_that("a saturated shape fit is not promised a proper posterior", {
-  # Saturated IS an exact fit: a design with as many free columns as event
-  # rows reproduces every one of them. So a shape family diverges here for
-  # the same reason it does under `exact`, and the propriety the scale
-  # families get is not something to claim for it.
+test_that("a saturated shape fit is promised propriety only where it holds", {
+  # Saturated IS an exact fit, but `n == rank` is the one case where
+  # integrating the coefficients out cancels the auxiliary's growth exactly.
+  # Measured as `d log M / d log shape` from 10 to 1e6 on this design, with
+  # the coefficients integrated against their default priors: 0.000 for
+  # `weibull-aft`, 0.002 for `loglogistic` and negative throughout for
+  # `gamma`. Telling those three that propriety turns on the `prior_aux`
+  # tail was a false diagnosis.
   #
-  # The concrete case: two rank-2 PH Weibull event rows both at t = 1. The
-  # profile likelihood is exactly `k^2 e^-2`, verified by optimizing over
-  # eta at k = 1, 10, 100, 1000, where `L / k^2` is 0.135335 throughout: the
-  # coefficients stay at eta = 0 rather than moving into their prior tails.
-  # `prior_cauchy()` is a supported `prior_aux` and contributes only `k^-2`,
-  # so the tail is constant and does not integrate.
+  # The proportional-hazards Weibull is the exception, and this is the
+  # concrete case: two rank-2 rows both at t = 1. The profile likelihood is
+  # exactly `k^2 e^-2`, verified by optimizing over eta at k = 1, 10, 100,
+  # 1000, where `L / k^2` is 0.135335 throughout, and the marginal slope is
+  # exactly 2.000 over eight decades. The coefficients stay at eta = 0
+  # rather than moving into their prior tails, and `prior_cauchy()` is a
+  # supported `prior_aux` contributing only `k^-2`, so the tail is constant
+  # and does not integrate.
   d <- .surv_stub(c(1, 1), status = c(1L, 1L), x = c(-0.5, 0.5))
-  for (dist in c("weibull", "weibull-aft", "loglogistic", "gamma")) {
+  w <- expect_warning(check(d, distribution = "weibull"))
+  expect_match(conditionMessage(w), "tail of `prior_aux`")
+  expect_false(grepl("The posterior is proper", conditionMessage(w)))
+  # It still says what the geometry is, which is why it is exact.
+  expect_match(conditionMessage(w), "as many as the free columns")
+  for (dist in c("weibull-aft", "loglogistic", "gamma")) {
     w <- expect_warning(check(d, distribution = dist))
-    expect_match(conditionMessage(w), "tail of `prior_aux`")
-    expect_false(grepl("The posterior is proper", conditionMessage(w)),
+    expect_match(conditionMessage(w), "The posterior is proper")
+    # The exponent named is the shape's GROWTH, not a scale density's.
+    expect_match(conditionMessage(w), "exponent `n - rank`")
+    expect_match(conditionMessage(w),
+                 "sensitive to `prior_intercept` and `prior_beta`")
+    expect_false(grepl("tail of `prior_aux`", conditionMessage(w)),
                  label = dist)
-    # It still says what the geometry is, which is why it is exact.
-    expect_match(conditionMessage(w), "as many as the free columns")
   }
   # The scale families keep the propriety claim, and it is right for them:
   # the exponent is `rank - n`, which is zero when the design is saturated.
@@ -661,6 +673,17 @@ test_that("a saturated shape fit is not promised a proper posterior", {
     expect_match(conditionMessage(w), "The posterior is proper")
     expect_match(conditionMessage(w), "rank - n")
     expect_match(conditionMessage(w), "prior_beta")
+  }
+  # The exemption belongs to `n == rank` alone. With more uncensored rows
+  # than the rank the cancellation is partial and the growth returns: the
+  # same measurement on three rows over a rank-2 design gives 1.000 for
+  # `weibull-aft` and `loglogistic` and 0.487 for `gamma`, which are
+  # `n - rank` and `(n - rank) / 2`. Every shape family is warned about
+  # there, as before.
+  d4 <- .surv_stub(rep(1, 4))
+  for (dist in c("weibull", "weibull-aft", "loglogistic", "gamma")) {
+    expect_warning(check(d4, distribution = dist),
+                   "depends on the tail of `prior_aux`")
   }
 })
 

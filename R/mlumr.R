@@ -722,23 +722,49 @@
             call. = FALSE)
     return(invisible(TRUE))
   }
-  # Saturated is an exact fit, so a shape family diverges here for the same
-  # reason it does under `exact`, and the propriety below is not something
-  # to claim for one. With two rank-2 PH Weibull event rows both at t = 1,
-  # the profile likelihood is exactly `k^2 e^-2`: the coefficients stay at
-  # eta = 0 rather than moving into their prior tails, and a `prior_cauchy()`
-  # auxiliary contributes only `k^-2`, so the tail is constant and does not
-  # integrate. Those go to the shape warning, which says propriety turns on
-  # `prior_aux`, instead of being told the posterior is proper.
-  if (identical(s$status, "saturated") && !distribution %in% shape_families) {
+  # Saturated is an exact fit, but it does not diverge for every family:
+  # `n == rank` is exactly the case where integrating the coefficients out
+  # cancels the auxiliary's growth. The AFT location-scale parameterizations
+  # put each event density's peak at the shape and its width in the location
+  # at one over the shape, so the `shape^n` growth meets a `shape^-n` from
+  # the coefficient integral and the marginal is CONSTANT in the shape.
+  # Measured as `d log M / d log shape` from 10 to 1e6, integrating the
+  # coefficients against their default priors: 0.000 for `weibull-aft`,
+  # 0.002 for `loglogistic`, and negative throughout for `gamma`, whose
+  # exact fit also drags the intercept to `-log(shape)` and into a proper
+  # prior's tail.
+  #
+  # The proportional-hazards Weibull is the exception. Its cumulative hazard
+  # is `t^shape e^eta`, so the width in the location stays of order one and
+  # nothing cancels: two rank-2 rows both at `t = 1` give a slope of exactly
+  # 2.000 over eight decades, which is `shape^n`. The coefficients stay at
+  # eta = 0 rather than moving into their prior tails, and a
+  # `prior_cauchy()` auxiliary contributes only `shape^-2`, so the tail is
+  # constant and does not integrate. That one keeps the divergence warning.
+  #
+  # None of this survives `n > rank`, where the cancellation is partial and
+  # the growth returns: the same measurement on three rows over a rank-2
+  # design gives 1.000 for `weibull-aft` and `loglogistic` and 0.487 for
+  # `gamma`, which are `n - rank` and `(n - rank) / 2`. So the exemption is
+  # a property of `saturated` alone, and `exact` keeps the warning for every
+  # shape family.
+  saturated_divergent <- "weibull"
+  if (identical(s$status, "saturated") &&
+      !distribution %in% saturated_divergent) {
+    exponent_clause <- if (distribution %in% shape_families) {
+      paste0("the growth of ", .aux_name(distribution),
+             " carries the exponent `n - rank`")
+    } else {
+      paste0("the density of ", .aux_name(distribution),
+             " carries the exponent `rank - n`")
+    }
     warning("The uncensored index rows are as many as the free columns of ",
             "their design (", s$n, " rows, rank ", s$rank, "), so it ",
             "reproduces every event time exactly and leaves no residual ",
             "degrees of freedom. The posterior is proper, since with the ",
-            "coefficients integrated out the density of ",
-            .aux_name(distribution), " carries the exponent `rank - n`, ",
-            "which is zero here, but nothing in the index data separates ",
-            "it from the coefficients, so what is reported for it is ",
+            "coefficients integrated out ", exponent_clause, ", which is ",
+            "zero here, but nothing in the index data separates it from the ",
+            "coefficients, so what is reported for it is ",
             "potentially strongly sensitive to `prior_intercept` and ",
             "`prior_beta`. The exact-fit coefficient vector includes the ",
             "intercept, and their defaults are not the same width, ",
