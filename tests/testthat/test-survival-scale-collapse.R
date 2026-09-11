@@ -708,6 +708,31 @@ test_that("the solve-error tolerance is a norm bound, not a coordinatewise one",
   )
 })
 
+test_that("the propriety verdict does not depend on the predictor's units", {
+  # `kappa()` on unscaled columns counts a units choice as ill-conditioning.
+  # Symmetric event profiles at x = -1 and 1 fitted by eta = 1 + x, with a
+  # censored row at the midpoint whose censoring time sits half a log unit
+  # above its fitted value: the row bounds, at every scale. Multiplying the
+  # covariate by 2^50 took the unscaled condition number to 1.1e15 while the
+  # scaled design's is exactly 1, and the tolerance that came out of it
+  # swallowed the real gap and returned "undetermined", refusing a
+  # log-normal the row makes proper.
+  #
+  # The scales are powers of two, so the data are bit-identical across them
+  # and only the units differ.
+  for (p in c(0L, 10L, 20L, 30L, 40L, 50L)) {
+    sc <- 2^p
+    expect_identical(
+      mlumr:::.censoring_bounds_aux(
+        rbind(cbind(1, c(-1, 1) * sc), c(1, 0)), c(0, 2, 1.5),
+        c(TRUE, TRUE, FALSE)
+      ),
+      "bounded",
+      label = paste("covariate scaled by 2^", p)
+    )
+  }
+})
+
 test_that("the shape warning names the prior that actually settles it", {
   # The exact-fit ridge does not move the same way for all four. Under the
   # AFT parameterizations an exact fit pins eta at log(t) and the ridge

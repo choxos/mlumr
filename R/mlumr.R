@@ -1164,7 +1164,35 @@
   # infinite and turn every answer into "undetermined", including the
   # deficient-but-estimable rows this function exists to answer.
   used <- fit$qr$pivot[seq_len(fit$rank)]
-  cond <- tryCatch(kappa(Xe[, used, drop = FALSE], exact = FALSE),
+  # On the COLUMN-SCALED design, as [.residual_variation_status()] does. An
+  # unscaled `kappa()` counts a units choice as ill-conditioning: the same
+  # data with a covariate multiplied by 2^50 has kappa 1.1e15 where the
+  # scaled design has exactly 1, and the tolerance that came out of it
+  # swallowed a real censoring gap and returned "undetermined", refusing a
+  # log-normal the censored row makes proper. Propriety is not a property of
+  # the units.
+  #
+  # The censored rows and the coefficients are transformed the same way, so
+  # `eta` is untouched (the divisors are powers of two, so this is exact)
+  # and the norms below are the scaled ones. The whole tolerance is then
+  # invariant under a change of predictor units, which is the point.
+  divisor <- rep(1, ncol(X))
+  if (ncol(X) > 1L) {
+    for (j in 2:ncol(X)) {
+      size <- max(abs(Xe[, j]))
+      if (is.finite(size) && size > 0) {
+        divisor[j] <- 2^min(max(floor(log2(size)), -1022), 1023)
+      }
+    }
+  }
+  Xe_s <- sweep(Xe, 2L, divisor, "/")
+  Xc_s <- sweep(Xc, 2L, divisor, "/")
+  beta_s <- beta * divisor
+  if (!all(is.finite(Xe_s)) || !all(is.finite(Xc_s)) ||
+      !all(is.finite(beta_s))) {
+    return("undetermined")
+  }
+  cond <- tryCatch(kappa(Xe_s[, used, drop = FALSE], exact = FALSE),
                    error = function(e) Inf)
   if (!isTRUE(is.finite(cond))) cond <- Inf
   # The solve error is NORM-wise, and `|Xc| |beta|` is not a bound on it.
@@ -1181,8 +1209,8 @@
   # in silence. `||Xc|| ||beta||` dominates the coordinatewise product by
   # Cauchy-Schwarz, so this is a widening: it can turn a "bounded" into an
   # "undetermined" and never the other way.
-  xc_norm <- sqrt(rowSums(Xc^2))
-  beta_norm <- sqrt(sum(beta^2))
+  xc_norm <- sqrt(rowSums(Xc_s^2))
+  beta_norm <- sqrt(sum(beta_s^2))
   if (!all(is.finite(xc_norm)) || !is.finite(beta_norm)) {
     return("undetermined")
   }
