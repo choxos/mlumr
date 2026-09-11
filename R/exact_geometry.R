@@ -304,8 +304,11 @@
 #' The number of free directions the zero rows load on is again taken
 #' exactly; for one direction the loadings must share a sign, for two they
 #' must lie in an open half-plane, which is a gap of more than pi between
-#' consecutive angles. Beyond two directions, or within the angle rounding
-#' of pi, the answer is unknown and the caller refuses conservatively.
+#' consecutive angles, or for the weak question a closed one with some row
+#' off its boundary. A gap within rounding of pi is settled exactly when
+#' the two rows bounding it point exactly opposite ways, and left unknown
+#' otherwise. Beyond two directions the answer is unknown, and the caller
+#' refuses conservatively.
 #'
 #' @param X_pos Scaled design rows of the positive outcomes.
 #' @param X_zero Scaled design rows of the zero outcomes.
@@ -391,16 +394,40 @@
     return(if (all(z < 0) || all(z > 0)) "reachable" else "unreachable")
   }
   if (k == 2L) {
-    angles <- sort(atan2(loadings[, 2], loadings[, 1]))
-    gap <- max(c(diff(angles), angles[1] + 2 * pi - angles[length(angles)]))
-    # A gap of exactly pi is two rows pointing opposite ways, which no
-    # direction lowers together; above pi a direction exists. The loadings
-    # of a row 1e-8 from the row space carry a relative rounding near
-    # 1e-8, so within that of pi the computed angles cannot say which.
+    angles <- atan2(loadings[, 2], loadings[, 1])
+    ord <- order(angles)
+    angles <- angles[ord]
+    gaps <- c(diff(angles), angles[1] + 2 * pi - angles[length(angles)])
+    gap <- max(gaps)
+    # Above pi the rows lie in an open half-plane and a direction lowers
+    # them all; below pi no closed half-plane holds them and none lowers
+    # any without raising another. The loadings of a row 1e-8 from the row
+    # space carry a relative rounding near 1e-8, so within a band of 1e-6
+    # around pi the computed angles cannot say which side the gap is on.
     if (gap > pi + 1e-6) {
       return("reachable")
     }
-    return(if (gap < pi - 1e-6) "unreachable" else "unknown")
+    if (gap < pi - 1e-6) {
+      return("unreachable")
+    }
+    # Within rounding of pi. Whether the two rows bounding the gap point
+    # exactly opposite ways is an exact question: their off-space
+    # components are collinear exactly when adding both to the positive
+    # rows raises the exact rank by one. If they are not, the gap is on one
+    # side of pi or the other and nothing here says which. If they are,
+    # every row lies in the closed half-plane they bound: no direction
+    # lowers them all (the strict answer), while a direction along the
+    # line's normal lowers every row off the line and holds the two on it.
+    # Some row is off the line, since the rows span two directions and
+    # one line holds only one.
+    i <- which.max(gaps)
+    a <- ord[i]
+    b <- ord[if (i == length(gaps)) 1L else i + 1L]
+    if (.exact_rank(rbind(raw_pos, raw_zero[a, ], raw_zero[b, ]))$rank !=
+          r + 1L) {
+      return("unknown")
+    }
+    return(if (strict) "unreachable" else "reachable")
   }
   "unknown"
 }

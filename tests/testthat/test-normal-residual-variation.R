@@ -467,13 +467,21 @@ test_that("zeros mixed with positives are refused only where the boundary is rea
                        x2 = c(0, 0, 0, 0))
   d <- list(ipd = list(data = padded), covariates = c("x1", "x2"))
   expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
-  # Two rows pointing opposite ways in a genuine two-direction problem cannot
-  # both be lowered, whatever the third does. The computed angles put that
-  # gap within rounding of pi, where a direction may or may not exist, and
-  # the check declines rather than read the rounding either way.
+  # Two rows pointing opposite ways in a genuine two-direction problem
+  # cannot both be lowered, whatever the third does: the loadings have a
+  # gap of exactly pi. Whether the two bounding rows are exactly opposite
+  # is decided with the exact rank, so the boundary is unreachable and the
+  # posterior proper: silent.
   opposite <- data.frame(.outcome = c(1, 1, 0, 0, 0),
                          x1 = c(0, 0, 1, -1, 0), x2 = c(0, 0, 0, 0, 1))
   d <- list(ipd = list(data = opposite), covariates = c("x1", "x2"))
+  expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
+  # Nudge one of the opposite rows off the line by a rounding-sized amount
+  # and the question is open again: the gap is within rounding of pi and
+  # the rows are not exactly opposite, so the check declines.
+  nudged <- opposite
+  nudged$x2[4] <- 1e-9
+  d <- list(ipd = list(data = nudged), covariates = c("x1", "x2"))
   expect_error(mlumr:::.check_normal_residual_variation(d, "log"),
                "could not be decided")
   # A row that differs from the positive profile by 1e-6 of the column's
