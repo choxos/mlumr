@@ -289,6 +289,27 @@
   count, while a rare variable the grid never varied is a resolution
   failure.
 
+- **A Poisson STC with no finite maximum likelihood estimate is
+  refused.** The Poisson log-likelihood is `sum(y * eta - E * exp(eta))`
+  up to a constant, so along a direction of the coefficients that leaves
+  every positive-count row’s rate fixed and lowers a zero-count row’s it
+  rises without bound: with no events at all, or with a subgroup that
+  has none while another has some. Iterative reweighting stops anyway
+  when the deviance stops changing, and reported convergence, finite
+  coefficients and a finite covariance from where it stopped: 80 zero
+  counts gave an intercept near -27 with a standard error near 57,500,
+  and a zero-event subgroup beside a positive one a slope near 21. The
+  binomial separation check does not apply there and said so, which was
+  not a certificate.
+  [`stc()`](https://choxos.github.io/mlumr/reference/stc.md) now refuses
+  a Poisson outcome model with no events, and one where such a direction
+  exists, deciding the latter exactly for up to two free directions with
+  the same feasibility test the normal guard uses and refusing what it
+  cannot decide. A returned Poisson result records on its `separation`
+  component that the check ran and the maximum is finite. The variance
+  floor that stood in for a zero-event index arm is gone with it, since
+  the fit it patched is no longer returned.
+
 - **M-spline basis support is judged over the period a study was at
   risk.** The check evaluated each basis column on `[0, max(time)]`. A
   column supported only where nobody is under observation multiplies no

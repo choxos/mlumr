@@ -145,8 +145,11 @@ the row space, whose loadings are rounding, leaves the answer unknown.
 The number of free directions the zero rows load on is again taken
 exactly; for one direction the loadings must share a sign, for two they
 must lie in an open half-plane, which is a gap of more than pi between
-consecutive angles. Beyond two directions, or within the angle rounding
-of pi, the answer is unknown and the caller refuses conservatively.</p>
+consecutive angles, or for the weak question a closed one with some row
+off its boundary. A gap within rounding of pi is settled exactly when
+the two rows bounding it point exactly opposite ways, and left unknown
+otherwise. Beyond two directions the answer is unknown, and the caller
+refuses conservatively.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -96,11 +96,16 @@ outcome of the binomial separation check, and only that: `status` is
 and found no separation, `"unknown"` when it could not run (only the
 fitted-value screen was applied, which cannot see quasi-complete
 separation), and `"not_applicable"` when the outcome model is not a
-binomial GLM, so this particular test has nothing to say. It is not a
-certificate that the likelihood has a finite maximum for other families;
-a Poisson outcome model can have an infinite maximum likelihood estimate
-of its own kind, and nothing here looks for it. A separated fit is
-refused rather than returned, so `"separated"` never appears here.
+binomial GLM, so this particular test has nothing to say. A Poisson
+outcome model has a boundary of its own kind: with no events, or with a
+subgroup without events that a direction of the coefficients can send to
+a rate of zero while every other row's rate stays fixed, the likelihood
+rises without bound and the maximum likelihood estimate is not finite,
+although the fitting reports convergence with finite numbers. Such a fit
+is refused, as is one where the question could not be decided, so a
+returned Poisson result has a finite maximum and its `reason` says so. A
+separated fit is refused rather than returned, so `"separated"` never
+appears here.
 
 ## Details
 
