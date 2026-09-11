@@ -75,7 +75,14 @@ refused.
 it makes the posterior proper on its own. One at or above \code{log(c)} has
 survival going to one half or one and does nothing. So censored rows are
 consulted, and only when the fit on the event rows determines their linear
-predictors, which it does when that design has full column rank. Otherwise
+predictors. That is estimability, not identification: a censored row's
+predictor is determined whenever its covariate vector lies in the ROW
+SPACE of the event design, which is weaker than that design having full
+column rank, and the difference is not a corner case, since a censored
+row at a covariate profile the events already occupy is always in it.
+A gap between the fitted predictor and \code{log(c)} that is no larger than
+the rounding in computing it does not count either, since its sign is
+not information. Otherwise
 the question is left undecided and said to be. They are consulted BEFORE
 any message is issued, including the near-exact and saturated ones: a row
 that bounds the parameter makes every one of those messages untrue, not
