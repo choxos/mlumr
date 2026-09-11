@@ -291,11 +291,12 @@ plot of chunk posterior-both
   [`prior_sensitivity()`](https://choxos.github.io/mlumr/reference/prior_sensitivity.md).
 - **Index vs comparator within the relaxed model**, note how much wider
   the index-population interval is than the comparator one in the table
-  above. The comparator coefficients are informed by a single aggregate
-  row, and the index-population estimand extrapolates them over the IPD
-  covariate distribution, so the width is the identification problem
-  showing itself. Under SPFA the two populations agree closely instead,
-  because the coefficients are shared and anchored by the IPD.
+  above. A single aggregate row constrains the comparator coefficients
+  only through one combination with the comparator intercept, and the
+  index-population estimand extrapolates them over the IPD covariate
+  distribution, so the width is the identification problem showing
+  itself. Under SPFA the two populations agree closely instead, because
+  the coefficients are shared and anchored by the IPD.
 
 ## Model comparison
 

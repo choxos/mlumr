@@ -5,11 +5,14 @@ continuous-continuous (exact) and anything paired with a BINARY margin
 (prevalence-independent heuristics). A count or ordinal margin (Poisson,
 negative binomial, an ordered category) is neither. It goes through the
 continuous branch, where the map is exact only for a continuous margin,
-and its own discreteness both attenuates the realized correlation and
-makes the latent Gaussian correlation non-unique, because many latent
-correlations produce the same set of observed ranks. There is no single
-correction to apply, so say so rather than let the realized association
-quietly miss the target.
+so the realized association need not match the target: attenuated beside
+a continuous margin, and possibly overshooting beside a binary one,
+whose heuristic inflates the latent correlation. The correction it needs
+depends on its thresholds: with those fixed, the observed correlation
+rises strictly with the latent one, so a feasible target has one latent
+value, and the package does not implement the numerical inversion that
+finds it. Say so rather than let the realized association quietly miss
+the target.
 
 ## Usage
 

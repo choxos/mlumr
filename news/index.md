@@ -485,9 +485,12 @@
   states where the copula correction does not apply.** The Spearman and
   Pearson maps branch on continuous versus binary margins. A nonbinary
   discrete margin, such as a count or an ordered category, has no branch
-  and is mapped with the continuous-margin formula; an exact mapping
-  would depend on that margin’s distribution and its category
-  thresholds.
+  and is mapped with the continuous-margin formula, so the realized
+  association need not match the target. The calibration it needs is
+  threshold-aware: with the margin’s thresholds fixed, the observed
+  correlation rises strictly with the latent Gaussian one, so a feasible
+  target has one latent value, and what the package lacks is the
+  numerical inversion that finds it, not a value to invert to.
   [`add_integration()`](https://choxos.github.io/mlumr/reference/add_integration.md)
   warns when it detects such a covariate, and the documentation states
   the limitation.
