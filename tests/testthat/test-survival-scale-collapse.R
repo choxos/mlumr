@@ -534,6 +534,58 @@ test_that("a rounding-sized gap at the censoring boundary decides nothing", {
   )
 })
 
+test_that("the solve-error tolerance is a norm bound, not a coordinatewise one", {
+  # A coefficient's error is set by the norm of the WHOLE solution, not by
+  # its own size, so `|Xc| |beta|` quietly assumes every coordinate carries
+  # at most `cond * eps` of RELATIVE error. A small coefficient against a
+  # large censored covariate breaks that: the term that dominates the
+  # predictor's error is the one the product understates.
+  #
+  # Events at t = 1000:1004 on (1, t, t^2) keep FULL numerical rank at a
+  # condition number of 6e11, so the rank guard above does not catch them.
+  # Every value here is a small integer or a power of two, so the design,
+  # the event times and the censored row's own boundary are exact in double
+  # and the whole discrepancy is the least-squares solve.
+  tt <- 1000:1004
+  Xe <- cbind(1, tt, tt^2)
+  ev <- c(rep(TRUE, 5L), FALSE)
+  for (q in c(38L, 40L, 44L)) {
+    b <- c(3, 2, 2^-q)
+    ye <- b[1L] + b[2L] * tt + b[3L] * tt^2
+    expect_identical(stats::lm.fit(Xe, ye)$rank, 3L)
+    xc <- c(1, 0, -2^q)
+    # The censored row sits EXACTLY on its own fitted boundary, where
+    # survival tends to 1/2 and nothing is bounded.
+    eta_true <- b[1L] - b[3L] * 2^q
+    beta_hat <- stats::lm.fit(Xe, ye)$coefficients
+    gap <- eta_true - sum(xc * beta_hat)
+    # The gap is not rounding-sized: it is the solve error, magnified by the
+    # censored covariate. Read as a bound, it passed a possibly improper fit.
+    expect_gt(gap, 0.03)
+    expect_identical(
+      mlumr:::.censoring_bounds_aux(rbind(Xe, xc), c(ye, eta_true), ev),
+      "undetermined"
+    )
+  }
+  # Widening it must not cost the answers it exists to give.
+  ev3 <- c(TRUE, TRUE, FALSE)
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(cbind(1, rep(-0.5, 3L)), c(0, 0, 1e-6), ev3),
+    "bounded"
+  )
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(cbind(1, rep(-0.5, 3L)), c(0, 0, -1e-6), ev3),
+    "unbounded"
+  )
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(
+      rbind(cbind(1, c(-1, 0, 1, 2)), cbind(1, 0.5)),
+      c(0.5, 1, 1.5, 2, log(50)), c(rep(TRUE, 4L), FALSE)
+    ),
+    "bounded"
+  )
+})
+
 test_that("the shape warning names the prior that actually settles it", {
   # The exact-fit ridge does not move the same way for all four. Under the
   # AFT parameterizations an exact fit pins eta at log(t) and the ridge

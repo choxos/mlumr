@@ -1011,15 +1011,15 @@
   # guess the sign.
   yc <- y[!events]
   # The rounding in `Xc %*% beta` is governed by the size of the terms that
-  # went into it, `|Xc| |beta|`, not by the size of what came out. An
-  # ill-conditioned design with full numerical rank reaches an exact fit
-  # through large cancelling coefficients, and then a predictor near zero
-  # carries an absolute error many orders above its own magnitude. Over 2000
-  # ill-conditioned boundary rows a tolerance built from `abs(eta)` was beaten
-  # 39 times, by up to a factor of 4, each one a rounding artifact read as a
-  # bound. This is the bound [.fit_ratios()] already uses for the same reason.
-  # And `beta` itself carries the error of the least-squares solve, which the
-  # dot-product bound above does not see. That error is amplified by the
+  # went into it, not by the size of what came out. An ill-conditioned design
+  # with full numerical rank reaches an exact fit through large cancelling
+  # coefficients, and then a predictor near zero carries an absolute error
+  # many orders above its own magnitude. Over 2000 ill-conditioned boundary
+  # rows a tolerance built from `abs(eta)` was beaten 39 times, by up to a
+  # factor of 4, each one a rounding artifact read as a bound. This is the
+  # bound [.fit_ratios()] already uses for the same reason.
+  # And `beta` itself carries the error of the least-squares solve, which a
+  # bound on the dot product alone does not see. That error is amplified by the
   # conditioning of the design, and a censored row in the row space can be an
   # EXTRAPOLATION of the event rows rather than one of them, which amplifies
   # it again: over 1024 such rows at condition numbers up to 9e7, all of them
@@ -1035,8 +1035,27 @@
   cond <- tryCatch(kappa(Xe[, used, drop = FALSE], exact = FALSE),
                    error = function(e) Inf)
   if (!isTRUE(is.finite(cond))) cond <- Inf
+  # The solve error is NORM-wise, and `|Xc| |beta|` is not a bound on it.
+  # A coefficient's own error is set by the size of the whole solution, not
+  # by its own size, so the coordinatewise product silently assumes every
+  # coordinate carries at most `cond * eps` of RELATIVE error. A small
+  # coefficient against a large covariate breaks that assumption, and the
+  # product understates the term that dominates the predictor's error.
+  # Events at `t = 1000:1004` on `(1, t, t^2)` with `beta = (3, 2, 2^-38)`
+  # keep full numerical rank at a condition number of 6e11; a censored row
+  # at `(1, 0, -2^38)` sitting EXACTLY on its fitted boundary had a
+  # computed gap 7 times the coordinatewise tolerance, and 389 times it at
+  # `2^-44`. Each one returned "bounded" and passed a possibly improper fit
+  # in silence. `||Xc|| ||beta||` dominates the coordinatewise product by
+  # Cauchy-Schwarz, so this is a widening: it can turn a "bounded" into an
+  # "undetermined" and never the other way.
+  xc_norm <- sqrt(rowSums(Xc^2))
+  beta_norm <- sqrt(sum(beta^2))
+  if (!all(is.finite(xc_norm)) || !is.finite(beta_norm)) {
+    return("undetermined")
+  }
   tol <- max(8, nrow(Xe)) * .Machine$double.eps * max(1, cond) *
-    pmax(as.vector(abs(Xc) %*% abs(beta)), abs(yc), 1)
+    pmax(xc_norm * beta_norm, abs(yc), 1)
   gap <- yc - eta
   if (any(estimable & gap > tol)) return("bounded")
   if (all(estimable) && !any(abs(gap) <= tol)) return("unbounded")
