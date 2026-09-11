@@ -469,7 +469,19 @@ real log_surv_increment(int dist, real t_upper, real t_lower, real eta,
         dlog_x = Q * log_ratio / aux;
       }
       if (log_x_lower > log(shape + fmax(1, sqrt(shape)))) {
-        real log_dx = log_x_lower + log(expm1(dlog_x));
+        // `log(expm1(dlog_x))` is formed BEFORE the guard below, so the
+        // guard cannot protect it: a generalized gamma with sigma 0.0009
+        // over (1, 2] has dlog_x = log(2) / 0.0009, about 770, where
+        // expm1() leaves the double range. The value survives, since
+        // log(inf) is inf and the guard then returns -inf, but the reverse
+        // sweep does not: d log(y) / dy at y = inf is 0 and d expm1(z) / dz
+        // at z = 770 is inf, and their product is NaN. CmdStan rejects the
+        // initial value of `surv_ll_status(9, 2, 1, 0, 3, -0.009, 0.0009,
+        // 1)` for a non-finite gradient at a finite log density. The helper
+        // is the same function without the intermediate, returning z itself
+        // above exp(700), where log(e^z - 1) is z to well under double
+        // precision.
+        real log_dx = log_x_lower + log_expm1_from_log_x(log(dlog_x));
         // The increment of the incomplete-gamma argument can overflow: a
         // generalized gamma with sigma 0.0009 over (1, 2] has an upper
         // argument of exp(780). The survival ratio is then zero to double

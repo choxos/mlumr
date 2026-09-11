@@ -953,3 +953,64 @@ test_that("an overflowing Gamma endpoint has a finite gradient, not only a finit
                  label = paste("gradient at eta =", eta))
   }
 })
+
+test_that("an overflowing survival increment has a finite gradient too", {
+  skip_on_cran()
+  skip_if(!cmdstan_is_usable(), "CmdStan is not usable here")
+  # `log_surv_increment()` forms `log(expm1(dlog_x))` BEFORE the guard that
+  # catches an overflowing increment, so the guard cannot protect it. A
+  # generalized gamma with sigma 0.0009 over the interval (1, 2] has
+  # dlog_x = log(2) / 0.0009, about 770, where expm1() leaves the double
+  # range. The VALUE survives that, since log(inf) is inf and the guard then
+  # returns -inf, which the interval caller turns back into a finite
+  # likelihood through log1m_exp(). The gradient does not: d log(y) / dy at
+  # y = inf is 0 and d expm1(z) / dz at z = 770 is inf, and their product is
+  # NaN. Before the fix CmdStan rejected this initial value with "Gradient
+  # evaluated at the initial value is not finite", at a finite log density.
+  #
+  # The parameter is the auxiliary, not eta: dlog_x is
+  # Q * log(t_upper / t_lower) / aux and carries no eta at all, so
+  # differentiating in eta would never reach the overflowing node.
+  stan_dir <- stan_source_path()
+  code <- paste(
+    "functions {",
+    "#include include/priors_functions.stan",
+    "#include include/survival_functions.stan",
+    "}",
+    "parameters { real<lower=0> aux; }",
+    "model {",
+    "  aux ~ normal(0, 1);",
+    "  target += 1e-300 * surv_ll_status(9, 2, 1, 0, 3, -0.009, aux, 1);",
+    "}",
+    sep = "\n"
+  )
+  file <- file.path(tempdir(), "mlumr-increment-overflow-gradient.stan")
+  writeLines(code, file)
+  mod <- tryCatch(
+    cmdstanr::cmdstan_model(file, include_paths = stan_dir, quiet = TRUE),
+    error = function(e) e
+  )
+  if (inherits(mod, "error")) {
+    skip(paste("CmdStan could not build the probe:", conditionMessage(mod)))
+  }
+  out <- utils::capture.output(
+    diag_run <- tryCatch(
+      suppressWarnings(mod$diagnose(init = list(list(aux = 0.0009)),
+                                    seed = 2026, error = 1e-2)),
+      error = function(e) e
+    )
+  )
+  if (inherits(diag_run, "error")) {
+    fail(paste0("diagnose failed: ", conditionMessage(diag_run), "\n",
+                paste(utils::tail(out, 8L), collapse = "\n")))
+    return(invisible(NULL))
+  }
+  grad <- diag_run$gradients()$model[1L]
+  expect_true(is.finite(grad))
+  # The likelihood is scaled by 1e-300, so what is left is the prior's own
+  # gradient on the unconstrained scale: d/dy of -exp(2y)/2 + y at
+  # y = log(0.0009) is 1 - 0.0009^2, which is 1 to eight figures. CmdStan's
+  # own finite-difference cross-check agrees to 1e-10 and is what would fail
+  # on a NaN.
+  expect_equal(grad, 1 - 0.0009^2, tolerance = 1e-6)
+})
