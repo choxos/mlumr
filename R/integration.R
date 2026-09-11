@@ -599,8 +599,9 @@ unnest_integration <- function(data) {
 #' @return A list with components `marginals` (the original data frame
 #'   returned by previous versions) and, if `check_joint = TRUE`,
 #'   `correlations`, a data frame of pairwise covariate correlations at
-#'   the current and doubled `n_int` for each AgD row. Printed with a
-#'   pass/warn verdict.
+#'   the current and doubled `n_int` for each AgD row. Its `covariate_1`
+#'   and `covariate_2` columns name the two margins; `pair` is a label
+#'   built from them for reading. Printed with a pass/warn verdict.
 #'
 #'   The `verdict` component reports `"stable"` / `"close"` when a comparison
 #'   was made and met the heuristic, `"review"` when it did not, and
@@ -935,6 +936,13 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
       rho_t <- if (!is.null(cor_target)) cor_target[i, j] else NA_real_
       rows[[idx]] <- data.frame(
         agd_row = k,
+        # The two members are carried as their own fields. `pair` is a label
+        # built from them for reading, and a label is not an encoding: a
+        # covariate may be named `a~b`, which `set_ipd()` and `set_agd()`
+        # both accept, and splitting `a~b~c` on the tilde gives `a`, `b` and
+        # `c`, none of which is either member.
+        covariate_1 = cov_names[i],
+        covariate_2 = cov_names[j],
         pair = sprintf("%s~%s", cov_names[i], cov_names[j]),
         cor_method = cor_method,
         cor_current = round(rho_o, 4),
@@ -953,7 +961,11 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
 
 #' Which correlation pairs were measured, and why the others were not
 #'
-#' @param diff The pair table from [.int_cor_stats()].
+#' @param diff The pair table from [.int_cor_stats()]. Its members are read
+#'   from the `covariate_1` and `covariate_2` columns, never from the `pair`
+#'   label, which is presentation and does not identify them: a covariate
+#'   named `a~b` makes the label `a~b~c`, and a name that is a substring of
+#'   another would match the wrong margin besides.
 #' @param stats The marginal statistics of the current grid.
 #' @param target_sd Declared target SDs, one per row of `stats`.
 #' @return List with `expected`, the number of pairs that have a correlation
@@ -974,7 +986,7 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
 #' @keywords internal
 .int_cor_pair_status <- function(diff, stats, target_sd) {
   degenerate <- vapply(seq_len(nrow(diff)), function(i) {
-    members <- strsplit(diff$pair[i], "~", fixed = TRUE)[[1L]]
+    members <- c(diff$covariate_1[i], diff$covariate_2[i])
     rows <- stats$covariate %in% members & stats$agd_row == diff$agd_row[i]
     any(is.finite(target_sd[rows]) & target_sd[rows] == 0)
   }, logical(1))

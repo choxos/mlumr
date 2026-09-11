@@ -36,8 +36,9 @@ dependence structure does not (rare in practice for QMC with sensible
 A list with components \code{marginals} (the original data frame
 returned by previous versions) and, if \code{check_joint = TRUE},
 \code{correlations}, a data frame of pairwise covariate correlations at
-the current and doubled \code{n_int} for each AgD row. Printed with a
-pass/warn verdict.
+the current and doubled \code{n_int} for each AgD row. Its \code{covariate_1}
+and \code{covariate_2} columns name the two margins; \code{pair} is a label
+built from them for reading. Printed with a pass/warn verdict.
 
 The \code{verdict} component reports \code{"stable"} / \code{"close"} when a comparison
 was made and met the heuristic, \code{"review"} when it did not, and

@@ -7,7 +7,11 @@
 .int_cor_pair_status(diff, stats, target_sd)
 }
 \arguments{
-\item{diff}{The pair table from \code{\link[=.int_cor_stats]{.int_cor_stats()}}.}
+\item{diff}{The pair table from \code{\link[=.int_cor_stats]{.int_cor_stats()}}. Its members are read
+from the \code{covariate_1} and \code{covariate_2} columns, never from the \code{pair}
+label, which is presentation and does not identify them: a covariate
+named \code{a~b} makes the label \code{a~b~c}, and a name that is a substring of
+another would match the wrong margin besides.}
 
 \item{stats}{The marginal statistics of the current grid.}
 
