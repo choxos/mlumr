@@ -212,3 +212,79 @@ test_that("a margin declared without variance leaves the other pairs an ordinary
   expect_identical(ck1$verdict$target_correlation, "unavailable")
   expect_identical(ck1$verdict$resolution_correlation, "unavailable")
 })
+
+test_that("a tilde in a covariate name cannot hide a failed correlation", {
+  # `pair` is a label for reading. Recovering the two margins by splitting it
+  # on the tilde is not the inverse of building it: `set_ipd()` and
+  # `set_agd()` both accept `a~b` as a covariate name, so the pair of `a~b`
+  # and `c` is labeled `a~b~c`, which splits into `a`, `b` and `c`. The
+  # unrelated `a` is declared with no variance, and finding it excluded the
+  # one pair with a correlation to realize: a declared target of 0.9 between
+  # margins of 0.1 and 0.9, whose Frechet bound is 0.11, came back as
+  # `expected` 0 and `unavailable` instead of `review`.
+  set.seed(2026)
+  nm <- c("a~b", "c", "a")
+  src <- data.frame(trt = "A", y = rbinom(40, 1, 0.5),
+                    `a~b` = rbinom(40, 1, 0.1), c = rbinom(40, 1, 0.9),
+                    a = rbinom(40, 1, 0.5), check.names = FALSE)
+  ip <- set_ipd(src, "trt", outcome = "y", covariates = nm)
+  ad <- data.frame(trt = "B", n = 60L, r = 20L, `a~b_mean` = 0.1,
+                   c_mean = 0.9, a_mean = 0, check.names = FALSE)
+  ag <- set_agd(ad, "trt", outcome_n = "n", outcome_r = "r",
+                cov_means = c("a~b_mean", "c_mean", "a_mean"),
+                cov_sds = rep(NA_character_, 3L),
+                cov_types = rep("binary", 3L))
+  cor <- diag(3)
+  dimnames(cor) <- list(nm, nm)
+  cor["a~b", "c"] <- cor["c", "a~b"] <- 0.9
+  specs <- list(`a~b` = distr(qbern, prob = `a~b_mean`),
+                c = distr(qbern, prob = c_mean),
+                a = distr(qbern, prob = a_mean))
+  base <- list(combine_data(ip, ag), n_int = 256, cor = cor,
+               cor_adjust = "pearson", verbose = FALSE)
+  d <- suppressWarnings(do.call(add_integration, c(base, specs)))
+  recheck <- list(d, cor = cor, cor_adjust = "pearson", verbose = FALSE)
+  ck <- suppressWarnings(do.call(check_integration, c(recheck, specs)))
+  expect_identical(ck$correlations$covariate_1, c("a~b", "a~b", "c"))
+  expect_identical(ck$correlations$covariate_2, c("c", "a", "a"))
+  expect_identical(ck$correlation_pairs$expected, 1L)
+  expect_identical(ck$correlation_pairs$measured, 1L)
+  expect_identical(ck$verdict$target_correlation, "review")
+  expect_gt(max(ck$correlations$abs_diff_target, na.rm = TRUE), 0.5)
+})
+
+test_that("renaming the covariates does not change which pairs are judged", {
+  # The applicability of a pair is a property of the declared margins, so a
+  # one-to-one renaming must leave the counts, the omissions and the pair
+  # the maxima are taken over exactly where they were. Names carrying the
+  # pair separator, names that are substrings of other names and names that
+  # are not syntactic R identifiers are all legal.
+  X <- cbind(rep(c(-1, -1, 1, 1), 16), rep(c(-1, 1, -1, 1), 16),
+             rep(c(-1, 1), 32), rep(0, 64))
+  target_sd <- c(1, 1, 1, 0)
+  status <- function(nms) {
+    colnames(X) <- nms
+    orig <- array(X, dim = c(1L, nrow(X), ncol(X)),
+                  dimnames = list(NULL, NULL, nms))
+    dbl <- array(rbind(X, X), dim = c(1L, 2L * nrow(X), ncol(X)),
+                 dimnames = list(NULL, NULL, nms))
+    tab <- mlumr:::.int_cor_stats(orig, dbl, nms, 1L, cor_target = diag(4),
+                                  cor_method = "pearson")$diff
+    st <- mlumr:::.int_cor_pair_status(
+      tab, mlumr:::.int_stats(orig, nms, 1L), target_sd
+    )
+    st$pair <- NULL
+    list(expected = st$expected, measured = st$measured,
+         measured_resolution = st$measured_resolution,
+         applicable = st$applicable, n_omitted = nrow(st$omitted),
+         n_not_applicable = nrow(st$not_applicable),
+         max_target = max(tab$abs_diff_target[st$applicable]))
+  }
+  plain <- status(c("w", "x", "y", "z"))
+  expect_identical(plain$expected, 3L)
+  for (nms in list(c("a~b", "c", "d", "a"),
+                   c("age", "age_group", "sex", "sex_male"),
+                   c("x 1", "x.1", "x-1", "x~1"))) {
+    expect_identical(status(nms), plain, label = paste(nms, collapse = ", "))
+  }
+})
