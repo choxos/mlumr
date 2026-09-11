@@ -782,8 +782,17 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   log_w <- log(weights) - log(sum(weights))
   log_p_mean <- .weighted_log_mean_exp(lp$event, weights)
   log_q_mean <- .weighted_log_mean_exp(lp$nonevent, weights)
-  share_p <- exp(log_w + lp$event - log_p_mean)
-  share_q <- exp(log_w + lp$nonevent - log_q_mean)
+  # Subtract the mean first, then add the weight. The other order adds a
+  # weight of order 1 to a log probability of order 1e17 (the cloglog
+  # non-event log probability is -exp(eta), which is -2.4e17 at eta = 40),
+  # where the double's spacing is 32 and the weight is lost entirely. Every
+  # point then takes the whole share instead of its own: a target that is 64
+  # copies of one profile gave a link gradient of 64 where standardizing a
+  # point mass cannot change its link at all, so the answer is 1. Centering
+  # first cancels the huge common term against itself, exactly, and leaves
+  # the weight against a number of order 1.
+  share_p <- exp(log_w + (lp$event - log_p_mean))
+  share_q <- exp(log_w + (lp$nonevent - log_q_mean))
   grad_log_p <- colSums(share_p * d_log_p * X)
   grad_log_q <- if (link == "cloglog") {
     # The non-event derivative -exp(eta) overflows past eta = 709, where the
@@ -794,7 +803,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     # `.binary_link_from_logs()` reports is +Inf, and the gradient is NaN
     # with it; the finite-variance guard then refuses the fit, as it did
     # before, rather than attach a finite SE to an infinite estimate.
-    colSums(-exp(log_w + lp$nonevent - log_q_mean + eta) * X)
+    colSums(-exp(log_w + (lp$nonevent - log_q_mean) + eta) * X)
   } else {
     colSums(share_q * d_log_q * X)
   }
@@ -809,7 +818,15 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     } else {
       -exp(log_q_mean - log_phi_z) * grad_log_q
     }
-  } else if (log_p_mean < -18) {
+  } else if (log_q_mean == 0) {
+    # `d log q-bar / log q-bar` is the link's own derivative and is exact
+    # wherever it can be formed. The non-event log probability is built as
+    # -exp(eta) rather than as log(1 - p), so it stays representable until
+    # exp(eta) itself underflows below eta = -745; only there is the link
+    # log(-log q-bar) equal to log p-bar to double precision. Switching at
+    # log p-bar = -18 instead left the point-mass derivative at 1 - p-bar / 2
+    # rather than 1, a relative 1e-9 at eta = -20 where the exact form was
+    # available.
     grad_log_p
   } else {
     grad_log_q / log_q_mean

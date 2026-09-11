@@ -173,3 +173,67 @@ test_that("the gradients stay finite in tails the probabilities cannot represent
   g_inf <- mlumr:::.stc_binomial_gradients(X, c(800, 800), c(1, 1), "cloglog")
   expect_false(all(is.finite(g_inf$link)))
 })
+
+test_that("replicating one target profile does not change the link gradient", {
+  # A target made of copies of a single profile is the same point mass
+  # however many copies it holds, and standardizing a point mass returns
+  # the point: g(g^-1(eta)) = eta, whose derivative in an intercept is 1.
+  # The count and the weights are the resolution of a grid, not a property
+  # of the target, so neither may appear in the answer. Before, the cloglog
+  # non-event share lost its weight to rounding against a log probability of
+  # -exp(eta) and every copy took the whole share: 16, 64 and 128 at
+  # eta = 40, and 0.293 at eta = 38 where the loss is partial.
+  for (link in c("logit", "probit", "cloglog")) {
+    for (eta in c(-40, -20, 0, 20, 35, 38, 40)) {
+      for (n in c(1L, 16L, 64L, 128L)) {
+        g <- mlumr:::.stc_binomial_gradients(
+          matrix(1, nrow = n, ncol = 1L), rep(eta, n), rep(1, n), link
+        )
+        expect_equal(unname(g$link), 1, tolerance = 1e-9,
+                     label = paste(link, "eta", eta, "n", n))
+      }
+    }
+  }
+})
+
+test_that("weights on identical profiles are a resolution, not an answer", {
+  # Unequal weights on copies of one profile still describe that point mass,
+  # and scaling every weight by a constant leaves the normalized shares
+  # alone. Both must leave the link gradient at 1.
+  set.seed(2026)
+  w <- runif(64, 0.01, 10)
+  for (link in c("logit", "probit", "cloglog")) {
+    for (eta in c(-38, 0, 38, 40)) {
+      X <- matrix(1, nrow = 64L, ncol = 1L)
+      g <- mlumr:::.stc_binomial_gradients(X, rep(eta, 64L), w, link)
+      expect_equal(unname(g$link), 1, tolerance = 1e-9,
+                   label = paste(link, eta))
+      scaled <- mlumr:::.stc_binomial_gradients(X, rep(eta, 64L), 1e6 * w,
+                                                link)
+      expect_equal(scaled$link, g$link, tolerance = 1e-12)
+      expect_equal(scaled$log_mean, g$log_mean, tolerance = 1e-12)
+    }
+  }
+})
+
+test_that("the normalized shares of the two means each sum to one", {
+  # The share c_i = w_i p_i / sum(w p) is what the gradient weights each
+  # point's derivative by, so the identity sum(c_i) = 1 is the statement
+  # that no point's contribution was lost or counted twice. Taking the
+  # gradient with X a column of ones reads the sum back directly, since
+  # each point's derivative of log p in an intercept is d log p / d eta.
+  set.seed(2026)
+  w <- runif(50, 0.01, 10)
+  eta <- c(rnorm(46), 35, 38, 40, -40)
+  X <- matrix(1, nrow = 50L, ncol = 1L)
+  for (link in c("logit", "probit", "cloglog")) {
+    lp <- mlumr:::.binary_log_probs(eta, link)
+    log_p_mean <- mlumr:::.weighted_log_mean_exp(lp$event, w)
+    log_q_mean <- mlumr:::.weighted_log_mean_exp(lp$nonevent, w)
+    log_w <- log(w) - log(sum(w))
+    expect_equal(sum(exp(log_w + (lp$event - log_p_mean))), 1,
+                 tolerance = 1e-12, label = paste(link, "event"))
+    expect_equal(sum(exp(log_w + (lp$nonevent - log_q_mean))), 1,
+                 tolerance = 1e-12, label = paste(link, "non-event"))
+  }
+})
