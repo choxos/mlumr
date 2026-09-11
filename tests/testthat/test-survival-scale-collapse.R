@@ -455,3 +455,57 @@ test_that("a saturated shape fit is not promised a proper posterior", {
     expect_match(conditionMessage(w), "prior_beta")
   }
 })
+
+test_that("the censoring tolerance is scaled by cancellation, not by the result", {
+  # The rounding in `Xc %*% beta` is governed by the size of the terms that
+  # went into it, `|Xc| |beta|`, not by the size of what came out. An
+  # ill-conditioned design with FULL numerical rank, which the rank guard
+  # therefore lets through, reaches an exact fit through large cancelling
+  # coefficients, and a predictor near zero then carries an absolute error
+  # many orders above its own magnitude. A tolerance built from `abs(eta)`
+  # was beaten by 48 of 1808 such rows, each a rounding artifact read as a
+  # bound and an improper fit dispatched in silence. This is the bound
+  # `.fit_ratios()` already uses.
+  # One such row, stated exactly rather than sampled, so this test fails
+  # against the old tolerance rather than only usually failing: the gap is
+  # 2.84e-14 and the result-magnitude tolerance was 2.63e-14.
+  d <- 0.012490285295965886
+  x <- 1 + d * c(0, 1, 2, 3, 4)
+  Xe <- cbind(1, x, x^2, x^3)
+  b <- c(-155.79859154632462, 2.658432850546038,
+         7.178998046692592, 131.15666646614784)
+  ye <- as.vector(Xe %*% b)
+  # Full numerical rank, so the rank guard above does not catch it.
+  expect_identical(mlumr:::.exact_rank(Xe)$rank, 4L)
+  expect_identical(stats::lm.fit(Xe, ye)$rank, 4L)
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(rbind(Xe, Xe[1L, , drop = FALSE]),
+                                  c(ye, ye[1L]),
+                                  c(rep(TRUE, 5L), FALSE)),
+    "undetermined"
+  )
+  # And a sweep, to show it is not one hand-picked design.
+  set.seed(2026)
+  v <- character(0)
+  for (i in seq_len(300L)) {
+    dd <- 10^stats::runif(1L, -3, -1.5)
+    xx <- 1 + dd * c(0, 1, 2, 3, 4)
+    X2 <- cbind(1, xx, xx^2, xx^3)
+    if (mlumr:::.exact_rank(X2)$rank != 4L) next
+    if (stats::lm.fit(X2, stats::rnorm(5L))$rank != 4L) next
+    bb <- stats::rnorm(4L, sd = 100)
+    y2 <- as.vector(X2 %*% bb)
+    j <- sample.int(5L, 1L)
+    v <- c(v, mlumr:::.censoring_bounds_aux(
+      rbind(X2, X2[j, , drop = FALSE]), c(y2, y2[j]),
+      c(rep(TRUE, 5L), FALSE)))
+  }
+  expect_gt(length(v), 100L)
+  expect_identical(sum(v == "bounded"), 0L)
+  # Still conservative in one direction only: a real gap is read as real.
+  ev <- c(TRUE, TRUE, FALSE)
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(cbind(1, rep(-0.5, 3L)), c(0, 0, 1e-6), ev),
+    "bounded"
+  )
+})

@@ -941,8 +941,16 @@
   # and where it does not, say the question is undetermined rather than
   # guess the sign.
   yc <- y[!events]
+  # The rounding in `Xc %*% beta` is governed by the size of the terms that
+  # went into it, `|Xc| |beta|`, not by the size of what came out. An
+  # ill-conditioned design with full numerical rank reaches an exact fit
+  # through large cancelling coefficients, and then a predictor near zero
+  # carries an absolute error many orders above its own magnitude. Over 2000
+  # ill-conditioned boundary rows a tolerance built from `abs(eta)` was beaten
+  # 39 times, by up to a factor of 4, each one a rounding artifact read as a
+  # bound. This is the bound [.fit_ratios()] already uses for the same reason.
   tol <- max(8, nrow(Xe)) * .Machine$double.eps *
-    pmax(1, abs(eta), abs(yc))
+    pmax(as.vector(abs(Xc) %*% abs(beta)), abs(yc), 1)
   gap <- yc - eta
   if (any(estimable & gap > tol)) return("bounded")
   if (all(estimable) && !any(abs(gap) <= tol)) return("unbounded")
