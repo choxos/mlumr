@@ -25,6 +25,15 @@ The structural shortcut above holds only then, and the caller knows it
 from the geometry it already measured; a near-exact fit puts the
 duplicated row at the fitted value rather than at the event's time, so
 the shortcut is not taken for one.}
+
+\item{lower, upper}{The ends of each non-event row's observation region on
+the log scale, one value per non-event row, in the order those rows
+appear in \code{X}. \code{lower} may be \code{-Inf} and \code{upper} may be \code{Inf}, which is
+what an open end means; \code{lower <= upper} is required and a row that
+violates it leaves the answer \code{"undetermined"}. The defaults are the
+right-censored region, \code{y[!events]} and \code{Inf}, so a caller that knows
+only times gets the behavior it had before the other two censoring
+types were admitted.}
 }
 \value{
 \code{"bounded"}, \code{"unbounded"}, or \code{"undetermined"}.
@@ -49,9 +58,10 @@ row's predictor exactly, however deficient the design is, because the row
 is one of the event rows. Requiring the stronger condition refused fits
 that were proper.
 
-A row that is not estimable is not evidence in either direction, so it can
-produce \code{"bounded"} (never, since it is not consulted) or leave the answer
-\code{"undetermined"}, but it can never make the answer \code{"unbounded"}.
+A row that is not estimable is not evidence in either direction, and is
+consulted for neither answer: it cannot produce \code{"bounded"}, and it blocks
+\code{"unbounded"}, which needs every row to be strictly inside its region. All
+it can do is leave the answer \code{"undetermined"}.
 
 A censored row that repeats an event row's covariate profile needs no
 solve at all. Where the event fit interpolates, its predictor IS that

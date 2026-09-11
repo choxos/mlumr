@@ -1004,9 +1004,10 @@
 #' is one of the event rows. Requiring the stronger condition refused fits
 #' that were proper.
 #'
-#' A row that is not estimable is not evidence in either direction, so it can
-#' produce `"bounded"` (never, since it is not consulted) or leave the answer
-#' `"undetermined"`, but it can never make the answer `"unbounded"`.
+#' A row that is not estimable is not evidence in either direction, and is
+#' consulted for neither answer: it cannot produce `"bounded"`, and it blocks
+#' `"unbounded"`, which needs every row to be strictly inside its region. All
+#' it can do is leave the answer `"undetermined"`.
 #'
 #' A censored row that repeats an event row's covariate profile needs no
 #' solve at all. Where the event fit interpolates, its predictor IS that
@@ -1024,6 +1025,14 @@
 #'   from the geometry it already measured; a near-exact fit puts the
 #'   duplicated row at the fitted value rather than at the event's time, so
 #'   the shortcut is not taken for one.
+#' @param lower,upper The ends of each non-event row's observation region on
+#'   the log scale, one value per non-event row, in the order those rows
+#'   appear in `X`. `lower` may be `-Inf` and `upper` may be `Inf`, which is
+#'   what an open end means; `lower <= upper` is required and a row that
+#'   violates it leaves the answer `"undetermined"`. The defaults are the
+#'   right-censored region, `y[!events]` and `Inf`, so a caller that knows
+#'   only times gets the behavior it had before the other two censoring
+#'   types were admitted.
 #' @return `"bounded"`, `"unbounded"`, or `"undetermined"`.
 #' @keywords internal
 .censoring_bounds_aux <- function(X, y, events, exact_fit = FALSE,
