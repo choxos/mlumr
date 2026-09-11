@@ -928,10 +928,19 @@
 #' the constrained combination. With a nonlinear link the constrained
 #' quantity is the marginalized outcome mean, probability or rate, which is
 #' a function of the whole assumed covariate distribution and not of its
-#' mean profile alone: a normal outcome under `link = "log"` gives the
-#' aggregate mean `exp(mu + beta m + beta^2 v / 2)`, so two rows with the
-#' same mean `m` and different variances `v` constrain different things and
-#' their Jacobian in `(mu, beta)` has full rank. Local rank there is not
+#' mean profile alone: a normal outcome under `link = "log"`, with the
+#' covariate normally distributed within the row, gives the aggregate mean
+#' `g = exp(mu + beta m + beta^2 v / 2)`, so two rows with the same mean `m`
+#' and different variances `v` can constrain different things. Both
+#' qualifications are load-bearing. That expression is the covariate's
+#' moment generating function, so it is the covariate distribution that has
+#' to be normal, not the outcome family alone; a distribution with the same
+#' first two moments and a different shape gives a different aggregate mean.
+#' And the Jacobian of the two rows in `(mu, beta)` has determinant
+#' `g_1 g_2 beta (v_2 - v_1)`, so it is full rank only where the variances
+#' differ AND the slope is away from zero. At `beta = 0` the two rows
+#' constrain the same quantity however far apart their variances are, and
+#' the rank drops to one. Local rank there is not
 #' global identification and neither is precision; the three have to be
 #' assessed separately. For one covariate with an
 #' identity link, independent normal priors of variance `a^2` on the

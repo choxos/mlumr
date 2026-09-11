@@ -123,10 +123,15 @@
 #' model and its applicability to the comparator population. It does not model
 #' posterior uncertainty in population covariate distributions.
 #'
-#' It does not require the two treatments to share covariate effects. The
-#' estimand is `E_B[m_A(X)] - E_B[Y_B]`: the index response surface
-#' standardized to the comparator covariate distribution, contrasted with the
-#' comparator outcome as it was observed. No comparator response model is
+#' It does not require the two treatments to share covariate effects. On the
+#' response scale the estimand is `E_B[m_A(X)] - E_B[Y_B]`: the index
+#' response surface standardized to the comparator covariate distribution,
+#' contrasted with the comparator outcome as it was observed. That
+#' difference is what `$rd` reports for a binomial outcome and `$md` for a
+#' normal one; it is not `$estimate`, which is the link-scale contrast of
+#' the same two standardized quantities, a marginal log odds ratio under a
+#' binomial logit, a log rate ratio under Poisson and a log mean ratio under
+#' a log link, as the scale note above says. No comparator response model is
 #' fitted and none is transported, so `beta_A = beta_B` is not among the
 #' assumptions and effect modification by itself is not a reason to set STC
 #' aside. With a binary covariate at comparator prevalence 0.75 and index
