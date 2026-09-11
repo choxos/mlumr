@@ -24,11 +24,16 @@
   refusing the data would refuse well-posed default fits, so those four
   warn instead. Only when the index study holds the scale alone, which
   `aux_by = ".study"` (the default) and `NULL` give it and `aux_by = "none"`
-  does not. Right-censored rows are consulted: one whose fitted time falls
-  below its censoring time has survival going to zero faster than any power
-  of the scale and makes the posterior proper on its own, while one at or
-  above does nothing, and when the fit on the event rows does not determine
-  those predictors the question is refused as undecided rather than guessed.
+  does not. Right-censored rows are consulted first, for the shape families
+  too: one whose fitted time falls below its censoring time has survival
+  going to zero faster than any power of the scale, and
+  `exp(-(c e^-eta)^k)` goes to zero as `k` grows for exactly the same rows,
+  so either way the posterior is proper and nothing is said. One at or above
+  its censoring time does nothing, and when the fit on the event rows does
+  not determine those predictors the question is refused as undecided rather
+  than guessed. A fit that is nearly rather than exactly exact warns that
+  the auxiliary will concentrate against its boundary, as the normal guard
+  warns about sigma.
   Delayed entry, left censoring and interval censoring are not examined, and
   neither is the comparator side.
 

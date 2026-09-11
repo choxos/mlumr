@@ -47,7 +47,8 @@ is a shape, the reciprocal of a scale, so the same exact fit sends it to
 shape and a half-normal or exponential prior's tail integrates it, while a
 half-t's may not: propriety is a property of the prior, not of the data,
 and refusing the data would refuse well-posed default fits. A warning says
-so instead.
+so instead, and a censored row that bounds the shape suppresses it, as it
+does for the log-normal.
 
 \strong{The auxiliary stratification.} Only when the index study holds the scale
 alone, which \code{aux_by = ".study"} (the default) and \code{NULL} both give it.

@@ -146,3 +146,33 @@ test_that("mlumr() refuses the log-normal collapse before it reaches the engine"
     "engine reached"
   )
 })
+
+test_that("a censored row bounds a shape family too, and suppresses its warning", {
+  # exp(-(c e^-eta)^k) goes to zero as k grows for exactly the rows whose
+  # fitted time falls below their censoring time, so the shape families are
+  # consulted before they are warned about rather than after.
+  bounded <- .surv_stub(c(1, 1, 1, exp(3)), status = c(1L, 1L, 1L, 0L))
+  unbounded <- .surv_stub(c(1, 1, 1, exp(-3)), status = c(1L, 1L, 1L, 0L))
+  for (dist in c("weibull", "loglogistic", "gengamma")) {
+    expect_silent(check(bounded, distribution = dist))
+    expect_false(check(bounded, distribution = dist))
+    expect_warning(check(unbounded, distribution = dist),
+                   "depends on the tail of `prior_aux`")
+  }
+  # And an undetermined censored predictor is said to be undetermined rather
+  # than assumed either way.
+  undetermined <- .surv_stub(c(1, 1, 1, exp(-3)), status = c(1L, 1L, 1L, 0L),
+                             x = c(0, 0, 0, 1))
+  expect_warning(check(undetermined, distribution = "weibull"),
+                 "could not be told")
+})
+
+test_that("a nearly exact fit warns about the boundary the sampler works at", {
+  # The residual is real and the posterior proper, and the auxiliary still
+  # concentrates against its boundary. The normal guard warns here too.
+  d <- .surv_stub(exp(c(-1, -1, 1, 1) + c(0, 1e-9, 0, 1e-9)))
+  expect_warning(check(d), "very nearly fit the event times exactly")
+  expect_warning(check(d), "`sdlog` will concentrate")
+  expect_warning(check(d, distribution = "weibull"),
+                 "the Weibull shape will concentrate")
+})

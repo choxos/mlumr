@@ -523,7 +523,8 @@
 #' shape and a half-normal or exponential prior's tail integrates it, while a
 #' half-t's may not: propriety is a property of the prior, not of the data,
 #' and refusing the data would refuse well-posed default fits. A warning says
-#' so instead.
+#' so instead, and a censored row that bounds the shape suppresses it, as it
+#' does for the log-normal.
 #'
 #' **The auxiliary stratification.** Only when the index study holds the scale
 #' alone, which `aux_by = ".study"` (the default) and `NULL` both give it.
@@ -591,7 +592,21 @@
   X <- cbind(1, covariates)
   s <- .residual_variation_status(X[events, , drop = FALSE], y[events],
                                   "identity")
-  if (s$status %in% c("positive", "near_exact")) return(invisible(FALSE))
+  if (identical(s$status, "positive")) return(invisible(FALSE))
+  if (identical(s$status, "near_exact")) {
+    # The same reasoning as [.warn_near_exact()], about this parameter: the
+    # residual is real and the posterior proper, and the auxiliary will
+    # still concentrate against its boundary.
+    fmt <- paste0(
+      "The index covariates very nearly fit the event times exactly on the ",
+      "log scale (residual sum of squares is %.3g of the total). The ",
+      "residual is real, so the posterior is proper, but %s will ",
+      "concentrate against its boundary and the sampler has to work there: ",
+      "check its diagnostics before reading the estimate."
+    )
+    warning(sprintf(fmt, s$ratio, .aux_name(distribution)), call. = FALSE)
+    return(invisible(TRUE))
+  }
   if (identical(s$status, "saturated")) {
     warning("The uncensored index rows are as many as the free columns of ",
             "their design (", s$n, " rows, rank ", s$rank, "), so it ",
@@ -602,10 +617,31 @@
             "strongly sensitive to `prior_beta`.", call. = FALSE)
     return(invisible(TRUE))
   }
+  # An exact fit. A right-censored row can still bound the auxiliary away
+  # from its boundary, but only one whose fitted time falls below its
+  # censoring time. The argument is the same whichever boundary it is:
+  # S(c) = 1 - Phi((log c - eta) / sigma) goes to zero as sigma does, and
+  # exp(-(c e^-eta)^k) goes to zero as k grows, both faster than the
+  # likelihood's polynomial growth.
+  bound <- if (any(!events)) {
+    .censoring_bounds_aux(X, y, events)
+  } else {
+    "unbounded"
+  }
+  if (identical(bound, "bounded")) return(invisible(FALSE))
+
   if (distribution %in% shape_families) {
     warning("The index covariates fit every event time exactly on the log ",
             "scale, so the likelihood grows without limit as the ",
-            distribution, " shape does. Whether a posterior exists then ",
+            distribution, " shape does",
+            if (identical(bound, "undetermined")) {
+              paste0(", and whether a censored row bounds it could not be ",
+                     "told, since the fit on the event rows does not ",
+                     "determine those rows' linear predictors")
+            } else {
+              ""
+            },
+            ". Whether a posterior exists then ",
             "depends on the tail of `prior_aux`: a half-normal or an ",
             "exponential integrates it and a half-t need not, so what is ",
             "reported for the shape is a property of that prior rather than ",
@@ -646,17 +682,13 @@
                     "rounding, and at double precision nothing tells that",
                     "from an exact fit"))
   }
-  # An exact fit. A right-censored row can still bound the scale away from
-  # zero, but only one whose fitted time falls below its censoring time.
+  if (identical(bound, "undetermined")) {
+    undecided(paste("the index covariates fit every event time exactly, and",
+                    "the censored rows' linear predictors are not determined",
+                    "by that fit, so whether one of them falls below its",
+                    "censoring time could not be told"))
+  }
   if (any(!events)) {
-    bound <- .lognormal_censoring_bound(X, y, events)
-    if (identical(bound, "bounded")) return(invisible(FALSE))
-    if (!identical(bound, "unbounded")) {
-      undecided(paste("the index covariates fit every event time exactly, and",
-                      "the censored rows' linear predictors are not",
-                      "determined by that fit, so whether one of them falls",
-                      "below its censoring time could not be told"))
-    }
     stop("The index covariates fit every event time exactly on the log ",
          "scale, and no censored row is predicted to fail before it was ",
          "censored, so none of them bounds the scale away from zero. ",
@@ -669,21 +701,25 @@
 }
 
 
-#' Whether a censored row bounds the log-normal scale away from zero
+#' Whether a censored row bounds the auxiliary away from its boundary
 #'
-#' The event rows are fitted exactly, so the scale collapses unless some
-#' censored row's survival goes to zero with it. That happens when the row's
-#' linear predictor is strictly below the log of its censoring time, and it
-#' is a question about the exact solution, which is unique exactly when the
-#' event design has full column rank. Without that the exact solutions form
-#' an affine family and the censored predictors move with it.
+#' The event rows are fitted exactly, so the auxiliary runs to its boundary
+#' unless some censored row's survival goes to zero with it. That happens
+#' when the row's linear predictor is strictly below the log of its
+#' censoring time, and the condition is the same whichever boundary it is:
+#' the log-normal survival `1 - Phi((log c - eta) / sigma)` goes to zero as
+#' `sigma` does, and `exp(-(c e^-eta)^k)` goes to zero as `k` grows.
+#'
+#' It is a question about the exact solution, which is unique exactly when
+#' the event design has full column rank. Without that the exact solutions
+#' form an affine family and the censored predictors move with it.
 #'
 #' @param X The full centered design, intercept first.
 #' @param y `log(time)` for every row.
 #' @param events Logical, which rows are events.
 #' @return `"bounded"`, `"unbounded"`, or `"undetermined"`.
 #' @keywords internal
-.lognormal_censoring_bound <- function(X, y, events) {
+.censoring_bounds_aux <- function(X, y, events) {
   Xe <- X[events, , drop = FALSE]
   if (.exact_rank(Xe)$rank < ncol(X)) return("undetermined")
   beta <- tryCatch(stats::lm.fit(Xe, y[events])$coefficients,
