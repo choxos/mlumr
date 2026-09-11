@@ -89,22 +89,27 @@ that bounds the parameter makes every one of those messages untrue, not
 just the refusal.
 
 \strong{Delayed entry, left and interval censoring.} All examined, through the
-OBSERVATION REGION each row is known to lie in on the log scale: a
-right-censored row at \code{c} is \verb{[log c, Inf)}, a left-censored one at \code{u} is
-\verb{(-Inf, log u]}, an interval one is \verb{[log l, log u]}, and a delayed entry
-raises the lower end of the last two. As the auxiliary goes to its
-boundary the fitted distribution concentrates at the fitted value, so a
-row's contribution tends to one when that value is strictly inside its
-region and to zero when it is strictly outside, and only the second bounds
-the auxiliary. Skipping a censoring type outright was not the safe choice
-it looked like: it let a row that suppresses nothing stand in for one that
-does, and sent an improper posterior to the sampler in silence.
+OBSERVATION REGION each row is known to lie in on the log scale. A
+right-censored row at \code{c} runs from \verb{log c} upwards with no upper end; a
+left-censored one at \code{u} runs up to \verb{log u} with no lower end; an interval
+one runs from \verb{log l} to \verb{log u}. As the auxiliary goes to its boundary
+the fitted distribution concentrates at the fitted value, so a row's
+contribution tends to one when that value is strictly inside its region
+and to zero when it is strictly outside, and only the second bounds the
+auxiliary.
+
+A delayed entry is not an ordinary lower end, because the contribution is
+conditional on survival to it: with the fitted value BELOW the entry the
+conditional law piles up just above it and the probability tends to one,
+not to zero. So an entry never closes a region from below, while an
+interval that opens strictly above its entry still does.
+
+Skipping a censoring type outright was not the safe choice it looked
+like: it let a row that suppresses nothing stand in for one that does,
+and sent an improper posterior to the sampler in silence.
 
 The comparator side is not examined either: its reconstructed rows enter a
 likelihood marginalized over the integration grid, which is not this
 geometry.
-
-[log c, Inf)\verb{, a left-censored one at }u\code{is}(-Inf, log u]: R:log\%20c,\%20Inf)\%60,\%20a\%20left-censored\%20one\%20at\%20\%60u\%60\%20is\%0A\%60(-Inf,\%20log\%20u
-[log l, log u]: R:log\%20l,\%20log\%20u
 }
 \keyword{internal}

@@ -154,18 +154,34 @@ test_that("a censored row bounds when the fit lands outside its region", {
   expect_false(check(bad))
 })
 
-test_that("delayed entry raises the lower end of a closed region", {
-  # A delayed entry conditions the probability on survival to it, so for a
-  # left- or interval-censored row it replaces the lower end when it is the
-  # later of the two. A left-censored row at upper bound 2 holds the fitted
-  # time of 1 and bounds nothing; entering at 1.5 moves its region to
-  # [log 1.5, log 2], which no longer holds it, and the row bounds.
+test_that("a delayed entry never closes a region from below", {
+  # It conditions the probability on survival to it rather than bounding
+  # the row, and the difference shows exactly where the fitted value sits
+  # BELOW the entry: the conditional law piles up just above the entry, so
+  # the probability of the region tends to ONE, not to zero. Three events at
+  # t = 1 with a left-censored row entering at 1.5 and closing at 2: the
+  # row's own contribution is 1.000000 at every scale from 0.1 down, and the
+  # marginal slope is 2.000, identical to the same data with the row
+  # removed. An earlier version of this test asserted the opposite and
+  # pinned the bug.
   d <- .surv_stub(rep(1, 4))
   d$ipd$data$.status[4L] <- 2L
   d$ipd$data$.time[4L] <- 2
   expect_error(check(d), "improper")
   d$ipd$data$.delay_time[4L] <- 1.5
-  expect_false(check(d))
+  expect_error(check(d), "improper")
+  # An interval that opens STRICTLY above its entry does still bound from
+  # below, since the pile at the entry is then outside it.
+  iv <- .surv_stub(rep(1, 4))
+  iv$ipd$data$.status[4L] <- 3L
+  iv$ipd$data$.delay_time[4L] <- 1.2
+  iv$ipd$data$.start_time[4L] <- 1.5
+  iv$ipd$data$.time[4L] <- 2
+  expect_false(check(iv))
+  # And an interval opening exactly AT its entry does not: the pile is
+  # inside it.
+  iv$ipd$data$.start_time[4L] <- 1.2
+  expect_error(check(iv), "improper")
   # A right-censored row is not tightened by its entry: its region is
   # [log c, Inf) whatever the entry is, since the entry is below c.
   r <- .surv_stub(c(1, 1, 1, exp(-3)), status = c(1L, 1L, 1L, 0L),

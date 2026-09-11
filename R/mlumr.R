@@ -565,16 +565,24 @@
 #' just the refusal.
 #'
 #' **Delayed entry, left and interval censoring.** All examined, through the
-#' OBSERVATION REGION each row is known to lie in on the log scale: a
-#' right-censored row at `c` is `[log c, Inf)`, a left-censored one at `u` is
-#' `(-Inf, log u]`, an interval one is `[log l, log u]`, and a delayed entry
-#' raises the lower end of the last two. As the auxiliary goes to its
-#' boundary the fitted distribution concentrates at the fitted value, so a
-#' row's contribution tends to one when that value is strictly inside its
-#' region and to zero when it is strictly outside, and only the second bounds
-#' the auxiliary. Skipping a censoring type outright was not the safe choice
-#' it looked like: it let a row that suppresses nothing stand in for one that
-#' does, and sent an improper posterior to the sampler in silence.
+#' OBSERVATION REGION each row is known to lie in on the log scale. A
+#' right-censored row at `c` runs from `log c` upwards with no upper end; a
+#' left-censored one at `u` runs up to `log u` with no lower end; an interval
+#' one runs from `log l` to `log u`. As the auxiliary goes to its boundary
+#' the fitted distribution concentrates at the fitted value, so a row's
+#' contribution tends to one when that value is strictly inside its region
+#' and to zero when it is strictly outside, and only the second bounds the
+#' auxiliary.
+#'
+#' A delayed entry is not an ordinary lower end, because the contribution is
+#' conditional on survival to it: with the fitted value BELOW the entry the
+#' conditional law piles up just above it and the probability tends to one,
+#' not to zero. So an entry never closes a region from below, while an
+#' interval that opens strictly above its entry still does.
+#'
+#' Skipping a censoring type outright was not the safe choice it looked
+#' like: it let a row that suppresses nothing stand in for one that does,
+#' and sent an improper posterior to the sampler in silence.
 #'
 #' The comparator side is not examined either: its reconstructed rows enter a
 #' likelihood marginalized over the integration grid, which is not this
@@ -681,12 +689,24 @@
     # `near_exact` or `unresolved` fit leaves a residual, so the structural
     # shortcut inside is not available to it.
     # The region each censored row is observed to lie in, on the log scale.
-    # A right-censored row is `[log c, Inf)`; the other two close at their
-    # own upper bound and open at the later of their lower bound and their
-    # entry time, since a delayed entry conditions the probability on
-    # survival to it. `log(0)` is the -Inf that means "no lower end", which
-    # is what a left-censored row without delayed entry has.
-    log_open <- suppressWarnings(log(pmax(start, delay)))
+    # A right-censored row runs from its own time upwards with no upper end;
+    # the other two close at their own upper bound.
+    #
+    # A delayed entry is NOT an ordinary lower end. The contribution is
+    # conditional on survival to it, and when the fitted value sits BELOW
+    # the entry the conditional law piles up just above it, so the
+    # probability of the region tends to one rather than to zero. Three
+    # events at t = 1 with a left-censored row entering at 1.5 and closing
+    # at 2: the row's own contribution is 1.000000 at every scale and the
+    # marginal slope is 2.000, identical to the same data with the row
+    # removed. Reading the entry as a lower end called that "bounded" and
+    # passed the improper fit.
+    #
+    # An interval that opens STRICTLY above its entry still bounds from
+    # below, since the pile at the entry is then outside it. So the lower
+    # end is the interval's own opening when it has one above the entry,
+    # and no lower end at all otherwise.
+    log_open <- suppressWarnings(ifelse(start > delay, log(start), -Inf))
     right <- status[!events] == 0L
     .censoring_bounds_aux(
       X, y, events,
