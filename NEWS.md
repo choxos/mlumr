@@ -31,16 +31,26 @@
   identically zero is refused, and so is one whose positive rows are fitted
   exactly while leaving a direction of the coefficients free to take the zero
   rows there; zeros beside positive rows that leave a real residual, or that
-  pin every coefficient, pass, and a negative outcome anywhere settles it.
-  The check judges the design the model will fit: with `center = FALSE` the
-  rounding bound carries the cancellation of the raw predictor offsets, as
-  the likelihood then does, so a residual below that rounding is refused as
-  undecidable where the centered fit would only warn. A saturated
-  design is warned about rather than refused: its posterior
-  is proper, but nothing in the data separates the residual SD from the
-  coefficients, so the estimate of sigma is potentially strongly sensitive to
-  the coefficient priors. The check runs in validation, so it costs no
-  compilation.
+  pin every coefficient, pass, and a negative outcome anywhere settles it. A
+  zero row is pinned only when it lies exactly in the span of the positive
+  rows; one merely within rounding of that span is refused as undecided.
+  The check judges the design the model fits, with the model's own centers
+  or none, and its rank is that design's EXACT rank, computed in exact
+  arithmetic: a covariate that differs from a combination of the others by
+  less than rounding is still a column of the model, and an outcome can be
+  reproduced exactly through it with enormous coefficients where a
+  factorization at machine precision, having dropped the column, shows an
+  ordinary residual. The structural rules see that with the exact rank and
+  refuse it as an exact fit; otherwise such a design is refused as
+  unresolved rather than passed on the reduced fit. With `center = FALSE`
+  the rounding bound
+  carries the cancellation of the raw predictor offsets, as the likelihood
+  then does, so a residual below that rounding is refused as undecidable
+  where the centered fit would only warn. A saturated design is warned
+  about rather than refused: its posterior is proper, but nothing in the
+  data separates the residual SD from the coefficients, so the estimate of
+  sigma is potentially strongly sensitive to the coefficient priors. The
+  check runs before any model is compiled or sampled.
 * **Posterior summaries now carry how many draws they used.** The summaries
   behind `predict()`, `marginal_effects()`, `conditional_effects()` and
   `conditional_predict()` pass `na.rm = TRUE`, which is right: one bad draw

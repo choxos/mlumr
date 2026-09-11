@@ -439,17 +439,26 @@ test_that("zeros mixed with positives are refused only where the boundary is rea
   mid <- data.frame(.outcome = c(1, 1, 0), x1 = c(-1, 1, 0), x2 = c(-1, 1, 0))
   d <- list(ipd = list(data = mid), covariates = c("x1", "x2"))
   expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
-  # Off the span by 1e-20 of its size is within rounding of it, below the
-  # resolution stated on the guard, and reads as pinned too. Off by 1e-10 is
-  # neither pinned nor safely free: the loadings that would decide it are
-  # rounding, and the check declines.
+  # A zero row off the span by 1e-20 of the column's size. When the model
+  # centers, its design has lost that contrast: 1e-20 - 0.5 is -0.5
+  # exactly, so the row is a bitwise duplicate of a positive profile in
+  # the fitted design and is pinned as one. When the model fits the raw
+  # design the row is free, exactly off the span, and its loadings are
+  # rounding: neither pinned nor safely free, and the check declines. The
+  # same at 1e-10 either way.
   near <- data.frame(.outcome = c(1, 1, 1, 1, 0),
                      x1 = c(0, 0, 1, 1, 0), x2 = c(0, 0, 1, 1, 1e-20))
   d <- list(ipd = list(data = near), covariates = c("x1", "x2"))
   expect_silent(mlumr:::.check_normal_residual_variation(d, "log"))
+  expect_error(mlumr:::.check_normal_residual_variation(d, "log",
+                                                        center = FALSE),
+               "could not be decided")
   near$x2[5] <- 1e-10
   d <- list(ipd = list(data = near), covariates = c("x1", "x2"))
   expect_error(mlumr:::.check_normal_residual_variation(d, "log"),
+               "could not be decided")
+  expect_error(mlumr:::.check_normal_residual_variation(d, "log",
+                                                        center = FALSE),
                "could not be decided")
   # A covariate no zero row loads on, here a constant, adds a null direction
   # without adding to the question: the opposite-sign geometry above is still
@@ -471,8 +480,8 @@ test_that("zeros mixed with positives are refused only where the boundary is rea
   # size is free, and with the other zero row it loads the one direction
   # with a common sign: reachable. The feasibility rows are scaled by powers
   # of two and never shifted, so no centering can round such a row onto the
-  # profile; a row off it by 1e-20 is below the resolution stated on the
-  # guard and reads as pinned, which is the case two blocks above.
+  # profile; a row off it by 1e-20 is exactly off the span but within
+  # rounding of it, and the check declines, as two blocks above.
   d <- .normal_stub(c(1, 1, 0, 0), c(0, 0, 1e-6, 1))
   expect_error(mlumr:::.check_normal_residual_variation(d, "log"),
                "taking every zero row there")
@@ -534,9 +543,10 @@ test_that("a column spanning the double range does not fake a duplicate", {
   # Dividing a column that holds 1e308 by 2^1023 underflows an entry of
   # 1e-200 to zero, and the bitwise duplicate test then read a zero row at
   # 1e-200 as a positive row at 0. The duplicate test now sees the raw rows.
-  # The row is still below the resolution stated on the guard relative to
-  # the column, so it reads as pinned by the row-space test rather than as
-  # a duplicate; this pins the reason, not the verdict.
+  # The exact tests see the raw rows: the zero row at 1e-200 is a distinct
+  # number from the positive row at 0, exactly off its span, and is neither
+  # a duplicate nor pinned; this pins the reason the scaled rows cannot be
+  # used for that test.
   X_pos <- cbind(1, c(0, 0))
   X_zero <- cbind(1, c(1e-200, 1e308))
   scaled <- mlumr:::.scale_design(rbind(X_pos, X_zero))
@@ -628,26 +638,167 @@ test_that("an uncentered model is judged on the design it will fit", {
                  "concentrate near zero")
   expect_error(mlumr:::.check_normal_residual_variation(d, center = FALSE),
                "within rounding")
+})
 
-  # A contrast below machine epsilon of the column's own size is below the
-  # factorization's resolution whether or not the model centers: x2 differs
-  # from x1 by 1e-20 on one row, and the column is dropped as redundant. The
-  # guard documents that limit rather than pretend to see past it.
+test_that("the rank is the design's exact rank, not the one a QR resolves", {
+  # x2 differs from x1 by 1e-20 on one row. A factorization at machine
+  # precision drops it as redundant, but the raw design has exact rank 3:
+  # one 3-by-3 minor is -1e-20, and the finite coefficients (0, -1e20, 1e20)
+  # reproduce y = c(0, 1, 0, 0) exactly, with n = 4 above the rank. That is
+  # an improper posterior for the model that fits the raw design, and the
+  # guard used to pass it on the strength of the reduced fit. It is now
+  # caught structurally: three distinct rows, agreeing replicates, rank 3.
   x1 <- c(0, 0, 1, 1)
   x2 <- c(0, 1e-20, 1, 1)
-  y <- (x2 - x1) / 1e-20
+  y <- c(0, 1, 0, 0)
+  X <- cbind(1, x1, x2)
+  expect_identical(qr(X, tol = .Machine$double.eps)$rank, 2L)
+  expect_identical(mlumr:::.exact_rank(X)$rank, 3L)
+  expect_identical(as.vector(X %*% c(0, -1e20, 1e20)), y)
   d <- list(ipd = list(data = data.frame(.outcome = y, x1 = x1, x2 = x2)),
             covariates = c("x1", "x2"))
+  s <- mlumr:::.residual_variation_status(X, y, "identity")
+  expect_identical(s$status, "exact")
+  expect_error(mlumr:::.check_normal_residual_variation(d, "identity",
+                                                        center = FALSE),
+               "3 distinct covariate profiles for a design of rank 3")
+  expect_error(mlumr:::.check_normal_residual_variation(d, "identity",
+                                                        center = FALSE),
+               "improper")
+
+  # When the model centers, its design is the centered one, and there the
+  # contrast is gone: 1e-20 - 0.5 is -0.5 exactly, so rows 1 and 2 are the
+  # same row of the fitted design with outcomes 0 and 1. That proves the
+  # residual positive for that model, and the guard says so.
+  Xc <- cbind(1, x1 - 0.5, x2 - 0.5)
+  expect_identical(Xc[1, ], Xc[2, ])
+  expect_identical(mlumr:::.exact_rank(Xc)$rank, 2L)
+  expect_identical(mlumr:::.residual_variation_status(Xc, y, "identity")$status,
+                   "positive")
   expect_silent(mlumr:::.check_normal_residual_variation(d, "identity",
+                                                         center = c(0.5, 0.5)))
+})
+
+test_that("a column within rounding of the others is refused as unresolved", {
+  # Exactly independent columns that no factorization at machine precision
+  # can separate. The outcome is not reproduced on the reduced design, and
+  # whether it is on the full one cannot be decided, so the guard refuses
+  # and says why rather than pass the reduced fit's residual as the model's.
+  set.seed(2026)
+  x1 <- rnorm(20)
+  x2 <- x1
+  # One element one unit in the last place away: representable, so the
+  # columns are distinct numbers, and a contrast the QR cannot resolve.
+  x2[1] <- x2[1] * (1 + .Machine$double.eps)
+  expect_false(identical(x1, x2))
+  y <- rnorm(20)
+  X <- cbind(1, x1, x2)
+  expect_identical(mlumr:::.exact_rank(X)$rank, 3L)
+  expect_identical(qr(X, tol = .Machine$double.eps)$rank, 2L)
+  s <- mlumr:::.residual_variation_status(X, y, "identity")
+  expect_identical(s$status, "unresolved")
+  d <- list(ipd = list(data = data.frame(.outcome = y, x1 = x1, x2 = x2)),
+            covariates = c("x1", "x2"))
+  expect_error(mlumr:::.check_normal_residual_variation(d, center = FALSE),
+               "3 exactly independent columns.*resolves only 2")
+  d$ipd$data$.outcome <- exp(y)
+  expect_error(mlumr:::.check_normal_residual_variation(d, "log",
+                                                        center = FALSE),
+               "resolves only 2")
+  # An exactly dependent column is a different thing: it is not a column
+  # the model can fit through, the exact rank drops with it, and the
+  # ordinary verdict stands.
+  X <- cbind(1, x1, 2 * x1)
+  expect_identical(mlumr:::.exact_rank(X)$rank, 2L)
+  expect_identical(mlumr:::.residual_variation_status(X, y, "identity")$status,
+                   "positive")
+})
+
+test_that("the exact rank agrees with a QR wherever the QR is trustworthy", {
+  set.seed(2026)
+  for (i in 1:100) {
+    n <- sample(2:12, 1)
+    k <- sample(1:5, 1)
+    r <- sample(1:min(n, k), 1)
+    X <- matrix(sample(-5:5, n * r, TRUE), n, r) %*%
+      matrix(sample(-3:3, r * k, TRUE), r, k)
+    exact <- mlumr:::.exact_rank(X)
+    expect_identical(exact$rank, qr(X)$rank)
+    expect_identical(qr(X[, exact$pivots, drop = FALSE])$rank, exact$rank)
+  }
+  # Doubles are rationals, so an exact dependence survives any scaling by
+  # powers of two and any sign, and a floating-point sum is not one.
+  x <- rnorm(7)
+  expect_identical(mlumr:::.exact_rank(cbind(1, x, -x / 8))$rank, 2L)
+  expect_identical(mlumr:::.exact_rank(cbind(1, 3, x))$rank, 2L)
+  expect_identical(mlumr:::.exact_rank(cbind(1, c(4.9e-324, 1e308, 0),
+                                             c(2, 3, 4)))$rank, 3L)
+  # Subnormal mantissas are read exactly: every subnormal is a multiple of
+  # 2^-1074, so twice the smallest one is exactly dependent on it and three
+  # times it beside twice is not.
+  tiny <- 2^-1074
+  expect_identical(mlumr:::.exact_rank(cbind(c(tiny, 2 * tiny),
+                                             c(1, 2)))$rank, 1L)
+  expect_identical(mlumr:::.exact_rank(cbind(c(tiny, 3 * tiny),
+                                             c(1, 2)))$rank, 2L)
+  wide <- c(tiny, 5e307)
+  expect_identical(mlumr:::.exact_rank(cbind(wide, 2 * wide))$rank, 1L)
+  # One unit in the last place off exact proportionality at the top of the
+  # range is a distinct number, and the exact rank says so where a QR at
+  # machine precision cannot. (Built by multiplication: whether the decimal
+  # 1e308 parses to twice the decimal 5e307 differs between platforms.)
+  nudged <- 2 * wide
+  nudged[2] <- nudged[2] * (1 + .Machine$double.eps)
+  expect_false(nudged[2] == 2 * wide[2])
+  expect_identical(mlumr:::.exact_rank(cbind(wide, nudged))$rank, 2L)
+  expect_identical(qr(cbind(wide, nudged))$rank, 1L)
+  expect_identical(mlumr:::.exact_rank(matrix(0, 3, 2))$rank, 0L)
+  expect_identical(mlumr:::.exact_rank(matrix(0, 0, 2))$rank, 0L)
+})
+
+test_that("a zero row within rounding of the positive rows' span is not pinned", {
+  # The zero row at 2^-48 is sixteen machine epsilons off the span of the
+  # positive rows, which are all at x = 0, and the direction (0, -1) leaves
+  # those fixed while lowering both zero rows. A distance that small used to
+  # read as membership of the span, and the boundary as unreachable. It is
+  # now neither pinned nor safely free: the loadings that decide the rest
+  # are rounding there, so the guard refuses as undecided.
+  x <- c(0, 0, 2^-48, 1)
+  y <- c(1, 1, 0, 0)
+  X <- cbind(1, x)
+  expect_identical(as.vector(X[y > 0, ] %*% c(0, -1)), c(0, 0))
+  expect_true(all(X[y == 0, ] %*% c(0, -1) < 0))
+  d <- .normal_stub(y, x)
+  expect_error(mlumr:::.check_normal_residual_variation(d, "log",
+                                                        center = FALSE),
+               "could not be decided")
+  expect_error(mlumr:::.check_normal_residual_variation(d, "log",
+                                                        center = FALSE),
+               "within rounding of the positive rows' span")
+  # Well above the rounding band the same geometry is decided: reachable.
+  d <- .normal_stub(y, c(0, 0, 1e-6, 1))
+  expect_error(mlumr:::.check_normal_residual_variation(d, "log",
+                                                        center = FALSE),
+               "taking every zero row there")
+  # And a row exactly in the span is pinned however small the numbers that
+  # put it there: the midpoint of two positive profiles, at machine size.
+  x1 <- c(0, 2^-40, 2^-41, 2^-30)
+  x2 <- c(0, 2^-40, 2^-41, 0)
+  y <- c(1, 1, 0, 0)
+  d <- list(ipd = list(data = data.frame(.outcome = y, x1 = x1, x2 = x2)),
+            covariates = c("x1", "x2"))
+  expect_silent(mlumr:::.check_normal_residual_variation(d, "log",
                                                          center = FALSE))
 })
 
-test_that("mlumr() tells the guard whether the design will be centered or QR-rotated", {
-  # A QR reparameterization decorrelates the design and removes the offset
-  # cancellation just as centering does, so the guard hears center || qr.
+test_that("mlumr() hands the guard the centers its design will carry", {
+  # The guard judges the design the model fits. With center = TRUE that is
+  # the design centered on the model's own pooled means, and with
+  # center = FALSE the raw one; a QR reparameterization spans the same
+  # column space either way and changes nothing here.
   local_mocked_bindings(
     .check_normal_residual_variation = function(data, link, center = TRUE) {
-      stop("guard saw center = ", center)
+      stop("guard saw center = ", paste(format(center), collapse = ", "))
     },
     .package = "mlumr"
   )
@@ -665,9 +816,84 @@ test_that("mlumr() tells the guard whether the design will be centered or QR-rot
                       x = distr(qnorm, mean = x_mean, sd = x_sd))
     )
   }
-  expect_error(mlumr(make_data(), family = "normal", center = FALSE,
-                     qr = TRUE),
-               "guard saw center = TRUE")
-  expect_error(mlumr(make_data(), family = "normal", center = FALSE),
-               "guard saw center = FALSE")
+  # Pooled center: (4 * 0 + 100 * 0.1) / 104.
+  centered <- format(10 / 104)
+  expect_error(suppressWarnings(mlumr(make_data(), family = "normal")),
+               paste0("guard saw center = ", centered), fixed = TRUE)
+  expect_error(suppressWarnings(mlumr(make_data(), family = "normal",
+                                      qr = TRUE)),
+               paste0("guard saw center = ", centered), fixed = TRUE)
+  expect_error(suppressWarnings(mlumr(make_data(), family = "normal",
+                                      center = FALSE)),
+               "guard saw center = 0", fixed = TRUE)
+  expect_error(suppressWarnings(mlumr(make_data(), family = "normal",
+                                      center = FALSE, qr = TRUE)),
+               "guard saw center = 0", fixed = TRUE)
+})
+
+test_that("the raw-design exact fit is refused through mlumr() itself", {
+  # The public path with the backend replaced by a spy: the refusal must
+  # come from the guard, before any engine is reached.
+  local_mocked_bindings(
+    .mlumr_fit_backend = function(...) stop("engine reached"),
+    .package = "mlumr"
+  )
+  ipd <- set_ipd(data.frame(trt = "A", y = c(0, 1, 0, 0),
+                            x1 = c(0, 0, 1, 1), x2 = c(0, 1e-20, 1, 1)),
+                 "trt", outcome = "y", covariates = c("x1", "x2"),
+                 family = "normal")
+  agd <- set_agd(data.frame(trt = "B", y_mean = 0.5, y_se = 0.1,
+                            x1_mean = 0, x1_sd = 1, x2_mean = 0, x2_sd = 1),
+                 "trt", family = "normal", outcome_mean = "y_mean",
+                 outcome_se = "y_se", cov_means = c("x1_mean", "x2_mean"),
+                 cov_sds = c("x1_sd", "x2_sd"),
+                 cov_types = c("continuous", "continuous"))
+  d <- suppressWarnings(add_integration(
+    combine_data(ipd, agd), n_int = 16, cor = diag(2), cor_adjust = "none",
+    verbose = FALSE,
+    x1 = distr(stats::qnorm, mean = x1_mean, sd = x1_sd),
+    x2 = distr(stats::qnorm, mean = x2_mean, sd = x2_sd)
+  ))
+  expect_error(suppressWarnings(mlumr(d, model = "relaxed",
+                                      link = "identity", center = FALSE,
+                                      qr = FALSE, seed = 2026,
+                                      verbose = FALSE)),
+               "improper")
+  # The same data with the model's centering merge rows 1 and 2, whose
+  # outcomes differ, so the residual is provably positive and the fit
+  # reaches the spy.
+  expect_error(suppressWarnings(mlumr(d, model = "relaxed",
+                                      link = "identity", center = TRUE,
+                                      qr = FALSE, seed = 2026,
+                                      verbose = FALSE)),
+               "engine reached")
+})
+
+test_that("a boundary row within rounding of the span is refused through mlumr() too", {
+  # The 2^-48 row with a heavy-tailed slope prior: along the direction
+  # (0, -1) the likelihood grows without bound and a Cauchy prior does not
+  # tame it, so the posterior is improper. The guard does not see the prior
+  # and refuses the geometry as undecided before any backend is reached.
+  local_mocked_bindings(
+    .mlumr_fit_backend = function(...) stop("engine reached"),
+    .package = "mlumr"
+  )
+  ip <- set_ipd(data.frame(trt = "A", y = c(1, 1, 0, 0),
+                           x = c(0, 0, 2^-48, 1)),
+                "trt", outcome = "y", covariates = "x", family = "normal")
+  ag <- set_agd(data.frame(trt = "B", y_mean = 1, y_se = 0.1, x_mean = 0,
+                           x_sd = 1),
+                "trt", family = "normal", outcome_mean = "y_mean",
+                outcome_se = "y_se", cov_means = "x_mean", cov_sds = "x_sd",
+                cov_types = "continuous")
+  d <- suppressWarnings(add_integration(
+    combine_data(ip, ag), n_int = 16, verbose = FALSE,
+    x = distr(stats::qnorm, mean = x_mean, sd = x_sd)
+  ))
+  expect_error(suppressWarnings(mlumr(
+    d, model = "relaxed", link = "log", center = FALSE, qr = FALSE,
+    prior_beta = prior_cauchy(0, 2.5),
+    prior_beta_comparator = prior_normal(0, 2.5), seed = 2026,
+    verbose = FALSE
+  )), "could not be decided")
 })
