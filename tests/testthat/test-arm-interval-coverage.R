@@ -160,11 +160,15 @@ test_that("the naive Poisson arm intervals cover at least the nominal level", {
   expect_identical(ci[3, 1], 0)
 })
 
-test_that("the naive contrast intervals are calibrated as documented", {
-  # The contrasts stay Wald on the link scale around the boundary-corrected
-  # quantities. Enumerating every pair of counts at n = 100 per arm gives
-  # coverage between 0.94 and 0.999 over these true probabilities; the
-  # values are recorded so a change in the method is a change in this test.
+test_that("the naive contrast coverage is recorded at the configurations tested", {
+  # The link-scale contrast and the log risk ratio stay Wald around the
+  # boundary-corrected quantities; the risk difference is on the natural
+  # scale, centered on the raw difference of proportions. Enumerating every
+  # pair of counts at n = 100 per arm gives the coverage below AT THESE
+  # TRUE PROBABILITIES. The values are recorded so a change in the method
+  # is a change in this test. They are not a calibration envelope: nothing
+  # here bounds coverage at a probability pair that is not in the table,
+  # and the last two rows are in it because they are bad.
   n <- 100L
   d0 <- .arm_data(1L, 1L, n)
   grid <- array(NA_real_, c(n + 1L, n + 1L, 6L))
@@ -185,10 +189,13 @@ test_that("the naive contrast intervals are calibrated as documented", {
       sum(w[grid[, , 2 * k - 1] <= truth[k] & grid[, , 2 * k] >= truth[k]])
     }, numeric(1))
   }
-  # Each row: p1, p2, then the observed coverage of the log odds ratio,
-  # the log risk ratio and the risk difference, from 0.939 to 0.9999. A
-  # method change that moves any of them by more than 0.001 in either
-  # direction fails here: wider intervals are a change too.
+  # Each row: p1, p2, then the observed coverage of the log odds ratio, the
+  # log risk ratio and the risk difference. A method change that moves any
+  # of them by more than 0.001 in either direction fails here: wider
+  # intervals are a change too. The last two rows are opposite-boundary and
+  # near-boundary configurations where the intervals are badly
+  # under-calibrated; they are pinned so that stays visible and so that a
+  # method that repairs them fails this test and has to say so.
   observed <- rbind(
     c(0.014, 0.014, 0.9999, 0.9999, 0.9930),
     c(0.020, 0.020, 0.9993, 0.9994, 0.9838),
@@ -199,7 +206,9 @@ test_that("the naive contrast intervals are calibrated as documented", {
     c(0.020, 0.500, 0.9659, 0.9595, 0.9417),
     c(0.980, 0.980, 0.9993, 0.9936, 0.9838),
     c(0.986, 0.986, 0.9999, 0.9982, 0.9930),
-    c(0.986, 0.500, 0.9639, 0.9494, 0.9494)
+    c(0.986, 0.500, 0.9639, 0.9494, 0.9494),
+    c(0.986, 0.020, 0.9833, 0.9492, 0.8531),
+    c(0.986, 0.957, 0.9843, 0.9209, 0.9301)
   )
   for (i in seq_len(nrow(observed))) {
     cov <- coverage(observed[i, 1], observed[i, 2])

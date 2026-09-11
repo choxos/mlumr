@@ -1,8 +1,10 @@
 # A Poisson STC whose likelihood has no finite maximum. The log-likelihood is
 # sum(y eta - E exp(eta)); along a direction of the coefficients that leaves
 # every positive-count row's rate fixed and lowers a zero-count row's, it
-# rises without bound, and iterative reweighting stops anyway when the
-# deviance stops changing. What comes back is where it stopped.
+# increases toward a supremum it never attains, so no finite coefficient
+# maximizes it. The likelihood itself is bounded: with no events it is at
+# most 1. Iterative reweighting stops anyway when the deviance stops
+# changing, and what comes back is where it stopped.
 
 make_poisson <- function(y, x, binary = FALSE, target_mean = NULL) {
   source <- data.frame(trt = "A", y = y, x = x, E = 1)
@@ -39,7 +41,8 @@ test_that("an index arm with no events is refused, not reported", {
 test_that("a subgroup with no events beside events elsewhere is refused", {
   # Zero counts at x = 0 and positive counts at x = 1: the direction
   # (b0 - t, b1 + t) leaves the x = 1 rates fixed and lowers the x = 0 ones,
-  # so the likelihood rises without bound. The target population sits at
+  # so the likelihood climbs to a supremum it never reaches. The target
+  # population sits at
   # the affected profile, and the transcribed iteration stops at a slope
   # near 21 with a standard error in the thousands.
   d <- make_poisson(c(rep(0L, 40), rep(1:4, 10)), rep(c(0, 1), each = 40),

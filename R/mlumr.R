@@ -697,12 +697,6 @@
 #' to the whole, the estimand does not change with how the aggregate evidence
 #' happens to be tabulated.
 #'
-#' **Weakly-identified coefficients in the relaxed model**:
-#' `beta_comparator` is identified only through AgD, so the relaxed
-#' model needs informative priors (or many AgD rows) to estimate
-#' effect modification reliably. [prior_sensitivity()] is the
-#' recommended diagnostic.
-#'
 #' @seealso [prior_sensitivity()] for sensitivity of the posterior
 #'   to `prior_beta`; [set_agd()] for AgD scale requirements;
 #'   [prior_summary()] for introspection of the priors actually used.
@@ -925,12 +919,21 @@
 #' intercept (the primary relaxed-SPFA strategy of Chandler & Ishak,
 #' Section 2.2.1). A single aggregate outcome summary generally cannot
 #' separately identify all comparator coefficients and the comparator
-#' intercept. Its likelihood term constrains one combination of them, the
-#' comparator intercept plus the coefficients weighted by that row's
-#' covariate means on the model's scale, which under `center = TRUE` are the
-#' declared means minus the pooled center; the directions the row does not
-#' constrain remain prior-driven, although their marginal posteriors can
-#' still move through the constrained combination. For one covariate with an
+#' intercept. What its likelihood term constrains depends on the link. With
+#' an identity link it is one linear combination of them, the comparator
+#' intercept plus the coefficients weighted by that row's covariate means on
+#' the model's scale, which under `center = TRUE` are the declared means
+#' minus the pooled center; the directions the row does not constrain remain
+#' prior-driven, although their marginal posteriors can still move through
+#' the constrained combination. With a nonlinear link the constrained
+#' quantity is the marginalized outcome mean, probability or rate, which is
+#' a function of the whole assumed covariate distribution and not of its
+#' mean profile alone: a normal outcome under `link = "log"` gives the
+#' aggregate mean `exp(mu + beta m + beta^2 v / 2)`, so two rows with the
+#' same mean `m` and different variances `v` constrain different things and
+#' their Jacobian in `(mu, beta)` has full rank. Local rank there is not
+#' global identification and neither is precision; the three have to be
+#' assessed separately. For one covariate with an
 #' identity link, independent normal priors of variance `a^2` on the
 #' intercept and `b^2` on the coefficient, a centered mean `m` and an outcome
 #' SE `s`, the posterior variance of the coefficient is
@@ -938,11 +941,11 @@
 #' row whose mean sits at the pooled center, and smaller the further the
 #' row's mean sits from it. Joint, nonoverlapping subgroup summaries each add
 #' a likelihood term; how many directions those terms identify depends on
-#' their number, their covariate-distribution geometry (rows with the same
-#' mean profile tighten one combination and add no direction), the outcome
-#' precision and the model, and for a nonlinear link differences in the
-#' distributions beyond the mean profiles matter too. Remaining directions
-#' require explicit prior sensitivity analysis. (Marginal, overlapping
+#' their number, their covariate-distribution geometry (under an identity
+#' link, rows with the same mean profile tighten one combination and add no
+#' direction; under a nonlinear link they can differ in spread or dependence
+#' and constrain different combinations), the outcome precision and the
+#' model. Remaining directions require explicit prior sensitivity analysis. (Marginal, overlapping
 #' subgroups would double-count patients and understate uncertainty; supply
 #' jointly-defined subgroups.)
 #'
