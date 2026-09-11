@@ -515,16 +515,25 @@
 #'
 #' Four scopes, each a deliberate limit rather than a certificate.
 #'
-#' **The distribution.** Only `"lognormal"`, whose auxiliary parameter *is*
-#' the log-scale standard deviation. The Weibull, log-logistic, gamma and
-#' generalized gamma are log-location-scale families too, but their auxiliary
-#' is a shape, the reciprocal of a scale, so the same exact fit sends it to
-#' `+Inf` rather than to zero. The likelihood there grows polynomially in the
-#' shape and a half-normal or exponential prior's tail integrates it, while a
-#' half-t's may not: propriety is a property of the prior, not of the data,
-#' and refusing the data would refuse well-posed default fits. A warning says
-#' so instead, and a censored row that bounds the shape suppresses it, as it
-#' does for the log-normal.
+#' **The distribution.** Two groups, told apart by what the auxiliary `aux`
+#' is rather than by the family's name. `"lognormal"` and `"gengamma"` are
+#' refused, because for both of them `aux` *is* a scale: the log-scale
+#' standard deviation for the one, and `sigma` for the other, which enters
+#' the Lawless density `gengamma_lpdf(y, mu, sigma, k)` as a `-log(sigma)`
+#' term and as the divisor of the log residual. An exact fit sends either to
+#' zero, where the density with the coefficients integrated out behaves as
+#' `aux^(rank - n)` and does not integrate. The generalized gamma's *second*
+#' auxiliary is its shape, and it is not what diverges: at an exact fit the
+#' density's dependence on it is bounded.
+#'
+#' The Weibull, log-logistic and gamma are log-location-scale families too,
+#' but their auxiliary is a shape, the reciprocal of a scale, so the same
+#' exact fit sends it to `+Inf` rather than to zero. The likelihood there
+#' grows polynomially in the shape and a half-normal or exponential prior's
+#' tail integrates it, while a half-t's may not: propriety is a property of
+#' the prior, not of the data, and refusing the data would refuse well-posed
+#' default fits. A warning says so instead, and a censored row that bounds
+#' the shape suppresses it, as it does for a scale.
 #'
 #' **The auxiliary stratification.** Only when the index study holds the scale
 #' alone, which `aux_by = ".study"` (the default) and `NULL` both give it.
@@ -557,9 +566,11 @@
 .check_survival_scale_collapse <- function(data, distribution,
                                            aux_by = ".study",
                                            center = TRUE) {
-  shape_families <- c("weibull", "weibull-aft", "loglogistic", "gamma",
-                      "gengamma")
-  if (!distribution %in% c("lognormal", shape_families)) {
+  # `gengamma` belongs with `lognormal`, not with the shapes: its first
+  # auxiliary is the Lawless `sigma`, a scale, and its shape is the second.
+  scale_families <- c("lognormal", "gengamma")
+  shape_families <- c("weibull", "weibull-aft", "loglogistic", "gamma")
+  if (!distribution %in% c(scale_families, shape_families)) {
     return(invisible(FALSE))
   }
   if (!is.null(aux_by) && !identical(aux_by, ".study")) {
@@ -630,24 +641,57 @@
   }
   if (identical(bound, "bounded")) return(invisible(FALSE))
 
+  # Only `exact` and `constant` are exact fits. `constant` is one because the
+  # design carries an intercept, so identical event times are reproduced by
+  # it alone. The other three statuses mean the question could not be
+  # ANSWERED at double precision, and a message that asserts an exact fit
+  # would be a false diagnosis of a design that is merely near-collinear or
+  # rounded.
+  # Why the question could not be answered, shared by the shape warning and
+  # the scale refusal so the two describe the same state the same way.
+  undecided_reason <- function(s) {
+    if (identical(s$status, "unresolved")) {
+      return(sprintf(paste0("the index design has %d exactly independent ",
+                            "columns and a factorization at machine ",
+                            "precision resolves only %d, so whether the ",
+                            "event times are reproduced through that column ",
+                            "cannot be told at double precision"),
+                     s$rank, s$numerical_rank))
+    }
+    paste("the index covariates fit the log event times to within rounding,",
+          "and at double precision nothing tells that from an exact fit")
+  }
+  resolved_exact <- s$status %in% c("exact", "constant")
+  undetermined_bound <- if (identical(bound, "undetermined")) {
+    paste0(", and whether a censored row bounds it could not be told, since ",
+           "the fit on the event rows does not determine those rows' linear ",
+           "predictors")
+  } else {
+    ""
+  }
+  prior_clause <- paste0(
+    "Whether a posterior exists then depends on the tail of `prior_aux`: a ",
+    "half-normal or an exponential integrates it and a half-t need not, so ",
+    "what is reported for the shape is a property of that prior rather than ",
+    "of the data. The event times need variation the covariates do not ",
+    "explain, or an observation process (a measurement error or a rounding ",
+    "scale) that supplies one."
+  )
   if (distribution %in% shape_families) {
-    warning("The index covariates fit every event time exactly on the log ",
-            "scale, so the likelihood grows without limit as the ",
-            distribution, " shape does",
-            if (identical(bound, "undetermined")) {
-              paste0(", and whether a censored row bounds it could not be ",
-                     "told, since the fit on the event rows does not ",
-                     "determine those rows' linear predictors")
-            } else {
-              ""
-            },
-            ". Whether a posterior exists then ",
-            "depends on the tail of `prior_aux`: a half-normal or an ",
-            "exponential integrates it and a half-t need not, so what is ",
-            "reported for the shape is a property of that prior rather than ",
-            "of the data. The event times need variation the covariates do ",
-            "not explain, or an observation process (a measurement error or ",
-            "a rounding scale) that supplies one.", call. = FALSE)
+    if (resolved_exact) {
+      warning("The index covariates fit every event time exactly on the log ",
+              "scale, so the likelihood grows without limit as the ",
+              distribution, " shape does", undetermined_bound, ". ",
+              prior_clause, call. = FALSE)
+    } else {
+      warning("Whether the index covariates fit every event time exactly on ",
+              "the log scale could not be told at double precision (",
+              undecided_reason(s), "), so neither could whether the ",
+              "likelihood grows without limit as the ", distribution,
+              " shape does", undetermined_bound, ". If it does: ",
+              prior_clause, " Until that is settled, treat the shape as ",
+              "prior-driven and check its sensitivity.", call. = FALSE)
+    }
     return(invisible(TRUE))
   }
   advice <- paste(
@@ -657,30 +701,28 @@
     "one. Rounded times may need an interval-censored representation;",
     "jitter and a hidden floor on the scale are not honest substitutes."
   )
-  improper <- paste(
-    "The posterior for the log-normal `sdlog` is improper: with the",
-    "coefficients integrated out its density behaves as sdlog^(rank - n)",
-    "near zero and does not integrate, and the sampler would drift toward",
+  # Both of these families reach here, and the argument is the same for
+  # both: it is the parameter's name that differs.
+  scale_label <- if (identical(distribution, "lognormal")) {
+    "the log-normal `sdlog`"
+  } else {
+    "the generalized-gamma `sigma`"
+  }
+  scale_symbol <- if (identical(distribution, "lognormal")) "sdlog" else "sigma"
+  improper <- paste0(
+    "The posterior for ", scale_label, " is improper: with the coefficients ",
+    "integrated out its density behaves as ", scale_symbol, "^(rank - n) ",
+    "near zero and does not integrate, and the sampler would drift toward ",
     "zero and report where it stopped."
   )
   undecided <- function(why) {
-    stop("Whether the log-normal `sdlog` has a proper posterior could not be ",
+    stop("Whether ", scale_label, " has a proper posterior could not be ",
          "decided: ", why, ". A possibly improper posterior is not one to ",
          "sample, so the model is refused rather than passed as proper. ",
          advice, call. = FALSE)
   }
-  if (identical(s$status, "unresolved")) {
-    undecided(sprintf(paste0("the index design has %d exactly independent ",
-                             "columns and a factorization at machine ",
-                             "precision resolves only %d, so whether the ",
-                             "event times are reproduced through that ",
-                             "column cannot be told at double precision"),
-                      s$rank, s$numerical_rank))
-  }
-  if (s$status %in% c("undecidable", "unresolved_log")) {
-    undecided(paste("the index covariates fit the log event times to within",
-                    "rounding, and at double precision nothing tells that",
-                    "from an exact fit"))
+  if (!resolved_exact) {
+    undecided(undecided_reason(s))
   }
   if (identical(bound, "undetermined")) {
     undecided(paste("the index covariates fit every event time exactly, and",
@@ -738,7 +780,7 @@
          lognormal = "`sdlog`",
          loglogistic = "the log-logistic shape",
          gamma = "the gamma shape",
-         gengamma = "the generalized-gamma shape",
+         gengamma = "the generalized-gamma scale `sigma`",
          "the Weibull shape")
 }
 

@@ -55,16 +55,27 @@ test_that("a shared auxiliary is not the index study's to collapse", {
 })
 
 test_that("a shape auxiliary is warned about, not refused", {
-  # The Weibull, log-logistic, gamma and generalized gamma carry a shape,
-  # the reciprocal of a scale, so the same exact fit sends it to +Inf. A
-  # half-normal or exponential prior integrates that and a half-t need not,
-  # which makes propriety a property of the prior rather than of the data.
-  for (dist in c("weibull", "weibull-aft", "loglogistic", "gamma",
-                 "gengamma")) {
+  # The Weibull, log-logistic and gamma carry a shape, the reciprocal of a
+  # scale, so the same exact fit sends it to +Inf. A half-normal or
+  # exponential prior integrates that and a half-t need not, which makes
+  # propriety a property of the prior rather than of the data.
+  for (dist in c("weibull", "weibull-aft", "loglogistic", "gamma")) {
     expect_warning(out <- check(.surv_stub(rep(1, 4)), distribution = dist),
                    "depends on the tail of `prior_aux`")
     expect_true(out)
   }
+  # The generalized gamma is NOT one of them. Its first auxiliary is the
+  # Lawless `sigma`, which the density divides the log residual by and
+  # carries a `-log(sigma)` term for: a scale, collapsing to zero on an
+  # exact fit exactly as `sdlog` does, with the shape sitting in the second
+  # auxiliary where the density's dependence on it is bounded. So it is
+  # refused, and the refusal names its own parameter.
+  expect_error(check(.surv_stub(rep(1, 4)), distribution = "gengamma"),
+               "generalized-gamma `sigma`")
+  expect_error(check(.surv_stub(rep(1, 4)), distribution = "gengamma"),
+               "sigma\\^\\(rank - n\\)")
+  expect_error(check(.surv_stub(rep(1, 4)), distribution = "lognormal"),
+               "sdlog\\^\\(rank - n\\)")
   # A distribution with no auxiliary at all has nothing to collapse.
   expect_false(check(.surv_stub(rep(1, 4)), distribution = "exponential"))
   expect_false(check(.surv_stub(rep(1, 4)), distribution = "mspline"))
@@ -153,7 +164,7 @@ test_that("a censored row bounds a shape family too, and suppresses its warning"
   # consulted before they are warned about rather than after.
   bounded <- .surv_stub(c(1, 1, 1, exp(3)), status = c(1L, 1L, 1L, 0L))
   unbounded <- .surv_stub(c(1, 1, 1, exp(-3)), status = c(1L, 1L, 1L, 0L))
-  for (dist in c("weibull", "loglogistic", "gengamma")) {
+  for (dist in c("weibull", "loglogistic", "gamma")) {
     expect_silent(check(bounded, distribution = dist))
     expect_false(check(bounded, distribution = dist))
     expect_warning(check(unbounded, distribution = dist),
@@ -165,6 +176,36 @@ test_that("a censored row bounds a shape family too, and suppresses its warning"
                              x = c(0, 0, 0, 1))
   expect_warning(check(undetermined, distribution = "weibull"),
                  "could not be told")
+  # A censored row bounds the generalized gamma's scale the same way, and
+  # suppresses the refusal rather than the warning.
+  expect_false(check(bounded, distribution = "gengamma"))
+  expect_error(check(unbounded, distribution = "gengamma"),
+               "generalized-gamma `sigma`")
+})
+
+test_that("a shape warning does not claim an exact fit it could not establish", {
+  # `unresolved`, `unresolved_log` and `undecidable` all mean the question
+  # could not be ANSWERED at double precision. They used to fall into the
+  # same message as a resolved exact fit, which told the user their
+  # covariates reproduce every event time exactly and that the result hangs
+  # on `prior_aux`, about a design that is merely near-collinear or rounded.
+  # A near-collinear design: the second column is the first plus 1e-13, so
+  # the exact rank is 3 and a factorization at machine precision resolves 2.
+  x <- c(-1, 0, 1, 2)
+  d <- .surv_stub(exp(c(-1, 0, 1, 2)), x = x)
+  d$ipd$data$x2 <- x + 1e-13
+  d$covariates <- c("x", "x2")
+  for (dist in c("weibull", "loglogistic", "gamma")) {
+    w <- expect_warning(check(d, distribution = dist))
+    expect_match(conditionMessage(w), "could not be told at double precision")
+    expect_false(grepl("fit every event time exactly on the log scale, so",
+                       conditionMessage(w)))
+  }
+  # The scale families are refused on the same design, and say why.
+  for (dist in c("lognormal", "gengamma")) {
+    expect_error(check(d, distribution = dist),
+                 "could not be decided")
+  }
 })
 
 test_that("a nearly exact fit warns about the boundary the sampler works at", {

@@ -39,16 +39,25 @@ stopped.
 \details{
 Four scopes, each a deliberate limit rather than a certificate.
 
-\strong{The distribution.} Only \code{"lognormal"}, whose auxiliary parameter \emph{is}
-the log-scale standard deviation. The Weibull, log-logistic, gamma and
-generalized gamma are log-location-scale families too, but their auxiliary
-is a shape, the reciprocal of a scale, so the same exact fit sends it to
-\code{+Inf} rather than to zero. The likelihood there grows polynomially in the
-shape and a half-normal or exponential prior's tail integrates it, while a
-half-t's may not: propriety is a property of the prior, not of the data,
-and refusing the data would refuse well-posed default fits. A warning says
-so instead, and a censored row that bounds the shape suppresses it, as it
-does for the log-normal.
+\strong{The distribution.} Two groups, told apart by what the auxiliary \code{aux}
+is rather than by the family's name. \code{"lognormal"} and \code{"gengamma"} are
+refused, because for both of them \code{aux} \emph{is} a scale: the log-scale
+standard deviation for the one, and \code{sigma} for the other, which enters
+the Lawless density \code{gengamma_lpdf(y, mu, sigma, k)} as a \code{-log(sigma)}
+term and as the divisor of the log residual. An exact fit sends either to
+zero, where the density with the coefficients integrated out behaves as
+\code{aux^(rank - n)} and does not integrate. The generalized gamma's \emph{second}
+auxiliary is its shape, and it is not what diverges: at an exact fit the
+density's dependence on it is bounded.
+
+The Weibull, log-logistic and gamma are log-location-scale families too,
+but their auxiliary is a shape, the reciprocal of a scale, so the same
+exact fit sends it to \code{+Inf} rather than to zero. The likelihood there
+grows polynomially in the shape and a half-normal or exponential prior's
+tail integrates it, while a half-t's may not: propriety is a property of
+the prior, not of the data, and refusing the data would refuse well-posed
+default fits. A warning says so instead, and a censored row that bounds
+the shape suppresses it, as it does for a scale.
 
 \strong{The auxiliary stratification.} Only when the index study holds the scale
 alone, which \code{aux_by = ".study"} (the default) and \code{NULL} both give it.
