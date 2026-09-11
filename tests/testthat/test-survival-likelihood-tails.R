@@ -828,14 +828,16 @@ test_that("no overflowing exponential is formed only to be tested", {
   # below exercises. Two shapes: `is_inf(exp(...))` directly, and a local
   # bound to an exponential whose next statement tests it.
   #
-  # These two shapes, not the general property. Any node whose value is
-  # non-finite and whose adjoint is zero poisons the sweep, and a value
-  # discarded by an `is_nan()` fallback orphans its whole subtree the same
-  # way. One such case is known and open: a Gamma AFT interval-censored row
-  # with delayed entry at eta = 710, where `exp(log(t) - eta)` is subnormal,
-  # `gamma_p()` underflows to zero and `log_gamma_cdf_from_log_x()` falls to
-  # its series, leaves a finite log density of -709.99999999999977 with a
-  # NaN gradient. `surv_ll_status(8, 3, 2, 1, 3, 710, 1, 1)` reproduces it.
+  # These two shapes, not the general property: a non-finite value with a
+  # zero adjoint is only one way to poison a sweep. A second is known and
+  # open, and it is not a discarded node at all. At eta = 710 a Gamma AFT
+  # CDF is about e^-709, so its reciprocal is 7.4e307, within a factor of
+  # 2.4 of the largest double. The adjoint the sweep sends into `gamma_p()`
+  # is that reciprocal times whatever multiplier reaches it, so a multiplier
+  # above about 2.4 overflows. `log_diff_exp()`'s two partials here are 3
+  # and -2, which overflow to +inf and -inf and reach eta as a NaN.
+  # `surv_ll_status(8, 3, 2, 1, 3, 710, 1, 1)` reproduces it, and each
+  # `log_cdf_scalar()` in it, where the multiplier is 1, does not.
   files <- list.files(stan_source_path(), pattern = "[.]stan$",
                       recursive = TRUE, full.names = TRUE)
   expect_gt(length(files), 0L)
