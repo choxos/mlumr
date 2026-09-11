@@ -226,6 +226,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_agd_mean_newdata.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_binomial.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_binomial_comparator_delta.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-stc_binomial_gradients.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_comparator_data.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_flexsurv_dist.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_formula.html</loc></url>
@@ -233,7 +234,6 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_hypot.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_model_matrix.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_normal.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-stc_numeric_gradient.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_poisson.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_refuse_separation.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-stc_separation_status.html</loc></url>

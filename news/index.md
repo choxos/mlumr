@@ -249,6 +249,21 @@
   index probability of an STC is a model prediction and keeps its
   delta-method interval, documented as an asymptotic approximation.
 
+- **Binomial STC uncertainty no longer depends on the units of a
+  covariate.** The delta-method gradients of the standardized event
+  probability, its logarithm and its link-scale value were central
+  differences in coefficient space with a step proportional to
+  `max(1, |beta|)`. That step is not a property of the model: multiply a
+  predictor by 1e6 and its coefficient shrinks by 1e6 while the step
+  stays near 6e-6, so the perturbation moved the target linear predictor
+  by about 6, and a comparator probability of 0.75 on 40 subjects at the
+  observed profile reported a standard error of 0.032 at units 1e6 and
+  0.019 at 1e8 instead of the 0.068 the data give. The gradients are now
+  analytic, `sum(w_i p_i'(eta_i) X_i)` and its chain rules through the
+  link, formed on the log scale so a grid point in either tail keeps its
+  share, and they transform with the design: equivalent units give
+  identical uncertainty for every binomial link.
+
 - **M-spline basis support is judged over the period a study was at
   risk.** The check evaluated each basis column on `[0, max(time)]`. A
   column supported only where nobody is under observation multiplies no
