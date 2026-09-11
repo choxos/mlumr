@@ -872,11 +872,19 @@ test_that("an overflowing Gamma endpoint has a finite gradient, not only a finit
   # The Gamma shape-1 branch at entry 1 and one ULP above it. Both cumulative
   # hazards overflow from about eta = -710, and their difference is finite:
   # exp(710) * 2^-52, a log likelihood near -4.96e292. The value came back
-  # right and `grad_log_prob()` came back NaN.
+  # right and the gradient came back NaN.
   #
-  # The likelihood is scaled by 1e-300 so the toy posterior is samplable and
-  # the prior's own gradient is readable beside it. A NaN is not rescaled
-  # away: it would still be the whole answer.
+  # CmdStan's own `diagnose test=gradient` is what reads the gradient here,
+  # which runs inside the compiled executable. cmdstanr's other route,
+  # `compile_model_methods = TRUE` plus `grad_log_prob()`, cannot be used
+  # from a test: it sourceCpp()s the model and dyn.load()s a second TBB into
+  # a session that already holds the one RcppParallel loaded, which is a
+  # missing-symbol error on macOS and a segfault on Linux.
+  #
+  # The likelihood is scaled by 1e-300 so the prior's gradient and the
+  # likelihood's are the same size and both are readable. Unscaled, the
+  # likelihood term is 4.96e292 and the prior's 720 disappears into its
+  # rounding; a NaN is not rescaled away either way.
   stan_dir <- stan_source_path()
   code <- paste(
     "functions {",
@@ -894,18 +902,37 @@ test_that("an overflowing Gamma endpoint has a finite gradient, not only a finit
   file <- file.path(tempdir(), "mlumr-gamma-tail-gradient.stan")
   writeLines(code, file)
   mod <- tryCatch(
-    cmdstanr::cmdstan_model(file, include_paths = stan_dir,
-                            compile_model_methods = TRUE, quiet = TRUE),
+    cmdstanr::cmdstan_model(file, include_paths = stan_dir, quiet = TRUE),
     error = function(e) e
   )
-  skip_if(inherits(mod, "error"),
-          paste("CmdStan could not build the probe:", conditionMessage(mod)))
-  fit <- suppressWarnings(mod$sample(chains = 1, iter_warmup = 10,
-                                     iter_sampling = 10, seed = 2026,
-                                     refresh = 0, show_messages = FALSE))
-  fit$init_model_methods(verbose = FALSE)
+  # Not skip_if(): it evaluates its message eagerly, so conditionMessage()
+  # would be applied to the model object on the path where the build worked.
+  if (inherits(mod, "error")) {
+    skip(paste("CmdStan could not build the probe:", conditionMessage(mod)))
+  }
+
   for (eta in c(-5, -710, -720)) {
-    grad <- fit$grad_log_prob(c(eta))[[1L]]
+    # `error` is the threshold CmdStan applies to its own finite-difference
+    # cross-check, and exceeding it is what makes the run exit non-zero. At
+    # these etas the central difference of a gradient near 720 carries about
+    # 1e-5 of rounding on its own, so the 1e-6 default would reject a
+    # correct gradient. Relaxing it does not weaken this test: the assertion
+    # below is against the analytic value, and a NaN gradient still exceeds
+    # any threshold, which is how the pre-fix source fails here.
+    out <- utils::capture.output(
+      diag_run <- tryCatch(
+        suppressWarnings(mod$diagnose(init = list(list(eta = eta)),
+                                      seed = 2026, error = 1e-2)),
+        error = function(e) e
+      )
+    )
+    if (inherits(diag_run, "error")) {
+      fail(paste0("diagnose failed at eta = ", eta, ": ",
+                  conditionMessage(diag_run), "\n",
+                  paste(utils::tail(out, 8L), collapse = "\n")))
+      next
+    }
+    grad <- diag_run$gradients()$model[1L]
     expect_true(is.finite(grad), label = paste("gradient at eta =", eta))
     # d/d eta of the prior is -eta; the scaled likelihood adds
     # 1e-300 * (upper - entry) * exp(-eta), formed in logs because
@@ -916,7 +943,11 @@ test_that("an overflowing Gamma endpoint has a finite gradient, not only a finit
     # equal to the prior's, which is the whole claim there.
     reference <- -eta + exp(-eta + log(.Machine$double.eps) + log(1e-300))
     expect_true(is.finite(reference))
-    expect_equal(grad, reference, tolerance = 1e-8,
+    # CmdStan prints this table at eight significant figures, and cmdstanr
+    # gives no way to ask for more, so 1e-6 is the floor a relative
+    # comparison can have here. It is four orders finer than the 1.09e-3
+    # likelihood term it has to see at eta = -720.
+    expect_equal(grad, reference, tolerance = 1e-6,
                  label = paste("gradient at eta =", eta))
   }
 })
