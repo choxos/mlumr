@@ -949,7 +949,24 @@
   # ill-conditioned boundary rows a tolerance built from `abs(eta)` was beaten
   # 39 times, by up to a factor of 4, each one a rounding artifact read as a
   # bound. This is the bound [.fit_ratios()] already uses for the same reason.
-  tol <- max(8, nrow(Xe)) * .Machine$double.eps *
+  # And `beta` itself carries the error of the least-squares solve, which the
+  # dot-product bound above does not see. That error is amplified by the
+  # conditioning of the design, and a censored row in the row space can be an
+  # EXTRAPOLATION of the event rows rather than one of them, which amplifies
+  # it again: over 1024 such rows at condition numbers up to 9e7, all of them
+  # sitting exactly on the boundary, 16 came back "bounded" without this
+  # factor. A censored row that merely duplicates an event row does not show
+  # it, because the fitted value there is accurate to the backward error.
+  #
+  # The condition number is taken on the columns the fit actually used, not
+  # on `Xe`: a rank-deficient design is singular, and its `kappa()` would be
+  # infinite and turn every answer into "undetermined", including the
+  # deficient-but-estimable rows this function exists to answer.
+  used <- fit$qr$pivot[seq_len(fit$rank)]
+  cond <- tryCatch(kappa(Xe[, used, drop = FALSE], exact = FALSE),
+                   error = function(e) Inf)
+  if (!isTRUE(is.finite(cond))) cond <- Inf
+  tol <- max(8, nrow(Xe)) * .Machine$double.eps * max(1, cond) *
     pmax(as.vector(abs(Xc) %*% abs(beta)), abs(yc), 1)
   gap <- yc - eta
   if (any(estimable & gap > tol)) return("bounded")

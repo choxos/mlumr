@@ -509,3 +509,52 @@ test_that("the censoring tolerance is scaled by cancellation, not by the result"
     "bounded"
   )
 })
+
+test_that("the censoring tolerance carries the least-squares solve error too", {
+  # The dot-product bound covers the rounding in `Xc %*% beta`. It does not
+  # cover the error already in `beta` from the QR solve, which the
+  # conditioning of the design amplifies, and which a censored row that is an
+  # EXTRAPOLATION of the event rows amplifies again. A censored row that
+  # merely duplicates an event row does not show this: the fitted value there
+  # is accurate to the backward error, which is why the earlier sweep of
+  # duplicated rows came back clean at the same condition numbers.
+  #
+  # One such row stated exactly. The censored row is `w %*% Xe` with its own
+  # exact fitted value `w %*% ye`, so the true gap is zero and it bounds
+  # nothing. The condition number is 3.5e7.
+  #
+  # The constants are hex float literals because this failure lives in the
+  # last bits: `%.17g` does NOT round-trip these doubles, and a decimal
+  # transcription of this case returns "undetermined" under the OLD code as
+  # well, which would make the test pass against the bug it is for.
+  d <- as.numeric("0x1.5ef48d4faa0bbp-8")
+  x <- 1 + d * c(0, 1, 2, 3, 4)
+  Xe <- cbind(1, x, x^2, x^3)
+  b <- as.numeric(c("-0x1.116557c36b40cp+7", "0x1.c6eadcf37f451p+5",
+                    "0x1.fb7e1d0fbd995p+7", "-0x1.aaee84524599bp+5"))
+  w <- as.numeric(c("0x1.3fa11f6ca81f4p+5", "0x1.04166d83129cp+5",
+                    "-0x1.28553b6e229p+6", "-0x1.73e3f43d6b0c1p+4",
+                    "0x1.87c33fbc666dap+4"))
+  ye <- as.vector(Xe %*% b)
+  expect_identical(stats::lm.fit(Xe, ye)$rank, 4L)
+  expect_gt(kappa(Xe, exact = TRUE), 1e7)
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(rbind(Xe, as.vector(w %*% Xe)),
+                                  c(ye, sum(w * ye)),
+                                  c(rep(TRUE, 5L), FALSE)),
+    "undetermined"
+  )
+  # The conditioning is measured on the columns the fit USED, not on the
+  # whole design: a rank-deficient one is singular, and its condition number
+  # would be infinite and swallow every answer, including the
+  # deficient-but-estimable rows this helper exists to give.
+  ev <- c(TRUE, TRUE, FALSE)
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(cbind(1, rep(-0.5, 3L)), c(0, 0, 3), ev),
+    "bounded"
+  )
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(cbind(1, rep(-0.5, 3L)), c(0, 0, 1e-6), ev),
+    "bounded"
+  )
+})
