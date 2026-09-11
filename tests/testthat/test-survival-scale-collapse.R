@@ -487,9 +487,14 @@ test_that("the exact-fit shortcut is only offered to an exact fit", {
     "exact"
   )
   near <- ye + c(0, 0, 0, 1e-9)
-  expect_identical(
-    mlumr:::.residual_variation_status(Xe, near, "identity")$status,
-    "near_exact"
+  # Which non-interpolating status this lands in is a LAPACK question, not a
+  # contract: the same design reads `near_exact` where the factorization
+  # resolves the third column and `unresolved` where it does not (Windows
+  # does not). The contract is only that it is not one of the three the
+  # caller offers the shortcut to.
+  expect_false(
+    mlumr:::.residual_variation_status(Xe, near, "identity")$status %in%
+      c("exact", "constant", "saturated")
   )
   expect_identical(
     mlumr:::.censoring_bounds_aux(rbind(Xe, c(1, 0, 1e-13)), c(near, log(20)),
@@ -549,24 +554,40 @@ test_that("the solve-error tolerance is a norm bound, not a coordinatewise one",
   tt <- 1000:1004
   Xe <- cbind(1, tt, tt^2)
   ev <- c(rep(TRUE, 5L), FALSE)
+  gaps <- numeric(0L)
+  coordinatewise <- numeric(0L)
   for (q in c(38L, 40L, 44L)) {
     b <- c(3, 2, 2^-q)
     ye <- b[1L] + b[2L] * tt + b[3L] * tt^2
-    expect_identical(stats::lm.fit(Xe, ye)$rank, 3L)
+    fit <- stats::lm.fit(Xe, ye)
+    # If this ever fails the case is vacuous rather than wrong: the rank
+    # guard would answer before the tolerance is reached.
+    expect_identical(fit$rank, 3L)
     xc <- c(1, 0, -2^q)
     # The censored row sits EXACTLY on its own fitted boundary, where
     # survival tends to 1/2 and nothing is bounded.
     eta_true <- b[1L] - b[3L] * 2^q
-    beta_hat <- stats::lm.fit(Xe, ye)$coefficients
-    gap <- eta_true - sum(xc * beta_hat)
-    # The gap is not rounding-sized: it is the solve error, magnified by the
-    # censored covariate. Read as a bound, it passed a possibly improper fit.
-    expect_gt(gap, 0.03)
+    beta_hat <- fit$coefficients
+    gaps <- c(gaps, eta_true - sum(xc * beta_hat))
+    used <- fit$qr$pivot[seq_len(fit$rank)]
+    cond <- kappa(Xe[, used, drop = FALSE], exact = FALSE)
+    coordinatewise <- c(
+      coordinatewise,
+      max(8, nrow(Xe)) * .Machine$double.eps * max(1, cond) *
+        max(sum(abs(xc) * abs(beta_hat)), abs(eta_true), 1)
+    )
     expect_identical(
       mlumr:::.censoring_bounds_aux(rbind(Xe, xc), c(ye, eta_true), ev),
       "undetermined"
     )
   }
+  # The defect stated so that it survives a change of LAPACK: at a boundary
+  # row the solve error exceeds what the coordinatewise tolerance allows, so
+  # that tolerance reads rounding as signal. Its SIZE and its SIGN belong to
+  # the platform (macOS gives +2.87 at q = 44; Windows a smaller value, and
+  # the opposite sign at q = 38), and pinning either broke the Windows
+  # build. What holds everywhere is that the bound is beaten.
+  expect_true(any(abs(gaps) > coordinatewise))
   # Widening it must not cost the answers it exists to give.
   ev3 <- c(TRUE, TRUE, FALSE)
   expect_identical(
