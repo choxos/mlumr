@@ -788,17 +788,36 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   log_w <- log_weights - (m_w + log(sum(exp(log_weights - m_w))))
   log_p_mean <- .weighted_log_mean_exp(lp$event, weights)
   log_q_mean <- .weighted_log_mean_exp(lp$nonevent, weights)
-  # Subtract the mean first, then add the weight. The other order adds a
-  # weight of order 1 to a log probability of order 1e17 (the cloglog
-  # non-event log probability is -exp(eta), which is -2.4e17 at eta = 40),
-  # where the double's spacing is 32 and the weight is lost entirely. Every
-  # point then takes the whole share instead of its own: a target that is 64
-  # copies of one profile gave a link gradient of 64 where standardizing a
-  # point mass cannot change its link at all, so the answer is 1. Centering
-  # first cancels the huge common term against itself, exactly, and leaves
-  # the weight against a number of order 1.
-  share_p <- exp(log_w + (lp$event - log_p_mean))
-  share_q <- exp(log_w + (lp$nonevent - log_q_mean))
+  # The share `w_i p_i / sum(w p)`, normalized in the frame where the common
+  # term has already cancelled, and never against the scalar mean.
+  #
+  # Two orders fail here and they fail differently. Adding the weight before
+  # the mean is subtracted puts a weight of order 1 beside a log probability
+  # of order 1e17 (cloglog's non-event one is -exp(eta), -2.4e17 at eta 40),
+  # where the double's spacing is 32 and the weight is lost outright: 64
+  # copies of one profile gave a link gradient of 64, where standardizing a
+  # point mass cannot change its link and the answer is 1.
+  #
+  # Subtracting the mean first fixes that case and not the general one,
+  # because `log_p_mean` is itself the largest log probability plus a
+  # correction of order 1, and that sum is where the spacing swallows the
+  # correction. The reconstruction then hands the dominant point its own
+  # weight instead of the whole share: two equally weighted cloglog points
+  # at eta 40 and 40 + 1e-14 gave a link gradient of 0.5, and so did every
+  # other spacing, up to eta 40 beside eta 50 where the second point is not
+  # there at all. Cancelling the maximum before the shares are formed never
+  # writes the correction next to it, and the shares sum to 1 by
+  # construction rather than by cancellation.
+  log_shares <- function(x) {
+    m_x <- max(x)
+    z <- (x - m_x) + log_w
+    m_z <- max(z)
+    z - (m_z + log(sum(exp(z - m_z))))
+  }
+  log_share_p <- log_shares(lp$event)
+  log_share_q <- log_shares(lp$nonevent)
+  share_p <- exp(log_share_p)
+  share_q <- exp(log_share_q)
   grad_log_p <- colSums(share_p * d_log_p * X)
   grad_log_q <- if (link == "cloglog") {
     # The non-event derivative -exp(eta) overflows past eta = 709, where the
@@ -809,7 +828,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     # `.binary_link_from_logs()` reports is +Inf, and the gradient is NaN
     # with it; the finite-variance guard then refuses the fit, as it did
     # before, rather than attach a finite SE to an infinite estimate.
-    colSums(-exp(log_w + (lp$nonevent - log_q_mean) + eta) * X)
+    colSums(-exp(log_share_q + eta) * X)
   } else {
     colSums(share_q * d_log_q * X)
   }

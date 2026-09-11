@@ -225,24 +225,76 @@ test_that("weights on identical profiles are a resolution, not an answer", {
   }
 })
 
+test_that("a dominant tail point carries the whole share, not its own weight", {
+  # `log_p_mean` is itself the largest log probability plus a correction of
+  # order one, and that sum is where the spacing swallows the correction:
+  # cloglog's non-event log probability is -exp(eta), -2.4e17 at eta = 40,
+  # where a double's neighbors are 32 apart. A share rebuilt as
+  # `log_w + (lp - log_p_mean)` therefore hands the dominant point its own
+  # weight where the whole share belongs to it, and the shares stop summing
+  # to one. Standardizing to a target that one point dominates cannot change
+  # that point's link, so the answer is 1 at every spacing: this returned
+  # 0.5 for two equally weighted points at every spacing below, including
+  # eta = 40 beside eta = 50, where the second point is not there at all.
+  X <- matrix(1, nrow = 2L, ncol = 1L)
+  for (d in c(1e-14, 1e-12, 1e-10, 1, 10)) {
+    for (w in list(c(0.5, 0.5), c(0.25, 0.75), c(1, 3))) {
+      lab <- paste("spacing", d, "weights", paste(w, collapse = "/"))
+      g <- mlumr:::.stc_binomial_gradients(X, c(40, 40 + d), w, "cloglog")
+      expect_equal(unname(g$link), 1, tolerance = 1e-9, label = lab)
+      # The mirror, with the dominant point second. Which point dominates
+      # the non-event mean is the SMALLER eta, since q = exp(-exp(eta)).
+      h <- mlumr:::.stc_binomial_gradients(X, c(40 + d, 40), w, "cloglog")
+      expect_equal(unname(h$link), 1, tolerance = 1e-9,
+                   label = paste(lab, "reversed"))
+    }
+  }
+  # Not vacuous: where no point dominates the answer is not 1, and these two
+  # agree with a central difference of the standardized link to 1e-10.
+  expect_equal(
+    unname(mlumr:::.stc_binomial_gradients(X, c(0, 0.5), c(0.5, 0.5),
+                                           "cloglog")$link),
+    0.96074225539, tolerance = 1e-9
+  )
+  expect_equal(
+    unname(mlumr:::.stc_binomial_gradients(X, c(-1, 2), c(0.5, 0.5),
+                                           "cloglog")$link),
+    0.35291962139, tolerance = 1e-9
+  )
+})
+
 test_that("the normalized shares of the two means each sum to one", {
   # The share c_i = w_i p_i / sum(w p) is what the gradient weights each
   # point's derivative by, so the identity sum(c_i) = 1 is the statement
   # that no point's contribution was lost or counted twice. Taking the
   # gradient with X a column of ones reads the sum back directly, since
   # each point's derivative of log p in an intercept is d log p / d eta.
-  set.seed(2026)
-  w <- runif(50, 0.01, 10)
-  eta <- c(rnorm(46), 35, 38, 40, -40)
-  X <- matrix(1, nrow = 50L, ncol = 1L)
-  for (link in c("logit", "probit", "cloglog")) {
-    lp <- mlumr:::.binary_log_probs(eta, link)
-    log_p_mean <- mlumr:::.weighted_log_mean_exp(lp$event, w)
-    log_q_mean <- mlumr:::.weighted_log_mean_exp(lp$nonevent, w)
+  #
+  # The shares are formed the way the code forms them, by cancelling the
+  # maximum first, not by subtracting the scalar mean: the second set of
+  # etas below is one where those two differ, and the scalar-mean form gives
+  # 0.5 there rather than 1.
+  shares <- function(x, w) {
     log_w <- log(w) - log(sum(w))
-    expect_equal(sum(exp(log_w + (lp$event - log_p_mean))), 1,
-                 tolerance = 1e-12, label = paste(link, "event"))
-    expect_equal(sum(exp(log_w + (lp$nonevent - log_q_mean))), 1,
-                 tolerance = 1e-12, label = paste(link, "non-event"))
+    m_x <- max(x)
+    z <- (x - m_x) + log_w
+    m_z <- max(z)
+    exp(z - (m_z + log(sum(exp(z - m_z)))))
+  }
+  set.seed(2026)
+  cases <- list(
+    list(w = runif(50, 0.01, 10), eta = c(rnorm(46), 35, 38, 40, -40)),
+    list(w = c(0.5, 0.5), eta = c(40, 40 + 1e-14)),
+    list(w = c(0.25, 0.75), eta = c(40, 50))
+  )
+  for (cs in cases) {
+    for (link in c("logit", "probit", "cloglog")) {
+      lp <- mlumr:::.binary_log_probs(cs$eta, link)
+      lab <- paste(link, length(cs$eta), "points")
+      expect_equal(sum(shares(lp$event, cs$w)), 1,
+                   tolerance = 1e-12, label = paste(lab, "event"))
+      expect_equal(sum(shares(lp$nonevent, cs$w)), 1,
+                   tolerance = 1e-12, label = paste(lab, "non-event"))
+    }
   }
 })
