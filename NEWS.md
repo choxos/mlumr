@@ -29,6 +29,18 @@
   of the data, and refusing the data would refuse well-posed default fits,
   so those three warn instead.
 
+  A saturated design, with as many uncensored rows as its design has free
+  columns, is an exact fit too: it reproduces every event time and leaves no
+  residual degree of freedom. For the scale families that is still proper,
+  since the exponent `rank - n` is zero there, and it warns that nothing in
+  the index data separates the auxiliary from the coefficients. For the
+  shape families it is not: two rank-2 proportional-hazards Weibull event
+  rows both at `t = 1` give a profile likelihood of exactly `shape^2 e^-2`,
+  with the coefficients held at `eta = 0` rather than moving into their
+  prior tails, so a `prior_cauchy()` auxiliary contributing `shape^-2`
+  leaves a constant tail that does not integrate. Those get the same
+  prior-tail warning as any other exact fit.
+
   Right-censored rows are consulted before any of that is said, for the
   shape families too: one whose fitted time falls below its censoring time
   has survival going to zero faster than any power of the scale, and

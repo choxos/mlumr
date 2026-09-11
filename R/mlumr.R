@@ -687,14 +687,24 @@
     warning(sprintf(fmt, s$ratio, .aux_name(distribution)), call. = FALSE)
     return(invisible(TRUE))
   }
-  if (identical(s$status, "saturated")) {
+  # Saturated is an exact fit, so a shape family diverges here for the same
+  # reason it does under `exact`, and the propriety below is not something
+  # to claim for one. With two rank-2 PH Weibull event rows both at t = 1,
+  # the profile likelihood is exactly `k^2 e^-2`: the coefficients stay at
+  # eta = 0 rather than moving into their prior tails, and a `prior_cauchy()`
+  # auxiliary contributes only `k^-2`, so the tail is constant and does not
+  # integrate. Those go to the shape warning, which says propriety turns on
+  # `prior_aux`, instead of being told the posterior is proper.
+  if (identical(s$status, "saturated") && !distribution %in% shape_families) {
     warning("The uncensored index rows are as many as the free columns of ",
             "their design (", s$n, " rows, rank ", s$rank, "), so it ",
             "reproduces every event time exactly and leaves no residual ",
-            "degrees of freedom. The posterior is proper, but nothing in ",
-            "the index data separates ", .aux_name(distribution), " from ",
-            "the coefficients, so what is reported for it is potentially ",
-            "strongly sensitive to `prior_beta`.", call. = FALSE)
+            "degrees of freedom. The posterior is proper, since with the ",
+            "coefficients integrated out the density of ",
+            .aux_name(distribution), " carries the exponent `rank - n`, ",
+            "which is zero here, but nothing in the index data separates ",
+            "it from the coefficients, so what is reported for it is ",
+            "potentially strongly sensitive to `prior_beta`.", call. = FALSE)
     return(invisible(TRUE))
   }
 
@@ -718,7 +728,10 @@
     paste("the index covariates fit the log event times to within rounding,",
           "and at double precision nothing tells that from an exact fit")
   }
-  resolved_exact <- s$status %in% c("exact", "constant")
+  # `saturated` reaches here only for a shape family, and it is an exact fit:
+  # a design with as many free columns as event rows reproduces every one of
+  # them.
+  resolved_exact <- s$status %in% c("exact", "constant", "saturated")
   undetermined_bound <- if (identical(bound, "undetermined")) {
     paste0(", and whether a censored row bounds it could not be told, since ",
            "the fit on the event rows does not determine those rows' linear ",
@@ -762,10 +775,18 @@
   )
   if (distribution %in% shape_families) {
     if (resolved_exact) {
+      geometry_clause <- if (identical(s$status, "saturated")) {
+        paste0(" (the ", s$n, " uncensored rows are as many as the free ",
+               "columns of their design, of rank ", s$rank, ", so it ",
+               "reproduces every one of them and leaves no residual degree ",
+               "of freedom)")
+      } else {
+        ""
+      }
       warning("The index covariates fit every event time exactly on the log ",
-              "scale, so the likelihood grows without limit as the ",
-              distribution, " shape does", undetermined_bound, ". ",
-              prior_clause, call. = FALSE)
+              "scale", geometry_clause, ", so the likelihood grows without ",
+              "limit as the ", distribution, " shape does",
+              undetermined_bound, ". ", prior_clause, call. = FALSE)
     } else {
       warning("Whether the index covariates fit every event time exactly on ",
               "the log scale could not be told at double precision (",
