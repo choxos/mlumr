@@ -659,9 +659,13 @@
   that the transport path and the built-in path are the same calculation.
 
 * **`marginal_effects()` emits a one-line note** when a relaxed fit is queried
-  for the index population, reporting the **posterior contraction** of
-  `beta_comparator` per covariate, `1 - (posterior sd / prior sd)^2`, and naming
-  the weakly-identified ones. A single marginal comparator curve constrains
+  for the index population, reporting the **marginal posterior variance
+  change** of `beta_comparator` for every covariate, `1 - (posterior sd /
+  prior sd)^2`, positive where the posterior is narrower than the marginal
+  prior and negative where it is wider. The note says in place that the
+  number is descriptive, neither a fraction learned nor an identification
+  test, so it does not stand as a verdict on any covariate. A single marginal
+  comparator curve constrains
   `beta'X` but not the direction of `beta`, which is exactly what transporting
   to the index population needs, and an event count cannot detect that. The
   prior SD respects the prior family: Student-t scales are converted via
@@ -877,9 +881,11 @@
   They are not sufficient: the rows must also differ in **every** covariate
   direction. `check_identification()` measures that directly, reporting
   `cond_inv` (smallest over largest singular value of the centered, IPD-scaled
-  subgroup-mean matrix) and a continuous count of usable directions. Subgroups
-  reported one variable at a time never exceed one usable direction however many
-  are published.
+  subgroup-mean matrix) and `eff_dim`, the participation ratio of the squared
+  singular-value spectrum, which says how evenly the spectral variation is
+  spread across directions and is not a count of identified coefficients.
+  Subgroups reported one variable at a time never spread it beyond a single
+  direction however many are published.
 
   For a nonlinear mean model the report is labeled descriptive only: subgroup
   means do not determine the likelihood geometry there, because the
