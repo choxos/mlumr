@@ -827,6 +827,15 @@ test_that("no overflowing exponential is formed only to be tested", {
   # Cheap, and it covers every branch rather than the one the gradient test
   # below exercises. Two shapes: `is_inf(exp(...))` directly, and a local
   # bound to an exponential whose next statement tests it.
+  #
+  # These two shapes, not the general property. Any node whose value is
+  # non-finite and whose adjoint is zero poisons the sweep, and a value
+  # discarded by an `is_nan()` fallback orphans its whole subtree the same
+  # way. One such case is known and open: a Gamma AFT interval-censored row
+  # with delayed entry at eta = 710, where `exp(log(t) - eta)` is subnormal,
+  # `gamma_p()` underflows to zero and `log_gamma_cdf_from_log_x()` falls to
+  # its series, leaves a finite log density of -709.99999999999977 with a
+  # NaN gradient. `surv_ll_status(8, 3, 2, 1, 3, 710, 1, 1)` reproduces it.
   files <- list.files(stan_source_path(), pattern = "[.]stan$",
                       recursive = TRUE, full.names = TRUE)
   expect_gt(length(files), 0L)
@@ -899,9 +908,14 @@ test_that("an overflowing Gamma endpoint has a finite gradient, not only a finit
     grad <- fit$grad_log_prob(c(eta))[[1L]]
     expect_true(is.finite(grad), label = paste("gradient at eta =", eta))
     # d/d eta of the prior is -eta; the scaled likelihood adds
-    # 1e-300 * (upper - entry) * exp(-eta), which is 0 at eta = -5,
-    # 5e-8 at -710 and 1.1e-3 at -720.
-    reference <- -eta + 1e-300 * .Machine$double.eps * exp(-eta)
+    # 1e-300 * (upper - entry) * exp(-eta), formed in logs because
+    # exp(710) is not a double and the product would be Inf * 0 rather
+    # than the 5e-8 it is. At eta = -720 it is 1.09e-3, which the relative
+    # tolerance below resolves against a value of 720; at -710 it is
+    # 5e-8 and below it, so that point checks the gradient is finite and
+    # equal to the prior's, which is the whole claim there.
+    reference <- -eta + exp(-eta + log(.Machine$double.eps) + log(1e-300))
+    expect_true(is.finite(reference))
     expect_equal(grad, reference, tolerance = 1e-8,
                  label = paste("gradient at eta =", eta))
   }
