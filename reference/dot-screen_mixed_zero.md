@@ -9,14 +9,14 @@ justifies the warning and a large one only withholds it.
 ## Usage
 
 ``` r
-.screen_mixed_zero(X_raw, y, pos, center = TRUE)
+.screen_mixed_zero(X, y, pos)
 ```
 
 ## Arguments
 
-- X_raw:
+- X:
 
-  Raw design matrix, intercept included.
+  Design matrix as the model fits it, intercept included.
 
 - y:
 
@@ -26,10 +26,6 @@ justifies the warning and a large one only withholds it.
 - pos:
 
   Logical, which rows are positive.
-
-- center:
-
-  Whether the model will center the covariates.
 
 ## Value
 

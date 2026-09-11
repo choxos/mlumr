@@ -65,7 +65,6 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-build_arm_summary.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-build_mspline_basis.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-build_stan_data_survival.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-center_design.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-check_normal_residual_variation.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-check_required_columns.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-clamp_cor.html</loc></url>
@@ -95,6 +94,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-dual_family_note.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-ensure_positive_definite_cor.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-eval_basis.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-exact_rank.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-exp_difference_logs.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-finite_numeric_values.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-fit_ratios.html</loc></url>
@@ -138,6 +138,8 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-mlumr_model_label.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-mlumr_prior_metadata.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-mlumr_qr_design.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-mod_pow.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-mod_rank.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-model_comparison_interpretation.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-moment_verdict.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-mspline_constant_hazard.html</loc></url>
@@ -158,6 +160,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-predict_target.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-predict_target_survival.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-prediction_rmst_horizon.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-primes_below_2_26.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-print_beta_prior_block.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-print_identification.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-prior_density_fun.html</loc></url>

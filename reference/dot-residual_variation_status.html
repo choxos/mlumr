@@ -66,15 +66,16 @@ mixed-zero log-link case can classify the positive rows on their own.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.residual_variation_status</span><span class="op">(</span><span class="va">X_raw</span>, <span class="va">y</span>, <span class="va">link</span>, center <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.residual_variation_status</span><span class="op">(</span><span class="va">X</span>, <span class="va">y</span>, <span class="va">link</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
 
 
-<dl><dt id="arg-x-raw">X_raw<a class="anchor" aria-label="anchor" href="#arg-x-raw"></a></dt>
-<dd><p>Design matrix, intercept included, uncentered.</p></dd>
+<dl><dt id="arg-x">X<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
+<dd><p>Design matrix as the model fits it, intercept included: raw, or
+centered by the model's own centers.</p></dd>
 
 
 <dt id="arg-y">y<a class="anchor" aria-label="anchor" href="#arg-y"></a></dt>
@@ -84,29 +85,29 @@ mixed-zero log-link case can classify the positive rows on their own.</p>
 <dt id="arg-link">link<a class="anchor" aria-label="anchor" href="#arg-link"></a></dt>
 <dd><p><code>"identity"</code> or <code>"log"</code>.</p></dd>
 
-
-<dt id="arg-center">center<a class="anchor" aria-label="anchor" href="#arg-center"></a></dt>
-<dd><p>Whether the model will center the covariates, or fit a QR
-reparameterization of them, which decorrelates the design and removes
-the same offset cancellation. The guard then works on a centered design
-too, so a contrast between rows that centering rounds away is one the
-fitted model loses as well; with neither, the design is only scaled,
-which is exact, and the rounding bound carries whatever cancellation the
-raw offsets impose, as the fitted model then does.</p></dd>
-
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>List with <code>status</code> and, where they apply, <code>n</code>, <code>rank</code>, <code>ratio</code>
-and <code>zero_ratio</code>.</p>
+    <p>List with <code>status</code> and, where they apply, <code>n</code>, <code>rank</code>,
+<code>numerical_rank</code>, <code>ratio</code> and <code>zero_ratio</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Statuses, in the order they are decided:</p><ul><li><p><code>"saturated"</code>: <code>n &lt;= rank</code>, the design reproduces any outcome.</p></li>
+    <p>Everything here is about the design the model fits, <code>X</code>, whose exact rank
+and exactly independent pivot columns come from <code><a href="dot-exact_rank.html">.exact_rank()</a></code>. A
+factorization at machine precision can find a lower rank, when a column
+differs from a combination of the others by less than rounding; the model
+still carries that column, and a fit through it can be exact where the
+reduced fit shows a residual. So the numerical fit is taken on the exact
+pivot columns, and if even those cannot be resolved the question is left
+open rather than answered from a design the model does not fit.</p>
+<p>Statuses, in the order they are decided:</p><ul><li><p><code>"saturated"</code>: <code>n &lt;= rank</code>, the design reproduces any outcome.</p></li>
 <li><p><code>"constant"</code>: the outcome is constant with residual degrees of freedom,
 so the intercept alone fits it exactly.</p></li>
 <li><p><code>"exact"</code>: every replicate group agrees and there are exactly <code>rank</code>
 distinct design rows, so the design reaches every observed value.</p></li>
+<li><p><code>"unresolved"</code>: the exact pivot columns are dependent to within
+rounding, so no numerical fit spans the design the model fits.</p></li>
 <li><p><code>"unresolved_log"</code>: <code>log(y)</code> is constant although <code>y</code> is not, so the
 log-scale total sum of squares is zero and the ratio undefined.</p></li>
 <li><p><code>"undecidable"</code>: the computed residual is at or below the rounding an

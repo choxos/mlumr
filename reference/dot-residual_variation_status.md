@@ -9,14 +9,15 @@ on their own.
 ## Usage
 
 ``` r
-.residual_variation_status(X_raw, y, link, center = TRUE)
+.residual_variation_status(X, y, link)
 ```
 
 ## Arguments
 
-- X_raw:
+- X:
 
-  Design matrix, intercept included, uncentered.
+  Design matrix as the model fits it, intercept included: raw, or
+  centered by the model's own centers.
 
 - y:
 
@@ -26,22 +27,23 @@ on their own.
 
   `"identity"` or `"log"`.
 
-- center:
-
-  Whether the model will center the covariates, or fit a QR
-  reparameterization of them, which decorrelates the design and removes
-  the same offset cancellation. The guard then works on a centered
-  design too, so a contrast between rows that centering rounds away is
-  one the fitted model loses as well; with neither, the design is only
-  scaled, which is exact, and the rounding bound carries whatever
-  cancellation the raw offsets impose, as the fitted model then does.
-
 ## Value
 
-List with `status` and, where they apply, `n`, `rank`, `ratio` and
-`zero_ratio`.
+List with `status` and, where they apply, `n`, `rank`, `numerical_rank`,
+`ratio` and `zero_ratio`.
 
 ## Details
+
+Everything here is about the design the model fits, `X`, whose exact
+rank and exactly independent pivot columns come from
+[`.exact_rank()`](https://choxos.github.io/mlumr/reference/dot-exact_rank.md).
+A factorization at machine precision can find a lower rank, when a
+column differs from a combination of the others by less than rounding;
+the model still carries that column, and a fit through it can be exact
+where the reduced fit shows a residual. So the numerical fit is taken on
+the exact pivot columns, and if even those cannot be resolved the
+question is left open rather than answered from a design the model does
+not fit.
 
 Statuses, in the order they are decided:
 
@@ -52,6 +54,9 @@ Statuses, in the order they are decided:
 
 - `"exact"`: every replicate group agrees and there are exactly `rank`
   distinct design rows, so the design reaches every observed value.
+
+- `"unresolved"`: the exact pivot columns are dependent to within
+  rounding, so no numerical fit spans the design the model fits.
 
 - `"unresolved_log"`: `log(y)` is constant although `y` is not, so the
   log-scale total sum of squares is zero and the ratio undefined.

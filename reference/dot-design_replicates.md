@@ -3,10 +3,10 @@
 Rows with identical covariates get identical fitted values under any
 model, so two such rows with different outcomes leave a residual that no
 fit can remove. That is a structural fact, not a numerical one: it
-proves the residual sum of squares positive without measuring it. Rows
-are compared on their exact binary representation, since
-[`paste()`](https://rdrr.io/r/base/paste.html) on doubles keeps fifteen
-digits and could merge two rows that differ.
+proves the residual sum of squares positive without measuring it. The
+rows compared are the ones the model fits, so two raw rows that its
+centering rounds together count as replicates, since the model cannot
+tell them apart.
 
 ## Usage
 
@@ -18,7 +18,7 @@ digits and could merge two rows that differ.
 
 - X:
 
-  Raw design matrix.
+  Design matrix as the model fits it.
 
 - y:
 
