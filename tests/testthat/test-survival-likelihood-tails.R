@@ -810,3 +810,99 @@ test_that("an overflowing cumulative-hazard endpoint does not lose a finite incr
   # event it was: the survival ratio is zero to double precision.
   expect_identical(env$surv_ll_status(8L, 2, 0, 1, 0L, -720, 1, 1), -Inf)
 })
+
+
+# ---- Overflow branches and the autodiff tape --------------------------------
+#
+# A branch that asks whether an exponential overflowed by forming it and
+# calling is_inf() on the result answers correctly and breaks the gradient.
+# The exponential is a node on the reverse tape whether or not its value is
+# used: Stan Math's exp() callback adds `adjoint * value` to its input's
+# adjoint, an unused node's adjoint is zero, and 0 * inf is NaN. The reverse
+# sweep visits every node, so the NaN reaches the gradient of a log density
+# whose value came back finite and correct. Asking the logarithm instead
+# creates no such node.
+
+test_that("no overflowing exponential is formed only to be tested", {
+  # Cheap, and it covers every branch rather than the one the gradient test
+  # below exercises. Two shapes: `is_inf(exp(...))` directly, and a local
+  # bound to an exponential whose next statement tests it.
+  files <- list.files(stan_source_path(), pattern = "[.]stan$",
+                      recursive = TRUE, full.names = TRUE)
+  expect_gt(length(files), 0L)
+  for (f in files) {
+    lines <- readLines(f, warn = FALSE)
+    code <- sub("//.*$", "", lines)
+    direct <- grep("is_inf[[:space:]]*\\([[:space:]]*exp[[:space:]]*\\(",
+                   code)
+    expect_identical(
+      direct, integer(0),
+      label = paste0(basename(f), ": is_inf(exp(...)) at lines ",
+                     paste(direct, collapse = ", "))
+    )
+    bound <- grep("^[[:space:]]*real[[:space:]]+([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*=[[:space:]]*exp[[:space:]]*\\(",
+                  code)
+    for (i in bound) {
+      name <- sub("^[[:space:]]*real[[:space:]]+([a-zA-Z_][a-zA-Z0-9_]*).*$",
+                  "\\1", code[i])
+      nxt <- code[i + 1L]
+      if (is.na(nxt)) next
+      expect_false(
+        grepl(paste0("is_inf[[:space:]]*\\([[:space:]]*", name,
+                     "[[:space:]]*\\)"), nxt),
+        label = paste0(basename(f), ":", i + 1L, " tests is_inf(", name,
+                       ") on an exponential formed the line before")
+      )
+    }
+  }
+})
+
+test_that("an overflowing Gamma endpoint has a finite gradient, not only a finite value", {
+  skip_on_cran()
+  skip_if(!cmdstan_is_usable(), "CmdStan is not usable here")
+  # The Gamma shape-1 branch at entry 1 and one ULP above it. Both cumulative
+  # hazards overflow from about eta = -710, and their difference is finite:
+  # exp(710) * 2^-52, a log likelihood near -4.96e292. The value came back
+  # right and `grad_log_prob()` came back NaN.
+  #
+  # The likelihood is scaled by 1e-300 so the toy posterior is samplable and
+  # the prior's own gradient is readable beside it. A NaN is not rescaled
+  # away: it would still be the whole answer.
+  stan_dir <- stan_source_path()
+  code <- paste(
+    "functions {",
+    "#include include/priors_functions.stan",
+    "#include include/survival_functions.stan",
+    "}",
+    "parameters { real eta; }",
+    "model {",
+    "  eta ~ normal(0, 1);",
+    "  target += 1e-300 * surv_ll_status(8, 1.0000000000000002, 0, 1, 0,",
+    "                                    eta, 1, 1);",
+    "}",
+    sep = "\n"
+  )
+  file <- file.path(tempdir(), "mlumr-gamma-tail-gradient.stan")
+  writeLines(code, file)
+  mod <- tryCatch(
+    cmdstanr::cmdstan_model(file, include_paths = stan_dir,
+                            compile_model_methods = TRUE, quiet = TRUE),
+    error = function(e) e
+  )
+  skip_if(inherits(mod, "error"),
+          paste("CmdStan could not build the probe:", conditionMessage(mod)))
+  fit <- suppressWarnings(mod$sample(chains = 1, iter_warmup = 10,
+                                     iter_sampling = 10, seed = 2026,
+                                     refresh = 0, show_messages = FALSE))
+  fit$init_model_methods(verbose = FALSE)
+  for (eta in c(-5, -710, -720)) {
+    grad <- fit$grad_log_prob(c(eta))[[1L]]
+    expect_true(is.finite(grad), label = paste("gradient at eta =", eta))
+    # d/d eta of the prior is -eta; the scaled likelihood adds
+    # 1e-300 * (upper - entry) * exp(-eta), which is 0 at eta = -5,
+    # 5e-8 at -710 and 1.1e-3 at -720.
+    reference <- -eta + 1e-300 * .Machine$double.eps * exp(-eta)
+    expect_equal(grad, reference, tolerance = 1e-8,
+                 label = paste("gradient at eta =", eta))
+  }
+})

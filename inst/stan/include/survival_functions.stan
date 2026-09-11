@@ -15,6 +15,20 @@
 // For interval censoring `time` is the upper bound and `start_time` the lower
 // bound. `delay_time > 0` flags left truncation (delayed entry).
 
+// The largest logarithm whose exponential a double can hold: exp() of
+// anything above this is infinite. Branches that ask whether an exponential
+// overflows must test the logarithm against this rather than form the
+// exponential and call is_inf() on it. An exponential built only to be asked
+// that question still goes on the autodiff tape, and the reverse sweep visits
+// every node it holds: exp()'s callback adds `adjoint * value` to its input's
+// adjoint, and an unused node's adjoint is zero, so 0 * inf is NaN and the
+// NaN reaches the gradient of a log density whose value came back finite.
+// A Gamma of shape 1 at eta = -710 over (1, 1 + 2^-52] returned a log
+// likelihood of -4.96e292 with a gradient of NaN for exactly that reason.
+real log_double_max() {
+  return 709.782712893384;
+}
+
 // log of the regularized upper incomplete gamma Q(k, x), evaluated entirely on
 // the log scale by Legendre's continued fraction:
 //
@@ -137,8 +151,8 @@ real log_std_normal_hazard(real z) {
 }
 
 real log_gamma_cdf_from_log_x(real k, real log_x) {
+  if (log_x > log_double_max()) return 0;
   real x = exp(log_x);
-  if (is_inf(x)) return 0;
   if (x <= k + fmax(1, sqrt(k))) {
     real p = gamma_p(k, x);
     if (p > 0) return log(p);
@@ -148,8 +162,8 @@ real log_gamma_cdf_from_log_x(real k, real log_x) {
 }
 
 real log_gamma_surv_from_log_x(real k, real log_x) {
+  if (log_x > log_double_max()) return negative_infinity();
   real x = exp(log_x);
-  if (is_inf(x)) return negative_infinity();
   // `exp(log_x)` underflows to zero below about -745, and `gamma_q(k, 0)` is
   // exactly 1, so the survival comes back as certain and a censored
   // observation contributes nothing. That is wrong whenever the shape is
@@ -213,8 +227,8 @@ real log_haz_full(int dist, real t, real eta, real aux, real aux2) {
     return log_std_normal_hazard(z) - log(aux) - log(t);
   } else if (dist == 8) {
     real log_z = log(t) - eta;
+    if (log_z > log_double_max()) return -eta;
     real z = exp(log_z);
-    if (is_inf(z)) return -eta;
     if (z > aux + fmax(1, sqrt(aux)))
       return -log(t) - log_gamma_q_cf_factor(aux, z);
     return (aux - 1) * log_z - eta - z - lgamma(aux)
@@ -222,9 +236,9 @@ real log_haz_full(int dist, real t, real eta, real aux, real aux2) {
   } else if (dist == 9) {
     real z = inv(sqrt(aux2)) * (log(t) - eta) / aux;
     real log_w = log(aux2) + z;
-    real w = exp(log_w);
-    if (is_inf(w))
+    if (log_w > log_double_max())
       return -log(aux) - log(t) + 0.5 * log(aux2) + z;
+    real w = exp(log_w);
     if (w > aux2 + fmax(1, sqrt(aux2)))
       return -log(aux) - log(t) - 0.5 * log(aux2)
              - log_gamma_q_cf_factor(aux2, w);
@@ -456,7 +470,6 @@ real log_surv_increment(int dist, real t_upper, real t_lower, real eta,
       }
       if (log_x_lower > log(shape + fmax(1, sqrt(shape)))) {
         real log_dx = log_x_lower + log(expm1(dlog_x));
-        real dx = exp(log_dx);
         // The increment of the incomplete-gamma argument can overflow: a
         // generalized gamma with sigma 0.0009 over (1, 2] has an upper
         // argument of exp(780). The survival ratio is then zero to double
@@ -469,19 +482,21 @@ real log_surv_increment(int dist, real t_upper, real t_lower, real eta,
         // beyond the double range at entry 1 and one ULP above it, and
         // their difference, exp(710) * 2^-52, is a finite log likelihood
         // near -4.96e292 that an endpoint test threw away as -inf.
-        if (is_inf(dx))
+        if (log_dx > log_double_max())
           return negative_infinity();
+        real dx = exp(log_dx);
         // An overflowing upper argument with a finite increment means the
         // increment itself is near the top of the double range. The tail
         // form below drops the continued-fraction factors' ratio, which is
         // exp(-dlog_x) times 1 + O(shape / x_lower), and that O() term is
         // at most shape / x_lower in the log against a value near -1e308:
         // nothing a double can see, whatever x_lower is.
-        if (is_inf(exp(log_x_lower + dlog_x)))
+        real log_x_upper = log_x_lower + dlog_x;
+        if (log_x_upper > log_double_max())
           return -dx + (shape - 1) * dlog_x;
         {
           real x_lower = exp(log_x_lower);
-          real x_upper = exp(log_x_lower + dlog_x);
+          real x_upper = exp(log_x_upper);
           return -dx + shape * dlog_x
                  + log_gamma_q_cf_factor(shape, x_upper)
                  - log_gamma_q_cf_factor(shape, x_lower);
