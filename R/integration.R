@@ -612,11 +612,15 @@ unnest_integration <- function(data) {
 #'   correlation to realize could not be measured, since a maximum over the
 #'   measured pairs says nothing about the rest; a measured pair that misses
 #'   the heuristic is `"review"` regardless. `correlation_pairs` counts the
-#'   pairs expected and measured, against the target (the doubled grid) and
-#'   between resolutions (both grids), names the omitted ones with a reason,
-#'   and lists separately the pairs in which a margin is declared with no
-#'   variance, which have no correlation to realize and are outside the
-#'   count.
+#'   pairs expected and the pairs measured: `measured` is the number with a
+#'   finite correlation on the doubled grid, the correlation the target
+#'   comparison uses when there is a target to compare it with, and
+#'   `measured_resolution` the number with a finite correlation on both
+#'   grids. Neither count says whether a target comparison was made; with
+#'   `cor_adjust = "none"` none is. It names the omitted pairs with a
+#'   reason, and lists separately the pairs in which a margin is declared
+#'   with no variance, which have no correlation to realize and are outside
+#'   the count.
 #'
 #'   For a binary margin the declared-target SD is the distribution's,
 #'   `sqrt(p * (1 - p))` from the declared mean, whatever `_sd` column the
@@ -851,7 +855,7 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
         cat("Target correlation: not available (no finite comparison).\n")
       }
       if (nrow(pairs$omitted)) {
-        cat(sprintf(paste0("Pairs compared: %d of %d against the target, %d ",
+        cat(sprintf(paste0("Pairs measured: %d of %d on the doubled grid, %d ",
                            "of %d between resolutions. Not measured: %s. ",
                            "A maximum above is over the measured pairs ",
                            "only.\n"),
