@@ -239,6 +239,150 @@
 }
 
 
+#' Refuse a comparator curve whose tied event times collapse its auxiliary
+#'
+#' [.check_survival_scale_collapse()] asks whether the INDEX covariates
+#' reproduce the index event times exactly. The comparator side has a
+#' different geometry, and a worse one, which is this function's.
+#'
+#' The comparator likelihood is not the continuously integrated one the
+#' model is written to mean. Each pseudo-individual contributes
+#' `log_sum_exp(ll) - log(n_int)` over the integration grid, a finite
+#' equally weighted MIXTURE of densities. Every pseudo-individual in an arm
+#' sees the same grid, so `m` of them sharing one event time can all select
+#' the same node `x_j`, and the condition that the node reproduce that time,
+#' `mu_comparator + beta' x_j = log t`, is ONE equation in the comparator's
+#' coefficients. The ridge is then a TUBE whose width is proportional to the
+#' auxiliary, not an isolated point, and its volume does not shrink fast
+#' enough to cancel the `m` density spikes standing on it.
+#'
+#' With the coefficients integrated out the marginal behaves as
+#' `(1 / sdlog)^(m - 1)` for a scale family and `shape^(m - 1)` for a shape
+#' family. Measured over 64 midpoint normal nodes, `d log M / d log aux` is
+#' 1.000 for two tied events and 2.000 for three, for `lognormal` and
+#' `weibull-aft` alike; one event alone gives the convergent 0.000, and two
+#' events at DIFFERENT times give it too, because two nodes reproducing two
+#' times are two equations and pin the coefficients to a point.
+#'
+#' That measurement is also why the two groups are not treated the same.
+#' The scale families diverge as `sdlog` goes to zero, where every supported
+#' prior has positive density, so no prior repairs it and the fit is
+#' refused. The shape families diverge as the shape grows, where
+#' `shape^(m - 1)` meets the prior's tail instead: a half-normal or an
+#' exponential integrates it and a half-t need not, so propriety there is a
+#' property of `prior_aux` and the fit is warned about rather than refused.
+#'
+#' **This is a restriction on an approximation, not a repair of a model.**
+#' The continuously integrated counterpart is PROPER for the same data.
+#' Integrating a declared Gaussian covariate exactly leaves
+#' `log T ~ N(mu, beta^2 + sdlog^2)`, and two tied events give
+#' `1 / (2 pi tau sqrt(tau^2 + 2 a^2))` for `tau^2 = beta^2 + sdlog^2`. That
+#' behaves as `1 / sqrt(beta^2 + sdlog^2)` near the origin, which the volume
+#' element of polar coordinates makes integrable. Two comparator events at
+#' `t = 1` on 64 nodes, coefficients integrated against `normal(0, 10)` and
+#' `normal(0, 2.5)`: the grid likelihood runs 0.0143, 0.185, 1.72, 171 and
+#' 17103 as `sdlog` falls through 0.1, 0.001, 0.0001, 1e-6 and 1e-8, while
+#' the continuous one runs 0.0142, 0.0307, 0.0390, 0.0556 and 0.0721. The
+#' quadrature is what fails, not the likelihood it approximates.
+#'
+#' So a larger `n_int` is not the repair: a bigger fixed rule is still a
+#' finite mixture and only scales the coefficient of the same divergence.
+#' Neither is jittering the tied times, which invents data, nor a floor on
+#' the auxiliary, which hides the singularity the sampler would have found.
+#' The repair is the analytic marginal likelihood wherever the declared
+#' covariate distribution supports one, and that is a change to the model,
+#' not to a guard.
+#'
+#' Only a comparator with its OWN auxiliary is examined. Under
+#' `aux_by = "none"` the index rows share it, and a positive index residual
+#' contributes `exp(-RSS / (2 sdlog^2))`, which goes to zero faster than any
+#' power of the scale and removes the divergence; an index fit that is
+#' itself exact is [.check_survival_scale_collapse()]'s to refuse.
+#'
+#' It is not specific to one model. The relaxed model gives the comparator
+#' its own coefficients, and the SPFA one still gives it `mu_comparator`, a
+#' free parameter appearing in no index row, so the single equation above is
+#' solvable under either.
+#'
+#' @param data An `mlumr_data` object with `family = "survival"`.
+#' @param distribution The resolved survival distribution.
+#' @param aux_by The auxiliary stratification, as passed to [mlumr()].
+#' @return `TRUE` invisibly if the data were warned about, `FALSE` otherwise.
+#'   A refused configuration stops instead.
+#' @keywords internal
+.check_comparator_tied_events <- function(data, distribution,
+                                          aux_by = ".study") {
+  scale_families <- c("lognormal", "gengamma")
+  shape_families <- c("weibull", "weibull-aft", "loglogistic", "gamma",
+                      "gompertz")
+  if (!distribution %in% c(scale_families, shape_families)) {
+    return(invisible(FALSE))
+  }
+  if (identical(aux_by, "none")) return(invisible(FALSE))
+  if (!is.null(aux_by) && !identical(aux_by, ".study")) {
+    return(invisible(FALSE))
+  }
+  pseudo <- data$agd$pseudo_ipd
+  if (is.null(pseudo) || !nrow(pseudo)) return(invisible(FALSE))
+  status <- pseudo$.status
+  time <- suppressWarnings(as.numeric(pseudo$.time))
+  if (is.null(status) || !length(time) || length(status) != length(time)) {
+    return(invisible(FALSE))
+  }
+  events <- !is.na(status) & status == 1L & is.finite(time)
+  if (sum(events) < 2L) return(invisible(FALSE))
+  # A tie is a tie within one ARM, since an arm is one reconstructed curve
+  # with one integration grid. Only a single comparator arm is supported
+  # today, so this is one group, but the property belongs to the arm rather
+  # than to the frame.
+  arm <- if (is.null(pseudo$.arm)) rep("1", nrow(pseudo)) else {
+    as.character(pseudo$.arm)
+  }
+  multiplicity <- max(unlist(lapply(
+    split(time[events], arm[events]),
+    function(v) max(c(1L, as.integer(table(v))))
+  )))
+  if (multiplicity < 2L) return(invisible(FALSE))
+  exponent <- multiplicity - 1L
+  shared <- paste0(
+    "The reconstructed comparator curve has ", multiplicity, " events at one ",
+    "time. Its likelihood is a finite equally weighted mixture over the ",
+    "integration grid, `log_sum_exp(ll) - log(n_int)`, and every ",
+    "pseudo-individual in the arm sees the same grid, so all ",
+    multiplicity, " can select the same integration point. That the point ",
+    "reproduce their common time is ONE equation in the comparator's ",
+    "coefficients, so the ridge is a tube whose width falls with the ",
+    "auxiliary rather than an isolated point, and with the coefficients ",
+    "integrated out the marginal behaves as the auxiliary to the power ",
+    exponent, ". Two events at DIFFERENT times are two equations and do not ",
+    "do this."
+  )
+  restriction <- paste0(
+    " This is a restriction on the quadrature, not a defect of the model it ",
+    "approximates: integrating a declared Gaussian covariate exactly leaves ",
+    "`log T ~ N(mu, beta^2 + sdlog^2)`, whose posterior IS proper for these ",
+    "same data. A larger `n_int` is still a finite mixture and only scales ",
+    "the coefficient of the same divergence, and jittering the tied times ",
+    "invents data. If the ties come from rounding, an interval-censored ",
+    "representation of what was actually observed is the honest model; ",
+    "`set_agd_surv()` accepts one."
+  )
+  if (distribution %in% scale_families) {
+    stop(shared, " The posterior for ", .aux_name(distribution),
+         " is therefore improper: the divergence is at zero, where every ",
+         "supported prior has positive density, so no choice of `prior_aux` ",
+         "repairs it and the sampler would drift toward zero and report ",
+         "where it stopped.", restriction, call. = FALSE)
+  }
+  warning(shared, " Whether the posterior for ", .aux_name(distribution),
+          " exists then depends on the tail of `prior_aux`: the divergence ",
+          "is at infinity, where a half-normal or an exponential integrates ",
+          "that power and a half-t need not, so what is reported for it can ",
+          "be a property of that prior rather than of the data.", restriction,
+          call. = FALSE)
+  invisible(TRUE)
+}
+
 #' Refuse normal IPD that its own covariates fit exactly
 #'
 #' With `n` IPD rows and a design of rank `r`, integrating out the
@@ -593,9 +737,13 @@
 #' like: it let a row that suppresses nothing stand in for one that does,
 #' and sent an improper posterior to the sampler in silence.
 #'
-#' The comparator side is not examined either: its reconstructed rows enter a
-#' likelihood marginalized over the integration grid, which is not this
-#' geometry.
+#' The comparator side is not examined HERE, and its rows are not safe for
+#' being left out. They enter a likelihood marginalized over the integration
+#' grid, which is not this geometry but a worse one: that marginal is a
+#' finite mixture, and tied comparator event times make it diverge where
+#' this index geometry is perfectly healthy.
+#' [.check_comparator_tied_events()] is that question, and it runs whatever
+#' this function concludes.
 #'
 #' @param data An `mlumr_data` object with `family = "survival"`.
 #' @param distribution The resolved survival distribution.
@@ -2308,6 +2456,11 @@ mlumr <- function(data,
     .check_survival_scale_collapse(data, surv_info$distribution,
                                    aux_by = aux_by,
                                    center = stan_data$cov_center)
+    # The comparator side has its own geometry, and the index result does
+    # not speak to it: the configuration this refuses has a perfectly
+    # healthy index fit.
+    .check_comparator_tied_events(data, surv_info$distribution,
+                                  aux_by = aux_by)
   }
 
   # Select Stan model. family_config gives the default prefix; the survival

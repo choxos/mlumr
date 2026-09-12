@@ -89,6 +89,55 @@
   small and the row came back `"bounded"`, which suppresses the refusal.
   Such a design is now `"undetermined"`.
 
+* **Tied comparator event times are refused for a log-normal survival fit,
+  and warned about for the shape families.** The comparator likelihood is
+  not the continuously integrated one the model is written to mean. Each
+  reconstructed pseudo-individual contributes
+  `log_sum_exp(ll) - log(n_int)`, a finite equally weighted mixture over the
+  integration grid, and every pseudo-individual in an arm sees the same
+  grid. So `m` of them sharing one event time can all select the same
+  integration point, and the condition that the point reproduce their common
+  time is ONE equation in the comparator's coefficients: the ridge is a tube
+  whose width falls with the auxiliary rather than an isolated point, and
+  with the coefficients integrated out the marginal behaves as the auxiliary
+  to the power `m - 1`. Measured over 64 midpoint normal nodes,
+  `d log M / d log aux` is 1.000 for two tied events and 2.000 for three,
+  for `lognormal` and `weibull-aft` alike. Two events at DIFFERENT times are
+  two equations and pin the coefficients to a point, which is why only ties
+  do this, and tied CENSORED times contribute a survival probability rather
+  than a density spike.
+
+  The two groups divide as they do on the index side. The scale families
+  diverge as the scale goes to zero, where every supported prior has
+  positive density, so no prior repairs it and the fit is refused. The shape
+  families diverge as the shape grows, where the power meets the prior's
+  tail, so a half-normal or an exponential integrates it and a half-t need
+  not, and that is reported rather than refused.
+
+  This is a restriction on the quadrature and not a defect of the model it
+  approximates, which matters for what the fix eventually is. Integrating a
+  declared Gaussian covariate exactly leaves
+  `log T ~ N(mu, beta^2 + sdlog^2)`, whose posterior IS proper for the same
+  data: two tied events give `1 / (2 pi tau sqrt(tau^2 + 2 a^2))` for
+  `tau^2 = beta^2 + sdlog^2`, which behaves as `1 / sqrt(beta^2 + sdlog^2)`
+  near the origin and is integrable there. Two comparator events at `t = 1`
+  on 64 nodes, coefficients integrated against `normal(0, 10)` and
+  `normal(0, 2.5)`: the grid likelihood runs 0.0143, 0.185, 1.72, 171 and
+  17103 as `sdlog` falls through 0.1, 0.001, 0.0001, 1e-6 and 1e-8, while
+  the continuous one runs 0.0142, 0.0307, 0.0390, 0.0556 and 0.0721. So a
+  larger `n_int` is not the repair: a bigger fixed rule is still a finite
+  mixture and only scales the coefficient of the same divergence. Neither is
+  jittering the tied times. Where ties come from rounding, an
+  interval-censored representation of what was actually observed is the
+  honest model and `set_agd_surv()` accepts one. The index-side guard says
+  nothing about any of this: the refused configuration has a perfectly
+  healthy index fit.
+
+  Only a comparator with its own auxiliary is examined. Under
+  `aux_by = "none"` the index rows share it and a positive index residual
+  contributes `exp(-RSS / (2 sdlog^2))`, which goes to zero faster than any
+  power of the scale.
+
   Right-censored rows are consulted before any of that is said, for the
   shape families too: one whose fitted time falls below its censoring time
   has survival going to zero faster than any power of the scale, and
