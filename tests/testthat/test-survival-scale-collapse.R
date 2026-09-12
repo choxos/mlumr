@@ -733,6 +733,33 @@ test_that("the propriety verdict does not depend on the predictor's units", {
   }
 })
 
+test_that("a censored row large enough to square to Inf still bounds", {
+  # The tolerance needs the censored row's norm, and `sqrt(sum(v^2))`
+  # overflows once an entry passes about 1.3e154 even though the norm itself
+  # is representable. Events at `(x, log t) = (0, 0), (1, -1), (0, 0)` fit
+  # exactly as `eta = -x`, so a row censored at `x = 1e200` has a fitted
+  # predictor of -1e200 against a region opening at 0: it is as far outside
+  # its observation region as a row can be, and it bounds the scale. Squaring
+  # the covariate made its norm `Inf` and returned "undetermined", refusing a
+  # log-normal that this row makes proper.
+  X <- unname(cbind(1, c(0, 1, 0, 1e200)))
+  events <- c(TRUE, TRUE, TRUE, FALSE)
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(X, c(0, -1, 0, 0), events), "bounded"
+  )
+  # Scaling the largest magnitude out first is exactly what recovers it: the
+  # naive sum of squares is Inf where the scaled one is 1e200.
+  expect_false(is.finite(sqrt(sum(c(1, 1e200)^2))))
+  expect_equal(1e200 * sqrt(sum((c(1, 1e200) / 1e200)^2)), 1e200)
+  # A coefficient that large is handled the same way. Events fitting
+  # `eta = -1e200 x` put the censored row at +1e200, inside its region, so
+  # this one does NOT bound and the answer is no longer an overflow either.
+  Y <- unname(cbind(1, c(0, 1, 0, -1)))
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(Y, c(0, -1e200, 0, 0), events), "unbounded"
+  )
+})
+
 test_that("a column too wide to rescale exactly is refused, not bounded", {
   # The tolerance bounds the SOLVE's error with the SCALED design's condition
   # number, which is sound only because the two are the same computation:

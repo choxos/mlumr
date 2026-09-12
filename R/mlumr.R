@@ -1323,8 +1323,32 @@
   # in silence. `||Xc|| ||beta||` dominates the coordinatewise product by
   # Cauchy-Schwarz, so this is a widening: it can turn a "bounded" into an
   # "undetermined" and never the other way.
-  xc_norm <- sqrt(rowSums(Xc_s^2))
-  beta_norm <- sqrt(sum(beta_s^2))
+  # `sqrt(sum(v^2))` overflows once an entry passes about 1.3e154, and the
+  # norm it would have returned is perfectly representable. With events at
+  # `(x, log t) = (0, 0), (1, -1), (0, 0)` the exact fit is `eta = -x`, so a
+  # row censored at `x = 1e200` has a fitted predictor of -1e200 against a
+  # region opening at 0 and bounds the scale as plainly as any row can;
+  # squaring the covariate turned its norm into `Inf` and refused a fit that
+  # row makes proper. Factor the largest magnitude out first, which is what
+  # every scaled sum of squares does, and the same entry gives 1e200.
+  row_norms <- function(M) {
+    if (!nrow(M)) return(numeric(0))
+    scale <- apply(M, 1L, function(v) max(abs(v)))
+    out <- scale
+    ok <- is.finite(scale) & scale > 0
+    if (any(ok)) {
+      out[ok] <- scale[ok] *
+        sqrt(rowSums(sweep(M[ok, , drop = FALSE], 1L, scale[ok], "/")^2))
+    }
+    out
+  }
+  vector_norm <- function(v) {
+    scale <- max(abs(v))
+    if (!is.finite(scale) || scale == 0) return(scale)
+    scale * sqrt(sum((v / scale)^2))
+  }
+  xc_norm <- row_norms(Xc_s)
+  beta_norm <- vector_norm(beta_s)
   if (!all(is.finite(xc_norm)) || !is.finite(beta_norm)) {
     return("undetermined")
   }
