@@ -799,13 +799,42 @@ test_that("a censored gompertz row is placed on the time scale too", {
   # Same rows, two scales, opposite verdicts. Events at t = 1 and t = 4 over
   # x = 0 and 1 are fitted as `1 + 3x` on the time scale and as `4^x` on the
   # log scale, so at x = 0.5 the fitted time is 2.5 on one and 2 on the
-  # other. A row censored at 2.2 therefore sits ABOVE the Gompertz fitted
-  # time, where `S(c)` tends to one and bounds nothing, and BELOW the
-  # log-normal one, where it tends to zero and bounds the scale.
+  # other. A right-censored row bounds the auxiliary only when the FITTED
+  # time falls below the censoring time, since `S(c)` is
+  # `exp(-e^(a(c - tau)))` and goes to zero only for `c > tau`. Censored at
+  # 2.2, the row sits below the Gompertz fitted 2.5 and bounds nothing, and
+  # above the log-normal fitted 2.0, where it bounds the scale.
   d <- .surv_stub(c(1, 4, 2.2), status = c(1L, 1L, 0L), x = c(0, 1, 0.5))
   expect_warning(check(d, distribution = "gompertz"), "on the time scale")
   expect_silent(check(d))
   expect_false(check(d))
+})
+
+test_that("a near-exact gompertz fit says the shape MAY concentrate", {
+  # The near-exact message tells the reader the residual is real and the
+  # posterior proper, then says whether the auxiliary will still concentrate
+  # against its boundary. For the two families whose ridge moves the
+  # coefficients that is conditional rather than certain, and Gompertz is
+  # the strongest case of the three: its ridge drives the linear predictor
+  # to about `log(shape) - shape * t`, which runs away with the shape itself
+  # rather than with its logarithm, so the default `normal(0, 10)` intercept
+  # prior stops the shape long before a residual this small does.
+  #
+  # Five events at t = 1:5 over x = 0:4 with the last nudged by 1e-4: the
+  # time-scale residual is 4e-10 of the total, real but far under the 1e-6
+  # the near-exact branch takes.
+  d <- .surv_stub(c(1:4, 5 + 1e-4), rep(1L, 5), x = 0:4)
+  w <- expect_warning(check(d, distribution = "gompertz"), "very nearly fit")
+  expect_match(conditionMessage(w), "on the time scale")
+  expect_match(conditionMessage(w), "may")
+  expect_match(conditionMessage(w), "runs away with the shape itself")
+  expect_false(grepl("will\\b", conditionMessage(w)))
+  # The AFT parameterizations leave the coefficients where they are, so
+  # theirs is not conditional and still says "will".
+  d2 <- .surv_stub(exp(c(1:4, 5 + 1e-4)), rep(1L, 5), x = 0:4)
+  w2 <- expect_warning(check(d2, distribution = "weibull-aft"), "very nearly")
+  expect_match(conditionMessage(w2), "will")
+  expect_match(conditionMessage(w2), "on the log scale")
 })
 
 test_that("a saturated gompertz design is not asserted proper", {
