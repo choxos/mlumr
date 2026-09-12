@@ -238,7 +238,15 @@ inverse_link <- function(x, link = c("identity", "log", "logit", "probit", "clog
   # the accurate one: its error is absolute and of order `eps`, which only
   # matters when the answer itself is near zero.
   if (m_x <= 0 && m_x > -1) {
-    mean_expm1 <- sum(weights * expm1(x)) / sum(weights)
+    # Normalized by the largest weight, which the shifted form below gets for
+    # free by working in logs and this one does not. Raw weights break it at
+    # both ends: `c(1e308, 1e308)` overflows `sum(weights)` to `Inf` and
+    # returns 0 for a mean of -7.9e-18, and `c(1e-320, 1e-320)` underflows
+    # the numerator to 0 and returns 0 for the same mean. Every weight here
+    # is finite and positive, the zeros having been dropped above, so the
+    # largest is a safe divisor and the ratio is unchanged by it.
+    scaled <- weights / max(weights)
+    mean_expm1 <- sum(scaled * expm1(x)) / sum(scaled)
     if (mean_expm1 > -1) return(log1p(mean_expm1))
   }
   z <- (x - m_x) + log_weights

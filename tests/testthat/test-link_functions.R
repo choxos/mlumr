@@ -334,6 +334,21 @@ test_that("a log mean close to zero keeps the correction that is its content", {
     expect_identical(w(rep(v, 4L), c(1, 2, 3, 4)), v)
     expect_identical(w(rep(v, 2L), c(1, 1)), v)
   }
+  # Extreme WEIGHTS must not decide it either. The shifted form works in
+  # logs and gets this for free; the near-one form has to normalize by the
+  # largest weight. Raw weights failed at both ends, returning 0 for a mean
+  # of -7.9e-18: `c(1e308, 1e308)` overflows their sum to `Inf`, and
+  # `c(1e-320, 1e-320)` underflows the numerator to zero.
+  x <- -exp(c(-40, -39))
+  for (wt in list(c(1e308, 1e308), c(1e-320, 1e-320), c(1, 1),
+                  c(1e-320, 3e-320), c(2e307, 6e307))) {
+    scaled <- wt / max(wt)
+    expect_equal(w(x, wt), sum(scaled * x) / sum(scaled), tolerance = 1e-13,
+                 label = sprintf("weights %.1e %.1e", wt[1], wt[2]))
+  }
+  # A single huge weight beside a zero one is the same point mass.
+  expect_identical(w(c(-1e-18, -5e-18), c(1e308, 0)), -1e-18)
+
   # The wide and very negative cases keep the shifted form, which is the
   # accurate one there: an absolute error of order eps matters only when the
   # answer is itself near zero.
