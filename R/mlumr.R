@@ -282,14 +282,29 @@
       b <- (u[2L] - u[1L]) / (z[j2] - z[j1])
       a <- u[1L] - b * z[j1]
       if (!is.finite(a) || !is.finite(b) || b == 0) next
-      pred <- sort(a + b * z)
+      pred <- a + b * z
       if (!all(is.finite(pred))) next
-      i <- findInterval(u, pred)
-      lo <- pred[pmax(i, 1L)]
-      hi <- pred[pmin(i + 1L, length(pred))]
-      gap <- pmin(abs(u - lo), abs(u - hi))
-      tol <- 64 * .Machine$double.eps *
-        pmax(1, abs(u), max(abs(pred)))
+      # The rounding in `a + b * z` is governed by the size of the terms that
+      # went into THAT node, not by the largest prediction anywhere on the
+      # grid. Scaling every target's tolerance by the global maximum lets one
+      # distant node pay for all of them: on `z = (0, 2^-60, 1)` against
+      # targets `(0, 1, 2)` the pair carrying the first two gives
+      # `b = 2^60` and predictions `(0, 1, 2^60)`, so a global tolerance is
+      # about 16384 and the target at 2 is "matched" by a prediction of 1, a
+      # gap of one whole unit. No affine map carries those three targets, and
+      # the fit would have been refused as improper. Tolerances are local.
+      mag <- abs(a) + abs(b * z)
+      ord <- order(pred)
+      ps <- pred[ord]
+      ms <- mag[ord]
+      i <- findInterval(u, ps)
+      il <- pmax(i, 1L)
+      ih <- pmin(i + 1L, length(ps))
+      dl <- abs(u - ps[il])
+      dh <- abs(u - ps[ih])
+      near <- ifelse(dl <= dh, il, ih)
+      gap <- pmin(dl, dh)
+      tol <- 64 * .Machine$double.eps * pmax(1, abs(u), ms[near])
       if (all(gap <= tol)) return(TRUE)
     }
   }

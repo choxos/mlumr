@@ -497,6 +497,22 @@ test_that("a target the grid cannot carry is still passed in silence", {
   expect_true(is.na(mlumr:::.grid_hits_targets(NULL, log(c(1, 2)))))
 })
 
+test_that("the match tolerance is local to the node it matched", {
+  g <- mlumr:::.grid_hits_targets
+  # Two nodes a hair apart and one far away. Carrying the first two targets
+  # needs `b = 2^60`, which puts one prediction at 2^60, and a tolerance
+  # scaled by the LARGEST prediction is about 16384: the target at 2 then
+  # passes against a prediction of 1, a gap of a whole unit. No affine map
+  # carries these three, and a certificate here refuses a proper fit.
+  expect_false(g(matrix(c(0, 2^-60, 1), ncol = 1L), c(0, 1, 2)))
+  # The rounding that matters is in the terms of that one node, so a genuine
+  # match at an enormous magnitude is still found.
+  z <- c(1, 2, 3) * 2^40
+  expect_true(g(matrix(z, ncol = 1L), -log(2) + log(2) * z / 2^40))
+  # And the real case is unaffected.
+  expect_true(g(matrix(c(1, 2, 3), ncol = 1L), log(c(1, 2, 4))))
+})
+
 test_that("the refusal survives the public mlumr() call", {
   d <- .uniform_stub(c(1, 2, 4))
   fit <- function() {
