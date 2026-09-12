@@ -240,12 +240,18 @@
   report, whose coverage is at least the nominal level for every true
   value; a comparator built from several aggregate rows is pooled, which
   is conservative for the size-weighted mean of its strata. The arm
-  standard errors are unchanged and still feed the contrasts, whose
-  intervals remain Wald on the link scale around the boundary-corrected
-  quantities: enumerating every pair of counts at 100 per arm, they
-  cover the true log odds ratio, log risk ratio and risk difference
-  between 0.939 and 0.9999 of the time over true probabilities from
-  0.014 to 0.986, which the documentation now states. The standardized
+  standard errors are unchanged and still feed the contrasts, which are
+  not exact and are not claimed to be: the link-scale contrast and the
+  log risk ratio remain Wald around the boundary-corrected quantities
+  and the risk difference remains Wald on the natural scale around the
+  raw difference of proportions. Twelve configurations at 100
+  observations per arm are pinned in the tests by enumerating every pair
+  of counts, and the documentation now reports those twelve as the
+  values at those true probabilities rather than as a range: they run
+  from 0.853 to 0.9999. The risk difference is worst between opposite
+  boundaries, where a true difference of 0.966 is covered 85.3% of the
+  time, and the log risk ratio is worst with both arms near the same
+  boundary, where 0.986 against 0.957 is covered 92.1%. The standardized
   index probability of an STC is a model prediction and keeps its
   delta-method interval, documented as an asymptotic approximation.
 
@@ -292,15 +298,17 @@
 - **A Poisson STC with no finite maximum likelihood estimate is
   refused.** The Poisson log-likelihood is `sum(y * eta - E * exp(eta))`
   up to a constant, so along a direction of the coefficients that leaves
-  every positive-count row’s rate fixed and lowers a zero-count row’s it
-  rises without bound: with no events at all, or with a subgroup that
-  has none while another has some. Iterative reweighting stops anyway
-  when the deviance stops changing, and reported convergence, finite
-  coefficients and a finite covariance from where it stopped: 80 zero
-  counts gave an intercept near -27 with a standard error near 57,500,
-  and a zero-event subgroup beside a positive one a slope near 21. The
-  binomial separation check does not apply there and said so, which was
-  not a certificate.
+  every positive-count row’s rate fixed and lowers a zero-count row’s
+  rate, it increases toward a supremum it never attains: with no events
+  at all, or with a subgroup that has none while another has some. The
+  likelihood itself is bounded, by 1 when there are no events; what is
+  missing is a finite coefficient that maximizes it. Iterative
+  reweighting stops anyway when the deviance stops changing, and
+  reported convergence, finite coefficients and a finite covariance from
+  where it stopped: 80 zero counts gave an intercept near -27 with a
+  standard error near 57,500, and a zero-event subgroup beside a
+  positive one a slope near 21. The binomial separation check does not
+  apply there and said so, which was not a certificate.
   [`stc()`](https://choxos.github.io/mlumr/reference/stc.md) now refuses
   a Poisson outcome model with no events, and one where such a direction
   exists, deciding the latter exactly for up to two free directions with

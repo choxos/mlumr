@@ -3,8 +3,12 @@
 constant. Along a direction d of the coefficients that leaves every
 positive-count row's predictor fixed, X_i d = 0, and raises none of
 the zero-count rows', X_i d &amp;lt;= 0 with some strictly below, the linear
-term is constant and the exponential terms fall, so the likelihood rises
-all the way out and has no maximum to reach. Iterative reweighting stops
+term is constant and the exponential terms fall, so the likelihood
+increases all the way out toward a supremum it never attains. The
+likelihood is bounded: with no events it is exp(-sum(E_i exp(eta_i))),
+at most 1 and approaching 1 as the intercept falls. What is missing is
+not an upper bound but a finite coefficient that attains one. Iterative
+reweighting stops
 anyway, when the deviance stops changing: 80 zero counts on a nonconstant
 covariate stop after 25 iterations at an intercept near -27.3 with a
 standard error near 57,500, and 40 zeros beside 40 positive counts on a
@@ -14,8 +18,12 @@ for the binomial case does not apply: a rate can legitimately be small."><meta p
 constant. Along a direction d of the coefficients that leaves every
 positive-count row's predictor fixed, X_i d = 0, and raises none of
 the zero-count rows', X_i d &amp;lt;= 0 with some strictly below, the linear
-term is constant and the exponential terms fall, so the likelihood rises
-all the way out and has no maximum to reach. Iterative reweighting stops
+term is constant and the exponential terms fall, so the likelihood
+increases all the way out toward a supremum it never attains. The
+likelihood is bounded: with no events it is exp(-sum(E_i exp(eta_i))),
+at most 1 and approaching 1 as the intercept falls. What is missing is
+not an upper bound but a finite coefficient that attains one. Iterative
+reweighting stops
 anyway, when the deviance stops changing: 80 zero counts on a nonconstant
 covariate stop after 25 iterations at an intercept near -27.3 with a
 standard error near 57,500, and 40 zeros beside 40 positive counts on a
@@ -81,8 +89,12 @@ for the binomial case does not apply: a rate can legitimately be small."><meta p
 constant. Along a direction <code>d</code> of the coefficients that leaves every
 positive-count row's predictor fixed, <code>X_i d = 0</code>, and raises none of
 the zero-count rows', <code>X_i d &lt;= 0</code> with some strictly below, the linear
-term is constant and the exponential terms fall, so the likelihood rises
-all the way out and has no maximum to reach. Iterative reweighting stops
+term is constant and the exponential terms fall, so the likelihood
+increases all the way out toward a supremum it never attains. The
+likelihood is bounded: with no events it is <code>exp(-sum(E_i exp(eta_i)))</code>,
+at most 1 and approaching 1 as the intercept falls. What is missing is
+not an upper bound but a finite coefficient that attains one. Iterative
+reweighting stops
 anyway, when the deviance stops changing: 80 zero counts on a nonconstant
 covariate stop after 25 iterations at an intercept near -27.3 with a
 standard error near 57,500, and 40 zeros beside 40 positive counts on a
