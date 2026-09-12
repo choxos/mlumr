@@ -521,6 +521,34 @@ test_that("only an exact determinant certifies a match", {
   expect_true(g(m(c(1, 2, 3) * 2^40), c(0, 1, 2)))
   # A target no line carries is a plain no.
   expect_false(g(m(c(1, 2, 3)), log(c(1, 2, 3))))
+  # A COMPUTED zero is not an exact zero. Both products are rounded before
+  # the subtraction, so a genuinely nonzero determinant can cancel to 0.
+  # These nodes and targets compute 0 while the determinant of those very
+  # doubles is -3.4958e-17, and no permutation of them is an affine match.
+  zr <- c(0, 0.3961039261018525, 1.04621481495181)
+  ur <- c(0, 0.6209825942831111, 1.6401786176669797)
+  expect_equal((ur[3] - ur[1]) * (zr[2] - zr[1]) -
+                 (ur[2] - ur[1]) * (zr[3] - zr[1]), 0)
+  expect_false(isTRUE(g(m(zr), ur)))
+})
+
+test_that("the exact-arithmetic probes report what they promise", {
+  ts <- mlumr:::.two_sum_err
+  tp <- mlumr:::.two_prod_err
+  # `a + b == s + e` and `a * b == p + e`, exactly. An error of zero is the
+  # claim that the operation was exact, and that is all the guard asks.
+  # 2^-52 is the last bit of 1, so that sum is exact and 2^-60 is not.
+  expect_true(ts(1, 2^-52, 1 + 2^-52) == 0)
+  expect_true(ts(1, 2^-60, 1 + 2^-60) != 0)
+  expect_equal(ts(1, 2^-60, 1 + 2^-60), 2^-60)
+  expect_true(tp(2, 3, 6) == 0)                     # small integers
+  expect_true(tp(log(2), 2, log(2) * 2) == 0)       # scaling by a power of 2
+  # `(1 + 2^-52)^2` is `1 + 2^-51 + 2^-104`, whose last term falls off the
+  # end, so the product is inexact by exactly that term.
+  a <- 1 + 2^-52
+  expect_true(tp(a, a, a * a) != 0)
+  expect_equal(tp(a, a, a * a), 2^-104)
+  expect_equal(a * a, 1 + 2^-51)
 })
 
 test_that("the enumeration cutoff declines instead of overflowing", {

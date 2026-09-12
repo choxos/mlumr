@@ -216,7 +216,14 @@
   original data, `(u[i] - u[1]) * (z[j2] - z[j1]) - (u[2] - u[1]) *
   (z[j] - z[j1])`, which has no division and no slope in it, and only an
   exact zero certifies: a residual that is merely small is a near miss no
-  affine map removes, and it reports undecided. Silence from this check is not a certificate
+  affine map removes, and it reports undecided. A COMPUTED zero is not an
+  exact one either, since both products round before the subtraction, so the
+  zero counts only when every step that produced it was itself exact, which
+  is checked with the error terms of the sums and products. Nodes
+  `(0, 0.3961039261018525, 1.04621481495181)` against targets
+  `(0, 0.6209825942831111, 1.6401786176669797)` compute a determinant of 0
+  while the determinant of those very doubles is -3.4958e-17, and no
+  permutation of them is an affine match. Silence from this check is not a certificate
   that the posterior is proper. A refusal is a certificate that it is not.
 
   The exponent used is `m - min(k, reach)`, which is exact for one covariate

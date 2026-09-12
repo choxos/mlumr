@@ -239,6 +239,47 @@
 }
 
 
+#' The rounding error of a floating-point sum, exactly
+#'
+#' Knuth's TwoSum. For `s = a + b` the returned `e` satisfies `a + b = s + e`
+#' exactly, with no assumption about the relative magnitudes. `e == 0` says
+#' the addition was exact, which is the only thing this file asks of it.
+#'
+#' @param a,b The operands.
+#' @param s Their computed sum.
+#' @return The exact rounding error.
+#' @keywords internal
+.two_sum_err <- function(a, b, s) {
+  bb <- s - a
+  (a - (s - bb)) + (b - bb)
+}
+
+#' The rounding error of a floating-point product, exactly
+#'
+#' Dekker's TwoProduct by splitting, since R exposes no fused multiply-add.
+#' Each operand is cut into two halves of at most 26 significant bits, whose
+#' pairwise products are exact, so for `p = a * b` the returned `e` satisfies
+#' `a * b = p + e` exactly. `e == 0` says the multiplication was exact.
+#'
+#' The split multiplies by `2^27 + 1`, so an operand within a factor of
+#' `2^27` of the overflow threshold returns a non-finite error. That reads as
+#' "not exact", which is the safe direction here.
+#'
+#' @param a,b The operands.
+#' @param p Their computed product.
+#' @return The exact rounding error.
+#' @keywords internal
+.two_prod_err <- function(a, b, p) {
+  big <- 134217729                      # 2^27 + 1
+  ca <- big * a
+  ah <- ca - (ca - a)
+  al <- a - ah
+  cb <- big * b
+  bh <- cb - (cb - b)
+  bl <- b - bh
+  ((ah * bh - p) + ah * bl + al * bh) + al * bl
+}
+
 #' Can one affine map send every target onto a grid node?
 #'
 #' The comparator's matching equations are solvable when some coefficient
@@ -325,23 +366,45 @@
       dz <- z[j2] - z0
       b <- u[2L] - u[1L]
       if (!is.finite(dz) || dz == 0 || !is.finite(b) || b == 0) next
+      # The anchor differences are data too, and a rounded one makes every
+      # determinant below the determinant of something other than the grid.
+      dz_exact <- .two_sum_err(z[j2], -z0, dz) == 0
+      b_exact <- .two_sum_err(u[2L], -u[1L], b) == 0
       rest <- u[-c(1L, 2L)]
       if (!length(rest)) return(TRUE)
-      # `a / b` only LOCATES the candidate nodes; the verdict is the exact
+      # `a / b` only LOCATES the candidate nodes; the verdict is the
       # determinant evaluated at them, so the division's rounding cannot
       # certify anything on its own. Four neighbors, since that rounding can
       # land on either side of the node it is looking for.
       exact_all <- TRUE
       close_all <- TRUE
       for (t in rest) {
-        a <- (t - u[1L]) * dz
+        tm <- t - u[1L]
+        a <- tm * dz
         want <- z0 + a / b
         i <- findInterval(want, z)
         cand <- unique(pmin(pmax(c(i - 1L, i, i + 1L, i + 2L), 1L), n))
-        det <- a - b * (z[cand] - z0)
-        scale <- abs(a) + abs(b * (z[cand] - z0))
+        zz <- z[cand] - z0
+        bz <- b * zz
+        det <- a - bz
+        scale <- abs(a) + abs(bz)
         tol <- 64 * .Machine$double.eps * pmax(1, scale)
-        if (!any(det == 0)) exact_all <- FALSE
+        # A computed zero is not an exact zero. Both products are rounded
+        # before the subtraction, so a determinant that is genuinely nonzero
+        # can cancel to 0: nodes `(0, 0.3961039261018525, 1.04621481495181)`
+        # against targets `(0, 0.6209825942831111, 1.6401786176669797)`
+        # compute 0 while the determinant of those very doubles is
+        # -3.4958e-17, and no permutation of them is an affine match. So a
+        # zero certifies only when EVERY step that produced it was itself
+        # exact, which makes the computed determinant the real one.
+        exact_here <- dz_exact & b_exact &
+          (.two_sum_err(t, -u[1L], tm) == 0) &
+          (.two_prod_err(tm, dz, a) == 0) &
+          (.two_sum_err(z[cand], -z0, zz) == 0) &
+          (.two_prod_err(b, zz, bz) == 0) &
+          (.two_sum_err(a, -bz, det) == 0)
+        exact_here[is.na(exact_here)] <- FALSE
+        if (!any(det == 0 & exact_here)) exact_all <- FALSE
         if (!any(abs(det) <= tol)) close_all <- FALSE
         if (!close_all) break
       }
