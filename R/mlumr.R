@@ -800,6 +800,26 @@
     # residual is real and the posterior proper, and the auxiliary still
     # concentrates against its boundary.
     #
+    # An EVENT row's own delayed entry is not consulted here, and does not
+    # need to be. A near-exact residual can put a fitted value below its own
+    # entry, where `f(t) / S(entry)` behaves as
+    # `(a / (t sigma^2)) exp(-(r^2 - a^2) / (2 sigma^2))` for
+    # `a = log(entry) - eta` and `r = log(t) - eta`. That does tend to zero,
+    # but so does every near-exact event row's contribution, which is the
+    # whole reason this status is proper: tending to zero is not what bounds
+    # the auxiliary AWAY from its boundary, suppressing a divergence is, and
+    # near-exact has no divergence to suppress. The entry is strictly below
+    # its own row's time, so `0 < a < r` and the aggregate exponent
+    # `-(sum(r^2) - a^2) / (2 sigma^2)` stays strictly negative: the
+    # likelihood still goes to zero, and the peak moves from
+    # `sigma^2 = sum(r^2) / n` to `(sum(r^2) - a^2) / n`, which is CLOSER to
+    # the boundary. Measured on four rows with residuals of 1e-3 and an
+    # entry halfway between one fitted value and its own event time, the
+    # profile maximum moves from sigma 1.00e-3 to 7.94e-4 and the profile at
+    # sigma = 1e-6 is -1.58e6. So this warning is not made untrue by such a
+    # row; it is made more apt. An exact fit cannot produce one at all, since
+    # `eta` is then `log(t)` and the entry is below it.
+    #
     # For the two whose ridge moves the coefficients, that is conditional
     # rather than certain: ordinary normal coefficient priors can stop the
     # shape well before a small event residual does, and the defaults are
