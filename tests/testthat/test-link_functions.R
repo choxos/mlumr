@@ -307,3 +307,38 @@ test_that("bound_probability corrects only the boundaries", {
   expect_true(all(bound_probability(c(0, 1), n = 10) > 0))
   expect_true(all(bound_probability(c(0, 1), n = 10) < 1))
 })
+
+test_that("a log mean close to zero keeps the correction that is its content", {
+  w <- mlumr:::.weighted_log_mean_exp
+  # Values whose difference is below the spacing of one. Shifting by the
+  # maximum and subtracting two log sums cancels them to zero and returns
+  # the maximum, which is the mean's largest term rather than its mean. For
+  # `-exp(c(-40, -39))` that is -4.25e-18 against a mean of -7.90e-18, a
+  # relative error of 46% in a quantity the cloglog gradient divides by.
+  #
+  # The reference is algebraic: for `x_i` this far below the spacing of one,
+  # `log(mean(exp(x)))` is `mean(x)` to every representable digit, since the
+  # next term is of order `x^2` and 1e-35 cannot perturb 1e-18.
+  for (e in list(c(-40, -39), c(-45, -44), c(-50, -40), c(-60, -59.5))) {
+    x <- -exp(e)
+    expect_equal(w(x, c(1, 1)), mean(x), tolerance = 1e-13,
+                 label = paste("equal weights", e[1], e[2]))
+    expect_equal(w(x, c(1, 3)), sum(c(0.25, 0.75) * x), tolerance = 1e-13,
+                 label = paste("weights 1:3", e[1], e[2]))
+  }
+  # Identical values are their own mean EXACTLY, however they are weighted.
+  # `.stc_binomial_gradients()` builds its shares as `exp(x - mean)` and
+  # needs them to sum to one, so this is an exact requirement rather than an
+  # approximate one, across the whole range.
+  for (v in c(-exp(40), -exp(-40), -1e-300, 0, 1, 1e300)) {
+    expect_identical(w(rep(v, 4L), c(1, 2, 3, 4)), v)
+    expect_identical(w(rep(v, 2L), c(1, 1)), v)
+  }
+  # The wide and very negative cases keep the shifted form, which is the
+  # accurate one there: an absolute error of order eps matters only when the
+  # answer is itself near zero.
+  expect_equal(w(c(-800, -800), c(1, 1)), -800, tolerance = 1e-15)
+  expect_equal(w(c(0, -Inf), c(1, 1)), log(0.5), tolerance = 1e-15)
+  expect_equal(w(c(-1000, 0), c(1, 1)), log(0.5), tolerance = 1e-12)
+  expect_identical(w(c(Inf, 0), c(1, 1)), Inf)
+})
