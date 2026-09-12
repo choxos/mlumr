@@ -733,6 +733,50 @@ test_that("the propriety verdict does not depend on the predictor's units", {
   }
 })
 
+test_that("a column too wide to rescale exactly is refused, not bounded", {
+  # The tolerance bounds the SOLVE's error with the SCALED design's condition
+  # number, which is sound only because the two are the same computation:
+  # Householder QR is equivariant under an exact power-of-two column scaling,
+  # and `dqrdc2` pivots on each column's reduced norm against its OWN
+  # original norm, so neither the coefficients nor the pivots move. Over
+  # 20,000 random designs, near-collinear columns and scalings to 2^90
+  # included, the rescaled unscaled solve was bit-identical to the scaled one
+  # every time, and against the exact rational solution the predictor error
+  # never exceeded this tolerance (worst 0.85 of it over 3,000 designs).
+  #
+  # Exactness is the whole of that argument. A column whose own entries span
+  # more than the exponent field breaks it, and breaks it toward the unsafe
+  # answer: dividing this column by `2^1020` flushes two entries to exactly
+  # zero, so the scaled design reads as beautifully conditioned (kappa 18.8)
+  # precisely because the information is gone, where the design actually
+  # solved has kappa 5.5e307. The tolerance that comes out of 18.8 is far too
+  # small, the censored row's gap clears it, and the answer was "bounded",
+  # which SUPPRESSES the refusal and passes a possibly improper fit.
+  #
+  # Of 7,794 random designs whose rescaling is inexact, the check returned a
+  # definite verdict for 7,790 of them, 7,586 of those "bounded". It is not
+  # a corner that the existing guards were already catching.
+  wide <- unname(cbind(1, c(2^1020, 2^-100, 2^200, 2^-300),
+                       c(-1, 0.5, 0.25, 0)))
+  events <- c(TRUE, TRUE, TRUE, FALSE)
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(wide, c(0, 0, 0, 5), events),
+    "undetermined"
+  )
+  # An ordinary wide-but-rescalable column is NOT refused: the whole point of
+  # the scaling is that a units choice must not decide propriety. The
+  # censored row's fitted time of 0 against a censoring time of 5 bounds the
+  # parameter, at 2^60 and at 2^0 alike.
+  ok <- unname(cbind(1, c(1, 2, 3, 4) * 2^60, c(-0.5, 0.5, 0.25, 0)))
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(ok, c(0, 0, 0, 5), events), "bounded"
+  )
+  plain <- unname(cbind(1, c(1, 2, 3, 4), c(-0.5, 0.5, 0.25, 0)))
+  expect_identical(
+    mlumr:::.censoring_bounds_aux(plain, c(0, 0, 0, 5), events), "bounded"
+  )
+})
+
 test_that("gompertz is diagnosed rather than passed in silence", {
   # It was in neither family list, so the guard returned before saying
   # anything at all. Its hazard is `exp(eta + a t)`, so an exact fit at a

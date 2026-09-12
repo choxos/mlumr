@@ -1283,6 +1283,29 @@
       !all(is.finite(beta_s))) {
     return("undetermined")
   }
+  # The whole argument for bounding the SOLVE's error with the SCALED design's
+  # condition number is that the two designs are the same computation. They
+  # are: Householder QR is equivariant under an exact power-of-two column
+  # scaling, and `dqrdc2` tests each column's reduced norm against its OWN
+  # original norm, so the pivots do not move either. Over 20,000 random
+  # designs, including near-collinear columns and scalings to 2^90, the
+  # unscaled solve's coefficients rescaled are BIT-IDENTICAL to the scaled
+  # solve's, with the same rank and the same pivot order every time, and the
+  # predictor error never exceeded this tolerance when checked against the
+  # exact rational solution (worst 0.85 of it over 3,000 designs).
+  #
+  # That rests on the rescaling being exact, and it stops being exact when a
+  # column's own entries span more than the exponent field. Dividing
+  # `c(2^1020, 2^-100)` by 2^1020 flushes the small end into the subnormals
+  # and loses bits the solve still had: `Xe_s` is then a DIFFERENT matrix
+  # from `Xe`, and its condition number is not a bound on the error of a
+  # solve that never saw it. Measured coefficient disagreement there is 2e-3,
+  # 7e-2 and 1 for column ranges of 2^1120, 2^2063 and an all-subnormal
+  # column. Refuse rather than bound the wrong matrix.
+  exact_rescale <- identical(sweep(Xe_s, 2L, divisor, "*"), Xe) &&
+    identical(sweep(Xc_s, 2L, divisor, "*"), Xc) &&
+    identical(beta_s / divisor, beta)
+  if (!exact_rescale) return("undetermined")
   cond <- tryCatch(kappa(Xe_s[, used, drop = FALSE], exact = FALSE),
                    error = function(e) Inf)
   if (!isTRUE(is.finite(cond))) cond <- Inf

@@ -73,6 +73,22 @@
   more uncensored rows than the rank the cancellation is partial and every
   shape family is warned about as before.
 
+  The censoring check refuses a design it cannot rescale exactly. Its
+  tolerance bounds the solve's error with the COLUMN-SCALED design's
+  condition number, which is sound because the two are the same computation:
+  Householder QR is equivariant under an exact power-of-two column scaling
+  and the pivot test is per-column relative, so over 20,000 random designs
+  the rescaled unscaled solve was bit-identical to the scaled one, with the
+  same rank and pivots, and the predictor error never reached the tolerance
+  when measured against the exact rational solution. A column whose own
+  entries span more than the exponent field breaks that, and toward the
+  unsafe answer: dividing `c(2^1020, 2^-100, 2^200, 2^-300)` by `2^1020`
+  flushes two entries to zero, so the scaled design reads as well
+  conditioned (kappa 18.8) exactly because the information is gone, where
+  the design solved has kappa 5.5e307. The tolerance from 18.8 is far too
+  small and the row came back `"bounded"`, which suppresses the refusal.
+  Such a design is now `"undetermined"`.
+
   Right-censored rows are consulted before any of that is said, for the
   shape families too: one whose fitted time falls below its censoring time
   has survival going to zero faster than any power of the scale, and
