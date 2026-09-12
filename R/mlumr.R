@@ -1094,14 +1094,20 @@
 #'
 #' A censored row that repeats an event row's covariate profile needs no
 #' solve at all. Where the event fit interpolates, its predictor IS that
-#' event's log time, for every exact solution and however deficient or
+#' event's own `y`, for every exact solution and however deficient or
 #' ill-conditioned the design is, so the question reduces to comparing two
 #' stored data values. That is worth asking first: it is exact where the
 #' numerical path is not, and it answers cases the numerical path refuses,
 #' including a design whose numerical rank falls below its exact one.
 #'
 #' @param X The full centered design, intercept first.
-#' @param y `log(time)` for every row.
+#' @param y The fitted response for every row, on the scale the family's
+#'   collapse happens on: `log(time)` for the location-scale families, whose
+#'   `eta` sits at `log t`, and `time` itself for Gompertz, whose ridge is
+#'   `log(shape) - log(expm1(shape * t))` and so needs the times rather than
+#'   their logarithms. This function does not transform it and does not know
+#'   the family; it only requires that `lower` and `upper` arrive on the same
+#'   scale.
 #' @param events Logical, which rows are events.
 #' @param exact_fit Whether the event rows are known to be fitted exactly.
 #'   The structural shortcut above holds only then, and the caller knows it
@@ -1109,10 +1115,9 @@
 #'   duplicated row at the fitted value rather than at the event's time, so
 #'   the shortcut is not taken for one.
 #' @param lower,upper The ends of each non-event row's observation region, on
-#'   the same scale as `y` (the log-time one for the location-scale families,
-#'   the time one for Gompertz), one value per non-event row, in the order
-#'   those rows
-#'   appear in `X`. `lower` may be `-Inf` and `upper` may be `Inf`, which is
+#'   the same scale as `y`, one value per non-event row, in the order those
+#'   rows appear in `X`. `lower` may be `-Inf` and `upper` may be `Inf`, which
+#'   is
 #'   what an open end means; `lower <= upper` is required and a row that
 #'   violates it leaves the answer `"undetermined"`. The defaults are the
 #'   right-censored region, `y[!events]` and `Inf`, so a caller that knows

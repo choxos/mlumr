@@ -16,7 +16,13 @@
 \arguments{
 \item{X}{The full centered design, intercept first.}
 
-\item{y}{\code{log(time)} for every row.}
+\item{y}{The fitted response for every row, on the scale the family's
+collapse happens on: \code{log(time)} for the location-scale families, whose
+\code{eta} sits at \verb{log t}, and \code{time} itself for Gompertz, whose ridge is
+\code{log(shape) - log(expm1(shape * t))} and so needs the times rather than
+their logarithms. This function does not transform it and does not know
+the family; it only requires that \code{lower} and \code{upper} arrive on the same
+scale.}
 
 \item{events}{Logical, which rows are events.}
 
@@ -27,10 +33,9 @@ duplicated row at the fitted value rather than at the event's time, so
 the shortcut is not taken for one.}
 
 \item{lower, upper}{The ends of each non-event row's observation region, on
-the same scale as \code{y} (the log-time one for the location-scale families,
-the time one for Gompertz), one value per non-event row, in the order
-those rows
-appear in \code{X}. \code{lower} may be \code{-Inf} and \code{upper} may be \code{Inf}, which is
+the same scale as \code{y}, one value per non-event row, in the order those
+rows appear in \code{X}. \code{lower} may be \code{-Inf} and \code{upper} may be \code{Inf}, which
+is
 what an open end means; \code{lower <= upper} is required and a row that
 violates it leaves the answer \code{"undetermined"}. The defaults are the
 right-censored region, \code{y[!events]} and \code{Inf}, so a caller that knows
@@ -67,7 +72,7 @@ it can do is leave the answer \code{"undetermined"}.
 
 A censored row that repeats an event row's covariate profile needs no
 solve at all. Where the event fit interpolates, its predictor IS that
-event's log time, for every exact solution and however deficient or
+event's own \code{y}, for every exact solution and however deficient or
 ill-conditioned the design is, so the question reduces to comparing two
 stored data values. That is worth asking first: it is exact where the
 numerical path is not, and it answers cases the numerical path refuses,
