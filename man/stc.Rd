@@ -72,9 +72,9 @@ binomial GLM, so this particular test has nothing to say. A Poisson
 outcome model has a boundary of its own kind: with no events, or with a
 subgroup without events that a direction of the coefficients can send
 to a rate of zero while every other row's rate stays fixed, the
-likelihood rises without bound and the maximum likelihood estimate is
-not finite, although the fitting reports convergence with finite
-numbers. Such a fit is refused, as is one where the question could not
+likelihood increases toward a supremum it never attains and the
+maximum likelihood estimate is not finite, although the fitting
+reports convergence with finite numbers. Such a fit is refused, as is one where the question could not
 be decided, so a returned Poisson result has a finite maximum and its
 \code{reason} says so. A separated fit is refused rather than returned, so
 \code{"separated"} never appears here.
@@ -99,7 +99,10 @@ contrasts. When the observed comparator arm has zero or all events,
 transformed effect measures use the boundary-only pseudo-count
 \code{(r + 0.5) / (n + 1)}; model predictions are never corrected. For Poisson
 outcomes, the comparator log rate uses a 0.5 continuity correction when the
-observed event count is zero.
+observed event count is zero, and \verb{$rd} is a RATE difference on the
+per-unit-exposure scale, the standardized index rate minus the observed
+comparator rate, rather than the risk difference the binomial \verb{$rd} is.
+\verb{$estimate} stays the log rate ratio.
 
 Scale note: \verb{$estimate} (and the binomial \verb{$log_rr}) is on the link / log
 scale, where the null is 0. To compare against the natural-scale risk ratio
@@ -144,11 +147,48 @@ reconstruction uncertainty may matter.
 
 The estimator relies on correct specification of the index-treatment outcome
 model and its applicability to the comparator population. It does not model
-posterior uncertainty in population covariate distributions or relax
-treatment-specific covariate effects.
-When clinically meaningful effect modification is plausible, prefer
-\code{mlumr(..., model = "relaxed")} as the primary analysis and use STC as a
-sensitivity or benchmarking analysis.
+posterior uncertainty in population covariate distributions.
+
+It does not require the two treatments to share covariate effects. On the
+response scale the estimand is \code{E_B[m_A(X)] - E_B[Y_B]}: the index
+response surface standardized to the comparator covariate distribution,
+contrasted with the comparator outcome as it was observed. That
+difference is what \verb{$rd} reports for a binomial outcome and \verb{$md} for a
+normal one. Whether it is also \verb{$estimate} depends on the link. Under the
+normal identity link it is: \verb{$estimate} is that same mean difference.
+Under a nonlinear link it is not, and \verb{$estimate} is instead the
+link-scale contrast of the two standardized quantities, a marginal log
+odds ratio under a binomial logit, a log rate ratio under Poisson and a
+log mean ratio under a log link, as the scale note above says.
+
+For the GLM families no comparator response model is fitted and none is
+transported, so \code{beta_A = beta_B} is not among the assumptions and effect
+modification by itself is not a reason to set STC aside. With a binary
+covariate at comparator prevalence 0.75 and index
+risks 0.2 and 0.8 against comparator risks 0.4 and 0.5, the slopes differ
+on both the risk and logit scales and the comparator-population risk
+difference is still 0.65 - 0.475 = 0.175. What the estimand does need is
+an index outcome model that is correctly specified and applicable across
+the comparator covariate distribution, adequate overlap, and the
+unanchored no-unmeasured-confounding assumption; those, not shared slopes,
+are where comparator-target STC is weak.
+
+Survival STC reaches its estimand by a different route. The comparator
+side is summarized by an intercept-only \code{\link[flexsurv:flexsurvreg]{flexsurv::flexsurvreg()}} fit to
+the reconstructed pseudo-IPD, and its fitted RMST is contrasted with the
+index RMST standardized to the comparator covariates. So a comparator
+model \emph{is} fitted on that path. It carries no covariates, so nothing is
+transported into it and the conclusion above about \code{beta_A = beta_B}
+holds there too, but by a different argument: not that no comparator
+model exists, but that the one fitted has no slopes to share.
+
+Choose between this and \code{mlumr(..., model = "relaxed")} by the target,
+the evidence and the identification, not by the plausibility of effect
+modification. Relaxed ML-UMR is what estimates comparator-specific
+covariate effects, and so is what an index or other decision population, a
+conditional effect, or a joint model of both arms requires. \code{stc()}
+answers one question, in the comparator population, and answers it without
+needing those coefficients to be identified at all.
 
 The returned effect is defined in the comparator population. Applying that
 same effect to the index or another decision population is a separate

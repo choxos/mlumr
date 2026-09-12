@@ -44,12 +44,25 @@ size-weighted mean of its strata. The arm standard errors are
 still reported, and they and the contrasts use the boundary pseudo-count
 \code{(r + 0.5) / (n + 1)} when an arm has zero or all events, or 0.5 events
 when a Poisson count is zero; the reported crude proportions and rates
-are unchanged. The contrasts' intervals are Wald intervals on the link
-scale around those corrected quantities. Enumerating every pair of counts
-at 100 per arm, their coverage of the true log odds ratio, log risk ratio
-and risk difference ranges from 0.939 to 0.9999 over true probabilities
-from 0.014 to 0.986, with the risk difference lowest at 0.939 beside a
-boundary; they are approximate, not exact.
+are unchanged. The link-scale contrast and the log risk ratio get Wald
+intervals around those corrected quantities; the risk difference gets one
+on the natural scale, centered on the raw difference of proportions with
+the corrected standard errors. All three are approximate, and their
+coverage is not bounded by the nominal level.
+
+Twelve configurations are pinned in the package's tests, each by
+enumerating every pair of counts at 100 observations per arm at a nominal
+95\%. Their recorded coverage runs from 0.853 to 0.9999. Those are the
+values at those true probabilities and they bound nothing else: the
+twelve do not cover other probabilities, other sample sizes, other links,
+stratified AgD or a transported \code{\link[=stc]{stc()}} contrast. The two contrasts are
+worst in different places. The risk difference is worst between opposite
+boundaries: a true difference of 0.966 (0.986 against 0.020) is covered
+85.3\% of the time. The log risk ratio is worst with both arms near the
+same boundary, where it is the log of a ratio of two probabilities near
+one: 0.986 against 0.957 is covered 92.1\%. The naive comparison is a
+crude benchmark, and neither of those configurations is one of the things
+it does well.
 
 Scale note: \verb{$estimate} (and the binomial \verb{$log_rr}) is on the link / log
 scale, where the null is 0. To compare against the natural-scale risk ratio

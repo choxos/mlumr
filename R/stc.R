@@ -18,7 +18,10 @@
 #' transformed effect measures use the boundary-only pseudo-count
 #' `(r + 0.5) / (n + 1)`; model predictions are never corrected. For Poisson
 #' outcomes, the comparator log rate uses a 0.5 continuity correction when the
-#' observed event count is zero.
+#' observed event count is zero, and `$rd` is a RATE difference on the
+#' per-unit-exposure scale, the standardized index rate minus the observed
+#' comparator rate, rather than the risk difference the binomial `$rd` is.
+#' `$estimate` stays the log rate ratio.
 #'
 #' Scale note: `$estimate` (and the binomial `$log_rr`) is on the link / log
 #' scale, where the null is 0. To compare against the natural-scale risk ratio
@@ -83,9 +86,9 @@
 #'   outcome model has a boundary of its own kind: with no events, or with a
 #'   subgroup without events that a direction of the coefficients can send
 #'   to a rate of zero while every other row's rate stays fixed, the
-#'   likelihood rises without bound and the maximum likelihood estimate is
-#'   not finite, although the fitting reports convergence with finite
-#'   numbers. Such a fit is refused, as is one where the question could not
+#'   likelihood increases toward a supremum it never attains and the
+#'   maximum likelihood estimate is not finite, although the fitting
+#'   reports convergence with finite numbers. Such a fit is refused, as is one where the question could not
 #'   be decided, so a returned Poisson result has a finite maximum and its
 #'   `reason` says so. A separated fit is refused rather than returned, so
 #'   `"separated"` never appears here.
@@ -121,11 +124,48 @@
 #'
 #' The estimator relies on correct specification of the index-treatment outcome
 #' model and its applicability to the comparator population. It does not model
-#' posterior uncertainty in population covariate distributions or relax
-#' treatment-specific covariate effects.
-#' When clinically meaningful effect modification is plausible, prefer
-#' `mlumr(..., model = "relaxed")` as the primary analysis and use STC as a
-#' sensitivity or benchmarking analysis.
+#' posterior uncertainty in population covariate distributions.
+#'
+#' It does not require the two treatments to share covariate effects. On the
+#' response scale the estimand is `E_B[m_A(X)] - E_B[Y_B]`: the index
+#' response surface standardized to the comparator covariate distribution,
+#' contrasted with the comparator outcome as it was observed. That
+#' difference is what `$rd` reports for a binomial outcome and `$md` for a
+#' normal one. Whether it is also `$estimate` depends on the link. Under the
+#' normal identity link it is: `$estimate` is that same mean difference.
+#' Under a nonlinear link it is not, and `$estimate` is instead the
+#' link-scale contrast of the two standardized quantities, a marginal log
+#' odds ratio under a binomial logit, a log rate ratio under Poisson and a
+#' log mean ratio under a log link, as the scale note above says.
+#'
+#' For the GLM families no comparator response model is fitted and none is
+#' transported, so `beta_A = beta_B` is not among the assumptions and effect
+#' modification by itself is not a reason to set STC aside. With a binary
+#' covariate at comparator prevalence 0.75 and index
+#' risks 0.2 and 0.8 against comparator risks 0.4 and 0.5, the slopes differ
+#' on both the risk and logit scales and the comparator-population risk
+#' difference is still 0.65 - 0.475 = 0.175. What the estimand does need is
+#' an index outcome model that is correctly specified and applicable across
+#' the comparator covariate distribution, adequate overlap, and the
+#' unanchored no-unmeasured-confounding assumption; those, not shared slopes,
+#' are where comparator-target STC is weak.
+#'
+#' Survival STC reaches its estimand by a different route. The comparator
+#' side is summarized by an intercept-only [flexsurv::flexsurvreg()] fit to
+#' the reconstructed pseudo-IPD, and its fitted RMST is contrasted with the
+#' index RMST standardized to the comparator covariates. So a comparator
+#' model *is* fitted on that path. It carries no covariates, so nothing is
+#' transported into it and the conclusion above about `beta_A = beta_B`
+#' holds there too, but by a different argument: not that no comparator
+#' model exists, but that the one fitted has no slopes to share.
+#'
+#' Choose between this and `mlumr(..., model = "relaxed")` by the target,
+#' the evidence and the identification, not by the plausibility of effect
+#' modification. Relaxed ML-UMR is what estimates comparator-specific
+#' covariate effects, and so is what an index or other decision population, a
+#' conditional effect, or a joint model of both arms requires. `stc()`
+#' answers one question, in the comparator population, and answers it without
+#' needing those coefficients to be identified at all.
 #'
 #' The returned effect is defined in the comparator population. Applying that
 #' same effect to the index or another decision population is a separate
@@ -299,8 +339,12 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' constant. Along a direction `d` of the coefficients that leaves every
 #' positive-count row's predictor fixed, `X_i d = 0`, and raises none of
 #' the zero-count rows', `X_i d <= 0` with some strictly below, the linear
-#' term is constant and the exponential terms fall, so the likelihood rises
-#' all the way out and has no maximum to reach. Iterative reweighting stops
+#' term is constant and the exponential terms fall, so the likelihood
+#' increases all the way out toward a supremum it never attains. The
+#' likelihood is bounded: with no events it is `exp(-sum(E_i exp(eta_i)))`,
+#' at most 1 and approaching 1 as the intercept falls. What is missing is
+#' not an upper bound but a finite coefficient that attains one. Iterative
+#' reweighting stops
 #' anyway, when the deviance stops changing: 80 zero counts on a nonconstant
 #' covariate stop after 25 iterations at an intercept near -27.3 with a
 #' standard error near 57,500, and 40 zeros beside 40 positive counts on a
@@ -331,9 +375,10 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   if (all(y == 0)) {
     stop(
       paste(
-        "The STC outcome model has no events: the Poisson likelihood rises",
-        "without bound as the log rate falls, so the maximum likelihood",
-        "estimate is not finite, and the coefficients, the interval and the",
+        "The STC outcome model has no events: the Poisson likelihood",
+        "increases toward a supremum it never attains as the log rate",
+        "falls, so the maximum likelihood estimate is not finite, and the",
+        "coefficients, the interval and the",
         "standardized rate would describe where the fitting stopped rather",
         "than the data. Use mlumr(), whose prior makes the posterior proper."
       ),
@@ -351,9 +396,10 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
         "The STC outcome model has no finite maximum likelihood estimate: a",
         "direction of the coefficients leaves the rate of every row with",
         "events fixed while lowering the rate of rows without, so the",
-        "likelihood rises along it without bound, even though the fitting",
-        "reported convergence and every returned number is finite. A",
-        "subgroup with no events is the usual cause. Use mlumr(), whose",
+        "likelihood increases along it toward a supremum it never attains,",
+        "even though the fitting reported convergence and every returned",
+        "number is finite. A subgroup with no events is the usual cause.",
+        "Use mlumr(), whose",
         "prior makes the posterior proper."
       ),
       call. = FALSE
@@ -378,8 +424,9 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     status = "not_applicable",
     reason = paste("the outcome model is Poisson, so the binomial separation",
                    "test does not apply; its likelihood was checked for a",
-                   "direction along which it rises without bound and has",
-                   "none, so the maximum likelihood estimate is finite")
+                   "direction along which it increases toward a supremum it",
+                   "never attains and has none, so the maximum likelihood",
+                   "estimate is finite")
   ))
 }
 
@@ -992,7 +1039,8 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     "poisson STC rate variance"
   )
   # A fit with no events, or with a direction along which the likelihood
-  # rises without bound, never reaches here: .stc_refuse_poisson_recession()
+  # climbs to an unattained supremum, never reaches here:
+  # .stc_refuse_poisson_recession()
   # refused it, so the delta-method variance is that of an interior maximum.
   # Rate difference on the natural per-unit-exposure scale: the standardized
   # index rate minus the observed comparator rate. The standardized rate's

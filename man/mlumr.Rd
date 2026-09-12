@@ -344,12 +344,6 @@ each row constrains the parameters. Because the parts of a split subgroup sum
 to the whole, the estimand does not change with how the aggregate evidence
 happens to be tabulated.
 
-\strong{Weakly-identified coefficients in the relaxed model}:
-\code{beta_comparator} is identified only through AgD, so the relaxed
-model needs informative priors (or many AgD rows) to estimate
-effect modification reliably. \code{\link[=prior_sensitivity]{prior_sensitivity()}} is the
-recommended diagnostic.
-
 The model assumes that all AgD rows come from the same comparator treatment
 and that, conditional on covariates, there is no between-study heterogeneity.
 If AgD rows come from multiple studies with different designs or unmeasured
@@ -400,12 +394,30 @@ treatment-specific covariate effects \code{beta_comparator} from the comparator
 intercept (the primary relaxed-SPFA strategy of Chandler & Ishak,
 Section 2.2.1). A single aggregate outcome summary generally cannot
 separately identify all comparator coefficients and the comparator
-intercept. Its likelihood term constrains one combination of them, the
-comparator intercept plus the coefficients weighted by that row's
-covariate means on the model's scale, which under \code{center = TRUE} are the
-declared means minus the pooled center; the directions the row does not
-constrain remain prior-driven, although their marginal posteriors can
-still move through the constrained combination. For one covariate with an
+intercept. What its likelihood term constrains depends on the link. With
+an identity link it is one linear combination of them, the comparator
+intercept plus the coefficients weighted by that row's covariate means on
+the model's scale, which under \code{center = TRUE} are the declared means
+minus the pooled center; the directions the row does not constrain remain
+prior-driven, although their marginal posteriors can still move through
+the constrained combination. With a nonlinear link the constrained
+quantity is the marginalized outcome mean, probability or rate, which is
+a function of the whole assumed covariate distribution and not of its
+mean profile alone: a normal outcome under \code{link = "log"}, with the
+covariate normally distributed within the row, gives the aggregate mean
+\verb{g = exp(mu + beta m + beta^2 v / 2)}, so two rows with the same mean \code{m}
+and different variances \code{v} can constrain different things. Both
+qualifications are load-bearing. That expression is the covariate's
+moment generating function, so it is the covariate distribution that has
+to be normal, not the outcome family alone; a distribution with the same
+first two moments and a different shape gives a different aggregate mean.
+And the Jacobian of the two rows in \verb{(mu, beta)} has determinant
+\verb{g_1 g_2 beta (v_2 - v_1)}, so it is full rank only where the variances
+differ AND the slope is away from zero. At \code{beta = 0} the two rows
+constrain the same quantity however far apart their variances are, and
+the rank drops to one. Local rank there is not
+global identification and neither is precision; the three have to be
+assessed separately. For one covariate with an
 identity link, independent normal priors of variance \code{a^2} on the
 intercept and \code{b^2} on the coefficient, a centered mean \code{m} and an outcome
 SE \code{s}, the posterior variance of the coefficient is
@@ -413,11 +425,11 @@ SE \code{s}, the posterior variance of the coefficient is
 row whose mean sits at the pooled center, and smaller the further the
 row's mean sits from it. Joint, nonoverlapping subgroup summaries each add
 a likelihood term; how many directions those terms identify depends on
-their number, their covariate-distribution geometry (rows with the same
-mean profile tighten one combination and add no direction), the outcome
-precision and the model, and for a nonlinear link differences in the
-distributions beyond the mean profiles matter too. Remaining directions
-require explicit prior sensitivity analysis. (Marginal, overlapping
+their number, their covariate-distribution geometry (under an identity
+link, rows with the same mean profile tighten one combination and add no
+direction; under a nonlinear link they can differ in spread or dependence
+and constrain different combinations), the outcome precision and the
+model. Remaining directions require explicit prior sensitivity analysis. (Marginal, overlapping
 subgroups would double-count patients and understate uncertainty; supply
 jointly-defined subgroups.)
 }
