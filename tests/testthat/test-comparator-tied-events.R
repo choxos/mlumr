@@ -559,6 +559,31 @@ test_that("the exact-arithmetic probes report what they promise", {
   expect_true(tp(1e-310, 0, 0) == 0)
 })
 
+test_that("any positive same-profile gap is a conflict", {
+  b <- mlumr:::.censoring_bounds_aux
+  X <- cbind(1, c(0, 0))
+  ev <- c(FALSE, FALSE)
+  f <- function(lo, up) b(X, c(0, 0), ev, lower = lo, upper = up)
+  # These ends are stored observation times, not the output of a solve, so
+  # there is no rounding to discount. A gap of any size bounds: with ends `d`
+  # apart the pair contributes `exp(-(d / (2 s))^2)`, and
+  # `integral s^-m exp(-(d / (2 s))^2)` converges at zero for every `d > 0`.
+  # Discarding a rounding-sized gap refused proper fits.
+  expect_identical(f(c(-Inf, 1e-15), c(0, Inf)), "bounded")
+  expect_identical(f(c(-Inf, log(4)), c(0, Inf)), "bounded")
+  # The decay only shows once `s` falls below `d`, which is why no slope
+  # measured above that range sees it.
+  d <- 1e-15
+  at <- function(s) 2 * stats::pnorm(-d / (2 * s), log.p = TRUE) + 2 * log(1 / s)
+  expect_gt(at(1e-15), 0)      # still growing
+  expect_lt(at(1e-17), -2000)  # collapsed
+  # Exact equality is not a conflict: the shared predictor sits on both
+  # boundaries, each row contributes a half, and a constant suppresses
+  # nothing.
+  expect_identical(f(c(-Inf, 0), c(0, Inf)), "unbounded")
+  expect_identical(f(c(-Inf, 0), c(log(4), Inf)), "unbounded")
+})
+
 test_that("an underflowed determinant does not certify a match", {
   g <- mlumr:::.grid_hits_targets
   # Both determinant products underflow to zero here, so a determinant test

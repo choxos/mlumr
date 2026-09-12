@@ -2217,15 +2217,26 @@
     conflict <- vapply(groups, function(ix) {
       lo <- max(lower[ix])
       up <- min(upper[ix])
-      # An interval that closes exactly where another opens leaves the shared
-      # predictor on both boundaries, where each row contributes a half
-      # rather than a zero. A positive constant does not suppress anything,
-      # so a gap only counts once it exceeds the rounding in the ends
-      # themselves.
-      ends <- c(lower[ix], upper[ix])
-      ends <- ends[is.finite(ends)]
-      scale <- if (length(ends)) max(abs(ends)) else 1
-      isTRUE(lo - up > 8 * .Machine$double.eps * max(1, scale))
+      # Exact ordering, with no tolerance. These ends are stored observation
+      # times, not the output of a numerical solve, so there is no
+      # accumulated rounding to discount, and the question "does this
+      # region's lower end sit above that one's upper end" is answered by
+      # the comparison itself.
+      #
+      # A gap of any positive size bounds, however small. With ends `d`
+      # apart the best shared predictor leaves each row at `Phi(-d / (2 s))`,
+      # so the pair contributes `exp(-(d / (2 s))^2)` up to a constant, and
+      # `integral s^-m exp(-(d / (2 s))^2)` converges at zero for every
+      # `d > 0`. The decay only becomes visible once `s` falls below `d`,
+      # which is why no slope measured above that range shows it: at
+      # `d = 1e-15` the product still GROWS through `s = 1e-15`, and by
+      # `s = 1e-17` its logarithm is -2431. Discarding a rounding-sized gap
+      # therefore refused proper fits rather than protecting any.
+      #
+      # Only exact equality is not a conflict. There the shared predictor
+      # sits on both boundaries, each row contributes a half rather than a
+      # zero, and a positive constant suppresses nothing.
+      isTRUE(lo > up)
     }, logical(1L))
     if (any(conflict)) return("bounded")
     profiles <- Xc[!duplicated(keys), , drop = FALSE]

@@ -288,7 +288,13 @@
   predictor satisfies every one of its observation regions at once: rows at
   one covariate profile share a predictor, so their regions must overlap, and
   a certified conflict reports the bound while a certified absence of one
-  reports that the index pins nothing. Anything else is left undecided.
+  reports that the index pins nothing. Anything else is left undecided. The
+  overlap is tested by exact ordering: these ends are stored observation
+  times rather than the output of a solve, and a gap of any positive size
+  bounds, since ends `d` apart contribute `exp(-(d / (2 sdlog))^2)` and
+  `integral sdlog^-m exp(-(d / (2 sdlog))^2)` converges at zero for every
+  `d > 0`. Only exact equality is not a conflict, where the shared predictor
+  sits on both boundaries and each row contributes a half.
 
   Exactly integrating a declared Gaussian covariate is a different model
   rather than a guaranteed repair, and how far that goes is worth being
