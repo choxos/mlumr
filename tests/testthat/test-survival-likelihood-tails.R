@@ -810,3 +810,207 @@ test_that("an overflowing cumulative-hazard endpoint does not lose a finite incr
   # event it was: the survival ratio is zero to double precision.
   expect_identical(env$surv_ll_status(8L, 2, 0, 1, 0L, -720, 1, 1), -Inf)
 })
+
+
+# ---- Overflow branches and the autodiff tape --------------------------------
+#
+# A branch that asks whether an exponential overflowed by forming it and
+# calling is_inf() on the result answers correctly and breaks the gradient.
+# The exponential is a node on the reverse tape whether or not its value is
+# used: Stan Math's exp() callback adds `adjoint * value` to its input's
+# adjoint, an unused node's adjoint is zero, and 0 * inf is NaN. The reverse
+# sweep visits every node, so the NaN reaches the gradient of a log density
+# whose value came back finite and correct. Asking the logarithm instead
+# creates no such node.
+
+test_that("no overflowing exponential is formed only to be tested", {
+  # Cheap, and it covers every branch rather than the one the gradient test
+  # below exercises. Two shapes: `is_inf(exp(...))` directly, and a local
+  # bound to an exponential whose next statement tests it.
+  #
+  # These two shapes, not the general property: a non-finite value with a
+  # zero adjoint is only one way to poison a sweep. A second is known and
+  # open, and it is not a discarded node at all. At eta = 710 a Gamma AFT
+  # CDF is about e^-709, so its reciprocal is 7.4e307, within a factor of
+  # 2.4 of the largest double. The adjoint the sweep sends into `gamma_p()`
+  # is that reciprocal times whatever multiplier reaches it, so a multiplier
+  # above about 2.4 overflows. `log_diff_exp()`'s two partials here are 3
+  # and -2, which overflow to +inf and -inf and reach eta as a NaN.
+  # `surv_ll_status(8, 3, 2, 1, 3, 710, 1, 1)` reproduces it, and each
+  # `log_cdf_scalar()` in it, where the multiplier is 1, does not.
+  files <- list.files(stan_source_path(), pattern = "[.]stan$",
+                      recursive = TRUE, full.names = TRUE)
+  expect_gt(length(files), 0L)
+  for (f in files) {
+    lines <- readLines(f, warn = FALSE)
+    code <- sub("//.*$", "", lines)
+    direct <- grep("is_inf[[:space:]]*\\([[:space:]]*exp[[:space:]]*\\(",
+                   code)
+    expect_identical(
+      direct, integer(0),
+      label = paste0(basename(f), ": is_inf(exp(...)) at lines ",
+                     paste(direct, collapse = ", "))
+    )
+    bound <- grep("^[[:space:]]*real[[:space:]]+([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*=[[:space:]]*exp[[:space:]]*\\(",
+                  code)
+    for (i in bound) {
+      name <- sub("^[[:space:]]*real[[:space:]]+([a-zA-Z_][a-zA-Z0-9_]*).*$",
+                  "\\1", code[i])
+      nxt <- code[i + 1L]
+      if (is.na(nxt)) next
+      expect_false(
+        grepl(paste0("is_inf[[:space:]]*\\([[:space:]]*", name,
+                     "[[:space:]]*\\)"), nxt),
+        label = paste0(basename(f), ":", i + 1L, " tests is_inf(", name,
+                       ") on an exponential formed the line before")
+      )
+    }
+  }
+})
+
+test_that("an overflowing Gamma endpoint has a finite gradient, not only a finite value", {
+  skip_on_cran()
+  skip_if(!cmdstan_is_usable(), "CmdStan is not usable here")
+  # The Gamma shape-1 branch at entry 1 and one ULP above it. Both cumulative
+  # hazards overflow from about eta = -710, and their difference is finite:
+  # exp(710) * 2^-52, a log likelihood near -4.96e292. The value came back
+  # right and the gradient came back NaN.
+  #
+  # CmdStan's own `diagnose test=gradient` is what reads the gradient here,
+  # which runs inside the compiled executable. cmdstanr's other route,
+  # `compile_model_methods = TRUE` plus `grad_log_prob()`, cannot be used
+  # from a test: it sourceCpp()s the model and dyn.load()s a second TBB into
+  # a session that already holds the one RcppParallel loaded, which is a
+  # missing-symbol error on macOS and a segfault on Linux.
+  #
+  # The likelihood is scaled by 1e-300 so the prior's gradient and the
+  # likelihood's are the same size and both are readable. Unscaled, the
+  # likelihood term is 4.96e292 and the prior's 720 disappears into its
+  # rounding; a NaN is not rescaled away either way.
+  stan_dir <- stan_source_path()
+  code <- paste(
+    "functions {",
+    "#include include/priors_functions.stan",
+    "#include include/survival_functions.stan",
+    "}",
+    "parameters { real eta; }",
+    "model {",
+    "  eta ~ normal(0, 1);",
+    "  target += 1e-300 * surv_ll_status(8, 1.0000000000000002, 0, 1, 0,",
+    "                                    eta, 1, 1);",
+    "}",
+    sep = "\n"
+  )
+  file <- file.path(tempdir(), "mlumr-gamma-tail-gradient.stan")
+  writeLines(code, file)
+  mod <- tryCatch(
+    cmdstanr::cmdstan_model(file, include_paths = stan_dir, quiet = TRUE),
+    error = function(e) e
+  )
+  # Not skip_if(): it evaluates its message eagerly, so conditionMessage()
+  # would be applied to the model object on the path where the build worked.
+  if (inherits(mod, "error")) {
+    skip(paste("CmdStan could not build the probe:", conditionMessage(mod)))
+  }
+
+  for (eta in c(-5, -710, -720)) {
+    # `error` is the threshold CmdStan applies to its own finite-difference
+    # cross-check, and exceeding it is what makes the run exit non-zero. At
+    # these etas the central difference of a gradient near 720 carries about
+    # 1e-5 of rounding on its own, so the 1e-6 default would reject a
+    # correct gradient. Relaxing it does not weaken this test: the assertion
+    # below is against the analytic value, and a NaN gradient still exceeds
+    # any threshold, which is how the pre-fix source fails here.
+    out <- utils::capture.output(
+      diag_run <- tryCatch(
+        suppressWarnings(mod$diagnose(init = list(list(eta = eta)),
+                                      seed = 2026, error = 1e-2)),
+        error = function(e) e
+      )
+    )
+    if (inherits(diag_run, "error")) {
+      fail(paste0("diagnose failed at eta = ", eta, ": ",
+                  conditionMessage(diag_run), "\n",
+                  paste(utils::tail(out, 8L), collapse = "\n")))
+      next
+    }
+    grad <- diag_run$gradients()$model[1L]
+    expect_true(is.finite(grad), label = paste("gradient at eta =", eta))
+    # d/d eta of the prior is -eta; the scaled likelihood adds
+    # 1e-300 * (upper - entry) * exp(-eta), formed in logs because
+    # exp(710) is not a double and the product would be Inf * 0 rather
+    # than the 5e-8 it is. At eta = -720 it is 1.09e-3, which the relative
+    # tolerance below resolves against a value of 720; at -710 it is
+    # 5e-8 and below it, so that point checks the gradient is finite and
+    # equal to the prior's, which is the whole claim there.
+    reference <- -eta + exp(-eta + log(.Machine$double.eps) + log(1e-300))
+    expect_true(is.finite(reference))
+    # CmdStan prints this table at eight significant figures, and cmdstanr
+    # gives no way to ask for more, so 1e-6 is the floor a relative
+    # comparison can have here. It is four orders finer than the 1.09e-3
+    # likelihood term it has to see at eta = -720.
+    expect_equal(grad, reference, tolerance = 1e-6,
+                 label = paste("gradient at eta =", eta))
+  }
+})
+
+test_that("an overflowing survival increment has a finite gradient too", {
+  skip_on_cran()
+  skip_if(!cmdstan_is_usable(), "CmdStan is not usable here")
+  # `log_surv_increment()` forms `log(expm1(dlog_x))` BEFORE the guard that
+  # catches an overflowing increment, so the guard cannot protect it. A
+  # generalized gamma with sigma 0.0009 over the interval (1, 2] has
+  # dlog_x = log(2) / 0.0009, about 770, where expm1() leaves the double
+  # range. The VALUE survives that, since log(inf) is inf and the guard then
+  # returns -inf, which the interval caller turns back into a finite
+  # likelihood through log1m_exp(). The gradient does not: d log(y) / dy at
+  # y = inf is 0 and d expm1(z) / dz at z = 770 is inf, and their product is
+  # NaN. Before the fix CmdStan rejected this initial value with "Gradient
+  # evaluated at the initial value is not finite", at a finite log density.
+  #
+  # The parameter is the auxiliary, not eta: dlog_x is
+  # Q * log(t_upper / t_lower) / aux and carries no eta at all, so
+  # differentiating in eta would never reach the overflowing node.
+  stan_dir <- stan_source_path()
+  code <- paste(
+    "functions {",
+    "#include include/priors_functions.stan",
+    "#include include/survival_functions.stan",
+    "}",
+    "parameters { real<lower=0> aux; }",
+    "model {",
+    "  aux ~ normal(0, 1);",
+    "  target += 1e-300 * surv_ll_status(9, 2, 1, 0, 3, -0.009, aux, 1);",
+    "}",
+    sep = "\n"
+  )
+  file <- file.path(tempdir(), "mlumr-increment-overflow-gradient.stan")
+  writeLines(code, file)
+  mod <- tryCatch(
+    cmdstanr::cmdstan_model(file, include_paths = stan_dir, quiet = TRUE),
+    error = function(e) e
+  )
+  if (inherits(mod, "error")) {
+    skip(paste("CmdStan could not build the probe:", conditionMessage(mod)))
+  }
+  out <- utils::capture.output(
+    diag_run <- tryCatch(
+      suppressWarnings(mod$diagnose(init = list(list(aux = 0.0009)),
+                                    seed = 2026, error = 1e-2)),
+      error = function(e) e
+    )
+  )
+  if (inherits(diag_run, "error")) {
+    fail(paste0("diagnose failed: ", conditionMessage(diag_run), "\n",
+                paste(utils::tail(out, 8L), collapse = "\n")))
+    return(invisible(NULL))
+  }
+  grad <- diag_run$gradients()$model[1L]
+  expect_true(is.finite(grad))
+  # The likelihood is scaled by 1e-300, so what is left is the prior's own
+  # gradient on the unconstrained scale: d/dy of -exp(2y)/2 + y at
+  # y = log(0.0009) is 1 - 0.0009^2, which is 1 to eight figures. CmdStan's
+  # own finite-difference cross-check agrees to 1e-10 and is what would fail
+  # on a NaN.
+  expect_equal(grad, 1 - 0.0009^2, tolerance = 1e-6)
+})
