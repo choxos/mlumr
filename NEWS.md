@@ -89,23 +89,48 @@
   small and the row came back `"bounded"`, which suppresses the refusal.
   Such a design is now `"undetermined"`.
 
-* **Tied comparator event times are refused for a log-normal survival fit,
-  and warned about for the shape families.** The comparator likelihood is
-  not the continuously integrated one the model is written to mean. Each
-  reconstructed pseudo-individual contributes
-  `log_sum_exp(ll) - log(n_int)`, a finite equally weighted mixture over the
-  integration grid, and every pseudo-individual in an arm sees the same
-  grid. So `m` of them sharing one event time can all select the same
-  integration point, and the condition that the point reproduce their common
-  time is ONE equation in the comparator's coefficients: the ridge is a tube
-  whose width falls with the auxiliary rather than an isolated point, and
-  with the coefficients integrated out the marginal behaves as the auxiliary
-  to the power `m - 1`. Measured over 64 midpoint normal nodes,
-  `d log M / d log aux` is 1.000 for two tied events and 2.000 for three,
-  for `lognormal` and `weibull-aft` alike. Two events at DIFFERENT times are
-  two equations and pin the coefficients to a point, which is why only ties
-  do this, and tied CENSORED times contribute a survival probability rather
-  than a density spike.
+* **A comparator curve whose event times repeat within the integration
+  grid's reach is refused for a log-normal survival fit, and warned about for
+  the shape families.** The comparator likelihood is not the continuously
+  integrated one the model is written to mean. Each reconstructed
+  pseudo-individual contributes `log_sum_exp(ll) - log(n_int)`, a finite
+  equally weighted mixture over the integration grid, and every
+  pseudo-individual in an arm sees the same grid, so a node reproducing a
+  row's event time carries a density spike proportional to one over the
+  auxiliary's width.
+
+  What decides propriety is how many spikes stand up at once and what
+  coefficient volume that costs. Matching `m` event rows falling on `k`
+  DISTINCT times needs `k` nodes whose linear predictors equal those `k`
+  log-times, which is `k` equations in the comparator's coefficients. They
+  have a solution when `k` is at most the dimension the grid reaches,
+  `rank(cbind(1, X_int))`, which is `1 + n_cov` for any grid that is not
+  degenerate. All `m` rows are then matched on the solution set, so the
+  profile likelihood carries `aux^-m`, while the set is pinned in only the
+  `k` directions the equations fix and its width is proportional to the
+  auxiliary in each: the coefficient volume is `aux^k`. With the coefficients
+  integrated out the marginal behaves as `aux^(k - m)`. Measured over 20
+  midpoint normal nodes against the default coefficient priors,
+  `d log M / d log aux` is 0.000 for two events at different times, 1.000 for
+  three events at two distinct times, and 2.000 for four at two, for
+  `lognormal` and `weibull-aft` alike. So the divergence is `m - k` and needs
+  a repeat to exist at all, event times that are all distinct give the
+  convergent power zero however many there are, and tied CENSORED times
+  contribute a survival probability rather than a density spike.
+
+  Past the grid's reach there is nothing to refuse, and this is deliberately
+  narrow about it. With `k` above `rank(cbind(1, X_int))` the `k` equations
+  have no solution, the best simultaneous match leaves a residual `d > 0`,
+  and the profile collapses like `exp(-d^2 / (2 aux^2))` once the auxiliary
+  falls below `d`. What happens before that looks exactly like a divergence
+  and is not one: three distinct times over 20 nodes leave `d = 5.99e-4` and
+  the profile peaks between `sdlog` of 1e-3 and 1e-4 before falling to
+  -1.8e7 by 1e-7, while the same times over 64 nodes leave `d = 3.62e-5`,
+  peak at 1e-5 instead, and collapse from 1e-6 on. A finer grid moves the
+  collapse out rather than removing it, and the posterior is proper either
+  way, so an ordinary reconstructed curve with many distinct times and one
+  rounding tie is not refused. A slope measured over any fixed range of the
+  auxiliary cannot tell the two apart, which is why the test is structural.
 
   The two groups divide as they do on the index side. The scale families
   diverge as the scale goes to zero, where every supported prior has
@@ -125,18 +150,21 @@
   `normal(0, 2.5)`: the grid likelihood runs 0.0143, 0.185, 1.72, 171 and
   17103 as `sdlog` falls through 0.1, 0.001, 0.0001, 1e-6 and 1e-8, while
   the continuous one runs 0.0142, 0.0307, 0.0390, 0.0556 and 0.0721. So a
-  larger `n_int` is not the repair: a bigger fixed rule is still a finite
-  mixture and only scales the coefficient of the same divergence. Neither is
-  jittering the tied times. Where ties come from rounding, an
-  interval-censored representation of what was actually observed is the
-  honest model and `set_agd_surv()` accepts one. The index-side guard says
-  nothing about any of this: the refused configuration has a perfectly
-  healthy index fit.
+  larger `n_int` is not the repair: within the grid's reach a bigger fixed
+  rule is still a finite mixture and only scales the coefficient of the same
+  divergence. Neither is jittering the tied times. Where ties come from
+  rounding, an interval-censored representation of what was actually observed
+  is the honest model and `set_agd_surv()` accepts one. The index-side guard
+  says nothing about the rest of this: the refused configuration has a
+  perfectly healthy index fit.
 
-  Only a comparator with its own auxiliary is examined. Under
-  `aux_by = "none"` the index rows share it and a positive index residual
-  contributes `exp(-RSS / (2 sdlog^2))`, which goes to zero faster than any
-  power of the scale.
+  Under `aux_by = "none"` the index rows share the auxiliary, and an index
+  fit that leaves a real residual contributes `exp(-RSS / (2 sdlog^2))`,
+  which goes to zero faster than any power and removes this divergence; so
+  does an index censored row that bounds. Sharing does not do it on its own,
+  so the comparator check is skipped for a shared auxiliary only where the
+  index guard established the bound, and not where it merely warned about an
+  exact or saturated index.
 
   Right-censored rows are consulted before any of that is said, for the
   shape families too: one whose fitted time falls below its censoring time

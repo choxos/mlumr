@@ -245,30 +245,53 @@
 #' reproduce the index event times exactly. The comparator side has a
 #' different geometry, and a worse one, which is this function's.
 #'
-#' The comparator likelihood is not the continuously integrated one the
-#' model is written to mean. Each pseudo-individual contributes
-#' `log_sum_exp(ll) - log(n_int)` over the integration grid, a finite
-#' equally weighted MIXTURE of densities. Every pseudo-individual in an arm
-#' sees the same grid, so `m` of them sharing one event time can all select
-#' the same node `x_j`, and the condition that the node reproduce that time,
-#' `mu_comparator + beta' x_j = log t`, is ONE equation in the comparator's
-#' coefficients. The ridge is then a TUBE whose width is proportional to the
-#' auxiliary, not an isolated point, and its volume does not shrink fast
-#' enough to cancel the `m` density spikes standing on it.
+#' The comparator likelihood is not the continuously integrated one the model
+#' is written to mean. Each pseudo-individual contributes
+#' `log_sum_exp(ll) - log(n_int)` over the integration grid, a finite equally
+#' weighted MIXTURE of densities. Every pseudo-individual in an arm sees the
+#' same grid, so a node reproducing a row's event time carries a density
+#' spike proportional to one over the auxiliary's width, and the rows choose
+#' their nodes freely.
 #'
-#' With the coefficients integrated out the marginal behaves as
-#' `(1 / sdlog)^(m - 1)` for a scale family and `shape^(m - 1)` for a shape
-#' family. Measured over 64 midpoint normal nodes, `d log M / d log aux` is
-#' 1.000 for two tied events and 2.000 for three, for `lognormal` and
-#' `weibull-aft` alike; one event alone gives the convergent 0.000, and two
-#' events at DIFFERENT times give it too, because two nodes reproducing two
-#' times are two equations and pin the coefficients to a point.
+#' What decides propriety is how many spikes stand up AT ONCE and what
+#' coefficient volume that costs. Matching `m` event rows falling on `k`
+#' DISTINCT times needs `k` nodes whose linear predictors equal those `k`
+#' log-times, which is `k` equations in the comparator's coefficients. They
+#' are solvable exactly when `k` is at most the dimension the grid can reach,
+#' `rank(cbind(1, X_int))`, which is `1 + n_cov` for any grid that is not
+#' degenerate. All `m` rows are then matched on the solution set, so the
+#' profile likelihood carries `aux^-m`, while the set is pinned only in the
+#' `k` directions the equations fix and its transverse width is proportional
+#' to the auxiliary in each: the coefficient volume is `aux^k`. With the
+#' coefficients integrated out the marginal behaves as `aux^(k - m)`.
+#'
+#' So the divergence is `m - k` and needs a REPEAT to exist at all. Measured
+#' over 20 midpoint normal nodes with the coefficients integrated against
+#' their default priors, `d log M / d log aux` is 0.000 for two events at
+#' different times, 1.000 for three events at two distinct times, and 2.000
+#' for four at two, for `lognormal` and `weibull-aft` alike; the profile
+#' maximum grows as `aux^-m` in every one of those cases, including the
+#' convergent one, which is why the volume and not the profile is what this
+#' reasons about.
+#'
+#' Past the grid's reach there is no divergence to refuse. With `k` greater
+#' than `rank(cbind(1, X_int))` the `k` equations have no solution, the best
+#' simultaneous match leaves a residual `d > 0`, and the profile collapses
+#' like `exp(-d^2 / (2 * aux^2))` once the auxiliary falls below `d`. What
+#' happens before that looks exactly like a divergence and is not one: three
+#' distinct times over 20 nodes leave `d = 5.99e-4` and the profile peaks
+#' between `sdlog` of 1e-3 and 1e-4 before falling to -1.8e7 by 1e-7, while
+#' the same times over 64 nodes leave `d = 3.62e-5` and peak at 1e-5 instead,
+#' collapsing from 1e-6 on. A finer grid moves the collapse out; it does not
+#' remove it, and the posterior is proper either way. A measured slope over
+#' any fixed range of the auxiliary cannot tell the two apart, so the test
+#' here is structural: `k` against the reach, never a slope.
 #'
 #' That measurement is also why the two groups are not treated the same.
 #' The scale families diverge as `sdlog` goes to zero, where every supported
 #' prior has positive density, so no prior repairs it and the fit is
 #' refused. The shape families diverge as the shape grows, where
-#' `shape^(m - 1)` meets the prior's tail instead: a half-normal or an
+#' `shape^(m - k)` meets the prior's tail instead: a half-normal or an
 #' exponential integrates it and a half-t need not, so propriety there is a
 #' property of `prior_aux` and the fit is warned about rather than refused.
 #'
@@ -285,43 +308,60 @@
 #' the continuous one runs 0.0142, 0.0307, 0.0390, 0.0556 and 0.0721. The
 #' quadrature is what fails, not the likelihood it approximates.
 #'
-#' So a larger `n_int` is not the repair: a bigger fixed rule is still a
-#' finite mixture and only scales the coefficient of the same divergence.
-#' Neither is jittering the tied times, which invents data, nor a floor on
-#' the auxiliary, which hides the singularity the sampler would have found.
-#' The repair is the analytic marginal likelihood wherever the declared
-#' covariate distribution supports one, and that is a change to the model,
-#' not to a guard.
+#' So a larger `n_int` is not the repair either: a bigger fixed rule is still
+#' a finite mixture, and within the grid's reach it only scales the
+#' coefficient of the same divergence. Neither is jittering the tied times,
+#' which invents data, nor a floor on the auxiliary, which hides the
+#' singularity the sampler would have found. The repair is the analytic
+#' marginal likelihood wherever the declared covariate distribution supports
+#' one, and that is a change to the model, not to a guard.
 #'
-#' Only a comparator with its OWN auxiliary is examined. Under
-#' `aux_by = "none"` the index rows share it, and a positive index residual
-#' contributes `exp(-RSS / (2 sdlog^2))`, which goes to zero faster than any
-#' power of the scale and removes the divergence; an index fit that is
-#' itself exact is [.check_survival_scale_collapse()]'s to refuse.
+#' Under `aux_by = "none"` the index rows share the auxiliary, and an index
+#' fit that leaves a real residual contributes `exp(-RSS / (2 * sdlog^2))`,
+#' which goes to zero faster than any power and removes this divergence; so
+#' does an index censored row that bounds. Sharing does not do it on its own.
+#' [.check_survival_scale_collapse()] only WARNS when the index is itself
+#' exact or saturated under a shared auxiliary, and supplies no decaying
+#' residual there, so skipping this check whenever the auxiliary is shared
+#' let a saturated index with a tied comparator reach the sampler improper.
+#' The skip is therefore conditional on that function's `bounds_aux`
+#' attribute, which it sets only where it established the bound.
 #'
 #' It is not specific to one model. The relaxed model gives the comparator
-#' its own coefficients, and the SPFA one still gives it `mu_comparator`, a
-#' free parameter appearing in no index row, so the single equation above is
-#' solvable under either.
+#' its own `mu_comparator` and `beta_comparator`, and the SPFA one gives it
+#' `mu_comparator` with a shared `beta`; the shared coefficient is still free
+#' to move, since the index likelihood is positive and smooth there and
+#' reweights the ridge by a bounded factor instead of suppressing it. The
+#' reach is `1 + n_cov` under either.
 #'
 #' @param data An `mlumr_data` object with `family = "survival"`.
 #' @param distribution The resolved survival distribution.
 #' @param aux_by The auxiliary stratification, as passed to [mlumr()].
+#' @param index_bounds_aux Whether the index rows were shown to bound the
+#'   auxiliary away from its boundary, as [.check_survival_scale_collapse()]
+#'   reports in its `bounds_aux` attribute. Consulted only when `aux_by` is
+#'   `"none"`, where the comparator shares that parameter.
 #' @return `TRUE` invisibly if the data were warned about, `FALSE` otherwise.
 #'   A refused configuration stops instead.
 #' @keywords internal
 .check_comparator_tied_events <- function(data, distribution,
-                                          aux_by = ".study") {
+                                          aux_by = ".study",
+                                          index_bounds_aux = FALSE) {
   scale_families <- c("lognormal", "gengamma")
   shape_families <- c("weibull", "weibull-aft", "loglogistic", "gamma",
                       "gompertz")
   if (!distribution %in% c(scale_families, shape_families)) {
     return(invisible(FALSE))
   }
-  if (identical(aux_by, "none")) return(invisible(FALSE))
-  if (!is.null(aux_by) && !identical(aux_by, ".study")) {
+  shared_aux <- identical(aux_by, "none")
+  if (!is.null(aux_by) && !identical(aux_by, ".study") && !shared_aux) {
     return(invisible(FALSE))
   }
+  # Only a shared auxiliary the INDEX was shown to bound is skipped. Skipping
+  # every shared one admitted the case that motivates the check: an exact or
+  # saturated index is only warned about there, and leaves no residual to
+  # suppress the comparator's growth.
+  if (shared_aux && isTRUE(index_bounds_aux)) return(invisible(FALSE))
   pseudo <- data$agd$pseudo_ipd
   if (is.null(pseudo) || !nrow(pseudo)) return(invisible(FALSE))
   status <- pseudo$.status
@@ -335,27 +375,68 @@
   # with one integration grid. Only a single comparator arm is supported
   # today, so this is one group, but the property belongs to the arm rather
   # than to the frame.
-  arm <- if (is.null(pseudo$.arm)) rep("1", nrow(pseudo)) else {
+  arm <- if (is.null(pseudo$.arm)) {
+    rep("1", nrow(pseudo))
+  } else {
     as.character(pseudo$.arm)
   }
-  multiplicity <- max(unlist(lapply(
-    split(time[events], arm[events]),
-    function(v) max(c(1L, as.integer(table(v))))
-  )))
-  if (multiplicity < 2L) return(invisible(FALSE))
-  exponent <- multiplicity - 1L
+  # How many linear predictors the arm's grid can reach independently: the
+  # `k` matching equations are solvable only up to this rank. It is
+  # `1 + n_cov` for any grid that is not degenerate, and less when the
+  # declared covariate distributions make the nodes collinear (a point mass,
+  # or two covariates integrated identically), where the ridge those
+  # equations describe does not exist.
+  reach <- function(a) {
+    generic <- 1L + length(data$covariates)
+    grid <- data$integration_points
+    rows <- data$agd$data
+    if (is.null(grid) || length(dim(grid)) != 3L) return(generic)
+    idx <- if (is.null(rows) || is.null(rows$.arm)) {
+      1L
+    } else {
+      match(a, as.character(rows$.arm))
+    }
+    if (is.na(idx) || idx < 1L || idx > dim(grid)[1L]) return(generic)
+    nodes <- matrix(grid[idx, , ], nrow = dim(grid)[2L])
+    if (!all(is.finite(nodes))) return(generic)
+    min(generic, qr(cbind(1, nodes))$rank)
+  }
+  worst <- 0L
+  info <- NULL
+  by_arm <- split(time[events], arm[events])
+  for (a in names(by_arm)) {
+    m <- length(by_arm[[a]])
+    k <- length(unique(by_arm[[a]]))
+    # No repeat: the power is `m - k = 0`, which integrates.
+    if (m <= k) next
+    # More distinct times than the grid can reach: the matching equations
+    # have no solution, so there is no ridge and no divergence.
+    reachable <- reach(a)
+    if (k > reachable) next
+    if (m - k > worst) {
+      worst <- m - k
+      info <- list(m = m, k = k, reach = reachable)
+    }
+  }
+  if (worst < 1L) return(invisible(FALSE))
   shared <- paste0(
-    "The reconstructed comparator curve has ", multiplicity, " events at one ",
-    "time. Its likelihood is a finite equally weighted mixture over the ",
-    "integration grid, `log_sum_exp(ll) - log(n_int)`, and every ",
-    "pseudo-individual in the arm sees the same grid, so all ",
-    multiplicity, " can select the same integration point. That the point ",
-    "reproduce their common time is ONE equation in the comparator's ",
-    "coefficients, so the ridge is a tube whose width falls with the ",
-    "auxiliary rather than an isolated point, and with the coefficients ",
-    "integrated out the marginal behaves as the auxiliary to the power ",
-    exponent, ". Two events at DIFFERENT times are two equations and do not ",
-    "do this."
+    "The reconstructed comparator curve has ", info$m, " event rows at ",
+    info$k, " distinct time", if (info$k > 1L) "s" else "", ". Its likelihood ",
+    "is a finite equally weighted mixture over the integration grid, ",
+    "`log_sum_exp(ll) - log(n_int)`, and every pseudo-individual in the arm ",
+    "sees the same grid, so all ", info$m, " rows can be matched at once by ",
+    info$k, " integration point", if (info$k > 1L) "s" else "", ". That those ",
+    "points reproduce those times is ", info$k, " equation",
+    if (info$k > 1L) "s" else "", " in the comparator's coefficients, and the ",
+    "grid reaches ", info$reach, " independent linear predictors, so a ",
+    "solution exists: the ridge is a set pinned in only ", info$k,
+    " directions, whose transverse width falls with the auxiliary rather ",
+    "than an isolated point. The ", info$m, " density spikes carry the ",
+    "auxiliary to the power -", info$m, " and the coefficient volume only ",
+    "to the power ", info$k, ", so with the coefficients integrated out the ",
+    "marginal behaves as the auxiliary to the power ", worst, ". Event times ",
+    "that are all distinct give the convergent power zero however many there ",
+    "are; it is the repeats that do this."
   )
   restriction <- paste0(
     " This is a restriction on the quadrature, not a defect of the model it ",
@@ -740,17 +821,24 @@
 #' The comparator side is not examined HERE, and its rows are not safe for
 #' being left out. They enter a likelihood marginalized over the integration
 #' grid, which is not this geometry but a worse one: that marginal is a
-#' finite mixture, and tied comparator event times make it diverge where
-#' this index geometry is perfectly healthy.
-#' [.check_comparator_tied_events()] is that question, and it runs whatever
-#' this function concludes.
+#' finite mixture, and repeated comparator event times can make it diverge
+#' where this index geometry is perfectly healthy.
+#' [.check_comparator_tied_events()] is that question. It runs whatever this
+#' function concludes, except that a SHARED auxiliary this function bounded
+#' bounds the comparator's too, which is what the `bounds_aux` attribute on
+#' the return value reports.
 #'
 #' @param data An `mlumr_data` object with `family = "survival"`.
 #' @param distribution The resolved survival distribution.
 #' @param aux_by The auxiliary stratification, as passed to [mlumr()].
 #' @param center The centers the model subtracts from the covariates, as for
 #'   [.check_normal_residual_variation()].
-#' @return `TRUE` invisibly if the data were warned about, `FALSE` otherwise.
+#' @return `TRUE` invisibly if the data were warned about, `FALSE` otherwise,
+#'   carrying a `bounds_aux` attribute that is `TRUE` when the index rows were
+#'   shown to bound the auxiliary away from its boundary (a real residual, or a
+#'   censored row that bounds). Anything else means this function did not
+#'   establish that, which is not the same as establishing the opposite.
+#'   [.check_comparator_tied_events()] reads it under `aux_by = "none"`.
 #' @keywords internal
 .check_survival_scale_collapse <- function(data, distribution,
                                            aux_by = ".study",
@@ -853,7 +941,14 @@
   X <- cbind(1, covariates)
   s <- .residual_variation_status(X[events, , drop = FALSE], y[events],
                                   "identity")
-  if (identical(s$status, "positive")) return(invisible(FALSE))
+  # The `bounds_aux` attribute is what [.check_comparator_tied_events()] reads
+  # under `aux_by = "none"`: a residual that is real, or a censored row that
+  # bounds, suppresses the comparator divergence too, and nothing else here
+  # does. Absent or FALSE means this function did not establish it, which is
+  # not the same as establishing that it is false.
+  if (identical(s$status, "positive")) {
+    return(invisible(structure(FALSE, bounds_aux = TRUE)))
+  }
   # A right-censored row can bound the auxiliary away from its boundary, but
   # only one whose fitted time falls below its censoring time. The argument
   # is the same whichever boundary it is: S(c) = 1 - Phi((log c - eta) / sigma)
@@ -907,7 +1002,9 @@
   } else {
     "unbounded"
   }
-  if (identical(bound, "bounded")) return(invisible(FALSE))
+  if (identical(bound, "bounded")) {
+    return(invisible(structure(FALSE, bounds_aux = TRUE)))
+  }
 
   # Near-exact is excluded so it falls through to its own warning below,
   # which is the accurate message for it: its residual is real.
@@ -1010,7 +1107,8 @@
                     if (nzchar(conditional)) "may" else "will",
                     conditional),
             call. = FALSE)
-    return(invisible(TRUE))
+    # A real residual, so it bounds the shared auxiliary as a positive one does.
+    return(invisible(structure(TRUE, bounds_aux = TRUE)))
   }
   # Saturated is an exact fit, but it does not diverge for every family:
   # `n == rank` is exactly the case where integrating the coefficients out
@@ -2453,14 +2551,20 @@ mlumr <- function(data,
   # makes the same improper posterior. The other log-location-scale
   # distributions carry a shape rather than a scale and are warned about.
   if (family == "survival") {
-    .check_survival_scale_collapse(data, surv_info$distribution,
-                                   aux_by = aux_by,
-                                   center = stan_data$cov_center)
-    # The comparator side has its own geometry, and the index result does
-    # not speak to it: the configuration this refuses has a perfectly
-    # healthy index fit.
-    .check_comparator_tied_events(data, surv_info$distribution,
-                                  aux_by = aux_by)
+    index_collapse <- .check_survival_scale_collapse(
+      data, surv_info$distribution,
+      aux_by = aux_by,
+      center = stan_data$cov_center
+    )
+    # The comparator side has its own geometry, and the index result speaks
+    # to it only through one question: whether the index bounded a SHARED
+    # auxiliary. The configuration the comparator check refuses otherwise
+    # has a perfectly healthy index fit.
+    .check_comparator_tied_events(
+      data, surv_info$distribution,
+      aux_by = aux_by,
+      index_bounds_aux = isTRUE(attr(index_collapse, "bounds_aux"))
+    )
   }
 
   # Select Stan model. family_config gives the default prefix; the survival

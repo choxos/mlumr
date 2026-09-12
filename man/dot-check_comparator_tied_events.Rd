@@ -4,7 +4,12 @@
 \alias{.check_comparator_tied_events}
 \title{Refuse a comparator curve whose tied event times collapse its auxiliary}
 \usage{
-.check_comparator_tied_events(data, distribution, aux_by = ".study")
+.check_comparator_tied_events(
+  data,
+  distribution,
+  aux_by = ".study",
+  index_bounds_aux = FALSE
+)
 }
 \arguments{
 \item{data}{An \code{mlumr_data} object with \code{family = "survival"}.}
@@ -12,6 +17,11 @@
 \item{distribution}{The resolved survival distribution.}
 
 \item{aux_by}{The auxiliary stratification, as passed to \code{\link[=mlumr]{mlumr()}}.}
+
+\item{index_bounds_aux}{Whether the index rows were shown to bound the
+auxiliary away from its boundary, as \code{\link[=.check_survival_scale_collapse]{.check_survival_scale_collapse()}}
+reports in its \code{bounds_aux} attribute. Consulted only when \code{aux_by} is
+\code{"none"}, where the comparator shares that parameter.}
 }
 \value{
 \code{TRUE} invisibly if the data were warned about, \code{FALSE} otherwise.
@@ -23,30 +33,53 @@ reproduce the index event times exactly. The comparator side has a
 different geometry, and a worse one, which is this function's.
 }
 \details{
-The comparator likelihood is not the continuously integrated one the
-model is written to mean. Each pseudo-individual contributes
-\code{log_sum_exp(ll) - log(n_int)} over the integration grid, a finite
-equally weighted MIXTURE of densities. Every pseudo-individual in an arm
-sees the same grid, so \code{m} of them sharing one event time can all select
-the same node \code{x_j}, and the condition that the node reproduce that time,
-\verb{mu_comparator + beta' x_j = log t}, is ONE equation in the comparator's
-coefficients. The ridge is then a TUBE whose width is proportional to the
-auxiliary, not an isolated point, and its volume does not shrink fast
-enough to cancel the \code{m} density spikes standing on it.
+The comparator likelihood is not the continuously integrated one the model
+is written to mean. Each pseudo-individual contributes
+\code{log_sum_exp(ll) - log(n_int)} over the integration grid, a finite equally
+weighted MIXTURE of densities. Every pseudo-individual in an arm sees the
+same grid, so a node reproducing a row's event time carries a density
+spike proportional to one over the auxiliary's width, and the rows choose
+their nodes freely.
 
-With the coefficients integrated out the marginal behaves as
-\code{(1 / sdlog)^(m - 1)} for a scale family and \code{shape^(m - 1)} for a shape
-family. Measured over 64 midpoint normal nodes, \verb{d log M / d log aux} is
-1.000 for two tied events and 2.000 for three, for \code{lognormal} and
-\code{weibull-aft} alike; one event alone gives the convergent 0.000, and two
-events at DIFFERENT times give it too, because two nodes reproducing two
-times are two equations and pin the coefficients to a point.
+What decides propriety is how many spikes stand up AT ONCE and what
+coefficient volume that costs. Matching \code{m} event rows falling on \code{k}
+DISTINCT times needs \code{k} nodes whose linear predictors equal those \code{k}
+log-times, which is \code{k} equations in the comparator's coefficients. They
+are solvable exactly when \code{k} is at most the dimension the grid can reach,
+\code{rank(cbind(1, X_int))}, which is \code{1 + n_cov} for any grid that is not
+degenerate. All \code{m} rows are then matched on the solution set, so the
+profile likelihood carries \code{aux^-m}, while the set is pinned only in the
+\code{k} directions the equations fix and its transverse width is proportional
+to the auxiliary in each: the coefficient volume is \code{aux^k}. With the
+coefficients integrated out the marginal behaves as \code{aux^(k - m)}.
+
+So the divergence is \code{m - k} and needs a REPEAT to exist at all. Measured
+over 20 midpoint normal nodes with the coefficients integrated against
+their default priors, \verb{d log M / d log aux} is 0.000 for two events at
+different times, 1.000 for three events at two distinct times, and 2.000
+for four at two, for \code{lognormal} and \code{weibull-aft} alike; the profile
+maximum grows as \code{aux^-m} in every one of those cases, including the
+convergent one, which is why the volume and not the profile is what this
+reasons about.
+
+Past the grid's reach there is no divergence to refuse. With \code{k} greater
+than \code{rank(cbind(1, X_int))} the \code{k} equations have no solution, the best
+simultaneous match leaves a residual \code{d > 0}, and the profile collapses
+like \code{exp(-d^2 / (2 * aux^2))} once the auxiliary falls below \code{d}. What
+happens before that looks exactly like a divergence and is not one: three
+distinct times over 20 nodes leave \code{d = 5.99e-4} and the profile peaks
+between \code{sdlog} of 1e-3 and 1e-4 before falling to -1.8e7 by 1e-7, while
+the same times over 64 nodes leave \code{d = 3.62e-5} and peak at 1e-5 instead,
+collapsing from 1e-6 on. A finer grid moves the collapse out; it does not
+remove it, and the posterior is proper either way. A measured slope over
+any fixed range of the auxiliary cannot tell the two apart, so the test
+here is structural: \code{k} against the reach, never a slope.
 
 That measurement is also why the two groups are not treated the same.
 The scale families diverge as \code{sdlog} goes to zero, where every supported
 prior has positive density, so no prior repairs it and the fit is
 refused. The shape families diverge as the shape grows, where
-\code{shape^(m - 1)} meets the prior's tail instead: a half-normal or an
+\code{shape^(m - k)} meets the prior's tail instead: a half-normal or an
 exponential integrates it and a half-t need not, so propriety there is a
 property of \code{prior_aux} and the fit is warned about rather than refused.
 
@@ -63,23 +96,30 @@ element of polar coordinates makes integrable. Two comparator events at
 the continuous one runs 0.0142, 0.0307, 0.0390, 0.0556 and 0.0721. The
 quadrature is what fails, not the likelihood it approximates.
 
-So a larger \code{n_int} is not the repair: a bigger fixed rule is still a
-finite mixture and only scales the coefficient of the same divergence.
-Neither is jittering the tied times, which invents data, nor a floor on
-the auxiliary, which hides the singularity the sampler would have found.
-The repair is the analytic marginal likelihood wherever the declared
-covariate distribution supports one, and that is a change to the model,
-not to a guard.
+So a larger \code{n_int} is not the repair either: a bigger fixed rule is still
+a finite mixture, and within the grid's reach it only scales the
+coefficient of the same divergence. Neither is jittering the tied times,
+which invents data, nor a floor on the auxiliary, which hides the
+singularity the sampler would have found. The repair is the analytic
+marginal likelihood wherever the declared covariate distribution supports
+one, and that is a change to the model, not to a guard.
 
-Only a comparator with its OWN auxiliary is examined. Under
-\code{aux_by = "none"} the index rows share it, and a positive index residual
-contributes \verb{exp(-RSS / (2 sdlog^2))}, which goes to zero faster than any
-power of the scale and removes the divergence; an index fit that is
-itself exact is \code{\link[=.check_survival_scale_collapse]{.check_survival_scale_collapse()}}'s to refuse.
+Under \code{aux_by = "none"} the index rows share the auxiliary, and an index
+fit that leaves a real residual contributes \code{exp(-RSS / (2 * sdlog^2))},
+which goes to zero faster than any power and removes this divergence; so
+does an index censored row that bounds. Sharing does not do it on its own.
+\code{\link[=.check_survival_scale_collapse]{.check_survival_scale_collapse()}} only WARNS when the index is itself
+exact or saturated under a shared auxiliary, and supplies no decaying
+residual there, so skipping this check whenever the auxiliary is shared
+let a saturated index with a tied comparator reach the sampler improper.
+The skip is therefore conditional on that function's \code{bounds_aux}
+attribute, which it sets only where it established the bound.
 
 It is not specific to one model. The relaxed model gives the comparator
-its own coefficients, and the SPFA one still gives it \code{mu_comparator}, a
-free parameter appearing in no index row, so the single equation above is
-solvable under either.
+its own \code{mu_comparator} and \code{beta_comparator}, and the SPFA one gives it
+\code{mu_comparator} with a shared \code{beta}; the shared coefficient is still free
+to move, since the index likelihood is positive and smooth there and
+reweights the ridge by a bounded factor instead of suppressing it. The
+reach is \code{1 + n_cov} under either.
 }
 \keyword{internal}

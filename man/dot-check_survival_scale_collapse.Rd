@@ -22,7 +22,12 @@
 \code{\link[=.check_normal_residual_variation]{.check_normal_residual_variation()}}.}
 }
 \value{
-\code{TRUE} invisibly if the data were warned about, \code{FALSE} otherwise.
+\code{TRUE} invisibly if the data were warned about, \code{FALSE} otherwise,
+carrying a \code{bounds_aux} attribute that is \code{TRUE} when the index rows were
+shown to bound the auxiliary away from its boundary (a real residual, or a
+censored row that bounds). Anything else means this function did not
+establish that, which is not the same as establishing the opposite.
+\code{\link[=.check_comparator_tied_events]{.check_comparator_tied_events()}} reads it under \code{aux_by = "none"}.
 }
 \description{
 A log-normal AFT is a normal model for \code{log(t)} with a positive scale
@@ -120,9 +125,11 @@ and sent an improper posterior to the sampler in silence.
 The comparator side is not examined HERE, and its rows are not safe for
 being left out. They enter a likelihood marginalized over the integration
 grid, which is not this geometry but a worse one: that marginal is a
-finite mixture, and tied comparator event times make it diverge where
-this index geometry is perfectly healthy.
-\code{\link[=.check_comparator_tied_events]{.check_comparator_tied_events()}} is that question, and it runs whatever
-this function concludes.
+finite mixture, and repeated comparator event times can make it diverge
+where this index geometry is perfectly healthy.
+\code{\link[=.check_comparator_tied_events]{.check_comparator_tied_events()}} is that question. It runs whatever this
+function concludes, except that a SHARED auxiliary this function bounded
+bounds the comparator's too, which is what the \code{bounds_aux} attribute on
+the return value reports.
 }
 \keyword{internal}
