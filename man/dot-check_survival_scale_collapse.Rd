@@ -117,8 +117,12 @@ Skipping a censoring type outright was not the safe choice it looked
 like: it let a row that suppresses nothing stand in for one that does,
 and sent an improper posterior to the sampler in silence.
 
-The comparator side is not examined either: its reconstructed rows enter a
-likelihood marginalized over the integration grid, which is not this
-geometry.
+The comparator side is not examined HERE, and its rows are not safe for
+being left out. They enter a likelihood marginalized over the integration
+grid, which is not this geometry but a worse one: that marginal is a
+finite mixture, and tied comparator event times make it diverge where
+this index geometry is perfectly healthy.
+\code{\link[=.check_comparator_tied_events]{.check_comparator_tied_events()}} is that question, and it runs whatever
+this function concludes.
 }
 \keyword{internal}
