@@ -27,7 +27,10 @@ carrying a \code{bounds_aux} attribute that is \code{TRUE} when the index rows w
 shown to bound the auxiliary away from its boundary (a real residual, or a
 censored row that bounds). Anything else means this function did not
 establish that, which is not the same as establishing the opposite.
-\code{\link[=.check_comparator_tied_events]{.check_comparator_tied_events()}} reads it under \code{aux_by = "none"}.
+\code{\link[=.check_comparator_tied_events]{.check_comparator_tied_events()}} reads it under \code{aux_by = "none"}. A
+shared-auxiliary warning also carries \code{index_exact}, which is \code{TRUE} only
+when the index event design was shown to reproduce its own times and so
+pins a shared coefficient vector.
 }
 \description{
 A log-normal AFT is a normal model for \code{log(t)} with a positive scale

@@ -338,11 +338,19 @@ test_that("a shared auxiliary is skipped only where the index bounds it", {
   # auxiliary is shared sent this improper fit to the sampler in silence.
   sat <- .comp_stub(c(1, 1, 4), c(1L, 1L, 1L),
                     ipd_time = exp(c(-0.4, 0.3)), ipd_x = c(-0.5, 0.5))
-  idx <- expect_warning(
+  # `expect_warning()` hands back the CONDITION, so the return value has to
+  # be captured separately or an attribute assertion reads the wrong object
+  # and passes on a NULL.
+  expect_warning(
     mlumr:::.check_survival_scale_collapse(sat, "lognormal", aux_by = "none",
                                            center = FALSE),
     "share that parameter"
   )
+  idx <- suppressWarnings(
+    mlumr:::.check_survival_scale_collapse(sat, "lognormal", aux_by = "none",
+                                           center = FALSE)
+  )
+  expect_true(idx)
   expect_false(isTRUE(attr(idx, "bounds_aux")))
   expect_error(check(sat, aux_by = "none", index_bounds_aux = FALSE),
                "improper")
@@ -353,7 +361,8 @@ test_that("a shared auxiliary is skipped only where the index bounds it", {
   # growth, so the combined posterior is proper. That system is not solved
   # here, so the case is reported rather than refused.
   w <- expect_warning(
-    check(d, aux_by = "none", index_bounds_aux = FALSE, model = "spfa"),
+    check(d, aux_by = "none", index_bounds_aux = FALSE, model = "spfa",
+          index_exact = TRUE),
     "neither refused nor passed as proper"
   )
   expect_match(conditionMessage(w), "share one `beta`", fixed = TRUE)
@@ -363,13 +372,33 @@ test_that("a shared auxiliary is skipped only where the index bounds it", {
   # and both singularities stand at once. Still refused.
   one <- .comp_stub(c(1, 1), c(1L, 1L))
   expect_error(check(one, aux_by = "none", index_bounds_aux = FALSE,
-                     model = "spfa"), "improper")
+                     model = "spfa", index_exact = TRUE), "improper")
+  # Nor does an index that never had an exact design pin anything. Failing to
+  # bound the auxiliary does not imply one: the index guard returns before
+  # reaching its geometry when the index has no events, and an index of
+  # nothing but right-censored rows lets `mu_index` rise above every
+  # censoring time, so its likelihood tends to one as the scale falls and the
+  # comparator divergence is left whole.
+  expect_error(check(d, aux_by = "none", index_bounds_aux = FALSE,
+                     model = "spfa", index_exact = FALSE), "improper")
+  # And that is what the index guard reports for an eventless index: it
+  # returns early, so neither attribute is set.
+  eventless <- .comp_stub(c(1, 1, 4), c(1L, 1L, 1L), ipd_time = c(2, 3, 4, 5))
+  eventless$ipd$data$.status <- 0L
+  idx0 <- mlumr:::.check_survival_scale_collapse(eventless, "lognormal",
+                                                 aux_by = "none",
+                                                 center = FALSE)
+  expect_false(isTRUE(attr(idx0, "index_exact")))
+  expect_false(isTRUE(attr(idx0, "bounds_aux")))
   # The relaxed model gives the comparator its own coefficients, so the
   # question does not arise.
   expect_error(check(d, aux_by = "none", index_bounds_aux = FALSE,
-                     model = "relaxed"), "improper")
+                     model = "relaxed", index_exact = TRUE), "improper")
   # Nor does it arise once the comparator has its own auxiliary.
-  expect_error(check(d, aux_by = ".study", model = "spfa"), "improper")
+  expect_error(check(d, aux_by = ".study", model = "spfa",
+                     index_exact = TRUE), "improper")
+  # The attribute is set where the index guard does reach an exact design.
+  expect_true(attr(idx, "index_exact"))
   # `.study` and NULL are the same stratification and both are examined,
   # whatever the index did.
   expect_error(check(d, aux_by = NULL, index_bounds_aux = TRUE), "improper")

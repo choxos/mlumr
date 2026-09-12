@@ -9,7 +9,8 @@
   distribution,
   aux_by = ".study",
   index_bounds_aux = FALSE,
-  model = "relaxed"
+  model = "relaxed",
+  index_exact = FALSE
 )
 }
 \arguments{
@@ -181,9 +182,8 @@ intercept prior.
 
 One combination is reported rather than refused for a reason that is not
 about censoring. Under \code{model = "spfa"} with \code{aux_by = "none"} the arms
-share one \code{beta} AND one auxiliary, so reaching this function means the
-index did not bound that auxiliary, which under that model means its own
-event design fits exactly and pins the shared slope to its solution set.
+share one \code{beta} AND one auxiliary, and when the index event design is
+itself exact it pins that shared slope to its own solution set.
 Two or more comparator targets pin it too, to values the integration
 points fix, and if those sets do not intersect then every path to the
 boundary leaves one side with a positive residual whose exponential decay
@@ -191,9 +191,16 @@ beats the other's polynomial growth. Solving that combined system is not
 this function's, so the case is warned about. A single distinct target is
 not that case: its one equation is absorbed by the free \code{mu_comparator},
 \code{beta} stays free, the comparator ridge contains whatever the index's
-exact fit needs, and both singularities stand at once. Under
-\code{model = "relaxed"} the comparator has its own \code{beta_comparator} and the
-question does not arise.
+exact fit needs, and both singularities stand at once. Neither is an index
+that never had an exact design to begin with: failing to bound the
+auxiliary does not imply one, since
+\code{\link[=.check_survival_scale_collapse]{.check_survival_scale_collapse()}} returns before reaching its geometry
+when the index has no events, and an index of nothing but right-censored
+rows pins no slope at all. Its \code{mu_index} rises above every censoring
+time, its likelihood tends to one as the scale falls, and the comparator
+divergence is left whole, so that is refused. Under \code{model = "relaxed"}
+the comparator has its own \code{beta_comparator} and the question does not
+arise.
 
 \strong{This is a restriction on an approximation, not a repair of a model.}
 The continuously integrated counterpart is PROPER for the same data.

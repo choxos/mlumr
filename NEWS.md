@@ -218,7 +218,14 @@
   combined system is out of scope, so the case is warned about. A single
   distinct target is not that case and is still refused: its one equation is
   absorbed by the free `mu_comparator`, so the shared slope stays free and
-  both singularities stand at once.
+  both singularities stand at once. Neither is an index that never had an
+  exact design: failing to bound the auxiliary does not imply one, since the
+  index guard returns before reaching its geometry when there are no index
+  events, and an index of nothing but right-censored rows pins no slope at
+  all, its `mu_index` rising above every censoring time so that its
+  likelihood tends to one while the comparator divergence is left whole. The
+  index guard now reports what it established in an `index_exact` attribute
+  and the comparator check reads it.
 
   This is a restriction on the quadrature and not a defect of the model it
   approximates, which matters for what the fix eventually is. Integrating a

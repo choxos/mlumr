@@ -391,9 +391,8 @@
 #'
 #' One combination is reported rather than refused for a reason that is not
 #' about censoring. Under `model = "spfa"` with `aux_by = "none"` the arms
-#' share one `beta` AND one auxiliary, so reaching this function means the
-#' index did not bound that auxiliary, which under that model means its own
-#' event design fits exactly and pins the shared slope to its solution set.
+#' share one `beta` AND one auxiliary, and when the index event design is
+#' itself exact it pins that shared slope to its own solution set.
 #' Two or more comparator targets pin it too, to values the integration
 #' points fix, and if those sets do not intersect then every path to the
 #' boundary leaves one side with a positive residual whose exponential decay
@@ -401,9 +400,16 @@
 #' this function's, so the case is warned about. A single distinct target is
 #' not that case: its one equation is absorbed by the free `mu_comparator`,
 #' `beta` stays free, the comparator ridge contains whatever the index's
-#' exact fit needs, and both singularities stand at once. Under
-#' `model = "relaxed"` the comparator has its own `beta_comparator` and the
-#' question does not arise.
+#' exact fit needs, and both singularities stand at once. Neither is an index
+#' that never had an exact design to begin with: failing to bound the
+#' auxiliary does not imply one, since
+#' [.check_survival_scale_collapse()] returns before reaching its geometry
+#' when the index has no events, and an index of nothing but right-censored
+#' rows pins no slope at all. Its `mu_index` rises above every censoring
+#' time, its likelihood tends to one as the scale falls, and the comparator
+#' divergence is left whole, so that is refused. Under `model = "relaxed"`
+#' the comparator has its own `beta_comparator` and the question does not
+#' arise.
 #'
 #' **This is a restriction on an approximation, not a repair of a model.**
 #' The continuously integrated counterpart is PROPER for the same data.
@@ -457,7 +463,8 @@
 .check_comparator_tied_events <- function(data, distribution,
                                           aux_by = ".study",
                                           index_bounds_aux = FALSE,
-                                          model = "relaxed") {
+                                          model = "relaxed",
+                                          index_exact = FALSE) {
   scale_families <- c("lognormal", "gengamma")
   # The proportional-hazards Weibull and Gompertz are deliberately NOT here.
   # Their ridge width does not shrink with the auxiliary at all, so their
@@ -502,7 +509,17 @@
   # both singularities stand at once. Under `model = "relaxed"` the
   # comparator carries its own `beta_comparator` and the question does not
   # arise at all.
-  spfa_shared <- shared_aux && identical(model, "spfa")
+  #
+  # It also needs the index to HAVE an exact event design, which failing to
+  # bound the auxiliary does not imply. [.check_survival_scale_collapse()]
+  # returns before reaching its geometry whenever the index has no events at
+  # all, and in several other bail-outs, and an index of nothing but
+  # right-censored rows pins no slope: `mu_index` goes above every censoring
+  # time, the index likelihood tends to one as the scale falls, and the
+  # comparator divergence is left whole. So this consults `index_exact`, set
+  # only where that function established an exact, constant or saturated
+  # event design, rather than inferring it from the absent bound.
+  spfa_shared <- shared_aux && identical(model, "spfa") && isTRUE(index_exact)
   pseudo <- data$agd$pseudo_ipd
   if (is.null(pseudo) || !nrow(pseudo)) return(invisible(FALSE))
   status <- pseudo$.status
@@ -1193,7 +1210,10 @@
 #'   shown to bound the auxiliary away from its boundary (a real residual, or a
 #'   censored row that bounds). Anything else means this function did not
 #'   establish that, which is not the same as establishing the opposite.
-#'   [.check_comparator_tied_events()] reads it under `aux_by = "none"`.
+#'   [.check_comparator_tied_events()] reads it under `aux_by = "none"`. A
+#'   shared-auxiliary warning also carries `index_exact`, which is `TRUE` only
+#'   when the index event design was shown to reproduce its own times and so
+#'   pins a shared coefficient vector.
 #' @keywords internal
 .check_survival_scale_collapse <- function(data, distribution,
                                            aux_by = ".study",
@@ -1392,7 +1412,16 @@
             "the fit is neither refused nor passed as proper: check the ",
             "sampler's behavior near the boundary and the sensitivity to ",
             "`prior_aux`.", call. = FALSE)
-    return(invisible(TRUE))
+    # `index_exact` says whether the index EVENT design reproduces its own
+    # times, which is what pins a shared coefficient vector. Only these three
+    # do: `undecidable` and `unresolved` did not settle it, and every early
+    # return above, an index with no events among them, never asked.
+    # [.check_comparator_tied_events()] reads it before treating an SPFA
+    # shared slope as constrained.
+    return(invisible(structure(
+      TRUE,
+      index_exact = s$status %in% c("exact", "constant", "saturated")
+    )))
   }
 
   if (identical(s$status, "near_exact")) {
@@ -2937,7 +2966,8 @@ mlumr <- function(data,
       data, surv_info$distribution,
       aux_by = aux_by,
       index_bounds_aux = isTRUE(attr(index_collapse, "bounds_aux")),
-      model = model
+      model = model,
+      index_exact = isTRUE(attr(index_collapse, "index_exact"))
     )
   }
 
