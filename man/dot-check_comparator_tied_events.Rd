@@ -60,13 +60,26 @@ past a reach of 2, and are matched exactly by \verb{b = (-log 2, log 2)} for a
 rank of 2 and a measured slope of -1.0000 per decade of scale.
 
 \code{rank(D)} is at most the reach and at most \code{k}, since rows sharing a node
-share a predictor. Below the reach a solution always exists and the rank
-is \code{k}. Past it, existence is the question, and this refuses only what it
-can certify: with one covariate the map is a line that two (target, node)
-assignments fix, so enumerating node pairs decides it, and anything wider
-or too large to enumerate is left alone. Silence from this function is
-therefore NOT a certificate that the posterior is proper; a refusal is a
-certificate that it is not.
+share a predictor, and a design of exactly \code{min(k, reach)} is always
+available: below the reach any \code{k} independent node rows give a consistent
+system, and past it the certificate below supplies one. So the exponent
+used is \code{m - min(k, reach)}.
+
+That is the exponent EXACTLY for one covariate and a LOWER BOUND for more
+than one. \code{min(k, reach)} is the largest rank a matching design can have,
+and a smaller one gives a larger exponent: with two covariates, three
+collinear nodes carry three distinct targets that run affinely along that
+line at rank 2 rather than 3. So a refusal here is always certified, since
+a positive lower bound is a positive rate, while a skip may be hiding one.
+Searching for a lower-rank consistent allocation among two or more
+covariates is not done in either branch.
+
+Past the reach, existence itself is the question, and this refuses only
+what it can certify: with one covariate the map is a line that two
+(target, node) assignments fix, so enumerating node pairs decides it, and
+anything wider or too large to enumerate is left alone. Silence from this
+function is therefore NOT a certificate that the posterior is proper; a
+refusal is a certificate that it is not.
 
 All \code{m} rows are matched on the solution set, so every one of them stands
 on a spike whose height grows as the auxiliary approaches its boundary,

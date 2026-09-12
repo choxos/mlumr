@@ -327,13 +327,26 @@
 #' rank of 2 and a measured slope of -1.0000 per decade of scale.
 #'
 #' `rank(D)` is at most the reach and at most `k`, since rows sharing a node
-#' share a predictor. Below the reach a solution always exists and the rank
-#' is `k`. Past it, existence is the question, and this refuses only what it
-#' can certify: with one covariate the map is a line that two (target, node)
-#' assignments fix, so enumerating node pairs decides it, and anything wider
-#' or too large to enumerate is left alone. Silence from this function is
-#' therefore NOT a certificate that the posterior is proper; a refusal is a
-#' certificate that it is not.
+#' share a predictor, and a design of exactly `min(k, reach)` is always
+#' available: below the reach any `k` independent node rows give a consistent
+#' system, and past it the certificate below supplies one. So the exponent
+#' used is `m - min(k, reach)`.
+#'
+#' That is the exponent EXACTLY for one covariate and a LOWER BOUND for more
+#' than one. `min(k, reach)` is the largest rank a matching design can have,
+#' and a smaller one gives a larger exponent: with two covariates, three
+#' collinear nodes carry three distinct targets that run affinely along that
+#' line at rank 2 rather than 3. So a refusal here is always certified, since
+#' a positive lower bound is a positive rate, while a skip may be hiding one.
+#' Searching for a lower-rank consistent allocation among two or more
+#' covariates is not done in either branch.
+#'
+#' Past the reach, existence itself is the question, and this refuses only
+#' what it can certify: with one covariate the map is a line that two
+#' (target, node) assignments fix, so enumerating node pairs decides it, and
+#' anything wider or too large to enumerate is left alone. Silence from this
+#' function is therefore NOT a certificate that the posterior is proper; a
+#' refusal is a certificate that it is not.
 #'
 #' All `m` rows are matched on the solution set, so every one of them stands
 #' on a spike whose height grows as the auxiliary approaches its boundary,
@@ -693,10 +706,16 @@
     #
     # `rank(D)` is at most the reach and at most the number of distinct
     # targets (rows sharing a node share a predictor, so a consistent
-    # allocation gives rows with different targets different nodes). That
-    # bound is what is used here. Below the reach a solution always exists,
-    # since `k` independent node rows can be sent anywhere; past it existence
-    # is the whole question, and is certified rather than assumed.
+    # allocation gives rows with different targets different nodes), and that
+    # largest rank is always achievable: below the reach `k` independent node
+    # rows can be sent anywhere, and past it the certificate supplies one.
+    #
+    # Taking the LARGEST rank gives the SMALLEST exponent, so this is a lower
+    # bound on the true rate and every refusal is certified. It is exact for
+    # one covariate. For more, a lower-rank allocation can exist and is not
+    # searched for: three collinear nodes among two covariates carry three
+    # distinct targets at rank 2, where this reads 3 and stays silent. That
+    # is a gap in coverage, not a wrong verdict.
     rank_d <- min(k, reachable)
     if (m <= rank_d) next
     if (k > reachable && !isTRUE(.grid_hits_targets(grid$nodes, tg))) next
@@ -864,8 +883,8 @@
     "is a finite equally weighted mixture over the integration grid, ",
     "`log_sum_exp(ll) - log(n_int)`, and every pseudo-individual in the arm ",
     "sees the same grid, so all ", info$m, " rows can be matched at once by ",
-    "integration points that reproduce their times. ", solvable, ", and the ",
-    "design of that match has rank ", info$rank, ". All ", info$m,
+    "integration points that reproduce their times. ", solvable, ", and a ",
+    "matching design of rank ", info$rank, " exists. All ", info$m,
     " density spikes grow as ", growth, " ", volume, ". What drives this is ",
     info$m, " event rows against a matched design of rank ", info$rank,
     ", not the repeats as such: distinct event times can be carried by a ",

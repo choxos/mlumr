@@ -245,7 +245,7 @@ test_that("a refusal reports the geometry it is refusing", {
   expect_match(e, "2 equations in the comparator's coefficients")
   expect_match(e, "grid reaches 2 independent linear predictors")
   # The rank of the matched design, which is what the exponent counts.
-  expect_match(e, "design of that match has rank 2")
+  expect_match(e, "a matching design of rank 2 exists")
   expect_match(e, "3 event rows against a matched design of rank 2")
   # And it no longer says an absence of repeats is an absence of a ridge.
   expect_false(grepl("all distinct pin the coefficients", e, fixed = TRUE))
@@ -479,7 +479,7 @@ test_that("an overdetermined system that is consistent is still refused", {
   e <- msg(d)
   expect_match(e, "3 event rows at 3 distinct log-times")
   expect_match(e, "an overdetermined system can still be consistent")
-  expect_match(e, "design of that match has rank 2")
+  expect_match(e, "a matching design of rank 2 exists")
   expect_match(e, "diverges at rate 1")
   # Repeats on top of it raise `m` and not the rank.
   expect_match(msg(.uniform_stub(c(1, 1, 2, 4))), "diverges at rate 2")

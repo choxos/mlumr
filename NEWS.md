@@ -215,6 +215,15 @@
   enumerate, are left alone. Silence from this check is not a certificate
   that the posterior is proper. A refusal is a certificate that it is not.
 
+  The exponent used is `m - min(k, reach)`, which is exact for one covariate
+  and a lower bound for more than one. `min(k, reach)` is the largest rank a
+  matching design can have, and a smaller rank gives a larger exponent: among
+  two covariates, three collinear nodes carry three distinct targets affinely
+  along that line at rank 2 rather than 3. A refusal is therefore still
+  certified, since a positive lower bound is a positive rate, while a skip
+  may be hiding one. Searching for a lower-rank consistent allocation among
+  two or more covariates is not attempted.
+
   What the rate decides differs too. The scale families diverge as the scale
   goes to zero, where every supported prior has positive density, so no
   prior repairs it and the fit is refused. `weibull-aft` and `loglogistic`
