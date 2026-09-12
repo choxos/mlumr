@@ -497,19 +497,41 @@ test_that("a target the grid cannot carry is still passed in silence", {
   expect_true(is.na(mlumr:::.grid_hits_targets(NULL, log(c(1, 2)))))
 })
 
-test_that("the match tolerance is local to the node it matched", {
+test_that("only an exact determinant certifies a match", {
   g <- mlumr:::.grid_hits_targets
-  # Two nodes a hair apart and one far away. Carrying the first two targets
-  # needs `b = 2^60`, which puts one prediction at 2^60, and a tolerance
-  # scaled by the LARGEST prediction is about 16384: the target at 2 then
-  # passes against a prediction of 1, a gap of a whole unit. No affine map
-  # carries these three, and a certificate here refuses a proper fit.
-  expect_false(g(matrix(c(0, 2^-60, 1), ncol = 1L), c(0, 1, 2)))
-  # The rounding that matters is in the terms of that one node, so a genuine
-  # match at an enormous magnitude is still found.
-  z <- c(1, 2, 3) * 2^40
-  expect_true(g(matrix(z, ncol = 1L), -log(2) + log(2) * z / 2^40))
-  # And the real case is unaffected.
+  m <- function(v) matrix(v, ncol = 1L)
+  # Consistency is read off the determinant of the original data, not off
+  # predictions rebuilt from a fitted slope. The round trip is not exact even
+  # where the geometry is: `log(4) - log(2) * 2` is zero while
+  # `-log(2) + log(2) * 3 == log(4)` is FALSE.
+  expect_true(log(4) - log(2) * 2 == 0)
+  expect_false(-log(2) + log(2) * 3 == log(4))
+  expect_true(g(m(c(1, 2, 3)), log(c(1, 2, 4))))
+  # A residual that is merely small is a near miss, and no affine map removes
+  # it. Certifying it would refuse a proper fit, so it reports undecided.
+  expect_true(is.na(g(m(c(1, 2, 3)), c(0, 1, 2 + 1e-15))))
+  # Two nodes a hair apart make the reconstructed slope enormous, so any
+  # tolerance scaled by the terms of a prediction swallows a gross miss: on
+  # `(1, 1 + 2^-52, 2)` the target at 2 was accepted against a prediction of
+  # 1. The determinant is built from differences of the inputs and has no
+  # slope in it, so it is not fooled.
+  expect_false(isTRUE(g(m(c(1, 1 + 2^-52, 2)), c(0, 1, 2))))
+  expect_false(isTRUE(g(m(c(0, 2^-60, 1)), c(0, 1, 2))))
+  # Magnitude alone does not prevent a certificate when the geometry is exact.
+  expect_true(g(m(c(1, 2, 3) * 2^40), c(0, 1, 2)))
+  # A target no line carries is a plain no.
+  expect_false(g(m(c(1, 2, 3)), log(c(1, 2, 3))))
+})
+
+test_that("the enumeration cutoff declines instead of overflowing", {
+  g <- mlumr:::.grid_hits_targets
+  # `n` and `length(u)` are integers, so `n * n * (n + length(u))` overflows
+  # at the grid sizes this cutoff exists to decline: 2048 gives about 8.6e9,
+  # which becomes NA, and `if (NA)` aborted the fit with "missing value where
+  # TRUE/FALSE needed" rather than returning the undecided answer.
+  expect_true(is.na(suppressWarnings(2048L * 2048L * 2051L)))
+  expect_true(is.na(g(matrix(seq_len(2048), ncol = 1L), log(c(1, 2, 4)))))
+  # A grid inside the budget is still decided.
   expect_true(g(matrix(c(1, 2, 3), ncol = 1L), log(c(1, 2, 4))))
 })
 

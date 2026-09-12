@@ -255,15 +255,33 @@
 #' would cost more than the fit, is left undecided rather than guessed: a
 #' false certificate here refuses a working model.
 #'
-#' The match must be exact up to rounding, not merely close. A best match
-#' that leaves a positive residual is a ridge the profile abandons as soon as
-#' the auxiliary falls below that residual, so a loose tolerance would refuse
-#' a proper fit for a singularity it does not have.
+#' The match must be EXACT, not merely close. A best match that leaves a
+#' positive residual is a ridge the profile abandons as soon as the auxiliary
+#' falls below that residual, so accepting one refuses a proper fit for a
+#' singularity it does not have. Nodes `(1, 2, 3)` against targets
+#' `(0, 1, 2 + 1e-15)` are a near miss no affine map removes, and they report
+#' undecided rather than a match.
+#'
+#' Consistency is therefore read off the DETERMINANT of the original data,
+#'
+#' `(u[i] - u[1]) * (z[j2] - z[j1]) - (u[2] - u[1]) * (z[j] - z[j1])`
+#'
+#' which is built from differences of the inputs and contains no division and
+#' no slope. Rebuilding predictions from a fitted `(a, b)` and comparing them
+#' to the targets fails in both directions. It is too permissive, because the
+#' slope can be enormous and then the terms forming a prediction dwarf the
+#' residual: nodes `(1, 1 + 2^-52, 2)` against targets `(0, 1, 2)` give
+#' `b = 2^52`, and any tolerance scaled by those terms accepts the target at
+#' 2 against a prediction of 1. And it is too strict, because the round trip
+#' is inexact where the geometry is not: `-log(2) + log(2) * 3 == log(4)` is
+#' FALSE while `log(4) - log(2) * 2 == 0` is TRUE.
 #'
 #' @param nodes The arm's integration nodes, one row per node.
 #' @param targets The arm's event targets, on the scale the density matches.
-#' @return `TRUE` when a map reaching every target exists, `FALSE` when the
-#'   enumeration excludes one, and `NA` when the case was not decided.
+#' @return `TRUE` only where an exact map was found, `FALSE` where the
+#'   enumeration excluded every candidate, and `NA` where the case was not
+#'   decided: more than one covariate, a grid past the enumeration budget, or
+#'   a candidate that is close without being exact.
 #' @keywords internal
 .grid_hits_targets <- function(nodes, targets) {
   if (is.null(nodes) || !is.matrix(nodes) || ncol(nodes) != 1L) return(NA)
@@ -272,43 +290,66 @@
   n <- length(z)
   if (length(u) < 2L || n < 2L) return(NA)
   if (!all(is.finite(u)) || !all(is.finite(z))) return(NA)
-  # Every pair is a sort and a lookup per target. Past this the enumeration
-  # is no longer cheap next to the fit it is guarding, and an undecided
-  # answer costs a silence rather than a wrong refusal.
-  if (n * n * (n + length(u)) > 5e6) return(NA)
+  # `as.double`, because `n` and `length(u)` are integers and the product
+  # overflows the integer range for a grid this check is meant to decline:
+  # at `n_int = 2048` it is about 8.6e9, which becomes NA, and the `if` then
+  # aborts the fit with "missing value where TRUE/FALSE needed" instead of
+  # returning the undecided answer the cutoff exists to give.
+  if (as.double(n) * n * (n + length(u)) > 5e6) return(NA)
+  # Consistency is tested on the DETERMINANT of the original data, never by
+  # reconstructing predictions from a fitted `(a, b)`. Anchoring `u[1]` and
+  # `u[2]` at two nodes, a third target sits on the same line exactly when
+  #
+  #   (u[i] - u[1]) * (z[j2] - z[j1]) - (u[2] - u[1]) * (z[j] - z[j1]) == 0
+  #
+  # which is built from differences of the inputs and has no division and no
+  # slope in it. Reconstructing `a + b * z` instead is both too permissive
+  # and too strict. Too permissive: the slope can be enormous, so the terms
+  # forming a prediction dwarf the residual and any tolerance scaled by them
+  # accepts a gross miss. Nodes `(1, 1 + 2^-52, 2)` against targets
+  # `(0, 1, 2)` give `a = -2^52` and `b = 2^52`, so the target at 2 was
+  # accepted against a prediction of 1. Too strict: the real case does not
+  # survive the round trip, since `-log(2) + log(2) * 3 == log(4)` is FALSE
+  # while `log(4) - log(2) * 2 == 0` is TRUE.
+  #
+  # And the answer is three-valued. Only an EXACT zero certifies; a residual
+  # that is merely small is a near miss, and calling it a match refuses a
+  # proper fit. Nodes `(1, 2, 3)` against targets `(0, 1, 2 + 1e-15)` leave
+  # 1e-15, which no affine map removes. Those report undecided, which the
+  # caller reads as silence.
+  close <- FALSE
   for (j1 in seq_len(n)) {
     for (j2 in seq_len(n)) {
       if (j1 == j2) next
-      b <- (u[2L] - u[1L]) / (z[j2] - z[j1])
-      a <- u[1L] - b * z[j1]
-      if (!is.finite(a) || !is.finite(b) || b == 0) next
-      pred <- a + b * z
-      if (!all(is.finite(pred))) next
-      # The rounding in `a + b * z` is governed by the size of the terms that
-      # went into THAT node, not by the largest prediction anywhere on the
-      # grid. Scaling every target's tolerance by the global maximum lets one
-      # distant node pay for all of them: on `z = (0, 2^-60, 1)` against
-      # targets `(0, 1, 2)` the pair carrying the first two gives
-      # `b = 2^60` and predictions `(0, 1, 2^60)`, so a global tolerance is
-      # about 16384 and the target at 2 is "matched" by a prediction of 1, a
-      # gap of one whole unit. No affine map carries those three targets, and
-      # the fit would have been refused as improper. Tolerances are local.
-      mag <- abs(a) + abs(b * z)
-      ord <- order(pred)
-      ps <- pred[ord]
-      ms <- mag[ord]
-      i <- findInterval(u, ps)
-      il <- pmax(i, 1L)
-      ih <- pmin(i + 1L, length(ps))
-      dl <- abs(u - ps[il])
-      dh <- abs(u - ps[ih])
-      near <- ifelse(dl <= dh, il, ih)
-      gap <- pmin(dl, dh)
-      tol <- 64 * .Machine$double.eps * pmax(1, abs(u), ms[near])
-      if (all(gap <= tol)) return(TRUE)
+      z0 <- z[j1]
+      dz <- z[j2] - z0
+      b <- u[2L] - u[1L]
+      if (!is.finite(dz) || dz == 0 || !is.finite(b) || b == 0) next
+      rest <- u[-c(1L, 2L)]
+      if (!length(rest)) return(TRUE)
+      # `a / b` only LOCATES the candidate nodes; the verdict is the exact
+      # determinant evaluated at them, so the division's rounding cannot
+      # certify anything on its own. Four neighbors, since that rounding can
+      # land on either side of the node it is looking for.
+      exact_all <- TRUE
+      close_all <- TRUE
+      for (t in rest) {
+        a <- (t - u[1L]) * dz
+        want <- z0 + a / b
+        i <- findInterval(want, z)
+        cand <- unique(pmin(pmax(c(i - 1L, i, i + 1L, i + 2L), 1L), n))
+        det <- a - b * (z[cand] - z0)
+        scale <- abs(a) + abs(b * (z[cand] - z0))
+        tol <- 64 * .Machine$double.eps * pmax(1, scale)
+        if (!any(det == 0)) exact_all <- FALSE
+        if (!any(abs(det) <= tol)) close_all <- FALSE
+        if (!close_all) break
+      }
+      if (exact_all) return(TRUE)
+      if (close_all) close <- TRUE
     }
   }
-  FALSE
+  if (close) NA else FALSE
 }
 
 #' Refuse a comparator curve whose tied event times collapse its auxiliary

@@ -12,8 +12,10 @@
 \item{targets}{The arm's event targets, on the scale the density matches.}
 }
 \value{
-\code{TRUE} when a map reaching every target exists, \code{FALSE} when the
-enumeration excludes one, and \code{NA} when the case was not decided.
+\code{TRUE} only where an exact map was found, \code{FALSE} where the
+enumeration excluded every candidate, and \code{NA} where the case was not
+decided: more than one covariate, a grid past the enumeration budget, or
+a candidate that is close without being exact.
 }
 \description{
 The comparator's matching equations are solvable when some coefficient
@@ -31,9 +33,25 @@ candidate. Anything wider, or a grid large enough that the enumeration
 would cost more than the fit, is left undecided rather than guessed: a
 false certificate here refuses a working model.
 
-The match must be exact up to rounding, not merely close. A best match
-that leaves a positive residual is a ridge the profile abandons as soon as
-the auxiliary falls below that residual, so a loose tolerance would refuse
-a proper fit for a singularity it does not have.
+The match must be EXACT, not merely close. A best match that leaves a
+positive residual is a ridge the profile abandons as soon as the auxiliary
+falls below that residual, so accepting one refuses a proper fit for a
+singularity it does not have. Nodes \verb{(1, 2, 3)} against targets
+\verb{(0, 1, 2 + 1e-15)} are a near miss no affine map removes, and they report
+undecided rather than a match.
+
+Consistency is therefore read off the DETERMINANT of the original data,
+
+\code{(u[i] - u[1]) * (z[j2] - z[j1]) - (u[2] - u[1]) * (z[j] - z[j1])}
+
+which is built from differences of the inputs and contains no division and
+no slope. Rebuilding predictions from a fitted \verb{(a, b)} and comparing them
+to the targets fails in both directions. It is too permissive, because the
+slope can be enormous and then the terms forming a prediction dwarf the
+residual: nodes \verb{(1, 1 + 2^-52, 2)} against targets \verb{(0, 1, 2)} give
+\code{b = 2^52}, and any tolerance scaled by those terms accepts the target at
+2 against a prediction of 1. And it is too strict, because the round trip
+is inexact where the geometry is not: \code{-log(2) + log(2) * 3 == log(4)} is
+FALSE while \code{log(4) - log(2) * 2 == 0} is TRUE.
 }
 \keyword{internal}

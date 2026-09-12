@@ -212,7 +212,11 @@
   measured slope of -1.0000 per decade of scale. With one covariate the map
   is a line that two (target, node) assignments fix, so node pairs are
   enumerated and this case is refused; wider designs, and grids too large to
-  enumerate, are left alone. Silence from this check is not a certificate
+  enumerate, are left alone. Consistency is read off the determinant of the
+  original data, `(u[i] - u[1]) * (z[j2] - z[j1]) - (u[2] - u[1]) *
+  (z[j] - z[j1])`, which has no division and no slope in it, and only an
+  exact zero certifies: a residual that is merely small is a near miss no
+  affine map removes, and it reports undecided. Silence from this check is not a certificate
   that the posterior is proper. A refusal is a certificate that it is not.
 
   The exponent used is `m - min(k, reach)`, which is exact for one covariate
