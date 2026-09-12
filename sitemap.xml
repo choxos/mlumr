@@ -56,6 +56,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_same_observations.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_shared_basis_identified.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-attach_integration_points.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-aux_name.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-aux_shapes_differ.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-basis_rows.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-binary_link_from_logs.html</loc></url>
@@ -65,8 +66,10 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-build_arm_summary.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-build_mspline_basis.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-build_stan_data_survival.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-censoring_bounds_aux.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-check_normal_residual_variation.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-check_required_columns.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-check_survival_scale_collapse.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-clamp_cor.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-clopper_pearson_interval.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-cmdstan_available.html</loc></url>
