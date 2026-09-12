@@ -22,7 +22,8 @@
 .comp_stub <- function(agd_time, agd_status,
                        ipd_time = exp(c(-0.4, 0.3, 0.1, 0.7)),
                        ipd_x = c(-0.5, -0.5, 0.5, 0.5),
-                       int_distr = NULL, n_int = 32, agd_surv = NULL) {
+                       int_distr = NULL, n_int = 32, agd_surv = NULL,
+                       agd_entry = NULL) {
   ip <- set_ipd(
     data.frame(trt = "A", time = ipd_time, status = rep(1L, length(ipd_time)),
                x = ipd_x),
@@ -38,8 +39,9 @@
     )
   } else {
     set_agd_surv(
-      data.frame(trt = "B", x_mean = 0, x_sd = 0.5)[rep(1L, nrow(agd_surv)), ],
-      treatment = "trt", Surv = agd_surv,
+      data.frame(trt = "B", x_mean = 0, x_sd = 0.5,
+                 ent = agd_entry %||% rep(0, nrow(agd_surv))),
+      treatment = "trt", Surv = agd_surv, entry_time = "ent",
       cov_means = "x_mean", cov_sds = "x_sd", cov_types = "continuous"
     )
   }
@@ -212,11 +214,23 @@ test_that("a censored row is only conclusive where the ridge is a set", {
   expect_match(conditionMessage(w2), "bound on both sides")
   expect_match(conditionMessage(w2), "unpinned neighbors on both sides")
   expect_false(grepl("ridge is isolated", conditionMessage(w2), fixed = TRUE))
-  # An interval-censored row is two-sided by itself.
+  # An interval-censored row is two-sided when it opens ABOVE its entry.
   iv <- .comp_stub(NULL, NULL, agd_surv =
     survival::Surv(time = c(1, 1, 1.5), time2 = c(1, 1, 2),
                    type = "interval2"))
   expect_warning(check(iv), "neither refused nor passed as proper")
+  # Opening AT its entry makes it one-sided instead: conditioning on survival
+  # to the entry piles the mass just above it, and that pile is inside the
+  # interval, so a node pushed below clears the row as a left-censored one
+  # does. Reading sidedness off the status code alone let this reach the
+  # sampler improper.
+  aligned <- .comp_stub(NULL, NULL, agd_entry = c(0, 0, 1.5),
+    agd_surv = survival::Surv(time = c(1, 1, 1.5), time2 = c(1, 1, 2),
+                              event = c(1, 1, 3), type = "interval"))
+  expect_equal(aligned$agd$pseudo_ipd$.status, c(1L, 1L, 3L))
+  expect_equal(aligned$agd$pseudo_ipd$.start_time[3L],
+               aligned$agd$pseudo_ipd$.delay_time[3L])
+  expect_error(check(aligned), "improper")
 })
 
 test_that("a refusal reports the geometry it is refusing", {
@@ -381,6 +395,14 @@ test_that("a shared auxiliary is skipped only where the index bounds it", {
   # comparator divergence is left whole.
   expect_error(check(d, aux_by = "none", index_bounds_aux = FALSE,
                      model = "spfa", index_exact = FALSE), "improper")
+  # But an UNSETTLED index is not that: `undecidable`, `unresolved` and
+  # `unresolved_log` do not establish a positive residual, so the index may
+  # be exact with a solution set the comparator's node-specific slopes miss,
+  # which is the same proper configuration the branch reports. Refusing there
+  # would state a certainty the data do not carry.
+  expect_warning(check(d, aux_by = "none", index_bounds_aux = FALSE,
+                       model = "spfa", index_exact = NA),
+                 "neither refused nor passed as proper")
   # And that is what the index guard reports for an eventless index: it
   # returns early, so neither attribute is set.
   eventless <- .comp_stub(c(1, 1, 4), c(1L, 1L, 1L), ipd_time = c(2, 3, 4, 5))
@@ -388,7 +410,8 @@ test_that("a shared auxiliary is skipped only where the index bounds it", {
   idx0 <- mlumr:::.check_survival_scale_collapse(eventless, "lognormal",
                                                  aux_by = "none",
                                                  center = FALSE)
-  expect_false(isTRUE(attr(idx0, "index_exact")))
+  # FALSE, not merely unset: an eventless index is a determination.
+  expect_identical(attr(idx0, "index_exact"), FALSE)
   expect_false(isTRUE(attr(idx0, "bounds_aux")))
   # The relaxed model gives the comparator its own coefficients, so the
   # question does not arise.

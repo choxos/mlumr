@@ -359,9 +359,13 @@
 #' with a left-censored row at `t = 0.5` collapses whichever node is matched,
 #' while either row ALONE leaves rate +1.000. The same pair on 20 nodes stays
 #' divergent at +1.000, with the maximum at slope -1.06. An interval-censored
-#' row is two-sided by itself and joins that case. Settling it means
-#' searching the free direction against every censoring region, which this
-#' does not do.
+#' row joins that case only when it opens ABOVE its delayed entry; one that
+#' opens AT its entry is one-sided, because conditioning on survival to the
+#' entry piles the mass just above it and that pile lies inside the interval,
+#' so a node pushed below clears the row exactly as a left-censored one does.
+#' Which side a row needs is read from its region and its entry, not from its
+#' status code. Settling the genuinely two-sided case means searching the free
+#' direction against every censoring region, which this does not do.
 #'
 #' Both are reported rather than refused, scale family or not.
 #'
@@ -464,7 +468,7 @@
                                           aux_by = ".study",
                                           index_bounds_aux = FALSE,
                                           model = "relaxed",
-                                          index_exact = FALSE) {
+                                          index_exact = NA) {
   scale_families <- c("lognormal", "gengamma")
   # The proportional-hazards Weibull and Gompertz are deliberately NOT here.
   # Their ridge width does not shrink with the auxiliary at all, so their
@@ -519,7 +523,13 @@
   # comparator divergence is left whole. So this consults `index_exact`, set
   # only where that function established an exact, constant or saturated
   # event design, rather than inferring it from the absent bound.
-  spfa_shared <- shared_aux && identical(model, "spfa") && isTRUE(index_exact)
+  # `FALSE` and only `FALSE` rules the incompatibility out, because only that
+  # says the index pins nothing. An unsettled status leaves open that the
+  # index IS exact with a solution set the comparator's node-specific slopes
+  # miss, which is the same proper configuration the branch below reports, so
+  # refusing there would state a certainty the data do not carry.
+  spfa_shared <- shared_aux && identical(model, "spfa") &&
+    !identical(index_exact, FALSE)
   pseudo <- data$agd$pseudo_ipd
   if (is.null(pseudo) || !nrow(pseudo)) return(invisible(FALSE))
   status <- pseudo$.status
@@ -538,6 +548,10 @@
   } else {
     as.character(pseudo$.arm)
   }
+  start <- suppressWarnings(as.numeric(pseudo$.start_time %||%
+                                         rep(0, nrow(pseudo))))
+  delay <- suppressWarnings(as.numeric(pseudo$.delay_time %||%
+                                         rep(0, nrow(pseudo))))
   # How many linear predictors the arm's grid can reach independently: the
   # `k` matching equations are solvable only up to this rank. It is
   # `1 + n_cov` for any grid that is not degenerate, and less when the
@@ -628,9 +642,39 @@
     # +1.000; the same pair on 20 nodes stays divergent at +1.000, with the
     # maximum at slope -1.06. An interval-censored row is two-sided by
     # itself and gets the same treatment.
-    cens <- status[arm == a & !events]
-    cens <- cens[!is.na(cens)]
-    one_sided <- !length(cens) || all(cens == 0L) || all(cens == 2L)
+    # Which side a censored row needs is geometry, not its status code. Each
+    # one is satisfied, meaning its region probability tends to one rather
+    # than to zero, on a set of linear predictors:
+    #
+    # * right-censored at `c`: satisfied above `log(c)`, whatever its entry,
+    #   since pushing a node past `c` sends `S(c) / S(entry)` to one.
+    # * left-censored at `u`: satisfied below `log(u)`. Below its entry too,
+    #   because conditioning on survival to the entry piles the mass just
+    #   above it and that pile is inside `(entry, u]`.
+    # * interval `(s, t]` opening ABOVE its entry: satisfied only between
+    #   `log(s)` and `log(t)`. The pile at the entry sits below `s` and
+    #   outside the interval, so this one is genuinely two-sided.
+    # * interval opening AT its entry: the pile is inside it, so the set is
+    #   everything below `log(t)`, and the row is one-sided like a
+    #   left-censored one. `start > delay` is exactly the distinction
+    #   [.check_survival_scale_collapse()] already draws for the same reason.
+    #
+    # One free direction clears every row only when all of those sets are
+    # rays pointing the same way.
+    cens_rows <- which(arm == a & !events)
+    side <- vapply(cens_rows, function(i) {
+      st <- status[i]
+      if (is.na(st)) return(NA_character_)
+      if (st == 0L) return("above")
+      if (st == 2L) return("below")
+      if (st != 3L) return(NA_character_)
+      opens <- isTRUE(is.finite(start[i]) && is.finite(delay[i]) &&
+                        start[i] > delay[i])
+      if (opens) "bounded" else "below"
+    }, "")
+    one_sided <- !length(side) ||
+      (!anyNA(side) && !any(side == "bounded") && length(unique(side)) == 1L)
+    cens <- side
     if (m - k > worst) {
       worst <- m - k
       info <- list(m = m, k = k, reach = reachable,
@@ -1211,9 +1255,10 @@
 #'   censored row that bounds). Anything else means this function did not
 #'   establish that, which is not the same as establishing the opposite.
 #'   [.check_comparator_tied_events()] reads it under `aux_by = "none"`. A
-#'   shared-auxiliary warning also carries `index_exact`, which is `TRUE` only
-#'   when the index event design was shown to reproduce its own times and so
-#'   pins a shared coefficient vector.
+#'   shared-auxiliary warning also carries `index_exact`: `TRUE` when the index
+#'   event design was shown to reproduce its own times and so pins a shared
+#'   coefficient vector, `FALSE` only where it was shown to pin nothing, which
+#'   an index with no events is, and `NA` where the question was not settled.
 #' @keywords internal
 .check_survival_scale_collapse <- function(data, distribution,
                                            aux_by = ".study",
@@ -1291,7 +1336,14 @@
     return(invisible(FALSE))
   }
   events <- status == 1L
-  if (!any(events)) return(invisible(FALSE))
+  # An index with no events pins no coefficient vector at all, which is a
+  # DETERMINATION and not a bail-out: `mu_index` can rise above every
+  # censoring time, so the index likelihood tends to one at the boundary and
+  # suppresses nothing. Say so, rather than returning the same silence as the
+  # cases below that simply did not ask.
+  if (!any(events)) {
+    return(invisible(structure(FALSE, index_exact = FALSE)))
+  }
   covariates <- as.matrix(ipd[, data$covariates, drop = FALSE])
   # The guard stays on the LOG time whichever scale the fit is read on: a
   # time of zero is finite on the time scale, but its profile maximizer is
@@ -1418,9 +1470,17 @@
     # return above, an index with no events among them, never asked.
     # [.check_comparator_tied_events()] reads it before treating an SPFA
     # shared slope as constrained.
+    # Three-valued on purpose. `undecidable`, `unresolved` and
+    # `unresolved_log` did not establish a positive residual, so calling them
+    # "not exact" would turn an open question into a definite verdict
+    # downstream; they report NA instead.
     return(invisible(structure(
       TRUE,
-      index_exact = s$status %in% c("exact", "constant", "saturated")
+      index_exact = if (s$status %in% c("exact", "constant", "saturated")) {
+        TRUE
+      } else {
+        NA
+      }
     )))
   }
 
@@ -2967,7 +3027,7 @@ mlumr <- function(data,
       aux_by = aux_by,
       index_bounds_aux = isTRUE(attr(index_collapse, "bounds_aux")),
       model = model,
-      index_exact = isTRUE(attr(index_collapse, "index_exact"))
+      index_exact = attr(index_collapse, "index_exact") %||% NA
     )
   }
 

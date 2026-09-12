@@ -10,7 +10,7 @@
   aux_by = ".study",
   index_bounds_aux = FALSE,
   model = "relaxed",
-  index_exact = FALSE
+  index_exact = NA
 )
 }
 \arguments{
@@ -150,9 +150,13 @@ and a single node is left, so a right-censored row at \code{t = 2} together
 with a left-censored row at \code{t = 0.5} collapses whichever node is matched,
 while either row ALONE leaves rate +1.000. The same pair on 20 nodes stays
 divergent at +1.000, with the maximum at slope -1.06. An interval-censored
-row is two-sided by itself and joins that case. Settling it means
-searching the free direction against every censoring region, which this
-does not do.
+row joins that case only when it opens ABOVE its delayed entry; one that
+opens AT its entry is one-sided, because conditioning on survival to the
+entry piles the mass just above it and that pile lies inside the interval,
+so a node pushed below clears the row exactly as a left-censored one does.
+Which side a row needs is read from its region and its entry, not from its
+status code. Settling the genuinely two-sided case means searching the free
+direction against every censoring region, which this does not do.
 
 Both are reported rather than refused, scale family or not.
 

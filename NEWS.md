@@ -164,8 +164,17 @@
   side: with `n_int = 2` a right-censored row at `t = 2` together with a
   left-censored row at `t = 0.5` collapses whichever node is matched, while
   either alone leaves rate +1.000, and the same pair on 20 nodes stays
-  divergent at +1.000. An interval-censored row is two-sided by itself. Such
-  an arm is reported rather than refused, scale family or not.
+  divergent at +1.000. Such an arm is reported rather than refused, scale
+  family or not.
+
+  Which side a row needs is read from its region and its delayed entry, not
+  from its status code. A right-censored row is satisfied above its time and a
+  left-censored one below its bound, including below its entry, since
+  conditioning on survival to the entry piles the mass just above it and that
+  pile lies inside the region. An interval-censored row is two-sided only when
+  it opens strictly above its entry; one that opens AT its entry has that pile
+  inside it and is one-sided like a left-censored row, so such an arm keeps
+  the refusal.
 
   Distinctness is counted on the scale the density matches, which for every
   family this examines is `log(time)`. Two distinct doubles can share a
@@ -225,7 +234,13 @@
   all, its `mu_index` rising above every censoring time so that its
   likelihood tends to one while the comparator divergence is left whole. The
   index guard now reports what it established in an `index_exact` attribute
-  and the comparator check reads it.
+  and the comparator check reads it. That attribute is three-valued: `FALSE`
+  only where the index was shown to pin nothing, `TRUE` where its event
+  design reproduces its own times, and `NA` where the question was not
+  settled. `undecidable` and `unresolved` leave it `NA` rather than `FALSE`,
+  since those do not establish a positive residual and the index may yet be
+  exact with a solution set the comparator's slopes miss, which is the same
+  proper configuration the branch reports.
 
   This is a restriction on the quadrature and not a defect of the model it
   approximates, which matters for what the fix eventually is. Integrating a
