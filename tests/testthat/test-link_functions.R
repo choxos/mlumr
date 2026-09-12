@@ -307,3 +307,69 @@ test_that("bound_probability corrects only the boundaries", {
   expect_true(all(bound_probability(c(0, 1), n = 10) > 0))
   expect_true(all(bound_probability(c(0, 1), n = 10) < 1))
 })
+
+test_that("a log mean close to zero keeps the correction that is its content", {
+  w <- mlumr:::.weighted_log_mean_exp
+  # Values whose difference is below the spacing of one. Shifting by the
+  # maximum and subtracting two log sums cancels them to zero and returns
+  # the maximum, which is the mean's largest term rather than its mean. For
+  # `-exp(c(-40, -39))` that is -4.25e-18 against a mean of -7.90e-18, a
+  # relative error of 46% in a quantity the cloglog gradient divides by.
+  #
+  # The reference is algebraic: for `x_i` this far below the spacing of one,
+  # `log(mean(exp(x)))` is `mean(x)` to every representable digit, since the
+  # next term is of order `x^2` and 1e-35 cannot perturb 1e-18.
+  for (e in list(c(-40, -39), c(-45, -44), c(-50, -40), c(-60, -59.5))) {
+    x <- -exp(e)
+    expect_equal(w(x, c(1, 1)), mean(x), tolerance = 1e-13,
+                 label = paste("equal weights", e[1], e[2]))
+    expect_equal(w(x, c(1, 3)), sum(c(0.25, 0.75) * x), tolerance = 1e-13,
+                 label = paste("weights 1:3", e[1], e[2]))
+  }
+  # Identical values are their own mean EXACTLY, however they are weighted.
+  # `.stc_binomial_gradients()` builds its shares as `exp(x - mean)` and
+  # needs them to sum to one, so this is an exact requirement rather than an
+  # approximate one, across the whole range.
+  for (v in c(-exp(40), -exp(-40), -1e-300, 0, 1, 1e300)) {
+    expect_identical(w(rep(v, 4L), c(1, 2, 3, 4)), v)
+    expect_identical(w(rep(v, 2L), c(1, 1)), v)
+  }
+  # Extreme WEIGHTS must not decide it either. The shifted form works in
+  # logs and gets this for free; the near-one form has to normalize by the
+  # largest weight. Raw weights failed at both ends, returning 0 for a mean
+  # of -7.9e-18: `c(1e308, 1e308)` overflows their sum to `Inf`, and
+  # `c(1e-320, 1e-320)` underflows the numerator to zero.
+  x <- -exp(c(-40, -39))
+  for (wt in list(c(1e308, 1e308), c(1e-320, 1e-320), c(1, 1),
+                  c(1e-320, 3e-320), c(2e307, 6e307))) {
+    scaled <- wt / max(wt)
+    expect_equal(w(x, wt), sum(scaled * x) / sum(scaled), tolerance = 1e-13,
+                 label = sprintf("weights %.1e %.1e", wt[1], wt[2]))
+  }
+  # A single huge weight beside a zero one is the same point mass.
+  expect_identical(w(c(-1e-18, -5e-18), c(1e308, 0)), -1e-18)
+
+  # A mean near ONE is what the near-one form is for. A mean near ZERO is
+  # what it must not be used for, even when the largest value is near zero:
+  # `log1p(y)` needs `1 + y`, and a `y` within rounding of -1 has already
+  # lost the digits that difference is made of. `x = c(0, -100)` with
+  # `weights = c(3, 1e16)` averages to -0.99999999999999978, whose `log1p`
+  # is -36.0437 where the mean is `log(3 / (3 + 1e16))` = -35.7427. The
+  # shifted form keeps it, so the branch has to hand those back.
+  expect_equal(w(c(0, -100), c(3, 1e16)), log(3) - log(3 + 1e16),
+               tolerance = 1e-12)
+  expect_equal(w(c(0, -200), c(1, 1e20)), log(1) - log(1 + 1e20),
+               tolerance = 1e-12)
+  # The same shape with the weights the other way round is dominated by the
+  # value at zero and is an ordinary near-one mean.
+  expect_equal(w(c(0, -100), c(1e16, 3)),
+               log(1e16 / (1e16 + 3)), tolerance = 1e-15)
+
+  # The wide and very negative cases keep the shifted form, which is the
+  # accurate one there: an absolute error of order eps matters only when the
+  # answer is itself near zero.
+  expect_equal(w(c(-800, -800), c(1, 1)), -800, tolerance = 1e-15)
+  expect_equal(w(c(0, -Inf), c(1, 1)), log(0.5), tolerance = 1e-15)
+  expect_equal(w(c(-1000, 0), c(1, 1)), log(0.5), tolerance = 1e-12)
+  expect_identical(w(c(Inf, 0), c(1, 1)), Inf)
+})

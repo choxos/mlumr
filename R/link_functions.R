@@ -212,6 +212,51 @@ inverse_link <- function(x, link = c("identity", "log", "logit", "probit", "clog
   # what makes the shares in [.stc_binomial_gradients()] normalize.
   m_x <- max(x)
   if (is.infinite(m_x)) return(m_x)
+  # Identical values have the maximum as their mean however they are
+  # weighted, and [.stc_binomial_gradients()] relies on that holding
+  # EXACTLY: its shares are `exp(x - mean)` and have to sum to one. The
+  # cancellation below does deliver it, but only as an accident of the
+  # arithmetic, so say it outright.
+  if (all(x == m_x)) return(m_x)
+  # Close to a probability of one the logarithm of the mean IS the
+  # correction, and the shift below throws it away. The complementary
+  # log-log non-event log probability is `-exp(eta)`, which at
+  # `eta = c(-40, -39)` is `c(-4.25e-18, -1.15e-17)`: the shifted difference
+  # is -7.3e-18, `exp()` of it rounds to exactly 1, the two log sums cancel
+  # to zero and the bare maximum is returned. That is -4.25e-18 where the
+  # mean is -7.90e-18, a relative error of 46% in a quantity the cloglog
+  # gradient DIVIDES by, so `.stc_binomial_gradients()` returned
+  # `(1 + e) / 2 = 1.859` for a derivative whose 90-digit value is 1.000,
+  # and 2.289 with weights `c(1, 3)`.
+  #
+  # `log1p(sum(w * expm1(x)) / sum(w))` is the same mean with nothing to
+  # cancel: every `expm1(x_i)` keeps full relative accuracy for tiny `x_i`,
+  # the terms share a sign so the sum does too, and `log1p` inverts it. It
+  # is used only where it is also the safe form, `m_x` in `(-1, 0]`, since
+  # `expm1` of a large positive value overflows and a mean that underflows
+  # to zero would come back as `log1p(-1)`. Outside that range the shift is
+  # the accurate one: its error is absolute and of order `eps`, which only
+  # matters when the answer itself is near zero.
+  if (m_x <= 0 && m_x > -1) {
+    # Normalized by the largest weight, which the shifted form below gets for
+    # free by working in logs and this one does not. Raw weights break it at
+    # both ends: `c(1e308, 1e308)` overflows `sum(weights)` to `Inf` and
+    # returns 0 for a mean of -7.9e-18, and `c(1e-320, 1e-320)` underflows
+    # the numerator to 0 and returns 0 for the same mean. Every weight here
+    # is finite and positive, the zeros having been dropped above, so the
+    # largest is a safe divisor and the ratio is unchanged by it.
+    scaled <- weights / max(weights)
+    mean_expm1 <- sum(scaled * expm1(x)) / sum(scaled)
+    # Only where the mean is near ONE, which is the whole reason for this
+    # form. Near zero it is the wrong one: `log1p(y)` needs `1 + y`, and a
+    # `y` within rounding of -1 has already lost the digits that difference
+    # is made of. `x = c(0, -100)` with `weights = c(3, 1e16)` averages to
+    # -0.99999999999999978, whose `log1p` is -36.0437 where the mean is
+    # `log(3 / (3 + 1e16))` = -35.7427. Past -0.5 the shifted form below is
+    # the accurate one anyway: its error is absolute and of order eps
+    # against an answer of at least log(0.5), a relative 3e-16.
+    if (mean_expm1 > -0.5) return(log1p(mean_expm1))
+  }
   z <- (x - m_x) + log_weights
   m_num <- max(z)
   m_den <- max(log_weights)

@@ -174,6 +174,54 @@ test_that("the gradients stay finite in tails the probabilities cannot represent
   expect_false(all(is.finite(g_inf$link)))
 })
 
+test_that("a heterogeneous cloglog lower tail keeps its link gradient", {
+  # The non-event log probability is `-exp(eta)`, so at `eta = c(-40, -39)`
+  # the two values are `c(-4.25e-18, -1.15e-17)` and their difference is
+  # below the spacing of 1. `.weighted_log_mean_exp()` shifted by the larger
+  # and the two log sums cancelled, returning the bare maximum: -4.25e-18
+  # where the mean is -7.90e-18. The cloglog link gradient DIVIDES by that
+  # mean, so an intercept derivative whose value is 1 came back as
+  # `(1 + e) / 2 = 1.859`, and 2.289 with weights `c(1, 3)`.
+  #
+  # The reference is algebraic and does not go through the helper. With
+  # every `h_i = exp(eta_i)` far below the point where `exp(-h)` rounds to
+  # one, the derivative of `log(-log(q-bar))` in a coefficient is
+  # `sum(w_i h_i X_i) / sum(w_i h_i)`, since `q-bar` is one and
+  # `-log(q-bar)` is the weighted mean of the `h_i` to every representable
+  # digit: the next term is of order `h^2`, which is 1e-35 here.
+  for (pair in list(c(-40, -39), c(-36, -35), c(-34, -33), c(-60, -50))) {
+    for (wt in list(c(1, 1), c(1, 3), c(3, 1))) {
+      h <- exp(pair)
+      w <- wt / sum(wt)
+      g <- mlumr:::.stc_binomial_gradients(matrix(1, 2L, 1L), pair, wt,
+                                           "cloglog")
+      # An intercept moves every `eta_i` together, so its derivative is one
+      # whatever the weights are: the reference above reduces to
+      # `sum(w h) / sum(w h)`.
+      expect_equal(unname(g$link), 1, tolerance = 1e-9,
+                   label = paste("intercept", pair[1], pair[2],
+                                 wt[1], wt[2]))
+      X <- cbind(1, c(0, 1))
+      g2 <- mlumr:::.stc_binomial_gradients(X, pair, wt, "cloglog")
+      expect_equal(unname(g2$link),
+                   colSums(w * h * X) / sum(w * h), tolerance = 1e-9,
+                   label = paste("slope", pair[1], pair[2], wt[1], wt[2]))
+    }
+  }
+  # The two-column case the report names: `e / (1 + e)` in the slope.
+  g <- mlumr:::.stc_binomial_gradients(cbind(1, c(0, 1)), c(-40, -39),
+                                       c(1, 1), "cloglog")
+  expect_equal(unname(g$link), c(1, exp(1) / (1 + exp(1))), tolerance = 1e-9)
+  # The upper tail and the identical-profile invariants are separate tests
+  # and must not move: a lower-tail repair that reinstated the replication
+  # defect would be no repair at all.
+  for (n in c(1L, 16L, 128L)) {
+    gu <- mlumr:::.stc_binomial_gradients(matrix(1, n, 1L), rep(40, n),
+                                          rep(1, n), "cloglog")
+    expect_equal(unname(gu$link), 1, tolerance = 1e-9)
+  }
+})
+
 test_that("replicating one target profile does not change the link gradient", {
   # A target made of copies of a single profile is the same point mass
   # however many copies it holds, and standardizing a point mass returns
