@@ -349,6 +349,22 @@ test_that("a log mean close to zero keeps the correction that is its content", {
   # A single huge weight beside a zero one is the same point mass.
   expect_identical(w(c(-1e-18, -5e-18), c(1e308, 0)), -1e-18)
 
+  # A mean near ONE is what the near-one form is for. A mean near ZERO is
+  # what it must not be used for, even when the largest value is near zero:
+  # `log1p(y)` needs `1 + y`, and a `y` within rounding of -1 has already
+  # lost the digits that difference is made of. `x = c(0, -100)` with
+  # `weights = c(3, 1e16)` averages to -0.99999999999999978, whose `log1p`
+  # is -36.0437 where the mean is `log(3 / (3 + 1e16))` = -35.7427. The
+  # shifted form keeps it, so the branch has to hand those back.
+  expect_equal(w(c(0, -100), c(3, 1e16)), log(3) - log(3 + 1e16),
+               tolerance = 1e-12)
+  expect_equal(w(c(0, -200), c(1, 1e20)), log(1) - log(1 + 1e20),
+               tolerance = 1e-12)
+  # The same shape with the weights the other way round is dominated by the
+  # value at zero and is an ordinary near-one mean.
+  expect_equal(w(c(0, -100), c(1e16, 3)),
+               log(1e16 / (1e16 + 3)), tolerance = 1e-15)
+
   # The wide and very negative cases keep the shifted form, which is the
   # accurate one there: an absolute error of order eps matters only when the
   # answer is itself near zero.

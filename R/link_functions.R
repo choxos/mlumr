@@ -247,7 +247,15 @@ inverse_link <- function(x, link = c("identity", "log", "logit", "probit", "clog
     # largest is a safe divisor and the ratio is unchanged by it.
     scaled <- weights / max(weights)
     mean_expm1 <- sum(scaled * expm1(x)) / sum(scaled)
-    if (mean_expm1 > -1) return(log1p(mean_expm1))
+    # Only where the mean is near ONE, which is the whole reason for this
+    # form. Near zero it is the wrong one: `log1p(y)` needs `1 + y`, and a
+    # `y` within rounding of -1 has already lost the digits that difference
+    # is made of. `x = c(0, -100)` with `weights = c(3, 1e16)` averages to
+    # -0.99999999999999978, whose `log1p` is -36.0437 where the mean is
+    # `log(3 / (3 + 1e16))` = -35.7427. Past -0.5 the shifted form below is
+    # the accurate one anyway: its error is absolute and of order eps
+    # against an answer of at least log(0.5), a relative 3e-16.
+    if (mean_expm1 > -0.5) return(log1p(mean_expm1))
   }
   z <- (x - m_x) + log_weights
   m_num <- max(z)
