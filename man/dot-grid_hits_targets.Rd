@@ -13,7 +13,8 @@
 }
 \value{
 \code{TRUE} only where an exact map was found, \code{FALSE} where the
-enumeration excluded every candidate, and \code{NA} where the case was not
+enumeration excluded every candidate it examined, and \code{NA} where the
+case was not
 decided: more than one covariate, a grid past the enumeration budget, or
 a candidate that is close without being exact.
 }

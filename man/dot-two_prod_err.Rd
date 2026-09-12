@@ -12,7 +12,8 @@
 \item{p}{Their computed product.}
 }
 \value{
-The exact rounding error.
+The exact rounding error, or \code{NaN} where the transformation does
+not hold.
 }
 \description{
 Dekker's TwoProduct by splitting, since R exposes no fused multiply-add.
@@ -24,5 +25,15 @@ pairwise products are exact, so for \code{p = a * b} the returned \code{e} satis
 The split multiplies by \code{2^27 + 1}, so an operand within a factor of
 \code{2^27} of the overflow threshold returns a non-finite error. That reads as
 "not exact", which is the safe direction here.
+
+The transformation also fails at the OTHER end, and there it fails
+quietly: when the product underflows, the half-products do too, and the
+returned error is zero even though \code{p} is not \code{a * b}. A zero error would
+then be read as proof of exactness. Operands of \code{6.66e-16} and \code{1e-310}
+have a nonzero product that underflows to \code{0}, and the error comes back
+\code{0}. So a product that is nonzero in principle but below the range where
+the transformation is valid returns \code{NaN}, which reads as "not exact".
+The bound is \code{2^-969}, the standard sufficient condition for Dekker's
+splitting on a binary64 double.
 }
 \keyword{internal}

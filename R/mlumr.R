@@ -265,9 +265,20 @@
 #' `2^27` of the overflow threshold returns a non-finite error. That reads as
 #' "not exact", which is the safe direction here.
 #'
+#' The transformation also fails at the OTHER end, and there it fails
+#' quietly: when the product underflows, the half-products do too, and the
+#' returned error is zero even though `p` is not `a * b`. A zero error would
+#' then be read as proof of exactness. Operands of `6.66e-16` and `1e-310`
+#' have a nonzero product that underflows to `0`, and the error comes back
+#' `0`. So a product that is nonzero in principle but below the range where
+#' the transformation is valid returns `NaN`, which reads as "not exact".
+#' The bound is `2^-969`, the standard sufficient condition for Dekker's
+#' splitting on a binary64 double.
+#'
 #' @param a,b The operands.
 #' @param p Their computed product.
-#' @return The exact rounding error.
+#' @return The exact rounding error, or `NaN` where the transformation does
+#'   not hold.
 #' @keywords internal
 .two_prod_err <- function(a, b, p) {
   big <- 134217729                      # 2^27 + 1
@@ -277,7 +288,13 @@
   cb <- big * b
   bh <- cb - (cb - b)
   bl <- b - bh
-  ((ah * bh - p) + ah * bl + al * bh) + al * bl
+  e <- ((ah * bh - p) + ah * bl + al * bh) + al * bl
+  # A product of two nonzero operands that lands in or below the subnormal
+  # range is outside the transformation's domain. An exact zero from a zero
+  # operand is not, and stays exact.
+  invalid <- a != 0 & b != 0 & abs(p) < 2^-969
+  e[invalid] <- NaN
+  e
 }
 
 #' Can one affine map send every target onto a grid node?
@@ -320,7 +337,8 @@
 #' @param nodes The arm's integration nodes, one row per node.
 #' @param targets The arm's event targets, on the scale the density matches.
 #' @return `TRUE` only where an exact map was found, `FALSE` where the
-#'   enumeration excluded every candidate, and `NA` where the case was not
+#'   enumeration excluded every candidate it examined, and `NA` where the
+#'   case was not
 #'   decided: more than one covariate, a grid past the enumeration budget, or
 #'   a candidate that is close without being exact.
 #' @keywords internal

@@ -549,6 +549,22 @@ test_that("the exact-arithmetic probes report what they promise", {
   expect_true(tp(a, a, a * a) != 0)
   expect_equal(tp(a, a, a * a), 2^-104)
   expect_equal(a * a, 1 + 2^-51)
+  # The product transformation fails quietly at the bottom of the range: a
+  # product that underflows takes its half-products with it, so the error
+  # comes back zero while `p` is not `a * b`. That must not read as exact.
+  expect_equal(6.661338147750939e-16 * 1e-310, 0)
+  expect_true(is.nan(tp(6.661338147750939e-16, 1e-310, 0)))
+  # A zero operand gives a genuinely exact zero and is not affected.
+  expect_true(tp(0, 1e-310, 0) == 0)
+  expect_true(tp(1e-310, 0, 0) == 0)
+})
+
+test_that("an underflowed determinant does not certify a match", {
+  g <- mlumr:::.grid_hits_targets
+  # Both determinant products underflow to zero here, so a determinant test
+  # that trusted a computed zero would certify a ridge that does not exist.
+  expect_false(isTRUE(g(matrix(c(0, 1e-310, 2e-310), ncol = 1L),
+                        c(0, 2^-52, 3 * 2^-52))))
 })
 
 test_that("the enumeration cutoff declines instead of overflowing", {
