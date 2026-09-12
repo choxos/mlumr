@@ -49,29 +49,52 @@ are solvable exactly when \code{k} is at most the dimension the grid can reach,
 \code{rank(cbind(1, X_int))}, which is \code{1 + n_cov} for any grid that is not
 degenerate.
 
-Write \code{aux} for the auxiliary's DISTANCE from the boundary it runs to:
-\code{sdlog} itself for the scale families, which diverge at zero, and
-\code{1 / shape} for the shape families, which diverge at infinity. On that one
-scale the geometry is the same for both, and the statements below hold for
-each.
+All \code{m} rows are matched on the solution set, so every one of them stands
+on a spike whose height grows as the auxiliary approaches its boundary,
+while the set is pinned only in the \code{k} directions the equations fix and
+its transverse width shrinks in each of those. The rate is the difference,
+and neither factor is shared across families. The height and the width,
+per family:
+\itemize{
+\item \code{lognormal} and \code{gengamma}: height \code{1 / sdlog}, width \code{sdlog}. Rate
+\code{m - k} as the scale goes to zero. Measured over 20 midpoint normal
+nodes with the coefficients integrated against normal priors,
+\verb{d log M / d log sdlog} is -0.000, -1.000 and -2.000 across \verb{1,4},
+\verb{1,1,4} and \verb{1,1,4,4}.
+\item \code{weibull-aft} and \code{loglogistic}: height \code{shape}, width \code{1 / shape}. Rate
+\code{m - k} as the shape grows. \verb{d log M / d log shape} is +0.000, +1.000
+and +2.000 on the same three, for both. A row's own integral over its
+linear predictor is exactly \verb{shape^(m - 1) t^-m Gamma(m) / m^m} for \code{m}
+rows on one time, which is that rate at \code{k = 1}.
+\item \code{gamma}: height \code{sqrt(shape)}, width \code{1 / sqrt(shape)}, so the rate is
+HALF, \code{(m - k) / 2}. The Stan density (\code{dist == 8} in
+\code{survival_functions.stan}) is \verb{k u - e^u - log t - lgamma(k)} for
+\verb{u = log t - eta}, peaking at \verb{u = log k} with value about \verb{0.5 log k}
+and curvature \code{-k}. For \code{m} rows on one time the integral is exactly
+\verb{Gamma(m k) / m^(m k) / Gamma(k)^m}, whose slope in \verb{log k} is
+\code{(m - 1) / 2}: 0.500002, 1.000003 and 1.500005 for \code{m} of 2, 3 and 4,
+the closed form agreeing with quadrature to 7e-12 at \code{k} of 10 to 1000.
+Reporting \code{m - k} here would claim non-integrability against a half-t
+\code{prior_aux} with degrees of freedom in (0.5, 1) that does integrate it.
+\item \code{weibull} (proportional hazards) and \code{gompertz}: height \code{shape}, and the
+width does NOT shrink. The PH cumulative hazard is \verb{t^shape e^eta}, so
+profiling a row over \code{eta} leaves curvature -1 whatever the shape is,
+and Gompertz's \verb{e^eta expm1(shape t) / shape} does the same. The volume
+contributes nothing, the rate is \code{m} regardless of \code{k}, and what stops
+it is the COEFFICIENT priors rather than \code{prior_aux}: the ridge sits at
+\verb{-shape log t} and at about \verb{log(shape) - shape t}. Measured with the
+coefficient priors out: +2.000, +2.000, +3.000 and +4.000 across \verb{1,1},
+\verb{1,4}, \verb{1,1,4} and \verb{1,1,4,4}, which is \code{m} and not \code{m - k}. With
+\code{normal(0, 10)} and \code{normal(0, 1)} in, PH Weibull keeps +2.000 for two
+events at \code{t = 1}, where \verb{log t} is zero and the ridge does not move,
+and collapses by 9e6 per decade at \code{t = 4}; Gompertz collapses
+everywhere, since \code{shape * t} displaces it even at \code{t = 1}.
+}
 
-All \code{m} rows are matched on the solution set, so the profile likelihood
-carries \code{aux^-m}, while the set is pinned only in the \code{k} directions the
-equations fix and its transverse width is proportional to \code{aux} in each:
-the coefficient volume is \code{aux^k}. With the coefficients integrated out
-the marginal behaves as \code{aux^(k - m)}, which is \code{(1 / sdlog)^(m - k)} for
-a scale family and \code{shape^(m - k)} for a shape one. Measured over 20
-midpoint normal nodes with the coefficients integrated against normal
-priors, \verb{d log M / d log sdlog} is -0.000 for two events at different
-times, -1.000 for three events on two distinct times, and -2.000 for four
-on two, while \verb{d log M / d log shape} for \code{weibull-aft} on the same
-configurations is +0.000, +1.000 and +2.000: same rate, opposite
-direction, because the two run to opposite boundaries.
-
-So the divergence is \code{m - k} and needs a REPEAT to exist at all. The
-profile maximum, by contrast, grows as \code{aux^-m} in every one of those
-cases including the convergent one, which is why the volume and not the
-profile is what this reasons about.
+So it takes a REPEAT for any of these to be nonzero. The profile maximum,
+by contrast, grows in every one of those cases including the convergent
+ones, which is why the volume and not the profile is what this reasons
+about.
 
 Past the grid's reach there is no divergence to refuse. With \code{k} greater
 than \code{rank(cbind(1, X_int))} the \code{k} equations have no solution, the best
@@ -84,15 +107,39 @@ the same times over 64 nodes leave \code{d = 3.62e-5} and peak at 1e-5 instead,
 collapsing from 1e-6 on. A finer grid moves the collapse out; it does not
 remove it, and the posterior is proper either way. A measured slope over
 any fixed range of the auxiliary cannot tell the two apart, so the test
-here is structural: \code{k} against the reach, never a slope.
+here is structural: \code{k} against the reach, never a slope. The reach is the
+EXACT rank, since a grid whose columns are independent but badly scaled
+reads as deficient at \code{qr()}'s default tolerance while the direction is
+still there and the prior is still positive where the ridge sits.
 
-That measurement is also why the two groups are not treated the same.
-The scale families diverge as \code{sdlog} goes to zero, where every supported
-prior has positive density, so no prior repairs it and the fit is
-refused. The shape families diverge as the shape grows, where
-\code{shape^(m - k)} meets the prior's tail instead: a half-normal or an
-exponential integrates it and a half-t need not, so propriety there is a
-property of \code{prior_aux} and the fit is warned about rather than refused.
+A censored row in the same arm can suppress this, and whether it does
+turns on the same \code{k} against the reach. Its own contribution is a
+mixture over the grid too, \verb{log_sum_exp(log S) - log(n_int)}, so it
+vanishes only if EVERY node's region probability vanishes. When \code{k} is
+below the reach the ridge has a free direction, the node linear predictors
+are affine in it with both signs present, and moving along it sends some
+node past any censoring time: that node holds the row's mixture at
+\code{1 / n_int} and the divergence survives there with positive prior
+density. Measured on 20 nodes, two events at \code{t = 1} and a right-censored
+row at \code{t = 2}, reading the ridge as the line where a node reproduces the
+event time: rate +1.000, with the maximum at slope 0.80, past the 0.24
+where a node clears \verb{log 2}. When \code{k} equals the reach the ridge is
+isolated points and a censored row can cover all of them: on a point-mass
+grid two events at \code{t = 1} with a right-censored row at \code{t = 2} collapse,
+while the same row at \code{t = 0.5} leaves rate +1.000, because the ridge is
+outside its region. Deciding that means enumerating \code{choose(n_int, k)}
+ridge points, so it is not decided: the arm is reported rather than
+refused, scale family or not.
+
+What the rate then decides also differs. The scale families diverge as
+\code{sdlog} goes to zero, where every supported prior has positive density,
+so no prior repairs it and the fit is refused. \code{weibull-aft},
+\code{loglogistic} and \code{gamma} diverge as the shape grows, where the rate meets
+\code{prior_aux}'s tail instead: a half-normal or an exponential integrates it
+and a half-t need not, so propriety there is a property of that prior and
+the fit is warned about. For the PH Weibull and Gompertz the coefficient
+priors decide instead, and the warning says so rather than naming a
+\code{prior_aux} conclusion it does not have.
 
 \strong{This is a restriction on an approximation, not a repair of a model.}
 The continuously integrated counterpart is PROPER for the same data.

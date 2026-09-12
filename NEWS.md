@@ -107,27 +107,66 @@
   `rank(cbind(1, X_int))`, which is `1 + n_cov` for any grid that is not
   degenerate.
 
-  Write `aux` for the auxiliary's distance from the boundary it runs to,
-  `sdlog` itself for the scale families and `1 / shape` for the shape ones,
-  and the geometry is the same for both. All `m` rows are matched on the
-  solution set, so the profile likelihood carries `aux^-m`, while the set is
-  pinned in only the `k` directions the equations fix and its width is
-  proportional to `aux` in each: the coefficient volume is `aux^k`. With the
-  coefficients integrated out the marginal behaves as `aux^(k - m)`, which is
-  `(1 / sdlog)^(m - k)` for a scale family and `shape^(m - k)` for a shape
-  one. Measured over 20 midpoint normal nodes with the coefficients
-  integrated against normal priors, `d log M / d log sdlog` is -0.000 for two
-  events at different times, -1.000 for three events on two distinct times,
-  and -2.000 for four on two, while `d log M / d log shape` for
-  `weibull-aft` on the same configurations is +0.000, +1.000 and +2.000: the
-  same rate against opposite boundaries.
+  All `m` rows are matched on the solution set, so each stands on a spike
+  that grows as the auxiliary approaches its boundary, while the set is
+  pinned in only the `k` directions the equations fix and its width shrinks
+  in each of those. The rate is the difference, and neither factor is shared
+  across families:
 
-  So the divergence is `m - k` and needs a repeat to exist at all, event
-  times that are all distinct leave rate zero however many there are, and
-  tied CENSORED times contribute a survival probability rather than a density
-  spike. The profile maximum, by contrast, grows as `aux^-m` in every one of
-  those cases including the convergent one, which is why the volume and not
-  the profile is what decides this.
+  * `lognormal` and `gengamma`: height `1 / sdlog`, width `sdlog`, rate
+    `m - k` as the scale goes to zero. Measured over 20 midpoint normal
+    nodes with the coefficients integrated against normal priors,
+    `d log M / d log sdlog` is -0.000, -1.000 and -2.000 across `1,4`,
+    `1,1,4` and `1,1,4,4`.
+  * `weibull-aft` and `loglogistic`: height `shape`, width `1 / shape`, rate
+    `m - k` as the shape grows. `d log M / d log shape` is +0.000, +1.000
+    and +2.000 on the same three, for both.
+  * `gamma`: height `sqrt(shape)`, width `1 / sqrt(shape)`, so the rate is
+    half, `(m - k) / 2`. For `m` rows on one time the integral is exactly
+    `Gamma(m k) / m^(m k) / Gamma(k)^m`, whose slope in `log k` is
+    `(m - 1) / 2`: 0.500002, 1.000003 and 1.500005 for `m` of 2, 3 and 4,
+    the closed form agreeing with quadrature to 7e-12 at `k` of 10 to 1000.
+    Reporting `m - k` would claim non-integrability against a half-t
+    `prior_aux` with degrees of freedom in (0.5, 1) that does integrate it.
+  * `weibull` (proportional hazards) and `gompertz`: height `shape`, and the
+    width does not shrink at all, since `t^shape e^eta` and
+    `e^eta expm1(shape t) / shape` both leave a row's curvature at -1
+    whatever the shape is. The rate is `m` regardless of `k`, and what stops
+    it is the coefficient priors rather than `prior_aux`, because the ridge
+    sits at `-shape log t` and at about `log(shape) - shape t`. Measured
+    with the coefficient priors out: +2.000, +2.000, +3.000 and +4.000
+    across `1,1`, `1,4`, `1,1,4` and `1,1,4,4`. With them in, PH Weibull
+    keeps +2.000 for two events at `t = 1` and collapses by 9e6 per decade
+    at `t = 4`, and Gompertz collapses everywhere.
+
+  So it takes a repeat for any of these to be nonzero, event times that are
+  all distinct pin the coefficients in as many directions as there are
+  spikes, and tied CENSORED times contribute a survival probability rather
+  than a density spike. The profile maximum, by contrast, grows in every one
+  of those cases including the convergent ones, which is why the volume and
+  not the profile is what decides this.
+
+  A censored row in the same arm can suppress the divergence, and whether it
+  does turns on the same `k` against the reach. Its contribution is a mixture
+  over the grid too, so it vanishes only if every node's region probability
+  vanishes. Below the reach the ridge has a free direction and moving along
+  it sends some node past any censoring time, holding that row's mixture at
+  `1 / n_int`: measured at rate +1.000 for two events at `t = 1` with a
+  right-censored row at `t = 2` on 20 nodes. At the reach the ridge is
+  isolated points and a censored row can cover all of them, so on a
+  point-mass grid that same pair collapses while the row at `t = 0.5` leaves
+  rate +1.000. Deciding which takes enumerating `choose(n_int, k)` ridge
+  points, so such an arm is reported rather than refused, scale family or
+  not.
+
+  Distinctness is counted on the scale the density matches, `log(time)` for
+  every covered family but Gompertz and the time itself for that one. Two
+  distinct doubles can share a logarithm, and counting raw times there reads
+  one target as two, so `k` came out too large and the check returned
+  silently on a curve whose spikes all collapse onto one predictor. The
+  grid's reach likewise uses the exact rank rather than `qr()`'s default
+  tolerance, under which independent but badly scaled columns read as
+  deficient while the direction is still there.
 
   Past the grid's reach there is nothing to refuse, and this is deliberately
   narrow about it. With `k` above `rank(cbind(1, X_int))` the `k` equations
@@ -143,12 +182,14 @@
   rounding tie is not refused. A slope measured over any fixed range of the
   auxiliary cannot tell the two apart, which is why the test is structural.
 
-  The two groups divide as they do on the index side. The scale families
-  diverge as the scale goes to zero, where every supported prior has
-  positive density, so no prior repairs it and the fit is refused. The shape
-  families diverge as the shape grows, where the power meets the prior's
+  What the rate decides differs too. The scale families diverge as the scale
+  goes to zero, where every supported prior has positive density, so no
+  prior repairs it and the fit is refused. `weibull-aft`, `loglogistic` and
+  `gamma` diverge as the shape grows, where the rate meets `prior_aux`'s
   tail, so a half-normal or an exponential integrates it and a half-t need
-  not, and that is reported rather than refused.
+  not, and that is reported rather than refused. For the PH Weibull and
+  Gompertz the coefficient priors decide instead, and the warning says so
+  rather than naming a `prior_aux` conclusion it does not have.
 
   This is a restriction on the quadrature and not a defect of the model it
   approximates, which matters for what the fix eventually is. Integrating a

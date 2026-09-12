@@ -48,11 +48,14 @@ check <- function(d, distribution = "lognormal", aux_by = ".study", ...) {
   mlumr:::.check_comparator_tied_events(d, distribution, aux_by = aux_by, ...)
 }
 msg <- function(...) tryCatch(check(...), error = conditionMessage)
+msg_w <- function(d, dist) {
+  tryCatch(check(d, distribution = dist), warning = conditionMessage)
+}
 
 test_that("the refused power is m - n_distinct, not the largest tie", {
   # Three rows at two distinct times: one repeat, power 1.
   expect_match(msg(.comp_stub(c(1, 1, 4), c(1L, 1L, 1L))),
-               "3 event rows at 2 distinct times")
+               "3 event rows at 2 distinct log-times")
   expect_match(msg(.comp_stub(c(1, 1, 4), c(1L, 1L, 1L))),
                "diverges at rate 1")
   # Written as the scale family's own boundary, in one over the auxiliary.
@@ -63,7 +66,7 @@ test_that("the refused power is m - n_distinct, not the largest tie", {
   # wrong: the two times can be matched at two nodes and all four spikes
   # stand on a ridge pinned in only two directions.
   expect_match(msg(.comp_stub(c(1, 1, 4, 4), c(1L, 1L, 1L, 1L))),
-               "4 event rows at 2 distinct times")
+               "4 event rows at 2 distinct log-times")
   expect_match(msg(.comp_stub(c(1, 1, 4, 4), c(1L, 1L, 1L, 1L))),
                "diverges at rate 2")
   # Three at one time is also power 2, by the same arithmetic.
@@ -73,7 +76,7 @@ test_that("the refused power is m - n_distinct, not the largest tie", {
   expect_match(msg(.comp_stub(c(1, 1, 1, 1), c(1L, 1L, 1L, 1L))),
                "diverges at rate 3")
   expect_match(msg(.comp_stub(c(1, 1, 1, 1), c(1L, 1L, 1L, 1L))),
-               "4 event rows at 1 distinct time")
+               "4 event rows at 1 distinct log-time")
 })
 
 test_that("distinct times past the grid's reach are not refused", {
@@ -126,6 +129,66 @@ test_that("a degenerate integration grid shrinks the reach", {
                "improper")
 })
 
+test_that("distinctness is counted on the scale the density matches", {
+  # Every covered family but Gompertz matches the linear predictor to
+  # `log(time)`. Two distinct doubles can share a logarithm, and counting raw
+  # times there reads one target as two, so `k` comes out too large and the
+  # guard returns silently on a curve whose spikes all collapse onto one
+  # predictor.
+  t1 <- 1e300
+  t2 <- t1 * (1 + 2^-52)
+  expect_true(t1 != t2)
+  expect_identical(log(t1), log(t2))
+  d <- .comp_stub(c(t1, t2, 4), c(1L, 1L, 1L))
+  expect_error(check(d), "improper")
+  expect_match(msg(d), "2 distinct log-times")
+  # Gompertz reads its ridge on the TIME scale, where those two are genuinely
+  # distinct, so three distinct targets there exceed the reach and nothing is
+  # reported.
+  expect_silent(check(d, distribution = "gompertz"))
+})
+
+test_that("the grid's reach uses the exact rank, not a tolerance", {
+  # Columns that are independent but badly scaled read as rank-deficient at
+  # `qr()`'s default tolerance. The independent direction is there whatever it
+  # costs to reach and the coefficient prior is positive where the ridge sits,
+  # so nothing about the scaling removes the singularity.
+  scaled <- distr(stats::qunif, min = 1e7, max = 1e7 + 2)
+  d <- .comp_stub(c(1, 1, 4), c(1L, 1L, 1L), int_distr = scaled)
+  nodes <- matrix(d$integration_points[1L, , ],
+                  nrow = dim(d$integration_points)[2L])
+  expect_equal(qr(cbind(1, nodes))$rank, 1L)
+  expect_equal(mlumr:::.exact_rank(cbind(1, nodes))$rank, 2L)
+  expect_error(check(d), "improper")
+  expect_match(msg(d), "grid reaches 2 independent linear predictors")
+})
+
+test_that("a censored row is only conclusive where the ridge is a set", {
+  # A censored row's own contribution is a mixture over the grid too, so it
+  # vanishes only if EVERY node's region probability vanishes.
+  flat <- distr(stats::qunif, min = 1, max = 1)
+  # `k == reach`: the ridge is isolated points and a censored row can cover
+  # them all. Measured on a point-mass grid, two events at t = 1 with a
+  # right-censored row at t = 2 collapse instead of diverging, while the same
+  # row at t = 0.5 leaves rate +1.000. Deciding which takes enumerating every
+  # ridge point, so the arm is reported rather than refused, scale family or
+  # not.
+  cen <- .comp_stub(c(1, 1, 2), c(1L, 1L, 0L), int_distr = flat)
+  w <- expect_warning(check(cen), "neither refused nor passed as proper")
+  expect_match(conditionMessage(w), "ridge is isolated")
+  expect_true(suppressWarnings(check(cen)))
+  # With no censored row there is nothing to suppress it and the refusal is
+  # certain.
+  expect_error(check(.comp_stub(c(1, 1), c(1L, 1L), int_distr = flat)),
+               "improper")
+  # `k < reach` leaves a free direction, and no censored row can suppress an
+  # unbounded ridge everywhere: moving along it sends some node past any
+  # censoring time, which holds that row's mixture at 1 / n_int. Measured at
+  # rate +1.000 with the maximum at slope 0.80, past the 0.24 where a node
+  # clears log 2.
+  expect_error(check(.comp_stub(c(1, 1, 2), c(1L, 1L, 0L))), "improper")
+})
+
 test_that("a refusal reports the geometry it is refusing", {
   d <- .comp_stub(c(1, 1, 4), c(1L, 1L, 1L))
   e <- msg(d)
@@ -133,7 +196,7 @@ test_that("a refusal reports the geometry it is refusing", {
   expect_match(e, "matched at once by 2 integration points")
   expect_match(e, "2 equations in the comparator's coefficients")
   expect_match(e, "grid reaches 2 independent linear predictors")
-  expect_match(e, "all distinct leave rate zero")
+  expect_match(e, "all distinct pin the coefficients")
   expect_match(e, "larger `n_int` is still a finite mixture")
   expect_match(e, "restriction on the quadrature")
   # The index side really is healthy: this is not the index collapse in
@@ -144,22 +207,49 @@ test_that("a refusal reports the geometry it is refusing", {
   expect_error(check(d, distribution = "gengamma"), "improper")
 })
 
-test_that("tied comparator events warn a shape family", {
-  # The divergence is at infinity for these, where the prior tail decides,
-  # so the fit is reported rather than refused. Measured slope for
-  # `weibull-aft` at three rows on two distinct times is the same 1.000.
+test_that("the rate is measured per family, not shared", {
+  # Reading one family's exponent off another is how a wrong rate reaches a
+  # message. The height and width of a matched spike differ by family.
   d <- .comp_stub(c(1, 1, 4), c(1L, 1L, 1L))
-  for (dist in c("weibull", "weibull-aft", "loglogistic", "gamma",
-                 "gompertz")) {
+  # Height `shape`, width `1 / shape`: rate `m - k`. Measured +0.000, +1.000,
+  # +2.000 across `1,4`, `1,1,4`, `1,1,4,4`, for both of these.
+  for (dist in c("weibull-aft", "loglogistic")) {
+    w <- expect_warning(check(d, distribution = dist), "tail of `prior_aux`")
+    expect_match(conditionMessage(w), "diverges at rate 1", fixed = TRUE)
+    expect_match(conditionMessage(w), "`shape^1`", fixed = TRUE)
+    expect_match(conditionMessage(w), "as one over the shape", fixed = TRUE)
+  }
+  # Gamma's spike is `sqrt(shape)` high and `1 / sqrt(shape)` wide, so the
+  # rate is HALF. For `m` rows on one time the integral is exactly
+  # `Gamma(m k) / m^(m k) / Gamma(k)^m`, whose slope in `log k` is
+  # `(m - 1) / 2`: 0.500002, 1.000003, 1.500005 for m of 2, 3, 4. Reporting 1
+  # here would claim non-integrability against a half-t `prior_aux` with
+  # degrees of freedom in (0.5, 1) that does integrate it.
+  g <- expect_warning(check(d, distribution = "gamma"), "tail of `prior_aux`")
+  expect_match(conditionMessage(g), "diverges at rate 0.5", fixed = TRUE)
+  expect_match(conditionMessage(g), "`shape^0.5`", fixed = TRUE)
+  expect_match(conditionMessage(g), "square root of the shape", fixed = TRUE)
+  # Two repeats double it, back to a whole number.
+  g2 <- expect_warning(check(.comp_stub(c(1, 1, 4, 4), rep(1L, 4)),
+                             distribution = "gamma"), "prior_aux")
+  expect_match(conditionMessage(g2), "diverges at rate 1.", fixed = TRUE)
+  # The PH Weibull and Gompertz widths do not shrink at all: their rate is
+  # the ROW count, independent of `k`, and what stops it is the coefficient
+  # priors rather than `prior_aux`. Measured with the coefficient priors out:
+  # +2.000, +2.000, +3.000, +4.000 across `1,1`, `1,4`, `1,1,4`, `1,1,4,4`.
+  for (dist in c("weibull", "gompertz")) {
     w <- expect_warning(check(d, distribution = dist),
-                        "tail of `prior_aux`")
-    expect_match(conditionMessage(w), "3 event rows at 2 distinct times")
-    # A shape family runs to infinity, so its exponent is on the auxiliary
-    # itself rather than on one over it. Same rate, opposite boundary.
-    expect_match(conditionMessage(w), "diverges at rate 1")
-    expect_match(conditionMessage(w), "`shape\\^1`")
+                        "conditional on `prior_intercept` and `prior_beta`")
+    expect_match(conditionMessage(w), "grows at rate 3", fixed = TRUE)
+    expect_match(conditionMessage(w), "does not fall with the number of",
+                 fixed = TRUE)
+    expect_false(grepl("tail of `prior_aux`", conditionMessage(w),
+                       fixed = TRUE))
     expect_true(suppressWarnings(check(d, distribution = dist)))
   }
+  # Each names the ridge its own parameterization has.
+  expect_match(msg_w(d, "weibull"), "-shape * log(t)", fixed = TRUE)
+  expect_match(msg_w(d, "gompertz"), "log(shape) - shape * t", fixed = TRUE)
 })
 
 test_that("only repeated EVENT times in one arm are the problem", {

@@ -261,29 +261,51 @@
 #' `rank(cbind(1, X_int))`, which is `1 + n_cov` for any grid that is not
 #' degenerate.
 #'
-#' Write `aux` for the auxiliary's DISTANCE from the boundary it runs to:
-#' `sdlog` itself for the scale families, which diverge at zero, and
-#' `1 / shape` for the shape families, which diverge at infinity. On that one
-#' scale the geometry is the same for both, and the statements below hold for
-#' each.
+#' All `m` rows are matched on the solution set, so every one of them stands
+#' on a spike whose height grows as the auxiliary approaches its boundary,
+#' while the set is pinned only in the `k` directions the equations fix and
+#' its transverse width shrinks in each of those. The rate is the difference,
+#' and neither factor is shared across families. The height and the width,
+#' per family:
 #'
-#' All `m` rows are matched on the solution set, so the profile likelihood
-#' carries `aux^-m`, while the set is pinned only in the `k` directions the
-#' equations fix and its transverse width is proportional to `aux` in each:
-#' the coefficient volume is `aux^k`. With the coefficients integrated out
-#' the marginal behaves as `aux^(k - m)`, which is `(1 / sdlog)^(m - k)` for
-#' a scale family and `shape^(m - k)` for a shape one. Measured over 20
-#' midpoint normal nodes with the coefficients integrated against normal
-#' priors, `d log M / d log sdlog` is -0.000 for two events at different
-#' times, -1.000 for three events on two distinct times, and -2.000 for four
-#' on two, while `d log M / d log shape` for `weibull-aft` on the same
-#' configurations is +0.000, +1.000 and +2.000: same rate, opposite
-#' direction, because the two run to opposite boundaries.
+#' * `lognormal` and `gengamma`: height `1 / sdlog`, width `sdlog`. Rate
+#'   `m - k` as the scale goes to zero. Measured over 20 midpoint normal
+#'   nodes with the coefficients integrated against normal priors,
+#'   `d log M / d log sdlog` is -0.000, -1.000 and -2.000 across `1,4`,
+#'   `1,1,4` and `1,1,4,4`.
+#' * `weibull-aft` and `loglogistic`: height `shape`, width `1 / shape`. Rate
+#'   `m - k` as the shape grows. `d log M / d log shape` is +0.000, +1.000
+#'   and +2.000 on the same three, for both. A row's own integral over its
+#'   linear predictor is exactly `shape^(m - 1) t^-m Gamma(m) / m^m` for `m`
+#'   rows on one time, which is that rate at `k = 1`.
+#' * `gamma`: height `sqrt(shape)`, width `1 / sqrt(shape)`, so the rate is
+#'   HALF, `(m - k) / 2`. The Stan density (`dist == 8` in
+#'   `survival_functions.stan`) is `k u - e^u - log t - lgamma(k)` for
+#'   `u = log t - eta`, peaking at `u = log k` with value about `0.5 log k`
+#'   and curvature `-k`. For `m` rows on one time the integral is exactly
+#'   `Gamma(m k) / m^(m k) / Gamma(k)^m`, whose slope in `log k` is
+#'   `(m - 1) / 2`: 0.500002, 1.000003 and 1.500005 for `m` of 2, 3 and 4,
+#'   the closed form agreeing with quadrature to 7e-12 at `k` of 10 to 1000.
+#'   Reporting `m - k` here would claim non-integrability against a half-t
+#'   `prior_aux` with degrees of freedom in (0.5, 1) that does integrate it.
+#' * `weibull` (proportional hazards) and `gompertz`: height `shape`, and the
+#'   width does NOT shrink. The PH cumulative hazard is `t^shape e^eta`, so
+#'   profiling a row over `eta` leaves curvature -1 whatever the shape is,
+#'   and Gompertz's `e^eta expm1(shape t) / shape` does the same. The volume
+#'   contributes nothing, the rate is `m` regardless of `k`, and what stops
+#'   it is the COEFFICIENT priors rather than `prior_aux`: the ridge sits at
+#'   `-shape log t` and at about `log(shape) - shape t`. Measured with the
+#'   coefficient priors out: +2.000, +2.000, +3.000 and +4.000 across `1,1`,
+#'   `1,4`, `1,1,4` and `1,1,4,4`, which is `m` and not `m - k`. With
+#'   `normal(0, 10)` and `normal(0, 1)` in, PH Weibull keeps +2.000 for two
+#'   events at `t = 1`, where `log t` is zero and the ridge does not move,
+#'   and collapses by 9e6 per decade at `t = 4`; Gompertz collapses
+#'   everywhere, since `shape * t` displaces it even at `t = 1`.
 #'
-#' So the divergence is `m - k` and needs a REPEAT to exist at all. The
-#' profile maximum, by contrast, grows as `aux^-m` in every one of those
-#' cases including the convergent one, which is why the volume and not the
-#' profile is what this reasons about.
+#' So it takes a REPEAT for any of these to be nonzero. The profile maximum,
+#' by contrast, grows in every one of those cases including the convergent
+#' ones, which is why the volume and not the profile is what this reasons
+#' about.
 #'
 #' Past the grid's reach there is no divergence to refuse. With `k` greater
 #' than `rank(cbind(1, X_int))` the `k` equations have no solution, the best
@@ -296,15 +318,39 @@
 #' collapsing from 1e-6 on. A finer grid moves the collapse out; it does not
 #' remove it, and the posterior is proper either way. A measured slope over
 #' any fixed range of the auxiliary cannot tell the two apart, so the test
-#' here is structural: `k` against the reach, never a slope.
+#' here is structural: `k` against the reach, never a slope. The reach is the
+#' EXACT rank, since a grid whose columns are independent but badly scaled
+#' reads as deficient at `qr()`'s default tolerance while the direction is
+#' still there and the prior is still positive where the ridge sits.
 #'
-#' That measurement is also why the two groups are not treated the same.
-#' The scale families diverge as `sdlog` goes to zero, where every supported
-#' prior has positive density, so no prior repairs it and the fit is
-#' refused. The shape families diverge as the shape grows, where
-#' `shape^(m - k)` meets the prior's tail instead: a half-normal or an
-#' exponential integrates it and a half-t need not, so propriety there is a
-#' property of `prior_aux` and the fit is warned about rather than refused.
+#' A censored row in the same arm can suppress this, and whether it does
+#' turns on the same `k` against the reach. Its own contribution is a
+#' mixture over the grid too, `log_sum_exp(log S) - log(n_int)`, so it
+#' vanishes only if EVERY node's region probability vanishes. When `k` is
+#' below the reach the ridge has a free direction, the node linear predictors
+#' are affine in it with both signs present, and moving along it sends some
+#' node past any censoring time: that node holds the row's mixture at
+#' `1 / n_int` and the divergence survives there with positive prior
+#' density. Measured on 20 nodes, two events at `t = 1` and a right-censored
+#' row at `t = 2`, reading the ridge as the line where a node reproduces the
+#' event time: rate +1.000, with the maximum at slope 0.80, past the 0.24
+#' where a node clears `log 2`. When `k` equals the reach the ridge is
+#' isolated points and a censored row can cover all of them: on a point-mass
+#' grid two events at `t = 1` with a right-censored row at `t = 2` collapse,
+#' while the same row at `t = 0.5` leaves rate +1.000, because the ridge is
+#' outside its region. Deciding that means enumerating `choose(n_int, k)`
+#' ridge points, so it is not decided: the arm is reported rather than
+#' refused, scale family or not.
+#'
+#' What the rate then decides also differs. The scale families diverge as
+#' `sdlog` goes to zero, where every supported prior has positive density,
+#' so no prior repairs it and the fit is refused. `weibull-aft`,
+#' `loglogistic` and `gamma` diverge as the shape grows, where the rate meets
+#' `prior_aux`'s tail instead: a half-normal or an exponential integrates it
+#' and a half-t need not, so propriety there is a property of that prior and
+#' the fit is warned about. For the PH Weibull and Gompertz the coefficient
+#' priors decide instead, and the warning says so rather than naming a
+#' `prior_aux` conclusion it does not have.
 #'
 #' **This is a restriction on an approximation, not a repair of a model.**
 #' The continuously integrated counterpart is PROPER for the same data.
@@ -410,29 +456,149 @@
     if (is.na(idx) || idx < 1L || idx > dim(grid)[1L]) return(generic)
     nodes <- matrix(grid[idx, , ], nrow = dim(grid)[2L])
     if (!all(is.finite(nodes))) return(generic)
-    min(generic, qr(cbind(1, nodes))$rank)
+    # [.exact_rank()], not `qr()`. A grid whose columns are independent but
+    # badly scaled reads as rank-deficient at the default tolerance: an
+    # intercept against nodes near `1e7 + c(0, 1, 2)` comes back rank 1, which
+    # would put `k` past the reach and skip a divergence the model really has.
+    # The independent direction is there whatever it costs to reach, and the
+    # coefficient prior is positive where the ridge sits, so nothing about the
+    # scaling removes the singularity.
+    min(generic, .exact_rank(cbind(1, nodes))$rank)
   }
+  # Distinctness is a property of the TARGET the density matches, not of the
+  # reported time. Every covered family but Gompertz matches the linear
+  # predictor to `log(time)`, and two distinct doubles can share a logarithm:
+  # `1e300` and `1e300 * (1 + eps)` are different numbers whose `log` is the
+  # same double. Counting raw times there treats one target as two, so `k`
+  # comes out too large and the guard returns silently on a curve whose
+  # spikes all collapse onto one predictor. Gompertz reads its ridge on the
+  # time scale, as [.check_survival_scale_collapse()] does.
+  time_scale <- identical(distribution, "gompertz")
+  target <- if (time_scale) time else suppressWarnings(log(time))
   worst <- 0L
   info <- NULL
-  by_arm <- split(time[events], arm[events])
+  by_arm <- split(seq_along(time)[events], arm[events])
   for (a in names(by_arm)) {
-    m <- length(by_arm[[a]])
-    k <- length(unique(by_arm[[a]]))
-    # No repeat: the power is `m - k = 0`, which integrates.
+    rows <- by_arm[[a]]
+    tg <- target[rows]
+    if (!all(is.finite(tg))) next
+    m <- length(rows)
+    k <- length(unique(tg))
+    # No repeat: the rate is zero, which integrates.
     if (m <= k) next
-    # More distinct times than the grid can reach: the matching equations
+    # More distinct targets than the grid can reach: the matching equations
     # have no solution, so there is no ridge and no divergence.
     reachable <- reach(a)
     if (k > reachable) next
+    # A censored row in the same arm can suppress this, but only sometimes,
+    # and which case it is turns on whether the ridge is a point or a set.
+    #
+    # `k < reach` leaves a free direction along the ridge. The node linear
+    # predictors are affine in it with both signs present, so moving along it
+    # sends some node above any right-censoring time and another below any
+    # left-censoring bound; that row's own contribution is itself a mixture
+    # over the grid, `log_sum_exp(log S) - log(n_int)`, so one unsuppressed
+    # node holds it at `1 / n_int` and the divergence survives there, with
+    # positive prior density. Measured, 20 nodes, two events at `t = 1` and a
+    # right-censored row at `t = 2`: reading the ridge as the line where a
+    # node reproduces the event time gives rate +1.000 with the maximum at
+    # slope 0.80, past the 0.24 where a node clears `log 2`. (Pinning the
+    # intercept near zero instead samples only slope 0, where every node
+    # shares one predictor and the row does suppress. That is a
+    # parameterization of the measurement, not a property of the data.)
+    #
+    # `k == reach` pins the ridge to isolated points, and a censored row can
+    # cover all of them: on a point-mass grid, two events at `t = 1` with a
+    # right-censored row at `t = 2` collapse instead of diverging, while the
+    # same row at `t = 0.5` leaves rate +1.000 because the ridge is outside
+    # its region. Deciding it means enumerating `choose(n_int, k)` ridge
+    # points, so it is not decided: the arm is reported rather than refused.
+    censored <- any(arm == a & !events)
     if (m - k > worst) {
       worst <- m - k
-      info <- list(m = m, k = k, reach = reachable)
+      info <- list(m = m, k = k, reach = reachable,
+                   undecided = k >= reachable && censored)
     }
   }
   if (worst < 1L) return(invisible(FALSE))
+  # The rate is NOT shared across families, and reading one family's off
+  # another is how the wrong exponent gets into a message. What the spikes
+  # and the ridge width do with the auxiliary, per family:
+  #
+  # * `lognormal`, `gengamma`: height `1 / sdlog`, width `sdlog`. Rate
+  #   `m - k` as sdlog goes to zero. Measured -0.000, -1.000, -2.000 for
+  #   `1,4`, `1,1,4` and `1,1,4,4`.
+  # * `weibull-aft`, `loglogistic`: height `shape`, width `1 / shape`. Rate
+  #   `m - k`. A row's own integral over its linear predictor is exactly
+  #   `shape^(m - 1) t^-m Gamma(m) / m^m` for `m` rows on one time, so the
+  #   rate is `m - 1` there; measured +0.000, +1.000, +2.000 on the same
+  #   three configurations, for both.
+  # * `gamma`: height `sqrt(shape)`, width `1 / sqrt(shape)`, so the rate is
+  #   HALF of `m - k`. From the Stan density (`dist == 8` in
+  #   survival_functions.stan) a row is `k u - e^u - log t - lgamma(k)` for
+  #   `u = log t - eta`, which peaks at `u = log k` with value about
+  #   `0.5 log k` and curvature `-k`. For `m` rows on one time the integral
+  #   is exactly `Gamma(m k) / m^(m k) / Gamma(k)^m`, whose slope in `log k`
+  #   is `(m - 1) / 2`: 0.500002, 1.000003, 1.500005 for m of 2, 3, 4, and
+  #   the closed form agrees with quadrature to 7e-12 at k of 10 to 1000.
+  #   Reporting `m - k` here would claim non-integrability against a half-t
+  #   `prior_aux` with degrees of freedom in (0.5, 1) that does integrate it.
+  # * `weibull` (proportional hazards) and `gompertz`: height `shape`, and
+  #   the width does NOT shrink. The PH cumulative hazard is `t^shape e^eta`,
+  #   so profiling a row over `eta` gives curvature -1 whatever the shape is,
+  #   and the same holds for Gompertz's `e^eta expm1(shape t) / shape`. The
+  #   volume contributes nothing, the rate is `m` regardless of `k`, and what
+  #   stops it is the COEFFICIENT priors rather than `prior_aux`: the ridge
+  #   sits at `-shape log t` and at about `log(shape) - shape t`, which run
+  #   away with the shape itself. Measured with the coefficient priors out:
+  #   +2.000, +2.000, +3.000, +4.000 across `1,1`, `1,4`, `1,1,4`, `1,1,4,4`,
+  #   which is `m` and not `m - k`. With `normal(0, 10)` and `normal(0, 1)`
+  #   in: PH Weibull keeps +2.000 for two events at `t = 1`, where `log t` is
+  #   zero and the ridge does not move, and collapses by -9e6 per decade at
+  #   `t = 4`; Gompertz collapses everywhere, since `shape * t` displaces it
+  #   even at `t = 1`.
+  rate_num <- worst
+  rate_den <- 1L
+  moving <- distribution %in% c("weibull", "gompertz")
+  if (identical(distribution, "gamma")) {
+    rate_den <- 2L
+    growth <- "the square root of the shape"
+    shrink <- "as one over that same square root"
+  } else if (moving) {
+    rate_num <- info$m
+    growth <- "the shape"
+    shrink <- ""
+  } else if (distribution %in% scale_families) {
+    growth <- paste0("one over `", .aux_symbol(distribution), "`")
+    shrink <- paste0("as `", .aux_symbol(distribution), "` itself")
+  } else {
+    growth <- "the shape"
+    shrink <- "as one over the shape"
+  }
+  rate_text <- if (rate_den == 1L) {
+    format(rate_num)
+  } else if (rate_num %% rate_den == 0L) {
+    format(rate_num %/% rate_den)
+  } else {
+    format(rate_num / rate_den)
+  }
+  volume <- if (moving) {
+    paste0("and the coefficient volume does NOT shrink to meet them: this ",
+           "parameterization leaves the width of a row's density in the ",
+           "linear predictor of order one whatever the shape is, so the ",
+           "marginal grows at rate ", rate_text, ", which is the row count ",
+           "and does not fall with the number of distinct times")
+  } else {
+    paste0("while the coefficient volume shrinks ", shrink, " in each of the ",
+           info$k, " pinned direction", if (info$k > 1L) "s" else "",
+           " and in no other, so the difference survives: with the ",
+           "coefficients integrated out the marginal diverges at rate ",
+           rate_text)
+  }
   shared <- paste0(
     "The reconstructed comparator curve has ", info$m, " event rows at ",
-    info$k, " distinct time", if (info$k > 1L) "s" else "", ". Its likelihood ",
+    info$k, " distinct ", if (time_scale) "time" else "log-time",
+    if (info$k > 1L) "s" else "", ". Its likelihood ",
     "is a finite equally weighted mixture over the integration grid, ",
     "`log_sum_exp(ll) - log(n_int)`, and every pseudo-individual in the arm ",
     "sees the same grid, so all ", info$m, " rows can be matched at once by ",
@@ -440,15 +606,9 @@
     "points reproduce those times is ", info$k, " equation",
     if (info$k > 1L) "s" else "", " in the comparator's coefficients, and the ",
     "grid reaches ", info$reach, " independent linear predictors, so a ",
-    "solution exists: the ridge is a set pinned in only ", info$k,
-    " directions, whose transverse width falls with the auxiliary rather ",
-    "than an isolated point. All ", info$m, " density spikes grow without ",
-    "bound as the auxiliary approaches its boundary while the coefficient ",
-    "volume shrinks in only ", info$k, " directions, so the difference ",
-    "survives: with the coefficients integrated out the marginal diverges ",
-    "at rate ", worst, ". Event times that are all ",
-    "distinct leave rate zero however many there are; it is the repeats ",
-    "that do this."
+    "solution exists. All ", info$m, " density spikes grow as ", growth, " ",
+    volume, ". Event times that are all distinct pin the coefficients in as ",
+    "many directions as there are spikes; it is the repeats that do this."
   )
   restriction <- paste0(
     " This is a restriction on the quadrature, not a defect of the model it ",
@@ -456,11 +616,45 @@
     "`log T ~ N(mu, beta^2 + sdlog^2)`, whose posterior IS proper for these ",
     "same data. A larger `n_int` is still a finite mixture and, within its ",
     "reach, only scales the coefficient of the same divergence; jittering ",
-    "the tied times ",
-    "invents data. If the ties come from rounding, an interval-censored ",
-    "representation of what was actually observed is the honest model; ",
-    "`set_agd_surv()` accepts one."
+    "the tied times invents data. If the ties come from rounding, an ",
+    "interval-censored representation of what was actually observed is the ",
+    "honest model; `set_agd_surv()` accepts one."
   )
+  # A censored row in the arm can suppress an isolated ridge, and which
+  # points it covers is not settled here, so nothing is refused on it.
+  if (isTRUE(info$undecided)) {
+    warning(shared, " The arm also has censored rows, and with as many ",
+            "distinct times as the grid reaches, the ridge is isolated ",
+            "points rather than a set: a censored row whose region covers ",
+            "every one of them suppresses this, and one whose region misses ",
+            "them does not. Two events at `t = 1` on a point-mass grid with ",
+            "a right-censored row at `t = 2` collapse; the same row at ",
+            "`t = 0.5` leaves rate +1.000. Which it is takes enumerating ",
+            "every ridge point, which this check does not do, so the fit is ",
+            "neither refused nor passed as proper: check the sampler near ",
+            "the boundary of ", .aux_name(distribution), " and its ",
+            "sensitivity to `prior_aux`.", restriction, call. = FALSE)
+    return(invisible(TRUE))
+  }
+  if (moving) {
+    ridge <- if (identical(distribution, "weibull")) {
+      paste0("the ridge drives the linear predictor to `-shape * log(t)`, ",
+             "which is zero only for an event at `t = 1`")
+    } else {
+      paste0("the ridge drives the linear predictor to about ",
+             "`log(shape) - shape * t`, which runs away with the shape ",
+             "itself rather than with its logarithm")
+    }
+    warning(shared, " Whether the posterior for ", .aux_name(distribution),
+            " exists is conditional on `prior_intercept` and `prior_beta` ",
+            "here rather than on `prior_aux`: ", ridge, ", so ordinary normal ",
+            "coefficient priors can stop the shape before this growth ",
+            "matters, and the defaults are not wide, `normal(0, 10)` on the ",
+            "intercept and `normal(0, 2.5)` on the rest. Treat the shape as ",
+            "prior-driven and check its sensitivity.", restriction,
+            call. = FALSE)
+    return(invisible(TRUE))
+  }
   if (distribution %in% scale_families) {
     # The scale families run to zero, so the divergent form is in one over
     # the auxiliary; the shape families run to infinity and it is in the
@@ -468,19 +662,19 @@
     # written per branch rather than once above.
     stop(shared, " The posterior for ", .aux_name(distribution),
          " is therefore improper: the marginal behaves as `(1 / ",
-         .aux_symbol(distribution), ")^", worst, "` and the divergence is at ",
-         "zero, where every supported prior has positive density, so no ",
-         "choice of `prior_aux` repairs it and the sampler would drift ",
+         .aux_symbol(distribution), ")^", rate_text, "` and the divergence ",
+         "is at zero, where every supported prior has positive density, so ",
+         "no choice of `prior_aux` repairs it and the sampler would drift ",
          "toward zero and report where it stopped.", restriction,
          call. = FALSE)
   }
   warning(shared, " Whether the posterior for ", .aux_name(distribution),
           " exists then depends on the tail of `prior_aux`: the marginal ",
-          "behaves as `", .aux_symbol(distribution), "^", worst, "` and the ",
-          "divergence is at infinity, where a half-normal or an exponential ",
-          "integrates that power and a half-t need not, so what is reported ",
-          "for it can be a property of that prior rather than of the data.",
-          restriction, call. = FALSE)
+          "behaves as `", .aux_symbol(distribution), "^", rate_text,
+          "` and the divergence is at infinity, where a half-normal or an ",
+          "exponential integrates that power and a half-t need not, so what ",
+          "is reported for it can be a property of that prior rather than ",
+          "of the data.", restriction, call. = FALSE)
   invisible(TRUE)
 }
 
