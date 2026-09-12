@@ -76,20 +76,25 @@ and curvature \code{-k}. For \code{m} rows on one time the integral is exactly
 the closed form agreeing with quadrature to 7e-12 at \code{k} of 10 to 1000.
 Reporting \code{m - k} here would claim non-integrability against a half-t
 \code{prior_aux} with degrees of freedom in (0.5, 1) that does integrate it.
-\item \code{weibull} (proportional hazards) and \code{gompertz}: height \code{shape}, and the
-width does NOT shrink. The PH cumulative hazard is \verb{t^shape e^eta}, so
-profiling a row over \code{eta} leaves curvature -1 whatever the shape is,
-and Gompertz's \verb{e^eta expm1(shape t) / shape} does the same. The volume
-contributes nothing, the rate is \code{m} regardless of \code{k}, and what stops
-it is the COEFFICIENT priors rather than \code{prior_aux}: the ridge sits at
-\verb{-shape log t} and at about \verb{log(shape) - shape t}. Measured with the
-coefficient priors out: +2.000, +2.000, +3.000 and +4.000 across \verb{1,1},
-\verb{1,4}, \verb{1,1,4} and \verb{1,1,4,4}, which is \code{m} and not \code{m - k}. With
-\code{normal(0, 10)} and \code{normal(0, 1)} in, PH Weibull keeps +2.000 for two
-events at \code{t = 1}, where \verb{log t} is zero and the ridge does not move,
-and collapses by 9e6 per decade at \code{t = 4}; Gompertz collapses
-everywhere, since \code{shape * t} displaces it even at \code{t = 1}.
 }
+
+The proportional-hazards Weibull and Gompertz are NOT examined, and the
+same measurement is why. Their height is \code{shape} and their width does not
+shrink at all: \verb{t^shape e^eta} and \verb{e^eta expm1(shape t) / shape} both
+leave a row's curvature at -1 whatever the shape is, so the volume
+contributes nothing and the growth is \code{m}, independent of \code{k}. Measured
+with the coefficient priors out: +2.000, +2.000, +3.000 and +4.000 across
+\verb{1,1}, \verb{1,4}, \verb{1,1,4} and \verb{1,1,4,4}. A REPEAT is therefore not what causes
+it, and a check that fires on repeats would be attributing to ties
+something they do not do. What the growth meets instead is the coefficient
+priors, through however many coefficients the ridge moves, which sits at
+\verb{-shape log t} and at about \verb{log(shape) - shape t}, and through each of
+those priors' tails: with \code{normal(0, 10)} and \code{normal(0, 1)} in, PH
+Weibull keeps +2.000 for two events at \code{t = 1}, where \verb{log t} is zero and
+the ridge does not move, and collapses by 9e6 per decade at \code{t = 4}, while
+Gompertz collapses everywhere. Settling it needs the moved-coefficient
+count and both prior tails per configuration, which is a different
+question from this one and is not answered here.
 
 So it takes a REPEAT for any of these to be nonzero. The profile maximum,
 by contrast, grows in every one of those cases including the convergent
@@ -151,13 +156,22 @@ Both are reported rather than refused, scale family or not.
 
 What the rate then decides also differs. The scale families diverge as
 \code{sdlog} goes to zero, where every supported prior has positive density,
-so no prior repairs it and the fit is refused. \code{weibull-aft},
-\code{loglogistic} and \code{gamma} diverge as the shape grows, where the rate meets
+so no prior repairs it and the fit is refused. \code{weibull-aft} and
+\code{loglogistic} diverge as the shape grows, where the rate meets
 \code{prior_aux}'s tail instead: a half-normal or an exponential integrates it
 and a half-t need not, so propriety there is a property of that prior and
-the fit is warned about. For the PH Weibull and Gompertz the coefficient
-priors decide instead, and the warning says so rather than naming a
-\code{prior_aux} conclusion it does not have.
+the fit is warned about. \code{gamma} is warned about too, but on a different
+pair: its ridge matches \code{eta = log(t) - log(shape)}, so it also displaces
+the comparator intercept by \code{-log(shape)}, and a normal \code{prior_intercept}
+contributes \verb{exp(-(log shape)^2 / 200)} at the default width, which
+integrates any polynomial. The posterior exists there and the shape merely
+concentrates far out; it is a heavy-tailed intercept prior that leaves
+\code{prior_aux} to integrate the growth, which a half-t does only above
+\code{(m - k) / 2} degrees of freedom. That factor is 0.95 nats at a shape of
+1e6, so a slope measured over any reachable range still looks undamped,
+which is why the clause is derived rather than read off one. The
+comparator intercept is \code{mu_comparator} under both models and draws
+\code{prior_intercept} in each, so this is not a relaxed-only clause.
 
 \strong{This is a restriction on an approximation, not a repair of a model.}
 The continuously integrated counterpart is PROPER for the same data.

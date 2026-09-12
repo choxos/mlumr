@@ -288,19 +288,24 @@
 #'   the closed form agreeing with quadrature to 7e-12 at `k` of 10 to 1000.
 #'   Reporting `m - k` here would claim non-integrability against a half-t
 #'   `prior_aux` with degrees of freedom in (0.5, 1) that does integrate it.
-#' * `weibull` (proportional hazards) and `gompertz`: height `shape`, and the
-#'   width does NOT shrink. The PH cumulative hazard is `t^shape e^eta`, so
-#'   profiling a row over `eta` leaves curvature -1 whatever the shape is,
-#'   and Gompertz's `e^eta expm1(shape t) / shape` does the same. The volume
-#'   contributes nothing, the rate is `m` regardless of `k`, and what stops
-#'   it is the COEFFICIENT priors rather than `prior_aux`: the ridge sits at
-#'   `-shape log t` and at about `log(shape) - shape t`. Measured with the
-#'   coefficient priors out: +2.000, +2.000, +3.000 and +4.000 across `1,1`,
-#'   `1,4`, `1,1,4` and `1,1,4,4`, which is `m` and not `m - k`. With
-#'   `normal(0, 10)` and `normal(0, 1)` in, PH Weibull keeps +2.000 for two
-#'   events at `t = 1`, where `log t` is zero and the ridge does not move,
-#'   and collapses by 9e6 per decade at `t = 4`; Gompertz collapses
-#'   everywhere, since `shape * t` displaces it even at `t = 1`.
+#'
+#' The proportional-hazards Weibull and Gompertz are NOT examined, and the
+#' same measurement is why. Their height is `shape` and their width does not
+#' shrink at all: `t^shape e^eta` and `e^eta expm1(shape t) / shape` both
+#' leave a row's curvature at -1 whatever the shape is, so the volume
+#' contributes nothing and the growth is `m`, independent of `k`. Measured
+#' with the coefficient priors out: +2.000, +2.000, +3.000 and +4.000 across
+#' `1,1`, `1,4`, `1,1,4` and `1,1,4,4`. A REPEAT is therefore not what causes
+#' it, and a check that fires on repeats would be attributing to ties
+#' something they do not do. What the growth meets instead is the coefficient
+#' priors, through however many coefficients the ridge moves, which sits at
+#' `-shape log t` and at about `log(shape) - shape t`, and through each of
+#' those priors' tails: with `normal(0, 10)` and `normal(0, 1)` in, PH
+#' Weibull keeps +2.000 for two events at `t = 1`, where `log t` is zero and
+#' the ridge does not move, and collapses by 9e6 per decade at `t = 4`, while
+#' Gompertz collapses everywhere. Settling it needs the moved-coefficient
+#' count and both prior tails per configuration, which is a different
+#' question from this one and is not answered here.
 #'
 #' So it takes a REPEAT for any of these to be nonzero. The profile maximum,
 #' by contrast, grows in every one of those cases including the convergent
@@ -362,13 +367,22 @@
 #'
 #' What the rate then decides also differs. The scale families diverge as
 #' `sdlog` goes to zero, where every supported prior has positive density,
-#' so no prior repairs it and the fit is refused. `weibull-aft`,
-#' `loglogistic` and `gamma` diverge as the shape grows, where the rate meets
+#' so no prior repairs it and the fit is refused. `weibull-aft` and
+#' `loglogistic` diverge as the shape grows, where the rate meets
 #' `prior_aux`'s tail instead: a half-normal or an exponential integrates it
 #' and a half-t need not, so propriety there is a property of that prior and
-#' the fit is warned about. For the PH Weibull and Gompertz the coefficient
-#' priors decide instead, and the warning says so rather than naming a
-#' `prior_aux` conclusion it does not have.
+#' the fit is warned about. `gamma` is warned about too, but on a different
+#' pair: its ridge matches `eta = log(t) - log(shape)`, so it also displaces
+#' the comparator intercept by `-log(shape)`, and a normal `prior_intercept`
+#' contributes `exp(-(log shape)^2 / 200)` at the default width, which
+#' integrates any polynomial. The posterior exists there and the shape merely
+#' concentrates far out; it is a heavy-tailed intercept prior that leaves
+#' `prior_aux` to integrate the growth, which a half-t does only above
+#' `(m - k) / 2` degrees of freedom. That factor is 0.95 nats at a shape of
+#' 1e6, so a slope measured over any reachable range still looks undamped,
+#' which is why the clause is derived rather than read off one. The
+#' comparator intercept is `mu_comparator` under both models and draws
+#' `prior_intercept` in each, so this is not a relaxed-only clause.
 #'
 #' **This is a restriction on an approximation, not a repair of a model.**
 #' The continuously integrated counterpart is PROPER for the same data.
@@ -423,8 +437,17 @@
                                           aux_by = ".study",
                                           index_bounds_aux = FALSE) {
   scale_families <- c("lognormal", "gengamma")
-  shape_families <- c("weibull", "weibull-aft", "loglogistic", "gamma",
-                      "gompertz")
+  # The proportional-hazards Weibull and Gompertz are deliberately NOT here.
+  # Their ridge width does not shrink with the auxiliary at all, so their
+  # growth is the row count whatever the distinct-time count is, and a
+  # REPEAT is not what causes it: this check would be attributing to ties
+  # something they do not do. What their growth actually meets is the
+  # coefficient priors, through however many coefficients their ridge moves
+  # and each of those priors' tails, which is a different question from this
+  # one and is not answered here. Measured for them, with the coefficient
+  # priors out: +2.000, +2.000, +3.000 and +4.000 across `1,1`, `1,4`,
+  # `1,1,4` and `1,1,4,4`, which is `m` and independent of `k`.
+  shape_families <- c("weibull-aft", "loglogistic", "gamma")
   if (!distribution %in% c(scale_families, shape_families)) {
     return(invisible(FALSE))
   }
@@ -484,15 +507,15 @@
     min(generic, .exact_rank(cbind(1, nodes))$rank)
   }
   # Distinctness is a property of the TARGET the density matches, not of the
-  # reported time. Every covered family but Gompertz matches the linear
-  # predictor to `log(time)`, and two distinct doubles can share a logarithm:
-  # `1e300` and `1e300 * (1 + eps)` are different numbers whose `log` is the
-  # same double. Counting raw times there treats one target as two, so `k`
-  # comes out too large and the guard returns silently on a curve whose
-  # spikes all collapse onto one predictor. Gompertz reads its ridge on the
-  # time scale, as [.check_survival_scale_collapse()] does.
-  time_scale <- identical(distribution, "gompertz")
-  target <- if (time_scale) time else suppressWarnings(log(time))
+  # reported time. Every family this examines matches the linear predictor to
+  # `log(time)`, and two distinct doubles can share a logarithm: `1e300` and
+  # `1e300 * (1 + eps)` are different numbers whose `log` is the same double.
+  # Counting raw times treats one target as two, so `k` comes out too large
+  # and the guard returns silently on a curve whose spikes all collapse onto
+  # one predictor. (Gompertz reads its ridge on the time scale instead, which
+  # is [.check_survival_scale_collapse()]'s business; this function does not
+  # examine it.)
+  target <- suppressWarnings(log(time))
   worst <- 0L
   info <- NULL
   by_arm <- split(seq_along(time)[events], arm[events])
@@ -595,15 +618,10 @@
   #   even at `t = 1`.
   rate_num <- worst
   rate_den <- 1L
-  moving <- distribution %in% c("weibull", "gompertz")
   if (identical(distribution, "gamma")) {
     rate_den <- 2L
     growth <- "the square root of the shape"
     shrink <- "as one over that same square root"
-  } else if (moving) {
-    rate_num <- info$m
-    growth <- "the shape"
-    shrink <- ""
   } else if (distribution %in% scale_families) {
     growth <- paste0("one over `", .aux_symbol(distribution), "`")
     shrink <- paste0("as `", .aux_symbol(distribution), "` itself")
@@ -618,13 +636,7 @@
   } else {
     format(rate_num / rate_den)
   }
-  volume <- if (moving) {
-    paste0("and the coefficient volume does NOT shrink to meet them: this ",
-           "parameterization leaves the width of a row's density in the ",
-           "linear predictor of order one whatever the shape is, so the ",
-           "marginal grows at rate ", rate_text, ", which is the row count ",
-           "and does not fall with the number of distinct times")
-  } else {
+  volume <- {
     paste0("while the coefficient volume shrinks ", shrink, " in each of the ",
            info$k, " pinned direction", if (info$k > 1L) "s" else "",
            " and in no other, so the difference survives: with the ",
@@ -633,8 +645,8 @@
   }
   shared <- paste0(
     "The reconstructed comparator curve has ", info$m, " event rows at ",
-    info$k, " distinct ", if (time_scale) "time" else "log-time",
-    if (info$k > 1L) "s" else "", ". Its likelihood ",
+    info$k, " distinct log-time", if (info$k > 1L) "s" else "", ". Its ",
+    "likelihood ",
     "is a finite equally weighted mixture over the integration grid, ",
     "`log_sum_exp(ll) - log(n_int)`, and every pseudo-individual in the arm ",
     "sees the same grid, so all ", info$m, " rows can be matched at once by ",
@@ -683,27 +695,12 @@
     warning(shared, " The arm also has censored rows, and ", why,
             ", which this check does not do, so the fit is neither refused ",
             "nor passed as proper: check the sampler near the boundary of ",
-            .aux_name(distribution), " and its sensitivity to `prior_aux`.",
-            restriction, call. = FALSE)
-    return(invisible(TRUE))
-  }
-  if (moving) {
-    ridge <- if (identical(distribution, "weibull")) {
-      paste0("the ridge drives the linear predictor to `-shape * log(t)`, ",
-             "which is zero only for an event at `t = 1`")
-    } else {
-      paste0("the ridge drives the linear predictor to about ",
-             "`log(shape) - shape * t`, which runs away with the shape ",
-             "itself rather than with its logarithm")
-    }
-    warning(shared, " Whether the posterior for ", .aux_name(distribution),
-            " exists is conditional on `prior_intercept` and `prior_beta` ",
-            "here rather than on `prior_aux`: ", ridge, ", so ordinary normal ",
-            "coefficient priors can stop the shape before this growth ",
-            "matters, and the defaults are not wide, `normal(0, 10)` on the ",
-            "intercept and `normal(0, 2.5)` on the rest. Treat the shape as ",
-            "prior-driven and check its sensitivity.", restriction,
-            call. = FALSE)
+            .aux_name(distribution), " and its sensitivity to ",
+            if (identical(distribution, "gamma")) {
+              "`prior_aux` and `prior_intercept`"
+            } else {
+              "`prior_aux`"
+            }, ".", restriction, call. = FALSE)
     return(invisible(TRUE))
   }
   if (distribution %in% scale_families) {
@@ -719,13 +716,40 @@
          "toward zero and report where it stopped.", restriction,
          call. = FALSE)
   }
-  warning(shared, " Whether the posterior for ", .aux_name(distribution),
-          " exists then depends on the tail of `prior_aux`: the marginal ",
-          "behaves as `", .aux_symbol(distribution), "^", rate_text,
-          "` and the divergence is at infinity, where a half-normal or an ",
-          "exponential integrates that power and a half-t need not, so what ",
-          "is reported for it can be a property of that prior rather than ",
-          "of the data.", restriction, call. = FALSE)
+  # Gamma's ridge does not leave the coefficients where it found them: it
+  # matches `eta = log(t) - log(shape)`, so the intercept is displaced by
+  # `-log(shape)` and `prior_intercept` bears on this as much as `prior_aux`
+  # does. A normal intercept prior contributes `exp(-(log shape)^2 / 200)` at
+  # the default width, which integrates any polynomial, so the posterior
+  # exists and the shape merely concentrates far out. That factor is only
+  # 0.95 nats at a shape of 1e6, which is why the measured slope over any
+  # reachable range still looks like undamped growth. The comparator
+  # intercept is `mu_comparator` under both models and draws
+  # `prior_intercept` in each, so this is not a relaxed-only clause. The
+  # index guard says the same thing about the same displacement in its
+  # `ridge_clause`.
+  aux_clause <- if (identical(distribution, "gamma")) {
+    paste0(" Whether the posterior for ", .aux_name(distribution),
+           " exists then depends on `prior_intercept` as well as on ",
+           "`prior_aux`: the marginal behaves as `",
+           .aux_symbol(distribution), "^", rate_text, "`, and the ridge ",
+           "also shifts the comparator intercept by about `-log(shape)`, so ",
+           "an ordinary normal intercept prior stops the shape before that ",
+           "power matters and leaves the posterior proper with the shape ",
+           "concentrated far out. Under a heavy-tailed intercept prior the ",
+           "displacement costs only a power of `log(shape)` and it is ",
+           "`prior_aux` that has to integrate the growth, which a half-t ",
+           "does only for degrees of freedom above ", rate_text, ".")
+  } else {
+    paste0(" Whether the posterior for ", .aux_name(distribution),
+           " exists then depends on the tail of `prior_aux`: the marginal ",
+           "behaves as `", .aux_symbol(distribution), "^", rate_text,
+           "` and the divergence is at infinity, where a half-normal or an ",
+           "exponential integrates that power and a half-t need not, so ",
+           "what is reported for it can be a property of that prior rather ",
+           "than of the data.")
+  }
+  warning(shared, aux_clause, restriction, call. = FALSE)
   invisible(TRUE)
 }
 

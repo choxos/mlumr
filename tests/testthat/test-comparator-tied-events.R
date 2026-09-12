@@ -152,10 +152,8 @@ test_that("distinctness is counted on the scale the density matches", {
   d <- .comp_stub(c(t1, t2, 4), c(1L, 1L, 1L))
   expect_error(check(d), "improper")
   expect_match(msg(d), "2 distinct log-times")
-  # Gompertz reads its ridge on the TIME scale, where those two are genuinely
-  # distinct, so three distinct targets there exceed the reach and nothing is
-  # reported.
-  expect_silent(check(d, distribution = "gompertz"))
+  # Every family this examines matches log(time); Gompertz, which reads the
+  # time scale instead, is not one of them.
 })
 
 test_that("the grid's reach uses the exact rank, not a tolerance", {
@@ -257,7 +255,8 @@ test_that("the rate is measured per family, not shared", {
   # `(m - 1) / 2`: 0.500002, 1.000003, 1.500005 for m of 2, 3, 4. Reporting 1
   # here would claim non-integrability against a half-t `prior_aux` with
   # degrees of freedom in (0.5, 1) that does integrate it.
-  g <- expect_warning(check(d, distribution = "gamma"), "tail of `prior_aux`")
+  g <- expect_warning(check(d, distribution = "gamma"),
+                      "depends on `prior_intercept` as well as")
   expect_match(conditionMessage(g), "diverges at rate 0.5", fixed = TRUE)
   expect_match(conditionMessage(g), "`shape^0.5`", fixed = TRUE)
   expect_match(conditionMessage(g), "square root of the shape", fixed = TRUE)
@@ -265,23 +264,41 @@ test_that("the rate is measured per family, not shared", {
   g2 <- expect_warning(check(.comp_stub(c(1, 1, 4, 4), rep(1L, 4)),
                              distribution = "gamma"), "prior_aux")
   expect_match(conditionMessage(g2), "diverges at rate 1.", fixed = TRUE)
-  # The PH Weibull and Gompertz widths do not shrink at all: their rate is
-  # the ROW count, independent of `k`, and what stops it is the coefficient
-  # priors rather than `prior_aux`. Measured with the coefficient priors out:
-  # +2.000, +2.000, +3.000, +4.000 across `1,1`, `1,4`, `1,1,4`, `1,1,4,4`.
-  for (dist in c("weibull", "gompertz")) {
-    w <- expect_warning(check(d, distribution = dist),
-                        "conditional on `prior_intercept` and `prior_beta`")
-    expect_match(conditionMessage(w), "grows at rate 3", fixed = TRUE)
-    expect_match(conditionMessage(w), "does not fall with the number of",
-                 fixed = TRUE)
-    expect_false(grepl("tail of `prior_aux`", conditionMessage(w),
-                       fixed = TRUE))
-    expect_true(suppressWarnings(check(d, distribution = dist)))
-  }
-  # Each names the ridge its own parameterization has.
-  expect_match(msg_w(d, "weibull"), "-shape * log(t)", fixed = TRUE)
-  expect_match(msg_w(d, "gompertz"), "log(shape) - shape * t", fixed = TRUE)
+  # Gamma's ridge also displaces the intercept by -log(shape), so
+  # `prior_aux` is not the whole story: a normal intercept prior contributes
+  # exp(-(log shape)^2 / 200) and integrates any polynomial. That factor is
+  # 0.95 nats at a shape of 1e6, which is why a measured slope over any
+  # reachable range still looks like undamped growth.
+  expect_match(conditionMessage(g), "`prior_intercept` as well as",
+               fixed = TRUE)
+  expect_match(conditionMessage(g), "shifts the comparator intercept",
+               fixed = TRUE)
+  expect_match(conditionMessage(g), "degrees of freedom above 0.5",
+               fixed = TRUE)
+  # The other two leave the coefficients where they were, so `prior_aux`
+  # alone does decide there.
+  expect_false(grepl("prior_intercept",
+                     msg_w(d, "weibull-aft"), fixed = TRUE))
+})
+
+test_that("the moving-ridge families are not examined here", {
+  # The PH Weibull and Gompertz widths do not shrink with the auxiliary at
+  # all, so their growth is the ROW count whatever the distinct-time count
+  # is, and a repeat is not what causes it. Measured with the coefficient
+  # priors out: +2.000, +2.000, +3.000 and +4.000 across `1,1`, `1,4`,
+  # `1,1,4` and `1,1,4,4`, which is `m` and independent of `k`. What that
+  # growth meets is the coefficient priors, through however many coefficients
+  # the ridge moves and each of their tails, which is a different question
+  # from this one. Reporting it here would attribute to ties something they
+  # do not do, so these two are left out until that question is answered.
+  d <- .comp_stub(c(1, 1, 4), c(1L, 1L, 1L))
+  expect_silent(check(d, distribution = "weibull"))
+  expect_false(check(d, distribution = "weibull"))
+  expect_silent(check(d, distribution = "gompertz"))
+  expect_false(check(d, distribution = "gompertz"))
+  # Including where every time is distinct, which is the configuration that
+  # shows the growth has nothing to do with repeats.
+  expect_silent(check(.comp_stub(c(1, 4), c(1L, 1L)), distribution = "weibull"))
 })
 
 test_that("only repeated EVENT times in one arm are the problem", {

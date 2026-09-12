@@ -128,16 +128,17 @@
     the closed form agreeing with quadrature to 7e-12 at `k` of 10 to 1000.
     Reporting `m - k` would claim non-integrability against a half-t
     `prior_aux` with degrees of freedom in (0.5, 1) that does integrate it.
-  * `weibull` (proportional hazards) and `gompertz`: height `shape`, and the
-    width does not shrink at all, since `t^shape e^eta` and
-    `e^eta expm1(shape t) / shape` both leave a row's curvature at -1
-    whatever the shape is. The rate is `m` regardless of `k`, and what stops
-    it is the coefficient priors rather than `prior_aux`, because the ridge
-    sits at `-shape log t` and at about `log(shape) - shape t`. Measured
-    with the coefficient priors out: +2.000, +2.000, +3.000 and +4.000
-    across `1,1`, `1,4`, `1,1,4` and `1,1,4,4`. With them in, PH Weibull
-    keeps +2.000 for two events at `t = 1` and collapses by 9e6 per decade
-    at `t = 4`, and Gompertz collapses everywhere.
+  The proportional-hazards Weibull and Gompertz are deliberately not
+  examined. Their width does not shrink at all, since `t^shape e^eta` and
+  `e^eta expm1(shape t) / shape` both leave a row's curvature at -1 whatever
+  the shape is, so their growth is `m` regardless of `k`: measured with the
+  coefficient priors out, +2.000, +2.000, +3.000 and +4.000 across `1,1`,
+  `1,4`, `1,1,4` and `1,1,4,4`. A repeat is therefore not what causes it, and
+  firing on repeats would attribute to ties something they do not do. What
+  the growth meets is the coefficient priors, through however many
+  coefficients the ridge moves and each of their tails, and settling that
+  needs those counts per configuration. It is a different question and is not
+  answered here.
 
   So it takes a repeat for any of these to be nonzero, event times that are
   all distinct pin the coefficients in as many directions as there are
@@ -166,11 +167,11 @@
   divergent at +1.000. An interval-censored row is two-sided by itself. Such
   an arm is reported rather than refused, scale family or not.
 
-  Distinctness is counted on the scale the density matches, `log(time)` for
-  every covered family but Gompertz and the time itself for that one. Two
-  distinct doubles can share a logarithm, and counting raw times there reads
-  one target as two, so `k` came out too large and the check returned
-  silently on a curve whose spikes all collapse onto one predictor. The
+  Distinctness is counted on the scale the density matches, which for every
+  family this examines is `log(time)`. Two distinct doubles can share a
+  logarithm, and counting raw times reads one target as two, so `k` came out
+  too large and the check returned silently on a curve whose spikes all
+  collapse onto one predictor. The
   grid's reach likewise uses the exact rank rather than `qr()`'s default
   tolerance, under which independent but badly scaled columns read as
   deficient while the direction is still there.
@@ -191,12 +192,16 @@
 
   What the rate decides differs too. The scale families diverge as the scale
   goes to zero, where every supported prior has positive density, so no
-  prior repairs it and the fit is refused. `weibull-aft`, `loglogistic` and
-  `gamma` diverge as the shape grows, where the rate meets `prior_aux`'s
-  tail, so a half-normal or an exponential integrates it and a half-t need
-  not, and that is reported rather than refused. For the PH Weibull and
-  Gompertz the coefficient priors decide instead, and the warning says so
-  rather than naming a `prior_aux` conclusion it does not have.
+  prior repairs it and the fit is refused. `weibull-aft` and `loglogistic`
+  diverge as the shape grows, where the rate meets `prior_aux`'s tail, so a
+  half-normal or an exponential integrates it and a half-t need not, and
+  that is reported rather than refused. `gamma` is reported on a different
+  pair: its ridge also displaces the comparator intercept by `-log(shape)`,
+  and a normal `prior_intercept` contributes `exp(-(log shape)^2 / 200)` at
+  the default width, which integrates any polynomial, so the posterior
+  exists and the shape concentrates far out. It is a heavy-tailed intercept
+  prior that leaves `prior_aux` to integrate the growth, which a half-t does
+  only above `(m - k) / 2` degrees of freedom.
 
   This is a restriction on the quadrature and not a defect of the model it
   approximates, which matters for what the fix eventually is. Integrating a
