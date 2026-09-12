@@ -1,3 +1,43 @@
+#' Check that a CmdStan run left draws behind before reading them
+#'
+#' `cmdstanr`'s own filter for the chains worth reading is
+#' `is_finished() | is_queued()`. A QUEUED chain is one whose process never
+#' started, so it has written no CSV, yet its intended path comes back as if
+#' it were readable. `fit$draws()` then hands that path to
+#' `read_cmdstan_csv()`, which aborts on a `checkmate` assertion naming a
+#' file under `tempdir()` and nothing a caller can act on. That is what the
+#' Stan-enabled suite hit on a single-chain gengamma smoke fit.
+#'
+#' A chain that ran and failed is a different case and is not an error here:
+#' `cmdstanr` drops it and the run continues on the chains that finished,
+#' which is the behavior a partly failing multi-chain fit already relies on.
+#' Only files that are claimed and absent, or no files at all, are refused.
+#'
+#' @param files The output paths the fit reports as readable.
+#' @param chains The number of chains requested.
+#' @return `TRUE` invisibly. Stops when there is nothing to read.
+#' @keywords internal
+.assert_cmdstan_output <- function(files, chains) {
+  files <- as.character(files)
+  absent <- files[!file.exists(files)]
+  if (!length(absent) && length(files)) return(invisible(TRUE))
+  detail <- if (length(absent)) {
+    sprintf("%d of %d chain(s) reported output that is not on disk (%s)",
+            length(absent), chains,
+            paste(basename(absent), collapse = ", "))
+  } else {
+    sprintf("none of the %d chain(s) produced output", chains)
+  }
+  msg <- paste0(
+    "The Stan run left no draws to read: %s. This is a failure of the ",
+    "sampler run rather than of the model: a chain whose process never ",
+    "started, or that exited before writing its CSV, leaves nothing behind. ",
+    "Re-run with `verbose = TRUE` to see CmdStan's own messages, and set ",
+    "`output_dir` to keep them."
+  )
+  stop(sprintf(msg, detail), call. = FALSE)
+}
+
 #' Fit a Stan model using cmdstanr
 #' @keywords internal
 fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
@@ -62,6 +102,9 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
     dots
   )
   fit <- do.call(mod$sample, sample_args)
+  produced <- tryCatch(fit$output_files(include_failed = FALSE),
+                       error = function(e) character(0))
+  .assert_cmdstan_output(produced, chains)
 
   # Extract draws as plain data.frame (drop metadata columns). Keep the real
   # per-draw chain id before dropping it, so diagnostics (loo r_eff) use the

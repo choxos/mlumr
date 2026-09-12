@@ -44,39 +44,56 @@ spike proportional to one over the auxiliary's width, and the rows choose
 their nodes freely.
 
 What decides propriety is how many spikes stand up AT ONCE and what
-coefficient volume that costs. Matching \code{m} event rows falling on \code{k}
-DISTINCT times needs \code{k} nodes whose linear predictors equal those \code{k}
-log-times, which is \code{k} equations in the comparator's coefficients. They
-are solvable exactly when \code{k} is at most the dimension the grid can reach,
-\code{rank(cbind(1, X_int))}, which is \code{1 + n_cov} for any grid that is not
-degenerate.
+coefficient volume that costs. An ALLOCATION sends each of the \code{m} event
+rows to a grid node; its design \code{D} has that node's covariate vector
+beside an intercept, one row per event row, and the rows stand on spikes
+together exactly when \verb{D b = targets} is consistent. The exponent is then
+\code{m - rank(D)}.
+
+It is NOT \code{m - k} for \code{k} distinct times, and more distinct times than the
+grid's rank \code{rank(cbind(1, X_int))} is not a proof that no allocation
+works. Distinct response values are not independent linear constraints,
+and an overdetermined system can still be consistent: comparator events at
+\verb{t = 1, 2, 4} on the nodes \verb{1, 2, 3} that \code{add_integration()} really
+builds for a uniform covariate are three distinct times with no repeat,
+past a reach of 2, and are matched exactly by \verb{b = (-log 2, log 2)} for a
+rank of 2 and a measured slope of -1.0000 per decade of scale.
+
+\code{rank(D)} is at most the reach and at most \code{k}, since rows sharing a node
+share a predictor. Below the reach a solution always exists and the rank
+is \code{k}. Past it, existence is the question, and this refuses only what it
+can certify: with one covariate the map is a line that two (target, node)
+assignments fix, so enumerating node pairs decides it, and anything wider
+or too large to enumerate is left alone. Silence from this function is
+therefore NOT a certificate that the posterior is proper; a refusal is a
+certificate that it is not.
 
 All \code{m} rows are matched on the solution set, so every one of them stands
 on a spike whose height grows as the auxiliary approaches its boundary,
-while the set is pinned only in the \code{k} directions the equations fix and
-its transverse width shrinks in each of those. The rate is the difference,
-and neither factor is shared across families. The height and the width,
-per family:
+while the set is pinned only in the \code{rank(D)} directions the equations fix
+and its transverse width shrinks in each of those. The rate is the
+difference, and neither factor is shared across families. The height and
+the width, per family:
 \itemize{
 \item \code{lognormal} and \code{gengamma}: height \code{1 / sdlog}, width \code{sdlog}. Rate
-\code{m - k} as the scale goes to zero. Measured over 20 midpoint normal
+\code{m - rank(D)} as the scale goes to zero. Measured over 20 midpoint normal
 nodes with the coefficients integrated against normal priors,
 \verb{d log M / d log sdlog} is -0.000, -1.000 and -2.000 across \verb{1,4},
 \verb{1,1,4} and \verb{1,1,4,4}.
 \item \code{weibull-aft} and \code{loglogistic}: height \code{shape}, width \code{1 / shape}. Rate
-\code{m - k} as the shape grows. \verb{d log M / d log shape} is +0.000, +1.000
+\code{m - rank(D)} as the shape grows. \verb{d log M / d log shape} is +0.000, +1.000
 and +2.000 on the same three, for both. A row's own integral over its
 linear predictor is exactly \verb{shape^(m - 1) t^-m Gamma(m) / m^m} for \code{m}
 rows on one time, which is that rate at \code{k = 1}.
 \item \code{gamma}: height \code{sqrt(shape)}, width \code{1 / sqrt(shape)}, so the rate is
-HALF, \code{(m - k) / 2}. The Stan density (\code{dist == 8} in
+HALF, \code{(m - rank(D)) / 2}. The Stan density (\code{dist == 8} in
 \code{survival_functions.stan}) is \verb{k u - e^u - log t - lgamma(k)} for
 \verb{u = log t - eta}, peaking at \verb{u = log k} with value about \verb{0.5 log k}
 and curvature \code{-k}. For \code{m} rows on one time the integral is exactly
 \verb{Gamma(m k) / m^(m k) / Gamma(k)^m}, whose slope in \verb{log k} is
 \code{(m - 1) / 2}: 0.500002, 1.000003 and 1.500005 for \code{m} of 2, 3 and 4,
 the closed form agreeing with quadrature to 7e-12 at \code{k} of 10 to 1000.
-Reporting \code{m - k} here would claim non-integrability against a half-t
+Reporting \code{m - rank(D)} here would claim non-integrability against a half-t
 \code{prior_aux} with degrees of freedom in (0.5, 1) that does integrate it.
 }
 
@@ -173,7 +190,7 @@ contributes \verb{exp(-(log shape)^2 / 200)} at the default width, which
 integrates any polynomial. The posterior exists there and the shape merely
 concentrates far out; it is a heavy-tailed intercept prior that leaves
 \code{prior_aux} to integrate the growth, which a half-t does only above
-\code{(m - k) / 2} degrees of freedom. That factor is 0.95 nats at a shape of
+\code{(m - rank(D)) / 2} degrees of freedom. That factor is 0.95 nats at a shape of
 1e6, so a slope measured over any reachable range still looks undamped,
 which is why the clause is derived rather than read off one. The
 comparator intercept is \code{mu_comparator} under both models and draws

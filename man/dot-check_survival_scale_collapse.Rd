@@ -30,8 +30,15 @@ establish that, which is not the same as establishing the opposite.
 \code{\link[=.check_comparator_tied_events]{.check_comparator_tied_events()}} reads it under \code{aux_by = "none"}. A
 shared-auxiliary warning also carries \code{index_exact}: \code{TRUE} when the index
 event design was shown to reproduce its own times and so pins a shared
-coefficient vector, \code{FALSE} only where it was shown to pin nothing, which
-an index with no events is, and \code{NA} where the question was not settled.
+coefficient vector, \code{FALSE} only where it was shown to pin nothing, and
+\code{NA} where the question was not settled. The three are distinct on
+purpose, and an index with NO events is not automatically the second of
+them: having no events means no design to fit, not that nothing bounds
+the auxiliary. Censored rows alone can bound it, and when they conflict
+they do, so an eventless index is answered by asking whether any linear
+predictor satisfies every one of its regions at once. A certified
+conflict returns \code{bounds_aux = TRUE}, a certified absence of one returns
+\code{index_exact = FALSE}, and an undecided case returns neither.
 }
 \description{
 A log-normal AFT is a normal model for \code{log(t)} with a positive scale

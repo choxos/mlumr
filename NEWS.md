@@ -89,9 +89,9 @@
   small and the row came back `"bounded"`, which suppresses the refusal.
   Such a design is now `"undetermined"`.
 
-* **A comparator curve whose event times repeat within the integration
-  grid's reach is refused for a log-normal survival fit, and warned about for
-  the shape families.** The comparator likelihood is not the continuously
+* **A comparator curve whose event rows outnumber the rank of the
+  integration nodes that match them is refused for a log-normal survival fit,
+  and warned about for the shape families.** The comparator likelihood is not the continuously
   integrated one the model is written to mean. Each reconstructed
   pseudo-individual contributes `log_sum_exp(ll) - log(n_int)`, a finite
   equally weighted mixture over the integration grid, and every
@@ -100,33 +100,35 @@
   auxiliary's width.
 
   What decides propriety is how many spikes stand up at once and what
-  coefficient volume that costs. Matching `m` event rows falling on `k`
-  DISTINCT times needs `k` nodes whose linear predictors equal those `k`
-  log-times, which is `k` equations in the comparator's coefficients. They
-  have a solution when `k` is at most the dimension the grid reaches,
+  coefficient volume that costs. An allocation sends each of the `m` event
+  rows to a grid node; its design `D` carries that node's covariate vector
+  beside an intercept, one row per event row, and the rows stand on spikes
+  together exactly when `D b = targets` is consistent. The exponent is
+  `m - rank(D)`, and `rank(D)` is bounded by the dimension the grid reaches,
   `rank(cbind(1, X_int))`, which is `1 + n_cov` for any grid that is not
-  degenerate.
+  degenerate, and by the number of distinct times, since rows sharing a node
+  share a predictor.
 
   All `m` rows are matched on the solution set, so each stands on a spike
   that grows as the auxiliary approaches its boundary, while the set is
-  pinned in only the `k` directions the equations fix and its width shrinks
-  in each of those. The rate is the difference, and neither factor is shared
-  across families:
+  pinned in only the `rank(D)` directions the equations fix and its width
+  shrinks in each of those. The rate is the difference, and neither factor is
+  shared across families:
 
   * `lognormal` and `gengamma`: height `1 / sdlog`, width `sdlog`, rate
-    `m - k` as the scale goes to zero. Measured over 20 midpoint normal
+    `m - rank(D)` as the scale goes to zero. Measured over 20 midpoint normal
     nodes with the coefficients integrated against normal priors,
     `d log M / d log sdlog` is -0.000, -1.000 and -2.000 across `1,4`,
     `1,1,4` and `1,1,4,4`.
   * `weibull-aft` and `loglogistic`: height `shape`, width `1 / shape`, rate
-    `m - k` as the shape grows. `d log M / d log shape` is +0.000, +1.000
+    `m - rank(D)` as the shape grows. `d log M / d log shape` is +0.000, +1.000
     and +2.000 on the same three, for both.
   * `gamma`: height `sqrt(shape)`, width `1 / sqrt(shape)`, so the rate is
-    half, `(m - k) / 2`. For `m` rows on one time the integral is exactly
+    half, `(m - rank(D)) / 2`. For `m` rows on one time the integral is exactly
     `Gamma(m k) / m^(m k) / Gamma(k)^m`, whose slope in `log k` is
     `(m - 1) / 2`: 0.500002, 1.000003 and 1.500005 for `m` of 2, 3 and 4,
     the closed form agreeing with quadrature to 7e-12 at `k` of 10 to 1000.
-    Reporting `m - k` would claim non-integrability against a half-t
+    Reporting `m - rank(D)` would claim non-integrability against a half-t
     `prior_aux` with degrees of freedom in (0.5, 1) that does integrate it.
   The proportional-hazards Weibull and Gompertz are deliberately not
   examined. Their width does not shrink at all, since `t^shape e^eta` and
@@ -140,10 +142,10 @@
   needs those counts per configuration. It is a different question and is not
   answered here.
 
-  So it takes a repeat for any of these to be nonzero, event times that are
-  all distinct pin the coefficients in as many directions as there are
-  spikes, and tied CENSORED times contribute a survival probability rather
-  than a density spike. The profile maximum, by contrast, grows in every one
+  What makes any of these nonzero is more event rows than the matched
+  design has rank, which repeated times are the usual but not the only way to
+  reach; tied CENSORED times contribute a survival probability rather than a
+  density spike and do not count toward it at all. The profile maximum, by contrast, grows in every one
   of those cases including the convergent ones, which is why the volume and
   not the profile is what decides this.
 
@@ -185,9 +187,10 @@
   tolerance, under which independent but badly scaled columns read as
   deficient while the direction is still there.
 
-  Past the grid's reach there is nothing to refuse, and this is deliberately
-  narrow about it. With `k` above `rank(cbind(1, X_int))` the `k` equations
-  have no solution, the best simultaneous match leaves a residual `d > 0`,
+  Past the grid's reach there may be nothing to refuse, and this is
+  deliberately narrow about which case it is in. With `k` above
+  `rank(cbind(1, X_int))` the `k` equations need not have a solution, and
+  where they do not the best simultaneous match leaves a residual `d > 0`,
   and the profile collapses like `exp(-d^2 / (2 aux^2))` once the auxiliary
   falls below `d`. What happens before that looks exactly like a divergence
   and is not one: three distinct times over 20 nodes leave `d = 5.99e-4` and
@@ -198,6 +201,19 @@
   way, so an ordinary reconstructed curve with many distinct times and one
   rounding tie is not refused. A slope measured over any fixed range of the
   auxiliary cannot tell the two apart, which is why the test is structural.
+
+  A count is not that structure, though. Distinct response values are not
+  independent linear constraints, and an overdetermined system can still be
+  consistent, so neither an absence of repeats nor more distinct times than
+  the reach establishes `d > 0`. Comparator events at `t = 1, 2, 4` on the
+  nodes `1, 2, 3` that `add_integration()` really builds for a uniform
+  covariate are three distinct times with no repeat, past a reach of 2, and
+  are matched exactly by `b = (-log 2, log 2)`: rank 2 against 3 rows, and a
+  measured slope of -1.0000 per decade of scale. With one covariate the map
+  is a line that two (target, node) assignments fix, so node pairs are
+  enumerated and this case is refused; wider designs, and grids too large to
+  enumerate, are left alone. Silence from this check is not a certificate
+  that the posterior is proper. A refusal is a certificate that it is not.
 
   What the rate decides differs too. The scale families diverge as the scale
   goes to zero, where every supported prior has positive density, so no
@@ -210,7 +226,7 @@
   the default width, which integrates any polynomial, so the posterior
   exists and the shape concentrates far out. It is a heavy-tailed intercept
   prior that leaves `prior_aux` to integrate the growth, which a half-t does
-  for degrees of freedom of at least `(m - k) / 2`. Equality integrates
+  for degrees of freedom of at least `(m - rank(D)) / 2`. Equality integrates
   rather than failing: the auxiliary's `shape^-(df + 1)` meets the Student-t
   intercept's `(log shape)^-(df + 1)` on the `-log(shape)` ridge, and
   `1 / (shape * (log shape)^(df + 1))` integrates for every supported
@@ -228,11 +244,10 @@
   distinct target is not that case and is still refused: its one equation is
   absorbed by the free `mu_comparator`, so the shared slope stays free and
   both singularities stand at once. Neither is an index that never had an
-  exact design: failing to bound the auxiliary does not imply one, since the
-  index guard returns before reaching its geometry when there are no index
-  events, and an index of nothing but right-censored rows pins no slope at
-  all, its `mu_index` rising above every censoring time so that its
-  likelihood tends to one while the comparator divergence is left whole. The
+  exact design: failing to bound the auxiliary does not imply one, and an
+  index of nothing but right-censored rows pins no slope at all, its
+  `mu_index` rising above every censoring time so that its likelihood tends
+  to one while the comparator divergence is left whole. The
   index guard now reports what it established in an `index_exact` attribute
   and the comparator check reads it. That attribute is three-valued: `FALSE`
   only where the index was shown to pin nothing, `TRUE` where its event
@@ -242,13 +257,31 @@
   exact with a solution set the comparator's slopes miss, which is the same
   proper configuration the branch reports.
 
-  This is a restriction on the quadrature and not a defect of the model it
-  approximates, which matters for what the fix eventually is. Integrating a
-  declared Gaussian covariate exactly leaves
-  `log T ~ N(mu, beta^2 + sdlog^2)`, whose posterior IS proper for the same
-  data: two tied events give `1 / (2 pi tau sqrt(tau^2 + 2 a^2))` for
-  `tau^2 = beta^2 + sdlog^2`, which behaves as `1 / sqrt(beta^2 + sdlog^2)`
-  near the origin and is integrable there. Two comparator events at `t = 1`
+  An index with no events at all is not automatically the `FALSE` of those
+  three. Having no events means there is no design to fit, not that nothing
+  bounds the auxiliary: censored rows alone can bound it, and conflicting
+  ones do. An index carrying one row left-censored at `t = 1` and another
+  right-censored at `t = 4` on the same covariate profile has no linear
+  predictor satisfying both, `sup_mu L = Phi(-log(4) / (2 sdlog))^2` falls
+  faster than the comparator's `sdlog^-2` grows, and the shared-scale fit is
+  proper. So an eventless index is answered by asking whether any linear
+  predictor satisfies every one of its observation regions at once: rows at
+  one covariate profile share a predictor, so their regions must overlap, and
+  a certified conflict reports the bound while a certified absence of one
+  reports that the index pins nothing. Anything else is left undecided.
+
+  Exactly integrating a declared Gaussian covariate is a different model
+  rather than a guaranteed repair, and how far that goes is worth being
+  precise about. It leaves `log T ~ N(mu, beta^2 + sdlog^2)`, and with
+  `mu ~ N(0, a^2)` integrated out, `m` events tied at one time give
+  `(2 pi)^(-m / 2) tau^(1 - m) / sqrt(tau^2 + m a^2)` for
+  `tau^2 = beta^2 + sdlog^2`. That behaves as `r^(1 - m)` near the origin
+  against the plane's own `r dr`, leaving `integral r^(2 - m) dr`: finite for
+  two tied events and divergent from three on. So for two the quadrature is
+  what creates the singularity and exact integration removes it, while for
+  three or more the exactly integrated model is improper as well. Nothing
+  here establishes the question for the other families or for other covariate
+  distributions, and they are no longer told it holds for them. Two comparator events at `t = 1`
   on 64 nodes, coefficients integrated against `normal(0, 10)` and
   `normal(0, 2.5)`: the grid likelihood runs 0.0143, 0.185, 1.72, 171 and
   17103 as `sdlog` falls through 0.1, 0.001, 0.0001, 1e-6 and 1e-8, while
@@ -948,6 +981,20 @@
   asking for it returned NA for both treatments out of entirely finite draws,
   and only the default probabilities happened to line up. The summaries now
   carry the package's own names, so no lookup can disagree with them.
+
+* **A `cmdstanr` run that produced no draws now says so, instead of failing
+  inside `checkmate` on a path under `tempdir()`.** `cmdstanr` decides which
+  chains are worth reading with `is_finished() | is_queued()`, and a *queued*
+  chain is one whose process never started, so it has written no CSV while
+  its intended path still comes back as readable. `fit$draws()` then handed
+  that path to `read_cmdstan_csv()`, and the whole fit died on
+  `Assertion on 'files' failed: File does not exist`, naming a temporary file
+  the caller had never heard of and giving nothing to act on. The backend now
+  checks that the output it is about to read exists, and reports how many
+  chains produced nothing and where CmdStan's own messages can be found. A
+  chain that ran and *failed* is unaffected: `cmdstanr` drops it and the run
+  continues on the chains that finished, as a partly failing multi-chain fit
+  already relied on.
 
 ## Transportability to arbitrary target populations
 

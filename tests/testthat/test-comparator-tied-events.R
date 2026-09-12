@@ -4,18 +4,23 @@
 # in an arm sees the same grid, so `m` event rows falling on `k` distinct times
 # can be matched at once by `k` nodes: `k` equations in the comparator's
 # coefficients, solvable only up to the dimension the grid reaches. The `m`
-# spikes then carry `aux^-m` against a coefficient volume of `aux^k`, so the
-# marginal behaves as `aux^(k - m)`. Measured over 20 midpoint normal nodes
-# with the coefficients integrated against their default priors: 0.000 for two
-# events at different times, 1.000 for three at two distinct times, 2.000 for
-# four at two, for `lognormal` and `weibull-aft` alike.
+# spikes then carry `aux^-m` against a coefficient volume of `aux^r`, where
+# `r` is the RANK of the matched allocation's design, so the marginal behaves
+# as `aux^(r - m)`. Measured over 20 midpoint normal nodes with the
+# coefficients integrated against normal priors: 0.000 for two events at
+# different times, 1.000 for three at two distinct times, 2.000 for four at
+# two, for `lognormal` and `weibull-aft` alike.
 #
-# Two things follow that the first version of this guard got wrong. The power
-# is `m - k` and not the largest tie, so (1, 1, 4, 4) is 2 rather than 1. And
-# past the grid's reach the `k` equations have no solution at all: the best
-# match leaves a residual `d > 0` and the profile collapses once the auxiliary
-# falls below it, so an ordinary reconstructed curve with many distinct times
-# and one repeat is proper and must not be refused.
+# Three things follow that earlier versions of this guard got wrong. The power
+# is not the largest tie, so (1, 1, 4, 4) is 2 rather than 1. Past the grid's
+# reach the equations may have no solution, in which case the best match
+# leaves a residual `d > 0` and the profile collapses once the auxiliary falls
+# below it, so an ordinary reconstructed curve with many distinct times and
+# one repeat is proper and must not be refused. But `d > 0` does not follow
+# from the counts: distinct response values are not independent linear
+# constraints, and an overdetermined system can be consistent, so the rank of
+# the matched design is what the exponent counts and neither `m <= k` nor
+# `k > reach` is a certificate of anything.
 
 # `agd_surv` carries left- or interval-censored comparator rows, which the
 # column route does not accept: those need a survival::Surv() object.
@@ -237,12 +242,19 @@ test_that("a refusal reports the geometry it is refusing", {
   d <- .comp_stub(c(1, 1, 4), c(1L, 1L, 1L))
   e <- msg(d)
   expect_match(e, "improper")
-  expect_match(e, "matched at once by 2 integration points")
   expect_match(e, "2 equations in the comparator's coefficients")
   expect_match(e, "grid reaches 2 independent linear predictors")
-  expect_match(e, "all distinct pin the coefficients")
+  # The rank of the matched design, which is what the exponent counts.
+  expect_match(e, "design of that match has rank 2")
+  expect_match(e, "3 event rows against a matched design of rank 2")
+  # And it no longer says an absence of repeats is an absence of a ridge.
+  expect_false(grepl("all distinct pin the coefficients", e, fixed = TRUE))
+  expect_match(e, "not on its own an absence of a ridge")
   expect_match(e, "larger `n_int` is still a finite mixture")
-  expect_match(e, "restriction on the quadrature")
+  # The exact-integration counterpart is scoped to what was proved: proper
+  # for two tied events, improper from three, and only for this family.
+  expect_match(e, "two tied events converge, three or more do not")
+  expect_false(grepl("IS proper for these same data", e, fixed = TRUE))
   # The index side really is healthy: this is not the index collapse in
   # disguise, which is the whole point of the finding.
   expect_false(mlumr:::.check_survival_scale_collapse(d, "lognormal",
@@ -255,7 +267,7 @@ test_that("the rate is measured per family, not shared", {
   # Reading one family's exponent off another is how a wrong rate reaches a
   # message. The height and width of a matched spike differ by family.
   d <- .comp_stub(c(1, 1, 4), c(1L, 1L, 1L))
-  # Height `shape`, width `1 / shape`: rate `m - k`. Measured +0.000, +1.000,
+  # Height `shape`, width `1 / shape`: rate `m - rank(D)`. Measured +0.000,
   # +2.000 across `1,4`, `1,1,4`, `1,1,4,4`, for both of these.
   for (dist in c("weibull-aft", "loglogistic")) {
     w <- expect_warning(check(d, distribution = dist), "tail of `prior_aux`")
@@ -427,4 +439,126 @@ test_that("a shared auxiliary is skipped only where the index bounds it", {
   expect_error(check(d, aux_by = NULL, index_bounds_aux = TRUE), "improper")
   expect_error(check(d, aux_by = ".study", index_bounds_aux = TRUE),
                "improper")
+})
+
+# ---- the counts are not certificates -------------------------------------
+
+# Distinct event times, no repeat anywhere, and more of them than the grid's
+# rank: both of the counts the guard used to test say "nothing to see", and
+# both are wrong. The times 1, 2, 4 are carried onto the nodes 1, 2, 3 by
+# `b = (-log 2, log 2)` exactly, a design of rank 2 against 3 rows, and the
+# marginal slope measures -1.0000 per decade of `sdlog`.
+.uniform_stub <- function(times, n_int = 8) {
+  ip <- set_ipd(
+    data.frame(trt = "A", time = c(0.8, 1.2, 2, 2.5), status = rep(1L, 4),
+               x = c(0, 0, 1, 1)),
+    treatment = "trt", covariates = "x", family = "survival",
+    time = "time", status = "status"
+  )
+  ag <- set_agd_surv(
+    data.frame(trt = "B", time = times, status = rep(1L, length(times)),
+               x_mean = 2, x_sd = 4 / sqrt(12)),
+    treatment = "trt", time = "time", status = "status",
+    cov_means = "x_mean", cov_sds = "x_sd", cov_types = "continuous"
+  )
+  suppressWarnings(add_integration(combine_data(ip, ag), n_int = n_int,
+                                   verbose = FALSE,
+                                   x = distr(stats::qunif, min = 0, max = 4)))
+}
+
+test_that("an overdetermined system that is consistent is still refused", {
+  d <- .uniform_stub(c(1, 2, 4))
+  # The grid really does contain the three nodes, from the ordinary public
+  # `add_integration()` call rather than a hand-built one.
+  grid <- as.numeric(d$integration_points[1, , 1])
+  expect_true(all(c(1, 2, 3) %in% grid))
+  expect_equal(as.vector(cbind(1, c(1, 2, 3)) %*% c(-log(2), log(2))),
+               log(c(1, 2, 4)))
+  # Three distinct targets, so `m <= k` and `k > reach` both held and both
+  # used to skip the arm in silence.
+  e <- msg(d)
+  expect_match(e, "3 event rows at 3 distinct log-times")
+  expect_match(e, "an overdetermined system can still be consistent")
+  expect_match(e, "design of that match has rank 2")
+  expect_match(e, "diverges at rate 1")
+  # Repeats on top of it raise `m` and not the rank.
+  expect_match(msg(.uniform_stub(c(1, 1, 2, 4))), "diverges at rate 2")
+})
+
+test_that("a target the grid cannot carry is still passed in silence", {
+  # The same grid and the same count of distinct times, but `log(3)` is not
+  # on any line through the others' nodes, so the best match leaves a real
+  # residual and there is no ridge to refuse.
+  expect_false(check(.uniform_stub(c(1, 2, 3))))
+  expect_false(check(.uniform_stub(c(1, 2, 3, 5))))
+  # And the certificate declines to answer rather than guessing where it
+  # cannot enumerate: more than one covariate is not decided here.
+  expect_true(is.na(mlumr:::.grid_hits_targets(cbind(1:3, 1:3), log(c(1, 2)))))
+  expect_true(is.na(mlumr:::.grid_hits_targets(NULL, log(c(1, 2)))))
+})
+
+test_that("the refusal survives the public mlumr() call", {
+  d <- .uniform_stub(c(1, 2, 4))
+  fit <- function() {
+    suppressWarnings(mlumr(d, model = "relaxed", distribution = "lognormal",
+                           center = FALSE, qr = FALSE, engine = "rstan",
+                           seed = 2026, verbose = FALSE, refresh = 0))
+  }
+  expect_error(fit(), "improper")
+})
+
+# ---- an index with no events is not automatically a verdict ----------------
+
+.eventless_stub <- function(sv, x = c(0, 0)) {
+  ip <- suppressWarnings(set_ipd(
+    data.frame(trt = "A", x = x),
+    treatment = "trt", covariates = "x", family = "survival", Surv = sv
+  ))
+  ag <- set_agd_surv(
+    data.frame(trt = "B", time = c(1, 1), status = c(1L, 1L),
+               x_mean = 0, x_sd = 1),
+    treatment = "trt", time = "time", status = "status",
+    cov_means = "x_mean", cov_sds = "x_sd", cov_types = "continuous"
+  )
+  suppressWarnings(add_integration(combine_data(ip, ag), n_int = 8,
+                                   verbose = FALSE,
+                                   x = distr(stats::qnorm, mean = x_mean,
+                                             sd = x_sd)))
+}
+
+test_that("conflicting censored rows bound a shared auxiliary with no events", {
+  # One subject's event is known to fall at or before 1, another's after 4, at
+  # the same covariate profile. No linear predictor satisfies both, so
+  # `sup_mu L = Phi(-log(4) / (2 sdlog))^2`, which beats the comparator's
+  # `sdlog^-2`: the joint posterior is proper and must not be refused.
+  d <- .eventless_stub(survival::Surv(time = c(NA, 4), time2 = c(1, Inf),
+                                      type = "interval2"))
+  expect_equal(as.integer(d$ipd$data$.status), c(2L, 0L))
+  idx <- mlumr:::.check_survival_scale_collapse(d, "lognormal",
+                                                aux_by = "none", center = FALSE)
+  expect_true(isTRUE(attr(idx, "bounds_aux")))
+  # Which is what stops the comparator guard, so the fit goes through.
+  expect_false(check(d, aux_by = "none", model = "relaxed",
+                     index_bounds_aux = TRUE))
+})
+
+test_that("an eventless index that pins nothing is still reported", {
+  # All right-censored: raising the intercept clears every one of them at
+  # once, the index likelihood tends to one at the boundary, and the
+  # comparator divergence is left whole.
+  for (x in list(c(0, 0), c(0, 1))) {
+    d <- .eventless_stub(survival::Surv(time = c(2, 4), event = c(0, 0)), x)
+    idx <- mlumr:::.check_survival_scale_collapse(d, "lognormal",
+                                                  aux_by = "none",
+                                                  center = FALSE)
+    expect_null(attr(idx, "bounds_aux"))
+    expect_false(attr(idx, "index_exact"))
+  }
+  # Two-sided but compatible is the same answer: a predictor between the two
+  # ends satisfies both rows.
+  d <- .eventless_stub(survival::Surv(time = c(NA, 1), time2 = c(4, Inf),
+                                      type = "interval2"))
+  idx <- mlumr:::.check_survival_scale_collapse(d, "lognormal",
+                                                aux_by = "none", center = FALSE)
+  expect_false(attr(idx, "index_exact"))
 })

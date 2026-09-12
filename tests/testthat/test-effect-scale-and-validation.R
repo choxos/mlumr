@@ -398,3 +398,28 @@ test_that("the origin row does not claim a requested time", {
   # And the labels are untouched, the other half of the same assignment.
   expect_equal(out$treatment[1], "A")
 })
+
+# ---- a Stan run that produced nothing says so ------------------------------
+
+test_that("a chain that wrote no CSV is reported, not asserted about", {
+  g <- mlumr:::.assert_cmdstan_output
+  real <- tempfile(fileext = ".csv")
+  writeLines("x", real)
+  on.exit(unlink(real), add = TRUE)
+  # The ordinary case: every claimed file is there.
+  expect_true(g(real, 1L))
+  expect_true(g(c(real, real), 2L))
+  # `cmdstanr` counts a QUEUED chain, whose process never started, among the
+  # chains worth reading, so it hands back a path to a file that was never
+  # written. Reading it aborted inside `checkmate` with nothing but a
+  # tempdir path to go on.
+  gone <- file.path(tempdir(), "mlumr_survival_spfa-000000000000-01-000000.csv")
+  expect_error(g(c(real, gone), 2L), "1 of 2 chain\\(s\\) reported output")
+  expect_error(g(c(real, gone), 2L), "sampler run rather than of the model")
+  expect_error(g(gone, 1L), "not on disk")
+  # A chain that ran and FAILED is dropped by cmdstanr and the run continues
+  # on what finished, so a shorter list of real files is not an error.
+  expect_true(g(real, 2L))
+  # Nothing at all is its own message.
+  expect_error(g(character(0), 2L), "none of the 2 chain\\(s\\)")
+})
