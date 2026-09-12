@@ -22,7 +22,16 @@
 \code{\link[=.check_normal_residual_variation]{.check_normal_residual_variation()}}.}
 }
 \value{
-\code{TRUE} invisibly if the data were warned about, \code{FALSE} otherwise.
+\code{TRUE} invisibly if the data were warned about, \code{FALSE} otherwise,
+carrying a \code{bounds_aux} attribute that is \code{TRUE} when the index rows were
+shown to bound the auxiliary away from its boundary (a real residual, or a
+censored row that bounds). Anything else means this function did not
+establish that, which is not the same as establishing the opposite.
+\code{\link[=.check_comparator_tied_events]{.check_comparator_tied_events()}} reads it under \code{aux_by = "none"}. A
+shared-auxiliary warning also carries \code{index_exact}: \code{TRUE} when the index
+event design was shown to reproduce its own times and so pins a shared
+coefficient vector, \code{FALSE} only where it was shown to pin nothing, which
+an index with no events is, and \code{NA} where the question was not settled.
 }
 \description{
 A log-normal AFT is a normal model for \code{log(t)} with a positive scale
@@ -117,8 +126,14 @@ Skipping a censoring type outright was not the safe choice it looked
 like: it let a row that suppresses nothing stand in for one that does,
 and sent an improper posterior to the sampler in silence.
 
-The comparator side is not examined either: its reconstructed rows enter a
-likelihood marginalized over the integration grid, which is not this
-geometry.
+The comparator side is not examined HERE, and its rows are not safe for
+being left out. They enter a likelihood marginalized over the integration
+grid, which is not this geometry but a worse one: that marginal is a
+finite mixture, and repeated comparator event times can make it diverge
+where this index geometry is perfectly healthy.
+\code{\link[=.check_comparator_tied_events]{.check_comparator_tied_events()}} is that question. It runs whatever this
+function concludes, except that a SHARED auxiliary this function bounded
+bounds the comparator's too, which is what the \code{bounds_aux} attribute on
+the return value reports.
 }
 \keyword{internal}
