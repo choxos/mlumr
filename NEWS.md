@@ -105,18 +105,29 @@
   log-times, which is `k` equations in the comparator's coefficients. They
   have a solution when `k` is at most the dimension the grid reaches,
   `rank(cbind(1, X_int))`, which is `1 + n_cov` for any grid that is not
-  degenerate. All `m` rows are then matched on the solution set, so the
-  profile likelihood carries `aux^-m`, while the set is pinned in only the
-  `k` directions the equations fix and its width is proportional to the
-  auxiliary in each: the coefficient volume is `aux^k`. With the coefficients
-  integrated out the marginal behaves as `aux^(k - m)`. Measured over 20
-  midpoint normal nodes against the default coefficient priors,
-  `d log M / d log aux` is 0.000 for two events at different times, 1.000 for
-  three events at two distinct times, and 2.000 for four at two, for
-  `lognormal` and `weibull-aft` alike. So the divergence is `m - k` and needs
-  a repeat to exist at all, event times that are all distinct give the
-  convergent power zero however many there are, and tied CENSORED times
-  contribute a survival probability rather than a density spike.
+  degenerate.
+
+  Write `aux` for the auxiliary's distance from the boundary it runs to,
+  `sdlog` itself for the scale families and `1 / shape` for the shape ones,
+  and the geometry is the same for both. All `m` rows are matched on the
+  solution set, so the profile likelihood carries `aux^-m`, while the set is
+  pinned in only the `k` directions the equations fix and its width is
+  proportional to `aux` in each: the coefficient volume is `aux^k`. With the
+  coefficients integrated out the marginal behaves as `aux^(k - m)`, which is
+  `(1 / sdlog)^(m - k)` for a scale family and `shape^(m - k)` for a shape
+  one. Measured over 20 midpoint normal nodes with the coefficients
+  integrated against normal priors, `d log M / d log sdlog` is -0.000 for two
+  events at different times, -1.000 for three events on two distinct times,
+  and -2.000 for four on two, while `d log M / d log shape` for
+  `weibull-aft` on the same configurations is +0.000, +1.000 and +2.000: the
+  same rate against opposite boundaries.
+
+  So the divergence is `m - k` and needs a repeat to exist at all, event
+  times that are all distinct leave rate zero however many there are, and
+  tied CENSORED times contribute a survival probability rather than a density
+  spike. The profile maximum, by contrast, grows as `aux^-m` in every one of
+  those cases including the convergent one, which is why the volume and not
+  the profile is what decides this.
 
   Past the grid's reach there is nothing to refuse, and this is deliberately
   narrow about it. With `k` above `rank(cbind(1, X_int))` the `k` equations

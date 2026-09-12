@@ -53,18 +53,25 @@ test_that("the refused power is m - n_distinct, not the largest tie", {
   # Three rows at two distinct times: one repeat, power 1.
   expect_match(msg(.comp_stub(c(1, 1, 4), c(1L, 1L, 1L))),
                "3 event rows at 2 distinct times")
-  expect_match(msg(.comp_stub(c(1, 1, 4), c(1L, 1L, 1L))), "power 1")
+  expect_match(msg(.comp_stub(c(1, 1, 4), c(1L, 1L, 1L))),
+               "diverges at rate 1")
+  # Written as the scale family's own boundary, in one over the auxiliary.
+  expect_match(msg(.comp_stub(c(1, 1, 4), c(1L, 1L, 1L))),
+               "`\\(1 / sdlog\\)\\^1`")
   # Four rows at the SAME two distinct times: two repeats, power 2. The
   # largest tie is still 2, so a rule keyed on it reports 1 here and is
   # wrong: the two times can be matched at two nodes and all four spikes
   # stand on a ridge pinned in only two directions.
   expect_match(msg(.comp_stub(c(1, 1, 4, 4), c(1L, 1L, 1L, 1L))),
                "4 event rows at 2 distinct times")
-  expect_match(msg(.comp_stub(c(1, 1, 4, 4), c(1L, 1L, 1L, 1L))), "power 2")
+  expect_match(msg(.comp_stub(c(1, 1, 4, 4), c(1L, 1L, 1L, 1L))),
+               "diverges at rate 2")
   # Three at one time is also power 2, by the same arithmetic.
-  expect_match(msg(.comp_stub(c(1, 1, 1, 4), c(1L, 1L, 1L, 0L))), "power 2")
+  expect_match(msg(.comp_stub(c(1, 1, 1, 4), c(1L, 1L, 1L, 0L))),
+               "diverges at rate 2")
   # And four at one time is power 3.
-  expect_match(msg(.comp_stub(c(1, 1, 1, 1), c(1L, 1L, 1L, 1L))), "power 3")
+  expect_match(msg(.comp_stub(c(1, 1, 1, 1), c(1L, 1L, 1L, 1L))),
+               "diverges at rate 3")
   expect_match(msg(.comp_stub(c(1, 1, 1, 1), c(1L, 1L, 1L, 1L))),
                "4 event rows at 1 distinct time")
 })
@@ -126,7 +133,7 @@ test_that("a refusal reports the geometry it is refusing", {
   expect_match(e, "matched at once by 2 integration points")
   expect_match(e, "2 equations in the comparator's coefficients")
   expect_match(e, "grid reaches 2 independent linear predictors")
-  expect_match(e, "all distinct give the convergent power zero")
+  expect_match(e, "all distinct leave rate zero")
   expect_match(e, "larger `n_int` is still a finite mixture")
   expect_match(e, "restriction on the quadrature")
   # The index side really is healthy: this is not the index collapse in
@@ -147,7 +154,10 @@ test_that("tied comparator events warn a shape family", {
     w <- expect_warning(check(d, distribution = dist),
                         "tail of `prior_aux`")
     expect_match(conditionMessage(w), "3 event rows at 2 distinct times")
-    expect_match(conditionMessage(w), "power 1")
+    # A shape family runs to infinity, so its exponent is on the auxiliary
+    # itself rather than on one over it. Same rate, opposite boundary.
+    expect_match(conditionMessage(w), "diverges at rate 1")
+    expect_match(conditionMessage(w), "`shape\\^1`")
     expect_true(suppressWarnings(check(d, distribution = dist)))
   }
 })

@@ -259,20 +259,31 @@
 #' log-times, which is `k` equations in the comparator's coefficients. They
 #' are solvable exactly when `k` is at most the dimension the grid can reach,
 #' `rank(cbind(1, X_int))`, which is `1 + n_cov` for any grid that is not
-#' degenerate. All `m` rows are then matched on the solution set, so the
-#' profile likelihood carries `aux^-m`, while the set is pinned only in the
-#' `k` directions the equations fix and its transverse width is proportional
-#' to the auxiliary in each: the coefficient volume is `aux^k`. With the
-#' coefficients integrated out the marginal behaves as `aux^(k - m)`.
+#' degenerate.
 #'
-#' So the divergence is `m - k` and needs a REPEAT to exist at all. Measured
-#' over 20 midpoint normal nodes with the coefficients integrated against
-#' their default priors, `d log M / d log aux` is 0.000 for two events at
-#' different times, 1.000 for three events at two distinct times, and 2.000
-#' for four at two, for `lognormal` and `weibull-aft` alike; the profile
-#' maximum grows as `aux^-m` in every one of those cases, including the
-#' convergent one, which is why the volume and not the profile is what this
-#' reasons about.
+#' Write `aux` for the auxiliary's DISTANCE from the boundary it runs to:
+#' `sdlog` itself for the scale families, which diverge at zero, and
+#' `1 / shape` for the shape families, which diverge at infinity. On that one
+#' scale the geometry is the same for both, and the statements below hold for
+#' each.
+#'
+#' All `m` rows are matched on the solution set, so the profile likelihood
+#' carries `aux^-m`, while the set is pinned only in the `k` directions the
+#' equations fix and its transverse width is proportional to `aux` in each:
+#' the coefficient volume is `aux^k`. With the coefficients integrated out
+#' the marginal behaves as `aux^(k - m)`, which is `(1 / sdlog)^(m - k)` for
+#' a scale family and `shape^(m - k)` for a shape one. Measured over 20
+#' midpoint normal nodes with the coefficients integrated against normal
+#' priors, `d log M / d log sdlog` is -0.000 for two events at different
+#' times, -1.000 for three events on two distinct times, and -2.000 for four
+#' on two, while `d log M / d log shape` for `weibull-aft` on the same
+#' configurations is +0.000, +1.000 and +2.000: same rate, opposite
+#' direction, because the two run to opposite boundaries.
+#'
+#' So the divergence is `m - k` and needs a REPEAT to exist at all. The
+#' profile maximum, by contrast, grows as `aux^-m` in every one of those
+#' cases including the convergent one, which is why the volume and not the
+#' profile is what this reasons about.
 #'
 #' Past the grid's reach there is no divergence to refuse. With `k` greater
 #' than `rank(cbind(1, X_int))` the `k` equations have no solution, the best
@@ -431,36 +442,45 @@
     "grid reaches ", info$reach, " independent linear predictors, so a ",
     "solution exists: the ridge is a set pinned in only ", info$k,
     " directions, whose transverse width falls with the auxiliary rather ",
-    "than an isolated point. The ", info$m, " density spikes carry the ",
-    "auxiliary to the power -", info$m, " and the coefficient volume only ",
-    "to the power ", info$k, ", so with the coefficients integrated out the ",
-    "marginal behaves as the auxiliary to the power ", worst, ". Event times ",
-    "that are all distinct give the convergent power zero however many there ",
-    "are; it is the repeats that do this."
+    "than an isolated point. All ", info$m, " density spikes grow without ",
+    "bound as the auxiliary approaches its boundary while the coefficient ",
+    "volume shrinks in only ", info$k, " directions, so the difference ",
+    "survives: with the coefficients integrated out the marginal diverges ",
+    "at rate ", worst, ". Event times that are all ",
+    "distinct leave rate zero however many there are; it is the repeats ",
+    "that do this."
   )
   restriction <- paste0(
     " This is a restriction on the quadrature, not a defect of the model it ",
     "approximates: integrating a declared Gaussian covariate exactly leaves ",
     "`log T ~ N(mu, beta^2 + sdlog^2)`, whose posterior IS proper for these ",
-    "same data. A larger `n_int` is still a finite mixture and only scales ",
-    "the coefficient of the same divergence, and jittering the tied times ",
+    "same data. A larger `n_int` is still a finite mixture and, within its ",
+    "reach, only scales the coefficient of the same divergence; jittering ",
+    "the tied times ",
     "invents data. If the ties come from rounding, an interval-censored ",
     "representation of what was actually observed is the honest model; ",
     "`set_agd_surv()` accepts one."
   )
   if (distribution %in% scale_families) {
+    # The scale families run to zero, so the divergent form is in one over
+    # the auxiliary; the shape families run to infinity and it is in the
+    # auxiliary itself. Same rate, opposite boundary, so the exponent is
+    # written per branch rather than once above.
     stop(shared, " The posterior for ", .aux_name(distribution),
-         " is therefore improper: the divergence is at zero, where every ",
-         "supported prior has positive density, so no choice of `prior_aux` ",
-         "repairs it and the sampler would drift toward zero and report ",
-         "where it stopped.", restriction, call. = FALSE)
+         " is therefore improper: the marginal behaves as `(1 / ",
+         .aux_symbol(distribution), ")^", worst, "` and the divergence is at ",
+         "zero, where every supported prior has positive density, so no ",
+         "choice of `prior_aux` repairs it and the sampler would drift ",
+         "toward zero and report where it stopped.", restriction,
+         call. = FALSE)
   }
   warning(shared, " Whether the posterior for ", .aux_name(distribution),
-          " exists then depends on the tail of `prior_aux`: the divergence ",
-          "is at infinity, where a half-normal or an exponential integrates ",
-          "that power and a half-t need not, so what is reported for it can ",
-          "be a property of that prior rather than of the data.", restriction,
-          call. = FALSE)
+          " exists then depends on the tail of `prior_aux`: the marginal ",
+          "behaves as `", .aux_symbol(distribution), "^", worst, "` and the ",
+          "divergence is at infinity, where a half-normal or an exponential ",
+          "integrates that power and a half-t need not, so what is reported ",
+          "for it can be a property of that prior rather than of the data.",
+          restriction, call. = FALSE)
   invisible(TRUE)
 }
 
@@ -1631,6 +1651,24 @@
   if (any(estimable & outside > tol)) return("bounded")
   if (all(estimable) && all(inside > tol)) return("unbounded")
   "undetermined"
+}
+
+
+#' Name the auxiliary parameter as a bare symbol
+#'
+#' [.aux_name()] returns a noun phrase, which reads correctly in a sentence
+#' and not inside a formula: "the marginal behaves as `(1 / the Weibull
+#' shape)^1`". This is the same parameter written as the symbol a formula
+#' needs.
+#'
+#' @param distribution The resolved survival distribution.
+#' @return A single string.
+#' @keywords internal
+.aux_symbol <- function(distribution) {
+  switch(distribution,
+         lognormal = "sdlog",
+         gengamma = "sigma",
+         "shape")
 }
 
 

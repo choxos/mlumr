@@ -47,20 +47,31 @@ DISTINCT times needs \code{k} nodes whose linear predictors equal those \code{k}
 log-times, which is \code{k} equations in the comparator's coefficients. They
 are solvable exactly when \code{k} is at most the dimension the grid can reach,
 \code{rank(cbind(1, X_int))}, which is \code{1 + n_cov} for any grid that is not
-degenerate. All \code{m} rows are then matched on the solution set, so the
-profile likelihood carries \code{aux^-m}, while the set is pinned only in the
-\code{k} directions the equations fix and its transverse width is proportional
-to the auxiliary in each: the coefficient volume is \code{aux^k}. With the
-coefficients integrated out the marginal behaves as \code{aux^(k - m)}.
+degenerate.
 
-So the divergence is \code{m - k} and needs a REPEAT to exist at all. Measured
-over 20 midpoint normal nodes with the coefficients integrated against
-their default priors, \verb{d log M / d log aux} is 0.000 for two events at
-different times, 1.000 for three events at two distinct times, and 2.000
-for four at two, for \code{lognormal} and \code{weibull-aft} alike; the profile
-maximum grows as \code{aux^-m} in every one of those cases, including the
-convergent one, which is why the volume and not the profile is what this
-reasons about.
+Write \code{aux} for the auxiliary's DISTANCE from the boundary it runs to:
+\code{sdlog} itself for the scale families, which diverge at zero, and
+\code{1 / shape} for the shape families, which diverge at infinity. On that one
+scale the geometry is the same for both, and the statements below hold for
+each.
+
+All \code{m} rows are matched on the solution set, so the profile likelihood
+carries \code{aux^-m}, while the set is pinned only in the \code{k} directions the
+equations fix and its transverse width is proportional to \code{aux} in each:
+the coefficient volume is \code{aux^k}. With the coefficients integrated out
+the marginal behaves as \code{aux^(k - m)}, which is \code{(1 / sdlog)^(m - k)} for
+a scale family and \code{shape^(m - k)} for a shape one. Measured over 20
+midpoint normal nodes with the coefficients integrated against normal
+priors, \verb{d log M / d log sdlog} is -0.000 for two events at different
+times, -1.000 for three events on two distinct times, and -2.000 for four
+on two, while \verb{d log M / d log shape} for \code{weibull-aft} on the same
+configurations is +0.000, +1.000 and +2.000: same rate, opposite
+direction, because the two run to opposite boundaries.
+
+So the divergence is \code{m - k} and needs a REPEAT to exist at all. The
+profile maximum, by contrast, grows as \code{aux^-m} in every one of those
+cases including the convergent one, which is why the volume and not the
+profile is what this reasons about.
 
 Past the grid's reach there is no divergence to refuse. With \code{k} greater
 than \code{rank(cbind(1, X_int))} the \code{k} equations have no solution, the best
