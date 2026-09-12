@@ -273,8 +273,13 @@ test_that("the rate is measured per family, not shared", {
                fixed = TRUE)
   expect_match(conditionMessage(g), "shifts the comparator intercept",
                fixed = TRUE)
-  expect_match(conditionMessage(g), "degrees of freedom above 0.5",
+  # Equality integrates rather than failing: a Student-t intercept prior read
+  # on the -log(shape) ridge adds (log shape)^-(df + 1) on top of the
+  # auxiliary's shape^-(df + 1), and 1 / (shape * (log shape)^(df + 1)) is
+  # integrable for every supported intercept prior.
+  expect_match(conditionMessage(g), "degrees of freedom of at least 0.5",
                fixed = TRUE)
+  expect_match(conditionMessage(g), "Equality integrates", fixed = TRUE)
   # The other two leave the coefficients where they were, so `prior_aux`
   # alone does decide there.
   expect_false(grepl("prior_intercept",
@@ -341,6 +346,30 @@ test_that("a shared auxiliary is skipped only where the index bounds it", {
   expect_false(isTRUE(attr(idx, "bounds_aux")))
   expect_error(check(sat, aux_by = "none", index_bounds_aux = FALSE),
                "improper")
+  # The SPFA model shares one `beta`, so under a shared auxiliary an exact
+  # index pins the slope to its own solution set while two or more comparator
+  # targets pin it to node-specific values. If those do not intersect, one
+  # side always carries a positive residual whose decay beats the other's
+  # growth, so the combined posterior is proper. That system is not solved
+  # here, so the case is reported rather than refused.
+  w <- expect_warning(
+    check(d, aux_by = "none", index_bounds_aux = FALSE, model = "spfa"),
+    "neither refused nor passed as proper"
+  )
+  expect_match(conditionMessage(w), "share one `beta`", fixed = TRUE)
+  expect_match(conditionMessage(w), "2 comparator equations", fixed = TRUE)
+  # A single distinct target constrains nothing beyond `mu_comparator`, so
+  # `beta` stays free, the comparator ridge contains whatever the index needs
+  # and both singularities stand at once. Still refused.
+  one <- .comp_stub(c(1, 1), c(1L, 1L))
+  expect_error(check(one, aux_by = "none", index_bounds_aux = FALSE,
+                     model = "spfa"), "improper")
+  # The relaxed model gives the comparator its own coefficients, so the
+  # question does not arise.
+  expect_error(check(d, aux_by = "none", index_bounds_aux = FALSE,
+                     model = "relaxed"), "improper")
+  # Nor does it arise once the comparator has its own auxiliary.
+  expect_error(check(d, aux_by = ".study", model = "spfa"), "improper")
   # `.study` and NULL are the same stratification and both are examined,
   # whatever the index did.
   expect_error(check(d, aux_by = NULL, index_bounds_aux = TRUE), "improper")

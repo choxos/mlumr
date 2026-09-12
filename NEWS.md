@@ -201,7 +201,24 @@
   the default width, which integrates any polynomial, so the posterior
   exists and the shape concentrates far out. It is a heavy-tailed intercept
   prior that leaves `prior_aux` to integrate the growth, which a half-t does
-  only above `(m - k) / 2` degrees of freedom.
+  for degrees of freedom of at least `(m - k) / 2`. Equality integrates
+  rather than failing: the auxiliary's `shape^-(df + 1)` meets the Student-t
+  intercept's `(log shape)^-(df + 1)` on the `-log(shape)` ridge, and
+  `1 / (shape * (log shape)^(df + 1))` integrates for every supported
+  intercept prior.
+
+  One combination is reported rather than refused for a reason unrelated to
+  censoring. Under `model = "spfa"` with `aux_by = "none"` the arms share one
+  `beta` as well as one auxiliary, so reaching the comparator check means the
+  index did not bound that auxiliary, which under that model means its own
+  design fits exactly and pins the shared slope. Two or more comparator
+  targets pin it too, to values the integration points fix, and if those sets
+  do not intersect then every path to the boundary leaves one side with a
+  positive residual whose decay beats the other's growth. Solving that
+  combined system is out of scope, so the case is warned about. A single
+  distinct target is not that case and is still refused: its one equation is
+  absorbed by the free `mu_comparator`, so the shared slope stays free and
+  both singularities stand at once.
 
   This is a restriction on the quadrature and not a defect of the model it
   approximates, which matters for what the fix eventually is. Integrating a

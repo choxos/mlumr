@@ -8,7 +8,8 @@
   data,
   distribution,
   aux_by = ".study",
-  index_bounds_aux = FALSE
+  index_bounds_aux = FALSE,
+  model = "relaxed"
 )
 }
 \arguments{
@@ -171,7 +172,28 @@ concentrates far out; it is a heavy-tailed intercept prior that leaves
 1e6, so a slope measured over any reachable range still looks undamped,
 which is why the clause is derived rather than read off one. The
 comparator intercept is \code{mu_comparator} under both models and draws
-\code{prior_intercept} in each, so this is not a relaxed-only clause.
+\code{prior_intercept} in each, so this is not a relaxed-only clause. The
+half-t threshold is \verb{at least} and not \code{above}, because at equality the
+auxiliary's \code{shape^-(df + 1)} meets the Student-t intercept's
+\verb{(log shape)^-(df + 1)} on the \code{-log(shape)} ridge, and
+\verb{1 / (shape * (log shape)^(df + 1))} integrates for every supported
+intercept prior.
+
+One combination is reported rather than refused for a reason that is not
+about censoring. Under \code{model = "spfa"} with \code{aux_by = "none"} the arms
+share one \code{beta} AND one auxiliary, so reaching this function means the
+index did not bound that auxiliary, which under that model means its own
+event design fits exactly and pins the shared slope to its solution set.
+Two or more comparator targets pin it too, to values the integration
+points fix, and if those sets do not intersect then every path to the
+boundary leaves one side with a positive residual whose exponential decay
+beats the other's polynomial growth. Solving that combined system is not
+this function's, so the case is warned about. A single distinct target is
+not that case: its one equation is absorbed by the free \code{mu_comparator},
+\code{beta} stays free, the comparator ridge contains whatever the index's
+exact fit needs, and both singularities stand at once. Under
+\code{model = "relaxed"} the comparator has its own \code{beta_comparator} and the
+question does not arise.
 
 \strong{This is a restriction on an approximation, not a repair of a model.}
 The continuously integrated counterpart is PROPER for the same data.

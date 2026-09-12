@@ -382,7 +382,28 @@
 #' 1e6, so a slope measured over any reachable range still looks undamped,
 #' which is why the clause is derived rather than read off one. The
 #' comparator intercept is `mu_comparator` under both models and draws
-#' `prior_intercept` in each, so this is not a relaxed-only clause.
+#' `prior_intercept` in each, so this is not a relaxed-only clause. The
+#' half-t threshold is `at least` and not `above`, because at equality the
+#' auxiliary's `shape^-(df + 1)` meets the Student-t intercept's
+#' `(log shape)^-(df + 1)` on the `-log(shape)` ridge, and
+#' `1 / (shape * (log shape)^(df + 1))` integrates for every supported
+#' intercept prior.
+#'
+#' One combination is reported rather than refused for a reason that is not
+#' about censoring. Under `model = "spfa"` with `aux_by = "none"` the arms
+#' share one `beta` AND one auxiliary, so reaching this function means the
+#' index did not bound that auxiliary, which under that model means its own
+#' event design fits exactly and pins the shared slope to its solution set.
+#' Two or more comparator targets pin it too, to values the integration
+#' points fix, and if those sets do not intersect then every path to the
+#' boundary leaves one side with a positive residual whose exponential decay
+#' beats the other's polynomial growth. Solving that combined system is not
+#' this function's, so the case is warned about. A single distinct target is
+#' not that case: its one equation is absorbed by the free `mu_comparator`,
+#' `beta` stays free, the comparator ridge contains whatever the index's
+#' exact fit needs, and both singularities stand at once. Under
+#' `model = "relaxed"` the comparator has its own `beta_comparator` and the
+#' question does not arise.
 #'
 #' **This is a restriction on an approximation, not a repair of a model.**
 #' The continuously integrated counterpart is PROPER for the same data.
@@ -435,7 +456,8 @@
 #' @keywords internal
 .check_comparator_tied_events <- function(data, distribution,
                                           aux_by = ".study",
-                                          index_bounds_aux = FALSE) {
+                                          index_bounds_aux = FALSE,
+                                          model = "relaxed") {
   scale_families <- c("lognormal", "gengamma")
   # The proportional-hazards Weibull and Gompertz are deliberately NOT here.
   # Their ridge width does not shrink with the auxiliary at all, so their
@@ -460,6 +482,27 @@
   # saturated index is only warned about there, and leaves no residual to
   # suppress the comparator's growth.
   if (shared_aux && isTRUE(index_bounds_aux)) return(invisible(FALSE))
+  # The SPFA model shares ONE `beta` between the arms, so under a shared
+  # auxiliary the two sides cannot be read independently. Reaching here means
+  # the index did not bound the auxiliary, which under that model means its
+  # own event design fits exactly, and an exact index fit pins the shared
+  # slope to its own solution set. The comparator's matching equations pin it
+  # too once there are at least two distinct targets: one equation is
+  # absorbed by the free `mu_comparator` and the rest constrain `beta` to
+  # node-specific values. If no comparator value lies in the index's set,
+  # every path to the boundary leaves one side with a positive residual and
+  # its exponential decay beats the other's polynomial growth, and the
+  # posterior is proper. Whether they intersect is a property of the combined
+  # system, which this does not solve, so that case is reported rather than
+  # refused.
+  #
+  # A single distinct target is not that case, and is still refused: the one
+  # equation is absorbed by `mu_comparator` entirely, `beta` is left free, so
+  # the comparator ridge contains whatever the index's exact fit requires and
+  # both singularities stand at once. Under `model = "relaxed"` the
+  # comparator carries its own `beta_comparator` and the question does not
+  # arise at all.
+  spfa_shared <- shared_aux && identical(model, "spfa")
   pseudo <- data$agd$pseudo_ipd
   if (is.null(pseudo) || !nrow(pseudo)) return(invisible(FALSE))
   status <- pseudo$.status
@@ -576,7 +619,8 @@
       info <- list(m = m, k = k, reach = reachable,
                    isolated = k >= reachable && length(cens) > 0L,
                    two_sided = k < reachable && length(cens) > 0L &&
-                     !one_sided)
+                     !one_sided,
+                   spfa_shared = spfa_shared && k > 1L)
     }
   }
   if (worst < 1L) return(invisible(FALSE))
@@ -670,6 +714,23 @@
   )
   # A censored row in the arm can suppress an isolated ridge, and which
   # points it covers is not settled here, so nothing is refused on it.
+  if (isTRUE(info$spfa_shared)) {
+    warning(shared, " Under `model = \"spfa\"` with `aux_by = \"none\"`, ",
+            "though, the arms share one `beta` and one auxiliary, and the ",
+            "index rows did not bound it, which under that model means their ",
+            "own design fits exactly and pins the shared slope to its ",
+            "solution set. The ", info$k, " comparator equations pin it too, ",
+            "to values the integration points fix, and if none of those lies ",
+            "in the index's set then every path to the boundary leaves one ",
+            "side with a positive residual whose decay beats the other's ",
+            "growth. Whether they intersect is a property of the combined ",
+            "system, which this check does not solve, so the fit is neither ",
+            "refused nor passed as proper: check the sampler near the ",
+            "boundary of ", .aux_name(distribution), ", or give the ",
+            "comparator its own auxiliary with `aux_by = \".study\"`, which ",
+            "makes this question moot.", restriction, call. = FALSE)
+    return(invisible(TRUE))
+  }
   if (isTRUE(info$isolated) || isTRUE(info$two_sided)) {
     why <- if (isTRUE(info$isolated)) {
       paste0("with as many distinct times as the grid reaches, the ridge is ",
@@ -739,7 +800,12 @@
            "concentrated far out. Under a heavy-tailed intercept prior the ",
            "displacement costs only a power of `log(shape)` and it is ",
            "`prior_aux` that has to integrate the growth, which a half-t ",
-           "does only for degrees of freedom above ", rate_text, ".")
+           "does for degrees of freedom of at least ", rate_text,
+           ". Equality integrates rather than failing, because a Student-t ",
+           "intercept prior read on the `-log(shape)` ridge contributes ",
+           "`(log shape)^-(df + 1)` on top of the auxiliary's ",
+           "`shape^-(df + 1)`, and `1 / (shape * (log shape)^(df + 1))` is ",
+           "integrable for every supported intercept prior.")
   } else {
     paste0(" Whether the posterior for ", .aux_name(distribution),
            " exists then depends on the tail of `prior_aux`: the marginal ",
@@ -2870,7 +2936,8 @@ mlumr <- function(data,
     .check_comparator_tied_events(
       data, surv_info$distribution,
       aux_by = aux_by,
-      index_bounds_aux = isTRUE(attr(index_collapse, "bounds_aux"))
+      index_bounds_aux = isTRUE(attr(index_collapse, "bounds_aux")),
+      model = model
     )
   }
 
