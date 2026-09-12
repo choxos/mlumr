@@ -564,11 +564,20 @@
 #' that bounds the parameter makes every one of those messages untrue, not
 #' just the refusal.
 #'
+#' **Which scale the fit is read on.** The log-time one for the
+#' location-scale families, whose `eta` sits at `log t`. Gompertz is the
+#' exception: its hazard is `exp(eta + shape * t)`, so profiling a row's
+#' density over `eta` puts the maximum at `log(shape) - log(expm1(shape * t))`,
+#' about `log(shape) - shape * t`. That ridge needs the event TIMES in the
+#' column space, not their logarithms, with the intercept absorbing the
+#' `log(shape)`, so Gompertz is read on the time scale throughout.
+#'
 #' **Delayed entry, left and interval censoring.** All examined, through the
-#' OBSERVATION REGION each row is known to lie in on the log scale. A
-#' right-censored row at `c` runs from `log c` upwards with no upper end; a
-#' left-censored one at `u` runs up to `log u` with no lower end; an interval
-#' one runs from `log l` to `log u`. As the auxiliary goes to its boundary
+#' OBSERVATION REGION each row is known to lie in, on whichever of those two
+#' scales the family is read on. A right-censored row at `c` runs from `c`
+#' upwards with no upper end; a left-censored one at `u` runs up to `u` with
+#' no lower end; an interval one runs from `l` to `u`. As the auxiliary goes
+#' to its boundary
 #' the fitted distribution concentrates at the fitted value, so a row's
 #' contribution tends to one when that value is strictly inside its region
 #' and to zero when it is strictly outside, and only the second bounds the
@@ -608,6 +617,17 @@
   # out against a Cauchy `prior_intercept` the marginal slope
   # `d log M / d log a` is 1.000 at a = 1e6. A Cauchy `prior_aux`
   # contributes a^-2, which leaves a^-1 and does not integrate.
+  #
+  # It is read on the TIME scale, not the log-time one: the ridge above is
+  # `eta = log(a) - log(expm1(a t))`, about `log(a) - a t`, so it needs the
+  # event times themselves in the column space. Reading it on the log scale
+  # was wrong in both directions. Five events at `t = 1:5` over `x = 0:4` fit
+  # exactly on the time scale and not on the log one (residual sum of squares
+  # 0.085 of the total), and their marginal slope is 1.000, so a Cauchy
+  # `prior_aux` leaves `a^-1` and no posterior: that passed in silence. Three
+  # events at `t = exp(0:2)` fit exactly on the log scale and not on the time
+  # one, where the marginal FALLS by 577,014 per decade of shape: that was
+  # warned about as a collapse it does not have.
   shape_families <- c("weibull", "weibull-aft", "loglogistic", "gamma",
                       "gompertz")
   if (!distribution %in% c(scale_families, shape_families)) {
@@ -662,12 +682,19 @@
   events <- status == 1L
   if (!any(events)) return(invisible(FALSE))
   covariates <- as.matrix(ipd[, data$covariates, drop = FALSE])
-  y <- suppressWarnings(log(time))
+  # The guard stays on the LOG time whichever scale the fit is read on: a
+  # time of zero is finite on the time scale, but its profile maximizer is
+  # not, and a negative one has no ridge to speak of either.
+  log_time <- suppressWarnings(log(time))
   # Not the place to diagnose non-finite or non-positive inputs: the
   # validators that own that question run their own checks.
-  if (!all(is.finite(y)) || !all(is.finite(covariates))) {
+  if (!all(is.finite(log_time)) || !all(is.finite(covariates))) {
     return(invisible(FALSE))
   }
+  time_scale <- identical(distribution, "gompertz")
+  y <- if (time_scale) time else log_time
+  # How the messages below name the scale the fit was read on.
+  scale_phrase <- if (time_scale) "on the time scale" else "on the log scale"
   if (isTRUE(center)) {
     center <- apply(covariates, 2, function(v) max(v) / 2 + min(v) / 2)
   }
@@ -696,7 +723,8 @@
     # has full row rank, and `constant` is reproduced by the intercept. A
     # `near_exact` or `unresolved` fit leaves a residual, so the structural
     # shortcut inside is not available to it.
-    # The region each censored row is observed to lie in, on the log scale.
+    # The region each censored row is observed to lie in, on the same scale
+    # the fit is read on.
     # A right-censored row runs from its own time upwards with no upper end;
     # the other two close at their own upper bound.
     #
@@ -714,12 +742,18 @@
     # below, since the pile at the entry is then outside it. So the lower
     # end is the interval's own opening when it has one above the entry,
     # and no lower end at all otherwise.
-    log_open <- suppressWarnings(ifelse(start > delay, log(start), -Inf))
+    # `start > delay` is the only way an interval opens above its entry, and
+    # it forces `start > 0`, so this is never `log(0)`.
+    open <- if (time_scale) {
+      ifelse(start > delay, start, -Inf)
+    } else {
+      suppressWarnings(ifelse(start > delay, log(start), -Inf))
+    }
     right <- status[!events] == 0L
     .censoring_bounds_aux(
       X, y, events,
       exact_fit = s$status %in% c("exact", "constant", "saturated"),
-      lower = ifelse(right, y[!events], log_open[!events]),
+      lower = ifelse(right, y[!events], open[!events]),
       upper = ifelse(right, Inf, y[!events])
     )
   } else {
@@ -787,16 +821,24 @@
         "ordinary normal coefficient priors can stop it before this ",
         "residual does."
       ),
+      gompertz = paste0(
+        " Whether it does is conditional on `prior_intercept` and ",
+        "`prior_beta` here, and more so than for the others: the ridge ",
+        "drives the linear predictor to about `log(shape) - shape * t`, ",
+        "which runs away with the shape itself rather than with its ",
+        "logarithm, so the default `normal(0, 10)` intercept prior stops the ",
+        "shape long before a residual this small does."
+      ),
       ""
     )
     fmt <- paste0(
-      "The index covariates very nearly fit the event times exactly on the ",
-      "log scale (residual sum of squares is %.3g of the total). The ",
+      "The index covariates very nearly fit the event times exactly %s ",
+      "(residual sum of squares is %.3g of the total). The ",
       "residual is real, so the posterior is proper, but %s %s ",
       "concentrate against its boundary and the sampler has to work there: ",
       "check its diagnostics before reading the estimate.%s"
     )
-    warning(sprintf(fmt, s$ratio, .aux_name(distribution),
+    warning(sprintf(fmt, scale_phrase, s$ratio, .aux_name(distribution),
                     if (nzchar(conditional)) "may" else "will",
                     conditional),
             call. = FALSE)
@@ -828,7 +870,22 @@
   # `gamma`, which are `n - rank` and `(n - rank) / 2`. So the exemption is
   # a property of `saturated` alone, and `exact` keeps the warning for every
   # shape family.
-  saturated_divergent <- "weibull"
+  # Gompertz is not exempt either, and for a different reason than the
+  # proportional-hazards Weibull. Integrating a row's density over its own
+  # `eta` gives `shape * e^(shape t) / expm1(shape t)`, which tends to the
+  # SHAPE rather than to a constant, so a saturated design contributes
+  # `shape^n`; against that the coefficients supply `shape^-2` apiece, but
+  # only for the ones the ridge actually moves. The marginal goes as
+  # `shape^(n - 2k)` for `k` moved coefficients, so propriety fails once
+  # `n >= 2k + 1` and is not a property of `n == rank` at all. Measured
+  # slopes at `n == rank`: 1.000 for three events all at t = 1 on a rank-3
+  # design, where the times are the intercept alone and `k` is one, and
+  # 2.000 for six rows whose times need two of six columns. A Cauchy
+  # `prior_aux` takes off 2, leaving `shape^-1` and `shape^0`, neither of
+  # which integrates. The generic saturated design does have every
+  # coefficient moving, `k == n`, and is proper at `shape^-n`, but that is
+  # the common case and not the guarantee this branch was making.
+  saturated_divergent <- c("weibull", "gompertz")
   if (identical(s$status, "saturated") &&
       !distribution %in% saturated_divergent) {
     exponent_clause <- if (distribution %in% shape_families) {
@@ -870,8 +927,9 @@
                             "cannot be told at double precision"),
                      s$rank, s$numerical_rank))
     }
-    paste("the index covariates fit the log event times to within rounding,",
-          "and at double precision nothing tells that from an exact fit")
+    paste("the index covariates fit the event times", scale_phrase,
+          "to within rounding, and at double precision nothing tells that",
+          "from an exact fit")
   }
   # `saturated` reaches here only for a shape family, and it is an exact fit:
   # a design with as many free columns as event rows reproduces every one of
@@ -902,14 +960,19 @@
     ),
     gompertz = paste0(
       " The ridge here does not hold the coefficients fixed: the hazard is ",
-      "`shape * exp(shape * t + eta)`, so an exact fit at a common event ",
-      "time drives the intercept to `log(shape) - log(expm1(shape))`, which ",
-      "is about `-shape`. With the coefficient integrated out on an ",
-      "intercept-only design the marginal goes as `shape^(n - rank - 1)`: ",
-      "measured slopes are -1.000 at `n = rank`, 0.000 one row above it and ",
-      "1.000 two rows above. `prior_intercept` therefore bears on propriety ",
-      "as much as `prior_aux` does, and an ordinary normal one integrates ",
-      "the ridge where a Cauchy on both does not."
+      "`exp(eta + shape * t)`, so an exact fit drives the linear predictor ",
+      "to `log(shape) - log(expm1(shape * t))`, about ",
+      "`log(shape) - shape * t`, which runs away with the shape itself ",
+      "rather than with its logarithm. With the coefficients integrated out ",
+      "against Cauchy priors the marginal goes as `shape^(n - 2k)`, where ",
+      "`k` counts the coefficients that ridge moves, which is how many ",
+      "columns the event times need: measured slopes are -1.000, 0.000 and ",
+      "1.000 for one, two and three events on an intercept-only design, ",
+      "where `k` is one, and 1.000 for five events whose times are exactly ",
+      "linear in one centered covariate, where `k` is two. ",
+      "`prior_intercept` and `prior_beta` therefore bear on propriety as ",
+      "much as `prior_aux` does, and ordinary normal ones integrate the ",
+      "ridge where Cauchy ones need not."
     ),
     weibull = paste0(
       " The ridge here does not hold the coefficients fixed: this is the ",
@@ -939,13 +1002,14 @@
       } else {
         ""
       }
-      warning("The index covariates fit every event time exactly on the log ",
-              "scale", geometry_clause, ", so the likelihood grows without ",
+      warning("The index covariates fit every event time exactly ",
+              scale_phrase, geometry_clause, ", so the likelihood grows ",
+              "without ",
               "limit as the ", distribution, " shape does",
               undetermined_bound, ". ", prior_clause, call. = FALSE)
     } else {
-      warning("Whether the index covariates fit every event time exactly on ",
-              "the log scale could not be told at double precision (",
+      warning("Whether the index covariates fit every event time exactly ",
+              scale_phrase, " could not be told at double precision (",
               undecided_reason(s), "), so neither could whether the ",
               "likelihood grows without limit as the ", distribution,
               " shape does", undetermined_bound, ". If it does: ",
@@ -1044,8 +1108,10 @@
 #'   from the geometry it already measured; a near-exact fit puts the
 #'   duplicated row at the fitted value rather than at the event's time, so
 #'   the shortcut is not taken for one.
-#' @param lower,upper The ends of each non-event row's observation region on
-#'   the log scale, one value per non-event row, in the order those rows
+#' @param lower,upper The ends of each non-event row's observation region, on
+#'   the same scale as `y` (the log-time one for the location-scale families,
+#'   the time one for Gompertz), one value per non-event row, in the order
+#'   those rows
 #'   appear in `X`. `lower` may be `-Inf` and `upper` may be `Inf`, which is
 #'   what an open end means; `lower <= upper` is required and a row that
 #'   violates it leaves the answer `"undetermined"`. The defaults are the
@@ -1060,7 +1126,8 @@
   Xc <- X[!events, , drop = FALSE]
   if (!nrow(Xc)) return("unbounded")
   # Every censoring type asks the same question of the same object: the
-  # OBSERVATION REGION the row is known to lie in, on the log scale. A
+  # OBSERVATION REGION the row is known to lie in, on the same scale as the
+  # fit. A
   # right-censored row runs from its own time upwards with no upper end, a
   # left-censored one up to its own time with no lower end, an interval one
   # between its two. As the auxiliary goes to its boundary the fitted

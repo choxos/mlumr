@@ -27,25 +27,49 @@
   half-normal or exponential prior's tail integrates the growth and a
   half-t's need not. Propriety is then a property of the prior rather than
   of the data, and refusing the data would refuse well-posed default fits,
-  so those warn instead. The Gompertz is one of them: its hazard drives the
-  intercept to about `-shape` at an exact fit, and with the coefficient
-  integrated out the marginal goes as `shape^(n - rank - 1)`, so a Cauchy on
-  both `prior_aux` and `prior_intercept` leaves a tail that does not
-  integrate. It previously received no diagnosis at all.
+  so those warn instead. The Gompertz is one of them, and it is read on the
+  TIME scale rather than the log-time one the others are: its hazard is
+  `exp(eta + shape * t)`, so an exact fit drives the linear predictor to
+  about `log(shape) - shape * t`, and that ridge needs the event times
+  themselves in the column space rather than their logarithms. With the
+  coefficients integrated out the marginal goes as `shape^(n - 2k)`, for the
+  `k` coefficients the ridge moves, so a Cauchy on `prior_aux` and on those
+  leaves a tail that does not integrate. Five events at `t = 1:5` over
+  `x = 0:4` are exactly linear in `x` on the time scale and their marginal
+  slope `d log M / d log shape` is 1.000, which a Cauchy `prior_aux` turns
+  into `shape^-1`; three events at `t = exp(0:2)`, exactly linear on the log
+  scale instead, have no such ridge and measure -577,014 per decade. Each
+  censored row is placed in its observation region on the same scale. The
+  Gompertz previously received no diagnosis at all.
 
   A saturated design, with as many uncensored rows as its design has free
   columns, is an exact fit too: it reproduces every event time and leaves no
   residual degree of freedom. It is also the one case where integrating the
   coefficients out cancels the auxiliary's growth exactly, so it is proper
-  for every family but one, and it warns instead that nothing in the index
-  data separates the auxiliary from the coefficients. The exception is the
-  proportional-hazards Weibull, whose cumulative hazard `t^shape e^eta`
+  for every family but two, and it warns instead that nothing in the index
+  data separates the auxiliary from the coefficients. The first exception is
+  the proportional-hazards Weibull, whose cumulative hazard `t^shape e^eta`
   leaves the width in the location of order one so that nothing cancels: two
   rank-2 rows both at `t = 1` give a profile likelihood of exactly
   `shape^2 e^-2`, with the coefficients held at `eta = 0` rather than moving
   into their prior tails, so a `prior_cauchy()` auxiliary contributing
   `shape^-2` leaves a constant tail that does not integrate. That one keeps
-  the prior-tail warning. The exemption belongs to `n == rank` alone: with
+  the prior-tail warning.
+
+  The Gompertz is the second, for a different reason. Integrating one of its
+  rows over its own linear predictor gives
+  `shape * e^(shape t) / expm1(shape t)`, which tends to the SHAPE rather
+  than to a constant, so a saturated design contributes `shape^n` against
+  `shape^-2` for each coefficient the ridge moves: the marginal goes as
+  `shape^(n - 2k)` and propriety fails once `n >= 2k + 1`, which is not a
+  property of `n == rank` at all. Three events all at `t = 1` on a rank-3
+  design, whose times are the intercept alone, measure a slope of 1.000, and
+  six rows whose times need two of six columns measure 2.000; a Cauchy
+  `prior_aux` takes off 2 and leaves `shape^-1` and `shape^0`, neither of
+  which integrates. Which coefficients the ridge moves is not decidable at
+  double precision, for the same reason exactness is not, so every saturated
+  Gompertz takes the prior-tail warning rather than a guess at which ones
+  are the proper ones. The exemption belongs to `n == rank` alone: with
   more uncensored rows than the rank the cancellation is partial and every
   shape family is warned about as before.
 

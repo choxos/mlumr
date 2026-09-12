@@ -735,34 +735,106 @@ test_that("the propriety verdict does not depend on the predictor's units", {
 
 test_that("gompertz is diagnosed rather than passed in silence", {
   # It was in neither family list, so the guard returned before saying
-  # anything at all. Its hazard is `a exp(a t + eta)`, so an exact fit at a
-  # common event time drives the intercept to `log(a) - log(expm1(a))`,
-  # about -a. With the coefficient integrated out against a Cauchy
-  # `prior_intercept` on an intercept-only design, `d log M / d log a` at
-  # a = 1e6 is -1.000 with one event row, 0.000 with two and 1.000 with
-  # three: the marginal goes as `shape^(n - rank - 1)`. A Cauchy `prior_aux`
-  # contributes a^-2, so three rows leave a^-1, which does not integrate.
+  # anything at all. Its hazard is `exp(eta + a t)`, so an exact fit at a
+  # common event time drives the linear predictor to
+  # `log(a) - log(expm1(a))`, about -a. With the coefficient integrated out
+  # against a Cauchy `prior_intercept` on an intercept-only design,
+  # `d log M / d log a` at a = 1e6 is -1.000 with one event row, 0.000 with
+  # two and 1.000 with three: the marginal goes as `shape^(n - 2k)`, for `k`
+  # the coefficients the ridge moves, which is one here. A Cauchy
+  # `prior_aux` contributes a^-2, so three rows leave a^-1 and no posterior.
   expect_warning(check(.surv_stub(rep(1, 4)), distribution = "gompertz"),
                  "depends on the tail of `prior_aux`")
   w <- expect_warning(check(.surv_stub(rep(1, 4)), distribution = "gompertz"))
-  # The intercept prior is named, since the ridge moves it rather than
-  # leaving it where it was.
-  expect_match(conditionMessage(w), "`prior_intercept` therefore bears")
-  expect_match(conditionMessage(w), "log\\(expm1\\(shape\\)\\)")
+  # Both coefficient priors are named, since the ridge moves them rather
+  # than leaving them where they were. `n - rank - 1` was the exponent
+  # measured on an intercept-only design, where `rank` and `k` coincide; it
+  # is wrong wherever they do not, and five rows exactly linear in one
+  # centered covariate measure 1.000 against its 2.
+  expect_match(conditionMessage(w),
+               "`prior_intercept` and `prior_beta` therefore bear")
+  expect_match(conditionMessage(w), "shape\\^\\(n - 2k\\)")
+  expect_match(conditionMessage(w), "log\\(expm1\\(shape \\* t\\)\\)")
   # A censored row that bounds the shape still suppresses the warning.
   expect_false(check(.surv_stub(c(1, 1, 1, exp(3)), status = c(1L, 1L, 1L, 0L),
                                 x = c(-0.5, -0.5, 0.5, 0.5)),
                      distribution = "gompertz"))
-  # And a saturated fit is proper for it: the measured slope there is
-  # -1.000, so it takes the branch that says so rather than the prior-tail
-  # warning, which only the proportional-hazards Weibull keeps.
-  sat <- .surv_stub(c(1, exp(1)), status = c(1L, 1L), x = c(-0.5, 0.5))
-  w2 <- expect_warning(check(sat, distribution = "gompertz"))
-  expect_match(conditionMessage(w2), "as many as the free columns")
-  expect_false(grepl("tail of `prior_aux`", conditionMessage(w2)))
-  # That branch names the auxiliary, and the name is the Gompertz one
-  # rather than the Weibull fallback it used to take.
+  # The auxiliary has a name of its own rather than the Weibull fallback.
+  w2 <- expect_warning(check(.surv_stub(rep(1, 4)), distribution = "gompertz",
+                             aux_by = "none"))
   expect_match(conditionMessage(w2), "the Gompertz shape")
+})
+
+test_that("gompertz is read on the time scale, not the log one", {
+  # The ridge is `eta = log(shape) - log(expm1(shape * t))`, about
+  # `log(shape) - shape * t`, so it needs the event TIMES in the column
+  # space and not their logarithms. Reading it on the log scale was wrong in
+  # both directions, and these are the two directions.
+  #
+  # Five events at t = 1:5 over x = 0:4 are exactly linear in x on the time
+  # scale and leave a residual of 0.085 of the total on the log scale. The
+  # marginal slope `d log M / d log shape` is 1.000, so a Cauchy `prior_aux`
+  # leaves `shape^-1` and no posterior. On the log scale the status is
+  # `positive` and this returned silent.
+  raw_exact <- .surv_stub(1:5, rep(1L, 5), x = 0:4)
+  expect_warning(check(raw_exact, distribution = "gompertz"),
+                 "on the time scale")
+  # A location-scale family reads the same rows on the log scale and finds
+  # real residual variation there, so it stays silent. The scale is the only
+  # thing separating the two verdicts.
+  expect_silent(check(raw_exact))
+  expect_false(check(raw_exact))
+
+  # The other direction. Three events at t = exp(0:2) fit exactly on the log
+  # scale and not on the time scale, where the marginal FALLS by 577,014 per
+  # decade of shape. The log-scale reading warned about a collapse Gompertz
+  # does not have.
+  log_exact <- .surv_stub(exp(0:2), rep(1L, 3), x = 0:2)
+  expect_silent(check(log_exact, distribution = "gompertz"))
+  expect_false(check(log_exact, distribution = "gompertz"))
+  expect_error(check(log_exact), "could not be decided")
+})
+
+test_that("a censored gompertz row is placed on the time scale too", {
+  # Same rows, two scales, opposite verdicts. Events at t = 1 and t = 4 over
+  # x = 0 and 1 are fitted as `1 + 3x` on the time scale and as `4^x` on the
+  # log scale, so at x = 0.5 the fitted time is 2.5 on one and 2 on the
+  # other. A row censored at 2.2 therefore sits ABOVE the Gompertz fitted
+  # time, where `S(c)` tends to one and bounds nothing, and BELOW the
+  # log-normal one, where it tends to zero and bounds the scale.
+  d <- .surv_stub(c(1, 4, 2.2), status = c(1L, 1L, 0L), x = c(0, 1, 0.5))
+  expect_warning(check(d, distribution = "gompertz"), "on the time scale")
+  expect_silent(check(d))
+  expect_false(check(d))
+})
+
+test_that("a saturated gompertz design is not asserted proper", {
+  # `n == rank` cancels the auxiliary's growth for the location-scale
+  # families and does not for this one. Integrating a row's density over its
+  # own `eta` gives `shape * e^(shape t) / expm1(shape t)`, which tends to
+  # the SHAPE rather than to a constant, so a saturated design contributes
+  # `shape^n` against `shape^-2` for each coefficient the ridge moves: the
+  # marginal goes as `shape^(n - 2k)` and propriety fails once
+  # `n >= 2k + 1`. Measured at `n == rank`: 1.000 for three events all at
+  # t = 1 on a rank-3 design, where the times are the intercept alone and
+  # `k` is one, and 2.000 for six rows whose times need two of six columns.
+  # A Cauchy `prior_aux` takes off 2, leaving `shape^-1` and `shape^0`,
+  # neither of which integrates.
+  #
+  # `k` is not decidable at double precision, which is the same reason the
+  # rest of this guard does not guess at exactness, so every saturated
+  # Gompertz takes the prior-tail warning rather than a guess at which ones
+  # are the proper ones.
+  sat <- .surv_stub(c(1, exp(1)), status = c(1L, 1L), x = c(-0.5, 0.5))
+  w <- expect_warning(check(sat, distribution = "gompertz"))
+  expect_match(conditionMessage(w), "as many as the free columns")
+  expect_match(conditionMessage(w), "tail of `prior_aux`")
+  expect_false(grepl("The posterior is proper", conditionMessage(w)))
+  # The location-scale families keep the exemption, on the same measurement
+  # that granted it: 0.000 for `weibull-aft` over eight decades of shape.
+  w2 <- expect_warning(check(sat, distribution = "weibull-aft"))
+  expect_match(conditionMessage(w2), "The posterior is proper")
+  expect_false(grepl("tail of `prior_aux`", conditionMessage(w2)))
 })
 
 test_that("the shape warning names the prior that actually settles it", {

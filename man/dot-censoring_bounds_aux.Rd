@@ -26,8 +26,10 @@ from the geometry it already measured; a near-exact fit puts the
 duplicated row at the fitted value rather than at the event's time, so
 the shortcut is not taken for one.}
 
-\item{lower, upper}{The ends of each non-event row's observation region on
-the log scale, one value per non-event row, in the order those rows
+\item{lower, upper}{The ends of each non-event row's observation region, on
+the same scale as \code{y} (the log-time one for the location-scale families,
+the time one for Gompertz), one value per non-event row, in the order
+those rows
 appear in \code{X}. \code{lower} may be \code{-Inf} and \code{upper} may be \code{Inf}, which is
 what an open end means; \code{lower <= upper} is required and a row that
 violates it leaves the answer \code{"undetermined"}. The defaults are the

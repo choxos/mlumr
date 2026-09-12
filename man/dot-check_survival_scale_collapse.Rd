@@ -88,11 +88,20 @@ any message is issued, including the near-exact and saturated ones: a row
 that bounds the parameter makes every one of those messages untrue, not
 just the refusal.
 
+\strong{Which scale the fit is read on.} The log-time one for the
+location-scale families, whose \code{eta} sits at \verb{log t}. Gompertz is the
+exception: its hazard is \code{exp(eta + shape * t)}, so profiling a row's
+density over \code{eta} puts the maximum at \code{log(shape) - log(expm1(shape * t))},
+about \code{log(shape) - shape * t}. That ridge needs the event TIMES in the
+column space, not their logarithms, with the intercept absorbing the
+\code{log(shape)}, so Gompertz is read on the time scale throughout.
+
 \strong{Delayed entry, left and interval censoring.} All examined, through the
-OBSERVATION REGION each row is known to lie in on the log scale. A
-right-censored row at \code{c} runs from \verb{log c} upwards with no upper end; a
-left-censored one at \code{u} runs up to \verb{log u} with no lower end; an interval
-one runs from \verb{log l} to \verb{log u}. As the auxiliary goes to its boundary
+OBSERVATION REGION each row is known to lie in, on whichever of those two
+scales the family is read on. A right-censored row at \code{c} runs from \code{c}
+upwards with no upper end; a left-censored one at \code{u} runs up to \code{u} with
+no lower end; an interval one runs from \code{l} to \code{u}. As the auxiliary goes
+to its boundary
 the fitted distribution concentrates at the fitted value, so a row's
 contribution tends to one when that value is strictly inside its region
 and to zero when it is strictly outside, and only the second bounds the
