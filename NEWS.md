@@ -2,6 +2,136 @@
 
 ## Behavior and validation changes to existing functions
 
+* **A log-normal or generalized-gamma survival fit whose covariates
+  reproduce every event time exactly is now refused too.** The exact-fit guard ran only for
+  `family = "normal"`, and a log-normal AFT is a normal model for `log(t)`
+  with a positive scale: the same singularity is there. With `n` uncensored
+  index rows, a design of rank `r` that reaches every `log(t)`, and the
+  coefficients integrated out, the density of `sdlog` behaves as
+  `sdlog^(r - n)` near zero and does not integrate for any `n` above `r`.
+  `prior_aux` defaults to a half-normal and every supported alternative has
+  positive density at zero, so none of them repairs it, and no convergence
+  diagnostic can: the sampler drifts toward zero and reports where it
+  stopped. `mlumr()` now decides this before dispatch, with the same exact
+  geometry the normal guard uses.
+
+  Which families, decided by what the auxiliary *is* rather than by the
+  family's name. `"lognormal"` and `"gengamma"` are refused, because for
+  both of them the first auxiliary is a scale: the log-scale SD for one, and
+  the Lawless `sigma` for the other, which the density divides the log
+  residual by and carries a `-log(sigma)` term for. An exact fit sends
+  either to zero. The generalized gamma's *second* auxiliary is its shape,
+  and it is not what diverges: at an exact fit the density's dependence on
+  it is bounded. The Weibull, log-logistic and gamma carry a shape as their
+  only auxiliary, so the same exact fit sends it to `+Inf`, where a
+  half-normal or exponential prior's tail integrates the growth and a
+  half-t's need not. Propriety is then a property of the prior rather than
+  of the data, and refusing the data would refuse well-posed default fits,
+  so those warn instead. The Gompertz is one of them, and it is read on the
+  TIME scale rather than the log-time one the others are: its hazard is
+  `exp(eta + shape * t)`, so an exact fit drives the linear predictor to
+  about `log(shape) - shape * t`, and that ridge needs the event times
+  themselves in the column space rather than their logarithms. With the
+  coefficients integrated out the marginal goes as `shape^(n - 2k)`, for the
+  `k` coefficients the ridge moves, so a Cauchy on `prior_aux` and on those
+  leaves a tail that does not integrate. Five events at `t = 1:5` over
+  `x = 0:4` are exactly linear in `x` on the time scale and their marginal
+  slope `d log M / d log shape` is 1.000, which a Cauchy `prior_aux` turns
+  into `shape^-1`; three events at `t = exp(0:2)`, exactly linear on the log
+  scale instead, have no such ridge and measure -577,014 per decade. Each
+  censored row is placed in its observation region on the same scale. The
+  Gompertz previously received no diagnosis at all.
+
+  A saturated design, with as many uncensored rows as its design has free
+  columns, is an exact fit too: it reproduces every event time and leaves no
+  residual degree of freedom. It is also the one case where integrating the
+  coefficients out cancels the auxiliary's growth exactly, so it is proper
+  for every family but two, and it warns instead that nothing in the index
+  data separates the auxiliary from the coefficients. The first exception is
+  the proportional-hazards Weibull, whose cumulative hazard `t^shape e^eta`
+  leaves the width in the location of order one so that nothing cancels: two
+  rank-2 rows both at `t = 1` give a profile likelihood of exactly
+  `shape^2 e^-2`, with the coefficients held at `eta = 0` rather than moving
+  into their prior tails, so a `prior_cauchy()` auxiliary contributing
+  `shape^-2` leaves a constant tail that does not integrate. That one keeps
+  the prior-tail warning.
+
+  The Gompertz is the second, for a different reason. Integrating one of its
+  rows over its own linear predictor gives
+  `shape * e^(shape t) / expm1(shape t)`, which tends to the SHAPE rather
+  than to a constant, so a saturated design contributes `shape^n` against
+  `shape^-2` for each coefficient the ridge moves: the marginal goes as
+  `shape^(n - 2k)` and propriety fails once `n >= 2k + 1`, which is not a
+  property of `n == rank` at all. Three events all at `t = 1` on a rank-3
+  design, whose times are the intercept alone, measure a slope of 1.000, and
+  six rows whose times need two of six columns measure 2.000; a Cauchy
+  `prior_aux` takes off 2 and leaves `shape^-1` and `shape^0`, neither of
+  which integrates. Which coefficients the ridge moves is not decidable at
+  double precision, for the same reason exactness is not, so every saturated
+  Gompertz takes the prior-tail warning rather than a guess at which ones
+  are the proper ones. The exemption belongs to `n == rank` alone: with
+  more uncensored rows than the rank the cancellation is partial and every
+  shape family is warned about as before.
+
+  The censoring check refuses a design it cannot rescale exactly. Its
+  tolerance bounds the solve's error with the COLUMN-SCALED design's
+  condition number, which is sound because the two are the same computation:
+  Householder QR is equivariant under an exact power-of-two column scaling
+  and the pivot test is per-column relative, so over 20,000 random designs
+  the rescaled unscaled solve was bit-identical to the scaled one, with the
+  same rank and pivots, and the predictor error never reached the tolerance
+  when measured against the exact rational solution. A column whose own
+  entries span more than the exponent field breaks that, and toward the
+  unsafe answer: dividing `c(2^1020, 2^-100, 2^200, 2^-300)` by `2^1020`
+  flushes two entries to zero, so the scaled design reads as well
+  conditioned (kappa 18.8) exactly because the information is gone, where
+  the design solved has kappa 5.5e307. The tolerance from 18.8 is far too
+  small and the row came back `"bounded"`, which suppresses the refusal.
+  Such a design is now `"undetermined"`.
+
+  Right-censored rows are consulted before any of that is said, for the
+  shape families too: one whose fitted time falls below its censoring time
+  has survival going to zero faster than any power of the scale, and
+  `exp(-(c e^-eta)^k)` goes to zero as `k` grows for exactly the same rows,
+  so either way the posterior is proper and nothing is said, including the
+  near-exact and saturated messages. One at or above its censoring time does
+  nothing. A censored row's predictor counts as determined when its
+  covariate vector lies in the row space of the event design, which is
+  weaker than every coefficient being identified: exact events and a
+  censored row at the same covariate profile fix that row's predictor
+  however deficient the design is. When it is not determined the question is
+  said to be undecided rather than guessed.
+
+  Under `aux_by = "none"` the comparator rows share the auxiliary. That does
+  not bound it on its own, since a comparator of right-censored rows whose
+  fitted times sit above their censoring times contributes a likelihood
+  tending to one at the boundary, and whether it does bound it belongs to
+  the marginalized aggregate likelihood, which this geometry does not see.
+  So that case warns and is not refused. A fit that is nearly rather than
+  exactly exact warns that the auxiliary will concentrate against its
+  boundary, as the normal guard warns about sigma; under the
+  proportional-hazards Weibull and the gamma it says the auxiliary may
+  rather than will, because the ridge moves the coefficients there and an
+  ordinary `prior_beta` or `prior_intercept` can stop the shape before the
+  residual does.
+  Every censoring type is examined, through the OBSERVATION REGION each row
+  is known to lie in on the log scale. A right-censored row runs from its
+  own time upwards with no upper end; a left-censored one runs up to its
+  own time with no lower end; an interval one runs between its two. As the
+  auxiliary goes to its boundary the fitted distribution concentrates at the
+  fitted value, so a row's contribution tends to one when that value is
+  strictly inside its region and to zero when it is strictly outside, and
+  only the second bounds the auxiliary.
+
+  A delayed entry is not a lower end of that region. It conditions the
+  observation on survival to it, and with the fitted value BELOW the entry
+  the conditional law piles up just above the entry, so the probability
+  tends to one rather than to zero. An interval that opens strictly above
+  its entry does still bound from below, since the pile is then outside it.
+  So neither delayed entry nor a left-censored row whose upper bound sits
+  above the fitted time rescues an exact fit. The comparator side is not
+  examined.
+
 * **A normal fit whose covariates reproduce the outcome exactly is now
   refused.** Integrating out the coefficients leaves a marginal density for
   the residual SD proportional to `sigma^(rank - n)` near zero, which does not

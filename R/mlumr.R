@@ -500,6 +500,907 @@
 }
 
 
+#' Refuse a log-normal survival fit whose exact events collapse its scale
+#'
+#' A log-normal AFT is a normal model for `log(t)` with a positive scale
+#' `sdlog`, and its exact-event density has exactly the singularity that
+#' [.check_normal_residual_variation()] refuses. With `n` uncensored index
+#' rows, a design of rank `r` that reproduces every `log(t)` exactly, and the
+#' coefficients integrated out, the marginal density of the scale behaves as
+#' `sdlog^(r - n)` near zero. Its integral diverges for every `n > r`, and no
+#' prior with positive density at zero repairs it: `prior_aux` defaults to a
+#' half-normal, and the half-t and exponential alternatives all have positive
+#' density there. The sampler would drift toward zero and report where it
+#' stopped.
+#'
+#' Four scopes, each a deliberate limit rather than a certificate.
+#'
+#' **The distribution.** Two groups, told apart by what the auxiliary `aux`
+#' is rather than by the family's name. `"lognormal"` and `"gengamma"` are
+#' refused, because for both of them `aux` *is* a scale: the log-scale
+#' standard deviation for the one, and `sigma` for the other, which enters
+#' the Lawless density `gengamma_lpdf(y, mu, sigma, k)` as a `-log(sigma)`
+#' term and as the divisor of the log residual. An exact fit sends either to
+#' zero, where the density with the coefficients integrated out behaves as
+#' `aux^(rank - n)` and does not integrate. The generalized gamma's *second*
+#' auxiliary is its shape, and it is not what diverges: at an exact fit the
+#' density's dependence on it is bounded.
+#'
+#' The Weibull, log-logistic and gamma are log-location-scale families too,
+#' but their auxiliary is a shape, the reciprocal of a scale, so the same
+#' exact fit sends it to `+Inf` rather than to zero. The likelihood there
+#' grows polynomially in the shape and a half-normal or exponential prior's
+#' tail integrates it, while a half-t's may not: propriety is a property of
+#' the prior, not of the data, and refusing the data would refuse well-posed
+#' default fits. A warning says so instead, and a censored row that bounds
+#' the shape suppresses it, as it does for a scale.
+#'
+#' **The auxiliary stratification.** Decided only when the index study holds
+#' the scale alone, which `aux_by = ".study"` (the default) and `NULL` both
+#' give it. Under `aux_by = "none"` the comparator rows enter the same
+#' parameter, and sharing does not bound it by itself: a comparator of
+#' right-censored rows whose fitted times sit above their censoring times
+#' contributes a likelihood tending to one as the scale goes to zero, which
+#' repairs nothing. Whether it bounds the parameter is a question about the
+#' marginalized aggregate likelihood, which this geometry does not see, so
+#' that case is reported rather than decided, and warned about rather than
+#' refused.
+#'
+#' **Censoring.** A right-censored row at `c` whose fitted `eta` is below
+#' `log(c)` has survival going to zero faster than any power of the scale, and
+#' it makes the posterior proper on its own. One at or above `log(c)` has
+#' survival going to one half or one and does nothing. So censored rows are
+#' consulted, and only when the fit on the event rows determines their linear
+#' predictors. That is estimability, not identification: a censored row's
+#' predictor is determined whenever its covariate vector lies in the ROW
+#' SPACE of the event design, which is weaker than that design having full
+#' column rank, and the difference is not a corner case, since a censored
+#' row at a covariate profile the events already occupy is always in it.
+#' A gap between the fitted predictor and the nearer end of the row's region
+#' that is no larger than the rounding in computing it does not count
+#' either, since its sign is not information. Otherwise
+#' the question is left undecided and said to be. They are consulted BEFORE
+#' any message is issued, including the near-exact and saturated ones: a row
+#' that bounds the parameter makes every one of those messages untrue, not
+#' just the refusal.
+#'
+#' **Which scale the fit is read on.** The log-time one for the
+#' location-scale families, whose `eta` sits at `log t`. Gompertz is the
+#' exception: its hazard is `exp(eta + shape * t)`, so profiling a row's
+#' density over `eta` puts the maximum at `log(shape) - log(expm1(shape * t))`,
+#' about `log(shape) - shape * t`. That ridge needs the event TIMES in the
+#' column space, not their logarithms, with the intercept absorbing the
+#' `log(shape)`, so Gompertz is read on the time scale throughout.
+#'
+#' **Delayed entry, left and interval censoring.** All examined, through the
+#' OBSERVATION REGION each row is known to lie in, on whichever of those two
+#' scales the family is read on. A right-censored row at `c` runs from `c`
+#' upwards with no upper end; a left-censored one at `u` runs up to `u` with
+#' no lower end; an interval one runs from `l` to `u`. As the auxiliary goes
+#' to its boundary
+#' the fitted distribution concentrates at the fitted value, so a row's
+#' contribution tends to one when that value is strictly inside its region
+#' and to zero when it is strictly outside, and only the second bounds the
+#' auxiliary.
+#'
+#' A delayed entry is not an ordinary lower end, because the contribution is
+#' conditional on survival to it: with the fitted value BELOW the entry the
+#' conditional law piles up just above it and the probability tends to one,
+#' not to zero. So an entry never closes a region from below, while an
+#' interval that opens strictly above its entry still does.
+#'
+#' Skipping a censoring type outright was not the safe choice it looked
+#' like: it let a row that suppresses nothing stand in for one that does,
+#' and sent an improper posterior to the sampler in silence.
+#'
+#' The comparator side is not examined either: its reconstructed rows enter a
+#' likelihood marginalized over the integration grid, which is not this
+#' geometry.
+#'
+#' @param data An `mlumr_data` object with `family = "survival"`.
+#' @param distribution The resolved survival distribution.
+#' @param aux_by The auxiliary stratification, as passed to [mlumr()].
+#' @param center The centers the model subtracts from the covariates, as for
+#'   [.check_normal_residual_variation()].
+#' @return `TRUE` invisibly if the data were warned about, `FALSE` otherwise.
+#' @keywords internal
+.check_survival_scale_collapse <- function(data, distribution,
+                                           aux_by = ".study",
+                                           center = TRUE) {
+  # `gengamma` belongs with `lognormal`, not with the shapes: its first
+  # auxiliary is the Lawless `sigma`, a scale, and its shape is the second.
+  scale_families <- c("lognormal", "gengamma")
+  # Gompertz belongs here too. Left out, it got no diagnosis at all, not
+  # even the prior-sensitivity warning the others get. Three repeated events
+  # at t = 1 on an intercept-only design drive the intercept to
+  # `log(a) - log(expm1(a))`, about -a, and with the coefficient integrated
+  # out against a Cauchy `prior_intercept` the marginal slope
+  # `d log M / d log a` is 1.000 at a = 1e6. A Cauchy `prior_aux`
+  # contributes a^-2, which leaves a^-1 and does not integrate.
+  #
+  # It is read on the TIME scale, not the log-time one: the ridge above is
+  # `eta = log(a) - log(expm1(a t))`, about `log(a) - a t`, so it needs the
+  # event times themselves in the column space. Reading it on the log scale
+  # was wrong in both directions. Five events at `t = 1:5` over `x = 0:4` fit
+  # exactly on the time scale and not on the log one (residual sum of squares
+  # 0.085 of the total), and their marginal slope is 1.000, so a Cauchy
+  # `prior_aux` leaves `a^-1` and no posterior: that passed in silence. Three
+  # events at `t = exp(0:2)` fit exactly on the log scale and not on the time
+  # one, where the marginal FALLS by 577,014 per decade of shape: that was
+  # warned about as a collapse it does not have.
+  shape_families <- c("weibull", "weibull-aft", "loglogistic", "gamma",
+                      "gompertz")
+  if (!distribution %in% c(scale_families, shape_families)) {
+    return(invisible(FALSE))
+  }
+  shared_aux <- identical(aux_by, "none")
+  if (!is.null(aux_by) && !identical(aux_by, ".study") && !shared_aux) {
+    return(invisible(FALSE))
+  }
+  ipd <- data$ipd$data
+  status <- ipd$.status
+  delay <- ipd$.delay_time %||% rep(0, nrow(ipd))
+  time <- suppressWarnings(as.numeric(ipd$.time))
+  if (is.null(status) || !length(time)) return(invisible(FALSE))
+  start <- suppressWarnings(as.numeric(ipd$.start_time %||% rep(0, nrow(ipd))))
+  # Every censoring type is examined now, through the observation region
+  # each one puts its row in. Skipping a type outright was not the safe
+  # choice it looked like: a left-censored row whose upper bound sits ABOVE
+  # the fitted time contributes a probability tending to one, so it
+  # suppresses nothing and the event singularity is exactly the one the
+  # undelayed right-censored case is refused for. Three repeated events at
+  # t = 1 on an intercept-only design with one left-censored row at upper
+  # bound 2 give `d log M / d log(1/sdlog)` of 2.000, identical to the same
+  # data with the row removed; at upper bound 0.5 the marginal collapses to
+  # -1.8e11 instead, which is the row genuinely bounding.
+  if (any(!status %in% c(0L, 1L, 2L, 3L))) return(invisible(FALSE))
+  # Delayed entry does not rescue an exact fit, so skipping the whole
+  # question for it admitted the collapse in silence. Each row contributes
+  # `f(t) / S(entry)` or `S(c) / S(entry)`, and the entry time is strictly
+  # below its own row's time. As the scale goes to zero the fitted
+  # distribution concentrates at the fitted time, so `S(entry)` tends to one
+  # and every term is the undelayed one. Measured on three exact events over
+  # a rank-2 design, `d log M / d log(1/sdlog)` is 1.000 with no delayed
+  # entry, 1.000 with entry at half the event time and 1.000 with entry at
+  # 99% of it, and from `sdlog = 1e-3` down the three marginals agree to
+  # every printed digit. A censored row whose entry sits ABOVE its own
+  # fitted time does not change either: both survivals go to zero and their
+  # ratio still goes to zero, so it still bounds.
+  #
+  # An entry at or above its own row's time is the one configuration this
+  # argument does not cover. The validators do not admit one, so it is
+  # refused rather than analyzed.
+  if (any(!is.finite(delay), na.rm = TRUE)) return(invisible(FALSE))
+  if (any(!is.finite(start), na.rm = TRUE)) return(invisible(FALSE))
+  if (any(delay >= time, na.rm = TRUE)) return(invisible(FALSE))
+  # An interval that does not open before it closes, or a lower end at or
+  # above the row's own upper end, leaves no region to be inside or outside
+  # of. The validators do not admit one.
+  if (any(status == 3L & !(start < time), na.rm = TRUE)) {
+    return(invisible(FALSE))
+  }
+  events <- status == 1L
+  if (!any(events)) return(invisible(FALSE))
+  covariates <- as.matrix(ipd[, data$covariates, drop = FALSE])
+  # The guard stays on the LOG time whichever scale the fit is read on: a
+  # time of zero is finite on the time scale, but its profile maximizer is
+  # not, and a negative one has no ridge to speak of either.
+  log_time <- suppressWarnings(log(time))
+  # Not the place to diagnose non-finite or non-positive inputs: the
+  # validators that own that question run their own checks.
+  if (!all(is.finite(log_time)) || !all(is.finite(covariates))) {
+    return(invisible(FALSE))
+  }
+  time_scale <- identical(distribution, "gompertz")
+  y <- if (time_scale) time else log_time
+  # How the messages below name the scale the fit was read on.
+  scale_phrase <- if (time_scale) "on the time scale" else "on the log scale"
+  if (isTRUE(center)) {
+    center <- apply(covariates, 2, function(v) max(v) / 2 + min(v) / 2)
+  }
+  if (is.numeric(center)) {
+    covariates <- sweep(covariates, 2, as.numeric(center))
+    if (!all(is.finite(covariates))) return(invisible(FALSE))
+  }
+  X <- cbind(1, covariates)
+  s <- .residual_variation_status(X[events, , drop = FALSE], y[events],
+                                  "identity")
+  if (identical(s$status, "positive")) return(invisible(FALSE))
+  # A right-censored row can bound the auxiliary away from its boundary, but
+  # only one whose fitted time falls below its censoring time. The argument
+  # is the same whichever boundary it is: S(c) = 1 - Phi((log c - eta) / sigma)
+  # goes to zero as sigma does, and exp(-(c e^-eta)^k) goes to zero as k
+  # grows, both faster than the likelihood's polynomial growth.
+  #
+  # This is consulted BEFORE any message below, not between them. Such a row
+  # makes every one of these untrue, not only the refusal: an auxiliary held
+  # away from its boundary does not concentrate against it, and a design that
+  # leaves no residual degree of freedom is not the only thing informing the
+  # auxiliary once a censored row does.
+  bound <- if (any(!events)) {
+    # Only these three interpolate: `exact` is decided structurally (as many
+    # distinct event profiles as the rank, replicates agreeing), `saturated`
+    # has full row rank, and `constant` is reproduced by the intercept. A
+    # `near_exact` or `unresolved` fit leaves a residual, so the structural
+    # shortcut inside is not available to it.
+    # The region each censored row is observed to lie in, on the same scale
+    # the fit is read on.
+    # A right-censored row runs from its own time upwards with no upper end;
+    # the other two close at their own upper bound.
+    #
+    # A delayed entry is NOT an ordinary lower end. The contribution is
+    # conditional on survival to it, and when the fitted value sits BELOW
+    # the entry the conditional law piles up just above it, so the
+    # probability of the region tends to one rather than to zero. Three
+    # events at t = 1 with a left-censored row entering at 1.5 and closing
+    # at 2: the row's own contribution is 1.000000 at every scale and the
+    # marginal slope is 2.000, identical to the same data with the row
+    # removed. Reading the entry as a lower end called that "bounded" and
+    # passed the improper fit.
+    #
+    # An interval that opens STRICTLY above its entry still bounds from
+    # below, since the pile at the entry is then outside it. So the lower
+    # end is the interval's own opening when it has one above the entry,
+    # and no lower end at all otherwise.
+    # `start > delay` is the only way an interval opens above its entry, and
+    # it forces `start > 0`, so this is never `log(0)`.
+    open <- if (time_scale) {
+      ifelse(start > delay, start, -Inf)
+    } else {
+      suppressWarnings(ifelse(start > delay, log(start), -Inf))
+    }
+    right <- status[!events] == 0L
+    .censoring_bounds_aux(
+      X, y, events,
+      exact_fit = s$status %in% c("exact", "constant", "saturated"),
+      lower = ifelse(right, y[!events], open[!events]),
+      upper = ifelse(right, Inf, y[!events])
+    )
+  } else {
+    "unbounded"
+  }
+  if (identical(bound, "bounded")) return(invisible(FALSE))
+
+  # Near-exact is excluded so it falls through to its own warning below,
+  # which is the accurate message for it: its residual is real.
+  if (shared_aux && !identical(s$status, "near_exact")) {
+    # `aux_by = "none"` puts the comparator rows in the same parameter.
+    # Sharing does not bound it by itself: a comparator of right-censored
+    # rows whose fitted times sit above their censoring times contributes a
+    # likelihood tending to one as the scale goes to zero, and repairs
+    # nothing. Whether it does bound it is a property of the marginalized
+    # aggregate likelihood, which this geometry does not see, so the case is
+    # reported rather than decided, and is not refused on a guess.
+    #
+    # A near-exact fit is proper whatever the comparator does, so it is not
+    # this branch's business; but it still gets its own warning below rather
+    # than silence. Sharing multiplies the index's near-boundary likelihood
+    # by whatever the comparator contributes there, and when that is a
+    # nonzero limit, which is exactly the configuration this function admits
+    # it cannot analyze, the concentration is unchanged. Staying silent
+    # would hide the sampler diagnostic in the one case that motivates this
+    # branch existing.
+    warning("The index event rows leave nothing to bound ",
+            .aux_name(distribution), " away from its boundary, and no ",
+            "censored index row bounds it either. Under `aux_by = \"none\"` ",
+            "the comparator rows share that parameter, but sharing does not ",
+            "bound it on its own: a comparator of right-censored rows whose ",
+            "fitted times sit above their censoring times contributes a ",
+            "likelihood tending to one at the boundary. Whether the ",
+            "comparator bounds it is a property of the marginalized ",
+            "aggregate likelihood, which this check does not examine, so ",
+            "the fit is neither refused nor passed as proper: check the ",
+            "sampler's behavior near the boundary and the sensitivity to ",
+            "`prior_aux`.", call. = FALSE)
+    return(invisible(TRUE))
+  }
+
+  if (identical(s$status, "near_exact")) {
+    # The same reasoning as [.warn_near_exact()], about this parameter: the
+    # residual is real and the posterior proper, and the auxiliary still
+    # concentrates against its boundary.
+    #
+    # An EVENT row's own delayed entry is not consulted here, and does not
+    # need to be. A near-exact residual can put a fitted value below its own
+    # entry, where `f(t) / S(entry)` behaves as
+    # `(a / (t sigma^2)) exp(-(r^2 - a^2) / (2 sigma^2))` for
+    # `a = log(entry) - eta` and `r = log(t) - eta`. That does tend to zero,
+    # but so does every near-exact event row's contribution, which is the
+    # whole reason this status is proper: tending to zero is not what bounds
+    # the auxiliary AWAY from its boundary, suppressing a divergence is, and
+    # near-exact has no divergence to suppress. The entry is strictly below
+    # its own row's time, so `0 < a < r` and the aggregate exponent
+    # `-(sum(r^2) - a^2) / (2 sigma^2)` stays strictly negative: the
+    # likelihood still goes to zero, and the peak moves from
+    # `sigma^2 = sum(r^2) / n` to `(sum(r^2) - a^2) / n`, which is CLOSER to
+    # the boundary. Measured on four rows with residuals of 1e-3 and an
+    # entry halfway between one fitted value and its own event time, the
+    # profile maximum moves from sigma 1.00e-3 to 7.94e-4 and the profile at
+    # sigma = 1e-6 is -1.58e6. So this warning is not made untrue by such a
+    # row; it is made more apt. An exact fit cannot produce one at all, since
+    # `eta` is then `log(t)` and the entry is below it.
+    #
+    # For the two whose ridge moves the coefficients, that is conditional
+    # rather than certain: ordinary normal coefficient priors can stop the
+    # shape well before a small event residual does, and the defaults are
+    # not wide, `normal(0, 10)` on the intercept and `normal(0, 2.5)` on the
+    # rest. Saying it will concentrate would be a sampler diagnosis the data
+    # do not support on their own.
+    conditional <- switch(
+      distribution,
+      gamma = paste0(
+        " Whether it does is conditional on `prior_intercept` here: the ",
+        "ridge shifts the intercept by about -log(shape), so an ordinary ",
+        "normal intercept prior can stop the shape before this residual ",
+        "does."
+      ),
+      weibull = paste0(
+        " Whether it does is conditional on `prior_beta` and ",
+        "`prior_intercept` here: this is the proportional-hazards Weibull, ",
+        "whose ridge scales the linear predictor with the shape, so ",
+        "ordinary normal coefficient priors can stop it before this ",
+        "residual does."
+      ),
+      gompertz = paste0(
+        " Whether it does is conditional on `prior_intercept` and ",
+        "`prior_beta` here, and more so than for the others: the ridge ",
+        "drives the linear predictor to about `log(shape) - shape * t`, ",
+        "which runs away with the shape itself rather than with its ",
+        "logarithm, so the default `normal(0, 10)` intercept prior stops the ",
+        "shape long before a residual this small does."
+      ),
+      ""
+    )
+    fmt <- paste0(
+      "The index covariates very nearly fit the event times exactly %s ",
+      "(residual sum of squares is %.3g of the total). The ",
+      "residual is real, so the posterior is proper, but %s %s ",
+      "concentrate against its boundary and the sampler has to work there: ",
+      "check its diagnostics before reading the estimate.%s"
+    )
+    warning(sprintf(fmt, scale_phrase, s$ratio, .aux_name(distribution),
+                    if (nzchar(conditional)) "may" else "will",
+                    conditional),
+            call. = FALSE)
+    return(invisible(TRUE))
+  }
+  # Saturated is an exact fit, but it does not diverge for every family:
+  # `n == rank` is exactly the case where integrating the coefficients out
+  # cancels the auxiliary's growth. The AFT location-scale parameterizations
+  # put each event density's peak at the shape and its width in the location
+  # at one over the shape, so the `shape^n` growth meets a `shape^-n` from
+  # the coefficient integral and the marginal is CONSTANT in the shape.
+  # Measured as `d log M / d log shape` from 10 to 1e6, integrating the
+  # coefficients against their default priors: 0.000 for `weibull-aft`,
+  # 0.002 for `loglogistic`, and negative throughout for `gamma`, whose
+  # exact fit also drags the intercept to `-log(shape)` and into a proper
+  # prior's tail.
+  #
+  # The proportional-hazards Weibull is the exception. Its cumulative hazard
+  # is `t^shape e^eta`, so the width in the location stays of order one and
+  # nothing cancels: two rank-2 rows both at `t = 1` give a slope of exactly
+  # 2.000 over eight decades, which is `shape^n`. The coefficients stay at
+  # eta = 0 rather than moving into their prior tails, and a
+  # `prior_cauchy()` auxiliary contributes only `shape^-2`, so the tail is
+  # constant and does not integrate. That one keeps the divergence warning.
+  #
+  # None of this survives `n > rank`, where the cancellation is partial and
+  # the growth returns: the same measurement on three rows over a rank-2
+  # design gives 1.000 for `weibull-aft` and `loglogistic` and 0.487 for
+  # `gamma`, which are `n - rank` and `(n - rank) / 2`. So the exemption is
+  # a property of `saturated` alone, and `exact` keeps the warning for every
+  # shape family.
+  # Gompertz is not exempt either, and for a different reason than the
+  # proportional-hazards Weibull. Integrating a row's density over its own
+  # `eta` gives `shape * e^(shape t) / expm1(shape t)`, which tends to the
+  # SHAPE rather than to a constant, so a saturated design contributes
+  # `shape^n`; against that the coefficients supply `shape^-2` apiece, but
+  # only for the ones the ridge actually moves. The marginal goes as
+  # `shape^(n - 2k)` for `k` moved coefficients, so propriety fails once
+  # `n >= 2k + 1` and is not a property of `n == rank` at all. Measured
+  # slopes at `n == rank`: 1.000 for three events all at t = 1 on a rank-3
+  # design, where the times are the intercept alone and `k` is one, and
+  # 2.000 for six rows whose times need two of six columns. A Cauchy
+  # `prior_aux` takes off 2, leaving `shape^-1` and `shape^0`, neither of
+  # which integrates. The generic saturated design does have every
+  # coefficient moving, `k == n`, and is proper at `shape^-n`, but that is
+  # the common case and not the guarantee this branch was making.
+  saturated_divergent <- c("weibull", "gompertz")
+  if (identical(s$status, "saturated") &&
+      !distribution %in% saturated_divergent) {
+    exponent_clause <- if (distribution %in% shape_families) {
+      paste0("the growth of ", .aux_name(distribution),
+             " carries the exponent `n - rank`")
+    } else {
+      paste0("the density of ", .aux_name(distribution),
+             " carries the exponent `rank - n`")
+    }
+    warning("The uncensored index rows are as many as the free columns of ",
+            "their design (", s$n, " rows, rank ", s$rank, "), so it ",
+            "reproduces every event time exactly and leaves no residual ",
+            "degrees of freedom. The posterior is proper, since with the ",
+            "coefficients integrated out ", exponent_clause, ", which is ",
+            "zero here, but nothing in the index data separates it from the ",
+            "coefficients, so what is reported for it is ",
+            "potentially strongly sensitive to `prior_intercept` and ",
+            "`prior_beta`. The exact-fit coefficient vector includes the ",
+            "intercept, and their defaults are not the same width, ",
+            "`normal(0, 10)` against `normal(0, 2.5)`, so a sensitivity ",
+            "analysis on one of them is not one on both.", call. = FALSE)
+    return(invisible(TRUE))
+  }
+
+  # Only `exact` and `constant` are exact fits. `constant` is one because the
+  # design carries an intercept, so identical event times are reproduced by
+  # it alone. The other three statuses mean the question could not be
+  # ANSWERED at double precision, and a message that asserts an exact fit
+  # would be a false diagnosis of a design that is merely near-collinear or
+  # rounded.
+  # Why the question could not be answered, shared by the shape warning and
+  # the scale refusal so the two describe the same state the same way.
+  undecided_reason <- function(s) {
+    if (identical(s$status, "unresolved")) {
+      return(sprintf(paste0("the index design has %d exactly independent ",
+                            "columns and a factorization at machine ",
+                            "precision resolves only %d, so whether the ",
+                            "event times are reproduced through that column ",
+                            "cannot be told at double precision"),
+                     s$rank, s$numerical_rank))
+    }
+    paste("the index covariates fit the event times", scale_phrase,
+          "to within rounding, and at double precision nothing tells that",
+          "from an exact fit")
+  }
+  # `saturated` reaches here only for a shape family, and it is an exact fit:
+  # a design with as many free columns as event rows reproduces every one of
+  # them.
+  resolved_exact <- s$status %in% c("exact", "constant", "saturated")
+  undetermined_bound <- if (identical(bound, "undetermined")) {
+    paste0(", and whether a censored row bounds it could not be told, since ",
+           "the fit on the event rows does not determine those rows' linear ",
+           "predictors")
+  } else {
+    ""
+  }
+  # Which prior settles it is not the same for all of them, because the
+  # exact-fit ridge does not move the same way. Under the AFT
+  # parameterizations (`weibull-aft`, `loglogistic`) an exact fit pins
+  # `eta` at `log(t)` and the ridge leaves the coefficients where they are,
+  # so `prior_aux` carries it alone. It does not under the other two, and
+  # pointing only at `prior_aux` there sends the reader to the wrong
+  # sensitivity analysis.
+  ridge_clause <- switch(
+    distribution,
+    gamma = paste0(
+      " The ridge here does not hold the coefficients fixed: `t e^-eta` is ",
+      "Gamma(shape, 1), whose mode is at `shape - 1`, so an exact fit needs ",
+      "the intercept to fall like `-log(shape)` as the shape grows. That ",
+      "makes `prior_intercept` bear on propriety as well, and a normal one ",
+      "integrates the ridge even where `prior_aux` alone would not."
+    ),
+    gompertz = paste0(
+      " The ridge here does not hold the coefficients fixed: the hazard is ",
+      "`exp(eta + shape * t)`, so an exact fit drives the linear predictor ",
+      "to `log(shape) - log(expm1(shape * t))`, about ",
+      "`log(shape) - shape * t`, which runs away with the shape itself ",
+      "rather than with its logarithm. With the coefficients integrated out ",
+      "against Cauchy priors the marginal goes as `shape^(n - 2k)`, where ",
+      "`k` counts the coefficients that ridge moves, which is how many ",
+      "columns the event times need: measured slopes are -1.000, 0.000 and ",
+      "1.000 for one, two and three events on an intercept-only design, ",
+      "where `k` is one, and 1.000 for five events whose times are exactly ",
+      "linear in one centered covariate, where `k` is two. ",
+      "`prior_intercept` and `prior_beta` therefore bear on propriety as ",
+      "much as `prior_aux` does, and ordinary normal ones integrate the ",
+      "ridge where Cauchy ones need not."
+    ),
+    weibull = paste0(
+      " The ridge here does not hold the coefficients fixed: this is the ",
+      "proportional-hazards Weibull, with cumulative hazard ",
+      "`t^shape exp(eta)`, so an exact fit scales the whole linear ",
+      "predictor with the shape. `prior_beta` and `prior_intercept` bear on ",
+      "propriety alongside `prior_aux`, and a sensitivity analysis on the ",
+      "auxiliary prior alone would not see it."
+    ),
+    ""
+  )
+  prior_clause <- paste0(
+    "Whether a posterior exists then depends on the tail of `prior_aux`: a ",
+    "half-normal or an exponential integrates it and a half-t need not, so ",
+    "what is reported for the shape is a property of that prior rather than ",
+    "of the data.", ridge_clause, " The event times need variation the ",
+    "covariates do not explain, or an observation process (a measurement ",
+    "error or a rounding scale) that supplies one."
+  )
+  if (distribution %in% shape_families) {
+    if (resolved_exact) {
+      geometry_clause <- if (identical(s$status, "saturated")) {
+        paste0(" (the ", s$n, " uncensored rows are as many as the free ",
+               "columns of their design, of rank ", s$rank, ", so it ",
+               "reproduces every one of them and leaves no residual degree ",
+               "of freedom)")
+      } else {
+        ""
+      }
+      warning("The index covariates fit every event time exactly ",
+              scale_phrase, geometry_clause, ", so the likelihood grows ",
+              "without ",
+              "limit as the ", distribution, " shape does",
+              undetermined_bound, ". ", prior_clause, call. = FALSE)
+    } else {
+      warning("Whether the index covariates fit every event time exactly ",
+              scale_phrase, " could not be told at double precision (",
+              undecided_reason(s), "), so neither could whether the ",
+              "likelihood grows without limit as the ", distribution,
+              " shape does", undetermined_bound, ". If it does: ",
+              prior_clause, " Until that is settled, treat the shape as ",
+              "prior-driven and check its sensitivity.", call. = FALSE)
+    }
+    return(invisible(TRUE))
+  }
+  advice <- paste(
+    "This is a property of the data, not a setting: the event times need",
+    "variation the covariates do not explain, or the model needs an",
+    "observation process (a rounding or measurement scale) that supplies",
+    "one. Rounded times may need an interval-censored representation;",
+    "jitter and a hidden floor on the scale are not honest substitutes."
+  )
+  # Both of these families reach here, and the argument is the same for
+  # both: it is the parameter's name that differs.
+  scale_label <- if (identical(distribution, "lognormal")) {
+    "the log-normal `sdlog`"
+  } else {
+    "the generalized-gamma `sigma`"
+  }
+  scale_symbol <- if (identical(distribution, "lognormal")) "sdlog" else "sigma"
+  improper <- paste0(
+    "The posterior for ", scale_label, " is improper: with the coefficients ",
+    "integrated out its density behaves as ", scale_symbol, "^(rank - n) ",
+    "near zero and does not integrate, and the sampler would drift toward ",
+    "zero and report where it stopped."
+  )
+  undecided <- function(why) {
+    stop("Whether ", scale_label, " has a proper posterior could not be ",
+         "decided: ", why, ". A possibly improper posterior is not one to ",
+         "sample, so the model is refused rather than passed as proper. ",
+         advice, call. = FALSE)
+  }
+  if (!resolved_exact) {
+    undecided(undecided_reason(s))
+  }
+  if (identical(bound, "undetermined")) {
+    undecided(paste("the index covariates fit every event time exactly, and",
+                    "the censored rows' linear predictors are not determined",
+                    "by that fit, so whether one of them falls below its",
+                    "censoring time could not be told"))
+  }
+  if (any(!events)) {
+    stop("The index covariates fit every event time exactly on the log ",
+         "scale, and no censored row is predicted to fail before it was ",
+         "censored, so none of them bounds the scale away from zero. ",
+         improper, " ", advice, call. = FALSE)
+  }
+  stop("The index covariates fit every event time exactly on the log scale: ",
+       s$n, " uncensored rows against a design of rank ", s$rank,
+       ", with no censored row to bound the scale. ", improper, " ", advice,
+       call. = FALSE)
+}
+
+
+#' Whether a censored row bounds the auxiliary away from its boundary
+#'
+#' The event rows are fitted exactly, so the auxiliary runs to its boundary
+#' unless some censored row's survival goes to zero with it. That happens
+#' when the row's linear predictor is strictly below the log of its
+#' censoring time, and the condition is the same whichever boundary it is:
+#' the log-normal survival `1 - Phi((log c - eta) / sigma)` goes to zero as
+#' `sigma` does, and `exp(-(c e^-eta)^k)` goes to zero as `k` grows.
+#'
+#' It is a question about a censored row's fitted value, not about the
+#' coefficients. Without full column rank the exact solutions form an affine
+#' family, but a row's fitted value is the same across the whole family
+#' whenever its covariate vector lies in the ROW SPACE of the event design,
+#' which is the usual estimability condition. That is strictly weaker than
+#' identifying every coefficient, and the difference is not a corner case:
+#' exact events and a censored row at the same covariate profile fix that
+#' row's predictor exactly, however deficient the design is, because the row
+#' is one of the event rows. Requiring the stronger condition refused fits
+#' that were proper.
+#'
+#' A row that is not estimable is not evidence in either direction, and is
+#' consulted for neither answer: it cannot produce `"bounded"`, and it blocks
+#' `"unbounded"`, which needs every row to be strictly inside its region. All
+#' it can do is leave the answer `"undetermined"`.
+#'
+#' A censored row that repeats an event row's covariate profile needs no
+#' solve at all. Where the event fit interpolates, its predictor IS that
+#' event's own `y`, for every exact solution and however deficient or
+#' ill-conditioned the design is, so the question reduces to comparing two
+#' stored data values. That is worth asking first: it is exact where the
+#' numerical path is not, and it answers cases the numerical path refuses,
+#' including a design whose numerical rank falls below its exact one.
+#'
+#' @param X The full centered design, intercept first.
+#' @param y The fitted response for every row, on the scale the family's
+#'   collapse happens on: `log(time)` for the location-scale families, whose
+#'   `eta` sits at `log t`, and `time` itself for Gompertz, whose ridge is
+#'   `log(shape) - log(expm1(shape * t))` and so needs the times rather than
+#'   their logarithms. This function does not transform it and does not know
+#'   the family; it only requires that `lower` and `upper` arrive on the same
+#'   scale.
+#' @param events Logical, which rows are events.
+#' @param exact_fit Whether the event rows are known to be fitted exactly.
+#'   The structural shortcut above holds only then, and the caller knows it
+#'   from the geometry it already measured; a near-exact fit puts the
+#'   duplicated row at the fitted value rather than at the event's time, so
+#'   the shortcut is not taken for one.
+#' @param lower,upper The ends of each non-event row's observation region, on
+#'   the same scale as `y`, one value per non-event row, in the order those
+#'   rows appear in `X`. `lower` may be `-Inf` and `upper` may be `Inf`, which
+#'   is
+#'   what an open end means; `lower <= upper` is required and a row that
+#'   violates it leaves the answer `"undetermined"`. The defaults are the
+#'   right-censored region, `y[!events]` and `Inf`, so a caller that knows
+#'   only times gets the behavior it had before the other two censoring
+#'   types were admitted.
+#' @return `"bounded"`, `"unbounded"`, or `"undetermined"`.
+#' @keywords internal
+.censoring_bounds_aux <- function(X, y, events, exact_fit = FALSE,
+                                  lower = NULL, upper = NULL) {
+  Xe <- X[events, , drop = FALSE]
+  Xc <- X[!events, , drop = FALSE]
+  if (!nrow(Xc)) return("unbounded")
+  # Every censoring type asks the same question of the same object: the
+  # OBSERVATION REGION the row is known to lie in, on the same scale as the
+  # fit. A
+  # right-censored row runs from its own time upwards with no upper end, a
+  # left-censored one up to its own time with no lower end, an interval one
+  # between its two. As the auxiliary goes to its boundary the fitted
+  # distribution concentrates at the fitted value, so the row's contribution
+  # tends to one when that value is strictly INSIDE its region and to zero
+  # when it is strictly outside. Only the second bounds the auxiliary.
+  #
+  # The caller decides where a row's ends come from; a delayed entry is NOT
+  # one of them, since it conditions the observation rather than bounding
+  # it. Defaulting to the right-censored region keeps the caller that
+  # passes only times.
+  yc <- y[!events]
+  if (is.null(lower)) lower <- yc
+  if (is.null(upper)) upper <- rep(Inf, length(yc))
+  if (length(lower) != length(yc) || length(upper) != length(yc)) {
+    return("undetermined")
+  }
+  if (any(is.na(lower)) || any(is.na(upper)) || any(lower > upper)) {
+    return("undetermined")
+  }
+  if (isTRUE(exact_fit)) {
+    # Exact keys, not rounded ones: `x` and `x + 1e-13` are different
+    # profiles, and a 15-digit character conversion would merge them and
+    # pin a censored row to an event time that is not its own. `%a` is the
+    # binary value itself, and the `+ 0` normalizes a negative zero, which
+    # compares equal but prints differently.
+    row_keys <- function(M) {
+      apply(matrix(sprintf("%a", M + 0), nrow = nrow(M)), 1L, paste,
+            collapse = "|")
+    }
+    twin <- match(row_keys(Xc), row_keys(Xe))
+    repeated <- which(!is.na(twin))
+    if (length(repeated)) {
+      pinned <- y[events][twin[repeated]]
+      if (any(pinned < lower[repeated] | pinned > upper[repeated])) {
+        return("bounded")
+      }
+    }
+  }
+  rank_e <- .exact_rank(Xe)$rank
+  fit <- tryCatch(stats::lm.fit(Xe, y[events]), error = function(e) NULL)
+  if (is.null(fit)) return("undetermined")
+  # `lm.fit()` decides its own rank at a numerical tolerance, and it can drop
+  # a column that `.exact_rank()` keeps. The estimability test below runs on
+  # the exact rank, so the two would be answering about different models: the
+  # fitted values would come from the reduced one while the rows were judged
+  # against the full one. When the exact fit depends on the dropped
+  # direction that is not a rounding difference. With events at
+  # `x = (-1, 0, 1, 2)`, a second column `x + 1e-13`, and event times equal
+  # to that second column, the exact solution is `(0, 0, 1)` and the reduced
+  # one is `(1e-13, 1, 0)`; a censored row at `(1, 0, 10)` has a true
+  # predictor of 10 and a reduced one of 1e-13, so a censoring time of 5
+  # came back "bounded" when the true answer is "unbounded", and an improper
+  # fit went to Stan in silence. Refuse to answer instead.
+  if (!is.numeric(fit$rank) || fit$rank < rank_e) return("undetermined")
+  beta <- fit$coefficients
+  # A rank-deficient event design leaves some coefficients aliased, and
+  # `lm.fit()` returns NA for them. Any one solution will do here: the fitted
+  # value of an ESTIMABLE row is the same for every solution, which is what
+  # estimability means, and setting the aliased entries to zero picks the
+  # solution that uses only the pivot columns.
+  beta[is.na(beta)] <- 0
+  if (!all(is.finite(beta))) return("undetermined")
+  eta <- as.vector(Xc %*% beta)
+  if (!all(is.finite(eta))) return("undetermined")
+  # A censored row's predictor is determined whenever its covariate vector
+  # lies in the ROW SPACE of the event design. That is weaker than every
+  # coefficient being identified, and requiring the stronger condition
+  # refused fits that are proper: exact events and a censored row at the
+  # same covariate profile determine that row's predictor exactly, however
+  # deficient the design is, because the row is one of the event rows.
+  #
+  # Ask the cheap question first. If adding every censored row at once does
+  # not raise the rank, all of them are in the row space, which is the usual
+  # case; only otherwise is it worth asking row by row.
+  all_in_span <- .exact_rank(rbind(Xe, Xc))$rank == rank_e
+  estimable <- if (all_in_span) {
+    rep(TRUE, nrow(Xc))
+  } else {
+    vapply(
+      seq_len(nrow(Xc)),
+      function(i) {
+        .exact_rank(rbind(Xe, Xc[i, , drop = FALSE]))$rank == rank_e
+      },
+      logical(1L)
+    )
+  }
+  # A row that is not estimable is not evidence either way, so it cannot
+  # give "unbounded": it leaves the question undetermined instead.
+  #
+  # `eta` is a computed least-squares value, not an exact one, so the sign of
+  # a rounding-sized gap is not information. A censored row sitting ON the
+  # fitted boundary has survival tending to 1/2 and bounds nothing, but over
+  # 4000 randomly generated boundary rows (a censored row duplicating an
+  # event's covariate profile and its time) a third came out strictly below
+  # and would have been read as bounding, which admits an improper fit in
+  # silence. Require the gap to exceed the rounding before calling it one,
+  # and where it does not, say the question is undetermined rather than
+  # guess the sign.
+  #
+  # The rounding in `Xc %*% beta` is governed by the size of the terms that
+  # went into it, not by the size of what came out. An ill-conditioned design
+  # with full numerical rank reaches an exact fit through large cancelling
+  # coefficients, and then a predictor near zero carries an absolute error
+  # many orders above its own magnitude. Over 2000 ill-conditioned boundary
+  # rows a tolerance built from `abs(eta)` was beaten 39 times, by up to a
+  # factor of 4, each one a rounding artifact read as a bound. This is the
+  # bound [.fit_ratios()] already uses for the same reason.
+  # And `beta` itself carries the error of the least-squares solve, which a
+  # bound on the dot product alone does not see. That error is amplified by the
+  # conditioning of the design, and a censored row in the row space can be an
+  # EXTRAPOLATION of the event rows rather than one of them, which amplifies
+  # it again: over 1024 such rows at condition numbers up to 9e7, all of them
+  # sitting exactly on the boundary, 16 came back "bounded" without this
+  # factor. A censored row that merely duplicates an event row does not show
+  # it, because the fitted value there is accurate to the backward error.
+  #
+  # The condition number is taken on the columns the fit actually used, not
+  # on `Xe`: a rank-deficient design is singular, and its `kappa()` would be
+  # infinite and turn every answer into "undetermined", including the
+  # deficient-but-estimable rows this function exists to answer.
+  used <- fit$qr$pivot[seq_len(fit$rank)]
+  # On the COLUMN-SCALED design, as [.residual_variation_status()] does. An
+  # unscaled `kappa()` counts a units choice as ill-conditioning: the same
+  # data with a covariate multiplied by 2^50 has kappa 1.1e15 where the
+  # scaled design has exactly 1, and the tolerance that came out of it
+  # swallowed a real censoring gap and returned "undetermined", refusing a
+  # log-normal the censored row makes proper. Propriety is not a property of
+  # the units.
+  #
+  # The censored rows and the coefficients are transformed the same way, so
+  # `eta` is untouched (the divisors are powers of two, so this is exact)
+  # and the norms below are the scaled ones. The whole tolerance is then
+  # invariant under a change of predictor units, which is the point.
+  divisor <- rep(1, ncol(X))
+  if (ncol(X) > 1L) {
+    for (j in 2:ncol(X)) {
+      size <- max(abs(Xe[, j]))
+      if (is.finite(size) && size > 0) {
+        divisor[j] <- 2^min(max(floor(log2(size)), -1022), 1023)
+      }
+    }
+  }
+  Xe_s <- sweep(Xe, 2L, divisor, "/")
+  Xc_s <- sweep(Xc, 2L, divisor, "/")
+  beta_s <- beta * divisor
+  if (!all(is.finite(Xe_s)) || !all(is.finite(Xc_s)) ||
+      !all(is.finite(beta_s))) {
+    return("undetermined")
+  }
+  # The whole argument for bounding the SOLVE's error with the SCALED design's
+  # condition number is that the two designs are the same computation. They
+  # are: Householder QR is equivariant under an exact power-of-two column
+  # scaling, and `dqrdc2` tests each column's reduced norm against its OWN
+  # original norm, so the pivots do not move either. Over 20,000 random
+  # designs, including near-collinear columns and scalings to 2^90, the
+  # unscaled solve's coefficients rescaled are BIT-IDENTICAL to the scaled
+  # solve's, with the same rank and the same pivot order every time, and the
+  # predictor error never exceeded this tolerance when checked against the
+  # exact rational solution (worst 0.85 of it over 3,000 designs).
+  #
+  # That rests on the rescaling being exact, and it stops being exact when a
+  # column's own entries span more than the exponent field. Dividing
+  # `c(2^1020, 2^-100)` by 2^1020 flushes the small end into the subnormals
+  # and loses bits the solve still had: `Xe_s` is then a DIFFERENT matrix
+  # from `Xe`, and its condition number is not a bound on the error of a
+  # solve that never saw it. Measured coefficient disagreement there is 2e-3,
+  # 7e-2 and 1 for column ranges of 2^1120, 2^2063 and an all-subnormal
+  # column. Refuse rather than bound the wrong matrix.
+  exact_rescale <- identical(sweep(Xe_s, 2L, divisor, "*"), Xe) &&
+    identical(sweep(Xc_s, 2L, divisor, "*"), Xc) &&
+    identical(beta_s / divisor, beta)
+  if (!exact_rescale) return("undetermined")
+  cond <- tryCatch(kappa(Xe_s[, used, drop = FALSE], exact = FALSE),
+                   error = function(e) Inf)
+  if (!isTRUE(is.finite(cond))) cond <- Inf
+  # The solve error is NORM-wise, and `|Xc| |beta|` is not a bound on it.
+  # A coefficient's own error is set by the size of the whole solution, not
+  # by its own size, so the coordinatewise product silently assumes every
+  # coordinate carries at most `cond * eps` of RELATIVE error. A small
+  # coefficient against a large covariate breaks that assumption, and the
+  # product understates the term that dominates the predictor's error.
+  # Events at `t = 1000:1004` on `(1, t, t^2)` with `beta = (3, 2, 2^-38)`
+  # keep full numerical rank at a condition number of 6e11; a censored row
+  # at `(1, 0, -2^38)` sitting EXACTLY on its fitted boundary had a
+  # computed gap 7 times the coordinatewise tolerance, and 389 times it at
+  # `2^-44`. Each one returned "bounded" and passed a possibly improper fit
+  # in silence. `||Xc|| ||beta||` dominates the coordinatewise product by
+  # Cauchy-Schwarz, so this is a widening: it can turn a "bounded" into an
+  # "undetermined" and never the other way.
+  # `sqrt(sum(v^2))` overflows once an entry passes about 1.3e154, and the
+  # norm it would have returned is perfectly representable. With events at
+  # `(x, log t) = (0, 0), (1, -1), (0, 0)` the exact fit is `eta = -x`, so a
+  # row censored at `x = 1e200` has a fitted predictor of -1e200 against a
+  # region opening at 0 and bounds the scale as plainly as any row can;
+  # squaring the covariate turned its norm into `Inf` and refused a fit that
+  # row makes proper. Factor the largest magnitude out first, which is what
+  # every scaled sum of squares does, and the same entry gives 1e200.
+  row_norms <- function(M) {
+    if (!nrow(M)) return(numeric(0))
+    scale <- apply(M, 1L, function(v) max(abs(v)))
+    out <- scale
+    ok <- is.finite(scale) & scale > 0
+    if (any(ok)) {
+      out[ok] <- scale[ok] *
+        sqrt(rowSums(sweep(M[ok, , drop = FALSE], 1L, scale[ok], "/")^2))
+    }
+    out
+  }
+  vector_norm <- function(v) {
+    scale <- max(abs(v))
+    if (!is.finite(scale) || scale == 0) return(scale)
+    scale * sqrt(sum((v / scale)^2))
+  }
+  xc_norm <- row_norms(Xc_s)
+  beta_norm <- vector_norm(beta_s)
+  if (!all(is.finite(xc_norm)) || !is.finite(beta_norm)) {
+    return("undetermined")
+  }
+  edge <- pmax(ifelse(is.finite(lower), abs(lower), 0),
+               ifelse(is.finite(upper), abs(upper), 0))
+  tol <- max(8, nrow(Xe)) * .Machine$double.eps * max(1, cond) *
+    pmax(xc_norm * beta_norm, edge, 1)
+  # Outside its region by more than the rounding, in either direction, is a
+  # bound; strictly inside it by more than the rounding is no bound at all.
+  # An infinite end never decides anything: `Inf - eta` is the whole real
+  # line of slack, which is what a right-censored row's upper end means.
+  outside <- pmax(lower - eta, eta - upper)
+  inside <- pmin(eta - lower, upper - eta)
+  if (any(estimable & outside > tol)) return("bounded")
+  if (all(estimable) && all(inside > tol)) return("unbounded")
+  "undetermined"
+}
+
+
+#' The auxiliary parameter a survival distribution calls its own
+#' @keywords internal
+.aux_name <- function(distribution) {
+  switch(distribution,
+         lognormal = "`sdlog`",
+         loglogistic = "the log-logistic shape",
+         gamma = "the gamma shape",
+         gengamma = "the generalized-gamma scale `sigma`",
+         gompertz = "the Gompertz shape",
+         "the Weibull shape")
+}
+
+
 #' The near-exact screen for a log-link outcome with non-positive values
 #'
 #' The response-scale fit on the whole outcome, started from the positive
@@ -1399,6 +2300,14 @@ mlumr <- function(data,
   if (family == "normal") {
     .check_normal_residual_variation(data, link_info$link,
                                      center = stan_data$cov_center)
+  }
+  # A log-normal AFT is a normal model for log(t), so the same exact fit
+  # makes the same improper posterior. The other log-location-scale
+  # distributions carry a shape rather than a scale and are warned about.
+  if (family == "survival") {
+    .check_survival_scale_collapse(data, surv_info$distribution,
+                                   aux_by = aux_by,
+                                   center = stan_data$cov_center)
   }
 
   # Select Stan model. family_config gives the default prefix; the survival
