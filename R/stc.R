@@ -18,7 +18,10 @@
 #' transformed effect measures use the boundary-only pseudo-count
 #' `(r + 0.5) / (n + 1)`; model predictions are never corrected. For Poisson
 #' outcomes, the comparator log rate uses a 0.5 continuity correction when the
-#' observed event count is zero.
+#' observed event count is zero, and `$rd` is a RATE difference on the
+#' per-unit-exposure scale, the standardized index rate minus the observed
+#' comparator rate, rather than the risk difference the binomial `$rd` is.
+#' `$estimate` stays the log rate ratio.
 #'
 #' Scale note: `$estimate` (and the binomial `$log_rr`) is on the link / log
 #' scale, where the null is 0. To compare against the natural-scale risk ratio

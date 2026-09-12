@@ -251,7 +251,7 @@
 * **A Poisson STC with no finite maximum likelihood estimate is refused.**
   The Poisson log-likelihood is `sum(y * eta - E * exp(eta))` up to a
   constant, so along a direction of the coefficients that leaves every
-  positive-count row's rate fixed and lowers a zero-count row's it
+  positive-count row's rate fixed and lowers a zero-count row's rate, it
   increases toward a supremum it never attains: with no events at all, or
   with a subgroup that has none while another has some. The likelihood
   itself is bounded, by 1 when there are no events; what is missing is a

@@ -99,7 +99,10 @@ contrasts. When the observed comparator arm has zero or all events,
 transformed effect measures use the boundary-only pseudo-count
 \code{(r + 0.5) / (n + 1)}; model predictions are never corrected. For Poisson
 outcomes, the comparator log rate uses a 0.5 continuity correction when the
-observed event count is zero.
+observed event count is zero, and \verb{$rd} is a RATE difference on the
+per-unit-exposure scale, the standardized index rate minus the observed
+comparator rate, rather than the risk difference the binomial \verb{$rd} is.
+\verb{$estimate} stays the log rate ratio.
 
 Scale note: \verb{$estimate} (and the binomial \verb{$log_rr}) is on the link / log
 scale, where the null is 0. To compare against the natural-scale risk ratio
