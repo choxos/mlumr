@@ -44,7 +44,18 @@ The sampler would drift toward zero and report where it stopped.
 
 ## Value
 
-`TRUE` invisibly if the data were warned about, `FALSE` otherwise.
+`TRUE` invisibly if the data were warned about, `FALSE` otherwise,
+carrying a `bounds_aux` attribute that is `TRUE` when the index rows
+were shown to bound the auxiliary away from its boundary (a real
+residual, or a censored row that bounds). Anything else means this
+function did not establish that, which is not the same as establishing
+the opposite.
+[`.check_comparator_tied_events()`](https://choxos.github.io/mlumr/reference/dot-check_comparator_tied_events.md)
+reads it under `aux_by = "none"`. A shared-auxiliary warning also
+carries `index_exact`: `TRUE` when the index event design was shown to
+reproduce its own times and so pins a shared coefficient vector, `FALSE`
+only where it was shown to pin nothing, which an index with no events
+is, and `NA` where the question was not settled.
 
 ## Details
 
@@ -128,6 +139,12 @@ Skipping a censoring type outright was not the safe choice it looked
 like: it let a row that suppresses nothing stand in for one that does,
 and sent an improper posterior to the sampler in silence.
 
-The comparator side is not examined either: its reconstructed rows enter
-a likelihood marginalized over the integration grid, which is not this
-geometry.
+The comparator side is not examined HERE, and its rows are not safe for
+being left out. They enter a likelihood marginalized over the
+integration grid, which is not this geometry but a worse one: that
+marginal is a finite mixture, and repeated comparator event times can
+make it diverge where this index geometry is perfectly healthy.
+[`.check_comparator_tied_events()`](https://choxos.github.io/mlumr/reference/dot-check_comparator_tied_events.md)
+is that question. It runs whatever this function concludes, except that
+a SHARED auxiliary this function bounded bounds the comparator's too,
+which is what the `bounds_aux` attribute on the return value reports.

@@ -118,7 +118,16 @@ stopped.</p>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p><code>TRUE</code> invisibly if the data were warned about, <code>FALSE</code> otherwise.</p>
+    <p><code>TRUE</code> invisibly if the data were warned about, <code>FALSE</code> otherwise,
+carrying a <code>bounds_aux</code> attribute that is <code>TRUE</code> when the index rows were
+shown to bound the auxiliary away from its boundary (a real residual, or a
+censored row that bounds). Anything else means this function did not
+establish that, which is not the same as establishing the opposite.
+<code><a href="dot-check_comparator_tied_events.html">.check_comparator_tied_events()</a></code> reads it under <code>aux_by = "none"</code>. A
+shared-auxiliary warning also carries <code>index_exact</code>: <code>TRUE</code> when the index
+event design was shown to reproduce its own times and so pins a shared
+coefficient vector, <code>FALSE</code> only where it was shown to pin nothing, which
+an index with no events is, and <code>NA</code> where the question was not settled.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -193,9 +202,15 @@ interval that opens strictly above its entry still does.</p>
 <p>Skipping a censoring type outright was not the safe choice it looked
 like: it let a row that suppresses nothing stand in for one that does,
 and sent an improper posterior to the sampler in silence.</p>
-<p>The comparator side is not examined either: its reconstructed rows enter a
-likelihood marginalized over the integration grid, which is not this
-geometry.</p>
+<p>The comparator side is not examined HERE, and its rows are not safe for
+being left out. They enter a likelihood marginalized over the integration
+grid, which is not this geometry but a worse one: that marginal is a
+finite mixture, and repeated comparator event times can make it diverge
+where this index geometry is perfectly healthy.
+<code><a href="dot-check_comparator_tied_events.html">.check_comparator_tied_events()</a></code> is that question. It runs whatever this
+function concludes, except that a SHARED auxiliary this function bounded
+bounds the comparator's too, which is what the <code>bounds_aux</code> attribute on
+the return value reports.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
