@@ -123,13 +123,31 @@ node past any censoring time: that node holds the row's mixture at
 density. Measured on 20 nodes, two events at \code{t = 1} and a right-censored
 row at \code{t = 2}, reading the ridge as the line where a node reproduces the
 event time: rate +1.000, with the maximum at slope 0.80, past the 0.24
-where a node clears \verb{log 2}. When \code{k} equals the reach the ridge is
-isolated points and a censored row can cover all of them: on a point-mass
-grid two events at \code{t = 1} with a right-censored row at \code{t = 2} collapse,
-while the same row at \code{t = 0.5} leaves rate +1.000, because the ridge is
-outside its region. Deciding that means enumerating \code{choose(n_int, k)}
-ridge points, so it is not decided: the arm is reported rather than
-refused, scale family or not.
+where a node clears \verb{log 2}.
+
+That escape is one-directional, though, and two more cases are left
+undecided rather than refused.
+
+When \code{k} equals the reach the ridge is isolated points and a censored row
+can cover all of them: on a point-mass grid two events at \code{t = 1} with a
+right-censored row at \code{t = 2} collapse, while the same row at \code{t = 0.5}
+leaves rate +1.000, because the ridge is outside its region. Deciding that
+means enumerating \code{choose(n_int, k)} ridge points.
+
+And when the censored rows bound on BOTH sides, one free direction does
+not clear them all. Pushing it one way clears every right-censored row and
+the other way every left-censored one, so doing both at once needs the
+matched node to have unpinned neighbors on both sides of it, far enough
+out. A small grid need not have them: with \code{n_int = 2} one node is matched
+and a single node is left, so a right-censored row at \code{t = 2} together
+with a left-censored row at \code{t = 0.5} collapses whichever node is matched,
+while either row ALONE leaves rate +1.000. The same pair on 20 nodes stays
+divergent at +1.000, with the maximum at slope -1.06. An interval-censored
+row is two-sided by itself and joins that case. Settling it means
+searching the free direction against every censoring region, which this
+does not do.
+
+Both are reported rather than refused, scale family or not.
 
 What the rate then decides also differs. The scale families diverge as
 \code{sdlog} goes to zero, where every supported prior has positive density,

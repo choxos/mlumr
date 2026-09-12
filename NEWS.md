@@ -149,15 +149,22 @@
   A censored row in the same arm can suppress the divergence, and whether it
   does turns on the same `k` against the reach. Its contribution is a mixture
   over the grid too, so it vanishes only if every node's region probability
-  vanishes. Below the reach the ridge has a free direction and moving along
-  it sends some node past any censoring time, holding that row's mixture at
-  `1 / n_int`: measured at rate +1.000 for two events at `t = 1` with a
-  right-censored row at `t = 2` on 20 nodes. At the reach the ridge is
-  isolated points and a censored row can cover all of them, so on a
-  point-mass grid that same pair collapses while the row at `t = 0.5` leaves
-  rate +1.000. Deciding which takes enumerating `choose(n_int, k)` ridge
-  points, so such an arm is reported rather than refused, scale family or
-  not.
+  vanishes. Below the reach the ridge has a free direction and pushing it one
+  way clears every right-censored row, the other way every left-censored one:
+  measured at rate +1.000 for two events at `t = 1` with a right-censored row
+  at `t = 2` on 20 nodes.
+
+  Two cases are left undecided instead. At the reach the ridge is isolated
+  points and a censored row can cover all of them, so on a point-mass grid
+  that same pair collapses while the row at `t = 0.5` leaves rate +1.000, and
+  deciding which takes enumerating `choose(n_int, k)` ridge points. And when
+  the censored rows bound on both sides, one free direction cannot clear them
+  all unless the matched node has unpinned neighbors far enough out on each
+  side: with `n_int = 2` a right-censored row at `t = 2` together with a
+  left-censored row at `t = 0.5` collapses whichever node is matched, while
+  either alone leaves rate +1.000, and the same pair on 20 nodes stays
+  divergent at +1.000. An interval-censored row is two-sided by itself. Such
+  an arm is reported rather than refused, scale family or not.
 
   Distinctness is counted on the scale the density matches, `log(time)` for
   every covered family but Gompertz and the time itself for that one. Two

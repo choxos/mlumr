@@ -17,22 +17,32 @@
 # falls below it, so an ordinary reconstructed curve with many distinct times
 # and one repeat is proper and must not be refused.
 
+# `agd_surv` carries left- or interval-censored comparator rows, which the
+# column route does not accept: those need a survival::Surv() object.
 .comp_stub <- function(agd_time, agd_status,
                        ipd_time = exp(c(-0.4, 0.3, 0.1, 0.7)),
                        ipd_x = c(-0.5, -0.5, 0.5, 0.5),
-                       int_distr = NULL, n_int = 32) {
+                       int_distr = NULL, n_int = 32, agd_surv = NULL) {
   ip <- set_ipd(
     data.frame(trt = "A", time = ipd_time, status = rep(1L, length(ipd_time)),
                x = ipd_x),
     treatment = "trt", covariates = "x", family = "survival",
     time = "time", status = "status"
   )
-  ag <- set_agd_surv(
-    data.frame(trt = "B", time = agd_time, status = agd_status,
-               x_mean = 0, x_sd = 0.5),
-    treatment = "trt", time = "time", status = "status",
-    cov_means = "x_mean", cov_sds = "x_sd", cov_types = "continuous"
-  )
+  ag <- if (is.null(agd_surv)) {
+    set_agd_surv(
+      data.frame(trt = "B", time = agd_time, status = agd_status,
+                 x_mean = 0, x_sd = 0.5),
+      treatment = "trt", time = "time", status = "status",
+      cov_means = "x_mean", cov_sds = "x_sd", cov_types = "continuous"
+    )
+  } else {
+    set_agd_surv(
+      data.frame(trt = "B", x_mean = 0, x_sd = 0.5)[rep(1L, nrow(agd_surv)), ],
+      treatment = "trt", Surv = agd_surv,
+      cov_means = "x_mean", cov_sds = "x_sd", cov_types = "continuous"
+    )
+  }
   d <- combine_data(ip, ag)
   suppressWarnings(
     if (is.null(int_distr)) {
@@ -176,17 +186,39 @@ test_that("a censored row is only conclusive where the ridge is a set", {
   cen <- .comp_stub(c(1, 1, 2), c(1L, 1L, 0L), int_distr = flat)
   w <- expect_warning(check(cen), "neither refused nor passed as proper")
   expect_match(conditionMessage(w), "ridge is isolated")
+  expect_false(grepl("bound on both sides", conditionMessage(w), fixed = TRUE))
   expect_true(suppressWarnings(check(cen)))
   # With no censored row there is nothing to suppress it and the refusal is
   # certain.
   expect_error(check(.comp_stub(c(1, 1), c(1L, 1L), int_distr = flat)),
                "improper")
-  # `k < reach` leaves a free direction, and no censored row can suppress an
-  # unbounded ridge everywhere: moving along it sends some node past any
-  # censoring time, which holds that row's mixture at 1 / n_int. Measured at
-  # rate +1.000 with the maximum at slope 0.80, past the 0.24 where a node
+  # `k < reach` leaves a free direction, and a censored row on ONE side
+  # cannot suppress an unbounded ridge: moving along it sends some node past
+  # any censoring time, which holds that row's mixture at 1 / n_int. Measured
+  # at rate +1.000 with the maximum at slope 0.80, past the 0.24 where a node
   # clears log 2.
   expect_error(check(.comp_stub(c(1, 1, 2), c(1L, 1L, 0L))), "improper")
+  # All LEFT-censored is the same argument with the sign flipped.
+  left <- survival::Surv(c(1, 1, 0.5), c(1, 1, 0), type = "left")
+  expect_error(check(.comp_stub(NULL, NULL, agd_surv = left)), "improper")
+  # Censoring on BOTH sides is not escapable by pushing one direction, and
+  # whether some matched point has unpinned neighbors far enough on each side
+  # is a property of the grid: with `n_int = 2` a right-censored row at 2 and
+  # a left-censored row at 0.5 collapse whichever point is matched, while
+  # either alone leaves rate +1.000, and the same pair on 20 points stays
+  # divergent at +1.000. Not settled here, so not refused.
+  both <- .comp_stub(NULL, NULL, agd_surv =
+    survival::Surv(time = c(1, 1, 2, NA), time2 = c(1, 1, Inf, 0.5),
+                   type = "interval2"))
+  w2 <- expect_warning(check(both), "neither refused nor passed as proper")
+  expect_match(conditionMessage(w2), "bound on both sides")
+  expect_match(conditionMessage(w2), "unpinned neighbors on both sides")
+  expect_false(grepl("ridge is isolated", conditionMessage(w2), fixed = TRUE))
+  # An interval-censored row is two-sided by itself.
+  iv <- .comp_stub(NULL, NULL, agd_surv =
+    survival::Surv(time = c(1, 1, 1.5), time2 = c(1, 1, 2),
+                   type = "interval2"))
+  expect_warning(check(iv), "neither refused nor passed as proper")
 })
 
 test_that("a refusal reports the geometry it is refusing", {

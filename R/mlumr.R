@@ -334,13 +334,31 @@
 #' density. Measured on 20 nodes, two events at `t = 1` and a right-censored
 #' row at `t = 2`, reading the ridge as the line where a node reproduces the
 #' event time: rate +1.000, with the maximum at slope 0.80, past the 0.24
-#' where a node clears `log 2`. When `k` equals the reach the ridge is
-#' isolated points and a censored row can cover all of them: on a point-mass
-#' grid two events at `t = 1` with a right-censored row at `t = 2` collapse,
-#' while the same row at `t = 0.5` leaves rate +1.000, because the ridge is
-#' outside its region. Deciding that means enumerating `choose(n_int, k)`
-#' ridge points, so it is not decided: the arm is reported rather than
-#' refused, scale family or not.
+#' where a node clears `log 2`.
+#'
+#' That escape is one-directional, though, and two more cases are left
+#' undecided rather than refused.
+#'
+#' When `k` equals the reach the ridge is isolated points and a censored row
+#' can cover all of them: on a point-mass grid two events at `t = 1` with a
+#' right-censored row at `t = 2` collapse, while the same row at `t = 0.5`
+#' leaves rate +1.000, because the ridge is outside its region. Deciding that
+#' means enumerating `choose(n_int, k)` ridge points.
+#'
+#' And when the censored rows bound on BOTH sides, one free direction does
+#' not clear them all. Pushing it one way clears every right-censored row and
+#' the other way every left-censored one, so doing both at once needs the
+#' matched node to have unpinned neighbors on both sides of it, far enough
+#' out. A small grid need not have them: with `n_int = 2` one node is matched
+#' and a single node is left, so a right-censored row at `t = 2` together
+#' with a left-censored row at `t = 0.5` collapses whichever node is matched,
+#' while either row ALONE leaves rate +1.000. The same pair on 20 nodes stays
+#' divergent at +1.000, with the maximum at slope -1.06. An interval-censored
+#' row is two-sided by itself and joins that case. Settling it means
+#' searching the free direction against every censoring region, which this
+#' does not do.
+#'
+#' Both are reported rather than refused, scale family or not.
 #'
 #' What the rate then decides also differs. The scale families diverge as
 #' `sdlog` goes to zero, where every supported prior has positive density,
@@ -513,11 +531,29 @@
     # same row at `t = 0.5` leaves rate +1.000 because the ridge is outside
     # its region. Deciding it means enumerating `choose(n_int, k)` ridge
     # points, so it is not decided: the arm is reported rather than refused.
-    censored <- any(arm == a & !events)
+    #
+    # Even below the reach, escaping every censored row at once is only
+    # guaranteed when they lie on ONE side. A right-censored row needs some
+    # node above its time and a left-censored row some node below its bound,
+    # and the free direction moves the unpinned nodes together: pushing it
+    # one way clears every right-censored row, the other way every
+    # left-censored one. Doing both at once needs the pinned node to have
+    # unpinned neighbors on both sides, which a small grid need not have.
+    # With `n_int = 2` one node is pinned and a single node is left, so a
+    # right-censored row at `t = 2` with a left-censored row at `t = 0.5`
+    # collapses whichever node is pinned, while either row ALONE leaves rate
+    # +1.000; the same pair on 20 nodes stays divergent at +1.000, with the
+    # maximum at slope -1.06. An interval-censored row is two-sided by
+    # itself and gets the same treatment.
+    cens <- status[arm == a & !events]
+    cens <- cens[!is.na(cens)]
+    one_sided <- !length(cens) || all(cens == 0L) || all(cens == 2L)
     if (m - k > worst) {
       worst <- m - k
       info <- list(m = m, k = k, reach = reachable,
-                   undecided = k >= reachable && censored)
+                   isolated = k >= reachable && length(cens) > 0L,
+                   two_sided = k < reachable && length(cens) > 0L &&
+                     !one_sided)
     }
   }
   if (worst < 1L) return(invisible(FALSE))
@@ -622,18 +658,33 @@
   )
   # A censored row in the arm can suppress an isolated ridge, and which
   # points it covers is not settled here, so nothing is refused on it.
-  if (isTRUE(info$undecided)) {
-    warning(shared, " The arm also has censored rows, and with as many ",
-            "distinct times as the grid reaches, the ridge is isolated ",
-            "points rather than a set: a censored row whose region covers ",
-            "every one of them suppresses this, and one whose region misses ",
-            "them does not. Two events at `t = 1` on a point-mass grid with ",
-            "a right-censored row at `t = 2` collapse; the same row at ",
-            "`t = 0.5` leaves rate +1.000. Which it is takes enumerating ",
-            "every ridge point, which this check does not do, so the fit is ",
-            "neither refused nor passed as proper: check the sampler near ",
-            "the boundary of ", .aux_name(distribution), " and its ",
-            "sensitivity to `prior_aux`.", restriction, call. = FALSE)
+  if (isTRUE(info$isolated) || isTRUE(info$two_sided)) {
+    why <- if (isTRUE(info$isolated)) {
+      paste0("with as many distinct times as the grid reaches, the ridge is ",
+             "isolated points rather than a set: a censored row whose region ",
+             "covers every one of them suppresses this, and one whose region ",
+             "misses them does not. Two events at `t = 1` on a point-mass ",
+             "grid with a right-censored row at `t = 2` collapse; the same ",
+             "row at `t = 0.5` leaves rate +1.000. Which it is takes ",
+             "enumerating every ridge point")
+    } else {
+      paste0("they bound on both sides. The ridge does have a free ",
+             "direction, and pushing it one way clears every right-censored ",
+             "row while the other way clears every left-censored one, but ",
+             "clearing both at once needs the matched integration point to ",
+             "have unpinned neighbors on both sides of it, which a small ",
+             "grid need not have. With `n_int = 2` a right-censored row at ",
+             "`t = 2` together with a left-censored row at `t = 0.5` ",
+             "collapses whichever point is matched, while either row alone ",
+             "leaves rate +1.000; the same pair on 20 points stays divergent ",
+             "at +1.000. Settling it means searching the free direction ",
+             "against every censoring region")
+    }
+    warning(shared, " The arm also has censored rows, and ", why,
+            ", which this check does not do, so the fit is neither refused ",
+            "nor passed as proper: check the sampler near the boundary of ",
+            .aux_name(distribution), " and its sensitivity to `prior_aux`.",
+            restriction, call. = FALSE)
     return(invisible(TRUE))
   }
   if (moving) {
