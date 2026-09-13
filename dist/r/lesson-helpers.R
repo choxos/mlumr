@@ -12,6 +12,22 @@
 lesson_sampler <- list(chains = 2L, warmup = 500L, samples = 500L, seed = 2026L,
                        adapt_delta = 0.95, max_treedepth = 15L)
 
+# The object the Fit button samples. Every cell shares one R session, so a
+# global `dat` can be left over from an earlier Run or written by another cell.
+# A workflow Run therefore starts without `dat` and keeps a copy only when that
+# Run created one and finished without an error. Later changes to the global
+# `dat` do not reach the copy.
+lesson_fit_data <- new.env()
+lesson_workflow_run <- function(code) {
+  rm(list = intersect("dat", ls(globalenv(), all.names = TRUE)), envir = globalenv())
+  rm(list = ls(lesson_fit_data, all.names = TRUE), envir = lesson_fit_data)
+  out <- .lesson_run(code)
+  if (!any(startsWith(out, "err\t")) && exists("dat", envir = globalenv(), inherits = FALSE)) {
+    assign("dat", get("dat", envir = globalenv()), envir = lesson_fit_data)
+  }
+  out
+}
+
 lesson_stan_data <- function(dat, model = c("spfa", "relaxed"),
                              prior_intercept = prior_normal(0, 2.5),
                              prior_beta = prior_normal(0, 1)) {

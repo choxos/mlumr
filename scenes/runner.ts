@@ -111,19 +111,26 @@ export function restartR() {
   interrupt = undefined;
 }
 
-export function runR(code: string, status: Status, withMlumr = false): Promise<Line[]> {
+/** `fitData` is true when this Run created the `dat` that Fit will sample. */
+export interface RunResult { lines: Line[]; fitData: boolean }
+
+export function runR(code: string, status: Status, withMlumr = false): Promise<RunResult> {
   return exclusive(async () => {
     if (withMlumr) await loadMlumr(status);
     const webR = await startR(status);
     status('Running.');
     const shelter = await new webR.Shelter();
     try {
-      const result = await shelter.evalR('.lesson_run(code)', { env: { code } });
+      const result = await shelter.evalR(withMlumr ? 'lesson_workflow_run(code)' : '.lesson_run(code)', { env: { code } });
       const lines: string[] = await result.toArray();
-      return lines.map(line => {
-        const tab = line.indexOf('\t');
-        return { kind: line.slice(0, tab) as Line['kind'], text: line.slice(tab + 1) };
-      });
+      const fitData = withMlumr && await webR.evalRBoolean('exists("dat", envir = lesson_fit_data, inherits = FALSE)');
+      return {
+        fitData,
+        lines: lines.map(line => {
+          const tab = line.indexOf('\t');
+          return { kind: line.slice(0, tab) as Line['kind'], text: line.slice(tab + 1) };
+        }),
+      };
     } finally {
       shelter.purge();
     }
@@ -141,7 +148,7 @@ export function prepareFit(model: 'spfa' | 'relaxed', status: Status): Promise<P
   return exclusive(async () => {
     await loadMlumr(status);
     const webR = await startR(status);
-    const text: string = await webR.evalRString(`lesson_prepare_fit(get0("dat", envir = globalenv(), inherits = FALSE), ${JSON.stringify(model)})`);
+    const text: string = await webR.evalRString(`lesson_prepare_fit(get0("dat", envir = lesson_fit_data, inherits = FALSE), ${JSON.stringify(model)})`);
     return JSON.parse(text) as Prepared;
   });
 }

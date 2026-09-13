@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { webcrypto } from 'node:crypto';
-import type { Fit, Prepared } from './runner.js';
+import type { Fit, Prepared, RunResult } from './runner.js';
 
 const runner = vi.hoisted(() => ({ runR: vi.fn(), prepareFit: vi.fn(), fitStan: vi.fn(), restartR: vi.fn() }));
 vi.mock('./runner.js', () => runner);
@@ -31,7 +31,7 @@ const fit = (): Fit => ({
 const $ = <T extends Element>(slot: HTMLElement, selector: string) => slot.querySelector<T>(selector)!;
 const click = (slot: HTMLElement, selector: string) => $<HTMLButtonElement>(slot, selector).click();
 async function runOk(slot: HTMLElement) {
-  runner.runR.mockResolvedValueOnce(ok);
+  runner.runR.mockResolvedValueOnce({ lines: ok, fitData: true });
   click(slot, '[data-act=run]');
   await flush();
 }
@@ -42,6 +42,9 @@ beforeEach(() => {
   document.body.innerHTML = '<div id="slot"></div>';
 });
 const slot = () => document.getElementById('slot')!;
+// A finished fit hashes its code and Stan data before it is shown, which takes
+// a varying number of ticks.
+const fitShown = () => vi.waitFor(() => expect(slot().querySelector('.fit-out .chart-title')).not.toBeNull());
 
 describe('code cell lifecycle', () => {
   it('runs only the visible cell after many remounts', async () => {
@@ -79,7 +82,7 @@ describe('code cell lifecycle', () => {
     await flush();
     click(slot(), '[data-model=relaxed]');
     sampling.resolve(fit());
-    await flush(); await flush();
+    await fitShown();
     expect(runner.prepareFit.mock.calls[0][0]).toBe('spfa');
     expect(runner.fitStan.mock.calls[0][0].model).toBe('spfa');
     expect($(slot(), '.fit-out .chart-title').textContent).toContain('shared slopes');
@@ -102,7 +105,7 @@ describe('code cell lifecycle', () => {
     click(slot(), '[data-act=reset]');
     expect(fitButton().disabled).toBe(true);
     await runOk(slot());
-    runner.runR.mockResolvedValueOnce([{ kind: 'err', text: 'Error: parse' }]);
+    runner.runR.mockResolvedValueOnce({ lines: [{ kind: 'err', text: 'Error: parse' }], fitData: false });
     click(slot(), '[data-act=run]');
     await flush();
     expect(fitButton().disabled).toBe(true);
@@ -111,6 +114,20 @@ describe('code cell lifecycle', () => {
     click(slot(), '[data-act=run]');
     await flush();
     expect(fitButton().disabled).toBe(true);
+  });
+
+  it('refuses a fit when the Run that succeeded did not create dat', async () => {
+    mountCell(slot(), mlumrCell, 'workflow');
+    await runOk(slot());
+    expect($<HTMLButtonElement>(slot(), '[data-act=fit]').disabled).toBe(false);
+    runner.runR.mockResolvedValueOnce({ lines: ok, fitData: false });
+    click(slot(), '[data-act=run]');
+    await flush();
+    expect($<HTMLButtonElement>(slot(), '[data-act=fit]').disabled).toBe(true);
+    expect($(slot(), '.console').textContent).toContain('did not create dat');
+    click(slot(), '[data-act=fit]');
+    await flush();
+    expect(runner.prepareFit).not.toHaveBeenCalled();
   });
 
   it('refuses to run while a fit is under way', async () => {
@@ -144,7 +161,7 @@ describe('code cell lifecycle', () => {
   });
 
   it('does not let an older run overwrite a newer one', async () => {
-    const first = deferred<typeof ok>(), second = deferred<typeof ok>();
+    const first = deferred<RunResult>(), second = deferred<RunResult>();
     const handle = mountCell(slot(), plain, 'integration');
     runner.runR.mockReturnValueOnce(first.promise);
     click(slot(), '[data-act=run]');
@@ -152,9 +169,9 @@ describe('code cell lifecycle', () => {
     mountCell(slot(), plain, 'integration');
     runner.runR.mockReturnValueOnce(second.promise);
     click(slot(), '[data-act=run]');
-    second.resolve([{ kind: 'out', text: 'newer' }]);
+    second.resolve({ lines: [{ kind: 'out', text: 'newer' }], fitData: false });
     await flush();
-    first.resolve([{ kind: 'out', text: 'older' }]);
+    first.resolve({ lines: [{ kind: 'out', text: 'older' }], fitData: false });
     await flush();
     expect($(slot(), '.console').textContent).toBe('newer');
   });
@@ -165,7 +182,7 @@ describe('code cell lifecycle', () => {
     runner.prepareFit.mockResolvedValue(prepared);
     runner.fitStan.mockResolvedValue(fit());
     click(slot(), '[data-act=fit]');
-    await flush(); await flush();
+    await fitShown();
     const textarea = $<HTMLTextAreaElement>(slot(), 'textarea');
     textarea.value = 'dat <- "my draft"';
     textarea.dispatchEvent(new Event('input', { bubbles: true }));

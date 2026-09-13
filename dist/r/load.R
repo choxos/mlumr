@@ -9,7 +9,8 @@ local({
   # mlumr() evaluates one of them on every fit. There is no installed package
   # in the browser, so a library entry holding the pinned DESCRIPTION answers
   # that lookup with the true version.
-  library_dir <- file.path(dirname(dir), "mlumr-library")
+  # It lives in the session's temporary directory, never beside the site files.
+  library_dir <- file.path(tempdir(), "mlumr-library")
   dir.create(file.path(library_dir, "mlumr"), recursive = TRUE, showWarnings = FALSE)
   file.copy(file.path(dir, "DESCRIPTION"), file.path(library_dir, "mlumr", "DESCRIPTION"), overwrite = TRUE)
   .libPaths(c(library_dir, .libPaths()))

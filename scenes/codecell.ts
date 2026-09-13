@@ -19,7 +19,7 @@ const MODEL: Record<Model, string> = { spfa: 'shared slopes (SPFA)', relaxed: 's
 
 /** What a learner did in a cell outlives its DOM, so leaving a chapter and
  * coming back restores the draft, the console and the last fit. `revision`
- * counts edits; `prepared` is the revision whose Run last built `dat`. */
+ * counts edits; `prepared` is the revision whose Run created the `dat` that Fit samples. */
 interface Saved { code: string; revision: number; prepared: number | null; run: number; model: Model; console: string; fit: string; fitRevision: number; record?: object }
 const saved = new Map<string, Saved>();
 let runs = 0;
@@ -143,7 +143,7 @@ export function mountCell(slot: HTMLElement, cell: Cell, key: string, onActivity
     restart.hidden = busy !== 'run';
     if (!fitButton || !cancel || !fitOut) return;
     fitButton.disabled = busy !== null || state.prepared !== state.revision;
-    fitButton.title = state.prepared === state.revision ? '' : 'Run the current code first. Editing or resetting it, or an error, means dat must be built again.';
+    fitButton.title = state.prepared === state.revision ? '' : 'Run the current code first. Editing or resetting it, an error, or a Run that does not create dat means dat must be built again.';
     cancel.hidden = busy !== 'fit';
     models.forEach(b => { b.disabled = busy === 'fit'; b.setAttribute('aria-pressed', String(b.dataset.model === state.model)); });
     fitOut.setAttribute('aria-busy', String(busy === 'fit'));
@@ -165,10 +165,11 @@ export function mountCell(slot: HTMLElement, cell: Cell, key: string, onActivity
     sync();
     const status = (message: string) => { if (!signal.aborted) output.innerHTML = `<span class="muted">${esc(message)}</span>`; };
     try {
-      const lines = await runR(textarea.value, status, cell.mlumr);
+      const { lines, fitData } = await runR(textarea.value, status, cell.mlumr);
       if (state.run === id) {
-        state.console = render(lines);
-        state.prepared = lines.some(l => l.kind === 'err') ? null : revision;
+        const failed = lines.some(l => l.kind === 'err');
+        state.console = render(lines) + (cell.mlumr && !failed && !fitData ? '\n<span class="err">This Run did not create dat, so the Fit button has nothing to sample.</span>' : '');
+        state.prepared = fitData && !failed ? revision : null;
       }
     } catch (error) {
       if (state.run === id) {

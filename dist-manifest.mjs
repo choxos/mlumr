@@ -37,7 +37,7 @@ async function hashes(root, paths) {
   return out;
 }
 
-const SOURCE_FILES = ['lesson.yaml', 'script.md', 'sources.html', 'workflow.R', 'finish-site.mjs', 'lesson.sh', 'dist-manifest.mjs', 'verify-models.mjs', 'r/load.R', 'r/lesson-helpers.R', 'runtime/stan-worker.ts', 'runtime/package.json', 'runtime/package-lock.json'];
+const SOURCE_FILES = ['lesson.yaml', 'script.md', 'sources.html', 'workflow.R', 'finish-site.mjs', 'lesson.sh', 'dist-manifest.mjs', 'verify-models.mjs', 'r/load.R', 'r/lesson-helpers.R', 'tsconfig.json', 'runtime/tsconfig.json', 'runtime/stan-worker.ts', 'runtime/package.json', 'runtime/package-lock.json'];
 const sources = async () => hashes(lesson, [
   ...SOURCE_FILES.map(f => join(lesson, f)),
   ...(await walk(join(lesson, 'scenes'))).filter(f => f.endsWith('.ts') && !f.endsWith('.test.ts')),

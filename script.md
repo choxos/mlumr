@@ -42,7 +42,7 @@ Slide the hidden difference through zero. Can the reported risk alone tell you h
 
 The outcome model gives each treatment its own starting level, called an intercept. Slopes, also called coefficients, describe how much a patient characteristic, called a covariate, raises or lowers the risk. A covariate that affects the outcome, like our marker, is called a prognostic factor. The shared prognostic factor assumption, or S P F A, says that both treatments have the same slopes on the scale where the model is a straight-line, called the link scale. Here that scale is the log odds.
 
-Each line on the chart shows one treatment's log odds, for patients without the marker and with it. Both slopes are two point four, so the lines are parallel. The gap between them is the same with and without the marker. That gap is the conditional odds ratio, on the log scale. It compares the model's predictions for patients who share the same marker status. It does not mean anyone was seen under both treatments. Here, it does not depend on the marker.
+Each line on the chart shows one treatment's log odds, for patients without the marker and with it. Both slopes are two point four, so the lines are parallel. The gap between them is the same with and without the marker. That gap is the conditional log odds ratio. It compares the model's predictions for patients who share the same marker status. It does not mean anyone was seen under both treatments. Here, it does not depend on the marker.
 
 Now give trial B a different slope.
 @cue(betaB -> 0.8, over: 3s)

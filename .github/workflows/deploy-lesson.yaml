@@ -31,7 +31,10 @@ jobs:
   deploy-lesson:
     runs-on: ubuntu-latest
     steps:
+      # The deploy action brings its own token, so no later step gets one.
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       # Refuses a dist/ that was not built from this commit's sources: an edited
       # script without regenerated narration, changed R or Stan files, a

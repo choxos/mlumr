@@ -41,10 +41,15 @@ for (const name of ['mlumr_binary_spfa', 'mlumr_binary_relaxed']) {
 }
 
 if (flags.includes('--write')) {
+  const compiledFrom = flag('compiled-from'), webapp = flag('webapp');
+  const commit = /^[0-9a-f]{40}$/;
+  if (!commit.test(compiledFrom ?? '') || !commit.test(webapp ?? '')) {
+    throw new Error('--write needs --compiled-from=SHA and --webapp=SHA, each a full 40 character commit');
+  }
   const tinystan = JSON.parse(await readFile(join(lesson, 'runtime', 'package.json'), 'utf8')).dependencies.tinystan;
   const manifest = {
     about: 'The binomial mlumr Stan programs compiled to WebAssembly for the browser fit. stan_sha256 hashes each program with its includes expanded.',
-    compiled_from: { mlumr_commit: flag('compiled-from'), webapp_commit: flag('webapp'), compiler: 'stan-wasm-server, as on the webapp branch' },
+    compiled_from: { mlumr_commit: compiledFrom, webapp_commit: webapp, compiler: 'stan-wasm-server, as on the webapp branch' },
     tinystan,
     models,
   };

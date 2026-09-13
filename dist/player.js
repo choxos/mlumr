@@ -16720,7 +16720,7 @@
 }
 `;
 
-  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/math.ts
+  // ../../scenes/math.ts
   var logistic = (x2) => 1 / (1 + Math.exp(-x2));
   var logit = (p2) => Math.log(p2 / (1 - p2));
   var mean = (xs) => xs.reduce((a2, b2) => a2 + b2, 0) / xs.length;
@@ -16791,7 +16791,7 @@
     return sorted[lo] + (sorted[Math.min(lo + 1, sorted.length - 1)] - sorted[lo]) * (h2 - lo);
   }
 
-  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/content.ts
+  // ../../scenes/content.ts
   var labs = {
     evidence: ["Two trials, no common arm", "How do you compare treatments that never met in one trial?", "The problem"],
     assumptions: ["What adjustment has to assume", "Can a hidden difference between trials look like a treatment effect?", "Assumptions"],
@@ -16975,7 +16975,7 @@
     }
   };
 
-  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/style.ts
+  // ../../scenes/style.ts
   var lightTokens = `
   --bg:#eef1f2; --bg-soft:#e6ebec; --surface:#ffffff; --surface-2:#f7f9f9; --surface-3:#f0f4f4;
   --ink:#10242c; --ink-soft:#41555d; --muted:#596a70; --faint:#7f8f95;
@@ -17289,7 +17289,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 @media (prefers-reduced-motion:reduce) { .ml-player * {scroll-behavior:auto;transition:none!important} }
 `;
 
-  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/navigation.ts
+  // ../../scenes/navigation.ts
   var THEME_KEY = "mlumr-lesson-theme";
   function themeToggle(button2) {
     const media = matchMedia("(prefers-color-scheme: dark)");
@@ -17401,7 +17401,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     };
   }
 
-  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/charts.ts
+  // ../../scenes/charts.ts
   var W = 600;
   var H = 290;
   var L = 52;
@@ -17512,7 +17512,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     return card(title, `<svg viewBox="0 0 ${W} 126" role="img" aria-label="${esc(`${title}: ${groups.map((g) => `${g.name} ${(100 * g.share).toFixed(0)} percent`).join(", ")}`)}">${s2}</svg>`);
   }
 
-  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/diagnostics.ts
+  // ../../scenes/diagnostics.ts
   var sum = (xs) => xs.reduce((a2, b2) => a2 + b2, 0);
   var mean2 = (xs) => {
     const m2 = sum(xs) / xs.length;
@@ -17651,7 +17651,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
   var essTail = (chains) => Math.min(essQuantile(chains, 0.05), essQuantile(chains, 0.95));
   var mcseMean = (chains) => Math.sqrt(variance(chains.flat())) / Math.sqrt(ess(split(chains)));
 
-  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/runner.ts
+  // ../../scenes/runner.ts
   var WEBR_URL = "https://webr.r-wasm.org/v0.6.0/webr.mjs";
   var R_PACKAGES = ["randtoolbox", "jsonlite", "detectseparation"];
   var site = (path2) => new URL(path2, document.baseURI).href;
@@ -17770,12 +17770,16 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       status("Running.");
       const shelter = await new webR.Shelter();
       try {
-        const result = await shelter.evalR(".lesson_run(code)", { env: { code: code2 } });
+        const result = await shelter.evalR(withMlumr ? "lesson_workflow_run(code)" : ".lesson_run(code)", { env: { code: code2 } });
         const lines = await result.toArray();
-        return lines.map((line) => {
-          const tab = line.indexOf("	");
-          return { kind: line.slice(0, tab), text: line.slice(tab + 1) };
-        });
+        const fitData = withMlumr && await webR.evalRBoolean('exists("dat", envir = lesson_fit_data, inherits = FALSE)');
+        return {
+          fitData,
+          lines: lines.map((line) => {
+            const tab = line.indexOf("	");
+            return { kind: line.slice(0, tab), text: line.slice(tab + 1) };
+          })
+        };
       } finally {
         shelter.purge();
       }
@@ -17785,7 +17789,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     return exclusive(async () => {
       await loadMlumr(status);
       const webR = await startR(status);
-      const text2 = await webR.evalRString(`lesson_prepare_fit(get0("dat", envir = globalenv(), inherits = FALSE), ${JSON.stringify(model)})`);
+      const text2 = await webR.evalRString(`lesson_prepare_fit(get0("dat", envir = lesson_fit_data, inherits = FALSE), ${JSON.stringify(model)})`);
       return JSON.parse(text2);
     });
   }
@@ -17941,7 +17945,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     };
   }
 
-  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/codecell.ts
+  // ../../scenes/codecell.ts
   var esc2 = (s2) => s2.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
   var PARAMS = ["lor_comparator", "rd_comparator", "lor_index", "rd_index"];
   var MEANING = {
@@ -18060,7 +18064,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       restart.hidden = busy !== "run";
       if (!fitButton || !cancel || !fitOut) return;
       fitButton.disabled = busy !== null || state.prepared !== state.revision;
-      fitButton.title = state.prepared === state.revision ? "" : "Run the current code first. Editing or resetting it, or an error, means dat must be built again.";
+      fitButton.title = state.prepared === state.revision ? "" : "Run the current code first. Editing or resetting it, an error, or a Run that does not create dat means dat must be built again.";
       cancel.hidden = busy !== "fit";
       models.forEach((b2) => {
         b2.disabled = busy === "fit";
@@ -18086,10 +18090,11 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         if (!signal.aborted) output.innerHTML = `<span class="muted">${esc2(message)}</span>`;
       };
       try {
-        const lines = await runR(textarea.value, status, cell.mlumr);
+        const { lines, fitData } = await runR(textarea.value, status, cell.mlumr);
         if (state.run === id) {
-          state.console = render3(lines);
-          state.prepared = lines.some((l2) => l2.kind === "err") ? null : revision;
+          const failed = lines.some((l2) => l2.kind === "err");
+          state.console = render3(lines) + (cell.mlumr && !failed && !fitData ? '\n<span class="err">This Run did not create dat, so the Fit button has nothing to sample.</span>' : "");
+          state.prepared = fitData && !failed ? revision : null;
         }
       } catch (error) {
         if (state.run === id) {
@@ -18204,7 +18209,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     return { dispose: () => lifetime.abort() };
   }
 
-  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/scene.ts
+  // ../../scenes/scene.ts
   var scalar = (label, range, value) => ({ type: { kind: "scalar", range }, default: value, interpolate: "lerp", ownership: "shared", label });
   var schema = {
     scene: { type: { kind: "enum", values: Object.keys(labs) }, default: "evidence", interpolate: "snap", ownership: "shared" },
@@ -18712,7 +18717,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     }
   };
 
-  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/entry.ts
+  // ../../entry.ts
   var HAS_ASSISTANT = false;
   var ASSISTANT_START_OPEN = false;
   var INTRODUCTION = { "title": "ML-UMR: compare treatments, understand populations" };

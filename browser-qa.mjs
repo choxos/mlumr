@@ -318,6 +318,14 @@ try {
     assert.equal((consoleText.match(/> set\.seed\(2026\)/g) ?? []).length, 1, 'One Run must run the workflow code once');
     assert(!/Error:/.test(consoleText), 'The mlumr R code must run without errors');
     assert(/Naive Unadjusted Indirect Comparison/.test(consoleText), 'naive() must print through its S3 method');
+    // Another cell overwriting the global dat must not change what Fit samples;
+    // the Stan data parity check below would fail if it did.
+    await choose(page, 'integration');
+    await page.locator('.code-cell textarea').fill('dat <- "overwritten by another cell"');
+    await page.locator('.code-cell [data-act=run]').click();
+    await page.waitForFunction(() => /> dat <- "overwritten/.test(document.querySelector('.code-cell .console').textContent), null, { timeout: 60000 });
+    await page.locator('.code-cell [data-act=reset]').click();
+    await choose(page, 'workflow');
     const fits = [];
     for (const model of ['spfa', 'relaxed']) {
       await page.locator(`[data-model=${model}]`).click();
@@ -339,7 +347,14 @@ try {
       await page.locator('.fit-table').scrollIntoViewIfNeeded();
       await page.screenshot({ path: resolve(out, `browser-stan-fit-${model}.png`) });
     }
-    evidence.push({ webRCell: true, priorCellComparesBothPriors: true, workflowRunsOnceAfterRevisits: true, stanFitsInBrowser: fits });
+    // A Run that succeeds without creating dat leaves nothing to fit, even
+    // though an earlier Run's dat existed.
+    await page.locator('.code-cell textarea').fill('x <- 1');
+    await page.locator('.code-cell [data-act=run]').click();
+    await page.waitForFunction(() => /did not create dat/.test(document.querySelector('.code-cell .console').textContent), null, { timeout: 60000 });
+    assert(await page.locator('[data-act=fit]').isDisabled(), 'Fit must wait for a Run that creates dat');
+    await page.locator('.code-cell [data-act=reset]').click();
+    evidence.push({ webRCell: true, priorCellComparesBothPriors: true, workflowRunsOnceAfterRevisits: true, fitIgnoresDatFromOtherCells: true, fitRefusedWithoutDat: true, stanFitsInBrowser: fits });
   }
   // Tablet and landscape phones, portrait phones, and a 1440 by 900 window at 200% zoom.
   for (const [width,height] of [[1024,768],[667,375],[844,390],[896,414],[320,640],[360,740],[390,844],[412,915],[720,450]]) {
