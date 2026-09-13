@@ -354,10 +354,15 @@
   covariate profile at one time are `constant`, fit exactly, and pin only
   `mu_index`: `beta` stays free, and a free `beta` is the direction the
   comparator tilts along to lift an integration point past a censoring time,
-  so that arm keeps the refusal. The index guard reports whether its event
-  design has full column rank, which with an intercept column present is
-  equivalent to pinning the slope, since any null vector with zero slope
-  components would make the intercept column vanish.
+  so that arm keeps the refusal. What has to be identified is only the slope
+  directions the COMPARATOR's grid spans, since the escape is a change in the
+  node linear predictors and that is `(z_j - z_1)' beta`: a covariate the grid
+  integrates as a point mass contributes no such direction, and leaving its
+  coefficient unidentified costs the comparator nothing. The index guard
+  therefore hands its event design over rather than reducing it to a verdict,
+  and the comparator tests estimability of exactly the node-difference
+  directions. Centering does not affect the answer, since it leaves the slope
+  coefficients unchanged and shifts node differences by nothing.
 
   An index WITH events carries the same order, on the same distinction. A
   design shown to reproduce its own times pins rather than suppresses, so it

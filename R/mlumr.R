@@ -796,14 +796,16 @@
 #'   auxiliary away from its boundary, as [.check_survival_scale_collapse()]
 #'   reports in its `bounds_aux` attribute. Consulted only when `aux_by` is
 #'   `"none"`, where the comparator shares that parameter.
-#' @param index_pins_slope Whether the index EVENT design identifies every
-#'   coefficient, as [.check_survival_scale_collapse()] reports in its
-#'   `index_pins_slope` attribute. Reproducing its own times is not the same
-#'   thing: repeated index events at one covariate profile at one time fit
-#'   exactly and leave the shared `beta` free, and a free `beta` is the
-#'   direction the comparator tilts along to lift an integration point past a
-#'   censoring time. Consulted only under `model = "spfa"` with
-#'   `aux_by = "none"`.
+#' @param index_design The index EVENT design, as
+#'   [.check_survival_scale_collapse()] reports in its `index_design`
+#'   attribute, or `NULL` where it did not establish an exact fit.
+#'   Reproducing its own times is not the same as identifying the shared
+#'   `beta`: repeated index events at one covariate profile at one time fit
+#'   exactly and leave `beta` free, and a free `beta` is the direction the
+#'   comparator tilts along to lift an integration point past a censoring
+#'   time. What has to be identified is only the slope directions THIS arm's
+#'   grid spans, which is why the design arrives whole rather than as a
+#'   verdict. Consulted only under `model = "spfa"` with `aux_by = "none"`.
 #' @param index_aux_order How many powers of the auxiliary's width the index
 #'   rows already remove, as [.check_survival_scale_collapse()] reports in
 #'   its `aux_order` attribute: `0` for an index that contributes a positive
@@ -820,7 +822,7 @@
                                           index_bounds_aux = FALSE,
                                           model = "relaxed",
                                           index_exact = NA,
-                                          index_pins_slope = FALSE,
+                                          index_design = NULL,
                                           index_aux_order = 0) {
   scale_families <- c("lognormal", "gengamma")
   # The proportional-hazards Weibull and Gompertz are deliberately NOT here.
@@ -947,6 +949,32 @@
   # one predictor. (Gompertz reads its ridge on the time scale instead, which
   # is [.check_survival_scale_collapse()]'s business; this function does not
   # examine it.)
+  # Does the index pin every slope direction THIS arm's grid can move along?
+  # The escape the comparator would use is a change in the node linear
+  # predictors, which is `(z_j - z_1)' beta`, so the directions that matter
+  # are the span of the node differences and nothing else. A covariate the
+  # grid integrates as a point mass contributes no such direction, and
+  # leaving its coefficient unidentified costs the comparator nothing:
+  # requiring the whole design to have full column rank refused a fit whose
+  # only free direction no integration point can move along.
+  #
+  # Estimability of a pure-slope functional `v` is `(0, v)` lying in the row
+  # space of the index event design, which is what the rank comparison tests
+  # exactly. A grid whose nodes all share one covariate vector spans no
+  # direction at all, so there is nothing to pin; `rank_d < reachable`
+  # already excludes that case before this is consulted.
+  pins_slope <- function(nodes) {
+    if (is.null(index_design) || is.null(nodes)) return(FALSE)
+    if (!is.matrix(nodes) || ncol(index_design) != ncol(nodes) + 1L) {
+      return(FALSE)
+    }
+    if (!all(is.finite(nodes)) || !all(is.finite(index_design))) return(FALSE)
+    zc <- sweep(nodes, 2L, nodes[1L, ], "-")
+    zc <- zc[rowSums(zc != 0) > 0L, , drop = FALSE]
+    if (!nrow(zc)) return(TRUE)
+    base <- .exact_rank(index_design)$rank
+    .exact_rank(rbind(index_design, cbind(0, zc)))$rank == base
+  }
   target <- suppressWarnings(log(time))
   worst <- 0L
   info <- NULL
@@ -1090,7 +1118,7 @@
       # `rank_d = 1` this used to run past both flags into the refusal.
       info <- list(m = m, k = k, rank = rank_d, reach = reachable,
                    isolated = rank_d >= reachable && length(cens) > 0L,
-                   spfa_pinned = spfa_shared && isTRUE(index_pins_slope) &&
+                   spfa_pinned = spfa_shared && pins_slope(grid$nodes) &&
                      rank_d < reachable && length(cens) > 0L,
                    two_sided = rank_d < reachable && length(cens) > 0L &&
                      !one_sided,
@@ -2128,16 +2156,19 @@
     # question into a refusal, exactly as reading an eventless index as
     # "pins nothing" did.
     #
-    # Reproducing its own times is not the same as IDENTIFYING the shared
-    # slope, and the comparator needs the second. An index of repeated
-    # events at one covariate profile at one time is `constant`, fits
-    # exactly, and pins only `mu_index`: `beta` is left free, and a free
-    # `beta` is exactly the direction the comparator tilts along to lift a
-    # node past a censoring time. The design pins every coefficient when it
-    # has full COLUMN rank, and with an intercept column present that is
-    # equivalent to pinning the slope: any null vector with zero slope
-    # components would make the intercept column vanish, so a deficient
-    # design always leaves some slope direction free.
+    # Reproducing its own times is not the same as IDENTIFYING the slope the
+    # comparator would escape along, and the comparator needs the second.
+    # Which directions those are is a property of the COMPARATOR's grid, so
+    # the design is handed over rather than reduced to a verdict here: what
+    # matters is only whether the index estimates the slope directions that
+    # grid actually spans, and testing every column instead refuses a fit
+    # whose unidentified direction no integration point can move along.
+    #
+    # Centering does not affect the answer. It adds multiples of the
+    # intercept column to the others, which leaves the SLOPE coefficients
+    # unchanged, and node differences shift by the same constant, so a
+    # pure-slope functional is estimable in one parameterization exactly
+    # when it is in the other.
     return(invisible(structure(
       TRUE,
       index_exact = if (s$status %in% c("exact", "constant", "saturated")) {
@@ -2145,8 +2176,11 @@
       } else {
         NA
       },
-      index_pins_slope = s$status %in% c("exact", "constant", "saturated") &&
-        .exact_rank(X[events, , drop = FALSE])$rank == ncol(X),
+      index_design = if (s$status %in% c("exact", "constant", "saturated")) {
+        X[events, , drop = FALSE]
+      } else {
+        NULL
+      },
       aux_order = if (s$status %in% c("exact", "constant", "saturated")) {
         0
       } else {
@@ -3806,7 +3840,7 @@ mlumr <- function(data,
       index_bounds_aux = isTRUE(attr(index_collapse, "bounds_aux")),
       model = model,
       index_exact = attr(index_collapse, "index_exact") %||% NA,
-      index_pins_slope = isTRUE(attr(index_collapse, "index_pins_slope")),
+      index_design = attr(index_collapse, "index_design"),
       index_aux_order = attr(index_collapse, "aux_order") %||% 0
     )
   }

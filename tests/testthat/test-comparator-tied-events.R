@@ -830,7 +830,8 @@ test_that("a shared slope pinned by the index blocks the censoring escape", {
   pinned <- .comp_stub(c(1, 1, 2), c(1L, 1L, 0L),
                        ipd_time = c(1, 1), ipd_x = c(-1, 1), n_int = 8)
   w <- tryCatch(check(pinned, aux_by = "none", model = "spfa",
-                      index_exact = TRUE, index_pins_slope = TRUE),
+                      index_exact = TRUE,
+                      index_design = cbind(1, c(-1, 1))),
                 warning = conditionMessage)
   expect_match(w, "the shared `beta`")
   expect_match(w, "neither refused nor passed as proper")
@@ -844,7 +845,8 @@ test_that("a shared slope pinned by the index blocks the censoring escape", {
   bare <- .comp_stub(c(1, 1), c(1L, 1L), ipd_time = c(1, 1),
                      ipd_x = c(-1, 1), n_int = 8)
   expect_match(msg(bare, aux_by = "none", model = "spfa", index_exact = TRUE,
-                   index_pins_slope = TRUE), "is therefore improper")
+                   index_design = cbind(1, c(-1, 1))),
+               "is therefore improper")
   # And it is specific to the shared slope: under `relaxed` the comparator
   # carries its own `beta_comparator`, which the index does not pin.
   expect_match(msg(pinned, aux_by = "none", model = "relaxed"),
@@ -939,10 +941,11 @@ test_that("an exact index fit that leaves the slope free does not pin it", {
                                            center = FALSE)
   )
   expect_true(attr(idx, "index_exact"))
-  expect_false(attr(idx, "index_pins_slope"))
+  expect_equal(unname(attr(idx, "index_design")), cbind(1, c(0, 0)))
   # So the escape is available and the refusal is right.
   expect_match(msg(free, aux_by = "none", model = "spfa", index_exact = TRUE,
-                   index_pins_slope = FALSE), "is therefore improper")
+                   index_design = cbind(1, c(0, 0))),
+               "is therefore improper")
   # The same data with index covariates that DO identify the slope reports.
   pins <- .comp_stub(c(1, 1, 2), c(1L, 1L, 0L),
                      ipd_time = c(1, 1), ipd_x = c(-1, 1), n_int = 8)
@@ -950,9 +953,10 @@ test_that("an exact index fit that leaves the slope free does not pin it", {
     mlumr:::.check_survival_scale_collapse(pins, "lognormal", aux_by = "none",
                                            center = FALSE)
   )
-  expect_true(attr(idx2, "index_pins_slope"))
+  expect_equal(unname(attr(idx2, "index_design")), cbind(1, c(-1, 1)))
   w <- tryCatch(check(pins, aux_by = "none", model = "spfa",
-                      index_exact = TRUE, index_pins_slope = TRUE),
+                      index_exact = TRUE,
+                      index_design = cbind(1, c(-1, 1))),
                 warning = conditionMessage)
   expect_match(w, "the shared `beta`")
   # A design with fewer rows than coefficients cannot pin them either, even
@@ -963,7 +967,43 @@ test_that("an exact index fit that leaves the slope free does not pin it", {
     mlumr:::.check_survival_scale_collapse(short, "lognormal", aux_by = "none",
                                            center = FALSE)
   )
-  expect_false(isTRUE(attr(idx3, "index_pins_slope")))
+  expect_equal(unname(attr(idx3, "index_design")), cbind(1, 0))
+  expect_match(msg(short, aux_by = "none", model = "spfa", index_exact = TRUE,
+                   index_design = cbind(1, 0)), "is therefore improper")
+  # But identification is tested on the directions the GRID spans, not on
+  # every column. A covariate integrated as a point mass contributes no
+  # escape direction, so leaving its coefficient unidentified costs the
+  # comparator nothing and requiring full column rank refused that fit.
+  ip <- suppressWarnings(set_ipd(
+    data.frame(trt = "A", time = c(1, 1), status = c(1L, 1L),
+               x1 = c(-1, 1), x2 = c(0, 0)),
+    treatment = "trt", covariates = c("x1", "x2"), family = "survival",
+    time = "time", status = "status"
+  ))
+  ag <- set_agd_surv(
+    data.frame(trt = "B", time = c(1, 1, 2), status = c(1L, 1L, 0L),
+               x1_mean = 0, x1_sd = 0.5, x2_mean = 0, x2_sd = 0),
+    treatment = "trt", time = "time", status = "status",
+    cov_means = c("x1_mean", "x2_mean"), cov_sds = c("x1_sd", "x2_sd"),
+    cov_types = c("continuous", "continuous")
+  )
+  flat <- suppressWarnings(add_integration(
+    combine_data(ip, ag), n_int = 8, verbose = FALSE, cor = diag(2),
+    x1 = distr(stats::qnorm, mean = x1_mean, sd = x1_sd),
+    x2 = distr(stats::qunif, min = 0, max = 0)
+  ))
+  # The grid really is flat in x2, so no node moves along that direction.
+  expect_true(all(flat$integration_points[1, , 2] == 0))
+  design <- cbind(1, c(-1, 1), c(0, 0))
+  # Full column rank is 3 and this design has rank 2, so the old test said
+  # it pinned nothing, while the only direction the grid moves along is x1
+  # and the index does pin that.
+  expect_identical(mlumr:::.exact_rank(design)$rank, 2L)
+  w2 <- tryCatch(check(flat, aux_by = "none", model = "spfa",
+                       index_exact = TRUE, index_design = design),
+                 warning = conditionMessage)
+  expect_match(w2, "the shared `beta`")
+  expect_no_match(w2, "is therefore improper")
 })
 
 test_that("two-sided censoring still reports when the slope is not pinned", {
@@ -978,7 +1018,8 @@ test_that("two-sided censoring still reports when the slope is not pinned", {
                                      ipd_x = c(0, 0), n_int = 2,
                                      agd_surv = sv))
   w <- tryCatch(check(two, aux_by = "none", model = "spfa",
-                      index_exact = TRUE, index_pins_slope = FALSE),
+                      index_exact = TRUE,
+                      index_design = cbind(1, c(0, 0))),
                 warning = conditionMessage)
   expect_match(w, "they bound on both sides")
   expect_no_match(w, "is therefore improper")
