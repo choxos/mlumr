@@ -367,6 +367,15 @@ comparator events against one touching profile is \code{1 - 1 = 0} and stands,
 three is \code{2 - 1 = 1} and is still refused. The order is carried only for
 \code{lognormal}, where it was measured; the other families report the
 question as unsettled rather than refusing on an unmeasured exponent.
+
+It also only comes off a rate that is EXACT. \code{m - min(k, reach)} is the
+rate for one covariate and a lower bound for more, so taking a positive
+order off it can cross the refusal threshold from the wrong side: four
+comparator events at three distinct targets carried by three collinear
+nodes have a true rate of \code{4 - 2 = 2} while this records \code{4 - 3 = 1}, and
+netting one power off that reads as zero. A subtraction that LEAVES the
+rate at or above one is still certified, since the true net is at least
+the reported one; only one that takes it below is reported instead.
 \code{\link[=.check_survival_scale_collapse]{.check_survival_scale_collapse()}} only WARNS when the index is itself
 exact or saturated under a shared auxiliary, and supplies no decaying
 residual there, so skipping this check whenever the auxiliary is shared

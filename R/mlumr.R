@@ -795,6 +795,15 @@
 #' three is `2 - 1 = 1` and is still refused. The order is carried only for
 #' `lognormal`, where it was measured; the other families report the
 #' question as unsettled rather than refusing on an unmeasured exponent.
+#'
+#' It also only comes off a rate that is EXACT. `m - min(k, reach)` is the
+#' rate for one covariate and a lower bound for more, so taking a positive
+#' order off it can cross the refusal threshold from the wrong side: four
+#' comparator events at three distinct targets carried by three collinear
+#' nodes have a true rate of `4 - 2 = 2` while this records `4 - 3 = 1`, and
+#' netting one power off that reads as zero. A subtraction that LEAVES the
+#' rate at or above one is still certified, since the true net is at least
+#' the reported one; only one that takes it below is reported instead.
 #' [.check_survival_scale_collapse()] only WARNS when the index is itself
 #' exact or saturated under a shared auxiliary, and supplies no decaying
 #' residual there, so skipping this check whenever the auxiliary is shared
@@ -1248,13 +1257,34 @@
   # consistent because `mu_index` is left free to satisfy that row. It takes
   # a second index row for the difference `(0, 0, x_1 - x_2)` to appear,
   # which is a pure slope direction and can lie in the comparator's span.
+  #
+  # And it can only be subtracted from a rate that is EXACT. `worst` is
+  # `m - min(k, reach)`, which is the rate for one covariate and a lower
+  # bound for more, since a consistent allocation of lower rank can exist and
+  # is not searched for. Taking a positive order off a lower bound can cross
+  # the refusal threshold from the wrong side: four comparator events at
+  # three distinct targets carried by three collinear nodes have a true rate
+  # of `4 - 2 = 2` while this records `4 - 3 = 1`, and netting one index
+  # power off that reads as zero and passes a fit whose true net is 1. A
+  # subtraction that LEAVES the rate at or above one is still certified,
+  # since the true net is at least the reported one; only one that takes it
+  # below is reported instead.
   index_unresolved <- FALSE
+  unresolved_why <- ""
   netted_order <- 0
   if (shared_aux) {
     separate_slopes <- !identical(model, "spfa")
-    if (is.na(index_aux_order) ||
-          (index_aux_order > 1 && !separate_slopes)) {
+    exact_rate <- length(data$covariates) <= 1L
+    if (is.na(index_aux_order)) {
       index_unresolved <- worst >= 1L
+      unresolved_why <- "unsettled"
+    } else if (index_aux_order > 1 && !separate_slopes) {
+      index_unresolved <- worst >= 1L
+      unresolved_why <- "overlap"
+    } else if (index_aux_order > 0 && !exact_rate &&
+                 worst - index_aux_order < 1L) {
+      index_unresolved <- worst >= 1L
+      unresolved_why <- "lower_bound"
     } else {
       netted_order <- index_aux_order
       worst <- worst - index_aux_order
@@ -1426,7 +1456,7 @@
   # reading "not settled" as "contributes nothing" is a refusal built on an
   # open question.
   if (index_unresolved) {
-    why_index <- if (!is.na(index_aux_order) && identical(model, "spfa")) {
+    why_index <- if (identical(unresolved_why, "overlap")) {
       paste0("the index rows remove ", format(index_aux_order),
              " powers of the same width, but under `model = \"spfa\"` the ",
              "arms share one `beta`, so from the second row on the ",
@@ -1434,6 +1464,17 @@
              "equations pin and the two do not simply add. Whether they ",
              "overlap is a property of the combined system across every ",
              "allocation, which this check does not solve")
+    } else if (identical(unresolved_why, "lower_bound")) {
+      paste0("the index rows remove ", format(index_aux_order),
+             " power", if (index_aux_order > 1) "s" else "",
+             " of the same width, and this arm's own rate is a LOWER BOUND ",
+             "rather than the rate: with more than one covariate a ",
+             "consistent allocation of lower rank than `min(k, reach)` can ",
+             "exist and is not searched for, so subtracting from it can ",
+             "cross zero from the wrong side. The un-netted rate is ",
+             format(worst), ", which is certified; what the difference is ",
+             "takes the smallest matching rank, which this check does not ",
+             "compute")
     } else {
       paste0("their own contribution to it was not settled: their censored ",
              "regions pin the index predictor somewhere between a point and ",

@@ -1175,3 +1175,59 @@ test_that("a partly identified slope is not a free one", {
                    index_design = cbind(1, c(0, 0), c(0, 0))),
                "is therefore improper")
 })
+
+test_that("an order is not netted off a rate that is only a lower bound", {
+  # `worst` is `m - min(k, reach)`, which is the rate for one covariate and a
+  # LOWER BOUND for more: a consistent allocation of lower rank can exist and
+  # is not searched for. Taking a positive index order off a lower bound can
+  # cross the refusal threshold from the wrong side.
+  ip <- set_ipd(
+    data.frame(trt = "A", time = c(1, 2, 3, 4), status = rep(1L, 4),
+               x1 = c(-1, 0, 1, 2), x2 = c(0, 1, 0, 1)),
+    treatment = "trt", covariates = c("x1", "x2"), family = "survival",
+    time = "time", status = "status"
+  )
+  ag <- set_agd_surv(
+    data.frame(trt = "B", time = c(1, 1, 2, 4), status = rep(1L, 4),
+               x1_mean = 0, x1_sd = 1, x2_mean = 0, x2_sd = 1),
+    treatment = "trt", time = "time", status = "status",
+    cov_means = c("x1_mean", "x2_mean"), cov_sds = c("x1_sd", "x2_sd"),
+    cov_types = c("continuous", "continuous")
+  )
+  d <- suppressWarnings(add_integration(
+    combine_data(ip, ag), n_int = 8, verbose = FALSE, cor = diag(2),
+    x1 = distr(stats::qnorm, mean = x1_mean, sd = x1_sd),
+    x2 = distr(stats::qnorm, mean = x2_mean, sd = x2_sd)
+  ))
+  # Four event rows at three distinct times against a reach of three, so the
+  # recorded rate is 1 and it is a bound, not the rate.
+  expect_match(msg(d), "4 event rows at 3 distinct log-times")
+  expect_match(msg(d), "diverges at rate 1")
+  # Netting one index power off that would read as zero and pass the fit.
+  w <- tryCatch(check(d, aux_by = "none", model = "relaxed",
+                      index_aux_order = 1), warning = conditionMessage)
+  expect_match(w, "LOWER BOUND")
+  expect_no_match(w, "is therefore improper")
+  # A subtraction that leaves the rate at or above one is still certified,
+  # since the true net is at least the reported one.
+  big <- set_agd_surv(
+    data.frame(trt = "B", time = c(1, 1, 1, 2, 4), status = rep(1L, 5),
+               x1_mean = 0, x1_sd = 1, x2_mean = 0, x2_sd = 1),
+    treatment = "trt", time = "time", status = "status",
+    cov_means = c("x1_mean", "x2_mean"), cov_sds = c("x1_sd", "x2_sd"),
+    cov_types = c("continuous", "continuous")
+  )
+  d2 <- suppressWarnings(add_integration(
+    combine_data(ip, big), n_int = 8, verbose = FALSE, cor = diag(2),
+    x1 = distr(stats::qnorm, mean = x1_mean, sd = x1_sd),
+    x2 = distr(stats::qnorm, mean = x2_mean, sd = x2_sd)
+  ))
+  expect_match(msg(d2), "diverges at rate 2")
+  expect_match(msg(d2, aux_by = "none", model = "relaxed",
+                   index_aux_order = 1), "diverges at rate 1")
+  # One covariate is the exact case, where the subtraction always stands.
+  one <- .eventless_stub(survival::Surv(time = c(NA, 1), time2 = c(1, Inf),
+                                        type = "interval2"))
+  expect_false(check(one, aux_by = "none", model = "relaxed",
+                     index_aux_order = 1))
+})
