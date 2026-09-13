@@ -241,8 +241,11 @@ opens AT its entry is one-sided, because conditioning on survival to the
 entry piles the mass just above it and that pile lies inside the interval,
 so a node pushed below clears the row exactly as a left-censored one does.
 Which side a row needs is read from its region and its entry, not from its
-status code. Settling the genuinely two-sided case means searching the free
-direction against every censoring region, which this does not do.
+status code, and only the rows that have to be ESCAPED count: one already
+satisfied at a matched node does not need the free direction and cannot
+make the arm two-sided. Settling the genuinely two-sided case means
+searching the free direction against every censoring region, which this
+does not do.
 
 And the free direction can be one the comparator does not own. Under
 \code{model = "spfa"} with \code{aux_by = "none"} the direction the comparator would
@@ -375,9 +378,15 @@ three is \code{2 - 1 = 1} and is still refused. The order is carried only for
 \code{lognormal}, where it was measured; the other families report the
 question as unsettled rather than refusing on an unmeasured exponent.
 
-It also only comes off a rate that is EXACT. \code{m - min(k, reach)} is the
-rate for one covariate and a lower bound for more, so taking a positive
-order off it can cross the refusal threshold from the wrong side: four
+It also only comes off a rate that is EXACT, which is a property of the
+RANK rather than of the covariate count. A consistent allocation's design
+has rank at least 1, and at least 2 whenever two targets differ, since its
+rows all carry an intercept and proportional rows there are identical
+rows, which put every row on one predictor and make every target equal. So
+a recorded rank of 1 or 2 is the smallest achievable one however many
+covariates are declared, and only from 3 can a lower-rank allocation
+exist. Taking a positive order off a rate that IS a bound can cross the
+refusal threshold from the wrong side: four
 comparator events at three distinct targets carried by three collinear
 nodes have a true rate of \code{4 - 2 = 2} while this records \code{4 - 3 = 1}, and
 netting one power off that reads as zero. A subtraction that LEAVES the

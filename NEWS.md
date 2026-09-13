@@ -198,7 +198,9 @@
   cancel. Such an arm is reported rather than refused, scale family or not.
 
   Which side a row needs is read from its region and its delayed entry, not
-  from its status code. A right-censored row is satisfied above its time and a
+  from its status code, and only the rows that have to be ESCAPED count: one
+  already satisfied at a matched node does not need the free direction and
+  cannot make the arm two-sided. A right-censored row is satisfied above its time and a
   left-censored one below its bound, including below its entry, since
   conditioning on survival to the entry piles the mass just above it and that
   pile lies inside the region. An interval-censored row is two-sided only when
@@ -362,9 +364,15 @@
   `lognormal`, where it was measured; the other families report the question
   as unsettled rather than refusing on an unmeasured exponent.
 
-  It also only comes off a rate that is EXACT. `m - min(k, reach)` is the
-  rate for one covariate and a lower bound for more, so taking a positive
-  order off it can cross the refusal threshold from the wrong side: four
+  It also only comes off a rate that is EXACT, which is a property of the
+  RANK rather than of the covariate count. A consistent allocation's design
+  has rank at least 1, and at least 2 whenever two targets differ, since its
+  rows all carry an intercept and proportional rows there are identical rows,
+  which put every row on one predictor and make every target equal. So a
+  recorded rank of 1 or 2 is the smallest achievable one however many
+  covariates are declared, and only from 3 can a lower-rank allocation exist.
+  Taking a positive order off a rate that IS a bound can cross the refusal
+  threshold from the wrong side: four
   comparator events at three distinct targets carried by three collinear
   nodes have a true rate of `4 - 2 = 2` while the recorded one is
   `4 - 3 = 1`, and netting one power off that reads as zero. A subtraction

@@ -1299,3 +1299,58 @@ test_that("touching index rows pin the shared slope like an event design", {
   expect_null(attr(idx2, "index_design"))
   expect_false(attr(idx2, "index_exact"))
 })
+
+test_that("sidedness counts only the rows that have to be escaped", {
+  # A row already satisfied at a matched node does not need the free
+  # direction, so it cannot make the arm two-sided. Tied events at `t = 1`
+  # with a right-censored row at `t = 2` and a left-censored row bounded
+  # above at `t = 2`: the left one stays positive through the matched node
+  # and only the right one needs escaping, which one direction clears.
+  sv <- survival::Surv(time = c(1, 1, 2, NA), time2 = c(1, 1, Inf, 2),
+                       type = "interval2")
+  d <- .comp_stub(NULL, NULL, n_int = 20, agd_surv = sv)
+  expect_match(msg(d), "2 event rows at 1 distinct log-time")
+  expect_match(msg(d), "is therefore improper")
+  # Both rows threatening is the two-sided case that stays open: a
+  # left-censored row bounded above at `t = 0.5` is below the target.
+  sv2 <- survival::Surv(time = c(1, 1, 2, NA), time2 = c(1, 1, Inf, 0.5),
+                        type = "interval2")
+  d2 <- .comp_stub(NULL, NULL, n_int = 2, agd_surv = sv2)
+  expect_match(tryCatch(check(d2), warning = conditionMessage),
+               "they bound on both sides")
+})
+
+test_that("a rank of one or two is the smallest achievable, not a bound", {
+  # A consistent allocation's design has rank at least 1, and at least 2
+  # whenever two targets differ: its rows all carry an intercept, so
+  # proportional rows are identical rows, which put every row on one
+  # predictor and make every target equal. A recorded rank of 1 or 2 is
+  # therefore exact however many covariates are declared, and only from 3
+  # can a lower-rank allocation exist.
+  ip <- set_ipd(
+    data.frame(trt = "A", time = c(1, 2, 3, 4), status = rep(1L, 4),
+               x1 = c(-1, 0, 1, 2), x2 = c(0, 1, 0, 1)),
+    treatment = "trt", covariates = c("x1", "x2"), family = "survival",
+    time = "time", status = "status"
+  )
+  ag <- set_agd_surv(
+    data.frame(trt = "B", time = c(1, 1), status = c(1L, 1L),
+               x1_mean = 0, x1_sd = 1, x2_mean = 0, x2_sd = 1),
+    treatment = "trt", time = "time", status = "status",
+    cov_means = c("x1_mean", "x2_mean"), cov_sds = c("x1_sd", "x2_sd"),
+    cov_types = c("continuous", "continuous")
+  )
+  d <- suppressWarnings(add_integration(
+    combine_data(ip, ag), n_int = 8, verbose = FALSE, cor = diag(2),
+    x1 = distr(stats::qnorm, mean = x1_mean, sd = x1_sd),
+    x2 = distr(stats::qnorm, mean = x2_mean, sd = x2_sd)
+  ))
+  # Two covariates, but the matched design has rank 1, so rate 1 is the rate
+  # and one touching index constraint cancels it exactly.
+  expect_match(msg(d), "a matching design of rank 1 exists")
+  expect_match(msg(d), "diverges at rate 1")
+  expect_silent(check(d, aux_by = "none", model = "relaxed",
+                      index_aux_order = 1))
+  expect_false(check(d, aux_by = "none", model = "relaxed",
+                     index_aux_order = 1))
+})

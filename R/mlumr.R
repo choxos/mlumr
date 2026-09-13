@@ -669,8 +669,11 @@
 #' entry piles the mass just above it and that pile lies inside the interval,
 #' so a node pushed below clears the row exactly as a left-censored one does.
 #' Which side a row needs is read from its region and its entry, not from its
-#' status code. Settling the genuinely two-sided case means searching the free
-#' direction against every censoring region, which this does not do.
+#' status code, and only the rows that have to be ESCAPED count: one already
+#' satisfied at a matched node does not need the free direction and cannot
+#' make the arm two-sided. Settling the genuinely two-sided case means
+#' searching the free direction against every censoring region, which this
+#' does not do.
 #'
 #' And the free direction can be one the comparator does not own. Under
 #' `model = "spfa"` with `aux_by = "none"` the direction the comparator would
@@ -803,9 +806,15 @@
 #' `lognormal`, where it was measured; the other families report the
 #' question as unsettled rather than refusing on an unmeasured exponent.
 #'
-#' It also only comes off a rate that is EXACT. `m - min(k, reach)` is the
-#' rate for one covariate and a lower bound for more, so taking a positive
-#' order off it can cross the refusal threshold from the wrong side: four
+#' It also only comes off a rate that is EXACT, which is a property of the
+#' RANK rather than of the covariate count. A consistent allocation's design
+#' has rank at least 1, and at least 2 whenever two targets differ, since its
+#' rows all carry an intercept and proportional rows there are identical
+#' rows, which put every row on one predictor and make every target equal. So
+#' a recorded rank of 1 or 2 is the smallest achievable one however many
+#' covariates are declared, and only from 3 can a lower-rank allocation
+#' exist. Taking a positive order off a rate that IS a bound can cross the
+#' refusal threshold from the wrong side: four
 #' comparator events at three distinct targets carried by three collinear
 #' nodes have a true rate of `4 - 2 = 2` while this records `4 - 3 = 1`, and
 #' netting one power off that reads as zero. A subtraction that LEAVES the
@@ -1157,8 +1166,6 @@
                         start[i] > delay[i])
       if (opens) "bounded" else "below"
     }, "")
-    one_sided <- !length(side) ||
-      (!anyNA(side) && !any(side == "bounded") && length(unique(side)) == 1L)
     cens <- side
     # A design that pins NOTHING, a design that pins something, and no design
     # to test are three answers, and only the first is a reason to refuse.
@@ -1197,13 +1204,24 @@
       if (!is.finite(lo) && opens) return(c(NA_real_, NA_real_))
       c(lo, target[i])
     }, numeric(2L))
-    threat <- length(cens_rows) > 0L &&
-      any(vapply(seq_along(cens_rows), function(ii) {
-        lo <- sat[1L, ii]
-        hi <- sat[2L, ii]
-        if (is.na(lo) || is.na(hi)) return(TRUE)
-        !any(tg >= lo & tg <= hi)
-      }, logical(1L)))
+    threatens <- vapply(seq_along(cens_rows), function(ii) {
+      lo <- sat[1L, ii]
+      hi <- sat[2L, ii]
+      if (is.na(lo) || is.na(hi)) return(TRUE)
+      !any(tg >= lo & tg <= hi)
+    }, logical(1L))
+    threat <- any(threatens)
+    # Sidedness is about the rows that have to be ESCAPED, and a row already
+    # satisfied at a matched node is not one of them. Tied events at `t = 1`
+    # with a right-censored row at `t = 2` and a left-censored row bounded
+    # above at `t = 2` read as two-sided over both rows, while the left one
+    # stays positive through the matched node and only the right one needs
+    # the free direction: one direction clears it, and the divergence is
+    # certified rather than open.
+    open_side <- side[threatens]
+    one_sided <- !length(open_side) ||
+      (!anyNA(open_side) && !any(open_side == "bounded") &&
+         length(unique(open_side)) == 1L)
     if (m - rank_d > worst) {
       worst <- m - rank_d
       # `spfa_pinned` is the same geometry as `isolated` arrived at from the
@@ -1293,7 +1311,15 @@
   netted_order <- 0
   if (shared_aux) {
     separate_slopes <- !identical(model, "spfa")
-    exact_rate <- length(data$covariates) <= 1L
+    # Exactness of the rate is a property of the RANK, not of the covariate
+    # count. A consistent allocation's design has rank at least 1, and at
+    # least 2 whenever two targets differ, since its rows all carry an
+    # intercept and proportional rows there are identical rows, which put
+    # every row on one predictor and make every target equal. So a recorded
+    # rank of 1 or 2 is the smallest achievable one however many covariates
+    # are declared, and only from 3 can a lower-rank allocation exist, which
+    # is the collinear-nodes case.
+    exact_rate <- isTRUE(info$rank <= 2L)
     if (is.na(index_aux_order)) {
       index_unresolved <- worst >= 1L
       unresolved_why <- "unsettled"
