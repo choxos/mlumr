@@ -44,6 +44,13 @@ types were admitted.}
 }
 \value{
 \code{"bounded"}, \code{"suppresses"}, \code{"unbounded"}, or \code{"undetermined"}.
+An \code{"undetermined"} reached past an exact event design carries \code{order}
+and \code{design} when the rows it could not place sit at profiles
+independent of one another and of that design: how many coefficient
+directions they pin, and which profiles those are. That is a different
+question from the verdict, which stays undetermined because whether one
+of them falls below its own censoring time is still not decided, and
+the caller needs both. Absent where the count is not readable.
 \code{"bounded"} means the auxiliary is held away from its boundary, which is
 an exponential suppression and removes any polynomial growth elsewhere.
 \code{"suppresses"} means it is not, but the coefficient volume that keeps

@@ -535,6 +535,60 @@
   1
 }
 
+#' Does the index's region reach the slope directions a grid spans?
+#'
+#' [.slope_region_pairs()] projects the region onto the slope only for ONE
+#' declared covariate, where that projection is an interval. With more the
+#' region is a polyhedron and the projection is not read off pairs, so the
+#' question "does this arm's ridge lie inside it" cannot be answered. That is
+#' not the same as the region being unrestrictive, and reading it as though it
+#' were issued an impropriety certificate on a proper fit.
+#'
+#' Before reporting that, ask the one part that IS exactly answerable: whether
+#' the region constrains any slope direction the grid can move along at all.
+#' The region confines only the functionals in the row space of its own
+#' design; anything orthogonal to every row is free, so a node difference `d`
+#' whose `(0, d)` lies outside that row space leaves `d' beta` unbounded and
+#' the region says nothing about this arm. Adding the node-difference rows
+#' raises the rank by however many of those directions the region does NOT
+#' already constrain, so a gain equal to their own rank means it constrains
+#' none of them.
+#'
+#' @param region The index's design and region ends, as
+#'   [.check_survival_scale_collapse()] reports in its `index_region`
+#'   attribute.
+#' @param nodes The arm's integration nodes, one row per node.
+#' @return `TRUE` where the region constrains at least one slope direction the
+#'   grid spans, `FALSE` where it constrains none of them, and `NA` where the
+#'   question could not be put. A caller reads anything but `FALSE` as a
+#'   reason to report rather than refuse.
+#' @keywords internal
+.region_slope_reach <- function(region, nodes) {
+  if (is.null(region) || is.null(region$X) || !is.matrix(region$X)) return(NA)
+  if (is.null(nodes) || !is.matrix(nodes)) return(NA)
+  if (ncol(region$X) != ncol(nodes) + 1L) return(NA)
+  lo <- as.numeric(region$lower)
+  up <- as.numeric(region$upper)
+  if (length(lo) != nrow(region$X) || length(up) != nrow(region$X)) {
+    return(NA)
+  }
+  # Only the rows that carry a finite end constrain anything.
+  keep <- is.finite(lo) | is.finite(up)
+  keep[is.na(keep)] <- FALSE
+  if (!any(keep)) return(FALSE)
+  rows <- region$X[keep, , drop = FALSE]
+  if (!all(is.finite(rows)) || !all(is.finite(nodes))) return(NA)
+  zc <- sweep(nodes, 2L, nodes[1L, ], "-")
+  zc <- zc[rowSums(zc != 0) > 0L, , drop = FALSE]
+  # A grid whose nodes all share one covariate vector spans no direction, so
+  # there is nothing for the region to constrain and nothing to escape along.
+  if (!nrow(zc)) return(FALSE)
+  span <- .exact_rank(zc)$rank
+  gain <- .exact_rank(rbind(rows, cbind(0, zc)))$rank -
+    .exact_rank(rows)$rank
+  gain < span
+}
+
 #' Is one candidate slope still allowed by the index?
 #'
 #' The conditions [.slope_region_pairs()] leaves, tested at the slopes a
@@ -1652,6 +1706,13 @@
   } else {
     NULL
   }
+  # More than one declared covariate leaves the region a polyhedron whose
+  # projection onto the slope this check does not compute. That is a question
+  # it cannot put, not an answer that the region is unrestrictive, and
+  # reading the second off the first certified a proper fit as improper.
+  region_wide <- shared_aux && identical(model, "spfa") &&
+    !is.null(index_region) && is.matrix(index_region$X) &&
+    ncol(index_region$X) > 2L
   admits <- if (!is.null(region_pairs)) {
     function(tg) {
       u <- sort(unique(as.numeric(tg)))
@@ -1938,6 +1999,12 @@
                    spfa_pinned = shared_aux && identical(model, "spfa") &&
                      slope$all && rank_d < reachable && threat,
                    two_sided = rank_d < reachable && threat && !one_sided,
+                   # Only where the region can reach a direction THIS grid
+                   # moves along. One it cannot reach leaves that direction
+                   # free whatever the polyhedron does, so the refusal is
+                   # unaffected by the projection going uncomputed.
+                   region_open = region_wide &&
+                     !isFALSE(.region_slope_reach(index_region, grid$nodes)),
                    spfa_shared = spfa_shared && !slope_free &&
                      rank_d > 1L)
     }
@@ -2023,6 +2090,13 @@
     } else {
       netted_order <- index_aux_order
       worst <- worst - index_aux_order
+    }
+    # Consulted on the NETTED rate, and only there, so a fit the index's own
+    # order already takes below the threshold keeps its silence rather than
+    # gaining a warning about a projection that would not have decided it.
+    if (!index_unresolved && isTRUE(info$region_open) && worst >= 1L) {
+      index_unresolved <- TRUE
+      unresolved_why <- "dimension"
     }
   }
   if (worst < 1L && !index_unresolved) {
@@ -2241,6 +2315,18 @@
              format(worst), ", which is certified; what the difference is ",
              "takes the smallest matching rank, which this check does not ",
              "compute")
+    } else if (identical(unresolved_why, "dimension")) {
+      paste0("their own rows confine that slope to a region. With more than ",
+             "one declared covariate the region is a polyhedron, whose ",
+             "projection onto the slope this check does not compute, so ",
+             "whether the values this arm's equations pin lie inside it was ",
+             "not asked rather than answered. It is a question about the ",
+             "index's own censoring and events, not about this arm: an ",
+             "index at three independent profiles needing `beta1` in ",
+             "`[2 log 2, 3 log 2]` and `beta2` in `[5 log 2, 6 log 2]` ",
+             "admits no difference of binary integration points equal to ",
+             "`log 2`, and the same data with the first interval widened ",
+             "does admit one")
     } else {
       paste0("their own contribution to it was not settled: their censored ",
              "regions pin the index predictor somewhere between a point and ",
@@ -2249,13 +2335,29 @@
              "that costs has not been established for ",
              .aux_name(distribution))
     }
-    warning(shared, " Under `aux_by = \"none\"` the index rows share that ",
-            "parameter, and ", why_index, ". Those powers come off this ",
-            "rate directly, so the fit is neither refused nor passed as ",
-            "proper: check the sampler near the boundary of ",
-            .aux_name(distribution), ", or give the comparator its own ",
-            "auxiliary with `aux_by = \".study\"`, which makes this ",
-            "question moot.", restriction, call. = FALSE)
+    # What the unsettled quantity would have done to this rate, which is not
+    # the same sentence for an order and for a region: one comes off the
+    # exponent, the other removes the divergence outright.
+    dimension <- identical(unresolved_why, "dimension")
+    shared_with <- if (dimension) {
+      paste0(" Under `model = \"spfa\"` with `aux_by = \"none\"` the index ",
+             "rows share both that parameter and the slope, and ")
+    } else {
+      paste0(" Under `aux_by = \"none\"` the index rows share that ",
+             "parameter, and ")
+    }
+    consequence <- if (dimension) {
+      paste0(". A slope the index excludes leaves no path to the boundary ",
+             "that this arm's divergence can use, so the fit is neither ")
+    } else {
+      paste0(". Those powers come off this rate directly, so the fit is ",
+             "neither ")
+    }
+    warning(shared, shared_with, why_index, consequence,
+            "refused nor passed as proper: check the sampler near the ",
+            "boundary of ", .aux_name(distribution), ", or give the ",
+            "comparator its own auxiliary with `aux_by = \".study\"`, which ",
+            "makes this question moot.", restriction, call. = FALSE)
     return(invisible(TRUE))
   }
   # A censored row in the arm can suppress an isolated ridge, and which
@@ -3082,7 +3184,7 @@
   } else {
     "unbounded"
   }
-  if (identical(bound, "bounded")) {
+  if (identical(as.character(bound), "bounded")) {
     return(invisible(structure(FALSE, bounds_aux = TRUE)))
   }
 
@@ -3163,8 +3265,47 @@
       } else {
         NULL
       },
-      aux_order = if (s$status %in% c("exact", "constant", "saturated")) {
+      # Zero is what the index's EVENT rows contribute on their own: as many
+      # density spikes as the directions their design pins, which cancel. It
+      # is not what the index contributes once it also carries censored rows
+      # whose predictors that design does not determine. Such a row can pin a
+      # coefficient direction the events left free, and every direction it
+      # pins takes another power of the width off the comparator's growth.
+      #
+      # An exact event at `t = 1` on `x = 0` beside a left-censored row at
+      # `t = 1` and a right-censored row at `t = 1`, both on `x = 1`: the
+      # event pins `mu_index` and the touching pair pins `mu_index + beta`,
+      # so TWO directions shrink against ONE density spike and the index
+      # removes a power rather than none. Its coefficient-integrated
+      # likelihood is `arccos(v_s / (v_s + s^2)) / (2 pi sqrt(2 pi (a^2 +
+      # s^2)))`, which is `s / (2 pi^(3/2) a h)` near zero, against two tied
+      # comparator events' `1 / s`: the product has a finite limit and the
+      # posterior is proper. Reported as zero, that fit was refused.
+      #
+      # Computing the number means asking which directions those rows pin
+      # jointly with the events, which is the same feasibility question the
+      # eventless branch answers with an independent design and this one does
+      # not solve. So it is reported as unsettled rather than as a zero, and
+      # [.check_comparator_tied_events()] reports instead of refusing.
+      # `"unbounded"` is the one answer that settles it: every censored row
+      # is estimable from the event design and strictly inside its own
+      # region, so none of them pins anything the events did not, and zero is
+      # the whole order. An index with no censored rows at all takes that
+      # branch too, which is why an exact index against tied comparator
+      # events is still refused.
+      # Only `lognormal` carries a number, for the same reason the eventless
+      # branch gives: the argument is the same in every family, since each
+      # one's rate is written in powers of the SAME width the volume shrinks
+      # by, but it has only been measured for the normal on the log scale,
+      # and reporting an unmeasured rate as a certificate is how a wrong
+      # exponent gets into a refusal.
+      aux_order = if (!(s$status %in% c("exact", "constant", "saturated"))) {
+        NA_real_
+      } else if (identical(as.character(bound), "unbounded")) {
         0
+      } else if (!is.null(attr(bound, "order")) &&
+                   identical(distribution, "lognormal")) {
+        as.numeric(attr(bound, "order"))
       } else {
         NA_real_
       },
@@ -3338,7 +3479,7 @@
   # a design with as many free columns as event rows reproduces every one of
   # them.
   resolved_exact <- s$status %in% c("exact", "constant", "saturated")
-  undetermined_bound <- if (identical(bound, "undetermined")) {
+  undetermined_bound <- if (identical(as.character(bound), "undetermined")) {
     paste0(", and whether a censored row bounds it could not be told, since ",
            "the fit on the event rows does not determine those rows' linear ",
            "predictors")
@@ -3451,7 +3592,7 @@
   if (!resolved_exact) {
     undecided(undecided_reason(s))
   }
-  if (identical(bound, "undetermined")) {
+  if (identical(as.character(bound), "undetermined")) {
     undecided(paste("the index covariates fit every event time exactly, and",
                     "the censored rows' linear predictors are not determined",
                     "by that fit, so whether one of them falls below its",
@@ -3527,6 +3668,13 @@
 #'   only times gets the behavior it had before the other two censoring
 #'   types were admitted.
 #' @return `"bounded"`, `"suppresses"`, `"unbounded"`, or `"undetermined"`.
+#'   An `"undetermined"` reached past an exact event design carries `order`
+#'   and `design` when the rows it could not place sit at profiles
+#'   independent of one another and of that design: how many coefficient
+#'   directions they pin, and which profiles those are. That is a different
+#'   question from the verdict, which stays undetermined because whether one
+#'   of them falls below its own censoring time is still not decided, and
+#'   the caller needs both. Absent where the count is not readable.
 #'   `"bounded"` means the auxiliary is held away from its boundary, which is
 #'   an exponential suppression and removes any polynomial growth elsewhere.
 #'   `"suppresses"` means it is not, but the coefficient volume that keeps
@@ -3875,7 +4023,63 @@
   inside <- pmin(eta - lower, upper - eta)
   if (any(estimable & outside > tol)) return("bounded")
   if (all(estimable) && all(inside > tol)) return("unbounded")
-  "undetermined"
+  # A censored row the event design does NOT determine was treated as
+  # evidence this function cannot read. It is that, but it is also a
+  # constraint of its own, and dropping it reported a suppression the index
+  # really supplies as no suppression at all.
+  #
+  # Its predictor is free of the events, so the same reading the eventless
+  # branch above gives applies to it: where its own region closes to a
+  # POINT the coefficients keeping it alive shrink to a hyperplane rather
+  # than to an open set, and that costs a power of the width; where the
+  # region keeps an interior it costs none. An exact event at `t = 1` on
+  # `x = 0` beside a left-censored row at `t = 1` and a right-censored row
+  # at `t = 1`, both on `x = 1`, is the first case: the event pins
+  # `mu_index` and the touching pair pins `mu_index + beta`, so two
+  # directions shrink against one density spike. The index's
+  # coefficient-integrated likelihood is then `s / (2 pi^(3/2) a h)` near
+  # zero rather than a constant, which cancels two tied comparator events'
+  # `1 / s` exactly and leaves a finite limit. Reported as no suppression,
+  # that proper fit was refused.
+  #
+  # Only where the count is READABLE. The rows an exact fit already places
+  # have to be strictly inside their own regions, or they are themselves in
+  # play; and the profiles the fit does NOT place have to be independent of
+  # each other and of the event design, or the directions they pin can
+  # coincide with one another or with the events and the order is not a
+  # count. Same condition as the eventless branch, extended to the events.
+  # Anything else stays undetermined rather than guessing an exponent.
+  free <- !estimable
+  if (any(estimable) && !all(inside[estimable] > tol[estimable])) {
+    return("undetermined")
+  }
+  if (!any(free)) return("undetermined")
+  groups <- split(which(free), row_keys(Xc[free, , drop = FALSE]))
+  profiles <- Xc[vapply(groups, function(ix) ix[1L], integer(1L)), ,
+                 drop = FALSE]
+  if (.exact_rank(rbind(Xe, profiles))$rank != rank_e + nrow(profiles)) {
+    return("undetermined")
+  }
+  ends <- vapply(groups, function(ix) {
+    c(max(lower[ix]), min(upper[ix]))
+  }, numeric(2L))
+  lo <- ends[1L, ]
+  up <- ends[2L, ]
+  # A group whose own regions do not overlap suppresses MORE than a touching
+  # one, by the same argument the eventless branch makes for a conflict. How
+  # much more is not counted here, so it is left open rather than answered
+  # with a number that is too small.
+  if (any(lo > up)) return("undetermined")
+  touch <- is.finite(lo) & is.finite(up) & lo == up
+  # The VERDICT is unchanged: whether one of these rows falls below its own
+  # censoring time is still not determined by a fit that does not place them,
+  # and this does not claim to have decided it. What travels beside it is the
+  # separate question the caller needs and that this can answer: how many
+  # coefficient directions they pin. Independent profiles with an interior
+  # can be satisfied at once and alongside the placed rows, so they pin
+  # nothing and the count is zero; a touching one pins its own direction.
+  structure("undetermined", order = sum(touch),
+            design = profiles[touch, , drop = FALSE])
 }
 
 

@@ -462,6 +462,48 @@
   verdict was contradicted, and 3 cases went unsettled where the exact
   arithmetic decides.
 
+  The order the index removes counts its CENSORED rows too, and reading it
+  off the event rows alone reported a suppression the index really supplies
+  as none. An index's own order was zero whenever its event design fit
+  exactly, which is right for the event rows on their own: as many density
+  spikes as the directions they pin, which cancel. It is not right once the
+  index also carries censored rows whose predictors that design does not
+  place, because such a row can pin a direction the events left free and
+  every pinned direction takes another power of the width off the
+  comparator's growth. An exact event at `t = 1` on `x = 0` beside a
+  left-censored row at `t = 1` and a right-censored row at `t = 1`, both on
+  `x = 1`: the event pins `mu_index`, the touching pair pins
+  `mu_index + beta`, and TWO directions shrink against ONE spike. The index's
+  coefficient-integrated likelihood is then
+  `arccos(v_s / (v_s + s^2)) / (2 pi sqrt(2 pi (a^2 + s^2)))`, which is
+  `s / (2 pi^(3/2) a h)` near zero rather than a constant, and it cancels two
+  tied comparator events' `1 / s` exactly: the product has a finite limit and
+  the posterior is proper under both models. Reported as zero, that fit was
+  refused. The count is read only where it is readable, from profiles
+  independent of one another and of the event design, and only for
+  `lognormal` where the rate was measured; anything else reports the order as
+  unsettled rather than as a zero. A third tied comparator event leaves
+  `2 - 1 = 1` and is still refused, and so is the same index with the
+  touching pair broken, whose remaining row pins nothing.
+
+  With more than one declared covariate the index's region is a polyhedron
+  whose projection onto the slope this check does not compute, and returning
+  nothing there was read by the caller as no restriction at all. The
+  difference is a certificate: an index at three independent profiles needing
+  `beta1` in `[2 log 2, 3 log 2]` and `beta2` in `[5 log 2, 6 log 2]` admits
+  no difference of binary integration points equal to `log 2`, since every
+  nonzero magnitude is at least `2 log 2` and `beta2 - beta1` lies in
+  `[2 log 2, 4 log 2]`; that posterior is proper and was refused. The
+  projection is still not computed, so the arm is now reported rather than
+  refused, and the one part that IS exactly answerable is asked first: a
+  region constrains only the functionals in its own row space, so where none
+  of the grid's node-difference directions lies in that space the region
+  cannot bear on this arm and the refusal stands. Widening the first interval
+  to `1 < T <= 4` admits `beta1 = log 2` and really is improper; without the
+  projection the two cannot be told apart, so that refusal is given up along
+  with the wrong one. Under `relaxed` the comparator carries its own slope
+  and under `aux_by = ".study"` its own auxiliary, so neither is affected.
+
   It also only comes off a rate that is EXACT, which is a property of the
   RANK rather than of the covariate count. A consistent allocation's design
   has rank at least 1, and at least 2 whenever two targets differ, since its

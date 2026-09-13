@@ -2189,3 +2189,218 @@ test_that("the region and the escape compose on one fit", {
   # And the control, where the escape is inside the region, stays refused.
   expect_identical(go(1.5), "refused")
 })
+
+# ---- what the index's censored rows take off the shared rate -------------
+
+.k01_index <- function(drop_left = FALSE) {
+  # An exact event at t = 1 on x = 0, and on x = 1 either a touching pair
+  # (left-censored at t = 1 beside right-censored at t = 1) or the right one
+  # alone. The pair pins `mu_index + beta`; the lone row leaves it an
+  # interval.
+  if (drop_left) {
+    sv <- survival::Surv(c(1, 1), c(1, Inf), type = "interval2")
+    x <- c(0, 1)
+  } else {
+    sv <- survival::Surv(c(1, NA_real_, 1), c(1, 1, Inf), type = "interval2")
+    x <- c(0, 1, 1)
+  }
+  suppressWarnings(set_ipd(
+    data.frame(trt = "A", x = x), treatment = "trt", covariates = "x",
+    family = "survival", Surv = sv
+  ))
+}
+
+test_that("a censored row the event fit does not place still pins a direction", {
+  skip_if_not_installed("survival")
+  ip <- .k01_index()
+  expect_identical(as.integer(ip$data$.status), c(1L, 2L, 0L))
+  X <- cbind(1, c(0, 1, 1))
+  y <- rep(0, 3L)
+  events <- c(TRUE, FALSE, FALSE)
+  # The touching pair sits at a profile the one-row event design does not
+  # place, so whether either of them falls below its own censoring time stays
+  # undetermined. How many directions they PIN is a different question, and
+  # this one is answerable: the profile is independent of the event design
+  # and its region has closed to a point, so it pins one.
+  out <- mlumr:::.censoring_bounds_aux(X, y, events, exact_fit = TRUE,
+                                       lower = c(-Inf, 0), upper = c(0, Inf))
+  expect_identical(as.character(out), "undetermined")
+  expect_identical(attr(out, "order"), 1L)
+  # Drop the left-censored row and the region keeps an interior, so the
+  # remaining row pins nothing and the count is zero rather than unsettled.
+  lone <- mlumr:::.censoring_bounds_aux(cbind(1, c(0, 1)), c(0, 0),
+                                        c(TRUE, FALSE), exact_fit = TRUE,
+                                        lower = 0, upper = Inf)
+  expect_identical(attr(lone, "order"), 0L)
+  # A profile the event design DOES place is answered as before, by its
+  # fitted value, and carries no count at all.
+  placed <- mlumr:::.censoring_bounds_aux(cbind(1, c(0, 0)), c(0, 0),
+                                          c(TRUE, FALSE), exact_fit = TRUE,
+                                          lower = -1, upper = Inf)
+  expect_identical(as.character(placed), "unbounded")
+  expect_null(attr(placed, "order"))
+})
+
+test_that("the index's own order counts its censored rows, not just its events", {
+  skip_if_not_installed("survival")
+  order_of <- function(drop_left) {
+    d <- .binary_grid(.k01_index(drop_left),
+                      .binary_arm(rep(1, 2), rep(1L, 2)))
+    idx <- suppressWarnings(
+      mlumr:::.check_survival_scale_collapse(d, "lognormal", aux_by = "none",
+                                             center = FALSE)
+    )
+    attr(idx, "aux_order")
+  }
+  # Two directions shrink against one density spike, so the index removes a
+  # power of the width rather than none. Reported as zero, a proper fit was
+  # refused: its coefficient-integrated likelihood is `s / (2 pi^(3/2) a h)`
+  # near zero, which cancels two tied comparator events' `1 / s` exactly.
+  expect_identical(order_of(FALSE), 1)
+  # With the touching pair broken the remaining row pins nothing, the index
+  # removes no power, and the tied comparator is improper as before.
+  expect_identical(order_of(TRUE), 0)
+})
+
+test_that("a mixed index cancels a tied comparator it cannot outgrow", {
+  skip_if_not_installed("survival")
+  go <- function(drop_left = FALSE, n_events = 2L, model = "relaxed") {
+    d <- .binary_grid(.k01_index(drop_left),
+                      .binary_arm(rep(1, n_events), rep(1L, n_events)))
+    idx <- suppressWarnings(
+      mlumr:::.check_survival_scale_collapse(d, "lognormal", aux_by = "none",
+                                             center = FALSE)
+    )
+    tryCatch({
+      suppressWarnings(mlumr:::.check_comparator_tied_events(
+        d, "lognormal", aux_by = "none", model = model,
+        index_bounds_aux = isTRUE(attr(idx, "bounds_aux")),
+        index_exact = attr(idx, "index_exact") %||% NA,
+        index_design = attr(idx, "index_design"),
+        index_aux_order = attr(idx, "aux_order") %||% 0,
+        index_region = attr(idx, "index_region")
+      ))
+      "silent"
+    }, error = function(e) {
+      if (grepl("improper", conditionMessage(e))) {
+        "refused"
+      } else {
+        conditionMessage(e)
+      }
+    })
+  }
+  # One power off a rate of one nets to zero, under either model: the
+  # comparator's own blocks are independent of the index's under `relaxed`,
+  # and under `spfa` the bound holds without factorizing the shared slope.
+  expect_identical(go(), "silent")
+  expect_identical(go(model = "spfa"), "silent")
+  # A third tied comparator event makes the rate two, and one power off that
+  # still leaves one.
+  expect_identical(go(n_events = 3L), "refused")
+  # Breaking the touching pair takes the index's power away entirely.
+  expect_identical(go(drop_left = TRUE), "refused")
+})
+
+# ---- a region that could not be projected is not a region that is empty ---
+
+test_that("the region's reach into a grid's slope directions is exact", {
+  # Three independent index profiles, so the region constrains both slope
+  # directions a two-covariate binary grid spans.
+  region <- list(X = cbind(1, c(0, 1, 0), c(0, 0, 1)),
+                 lower = c(0, log(4), log(32)),
+                 upper = c(0, log(8), log(64)))
+  nodes <- as.matrix(expand.grid(c(0, 1), c(0, 1)))
+  expect_true(mlumr:::.region_slope_reach(region, nodes))
+  # A region whose rows carry no finite end constrains nothing at all.
+  open <- region
+  open$lower <- rep(-Inf, 3L)
+  open$upper <- rep(Inf, 3L)
+  expect_false(mlumr:::.region_slope_reach(open, nodes))
+  # And one whose only constrained row is the intercept says nothing about
+  # any slope: the grid's directions stay free whatever the polyhedron is.
+  flat <- list(X = cbind(1, c(0, 0), c(0, 0)), lower = c(0, -Inf),
+               upper = c(0, Inf))
+  expect_false(mlumr:::.region_slope_reach(flat, nodes))
+  # A grid on one covariate value spans no direction to constrain.
+  one <- nodes[c(1L, 1L), , drop = FALSE]
+  expect_false(mlumr:::.region_slope_reach(region, one))
+})
+
+test_that("a region too wide to project is reported, not read as absent", {
+  skip_if_not_installed("survival")
+  go <- function(control = FALSE, model = "spfa", aux = "none") {
+    lo <- if (control) 1 else 4
+    hi <- if (control) 4 else 8
+    ip <- suppressWarnings(set_ipd(
+      data.frame(trt = "A", x1 = c(0, 1, 0), x2 = c(0, 0, 1)),
+      treatment = "trt", covariates = c("x1", "x2"), family = "survival",
+      Surv = survival::Surv(c(1, lo, 32), c(1, hi, 64), type = "interval2")
+    ))
+    ag <- set_agd_surv(
+      data.frame(trt = "B", time = c(1, 1, 2), status = rep(1L, 3),
+                 x1_mean = 0.5, x2_mean = 0.5),
+      treatment = "trt", time = "time", status = "status",
+      cov_means = c("x1_mean", "x2_mean"),
+      cov_types = c("binary", "binary")
+    )
+    d <- suppressWarnings(add_integration(
+      combine_data(ip, ag), n_int = 16, cor = diag(2), cor_adjust = "none",
+      verbose = FALSE, x1 = distr(qbern, prob = x1_mean),
+      x2 = distr(qbern, prob = x2_mean)
+    ))
+    idx <- suppressWarnings(
+      mlumr:::.check_survival_scale_collapse(d, "lognormal", aux_by = aux,
+                                             center = FALSE)
+    )
+    w <- character()
+    tryCatch({
+      out <- withCallingHandlers(
+        mlumr:::.check_comparator_tied_events(
+          d, "lognormal", aux_by = aux, model = model,
+          index_bounds_aux = isTRUE(attr(idx, "bounds_aux")),
+          index_exact = attr(idx, "index_exact") %||% NA,
+          index_design = attr(idx, "index_design"),
+          index_aux_order = attr(idx, "aux_order") %||% 0,
+          index_region = attr(idx, "index_region")
+        ),
+        warning = function(x) {
+          w <<- c(w, conditionMessage(x))
+          invokeRestart("muffleWarning")
+        }
+      )
+      if (any(grepl("polyhedron", w))) {
+        "dimension"
+      } else if (length(w)) {
+        "other_warning"
+      } else if (isTRUE(out)) {
+        "reported"
+      } else {
+        "silent"
+      }
+    }, error = function(e) {
+      if (grepl("improper", conditionMessage(e))) {
+        "refused"
+      } else {
+        conditionMessage(e)
+      }
+    })
+  }
+  # The index needs `beta1` in `[2 log 2, 3 log 2]` and `beta2` in
+  # `[5 log 2, 6 log 2]`, and no difference of binary integration points
+  # equals `log 2`: every nonzero magnitude is at least `2 log 2`, and
+  # `beta2 - beta1` lies in `[2 log 2, 4 log 2]`. The posterior is proper,
+  # and it was being refused because the region's projection onto the slope
+  # is computed only for one declared covariate and `NULL` there was read as
+  # no restriction at all.
+  expect_identical(go(), "dimension")
+  # Widening the first interval to `1 < T <= 4` admits `beta1 = log 2` and
+  # the fit really is improper. This check cannot tell the two apart without
+  # projecting the polyhedron, which it does not do, so it reports both
+  # rather than certifying either. The refusal that was right is given up
+  # with the one that was wrong; that is the cost of not solving it.
+  expect_identical(go(control = TRUE), "dimension")
+  # The region restricts the comparator only where the two share BOTH the
+  # slope and the auxiliary, so neither other configuration is touched.
+  expect_identical(go(model = "relaxed"), "refused")
+  expect_identical(go(aux = ".study"), "refused")
+})
