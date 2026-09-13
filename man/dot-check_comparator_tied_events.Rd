@@ -11,6 +11,7 @@
   index_bounds_aux = FALSE,
   model = "relaxed",
   index_exact = NA,
+  index_pins_slope = FALSE,
   index_aux_order = 0
 )
 }
@@ -25,6 +26,15 @@
 auxiliary away from its boundary, as \code{\link[=.check_survival_scale_collapse]{.check_survival_scale_collapse()}}
 reports in its \code{bounds_aux} attribute. Consulted only when \code{aux_by} is
 \code{"none"}, where the comparator shares that parameter.}
+
+\item{index_pins_slope}{Whether the index EVENT design identifies every
+coefficient, as \code{\link[=.check_survival_scale_collapse]{.check_survival_scale_collapse()}} reports in its
+\code{index_pins_slope} attribute. Reproducing its own times is not the same
+thing: repeated index events at one covariate profile at one time fit
+exactly and leave the shared \code{beta} free, and a free \code{beta} is the
+direction the comparator tilts along to lift an integration point past a
+censoring time. Consulted only under \code{model = "spfa"} with
+\code{aux_by = "none"}.}
 
 \item{index_aux_order}{How many powers of the auxiliary's width the index
 rows already remove, as \code{\link[=.check_survival_scale_collapse]{.check_survival_scale_collapse()}} reports in

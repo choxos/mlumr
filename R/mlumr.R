@@ -796,6 +796,14 @@
 #'   auxiliary away from its boundary, as [.check_survival_scale_collapse()]
 #'   reports in its `bounds_aux` attribute. Consulted only when `aux_by` is
 #'   `"none"`, where the comparator shares that parameter.
+#' @param index_pins_slope Whether the index EVENT design identifies every
+#'   coefficient, as [.check_survival_scale_collapse()] reports in its
+#'   `index_pins_slope` attribute. Reproducing its own times is not the same
+#'   thing: repeated index events at one covariate profile at one time fit
+#'   exactly and leave the shared `beta` free, and a free `beta` is the
+#'   direction the comparator tilts along to lift an integration point past a
+#'   censoring time. Consulted only under `model = "spfa"` with
+#'   `aux_by = "none"`.
 #' @param index_aux_order How many powers of the auxiliary's width the index
 #'   rows already remove, as [.check_survival_scale_collapse()] reports in
 #'   its `aux_order` attribute: `0` for an index that contributes a positive
@@ -812,6 +820,7 @@
                                           index_bounds_aux = FALSE,
                                           model = "relaxed",
                                           index_exact = NA,
+                                          index_pins_slope = FALSE,
                                           index_aux_order = 0) {
   scale_families <- c("lognormal", "gengamma")
   # The proportional-hazards Weibull and Gompertz are deliberately NOT here.
@@ -1081,8 +1090,8 @@
       # `rank_d = 1` this used to run past both flags into the refusal.
       info <- list(m = m, k = k, rank = rank_d, reach = reachable,
                    isolated = rank_d >= reachable && length(cens) > 0L,
-                   spfa_pinned = spfa_shared && rank_d < reachable &&
-                     length(cens) > 0L,
+                   spfa_pinned = spfa_shared && isTRUE(index_pins_slope) &&
+                     rank_d < reachable && length(cens) > 0L,
                    two_sided = rank_d < reachable && !spfa_shared &&
                      length(cens) > 0L && !one_sided,
                    spfa_shared = spfa_shared && rank_d > 1L)
@@ -2118,6 +2127,17 @@
     # comparator's growth entirely, so reading them as zero turns an open
     # question into a refusal, exactly as reading an eventless index as
     # "pins nothing" did.
+    #
+    # Reproducing its own times is not the same as IDENTIFYING the shared
+    # slope, and the comparator needs the second. An index of repeated
+    # events at one covariate profile at one time is `constant`, fits
+    # exactly, and pins only `mu_index`: `beta` is left free, and a free
+    # `beta` is exactly the direction the comparator tilts along to lift a
+    # node past a censoring time. The design pins every coefficient when it
+    # has full COLUMN rank, and with an intercept column present that is
+    # equivalent to pinning the slope: any null vector with zero slope
+    # components would make the intercept column vanish, so a deficient
+    # design always leaves some slope direction free.
     return(invisible(structure(
       TRUE,
       index_exact = if (s$status %in% c("exact", "constant", "saturated")) {
@@ -2125,6 +2145,8 @@
       } else {
         NA
       },
+      index_pins_slope = s$status %in% c("exact", "constant", "saturated") &&
+        .exact_rank(X[events, , drop = FALSE])$rank == ncol(X),
       aux_order = if (s$status %in% c("exact", "constant", "saturated")) {
         0
       } else {
@@ -3784,6 +3806,7 @@ mlumr <- function(data,
       index_bounds_aux = isTRUE(attr(index_collapse, "bounds_aux")),
       model = model,
       index_exact = attr(index_collapse, "index_exact") %||% NA,
+      index_pins_slope = isTRUE(attr(index_collapse, "index_pins_slope")),
       index_aux_order = attr(index_collapse, "aux_order") %||% 0
     )
   }

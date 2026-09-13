@@ -349,6 +349,16 @@
   across every allocation, which is out of scope, so a shared slope with a
   positive index order is reported instead of netted.
 
+  Reproducing its own times is also not the same as IDENTIFYING that shared
+  slope, and the report needs the second. Repeated index events at one
+  covariate profile at one time are `constant`, fit exactly, and pin only
+  `mu_index`: `beta` stays free, and a free `beta` is the direction the
+  comparator tilts along to lift an integration point past a censoring time,
+  so that arm keeps the refusal. The index guard reports whether its event
+  design has full column rank, which with an intercept column present is
+  equivalent to pinning the slope, since any null vector with zero slope
+  components would make the intercept column vanish.
+
   An index WITH events carries the same order, on the same distinction. A
   design shown to reproduce its own times pins rather than suppresses, so it
   reports zero and the comparator refusal stands, while `undecidable`,

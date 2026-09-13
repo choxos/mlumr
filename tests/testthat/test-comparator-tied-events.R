@@ -830,7 +830,8 @@ test_that("a shared slope pinned by the index blocks the censoring escape", {
   pinned <- .comp_stub(c(1, 1, 2), c(1L, 1L, 0L),
                        ipd_time = c(1, 1), ipd_x = c(-1, 1), n_int = 8)
   w <- tryCatch(check(pinned, aux_by = "none", model = "spfa",
-                      index_exact = TRUE), warning = conditionMessage)
+                      index_exact = TRUE, index_pins_slope = TRUE),
+                warning = conditionMessage)
   expect_match(w, "the shared `beta`")
   expect_match(w, "neither refused nor passed as proper")
   expect_no_match(w, "is therefore improper")
@@ -842,8 +843,8 @@ test_that("a shared slope pinned by the index blocks the censoring escape", {
   # suppresses the ridge and the refusal is right.
   bare <- .comp_stub(c(1, 1), c(1L, 1L), ipd_time = c(1, 1),
                      ipd_x = c(-1, 1), n_int = 8)
-  expect_match(msg(bare, aux_by = "none", model = "spfa", index_exact = TRUE),
-               "is therefore improper")
+  expect_match(msg(bare, aux_by = "none", model = "spfa", index_exact = TRUE,
+                   index_pins_slope = TRUE), "is therefore improper")
   # And it is specific to the shared slope: under `relaxed` the comparator
   # carries its own `beta_comparator`, which the index does not pin.
   expect_match(msg(pinned, aux_by = "none", model = "relaxed"),
@@ -922,4 +923,45 @@ test_that("an index residual this check could not resolve is not a zero", {
   )
   expect_true(attr(idx, "index_exact"))
   expect_identical(attr(idx, "aux_order"), 0)
+})
+
+test_that("an exact index fit that leaves the slope free does not pin it", {
+  # Reproducing its own times is not identifying the shared slope, and the
+  # comparator needs the second. Repeated index events at ONE covariate
+  # profile at one time fit exactly and pin only `mu_index`; `beta` stays
+  # free, and a free `beta` is exactly the direction the comparator tilts
+  # along to lift an integration point past a censoring time.
+  free <- suppressWarnings(.comp_stub(c(1, 1, 2), c(1L, 1L, 0L),
+                                      ipd_time = c(1, 1), ipd_x = c(0, 0),
+                                      n_int = 8))
+  idx <- suppressWarnings(
+    mlumr:::.check_survival_scale_collapse(free, "lognormal", aux_by = "none",
+                                           center = FALSE)
+  )
+  expect_true(attr(idx, "index_exact"))
+  expect_false(attr(idx, "index_pins_slope"))
+  # So the escape is available and the refusal is right.
+  expect_match(msg(free, aux_by = "none", model = "spfa", index_exact = TRUE,
+                   index_pins_slope = FALSE), "is therefore improper")
+  # The same data with index covariates that DO identify the slope reports.
+  pins <- .comp_stub(c(1, 1, 2), c(1L, 1L, 0L),
+                     ipd_time = c(1, 1), ipd_x = c(-1, 1), n_int = 8)
+  idx2 <- suppressWarnings(
+    mlumr:::.check_survival_scale_collapse(pins, "lognormal", aux_by = "none",
+                                           center = FALSE)
+  )
+  expect_true(attr(idx2, "index_pins_slope"))
+  w <- tryCatch(check(pins, aux_by = "none", model = "spfa",
+                      index_exact = TRUE, index_pins_slope = TRUE),
+                warning = conditionMessage)
+  expect_match(w, "the shared `beta`")
+  # A design with fewer rows than coefficients cannot pin them either, even
+  # when it is saturated.
+  short <- suppressWarnings(.comp_stub(c(1, 1, 2), c(1L, 1L, 0L),
+                                       ipd_time = 1, ipd_x = 0, n_int = 8))
+  idx3 <- suppressWarnings(
+    mlumr:::.check_survival_scale_collapse(short, "lognormal", aux_by = "none",
+                                           center = FALSE)
+  )
+  expect_false(isTRUE(attr(idx3, "index_pins_slope")))
 })
