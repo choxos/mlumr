@@ -12,6 +12,7 @@
   model = "relaxed",
   index_exact = NA,
   index_design = NULL,
+  index_slope = NULL,
   index_aux_order = 0
 )
 }
@@ -37,6 +38,15 @@ comparator tilts along to lift an integration point past a censoring
 time. What has to be identified is only the slope directions THIS arm's
 grid spans, which is why the design arrives whole rather than as a
 verdict. Consulted only under \code{model = "spfa"} with \code{aux_by = "none"}.}
+
+\item{index_slope}{The slope the index's pinned rows imply, as
+\code{\link[=.check_survival_scale_collapse]{.check_survival_scale_collapse()}} reports in its \code{index_slope}
+attribute, or \code{NULL}. With the slope pinned the comparator ridge is
+\code{n_int} isolated points whose node predictors are determined, so a
+censored row that some node already satisfies can be recognized rather
+than deferred. Consulted only under \code{model = "spfa"} with
+\code{aux_by = "none"}, and only for a single distinct target, where no
+further matching equality has to be decided.}
 
 \item{index_aux_order}{How many powers of the auxiliary's width the index
 rows already remove, as \code{\link[=.check_survival_scale_collapse]{.check_survival_scale_collapse()}} reports in
@@ -219,6 +229,20 @@ where a node clears \verb{log 2}.
 
 That escape is one-directional, though, and three more cases are left
 undecided rather than refused.
+
+A pinned ridge is isolated points too, and those ones can be looked at.
+Under \code{model = "spfa"} with a shared auxiliary the index's own pinned rows
+fix the slope, so each ridge point's node predictors are determined:
+matching one target at node \code{j} puts every node at
+\verb{u + (z_l - z_j)' beta}, and a censored row suppresses nothing if ANY of
+those sits inside its region. Index events at \verb{x = -1, +1} with
+\verb{t = exp(-1), exp(1)} pin \code{beta = 1}, and then a comparator with events
+tied at \code{t = 1} and right censoring at \code{t = 2} has a ridge point leaving
+an unmatched node at 2, past \verb{log 2}, so its divergence is certified
+rather than deferred. Only a single distinct target is enumerated: past
+that a point has to match the other targets too, which is an EQUALITY
+between computed quantities, and a tolerance there would certify a ridge
+that does not exist.
 
 When \code{rank(D)} reaches the reach the ridge is isolated points and a
 censored row

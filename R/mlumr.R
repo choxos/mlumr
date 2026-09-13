@@ -297,6 +297,31 @@
   e
 }
 
+#' The slope a pinned index design implies
+#'
+#' Returns the slope part of ANY solution of `design %*% b = value`, with
+#' aliased coefficients set to zero, or `NULL` when there is none. Which
+#' solution is picked does not matter to the caller: it uses the slope only
+#' through DIFFERENCES of node predictors, `(z_l - z_j)' beta`, and those are
+#' the same for every solution in the directions the design identifies.
+#'
+#' @param design The pinned rows, intercept first.
+#' @param value What each row's predictor is pinned to.
+#' @return A numeric slope vector, or `NULL`.
+#' @keywords internal
+.pinned_slope <- function(design, value) {
+  if (is.null(design) || is.null(value)) return(NULL)
+  if (!is.matrix(design) || ncol(design) < 2L) return(NULL)
+  if (nrow(design) != length(value)) return(NULL)
+  if (!all(is.finite(design)) || !all(is.finite(value))) return(NULL)
+  fit <- tryCatch(stats::lm.fit(design, value), error = function(e) NULL)
+  if (is.null(fit)) return(NULL)
+  b <- fit$coefficients
+  b[is.na(b)] <- 0
+  if (!all(is.finite(b))) return(NULL)
+  b[-1L]
+}
+
 #' Can one affine map send every target onto a grid node?
 #'
 #' The comparator's matching equations are solvable when some coefficient
@@ -648,6 +673,20 @@
 #' That escape is one-directional, though, and three more cases are left
 #' undecided rather than refused.
 #'
+#' A pinned ridge is isolated points too, and those ones can be looked at.
+#' Under `model = "spfa"` with a shared auxiliary the index's own pinned rows
+#' fix the slope, so each ridge point's node predictors are determined:
+#' matching one target at node `j` puts every node at
+#' `u + (z_l - z_j)' beta`, and a censored row suppresses nothing if ANY of
+#' those sits inside its region. Index events at `x = -1, +1` with
+#' `t = exp(-1), exp(1)` pin `beta = 1`, and then a comparator with events
+#' tied at `t = 1` and right censoring at `t = 2` has a ridge point leaving
+#' an unmatched node at 2, past `log 2`, so its divergence is certified
+#' rather than deferred. Only a single distinct target is enumerated: past
+#' that a point has to match the other targets too, which is an EQUALITY
+#' between computed quantities, and a tolerance there would certify a ridge
+#' that does not exist.
+#'
 #' When `rank(D)` reaches the reach the ridge is isolated points and a
 #' censored row
 #' can cover all of them: on a point-mass grid two events at `t = 1` with a
@@ -851,6 +890,14 @@
 #'   time. What has to be identified is only the slope directions THIS arm's
 #'   grid spans, which is why the design arrives whole rather than as a
 #'   verdict. Consulted only under `model = "spfa"` with `aux_by = "none"`.
+#' @param index_slope The slope the index's pinned rows imply, as
+#'   [.check_survival_scale_collapse()] reports in its `index_slope`
+#'   attribute, or `NULL`. With the slope pinned the comparator ridge is
+#'   `n_int` isolated points whose node predictors are determined, so a
+#'   censored row that some node already satisfies can be recognized rather
+#'   than deferred. Consulted only under `model = "spfa"` with
+#'   `aux_by = "none"`, and only for a single distinct target, where no
+#'   further matching equality has to be decided.
 #' @param index_aux_order How many powers of the auxiliary's width the index
 #'   rows already remove, as [.check_survival_scale_collapse()] reports in
 #'   its `aux_order` attribute: `0` for an index that contributes a positive
@@ -868,6 +915,7 @@
                                           model = "relaxed",
                                           index_exact = NA,
                                           index_design = NULL,
+                                          index_slope = NULL,
                                           index_aux_order = 0) {
   scale_families <- c("lognormal", "gengamma")
   # The proportional-hazards Weibull and Gompertz are deliberately NOT here.
@@ -1211,6 +1259,52 @@
       !any(tg >= lo & tg <= hi)
     }, logical(1L))
     threat <- any(threatens)
+    # With the slope pinned, the ridge is `n_int` isolated points and they
+    # can be looked at rather than deferred. For ONE distinct target there is
+    # no further matching to satisfy: the point carrying it at node `j` puts
+    # every node at `u + (z_l - z_j)' beta`, and a censored row is not
+    # suppressing anything if ANY of those sits inside its region. A point
+    # where every row is satisfied somewhere certifies the divergence.
+    #
+    # Index events at `x = -1, +1` with `t = exp(-1), exp(1)` pin `beta = 1`;
+    # comparator nodes at `-1, +1` with events tied at `t = 1` and right
+    # censoring at `t = 2` put the ridge matching the `-1` node at
+    # `mu_comparator = 1`, leaving the `+1` node at 2, which is past
+    # `log 2`. The target check alone reads that as a threat, because it
+    # looks only at the matched node.
+    #
+    # Only k = 1 is enumerated. Past that a point has to match the other
+    # targets too, which is an EQUALITY between computed quantities, and a
+    # tolerance there would certify a ridge that does not exist. The margin
+    # below is the other side of the same caution: an inequality that holds
+    # only within rounding is left to the report, since a predictor that
+    # misses its region by a rounding-sized amount does eventually suppress.
+    certified <- FALSE
+    if (threat && length(tg) && length(unique(tg)) == 1L) {
+      nodes <- grid$nodes
+      ok <- !is.null(index_slope) && !is.null(nodes) && is.matrix(nodes) &&
+        length(index_slope) == ncol(nodes) && all(is.finite(nodes)) &&
+        all(is.finite(index_slope))
+      if (ok) {
+        eta_rel <- as.vector(nodes %*% index_slope)
+        u <- tg[1L]
+        margin <- function(v) {
+          64 * .Machine$double.eps * pmax(1, abs(v), abs(u))
+        }
+        certified <- any(vapply(seq_along(eta_rel), function(j) {
+          eta <- u + (eta_rel - eta_rel[j])
+          if (!all(is.finite(eta))) return(FALSE)
+          all(vapply(which(threatens), function(ii) {
+            lo <- sat[1L, ii]
+            hi <- sat[2L, ii]
+            if (is.na(lo) || is.na(hi)) return(FALSE)
+            m <- margin(eta)
+            any(eta > lo + m & eta < hi - m)
+          }, logical(1L)))
+        }, logical(1L)))
+      }
+    }
+    if (certified) threat <- FALSE
     # Sidedness is about the rows that have to be ESCAPED, and a row already
     # satisfied at a matched node is not one of them. Tied events at `t = 1`
     # with a right-censored row at `t = 2` and a left-censored row bounded
@@ -2250,6 +2344,7 @@
       touch <- attr(eventless, "design")
       return(invisible(structure(
         FALSE, index_exact = !is.null(touch), index_design = touch,
+        index_slope = .pinned_slope(touch, attr(eventless, "value")),
         aux_order = if (identical(distribution, "lognormal")) {
           as.numeric(ord)
         } else {
@@ -2376,6 +2471,11 @@
       },
       index_design = if (s$status %in% c("exact", "constant", "saturated")) {
         X[events, , drop = FALSE]
+      } else {
+        NULL
+      },
+      index_slope = if (s$status %in% c("exact", "constant", "saturated")) {
+        .pinned_slope(X[events, , drop = FALSE], y[events])
       } else {
         NULL
       },
@@ -2878,8 +2978,12 @@
     if (rank_p == nrow(profiles)) {
       if (!any(touch)) return("unbounded")
       pinned <- profiles[touch, , drop = FALSE]
+      # The value each touching group pins its predictor TO, in the order of
+      # the rows above. A caller sharing a slope needs the solution, not only
+      # the design that determines it.
+      at <- vapply(groups[touch], function(ix) max(lower[ix]), numeric(1L))
       return(structure("suppresses", order = .exact_rank(pinned)$rank,
-                       design = pinned))
+                       design = pinned, value = unname(at)))
     }
     return("undetermined")
   }
@@ -4040,6 +4144,7 @@ mlumr <- function(data,
       model = model,
       index_exact = attr(index_collapse, "index_exact") %||% NA,
       index_design = attr(index_collapse, "index_design"),
+      index_slope = attr(index_collapse, "index_slope"),
       index_aux_order = attr(index_collapse, "aux_order") %||% 0
     )
   }

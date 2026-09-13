@@ -1354,3 +1354,42 @@ test_that("a rank of one or two is the smallest achievable, not a bound", {
   expect_false(check(d, aux_by = "none", model = "relaxed",
                      index_aux_order = 1))
 })
+
+test_that("an unmatched node past the censoring time certifies the ridge", {
+  # With the slope pinned the ridge is isolated points whose node predictors
+  # are determined, so a censored row that some node already satisfies can be
+  # recognized rather than deferred. The matched node is not the only one
+  # that counts.
+  d <- .comp_stub(c(1, 1, 2), c(1L, 1L, 0L),
+                  ipd_time = c(1, 1), ipd_x = c(-1, 1), n_int = 8)
+  nodes <- as.numeric(d$integration_points[1, , 1])
+  expect_gt(max(nodes) - min(nodes), log(2))
+  # Index events at `x = -1, +1` both at `t = 1` pin `beta = 0`, so every
+  # node sits at the target and the row at `t = 2` is above all of them: the
+  # escape is blocked and the arm stays open.
+  flat <- mlumr:::.pinned_slope(cbind(1, c(-1, 1)), c(0, 0))
+  expect_equal(unname(flat), 0)
+  w <- tryCatch(check(d, aux_by = "none", model = "spfa", index_exact = TRUE,
+                      index_design = cbind(1, c(-1, 1)), index_slope = flat),
+                warning = conditionMessage)
+  expect_match(w, "the shared `beta`")
+  # The same events at `t = exp(-1), exp(1)` pin `beta = 1`, and then the
+  # ridge matching a low node leaves a high one past `log 2`, so the
+  # censoring likelihood stays positive and the divergence is certified.
+  tilt <- mlumr:::.pinned_slope(cbind(1, c(-1, 1)), c(-1, 1))
+  expect_equal(unname(tilt), 1)
+  expect_match(msg(d, aux_by = "none", model = "spfa", index_exact = TRUE,
+                   index_design = cbind(1, c(-1, 1)), index_slope = tilt),
+               "is therefore improper")
+  # Without the slope there is nothing to enumerate and the report stands.
+  w2 <- tryCatch(check(d, aux_by = "none", model = "spfa", index_exact = TRUE,
+                       index_design = cbind(1, c(-1, 1))),
+                 warning = conditionMessage)
+  expect_match(w2, "the shared `beta`")
+  # The index guard computes that slope itself rather than being told it.
+  idx <- suppressWarnings(
+    mlumr:::.check_survival_scale_collapse(d, "lognormal", aux_by = "none",
+                                           center = FALSE)
+  )
+  expect_equal(unname(attr(idx, "index_slope")), 0)
+})

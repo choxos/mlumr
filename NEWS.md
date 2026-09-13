@@ -170,6 +170,20 @@
   the point-mass grid measured at rate +1.000 with a right-censored row at
   `t = 0.5` is now refused rather than reported.
 
+  A pinned ridge is isolated points too, and those ones can be looked at.
+  Under `model = "spfa"` with a shared auxiliary the index's own pinned rows
+  fix the slope, so each ridge point's node predictors are determined:
+  matching one target at node `j` puts every node at
+  `u + (z_l - z_j)' beta`, and a censored row suppresses nothing if ANY of
+  those sits inside its region. Index events at `x = -1, +1` with
+  `t = exp(-1), exp(1)` pin `beta = 1`, and then a comparator with events
+  tied at `t = 1` and right censoring at `t = 2` has a ridge point leaving an
+  unmatched node at 2, past `log 2`, so its divergence is certified rather
+  than deferred. Only a single distinct target is enumerated: past that a
+  point has to match the other targets too, which is an equality between
+  computed quantities, and a tolerance there would certify a ridge that does
+  not exist.
+
   For a row that does threaten, whether it suppresses turns on `rank(D)`
   against the reach. Its contribution is a mixture
   over the grid too, so it vanishes only if every node's region probability
