@@ -40,6 +40,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/default_priors.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/distr.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-adjust_integration_cor.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-admitted_slope_state.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-agd_center_weights.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-agd_cov_info.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-agd_covariate_numeric_rank.html</loc></url>
@@ -103,6 +104,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-eval_basis.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-exact_rank.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-exact_sum_is_zero.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-exact_sum_sign.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-exp_difference_logs.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-finite_numeric_values.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-fit_ratios.html</loc></url>
@@ -112,6 +114,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-generate_copula_uniforms.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-get_surv_data.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-grid_hits_targets.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-index_slope_admits.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-int_cor_pair_status.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-int_cor_stats.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-int_stats.html</loc></url>

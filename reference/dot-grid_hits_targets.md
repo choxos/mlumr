@@ -11,7 +11,7 @@ used to skip in silence.
 ## Usage
 
 ``` r
-.grid_hits_targets(nodes, targets)
+.grid_hits_targets(nodes, targets, admits = NULL)
 ```
 
 ## Arguments

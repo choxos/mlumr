@@ -33,7 +33,7 @@ distr(qnorm, mean = 0, sd = 1)
 #> $qfun
 #> function (p, mean = 0, sd = 1, lower.tail = TRUE, log.p = FALSE) 
 #> .Call(C_qnorm, p, mean, sd, lower.tail, log.p)
-#> <bytecode: 0x55a8e484dac8>
+#> <bytecode: 0x557e7debe1c8>
 #> <environment: namespace:stats>
 #> 
 #> $args
@@ -45,7 +45,7 @@ distr(qnorm, mean = 0, sd = 1)
 #> 
 #> 
 #> $envir
-#> <environment: 0x55a8db8d9b68>
+#> <environment: 0x557e7df21758>
 #> 
 #> $qfun_name
 #> [1] "qnorm"
@@ -61,7 +61,7 @@ distr(qbern, prob = 0.3)
 #>     qbinom(p, size = 1, prob = prob, lower.tail = lower.tail, 
 #>         log.p = log.p)
 #> }
-#> <bytecode: 0x55a8e491ae10>
+#> <bytecode: 0x557e7d737508>
 #> <environment: namespace:mlumr>
 #> 
 #> $args
@@ -70,7 +70,7 @@ distr(qbern, prob = 0.3)
 #> 
 #> 
 #> $envir
-#> <environment: 0x55a8db8d9b68>
+#> <environment: 0x557e7df21758>
 #> 
 #> $qfun_name
 #> [1] "qbern"

@@ -26,7 +26,10 @@ both errors `-5.3745e-17`.
 ## Value
 
 Logical, `TRUE` where the exact sum is zero. `NA` where any term is not
-finite, since nothing was established there.
+finite, since nothing was established there. The expansion itself lives
+in
+[`.exact_sum_sign()`](https://choxos.github.io/mlumr/reference/dot-exact_sum_sign.md),
+which answers the same question with its side as well.
 
 ## Details
 

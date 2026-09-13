@@ -16,7 +16,8 @@ which is this function's.
   model = "relaxed",
   index_exact = NA,
   index_design = NULL,
-  index_aux_order = 0
+  index_aux_order = 0,
+  index_region = NULL
 )
 ```
 
@@ -69,6 +70,20 @@ which is this function's.
   certified order is subtracted from the comparator's own growth, since
   both are written in powers of the same width; an unsettled one makes
   this report rather than refuse.
+
+- index_region:
+
+  The coefficient region an eventless index confines `(mu_index, beta)`
+  to, as
+  [`.check_survival_scale_collapse()`](https://choxos.github.io/mlumr/reference/dot-check_survival_scale_collapse.md)
+  reports in its `index_region` attribute, or `NULL` where the index has
+  events and the question does not arise. An order of zero says these
+  rows remove no power of the auxiliary's width; it does not say they
+  leave the slope free, and treating it as though it did refused fits
+  whose index and comparator cannot reach the boundary together.
+  Consulted only under `model = "spfa"` with `aux_by = "none"`, where
+  the two share the slope AND the auxiliary; see
+  [`.index_slope_admits()`](https://choxos.github.io/mlumr/reference/dot-index_slope_admits.md).
 
 ## Value
 

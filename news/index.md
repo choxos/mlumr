@@ -409,6 +409,49 @@
   families report the question as unsettled rather than refusing on an
   unmeasured exponent.
 
+  An order of zero says those rows remove no power of the width. It does
+  NOT say they leave the shared slope free, and reading it that way
+  refused proper fits. A nonempty coefficient region is not an
+  unconstrained slope: the rows confine `(mu_index, beta)` to
+  `lower_i <= mu_index + beta' x_i <= upper_i`, and under
+  `model = "spfa"` with `aux_by = "none"` the comparator shares that
+  slope AND that auxiliary, so its ridge has to sit inside the region.
+  An index left- censored at `t = 1` on `x = 0` beside one
+  right-censored at `t = 4` on `x = 1` needs `beta >= log 4`, while a
+  binary comparator’s exact fit at times `(1, 1, 2)` needs
+  `beta = +/- log 2`; neither is reachable, and the measured
+  `d log L / d log s` runs +2.5, +3.8, +7.9, +18.7 and +38.8 as the
+  scale falls through 0.2, 0.15, 0.1, 0.07 and 0.05, which is
+  `exp(-c / s^2)` rather than a power. That fit is proper and was being
+  refused.
+
+  The region now travels to the comparator check, which eliminates
+  `mu_index` between a row with a finite lower end and one with a finite
+  upper end (Fourier-Motzkin), leaving
+  `lower_i - upper_j <= beta (x_i - x_j)`, and tests every candidate
+  slope `(u[2] - u[1]) / (z_b - z_a)` against it. The test is
+  CROSS-MULTIPLIED rather than divided, since a floating-point solve
+  certifies nothing, and its sign is taken exactly. None of the four
+  operands is a difference that survives its own subtraction on ordinary
+  data, so their errors are carried as values and the cheap sign is
+  accepted wherever it provably cannot be overturned: only genuine
+  cancellation at the last bits is left unsettled. Checked against exact
+  rational arithmetic on 3,266 generated regions and grids, the verdict
+  was never contradicted and exactly one case went unsettled, the one
+  the exact arithmetic also calls a boundary. The answer is
+  three-valued, as it has to be: strictly inside leaves the rate
+  standing and the arm is refused as before; strictly outside is a
+  certificate that this divergence cannot happen at any slope the index
+  leaves, and the arm is passed over; ON the boundary `mu_index` is
+  pinned to a point rather than to an interval, which costs a power that
+  is not counted here, and that is reported rather than decided either
+  way. Lowering the same index’s right-censoring time to `t = 0.5`
+  admits the comparator’s own slope, the profile grows as `s^-3`
+  (measured -3.0000 per decade), and the refusal stands. One declared
+  covariate only, where the region’s projection is an interval; wider
+  designs leave a polyhedron this does not solve and restrict nothing
+  here.
+
   It also only comes off a rate that is EXACT, which is a property of
   the RANK rather than of the covariate count. A consistent allocation’s
   design has rank at least 1, and at least 2 whenever two targets

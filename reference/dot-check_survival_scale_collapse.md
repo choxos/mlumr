@@ -90,6 +90,15 @@ exists at all. A real one there contributes `exp(-RSS / (2 * sdlog^2))`
 and removes the comparator's growth entirely, so those report `NA`
 rather than a zero that would turn an open question into a refusal.
 
+An eventless index also carries `index_region`, the censored rows'
+design beside the ends of the region each row is observed to lie in. An
+`aux_order` of zero says those rows remove no power of the width; it
+does NOT say they leave the coefficients free, and the region is what
+says which ones they leave. A caller sharing this study's slope and its
+auxiliary has to put its own ridge inside that region, which
+[`.index_slope_admits()`](https://choxos.github.io/mlumr/reference/dot-index_slope_admits.md)
+answers.
+
 ## Details
 
 Four scopes, each a deliberate limit rather than a certificate.
