@@ -33,7 +33,7 @@ bash lesson.sh dist      # build, then copy the site to dist/ for publishing
 
 `TANGIBLE_DIR` can point to an existing Tangible checkout at revision `6a07bbcd5dbc548aa809b253aed503fc0a8c3251`. The build copies mlumr's R sources from a local checkout of the package, set with `MLUMR_DIR` (default `../mlumr`) at the commit `MLUMR_REF` (default `4cfd3660f56e22668ae357bde3df4b30cacb23a5`). Use a static HTTP server; opening `index.html` from disk does not work.
 
-`finish-site.mjs` makes three fixes after Tangible builds the site. It rounds pause times to the player's 0.01 second clock, so a pause does not fire twice on resume. It applies the saved theme before the page paints and restyles the loading screen. It lists the R files that the browser writes into webR.
+`finish-site.mjs` makes two fixes after Tangible builds the site. It applies the saved theme before the page paints and restyles the loading screen. It lists the R files that the browser writes into webR.
 
 ## Publish
 

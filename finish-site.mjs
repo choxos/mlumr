@@ -6,14 +6,6 @@ import { fileURLToPath } from 'node:url';
 const lesson = fileURLToPath(new URL('.', import.meta.url));
 const site = join(lesson, 'build', 'site');
 
-// Round pause positions to the player's 0.01 s audio clock; a fractional
-// speech timestamp can otherwise retrigger the same pause on resume.
-for (const path of [join(lesson, 'build', 'lesson', 'tracks.json'), join(site, 'tracks.json')]) {
-  const tracks = JSON.parse(await readFile(path, 'utf8'));
-  for (const pause of tracks.pauses) pause.t = Math.min(Math.round(pause.t * 100), Math.floor(tracks.duration * 100)) / 100;
-  await writeFile(path, JSON.stringify(tracks, null, 2) + '\n');
-}
-
 // Apply the saved theme before first paint and restyle the loading screen,
 // which Tangible writes with fixed dark colors.
 const indexPath = join(site, 'index.html');

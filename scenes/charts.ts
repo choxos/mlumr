@@ -83,7 +83,7 @@ export function flowChart(title: string, steps: { name: string; detail: string }
   const s = steps.map((st, i) => {
     const x = i * (w + gap);
     const arrow = i < n - 1 ? `<path class="axis" d="M${x + w + 1} 46h${gap - 3}" stroke-width="2"/><path class="k-muted" d="M${x + w + gap - 1} 46l-5 -4v8z"/>` : '';
-    return `<g class="node${i === current ? ' on' : ''}"><rect x="${x}" y="10" width="${w}" height="72" rx="9"/><text x="${x + w / 2}" y="36" text-anchor="middle" font-size="11" font-family="var(--font-mono)">${String(i + 1).padStart(2, '0')}</text><text x="${x + w / 2}" y="58" text-anchor="middle" font-size="13" font-weight="650">${esc(st.name)}</text><text class="label" x="${x + w / 2}" y="100" text-anchor="middle" font-size="10.5" font-family="var(--font-mono)">${esc(st.detail)}</text></g>${arrow}`;
+    return `<g class="node${i === current ? ' on' : ''}" data-step="${i}"><title>Go to step ${i + 1}, ${esc(st.name)}</title><rect x="${x}" y="10" width="${w}" height="72" rx="9"/><text x="${x + w / 2}" y="36" text-anchor="middle" font-size="11" font-family="var(--font-mono)">${String(i + 1).padStart(2, '0')}</text><text x="${x + w / 2}" y="58" text-anchor="middle" font-size="13" font-weight="650">${esc(st.name)}</text><text class="label" x="${x + w / 2}" y="100" text-anchor="middle" font-size="10.5" font-family="var(--font-mono)">${esc(st.detail)}</text></g>${arrow}`;
   }).join('');
   return card(title, `<svg viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(`Analysis steps; step ${current + 1}, ${steps[current].name}, is highlighted`)}">${s}</svg>`);
 }

@@ -53,7 +53,7 @@ function controls(lab: Lab) {
   if (lab === 'dependence') return slider('rho', 'How often the two markers go together', -1, 1, .05);
   if (lab === 'target') return targetControl() + slider('betaB', 'Trial B marker slope (shared value 2.4)', -1, 4, .1);
   if (lab === 'identification' || lab === 'priors') return designControls();
-  if (lab === 'workflow') return indexed('step', 'Analysis step', workflowSteps.map(s => s.title));
+  if (lab === 'workflow') return '<div class="control"><span>Analysis step</span><div class="stepper" role="group" aria-label="Analysis step"><button type="button" data-step-move="-1" aria-label="Previous step">‹</button><span class="step-count" aria-live="polite"></span><button type="button" data-step-move="1" aria-label="Next step">›</button></div><span class="step-hint">Or click a step in the chart.</span></div>';
   if (lab === 'families') return indexed('family', 'Outcome type', families.map(s => s.name));
   if (lab === 'survival') return slider('time', 'Months of follow-up (and RMST horizon)', 0, 36, .5) + targetControl() + slider('heterogeneity', 'How much the marker raises the hazard', 0, 2.5, .1);
   if (lab === 'diagnostics') return indexed('diagnostic', 'Problem to inspect', diagnosticCases.map(s => s.name));
@@ -312,13 +312,20 @@ export const scene: SceneModule = {
       writeParameter(param, param === 'design' ? input.value : Number(input.value));
     };
     const onClick = (event: Event) => {
+      const node = (event.target as Element).closest<SVGElement>('[data-step]');
+      if (node) { writeParameter('step', Number(node.dataset.step)); return; }
       const button = (event.target as HTMLElement).closest('button');
       if (!button) return;
+      if (button.dataset.stepMove) {
+        const i = Math.round(Number(latest.step)) + Number(button.dataset.stepMove);
+        writeParameter('step', Math.min(workflowSteps.length - 1, Math.max(0, i)));
+      }
       if (button.hasAttribute('data-reset')) {
         control.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-param]').forEach(input => {
           const key = input.dataset.param!;
           writeParameter(key, schema[key].default);
         });
+        if (current === 'workflow') writeParameter('step', schema.step.default);
       }
       if (button.dataset.answer !== undefined) {
         const q = questions[Math.round(Number(latest.question))];
@@ -351,6 +358,15 @@ export const scene: SceneModule = {
       if (key === last) return;
       last = key;
       visual.innerHTML = view(lab, state);
+      const stepper = control.querySelector('.stepper');
+      if (stepper) {
+        const i = Math.round(Number(state.step));
+        stepper.querySelector('.step-count')!.textContent = `Step ${i + 1} of ${workflowSteps.length}: ${workflowSteps[i].name}`;
+        stepper.querySelectorAll<HTMLButtonElement>('[data-step-move]').forEach(b => {
+          const to = i + Number(b.dataset.stepMove);
+          b.disabled = to < 0 || to >= workflowSteps.length;
+        });
+      }
       control.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-param]').forEach(input => {
         const param = input.dataset.param!, value = state[param];
         input.value = String(input.tagName === 'SELECT' && typeof value === 'number' ? Math.round(value) : value);

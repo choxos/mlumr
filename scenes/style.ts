@@ -201,6 +201,11 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 .ml-lesson svg .node text {fill:var(--ink-soft)}
 .ml-lesson svg .node.on rect {fill:var(--tint);stroke:var(--accent);stroke-width:2}
 .ml-lesson svg .node.on text {fill:var(--accent-strong)}
+.ml-lesson svg .node[data-step] {cursor:pointer}
+.ml-lesson svg .node[data-step]:hover rect {stroke:var(--accent)}
+.ml-lesson .stepper {display:flex;align-items:center;gap:8px}
+.ml-lesson .stepper button {width:44px;min-height:44px;padding:0;font-size:22px;line-height:1;color:var(--ink-soft)}.ml-lesson .step-count {flex:1;text-align:center;font-weight:600;color:var(--ink)}
+.ml-lesson .step-hint {font-weight:500;color:var(--muted)}
 .ml-lesson svg .off {fill:var(--border-strong)!important}
 .ml-lesson .joint-grid {display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .ml-lesson .joint-grid>div {padding:18px;border-radius:var(--radius-sm);border:1px solid var(--border);background:color-mix(in srgb,var(--series-a) var(--w),var(--surface))}

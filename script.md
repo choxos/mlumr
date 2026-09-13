@@ -14,7 +14,7 @@ The blue trial, trial A, recorded each patient's outcome and characteristics. Th
 Some patients carry a marker that raises their risk. The two trials enrolled very different shares of patients with the marker. Look first at the crude difference. It compares each treatment inside its own trial. Now make the two trials more alike.
 @cue(pComparator -> 0.2, over: 3s)
 The crude difference changed, yet neither treatment changed. Only the patients changed. The target difference did not move, because it compares both treatments in one chosen population, called the target population. Keeping those two questions apart is where population adjustment begins.
-@pause(prompt: "Move the two trial sliders, then the target slider. Which difference reacts to each one?")
+Move the two trial sliders, then the target slider. Which difference reacts to each one?
 
 @chapter(What adjustment has to assume)
 @cue(scene = "assumptions")
@@ -30,7 +30,7 @@ Suppose trial B also differed in something nobody measured, such as the quality 
 Trial B's reported risk goes up. But trial B has only one starting level for its risk, so it cannot tell us how much of that rise came from the treatment and how much came from the trial. Adjusting for the marker does not help, because the marker was not the problem.
 
 The same thing happens with a missing risk factor, a different way of measuring the outcome, or a model that predicts badly outside the data. More patients can make a biased answer look more precise. More careful computation cannot fix it either. Reading the result as a causal effect needs assumptions that the data cannot check.
-@pause(prompt: "Slide the hidden difference through zero. Can the reported risk alone tell you how much came from the treatment?")
+Slide the hidden difference through zero. Can the reported risk alone tell you how much came from the treatment?
 
 @chapter(Shared or separate slopes)
 @cue(scene = "response")
@@ -49,7 +49,7 @@ Now give trial B a different slope.
 The lines are no longer parallel. The gap now depends on the marker, so the marker changes how well treatment A works compared with treatment B. Statisticians call this effect modification. This is the relaxed model, where each treatment has its own slopes.
 
 That flexibility comes at a price. Trial A's patient data can estimate trial A's slopes. Trial B's slopes can only come from its published summaries, mainly the differences between its subgroups, and from the prior, which is what you assume about a value before seeing the data. Writing down a relaxed model does not mean the data can actually estimate it.
-@pause(prompt: "Set trial B's slope back to two point four, then lower it. Which odds ratio stays the same, and which one changes?")
+Set trial B's slope back to two point four, then lower it. Which odds ratio stays the same, and which one changes?
 
 @chapter(Average the predictions)
 @cue(scene = "integration")
@@ -68,7 +68,7 @@ The dots are the points used to do the averaging. Here they are simply spaced ev
 @cue(points = 4)
 @cue(points -> 128, over: 4s)
 With more points, the average becomes more accurate. In a real analysis, check the integration, and check that the effect you report stops changing when you add points. The package's integration check compares covariate means and standard deviations on two grids, and stable values there do not prove that the effect is stable. Below the chart, you can run this same calculation in R, right in your browser.
-@pause(prompt: "Spread the patients out, then compare four points with one hundred twenty-eight. Which change moves the average risk itself, and which only makes the calculation more accurate?")
+Spread the patients out, then compare four points with one hundred twenty-eight. Which change moves the average risk itself, and which only makes the calculation more accurate?
 
 @chapter(Rebuild the population)
 @cue(scene = "dependence")
@@ -85,7 +85,7 @@ More patients now have both markers, or neither. Each marker is still present in
 With a negative correlation, patients tend to have exactly one of the two markers. The same published summaries can hide different average risks.
 
 By default, the package estimates how the covariates go together from trial A's patient data, and uses that for trial B. Carrying it over is an assumption, so look at the result and try other plausible values. One more detail: when the shares are not both one half, some correlations are impossible. Here every value works, because both shares are exactly one half.
-@pause(prompt: "Keep each marker at half the patients and change only the correlation. Why does the average risk move?")
+Keep each marker at half the patients and change only the correlation. Why does the average risk move?
 
 @chapter(Choose what to estimate)
 @cue(scene = "target")
@@ -104,7 +104,7 @@ Every patient has the same odds ratio, but the population odds ratio moves. This
 The package fits a Bayesian model, which produces thousands of plausible sets of parameter values, called posterior draws. Inside every draw it predicts, averages and compares, and only then summarizes. For trial B's own population, subgroups are weighted by their number of patients for binary and continuous outcomes, and by exposure time for counts. These population weights are not the same thing as how precise each subgroup is. If you supply your own target rows, each row counts equally. And to report an odds ratio, exponentiate each log odds ratio draw first, then summarize. Exponentiating the average log odds ratio gives a different number.
 
 You can ask for effects in trial A's population, in trial B's population, or in your own target population. A target changes the question, not the data. It adds no outcomes, and it does not refit the model. Effects for one particular kind of patient are a separate request, called conditional effects.
-@pause(prompt: "Compare target shares of zero, one half and one. Why do the patient and population odds ratios agree at zero and at one?")
+Compare target shares of zero, one half and one. Why do the patient and population odds ratios agree at zero and at one?
 
 @chapter(What subgroup rows can tell you)
 @cue(scene = "identification")
@@ -128,7 +128,7 @@ Now the data can separate the intercept from the slope. Move the two rows close 
 Technically, the slope is still identified, meaning the data can pin it down in principle. But predicting a target far from both rows becomes very uncertain. Being identified and being precise are different things.
 
 For a straight-line model, this reasoning is exact. With a curved link, as for binary or count outcomes, or a log link, the spread of patients inside each row matters too. So when there are enough rows, the package's subgroup check only describes them, and reports its flag as missing rather than as a pass. It does not accept survival data at all.
-@pause(prompt: "Compare one row, two rows in the same place, and two separated rows. Then move the target to zero.")
+Compare one row, two rows in the same place, and two separated rows. Then move the target to zero.
 
 @chapter(Run mlumr in your browser)
 @cue(scene = "workflow")
@@ -147,7 +147,7 @@ Now fit the model, with the priors written out, a seed, and enough sampling. The
 Before trusting any number, check the fit. The fitting algorithm, called the sampler, runs several independent chains of draws. The package checks those chains when it finishes and warns about problems, and the summary shows the checks again. Centering the covariates, which the package does by default, and the optional Q R setting can both help the sampler. With centering, the intercept describes a patient with average covariates, so your intercept prior applies to that patient, not to one whose covariates are all zero. With Q R, your priors still apply to the original coefficients. Neither setting creates information, or makes the trials comparable.
 @cue(step = 5)
 Finally, ask for the population and the effect you planned. The effect called L O R is a log odds ratio. The package also offers two quick benchmarks. The naive comparison simply compares the two trials as they are. S T C, the simulated treatment comparison, fits a regression to trial A, and predicts what treatment A would do in trial B's population. It then compares that prediction with trial B's reported outcome. That question does not need equal slopes, but carrying its answer to another population needs more justification.
-@pause(prompt: "Step through the six code panels. Then run the cell below: first the R code, then the Stan fit.")
+Step through the six code panels. Then run the cell below: first the R code, then the Stan fit.
 
 @chapter(Pick the outcome model)
 @cue(scene = "families")
@@ -164,7 +164,7 @@ A continuous outcome uses a normal model. Trial B must report its mean outcome a
 Counts need exposure, such as years of follow-up. The effect is a rate ratio, where one means no difference. Keep the exposure units the same in both trials. And if follow-up time depends on the covariates, trial B's covariate summaries should weight each patient by follow-up time, which ordinary published averages usually do not.
 @cue(family = 3)
 Survival outcomes use event times, plus censored times for patients whose follow-up ended before an event. For trial B, you supply event times reconstructed from its published survival curve, together with covariate summaries. Reconstruction does not recover trial B's individual covariates, and its own uncertainty is not carried into the fit. The package offers several parametric and flexible baseline shapes, each with its own rules. Open the list of survival distributions in the panel to see them.
-@pause(prompt: "Pick an outcome type. What must trial B report, and which value of the effect means no difference?")
+Pick an outcome type. What must trial B report, and which value of the effect means no difference?
 
 @chapter(Survival after averaging)
 @cue(scene = "survival")
@@ -189,7 +189,7 @@ With identical risk groups, the survivors never change their mix, and the popula
 Restricted mean survival time, or R M S T, is the area under a survival curve up to a chosen time, called the horizon. In plain terms, it is the average time patients stay event free up to that horizon. The shaded area between the two curves is the R M S T difference, measured in months. Change the horizon, and you change the question. Only compare R M S T results that use the same horizon and the same time units.
 
 In the package, each trial gets its own baseline shape by default, whenever the distribution has a shape. Sharing one shape is a stronger assumption, but separate shapes also assume that each shape travels with its treatment, so fit both and compare. A population hazard ratio always needs a time. For accelerated failure time models, the population number is a time ratio only when the slopes and the shape are both shared. Otherwise, the package labels it differently, so it is not mistaken for a time ratio. Patients still event free when follow-up ends, events known only to fall within a time window, and patients who join follow-up late each need their own likelihood terms. A simple count of events cannot replace them.
-@pause(prompt: "Compare zero, twelve and twenty-four months. Then remove the risk difference between groups. What happens to the population hazard ratio, and why?")
+Compare zero, twelve and twenty-four months. Then remove the risk difference between groups. What happens to the population hazard ratio, and why?
 
 @chapter(When the prior matters)
 @cue(scene = "priors")
@@ -211,7 +211,7 @@ Now move the target to where the row is.
 Here the data alone pin down the target, even though the slope is still unknown. So a verdict about the coefficients is not automatically a verdict about your target. For a continuous outcome with a straight-line model, the package's identification check asks this question for trial A's population, once with the integration points the model uses, and once with the means trial B published.
 
 Check prior sensitivity for the target you will actually report. Results in trial B's population can look stable, while results in trial A's population, or in a new target, still depend on the prior. Try several reasonable priors, see how far the result moves under each, and report what you find. Never pick the prior that happens to give the narrowest interval.
-@pause(prompt: "Change the prior with the target at zero, then at one. Repeat with two separated rows. Which narrowing comes from data, and which from assumptions?")
+Change the prior with the target at zero, then at one. Repeat with two separated rows. Which narrowing comes from data, and which from assumptions?
 
 @chapter(Read a fit before trusting it)
 @cue(scene = "diagnostics")
@@ -232,7 +232,7 @@ Look at how the results depend on trial B's slope priors, on the target populati
 The package records how many posterior draws it could actually use. Keep that count in your report. A survival median that falls beyond the time grid is a separate issue, reported as the chance that the median was not reached. Never quietly drop an inconvenient check, or present an incomplete summary as complete.
 @cue(diagnostic = 6)
 Finally, a better predictive score, such as L O O, only says which model predicts these observations better. It cannot tell you whether a hidden difference between the trials exists.
-@pause(prompt: "Choose each problem, guess the next step, then reveal the explanation.")
+Choose each problem, guess the next step, then reveal the explanation.
 
 @chapter(Report it well)
 @cue(scene = "practice")
@@ -247,4 +247,4 @@ The research on this method describes extensions to more than two treatments. Th
 Before you report an analysis, name the treatments, the outcome, the target population and the effect scale. Explain where the data came from, how well the covariates overlap, and that the subgroups do not overlap. Say which covariate distributions and priors you used, and whether slopes were shared or separate. Show the sampling checks, the integration checks and the sensitivity analyses. For survival, state every time and every horizon.
 
 The chart shows what a good report gives: an estimate, its interval, and the population it applies to. To go further, the package website has an article for each outcome type, and the package ships four example datasets, on psoriasis, multiple myeloma, shoulder surgery and tooth decay. Test yourself with the five questions. Then revisit any chapter, and try to predict what will change before you move a control.
-@pause(prompt: "Answer the five questions. Then pick a chapter whose chart you can now explain in your own words.")
+Answer the five questions. Then pick a chapter whose chart you can now explain in your own words.

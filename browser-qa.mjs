@@ -60,7 +60,7 @@ try {
     await page.keyboard.press('Enter');
     assert.equal(await page.locator('.ml-lesson').getAttribute('data-lab'), 'practice');
     assert(await page.locator('audio').evaluate((a, time) => a.paused && a.currentTime === time, pausedReturnTime), 'Keyboard return must preserve paused playback and position');
-    await page.locator('audio').evaluate((a, time) => { a.currentTime = time - .25; }, tracks.pauses[0].t);
+    await page.locator('audio').evaluate((a, time) => { a.currentTime = time - 3; }, chapters[1].time);
     await page.waitForFunction(() => document.querySelector('.ml-lesson').dataset.narratedLab === 'evidence');
     await choose(page, 'survival');
     await page.locator('#ml-time').focus();
@@ -68,10 +68,8 @@ try {
     await page.locator('#ml-target').focus();
     await page.locator('#ml-target').press('End');
     await page.getByRole('button', {name:'Play lesson',exact:true}).click();
-    await page.waitForFunction(() => document.querySelector('audio').paused);
-    assert.equal(await page.locator('.ml-lesson').getAttribute('data-lab'), 'survival');
-    await page.getByRole('button', {name:'Play lesson',exact:true}).click();
     await page.waitForFunction(() => document.querySelector('.ml-lesson').dataset.narratedLab === 'assumptions');
+    assert(await page.locator('audio').evaluate(a => !a.paused), 'Narration must keep playing into the next chapter while exploring');
     assert.equal(await page.locator('.ml-lesson').getAttribute('data-lab'), 'survival', 'Narration must not pull the user away from exploration');
     assert.equal(await page.locator('#ml-time').inputValue(), '36', 'Narration must not overwrite exploration parameters');
     assert.equal(await page.locator('#ml-target').inputValue(), '1', 'A narration cue must not reset the independently explored target');
@@ -85,25 +83,18 @@ try {
     assert(!afterReturn.paused && afterReturn.time >= beforeReturn && afterReturn.time < beforeReturn + 2, 'Return must not pause or seek narration');
     assert(!(await page.getByRole('button', {name:'Return to narration',exact:true}).isVisible()));
     evidence.push({independentChapterBrowsing:13, explorationSurvivesNarrationChapterChange:true, explorationParametersIsolated:true, returnToCurrentNarration:true, keyboardReturnWhilePaused:true});
-    assert.equal(tracks.pauses.length, 13);
-    for (let i = 0; i < tracks.pauses.length; i++) {
-      const pause = tracks.pauses[i];
-      await page.locator('audio').evaluate((a, time) => { a.pause(); a.currentTime = time - .25; }, pause.t);
-      await page.waitForTimeout(120);
-      await page.getByRole('button', { name: 'Play lesson', exact: true }).click();
-      await page.waitForFunction(() => document.querySelector('audio').paused);
-      assert.equal(await page.locator('.ml-lesson').getAttribute('data-lab'), labs[i].value, `Pause ${i+1} must retain its own experiment`);
-      await page.screenshot({ path: resolve(out, `pause-${String(i+1).padStart(2,'0')}.png`) });
-      if (i < tracks.pauses.length - 1) {
-        await page.getByRole('button', { name: 'Play lesson', exact: true }).click();
-        await page.waitForFunction(time => {
-          const audio = document.querySelector('audio');
-          return !audio.paused && audio.currentTime > time + .2;
-        }, pause.t);
-      }
+    // Narration never stops on its own: it crosses every chapter boundary while the learner explores elsewhere.
+    assert.equal(tracks.pauses.length, 0, 'The lesson must have no automatic pauses');
+    await choose(page, 'workflow');
+    for (let i = 1; i < chapters.length; i++) {
+      await page.locator('audio').evaluate((a, time) => { a.currentTime = time - 1; }, chapters[i].time);
+      await page.waitForFunction(time => { const a = document.querySelector('audio'); return !a.paused && a.currentTime > time + .5; }, chapters[i].time, { timeout: 15000 });
+      assert.equal(await page.locator('.ml-lesson').getAttribute('data-narrated-lab'), labs[i].value, `Narration must reach chapter ${i + 1}`);
+      if (labs[i].value !== 'workflow') assert.equal(await page.locator('.ml-lesson').getAttribute('data-lab'), 'workflow', 'Narration must not pull the learner away');
     }
-    await page.getByRole('button', { name: 'Play lesson', exact: true }).click();
-    await page.waitForFunction(() => document.querySelector('audio').ended);
+    await page.getByRole('button', {name:'Return to narration',exact:true}).click();
+    await page.locator('audio').evaluate(a => { a.currentTime = a.duration - 2; });
+    await page.waitForFunction(() => document.querySelector('audio').ended, null, { timeout: 15000 });
     await page.getByRole('button', { name: 'Play lesson', exact: true }).click();
     await page.waitForFunction(() => {
       const audio = document.querySelector('audio');
@@ -114,7 +105,7 @@ try {
     await page.waitForTimeout(700);
     assert(!(await page.locator('audio').evaluate(a => a.paused)));
     await page.getByRole('button', { name: 'Pause lesson', exact: true }).click();
-    evidence.push({ narrationTimelineSeeking: chapters, captions: true, pauseResume: true, explorationPauses: 13, checkpointResumes: 13, completionReplay: true });
+    evidence.push({ narrationTimelineSeeking: chapters, captions: true, pauseResume: true, noAutomaticPauses: true, chapterBoundariesWhileExploring: chapters.length - 1, completionReplay: true });
   }
   await choose(page, labs[0].value);
   assert(await page.getByRole('button', {name:'Previous chapter',exact:true}).isDisabled());
@@ -186,6 +177,23 @@ try {
       assert.equal(await page.locator('#ml-pIndex').inputValue(), '0.2');
       assert.match(await page.locator('.metrics').innerText(), /-0.436/);
       assert.match(await page.locator('.metrics').innerText(), /-0.124/);
+    }
+    if (lab.value === 'workflow') {
+      const atStep = k => page.waitForFunction(k => document.querySelector('.extra h3')?.textContent.startsWith(`Step ${k}.`) && document.querySelector('.step-count')?.textContent.startsWith(`Step ${k} of 6`), k);
+      const previousStep = page.getByRole('button', {name:'Previous step',exact:true}), nextStep = page.getByRole('button', {name:'Next step',exact:true});
+      assert.equal(await page.locator('.lab-controls select').count(), 0, 'Analysis steps use arrows, not a list');
+      await atStep(1);
+      assert(await previousStep.isDisabled());
+      for (let k = 2; k <= 6; k++) { await nextStep.click(); await atStep(k); }
+      assert(await nextStep.isDisabled());
+      await page.locator('.visual [data-step="2"]').click();
+      await atStep(3);
+      await previousStep.click();
+      await atStep(2);
+      if (!sceneOnly) assert.equal(await page.locator('audio').evaluate(a => a.paused), priorPlayback, 'Stepping must not change playback');
+      await page.getByRole('button', {name:'Reset lab', exact:true}).click();
+      await atStep(1);
+      evidence.push({ workflowStepper: true, clickableSteps: true });
     }
     if (lab.value === 'diagnostics') {
       for (let d = 0; d < 7; d++) {
