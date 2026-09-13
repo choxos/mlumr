@@ -346,8 +346,14 @@
   and if both sides pin the shared slope the stacked rank gains only one
   index direction, leaving a true rate of 1 that a full subtraction would
   report as 0. Computing the joint rank means solving the combined system
-  across every allocation, which is out of scope, so a shared slope with a
-  positive index order is reported instead of netted.
+  across every allocation, which is out of scope, so a shared slope is
+  reported instead of netted. Only from order TWO, though: in
+  `(mu_index, mu_comparator, beta)` an index constraint is `(1, 0, x)` while
+  every comparator constraint is `(0, 1, z)`, so no combination of comparator
+  rows reaches a nonzero first component, a single index row is independent
+  of all of them, and the ranks add whatever the shared slope does. It takes
+  a second index row for the difference `(0, 0, x_1 - x_2)` to appear, which
+  is a pure slope direction and can lie in the comparator's span.
 
   Reproducing its own times is also not the same as IDENTIFYING that shared
   slope, and the report needs the second. Repeated index events at one

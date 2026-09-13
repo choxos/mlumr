@@ -1148,13 +1148,22 @@
   # toward a refusal, but silence on a known-improper fit is what this guard
   # exists to prevent. Computing the joint rank means solving the combined
   # system across every allocation, which this does not do, so a shared slope
-  # with a positive index order is reported instead.
+  # is reported instead.
+  #
+  # Only from order TWO, though. In `(mu_index, mu_comparator, beta)` an
+  # index constraint is `(1, 0, x)` and every comparator constraint is
+  # `(0, 1, z)`, so no combination of comparator rows reaches a nonzero first
+  # component and a SINGLE index row is independent of all of them: the ranks
+  # add whatever the shared slope does, and the stacked system stays
+  # consistent because `mu_index` is left free to satisfy that row. It takes
+  # a second index row for the difference `(0, 0, x_1 - x_2)` to appear,
+  # which is a pure slope direction and can lie in the comparator's span.
   index_unresolved <- FALSE
   netted_order <- 0
   if (shared_aux) {
     separate_slopes <- !identical(model, "spfa")
     if (is.na(index_aux_order) ||
-          (index_aux_order > 0 && !separate_slopes)) {
+          (index_aux_order > 1 && !separate_slopes)) {
       index_unresolved <- worst >= 1L
     } else {
       netted_order <- index_aux_order
@@ -1329,13 +1338,12 @@
   if (index_unresolved) {
     why_index <- if (!is.na(index_aux_order) && identical(model, "spfa")) {
       paste0("the index rows remove ", format(index_aux_order),
-             " power", if (index_aux_order > 1) "s" else "",
-             " of the same width, but under `model = \"spfa\"` the arms ",
-             "share one `beta`, so the directions they pin can be the same ",
-             "directions this arm's equations pin and the two do not simply ",
-             "add. Whether they overlap is a property of the combined ",
-             "system across every allocation, which this check does not ",
-             "solve")
+             " powers of the same width, but under `model = \"spfa\"` the ",
+             "arms share one `beta`, so from the second row on the ",
+             "directions they pin can be the same directions this arm's ",
+             "equations pin and the two do not simply add. Whether they ",
+             "overlap is a property of the combined system across every ",
+             "allocation, which this check does not solve")
     } else {
       paste0("their own contribution to it was not settled: their censored ",
              "regions pin the index predictor somewhere between a point and ",

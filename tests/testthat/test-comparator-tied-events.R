@@ -1024,3 +1024,32 @@ test_that("two-sided censoring still reports when the slope is not pinned", {
   expect_match(w, "they bound on both sides")
   expect_no_match(w, "is therefore improper")
 })
+
+test_that("one shared-slope index constraint has nothing to overlap with", {
+  # In `(mu_index, mu_comparator, beta)` an index constraint is `(1, 0, x)`
+  # and every comparator constraint is `(0, 1, z)`, so no combination of
+  # comparator rows reaches a nonzero first component: a SINGLE index row is
+  # independent of all of them and the ranks add whatever the shared slope
+  # does. Reporting that as an overlap refused to net a rate that nets
+  # exactly.
+  d <- .eventless_stub(survival::Surv(time = c(NA, 1), time2 = c(1, Inf),
+                                      type = "interval2"))
+  idx <- mlumr:::.check_survival_scale_collapse(d, "lognormal",
+                                                aux_by = "none",
+                                                center = FALSE)
+  expect_identical(attr(idx, "aux_order"), 1)
+  # Two tied comparator events are rate 1, so the net is 0 under either
+  # model and the fit stands.
+  expect_silent(check(d, aux_by = "none", model = "spfa",
+                      index_aux_order = 1))
+  expect_false(check(d, aux_by = "none", model = "spfa",
+                     index_aux_order = 1))
+  # It takes a second index row for a pure slope difference to appear, and
+  # that one can lie in the comparator's span.
+  X2 <- cbind(1, c(0, 0, 1, 1))
+  two <- mlumr:::.censoring_bounds_aux(
+    X2, rep(0, 4L), rep(FALSE, 4L),
+    lower = c(-Inf, 0, -Inf, 0), upper = c(0, Inf, 0, Inf)
+  )
+  expect_identical(attr(two, "order"), 2L)
+})
