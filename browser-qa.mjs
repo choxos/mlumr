@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -14,17 +14,45 @@ await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome' });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 const failures = [];
+// Browser and native R build the same Stan data, but integration points can
+// differ in their last binary digits (WebAssembly against native floating
+// point). Names and shapes must match exactly and values to 1e-12 relative.
+function stanDataDifference(a, b) {
+  const out = { maxRelative: 0, at: null, mismatches: [] };
+  const walk = (x, y, path) => {
+    if (Array.isArray(x) || Array.isArray(y)) {
+      if (!Array.isArray(x) || !Array.isArray(y) || x.length !== y.length) return out.mismatches.push(`${path} shape`);
+      return x.forEach((v, i) => walk(v, y[i], `${path}[${i}]`));
+    }
+    if (typeof x === 'number' && typeof y === 'number') {
+      const relative = x === y ? 0 : Math.abs(x - y) / Math.max(Math.abs(x), Math.abs(y));
+      if (relative > out.maxRelative) Object.assign(out, { maxRelative: relative, at: path });
+    } else if (x !== y) out.mismatches.push(`${path} value`);
+  };
+  for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    if (key in a && key in b) walk(a[key], b[key], key); else out.mismatches.push(`${key} missing`);
+  }
+  if (out.mismatches.length) out.maxRelative = Infinity;
+  return out;
+}
 const evidence = [];
+// Chrome turns a download link into an aborted request; only those are expected.
+const downloads = new Set();
+page.on('download', download => downloads.add(download.url()));
 page.on('pageerror', error => failures.push(error.message));
 page.on('response', response => { if (response.status() >= 400) failures.push(`${response.status()} ${response.url()}`); });
+// The browser drops media requests when the narration seeks; any other failed request is a failure.
+page.on('requestfailed', request => { const error = request.failure()?.errorText ?? ''; if (!(/ERR_ABORTED/.test(error) && request.resourceType() === 'media')) failures.push(`requestfailed ${request.resourceType()} ${request.url()} ${error}`); });
+page.on('console', message => { if (message.type() === 'error') failures.push(`console ${message.text()}`); });
 try {
   await page.goto(url);
   await page.waitForSelector('.ml-lesson');
   if (!sceneOnly) {
     await page.getByRole('button', { name: 'Start lesson', exact: true }).click({ timeout: 180000 });
-    await page.waitForTimeout(1500);
+    // Playback can take a few seconds to begin on a busy machine; wait for it rather than for a fixed time.
+    await page.waitForFunction(() => { const a = document.querySelector('audio'); return a && a.duration > 600 && a.currentTime > 0 && !a.paused; }, null, { timeout: 30000 }).catch(() => undefined);
     const audio = await page.locator('audio').evaluate(a => ({ time: a.currentTime, duration: a.duration, paused: a.paused, muted: a.muted, error: a.error?.message }));
-    assert(audio.duration > 600 && audio.time > 0 && !audio.paused && !audio.muted && !audio.error);
+    assert(audio.duration > 600 && audio.time > 0 && !audio.paused && !audio.muted && !audio.error, `The narration must play unmuted: ${JSON.stringify(audio)}`);
     evidence.push({ audio });
   }
   const labs = await page.locator('[data-chapter]').evaluateAll(options => options.map(o => ({ value: o.dataset.chapter, title: o.textContent })));
@@ -88,7 +116,7 @@ try {
     await page.locator('audio').evaluate((a, time) => { a.currentTime = time - 3; }, chapters[2].time);
     await page.locator('#ml-shift').focus();
     await page.locator('#ml-shift').press('ArrowRight');
-    assert(!(await returnBar.isVisible()), 'No return bar while the open chapter is still narrated');
+    assert(await returnBar.isVisible(), 'Touching a control offers the way back to the narration');
     await page.waitForFunction(() => document.querySelector('.ml-lesson').dataset.narratedLab === 'response');
     assert.equal(await page.locator('.ml-lesson').getAttribute('data-lab'), 'assumptions', 'A touched chapter must stay open');
     assert(await returnBar.isVisible() && await page.locator('audio').evaluate(a => !a.paused));
@@ -133,7 +161,7 @@ try {
   for (const [i, lab] of labs.entries()) {
     const priorPlayback = sceneOnly ? null : await page.locator('audio').evaluate(a => a.paused);
     await choose(page, lab.value);
-    await page.getByRole('button', {name:'Reset lab', exact:true}).click();
+    await page.getByRole('button', {name:'Reset experiment', exact:true}).click();
     await page.waitForTimeout(120);
     assert.equal(await page.locator('.ml-lesson').getAttribute('data-lab'), lab.value);
     if (!sceneOnly) assert.equal(await page.locator('audio').evaluate(a => a.paused), priorPlayback, 'Chapter browsing preserves playback state');
@@ -171,6 +199,7 @@ try {
       assert.equal(Number(await input.inputValue()), Number(await input.getAttribute('max')));
       const high = await page.locator('.visual').innerText();
       values.push({ control: await input.getAttribute('data-param'), changed: low !== high || before !== high });
+      assert(values.at(-1).changed, `${lab.value}: moving ${values.at(-1).control} must change what the chapter shows`);
     }
     for (const input of await page.locator('.lab-controls select').all()) {
       const options = await input.locator('option').evaluateAll(os => os.map(o => o.value));
@@ -180,7 +209,7 @@ try {
         assert.equal(await input.inputValue(), value);
       }
     }
-    await page.getByRole('button', {name:'Reset lab', exact:true}).click();
+    await page.getByRole('button', {name:'Reset experiment', exact:true}).click();
     await page.waitForTimeout(100);
     if (!sceneOnly) assert(await page.locator('audio').evaluate(a => !a.paused), 'Parameter changes and reset must keep voice playing');
     if (lab.value === 'evidence') {
@@ -201,9 +230,21 @@ try {
       await previousStep.click();
       await atStep(2);
       if (!sceneOnly) assert.equal(await page.locator('audio').evaluate(a => a.paused), priorPlayback, 'Stepping must not change playback');
-      await page.getByRole('button', {name:'Reset lab', exact:true}).click();
+      await page.getByRole('button', {name:'Reset experiment', exact:true}).click();
       await atStep(1);
       evidence.push({ workflowStepper: true, clickableSteps: true });
+    }
+    if (lab.value === 'workflow') {
+      // A draft survives leaving the chapter; Reset code brings the original back.
+      const textarea = page.locator('.code-cell textarea');
+      const original = await textarea.inputValue();
+      await textarea.fill(`# my draft\n${original}`);
+      await choose(page, 'families');
+      await choose(page, 'workflow');
+      assert((await textarea.inputValue()).startsWith('# my draft'), 'A code draft survives a chapter change');
+      assert(await page.locator('[data-act=fit]').isDisabled(), 'Fit waits for the current code to run');
+      await page.locator('.code-cell [data-act=reset]').click();
+      assert.equal(await textarea.inputValue(), original);
     }
     if (lab.value === 'diagnostics') {
       for (let d = 0; d < 7; d++) {
@@ -250,33 +291,99 @@ try {
     await choose(page, lab.value);
     assert(await page.locator('.visual .chart-card svg').count() >= 1, `${lab.value} must show a chart`);
   }
+  // A hazard ratio above one is drawn where it is, above the no-difference line.
+  await choose(page, 'survival');
+  for (const [id, value] of [['ml-time', '11.5'], ['ml-target', '0.99'], ['ml-heterogeneity', '2.5']]) {
+    await page.locator(`#${id}`).evaluate((el, v) => { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); }, value);
+  }
+  const hr = await page.locator('.visual .chart-card svg').nth(1).evaluate(svg => ({ dot: Number(svg.querySelector('circle.dot').getAttribute('cy')), one: Number([...svg.querySelectorAll('line.line')].find(l => !l.classList.contains('dash')).getAttribute('y1')) }));
+  assert(hr.dot < hr.one, 'A population hazard ratio above one must be drawn above the HR = 1 line');
+  assert.match(await page.locator('.visual .interpretation').innerText(), /still above B/);
+  await page.getByRole('button', {name:'Reset experiment', exact:true}).click();
+  evidence.push({ hazardRatioAboveOneDrawnAboveOne: hr });
   if (!process.argv.includes('--no-runtime')) {
     await choose(page, 'integration');
     await page.locator('.code-cell [data-act=run]').click();
     await page.waitForFunction(() => /\[1\] 0\.270483/.test(document.querySelector('.code-cell .console').textContent), null, { timeout: 240000 });
+    await choose(page, 'priors');
+    await page.locator('.code-cell [data-act=run]').click();
+    await page.waitForFunction(() => /prior_sd/.test(document.querySelector('.code-cell .console').textContent), null, { timeout: 60000 });
+    const priorsOut = await page.locator('.code-cell .console').innerText();
+    assert(/1\s+3\.0\s+0\.399/.test(priorsOut) && /2\s+0\.3\s+0\.32/.test(priorsOut), `One Run of the prior cell must compare both priors:\n${priorsOut}`);
+    // Coming back to the workflow chapter several times must not multiply its Run.
+    for (let i = 0; i < 3; i++) { await choose(page, 'workflow'); await choose(page, 'integration'); }
     await choose(page, 'workflow');
     await page.locator('.code-cell [data-act=run]').click();
     await page.waitForFunction(() => /Simulated Treatment Comparison/.test(document.querySelector('.code-cell .console').textContent), null, { timeout: 300000 });
     const consoleText = await page.locator('.code-cell .console').innerText();
+    assert.equal((consoleText.match(/> set\.seed\(2026\)/g) ?? []).length, 1, 'One Run must run the workflow code once');
     assert(!/Error:/.test(consoleText), 'The mlumr R code must run without errors');
     assert(/Naive Unadjusted Indirect Comparison/.test(consoleText), 'naive() must print through its S3 method');
+    // Another cell overwriting the global dat must not change what Fit samples;
+    // the Stan data parity check below would fail if it did.
+    await choose(page, 'integration');
+    await page.locator('.code-cell textarea').fill('dat <- "overwritten by another cell"');
+    await page.locator('.code-cell [data-act=run]').click();
+    await page.waitForFunction(() => /> dat <- "overwritten/.test(document.querySelector('.code-cell .console').textContent), null, { timeout: 60000 });
+    await page.locator('.code-cell [data-act=reset]').click();
+    await choose(page, 'workflow');
+    const fits = [];
+    for (const model of ['spfa', 'relaxed']) {
+      await page.locator(`[data-model=${model}]`).click();
+      await page.locator('[data-act=fit]').click();
+      await page.waitForFunction(label => (document.querySelector('.fit-out .run-label')?.textContent ?? '').includes(label), model === 'spfa' ? 'shared slopes' : 'separate slopes', { timeout: 300000 });
+      const rows = await page.locator('.fit-table tbody tr').evaluateAll(trs => trs.map(tr => [...tr.children].map(td => td.textContent)));
+      assert.equal(rows.length, 4);
+      for (const row of rows) assert(Number(row[6]) < 1.05, `R-hat too high: ${row}`);
+      const checks = await page.locator('.checks li').evaluateAll(lis => lis.map(li => ({ status: li.dataset.status, text: li.textContent })));
+      assert(checks.length >= 4 && checks.slice(0, 2).every(c => c.status !== 'na'), 'Divergences and tree depth must come back from the sampler');
+      const [download] = await Promise.all([page.waitForEvent('download'), page.locator('[data-act=record]').click()]);
+      const record = JSON.parse(await readFile(await download.path(), 'utf8'));
+      assert.equal(record.model, model);
+      assert.equal(record.draws.total, 1000, 'The record counts the draws that came back');
+      const reference = await readFile(resolve(dir, 'build/adapter', `stan-data-${model}.json`), 'utf8').catch(() => null);
+      const parity = reference === null ? 'not checked, run lesson.sh adapter first' : stanDataDifference(record.stan_data, JSON.parse(reference));
+      if (reference !== null) assert(parity.maxRelative <= 1e-12, `${model}: the browser Stan data must equal the native adapter check's: ${JSON.stringify(parity)}`);
+      fits.push({ model, rows, checks, stanDataVersusNative: parity });
+      await page.locator('.fit-table').scrollIntoViewIfNeeded();
+      await page.screenshot({ path: resolve(out, `browser-stan-fit-${model}.png`) });
+    }
+    // A Run that succeeds without creating dat leaves nothing to fit, even
+    // though an earlier Run's dat existed.
+    await page.locator('.code-cell textarea').fill('x <- 1');
+    await page.locator('.code-cell [data-act=run]').click();
+    await page.waitForFunction(() => /did not create dat/.test(document.querySelector('.code-cell .console').textContent), null, { timeout: 60000 });
+    assert(await page.locator('[data-act=fit]').isDisabled(), 'Fit must wait for a Run that creates dat');
+    await page.locator('.code-cell [data-act=reset]').click();
+    // Cancelling while R prepares the data restarts R in this browser; a Run in
+    // the new session makes Fit available again.
+    const fitReady = () => page.waitForFunction(() => !document.querySelector('[data-act=fit]').disabled, null, { timeout: 300000 });
+    await page.locator('.code-cell [data-act=run]').click();
+    await fitReady();
     await page.locator('[data-act=fit]').click();
-    await page.waitForSelector('.fit-table', { timeout: 300000 });
-    const rows = await page.locator('.fit-table tbody tr').allInnerTexts();
-    assert.equal(rows.length, 4);
-    for (const row of rows) assert(Number(row.trim().split(/\s+/).pop()) < 1.05, `R-hat too high: ${row}`);
-    await page.locator('.fit-table').scrollIntoViewIfNeeded();
-    await page.screenshot({ path: resolve(out, 'browser-stan-fit.png') });
-    evidence.push({ webRCell: true, mlumrRInBrowser: true, stanFitInBrowser: rows });
+    await page.locator('[data-act=cancel]').click();
+    await page.waitForFunction(() => /R was restarted to stop the preparation/.test(document.querySelector('.fit-out').textContent), null, { timeout: 60000 });
+    assert(await page.locator('[data-act=fit]').isDisabled(), 'After a restart, Fit must wait for a new Run');
+    await page.locator('.code-cell [data-act=run]').click();
+    await fitReady();
+    evidence.push({ webRCell: true, priorCellComparesBothPriors: true, workflowRunsOnceAfterRevisits: true, fitIgnoresDatFromOtherCells: true, fitRefusedWithoutDat: true, cancelDuringPreparationRestartsR: true, stanFitsInBrowser: fits });
   }
-  for (const [width,height] of [[1024,768],[667,375],[844,390],[896,414]]) {
+  // Tablet and landscape phones, portrait phones, and a 1440 by 900 window at 200% zoom.
+  for (const [width,height] of [[1024,768],[667,375],[844,390],[896,414],[320,640],[360,740],[390,844],[412,915],[720,450]]) {
     await page.setViewportSize({width,height});
     await choose(page, 'survival');
-    await page.getByRole('button', {name:'Reset lab', exact:true}).click();
+    await page.getByRole('button', {name:'Reset experiment', exact:true}).click();
     await page.waitForTimeout(100);
     if (!sceneOnly) assert(await page.locator('audio').evaluate(a => a.paused), 'Reset must preserve an explicitly paused state');
     const overflow = await page.locator('.ml-lesson').evaluate(el => el.scrollWidth > el.clientWidth + 1);
     assert(!overflow, `horizontal overflow at ${width}x${height}`);
+    const tick = await page.locator('.visual svg text.tick').first().evaluate(el => el.getBoundingClientRect().height);
+    assert(tick >= 10, `chart labels are ${tick.toFixed(1)}px tall at ${width}x${height}`);
+    const header = await page.locator('.ml-header').evaluate(h => [...h.querySelectorAll('.brand, .ml-chapter-nav > *, .theme-toggle')].filter(el => el.getClientRects().length).map(el => el.getBoundingClientRect()));
+    for (let i = 0; i < header.length; i++) for (let j = i + 1; j < header.length; j++) {
+      const [a, b] = [header[i], header[j]];
+      assert(a.right <= b.left + .5 || b.right <= a.left + .5 || a.bottom <= b.top + .5 || b.bottom <= a.top + .5, `header controls overlap at ${width}x${height}`);
+    }
     const controls = await page.locator('.lab-controls input').all();
     for (const input of controls) {
       await input.scrollIntoViewIfNeeded();
@@ -287,7 +394,7 @@ try {
     }
     await page.locator('.lab-scroll').evaluate(el => el.scrollTop = 0);
     await page.screenshot({path:resolve(out, `survival-${width}x${height}.png`)});
-    evidence.push({viewport:[width,height], horizontalOverflow:false, keyboardControls:true});
+    evidence.push({viewport:[width,height], horizontalOverflow:false, keyboardControls:true, chartLabelPixels:tick, headerOverlap:false});
   }
   if (!sceneOnly) {
     const touch = await browser.newPage({ viewport: {width:1024,height:768}, hasTouch:true });
@@ -315,9 +422,9 @@ try {
     }));
     evidence.push({ resources });
   }
-  assert.deepEqual(failures, []);
+  assert.deepEqual(failures.filter(f => ![...downloads].some(u => f.startsWith('requestfailed ') && f.endsWith(`${u} net::ERR_ABORTED`))), []);
   await writeFile(resolve(out,'browser-results.json'), JSON.stringify({ url, sceneOnly, evidence, failures },null,2));
-  console.log(JSON.stringify({ labs:labs.length, knowledgeChecks:5, diagnostics:7, responsiveSizes:4, browserErrors:failures.length, evidence:out }));
+  console.log(JSON.stringify({ labs:labs.length, knowledgeChecks:5, diagnostics:7, responsiveSizes:evidence.filter(e => e.viewport).length, browserErrors:failures.length, evidence:out }));
 } finally {
   await browser.close();
 }

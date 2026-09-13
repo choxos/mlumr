@@ -4,7 +4,7 @@
 # The site is built locally with `bash lesson.sh dist` and committed as dist/.
 # Building here would need the pinned Tangible checkout, its native speech
 # model and about twenty minutes of local speech synthesis, so this workflow
-# only publishes the committed build.
+# only checks and publishes the committed build.
 #
 # How this coexists with the other writers of gh-pages:
 #   * pkgdown.yaml on main deploys the package website to the gh-pages root
@@ -31,10 +31,16 @@ jobs:
   deploy-lesson:
     runs-on: ubuntu-latest
     steps:
+      # The deploy action brings its own token, so no later step gets one.
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
-      - name: Check that the committed build exists
-        run: test -f dist/index.html && test -f dist/player.js && test -f dist/r/files.json && test -f dist/stan/worker.js
+      # Refuses a dist/ that was not built from this commit's sources: an edited
+      # script without regenerated narration, changed R or Stan files, a
+      # replaced model or a missing asset all fail here.
+      - name: Check that dist/ was built from this commit
+        run: node dist-manifest.mjs verify dist
 
       - name: Add .nojekyll to the lesson build
         run: touch dist/.nojekyll

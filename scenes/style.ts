@@ -2,17 +2,17 @@
 // branch) so /app and /lesson read as one product. Light tokens live on :root;
 // dark tokens apply through the OS setting unless the viewer picked a theme,
 // and through [data-theme="dark"] when they did.
-const lightTokens = `
+export const lightTokens = `
   --bg:#eef1f2; --bg-soft:#e6ebec; --surface:#ffffff; --surface-2:#f7f9f9; --surface-3:#f0f4f4;
-  --ink:#10242c; --ink-soft:#41555d; --muted:#6b7c82; --faint:#9aa8ac;
+  --ink:#10242c; --ink-soft:#41555d; --muted:#596a70; --faint:#7f8f95;
   --border:#e3e9ea; --border-strong:#cfd9db; --hairline:#edf1f1;
   --accent:#1a6d73; --accent-strong:#11484d; --button:#1a6d73; --button-hover:#11484d; --on-accent:#ffffff;
-  --series-a:#006c98; --series-b:#c8741d; --grid:#e3e9ea; --axis:#9aa8ac;
-  --ok:#1f7a5a; --warn:#b5483e; --review:#9a6a14;
+  --series-a:#006c98; --series-b:#c8741d; --grid:#e3e9ea; --axis:#7f8f95;
+  --ok:#1f7a5a; --warn:#b5483e; --review:#8a5e10;
   --shadow:0 1px 2px rgba(11,45,58,.05),0 10px 30px -16px rgba(11,45,58,.18);
   --shadow-lg:0 24px 60px -28px rgba(11,45,58,.4);
   color-scheme:light;`;
-const darkTokens = `
+export const darkTokens = `
   --bg:#0a1316; --bg-soft:#0e191d; --surface:#132127; --surface-2:#0f1c21; --surface-3:#16282f;
   --ink:#e9f0f1; --ink-soft:#b6c4c8; --muted:#8ba0a5; --faint:#65777c;
   --border:#1e2f36; --border-strong:#2a3f47; --hairline:#182830;
@@ -256,6 +256,26 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 .ml-lesson .fit-out {display:grid;gap:12px}
 .ml-lesson .fit-out .chart-card {max-width:680px;box-shadow:none}
 .ml-lesson .fit-table td:nth-child(2),.ml-lesson .fit-table th:nth-child(2) {text-align:left;font-family:var(--font-sans);white-space:normal}
+.ml-lesson .run-where {font-size:13px;color:var(--ink-soft)}
+.ml-lesson .run-label {font-weight:600;color:var(--ink)}
+.ml-lesson .stale {padding:8px 12px;border:1px solid var(--review);border-radius:var(--radius-sm);background:var(--surface-2);color:var(--ink);font-size:13.5px}
+.ml-lesson .fit-status {font-size:13px;color:var(--ink-soft)}
+.ml-lesson .fit-status:empty {display:none}
+.ml-lesson .checks-title {font-size:15px}
+.ml-lesson .checks,.ml-lesson .benchmarks,.ml-lesson .bench-notes {margin:0;padding-left:20px;display:grid;gap:6px;font-size:13.5px;color:var(--ink-soft)}
+.ml-lesson .check-state {font-weight:650}
+.ml-lesson .checks li[data-status=ok] .check-state {color:var(--ok)}
+.ml-lesson .checks li[data-status=review] .check-state,.ml-lesson .checks li[data-status=na] .check-state {color:var(--review)}
+.ml-lesson .checks li[data-status=warn] .check-state {color:var(--warn)}
+.ml-lesson .check-detail {font-size:12.5px;color:var(--muted)}
+.ml-lesson .chart-note {margin-top:6px;font-size:12.5px;color:var(--ink-soft)}
+/* A chart keeps a readable size on a narrow screen and scrolls inside its
+   card, instead of shrinking its labels below legibility. */
+@container (max-width: 560px) {
+  .ml-lesson .chart-card {overflow-x:auto}
+  .ml-lesson .chart-card svg {min-width:520px}
+}
+.ml-lesson .sr-only {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 
 @media (max-width:1100px) { .ml-lesson .brand-tag,.ml-lesson .header-tools a {display:none} .ml-lesson .lab-scroll {padding:16px 18px 22px} .ml-lesson .ml-header {padding:0 14px} }
 @media (max-width:900px), (max-height:500px) {
@@ -277,5 +297,22 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
   .ml-player .xv-credit {font-size:9px;padding:0 6px}
   .ml-player .xv-elapsed {min-width:72px;font-size:10px}
 }
+/* Narrow portrait phones: the notes board repeats what the captions and the
+   chapter already show, so it gives its width back to the lesson. */
+@media (max-width:640px) {
+  :root {--board-w:0px}
+  .ml-player .xv-board {display:none}
+  .ml-lesson .chapter-list {position:fixed;top:calc(var(--header-h) + 4px);left:16px;right:16px;width:auto;transform:none}
+  .ml-lesson .theme-toggle {min-width:44px;padding:0 13px;justify-content:center}
+  .ml-lesson .theme-toggle .theme-track {display:none}
+  .ml-lesson .chapter-count {min-width:44px;font-size:12px}
+}
+@media (max-width:360px) {
+  .ml-lesson .ml-header {padding:0 8px;gap:6px}
+  .ml-lesson .ml-chapter-nav>button {width:36px}
+}
+/* The player asks phones to rotate because its default layout needs width.
+   This lesson reflows to a single column, so portrait stays usable. */
+.ml-player .xv-portrait-message {display:none!important}
 @media (prefers-reduced-motion:reduce) { .ml-player * {scroll-behavior:auto;transition:none!important} }
 `;
