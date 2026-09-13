@@ -1092,8 +1092,8 @@
                    isolated = rank_d >= reachable && length(cens) > 0L,
                    spfa_pinned = spfa_shared && isTRUE(index_pins_slope) &&
                      rank_d < reachable && length(cens) > 0L,
-                   two_sided = rank_d < reachable && !spfa_shared &&
-                     length(cens) > 0L && !one_sided,
+                   two_sided = rank_d < reachable && length(cens) > 0L &&
+                     !one_sided,
                    spfa_shared = spfa_shared && rank_d > 1L)
     }
   }

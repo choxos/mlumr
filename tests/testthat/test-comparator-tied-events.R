@@ -965,3 +965,21 @@ test_that("an exact index fit that leaves the slope free does not pin it", {
   )
   expect_false(isTRUE(attr(idx3, "index_pins_slope")))
 })
+
+test_that("two-sided censoring still reports when the slope is not pinned", {
+  # `spfa_pinned` and `two_sided` are different reasons for the same
+  # undecided answer, and gating the second on the first would refuse an arm
+  # that the reach argument alone already leaves open. An index that fits
+  # exactly without identifying the slope is not pinned, and two-sided
+  # comparator censoring is still two-sided.
+  sv <- survival::Surv(time = c(1, 1, NA, 2), time2 = c(1, 1, 0.5, Inf),
+                       type = "interval2")
+  two <- suppressWarnings(.comp_stub(NULL, NULL, ipd_time = c(1, 1),
+                                     ipd_x = c(0, 0), n_int = 2,
+                                     agd_surv = sv))
+  w <- tryCatch(check(two, aux_by = "none", model = "spfa",
+                      index_exact = TRUE, index_pins_slope = FALSE),
+                warning = conditionMessage)
+  expect_match(w, "they bound on both sides")
+  expect_no_match(w, "is therefore improper")
+})
