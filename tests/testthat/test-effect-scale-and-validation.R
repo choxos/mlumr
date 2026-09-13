@@ -415,8 +415,36 @@ test_that("a chain that wrote no CSV is reported, not asserted about", {
   # tempdir path to go on.
   gone <- file.path(tempdir(), "mlumr_survival_spfa-000000000000-01-000000.csv")
   expect_error(g(c(real, gone), 2L), "1 of 2 chain\\(s\\) reported output")
-  expect_error(g(c(real, gone), 2L), "sampler run rather than of the model")
   expect_error(g(gone, 1L), "not on disk")
+  # What it must NOT do is name a cause. An absent file says a chain left
+  # nothing behind; a model or data failure, an initialization failure, a
+  # killed process and an external deletion all look identical from a list
+  # of paths, and calling it a failure of the run rather than of the model
+  # asserted a distinction nothing here established.
+  expect_error(g(gone, 1L), "cause is not determined here")
+  msg <- tryCatch(g(gone, 1L), error = conditionMessage)
+  expect_false(grepl("rather than of the model", msg, fixed = TRUE))
+  expect_match(msg, "Nothing further was reported about it")
+  # The evidence that DOES bear on the cause is carried instead of dropped.
+  # Asking cmdstanr for the paths can itself fail, and that message used to
+  # be flattened to an empty vector before the generic report went out.
+  with_err <- tryCatch(
+    g(character(0), 2L, retrieval_error = "boom while listing outputs"),
+    error = conditionMessage
+  )
+  expect_match(with_err, "boom while listing outputs")
+  expect_match(with_err, "asking cmdstanr for the output paths failed")
+  with_codes <- tryCatch(g(character(0), 2L, return_codes = c(0L, 70L)),
+                         error = conditionMessage)
+  expect_match(with_codes, "CmdStan return code\\(s\\) 0, 70")
+  both <- tryCatch(g(gone, 1L, retrieval_error = "boom",
+                     return_codes = 70L), error = conditionMessage)
+  expect_match(both, "boom; CmdStan return code\\(s\\) 70")
+  # An installed cmdstanr that does not report codes leaves the message
+  # without them rather than without a message.
+  expect_match(tryCatch(g(gone, 1L, return_codes = NULL),
+                        error = conditionMessage),
+               "Nothing further was reported")
   # A chain that ran and FAILED is dropped by cmdstanr and the run continues
   # on what finished, so a shorter list of real files is not an error.
   expect_true(g(real, 2L))

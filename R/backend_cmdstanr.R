@@ -13,11 +13,27 @@
 #' which is the behavior a partly failing multi-chain fit already relies on.
 #' Only files that are claimed and absent, or no files at all, are refused.
 #'
+#' What this reports is the OBSERVATION and whatever evidence came with it.
+#' An absent file says a chain left nothing behind; it does not say why, and
+#' a model or data failure, an initialization failure, a killed process and
+#' an external deletion all look identical from a list of paths. Naming one
+#' of them, as this used to by calling it a failure of the run rather than
+#' of the model, states a cause nothing here established. CmdStan's own
+#' return codes and captured output are the evidence that does bear on it,
+#' so they are attached where they are available.
+#'
 #' @param files The output paths the fit reports as readable.
 #' @param chains The number of chains requested.
+#' @param retrieval_error The message from asking the fit for its output
+#'   paths, when that itself failed, or `NULL`. Discarding it, as this used
+#'   to, threw away the only account of the failure before reporting a
+#'   generic one.
+#' @param return_codes CmdStan's per-chain return codes, or `NULL` when the
+#'   installed `cmdstanr` does not report them.
 #' @return `TRUE` invisibly. Stops when there is nothing to read.
 #' @keywords internal
-.assert_cmdstan_output <- function(files, chains) {
+.assert_cmdstan_output <- function(files, chains, retrieval_error = NULL,
+                                   return_codes = NULL) {
   files <- as.character(files)
   absent <- files[!file.exists(files)]
   if (!length(absent) && length(files)) return(invisible(TRUE))
@@ -28,14 +44,30 @@
   } else {
     sprintf("none of the %d chain(s) produced output", chains)
   }
-  msg <- paste0(
-    "The Stan run left no draws to read: %s. This is a failure of the ",
-    "sampler run rather than of the model: a chain whose process never ",
-    "started, or that exited before writing its CSV, leaves nothing behind. ",
-    "Re-run with `verbose = TRUE` to see CmdStan's own messages, and set ",
-    "`output_dir` to keep them."
-  )
-  stop(sprintf(msg, detail), call. = FALSE)
+  evidence <- character(0)
+  if (length(retrieval_error) && nzchar(retrieval_error[1L])) {
+    evidence <- c(evidence, paste0("asking cmdstanr for the output paths ",
+                                   "failed with: ", retrieval_error[1L]))
+  }
+  codes <- suppressWarnings(as.integer(return_codes))
+  codes <- codes[!is.na(codes)]
+  if (length(codes)) {
+    evidence <- c(evidence, paste0("CmdStan return code(s) ",
+                                   paste(codes, collapse = ", ")))
+  }
+  evidence <- if (length(evidence)) {
+    paste0(" What is known about it: ", paste(evidence, collapse = "; "), ".")
+  } else {
+    " Nothing further was reported about it."
+  }
+  stop(sprintf(paste0(
+    "The Stan run left no draws to read: %s.%s The cause is not determined ",
+    "here: a chain whose process never started, one that exited before ",
+    "writing its CSV, a model or data failure, and a file removed from ",
+    "outside all look the same from the output paths alone. Re-run with ",
+    "`verbose = TRUE` to see CmdStan's own messages, and set `output_dir` ",
+    "to keep them."
+  ), detail, evidence), call. = FALSE)
 }
 
 #' Fit a Stan model using cmdstanr
@@ -102,9 +134,22 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
     dots
   )
   fit <- do.call(mod$sample, sample_args)
+  # The retrieval error is the only account of what went wrong when asking
+  # for the paths is what failed, so it is kept rather than flattened to an
+  # empty vector. `return_codes()` postdates some `cmdstanr` versions and can
+  # itself throw on a run that never started, so it is asked for defensively
+  # and the report goes out without it when it is not there.
+  retrieval <- NULL
   produced <- tryCatch(fit$output_files(include_failed = FALSE),
-                       error = function(e) character(0))
-  .assert_cmdstan_output(produced, chains)
+                       error = function(e) {
+                         retrieval <<- conditionMessage(e)
+                         character(0)
+                       })
+  .assert_cmdstan_output(
+    produced, chains,
+    retrieval_error = retrieval,
+    return_codes = tryCatch(fit$return_codes(), error = function(e) NULL)
+  )
 
   # Extract draws as plain data.frame (drop metadata columns). Keep the real
   # per-draw chain id before dropping it, so diagnostics (loo r_eff) use the
