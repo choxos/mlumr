@@ -67,10 +67,14 @@ jobs:
           # build did not produce, which includes the entire app subtree, and
           # the navbar's "Web app" entry starts serving a 404. Publishing a
           # release triggers this deployment, so the release itself is what
-          # would have broken the link.
+          # would have broken the link. The narrated lesson is deployed the
+          # same way into `lesson/` from the lesson branch, and needs the same
+          # exclusion for the same reason.
           clean-exclude: |
             app
             app/**
+            lesson
+            lesson/**
           # The app workflow pushes the same branch. A forced push from here
           # that raced it would replace its commit; without force the action
           # fetches, rebases this deployment onto whatever is there, and

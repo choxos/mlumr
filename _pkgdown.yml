@@ -13,7 +13,7 @@ template:
 
 navbar:
   structure:
-    left: [intro, app, reference, articles, news]
+    left: [intro, app, lesson, reference, articles, news]
     right: [search, lightswitch, github]
   components:
     # In-browser playground (separate deploy on the webapp branch at /mlumr/app),
@@ -23,6 +23,13 @@ navbar:
       icon: fa-rocket
       href: https://choxos.github.io/mlumr/app
       aria-label: mlumr web app (in-browser playground)
+    # Narrated interactive lesson (separate deploy on the lesson branch at
+    # /mlumr/lesson).
+    lesson:
+      text: Lesson
+      icon: fa-graduation-cap
+      href: https://choxos.github.io/mlumr/lesson
+      aria-label: mlumr narrated interactive lesson
     # Articles dropdown with short outcome-type labels (the full descriptive
     # titles stay on the pages themselves and in the CRAN vignette index).
     articles:
