@@ -4,7 +4,7 @@
 \alias{.grid_hits_targets}
 \title{Can one affine map send every target onto a grid node?}
 \usage{
-.grid_hits_targets(nodes, targets)
+.grid_hits_targets(nodes, targets, admits = NULL)
 }
 \arguments{
 \item{nodes}{The arm's integration nodes, one row per node.}

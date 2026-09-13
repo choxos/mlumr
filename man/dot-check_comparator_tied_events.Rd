@@ -12,7 +12,8 @@
   model = "relaxed",
   index_exact = NA,
   index_design = NULL,
-  index_aux_order = 0
+  index_aux_order = 0,
+  index_region = NULL
 )
 }
 \arguments{
@@ -46,6 +47,16 @@ shrinks with the width, and \code{NA} for one that was not settled. Consulted
 only when \code{aux_by} is \code{"none"}. A certified order is subtracted from the
 comparator's own growth, since both are written in powers of the same
 width; an unsettled one makes this report rather than refuse.}
+
+\item{index_region}{The coefficient region an eventless index confines
+\verb{(mu_index, beta)} to, as \code{\link[=.check_survival_scale_collapse]{.check_survival_scale_collapse()}} reports in
+its \code{index_region} attribute, or \code{NULL} where the index has events and
+the question does not arise. An order of zero says these rows remove no
+power of the auxiliary's width; it does not say they leave the slope
+free, and treating it as though it did refused fits whose index and
+comparator cannot reach the boundary together. Consulted only under
+\code{model = "spfa"} with \code{aux_by = "none"}, where the two share the slope
+AND the auxiliary; see \code{\link[=.index_slope_admits]{.index_slope_admits()}}.}
 }
 \value{
 \code{TRUE} invisibly if the data were warned about, \code{FALSE} otherwise.
