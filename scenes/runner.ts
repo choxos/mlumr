@@ -176,7 +176,7 @@ export function prepareFit(model: 'spfa' | 'relaxed', status: Status): Promise<P
 
 export interface Summary { name: string; mean: number; lo: number; hi: number; mcse: number; rhat: number; essBulk: number; essTail: number; draws: number[] }
 export interface Diagnostics {
-  /** null when the sampler did not return the column, which is not a pass. */
+  /** null when the sampler did not return the column or it holds a non-finite value, which is not a pass. */
   divergences: number | null;
   treedepthHits: number | null;
   maxTreedepth: number;
@@ -301,7 +301,12 @@ export function summarize(runs: Chain[], params: string[], sampler: Sampler, sec
     if (!all.every(Number.isFinite)) throw new Error(`The sampler returned non-finite draws of ${name}.`);
     return { name, mean: mean(all), lo: quantile(all, .025), hi: quantile(all, .975), mcse: mcseMean(chains), rhat: rhat(chains), essBulk: essBulk(chains), essTail: essTail(chains), draws: all };
   });
-  const count = (name: string, hit: (v: number) => boolean) => names.includes(name) ? perChain(name).flat().filter(hit).length : null;
+  // A missing column, or one holding a non-finite value, cannot show that no event happened.
+  const count = (name: string, hit: (v: number) => boolean) => {
+    if (!names.includes(name)) return null;
+    const values = perChain(name).flat();
+    return values.every(Number.isFinite) ? values.filter(hit).length : null;
+  };
   const unavailable: string[] = [];
   const rhats: { name: string; value: number }[] = [], bulk: typeof rhats = [], tail: typeof rhats = [];
   const checked = names.filter(name => !name.endsWith('__') && !name.startsWith('log_lik'));

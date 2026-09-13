@@ -71,6 +71,18 @@ beforeEach(() => { FakeWorker.all = []; vi.stubGlobal('Worker', FakeWorker); });
 afterEach(() => { vi.useRealTimers(); });
 
 describe('browser Stan runs', () => {
+  it('reports a non-finite sampler diagnostic as unavailable, not as zero events', async () => {
+    behavior = answer(worker => {
+      const reply = result(worker.index + 1);
+      (reply.draws as number[][])[1][5] = NaN; // divergent__
+      (reply.draws as number[][])[2][5] = NaN; // treedepth__
+      return reply;
+    });
+    const fit = await run();
+    expect(fit.diagnostics.divergences).toBeNull();
+    expect(fit.diagnostics.treedepthHits).toBeNull();
+  });
+
   it('summarizes validated draws and counts what came back', async () => {
     behavior = answer(worker => result(worker.index + 1));
     const fit = await run();

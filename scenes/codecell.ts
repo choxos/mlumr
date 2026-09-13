@@ -47,9 +47,9 @@ function check(label: string, value: string, status: 'ok' | 'review' | 'warn' | 
 function diagnosticsView(fit: Fit) {
   const d = fit.diagnostics, minEss = 100 * fit.chains;
   const items = [
-    d.divergences === null ? check('Divergent transitions', 'not returned', 'na', 'The sampler did not return divergent__.')
+    d.divergences === null ? check('Divergent transitions', 'not available', 'na', 'The sampler did not return usable divergent__ values.')
       : check('Divergent transitions', `${d.divergences} of ${fit.draws}`, d.divergences ? 'warn' : 'ok', 'Any divergence means part of the posterior was not explored well.'),
-    d.treedepthHits === null ? check(`Tree depth ${d.maxTreedepth} reached`, 'not returned', 'na', 'The sampler did not return treedepth__.')
+    d.treedepthHits === null ? check(`Tree depth ${d.maxTreedepth} reached`, 'not available', 'na', 'The sampler did not return usable treedepth__ values.')
       : check(`Tree depth ${d.maxTreedepth} reached`, `${d.treedepthHits} of ${fit.draws}`, d.treedepthHits ? 'review' : 'ok', 'Hitting the limit cuts trajectories short and slows exploration.'),
     d.maxRhat ? check('Largest R-hat', `${num(d.maxRhat.value)} (${d.maxRhat.name})`, d.maxRhat.value > 1.01 ? 'warn' : 'ok', `Rank-normalized split R-hat over ${d.checked - d.unavailable.length} of ${d.checked} model quantities, parameters included. Above 1.01 means the chains disagree.`)
       : check('Largest R-hat', 'unavailable', 'na', 'No model quantity had a computable R-hat.'),

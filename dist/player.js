@@ -17932,7 +17932,11 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       if (!all.every(Number.isFinite)) throw new Error(`The sampler returned non-finite draws of ${name}.`);
       return { name, mean: mean(all), lo: quantile(all, 0.025), hi: quantile(all, 0.975), mcse: mcseMean(chains), rhat: rhat(chains), essBulk: essBulk(chains), essTail: essTail(chains), draws: all };
     });
-    const count = (name, hit) => names.includes(name) ? perChain(name).flat().filter(hit).length : null;
+    const count = (name, hit) => {
+      if (!names.includes(name)) return null;
+      const values = perChain(name).flat();
+      return values.every(Number.isFinite) ? values.filter(hit).length : null;
+    };
     const unavailable = [];
     const rhats = [], bulk = [], tail = [];
     const checked = names.filter((name) => !name.endsWith("__") && !name.startsWith("log_lik"));
@@ -17996,8 +18000,8 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
   function diagnosticsView(fit) {
     const d2 = fit.diagnostics, minEss = 100 * fit.chains;
     const items = [
-      d2.divergences === null ? check("Divergent transitions", "not returned", "na", "The sampler did not return divergent__.") : check("Divergent transitions", `${d2.divergences} of ${fit.draws}`, d2.divergences ? "warn" : "ok", "Any divergence means part of the posterior was not explored well."),
-      d2.treedepthHits === null ? check(`Tree depth ${d2.maxTreedepth} reached`, "not returned", "na", "The sampler did not return treedepth__.") : check(`Tree depth ${d2.maxTreedepth} reached`, `${d2.treedepthHits} of ${fit.draws}`, d2.treedepthHits ? "review" : "ok", "Hitting the limit cuts trajectories short and slows exploration."),
+      d2.divergences === null ? check("Divergent transitions", "not available", "na", "The sampler did not return usable divergent__ values.") : check("Divergent transitions", `${d2.divergences} of ${fit.draws}`, d2.divergences ? "warn" : "ok", "Any divergence means part of the posterior was not explored well."),
+      d2.treedepthHits === null ? check(`Tree depth ${d2.maxTreedepth} reached`, "not available", "na", "The sampler did not return usable treedepth__ values.") : check(`Tree depth ${d2.maxTreedepth} reached`, `${d2.treedepthHits} of ${fit.draws}`, d2.treedepthHits ? "review" : "ok", "Hitting the limit cuts trajectories short and slows exploration."),
       d2.maxRhat ? check("Largest R-hat", `${num(d2.maxRhat.value)} (${d2.maxRhat.name})`, d2.maxRhat.value > 1.01 ? "warn" : "ok", `Rank-normalized split R-hat over ${d2.checked - d2.unavailable.length} of ${d2.checked} model quantities, parameters included. Above 1.01 means the chains disagree.`) : check("Largest R-hat", "unavailable", "na", "No model quantity had a computable R-hat."),
       d2.minEssBulk && d2.minEssTail ? check("Smallest effective sample size", `bulk ${Math.round(d2.minEssBulk.value)} (${d2.minEssBulk.name}), tail ${Math.round(d2.minEssTail.value)} (${d2.minEssTail.name})`, Math.min(d2.minEssBulk.value, d2.minEssTail.value) < minEss ? "review" : "ok", `Below ${minEss} (100 per chain) makes intervals and R-hat unreliable.`) : check("Smallest effective sample size", "unavailable", "na", "No model quantity had a computable effective sample size.")
     ];
