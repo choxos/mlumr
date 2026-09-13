@@ -18081,7 +18081,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     };
     const showFit = () => {
       if (!fitOut) return;
-      const stale = state.fit && state.fitRevision !== state.revision ? `<p class="stale" role="note">This result came from code revision ${state.fitRevision}. The code has changed since, so run it and fit again to update the result.</p>` : "";
+      const stale = state.fit && (state.fitRevision !== state.revision || state.fitData !== state.preparedBy) ? `<p class="stale" role="note">This result came from code revision ${state.fitRevision} and the dat its Run created. The code or dat has changed since, so fit again after a successful Run to update the result.</p>` : "";
       fitOut.innerHTML = stale + (state.fit || "<p>Run the R code first. Then fit the real mlumr Stan model to <code>dat</code>, right here.</p>");
     };
     const fitReady = () => state.prepared === state.revision && state.preparedIn === rSession();
@@ -18124,24 +18124,27 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
           state.console = render3(lines) + (cell.mlumr && !failed && !fitData ? '\n<span class="err">This Run did not create dat, so the Fit button has nothing to sample.</span>' : "");
           state.prepared = fitData && !failed ? revision : null;
           state.preparedIn = rSession();
+          state.preparedBy = fitData && !failed ? id : void 0;
         }
       } catch (error) {
         if (state.run === id) {
           state.console = `<span class="err">${esc2(error instanceof Error ? error.message : String(error))}</span>`;
           state.prepared = null;
+          state.preparedBy = void 0;
         }
       } finally {
         if (!signal.aborted) {
           busy = null;
           output.innerHTML = state.console;
           sync();
+          showFit();
         }
       }
     }
     async function fit() {
       if (busy || !fitButton || !fitOut || !fitReady()) return;
       onActivity();
-      const spec = { run: ++runs, model: state.model, revision: state.revision };
+      const spec = { run: ++runs, model: state.model, revision: state.revision, data: state.preparedBy };
       busy = "fit";
       job = new AbortController();
       const own = job;
@@ -18166,6 +18169,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         }, own.signal);
         state.fit = fitView(spec, prepared, result);
         state.fitRevision = spec.revision;
+        state.fitData = spec.data;
         state.record = {
           lesson: "mlumr lesson, Run mlumr in your browser",
           created: (/* @__PURE__ */ new Date()).toISOString(),
@@ -18193,6 +18197,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         if (cancelled && preparing) state.prepared = null;
         state.fit = cancelled ? `<p class="feedback">Fit ${spec.run} was cancelled${signal.aborted ? " because you left this chapter" : ""}. ${preparing ? "R was restarted to stop the preparation, so run the code again before fitting. " : ""}No result was kept.</p>` : `<p class="feedback" role="alert">Fit ${spec.run} failed. ${esc2(message)}</p>`;
         state.fitRevision = spec.revision;
+        state.fitData = spec.data;
         state.record = void 0;
         announce(cancelled ? `Fit ${spec.run} cancelled.` : `Fit ${spec.run} failed.`);
       } finally {

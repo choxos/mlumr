@@ -224,6 +224,18 @@ describe('code cell lifecycle', () => {
     expect($(slot(), '.fit-out').textContent).toContain('stc warned');
   });
 
+  it('marks a shown fit as stale when a new Run replaces dat, even for unchanged code', async () => {
+    mountCell(slot(), mlumrCell, 'workflow');
+    await runOk(slot());
+    runner.prepareFit.mockResolvedValue(prepared);
+    runner.fitStan.mockResolvedValue(fit());
+    click(slot(), '[data-act=fit]');
+    await fitShown();
+    expect(slot().querySelector('.fit-out .stale')).toBeNull();
+    await runOk(slot());
+    expect($(slot(), '.fit-out .stale').textContent).toContain('revision 0');
+  });
+
   it('reports editing, running and fitting as activity', async () => {
     const activity = vi.fn();
     mountCell(slot(), mlumrCell, 'workflow', activity);

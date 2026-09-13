@@ -20,8 +20,9 @@ const MODEL: Record<Model, string> = { spfa: 'shared slopes (SPFA)', relaxed: 's
 /** What a learner did in a cell outlives its DOM, so leaving a chapter and
  * coming back restores the draft, the console and the last fit. `revision`
  * counts edits; `prepared` is the revision whose Run created the `dat` that Fit samples, and
- * `preparedIn` the R session that holds it. */
-interface Saved { code: string; revision: number; prepared: number | null; preparedIn?: number; run: number; model: Model; console: string; fit: string; fitRevision: number; record?: object }
+ * `preparedIn` the R session that holds it, `preparedBy` the Run that created it.
+ * `fitData` is the Run whose `dat` the shown fit sampled. */
+interface Saved { code: string; revision: number; prepared: number | null; preparedIn?: number; preparedBy?: number; run: number; model: Model; console: string; fit: string; fitRevision: number; fitData?: number; record?: object }
 const saved = new Map<string, Saved>();
 let runs = 0;
 
@@ -134,7 +135,8 @@ export function mountCell(slot: HTMLElement, cell: Cell, key: string, onActivity
   const announce = (message: string) => { if (fitStatus) fitStatus.textContent = message; };
   const showFit = () => {
     if (!fitOut) return;
-    const stale = state.fit && state.fitRevision !== state.revision ? `<p class="stale" role="note">This result came from code revision ${state.fitRevision}. The code has changed since, so run it and fit again to update the result.</p>` : '';
+    // Running unchanged code again can still create a different dat, so the data counts too.
+    const stale = state.fit && (state.fitRevision !== state.revision || state.fitData !== state.preparedBy) ? `<p class="stale" role="note">This result came from code revision ${state.fitRevision} and the dat its Run created. The code or dat has changed since, so fit again after a successful Run to update the result.</p>` : '';
     fitOut.innerHTML = stale + (state.fit || '<p>Run the R code first. Then fit the real mlumr Stan model to <code>dat</code>, right here.</p>');
   };
   // A restart started from any cell empties R, so readiness is tied to the session.
@@ -174,17 +176,20 @@ export function mountCell(slot: HTMLElement, cell: Cell, key: string, onActivity
         state.console = render(lines) + (cell.mlumr && !failed && !fitData ? '\n<span class="err">This Run did not create dat, so the Fit button has nothing to sample.</span>' : '');
         state.prepared = fitData && !failed ? revision : null;
         state.preparedIn = rSession();
+        state.preparedBy = fitData && !failed ? id : undefined;
       }
     } catch (error) {
       if (state.run === id) {
         state.console = `<span class="err">${esc(error instanceof Error ? error.message : String(error))}</span>`;
         state.prepared = null;
+        state.preparedBy = undefined;
       }
     } finally {
       if (!signal.aborted) {
         busy = null;
         output.innerHTML = state.console;
         sync();
+        showFit();
       }
     }
   }
@@ -194,7 +199,7 @@ export function mountCell(slot: HTMLElement, cell: Cell, key: string, onActivity
     onActivity();
     // The analysis is fixed here, before anything awaits: later clicks on the
     // model buttons or edits to the code cannot change what this run is.
-    const spec = { run: ++runs, model: state.model, revision: state.revision };
+    const spec = { run: ++runs, model: state.model, revision: state.revision, data: state.preparedBy };
     busy = 'fit';
     job = new AbortController();
     const own = job;
@@ -221,6 +226,7 @@ export function mountCell(slot: HTMLElement, cell: Cell, key: string, onActivity
       }, own.signal);
       state.fit = fitView(spec, prepared, result);
       state.fitRevision = spec.revision;
+      state.fitData = spec.data;
       state.record = {
         lesson: 'mlumr lesson, Run mlumr in your browser', created: new Date().toISOString(), run: spec.run,
         model: spec.model, stan_model: prepared.model_name, code_revision: spec.revision,
@@ -241,6 +247,7 @@ export function mountCell(slot: HTMLElement, cell: Cell, key: string, onActivity
         ? `<p class="feedback">Fit ${spec.run} was cancelled${signal.aborted ? ' because you left this chapter' : ''}. ${preparing ? 'R was restarted to stop the preparation, so run the code again before fitting. ' : ''}No result was kept.</p>`
         : `<p class="feedback" role="alert">Fit ${spec.run} failed. ${esc(message)}</p>`;
       state.fitRevision = spec.revision;
+      state.fitData = spec.data;
       state.record = undefined;
       announce(cancelled ? `Fit ${spec.run} cancelled.` : `Fit ${spec.run} failed.`);
     } finally {
