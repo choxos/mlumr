@@ -2052,12 +2052,12 @@
                "Re-run with a smaller `n_int` to have the question ",
                "answered, or give")
       } else if (identical(why, "slope")) {
-        paste0("the index study's censored rows admit the slope such a map ",
-               "would need only on the boundary of the region they leave, ",
-               "where the index's own intercept is pinned to a point rather ",
-               "than to an interval. That costs a power of the auxiliary's ",
-               "width which is not counted here, so neither the refusal nor ",
-               "its absence is established. Give")
+        paste0("the index study's own rows admit the slope such a map ",
+               "would need only on the boundary of the region they leave. ",
+               "The coefficients they keep alive there shrink to a point ",
+               "rather than to a region, which costs a power of the ",
+               "auxiliary's width that is not counted here, so neither the ",
+               "refusal nor its absence is established. Give")
       } else {
         paste0("a candidate map came within rounding of carrying them, and ",
                "whether it does so exactly could not be settled by the ",
@@ -2932,6 +2932,35 @@
     list(lower = ifelse(right, y[!events], open[!events]),
          upper = ifelse(right, Inf, y[!events]))
   }
+  # The region every row is observed in, the EVENT rows included. An event
+  # row is an equality rather than an interval: as the width falls its
+  # density grows where the predictor reproduces its own time and vanishes
+  # exponentially anywhere else, so the row confines the predictor to a
+  # single point exactly as a censored row confines it to an interval.
+  #
+  # Building this from the censored rows alone is what refused a proper fit.
+  # A lone right-censoring inequality is always satisfiable by moving
+  # `mu_index`, so censored rows on their own restrict no slope at all; the
+  # event rows are what take that freedom away. An index with one event at
+  # `t = 1` on `x = 0` beside a right-censored row at `t = 4` on `x = 1`
+  # pins `mu_index` to zero and then needs `beta >= log 4`, while a binary
+  # comparator's exact fit at times `(1, 1, 2)` needs `beta = +/- log 2`.
+  # Neither reaches it, so every path to the boundary leaves one side with a
+  # residual and the posterior is proper: the measured profile
+  # `d log L / d log s` runs +1.3, +6.2, +16.9, +36.9 as `s` falls through
+  # 0.15 to 0.05, which is `exp(-c / s^2)` and not a power.
+  full_region <- function() {
+    lower <- rep(NA_real_, length(y))
+    upper <- rep(NA_real_, length(y))
+    lower[events] <- y[events]
+    upper[events] <- y[events]
+    if (any(!events)) {
+      r <- cens_region()
+      lower[!events] <- r$lower
+      upper[!events] <- r$upper
+    }
+    list(X = X, lower = lower, upper = upper)
+  }
   # With no event rows there is no design to fit, and the question becomes
   # whether any linear predictor satisfies every censored row at once. A
   # conflict bounds the auxiliary and is reported as such; a certified
@@ -2945,13 +2974,11 @@
     reg <- cens_region()
     eventless <- .censoring_bounds_aux(X, y, events,
                                        lower = reg$lower, upper = reg$upper)
-    # The region itself, for a caller that shares this study's slope. It is
-    # the censored rows' design beside the ends of the region each one is
-    # observed to lie in, on the scale the fit is read on, and it travels
-    # whole rather than as a verdict, because what the comparator asks of it
-    # is whether a PARTICULAR slope is still feasible.
-    region <- list(X = X[!events, , drop = FALSE], lower = reg$lower,
-                   upper = reg$upper)
+    # The region itself, for a caller that shares this study's slope. It
+    # travels whole rather than as a verdict, because what the comparator
+    # asks of it is whether a PARTICULAR slope is still feasible. With no
+    # event rows it is exactly the censored rows' own region.
+    region <- full_region()
     if (identical(as.character(eventless), "bounded")) {
       return(invisible(structure(FALSE, bounds_aux = TRUE)))
     }
@@ -3012,35 +3039,6 @@
     # the comparator would refuse on that reading, so it is reported as
     # unsettled instead.
     return(invisible(structure(FALSE, aux_order = NA_real_)))
-  }
-  # The region every row is observed in, the EVENT rows included. An event
-  # row is an equality rather than an interval: as the width falls its
-  # density grows where the predictor reproduces its own time and vanishes
-  # exponentially anywhere else, so the row confines the predictor to a
-  # single point exactly as a censored row confines it to an interval.
-  #
-  # Building this from the censored rows alone is what refused a proper fit.
-  # A lone right-censoring inequality is always satisfiable by moving
-  # `mu_index`, so censored rows on their own restrict no slope at all; the
-  # event rows are what take that freedom away. An index with one event at
-  # `t = 1` on `x = 0` beside a right-censored row at `t = 4` on `x = 1`
-  # pins `mu_index` to zero and then needs `beta >= log 4`, while a binary
-  # comparator's exact fit at times `(1, 1, 2)` needs `beta = +/- log 2`.
-  # Neither reaches it, so every path to the boundary leaves one side with a
-  # residual and the posterior is proper: the measured profile
-  # `d log L / d log s` runs +1.3, +6.2, +16.9, +36.9 as `s` falls through
-  # 0.15 to 0.05, which is `exp(-c / s^2)` and not a power.
-  full_region <- function() {
-    lower <- rep(NA_real_, length(y))
-    upper <- rep(NA_real_, length(y))
-    lower[events] <- y[events]
-    upper[events] <- y[events]
-    if (any(!events)) {
-      r <- cens_region()
-      lower[!events] <- r$lower
-      upper[!events] <- r$upper
-    }
-    list(X = X, lower = lower, upper = upper)
   }
   s <- .residual_variation_status(X[events, , drop = FALSE], y[events],
                                   "identity")

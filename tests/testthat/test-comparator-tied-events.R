@@ -2070,11 +2070,14 @@ test_that("the cross sign decides a comparison, not a division", {
   expect_identical(mlumr:::.cross_sign(1, 3, 1, 2), -1)
   expect_identical(mlumr:::.cross_sign(1, 2, 1, 3), 1)
   expect_identical(mlumr:::.cross_sign(2, 4, 1, 2), 0)
-  # The products cancel exactly while neither operand is representable as the
-  # quotient: `0.1 * 3 - 0.3 * 1` is not zero in double precision, and its
-  # rounded value has the wrong sign for the true difference.
-  expect_false(0.1 * 3 - 0.3 == 0)
-  expect_identical(mlumr:::.cross_sign(0.1, 1, 0.3, 3), sign(0.1 * 3 - 0.3))
+  # Where the two products cancel in double precision and do NOT cancel
+  # exactly. `(1/3) * 3` rounds to 1 at the midpoint, so `1 * 1 - (1/3) * 3`
+  # is zero in floating point while the true difference is `2^-54`: the cheap
+  # sign says boundary and the exact one says strictly positive. A verdict of
+  # "boundary" here would pin a slope to a point that is not on one.
+  expect_identical((1 / 3) * 3, 1)
+  expect_identical(sign(1 * 1 - (1 / 3) * 3), 0)
+  expect_identical(mlumr:::.cross_sign(1, 3, 1 / 3, 1), 1)
   # An operand whose own subtraction rounded is bounded rather than
   # discarded, and only genuine cancellation at the last bits is left open.
   q <- 1 - 1e-20
