@@ -1,4 +1,5 @@
 [
+  "DESCRIPTION",
   "NAMESPACE",
   "R/mlumr.R",
   "inst/stan/include/binary_functions.stan",

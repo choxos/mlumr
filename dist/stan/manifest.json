@@ -1,0 +1,23 @@
+{
+  "about": "The binomial mlumr Stan programs compiled to WebAssembly for the browser fit. stan_sha256 hashes each program with its includes expanded.",
+  "compiled_from": {
+    "mlumr_commit": "370002fce0af67f4183b6c0f3ec867eb7092ac0c",
+    "webapp_commit": "0eeb468f7447103983be2190cbd092e0ce2f41e9",
+    "compiler": "stan-wasm-server, as on the webapp branch"
+  },
+  "tinystan": "0.3.3",
+  "models": {
+    "mlumr_binary_spfa": {
+      "stan_sha256": "94beb597a9ffc880aa10c90b69eab25f75379fd23c2f2ef18ee352c10e5cd311",
+      "wasm_sha256": "9f22f8e5ac723031e02f122ab7a2e067c9af4a9348337422cf132a65d7221e1d",
+      "js_sha256": "27bb232937cac47298bf4a9ded9c1b1d96360b2ff5ef57a0c0e091b917dac6e0",
+      "stanc": "2.39.0"
+    },
+    "mlumr_binary_relaxed": {
+      "stan_sha256": "f7b89f6de38d98cc8d07dc144b8d4c67a3f86c1a8f4cdf9848fe15b64fc37b89",
+      "wasm_sha256": "2f2c80893f0817d63d9b8990d9a52eacbc827a73ee9849298d7e093b12a88cc8",
+      "js_sha256": "27bb232937cac47298bf4a9ded9c1b1d96360b2ff5ef57a0c0e091b917dac6e0",
+      "stanc": "2.39.0"
+    }
+  }
+}

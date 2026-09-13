@@ -781,7 +781,7 @@
     const deleted = [...a2.slice(shared)].reverse();
     const inserted = [...b2.slice(shared)];
     const weight = (char) => char === "\n" ? 4 : 1;
-    const total = [...deleted, ...inserted].reduce((sum, char) => sum + weight(char), 0);
+    const total = [...deleted, ...inserted].reduce((sum2, char) => sum2 + weight(char), 0);
     let budget = u * total;
     let remaining = a2.length;
     for (const char of deleted) {
@@ -15959,21 +15959,21 @@
           const spec = schema2[param];
           if (!spec)
             continue;
-          const segments = this.tracks.get(param) ?? [];
-          const from = this.valueFromSegments(segments, beat.t, origin[param] ?? spec.default, spec.interpolate);
+          const segments2 = this.tracks.get(param) ?? [];
+          const from = this.valueFromSegments(segments2, beat.t, origin[param] ?? spec.default, spec.interpolate);
           const duration = spec.interpolate === "snap" ? 0 : beat.over;
-          segments.push({ start: beat.t, end: beat.t + duration, from: clone2(from), to: clone2(target2) });
-          this.tracks.set(param, segments);
+          segments2.push({ start: beat.t, end: beat.t + duration, from: clone2(from), to: clone2(target2) });
+          this.tracks.set(param, segments2);
         }
       }
     }
     /** Writes only parameters whose first answer command has begun. */
     evaluate(t2, out = {}) {
-      for (const [param, segments] of this.tracks) {
-        if (t2 < segments[0].start)
+      for (const [param, segments2] of this.tracks) {
+        if (t2 < segments2[0].start)
           continue;
         const spec = this.schema[param];
-        out[param] = this.valueFromSegments(segments, t2, spec.default, spec.interpolate);
+        out[param] = this.valueFromSegments(segments2, t2, spec.default, spec.interpolate);
       }
       return out;
     }
@@ -15981,9 +15981,9 @@
     activity(t2, fadeSeconds = 0.55, out = {}) {
       for (const param of Object.keys(out))
         delete out[param];
-      for (const [param, segments] of this.tracks) {
+      for (const [param, segments2] of this.tracks) {
         let active;
-        for (const segment of segments) {
+        for (const segment of segments2) {
           if (t2 < segment.start)
             break;
           active = segment;
@@ -16000,9 +16000,9 @@
       }
       return out;
     }
-    valueFromSegments(segments, t2, fallback, mode) {
+    valueFromSegments(segments2, t2, fallback, mode) {
       let active;
-      for (const segment of segments) {
+      for (const segment of segments2) {
         if (t2 < segment.start)
           break;
         active = segment;
@@ -16739,7 +16739,7 @@
   function dependence(rho) {
     const weights = [(1 + rho) / 4, (1 - rho) / 4, (1 - rho) / 4, (1 + rho) / 4];
     const risks = [0, 1, 1, 2].map((x2) => logistic(-2.8 + 1.6 * x2));
-    return { weights, risks, risk: weights.reduce((sum, w2, i3) => sum + w2 * risks[i3], 0) };
+    return { weights, risks, risk: weights.reduce((sum2, w2, i3) => sum2 + w2 * risks[i3], 0) };
   }
   function identification(design, separation, target2, priorSD) {
     const xs = design === "one" ? [0] : design === "duplicate" ? [0, 0] : [-separation, separation];
@@ -16789,16 +16789,6 @@
     const sorted = [...xs].sort((a2, b2) => a2 - b2);
     const h2 = (sorted.length - 1) * p2, lo = Math.floor(h2);
     return sorted[lo] + (sorted[Math.min(lo + 1, sorted.length - 1)] - sorted[lo]) * (h2 - lo);
-  }
-  function splitRhat(chains) {
-    const halves = chains.flatMap((c2) => {
-      const n2 = Math.floor(c2.length / 2);
-      return [c2.slice(0, n2), c2.slice(c2.length - n2)];
-    });
-    const n = halves[0].length, means = halves.map(mean), grand = mean(means);
-    const within = mean(halves.map((h2, i3) => h2.reduce((s2, x2) => s2 + (x2 - means[i3]) ** 2, 0) / (n - 1)));
-    const between = n * means.reduce((s2, m2) => s2 + (m2 - grand) ** 2, 0) / (halves.length - 1);
-    return Math.sqrt(((n - 1) / n * within + between / n) / within);
   }
 
   // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/content.ts
@@ -16872,11 +16862,11 @@
     },
     {
       name: "Continuous",
-      equation: "patient outcome ~ Normal(mean, sigma)\ntrial B mean ~ Normal(average mean, SE)",
+      equation: "patient outcome ~ Normal(mean, sigma\xB2)\ntrial B mean ~ Normal(average mean, SE\xB2)\nThe second argument is a variance. set_agd() itself takes the SE.",
       input: 'set_agd(data, treatment = "trt", family = "normal",\n        outcome_mean = "y_mean", outcome_se = "y_se",\n        outcome_n = "n", cov_means = ...)',
       effects: 'marginal_effects(effect = "md"). No difference means MD = 0.',
       scale: "The link is identity by default, or log. Trial B supplies its mean outcome and the standard error of that mean, on the original scale, even with a log link.",
-      boundary: "The standard error of the mean is not the standard deviation of individual outcomes. If a paper gives a standard deviation instead, divide it by the square root of the number of patients. With more than one row, outcome_n is required so the rows can be weighted by size."
+      boundary: "The standard error of the mean is not the standard deviation of individual outcomes. For a simple unweighted mean of independent patients, the SE is the SD divided by the square root of the number of patients. An adjusted, weighted or clustered estimate needs the standard error that belongs to that estimate. With more than one row, outcome_n is required so the rows can be weighted by size."
     },
     {
       name: "Counts",
@@ -16890,7 +16880,7 @@
       name: "Survival",
       equation: "likelihood = hazard^event \xD7 survival, for each patient\ntrial B terms are averaged over its covariates",
       input: 'set_ipd(data, ..., family = "survival", time = "months", status = "event")\nset_agd_surv(data, treatment = "trt", time = "months",\n             status = "event", cov_means = ...)',
-      effects: 'marginal_effects(effect = "hr" at a time, "tr", "rmstd" or "rmstr" up to a horizon). No difference means HR = 1, TR = 1, RMST difference = 0 and RMST ratio = 1. predict() gives survival, hazard, cumhaz, rmst, median and loghr.',
+      effects: 'marginal_effects() gives one ratio, named for what the fit supports: "hr" for proportional hazards, "tr" for an accelerated failure time fit with shared slopes and one shared shape, and "exp_delta_eta" for other accelerated failure time fits, which is not generally a time ratio. It also gives "rmstd" and "rmstr" up to a horizon. No difference means 1 for the ratios and 0 for the RMST difference. A hazard ratio carries its evaluation time in the at_time column. predict() gives survival, hazard, cumhaz, rmst, median and loghr.',
       scale: "Trial B enters as reconstructed event times, for example read off a published Kaplan-Meier curve, plus covariate summaries. The default distribution is Weibull.",
       boundary: "Reconstruction does not recover trial B's covariates, and its uncertainty is not carried into the fit. Only one comparator arm is supported. Right, left and interval censoring and delayed entry each need their own likelihood terms."
     }
@@ -16941,15 +16931,17 @@
     }
   ];
   var questions = [
-    { q: "With shared slopes on the logit scale, which statement is true?", options: ["The odds ratio for one patient is the same for every patient.", "The population odds ratio is the same in every population.", "Hidden differences between the trials are removed."], correct: 0, why: "Shared slopes cancel when you compare the two treatments for one patient. Averaging over a population is curved, so the population odds ratio can still change, and shared slopes do nothing about unmeasured differences." },
+    { q: "Under the shared-slopes logit model shown here, which statement is true?", options: ["The conditional odds ratio is the same at every covariate profile.", "The population odds ratio is the same in every population.", "Unmeasured differences between the trials are removed."], correct: 0, why: "The shared slopes cancel in the conditional log odds ratio, which compares the model's predictions for patients with the same covariates. Averaging probabilities over a population is curved, so the population odds ratio can still change. Neither calculation removes unmeasured differences between the trials." },
     { q: "What happens when you give newdata to marginal_effects()?", options: ["The model is refitted.", "Both treatments are averaged over your target rows.", "The rows become new outcome data."], correct: 1, why: "newdata only describes a target population, with every row counting equally. It adds no outcomes and does not refit the model, and the population argument is ignored." },
-    { q: "Can one aggregate row with a normal outcome pin down a target mean?", options: ["Never, because the slope is unknown.", "Always, whatever the target.", "Yes, if the target sits exactly where the row's data are."], correct: 2, why: "Knowing every coefficient and knowing one target are different things. A target at the row's own covariate mean is pinned down even though the slope is not." },
-    { q: "When can two RMST differences be compared?", options: ["Whenever both are called RMST differences.", "When they use the same horizon and the same time units.", "When both models have constant hazard ratios."], correct: 1, why: "RMST is the area under the survival curve up to a chosen time. A different time gives a different quantity. Constant hazards are not needed." },
+    { q: "In the normal identity-link model shown here, can one aggregate row identify a target mean without identifying the slope?", options: ["No, every coefficient must be identified first.", "Yes, for every possible target population.", "Yes, when the target has the same covariate means as that row."], correct: 2, why: "With an identity link, the target mean depends on the covariate means in a straight line. A row at the same means identifies that target even though the intercept and the slope cannot be separated. The target still has sampling uncertainty, and with a curved link, matching the means is not enough." },
+    { q: "For the same outcome, time origin, treatments and target population, which time settings must match before two RMST differences can be compared?", options: ["None; both are RMST differences.", "The restriction horizon and the time units.", "Constant hazard ratios in both models."], correct: 1, why: "RMST is the area under a survival curve up to a chosen horizon, so a different horizon defines a different quantity. Constant hazard ratios are not needed. The outcome, time origin, treatments and target population must also match, which is why the question fixed them." },
     { q: "Can more integration points remove a hidden difference between the trials?", options: ["Yes, with enough points.", "Only if R-hat is below 1.01.", "No. Accurate arithmetic and comparable trials are separate questions."], correct: 2, why: "Integration points make the model's arithmetic more accurate. They cannot add covariates that nobody measured." }
   ];
   var checklist = [
     "The two treatments, the outcome, the follow-up, the target population and the effect scale.",
     "Where each dataset came from, that subgroup rows do not overlap, and how well the covariates overlap.",
+    "For a continuous outcome, the standard error that belongs to the reported estimate. SD divided by the square root of n holds only for a simple mean of independent patients.",
+    "For survival, the censoring and late-entry assumptions, not only how censoring was coded.",
     "Shared or separate slopes, the priors, the covariate distributions and their correlation.",
     "Sampling checks for every chain, integration checks, and prior sensitivity.",
     "Posterior intervals and the draw counts. For survival, the time of each hazard ratio and each RMST horizon.",
@@ -16965,16 +16957,16 @@
       code: "rho <- 0.5\npatients <- expand.grid(marker1 = 0:1, marker2 = 0:1)\npatients$share <- ifelse(patients$marker1 == patients$marker2,\n                         (1 + rho) / 4, (1 - rho) / 4)\npatients$risk <- plogis(-2.8 + 1.6 * patients$marker1 + 1.6 * patients$marker2)\npatients\ntapply(patients$share, patients$marker1, sum)  # marker 1 stays at 50%\nsum(patients$share * patients$risk)              # average risk"
     },
     target: {
-      intro: "Compare the odds ratio for one patient with the odds ratio for a population.",
-      code: "q <- 0.5                                  # share of the target with the marker\nriskA <- plogis(c(-1.8, -1.8 + 2.4))      # A: marker absent, present\nriskB <- plogis(c(-1.1, -1.1 + 2.4))      # B: marker absent, present\npA <- sum(c(1 - q, q) * riskA)\npB <- sum(c(1 - q, q) * riskB)\nexp(-1.8 - (-1.1))                        # odds ratio for any one patient\n(pA / (1 - pA)) / (pB / (1 - pB))         # odds ratio for the population\npA - pB                                   # risk difference"
+      intro: "Compare the conditional odds ratio with the odds ratio for a population.",
+      code: "q <- 0.5                                  # share of the target with the marker\nriskA <- plogis(c(-1.8, -1.8 + 2.4))      # A: marker absent, present\nriskB <- plogis(c(-1.1, -1.1 + 2.4))      # B: marker absent, present\npA <- sum(c(1 - q, q) * riskA)\npB <- sum(c(1 - q, q) * riskB)\nexp(-1.8 - (-1.1))                        # conditional odds ratio, either marker status\n(pA / (1 - pA)) / (pB / (1 - pB))         # odds ratio for the population\npA - pB                                   # risk difference"
     },
     survival: {
       intro: "Compute the population hazard ratio and the RMST difference at 12 months.",
       code: "q <- 0.5; beta <- 1.8; hr <- 0.65\nrateB <- 0.06 * exp(c(0, beta)); rateA <- rateB * hr\nS <- function(t, rate) (1 - q) * exp(-rate[1] * t) + q * exp(-rate[2] * t)\nh <- function(t, rate) ((1 - q) * rate[1] * exp(-rate[1] * t) +\n                         q * rate[2] * exp(-rate[2] * t)) / S(t, rate)\nh(12, rateA) / h(12, rateB)    # population hazard ratio at 12 months\nintegrate(S, 0, 12, rate = rateA)$value -\n  integrate(S, 0, 12, rate = rateB)$value   # RMST difference, months"
     },
     priors: {
-      intro: "The exact posterior behind the chart: one row at x = 0 and a target at x = 1.",
-      code: "x <- 0; y <- 0.4; se <- 0.15      # one subgroup mean at x = 0\nprior_sd <- 3; target <- 1\nX <- cbind(1, x)\npost_cov <- solve(crossprod(X) / se^2 + diag(2) / prior_sd^2)\npost_mean <- post_cov %*% crossprod(X, y) / se^2\ng <- c(1, target)\nc(estimate = sum(g * post_mean), sd = sqrt(drop(t(g) %*% post_cov %*% g)))\nprior_sd <- 0.3                     # now rerun the lines above with a tight prior"
+      intro: "The exact posterior behind the chart, one row at x = 0 and a target at x = 1, under a wide prior and a tight one.",
+      code: "# The normal identity-link model behind the chart, not an mlumr fit\nx <- 0; y <- 0.4; se <- 0.15      # one subgroup mean at x = 0\ntarget <- 1\nsummarize_target <- function(prior_sd) {\n  X <- cbind(1, x)\n  post_cov <- solve(crossprod(X) / se^2 + diag(2) / prior_sd^2)\n  post_mean <- post_cov %*% crossprod(X, y) / se^2\n  g <- c(1, target)\n  estimate <- sum(g * post_mean)\n  sd <- sqrt(drop(t(g) %*% post_cov %*% g))\n  data.frame(prior_sd, estimate, sd,\n             lower = estimate - 1.96 * sd, upper = estimate + 1.96 * sd)\n}\n# One Run compares both priors\ndo.call(rbind, lapply(c(3, 0.3), summarize_target))"
     },
     workflow: {
       mlumr: true,
@@ -16986,11 +16978,11 @@
   // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/style.ts
   var lightTokens = `
   --bg:#eef1f2; --bg-soft:#e6ebec; --surface:#ffffff; --surface-2:#f7f9f9; --surface-3:#f0f4f4;
-  --ink:#10242c; --ink-soft:#41555d; --muted:#6b7c82; --faint:#9aa8ac;
+  --ink:#10242c; --ink-soft:#41555d; --muted:#596a70; --faint:#7f8f95;
   --border:#e3e9ea; --border-strong:#cfd9db; --hairline:#edf1f1;
   --accent:#1a6d73; --accent-strong:#11484d; --button:#1a6d73; --button-hover:#11484d; --on-accent:#ffffff;
-  --series-a:#006c98; --series-b:#c8741d; --grid:#e3e9ea; --axis:#9aa8ac;
-  --ok:#1f7a5a; --warn:#b5483e; --review:#9a6a14;
+  --series-a:#006c98; --series-b:#c8741d; --grid:#e3e9ea; --axis:#7f8f95;
+  --ok:#1f7a5a; --warn:#b5483e; --review:#8a5e10;
   --shadow:0 1px 2px rgba(11,45,58,.05),0 10px 30px -16px rgba(11,45,58,.18);
   --shadow-lg:0 24px 60px -28px rgba(11,45,58,.4);
   color-scheme:light;`;
@@ -17236,6 +17228,26 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 .ml-lesson .fit-out {display:grid;gap:12px}
 .ml-lesson .fit-out .chart-card {max-width:680px;box-shadow:none}
 .ml-lesson .fit-table td:nth-child(2),.ml-lesson .fit-table th:nth-child(2) {text-align:left;font-family:var(--font-sans);white-space:normal}
+.ml-lesson .run-where {font-size:13px;color:var(--ink-soft)}
+.ml-lesson .run-label {font-weight:600;color:var(--ink)}
+.ml-lesson .stale {padding:8px 12px;border:1px solid var(--review);border-radius:var(--radius-sm);background:var(--surface-2);color:var(--ink);font-size:13.5px}
+.ml-lesson .fit-status {font-size:13px;color:var(--ink-soft)}
+.ml-lesson .fit-status:empty {display:none}
+.ml-lesson .checks-title {font-size:15px}
+.ml-lesson .checks,.ml-lesson .benchmarks,.ml-lesson .bench-notes {margin:0;padding-left:20px;display:grid;gap:6px;font-size:13.5px;color:var(--ink-soft)}
+.ml-lesson .check-state {font-weight:650}
+.ml-lesson .checks li[data-status=ok] .check-state {color:var(--ok)}
+.ml-lesson .checks li[data-status=review] .check-state,.ml-lesson .checks li[data-status=na] .check-state {color:var(--review)}
+.ml-lesson .checks li[data-status=warn] .check-state {color:var(--warn)}
+.ml-lesson .check-detail {font-size:12.5px;color:var(--muted)}
+.ml-lesson .chart-note {margin-top:6px;font-size:12.5px;color:var(--ink-soft)}
+/* A chart keeps a readable size on a narrow screen and scrolls inside its
+   card, instead of shrinking its labels below legibility. */
+@container (max-width: 560px) {
+  .ml-lesson .chart-card {overflow-x:auto}
+  .ml-lesson .chart-card svg {min-width:520px}
+}
+.ml-lesson .sr-only {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 
 @media (max-width:1100px) { .ml-lesson .brand-tag,.ml-lesson .header-tools a {display:none} .ml-lesson .lab-scroll {padding:16px 18px 22px} .ml-lesson .ml-header {padding:0 14px} }
 @media (max-width:900px), (max-height:500px) {
@@ -17257,6 +17269,23 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
   .ml-player .xv-credit {font-size:9px;padding:0 6px}
   .ml-player .xv-elapsed {min-width:72px;font-size:10px}
 }
+/* Narrow portrait phones: the notes board repeats what the captions and the
+   chapter already show, so it gives its width back to the lesson. */
+@media (max-width:640px) {
+  :root {--board-w:0px}
+  .ml-player .xv-board {display:none}
+  .ml-lesson .chapter-list {position:fixed;top:calc(var(--header-h) + 4px);left:16px;right:16px;width:auto;transform:none}
+  .ml-lesson .theme-toggle {min-width:44px;padding:0 13px;justify-content:center}
+  .ml-lesson .theme-toggle .theme-track {display:none}
+  .ml-lesson .chapter-count {min-width:44px;font-size:12px}
+}
+@media (max-width:360px) {
+  .ml-lesson .ml-header {padding:0 8px;gap:6px}
+  .ml-lesson .ml-chapter-nav>button {width:36px}
+}
+/* The player asks phones to rotate because its default layout needs width.
+   This lesson reflows to a single column, so portrait stays usable. */
+.ml-player .xv-portrait-message {display:none!important}
 @media (prefers-reduced-motion:reduce) { .ml-player * {scroll-behavior:auto;transition:none!important} }
 `;
 
@@ -17347,8 +17376,8 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         if (last === key) return;
         last = key;
         root.dataset.narratedLab = narrated;
-        returning.hidden = !hasNarration || !exploring || lab === narrated;
-        returning.querySelector("span").textContent = `You are exploring. The narration is on: ${labs[narrated][0]}`;
+        returning.hidden = !hasNarration || !exploring;
+        returning.querySelector("span").textContent = lab === narrated ? "You are exploring this chapter. The narration keeps going without changing what you see." : `You are exploring. The narration is on: ${labs[narrated][0]}`;
         current = entries.findIndex(([key2]) => key2 === lab);
         root.dataset.lab = lab;
         count.textContent = `${String(current + 1).padStart(2, "0")} / ${entries.length}`;
@@ -17380,30 +17409,64 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
   var T2 = 16;
   var B = 44;
   var esc = (s2) => s2.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+  var finite = (p2) => Number.isFinite(p2[0]) && Number.isFinite(p2[1]);
+  var exact = (v2) => Number.isFinite(v2) ? String(Number(v2.toPrecision(4))) : "not available";
+  var clips = 0;
+  function niceTicks(lo, hi, count = 5) {
+    if (!(hi > lo)) {
+      const pad2 = Math.abs(lo) / 10 || 1;
+      lo -= pad2;
+      hi += pad2;
+    }
+    const raw = (hi - lo) / (count - 1), magnitude = 10 ** Math.floor(Math.log10(raw));
+    const step = [1, 2, 2.5, 5, 10].map((m2) => m2 * magnitude).find((s2) => s2 >= raw * (1 - 1e-9));
+    const first = Math.floor(lo / step + 1e-9) * step, last = Math.ceil(hi / step - 1e-9) * step;
+    return Array.from({ length: Math.round((last - first) / step) + 1 }, (_2, i3) => Number((first + i3 * step).toPrecision(12)));
+  }
+  function segments(points) {
+    const out = [[]];
+    for (const p2 of points) {
+      if (finite(p2)) out[out.length - 1].push(p2);
+      else if (out[out.length - 1].length) out.push([]);
+    }
+    return out.filter((s2) => s2.length);
+  }
   function legend(items) {
     return `<span class="legend">${items.map(([k, text2, dash]) => `<span class="k-${k}"><i class="${dash ? "dash" : ""}"></i><span class="k-muted-text">${esc(text2)}</span></span>`).join("")}</span>`;
   }
   function card(title, body, items = []) {
     return `<figure class="chart-card"><figcaption><span class="chart-title">${esc(title)}</span>${items.length ? legend(items) : ""}</figcaption>${body}</figure>`;
   }
+  var describe = (summary) => summary ? `<p class="sr-only">${esc(summary)}</p>` : "";
   function lineChart(c2) {
+    const ys = [...(c2.lines ?? []).flatMap((l2) => l2.points), ...(c2.bands ?? []).flatMap((b2) => [...b2.upper, ...b2.lower]), ...(c2.dots ?? []).map((d2) => d2.at)].filter(finite).map((p2) => p2[1]).concat((c2.hlines ?? []).map((h2) => h2.y).filter(Number.isFinite));
+    const outside = ys.some((v2) => v2 < c2.y[0] || v2 > c2.y[1]);
+    const widen = outside && !c2.clip;
+    const yTicks = widen ? niceTicks(Math.min(c2.y[0], ...ys), Math.max(c2.y[1], ...ys)) : c2.yTicks;
+    const y2 = widen ? [yTicks[0], yTicks[yTicks.length - 1]] : c2.y;
     const X = (v2) => L + (W - L - R) * (v2 - c2.x[0]) / (c2.x[1] - c2.x[0]);
-    const Y = (v2) => H - B - (H - B - T2) * (v2 - c2.y[0]) / (c2.y[1] - c2.y[0]);
+    const Y = (v2) => H - B - (H - B - T2) * (v2 - y2[0]) / (y2[1] - y2[0]);
     const xf = c2.xFmt ?? String, yf = c2.yFmt ?? String;
-    const path2 = (pts) => pts.map(([x2, y2]) => `${X(x2).toFixed(1)},${Y(y2).toFixed(1)}`).join(" ");
-    const clampY = (v2) => Math.min(c2.y[1], Math.max(c2.y[0], v2));
-    let s2 = c2.yTicks.map((v2) => `<line class="grid" x1="${L}" x2="${W - R}" y1="${Y(v2)}" y2="${Y(v2)}"/><text class="tick" x="${L - 8}" y="${Y(v2) + 4}" text-anchor="end">${yf(v2)}</text>`).join("");
+    const path2 = (pts) => pts.map(([px, py]) => `${X(px).toFixed(1)},${Y(py).toFixed(1)}`).join(" ");
+    let s2 = yTicks.map((v2) => `<line class="grid" x1="${L}" x2="${W - R}" y1="${Y(v2)}" y2="${Y(v2)}"/><text class="tick" x="${L - 8}" y="${Y(v2) + 4}" text-anchor="end">${yf(v2)}</text>`).join("");
     s2 += c2.xTicks.map((v2) => `<text class="tick" x="${X(v2)}" y="${H - B + 18}" text-anchor="middle">${xf(v2)}</text>`).join("");
     s2 += `<line class="axis" x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}"/>`;
     s2 += `<text class="label" x="${(L + W - R) / 2}" y="${H - 6}" text-anchor="middle">${esc(c2.xLabel)}</text>`;
     s2 += `<text class="label" x="${-(T2 + H - B) / 2}" y="14" transform="rotate(-90)" text-anchor="middle">${esc(c2.yLabel)}</text>`;
-    for (const b2 of c2.bands ?? []) s2 += `<polygon class="band k-${b2.key}" points="${path2(b2.upper.map(([x2, y2]) => [x2, clampY(y2)]))} ${path2([...b2.lower].reverse().map(([x2, y2]) => [x2, clampY(y2)]))}"/>`;
-    for (const h2 of c2.hlines ?? []) s2 += `<line class="line k-${h2.key}${h2.dash ? " dash" : ""}" x1="${L}" x2="${W - R}" y1="${Y(h2.y)}" y2="${Y(h2.y)}"/>`;
-    for (const v2 of c2.vlines ?? []) s2 += `<line class="axis dash" x1="${X(v2.x)}" x2="${X(v2.x)}" y1="${T2}" y2="${H - B}"/>${v2.text ? `<text class="ann-soft" x="${X(v2.x) + 6}" y="${T2 + 12}">${esc(v2.text)}</text>` : ""}`;
-    for (const l2 of c2.lines ?? []) s2 += `<polyline class="line k-${l2.key}${l2.dash ? " dash" : ""}" points="${path2(l2.points.map(([x2, y2]) => [x2, clampY(y2)]))}"/>`;
-    for (const d2 of c2.dots ?? []) s2 += `<circle class="${d2.ring ? "ring" : "dot"} k-${d2.key}" cx="${X(d2.at[0]).toFixed(1)}" cy="${Y(clampY(d2.at[1])).toFixed(1)}" r="${d2.r ?? 5}"/>`;
-    for (const n of c2.notes ?? []) s2 += `<text class="${n.soft ? "ann-soft" : "ann"}" x="${X(n.at[0]).toFixed(1)}" y="${(Y(n.at[1]) + (n.dy ?? 0)).toFixed(1)}" text-anchor="${n.anchor ?? "start"}">${esc(n.text)}</text>`;
-    return card(c2.title, `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(c2.label)}">${s2}</svg>`, c2.legend ?? []);
+    let data = "";
+    for (const b2 of c2.bands ?? []) if ([...b2.upper, ...b2.lower].every(finite)) data += `<polygon class="band k-${b2.key}" points="${path2(b2.upper)} ${path2([...b2.lower].reverse())}"/>`;
+    for (const h2 of c2.hlines ?? []) if (Number.isFinite(h2.y)) data += `<line class="line k-${h2.key}${h2.dash ? " dash" : ""}" x1="${L}" x2="${W - R}" y1="${Y(h2.y)}" y2="${Y(h2.y)}"/>`;
+    for (const v2 of c2.vlines ?? []) if (Number.isFinite(v2.x)) data += `<line class="axis dash" x1="${X(v2.x)}" x2="${X(v2.x)}" y1="${T2}" y2="${H - B}"/>${v2.text ? `<text class="ann-soft" x="${X(v2.x) + 6}" y="${T2 + 12}">${esc(v2.text)}</text>` : ""}`;
+    for (const l2 of c2.lines ?? []) for (const run of segments(l2.points)) data += `<polyline class="line k-${l2.key}${l2.dash ? " dash" : ""}" points="${path2(run)}"/>`;
+    for (const d2 of c2.dots ?? []) if (finite(d2.at)) data += `<circle class="${d2.ring ? "ring" : "dot"} k-${d2.key}" cx="${X(d2.at[0]).toFixed(1)}" cy="${Y(d2.at[1]).toFixed(1)}" r="${d2.r ?? 5}"/>`;
+    for (const n of c2.notes ?? []) if (finite(n.at)) data += `<text class="${n.soft ? "ann-soft" : "ann"}" x="${X(n.at[0]).toFixed(1)}" y="${(Y(n.at[1]) + (n.dy ?? 0)).toFixed(1)}" text-anchor="${n.anchor ?? "start"}">${esc(n.text)}</text>`;
+    const clipped = outside && c2.clip;
+    if (clipped) {
+      const id = `chart-clip-${++clips}`;
+      s2 += `<clipPath id="${id}"><rect x="${L}" y="${T2}" width="${W - L - R}" height="${H - B - T2}"/></clipPath><g clip-path="url(#${id})">${data}</g>`;
+    } else s2 += data;
+    const note = clipped ? `<p class="chart-note">${esc(c2.clip)}</p>` : "";
+    return card(c2.title, `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(c2.label)}"${clipped ? ' data-clipped="true"' : ""}>${s2}</svg>${note}${describe(c2.summary)}`, c2.legend ?? []);
   }
   function barChart(title, label, rows, max = 1) {
     const rowH = 38, h2 = rows.length * rowH + 10, x0 = 180, x1 = W - 70;
@@ -17411,18 +17474,25 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       const y2 = 8 + i3 * rowH, w2 = Math.max(0, (x1 - x0) * r2.value / max);
       return `<text class="ann-soft" x="0" y="${y2 + 19}">${esc(r2.name)}</text><rect class="off" x="${x0}" y="${y2 + 8}" width="${x1 - x0}" height="14" rx="4"/><rect class="bar k-${r2.key}" x="${x0}" y="${y2 + 8}" width="${w2.toFixed(1)}" height="14" rx="4"/><text class="ann" x="${x1 + 10}" y="${y2 + 20}">${esc(r2.text)}</text>`;
     }).join("");
-    return card(title, `<svg viewBox="0 0 ${W} ${h2}" role="img" aria-label="${esc(label)}">${s2}</svg>`);
+    return card(title, `<svg viewBox="0 0 ${W} ${h2}" role="img" aria-label="${esc(label)}">${s2}</svg>${describe(rows.map((r2) => `${r2.name}: ${r2.text}`).join("; "))}`);
   }
   function intervalChart(title, label, rows, range, ticks, refs, fmt2 = (v2) => v2.toFixed(2)) {
+    const values = [...rows.flatMap((r2) => [r2.lo, r2.mean, r2.hi]), ...refs.map((r2) => r2.x)].filter(Number.isFinite);
+    if (values.some((v2) => v2 < range[0] || v2 > range[1])) {
+      ticks = niceTicks(Math.min(range[0], ...values), Math.max(range[1], ...values));
+      range = [ticks[0], ticks[ticks.length - 1]];
+    }
     const rowH = 44, top = 26, h2 = top + rows.length * rowH + 34, x0 = 170, x1 = W - 20;
-    const X = (v2) => x0 + (x1 - x0) * (Math.min(range[1], Math.max(range[0], v2)) - range[0]) / (range[1] - range[0]);
+    const X = (v2) => x0 + (x1 - x0) * (v2 - range[0]) / (range[1] - range[0]);
     let s2 = ticks.map((t2) => `<line class="grid" x1="${X(t2)}" x2="${X(t2)}" y1="${top - 6}" y2="${h2 - 30}"/><text class="tick" x="${X(t2)}" y="${h2 - 12}" text-anchor="middle">${fmt2(t2)}</text>`).join("");
-    s2 += refs.map((r2) => `<line class="axis dash" x1="${X(r2.x)}" x2="${X(r2.x)}" y1="${top - 12}" y2="${h2 - 30}"/><text class="ann-soft" x="${X(r2.x)}" y="${top - 14}" text-anchor="middle">${esc(r2.text)}</text>`).join("");
+    s2 += refs.filter((r2) => Number.isFinite(r2.x)).map((r2) => `<line class="axis dash" x1="${X(r2.x)}" x2="${X(r2.x)}" y1="${top - 12}" y2="${h2 - 30}"/><text class="ann-soft" x="${X(r2.x)}" y="${top - 14}" text-anchor="middle">${esc(r2.text)}</text>`).join("");
     s2 += rows.map((r2, i3) => {
-      const y2 = top + i3 * rowH + rowH / 2;
-      return `<text class="ann-soft" x="0" y="${y2 + 4}">${esc(r2.name)}</text><line class="line k-${r2.key}" x1="${X(r2.lo)}" x2="${X(r2.hi)}" y1="${y2}" y2="${y2}"/><circle class="dot k-${r2.key}" cx="${X(r2.mean)}" cy="${y2}" r="6"/>`;
+      const y2 = top + i3 * rowH + rowH / 2, name = `<text class="ann-soft" x="0" y="${y2 + 4}">${esc(r2.name)}</text>`;
+      if (![r2.lo, r2.mean, r2.hi].every(Number.isFinite)) return `${name}<text class="ann-soft" x="${x0}" y="${y2 + 4}">not available</text>`;
+      return `${name}<line class="line k-${r2.key}" x1="${X(r2.lo)}" x2="${X(r2.hi)}" y1="${y2}" y2="${y2}"/><circle class="dot k-${r2.key}" cx="${X(r2.mean)}" cy="${y2}" r="6"/>`;
     }).join("");
-    return card(title, `<svg viewBox="0 0 ${W} ${h2}" role="img" aria-label="${esc(label)}">${s2}</svg>`);
+    const summary = rows.map((r2) => `${r2.name}: ${exact(r2.mean)}, 95% interval ${exact(r2.lo)} to ${exact(r2.hi)}`).concat(refs.map((r2) => `${r2.text} at ${exact(r2.x)}`)).join("; ");
+    return card(title, `<svg viewBox="0 0 ${W} ${h2}" role="img" aria-label="${esc(label)}">${s2}</svg>${describe(summary)}`);
   }
   function flowChart(title, steps, current) {
     const n = steps.length, gap = 12, w2 = (W - gap * (n - 1)) / n, h2 = 110;
@@ -17437,10 +17507,149 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     const s2 = groups.map((g, gi) => {
       const x0 = 20 + gi * 310, filled = Math.round(g.share * 100);
       const dots = Array.from({ length: 100 }, (_2, i3) => `<circle class="${i3 < filled ? `k-${g.key}` : "off"}" cx="${x0 + i3 % 20 * 13}" cy="${40 + Math.floor(i3 / 20) * 13}" r="4.2"/>`).join("");
-      return `<text class="ann k-${g.key}" x="${x0}" y="18">${esc(g.name)}</text>${dots}<text class="ann-soft" x="${x0}" y="118">${(100 * g.share).toFixed(0)} of 100 have the marker</text>`;
+      return `<circle class="dot k-${g.key}" cx="${x0 + 4}" cy="13" r="5"/><text class="ann" x="${x0 + 14}" y="18">${esc(g.name)}</text>${dots}<text class="ann-soft" x="${x0}" y="118">${(100 * g.share).toFixed(0)} of 100 have the marker</text>`;
     }).join("");
     return card(title, `<svg viewBox="0 0 ${W} 126" role="img" aria-label="${esc(`${title}: ${groups.map((g) => `${g.name} ${(100 * g.share).toFixed(0)} percent`).join(", ")}`)}">${s2}</svg>`);
   }
+
+  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/diagnostics.ts
+  var sum = (xs) => xs.reduce((a2, b2) => a2 + b2, 0);
+  var mean2 = (xs) => {
+    const m2 = sum(xs) / xs.length;
+    return Number.isFinite(m2) ? m2 + sum(xs.map((x2) => x2 - m2)) / xs.length : m2;
+  };
+  var variance = (xs) => {
+    const m2 = mean2(xs);
+    return sum(xs.map((x2) => (x2 - m2) ** 2)) / (xs.length - 1);
+  };
+  var degenerate = (xs) => xs.some((x2) => !Number.isFinite(x2)) || xs.reduce((a2, b2) => Math.max(a2, b2), -Infinity) - xs.reduce((a2, b2) => Math.min(a2, b2), Infinity) < Number.EPSILON;
+  var split = (chains) => {
+    const n = chains[0].length, h2 = Math.floor(n / 2);
+    if (n === 1) return chains;
+    if (h2 === 1) return [chains.map((c2) => c2[0]), chains.map((c2) => c2[n - 1])];
+    return [...chains.map((c2) => c2.slice(0, h2)), ...chains.map((c2) => c2.slice(n - h2))];
+  };
+  var horner = (cs, x2) => cs.reduce((acc, c2) => acc * x2 + c2);
+  var qnorm = (p2) => {
+    const q = p2 - 0.5;
+    if (Math.abs(q) <= 0.425) {
+      const r3 = 0.180625 - q * q;
+      return q * horner([
+        2509.0809287301227,
+        33430.57558358813,
+        67265.7709270087,
+        45921.95393154987,
+        13731.69376550946,
+        1971.5909503065513,
+        133.14166789178438,
+        3.3871328727963665
+      ], r3) / horner([
+        5226.495278852546,
+        28729.085735721943,
+        39307.89580009271,
+        21213.794301586597,
+        5394.196021424751,
+        687.1870074920579,
+        42.31333070160091,
+        1
+      ], r3);
+    }
+    const r2 = Math.sqrt(-Math.log(q < 0 ? p2 : 0.5 - p2 + 0.5)) - 1.6;
+    const val = horner([
+      7745450142783414e-19,
+      0.022723844989269184,
+      0.2417807251774506,
+      1.2704582524523684,
+      3.6478483247632045,
+      5.769497221460691,
+      4.630337846156546,
+      1.4234371107496835
+    ], r2) / horner([
+      10507500716444169e-25,
+      5475938084995345e-19,
+      0.015198666563616457,
+      0.14810397642748008,
+      0.6897673349851,
+      1.6763848301838038,
+      2.053191626637759,
+      1
+    ], r2);
+    return q < 0 ? -val : val;
+  };
+  var zScale = (chains) => {
+    const xs = chains.flat(), S3 = xs.length, n = chains[0].length;
+    const order = xs.map((_2, i3) => i3).sort((i3, j2) => xs[i3] - xs[j2]), rank = new Array(S3);
+    for (let i3 = 0, j2 = 0; i3 < S3; i3 = ++j2) {
+      while (j2 + 1 < S3 && xs[order[j2 + 1]] === xs[order[i3]]) j2++;
+      for (let k = i3; k <= j2; k++) rank[order[k]] = (i3 + j2 + 2) / 2;
+    }
+    const z = xs.map((x2, i3) => Number.isNaN(x2) ? NaN : qnorm((rank[i3] - 3 / 8) / (S3 - 2 * 3 / 8 + 1)));
+    return chains.map((_2, k) => z.slice(k * n, (k + 1) * n));
+  };
+  var median = (xs) => {
+    const s2 = [...xs].sort((a2, b2) => a2 - b2), h2 = s2.length >> 1;
+    return s2.length % 2 ? s2[h2] : mean2([s2[h2 - 1], s2[h2]]);
+  };
+  var quantile2 = (xs, p2) => {
+    const s2 = [...xs].sort((a2, b2) => a2 - b2), index = 1 + (s2.length - 1) * p2;
+    const lo = Math.floor(index), qs = s2[lo - 1], upper = s2[Math.ceil(index) - 1], h2 = index - lo;
+    return index > lo && upper !== qs ? (1 - h2) * qs + h2 * upper : qs;
+  };
+  var autocovariance = (x2) => {
+    const N = x2.length, v2 = variance(x2);
+    if (v2 === 0) return x2.map(() => 0);
+    const m2 = mean2(x2), y2 = x2.map((d2) => d2 - m2);
+    const ac = y2.map((_2, k) => {
+      let s2 = 0;
+      for (let i3 = 0; i3 + k < N; i3++) s2 += y2[i3] * y2[i3 + k];
+      return s2;
+    });
+    return ac.map((a2) => a2 / ac[0] * v2 * (N - 1) / N);
+  };
+  var ess = (chains) => {
+    const M = chains.length, N = chains[0].length;
+    if (N < 3 || degenerate(chains.flat())) return NaN;
+    const acov = chains.map(autocovariance), acovMean = acov[0].map((_2, t3) => mean2(acov.map((a2) => a2[t3])));
+    const meanVar = acovMean[0] * N / (N - 1), varPlus = meanVar * (N - 1) / N + variance(chains.map(mean2));
+    const rhoAt = (t3) => 1 - (meanVar - acovMean[t3]) / varPlus, rho = new Array(N).fill(0);
+    let t2 = 0, even = 1, odd = rhoAt(1);
+    rho[0] = even;
+    rho[1] = odd;
+    while (t2 < N - 5 && even + odd > 0) {
+      t2 += 2;
+      even = rhoAt(t2);
+      odd = rhoAt(t2 + 1);
+      if (even + odd >= 0) {
+        rho[t2] = even;
+        rho[t2 + 1] = odd;
+      }
+    }
+    const maxT = t2;
+    if (even > 0) rho[maxT] = even;
+    for (let u = 2; u <= maxT - 2; u += 2) {
+      if (rho[u] + rho[u + 1] > rho[u - 2] + rho[u - 1]) rho[u] = rho[u + 1] = (rho[u - 2] + rho[u - 1]) / 2;
+    }
+    const tau = -1 + 2 * sum(rho.slice(0, Math.max(maxT, 1))) + rho[maxT];
+    return M * N / Math.max(tau, 1 / Math.log10(M * N));
+  };
+  var rhatSplit = (chains) => {
+    if (degenerate(chains.flat())) return NaN;
+    const N = chains[0].length, within = mean2(chains.map(variance)), between = N * variance(chains.map(mean2));
+    return Math.sqrt((between / within + N - 1) / N);
+  };
+  var fold = (chains) => {
+    const m2 = median(chains.flat());
+    return chains.map((c2) => c2.map((x2) => Math.abs(x2 - m2)));
+  };
+  var essQuantile = (chains, p2) => {
+    if (degenerate(chains.flat())) return NaN;
+    const q = quantile2(chains.flat(), p2);
+    return ess(split(chains.map((c2) => c2.map((x2) => +(x2 <= q)))));
+  };
+  var rhat = (chains) => Math.max(rhatSplit(zScale(split(chains))), rhatSplit(zScale(split(fold(chains)))));
+  var essBulk = (chains) => ess(zScale(split(chains)));
+  var essTail = (chains) => Math.min(essQuantile(chains, 0.05), essQuantile(chains, 0.95));
+  var mcseMean = (chains) => Math.sqrt(variance(chains.flat())) / Math.sqrt(ess(split(chains)));
 
   // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/runner.ts
   var WEBR_URL = "https://webr.r-wasm.org/v0.6.0/webr.mjs";
@@ -17472,6 +17681,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 }`;
   var webRReady;
   var mlumrReady;
+  var session;
   function startR(status) {
     webRReady ??= (async () => {
       status("Downloading R for your browser. The first time takes up to a minute.");
@@ -17481,6 +17691,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         url
       );
       const webR = new mod.WebR({ channelType: mod.ChannelType.PostMessage, interactive: false });
+      session = webR;
       await webR.init();
       await webR.evalRVoid(RUNNER);
       return webR;
@@ -17493,7 +17704,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
   function loadMlumr(status) {
     mlumrReady ??= (async () => {
       const webR = await startR(status);
-      status("Installing the R packages mlumr needs here (randtoolbox and jsonlite).");
+      status(`Installing the R packages the mlumr cell needs (${R_PACKAGES.join(", ")}).`);
       await webR.installPackages(R_PACKAGES, { quiet: true });
       status("Loading the mlumr R code.");
       const get = async (path2) => {
@@ -17528,72 +17739,210 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     });
     return mlumrReady;
   }
-  async function runR(code2, status, withMlumr = false) {
-    if (withMlumr) await loadMlumr(status);
-    const webR = await startR(status);
-    status("Running.");
-    const shelter = await new webR.Shelter();
-    try {
-      const result = await shelter.evalR(".lesson_run(code)", { env: { code: code2 } });
-      const lines = await result.toArray();
-      return lines.map((line) => {
-        const tab = line.indexOf("	");
-        return { kind: line.slice(0, tab), text: line.slice(tab + 1) };
+  var queue = Promise.resolve();
+  var interrupt;
+  function exclusive(task) {
+    const run = queue.then(() => new Promise((resolve, reject) => {
+      interrupt = reject;
+      task().then(resolve, reject).finally(() => {
+        if (interrupt === reject) interrupt = void 0;
       });
+    }));
+    queue = run.catch(() => void 0);
+    return run;
+  }
+  function restartR() {
+    try {
+      session?.close();
+    } catch {
+    }
+    session = void 0;
+    webRReady = void 0;
+    mlumrReady = void 0;
+    queue = Promise.resolve();
+    interrupt?.(new Error("R was restarted, so every object it held, including dat, is gone. Run the code again."));
+    interrupt = void 0;
+  }
+  function runR(code2, status, withMlumr = false) {
+    return exclusive(async () => {
+      if (withMlumr) await loadMlumr(status);
+      const webR = await startR(status);
+      status("Running.");
+      const shelter = await new webR.Shelter();
+      try {
+        const result = await shelter.evalR(".lesson_run(code)", { env: { code: code2 } });
+        const lines = await result.toArray();
+        return lines.map((line) => {
+          const tab = line.indexOf("	");
+          return { kind: line.slice(0, tab), text: line.slice(tab + 1) };
+        });
+      } finally {
+        shelter.purge();
+      }
+    });
+  }
+  function prepareFit(model, status) {
+    return exclusive(async () => {
+      await loadMlumr(status);
+      const webR = await startR(status);
+      const text2 = await webR.evalRString(`lesson_prepare_fit(get0("dat", envir = globalenv(), inherits = FALSE), ${JSON.stringify(model)})`);
+      return JSON.parse(text2);
+    });
+  }
+  var LOAD_TIMEOUT_MS = 6e4;
+  var STALL_TIMEOUT_MS = 12e4;
+  function readReply(data) {
+    const m2 = data;
+    if (typeof m2 !== "object" || m2 === null) return void 0;
+    if (m2.type === "loaded") return { type: "loaded", stanVersion: typeof m2.stanVersion === "string" ? m2.stanVersion : "" };
+    if ((m2.type === "progress" || m2.type === "error") && typeof m2.message === "string") return { type: m2.type, message: m2.message };
+    if (m2.type === "result") return { type: "result", paramNames: m2.paramNames, draws: m2.draws };
+    return void 0;
+  }
+  function readChain(id, reply, samples, stanVersion) {
+    const { paramNames, draws } = reply;
+    if (!Array.isArray(paramNames) || !paramNames.length || !paramNames.every((name) => typeof name === "string")) throw new Error(`Chain ${id} returned no quantity names.`);
+    if (new Set(paramNames).size !== paramNames.length) throw new Error(`Chain ${id} returned duplicate quantity names.`);
+    if (!Array.isArray(draws) || draws.length !== paramNames.length) throw new Error(`Chain ${id} returned draws for ${Array.isArray(draws) ? draws.length : 0} quantities but named ${paramNames.length}.`);
+    draws.forEach((row, i3) => {
+      if (!Array.isArray(row) || row.length !== samples) throw new Error(`Chain ${id} returned ${Array.isArray(row) ? row.length : 0} draws of ${paramNames[i3]}, not ${samples}.`);
+      if (!row.every((value) => typeof value === "number")) throw new Error(`Chain ${id} returned a non-numeric draw of ${paramNames[i3]}.`);
+    });
+    return { paramNames, draws, stanVersion };
+  }
+  async function fitStan(spec, params, progress, signal) {
+    const { chains, warmup, samples, seed, adapt_delta, max_treedepth } = spec.sampler;
+    const url = site(`stan/mlumr_binary_${spec.model}/main.js`);
+    const job = new AbortController();
+    const stop = () => job.abort();
+    signal.addEventListener("abort", stop);
+    const workers = [];
+    const start = performance.now();
+    try {
+      if (signal.aborted) throw new DOMException("The fit was cancelled.", "AbortError");
+      const runs2 = await Promise.all(Array.from({ length: chains }, (_2, i3) => chain(workers, url, {
+        data: spec.stan,
+        num_chains: 1,
+        id: i3 + 1,
+        seed,
+        num_warmup: warmup,
+        num_samples: samples,
+        delta: adapt_delta,
+        max_depth: max_treedepth,
+        refresh: 100
+      }, samples, (message) => progress(i3 + 1, message), job.signal)));
+      return summarize(runs2, params, spec.sampler, (performance.now() - start) / 1e3);
     } finally {
-      shelter.purge();
+      signal.removeEventListener("abort", stop);
+      job.abort();
+      for (const worker of workers) worker.terminate();
     }
   }
-  async function evalString(code2) {
-    const webR = await startR(() => void 0);
-    return webR.evalRString(code2);
-  }
-  async function fitStan(model, json, params, progress) {
-    const chains = 2, warmup = 500, samples = 500, seed = 2026;
-    const url = site(`stan/mlumr_binary_${model}/main.js`);
-    const start = performance.now();
-    const runs = await Promise.all(Array.from({ length: chains }, (_2, i3) => chain(url, {
-      data: json,
-      num_chains: 1,
-      id: i3 + 1,
-      seed,
-      num_warmup: warmup,
-      num_samples: samples,
-      refresh: 100
-    }, (message) => progress(i3 + 1, message))));
-    const summaries = params.map((name) => {
-      const index = runs[0].paramNames.indexOf(name);
-      if (index < 0) throw new Error(`The model has no quantity named ${name}.`);
-      const perChain = runs.map((run) => run.draws[index]);
-      const all = perChain.flat();
-      return { name, mean: mean(all), lo: quantile(all, 0.025), hi: quantile(all, 0.975), rhat: splitRhat(perChain), draws: all };
-    });
-    return { summaries, seconds: (performance.now() - start) / 1e3, chains, warmup, samples };
-  }
-  function chain(url, config, progress) {
+  function chain(workers, url, config, samples, progress, signal) {
+    const id = Number(config.id);
     return new Promise((resolve, reject) => {
       const worker = new Worker(site("stan/worker.js"), { type: "module" });
+      workers.push(worker);
+      let timer;
+      let stanVersion = "";
+      const finish = () => {
+        clearTimeout(timer);
+        signal.removeEventListener("abort", cancelled);
+      };
       const fail = (message) => {
-        worker.terminate();
+        finish();
         reject(new Error(message));
       };
-      worker.onerror = (event) => fail(event.message || "The Stan worker failed to start.");
+      const cancelled = () => {
+        finish();
+        reject(new DOMException("The fit was cancelled.", "AbortError"));
+      };
+      const wait = (ms, message) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fail(message), ms);
+      };
+      signal.addEventListener("abort", cancelled);
+      worker.onerror = (event) => {
+        event.preventDefault();
+        fail(`Chain ${id}: the Stan worker failed (${event.message || "no details"}).`);
+      };
+      worker.onmessageerror = () => fail(`Chain ${id}: a message from the Stan worker could not be read.`);
       worker.onmessage = (event) => {
-        const message = event.data;
-        if (message.type === "loaded") worker.postMessage({ type: "sample", config });
-        else if (message.type === "progress") progress(message.message);
-        else if (message.type === "error") fail(message.message);
-        else {
-          worker.terminate();
-          resolve(message);
+        const reply = readReply(event.data);
+        if (!reply) return fail(`Chain ${id}: the Stan worker sent a message the page does not understand.`);
+        if (reply.type === "loaded") {
+          stanVersion = reply.stanVersion;
+          wait(STALL_TIMEOUT_MS, `Chain ${id}: the sampler sent nothing for ${STALL_TIMEOUT_MS / 1e3} seconds.`);
+          worker.postMessage({ type: "sample", config });
+        } else if (reply.type === "progress") {
+          wait(STALL_TIMEOUT_MS, `Chain ${id}: the sampler sent nothing for ${STALL_TIMEOUT_MS / 1e3} seconds.`);
+          progress(reply.message);
+        } else if (reply.type === "error") {
+          fail(`Chain ${id}: ${reply.message}`);
+        } else {
+          finish();
+          try {
+            resolve(readChain(id, reply, samples, stanVersion));
+          } catch (error) {
+            reject(error);
+          }
         }
       };
+      wait(LOAD_TIMEOUT_MS, `Chain ${id}: the Stan model did not load within ${LOAD_TIMEOUT_MS / 1e3} seconds.`);
       worker.postMessage({ type: "load", url });
     });
   }
+  var extreme = (entries, pick) => entries.reduce((best, e2) => best === null || pick(e2.value, best.value) ? e2 : best, null);
+  function summarize(runs2, params, sampler, seconds) {
+    const names = runs2[0].paramNames;
+    runs2.forEach((run, i3) => {
+      if (run.paramNames.length !== names.length || run.paramNames.some((name, j2) => name !== names[j2])) throw new Error(`Chain ${i3 + 1} returned its quantities in a different layout from chain 1.`);
+    });
+    const perChain = (name) => runs2.map((run) => run.draws[names.indexOf(name)]);
+    const summaries = params.map((name) => {
+      if (!names.includes(name)) throw new Error(`The model has no quantity named ${name}.`);
+      const chains = perChain(name), all = chains.flat();
+      if (!all.every(Number.isFinite)) throw new Error(`The sampler returned non-finite draws of ${name}.`);
+      return { name, mean: mean(all), lo: quantile(all, 0.025), hi: quantile(all, 0.975), mcse: mcseMean(chains), rhat: rhat(chains), essBulk: essBulk(chains), essTail: essTail(chains), draws: all };
+    });
+    const count = (name, hit) => names.includes(name) ? perChain(name).flat().filter(hit).length : null;
+    const unavailable = [];
+    const rhats = [], bulk = [], tail = [];
+    const checked = names.filter((name) => !name.endsWith("__") && !name.startsWith("log_lik"));
+    for (const name of checked) {
+      const chains = perChain(name);
+      const values = [rhat(chains), essBulk(chains), essTail(chains)];
+      if (!chains.flat().every(Number.isFinite) || !values.every(Number.isFinite)) {
+        unavailable.push(name);
+        continue;
+      }
+      rhats.push({ name, value: values[0] });
+      bulk.push({ name, value: values[1] });
+      tail.push({ name, value: values[2] });
+    }
+    return {
+      summaries,
+      diagnostics: {
+        divergences: count("divergent__", (v2) => v2 > 0.5),
+        treedepthHits: count("treedepth__", (v2) => v2 >= sampler.max_treedepth),
+        maxTreedepth: sampler.max_treedepth,
+        checked: checked.length,
+        maxRhat: extreme(rhats, (a2, b2) => a2 > b2),
+        minEssBulk: extreme(bulk, (a2, b2) => a2 < b2),
+        minEssTail: extreme(tail, (a2, b2) => a2 < b2),
+        unavailable
+      },
+      seconds,
+      chains: runs2.length,
+      warmup: sampler.warmup,
+      samplesPerChain: runs2[0].draws[0].length,
+      draws: runs2.reduce((sum2, run) => sum2 + run.draws[0].length, 0),
+      stanVersion: runs2[0].stanVersion
+    };
+  }
 
   // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/codecell.ts
-  var esc2 = (s2) => s2.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  var esc2 = (s2) => s2.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
   var PARAMS = ["lor_comparator", "rd_comparator", "lor_index", "rd_index"];
   var MEANING = {
     lor_comparator: "log odds ratio, trial B population",
@@ -17601,6 +17950,9 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     lor_index: "log odds ratio, trial A population",
     rd_index: "risk difference, trial A population"
   };
+  var MODEL = { spfa: "shared slopes (SPFA)", relaxed: "separate slopes (relaxed)" };
+  var saved = /* @__PURE__ */ new Map();
+  var runs = 0;
   function render3(lines) {
     return lines.map(({ kind, text: text2 }) => {
       if (kind === "in") return `<span class="muted">${esc2(text2.split("\n").map((l2, i3) => (i3 ? "+ " : "> ") + l2).join("\n"))}</span>`;
@@ -17609,18 +17961,42 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       return `<span class="err">${esc2(text2)}</span>`;
     }).join("\n");
   }
-  function fitView(model, fit, benchmarks) {
-    const rows = fit.summaries.map((s2) => `<tr><td>${s2.name}</td><td>${MEANING[s2.name]}</td><td>${s2.mean.toFixed(3)}</td><td>${s2.lo.toFixed(3)}</td><td>${s2.hi.toFixed(3)}</td><td>${s2.rhat.toFixed(3)}</td></tr>`).join("");
+  var num = (x2, digits = 3) => Number.isFinite(x2) ? x2.toFixed(digits) : "unavailable";
+  var usable = (b2) => b2.valid && Number.isFinite(b2.estimate ?? NaN);
+  function check(label, value, status, detail) {
+    return `<li data-status="${status}"><strong>${esc2(label)}</strong> <span class="check-value">${esc2(value)}</span> <span class="check-state">${{ ok: "passes", review: "review", warn: "problem", na: "not available, which is not a pass" }[status]}</span><br><span class="check-detail">${esc2(detail)}</span></li>`;
+  }
+  function diagnosticsView(fit) {
+    const d2 = fit.diagnostics, minEss = 100 * fit.chains;
+    const items = [
+      d2.divergences === null ? check("Divergent transitions", "not returned", "na", "The sampler did not return divergent__.") : check("Divergent transitions", `${d2.divergences} of ${fit.draws}`, d2.divergences ? "warn" : "ok", "Any divergence means part of the posterior was not explored well."),
+      d2.treedepthHits === null ? check(`Tree depth ${d2.maxTreedepth} reached`, "not returned", "na", "The sampler did not return treedepth__.") : check(`Tree depth ${d2.maxTreedepth} reached`, `${d2.treedepthHits} of ${fit.draws}`, d2.treedepthHits ? "review" : "ok", "Hitting the limit cuts trajectories short and slows exploration."),
+      d2.maxRhat ? check("Largest R-hat", `${num(d2.maxRhat.value)} (${d2.maxRhat.name})`, d2.maxRhat.value > 1.01 ? "warn" : "ok", `Rank-normalized split R-hat over ${d2.checked - d2.unavailable.length} of ${d2.checked} model quantities, parameters included. Above 1.01 means the chains disagree.`) : check("Largest R-hat", "unavailable", "na", "No model quantity had a computable R-hat."),
+      d2.minEssBulk && d2.minEssTail ? check("Smallest effective sample size", `bulk ${Math.round(d2.minEssBulk.value)} (${d2.minEssBulk.name}), tail ${Math.round(d2.minEssTail.value)} (${d2.minEssTail.name})`, Math.min(d2.minEssBulk.value, d2.minEssTail.value) < minEss ? "review" : "ok", `Below ${minEss} (100 per chain) makes intervals and R-hat unreliable.`) : check("Smallest effective sample size", "unavailable", "na", "No model quantity had a computable effective sample size.")
+    ];
+    if (d2.unavailable.length) items.push(check("Quantities without diagnostics", String(d2.unavailable.length), "na", d2.unavailable.slice(0, 8).join(", ") + (d2.unavailable.length > 8 ? ", and more" : "")));
+    return `<ul class="checks">${items.join("")}</ul>`;
+  }
+  function benchmarkView(name, meaning, b2) {
+    const value = usable(b2) ? `${num(b2.estimate)} (${Math.round(100 * (b2.conf_level ?? 0.95))}% CI ${num(b2.lower)} to ${num(b2.upper)})` : `not usable${b2.error ? `: ${b2.error}` : ""}`;
+    const notes = [...b2.warnings.map((w2) => `Warning: ${w2}`), ...b2.messages];
+    return `<li><strong>${name}</strong>, ${meaning}: ${esc2(value)}${notes.length ? `<ul class="bench-notes">${notes.map((n) => `<li>${esc2(n)}</li>`).join("")}</ul>` : ""}</li>`;
+  }
+  function fitView(spec, prepared, fit) {
+    const { naive, stc } = prepared.benchmarks;
     const lor = fit.summaries[0].draws;
-    const lo = Math.min(...lor, benchmarks.naive, benchmarks.stc), hi = Math.max(...lor, benchmarks.naive, benchmarks.stc);
+    const refs = [usable(stc) ? { x: stc.estimate, text: "STC" } : null, usable(naive) ? { x: naive.estimate, text: "naive" } : null].filter((r2) => r2 !== null);
+    const lo = Math.min(...lor, ...refs.map((r2) => r2.x)), hi = Math.max(...lor, ...refs.map((r2) => r2.x));
     const bins = 36, width = (hi - lo) / bins || 1, counts = new Array(bins).fill(0);
     for (const d2 of lor) counts[Math.min(bins - 1, Math.floor((d2 - lo) / width))]++;
     const density = counts.map((c2) => c2 / (lor.length * width)), top = Math.max(...density);
     const steps = density.flatMap((d2, i3) => [[lo + i3 * width, d2], [lo + (i3 + 1) * width, d2]]);
-    const span = hi - lo, ticks = [0, 0.25, 0.5, 0.75, 1].map((f2) => Number((lo + f2 * span).toFixed(2)));
+    const span = hi - lo || 1, ticks = [0, 0.25, 0.5, 0.75, 1].map((f2) => Number((lo + f2 * span).toFixed(2)));
+    const s2 = fit.summaries[0];
     const chart = lineChart({
-      title: `Posterior of the log odds ratio in trial B's population (${model === "spfa" ? "shared slopes" : "separate slopes"})`,
-      label: "Histogram of posterior draws with the naive and STC estimates marked",
+      title: `Posterior of the log odds ratio in trial B's population, ${MODEL[spec.model]}`,
+      label: "Histogram of posterior draws with the naive and STC point estimates marked",
+      summary: `Posterior mean ${num(s2.mean)}, 95% interval ${num(s2.lo)} to ${num(s2.hi)}.${refs.map((r2) => ` ${r2.text} point estimate ${num(r2.x)}.`).join("")}`,
       x: [lo - 0.02 * span, hi + 0.02 * span],
       y: [0, top * 1.15],
       xTicks: ticks,
@@ -17629,77 +18005,203 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       yLabel: "density",
       xFmt: (v2) => v2.toFixed(2),
       lines: [{ points: steps, key: "a" }],
-      vlines: [{ x: benchmarks.stc, text: "STC" }, { x: benchmarks.naive, text: "naive" }],
+      vlines: refs,
       legend: [["a", "mlumr posterior draws"]]
     });
-    return `${chart}<div class="table-wrap"><table class="fit-table"><thead><tr><th>Quantity</th><th>Meaning</th><th>Mean</th><th>2.5%</th><th>97.5%</th><th>Split R-hat</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p>${fit.chains} chains, ${fit.warmup} warmup and ${fit.samples} kept draws each, seed 2026, ${fit.seconds.toFixed(1)} seconds in your browser. This is a small teaching budget. mlumr's own summary uses 4 chains and rank-normalized R-hat. STC answers the same question as the trial B population row; naive compares the two trials as they are.</p>`;
+    const rows = fit.summaries.map((s3) => `<tr><td>${s3.name}</td><td>${MEANING[s3.name]}</td><td>${num(s3.mean)}</td><td>${num(s3.lo)}</td><td>${num(s3.hi)}</td><td>${num(s3.mcse, 4)}</td><td>${num(s3.rhat)}</td><td>${Number.isFinite(s3.essBulk) ? Math.round(s3.essBulk) : "unavailable"}</td><td>${Number.isFinite(s3.essTail) ? Math.round(s3.essTail) : "unavailable"}</td></tr>`).join("");
+    const notes = [...prepared.warnings.map((w2) => `Warning: ${w2}`), ...prepared.messages];
+    return `<p class="run-label">Fit ${spec.run}: ${MODEL[spec.model]}, prepared from code revision ${spec.revision}.</p>${chart}
+    <div class="table-wrap"><table class="fit-table"><thead><tr><th>Quantity</th><th>Meaning</th><th>Mean</th><th>2.5%</th><th>97.5%</th><th>MCSE</th><th>R-hat</th><th>Bulk ESS</th><th>Tail ESS</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <h3 class="checks-title">Sampling checks</h3>${diagnosticsView(fit)}
+    ${notes.length ? `<h3 class="checks-title">What mlumr() reported while preparing the data</h3><ul class="bench-notes">${notes.map((n) => `<li>${esc2(n)}</li>`).join("")}</ul>` : ""}
+    <h3 class="checks-title">Benchmarks</h3><ul class="benchmarks">${benchmarkView("STC", "trial A's model averaged over trial B's population, compared with B's observed outcome, a point estimate on the log odds ratio scale", stc)}${benchmarkView("Naive", "the two trials compared as they are, in different populations, a point estimate on the log odds ratio scale", naive)}</ul>
+    <p>${fit.chains} chains returned ${fit.samplesPerChain} kept draws each (${fit.draws} in total) after ${fit.warmup} warmup iterations, with seed 2026, adapt_delta 0.95 and maximum tree depth ${fit.diagnostics.maxTreedepth}, in ${fit.seconds.toFixed(1)} seconds${fit.stanVersion ? ` with Stan ${esc2(fit.stanVersion)}` : ""}. This browser demonstration requests two chains; the companion R script requests four, and a native summary reports the diagnostics of the chains a fit actually returned. This is a small teaching run: check a native fit before relying on any of these numbers.</p>
+    <p><button type="button" data-act="record">Download the run record</button></p>`;
   }
-  function mountCell(slot, cell) {
-    slot.innerHTML = `<section class="code-cell" aria-label="Runnable R code">
-    <div class="code-head"><div><h2>${cell.mlumr ? "Run mlumr in your browser" : "Try it in R"}</h2><p>${esc2(cell.intro)}</p></div>
-      <div class="code-actions"><button type="button" data-act="reset">Reset code</button><button type="button" class="primary" data-act="run">Run in browser</button></div></div>
-    <div class="code-body"><textarea spellcheck="false" autocomplete="off" aria-label="R code">${esc2(cell.code)}</textarea><pre class="console" role="status" aria-live="polite"><span class="muted">Output appears here. Press Run, or Ctrl+Enter in the code. R downloads the first time, which can take up to a minute.</span></pre></div>
-    <div class="code-foot">${cell.mlumr ? `<div class="code-actions"><span class="seg" role="group" aria-label="Model"><button type="button" data-model="spfa" aria-pressed="true">Shared slopes</button><button type="button" data-model="relaxed" aria-pressed="false">Separate slopes</button></span><button type="button" class="primary" data-act="fit" disabled>Fit with Stan in browser</button></div><div class="fit-out"><p>Run the R code first. Then fit the real mlumr Stan model to <code>dat</code>, right here.</p></div>` : ""}</div>
-  </section>`;
-    const textarea = slot.querySelector("textarea");
-    const output = slot.querySelector(".console");
-    const run = slot.querySelector("[data-act=run]");
-    const fitButton = slot.querySelector("[data-act=fit]");
-    const fitOut = slot.querySelector(".fit-out");
-    let model = "spfa";
-    const status = (message) => {
-      output.innerHTML = `<span class="muted">${esc2(message)}</span>`;
+  async function sha256(text2) {
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text2));
+    return [...new Uint8Array(digest)].map((b2) => b2.toString(16).padStart(2, "0")).join("");
+  }
+  function mountCell(slot, cell, key, onActivity = () => void 0) {
+    const state = saved.get(key) ?? { code: cell.code, revision: 0, prepared: null, run: 0, model: "spfa", console: "", fit: "", fitRevision: 0 };
+    saved.set(key, state);
+    const section = document.createElement("section");
+    section.className = "code-cell";
+    section.setAttribute("aria-label", "Runnable R code");
+    section.innerHTML = `<div class="code-head"><div><h2>${cell.mlumr ? "Run mlumr in your browser" : "Try it in R"}</h2>
+      <p class="run-where">${cell.mlumr ? "Runs in your browser: mlumr's own R code for data preparation, in webR. The Fit button samples the compiled Stan model here; rstan and cmdstanr calls do not run in the browser." : "Runs base R in your browser, in webR."}</p><p>${esc2(cell.intro)}</p></div>
+      <div class="code-actions"><button type="button" data-act="reset">Reset code</button><button type="button" data-act="restart" hidden>Stop and restart R</button><button type="button" class="primary" data-act="run">Run in browser</button></div></div>
+    <div class="code-body"><textarea spellcheck="false" autocomplete="off" aria-label="R code">${esc2(state.code)}</textarea><pre class="console" role="status" aria-live="polite">${state.console || '<span class="muted">Output appears here. Press Run, or Ctrl+Enter in the code. R downloads the first time, which can take up to a minute.</span>'}</pre></div>
+    ${cell.mlumr ? `<div class="code-foot"><div class="code-actions"><span class="seg" role="group" aria-label="Model"><button type="button" data-model="spfa">Shared slopes</button><button type="button" data-model="relaxed">Separate slopes</button></span><button type="button" class="primary" data-act="fit">Fit with Stan in browser</button><button type="button" data-act="cancel" hidden>Cancel fit</button></div><p class="fit-status" role="status" aria-live="polite"></p><div class="fit-out" aria-busy="false"></div></div>` : ""}`;
+    slot.replaceChildren(section);
+    const lifetime = new AbortController();
+    const { signal } = lifetime;
+    const $ = (selector) => section.querySelector(selector);
+    const textarea = $("textarea"), output = $(".console");
+    const run = $("[data-act=run]"), reset = $("[data-act=reset]"), restart = $("[data-act=restart]");
+    const fitButton = $("[data-act=fit]"), cancel = $("[data-act=cancel]");
+    const fitOut = $(".fit-out"), fitStatus = $(".fit-status");
+    const models = [...section.querySelectorAll("[data-model]")];
+    let busy = null;
+    let job = null;
+    signal.addEventListener("abort", () => job?.abort());
+    const announce = (message) => {
+      if (fitStatus) fitStatus.textContent = message;
+    };
+    const showFit = () => {
+      if (!fitOut) return;
+      const stale = state.fit && state.fitRevision !== state.revision ? `<p class="stale" role="note">This result came from code revision ${state.fitRevision}. The code has changed since, so run it and fit again to update the result.</p>` : "";
+      fitOut.innerHTML = stale + (state.fit || "<p>Run the R code first. Then fit the real mlumr Stan model to <code>dat</code>, right here.</p>");
+    };
+    const sync = () => {
+      run.disabled = busy !== null;
+      reset.disabled = busy === "fit";
+      textarea.readOnly = busy === "fit";
+      restart.hidden = busy !== "run";
+      if (!fitButton || !cancel || !fitOut) return;
+      fitButton.disabled = busy !== null || state.prepared !== state.revision;
+      fitButton.title = state.prepared === state.revision ? "" : "Run the current code first. Editing or resetting it, or an error, means dat must be built again.";
+      cancel.hidden = busy !== "fit";
+      models.forEach((b2) => {
+        b2.disabled = busy === "fit";
+        b2.setAttribute("aria-pressed", String(b2.dataset.model === state.model));
+      });
+      fitOut.setAttribute("aria-busy", String(busy === "fit"));
+    };
+    const edited = () => {
+      state.code = textarea.value;
+      state.revision++;
+      onActivity();
+      sync();
+      showFit();
     };
     async function execute() {
-      if (run.disabled) return;
-      run.disabled = true;
+      if (busy) return;
+      onActivity();
+      busy = "run";
+      const id = state.run = ++runs, revision = state.revision;
+      state.prepared = null;
+      sync();
+      const status = (message) => {
+        if (!signal.aborted) output.innerHTML = `<span class="muted">${esc2(message)}</span>`;
+      };
       try {
         const lines = await runR(textarea.value, status, cell.mlumr);
-        output.innerHTML = render3(lines);
-        if (fitButton) fitButton.disabled = lines.some((l2) => l2.kind === "err");
+        if (state.run === id) {
+          state.console = render3(lines);
+          state.prepared = lines.some((l2) => l2.kind === "err") ? null : revision;
+        }
       } catch (error) {
-        output.innerHTML = `<span class="err">${esc2(error instanceof Error ? error.message : String(error))}</span>`;
+        if (state.run === id) {
+          state.console = `<span class="err">${esc2(error instanceof Error ? error.message : String(error))}</span>`;
+          state.prepared = null;
+        }
       } finally {
-        run.disabled = false;
+        if (!signal.aborted) {
+          busy = null;
+          output.innerHTML = state.console;
+          sync();
+        }
       }
     }
     async function fit() {
-      if (!fitButton || !fitOut || fitButton.disabled) return;
-      fitButton.disabled = true;
-      const progress = ["", ""];
-      fitOut.innerHTML = "<p>Preparing the Stan data with mlumr.</p>";
+      if (busy || !fitButton || !fitOut || state.prepared !== state.revision) return;
+      onActivity();
+      const spec = { run: ++runs, model: state.model, revision: state.revision };
+      busy = "fit";
+      job = new AbortController();
+      const own = job;
+      sync();
+      announce(`Fit ${spec.run} started: ${MODEL[spec.model]}.`);
+      fitOut.innerHTML = "<p>Preparing the Stan data with mlumr().</p>";
+      const progress = [];
       try {
-        const json = await evalString(`lesson_stan_json(dat, model = "${model}")`);
-        const benchmarks = JSON.parse(await evalString("lesson_benchmarks(dat)"));
-        const result = await fitStan(model, json, PARAMS, (chain2, message) => {
+        const prepared = await prepareFit(spec.model, () => void 0);
+        if (!prepared.ok) {
+          state.prepared = null;
+          throw new Error(`mlumr() refused the data: ${prepared.error}`);
+        }
+        if (own.signal.aborted) throw new DOMException("The fit was cancelled.", "AbortError");
+        const result = await fitStan({ model: spec.model, stan: prepared.stan, sampler: prepared.sampler }, PARAMS, (chain2, message) => {
           progress[chain2 - 1] = message.trim().split("\n").pop() ?? "";
-          fitOut.innerHTML = `<pre class="console">${esc2(progress.map((m2, i3) => `Chain ${i3 + 1}: ${m2 || "starting"}`).join("\n"))}</pre>`;
-        });
-        fitOut.innerHTML = fitView(model, result, benchmarks);
+          if (!signal.aborted) fitOut.innerHTML = `<pre class="console">${esc2(Array.from({ length: prepared.sampler.chains }, (_2, i3) => `Chain ${i3 + 1}: ${progress[i3] || "starting"}`).join("\n"))}</pre>`;
+        }, own.signal);
+        state.fit = fitView(spec, prepared, result);
+        state.fitRevision = spec.revision;
+        state.record = {
+          lesson: "mlumr lesson, Run mlumr in your browser",
+          created: (/* @__PURE__ */ new Date()).toISOString(),
+          run: spec.run,
+          model: spec.model,
+          stan_model: prepared.model_name,
+          code_revision: spec.revision,
+          code_sha256: await sha256(state.code),
+          stan_data_sha256: await sha256(prepared.stan),
+          stan_data: JSON.parse(prepared.stan),
+          sampler: prepared.sampler,
+          stan_version: result.stanVersion,
+          draws: { chains: result.chains, per_chain: result.samplesPerChain, total: result.draws },
+          diagnostics: result.diagnostics,
+          summaries: result.summaries.map(({ draws: _draws, ...rest }) => rest),
+          benchmarks: prepared.benchmarks,
+          warnings: prepared.warnings,
+          messages: prepared.messages,
+          user_agent: navigator.userAgent
+        };
+        announce(`Fit ${spec.run} finished: ${MODEL[spec.model]}.`);
       } catch (error) {
-        fitOut.innerHTML = `<p class="feedback">${esc2(error instanceof Error ? error.message : String(error))}</p>`;
+        const cancelled = error instanceof DOMException && error.name === "AbortError";
+        const message = error instanceof Error ? error.message : String(error);
+        state.fit = cancelled ? `<p class="feedback">Fit ${spec.run} was cancelled${signal.aborted ? " because you left this chapter" : ""}. No result was kept.</p>` : `<p class="feedback" role="alert">Fit ${spec.run} failed. ${esc2(message)}</p>`;
+        state.fitRevision = spec.revision;
+        state.record = void 0;
+        announce(cancelled ? `Fit ${spec.run} cancelled.` : `Fit ${spec.run} failed.`);
       } finally {
-        fitButton.disabled = false;
+        if (job === own) job = null;
+        if (!signal.aborted) {
+          busy = null;
+          showFit();
+          sync();
+        }
       }
     }
-    slot.addEventListener("click", (event) => {
+    function download() {
+      if (!state.record) return;
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob([JSON.stringify(state.record, null, 2)], { type: "application/json" }));
+      link.download = `mlumr-lesson-fit-${state.record.run}.json`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 6e4);
+    }
+    section.addEventListener("click", (event) => {
       const button2 = event.target.closest("button");
-      if (!button2) return;
-      if (button2.dataset.act === "run") void execute();
-      if (button2.dataset.act === "reset") textarea.value = cell.code;
-      if (button2.dataset.act === "fit") void fit();
-      if (button2.dataset.model) {
-        model = button2.dataset.model;
-        slot.querySelectorAll("[data-model]").forEach((b2) => b2.setAttribute("aria-pressed", String(b2 === button2)));
+      if (!button2 || button2.disabled) return;
+      const act = button2.dataset.act;
+      if (act === "run") void execute();
+      if (act === "fit") void fit();
+      if (act === "cancel") job?.abort();
+      if (act === "restart") restartR();
+      if (act === "record") download();
+      if (act === "reset") {
+        textarea.value = cell.code;
+        edited();
       }
-    });
+      if (button2.dataset.model && busy !== "fit") {
+        state.model = button2.dataset.model;
+        onActivity();
+        sync();
+      }
+    }, { signal });
+    textarea.addEventListener("input", edited, { signal });
     textarea.addEventListener("keydown", (event) => {
       if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
         event.preventDefault();
         void execute();
       }
-    });
+    }, { signal });
+    sync();
+    showFit();
+    return { dispose: () => lifetime.abort() };
   }
 
   // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/scene.ts
@@ -17785,7 +18287,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       }),
       metric("True difference", fmt(base.rd)) + metric("Difference we would report", fmt(shifted.rd)) + metric("Error from the hidden difference", fmt(shifted.rd - base.rd)),
       "The hidden difference belongs to trial B, not to treatment B. Trial B has one intercept, and it soaks up both. No covariate adjustment can pull them apart.",
-      `<h3>What an unanchored comparison has to assume</h3><ul class="read-list"><li>The treatments, outcome definitions and follow-up are comparable.</li><li>Every factor that affects the outcome, or changes the treatment effect, was measured and modeled.</li><li>After adjusting for those factors, patients in the two trials are comparable, and their covariates overlap.</li><li>The outcome model and the covariate distributions are close enough to the truth.</li></ul>`
+      `<h3>What an unanchored comparison has to assume</h3><ul class="read-list"><li>The treatments, the outcome definition, the time origin and the follow-up mean the same thing in both trials.</li><li>The baseline covariates, measured before treatment, are enough for outcome predictions to carry from one trial to the other. These are the prognostic factors and effect modifiers, not everything recorded: adjusting for something the treatment itself changes, or for how patients were selected, can add bias.</li><li>The trials' covariates cover the target population, or any extrapolation is stated.</li><li>The outcome model and the assumed joint covariate distribution are close enough to the truth.</li><li>For survival, censoring and late entry meet the assumptions the likelihood needs. Coding censoring correctly does not show that it is unrelated to the outcome.</li></ul><p>Good sampling and precise integration establish none of these.</p>`
     );
   }
   function response(s2) {
@@ -17806,8 +18308,8 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         notes: [{ at: [0.03, -1.45], text: `gap ${fmt(-0.7, 2)}` }, { at: [0.97, (0.6 - 1.1 + beta) / 2], text: `gap ${fmt(gap1, 2)}`, anchor: "end" }],
         legend: [["a", "A: slope 2.4"], ["b", `B: slope ${fmt(beta, 1)}`]]
       }),
-      metric("Odds ratio, marker absent", fmt(Math.exp(-0.7))) + metric("Odds ratio, marker present", fmt(Math.exp(gap1))),
-      shared ? "Shared slopes: the two lines are parallel, so the gap between treatments is the same for every patient on the log odds scale." : "Separate slopes: the lines are not parallel, so the gap depends on the marker. The marker now changes the treatment effect.",
+      metric("Conditional odds ratio, marker absent", fmt(Math.exp(-0.7))) + metric("Conditional odds ratio, marker present", fmt(Math.exp(gap1))),
+      shared ? "Shared slopes: the lines are parallel, so the gap between the treatments on the log odds scale is the same with and without the marker. That gap is a conditional log odds ratio. It compares the model's predictions for patients who share a marker status; it does not mean anyone was seen under both treatments." : "Separate slopes: the lines are not parallel, so the conditional odds ratio depends on the marker. On this scale, the marker now changes the treatment effect.",
       `<p class="formula">log odds for A = \u22121.8 + 2.4 \xD7 marker<br>log odds for B = \u22121.1 + slope \xD7 marker</p>`
     );
   }
@@ -17878,7 +18380,8 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         legend: [["a", "A"], ["b", "B"]]
       }) + lineChart({
         title: "Log odds ratio, A versus B",
-        label: "Population log odds ratio across target populations compared with the log odds ratio for one patient",
+        label: "Population log odds ratio across target populations compared with the conditional log odds ratios",
+        summary: `Target share ${pct0(q)}: population log odds ratio ${fmt(b2.lor)}. Conditional log odds ratio ${shared ? "-0.700 at both marker values" : `-0.700 without the marker, ${fmt(1.7 - beta)} with it`}.`,
         x: [0, 1],
         y: [lo, hi],
         xTicks: [0, 0.25, 0.5, 0.75, 1],
@@ -17890,10 +18393,10 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         hlines: [{ y: -0.7, key: "muted", dash: true }, { y: 1.7 - beta, key: "muted", dash: true }],
         lines: [{ points: xs.map((p2) => [p2, binary(p2, beta).lor]), key: "ink" }],
         dots: [{ at: [q, b2.lor], key: "ink", r: 6 }],
-        legend: [["ink", "population"], ["muted", "one patient", true]]
+        legend: [["ink", "population"], ["muted", "conditional, by marker status", true]]
       }),
-      metric("Risk difference", fmt(b2.rd)) + metric("Population odds ratio", fmt(Math.exp(b2.lor))) + metric(shared ? "Odds ratio for one patient" : "Patient odds ratio, absent / present", shared ? fmt(Math.exp(-0.7)) : `${fmt(Math.exp(-0.7))} / ${fmt(Math.exp(1.7 - beta))}`),
-      shared ? "Shared slopes: every patient has the same odds ratio, yet the population odds ratio still moves with the mix. Odds ratios do not average simply, which is called non-collapsibility." : "Separate slopes: the marker changes the treatment effect, and the mix of the population changes the population effect as well.",
+      metric("Risk difference", fmt(b2.rd)) + metric("Population odds ratio", fmt(Math.exp(b2.lor))) + metric(shared ? "Conditional odds ratio" : "Conditional odds ratio, absent / present", shared ? fmt(Math.exp(-0.7)) : `${fmt(Math.exp(-0.7))} / ${fmt(Math.exp(1.7 - beta))}`),
+      shared ? "Shared slopes: the conditional odds ratio is the same with and without the marker, yet the population odds ratio still moves with the mix. Odds ratios do not average simply, which is called non-collapsibility. The risk difference moves too." : "Separate slopes: the marker changes the conditional odds ratio, and the mix of the population changes the population effect as well.",
       "<p>mlumr predicts, averages and compares inside every posterior draw, then summarizes. marginal_effects() does this for trial A's population, trial B's population, or a target population you pass as newdata.</p>"
     );
   }
@@ -17905,6 +18408,8 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       chart: lineChart({
         title,
         label: "Estimated mean outcome across covariate values with a 95% interval band, the subgroup rows, and the target",
+        summary: `Target at x = ${fmt(tx, 2)}: estimate ${fmt(d2.estimate, 2)}, 95% interval ${fmt(d2.estimate - 1.96 * d2.sd, 2)} to ${fmt(d2.estimate + 1.96 * d2.sd, 2)}. The truth behind the made-up data is ${fmt(0.4 + 0.8 * tx, 2)}.`,
+        clip: `Parts of the band run past this axis, which stops at -2 and 3. At the target, the 95% interval runs from ${fmt(d2.estimate - 1.96 * d2.sd, 2)} to ${fmt(d2.estimate + 1.96 * d2.sd, 2)}.`,
         x: [-1.5, 1.5],
         y: [-2, 3],
         xTicks: [-1.5, -1, -0.5, 0, 0.5, 1, 1.5],
@@ -17926,7 +18431,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       v2.chart,
       v2.metrics,
       v2.d.rank === 1 ? "One direction of information: the data fix the mean at x = 0 but not the slope, so the band is narrow only there. Two rows at the same x add precision at that point, not a new direction." : "Two different x values give two directions, so the intercept and the slope can both be estimated. Move the rows closer together: the band widens away from them, and the prior matters more.",
-      '<p class="formula">row mean ~ Normal(\u03B1 + \u03B2 \xD7 x, 0.15\xB2)<br>\u03B1, \u03B2 ~ Normal(0, prior SD\xB2)</p><p>This is an exact calculation for a normal outcome, not an mlumr fit. With K covariates, trial B needs at least K + 1 summaries. For binary and count outcomes, or a continuous outcome with a log link, each row passes through a curved link, so check_identification() only describes the rows and reports flagged = NA when there are enough of them. It refuses reconstructed survival data.</p>'
+      '<p class="formula">row mean ~ Normal(\u03B1 + \u03B2 \xD7 x, 0.15\xB2)<br>\u03B1, \u03B2 ~ Normal(0, prior SD\xB2)</p><p>The second argument of each Normal is a variance. This is an exact calculation for a normal outcome with an identity link, not an mlumr fit. With K covariates, trial B needs at least K + 1 summaries. For binary and count outcomes, or a continuous outcome with a log link, each row passes through a curved link, so check_identification() only describes the rows and reports flagged = NA when there are enough of them. It refuses reconstructed survival data.</p>'
     );
   }
   function priorsView(s2) {
@@ -17941,10 +18446,10 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         "Target estimate under different priors",
         "Point estimates and 95% intervals for the target under several prior standard deviations",
         [row("prior SD 0.3", 0.3, "b"), row("prior SD 1", 1, "b"), row("prior SD 3", 3, "b"), row(`your prior SD ${fmt(sd, 1)}`, sd, "a")],
-        [-6, 7],
-        [-6, -3, 0, 3, 6],
+        [-1, 2],
+        [-1, 0, 1, 2],
         [{ x: 0.4 + 0.8 * tx, text: "truth" }],
-        (x2) => x2.toFixed(0)
+        (x2) => String(x2)
       ),
       v2.metrics,
       "A tighter prior narrows the interval even though no new data arrived. Near the observed rows the data do the work; far from them, the prior does.",
@@ -17960,10 +18465,13 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
   function survivalView(s2) {
     const t2 = Number(s2.time), q = Number(s2.target), het = Number(s2.heterogeneity), r2 = survival(t2, q, het);
     const ts = grid(0, 36, 73), vals = ts.map((x2) => survival(x2, q, het)), area = t2 > 0 ? grid(0, t2, 40).map((x2) => survival(x2, q, het)) : [];
+    const month = `month ${fmt(t2, 1)}`;
+    const note = q === 0 || q === 1 ? "This target contains only one risk group, so the mix of people still event-free never changes. The population and conditional hazard ratios are both 0.65 at every time." : het === 0 ? "Both risk groups have the same baseline hazard, so mixing them creates no difference in risk. The population hazard ratio stays at 0.65." : r2.hr > 1 ? `At ${month} the population hazard ratio is above one, yet A's survival curve is still above B's. A hazard compares event rates among the people still event-free under each treatment, and those are now different mixes of risk groups. The hazard ratio alone does not reverse the survival advantage shown above.` : "The conditional hazard ratio is 0.65 within both risk groups. High-risk patients have their events sooner, and the mix of people still event-free changes differently under the two treatments. So the population hazard ratio need not stay at 0.65, or stay constant over time.";
     return block(
       lineChart({
         title: "Survival in the target population",
         label: "Survival curves for A and B with the area between them shaded up to the chosen time",
+        summary: `At ${month}, still event-free: A ${pct(r2.a.s)}, B ${pct(r2.b.s)}. RMST difference to ${month}: ${fmt(r2.rmstd, 2)} months.`,
         x: [0, 36],
         y: [0, 1],
         xTicks: [0, 6, 12, 18, 24, 30, 36],
@@ -17977,22 +18485,24 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         legend: [["a", "A"], ["b", "B"], ["accent", "RMST difference (shaded area)"]]
       }) + lineChart({
         title: "Hazard ratio, A versus B, over time",
-        label: "Population hazard ratio changing over time, compared with the constant hazard ratio for each patient",
+        label: "Population hazard ratio over time, with the conditional hazard ratio of 0.65 and the no-difference line at 1",
+        summary: `Population hazard ratio at ${month}: ${fmt(r2.hr)}. Conditional hazard ratio within each risk group: 0.650.`,
         x: [0, 36],
-        y: [0.5, 1],
+        y: [0.5, 1.1],
         xTicks: [0, 6, 12, 18, 24, 30, 36],
-        yTicks: [0.5, 0.6, 0.7, 0.8, 0.9, 1],
-        yFmt: (v2) => v2.toFixed(1),
+        yTicks: [0.5, 0.65, 0.8, 1],
+        yFmt: (v2) => v2.toFixed(2),
         xLabel: "Months",
         yLabel: "Hazard ratio",
-        hlines: [{ y: 0.65, key: "muted", dash: true }],
+        hlines: [{ y: 0.65, key: "muted", dash: true }, { y: 1, key: "muted" }],
         lines: [{ points: ts.map((x2, i3) => [x2, vals[i3].hr]), key: "ink" }],
         dots: [{ at: [t2, r2.hr], key: "ink", r: 6 }],
-        legend: [["ink", "population"], ["muted", "each patient", true]]
+        notes: [{ at: [36, 1], text: "HR = 1, no difference", anchor: "end", dy: -6, soft: true }],
+        legend: [["ink", "population"], ["muted", "conditional, each risk group", true]]
       }),
-      metric("Each patient's hazard ratio", "0.650") + metric(`Population hazard ratio, month ${fmt(t2, 1)}`, fmt(r2.hr)) + metric(`RMST difference to month ${fmt(t2, 1)}`, fmt(r2.rmstd, 2)),
-      "High-risk patients have their events sooner, so the people still at risk drift toward low risk, and faster under B. The population hazard ratio therefore changes over time even though every patient's hazard ratio stays at 0.65.",
-      "<p>In mlumr, a population hazard ratio needs a time (at_time in marginal_effects()), and an RMST needs a horizon (rmst_horizon in mlumr()). predict() gives survival, hazard, cumhaz, rmst, median and loghr.</p>"
+      metric("Conditional HR, each risk group", "0.650") + metric(`Population HR, ${month}`, fmt(r2.hr)) + metric(`RMST difference to ${month}`, `${fmt(r2.rmstd, 2)} months`),
+      note,
+      '<p>In mlumr, a population hazard ratio needs an evaluation time, and how you get one depends on the fit. With one baseline shape shared by both trials, the hazard ratio from marginal_effects() is its limit at time zero, and at_time is refused. With a separate shape for each trial (aux_by = ".study", the default for distributions that have a shape) or a flexible baseline, at_time picks the time and is rounded to the nearest fitted prediction time; the at_time column records the time actually used. Targets passed as newdata have their own time handling, described on the help page. For the whole curve, use predict(type = "loghr"), which is on the log scale.</p><p>An accelerated failure time fit reports a time ratio, "tr", only with shared slopes and one shared shape. Otherwise its scalar is "exp_delta_eta", which is not generally a time ratio. An RMST always carries its horizon (rmst_horizon in mlumr()) and its time units. Coding censoring correctly does not show that censoring is unrelated to the outcome.</p>'
     );
   }
   function diagnosticChart(i3) {
@@ -18037,7 +18547,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         flowChart("The six steps of an mlumr analysis", workflowSteps, i3),
         "",
         st.text,
-        `<h3>${st.title}</h3>${code(st.code)}<p>The complete companion script: <a href="workflow.R" download>download workflow.R</a>. Run it in R with mlumr installed, and add --fit for the real Stan fits.</p>`
+        `<h3>${st.title}</h3><p class="run-where"><strong>Native R example.</strong> These calls need mlumr installed with rstan or cmdstanr, so they do not run in the browser cell below. That cell runs mlumr's data preparation in webR and samples with its own Fit button.</p>${code(st.code)}<p>The complete companion script: <a href="workflow.R" download>download workflow.R</a>. Run it in R with mlumr installed, and add --fit for the real Stan fits.</p>`
       );
     }
     if (lab === "families") {
@@ -18077,7 +18587,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       root.className = "ml-lesson";
       const style = document.createElement("style");
       style.textContent = css;
-      root.innerHTML = `<header class="ml-header"><a class="brand" href="https://choxos.github.io/mlumr/" target="_blank" rel="noopener">mlumr<span class="brand-tag">Lesson</span></a><div class="header-tools"><a href="sources.html" target="_blank" rel="noopener">Sources</a><button type="button" class="theme-toggle" aria-label="Dark theme" aria-pressed="false">${moon}<span class="theme-label">Light</span><span class="theme-track" aria-hidden="true"><span class="theme-thumb"></span></span></button></div></header><div class="lab-scroll"><div class="lab-title"><div><span class="eyebrow"></span><h1 tabindex="-1"></h1><p class="question"></p></div><button type="button" class="reset" data-reset aria-label="Reset lab">Reset</button></div><div class="lab-body"><div class="visual"></div><aside class="lab-controls" aria-label="Experiment controls"></aside></div><div class="code-slot"></div><footer>Teaching models with made-up numbers. The code cells run real R, and the cell in the Run mlumr chapter runs real mlumr code and its Stan model, all in your browser. mlumr development version 0.1.0.9000, working toward 0.2.0.</footer></div>`;
+      root.innerHTML = `<header class="ml-header"><a class="brand" href="https://choxos.github.io/mlumr/" target="_blank" rel="noopener">mlumr<span class="brand-tag">Lesson</span></a><div class="header-tools"><a href="sources.html" target="_blank" rel="noopener">Sources</a><button type="button" class="theme-toggle" aria-label="Dark theme" aria-pressed="false">${moon}<span class="theme-label">Light</span><span class="theme-track" aria-hidden="true"><span class="theme-thumb"></span></span></button></div></header><div class="lab-scroll"><div class="lab-title"><div><span class="eyebrow"></span><h1 tabindex="-1"></h1><p class="question"></p></div><button type="button" class="reset" data-reset aria-label="Reset experiment" title="Restore this chapter's starting values. The narration is not affected.">Reset</button></div><div class="lab-body"><div class="visual"></div><aside class="lab-controls" aria-label="Experiment controls"></aside></div><div class="code-slot"></div><footer>Teaching models with made-up numbers. The code cells run real R, and the cell in the Run mlumr chapter runs real mlumr code and its Stan model, all in your browser. mlumr development version 0.1.0.9000, working toward 0.2.0.</footer></div>`;
       ctx.overlay.append(style, root);
       const disposeTheme = themeToggle(root.querySelector(".theme-toggle"));
       const defaults = Object.fromEntries(Object.entries(schema).map(([key, spec]) => [key, spec.default]));
@@ -18098,6 +18608,13 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         exploration[param] = value;
         draw();
       };
+      const hold = () => {
+        if (!exploration) {
+          exploration = { ...narratedState };
+          draw();
+        }
+      };
+      let cellHandle;
       const onInput = (event) => {
         const input = event.target;
         const param = input.dataset.param;
@@ -18117,16 +18634,11 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
           writeParameter("step", Math.min(workflowSteps.length - 1, Math.max(0, i3)));
         }
         if (button2.hasAttribute("data-reset")) {
-          if (current === narratedState.scene) {
-            exploration = null;
-            draw();
-          } else {
-            control.querySelectorAll("[data-param]").forEach((input) => {
-              const key = input.dataset.param;
-              writeParameter(key, schema[key].default);
-            });
-            if (current === "workflow") writeParameter("step", schema.step.default);
-          }
+          control.querySelectorAll("[data-param]").forEach((input) => {
+            const key = input.dataset.param;
+            writeParameter(key, schema[key].default);
+          });
+          if (current === "workflow") writeParameter("step", schema.step.default);
         }
         if (button2.dataset.answer !== void 0) {
           const q = questions[Math.round(Number(latest.question))];
@@ -18150,9 +18662,10 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
           root.querySelector("h1").textContent = title;
           root.querySelector(".question").textContent = question;
           control.innerHTML = controls(lab);
+          cellHandle?.dispose();
           const cell = cells[lab];
-          if (cell) mountCell(codeSlot, cell);
-          else codeSlot.replaceChildren();
+          cellHandle = cell ? mountCell(codeSlot, cell, lab, hold) : void 0;
+          if (!cell) codeSlot.replaceChildren();
           root.querySelector(".lab-scroll").scrollTop = 0;
         }
         const key = JSON.stringify(state);
@@ -18187,6 +18700,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         },
         handles: () => [],
         dispose() {
+          cellHandle?.dispose();
           disposeTheme();
           navigation.dispose();
           root.removeEventListener("input", onInput);

@@ -267,22 +267,25 @@ var src_default = class StanModel {
 
 // stan-worker.ts
 var model;
+var reply = (message) => self.postMessage(message);
 var progress = (message) => {
-  if (message) self.postMessage({ type: "progress", message });
+  if (message) reply({ type: "progress", message });
 };
 self.onmessage = async (event) => {
   try {
-    if (event.data.type === "load") {
-      const url = event.data.url;
-      const js = await import(url);
+    const request = event.data;
+    if (request?.type === "load") {
+      const js = await import(request.url);
       model = await src_default.load(js.default, progress, progress);
-      self.postMessage({ type: "loaded" });
-      return;
+      reply({ type: "loaded", stanVersion: model.stanVersion() });
+    } else if (request?.type === "sample") {
+      if (!model) throw new Error("The Stan model has not been loaded.");
+      const result = model.sample(request.config);
+      reply({ type: "result", paramNames: result.paramNames, draws: result.draws });
+    } else {
+      throw new Error("The Stan worker received a request it does not understand.");
     }
-    if (!model) throw new Error("The Stan model has not been loaded.");
-    const result = model.sample(event.data.config);
-    self.postMessage({ type: "result", paramNames: result.paramNames, draws: result.draws });
   } catch (error) {
-    self.postMessage({ type: "error", message: error instanceof Error ? error.message : String(error) });
+    reply({ type: "error", message: error instanceof Error ? error.message : String(error) });
   }
 };

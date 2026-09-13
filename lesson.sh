@@ -9,14 +9,15 @@ mlumr_ref="${MLUMR_REF:-4cfd3660f56e22668ae357bde3df4b30cacb23a5}"
 command="${1:-serve}"
 case "$command" in
   help|--help|-h)
-    echo 'Usage: ./lesson.sh [setup|check|test|build|dist|serve|scene|ref]'
+    echo 'Usage: ./lesson.sh [setup|check|test|build|dist|adapter|serve|scene|ref]'
     echo 'build creates local spoken narration and a static site in build/site.'
     echo 'dist runs build and copies the site to dist/, which the lesson branch deploys.'
+    echo 'adapter checks the browser mlumr adapter natively with R; set MLUMR_NATIVE to a checkout at the pin to compare with the package itself.'
     echo 'serve opens an existing build. Requires Node >=22, pnpm, npm, Git; build also requires FFmpeg.'
     echo 'TANGIBLE_DIR can point to an existing checkout of the pinned Tangible revision.'
     echo 'MLUMR_DIR and MLUMR_REF choose the mlumr checkout and commit for the browser R code.'
     exit 0 ;;
-  setup|check|test|build|dist|serve|scene|ref) ;;
+  setup|check|test|build|dist|adapter|serve|scene|ref) ;;
   *) echo "Unknown command: $command" >&2; exit 2 ;;
 esac
 if [[ ! -f "$tangible_dir/package.json" ]]; then
@@ -39,6 +40,7 @@ ln -sfn "$tangible_dir/packages/player" "$lesson_dir/node_modules/@tangible/play
 ln -sfn "$tangible_dir/node_modules/vitest" "$lesson_dir/node_modules/vitest"
 
 build_site() {
+  mkdir -p "$lesson_dir/build" && (cd "$lesson_dir" && node dist-manifest.mjs snapshot)
   (cd "$tangible_dir" && pnpm lesson check --lesson "$lesson_dir")
   (cd "$tangible_dir" && pnpm lesson build --offline --bundle --lesson "$lesson_dir")
   local site="$lesson_dir/build/site"
@@ -53,7 +55,8 @@ build_site() {
   # blocks the JSON writer reads.
   local src
   src="$(mktemp -d)"
-  git -C "$mlumr_dir" archive "$mlumr_ref" R NAMESPACE inst/stan | tar -x -C "$src"
+  git -C "$mlumr_dir" archive "$mlumr_ref" R NAMESPACE DESCRIPTION inst/stan | tar -x -C "$src"
+  node "$lesson_dir/verify-models.mjs" "$src/inst/stan"
   rm -rf "$site/r" && mkdir -p "$site/r/R" "$site/r/inst/stan"
   for file in "$src"/R/*.R; do
     case "$(basename "$file")" in
@@ -61,12 +64,13 @@ build_site() {
       *) cat "$file"; echo ;;
     esac
   done > "$site/r/R/mlumr.R"
-  cp "$src/NAMESPACE" "$site/r/"
+  cp "$src/NAMESPACE" "$src/DESCRIPTION" "$site/r/"
   cp "$src"/inst/stan/mlumr_binary_*.stan "$site/r/inst/stan/"
   cp -R "$src/inst/stan/include" "$site/r/inst/stan/"
-  cp "$lesson_dir"/r/*.R "$site/r/"
+  cp "$lesson_dir/r/load.R" "$lesson_dir/r/lesson-helpers.R" "$site/r/"
   rm -rf "$src"
   node "$lesson_dir/finish-site.mjs"
+  (cd "$lesson_dir" && MLUMR_REF="$mlumr_ref" TANGIBLE_REVISION="$tangible_revision" node dist-manifest.mjs write build/site)
   echo "Built narrated lesson at $site/index.html (mlumr R sources from $mlumr_ref)"
 }
 
@@ -74,11 +78,20 @@ case "$command" in
   setup) echo "Tangible ready at $tangible_revision" ;;
   test)
     (cd "$tangible_dir" && pnpm exec tsc --project "$lesson_dir/tsconfig.json")
+    (cd "$lesson_dir/runtime" && npm ci --silent)
+    (cd "$tangible_dir" && pnpm exec tsc --project "$lesson_dir/runtime/tsconfig.json")
     (cd "$tangible_dir" && pnpm exec vitest run --root "$lesson_dir") ;;
   build) build_site ;;
   dist)
     build_site
     rm -rf "$lesson_dir/dist" && cp -R "$lesson_dir/build/site" "$lesson_dir/dist"
+    (cd "$lesson_dir" && node dist-manifest.mjs verify dist)
     echo "Copied the site to $lesson_dir/dist" ;;
+  adapter)
+    [[ -f "$lesson_dir/build/site/r/load.R" ]] || { echo "Run ./lesson.sh build first." >&2; exit 1; }
+    cell="$(mktemp)"
+    (cd "$lesson_dir" && node --experimental-strip-types --no-warnings -e "import('./scenes/content.ts').then(m => process.stdout.write(m.cells.workflow.code))") > "$cell"
+    Rscript "$lesson_dir/r/check-adapter.R" "$lesson_dir/build/site/r" "$cell" --write="$lesson_dir/build/adapter" ${MLUMR_NATIVE:+"--native=$MLUMR_NATIVE"}
+    rm -f "$cell" ;;
   *) (cd "$tangible_dir" && pnpm lesson "$command" --lesson "$lesson_dir") ;;
 esac
