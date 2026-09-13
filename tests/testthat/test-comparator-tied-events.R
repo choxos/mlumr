@@ -584,6 +584,19 @@ test_that("any positive same-profile gap is a conflict", {
   expect_identical(f(c(-Inf, 0), c(log(4), Inf)), "unbounded")
 })
 
+test_that("a determinant that is not finite answers instead of aborting", {
+  g <- mlumr:::.grid_hits_targets
+  # Finite nodes and finite targets can still overflow their products. Both
+  # determinant terms go to infinity here, so the determinant is NaN and the
+  # tolerance is Inf, and `abs(NaN) <= Inf` is NA. Comparing on that aborted
+  # the fit rather than returning the undecided answer the budget and the
+  # wider designs already return.
+  expect_true(is.na(abs(NaN) <= Inf))
+  expect_no_error(g(matrix(c(0, 5e307, 1e308), ncol = 1L), c(-700, 0, 700)))
+  expect_false(isTRUE(g(matrix(c(0, 5e307, 1e308), ncol = 1L),
+                        c(-700, 0, 700))))
+})
+
 test_that("an underflowed determinant does not certify a match", {
   g <- mlumr:::.grid_hits_targets
   # Both determinant products underflow to zero here, so a determinant test

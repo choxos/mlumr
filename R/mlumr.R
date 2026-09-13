@@ -422,8 +422,16 @@
           (.two_prod_err(b, zz, bz) == 0) &
           (.two_sum_err(a, -bz, det) == 0)
         exact_here[is.na(exact_here)] <- FALSE
-        if (!any(det == 0 & exact_here)) exact_all <- FALSE
-        if (!any(abs(det) <= tol)) close_all <- FALSE
+        # Finite nodes and finite targets can still overflow their products:
+        # nodes `(0, 5e307, 1e308)` against targets `(-700, 0, 700)` send
+        # both `a` and `bz` to infinity, so `det` is NaN and `tol` is Inf,
+        # and `abs(NaN) <= Inf` is NA. Comparing on that aborted the fit with
+        # "missing value where TRUE/FALSE needed" instead of answering. A
+        # candidate whose determinant is not finite tells us nothing, so it
+        # is neither an exact match nor a close one.
+        usable <- is.finite(det) & is.finite(tol)
+        if (!any(usable & det == 0 & exact_here)) exact_all <- FALSE
+        if (!any(usable & abs(det) <= tol)) close_all <- FALSE
         if (!close_all) break
       }
       if (exact_all) return(TRUE)
