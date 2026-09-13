@@ -350,6 +350,13 @@
 #' @return `-1`, `0` or `1`, or `NA` where any term is not finite.
 #' @keywords internal
 .exact_sum_sign <- function(terms) {
+  # Finiteness is settled on the INPUTS, before any of them is folded in. A
+  # non-finite term poisons the expansion into a mixture of `NA` and ordinary
+  # components, and reading the sign off the last nonzero one then answers
+  # with a definite side: `list(Inf, 1)` came back as `+1` rather than as
+  # undecided, and a caller reading `!is.na()` acts on it.
+  finite <- TRUE
+  for (t in terms) finite <- finite & is.finite(t)
   parts <- list()
   for (t in terms) {
     q <- t
@@ -369,6 +376,7 @@
     out[is.na(sg)] <- NA_real_
   }
   out[is.nan(out)] <- NA_real_
+  out[!finite] <- NA_real_
   out
 }
 
@@ -806,8 +814,14 @@
       # since it may yet be the match, but it can never certify one.
       near <- !decided & usable & abs(det) <= tol
       near[is.na(near)] <- FALSE
+      # A candidate whose determinant is not finite at all was not examined,
+      # and dropping it here made the whole enumeration answer `FALSE` when
+      # every candidate overflowed. `FALSE` says the candidates were
+      # EXCLUDED, which the caller reads as a real answer and reports nothing
+      # about; these stay alive so the arm comes back undecided instead.
+      unexamined <- !decided & !usable
       exact[idx] <- exact[idx] & (rowSums(hit) > 0)
-      alive[idx] <- rowSums(hit | near) > 0
+      alive[idx] <- rowSums(hit | near | unexamined) > 0
     }
     if (any(exact & alive)) return(TRUE)
     if (any(alive)) close <- TRUE

@@ -632,6 +632,20 @@ test_that("an underflowed determinant does not certify a match", {
                         c(0, 2^-52, 3 * 2^-52))))
 })
 
+test_that("a candidate that overflowed was not examined, not excluded", {
+  g <- mlumr:::.grid_hits_targets
+  # `FALSE` says the enumeration EXCLUDED every candidate, which the caller
+  # reads as a real answer and reports nothing about. A determinant that is
+  # not finite excluded nothing: these nodes and targets send both products
+  # to infinity, and answering FALSE there passed the arm over in silence.
+  out <- g(matrix(c(0, 5e307, 1e308), ncol = 1L), c(-700, 0, 700))
+  expect_true(is.na(out))
+  expect_identical(attr(out, "declined"), "inexact")
+  # An ordinary grid is still decided outright in both directions.
+  expect_true(g(matrix(c(1, 2, 3), ncol = 1L), log(c(1, 2, 4))))
+  expect_false(g(matrix(c(1, 2, 3), ncol = 1L), c(0, 1, 2 + 1e-15)))
+})
+
 test_that("the enumeration cutoff declines instead of overflowing", {
   g <- mlumr:::.grid_hits_targets
   # `n` and `length(u)` are integers, so `n * n * (n + length(u))` overflows
@@ -1401,9 +1415,15 @@ test_that("the exact sum primitive decides a sum, not its operations", {
   # zero. The expansion keeps every error as its own component.
   expect_false(z(list(1, 2^-60, -1)))
   expect_true(z(list(1, 2^-60, -1, -2^-60)))
-  # Nothing is established where a term is not finite.
+  # Nothing is established where a term is not finite, and that is decided
+  # on the INPUTS. Folding a non-finite term in first leaves a mixture of
+  # `NA` and nonzero components, and reducing over that answers FALSE, since
+  # `NA & FALSE` is FALSE: `list(Inf, 1)` read as a certified nonzero sum.
   expect_true(is.na(z(list(1, NaN, -1))))
   expect_true(is.na(z(list(Inf, -Inf))))
+  expect_true(is.na(z(list(Inf, 1))))
+  expect_true(is.na(z(list(1, Inf))))
+  expect_true(is.na(z(list(-Inf, 1, 2))))
   # It answers elementwise over a matrix, which is how the enumeration uses
   # it, and the first term carries the shape.
   ans <- z(list(matrix(c(1, 2, 3, 4), nrow = 2L), -c(1, 2), c(0, 0, -2, -2)))
