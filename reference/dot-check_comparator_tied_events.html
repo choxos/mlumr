@@ -451,6 +451,33 @@ to move, since the index likelihood is positive and smooth there and
 reweights the ridge by a bounded factor instead of suppressing it. The
 reach is <code>1 + n_cov</code> under either.</p>
     </div>
+    <div class="section level2">
+    <h2 id="what-this-does-not-decide">What this does not decide<a class="anchor" aria-label="anchor" href="#what-this-does-not-decide"></a></h2>
+    <p>Silence from this function is not a certificate. Three things are outside
+it, and the difference between them is whether the gap is a fact about one
+fit or a standing limit of the method.</p>
+<p>Past the grid's reach, whether one affine map carries every comparator
+event time onto a node is decided by <code><a href="dot-grid_hits_targets.html">.grid_hits_targets()</a></code>, <strong>and only
+for a single declared covariate</strong>. With two or more the map is a
+hyperplane, the enumeration that covers every candidate for a line does
+not cover it, and no attempt is made: the arm is passed over. That is the
+same answer at every <code>n_int</code> and on every arm, so it is stated here rather
+than warned about on each fit; it fires on every multi-covariate survival
+fit whose comparator carries its own auxiliary. Such a fit is not thereby
+improper, and it is not thereby certified proper either. <code>rank(D)</code> is a
+lower bound on the true rate under more than one covariate for the same
+reason, which the netting rules above already account for.</p>
+<p>The other two gaps ARE facts about one grid and are warned about when they
+occur: a grid past the enumeration budget, and a candidate within rounding
+of a match whose determinant the available arithmetic could not settle.
+Both are rare. Of 400 arms built from <code><a href="add_integration.html">add_integration()</a></code> grids of 8 to
+128 points against 40 reconstructed event times, all 400 were decided
+outright.</p>
+<p>Beyond the enumeration, the deferred cases are the PH-Weibull and Gompertz
+ridges, whose width does not shrink and whose growth meets the coefficient
+priors rather than <code>prior_aux</code>, and any allocation of lower rank than the
+canonical one under more than one covariate.</p>
+    </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

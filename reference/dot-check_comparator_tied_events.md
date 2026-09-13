@@ -437,3 +437,36 @@ its own `mu_comparator` and `beta_comparator`, and the SPFA one gives it
 free to move, since the index likelihood is positive and smooth there
 and reweights the ridge by a bounded factor instead of suppressing it.
 The reach is `1 + n_cov` under either.
+
+## What this does not decide
+
+Silence from this function is not a certificate. Three things are
+outside it, and the difference between them is whether the gap is a fact
+about one fit or a standing limit of the method.
+
+Past the grid's reach, whether one affine map carries every comparator
+event time onto a node is decided by
+[`.grid_hits_targets()`](https://choxos.github.io/mlumr/reference/dot-grid_hits_targets.md),
+**and only for a single declared covariate**. With two or more the map
+is a hyperplane, the enumeration that covers every candidate for a line
+does not cover it, and no attempt is made: the arm is passed over. That
+is the same answer at every `n_int` and on every arm, so it is stated
+here rather than warned about on each fit; it fires on every
+multi-covariate survival fit whose comparator carries its own auxiliary.
+Such a fit is not thereby improper, and it is not thereby certified
+proper either. `rank(D)` is a lower bound on the true rate under more
+than one covariate for the same reason, which the netting rules above
+already account for.
+
+The other two gaps ARE facts about one grid and are warned about when
+they occur: a grid past the enumeration budget, and a candidate within
+rounding of a match whose determinant the available arithmetic could not
+settle. Both are rare. Of 400 arms built from
+[`add_integration()`](https://choxos.github.io/mlumr/reference/add_integration.md)
+grids of 8 to 128 points against 40 reconstructed event times, all 400
+were decided outright.
+
+Beyond the enumeration, the deferred cases are the PH-Weibull and
+Gompertz ridges, whose width does not shrink and whose growth meets the
+coefficient priors rather than `prior_aux`, and any allocation of lower
+rank than the canonical one under more than one covariate.

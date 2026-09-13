@@ -93,15 +93,22 @@ used to skip in silence.</p>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p><code>TRUE</code> only where an exact map was found, <code>FALSE</code> where the
-enumeration excluded every candidate it examined, and <code>NA</code> where the
-case was not
-decided: more than one covariate, a grid past the enumeration budget, or
-a candidate that is close without being exact. An <code>NA</code> from the budget
-carries a <code>declined</code> attribute of <code>"budget"</code>, because that is the only
-one of the three that makes the same data answerable at one <code>n_int</code> and
-unexamined at another, and the caller reports it rather than falling
-silent.</p>
+    <p><code>TRUE</code> where an exact map was found, <code>FALSE</code> where the enumeration
+excluded every candidate, and <code>NA</code> where the question was not decided.
+Every <code>NA</code> carries the reason as a <code>declined</code> attribute, because a
+question that went unasked is not a question that found nothing and only
+the reason says which of those happened:</p><ul><li><p><code>"dimension"</code>, more than one covariate. A standing limit of the method
+used here, the same answer at every <code>n_int</code> and on every arm.</p></li>
+<li><p><code>"budget"</code>, a grid past the enumeration budget. The same data is
+answerable at a smaller <code>n_int</code>.</p></li>
+<li><p><code>"inexact"</code>, a candidate within rounding of a match whose determinant
+could not be settled exactly, because one of the four differences
+feeding it rounded. The eight-product expansion of the original
+operands would decide it and is not built here.</p></li>
+<li><p><code>"unavailable"</code>, <code>"degenerate"</code>, <code>"nonfinite"</code>, no usable grid,
+fewer than two distinct nodes or targets, or non-finite inputs.</p></li>
+</ul><p>The caller reports the first two kinds of fact about a particular grid
+and documents the standing limit; see <code><a href="dot-check_comparator_tied_events.html">.check_comparator_tied_events()</a></code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -121,8 +128,7 @@ an <code>n_int</code> of 256 left unexamined the arm that 8 nodes refused.</p>
 positive residual is a ridge the profile abandons as soon as the auxiliary
 falls below that residual, so accepting one refuses a proper fit for a
 singularity it does not have. Nodes <code>(1, 2, 3)</code> against targets
-<code>(0, 1, 2 + 1e-15)</code> are a near miss no affine map removes, and they report
-undecided rather than a match.</p>
+<code>(0, 1, 2 + 1e-15)</code> are a near miss no affine map removes.</p>
 <p>Consistency is therefore read off the DETERMINANT of the original data,</p>
 <p><code>(u[i] - u[1]) * (z[j2] - z[j1]) - (u[2] - u[1]) * (z[j] - z[j1])</code></p>
 <p>which is built from differences of the inputs and contains no division and
@@ -134,6 +140,20 @@ residual: nodes <code>(1, 1 + 2^-52, 2)</code> against targets <code>(0, 1, 2)</
 2 against a prediction of 1. And it is too strict, because the round trip
 is inexact where the geometry is not: <code>-log(2) + log(2) * 3 == log(4)</code> is
 FALSE while <code>log(4) - log(2) * 2 == 0</code> is TRUE.</p>
+<p>What decides is that determinant's EXACT value, which the computed one
+need not be in either direction. Asking instead whether every operation
+producing it was individually exact is SUFFICIENT for the computed value
+to be the real one, and reading a sufficient condition as a necessary one
+left an exactly consistent grid undecided: at <code>a = qnorm(0.75)</code>, nodes
+<code>(-a, 0, a)</code> against targets <code>(0, log 2, log 4)</code> are carried by
+<code>mu = log 2</code> and slope <code>log(2) / a</code>, and both products in the determinant
+round by the same <code>-5.3745e-17</code>, so they cancel and the computed zero is
+the true one. Those nodes are the symmetric quartiles of the default
+Gaussian integration grid. The determinant is split into its exact parts
+instead and <code><a href="dot-exact_sum_is_zero.html">.exact_sum_is_zero()</a></code> answers for the whole expression, with
+no tolerance anywhere. Verified against exact rational arithmetic on
+12,000 generated grids, half of them carrying a planted affine image:
+no disagreement in either direction.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -270,18 +270,37 @@
   another, which is what the warning names. Consistency is read off the
   determinant of the original data,
   `(u[i] - u[1]) * (z[j2] - z[j1]) - (u[2] - u[1]) * (z[j] - z[j1])`,
-  which has no division and no slope in it, and only an exact zero
-  certifies: a residual that is merely small is a near miss no affine
-  map removes, and it reports undecided. A COMPUTED zero is not an exact
-  one either, since both products round before the subtraction, so the
-  zero counts only when every step that produced it was itself exact,
-  which is checked with the error terms of the sums and products. Nodes
+  which has no division and no slope in it, and what decides is that
+  determinant’s EXACT value, which the computed one need not be in
+  either direction. A computed zero can be a genuinely nonzero
+  determinant that cancelled: nodes
   `(0, 0.3961039261018525, 1.04621481495181)` against targets
-  `(0, 0.6209825942831111, 1.6401786176669797)` compute a determinant of
-  0 while the determinant of those very doubles is -3.4958e-17, and no
-  permutation of them is an affine match. Silence from this check is not
-  a certificate that the posterior is proper. A refusal is a certificate
-  that it is not.
+  `(0, 0.6209825942831111, 1.6401786176669797)` compute 0 while the
+  determinant of those very doubles is -3.4958e-17, and no permutation
+  of them is an affine match. And an exact match can compute zero with
+  neither product exact: at `a = qnorm(0.75)`, nodes `(-a, 0, a)`
+  against event times 1, 2 and 4 are carried exactly by `mu = log 2` and
+  slope `log(2) / a`, and both products round by the same `-5.3745e-17`,
+  so they cancel. Those nodes are the symmetric quartiles of the default
+  Gaussian integration grid. The determinant is therefore split into its
+  exact parts and the whole expression’s value decides, with no
+  tolerance anywhere; checked against exact rational arithmetic on
+  12,000 generated grids, half carrying a planted affine image, with no
+  disagreement in either direction.
+
+  Silence from this check is not a certificate that the posterior is
+  proper. A refusal is a certificate that it is not. Every way of not
+  deciding now carries its reason, and the two that are facts about a
+  particular grid are reported at the fitting interface rather than
+  passed over: a grid beyond the enumeration budget, and a candidate
+  within rounding of a match whose determinant the available arithmetic
+  could not settle. Both are rare; of 400 arms built from
+  [`add_integration()`](https://choxos.github.io/mlumr/reference/add_integration.md)
+  grids of 8 to 128 points against 40 reconstructed event times, all 400
+  were decided outright. More than one declared covariate is not a fact
+  about a grid but a standing limit of the enumeration, the same answer
+  at every `n_int` and on every arm, and it is documented in the guard’s
+  scope rather than warned about on every multi-covariate fit.
 
   The exponent used is `m - min(k, reach)`, which is exact for one
   covariate and a lower bound for more than one. `min(k, reach)` bounds
