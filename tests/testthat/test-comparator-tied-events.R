@@ -1622,12 +1622,20 @@ test_that("an exact map whose slope the index excludes does not certify", {
   # One admitting `beta >= 0` leaves it standing.
   near <- mlumr:::.index_slope_admits(.ineq_index(1), 0, log(2))
   expect_true(g(nodes, targets, admits = near))
-  # A boundary-only region settles neither and says so.
+  # A boundary-only region settles neither, but only for a pair that survives
+  # every target. Nodes `(0, 1)` at slope `log 2` sit on the boundary of a
+  # region needing `beta >= log 2`, and a third target at `log 4` would want a
+  # node at 2, which this grid does not have: the enumeration rules that pair
+  # out and there is nothing left to report.
   edge <- mlumr:::.index_slope_admits(
     list(X = cbind(1, c(0, 1)), lower = c(-Inf, log(2)), upper = c(0, Inf)),
     0, log(2)
   )
-  out <- g(matrix(c(0, 1), ncol = 1L), c(0, log(2), log(4)), admits = edge)
+  expect_false(g(matrix(c(0, 1), ncol = 1L), c(0, log(2), log(4)),
+                 admits = edge))
+  # Add the node it wants and the same boundary pair carries every target,
+  # which is the state that has to be reported.
+  out <- g(matrix(c(0, 1, 2), ncol = 1L), c(0, log(2), log(4)), admits = edge)
   expect_true(is.na(out))
   expect_identical(attr(out, "declined"), "slope")
 })
@@ -1745,9 +1753,19 @@ test_that("an unsettled slope reaches the interface from either route", {
     list(X = cbind(1, c(0, 1)), lower = c(-Inf, log(2)), upper = c(0, Inf)),
     0, log(2)
   )
-  out <- g(matrix(c(0, 1), ncol = 1L), c(0, log(2), log(4)), admits = edge)
+  out <- g(matrix(c(0, 1, 2), ncol = 1L), c(0, log(2), log(4)), admits = edge)
   expect_true(is.na(out))
   expect_identical(attr(out, "declined"), "slope")
+  # A boundary pair the enumeration goes on to rule out is NOT reported. Node
+  # pairs at slope 1 among `(0, 1, 2)` sit on the boundary of a region needing
+  # `beta >= 1`, and a third target at 3 wants a node at 3, which is absent.
+  one <- mlumr:::.index_slope_admits(
+    list(X = cbind(1, c(0, 1)), lower = c(-Inf, 1), upper = c(0, Inf)), 0, 1
+  )
+  expect_identical(one(0, c(0, 1, 2)), c(-1, 0, -1))
+  miss <- g(matrix(c(0, 1, 2), ncol = 1L), c(0, 1, 3), admits = one)
+  expect_false(miss)
+  expect_null(attr(miss, "declined"))
   # Both facts travel when both hold, since either one alone leaves the
   # question open and naming only the first would drop the other.
   both <- g(matrix(c(0.1, 0.3, 0.7), ncol = 1L), c(0, 0.2, 0.6))

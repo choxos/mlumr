@@ -764,14 +764,22 @@
     # however exactly it carries the targets, since the ridge it would form
     # sits where the index's own probability goes to zero. An undecided one
     # cannot certify and cannot be excluded either.
+    soft <- rep(FALSE, n)
     if (!is.null(admits)) {
       ad <- admits(z0, z)
-      if (any(pair & (is.na(ad) | ad == 0))) open_slope <- TRUE
+      # A pair the index admits only on the boundary, or does not settle, can
+      # never certify. It is still carried through the target tests, because
+      # whether it is worth REPORTING turns on whether it survives them: node
+      # pairs at slope 1 among `(0, 1, 2)` sit on the boundary of a region
+      # needing `beta >= 1`, and a third target at 3 would want a node at 3,
+      # which the grid does not have. Reporting before that check warned
+      # about a map the enumeration goes on to rule out.
+      soft <- pair & (is.na(ad) | ad == 0)
       pair <- pair & !is.na(ad) & ad > 0
     }
-    if (!any(pair)) next
+    if (!any(pair | soft)) next
     dz_exact <- (.two_sum_err(z, -z0, dz) == 0) & b_err == 0
-    alive <- pair
+    alive <- pair | soft
     exact <- pair
     for (ti in seq_along(rest)) {
       idx <- which(alive)
@@ -824,7 +832,8 @@
       alive[idx] <- rowSums(hit | near | unexamined) > 0
     }
     if (any(exact & alive)) return(TRUE)
-    if (any(alive)) close <- TRUE
+    if (any(alive & !soft)) close <- TRUE
+    if (any(alive & soft)) open_slope <- TRUE
   }
   why <- c(if (close) "inexact", if (open_slope) "slope")
   if (length(why)) return(undecided(why))
