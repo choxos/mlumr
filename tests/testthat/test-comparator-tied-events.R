@@ -1507,3 +1507,209 @@ test_that("an exactly matched Gaussian grid is refused through mlumr()", {
     "is therefore improper"
   )
 })
+
+# An index of nothing but censored rows confines `(mu_index, beta)` to a
+# region. Its own contribution is a positive constant, so it removes no power
+# of the auxiliary's width, but under `model = "spfa"` with `aux_by = "none"`
+# the comparator shares the slope AND the auxiliary, so its ridge has to sit
+# inside that region. Reading an order of zero as "the slope is free" refused
+# fits where the two cannot reach the boundary together.
+.ineq_index <- function(right_time = 4, center = 0) {
+  # Left-censored at 1 on x = 0, right-censored at `right_time` on x = 1.
+  list(X = cbind(1, c(0, 1) - center),
+       lower = c(-Inf, log(right_time)), upper = c(0, Inf))
+}
+
+test_that("censored index rows restrict a shared slope three ways", {
+  b <- log(2)
+  nodes <- matrix(c(0, 1), ncol = 1L)
+  state <- function(right_time, center = 0) {
+    region <- .ineq_index(right_time, center)
+    mlumr:::.admitted_slope_state(
+      matrix(region$X[, 2L], ncol = 1L),
+      mlumr:::.index_slope_admits(region, b)
+    )
+  }
+  # The region projects to `beta >= log(right_time)`, and a binary
+  # comparator's two distinct targets give slopes `+/- log 2`.
+  expect_identical(state(4), "outside")      # needs beta >= 2 log 2
+  expect_identical(state(2), "boundary")     # beta = log 2 exactly, mu pinned
+  expect_identical(state(1), "inside")       # beta >= 0 leaves room
+  expect_identical(state(0.5), "inside")
+  # Centering adds multiples of the intercept to the covariate column, which
+  # leaves every slope coefficient alone, so the same data centered gives the
+  # same answer. The elimination only ever uses covariate DIFFERENCES.
+  expect_identical(state(4, center = 0.5), "outside")
+  expect_identical(state(0.5, center = 0.5), "inside")
+  expect_identical(state(4, center = 1e6), "outside")
+})
+
+test_that("the admission test reads the region, not a fitted slope", {
+  b <- log(2)
+  ad <- mlumr:::.index_slope_admits(.ineq_index(4), b)
+  # Slope `b / (z - z0)`: from 0 to 1 that is `+log 2`, from 1 to 0 it is
+  # `-log 2`, and neither reaches `2 log 2`.
+  expect_identical(ad(0, c(0, 1)), c(-1, -1))
+  expect_identical(ad(1, c(0, 1)), c(-1, -1))
+  # A denominator of zero is not a candidate slope at all.
+  expect_identical(ad(0, 0), -1)
+  expect_identical(ad(0, Inf), -1)
+  # Lowering the right-censoring time admits the positive slope outright and
+  # leaves the negative one on the boundary, where `mu_index` is pinned.
+  lower <- mlumr:::.index_slope_admits(.ineq_index(0.5), b)
+  expect_identical(lower(0, c(0, 1)), c(-1, 1))
+  expect_identical(lower(1, c(0, 1)), c(0, -1))
+  # Two or more covariates leave a polyhedron whose projection is not read
+  # off pairs, and that is declined rather than guessed.
+  expect_null(mlumr:::.index_slope_admits(
+    list(X = cbind(1, c(0, 1), c(1, 0)), lower = c(-Inf, 0), upper = c(0, Inf)),
+    b
+  ))
+  # So is a region with no finite end on one side, which restricts nothing.
+  expect_null(mlumr:::.index_slope_admits(
+    list(X = cbind(1, c(0, 1)), lower = c(-Inf, -Inf), upper = c(0, 1)), b
+  ))
+})
+
+test_that("the exact sign primitive decides a comparison, not a division", {
+  sg <- mlumr:::.exact_sum_sign
+  expect_identical(sg(list(1, 2^-53, -1, -2^-53)), 0)
+  expect_identical(sg(list(1, 2^-60, -1)), 1)
+  expect_identical(sg(list(-1, -2^-60, 1)), -1)
+  # A term too small to survive its own addition still decides the sign:
+  # `1 + 2^-60` rounds back to 1, so summing and comparing would call this
+  # zero.
+  expect_identical(1 + 2^-60 - 1, 0)
+  expect_identical(sg(list(1, 2^-60, -1)), 1)
+  expect_true(is.na(sg(list(1, NaN, -1))))
+  expect_true(is.na(sg(list(Inf, -Inf))))
+  # It answers elementwise, and the first term carries the shape.
+  m <- sg(list(matrix(c(1, 2, 3, 4), nrow = 2L), -c(1, 2), c(0, 0, -2, -1)))
+  expect_identical(dim(m), c(2L, 2L))
+  expect_identical(as.vector(m), c(0, 0, 0, 1))
+})
+
+test_that("an exact map whose slope the index excludes does not certify", {
+  g <- mlumr:::.grid_hits_targets
+  nodes <- matrix(c(1, 2, 3), ncol = 1L)
+  targets <- log(c(1, 2, 4))
+  # Unrestricted, these are carried exactly by slope log 2.
+  expect_true(g(nodes, targets))
+  # An index region admitting only `beta >= 2 log 2` excludes that map, so
+  # nothing certifies and the arm carries no rate.
+  far <- mlumr:::.index_slope_admits(.ineq_index(4), log(2))
+  expect_false(g(nodes, targets, admits = far))
+  # One admitting `beta >= 0` leaves it standing.
+  near <- mlumr:::.index_slope_admits(.ineq_index(1), log(2))
+  expect_true(g(nodes, targets, admits = near))
+  # A boundary-only region settles neither and says so.
+  edge <- mlumr:::.index_slope_admits(
+    list(X = cbind(1, c(0, 1)), lower = c(-Inf, log(2)), upper = c(0, Inf)),
+    log(2)
+  )
+  out <- g(matrix(c(0, 1), ncol = 1L), c(0, log(2), log(4)), admits = edge)
+  expect_true(is.na(out))
+  expect_identical(attr(out, "declined"), "slope")
+})
+
+test_that("a shared slope the index cannot reach is not refused", {
+  skip_if_not_installed("survival")
+  # The index is two censored rows with no event between them: T <= 1 at
+  # x = 0 and T > right_time at x = 1. The comparator has three exact event
+  # times against a Bernoulli covariate, so its integration atoms are 0 and 1
+  # and its two distinct targets need slope `+/- log 2`. Under `spfa` with
+  # `aux_by = "none"` those are the same `beta` and the same scale.
+  fixture <- function(right_time) {
+    sv <- survival::Surv(time = c(NA_real_, right_time),
+                         time2 = c(1, Inf), type = "interval2")
+    ip <- suppressWarnings(set_ipd(
+      data.frame(trt = "A", x = c(0, 1)), treatment = "trt",
+      covariates = "x", family = "survival", Surv = sv
+    ))
+    ag <- set_agd_surv(
+      data.frame(trt = "B", time = c(1, 1, 2), status = rep(1L, 3),
+                 x_mean = 0.5),
+      treatment = "trt", time = "time", status = "status",
+      cov_means = "x_mean", cov_types = "binary"
+    )
+    d <- suppressWarnings(add_integration(
+      combine_data(ip, ag), n_int = 8, verbose = FALSE,
+      x = distr(qbern, prob = x_mean)
+    ))
+    # The geometry the argument rests on, asserted rather than assumed.
+    expect_identical(as.integer(d$ipd$data$.status), c(2L, 0L))
+    expect_setequal(unique(as.numeric(d$integration_points[1L, , 1L])),
+                    c(0, 1))
+    d
+  }
+  run <- function(right_time) {
+    d <- fixture(right_time)
+    index <- mlumr:::.check_survival_scale_collapse(d, "lognormal",
+                                                    aux_by = "none")
+    region <- attr(index, "index_region")
+    expect_false(is.null(region))
+    expect_equal(attr(index, "aux_order"), 0)
+    tryCatch({
+      out <- mlumr:::.check_comparator_tied_events(
+        d, "lognormal", aux_by = "none", model = "spfa",
+        index_exact = attr(index, "index_exact") %||% NA,
+        index_design = attr(index, "index_design"),
+        index_aux_order = attr(index, "aux_order") %||% 0,
+        index_region = region
+      )
+      if (isTRUE(out)) "warned" else "silent"
+    }, warning = function(w) "warned", error = function(e) "refused")
+  }
+  # `beta >= log 4` is out of reach of `+/- log 2`, so every path to the
+  # boundary leaves the index with a vanishing probability. Measured
+  # `d log L / d log s` for this data runs +2.5, +3.8, +7.9, +18.7, +38.8 as
+  # `s` falls through 0.2, 0.15, 0.1, 0.07, 0.05, which is `exp(-c / s^2)`
+  # and not a power: the posterior is proper and must not be refused.
+  expect_identical(run(4), "silent")
+  # At `beta >= log 2` the slope is admitted only on the boundary, where
+  # `mu_index` is pinned to a point and costs a power this does not count.
+  expect_identical(run(2), "warned")
+  # Lower the censoring time and the comparator's own slope is admitted
+  # outright. The profile then grows as `s^-3` (measured -3.0000 per decade),
+  # which is the genuine divergence, and it is still refused.
+  expect_identical(run(0.5), "refused")
+})
+
+test_that("the slope region is consulted only where both are shared", {
+  skip_if_not_installed("survival")
+  sv <- survival::Surv(time = c(NA_real_, 4), time2 = c(1, Inf),
+                       type = "interval2")
+  ip <- suppressWarnings(set_ipd(
+    data.frame(trt = "A", x = c(0, 1)), treatment = "trt",
+    covariates = "x", family = "survival", Surv = sv
+  ))
+  ag <- set_agd_surv(
+    data.frame(trt = "B", time = c(1, 1, 2), status = rep(1L, 3),
+               x_mean = 0.5),
+    treatment = "trt", time = "time", status = "status",
+    cov_means = "x_mean", cov_types = "binary"
+  )
+  d <- suppressWarnings(add_integration(
+    combine_data(ip, ag), n_int = 8, verbose = FALSE,
+    x = distr(qbern, prob = x_mean)
+  ))
+  index <- mlumr:::.check_survival_scale_collapse(d, "lognormal",
+                                                  aux_by = "none")
+  region <- attr(index, "index_region")
+  go <- function(...) {
+    tryCatch({
+      mlumr:::.check_comparator_tied_events(d, "lognormal", ...,
+                                            index_region = region)
+      "silent"
+    }, warning = function(w) "warned", error = function(e) "refused")
+  }
+  # Under `relaxed` the comparator carries its own `beta_comparator`, so the
+  # index region says nothing about the slope it uses.
+  expect_identical(go(aux_by = "none", model = "relaxed"), "refused")
+  # Under `aux_by = ".study"` the comparator's scale reaches its boundary
+  # with the index's at whatever value it likes, so the region is satisfied
+  # everywhere and restricts nothing.
+  expect_identical(go(aux_by = ".study", model = "spfa"), "refused")
+  # Both shared is the case the region speaks to.
+  expect_identical(go(aux_by = "none", model = "spfa"), "silent")
+})
