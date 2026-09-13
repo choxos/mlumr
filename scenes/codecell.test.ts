@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { webcrypto } from 'node:crypto';
 import type { Fit, Prepared, RunResult } from './runner.js';
 
-const runner = vi.hoisted(() => ({ runR: vi.fn(), prepareFit: vi.fn(), fitStan: vi.fn(), restartR: vi.fn() }));
+const runner = vi.hoisted(() => ({ runR: vi.fn(), prepareFit: vi.fn(), fitStan: vi.fn(), restartR: vi.fn(), rSession: vi.fn() }));
 vi.mock('./runner.js', () => runner);
 const { mountCell, resetSavedCells } = await import('./codecell.js');
 
@@ -138,6 +138,20 @@ describe('code cell lifecycle', () => {
     expect($<HTMLButtonElement>(slot(), '[data-act=run]').disabled).toBe(true);
     click(slot(), '[data-act=run]');
     expect(runner.runR).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a fit after R restarts from another chapter, even for code that ran', async () => {
+    runner.rSession.mockReturnValue(1);
+    const handle = mountCell(slot(), mlumrCell, 'workflow');
+    await runOk(slot());
+    expect($<HTMLButtonElement>(slot(), '[data-act=fit]').disabled).toBe(false);
+    handle.dispose();
+    runner.rSession.mockReturnValue(2); // another cell's Stop and restart R
+    mountCell(slot(), mlumrCell, 'workflow');
+    expect($<HTMLButtonElement>(slot(), '[data-act=fit]').disabled).toBe(true);
+    click(slot(), '[data-act=fit]');
+    await flush();
+    expect(runner.prepareFit).not.toHaveBeenCalled();
   });
 
   it('restarts R when a fit is cancelled while R prepares the data', async () => {

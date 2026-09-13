@@ -1,6 +1,6 @@
 // A runnable R cell. Plain cells run base R in webR; the mlumr cell also loads
 // the package's R code and can fit the real mlumr Stan model with TinyStan.
-import { runR, prepareFit, fitStan, restartR, type Line, type Fit, type Benchmark, type Prepared } from './runner.js';
+import { runR, prepareFit, fitStan, restartR, rSession, type Line, type Fit, type Benchmark, type Prepared } from './runner.js';
 import { lineChart } from './charts.js';
 
 export interface Cell { intro: string; code: string; mlumr?: boolean }
@@ -19,8 +19,9 @@ const MODEL: Record<Model, string> = { spfa: 'shared slopes (SPFA)', relaxed: 's
 
 /** What a learner did in a cell outlives its DOM, so leaving a chapter and
  * coming back restores the draft, the console and the last fit. `revision`
- * counts edits; `prepared` is the revision whose Run created the `dat` that Fit samples. */
-interface Saved { code: string; revision: number; prepared: number | null; run: number; model: Model; console: string; fit: string; fitRevision: number; record?: object }
+ * counts edits; `prepared` is the revision whose Run created the `dat` that Fit samples, and
+ * `preparedIn` the R session that holds it. */
+interface Saved { code: string; revision: number; prepared: number | null; preparedIn?: number; run: number; model: Model; console: string; fit: string; fitRevision: number; record?: object }
 const saved = new Map<string, Saved>();
 let runs = 0;
 
@@ -136,14 +137,16 @@ export function mountCell(slot: HTMLElement, cell: Cell, key: string, onActivity
     const stale = state.fit && state.fitRevision !== state.revision ? `<p class="stale" role="note">This result came from code revision ${state.fitRevision}. The code has changed since, so run it and fit again to update the result.</p>` : '';
     fitOut.innerHTML = stale + (state.fit || '<p>Run the R code first. Then fit the real mlumr Stan model to <code>dat</code>, right here.</p>');
   };
+  // A restart started from any cell empties R, so readiness is tied to the session.
+  const fitReady = () => state.prepared === state.revision && state.preparedIn === rSession();
   const sync = () => {
     run.disabled = busy !== null;
     reset.disabled = busy === 'fit';
     textarea.readOnly = busy === 'fit';
     restart.hidden = busy !== 'run';
     if (!fitButton || !cancel || !fitOut) return;
-    fitButton.disabled = busy !== null || state.prepared !== state.revision;
-    fitButton.title = state.prepared === state.revision ? '' : 'Run the current code first. Editing or resetting it, an error, or a Run that does not create dat means dat must be built again.';
+    fitButton.disabled = busy !== null || !fitReady();
+    fitButton.title = fitReady() ? '' : 'Run the current code first. Editing or resetting it, an error, a Run that does not create dat, or a restart of R means dat must be built again.';
     cancel.hidden = busy !== 'fit';
     models.forEach(b => { b.disabled = busy === 'fit'; b.setAttribute('aria-pressed', String(b.dataset.model === state.model)); });
     fitOut.setAttribute('aria-busy', String(busy === 'fit'));
@@ -170,6 +173,7 @@ export function mountCell(slot: HTMLElement, cell: Cell, key: string, onActivity
         const failed = lines.some(l => l.kind === 'err');
         state.console = render(lines) + (cell.mlumr && !failed && !fitData ? '\n<span class="err">This Run did not create dat, so the Fit button has nothing to sample.</span>' : '');
         state.prepared = fitData && !failed ? revision : null;
+        state.preparedIn = rSession();
       }
     } catch (error) {
       if (state.run === id) {
@@ -186,7 +190,7 @@ export function mountCell(slot: HTMLElement, cell: Cell, key: string, onActivity
   }
 
   async function fit() {
-    if (busy || !fitButton || !fitOut || state.prepared !== state.revision) return;
+    if (busy || !fitButton || !fitOut || !fitReady()) return;
     onActivity();
     // The analysis is fixed here, before anything awaits: later clicks on the
     // model buttons or edits to the code cannot change what this run is.

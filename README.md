@@ -22,7 +22,7 @@ The lesson is for researchers who know basic regression and are new to populatio
 
 ## Build
 
-The build needs Node 22 or newer, pnpm, npm, Git and FFmpeg. The first run downloads the pinned [Tangible](https://github.com/scienceetonnante/tangible) checkout and its local Supertonic voice (about 123 MB). Later runs reuse both, and only changed sentences are spoken again.
+The build needs Node 22.6 or newer, pnpm, npm, Git and FFmpeg. The first run downloads the pinned [Tangible](https://github.com/scienceetonnante/tangible) checkout and its local Supertonic voice (about 123 MB). Later runs reuse both, and only changed sentences are spoken again.
 
 ```sh
 bash lesson.sh test      # strict TypeScript for the scene and the worker, and the unit tests
@@ -32,7 +32,7 @@ bash lesson.sh dist      # build, then copy the site to dist/ for publishing
 bash lesson.sh adapter   # after a build: check the browser mlumr adapter natively with R
 ```
 
-`TANGIBLE_DIR` can point to an existing Tangible checkout at revision `6a07bbcd5dbc548aa809b253aed503fc0a8c3251`. The build copies mlumr's R sources from a local checkout of the package, set with `MLUMR_DIR` (default `../mlumr`) at the commit `MLUMR_REF` (default `4cfd3660f56e22668ae357bde3df4b30cacb23a5`). Use a static HTTP server; opening `index.html` from disk does not work.
+`TANGIBLE_DIR` can point to an existing Tangible checkout at revision `6a07bbcd5dbc548aa809b253aed503fc0a8c3251`. `build` and `dist` refuse a checkout with local changes to its tracked files or packages, and rebuild its compiled packages from source first. The build copies mlumr's R sources from a local checkout of the package, set with `MLUMR_DIR` (default `../mlumr`) at the commit `MLUMR_REF` (default `4cfd3660f56e22668ae357bde3df4b30cacb23a5`). Use a static HTTP server; opening `index.html` from disk does not work.
 
 The build checks `runtime/models/manifest.json` against the Stan programs at `MLUMR_REF` and stops if they differ, and it writes `build-manifest.json` with the SHA-256 of every source and built file. `lesson.sh adapter` needs R with mlumr's dependencies; set `MLUMR_NATIVE` to an mlumr checkout at `MLUMR_REF` with a built DLL to compare the browser's Stan data, refusals and warnings with the package itself.
 

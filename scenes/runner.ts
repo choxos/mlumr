@@ -99,6 +99,8 @@ let interrupt: ((error: Error) => void) | undefined;
 let generation = 0;
 const RESTARTED = 'R was restarted, so every object it held, including dat, is gone. Run the code again.';
 const live = (mine: number) => { if (mine !== generation) throw new Error(RESTARTED); };
+/** Identifies the current R session; it changes on every restart. */
+export const rSession = () => generation;
 
 /** Exported for tests. */
 export function exclusive<T>(task: (live: () => void) => Promise<T>): Promise<T> {

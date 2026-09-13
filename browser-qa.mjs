@@ -49,9 +49,10 @@ try {
   await page.waitForSelector('.ml-lesson');
   if (!sceneOnly) {
     await page.getByRole('button', { name: 'Start lesson', exact: true }).click({ timeout: 180000 });
-    await page.waitForTimeout(1500);
+    // Playback can take a few seconds to begin on a busy machine; wait for it rather than for a fixed time.
+    await page.waitForFunction(() => { const a = document.querySelector('audio'); return a && a.duration > 600 && a.currentTime > 0 && !a.paused; }, null, { timeout: 30000 }).catch(() => undefined);
     const audio = await page.locator('audio').evaluate(a => ({ time: a.currentTime, duration: a.duration, paused: a.paused, muted: a.muted, error: a.error?.message }));
-    assert(audio.duration > 600 && audio.time > 0 && !audio.paused && !audio.muted && !audio.error);
+    assert(audio.duration > 600 && audio.time > 0 && !audio.paused && !audio.muted && !audio.error, `The narration must play unmuted: ${JSON.stringify(audio)}`);
     evidence.push({ audio });
   }
   const labs = await page.locator('[data-chapter]').evaluateAll(options => options.map(o => ({ value: o.dataset.chapter, title: o.textContent })));

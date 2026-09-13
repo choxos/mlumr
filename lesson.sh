@@ -13,13 +13,16 @@ case "$command" in
     echo 'build creates local spoken narration and a static site in build/site.'
     echo 'dist runs build and copies the site to dist/, which the lesson branch deploys.'
     echo 'adapter checks the browser mlumr adapter natively with R; set MLUMR_NATIVE to a checkout at the pin to compare with the package itself.'
-    echo 'serve opens an existing build. Requires Node >=22, pnpm, npm, Git; build also requires FFmpeg.'
+    echo 'serve opens an existing build. Requires Node >=22.6, pnpm, npm, Git; build also requires FFmpeg.'
     echo 'TANGIBLE_DIR can point to an existing checkout of the pinned Tangible revision.'
     echo 'MLUMR_DIR and MLUMR_REF choose the mlumr checkout and commit for the browser R code.'
     exit 0 ;;
   setup|check|test|build|dist|adapter|serve|scene|ref) ;;
   *) echo "Unknown command: $command" >&2; exit 2 ;;
 esac
+# adapter runs scenes/content.ts with --experimental-strip-types, added in Node 22.6.
+node -e 'const [a, b] = process.versions.node.split(".").map(Number); process.exit(a > 22 || (a === 22 && b >= 6) ? 0 : 1)' \
+  || { echo "lesson.sh needs Node 22.6 or newer; this is Node $(node --version)." >&2; exit 1; }
 if [[ ! -f "$tangible_dir/package.json" ]]; then
   mkdir -p "$tangible_dir"
   git -C "$tangible_dir" init --quiet
@@ -33,6 +36,16 @@ if [[ "$(git -C "$tangible_dir" rev-parse HEAD)" != "$tangible_revision" ]]; the
 fi
 if [[ ! -f "$tangible_dir/packages/cli/dist/index.js" ]]; then
   (cd "$tangible_dir" && pnpm install --frozen-lockfile && pnpm build)
+fi
+# The manifest records only the Tangible revision, so a published build must use
+# that revision as committed: no local edits to its tracked files or packages,
+# and its compiled packages rebuilt from those sources rather than reused.
+if [[ "$command" == build || "$command" == dist ]]; then
+  if ! git -C "$tangible_dir" diff --quiet HEAD -- || [[ -n "$(git -C "$tangible_dir" status --porcelain -- packages)" ]]; then
+    echo "TANGIBLE_DIR has local changes; the build must use revision $tangible_revision as committed." >&2
+    exit 1
+  fi
+  (cd "$tangible_dir" && pnpm install --frozen-lockfile && pnpm exec tsc --build --clean && pnpm build)
 fi
 mkdir -p "$lesson_dir/node_modules/@tangible"
 ln -sfn "$tangible_dir/packages/core" "$lesson_dir/node_modules/@tangible/core"

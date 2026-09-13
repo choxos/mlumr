@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fitStan, exclusive, restartR, STALL_TIMEOUT_MS, LOAD_TIMEOUT_MS, type Sampler } from './runner.js';
+import { fitStan, exclusive, restartR, rSession, STALL_TIMEOUT_MS, LOAD_TIMEOUT_MS, type Sampler } from './runner.js';
 
 describe('the shared R queue', () => {
   const tick = () => new Promise(resolve => setTimeout(resolve, 0));
@@ -10,7 +10,9 @@ describe('the shared R queue', () => {
     const stuck = exclusive(() => new Promise<void>(() => undefined));
     const queued = exclusive(async () => { ran.push('queued'); });
     await tick();
+    const session = rSession();
     restartR();
+    expect(rSession()).toBe(session + 1);
     await expect(stuck).rejects.toThrow('R was restarted');
     await expect(queued).rejects.toThrow('R was restarted');
     await exclusive(async () => { ran.push('later'); });
