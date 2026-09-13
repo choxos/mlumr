@@ -65,13 +65,17 @@ exists at all. A real one there contributes \code{exp(-RSS / (2 * sdlog^2))}
 and removes the comparator's growth entirely, so those report \code{NA}
 rather than a zero that would turn an open question into a refusal.
 
-An eventless index also carries \code{index_region}, the censored rows'
-design beside the ends of the region each row is observed to lie in. An
-\code{aux_order} of zero says those rows remove no power of the width; it
-does NOT say they leave the coefficients free, and the region is what
-says which ones they leave. A caller sharing this study's slope and its
-auxiliary has to put its own ridge inside that region, which
-\code{\link[=.index_slope_admits]{.index_slope_admits()}} answers.
+\code{index_region} is the index's whole design beside the ends of the region
+each row is observed to lie in: an interval for a censored row, a single
+point for an event row, whose density grows only where the predictor
+reproduces its own time. It travels from the eventless branch and from
+the shared-auxiliary one alike, because the two say the same thing about
+the same coefficients. An \code{aux_order} of zero says those rows remove no
+power of the width; it does NOT say they leave the coefficients free,
+and the region is what says which ones they leave. A caller sharing this
+study's slope and its auxiliary has to put its own ridge inside that
+region, which \code{\link[=.index_slope_admits]{.index_slope_admits()}} answers, and has to escape its own
+censored rows from inside it, which \code{\link[=.slope_escape_feasible]{.slope_escape_feasible()}} answers.
 }
 \description{
 A log-normal AFT is a normal model for \code{log(t)} with a positive scale
