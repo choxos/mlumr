@@ -53,6 +53,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-as_count_integer.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_agd_loglik_per_observation.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_basis_support.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-assert_cmdstan_output.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_same_observations.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_shared_basis_identified.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-attach_integration_points.html</loc></url>
@@ -109,6 +110,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-garwood_interval.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-generate_copula_uniforms.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-get_surv_data.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-grid_hits_targets.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-int_cor_pair_status.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-int_cor_stats.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-int_stats.html</loc></url>
@@ -276,6 +278,8 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-transform_integration_points.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-transition_count.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-transported_baseline_note.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-two_prod_err.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-two_sum_err.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-usable_diagnostic_values.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_agd_binary_covariates.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_agd_binomial_outcomes.html</loc></url>

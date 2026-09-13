@@ -54,8 +54,15 @@ the opposite.
 reads it under `aux_by = "none"`. A shared-auxiliary warning also
 carries `index_exact`: `TRUE` when the index event design was shown to
 reproduce its own times and so pins a shared coefficient vector, `FALSE`
-only where it was shown to pin nothing, which an index with no events
-is, and `NA` where the question was not settled.
+only where it was shown to pin nothing, and `NA` where the question was
+not settled. The three are distinct on purpose, and an index with NO
+events is not automatically the second of them: having no events means
+no design to fit, not that nothing bounds the auxiliary. Censored rows
+alone can bound it, and when they conflict they do, so an eventless
+index is answered by asking whether any linear predictor satisfies every
+one of its regions at once. A certified conflict returns
+`bounds_aux = TRUE`, a certified absence of one returns
+`index_exact = FALSE`, and an undecided case returns neither.
 
 ## Details
 

@@ -1,0 +1,44 @@
+# The rounding error of a floating-point product, exactly
+
+Dekker's TwoProduct by splitting, since R exposes no fused multiply-add.
+Each operand is cut into two halves of at most 26 significant bits,
+whose pairwise products are exact, so for `p = a * b` the returned `e`
+satisfies `a * b = p + e` exactly. `e == 0` says the multiplication was
+exact.
+
+## Usage
+
+``` r
+.two_prod_err(a, b, p)
+```
+
+## Arguments
+
+- a, b:
+
+  The operands.
+
+- p:
+
+  Their computed product.
+
+## Value
+
+The exact rounding error, or `NaN` where the transformation does not
+hold.
+
+## Details
+
+The split multiplies by `2^27 + 1`, so an operand within a factor of
+`2^27` of the overflow threshold returns a non-finite error. That reads
+as "not exact", which is the safe direction here.
+
+The transformation also fails at the OTHER end, and there it fails
+quietly: when the product underflows, the half-products do too, and the
+returned error is zero even though `p` is not `a * b`. A zero error
+would then be read as proof of exactness. Operands of `6.66e-16` and
+`1e-310` have a nonzero product that underflows to `0`, and the error
+comes back `0`. So a product that is nonzero in principle but below the
+range where the transformation is valid returns `NaN`, which reads as
+"not exact". The bound is `2^-969`, the standard sufficient condition
+for Dekker's splitting on a binary64 double.

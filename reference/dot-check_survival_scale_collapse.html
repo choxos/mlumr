@@ -127,8 +127,15 @@ establish that, which is not the same as establishing the opposite.
 <code><a href="dot-check_comparator_tied_events.html">.check_comparator_tied_events()</a></code> reads it under <code>aux_by = "none"</code>. A
 shared-auxiliary warning also carries <code>index_exact</code>: <code>TRUE</code> when the index
 event design was shown to reproduce its own times and so pins a shared
-coefficient vector, <code>FALSE</code> only where it was shown to pin nothing, which
-an index with no events is, and <code>NA</code> where the question was not settled.</p>
+coefficient vector, <code>FALSE</code> only where it was shown to pin nothing, and
+<code>NA</code> where the question was not settled. The three are distinct on
+purpose, and an index with NO events is not automatically the second of
+them: having no events means no design to fit, not that nothing bounds
+the auxiliary. Censored rows alone can bound it, and when they conflict
+they do, so an eventless index is answered by asking whether any linear
+predictor satisfies every one of its regions at once. A certified
+conflict returns <code>bounds_aux = TRUE</code>, a certified absence of one returns
+<code>index_exact = FALSE</code>, and an undecided case returns neither.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

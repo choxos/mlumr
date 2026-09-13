@@ -57,44 +57,76 @@ density spike proportional to one over the auxiliary's width, and the
 rows choose their nodes freely.
 
 What decides propriety is how many spikes stand up AT ONCE and what
-coefficient volume that costs. Matching `m` event rows falling on `k`
-DISTINCT times needs `k` nodes whose linear predictors equal those `k`
-log-times, which is `k` equations in the comparator's coefficients. They
-are solvable exactly when `k` is at most the dimension the grid can
-reach, `rank(cbind(1, X_int))`, which is `1 + n_cov` for any grid that
-is not degenerate.
+coefficient volume that costs. An ALLOCATION sends each of the `m` event
+rows to a grid node; its design `D` has that node's covariate vector
+beside an intercept, one row per event row, and the rows stand on spikes
+together exactly when `D b = targets` is consistent. The exponent is
+then `m - rank(D)`.
+
+It is NOT `m - k` for `k` distinct times, and more distinct times than
+the grid's rank `rank(cbind(1, X_int))` is not a proof that no
+allocation works. Distinct response values are not independent linear
+constraints, and an overdetermined system can still be consistent:
+comparator events at `t = 1, 2, 4` on the nodes `1, 2, 3` that
+[`add_integration()`](https://choxos.github.io/mlumr/reference/add_integration.md)
+really builds for a uniform covariate are three distinct times with no
+repeat, past a reach of 2, and are matched exactly by
+`b = (-log 2, log 2)` for a rank of 2 and a measured slope of -1.0000
+per decade of scale.
+
+`rank(D)` is at most the reach and at most `k`, since rows sharing a
+node share a predictor, and a design of exactly `min(k, reach)` is
+always available: below the reach any `k` independent node rows give a
+consistent system, and past it the certificate below supplies one. So
+the exponent used is `m - min(k, reach)`.
+
+That is the exponent EXACTLY for one covariate and a LOWER BOUND for
+more than one. `min(k, reach)` is the largest rank a matching design can
+have, and a smaller one gives a larger exponent: with two covariates,
+three collinear nodes carry three distinct targets that run affinely
+along that line at rank 2 rather than 3. So a refusal here is always
+certified, since a positive lower bound is a positive rate, while a skip
+may be hiding one. Searching for a lower-rank consistent allocation
+among two or more covariates is not done in either branch.
+
+Past the reach, existence itself is the question, and this refuses only
+what it can certify: with one covariate the map is a line that two
+(target, node) assignments fix, so enumerating node pairs decides it,
+and anything wider or too large to enumerate is left alone. Silence from
+this function is therefore NOT a certificate that the posterior is
+proper; a refusal is a certificate that it is not.
 
 All `m` rows are matched on the solution set, so every one of them
 stands on a spike whose height grows as the auxiliary approaches its
-boundary, while the set is pinned only in the `k` directions the
+boundary, while the set is pinned only in the `rank(D)` directions the
 equations fix and its transverse width shrinks in each of those. The
 rate is the difference, and neither factor is shared across families.
 The height and the width, per family:
 
 - `lognormal` and `gengamma`: height `1 / sdlog`, width `sdlog`. Rate
-  `m - k` as the scale goes to zero. Measured over 20 midpoint normal
-  nodes with the coefficients integrated against normal priors,
+  `m - rank(D)` as the scale goes to zero. Measured over 20 midpoint
+  normal nodes with the coefficients integrated against normal priors,
   `d log M / d log sdlog` is -0.000, -1.000 and -2.000 across `1,4`,
   `1,1,4` and `1,1,4,4`.
 
 - `weibull-aft` and `loglogistic`: height `shape`, width `1 / shape`.
-  Rate `m - k` as the shape grows. `d log M / d log shape` is +0.000,
-  +1.000 and +2.000 on the same three, for both. A row's own integral
-  over its linear predictor is exactly
+  Rate `m - rank(D)` as the shape grows. `d log M / d log shape` is
+  +0.000, +1.000 and +2.000 on the same three, for both. A row's own
+  integral over its linear predictor is exactly
   `shape^(m - 1) t^-m Gamma(m) / m^m` for `m` rows on one time, which is
   that rate at `k = 1`.
 
 - `gamma`: height `sqrt(shape)`, width `1 / sqrt(shape)`, so the rate is
-  HALF, `(m - k) / 2`. The Stan density (`dist == 8` in
+  HALF, `(m - rank(D)) / 2`. The Stan density (`dist == 8` in
   `survival_functions.stan`) is `k u - e^u - log t - lgamma(k)` for
   `u = log t - eta`, peaking at `u = log k` with value about `0.5 log k`
   and curvature `-k`. For `m` rows on one time the integral is exactly
   `Gamma(m k) / m^(m k) / Gamma(k)^m`, whose slope in `log k` is
   `(m - 1) / 2`: 0.500002, 1.000003 and 1.500005 for `m` of 2, 3 and 4,
   the closed form agreeing with quadrature to 7e-12 at `k` of 10
-  to 1000. Reporting `m - k` here would claim non-integrability against
-  a half-t `prior_aux` with degrees of freedom in (0.5, 1) that does
-  integrate it.
+  to 1000. Reporting `m - rank(D)` here would claim non-integrability
+  against a half-t `prior_aux` with degrees of freedom in (0.5, 1) that
+  does integrate it.
 
 The proportional-hazards Weibull and Gompertz are NOT examined, and the
 same measurement is why. Their height is `shape` and their width does
@@ -193,11 +225,11 @@ also displaces the comparator intercept by `-log(shape)`, and a normal
 width, which integrates any polynomial. The posterior exists there and
 the shape merely concentrates far out; it is a heavy-tailed intercept
 prior that leaves `prior_aux` to integrate the growth, which a half-t
-does only above `(m - k) / 2` degrees of freedom. That factor is 0.95
-nats at a shape of 1e6, so a slope measured over any reachable range
-still looks undamped, which is why the clause is derived rather than
-read off one. The comparator intercept is `mu_comparator` under both
-models and draws `prior_intercept` in each, so this is not a
+does only above `(m - rank(D)) / 2` degrees of freedom. That factor is
+0.95 nats at a shape of 1e6, so a slope measured over any reachable
+range still looks undamped, which is why the clause is derived rather
+than read off one. The comparator intercept is `mu_comparator` under
+both models and draws `prior_intercept` in each, so this is not a
 relaxed-only clause. The half-t threshold is `at least` and not `above`,
 because at equality the auxiliary's `shape^-(df + 1)` meets the
 Student-t intercept's `(log shape)^-(df + 1)` on the `-log(shape)`

@@ -115,36 +115,62 @@ same grid, so a node reproducing a row's event time carries a density
 spike proportional to one over the auxiliary's width, and the rows choose
 their nodes freely.</p>
 <p>What decides propriety is how many spikes stand up AT ONCE and what
-coefficient volume that costs. Matching <code>m</code> event rows falling on <code>k</code>
-DISTINCT times needs <code>k</code> nodes whose linear predictors equal those <code>k</code>
-log-times, which is <code>k</code> equations in the comparator's coefficients. They
-are solvable exactly when <code>k</code> is at most the dimension the grid can reach,
-<code>rank(cbind(1, X_int))</code>, which is <code>1 + n_cov</code> for any grid that is not
-degenerate.</p>
+coefficient volume that costs. An ALLOCATION sends each of the <code>m</code> event
+rows to a grid node; its design <code>D</code> has that node's covariate vector
+beside an intercept, one row per event row, and the rows stand on spikes
+together exactly when <code>D b = targets</code> is consistent. The exponent is then
+<code>m - rank(D)</code>.</p>
+<p>It is NOT <code>m - k</code> for <code>k</code> distinct times, and more distinct times than the
+grid's rank <code>rank(cbind(1, X_int))</code> is not a proof that no allocation
+works. Distinct response values are not independent linear constraints,
+and an overdetermined system can still be consistent: comparator events at
+<code>t = 1, 2, 4</code> on the nodes <code>1, 2, 3</code> that <code><a href="add_integration.html">add_integration()</a></code> really
+builds for a uniform covariate are three distinct times with no repeat,
+past a reach of 2, and are matched exactly by <code>b = (-log 2, log 2)</code> for a
+rank of 2 and a measured slope of -1.0000 per decade of scale.</p>
+<p><code>rank(D)</code> is at most the reach and at most <code>k</code>, since rows sharing a node
+share a predictor, and a design of exactly <code>min(k, reach)</code> is always
+available: below the reach any <code>k</code> independent node rows give a consistent
+system, and past it the certificate below supplies one. So the exponent
+used is <code>m - min(k, reach)</code>.</p>
+<p>That is the exponent EXACTLY for one covariate and a LOWER BOUND for more
+than one. <code>min(k, reach)</code> is the largest rank a matching design can have,
+and a smaller one gives a larger exponent: with two covariates, three
+collinear nodes carry three distinct targets that run affinely along that
+line at rank 2 rather than 3. So a refusal here is always certified, since
+a positive lower bound is a positive rate, while a skip may be hiding one.
+Searching for a lower-rank consistent allocation among two or more
+covariates is not done in either branch.</p>
+<p>Past the reach, existence itself is the question, and this refuses only
+what it can certify: with one covariate the map is a line that two
+(target, node) assignments fix, so enumerating node pairs decides it, and
+anything wider or too large to enumerate is left alone. Silence from this
+function is therefore NOT a certificate that the posterior is proper; a
+refusal is a certificate that it is not.</p>
 <p>All <code>m</code> rows are matched on the solution set, so every one of them stands
 on a spike whose height grows as the auxiliary approaches its boundary,
-while the set is pinned only in the <code>k</code> directions the equations fix and
-its transverse width shrinks in each of those. The rate is the difference,
-and neither factor is shared across families. The height and the width,
-per family:</p><ul><li><p><code>lognormal</code> and <code>gengamma</code>: height <code>1 / sdlog</code>, width <code>sdlog</code>. Rate
-<code>m - k</code> as the scale goes to zero. Measured over 20 midpoint normal
+while the set is pinned only in the <code>rank(D)</code> directions the equations fix
+and its transverse width shrinks in each of those. The rate is the
+difference, and neither factor is shared across families. The height and
+the width, per family:</p><ul><li><p><code>lognormal</code> and <code>gengamma</code>: height <code>1 / sdlog</code>, width <code>sdlog</code>. Rate
+<code>m - rank(D)</code> as the scale goes to zero. Measured over 20 midpoint normal
 nodes with the coefficients integrated against normal priors,
 <code>d log M / d log sdlog</code> is -0.000, -1.000 and -2.000 across <code>1,4</code>,
 <code>1,1,4</code> and <code>1,1,4,4</code>.</p></li>
 <li><p><code>weibull-aft</code> and <code>loglogistic</code>: height <code>shape</code>, width <code>1 / shape</code>. Rate
-<code>m - k</code> as the shape grows. <code>d log M / d log shape</code> is +0.000, +1.000
+<code>m - rank(D)</code> as the shape grows. <code>d log M / d log shape</code> is +0.000, +1.000
 and +2.000 on the same three, for both. A row's own integral over its
 linear predictor is exactly <code>shape^(m - 1) t^-m Gamma(m) / m^m</code> for <code>m</code>
 rows on one time, which is that rate at <code>k = 1</code>.</p></li>
 <li><p><code>gamma</code>: height <code>sqrt(shape)</code>, width <code>1 / sqrt(shape)</code>, so the rate is
-HALF, <code>(m - k) / 2</code>. The Stan density (<code>dist == 8</code> in
+HALF, <code>(m - rank(D)) / 2</code>. The Stan density (<code>dist == 8</code> in
 <code>survival_functions.stan</code>) is <code>k u - e^u - log t - lgamma(k)</code> for
 <code>u = log t - eta</code>, peaking at <code>u = log k</code> with value about <code>0.5 log k</code>
 and curvature <code>-k</code>. For <code>m</code> rows on one time the integral is exactly
 <code>Gamma(m k) / m^(m k) / Gamma(k)^m</code>, whose slope in <code>log k</code> is
 <code>(m - 1) / 2</code>: 0.500002, 1.000003 and 1.500005 for <code>m</code> of 2, 3 and 4,
 the closed form agreeing with quadrature to 7e-12 at <code>k</code> of 10 to 1000.
-Reporting <code>m - k</code> here would claim non-integrability against a half-t
+Reporting <code>m - rank(D)</code> here would claim non-integrability against a half-t
 <code>prior_aux</code> with degrees of freedom in (0.5, 1) that does integrate it.</p></li>
 </ul><p>The proportional-hazards Weibull and Gompertz are NOT examined, and the
 same measurement is why. Their height is <code>shape</code> and their width does not
@@ -231,7 +257,7 @@ contributes <code>exp(-(log shape)^2 / 200)</code> at the default width, which
 integrates any polynomial. The posterior exists there and the shape merely
 concentrates far out; it is a heavy-tailed intercept prior that leaves
 <code>prior_aux</code> to integrate the growth, which a half-t does only above
-<code>(m - k) / 2</code> degrees of freedom. That factor is 0.95 nats at a shape of
+<code>(m - rank(D)) / 2</code> degrees of freedom. That factor is 0.95 nats at a shape of
 1e6, so a slope measured over any reachable range still looks undamped,
 which is why the clause is derived rather than read off one. The
 comparator intercept is <code>mu_comparator</code> under both models and draws
