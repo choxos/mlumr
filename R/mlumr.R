@@ -1426,9 +1426,11 @@
 #'   `(mu_index, beta)` to, as [.check_survival_scale_collapse()] reports in
 #'   its `index_region` attribute. Every row is in it: a censored row through
 #'   the interval its censoring puts it in, an EVENT row through the single
-#'   point its own time puts it at. Censored rows on their own restrict no
-#'   slope, since moving `mu_index` satisfies a lone inequality, so building
-#'   the region without the event rows is the same as not having one. An
+#'   point its own time puts it at. A SINGLE one-sided censored row restricts
+#'   no slope, since moving `mu_index` satisfies one inequality; SIMULTANEOUS
+#'   censored rows can restrict it, and an event row's equality restricts it
+#'   further, so building the region without the event rows loses
+#'   restrictions the whole index carries. An
 #'   order of zero says these rows remove no power of the auxiliary's width;
 #'   it does not say they leave the slope free, and treating it as though it
 #'   did refused fits whose index and comparator cannot reach the boundary
@@ -2939,11 +2941,15 @@
   # single point exactly as a censored row confines it to an interval.
   #
   # Building this from the censored rows alone is what refused a proper fit.
-  # A lone right-censoring inequality is always satisfiable by moving
-  # `mu_index`, so censored rows on their own restrict no slope at all; the
-  # event rows are what take that freedom away. An index with one event at
-  # `t = 1` on `x = 0` beside a right-censored row at `t = 4` on `x = 1`
-  # pins `mu_index` to zero and then needs `beta >= log 4`, while a binary
+  # Not because censored rows say nothing about the slope: SEVERAL of them
+  # can pin it between them, which is the eventless case this function
+  # already answered, where left censoring at `t = 1` on `x = 0` beside
+  # right censoring at `t = 4` on `x = 1` leaves `beta >= log 4`. It is the
+  # rows a LONE inequality leaves free that the event rows take back. One
+  # right-censored row at `t = 4` on `x = 1` says only
+  # `mu_index + beta >= log 4`, which any slope satisfies once `mu_index`
+  # moves; add an event at `t = 1` on `x = 0` and `mu_index` is pinned to
+  # zero, so the same row now reads `beta >= log 4`, while a binary
   # comparator's exact fit at times `(1, 1, 2)` needs `beta = +/- log 2`.
   # Neither reaches it, so every path to the boundary leaves one side with a
   # residual and the posterior is proper: the measured profile

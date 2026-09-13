@@ -421,11 +421,13 @@
   restrict nothing here.
 
   The region is built from EVERY index row, and reading it off the censored
-  ones alone was the same as not having it. A lone censoring inequality is
-  satisfied by moving `mu_index`, so censored rows on their own restrict no
-  slope; an EVENT row is what takes that freedom away, because its density
-  grows only where the predictor reproduces its own time and vanishes
-  exponentially anywhere else, which confines the predictor to a single point
+  ones alone was the same as not having it. A SINGLE one-sided censoring
+  inequality is satisfied by moving `mu_index`, and says nothing about the
+  slope on its own; SIMULTANEOUS censoring regions can restrict it, which is
+  what the eventless case above turns on; and an EVENT row restricts it
+  further still, because its density grows only where the predictor
+  reproduces its own time and vanishes exponentially anywhere else, which
+  confines the predictor to a single point
   exactly as censoring confines it to an interval. An index with one event at
   `t = 1` on `x = 0` beside a right-censored row at `t = 4` on `x = 1` pins
   `mu_index` to zero and then needs `beta >= log 4`, out of reach of the same
