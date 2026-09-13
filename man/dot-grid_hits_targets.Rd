@@ -16,7 +16,11 @@
 enumeration excluded every candidate it examined, and \code{NA} where the
 case was not
 decided: more than one covariate, a grid past the enumeration budget, or
-a candidate that is close without being exact.
+a candidate that is close without being exact. An \code{NA} from the budget
+carries a \code{declined} attribute of \code{"budget"}, because that is the only
+one of the three that makes the same data answerable at one \code{n_int} and
+unexamined at another, and the caller reports it rather than falling
+silent.
 }
 \description{
 The comparator's matching equations are solvable when some coefficient
@@ -33,6 +37,13 @@ enumerating node pairs against the first two targets covers every
 candidate. Anything wider, or a grid large enough that the enumeration
 would cost more than the fit, is left undecided rather than guessed: a
 false certificate here refuses a working model.
+
+The enumeration anchors the first target at each node in turn and runs the
+second anchor and every candidate node as a vectorized pass, so it costs
+\code{n * n * (k - 2)} elementary operations for \code{n} nodes and \code{k} targets, not
+the \code{n * n * (n + k)} of a scalar inner loop. That distinction is the
+whole reach of the check: the old cost model capped it near 170 nodes, so
+an \code{n_int} of 256 left unexamined the arm that 8 nodes refused.
 
 The match must be EXACT, not merely close. A best match that leaves a
 positive residual is a ridge the profile abandons as soon as the auxiliary

@@ -43,7 +43,15 @@ only times gets the behavior it had before the other two censoring
 types were admitted.}
 }
 \value{
-\code{"bounded"}, \code{"unbounded"}, or \code{"undetermined"}.
+\code{"bounded"}, \code{"suppresses"}, \code{"unbounded"}, or \code{"undetermined"}.
+\code{"bounded"} means the auxiliary is held away from its boundary, which is
+an exponential suppression and removes any polynomial growth elsewhere.
+\code{"suppresses"} means it is not, but the coefficient volume that keeps
+the rows' likelihood positive shrinks as the auxiliary's width to the
+power of the \code{order} attribute, so it cancels that many powers of a
+growth that shares the auxiliary. \code{"unbounded"} means the contribution
+is a positive constant, and \code{"undetermined"} that none of the three was
+established.
 }
 \description{
 The event rows are fitted exactly, so the auxiliary runs to its boundary

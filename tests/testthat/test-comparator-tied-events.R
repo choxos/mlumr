@@ -577,11 +577,36 @@ test_that("any positive same-profile gap is a conflict", {
   at <- function(s) 2 * stats::pnorm(-d / (2 * s), log.p = TRUE) + 2 * log(1 / s)
   expect_gt(at(1e-15), 0)      # still growing
   expect_lt(at(1e-17), -2000)  # collapsed
-  # Exact equality is not a conflict: the shared predictor sits on both
-  # boundaries, each row contributes a half, and a constant suppresses
-  # nothing.
-  expect_identical(f(c(-Inf, 0), c(0, Inf)), "unbounded")
+  # Exact equality is not a conflict, and it is not freedom either. The
+  # shared predictor has to sit ON that point, so the coefficients keeping
+  # the group positive are a shrinking neighborhood of a hyperplane, and the
+  # volume they cost is what the auxiliary sees: a half at every scale
+  # pointwise, one power of the scale once the intercept is integrated out.
+  touching <- f(c(-Inf, 0), c(0, Inf))
+  expect_identical(as.character(touching), "suppresses")
+  expect_identical(attr(touching, "order"), 1L)
+  # A region with interior is the case that really contributes a constant.
   expect_identical(f(c(-Inf, 0), c(log(4), Inf)), "unbounded")
+  # The order is the measured one. With `mu ~ N(0, a^2)` the integrated
+  # index likelihood is `arccos(a^2 / (a^2 + s^2)) / (2 pi)`, which is
+  # `s / (sqrt(2) pi a)` near zero.
+  a <- 10
+  lbar <- function(s) acos(a^2 / (a^2 + s^2)) / (2 * pi)
+  slope <- (log(lbar(1e-4)) - log(lbar(1e-3))) / (log(1e-4) - log(1e-3))
+  expect_equal(slope, 1, tolerance = 1e-6)
+  expect_equal(lbar(1e-3),
+               stats::integrate(function(mu) {
+                 stats::pnorm(-mu / 1e-3) * stats::pnorm(mu / 1e-3) *
+                   stats::dnorm(mu, 0, a)
+               }, -Inf, Inf, rel.tol = 1e-12)$value,
+               tolerance = 1e-6)
+  # Two independent touching profiles pin two directions, so the order is
+  # the rank of those rows rather than a flag.
+  X2 <- cbind(1, c(0, 0, 1, 1))
+  two <- b(X2, rep(0, 4L), rep(FALSE, 4L),
+           lower = c(-Inf, 0, -Inf, 0), upper = c(0, Inf, 0, Inf))
+  expect_identical(as.character(two), "suppresses")
+  expect_identical(attr(two, "order"), 2L)
 })
 
 test_that("a determinant that is not finite answers instead of aborting", {
@@ -612,9 +637,29 @@ test_that("the enumeration cutoff declines instead of overflowing", {
   # which becomes NA, and `if (NA)` aborted the fit with "missing value where
   # TRUE/FALSE needed" rather than returning the undecided answer.
   expect_true(is.na(suppressWarnings(2048L * 2048L * 2051L)))
-  expect_true(is.na(g(matrix(seq_len(2048), ncol = 1L), log(c(1, 2, 4)))))
-  # A grid inside the budget is still decided.
+  # A decline is LABELED, because it is the only one of the three ways this
+  # answers NA that makes the same data answerable at one `n_int` and
+  # unexamined at another. The cost is `n * n * (k - 2)`, so a wide grid
+  # against many targets is what reaches the cutoff.
+  wide <- g(matrix(seq_len(512), ncol = 1L), as.numeric(seq_len(162)))
+  expect_true(is.na(wide))
+  expect_identical(attr(wide, "declined"), "budget")
+  # A grid inside the budget is still decided, and the budget now covers the
+  # ordinary resolutions: the cost model used to charge `n * n * (n + k)`,
+  # which capped this near 170 nodes and left an `n_int` of 256 unexamined
+  # on the arm that 8 nodes refused.
   expect_true(g(matrix(c(1, 2, 3), ncol = 1L), log(c(1, 2, 4))))
+  big <- g(matrix(c(seq_len(3), 3 + seq_len(253) / 4), ncol = 1L),
+           log(c(1, 2, 4)))
+  expect_true(big)
+  expect_null(attr(big, "declined"))
+  # The other two ways of answering NA are not declines: more than one
+  # covariate is the same answer at every grid size, and a close-but-inexact
+  # candidate means the enumeration RAN and certified nothing.
+  expect_null(attr(g(matrix(1:6, ncol = 2L), log(c(1, 2, 4))), "declined"))
+  near <- g(matrix(c(1, 2, 3), ncol = 1L), c(0, 1, 2 + 1e-15))
+  expect_true(is.na(near))
+  expect_null(attr(near, "declined"))
 })
 
 test_that("the refusal survives the public mlumr() call", {
@@ -681,4 +726,125 @@ test_that("an eventless index that pins nothing is still reported", {
   idx <- mlumr:::.check_survival_scale_collapse(d, "lognormal",
                                                 aux_by = "none", center = FALSE)
   expect_false(attr(idx, "index_exact"))
+})
+
+test_that("an ordinary integration resolution does not erase the verdict", {
+  # The same three comparator events over the same declared covariate. The
+  # enumeration used to be charged `n * n * (n + k)`, the cost of a scalar
+  # inner loop, which capped it near 170 nodes: at `n_int = 8` this arm was
+  # refused and at 256 it ran to the sampler with nothing in the result
+  # saying the question had gone unasked. The cost is `n * n * (k - 2)`.
+  for (n_int in c(8L, 64L, 256L)) {
+    d <- .uniform_stub(c(1, 2, 4), n_int = n_int)
+    grid <- as.numeric(d$integration_points[1, , 1])
+    expect_true(all(c(1, 2, 3) %in% grid))
+    expect_length(unique(grid), n_int)
+    expect_match(msg(d), "a matching design of rank 2 exists")
+    expect_match(msg(d), "diverges at rate 1")
+  }
+})
+
+test_that("a declined enumeration is reported, not passed in silence", {
+  # Past the budget the question really is unasked, and that is a third
+  # state: not a proved incompatibility and not a certificate of propriety.
+  # 512 nodes against 162 distinct targets is `512 * 512 * 160`, over the
+  # cutoff, and the helper declines before enumerating anything.
+  wide <- mlumr:::.grid_hits_targets(matrix(seq_len(512), ncol = 1L),
+                                     as.numeric(seq_len(162)))
+  expect_identical(attr(wide, "declined"), "budget")
+  # Which the caller turns into a warning rather than the silent `next` that
+  # made the same data answerable at one grid size and not at another.
+  d <- .comp_stub(as.numeric(seq_len(162)), rep(1L, 162), n_int = 512)
+  w <- tryCatch(check(d), warning = conditionMessage)
+  expect_match(w, "left unexamined")
+  expect_match(w, "enumeration budget")
+  expect_match(w, "not a certificate")
+  # And it says so without claiming the posterior is improper.
+  expect_no_match(w, "is therefore improper")
+  # An arm inside the budget still answers silently.
+  expect_silent(check(.comp_stub(c(1, 1, 4, 7), rep(1L, 4))))
+})
+
+test_that("a touching eventless index cancels one power of the comparator", {
+  # A left-censored row at `t = 1` beside a right-censored row at `t = 1` on
+  # one covariate profile. Pointwise the pair peaks at `1/4` at every scale,
+  # which is why this used to read as "contributes nothing"; integrating the
+  # intercept out against `normal(0, a)` gives
+  # `arccos(a^2 / (a^2 + s^2)) / (2 pi)`, which is `s / (sqrt(2) pi a)` near
+  # zero. One power of the scale, against the comparator's one over it.
+  d <- .eventless_stub(survival::Surv(time = c(NA, 1), time2 = c(1, Inf),
+                                      type = "interval2"))
+  expect_equal(as.integer(d$ipd$data$.status), c(2L, 0L))
+  idx <- mlumr:::.check_survival_scale_collapse(d, "lognormal",
+                                                aux_by = "none",
+                                                center = FALSE)
+  expect_null(attr(idx, "bounds_aux"))
+  expect_identical(attr(idx, "aux_order"), 1)
+  # Two tied comparator events are rate 1, so the net is 0 and the fit
+  # stands. This is the refusal the joint order removes.
+  expect_silent(check(d, aux_by = "none", model = "relaxed",
+                      index_aux_order = 1))
+  expect_false(check(d, aux_by = "none", model = "relaxed",
+                     index_aux_order = 1))
+  # Reading the index as a flag instead of an order is what refused it.
+  expect_match(msg(d, aux_by = "none", model = "relaxed"),
+               "is therefore improper")
+  # And the cancellation is one power, not an exemption: a third tied
+  # comparator event leaves `2 - 1 = 1` and is still refused.
+  three <- .eventless_stub(survival::Surv(time = c(NA, 1), time2 = c(1, Inf),
+                                          type = "interval2"))
+  three$agd$pseudo_ipd <- three$agd$pseudo_ipd[c(1, 2, 2), , drop = FALSE]
+  expect_match(msg(three, aux_by = "none", model = "relaxed",
+                   index_aux_order = 1), "diverges at rate 1")
+  # Under `aux_by = ".study"` the comparator has its own auxiliary and the
+  # index order is not consulted at all.
+  expect_match(msg(d, aux_by = ".study", index_aux_order = 1),
+               "is therefore improper")
+})
+
+test_that("an index order that was not settled is reported, not netted", {
+  # The order was derived and measured for the normal on the log scale. The
+  # other families' rates are written in powers of the same width, so the
+  # same subtraction should hold, but it has not been measured for them and
+  # an unmeasured exponent is not a certificate. They report instead.
+  d <- .eventless_stub(survival::Surv(time = c(NA, 1), time2 = c(1, Inf),
+                                      type = "interval2"))
+  idx <- mlumr:::.check_survival_scale_collapse(d, "gengamma",
+                                                aux_by = "none",
+                                                center = FALSE)
+  expect_true(is.na(attr(idx, "aux_order")))
+  w <- tryCatch(check(d, distribution = "gengamma", aux_by = "none",
+                      model = "relaxed", index_aux_order = NA_real_),
+                warning = conditionMessage)
+  expect_match(w, "was not settled")
+  expect_no_match(w, "is therefore improper")
+})
+
+test_that("a shared slope pinned by the index blocks the censoring escape", {
+  # SPFA shares one `beta` between the arms. Index events at `x = -1` and
+  # `x = +1` both at `t = 1` force `mu_index` and `beta` to zero, so every
+  # integration point sits at `mu_comparator` and a comparator right-censored
+  # row at `t = 2` is above all of them. The escape along the ridge that a
+  # comparator read alone would have is not available: that direction is the
+  # slope the index pins.
+  pinned <- .comp_stub(c(1, 1, 2), c(1L, 1L, 0L),
+                       ipd_time = c(1, 1), ipd_x = c(-1, 1), n_int = 8)
+  w <- tryCatch(check(pinned, aux_by = "none", model = "spfa",
+                      index_exact = TRUE), warning = conditionMessage)
+  expect_match(w, "the shared `beta`")
+  expect_match(w, "neither refused nor passed as proper")
+  expect_no_match(w, "is therefore improper")
+  # One distinct comparator time, so the rank is 1 and the old gate
+  # (`rank_d > 1`) left this to the refusal.
+  expect_match(w, "3 event rows at 2 distinct log-times|2 event rows")
+  # Remove the censored row and the escape question is moot: nothing
+  # suppresses the ridge and the refusal is right.
+  bare <- .comp_stub(c(1, 1), c(1L, 1L), ipd_time = c(1, 1),
+                     ipd_x = c(-1, 1), n_int = 8)
+  expect_match(msg(bare, aux_by = "none", model = "spfa", index_exact = TRUE),
+               "is therefore improper")
+  # And it is specific to the shared slope: under `relaxed` the comparator
+  # carries its own `beta_comparator`, which the index does not pin.
+  expect_match(msg(pinned, aux_by = "none", model = "relaxed"),
+               "is therefore improper")
 })

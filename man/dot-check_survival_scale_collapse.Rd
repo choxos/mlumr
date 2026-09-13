@@ -37,8 +37,21 @@ them: having no events means no design to fit, not that nothing bounds
 the auxiliary. Censored rows alone can bound it, and when they conflict
 they do, so an eventless index is answered by asking whether any linear
 predictor satisfies every one of its regions at once. A certified
-conflict returns \code{bounds_aux = TRUE}, a certified absence of one returns
-\code{index_exact = FALSE}, and an undecided case returns neither.
+conflict returns \code{bounds_aux = TRUE}.
+
+Absent a conflict, an eventless index also carries \code{aux_order}, which is
+how many powers of the auxiliary's WIDTH its censored rows already
+remove. The three-way question above is not the same as this one, and
+collapsing them refused proper fits: regions that merely TOUCH pin the
+index predictor to a point rather than to an open region, so the
+coefficient volume keeping their likelihood positive shrinks with the
+width even though the pointwise maximum is a positive constant at every
+scale. \code{aux_order} is \code{0} for regions with interior, the rank of the
+touching profile rows where they touch, and \code{NA} where none of that was
+established, including every family but \code{lognormal}, for which alone the
+order was measured. \code{\link[=.check_comparator_tied_events]{.check_comparator_tied_events()}} subtracts a
+certified order from its own rate under \code{aux_by = "none"} and reports
+rather than refuses on an \code{NA}.
 }
 \description{
 A log-normal AFT is a normal model for \code{log(t)} with a positive scale
