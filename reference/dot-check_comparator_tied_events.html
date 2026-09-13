@@ -128,15 +128,21 @@ width; an unsettled one makes this report rather than refuse.</p></dd>
 
 
 <dt id="arg-index-region">index_region<a class="anchor" aria-label="anchor" href="#arg-index-region"></a></dt>
-<dd><p>The coefficient region an eventless index confines
+<dd><p>The coefficient region the index's own rows confine
 <code>(mu_index, beta)</code> to, as <code><a href="dot-check_survival_scale_collapse.html">.check_survival_scale_collapse()</a></code> reports in
-its <code>index_region</code> attribute, or <code>NULL</code> where the index has events and
-the question does not arise. An order of zero says these rows remove no
-power of the auxiliary's width; it does not say they leave the slope
-free, and treating it as though it did refused fits whose index and
-comparator cannot reach the boundary together. Consulted only under
-<code>model = "spfa"</code> with <code>aux_by = "none"</code>, where the two share the slope
-AND the auxiliary; see <code><a href="dot-index_slope_admits.html">.index_slope_admits()</a></code>.</p></dd>
+its <code>index_region</code> attribute. Every row is in it: a censored row through
+the interval its censoring puts it in, an EVENT row through the single
+point its own time puts it at. Censored rows on their own restrict no
+slope, since moving <code>mu_index</code> satisfies a lone inequality, so building
+the region without the event rows is the same as not having one. An
+order of zero says these rows remove no power of the auxiliary's width;
+it does not say they leave the slope free, and treating it as though it
+did refused fits whose index and comparator cannot reach the boundary
+together. Consulted only under <code>model = "spfa"</code> with <code>aux_by = "none"</code>,
+where the two share the slope AND the auxiliary; see
+<code><a href="dot-index_slope_admits.html">.index_slope_admits()</a></code> for one candidate slope and
+<code><a href="dot-slope_escape_feasible.html">.slope_escape_feasible()</a></code> for whether an admitted one also escapes a
+comparator censoring threshold.</p></dd>
 
 </dl></div>
     <div class="section level2">

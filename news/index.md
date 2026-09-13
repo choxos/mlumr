@@ -452,6 +452,48 @@
   designs leave a polyhedron this does not solve and restrict nothing
   here.
 
+  The region is built from EVERY index row, and reading it off the
+  censored ones alone was the same as not having it. A lone censoring
+  inequality is satisfied by moving `mu_index`, so censored rows on
+  their own restrict no slope; an EVENT row is what takes that freedom
+  away, because its density grows only where the predictor reproduces
+  its own time and vanishes exponentially anywhere else, which confines
+  the predictor to a single point exactly as censoring confines it to an
+  interval. An index with one event at `t = 1` on `x = 0` beside a
+  right-censored row at `t = 4` on `x = 1` pins `mu_index` to zero and
+  then needs `beta >= log 4`, out of reach of the same binary
+  comparator’s `+/- log 2`; the measured `d log L / d log s` runs +1.3,
+  +6.2, +16.9 and +36.9 as the scale falls through 0.15, 0.1, 0.07 and
+  0.05, so that fit is proper too and was being refused. The region
+  travels under every residual status, since whether a factorization at
+  double precision can tell an exact fit from a near one does not bear
+  on where a row is observed to lie.
+
+  A comparator arm with ONE distinct event target does not have a free
+  slope either, and reading a free ridge direction as one refused a
+  third proper configuration. The single matching equation is absorbed
+  by `mu_comparator` at any slope, so the arm’s EVENTS leave `beta`
+  free; its CENSORED rows do not. With the tied rows matched at one node
+  every node sits at `t + beta (z_j - z_m)`, so escaping a threatening
+  row’s threshold is one more condition of the region’s own shape,
+  `c <= beta d`, and the two are now read together as a one-dimensional
+  feasibility question: every lower end at or below every upper end,
+  decided by the sign of `c_k d_l - c_l d_k` and never by a division.
+  Only the widest node separation matters in each direction, because a
+  row satisfied AT the target is not threatening, which leaves `c`
+  positive and makes a larger `|d|` the weaker condition. An index of
+  two interval-censored rows, `1 < T <= 2` at `x = 0` and at `x = 1`,
+  leaves `abs(beta) <= log 2`, while two comparator events at `t = 1`
+  with a right-censored row at `t = 4` need a node at `log 4` that no
+  admitted slope reaches: measured +4.4, +9.5, +20.4 and +40.6 over the
+  same scales. Moving that censoring time to `t = 1.5` makes the escape
+  strictly feasible and the refusal right, and at `t = 2` it is feasible
+  only with equality, which is reported rather than decided. Checked
+  against exact rational arithmetic that scans every node pair rather
+  than the two extremes, on 12,000 generated regions, grids and
+  thresholds: no verdict was contradicted, and 3 cases went unsettled
+  where the exact arithmetic decides.
+
   It also only comes off a rate that is EXACT, which is a property of
   the RANK rather than of the covariate count. A consistent allocation’s
   design has rank at least 1, and at least 2 whenever two targets

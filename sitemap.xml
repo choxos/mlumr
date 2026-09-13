@@ -91,6 +91,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-conditional_profiles.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-constrained_prior_label.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-count_treedepth_hits.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-cross_sign.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-decay_parts.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-decay_share.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-design_replicates.html</loc></url>
@@ -101,6 +102,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-drop_missing_rows.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-dual_family_note.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-ensure_positive_definite_cor.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-escape_state.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-eval_basis.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-exact_rank.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-exact_sum_is_zero.html</loc></url>
@@ -225,6 +227,8 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-scale_design.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-screen_mixed_zero.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-set_ipd_survival.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-slope_escape_feasible.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-slope_region_pairs.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-softmax.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-sorted_keys.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-source_digests.html</loc></url>

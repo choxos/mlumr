@@ -159,13 +159,17 @@ it reports <code>0</code> and the comparator refusal stands, while <code>undecid
 exists at all. A real one there contributes <code>exp(-RSS / (2 * sdlog^2))</code>
 and removes the comparator's growth entirely, so those report <code>NA</code>
 rather than a zero that would turn an open question into a refusal.</p>
-<p>An eventless index also carries <code>index_region</code>, the censored rows'
-design beside the ends of the region each row is observed to lie in. An
-<code>aux_order</code> of zero says those rows remove no power of the width; it
-does NOT say they leave the coefficients free, and the region is what
-says which ones they leave. A caller sharing this study's slope and its
-auxiliary has to put its own ridge inside that region, which
-<code><a href="dot-index_slope_admits.html">.index_slope_admits()</a></code> answers.</p>
+<p><code>index_region</code> is the index's whole design beside the ends of the region
+each row is observed to lie in: an interval for a censored row, a single
+point for an event row, whose density grows only where the predictor
+reproduces its own time. It travels from the eventless branch and from
+the shared-auxiliary one alike, because the two say the same thing about
+the same coefficients. An <code>aux_order</code> of zero says those rows remove no
+power of the width; it does NOT say they leave the coefficients free,
+and the region is what says which ones they leave. A caller sharing this
+study's slope and its auxiliary has to put its own ridge inside that
+region, which <code><a href="dot-index_slope_admits.html">.index_slope_admits()</a></code> answers, and has to escape its own
+censored rows from inside it, which <code><a href="dot-slope_escape_feasible.html">.slope_escape_feasible()</a></code> answers.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

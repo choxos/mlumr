@@ -73,17 +73,25 @@ which is this function's.
 
 - index_region:
 
-  The coefficient region an eventless index confines `(mu_index, beta)`
+  The coefficient region the index's own rows confine `(mu_index, beta)`
   to, as
   [`.check_survival_scale_collapse()`](https://choxos.github.io/mlumr/reference/dot-check_survival_scale_collapse.md)
-  reports in its `index_region` attribute, or `NULL` where the index has
-  events and the question does not arise. An order of zero says these
-  rows remove no power of the auxiliary's width; it does not say they
-  leave the slope free, and treating it as though it did refused fits
-  whose index and comparator cannot reach the boundary together.
-  Consulted only under `model = "spfa"` with `aux_by = "none"`, where
-  the two share the slope AND the auxiliary; see
-  [`.index_slope_admits()`](https://choxos.github.io/mlumr/reference/dot-index_slope_admits.md).
+  reports in its `index_region` attribute. Every row is in it: a
+  censored row through the interval its censoring puts it in, an EVENT
+  row through the single point its own time puts it at. Censored rows on
+  their own restrict no slope, since moving `mu_index` satisfies a lone
+  inequality, so building the region without the event rows is the same
+  as not having one. An order of zero says these rows remove no power of
+  the auxiliary's width; it does not say they leave the slope free, and
+  treating it as though it did refused fits whose index and comparator
+  cannot reach the boundary together. Consulted only under
+  `model = "spfa"` with `aux_by = "none"`, where the two share the slope
+  AND the auxiliary; see
+  [`.index_slope_admits()`](https://choxos.github.io/mlumr/reference/dot-index_slope_admits.md)
+  for one candidate slope and
+  [`.slope_escape_feasible()`](https://choxos.github.io/mlumr/reference/dot-slope_escape_feasible.md)
+  for whether an admitted one also escapes a comparator censoring
+  threshold.
 
 ## Value
 
