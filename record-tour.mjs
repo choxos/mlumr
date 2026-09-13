@@ -76,6 +76,9 @@ try {
   await page.goto(url);
   const size = await page.evaluate(() => [innerWidth, innerHeight, devicePixelRatio].join(' '));
   if (size !== '1280 720 1.5') throw new Error(`record-tour: the page is ${size} (width, height, scale), not 1280 720 1.5; adjust --window-size`);
+  // goto returns at the load event, before the player mounts the lesson, so
+  // wait for the chapter menu or the take would read no chapters.
+  await page.waitForSelector('.ml-chapter-nav[data-ready=true]', { state: 'attached', timeout: 180000 });
   const labs = await page.locator('[data-chapter]').evaluateAll(buttons => buttons.map(b => b.dataset.chapter));
 
   // Chrome sends a frame whenever the page repaints, stamped with the time it
