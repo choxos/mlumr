@@ -1527,7 +1527,7 @@ test_that("censored index rows restrict a shared slope three ways", {
     region <- .ineq_index(right_time, center)
     mlumr:::.admitted_slope_state(
       matrix(region$X[, 2L], ncol = 1L),
-      mlumr:::.index_slope_admits(region, b)
+      mlumr:::.index_slope_admits(region, 0, b)
     )
   }
   # The region projects to `beta >= log(right_time)`, and a binary
@@ -1546,7 +1546,7 @@ test_that("censored index rows restrict a shared slope three ways", {
 
 test_that("the admission test reads the region, not a fitted slope", {
   b <- log(2)
-  ad <- mlumr:::.index_slope_admits(.ineq_index(4), b)
+  ad <- mlumr:::.index_slope_admits(.ineq_index(4), 0, b)
   # Slope `b / (z - z0)`: from 0 to 1 that is `+log 2`, from 1 to 0 it is
   # `-log 2`, and neither reaches `2 log 2`.
   expect_identical(ad(0, c(0, 1)), c(-1, -1))
@@ -1556,18 +1556,18 @@ test_that("the admission test reads the region, not a fitted slope", {
   expect_identical(ad(0, Inf), -1)
   # Lowering the right-censoring time admits the positive slope outright and
   # leaves the negative one on the boundary, where `mu_index` is pinned.
-  lower <- mlumr:::.index_slope_admits(.ineq_index(0.5), b)
+  lower <- mlumr:::.index_slope_admits(.ineq_index(0.5), 0, b)
   expect_identical(lower(0, c(0, 1)), c(-1, 1))
   expect_identical(lower(1, c(0, 1)), c(0, -1))
   # Two or more covariates leave a polyhedron whose projection is not read
   # off pairs, and that is declined rather than guessed.
   expect_null(mlumr:::.index_slope_admits(
     list(X = cbind(1, c(0, 1), c(1, 0)), lower = c(-Inf, 0), upper = c(0, Inf)),
-    b
+    0, b
   ))
   # So is a region with no finite end on one side, which restricts nothing.
   expect_null(mlumr:::.index_slope_admits(
-    list(X = cbind(1, c(0, 1)), lower = c(-Inf, -Inf), upper = c(0, 1)), b
+    list(X = cbind(1, c(0, 1)), lower = c(-Inf, -Inf), upper = c(0, 1)), 0, b
   ))
 })
 
@@ -1597,15 +1597,15 @@ test_that("an exact map whose slope the index excludes does not certify", {
   expect_true(g(nodes, targets))
   # An index region admitting only `beta >= 2 log 2` excludes that map, so
   # nothing certifies and the arm carries no rate.
-  far <- mlumr:::.index_slope_admits(.ineq_index(4), log(2))
+  far <- mlumr:::.index_slope_admits(.ineq_index(4), 0, log(2))
   expect_false(g(nodes, targets, admits = far))
   # One admitting `beta >= 0` leaves it standing.
-  near <- mlumr:::.index_slope_admits(.ineq_index(1), log(2))
+  near <- mlumr:::.index_slope_admits(.ineq_index(1), 0, log(2))
   expect_true(g(nodes, targets, admits = near))
   # A boundary-only region settles neither and says so.
   edge <- mlumr:::.index_slope_admits(
     list(X = cbind(1, c(0, 1)), lower = c(-Inf, log(2)), upper = c(0, Inf)),
-    log(2)
+    0, log(2)
   )
   out <- g(matrix(c(0, 1), ncol = 1L), c(0, log(2), log(4)), admits = edge)
   expect_true(is.na(out))
@@ -1712,4 +1712,60 @@ test_that("the slope region is consulted only where both are shared", {
   expect_identical(go(aux_by = ".study", model = "spfa"), "refused")
   # Both shared is the case the region speaks to.
   expect_identical(go(aux_by = "none", model = "spfa"), "silent")
+})
+
+test_that("an unsettled slope reaches the interface from either route", {
+  skip_if_not_installed("survival")
+  g <- mlumr:::.grid_hits_targets
+  # Past the grid's reach the filter runs inside the enumeration, so the
+  # boundary can be found there rather than by the pre-scan: with one pair
+  # strictly admitted and another only on the boundary, the strictly admitted
+  # one need not be the one carrying every target.
+  edge <- mlumr:::.index_slope_admits(
+    list(X = cbind(1, c(0, 1)), lower = c(-Inf, log(2)), upper = c(0, Inf)),
+    0, log(2)
+  )
+  out <- g(matrix(c(0, 1), ncol = 1L), c(0, log(2), log(4)), admits = edge)
+  expect_true(is.na(out))
+  expect_identical(attr(out, "declined"), "slope")
+  # Both facts travel when both hold, since either one alone leaves the
+  # question open and naming only the first would drop the other.
+  both <- g(matrix(c(0.1, 0.3, 0.7), ncol = 1L), c(0, 0.2, 0.6))
+  expect_identical(attr(both, "declined"), "inexact")
+  # A point-mass grid has no candidate slope at all. That is the same answer
+  # as every candidate being excluded, not something to report.
+  expect_identical(
+    mlumr:::.admitted_slope_state(matrix(c(1, 1), ncol = 1L), edge),
+    "outside"
+  )
+})
+
+test_that("a rounded operand is bounded, not discarded", {
+  # The four operands feeding the comparison are differences of arbitrary
+  # doubles and on ordinary data none of them survives its own subtraction.
+  # Discarding every such candidate left 2045 of 3266 generated regions whose
+  # slope really was admitted unsettled, so the errors are carried as values
+  # and the cheap sign is accepted wherever it cannot be overturned.
+  u1 <- 1e-20
+  u2 <- 1
+  expect_identical(u2 - u1, 1)
+  expect_true(mlumr:::.two_sum_err(u2, -u1, u2 - u1) != 0)
+  # Far from the boundary the rounding cannot change the side, and it does
+  # not: `beta >= log 4` against a true slope of `1 - 1e-20`.
+  far <- mlumr:::.index_slope_admits(.ineq_index(4), u1, u2)
+  expect_identical(far(0, 1), -1)
+  # ON the boundary it is exactly what decides. `beta >= 1` against a true
+  # slope of `1 - 1e-20` is violated, while the rounded numerator reads as an
+  # equality; the cheap sign is zero there and cannot dominate its own
+  # perturbation, so nothing is asserted.
+  edge <- mlumr:::.index_slope_admits(
+    list(X = cbind(1, c(0, 1)), lower = c(-Inf, 1), upper = c(0, Inf)),
+    u1, u2
+  )
+  expect_true(is.na(edge(0, 1)))
+  # With an exact numerator the same region reads the equality outright.
+  clean <- mlumr:::.index_slope_admits(
+    list(X = cbind(1, c(0, 1)), lower = c(-Inf, 1), upper = c(0, Inf)), 0, 1
+  )
+  expect_identical(clean(0, 1), 0)
 })

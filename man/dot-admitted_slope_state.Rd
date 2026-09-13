@@ -12,7 +12,13 @@
 \item{admits}{The closure \code{\link[=.index_slope_admits]{.index_slope_admits()}} returns.}
 }
 \value{
-\code{"inside"}, \code{"boundary"} or \code{"outside"}.
+\code{"inside"} where some pair's slope is strictly admitted,
+\code{"outside"} where every pair is certified excluded or no pair exists,
+and \code{"boundary"} otherwise. \code{"boundary"} covers both of the answers a
+caller has to report rather than act on: a slope admitted only with
+equality, where the index's intercept is pinned to a point, and one the
+arithmetic could not settle. They are the same instruction, so they are
+not told apart here.
 }
 \description{
 The three-valued reading of \code{\link[=.index_slope_admits]{.index_slope_admits()}} over every ordered

@@ -324,7 +324,9 @@
 #'   question. The first must carry the dimensions the answer should have;
 #'   the rest are recycled against it as usual.
 #' @return Logical, `TRUE` where the exact sum is zero. `NA` where any term
-#'   is not finite, since nothing was established there.
+#'   is not finite, since nothing was established there. The expansion itself
+#'   lives in [.exact_sum_sign()], which answers the same question with its
+#'   side as well.
 #' @keywords internal
 .exact_sum_is_zero <- function(terms) {
   .exact_sum_sign(terms) == 0
@@ -405,8 +407,11 @@
 #' @param region The index's censored design and region ends, as
 #'   [.check_survival_scale_collapse()] reports in its `index_region`
 #'   attribute.
-#' @param p `u[2] - u[1]` for the arm, the numerator every candidate slope
-#'   shares.
+#' @param u1,u2 The arm's two lowest distinct targets. Their difference is
+#'   the numerator every candidate slope shares, and it arrives unsubtracted
+#'   because whether that subtraction was itself exact decides whether the
+#'   sign below is the true one: a numerator off by a rounding is a slope off
+#'   by a rounding, and a wrong "inside" there is a false refusal.
 #' @return A function of `(z0, z)` giving, for each `z`, whether the slope
 #'   `p / (z - z0)` is strictly inside the region (`1`), on its boundary
 #'   (`0`), outside it (`-1`), or undecided (`NA`). A denominator of zero or
@@ -414,7 +419,7 @@
 #'   where the region does not restrict the slope or was not usable, which a
 #'   caller reads as no restriction at all.
 #' @keywords internal
-.index_slope_admits <- function(region, p) {
+.index_slope_admits <- function(region, u1, u2) {
   if (is.null(region) || is.null(region$X) || !is.matrix(region$X)) {
     return(NULL)
   }
@@ -426,7 +431,10 @@
   lo <- as.numeric(region$lower)
   up <- as.numeric(region$upper)
   if (length(x) != length(lo) || length(x) != length(up)) return(NULL)
+  p <- u2 - u1
   if (!all(is.finite(x)) || !is.finite(p) || p == 0) return(NULL)
+  p_err <- .two_sum_err(u2, -u1, p)
+  if (!is.finite(p_err)) return(NULL)
   ii <- which(is.finite(lo))
   jj <- which(is.finite(up))
   if (!length(ii) || !length(jj)) return(NULL)
@@ -439,30 +447,61 @@
   dd <- dd[keep]
   # Exactness of each difference, since the sign below is exact only on
   # operands whose own subtraction was.
-  settled <- (.two_sum_err(lo[gr$i][keep], -up[gr$j][keep], cc) == 0) &
-    (.two_sum_err(x[gr$i][keep], -x[gr$j][keep], dd) == 0)
-  settled[is.na(settled)] <- FALSE
+  # The four differences need not have survived their own subtraction, and on
+  # ordinary data they do not: covariate values, censoring bounds and event
+  # times are arbitrary doubles. Their errors are carried as VALUES, so the
+  # quantity whose sign decides is the one built from the true operands,
+  #
+  #   (p + p_err)(d + d_err) - (c + c_err)(q + q_err),
+  #
+  # rather than `p d - c q`. Expanding all of that exactly is sixteen terms
+  # per candidate, which the inner loop cannot afford, so the cheap four-term
+  # sign is taken and accepted only where it cannot be overturned: the
+  # perturbation is bounded above, the four-term value bounded below, and a
+  # verdict stands when the second exceeds the first. Only genuine
+  # cancellation at the last bits is left undecided. Without this, 2045 of
+  # 3266 generated regions whose slope really was admitted came back
+  # unsettled.
+  c_err <- .two_sum_err(lo[gr$i][keep], -up[gr$j][keep], cc)
+  d_err <- .two_sum_err(x[gr$i][keep], -x[gr$j][keep], dd)
+  exact_scalar <- (c_err == 0) & (d_err == 0) & (p_err == 0)
+  exact_scalar[is.na(exact_scalar)] <- FALSE
   pd <- p * dd
   pd_err <- .two_prod_err(p, dd, pd)
+  # What `(p + p_err)(d + d_err)` adds beyond `p d`, bounded above.
+  pert_scalar <- abs(p) * abs(d_err) + abs(p_err) * abs(dd) +
+    abs(p_err) * abs(d_err)
   function(z0, z) {
     q <- z - z0
     q_err <- .two_sum_err(z, -z0, q)
     usable <- is.finite(q) & q != 0
     q_ok <- usable & !is.na(q_err) & q_err == 0
+    q_err[is.na(q_err)] <- Inf
     viol <- rep(FALSE, length(q))
     edge <- rep(FALSE, length(q))
-    # A denominator that did not survive its own subtraction settles nothing
-    # about the slope it would form, so it starts out open rather than in.
-    open <- !q_ok
+    open <- rep(FALSE, length(q))
     for (k in seq_along(cc)) {
       cq <- cc[k] * q
       cq_err <- .two_prod_err(cc[k], q, cq)
       dif <- pd[k] - cq
       dif_err <- .two_sum_err(pd[k], -cq, dif)
-      # `p * D - C * q`, exactly, times the sign of `q`: multiplying the
+      # `p d - c q`, exactly, times the sign of `q`: multiplying the
       # condition through by `q` reverses it when `q` is negative.
       sg <- .exact_sum_sign(list(dif, dif_err, pd_err[k], -cq_err)) * sign(q)
-      decided <- q_ok & settled[k] & is.finite(dif) & !is.na(sg)
+      # How far the true quantity can sit from that one, and how far that one
+      # sits from zero. The margin is inflated, because the bound is itself
+      # computed in floating point.
+      pert <- pert_scalar[k] + abs(cc[k]) * abs(q_err) +
+        abs(c_err[k]) * abs(q) + abs(c_err[k]) * abs(q_err)
+      floor_val <- abs(dif) - abs(dif_err) - abs(pd_err[k]) - abs(cq_err)
+      dominates <- is.finite(pert) & is.finite(floor_val) &
+        floor_val > pert * (1 + 1e-9) + 1e-300
+      dominates[is.na(dominates)] <- FALSE
+      # Every operand exact makes the cheap sign the true one outright, which
+      # is the only way a verdict of "on the boundary" can be reached: a sign
+      # of zero can never dominate a positive perturbation.
+      exact_here <- exact_scalar[k] & q_ok
+      decided <- (exact_here | dominates) & is.finite(dif) & !is.na(sg)
       viol <- viol | (decided & sg < 0)
       edge <- edge | (decided & sg == 0)
       open <- open | !decided
@@ -494,14 +533,23 @@
 #'
 #' @param nodes The arm's integration nodes, one row per node.
 #' @param admits The closure [.index_slope_admits()] returns.
-#' @return `"inside"`, `"boundary"` or `"outside"`.
+#' @return `"inside"` where some pair's slope is strictly admitted,
+#'   `"outside"` where every pair is certified excluded or no pair exists,
+#'   and `"boundary"` otherwise. `"boundary"` covers both of the answers a
+#'   caller has to report rather than act on: a slope admitted only with
+#'   equality, where the index's intercept is pinned to a point, and one the
+#'   arithmetic could not settle. They are the same instruction, so they are
+#'   not told apart here.
 #' @keywords internal
 .admitted_slope_state <- function(nodes, admits) {
   if (is.null(nodes) || !is.matrix(nodes) || ncol(nodes) != 1L) {
     return("boundary")
   }
   z <- sort(unique(as.numeric(nodes[, 1L])))
-  if (length(z) < 2L) return("boundary")
+  # No two distinct nodes means no candidate slope exists at all, which is
+  # the same answer as every candidate being excluded. Reporting it instead
+  # would warn about a point-mass grid that carries no rate either way.
+  if (length(z) < 2L) return("outside")
   open <- FALSE
   for (a in seq_along(z)) {
     ad <- admits(z[a], z)
@@ -764,8 +812,8 @@
     if (any(exact & alive)) return(TRUE)
     if (any(alive)) close <- TRUE
   }
-  if (close) return(undecided("inexact"))
-  if (open_slope) return(undecided("slope"))
+  why <- c(if (close) "inexact", if (open_slope) "slope")
+  if (length(why)) return(undecided(why))
   FALSE
 }
 
@@ -1392,7 +1440,7 @@
     function(tg) {
       u <- sort(unique(as.numeric(tg)))
       if (length(u) < 2L) return(NULL)
-      .index_slope_admits(index_region, u[2L] - u[1L])
+      .index_slope_admits(index_region, u[1L], u[2L])
     }
   } else {
     NULL

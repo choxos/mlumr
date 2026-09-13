@@ -4,15 +4,18 @@
 \alias{.index_slope_admits}
 \title{Which slopes an eventless index still allows}
 \usage{
-.index_slope_admits(region, p)
+.index_slope_admits(region, u1, u2)
 }
 \arguments{
 \item{region}{The index's censored design and region ends, as
 \code{\link[=.check_survival_scale_collapse]{.check_survival_scale_collapse()}} reports in its \code{index_region}
 attribute.}
 
-\item{p}{\code{u[2] - u[1]} for the arm, the numerator every candidate slope
-shares.}
+\item{u1, u2}{The arm's two lowest distinct targets. Their difference is
+the numerator every candidate slope shares, and it arrives unsubtracted
+because whether that subtraction was itself exact decides whether the
+sign below is the true one: a numerator off by a rounding is a slope off
+by a rounding, and a wrong "inside" there is a false refusal.}
 }
 \value{
 A function of \verb{(z0, z)} giving, for each \code{z}, whether the slope
