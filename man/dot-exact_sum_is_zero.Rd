@@ -13,7 +13,9 @@ the rest are recycled against it as usual.}
 }
 \value{
 Logical, \code{TRUE} where the exact sum is zero. \code{NA} where any term
-is not finite, since nothing was established there.
+is not finite, since nothing was established there. The expansion itself
+lives in \code{\link[=.exact_sum_sign]{.exact_sum_sign()}}, which answers the same question with its
+side as well.
 }
 \description{
 The two transformations above answer "was this one operation exact". That
