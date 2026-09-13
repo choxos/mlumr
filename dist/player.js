@@ -16824,7 +16824,7 @@
     },
     {
       name: "Integrate",
-      detail: "distr()",
+      detail: "add_integration()",
       title: "Step 3. Describe trial B's covariates",
       code: 'dat <- add_integration(dat, n_int = 512,\n  x = distr(qnorm, mean = x_mean, sd = x_sd))\ncheck_integration(dat, x = distr(qnorm, mean = x_mean, sd = x_sd))\ncheck_identification(dat, link = "logit")',
       text: "add_integration() spreads quasi-random Sobol points over the covariate distribution you describe. Choose distributions that respect each covariate's range: qbern() for a yes or no covariate, qlogitnorm() for a proportion, and qgamma() for a positive value. check_integration() compares the grid with one twice as large. It checks the arithmetic, not the final effect."
