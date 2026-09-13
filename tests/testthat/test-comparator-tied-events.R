@@ -2404,3 +2404,84 @@ test_that("a region too wide to project is reported, not read as absent", {
   expect_identical(go(model = "relaxed"), "refused")
   expect_identical(go(aux = ".study"), "refused")
 })
+
+test_that("the index order nets its censored rows against its own spikes", {
+  # An exact fit pins `rank_e` directions against `nrow(Xe)` spikes, so it
+  # removes `rank_e - nrow(Xe)` powers: zero for a saturated design and
+  # NEGATIVE once a profile repeats. The touching count alone is not the
+  # index's order there, and the caller subtracts whatever it is told.
+  order_of <- function(n_events) {
+    x <- c(rep(0, n_events), 1, 1)
+    ev <- c(rep(TRUE, n_events), FALSE, FALSE)
+    out <- mlumr:::.censoring_bounds_aux(
+      cbind(1, x), rep(0, length(x)), ev, exact_fit = TRUE,
+      lower = c(-Inf, 0), upper = c(0, Inf)
+    )
+    attr(out, "order")
+  }
+  # One event, one touching profile: one direction pinned beyond the spike.
+  expect_identical(order_of(1L), 1L)
+  # Two identical events at one profile are two spikes against one pinned
+  # direction, so the touching profile only pays that back: `1 - (2 - 1)`.
+  # Reported as 1, a comparator rate of one netted to zero and a fit whose
+  # marginal still behaves as `1 / s` was passed.
+  expect_identical(order_of(2L), 0L)
+  # And a third spike does not make the order negative. A negative net says
+  # the index ADDS to the comparator's rate, which would strengthen a
+  # refusal rather than weaken one; zero leaves it resting on the
+  # comparator's own rate, which is a lower bound on the truth.
+  expect_identical(order_of(3L), 0L)
+})
+
+test_that("a lone target does not need the region projected", {
+  skip_if_not_installed("survival")
+  go <- function(censor = NULL) {
+    times <- if (is.null(censor)) c(1, 1) else c(1, 1, censor)
+    status <- if (is.null(censor)) c(1L, 1L) else c(1L, 1L, 0L)
+    ip <- suppressWarnings(set_ipd(
+      data.frame(trt = "A", x1 = c(0, 1, 0), x2 = c(0, 0, 1)),
+      treatment = "trt", covariates = c("x1", "x2"), family = "survival",
+      Surv = survival::Surv(c(1, 4, 32), c(1, 8, 64), type = "interval2")
+    ))
+    ag <- set_agd_surv(
+      data.frame(trt = "B", time = times, status = status,
+                 x1_mean = 0.5, x2_mean = 0.5),
+      treatment = "trt", time = "time", status = "status",
+      cov_means = c("x1_mean", "x2_mean"), cov_types = c("binary", "binary")
+    )
+    d <- suppressWarnings(add_integration(
+      combine_data(ip, ag), n_int = 16, cor = diag(2), cor_adjust = "none",
+      verbose = FALSE, x1 = distr(qbern, prob = x1_mean),
+      x2 = distr(qbern, prob = x2_mean)
+    ))
+    idx <- suppressWarnings(
+      mlumr:::.check_survival_scale_collapse(d, "lognormal", aux_by = "none",
+                                             center = FALSE)
+    )
+    tryCatch({
+      suppressWarnings(mlumr:::.check_comparator_tied_events(
+        d, "lognormal", aux_by = "none", model = "spfa",
+        index_bounds_aux = isTRUE(attr(idx, "bounds_aux")),
+        index_exact = attr(idx, "index_exact") %||% NA,
+        index_design = attr(idx, "index_design"),
+        index_aux_order = attr(idx, "aux_order") %||% 0,
+        index_region = attr(idx, "index_region")
+      ))
+      "reported"
+    }, error = function(e) {
+      if (grepl("improper", conditionMessage(e))) {
+        "refused"
+      } else {
+        conditionMessage(e)
+      }
+    })
+  }
+  # One distinct target is absorbed by `mu_comparator` at EVERY slope, so the
+  # events match whatever the region allows and the rate is certified without
+  # projecting it. Reporting there gave up a refusal the projection could
+  # never have overturned.
+  expect_identical(go(), "refused")
+  # A censored row that has to be escaped reopens the question, because the
+  # escape needs a particular slope and the region may exclude it.
+  expect_identical(go(censor = 4), "reported")
+})

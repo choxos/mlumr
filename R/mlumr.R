@@ -1999,11 +1999,15 @@
                    spfa_pinned = shared_aux && identical(model, "spfa") &&
                      slope$all && rank_d < reachable && threat,
                    two_sided = rank_d < reachable && threat && !one_sided,
-                   # Only where the region can reach a direction THIS grid
-                   # moves along. One it cannot reach leaves that direction
-                   # free whatever the polyhedron does, so the refusal is
-                   # unaffected by the projection going uncomputed.
-                   region_open = region_wide &&
+                   # Only where the projection could have decided something.
+                   # A SINGLE distinct target is absorbed by `mu_comparator`
+                   # at every slope, so the events match whatever the region
+                   # allows and a positive rate is certified without it; only
+                   # a censored row that has to be escaped reopens the
+                   # question there. And only where the region can reach a
+                   # direction THIS grid moves along: one it cannot reach
+                   # leaves that direction free whatever the polyhedron does.
+                   region_open = region_wide && (k > 1L || threat) &&
                      !isFALSE(.region_slope_reach(index_region, grid$nodes)),
                    spfa_shared = spfa_shared && !slope_free &&
                      rank_d > 1L)
@@ -4075,10 +4079,27 @@
   # censoring time is still not determined by a fit that does not place them,
   # and this does not claim to have decided it. What travels beside it is the
   # separate question the caller needs and that this can answer: how many
-  # coefficient directions they pin. Independent profiles with an interior
-  # can be satisfied at once and alongside the placed rows, so they pin
-  # nothing and the count is zero; a touching one pins its own direction.
-  structure("undetermined", order = sum(touch),
+  # powers of the width the index removes NET. Independent profiles with an
+  # interior can be satisfied at once and alongside the placed rows, so they
+  # pin nothing; a touching one pins its own direction.
+  #
+  # Net, because the EVENT rows are not free of charge. An exact fit pins
+  # `rank_e` directions against `nrow(Xe)` density spikes, so it removes
+  # `rank_e - nrow(Xe)` powers, which is zero for a saturated design and
+  # NEGATIVE once a profile repeats. Reporting the touching count alone
+  # there is a subtraction the caller then takes off its own rate: two
+  # identical events at one profile beside one touching censored profile
+  # give `1 - (2 - 1) = 0`, and reporting `1` took a rate of one down to
+  # zero and passed a fit whose marginal still behaves as `1 / s`.
+  #
+  # Clamped at zero rather than reported negative. A negative net says the
+  # index ADDS to the comparator's rate, which would strengthen a refusal
+  # rather than weaken one, and this has not measured that; zero leaves the
+  # refusal resting on the comparator's own rate, which is a lower bound on
+  # the truth. Same convention the eventless branch reports under, where
+  # there are no spikes to net against.
+  structure("undetermined",
+            order = max(0L, sum(touch) - (nrow(Xe) - rank_e)),
             design = profiles[touch, , drop = FALSE])
 }
 
