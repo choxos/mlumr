@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "tinystan": "0.3.3"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.10"
+  }
+}

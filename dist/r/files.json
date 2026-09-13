@@ -1,0 +1,16 @@
+[
+  "NAMESPACE",
+  "R/mlumr.R",
+  "inst/stan/include/binary_functions.stan",
+  "inst/stan/include/numerical_functions.stan",
+  "inst/stan/include/priors_functions.stan",
+  "inst/stan/include/priors_hyperparameters.stan",
+  "inst/stan/include/priors_sigma_hyperparameters.stan",
+  "inst/stan/include/survival_aux_hyperparameters.stan",
+  "inst/stan/include/survival_functions.stan",
+  "inst/stan/include/survival_mspline_functions.stan",
+  "inst/stan/mlumr_binary_relaxed.stan",
+  "inst/stan/mlumr_binary_spfa.stan",
+  "lesson-helpers.R",
+  "load.R"
+]

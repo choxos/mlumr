@@ -1,0 +1,9 @@
+id: mlumr
+title: "ML-UMR: compare treatments, understand populations"
+promise: Explore how unanchored comparisons combine individual and aggregate evidence, and learn to use the developing mlumr package responsibly.
+tags: [statistics, bayesian-inference, evidence-synthesis, survival-analysis, R]
+scene: ./scenes/scene.ts
+defaults:
+  anticipation: 0.1
+  ease: inOutCubic
+  transition: 1.0

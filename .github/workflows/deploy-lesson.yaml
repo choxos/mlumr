@@ -1,0 +1,50 @@
+# Publishes the narrated mlumr lesson from this lesson-only branch at
+# https://choxos.github.io/mlumr/lesson .
+#
+# The site is built locally with `bash lesson.sh dist` and committed as dist/.
+# Building here would need the pinned Tangible checkout, its native speech
+# model and about twenty minutes of local speech synthesis, so this workflow
+# only publishes the committed build.
+#
+# How this coexists with the other writers of gh-pages:
+#   * pkgdown.yaml on main deploys the package website to the gh-pages root
+#     with `clean: true` and a `clean-exclude` that lists `app` and `lesson`,
+#     so a docs deployment never deletes this subtree.
+#   * deploy-app.yaml on the webapp branch deploys only into app/.
+#   * This workflow deploys only into lesson/ (target-folder: lesson). Its
+#     `clean: true` is scoped to lesson/.
+#   * Every writer pushes with `force: false`, so a push that races another
+#     rebases onto it and retries. The writers touch disjoint paths, so the
+#     rebase is clean. No shared concurrency group is used: with the default
+#     queue a newly queued member cancels a pending one on another branch.
+name: deploy-lesson.yaml
+
+on:
+  push:
+    branches: [lesson]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy-lesson:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check that the committed build exists
+        run: test -f dist/index.html && test -f dist/player.js && test -f dist/r/files.json && test -f dist/stan/worker.js
+
+      - name: Add .nojekyll to the lesson build
+        run: touch dist/.nojekyll
+
+      - name: Deploy to gh-pages/lesson
+        uses: JamesIves/github-pages-deploy-action@d92aa235d04922e8f08b40ce78cc5442fcfbfa2f # v4.8.0
+        with:
+          branch: gh-pages
+          folder: dist
+          target-folder: lesson
+          clean: true
+          force: false
+          commit-message: "Deploy mlumr lesson to /lesson [skip ci]"
