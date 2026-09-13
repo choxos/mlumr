@@ -292,13 +292,19 @@
   censoring. Under `model = "spfa"` with `aux_by = "none"` the arms share one
   `beta` as well as one auxiliary, so reaching the comparator check means the
   index did not bound that auxiliary, which under that model means its own
-  design fits exactly. That is not enough on its own: it must also IDENTIFY
-  the shared slope over the directions the arm's grid spans, since repeated
-  index events at one covariate profile at one time fit exactly and leave
-  `beta` unconstrained, and then whatever node-specific values the
-  comparator's equations pin it to lie in the index's solution set by
+  design fits exactly. That is not enough on its own: it must also CONSTRAIN
+  the shared slope somewhere in the directions the arm's grid spans, since
+  repeated index events at one covariate profile at one time fit exactly and
+  leave `beta` wholly unconstrained, and then whatever node-specific values
+  the comparator's equations pin it to lie in the index's solution set by
   construction, the sets always intersect, and the arm is refused rather than
-  reported. Two or more comparator
+  reported. Partial identification is not that case and stays reported: an
+  index that fixes `beta1` at a value none of the comparator's pairwise
+  differences reaches leaves the sets disjoint even while `beta2` is free.
+  The pinned-ridge report wants the opposite of the same measurement, since
+  one free direction is enough to move an integration point past a censoring
+  time, so it asks for every spanned direction rather than for any. Two or
+  more comparator
   targets pin it too, to values the integration points fix, and if those sets
   do not intersect then every path to the boundary leaves one side with a
   positive residual whose decay beats the other's growth. Solving that

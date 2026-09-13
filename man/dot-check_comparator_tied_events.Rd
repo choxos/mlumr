@@ -284,12 +284,16 @@ intercept prior.
 One combination is reported rather than refused for a reason that is not
 about censoring. Under \code{model = "spfa"} with \code{aux_by = "none"} the arms
 share one \code{beta} AND one auxiliary, and when the index event design is
-itself exact AND identifies that slope over the directions the arm's grid
-spans, it pins it to its own solution set. Fitting exactly is not enough:
-repeated index events at one covariate profile at one time leave \code{beta}
-unconstrained, so whatever node-specific values the comparator's equations
-pin it to lie in that set by construction, the sets always intersect, and
-the arm is refused rather than reported.
+itself exact AND constrains that slope somewhere in the directions the
+arm's grid spans, it pins it to a solution set the comparator's values can
+miss. Fitting exactly is not enough: repeated index events at one
+covariate profile at one time leave \code{beta} wholly unconstrained, so
+whatever node-specific values the comparator's equations pin it to lie in
+that set by construction, the sets always intersect, and the arm is
+refused rather than reported. PARTIAL identification is not that case and
+is reported: an index that fixes \code{beta1} at a value none of the
+comparator's pairwise differences reaches leaves the sets disjoint even
+while \code{beta2} stays free.
 Two or more comparator targets pin it too, to values the integration
 points fix, and if those sets do not intersect then every path to the
 boundary leaves one side with a positive residual whose exponential decay

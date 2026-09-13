@@ -1126,3 +1126,52 @@ test_that("a free shared slope always intersects the comparator's values", {
                  warning = conditionMessage)
   expect_match(w2, "comparator equations pin it too")
 })
+
+test_that("a partly identified slope is not a free one", {
+  # Adding the node-difference rows to the index design raises its rank by
+  # however many of those directions the index does NOT estimate, so a gain
+  # of zero means all of them and a gain of the full node-difference rank
+  # means none. In between is partial identification, and the two SPFA
+  # branches want opposite things from it: the escape needs every direction
+  # pinned, the intersection needs none.
+  #
+  # On the nodes (0,0), (1,0), (0,1) the differences span both directions.
+  # An index that fixes `beta1` and leaves `beta2` free pins one of the two.
+  ip <- suppressWarnings(set_ipd(
+    data.frame(trt = "A", time = c(1, exp(1)), status = c(1L, 1L),
+               x1 = c(0, 1), x2 = c(0, 0)),
+    treatment = "trt", covariates = c("x1", "x2"), family = "survival",
+    time = "time", status = "status"
+  ))
+  ag <- set_agd_surv(
+    data.frame(trt = "B", time = c(1, 1, exp(1), exp(2)), status = rep(1L, 4),
+               x1_mean = 0, x1_sd = 0.5, x2_mean = 0, x2_sd = 0.5),
+    treatment = "trt", time = "time", status = "status",
+    cov_means = c("x1_mean", "x2_mean"), cov_sds = c("x1_sd", "x2_sd"),
+    cov_types = c("continuous", "continuous")
+  )
+  d <- suppressWarnings(add_integration(
+    combine_data(ip, ag), n_int = 8, verbose = FALSE, cor = diag(2),
+    x1 = distr(stats::qnorm, mean = x1_mean, sd = x1_sd),
+    x2 = distr(stats::qnorm, mean = x2_mean, sd = x2_sd)
+  ))
+  design <- cbind(1, c(0, 1), c(0, 0))
+  # It estimates one of the two spanned directions: not all, not none.
+  nodes <- matrix(d$integration_points[1, , ], nrow = 8L)
+  zc <- sweep(nodes, 2L, nodes[1L, ], "-")
+  zc <- zc[rowSums(zc != 0) > 0L, , drop = FALSE]
+  base <- mlumr:::.exact_rank(design)$rank
+  gain <- mlumr:::.exact_rank(rbind(design, cbind(0, zc)))$rank - base
+  expect_gt(gain, 0L)
+  expect_lt(gain, mlumr:::.exact_rank(zc)$rank)
+  # So the sets can miss and the arm stays open rather than being refused.
+  w <- tryCatch(check(d, aux_by = "none", model = "spfa", index_exact = TRUE,
+                      index_design = design), warning = conditionMessage)
+  expect_match(w, "comparator equations pin it too")
+  expect_no_match(w, "is therefore improper")
+  # An index that pins NONE of them is the case that is certified: the
+  # comparator's values lie in its solution set by construction.
+  expect_match(msg(d, aux_by = "none", model = "spfa", index_exact = TRUE,
+                   index_design = cbind(1, c(0, 0), c(0, 0))),
+               "is therefore improper")
+})

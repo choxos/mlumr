@@ -712,12 +712,16 @@
 #' One combination is reported rather than refused for a reason that is not
 #' about censoring. Under `model = "spfa"` with `aux_by = "none"` the arms
 #' share one `beta` AND one auxiliary, and when the index event design is
-#' itself exact AND identifies that slope over the directions the arm's grid
-#' spans, it pins it to its own solution set. Fitting exactly is not enough:
-#' repeated index events at one covariate profile at one time leave `beta`
-#' unconstrained, so whatever node-specific values the comparator's equations
-#' pin it to lie in that set by construction, the sets always intersect, and
-#' the arm is refused rather than reported.
+#' itself exact AND constrains that slope somewhere in the directions the
+#' arm's grid spans, it pins it to a solution set the comparator's values can
+#' miss. Fitting exactly is not enough: repeated index events at one
+#' covariate profile at one time leave `beta` wholly unconstrained, so
+#' whatever node-specific values the comparator's equations pin it to lie in
+#' that set by construction, the sets always intersect, and the arm is
+#' refused rather than reported. PARTIAL identification is not that case and
+#' is reported: an index that fixes `beta1` at a value none of the
+#' comparator's pairwise differences reaches leaves the sets disjoint even
+#' while `beta2` stays free.
 #' Two or more comparator targets pin it too, to values the integration
 #' points fix, and if those sets do not intersect then every path to the
 #' boundary leaves one side with a positive residual whose exponential decay
@@ -987,17 +991,35 @@
   # exactly. A grid whose nodes all share one covariate vector spans no
   # direction at all, so there is nothing to pin; `rank_d < reachable`
   # already excludes that case before this is consulted.
-  pins_slope <- function(nodes) {
-    if (is.null(index_design) || is.null(nodes)) return(FALSE)
+  # Three answers, not two. Adding the node-difference rows to the index
+  # design raises its rank by however many of those directions the index
+  # does NOT already estimate, so a gain of zero means it estimates all of
+  # them and a gain of the full node-difference rank means it estimates none.
+  # In between is PARTIAL identification, which is neither: with two
+  # covariates an index can fix `beta1` while leaving `beta2` free, and the
+  # two branches below want opposite things from that. The escape one needs
+  # every direction pinned, since one free direction is enough to move a node
+  # past a censoring time. The intersection one needs NO direction pinned,
+  # since only then do the comparator's node-specific values lie in the
+  # index's solution set by construction; a `beta1` the index fixes at a
+  # value none of the comparator's pairwise differences reaches leaves the
+  # sets disjoint and the fit proper.
+  slope_reach <- function(nodes) {
+    blind <- list(all = FALSE, any = FALSE, testable = FALSE)
+    if (is.null(index_design) || is.null(nodes)) return(blind)
     if (!is.matrix(nodes) || ncol(index_design) != ncol(nodes) + 1L) {
-      return(FALSE)
+      return(blind)
     }
-    if (!all(is.finite(nodes)) || !all(is.finite(index_design))) return(FALSE)
+    if (!all(is.finite(nodes)) || !all(is.finite(index_design))) return(blind)
     zc <- sweep(nodes, 2L, nodes[1L, ], "-")
     zc <- zc[rowSums(zc != 0) > 0L, , drop = FALSE]
-    if (!nrow(zc)) return(TRUE)
+    # A grid whose nodes all share one covariate vector spans no direction,
+    # so there is nothing to pin and nothing to escape along.
+    if (!nrow(zc)) return(list(all = TRUE, any = TRUE, testable = TRUE))
     base <- .exact_rank(index_design)$rank
-    .exact_rank(rbind(index_design, cbind(0, zc)))$rank == base
+    gain <- .exact_rank(rbind(index_design, cbind(0, zc)))$rank - base
+    list(all = gain == 0L, any = gain < .exact_rank(zc)$rank,
+         testable = TRUE)
   }
   target <- suppressWarnings(log(time))
   worst <- 0L
@@ -1122,13 +1144,14 @@
     one_sided <- !length(side) ||
       (!anyNA(side) && !any(side == "bounded") && length(unique(side)) == 1L)
     cens <- side
-    # `pins_slope()` is FALSE both when the design leaves the slope free and
-    # when there is no design to test at all, and only the first is a reason
-    # to refuse. An index guard that bailed out before its geometry, or one
-    # whose residual status was never settled, establishes nothing about the
-    # slope, and turning that into a refusal is the same mistake as turning
-    # an unsettled order into a zero.
-    slope_free <- !is.null(index_design) && !pins_slope(grid$nodes)
+    # A design that pins NOTHING, a design that pins something, and no design
+    # to test are three answers, and only the first is a reason to refuse.
+    # An index guard that bailed out before its geometry, or one whose
+    # residual status was never settled, establishes nothing about the slope,
+    # and turning that into a refusal is the same mistake as turning an
+    # unsettled order into a zero.
+    slope <- slope_reach(grid$nodes)
+    slope_free <- slope$testable && !slope$any
     # A censored row only leaves the answer open if it threatens the ridge in
     # the first place, and at the MATCHED nodes that is decided rather than
     # enumerated. Every ridge point puts a matched node exactly at its
@@ -1185,7 +1208,7 @@
       # `rank_d = 1` this used to run past both flags into the refusal.
       info <- list(m = m, k = k, rank = rank_d, reach = reachable,
                    isolated = rank_d >= reachable && threat,
-                   spfa_pinned = spfa_shared && pins_slope(grid$nodes) &&
+                   spfa_pinned = spfa_shared && slope$all &&
                      rank_d < reachable && threat,
                    two_sided = rank_d < reachable && threat && !one_sided,
                    spfa_shared = spfa_shared && !slope_free &&
