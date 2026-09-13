@@ -2,12 +2,12 @@
 % Please edit documentation in R/mlumr.R
 \name{.index_slope_admits}
 \alias{.index_slope_admits}
-\title{Which slopes an eventless index still allows}
+\title{Is one candidate slope still allowed by the index?}
 \usage{
 .index_slope_admits(region, u1, u2)
 }
 \arguments{
-\item{region}{The index's censored design and region ends, as
+\item{region}{The index's design and region ends, as
 \code{\link[=.check_survival_scale_collapse]{.check_survival_scale_collapse()}} reports in its \code{index_region}
 attribute.}
 
@@ -26,32 +26,12 @@ where the region does not restrict the slope or was not usable, which a
 caller reads as no restriction at all.
 }
 \description{
-An index whose rows are all censored pins nothing, and that is not the
-same as constraining nothing. Each row is observed to lie in a region, and
-as the auxiliary goes to its boundary the row's contribution tends to one
-where its linear predictor is inside that region and to zero where it is
-outside, so the coefficients keeping the index alive are the ones
-satisfying every row at once:
-}
-\details{
-\verb{lower_i <= mu + beta' x_i <= upper_i}.
-
-That is a nonempty region, which is why the index's own order is zero. It
-is not the whole space, and under \code{model = "spfa"} with \code{aux_by = "none"}
-the comparator shares \code{beta} AND the auxiliary, so a divergence needs a
-slope this region still admits. Eliminating \code{mu} between a row with a
-finite lower end and one with a finite upper end (Fourier-Motzkin) leaves
-
-\code{lower_i - upper_j <= beta (x_i - x_j)},
-
-one linear condition on the slope per such pair. Pairs at the same
-covariate value say nothing about the slope; they are a conflict or not,
-and \code{\link[=.censoring_bounds_aux]{.censoring_bounds_aux()}} has already answered that.
-
-The candidate slopes are \code{(u[2] - u[1]) / (z_b - z_a)}, so the test is
-carried out on the CROSS-MULTIPLIED form: computing the division and
-comparing is a floating-point solve, and a solve certifies nothing. The
-sign of \code{p * D - C * q} decides, corrected for the sign of \code{q}, and
+The conditions \code{\link[=.slope_region_pairs]{.slope_region_pairs()}} leaves, tested at the slopes a
+comparator arm's divergence could actually use. Those are
+\code{(u[2] - u[1]) / (z_b - z_a)}, so the test is carried out on the
+CROSS-MULTIPLIED form: computing the division and comparing is a
+floating-point solve, and a solve certifies nothing. The sign of
+\code{p * D - C * q} decides, corrected for the sign of \code{q}, and
 \code{\link[=.exact_sum_sign]{.exact_sum_sign()}} answers it exactly whenever \code{C}, \code{D}, \code{p} and \code{q} each
 survived their own subtraction. Where one of them did not, the answer is
 undecided rather than guessed: a false "outside" hides an improper

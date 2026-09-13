@@ -1856,3 +1856,336 @@ test_that("past the reach the enumeration decides the slope, not the scan", {
   )
   expect_false(out)
 })
+
+# ---- an index's EVENT rows restrict the slope its censored rows leave ------
+
+.binary_arm <- function(times, statuses) {
+  set_agd_surv(
+    data.frame(trt = "B", time = times, status = as.integer(statuses),
+               x_mean = 0.5),
+    treatment = "trt", time = "time", status = "status",
+    cov_means = "x_mean", cov_types = "binary"
+  )
+}
+
+.binary_grid <- function(ip, ag) {
+  d <- suppressWarnings(add_integration(combine_data(ip, ag), n_int = 8,
+                                        verbose = FALSE,
+                                        x = distr(qbern, prob = x_mean)))
+  expect_setequal(unique(as.numeric(d$integration_points[1, , 1])), c(0, 1))
+  d
+}
+
+.mixed_index <- function(right_time) {
+  # One exact event at t = 1 on x = 0, one right-censored row on x = 1.
+  set_ipd(
+    data.frame(trt = "A", time = c(1, right_time), status = c(1L, 0L),
+               x = c(0, 1)),
+    treatment = "trt", covariates = "x", family = "survival",
+    time = "time", status = "status"
+  )
+}
+
+test_that("an index event makes its censored rows restrict a shared slope", {
+  skip_if_not_installed("survival")
+  d <- .binary_grid(.mixed_index(4), .binary_arm(c(1, 1, 2), rep(1L, 3)))
+  idx <- suppressWarnings(
+    mlumr:::.check_survival_scale_collapse(d, "lognormal", aux_by = "none",
+                                           center = FALSE)
+  )
+  region <- attr(idx, "index_region")
+  expect_false(is.null(region))
+  # The event row is an EQUALITY at its own log time, and the censored row
+  # keeps the interval its censoring puts it in. Building the region from the
+  # censored rows alone is what refused a proper fit: a lone right-censoring
+  # inequality is satisfied by moving `mu_index`, so censored rows on their
+  # own restrict no slope, and the event row is what takes that freedom away.
+  expect_identical(region$lower, c(0, log(4)))
+  expect_identical(region$upper, c(0, Inf))
+  # Eliminating `mu_index` leaves `beta >= log 4`, while the binary
+  # comparator's exact fit at `(1, 1, 2)` needs `beta = +/- log 2`.
+  ad <- mlumr:::.index_slope_admits(region, 0, log(2))
+  expect_identical(
+    mlumr:::.admitted_slope_state(matrix(c(0, 1), ncol = 1L), ad), "outside"
+  )
+  expect_silent(out <- mlumr:::.check_comparator_tied_events(
+    d, "lognormal", aux_by = "none", model = "spfa",
+    index_exact = attr(idx, "index_exact"),
+    index_design = attr(idx, "index_design"),
+    index_aux_order = attr(idx, "aux_order") %||% 0,
+    index_region = region
+  ))
+  expect_false(out)
+  # Moving the censoring time below the event's own time leaves
+  # `beta >= -log 2`, which the comparator's `+log 2` reaches, and that fit
+  # is genuinely improper.
+  low <- .binary_grid(.mixed_index(0.5), .binary_arm(c(1, 1, 2), rep(1L, 3)))
+  lidx <- suppressWarnings(
+    mlumr:::.check_survival_scale_collapse(low, "lognormal", aux_by = "none",
+                                           center = FALSE)
+  )
+  expect_identical(attr(lidx, "index_region")$lower, c(0, log(0.5)))
+  expect_error(
+    suppressWarnings(mlumr:::.check_comparator_tied_events(
+      low, "lognormal", aux_by = "none", model = "spfa",
+      index_exact = attr(lidx, "index_exact"),
+      index_design = attr(lidx, "index_design"),
+      index_aux_order = attr(lidx, "aux_order") %||% 0,
+      index_region = attr(lidx, "index_region")
+    )),
+    "improper"
+  )
+})
+
+test_that("the region is carried under every residual status, not just exact", {
+  skip_if_not_installed("survival")
+  # "This row's predictor equals its own time, or its density vanishes" is a
+  # statement about the data. Whether a factorization at double precision
+  # could tell an exact fit from a near one does not bear on it, so gating
+  # the region on the residual status would drop it exactly where the index
+  # is least informative.
+  d <- .binary_grid(.mixed_index(4), .binary_arm(c(1, 1, 2), rep(1L, 3)))
+  idx <- suppressWarnings(
+    mlumr:::.check_survival_scale_collapse(d, "lognormal", aux_by = "none",
+                                           center = FALSE)
+  )
+  # One event row on a rank-1 design is `saturated`, so this one does carry a
+  # design; the region is present either way.
+  expect_true(isTRUE(attr(idx, "index_exact")))
+  expect_false(is.null(attr(idx, "index_region")))
+  expect_identical(nrow(attr(idx, "index_region")$X), 2L)
+})
+
+# Whether a fit REACHES the sampler is the acceptance question, and it is
+# asked without sampling: the backend is replaced for the call and raises a
+# sentinel of its own, so a proper fit is told from a refused one by which
+# condition comes back rather than by waiting for MCMC.
+.reaches_backend <- function(d, model = "spfa", aux = "none") {
+  testthat::local_mocked_bindings(
+    .mlumr_fit_backend = function(...) stop("SENTINEL_BACKEND_REACHED")
+  )
+  tryCatch({
+    suppressWarnings(mlumr(d, model = model, distribution = "lognormal",
+                           aux_by = aux, center = FALSE, qr = FALSE,
+                           engine = "rstan", seed = 2026, verbose = FALSE,
+                           refresh = 0, chains = 1, iter = 10, warmup = 5))
+    "returned"
+  }, error = function(e) {
+    m <- conditionMessage(e)
+    if (grepl("SENTINEL_BACKEND_REACHED", m)) {
+      "backend"
+    } else if (grepl("improper", m)) {
+      "refused"
+    } else {
+      m
+    }
+  })
+}
+
+test_that("the public call passes a fit the index's own event excludes", {
+  skip_if_not_installed("survival")
+  arm <- .binary_arm(c(1, 1, 2), rep(1L, 3))
+  # Proper: measured profile `d log L / d log s` runs +1.3, +6.2, +16.9, +36.9
+  # as `s` falls through 0.15 to 0.05, which is `exp(-c / s^2)` and not a
+  # power. It must reach the backend rather than be refused.
+  expect_identical(
+    .reaches_backend(.binary_grid(.mixed_index(4), arm)), "backend"
+  )
+  expect_identical(
+    .reaches_backend(.binary_grid(.mixed_index(0.5), arm)), "refused"
+  )
+})
+
+# ---- one comparator target does not free a shared slope from censoring ----
+
+.interval_index <- function(x, lower, upper) {
+  suppressWarnings(set_ipd(
+    data.frame(trt = "A", x = x), treatment = "trt", covariates = "x",
+    family = "survival",
+    Surv = survival::Surv(lower, upper, type = "interval2")
+  ))
+}
+
+test_that("a bounded slope cannot escape a threshold no node reaches", {
+  b <- log(2)
+  # `beta` in [-b, b]: two interval-censored index rows, `1 < T <= 2` at
+  # `x = 0` and at `x = 1`.
+  pairs <- mlumr:::.slope_region_pairs(
+    list(X = cbind(1, c(0, 1)), lower = c(0, 0), upper = c(b, b))
+  )
+  expect_identical(sort(pairs$cc), c(-b, -b))
+  expect_identical(sort(pairs$dd), c(-1, 1))
+  nodes <- matrix(c(0, 1), ncol = 1L)
+  state <- function(threshold, side = "above") {
+    mlumr:::.escape_state(pairs, nodes, 0, threshold, side)
+  }
+  # Matched at one node, the other sits at `beta`, so a threshold of `2b` is
+  # out of reach in either direction, `b` is reached only with equality, and
+  # anything below `b` is reached with room to spare.
+  expect_identical(state(2 * b), "outside")
+  expect_identical(state(b), "boundary")
+  expect_identical(state(log(1.5)), "inside")
+  # Below the target the same three answers, mirrored.
+  expect_identical(state(-2 * b, "below"), "outside")
+  expect_identical(state(-b, "below"), "boundary")
+  expect_identical(state(-log(1.5), "below"), "inside")
+  # A region with no upper end on the slope leaves every threshold reachable.
+  one_way <- mlumr:::.slope_region_pairs(
+    list(X = cbind(1, c(0, 1)), lower = c(0, 0), upper = c(b, Inf))
+  )
+  expect_identical(
+    mlumr:::.escape_state(one_way, nodes, 0, 10 * b, "above"), "inside"
+  )
+  # A grid whose nodes all share one covariate value moves every predictor
+  # together, so no node reaches a threshold the matched one does not.
+  expect_identical(
+    mlumr:::.escape_state(pairs, matrix(c(1, 1), ncol = 1L), 0, b, "above"),
+    "outside"
+  )
+})
+
+test_that("the escape reads the widest node separation, not every pair", {
+  b <- log(2)
+  pairs <- mlumr:::.slope_region_pairs(
+    list(X = cbind(1, c(0, 1)), lower = c(0, 0), upper = c(b, b))
+  )
+  # The threshold is strictly past the target, so a WIDER separation is a
+  # weaker condition and the two extremes stand in for every other pair. Nodes
+  # at `(0, 0.5, 1)` reach `beta * 1` at best, and a threshold of `1.5 b` is
+  # past that however the middle node is paired.
+  wide <- matrix(c(0, 0.5, 1), ncol = 1L)
+  expect_identical(mlumr:::.escape_state(pairs, wide, 0, 1.5 * b, "above"),
+                   "outside")
+  # Widening the grid to `(0, 0.5, 2)` doubles the reach and the same
+  # threshold becomes escapable, which is the separation and not the count.
+  wider <- matrix(c(0, 0.5, 2), ncol = 1L)
+  expect_identical(mlumr:::.escape_state(pairs, wider, 0, 1.5 * b, "above"),
+                   "inside")
+})
+
+test_that("the cross sign decides a comparison, not a division", {
+  # `c1 d2 - c2 d1`, exactly, on operands that each survived their own
+  # subtraction. Computing `c1 / d1` and comparing is a floating-point solve,
+  # and a solve certifies nothing.
+  expect_identical(mlumr:::.cross_sign(1, 3, 1, 2), -1)
+  expect_identical(mlumr:::.cross_sign(1, 2, 1, 3), 1)
+  expect_identical(mlumr:::.cross_sign(2, 4, 1, 2), 0)
+  # Where the two products cancel in double precision and do NOT cancel
+  # exactly. `(1/3) * 3` rounds to 1 at the midpoint, so `1 * 1 - (1/3) * 3`
+  # is zero in floating point while the true difference is `2^-54`: the cheap
+  # sign says boundary and the exact one says strictly positive. A verdict of
+  # "boundary" here would pin a slope to a point that is not on one.
+  expect_identical((1 / 3) * 3, 1)
+  expect_identical(sign(1 * 1 - (1 / 3) * 3), 0)
+  expect_identical(mlumr:::.cross_sign(1, 3, 1 / 3, 1), 1)
+  # An operand whose own subtraction rounded is bounded rather than
+  # discarded, and only genuine cancellation at the last bits is left open.
+  q <- 1 - 1e-20
+  expect_identical(q, 1)
+  expect_true(mlumr:::.two_sum_err(1, -1e-20, q) != 0)
+  expect_true(is.na(mlumr:::.cross_sign(q, 1, 1, 1,
+                                        e1 = mlumr:::.two_sum_err(1, -1e-20, q))))
+  # Far from the boundary the same rounding cannot change the side.
+  expect_identical(
+    mlumr:::.cross_sign(q, 1, 5, 1, e1 = mlumr:::.two_sum_err(1, -1e-20, q)),
+    -1
+  )
+  # A non-finite operand answers "undecided" rather than picking a side.
+  expect_true(is.na(mlumr:::.cross_sign(Inf, 1, 1, 1)))
+})
+
+test_that("a lone comparator target still answers to the index's region", {
+  skip_if_not_installed("survival")
+  arm <- function(censor) .binary_arm(c(1, 1, censor), c(1L, 1L, 0L))
+  index <- .interval_index(c(0, 1), c(1, 1), c(2, 2))
+  build <- function(censor) .binary_grid(index, arm(censor))
+  go <- function(censor, model = "spfa", aux = "none") {
+    d <- build(censor)
+    idx <- suppressWarnings(
+      mlumr:::.check_survival_scale_collapse(d, "lognormal", aux_by = aux,
+                                             center = FALSE)
+    )
+    call <- function() {
+      mlumr:::.check_comparator_tied_events(
+        d, "lognormal", aux_by = aux, model = model,
+        index_bounds_aux = isTRUE(attr(idx, "bounds_aux")),
+        index_exact = attr(idx, "index_exact") %||% NA,
+        index_design = attr(idx, "index_design"),
+        index_aux_order = attr(idx, "aux_order") %||% 0,
+        index_region = attr(idx, "index_region")
+      )
+    }
+    tryCatch({
+      w <- character()
+      out <- withCallingHandlers(call(), warning = function(x) {
+        w <<- c(w, conditionMessage(x))
+        invokeRestart("muffleWarning")
+      })
+      if (length(w)) "reported" else if (isTRUE(out)) "reported" else "silent"
+    }, error = function(e) {
+      if (grepl("improper", conditionMessage(e))) {
+        "refused"
+      } else {
+        conditionMessage(e)
+      }
+    })
+  }
+  # The index leaves `|beta| <= log 2` and the comparator's single target is
+  # absorbed by `mu_comparator` at any slope, so the events alone leave the
+  # slope free. They do not leave the CENSORING escapable: the matched node
+  # sits at `log 1`, the other at `beta`, and `log 4` is past both ends of
+  # the region. Measured profile `d log L / d log s` runs +4.4, +9.5, +20.4,
+  # +40.6 as `s` falls through 0.15 to 0.05, so the posterior is proper.
+  expect_identical(go(4), "silent")
+  # Exactly at the region's end the slope is pinned to a point, which costs a
+  # power this check does not count: reported, not refused and not passed.
+  expect_identical(go(2), "reported")
+  # Within the region the escape is real and the refusal is right.
+  expect_identical(go(1.5), "refused")
+  # The region restricts the comparator only where the two share BOTH the
+  # slope and the auxiliary.
+  expect_identical(go(4, model = "relaxed"), "refused")
+  expect_identical(go(4, aux = ".study"), "refused")
+})
+
+test_that("the region and the escape compose on one fit", {
+  skip_if_not_installed("survival")
+  # Neither repair decides this one alone. The index carries an exact event
+  # at `t = 1` on `x = 0` beside an interval `1 < T <= 2` on `x = 1`, so the
+  # region exists only because event rows are carried, and it pins
+  # `mu_index = 0` with `beta` in [0, log 2]. The comparator carries ONE
+  # distinct target, so the region is consulted only through the escape.
+  index <- .interval_index(c(0, 1), c(1, 1), c(1, 2))
+  expect_identical(as.integer(index$data$.status), c(1L, 3L))
+  go <- function(censor) {
+    d <- .binary_grid(index, .binary_arm(c(1, 1, censor), c(1L, 1L, 0L)))
+    idx <- suppressWarnings(
+      mlumr:::.check_survival_scale_collapse(d, "lognormal", aux_by = "none",
+                                             center = FALSE)
+    )
+    region <- attr(idx, "index_region")
+    expect_identical(region$lower, c(0, 0))
+    expect_identical(region$upper, c(0, log(2)))
+    tryCatch({
+      suppressWarnings(mlumr:::.check_comparator_tied_events(
+        d, "lognormal", aux_by = "none", model = "spfa",
+        index_exact = attr(idx, "index_exact") %||% NA,
+        index_design = attr(idx, "index_design"),
+        index_aux_order = attr(idx, "aux_order") %||% 0,
+        index_region = region
+      ))
+      "silent"
+    }, error = function(e) {
+      if (grepl("improper", conditionMessage(e))) {
+        "refused"
+      } else {
+        conditionMessage(e)
+      }
+    })
+  }
+  # Proper: measured profile `d log L / d log s` runs +2.9, +7.9, +18.7, +38.8
+  # as `s` falls through 0.15 to 0.05.
+  expect_identical(go(4), "silent")
+  # And the control, where the escape is inside the region, stays refused.
+  expect_identical(go(1.5), "refused")
+})

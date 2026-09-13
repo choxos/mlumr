@@ -380,22 +380,23 @@
   out
 }
 
-#' Which slopes an eventless index still allows
+#' The slope conditions an index's observation regions leave
 #'
-#' An index whose rows are all censored pins nothing, and that is not the
-#' same as constraining nothing. Each row is observed to lie in a region, and
-#' as the auxiliary goes to its boundary the row's contribution tends to one
-#' where its linear predictor is inside that region and to zero where it is
-#' outside, so the coefficients keeping the index alive are the ones
-#' satisfying every row at once:
+#' Every index row is observed to lie in a region: a censored row in the
+#' interval its censoring puts it in, an event row at the single point its
+#' own time puts it at. As the auxiliary goes to its boundary a row's
+#' contribution tends to one where its linear predictor is inside that region
+#' and vanishes exponentially where it is outside, and an event row's density
+#' grows where the predictor reproduces its time and vanishes anywhere else.
+#' So the coefficients keeping the index alive are the ones satisfying every
+#' row at once:
 #'
 #' `lower_i <= mu + beta' x_i <= upper_i`.
 #'
-#' That is a nonempty region, which is why the index's own order is zero. It
-#' is not the whole space, and under `model = "spfa"` with `aux_by = "none"`
-#' the comparator shares `beta` AND the auxiliary, so a divergence needs a
-#' slope this region still admits. Eliminating `mu` between a row with a
-#' finite lower end and one with a finite upper end (Fourier-Motzkin) leaves
+#' Under `model = "spfa"` with `aux_by = "none"` the comparator shares `beta`
+#' AND the auxiliary, so any divergence of its own needs a slope this region
+#' still allows. Eliminating `mu` between a row with a finite lower end and
+#' one with a finite upper end (Fourier-Motzkin) leaves
 #'
 #' `lower_i - upper_j <= beta (x_i - x_j)`,
 #'
@@ -403,16 +404,151 @@
 #' covariate value say nothing about the slope; they are a conflict or not,
 #' and [.censoring_bounds_aux()] has already answered that.
 #'
-#' The candidate slopes are `(u[2] - u[1]) / (z_b - z_a)`, so the test is
-#' carried out on the CROSS-MULTIPLIED form: computing the division and
-#' comparing is a floating-point solve, and a solve certifies nothing. The
-#' sign of `p * D - C * q` decides, corrected for the sign of `q`, and
+#' The conditions are returned rather than solved, because two different
+#' questions are asked of them: whether one particular candidate slope is
+#' allowed ([.index_slope_admits()]), and whether any allowed slope also
+#' satisfies one further condition ([.slope_escape_feasible()]). Both read
+#' the same representation.
+#'
+#' @param region The index's design and region ends, as
+#'   [.check_survival_scale_collapse()] reports in its `index_region`
+#'   attribute.
+#' @return A list of `cc`, `dd` and the errors `c_err`, `d_err` their own
+#'   subtractions left, each condition reading `cc <= beta * dd`. `NULL`
+#'   where the region leaves no condition on the slope or was not usable,
+#'   which a caller reads as no restriction at all.
+#' @keywords internal
+.slope_region_pairs <- function(region) {
+  if (is.null(region) || is.null(region$X) || !is.matrix(region$X)) {
+    return(NULL)
+  }
+  # One covariate only, where the slope is a number and the conditions above
+  # are an interval. Wider designs leave a polyhedron whose projection is not
+  # read off pairs, and this does not solve that.
+  if (ncol(region$X) != 2L) return(NULL)
+  x <- as.numeric(region$X[, 2L])
+  lo <- as.numeric(region$lower)
+  up <- as.numeric(region$upper)
+  if (length(x) != length(lo) || length(x) != length(up)) return(NULL)
+  if (!all(is.finite(x))) return(NULL)
+  ii <- which(is.finite(lo))
+  jj <- which(is.finite(up))
+  if (!length(ii) || !length(jj)) return(NULL)
+  gr <- expand.grid(i = ii, j = jj)
+  cc <- lo[gr$i] - up[gr$j]
+  dd <- x[gr$i] - x[gr$j]
+  keep <- dd != 0
+  if (!any(keep)) return(NULL)
+  cc <- cc[keep]
+  dd <- dd[keep]
+  # Exactness of each difference, since every sign taken from these is exact
+  # only on operands whose own subtraction was. The errors travel as VALUES
+  # rather than as a flag, so a consumer can bound what they contribute
+  # instead of giving up on them.
+  list(cc = cc, dd = dd,
+       c_err = .two_sum_err(lo[gr$i][keep], -up[gr$j][keep], cc),
+       d_err = .two_sum_err(x[gr$i][keep], -x[gr$j][keep], dd))
+}
+
+#' The exact sign of a two-by-two cross difference, or NA
+#'
+#' `c1 d2 - c2 d1` where each operand carries the error its own subtraction
+#' left, so the quantity whose sign is wanted is
+#' `(c1 + e_c1)(d2 + e_d2) - (c2 + e_c2)(d1 + e_d1)`. Expanding that exactly
+#' is sixteen terms; the cheap four-term sign is taken instead and accepted
+#' only where the four-term value provably dominates what the errors can
+#' contribute. Genuine cancellation at the last bits is left undecided.
+#'
+#' @param c1,d1,c2,d2 The four operands.
+#' @param e1,f1,e2,f2 Their respective errors, `0` where a value is exact.
+#' @return `-1`, `0`, `1`, or `NA` where the arithmetic could not settle it.
+#' @keywords internal
+.cross_sign <- function(c1, d1, c2, d2, e1 = 0, f1 = 0, e2 = 0, f2 = 0) {
+  p1 <- c1 * d2
+  p1_err <- .two_prod_err(c1, d2, p1)
+  p2 <- c2 * d1
+  p2_err <- .two_prod_err(c2, d1, p2)
+  dif <- p1 - p2
+  dif_err <- .two_sum_err(p1, -p2, dif)
+  sg <- .exact_sum_sign(list(dif, dif_err, p1_err, -p2_err))
+  exact <- isTRUE(e1 == 0 && f1 == 0 && e2 == 0 && f2 == 0)
+  pert <- abs(c1) * abs(f2) + abs(e1) * abs(d2) + abs(e1) * abs(f2) +
+    abs(c2) * abs(f1) + abs(e2) * abs(d1) + abs(e2) * abs(f1)
+  floor_val <- abs(dif) - abs(dif_err) - abs(p1_err) - abs(p2_err)
+  dominates <- isTRUE(is.finite(pert) && is.finite(floor_val) &&
+                        floor_val > pert * (1 + 1e-9) + 1e-300)
+  if (!is.finite(dif) || is.na(sg) || !(exact || dominates)) return(NA_real_)
+  sg
+}
+
+#' Is a bounded slope still able to escape one more half-line?
+#'
+#' The index region's conditions and one further condition of the same shape,
+#' `c <= beta d`, read together as a one-dimensional feasibility question. A
+#' condition with `d > 0` is a lower end for `beta` and one with `d < 0` an
+#' upper end, so the system has a solution exactly when every lower end is at
+#' or below every upper end. Cross-multiplied, that is
+#' `c_k d_l - c_l d_k >= 0` for each such pair, which is the sign
+#' [.cross_sign()] decides; the division is never taken, because a
+#' floating-point solve certifies nothing.
+#'
+#' @param pairs The region's conditions, as [.slope_region_pairs()] returns.
+#'   `NULL` means no condition, which leaves the extra one feasible on its
+#'   own.
+#' @param cc,dd The extra condition `cc <= beta * dd`, and
+#' @param cc_err,dd_err the errors their own subtractions left.
+#' @return `1` where some slope satisfies every condition STRICTLY, `0` where
+#'   the only solutions sit on a boundary (the feasible set is a single
+#'   point, whose coefficient volume costs a power not counted by the
+#'   caller), `-1` where there is no solution, and `NA` where the arithmetic
+#'   could not settle it.
+#' @keywords internal
+.slope_escape_feasible <- function(pairs, cc, dd, cc_err = 0, dd_err = 0) {
+  if (!is.finite(cc) || !is.finite(dd) || dd == 0) return(NA_real_)
+  if (!is.finite(cc_err) || !is.finite(dd_err)) return(NA_real_)
+  all_cc <- c(if (is.null(pairs)) numeric(0) else pairs$cc, cc)
+  all_dd <- c(if (is.null(pairs)) numeric(0) else pairs$dd, dd)
+  all_ce <- c(if (is.null(pairs)) numeric(0) else pairs$c_err, cc_err)
+  all_de <- c(if (is.null(pairs)) numeric(0) else pairs$d_err, dd_err)
+  if (anyNA(all_cc) || anyNA(all_dd)) return(NA_real_)
+  all_ce[is.na(all_ce)] <- Inf
+  all_de[is.na(all_de)] <- Inf
+  lowers <- which(all_dd > 0)
+  uppers <- which(all_dd < 0)
+  # A system of lower ends alone, or of upper ends alone, is a half-line with
+  # an interior whatever the numbers are.
+  if (!length(lowers) || !length(uppers)) return(1)
+  open <- FALSE
+  edge <- FALSE
+  for (k in lowers) {
+    for (l in uppers) {
+      sg <- .cross_sign(all_cc[k], all_dd[k], all_cc[l], all_dd[l],
+                        all_ce[k], all_de[k], all_ce[l], all_de[l])
+      # One certified crossing settles the system however the others came
+      # out, so it outranks both softer answers.
+      if (!is.na(sg) && sg < 0) return(-1)
+      if (is.na(sg)) open <- TRUE else if (sg == 0) edge <- TRUE
+    }
+  }
+  if (open) return(NA_real_)
+  if (edge) return(0)
+  1
+}
+
+#' Is one candidate slope still allowed by the index?
+#'
+#' The conditions [.slope_region_pairs()] leaves, tested at the slopes a
+#' comparator arm's divergence could actually use. Those are
+#' `(u[2] - u[1]) / (z_b - z_a)`, so the test is carried out on the
+#' CROSS-MULTIPLIED form: computing the division and comparing is a
+#' floating-point solve, and a solve certifies nothing. The sign of
+#' `p * D - C * q` decides, corrected for the sign of `q`, and
 #' [.exact_sum_sign()] answers it exactly whenever `C`, `D`, `p` and `q` each
 #' survived their own subtraction. Where one of them did not, the answer is
 #' undecided rather than guessed: a false "outside" hides an improper
 #' posterior and a false "inside" refuses a proper one.
 #'
-#' @param region The index's censored design and region ends, as
+#' @param region The index's design and region ends, as
 #'   [.check_survival_scale_collapse()] reports in its `index_region`
 #'   attribute.
 #' @param u1,u2 The arm's two lowest distinct targets. Their difference is
@@ -428,33 +564,14 @@
 #'   caller reads as no restriction at all.
 #' @keywords internal
 .index_slope_admits <- function(region, u1, u2) {
-  if (is.null(region) || is.null(region$X) || !is.matrix(region$X)) {
-    return(NULL)
-  }
-  # One covariate only, where the slope is a number and the conditions above
-  # are an interval. Wider designs leave a polyhedron whose projection is not
-  # read off pairs, and this does not solve that.
-  if (ncol(region$X) != 2L) return(NULL)
-  x <- as.numeric(region$X[, 2L])
-  lo <- as.numeric(region$lower)
-  up <- as.numeric(region$upper)
-  if (length(x) != length(lo) || length(x) != length(up)) return(NULL)
+  pairs <- .slope_region_pairs(region)
+  if (is.null(pairs)) return(NULL)
   p <- u2 - u1
-  if (!all(is.finite(x)) || !is.finite(p) || p == 0) return(NULL)
+  if (!is.finite(p) || p == 0) return(NULL)
   p_err <- .two_sum_err(u2, -u1, p)
   if (!is.finite(p_err)) return(NULL)
-  ii <- which(is.finite(lo))
-  jj <- which(is.finite(up))
-  if (!length(ii) || !length(jj)) return(NULL)
-  gr <- expand.grid(i = ii, j = jj)
-  cc <- lo[gr$i] - up[gr$j]
-  dd <- x[gr$i] - x[gr$j]
-  keep <- dd != 0
-  if (!any(keep)) return(NULL)
-  cc <- cc[keep]
-  dd <- dd[keep]
-  # Exactness of each difference, since the sign below is exact only on
-  # operands whose own subtraction was.
+  cc <- pairs$cc
+  dd <- pairs$dd
   # The four differences need not have survived their own subtraction, and on
   # ordinary data they do not: covariate values, censoring bounds and event
   # times are arbitrary doubles. Their errors are carried as VALUES, so the
@@ -470,8 +587,8 @@
   # cancellation at the last bits is left undecided. Without this, 2045 of
   # 3266 generated regions whose slope really was admitted came back
   # unsettled.
-  c_err <- .two_sum_err(lo[gr$i][keep], -up[gr$j][keep], cc)
-  d_err <- .two_sum_err(x[gr$i][keep], -x[gr$j][keep], dd)
+  c_err <- pairs$c_err
+  d_err <- pairs$d_err
   exact_scalar <- (c_err == 0) & (d_err == 0) & (p_err == 0)
   exact_scalar[is.na(exact_scalar)] <- FALSE
   pd <- p * dd
@@ -565,6 +682,70 @@
     if (any(is.na(ad) | ad == 0)) open <- TRUE
   }
   if (open) "boundary" else "outside"
+}
+
+#' Can a bounded slope carry a node past a one-sided censoring threshold?
+#'
+#' The arm's event rows are all at ONE target, so they are matched at a
+#' single node `z_m` and leave the slope free by themselves; every node then
+#' sits at `t + beta (z_j - z_m)`. A threatening censored row is escaped
+#' where some node's predictor reaches its threshold, which is one more
+#' condition of the same shape the index's own region has,
+#' `c <= beta (z_j - z_m)`, with `c` positive because a row satisfied AT the
+#' target is not threatening in the first place.
+#'
+#' Only the widest separation matters, in each direction. A larger `|d|` is a
+#' weaker condition when `c > 0`, so `max(z) - min(z)` and its negative
+#' dominate every other node pair, and the quadratic scan over pairs is not
+#' needed.
+#'
+#' @param pairs The index region's conditions, as [.slope_region_pairs()]
+#'   returns.
+#' @param nodes The arm's integration nodes, one row per node.
+#' @param target The arm's single distinct event target.
+#' @param threshold The binding end of the threatening rows' satisfied sets:
+#'   the largest lower end where they are all satisfied above, the smallest
+#'   upper end where they are all satisfied below.
+#' @param side `"above"` or `"below"`.
+#' @return `"inside"` where some admitted slope escapes STRICTLY, `"outside"`
+#'   where no admitted slope escapes at all, and `"boundary"` where the only
+#'   escapes sit on a boundary or the arithmetic could not settle it.
+#' @keywords internal
+.escape_state <- function(pairs, nodes, target, threshold, side) {
+  if (is.null(nodes) || !is.matrix(nodes) || ncol(nodes) != 1L) {
+    return("boundary")
+  }
+  if (!is.finite(target) || !is.finite(threshold)) return("boundary")
+  z <- as.numeric(nodes[, 1L])
+  if (!length(z) || !all(is.finite(z))) return("boundary")
+  hi <- max(z)
+  lo <- min(z)
+  span <- hi - lo
+  # Every node on one covariate value moves every predictor together, so no
+  # node reaches a threshold the matched one does not. That is the same
+  # answer as every separation being excluded, and reporting it would warn
+  # about a point-mass grid that carries no divergence either way.
+  if (!(span > 0)) return("outside")
+  span_err <- .two_sum_err(hi, -lo, span)
+  above <- identical(side, "above")
+  cc <- if (above) threshold - target else target - threshold
+  # The caller only ever arrives with a positive `cc`: a row satisfied AT the
+  # target is not threatening, so the threshold is strictly past it. That is
+  # what makes the widest separation the weakest condition and lets the two
+  # extremes stand in for every node pair. Were it ever not positive the
+  # smallest separation would be the weakest one instead, so nothing is
+  # asserted there rather than asserted from the wrong pair.
+  if (!(cc > 0)) return("boundary")
+  cc_err <- if (above) {
+    .two_sum_err(threshold, -target, cc)
+  } else {
+    .two_sum_err(target, -threshold, cc)
+  }
+  st <- c(.slope_escape_feasible(pairs, cc, span, cc_err, span_err),
+          .slope_escape_feasible(pairs, cc, -span, cc_err, -span_err))
+  if (any(!is.na(st) & st > 0)) return("inside")
+  if (anyNA(st) || any(st == 0)) return("boundary")
+  "outside"
 }
 
 #' Can one affine map send every target onto a grid node?
@@ -1241,15 +1422,21 @@
 #'   time. What has to be identified is only the slope directions THIS arm's
 #'   grid spans, which is why the design arrives whole rather than as a
 #'   verdict. Consulted only under `model = "spfa"` with `aux_by = "none"`.
-#' @param index_region The coefficient region an eventless index confines
+#' @param index_region The coefficient region the index's own rows confine
 #'   `(mu_index, beta)` to, as [.check_survival_scale_collapse()] reports in
-#'   its `index_region` attribute, or `NULL` where the index has events and
-#'   the question does not arise. An order of zero says these rows remove no
-#'   power of the auxiliary's width; it does not say they leave the slope
-#'   free, and treating it as though it did refused fits whose index and
-#'   comparator cannot reach the boundary together. Consulted only under
-#'   `model = "spfa"` with `aux_by = "none"`, where the two share the slope
-#'   AND the auxiliary; see [.index_slope_admits()].
+#'   its `index_region` attribute. Every row is in it: a censored row through
+#'   the interval its censoring puts it in, an EVENT row through the single
+#'   point its own time puts it at. Censored rows on their own restrict no
+#'   slope, since moving `mu_index` satisfies a lone inequality, so building
+#'   the region without the event rows is the same as not having one. An
+#'   order of zero says these rows remove no power of the auxiliary's width;
+#'   it does not say they leave the slope free, and treating it as though it
+#'   did refused fits whose index and comparator cannot reach the boundary
+#'   together. Consulted only under `model = "spfa"` with `aux_by = "none"`,
+#'   where the two share the slope AND the auxiliary; see
+#'   [.index_slope_admits()] for one candidate slope and
+#'   [.slope_escape_feasible()] for whether an admitted one also escapes a
+#'   comparator censoring threshold.
 #' @param index_aux_order How many powers of the auxiliary's width the index
 #'   rows already remove, as [.check_survival_scale_collapse()] reports in
 #'   its `aux_order` attribute: `0` for an index that contributes a positive
@@ -1458,8 +1645,12 @@
   # `aux_by = ".study"` the comparator's scale reaches its boundary on its
   # own, with the index's at whatever value it likes, so the region is
   # satisfied everywhere and says nothing there either.
-  admits <- if (shared_aux && identical(model, "spfa") &&
-                  !is.null(index_region)) {
+  region_pairs <- if (shared_aux && identical(model, "spfa")) {
+    .slope_region_pairs(index_region)
+  } else {
+    NULL
+  }
+  admits <- if (!is.null(region_pairs)) {
     function(tg) {
       u <- sort(unique(as.numeric(tg)))
       if (length(u) < 2L) return(NULL)
@@ -1679,6 +1870,45 @@
     one_sided <- !length(open_side) ||
       (!anyNA(open_side) && !any(open_side == "bounded") &&
          length(unique(open_side)) == 1L)
+    # A free ridge direction is not a free SLOPE, and reading the first as
+    # the second is what refused a proper fit. Where the arm carries ONE
+    # distinct target its matching equation is absorbed by `mu_comparator` at
+    # any slope, so the events leave `beta` free; but under `model = "spfa"`
+    # with `aux_by = "none"` the index's own rows bound it, and a threatening
+    # censored row is escaped only at a node that bounded slope can reach.
+    #
+    # With the tied rows matched at node `z_m` every node sits at
+    # `t + beta (z_j - z_m)`, so escaping a one-sided threshold is one more
+    # condition of the region's own shape, `c <= beta d`. Only the widest
+    # node separation matters, in each direction: `c` is positive (a row
+    # satisfied AT the target is not threatening), so a larger `|d|` is a
+    # weaker condition and the extremes dominate every other pair.
+    #
+    # An index of two interval-censored rows, `1 < T <= 2` at `x = 0` and at
+    # `x = 1`, leaves `|beta| <= log 2`, while two comparator events at
+    # `t = 1` with a right-censored row at `t = 4` need a node at `log 4`
+    # and the binary grid separates nodes by `beta` alone. Neither direction
+    # reaches it, and the posterior is proper: the measured profile
+    # `d log L / d log s` runs +4.4, +9.5, +20.4, +40.6 as `s` falls through
+    # 0.15 to 0.05. Moving that censoring time to `t = 1.5` makes the escape
+    # strictly feasible and the refusal right, which is the control.
+    if (!is.null(region_pairs) && k == 1L && rank_d < reachable && threat &&
+          one_sided) {
+      ends <- if (identical(open_side[1L], "above")) {
+        suppressWarnings(max(sat[1L, threatens]))
+      } else {
+        suppressWarnings(min(sat[2L, threatens]))
+      }
+      if (!is.na(ends) && is.finite(ends)) {
+        esc <- .escape_state(region_pairs, grid$nodes, tg[1L], ends,
+                             open_side[1L])
+        if (identical(esc, "outside")) next
+        if (identical(esc, "boundary")) {
+          slope_open <- TRUE
+          next
+        }
+      }
+    }
     if (m - rank_d > worst) {
       worst <- m - rank_d
       # `spfa_pinned` is the same geometry as `isolated` arrived at from the
@@ -1822,12 +2052,12 @@
                "Re-run with a smaller `n_int` to have the question ",
                "answered, or give")
       } else if (identical(why, "slope")) {
-        paste0("the index study's censored rows admit the slope such a map ",
-               "would need only on the boundary of the region they leave, ",
-               "where the index's own intercept is pinned to a point rather ",
-               "than to an interval. That costs a power of the auxiliary's ",
-               "width which is not counted here, so neither the refusal nor ",
-               "its absence is established. Give")
+        paste0("the index study's own rows admit the slope such a map ",
+               "would need only on the boundary of the region they leave. ",
+               "The coefficients they keep alive there shrink to a point ",
+               "rather than to a region, which costs a power of the ",
+               "auxiliary's width that is not counted here, so neither the ",
+               "refusal nor its absence is established. Give")
       } else {
         paste0("a candidate map came within rounding of carrying them, and ",
                "whether it does so exactly could not be settled by the ",
@@ -2559,13 +2789,17 @@
 #'   and removes the comparator's growth entirely, so those report `NA`
 #'   rather than a zero that would turn an open question into a refusal.
 #'
-#'   An eventless index also carries `index_region`, the censored rows'
-#'   design beside the ends of the region each row is observed to lie in. An
-#'   `aux_order` of zero says those rows remove no power of the width; it
-#'   does NOT say they leave the coefficients free, and the region is what
-#'   says which ones they leave. A caller sharing this study's slope and its
-#'   auxiliary has to put its own ridge inside that region, which
-#'   [.index_slope_admits()] answers.
+#'   `index_region` is the index's whole design beside the ends of the region
+#'   each row is observed to lie in: an interval for a censored row, a single
+#'   point for an event row, whose density grows only where the predictor
+#'   reproduces its own time. It travels from the eventless branch and from
+#'   the shared-auxiliary one alike, because the two say the same thing about
+#'   the same coefficients. An `aux_order` of zero says those rows remove no
+#'   power of the width; it does NOT say they leave the coefficients free,
+#'   and the region is what says which ones they leave. A caller sharing this
+#'   study's slope and its auxiliary has to put its own ridge inside that
+#'   region, which [.index_slope_admits()] answers, and has to escape its own
+#'   censored rows from inside it, which [.slope_escape_feasible()] answers.
 #' @keywords internal
 .check_survival_scale_collapse <- function(data, distribution,
                                            aux_by = ".study",
@@ -2698,6 +2932,35 @@
     list(lower = ifelse(right, y[!events], open[!events]),
          upper = ifelse(right, Inf, y[!events]))
   }
+  # The region every row is observed in, the EVENT rows included. An event
+  # row is an equality rather than an interval: as the width falls its
+  # density grows where the predictor reproduces its own time and vanishes
+  # exponentially anywhere else, so the row confines the predictor to a
+  # single point exactly as a censored row confines it to an interval.
+  #
+  # Building this from the censored rows alone is what refused a proper fit.
+  # A lone right-censoring inequality is always satisfiable by moving
+  # `mu_index`, so censored rows on their own restrict no slope at all; the
+  # event rows are what take that freedom away. An index with one event at
+  # `t = 1` on `x = 0` beside a right-censored row at `t = 4` on `x = 1`
+  # pins `mu_index` to zero and then needs `beta >= log 4`, while a binary
+  # comparator's exact fit at times `(1, 1, 2)` needs `beta = +/- log 2`.
+  # Neither reaches it, so every path to the boundary leaves one side with a
+  # residual and the posterior is proper: the measured profile
+  # `d log L / d log s` runs +1.3, +6.2, +16.9, +36.9 as `s` falls through
+  # 0.15 to 0.05, which is `exp(-c / s^2)` and not a power.
+  full_region <- function() {
+    lower <- rep(NA_real_, length(y))
+    upper <- rep(NA_real_, length(y))
+    lower[events] <- y[events]
+    upper[events] <- y[events]
+    if (any(!events)) {
+      r <- cens_region()
+      lower[!events] <- r$lower
+      upper[!events] <- r$upper
+    }
+    list(X = X, lower = lower, upper = upper)
+  }
   # With no event rows there is no design to fit, and the question becomes
   # whether any linear predictor satisfies every censored row at once. A
   # conflict bounds the auxiliary and is reported as such; a certified
@@ -2711,13 +2974,11 @@
     reg <- cens_region()
     eventless <- .censoring_bounds_aux(X, y, events,
                                        lower = reg$lower, upper = reg$upper)
-    # The region itself, for a caller that shares this study's slope. It is
-    # the censored rows' design beside the ends of the region each one is
-    # observed to lie in, on the scale the fit is read on, and it travels
-    # whole rather than as a verdict, because what the comparator asks of it
-    # is whether a PARTICULAR slope is still feasible.
-    region <- list(X = X[!events, , drop = FALSE], lower = reg$lower,
-                   upper = reg$upper)
+    # The region itself, for a caller that shares this study's slope. It
+    # travels whole rather than as a verdict, because what the comparator
+    # asks of it is whether a PARTICULAR slope is still feasible. With no
+    # event rows it is exactly the censored rows' own region.
+    region <- full_region()
     if (identical(as.character(eventless), "bounded")) {
       return(invisible(structure(FALSE, bounds_aux = TRUE)))
     }
@@ -2900,7 +3161,13 @@
         0
       } else {
         NA_real_
-      }
+      },
+      # Not gated on the residual status, because the region does not depend
+      # on it. "This row's predictor equals its own time, or its density
+      # vanishes" is a statement about the data, not about whether a
+      # factorization at double precision could tell an exact fit from a
+      # near one, and it is true under every status that reaches here.
+      index_region = full_region()
     )))
   }
 
