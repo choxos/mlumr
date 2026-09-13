@@ -12,7 +12,8 @@
 \item{value}{What each row's predictor is pinned to.}
 }
 \value{
-A numeric slope vector, or \code{NULL}.
+A numeric slope vector carrying an \code{err_factor} attribute, the
+worst-case slope error per unit of node distance, or \code{NULL}.
 }
 \description{
 Returns the slope part of ANY solution of \code{design \%*\% b = value}, with
@@ -32,5 +33,16 @@ the second differ from the real ones by whole units. The caller turns this
 slope into a REFUSAL, so a drop, a non-finite coefficient, or residuals
 that do not vanish all answer \code{NULL} and leave the case reported.
 \code{\link[=.censoring_bounds_aux]{.censoring_bounds_aux()}} refuses the same mismatch for the same reason.
+
+A residual small enough to look like rounding on the INDEX rows is not
+small enough to certify anything about the comparator's. The slope error
+it implies is \code{norm(r) / sigma_min} at worst, and a node at distance \code{d}
+from the matched one turns that into \code{d * norm(r) / sigma_min} in the
+predictor, so an ill-conditioned design or a node far outside the index's
+covariate range amplifies a rounding-sized residual into whole units. The
+bound travels with the slope as an \code{err_factor} attribute, and the caller
+requires its margin to clear \code{d * err_factor} before certifying. A fixed
+tolerance on the residual alone cannot do that job: it is the wrong
+quantity, measured on the wrong rows.
 }
 \keyword{internal}

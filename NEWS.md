@@ -195,6 +195,17 @@
   vanish all leave the case reported rather than refused, the same mismatch
   the censoring-bound check already refuses to answer on.
 
+  A residual small enough to look like rounding on the INDEX rows is still
+  not small enough to certify anything about the comparator's. The slope
+  error it implies is `norm(r) / sigma_min` at worst, and a node at distance
+  `d` from the matched one turns that into `d * norm(r) / sigma_min` in the
+  predictor. Measured: the same slope of 2 fitted over a design spread across
+  four units comes back to sixteen digits, while over a spread of 1e-9 it
+  comes back as 2.00000004 with a residual still at rounding. The bound
+  travels with the slope and the certificate must clear it, which a fixed
+  tolerance on the residual cannot do: that is the wrong quantity, measured
+  on the wrong rows.
+
   For a row that does threaten, whether it suppresses turns on `rank(D)`
   against the reach. Its contribution is a mixture
   over the grid too, so it vanishes only if every node's region probability

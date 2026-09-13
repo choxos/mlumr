@@ -316,9 +316,21 @@
 #' that do not vanish all answer `NULL` and leave the case reported.
 #' [.censoring_bounds_aux()] refuses the same mismatch for the same reason.
 #'
+#' A residual small enough to look like rounding on the INDEX rows is not
+#' small enough to certify anything about the comparator's. The slope error
+#' it implies is `norm(r) / sigma_min` at worst, and a node at distance `d`
+#' from the matched one turns that into `d * norm(r) / sigma_min` in the
+#' predictor, so an ill-conditioned design or a node far outside the index's
+#' covariate range amplifies a rounding-sized residual into whole units. The
+#' bound travels with the slope as an `err_factor` attribute, and the caller
+#' requires its margin to clear `d * err_factor` before certifying. A fixed
+#' tolerance on the residual alone cannot do that job: it is the wrong
+#' quantity, measured on the wrong rows.
+#'
 #' @param design The pinned rows, intercept first.
 #' @param value What each row's predictor is pinned to.
-#' @return A numeric slope vector, or `NULL`.
+#' @return A numeric slope vector carrying an `err_factor` attribute, the
+#'   worst-case slope error per unit of node distance, or `NULL`.
 #' @keywords internal
 .pinned_slope <- function(design, value) {
   if (is.null(design) || is.null(value)) return(NULL)
@@ -338,8 +350,20 @@
   pred <- as.vector(design %*% b)
   if (!all(is.finite(pred))) return(NULL)
   scale <- pmax(1, abs(value), abs(pred))
-  if (any(abs(pred - value) > 1e-8 * scale)) return(NULL)
-  b[-1L]
+  resid <- pred - value
+  if (any(abs(resid) > 64 * .Machine$double.eps * scale)) return(NULL)
+  # What that residual is worth at a node the index never saw. The smallest
+  # correction reproducing the rows exactly is at most `norm(r) / sigma_min`,
+  # and a node at distance `d` from the matched one turns that into
+  # `d * norm(r) / sigma_min` in its predictor. Carry the per-unit factor so
+  # the caller can require its margin to clear it.
+  sv <- tryCatch(svd(design, nu = 0L, nv = 0L)$d, error = function(e) NULL)
+  if (is.null(sv) || !all(is.finite(sv))) return(NULL)
+  sigma_min <- sv[rank_d]
+  if (!is.finite(sigma_min) || sigma_min <= 0) return(NULL)
+  err <- sqrt(sum(resid^2)) / sigma_min
+  if (!is.finite(err)) return(NULL)
+  structure(b[-1L], err_factor = err)
 }
 
 #' Can one affine map send every target onto a grid node?
@@ -1308,20 +1332,28 @@
       if (ok) {
         eta_rel <- as.vector(nodes %*% index_slope)
         u <- tg[1L]
-        margin <- function(v) {
-          64 * .Machine$double.eps * pmax(1, abs(v), abs(u))
-        }
-        certified <- any(vapply(seq_along(eta_rel), function(j) {
+        # The slope is a solve, so its error reaches the predictor in
+        # proportion to how far the node sits from the matched one. The
+        # margin has to clear the rounding of the arithmetic AND that
+        # amplified error, or an ill-conditioned index design certifies a
+        # node onto the wrong side of a censoring boundary.
+        err_factor <- attr(index_slope, "err_factor") %||% Inf
+        dist <- as.matrix(stats::dist(nodes))
+        clears <- function(j) {
           eta <- u + (eta_rel - eta_rel[j])
           if (!all(is.finite(eta))) return(FALSE)
+          m <- 64 * .Machine$double.eps * pmax(1, abs(eta), abs(u)) +
+            dist[, j] * err_factor
+          if (!all(is.finite(m))) return(FALSE)
           all(vapply(which(threatens), function(ii) {
             lo <- sat[1L, ii]
             hi <- sat[2L, ii]
             if (is.na(lo) || is.na(hi)) return(FALSE)
-            m <- margin(eta)
             any(eta > lo + m & eta < hi - m)
           }, logical(1L)))
-        }, logical(1L)))
+        }
+        certified <- is.finite(err_factor) &&
+          any(vapply(seq_along(eta_rel), clears, logical(1L)))
       }
     }
     if (certified) threat <- FALSE
