@@ -239,6 +239,208 @@
 }
 
 
+#' The rounding error of a floating-point sum, exactly
+#'
+#' Knuth's TwoSum. For `s = a + b` the returned `e` satisfies `a + b = s + e`
+#' exactly, with no assumption about the relative magnitudes. `e == 0` says
+#' the addition was exact, which is the only thing this file asks of it.
+#'
+#' @param a,b The operands.
+#' @param s Their computed sum.
+#' @return The exact rounding error.
+#' @keywords internal
+.two_sum_err <- function(a, b, s) {
+  bb <- s - a
+  (a - (s - bb)) + (b - bb)
+}
+
+#' The rounding error of a floating-point product, exactly
+#'
+#' Dekker's TwoProduct by splitting, since R exposes no fused multiply-add.
+#' Each operand is cut into two halves of at most 26 significant bits, whose
+#' pairwise products are exact, so for `p = a * b` the returned `e` satisfies
+#' `a * b = p + e` exactly. `e == 0` says the multiplication was exact.
+#'
+#' The split multiplies by `2^27 + 1`, so an operand within a factor of
+#' `2^27` of the overflow threshold returns a non-finite error. That reads as
+#' "not exact", which is the safe direction here.
+#'
+#' The transformation also fails at the OTHER end, and there it fails
+#' quietly: when the product underflows, the half-products do too, and the
+#' returned error is zero even though `p` is not `a * b`. A zero error would
+#' then be read as proof of exactness. Operands of `6.66e-16` and `1e-310`
+#' have a nonzero product that underflows to `0`, and the error comes back
+#' `0`. So a product that is nonzero in principle but below the range where
+#' the transformation is valid returns `NaN`, which reads as "not exact".
+#' The bound is `2^-969`, the standard sufficient condition for Dekker's
+#' splitting on a binary64 double.
+#'
+#' @param a,b The operands.
+#' @param p Their computed product.
+#' @return The exact rounding error, or `NaN` where the transformation does
+#'   not hold.
+#' @keywords internal
+.two_prod_err <- function(a, b, p) {
+  big <- 134217729                      # 2^27 + 1
+  ca <- big * a
+  ah <- ca - (ca - a)
+  al <- a - ah
+  cb <- big * b
+  bh <- cb - (cb - b)
+  bl <- b - bh
+  e <- ((ah * bh - p) + ah * bl + al * bh) + al * bl
+  # A product of two nonzero operands that lands in or below the subnormal
+  # range is outside the transformation's domain. An exact zero from a zero
+  # operand is not, and stays exact.
+  invalid <- a != 0 & b != 0 & abs(p) < 2^-969
+  e[invalid] <- NaN
+  e
+}
+
+#' Can one affine map send every target onto a grid node?
+#'
+#' The comparator's matching equations are solvable when some coefficient
+#' vector sends each distinct target onto the linear predictor of some
+#' integration node. With more distinct targets than the grid's rank that is
+#' not automatic, and it is not impossible either: an overdetermined system
+#' can be consistent, which is the case [.check_comparator_tied_events()]
+#' used to skip in silence.
+#'
+#' Only a single covariate is decided here, where the map is a line
+#' `target = a + b * node` and two (target, node) assignments fix it, so
+#' enumerating node pairs against the first two targets covers every
+#' candidate. Anything wider, or a grid large enough that the enumeration
+#' would cost more than the fit, is left undecided rather than guessed: a
+#' false certificate here refuses a working model.
+#'
+#' The match must be EXACT, not merely close. A best match that leaves a
+#' positive residual is a ridge the profile abandons as soon as the auxiliary
+#' falls below that residual, so accepting one refuses a proper fit for a
+#' singularity it does not have. Nodes `(1, 2, 3)` against targets
+#' `(0, 1, 2 + 1e-15)` are a near miss no affine map removes, and they report
+#' undecided rather than a match.
+#'
+#' Consistency is therefore read off the DETERMINANT of the original data,
+#'
+#' `(u[i] - u[1]) * (z[j2] - z[j1]) - (u[2] - u[1]) * (z[j] - z[j1])`
+#'
+#' which is built from differences of the inputs and contains no division and
+#' no slope. Rebuilding predictions from a fitted `(a, b)` and comparing them
+#' to the targets fails in both directions. It is too permissive, because the
+#' slope can be enormous and then the terms forming a prediction dwarf the
+#' residual: nodes `(1, 1 + 2^-52, 2)` against targets `(0, 1, 2)` give
+#' `b = 2^52`, and any tolerance scaled by those terms accepts the target at
+#' 2 against a prediction of 1. And it is too strict, because the round trip
+#' is inexact where the geometry is not: `-log(2) + log(2) * 3 == log(4)` is
+#' FALSE while `log(4) - log(2) * 2 == 0` is TRUE.
+#'
+#' @param nodes The arm's integration nodes, one row per node.
+#' @param targets The arm's event targets, on the scale the density matches.
+#' @return `TRUE` only where an exact map was found, `FALSE` where the
+#'   enumeration excluded every candidate it examined, and `NA` where the
+#'   case was not
+#'   decided: more than one covariate, a grid past the enumeration budget, or
+#'   a candidate that is close without being exact.
+#' @keywords internal
+.grid_hits_targets <- function(nodes, targets) {
+  if (is.null(nodes) || !is.matrix(nodes) || ncol(nodes) != 1L) return(NA)
+  u <- sort(unique(as.numeric(targets)))
+  z <- sort(unique(as.numeric(nodes[, 1L])))
+  n <- length(z)
+  if (length(u) < 2L || n < 2L) return(NA)
+  if (!all(is.finite(u)) || !all(is.finite(z))) return(NA)
+  # `as.double`, because `n` and `length(u)` are integers and the product
+  # overflows the integer range for a grid this check is meant to decline:
+  # at `n_int = 2048` it is about 8.6e9, which becomes NA, and the `if` then
+  # aborts the fit with "missing value where TRUE/FALSE needed" instead of
+  # returning the undecided answer the cutoff exists to give.
+  if (as.double(n) * n * (n + length(u)) > 5e6) return(NA)
+  # Consistency is tested on the DETERMINANT of the original data, never by
+  # reconstructing predictions from a fitted `(a, b)`. Anchoring `u[1]` and
+  # `u[2]` at two nodes, a third target sits on the same line exactly when
+  #
+  #   (u[i] - u[1]) * (z[j2] - z[j1]) - (u[2] - u[1]) * (z[j] - z[j1]) == 0
+  #
+  # which is built from differences of the inputs and has no division and no
+  # slope in it. Reconstructing `a + b * z` instead is both too permissive
+  # and too strict. Too permissive: the slope can be enormous, so the terms
+  # forming a prediction dwarf the residual and any tolerance scaled by them
+  # accepts a gross miss. Nodes `(1, 1 + 2^-52, 2)` against targets
+  # `(0, 1, 2)` give `a = -2^52` and `b = 2^52`, so the target at 2 was
+  # accepted against a prediction of 1. Too strict: the real case does not
+  # survive the round trip, since `-log(2) + log(2) * 3 == log(4)` is FALSE
+  # while `log(4) - log(2) * 2 == 0` is TRUE.
+  #
+  # And the answer is three-valued. Only an EXACT zero certifies; a residual
+  # that is merely small is a near miss, and calling it a match refuses a
+  # proper fit. Nodes `(1, 2, 3)` against targets `(0, 1, 2 + 1e-15)` leave
+  # 1e-15, which no affine map removes. Those report undecided, which the
+  # caller reads as silence.
+  close <- FALSE
+  for (j1 in seq_len(n)) {
+    for (j2 in seq_len(n)) {
+      if (j1 == j2) next
+      z0 <- z[j1]
+      dz <- z[j2] - z0
+      b <- u[2L] - u[1L]
+      if (!is.finite(dz) || dz == 0 || !is.finite(b) || b == 0) next
+      # The anchor differences are data too, and a rounded one makes every
+      # determinant below the determinant of something other than the grid.
+      dz_exact <- .two_sum_err(z[j2], -z0, dz) == 0
+      b_exact <- .two_sum_err(u[2L], -u[1L], b) == 0
+      rest <- u[-c(1L, 2L)]
+      if (!length(rest)) return(TRUE)
+      # `a / b` only LOCATES the candidate nodes; the verdict is the
+      # determinant evaluated at them, so the division's rounding cannot
+      # certify anything on its own. Four neighbors, since that rounding can
+      # land on either side of the node it is looking for.
+      exact_all <- TRUE
+      close_all <- TRUE
+      for (t in rest) {
+        tm <- t - u[1L]
+        a <- tm * dz
+        want <- z0 + a / b
+        i <- findInterval(want, z)
+        cand <- unique(pmin(pmax(c(i - 1L, i, i + 1L, i + 2L), 1L), n))
+        zz <- z[cand] - z0
+        bz <- b * zz
+        det <- a - bz
+        scale <- abs(a) + abs(bz)
+        tol <- 64 * .Machine$double.eps * pmax(1, scale)
+        # A computed zero is not an exact zero. Both products are rounded
+        # before the subtraction, so a determinant that is genuinely nonzero
+        # can cancel to 0: nodes `(0, 0.3961039261018525, 1.04621481495181)`
+        # against targets `(0, 0.6209825942831111, 1.6401786176669797)`
+        # compute 0 while the determinant of those very doubles is
+        # -3.4958e-17, and no permutation of them is an affine match. So a
+        # zero certifies only when EVERY step that produced it was itself
+        # exact, which makes the computed determinant the real one.
+        exact_here <- dz_exact & b_exact &
+          (.two_sum_err(t, -u[1L], tm) == 0) &
+          (.two_prod_err(tm, dz, a) == 0) &
+          (.two_sum_err(z[cand], -z0, zz) == 0) &
+          (.two_prod_err(b, zz, bz) == 0) &
+          (.two_sum_err(a, -bz, det) == 0)
+        exact_here[is.na(exact_here)] <- FALSE
+        # Finite nodes and finite targets can still overflow their products:
+        # nodes `(0, 5e307, 1e308)` against targets `(-700, 0, 700)` send
+        # both `a` and `bz` to infinity, so `det` is NaN and `tol` is Inf,
+        # and `abs(NaN) <= Inf` is NA. Comparing on that aborted the fit with
+        # "missing value where TRUE/FALSE needed" instead of answering. A
+        # candidate whose determinant is not finite tells us nothing, so it
+        # is neither an exact match nor a close one.
+        usable <- is.finite(det) & is.finite(tol)
+        if (!any(usable & det == 0 & exact_here)) exact_all <- FALSE
+        if (!any(usable & abs(det) <= tol)) close_all <- FALSE
+        if (!close_all) break
+      }
+      if (exact_all) return(TRUE)
+      if (close_all) close <- TRUE
+    }
+  }
+  if (close) NA else FALSE
+}
+
 #' Refuse a comparator curve whose tied event times collapse its auxiliary
 #'
 #' [.check_survival_scale_collapse()] asks whether the INDEX covariates
@@ -254,39 +456,69 @@
 #' their nodes freely.
 #'
 #' What decides propriety is how many spikes stand up AT ONCE and what
-#' coefficient volume that costs. Matching `m` event rows falling on `k`
-#' DISTINCT times needs `k` nodes whose linear predictors equal those `k`
-#' log-times, which is `k` equations in the comparator's coefficients. They
-#' are solvable exactly when `k` is at most the dimension the grid can reach,
-#' `rank(cbind(1, X_int))`, which is `1 + n_cov` for any grid that is not
-#' degenerate.
+#' coefficient volume that costs. An ALLOCATION sends each of the `m` event
+#' rows to a grid node; its design `D` has that node's covariate vector
+#' beside an intercept, one row per event row, and the rows stand on spikes
+#' together exactly when `D b = targets` is consistent. The exponent is then
+#' `m - rank(D)`.
+#'
+#' It is NOT `m - k` for `k` distinct times, and more distinct times than the
+#' grid's rank `rank(cbind(1, X_int))` is not a proof that no allocation
+#' works. Distinct response values are not independent linear constraints,
+#' and an overdetermined system can still be consistent: comparator events at
+#' `t = 1, 2, 4` on the nodes `1, 2, 3` that `add_integration()` really
+#' builds for a uniform covariate are three distinct times with no repeat,
+#' past a reach of 2, and are matched exactly by `b = (-log 2, log 2)` for a
+#' rank of 2 and a measured slope of -1.0000 per decade of scale.
+#'
+#' `rank(D)` is at most the reach and at most `k`, since rows sharing a node
+#' share a predictor, and a design of exactly `min(k, reach)` is always
+#' available: below the reach any `k` independent node rows give a consistent
+#' system, and past it the certificate below supplies one. So the exponent
+#' used is `m - min(k, reach)`.
+#'
+#' That is the exponent EXACTLY for one covariate and a LOWER BOUND for more
+#' than one. `min(k, reach)` is the largest rank a matching design can have,
+#' and a smaller one gives a larger exponent: with two covariates, three
+#' collinear nodes carry three distinct targets that run affinely along that
+#' line at rank 2 rather than 3. So a refusal here is always certified, since
+#' a positive lower bound is a positive rate, while a skip may be hiding one.
+#' Searching for a lower-rank consistent allocation among two or more
+#' covariates is not done in either branch.
+#'
+#' Past the reach, existence itself is the question, and this refuses only
+#' what it can certify: with one covariate the map is a line that two
+#' (target, node) assignments fix, so enumerating node pairs decides it, and
+#' anything wider or too large to enumerate is left alone. Silence from this
+#' function is therefore NOT a certificate that the posterior is proper; a
+#' refusal is a certificate that it is not.
 #'
 #' All `m` rows are matched on the solution set, so every one of them stands
 #' on a spike whose height grows as the auxiliary approaches its boundary,
-#' while the set is pinned only in the `k` directions the equations fix and
-#' its transverse width shrinks in each of those. The rate is the difference,
-#' and neither factor is shared across families. The height and the width,
-#' per family:
+#' while the set is pinned only in the `rank(D)` directions the equations fix
+#' and its transverse width shrinks in each of those. The rate is the
+#' difference, and neither factor is shared across families. The height and
+#' the width, per family:
 #'
 #' * `lognormal` and `gengamma`: height `1 / sdlog`, width `sdlog`. Rate
-#'   `m - k` as the scale goes to zero. Measured over 20 midpoint normal
+#'   `m - rank(D)` as the scale goes to zero. Measured over 20 midpoint normal
 #'   nodes with the coefficients integrated against normal priors,
 #'   `d log M / d log sdlog` is -0.000, -1.000 and -2.000 across `1,4`,
 #'   `1,1,4` and `1,1,4,4`.
 #' * `weibull-aft` and `loglogistic`: height `shape`, width `1 / shape`. Rate
-#'   `m - k` as the shape grows. `d log M / d log shape` is +0.000, +1.000
+#'   `m - rank(D)` as the shape grows. `d log M / d log shape` is +0.000, +1.000
 #'   and +2.000 on the same three, for both. A row's own integral over its
 #'   linear predictor is exactly `shape^(m - 1) t^-m Gamma(m) / m^m` for `m`
 #'   rows on one time, which is that rate at `k = 1`.
 #' * `gamma`: height `sqrt(shape)`, width `1 / sqrt(shape)`, so the rate is
-#'   HALF, `(m - k) / 2`. The Stan density (`dist == 8` in
+#'   HALF, `(m - rank(D)) / 2`. The Stan density (`dist == 8` in
 #'   `survival_functions.stan`) is `k u - e^u - log t - lgamma(k)` for
 #'   `u = log t - eta`, peaking at `u = log k` with value about `0.5 log k`
 #'   and curvature `-k`. For `m` rows on one time the integral is exactly
 #'   `Gamma(m k) / m^(m k) / Gamma(k)^m`, whose slope in `log k` is
 #'   `(m - 1) / 2`: 0.500002, 1.000003 and 1.500005 for `m` of 2, 3 and 4,
 #'   the closed form agreeing with quadrature to 7e-12 at `k` of 10 to 1000.
-#'   Reporting `m - k` here would claim non-integrability against a half-t
+#'   Reporting `m - rank(D)` here would claim non-integrability against a half-t
 #'   `prior_aux` with degrees of freedom in (0.5, 1) that does integrate it.
 #'
 #' The proportional-hazards Weibull and Gompertz are NOT examined, and the
@@ -382,7 +614,7 @@
 #' integrates any polynomial. The posterior exists there and the shape merely
 #' concentrates far out; it is a heavy-tailed intercept prior that leaves
 #' `prior_aux` to integrate the growth, which a half-t does only above
-#' `(m - k) / 2` degrees of freedom. That factor is 0.95 nats at a shape of
+#' `(m - rank(D)) / 2` degrees of freedom. That factor is 0.95 nats at a shape of
 #' 1e6, so a slope measured over any reachable range still looks undamped,
 #' which is why the clause is derived rather than read off one. The
 #' comparator intercept is `mu_comparator` under both models and draws
@@ -560,17 +792,18 @@
   # equations describe does not exist.
   reach <- function(a) {
     generic <- 1L + length(data$covariates)
+    blind <- list(rank = generic, nodes = NULL)
     grid <- data$integration_points
     rows <- data$agd$data
-    if (is.null(grid) || length(dim(grid)) != 3L) return(generic)
+    if (is.null(grid) || length(dim(grid)) != 3L) return(blind)
     idx <- if (is.null(rows) || is.null(rows$.arm)) {
       1L
     } else {
       match(a, as.character(rows$.arm))
     }
-    if (is.na(idx) || idx < 1L || idx > dim(grid)[1L]) return(generic)
+    if (is.na(idx) || idx < 1L || idx > dim(grid)[1L]) return(blind)
     nodes <- matrix(grid[idx, , ], nrow = dim(grid)[2L])
-    if (!all(is.finite(nodes))) return(generic)
+    if (!all(is.finite(nodes))) return(blind)
     # [.exact_rank()], not `qr()`. A grid whose columns are independent but
     # badly scaled reads as rank-deficient at the default tolerance: an
     # intercept against nodes near `1e7 + c(0, 1, 2)` comes back rank 1, which
@@ -578,7 +811,8 @@
     # The independent direction is there whatever it costs to reach, and the
     # coefficient prior is positive where the ridge sits, so nothing about the
     # scaling removes the singularity.
-    min(generic, .exact_rank(cbind(1, nodes))$rank)
+    list(rank = min(generic, .exact_rank(cbind(1, nodes))$rank),
+         nodes = nodes)
   }
   # Distinctness is a property of the TARGET the density matches, not of the
   # reported time. Every family this examines matches the linear predictor to
@@ -599,12 +833,37 @@
     if (!all(is.finite(tg))) next
     m <- length(rows)
     k <- length(unique(tg))
-    # No repeat: the rate is zero, which integrates.
-    if (m <= k) next
-    # More distinct targets than the grid can reach: the matching equations
-    # have no solution, so there is no ridge and no divergence.
-    reachable <- reach(a)
-    if (k > reachable) next
+    grid <- reach(a)
+    reachable <- grid$rank
+    # The exponent is `m - rank(D)`, where `D` is the design of the
+    # ALLOCATION that sends each row to a grid node: `1` beside that node's
+    # covariate vector, one row per event row. It is not `m - k`, and the two
+    # counts this used to test are not certificates of anything.
+    #
+    # Distinct response values are not independent linear constraints, and an
+    # overdetermined system can be consistent. Comparator events at
+    # `t = 1, 2, 4` on grid nodes `1, 2, 3` are three DISTINCT targets with no
+    # repeat among them, and `k = 3` past a reach of 2, so both of the old
+    # tests skipped the arm in silence. They are matched exactly all the same,
+    # by `b = (-log 2, log 2)`: the design has rank 2, the exponent is
+    # `3 - 2 = 1`, and the measured marginal slope is -1.0000 per decade of
+    # scale. A real `add_integration()` grid produces those nodes.
+    #
+    # `rank(D)` is at most the reach and at most the number of distinct
+    # targets (rows sharing a node share a predictor, so a consistent
+    # allocation gives rows with different targets different nodes), and that
+    # largest rank is always achievable: below the reach `k` independent node
+    # rows can be sent anywhere, and past it the certificate supplies one.
+    #
+    # Taking the LARGEST rank gives the SMALLEST exponent, so this is a lower
+    # bound on the true rate and every refusal is certified. It is exact for
+    # one covariate. For more, a lower-rank allocation can exist and is not
+    # searched for: three collinear nodes among two covariates carry three
+    # distinct targets at rank 2, where this reads 3 and stays silent. That
+    # is a gap in coverage, not a wrong verdict.
+    rank_d <- min(k, reachable)
+    if (m <= rank_d) next
+    if (k > reachable && !isTRUE(.grid_hits_targets(grid$nodes, tg))) next
     # A censored row in the same arm can suppress this, but only sometimes,
     # and which case it is turns on whether the ridge is a point or a set.
     #
@@ -675,13 +934,13 @@
     one_sided <- !length(side) ||
       (!anyNA(side) && !any(side == "bounded") && length(unique(side)) == 1L)
     cens <- side
-    if (m - k > worst) {
-      worst <- m - k
-      info <- list(m = m, k = k, reach = reachable,
-                   isolated = k >= reachable && length(cens) > 0L,
-                   two_sided = k < reachable && length(cens) > 0L &&
+    if (m - rank_d > worst) {
+      worst <- m - rank_d
+      info <- list(m = m, k = k, rank = rank_d, reach = reachable,
+                   isolated = rank_d >= reachable && length(cens) > 0L,
+                   two_sided = rank_d < reachable && length(cens) > 0L &&
                      !one_sided,
-                   spfa_shared = spfa_shared && k > 1L)
+                   spfa_shared = spfa_shared && rank_d > 1L)
     }
   }
   if (worst < 1L) return(invisible(FALSE))
@@ -690,22 +949,22 @@
   # and the ridge width do with the auxiliary, per family:
   #
   # * `lognormal`, `gengamma`: height `1 / sdlog`, width `sdlog`. Rate
-  #   `m - k` as sdlog goes to zero. Measured -0.000, -1.000, -2.000 for
+  #   `m - rank(D)` as sdlog goes to zero. Measured -0.000, -1.000, -2.000
   #   `1,4`, `1,1,4` and `1,1,4,4`.
   # * `weibull-aft`, `loglogistic`: height `shape`, width `1 / shape`. Rate
-  #   `m - k`. A row's own integral over its linear predictor is exactly
+  #   `m - rank(D)`. A row's own integral over its linear predictor is
   #   `shape^(m - 1) t^-m Gamma(m) / m^m` for `m` rows on one time, so the
   #   rate is `m - 1` there; measured +0.000, +1.000, +2.000 on the same
   #   three configurations, for both.
   # * `gamma`: height `sqrt(shape)`, width `1 / sqrt(shape)`, so the rate is
-  #   HALF of `m - k`. From the Stan density (`dist == 8` in
+  #   HALF of `m - rank(D)`. From the Stan density (`dist == 8` in
   #   survival_functions.stan) a row is `k u - e^u - log t - lgamma(k)` for
   #   `u = log t - eta`, which peaks at `u = log k` with value about
   #   `0.5 log k` and curvature `-k`. For `m` rows on one time the integral
   #   is exactly `Gamma(m k) / m^(m k) / Gamma(k)^m`, whose slope in `log k`
   #   is `(m - 1) / 2`: 0.500002, 1.000003, 1.500005 for m of 2, 3, 4, and
   #   the closed form agrees with quadrature to 7e-12 at k of 10 to 1000.
-  #   Reporting `m - k` here would claim non-integrability against a half-t
+  #   Reporting `m - rank(D)` here would claim non-integrability against a half-t
   #   `prior_aux` with degrees of freedom in (0.5, 1) that does integrate it.
   # * `weibull` (proportional hazards) and `gompertz`: height `shape`, and
   #   the width does NOT shrink. The PH cumulative hazard is `t^shape e^eta`,
@@ -716,7 +975,7 @@
   #   sits at `-shape log t` and at about `log(shape) - shape t`, which run
   #   away with the shape itself. Measured with the coefficient priors out:
   #   +2.000, +2.000, +3.000, +4.000 across `1,1`, `1,4`, `1,1,4`, `1,1,4,4`,
-  #   which is `m` and not `m - k`. With `normal(0, 10)` and `normal(0, 1)`
+  #   which is `m` and not `m - rank(D)`. With `normal(0, 10)` and `normal(0, 1)`
   #   in: PH Weibull keeps +2.000 for two events at `t = 1`, where `log t` is
   #   zero and the ridge does not move, and collapses by -9e6 per decade at
   #   `t = 4`; Gompertz collapses everywhere, since `shape * t` displaces it
@@ -743,10 +1002,24 @@
   }
   volume <- {
     paste0("while the coefficient volume shrinks ", shrink, " in each of the ",
-           info$k, " pinned direction", if (info$k > 1L) "s" else "",
+           info$rank, " pinned direction", if (info$rank > 1L) "s" else "",
            " and in no other, so the difference survives: with the ",
            "coefficients integrated out the marginal diverges at rate ",
            rate_text)
+  }
+  solvable <- if (info$k <= info$reach) {
+    paste0("That those points reproduce those times is ", info$k, " equation",
+           if (info$k > 1L) "s" else "", " in the comparator's coefficients, ",
+           "and the grid reaches ", info$reach, " independent linear ",
+           "predictor", if (info$reach > 1L) "s" else "", ", so a solution ",
+           "exists")
+  } else {
+    paste0("There are more distinct times than the ", info$reach,
+           " independent linear predictor",
+           if (info$reach > 1L) "s" else "", " the grid reaches, which does ",
+           "not make the system unsolvable: an overdetermined system can ",
+           "still be consistent, and a map carrying every one of these times ",
+           "onto a node was found")
   }
   shared <- paste0(
     "The reconstructed comparator curve has ", info$m, " event rows at ",
@@ -755,19 +1028,47 @@
     "is a finite equally weighted mixture over the integration grid, ",
     "`log_sum_exp(ll) - log(n_int)`, and every pseudo-individual in the arm ",
     "sees the same grid, so all ", info$m, " rows can be matched at once by ",
-    info$k, " integration point", if (info$k > 1L) "s" else "", ". That those ",
-    "points reproduce those times is ", info$k, " equation",
-    if (info$k > 1L) "s" else "", " in the comparator's coefficients, and the ",
-    "grid reaches ", info$reach, " independent linear predictors, so a ",
-    "solution exists. All ", info$m, " density spikes grow as ", growth, " ",
-    volume, ". Event times that are all distinct pin the coefficients in as ",
-    "many directions as there are spikes; it is the repeats that do this."
+    "integration points that reproduce their times. ", solvable, ", and a ",
+    "matching design of rank ", info$rank, " exists. All ", info$m,
+    " density spikes grow as ", growth, " ", volume, ". What drives this is ",
+    info$m, " event rows against a matched design of rank ", info$rank,
+    ", not the repeats as such: distinct event times can be carried by a ",
+    "design of lower rank than their own count, so an absence of repeats is ",
+    "not on its own an absence of a ridge."
   )
+  # Exact integration is a DIFFERENT model, and calling it a repair was an
+  # overgeneralization from the one case that was worked out. For `lognormal`
+  # with one Gaussian covariate, `m` events tied at a single time marginalize
+  # exactly: with `tau^2 = beta^2 + sdlog^2` and `mu ~ N(0, a^2)` integrated
+  # out the likelihood is `(2 pi)^(-m/2) tau^(1 - m) / sqrt(tau^2 + m a^2)`,
+  # which behaves as `r^(1 - m)` near the origin against the plane's `r dr`,
+  # leaving `integral r^(2 - m) dr`. That converges for `m = 2` and diverges
+  # from `m = 3` on. So the quadrature is what creates the singularity for
+  # two tied events, and for three the continuous counterpart is improper
+  # too. Nothing here establishes it for the other families or for other
+  # covariate distributions, so they are not told it holds for them.
+  exact_note <- if (identical(distribution, "lognormal")) {
+    paste0(
+      " Exactly integrating a declared Gaussian covariate is a different ",
+      "model rather than a guaranteed repair. It leaves ",
+      "`log T ~ N(mu, beta^2 + sdlog^2)`, and with a normal ",
+      "`prior_intercept` integrated out, events tied at one time give a ",
+      "marginal behaving as `r^(1 - m)` in `r^2 = beta^2 + sdlog^2` against ",
+      "an `r dr` measure: two tied events converge, three or more do not. ",
+      "For two the quadrature is what creates this singularity; for three ",
+      "the exactly integrated model is improper as well."
+    )
+  } else {
+    paste0(
+      " Whether exactly integrating the declared covariate distributions ",
+      "removes this is not established here. It was worked out only for ",
+      "`lognormal` with one Gaussian covariate, where it holds for two ",
+      "events tied at a time and fails for three."
+    )
+  }
   restriction <- paste0(
-    " This is a restriction on the quadrature, not a defect of the model it ",
-    "approximates: integrating a declared Gaussian covariate exactly leaves ",
-    "`log T ~ N(mu, beta^2 + sdlog^2)`, whose posterior IS proper for these ",
-    "same data. A larger `n_int` is still a finite mixture and, within its ",
+    exact_note,
+    " A larger `n_int` is still a finite mixture and, within its ",
     "reach, only scales the coefficient of the same divergence; jittering ",
     "the tied times invents data. If the ties come from rounding, an ",
     "interval-censored representation of what was actually observed is the ",
@@ -1257,8 +1558,15 @@
 #'   [.check_comparator_tied_events()] reads it under `aux_by = "none"`. A
 #'   shared-auxiliary warning also carries `index_exact`: `TRUE` when the index
 #'   event design was shown to reproduce its own times and so pins a shared
-#'   coefficient vector, `FALSE` only where it was shown to pin nothing, which
-#'   an index with no events is, and `NA` where the question was not settled.
+#'   coefficient vector, `FALSE` only where it was shown to pin nothing, and
+#'   `NA` where the question was not settled. The three are distinct on
+#'   purpose, and an index with NO events is not automatically the second of
+#'   them: having no events means no design to fit, not that nothing bounds
+#'   the auxiliary. Censored rows alone can bound it, and when they conflict
+#'   they do, so an eventless index is answered by asking whether any linear
+#'   predictor satisfies every one of its regions at once. A certified
+#'   conflict returns `bounds_aux = TRUE`, a certified absence of one returns
+#'   `index_exact = FALSE`, and an undecided case returns neither.
 #' @keywords internal
 .check_survival_scale_collapse <- function(data, distribution,
                                            aux_by = ".study",
@@ -1336,14 +1644,11 @@
     return(invisible(FALSE))
   }
   events <- status == 1L
-  # An index with no events pins no coefficient vector at all, which is a
-  # DETERMINATION and not a bail-out: `mu_index` can rise above every
-  # censoring time, so the index likelihood tends to one at the boundary and
-  # suppresses nothing. Say so, rather than returning the same silence as the
-  # cases below that simply did not ask.
-  if (!any(events)) {
-    return(invisible(structure(FALSE, index_exact = FALSE)))
-  }
+  # An index with no events used to be answered here, with a flat "pins
+  # nothing". It pins no coefficient vector, but that is not the same
+  # question as whether it bounds the auxiliary, and censored rows alone can
+  # bound it. Deciding it needs the observation regions, so it is decided
+  # below where they are built.
   covariates <- as.matrix(ipd[, data$covariates, drop = FALSE])
   # The guard stays on the LOG time whichever scale the fit is read on: a
   # time of zero is finite on the time scale, but its profile maximizer is
@@ -1366,6 +1671,55 @@
     if (!all(is.finite(covariates))) return(invisible(FALSE))
   }
   X <- cbind(1, covariates)
+  # The region each censored row is observed to lie in, on the scale the fit
+  # is read on. A right-censored row runs from its own time upwards with no
+  # upper end; the other two close at their own upper bound.
+  #
+  # A delayed entry is NOT an ordinary lower end. The contribution is
+  # conditional on survival to it, and when the fitted value sits BELOW the
+  # entry the conditional law piles up just above it, so the probability of
+  # the region tends to one rather than to zero. Three events at t = 1 with a
+  # left-censored row entering at 1.5 and closing at 2: the row's own
+  # contribution is 1.000000 at every scale and the marginal slope is 2.000,
+  # identical to the same data with the row removed. Reading the entry as a
+  # lower end called that "bounded" and passed the improper fit.
+  #
+  # An interval that opens STRICTLY above its entry still bounds from below,
+  # since the pile at the entry is then outside it. So the lower end is the
+  # interval's own opening when it has one above the entry, and no lower end
+  # at all otherwise. `start > delay` is the only way an interval opens above
+  # its entry, and it forces `start > 0`, so this is never `log(0)`.
+  cens_region <- function() {
+    open <- if (time_scale) {
+      ifelse(start > delay, start, -Inf)
+    } else {
+      suppressWarnings(ifelse(start > delay, log(start), -Inf))
+    }
+    right <- status[!events] == 0L
+    list(lower = ifelse(right, y[!events], open[!events]),
+         upper = ifelse(right, Inf, y[!events]))
+  }
+  # With no event rows there is no design to fit, and the question becomes
+  # whether any linear predictor satisfies every censored row at once. A
+  # conflict bounds the auxiliary and is reported as such; a certified
+  # absence of one says the index really does pin nothing; anything else is
+  # left open rather than asserted in either direction. Returning
+  # `index_exact = FALSE` for every eventless index, as this used to,
+  # manufactured the second of those three from the first's absence and
+  # refused proper fits.
+  if (!any(events)) {
+    if (!any(!events)) return(invisible(FALSE))
+    reg <- cens_region()
+    eventless <- .censoring_bounds_aux(X, y, events,
+                                       lower = reg$lower, upper = reg$upper)
+    if (identical(eventless, "bounded")) {
+      return(invisible(structure(FALSE, bounds_aux = TRUE)))
+    }
+    if (identical(eventless, "unbounded")) {
+      return(invisible(structure(FALSE, index_exact = FALSE)))
+    }
+    return(invisible(FALSE))
+  }
   s <- .residual_variation_status(X[events, , drop = FALSE], y[events],
                                   "identity")
   # The `bounds_aux` attribute is what [.check_comparator_tied_events()] reads
@@ -1393,38 +1747,11 @@
     # has full row rank, and `constant` is reproduced by the intercept. A
     # `near_exact` or `unresolved` fit leaves a residual, so the structural
     # shortcut inside is not available to it.
-    # The region each censored row is observed to lie in, on the same scale
-    # the fit is read on.
-    # A right-censored row runs from its own time upwards with no upper end;
-    # the other two close at their own upper bound.
-    #
-    # A delayed entry is NOT an ordinary lower end. The contribution is
-    # conditional on survival to it, and when the fitted value sits BELOW
-    # the entry the conditional law piles up just above it, so the
-    # probability of the region tends to one rather than to zero. Three
-    # events at t = 1 with a left-censored row entering at 1.5 and closing
-    # at 2: the row's own contribution is 1.000000 at every scale and the
-    # marginal slope is 2.000, identical to the same data with the row
-    # removed. Reading the entry as a lower end called that "bounded" and
-    # passed the improper fit.
-    #
-    # An interval that opens STRICTLY above its entry still bounds from
-    # below, since the pile at the entry is then outside it. So the lower
-    # end is the interval's own opening when it has one above the entry,
-    # and no lower end at all otherwise.
-    # `start > delay` is the only way an interval opens above its entry, and
-    # it forces `start > 0`, so this is never `log(0)`.
-    open <- if (time_scale) {
-      ifelse(start > delay, start, -Inf)
-    } else {
-      suppressWarnings(ifelse(start > delay, log(start), -Inf))
-    }
-    right <- status[!events] == 0L
+    reg <- cens_region()
     .censoring_bounds_aux(
       X, y, events,
       exact_fit = s$status %in% c("exact", "constant", "saturated"),
-      lower = ifelse(right, y[!events], open[!events]),
-      upper = ifelse(right, Inf, y[!events])
+      lower = reg$lower, upper = reg$upper
     )
   } else {
     "unbounded"
@@ -1863,16 +2190,81 @@
   if (any(is.na(lower)) || any(is.na(upper)) || any(lower > upper)) {
     return("undetermined")
   }
+  # Exact keys, not rounded ones: `x` and `x + 1e-13` are different profiles,
+  # and a 15-digit character conversion would merge them and pin a censored
+  # row to an event time that is not its own. `%a` is the binary value
+  # itself, and the `+ 0` normalizes a negative zero, which compares equal
+  # but prints differently.
+  row_keys <- function(M) {
+    apply(matrix(sprintf("%a", M + 0), nrow = nrow(M)), 1L, paste,
+          collapse = "|")
+  }
+  if (!nrow(Xe)) {
+    # No event row pins a coefficient vector, so the question is not where a
+    # FITTED value falls but whether ANY linear predictor falls inside every
+    # region at once. If one does, the likelihood tends to one at the
+    # boundary and bounds nothing; if none does, some row is strictly
+    # outside its region whatever the coefficients are, its probability
+    # tends to zero, and the auxiliary is held away from its boundary just
+    # as a badly placed censored row holds it against an event design.
+    #
+    # The absence of events is therefore not by itself a verdict. Reading it
+    # as one, which is what returning a flat "pins nothing" did, refuses a
+    # proper fit: an index of a left-censored row at t = 1 and a
+    # right-censored row at t = 4 on one covariate profile has no coefficient
+    # vector satisfying both, `sup_mu L = Phi(-log(4) / (2 sigma))^2`, and
+    # the shared scale is bounded.
+    #
+    # Rows at the same covariate profile share one predictor, so their
+    # regions must overlap. That is a certified test for a conflict, and the
+    # two cases below are certified tests for the absence of one; anything
+    # else is left undetermined rather than guessed, since deciding it in
+    # general is a linear feasibility problem this does not solve.
+    keys <- row_keys(Xc)
+    groups <- split(seq_len(nrow(Xc)), keys)
+    conflict <- vapply(groups, function(ix) {
+      lo <- max(lower[ix])
+      up <- min(upper[ix])
+      # Exact ordering, with no tolerance. These ends are stored observation
+      # times, not the output of a numerical solve, so there is no
+      # accumulated rounding to discount, and the question "does this
+      # region's lower end sit above that one's upper end" is answered by
+      # the comparison itself.
+      #
+      # A gap of any positive size bounds, however small. With ends `d`
+      # apart the best shared predictor leaves each row at `Phi(-d / (2 s))`,
+      # so the pair contributes `exp(-(d / (2 s))^2)` up to a constant, and
+      # `integral s^-m exp(-(d / (2 s))^2)` converges at zero for every
+      # `d > 0`. The decay only becomes visible once `s` falls below `d`,
+      # which is why no slope measured above that range shows it: at
+      # `d = 1e-15` the product still GROWS through `s = 1e-15`, and by
+      # `s = 1e-17` its logarithm is -2431. Discarding a rounding-sized gap
+      # therefore refused proper fits rather than protecting any.
+      #
+      # Only exact equality is not a conflict. There the shared predictor
+      # sits on both boundaries, each row contributes a half rather than a
+      # zero, and a positive constant suppresses nothing.
+      isTRUE(lo > up)
+    }, logical(1L))
+    if (any(conflict)) return("bounded")
+    profiles <- Xc[!duplicated(keys), , drop = FALSE]
+    rank_p <- .exact_rank(profiles)$rank
+    # A one-sided system is always satisfiable when the predictors can be
+    # moved together: with no finite upper end, raising every predictor at
+    # once clears every lower end, and with no finite lower end, lowering
+    # them clears every upper one. That needs a constant direction to be
+    # reachable, which an intercept column supplies.
+    one_sided <- all(!is.finite(upper)) || all(!is.finite(lower))
+    constant_reachable <-
+      .exact_rank(cbind(profiles, 1))$rank == rank_p
+    if (one_sided && constant_reachable) return("unbounded")
+    # Otherwise the groups are individually satisfiable, and they can be
+    # satisfied at once whenever their profiles are independent, since then
+    # the predictors are free of one another.
+    if (rank_p == nrow(profiles)) return("unbounded")
+    return("undetermined")
+  }
   if (isTRUE(exact_fit)) {
-    # Exact keys, not rounded ones: `x` and `x + 1e-13` are different
-    # profiles, and a 15-digit character conversion would merge them and
-    # pin a censored row to an event time that is not its own. `%a` is the
-    # binary value itself, and the `+ 0` normalizes a negative zero, which
-    # compares equal but prints differently.
-    row_keys <- function(M) {
-      apply(matrix(sprintf("%a", M + 0), nrow = nrow(M)), 1L, paste,
-            collapse = "|")
-    }
     twin <- match(row_keys(Xc), row_keys(Xe))
     repeated <- which(!is.na(twin))
     if (length(repeated)) {
