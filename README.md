@@ -2,6 +2,10 @@
 
 A narrated, interactive lesson on multilevel unanchored meta-regression (ML-UMR) with the [mlumr](https://github.com/choxos/mlumr) R package. It is published at **https://choxos.github.io/mlumr/lesson/**.
 
+![Dragging the sliders in chapter 1 while the narration plays, with captions on](documentation/tour.gif)
+
+<sub>A few seconds of chapter 1. [Watch the full 136 second tour](documentation/tour.mp4), with its narration: chapters 1, 4 and 5, the mlumr R code and a Stan fit running in the browser, survival, a diagnostic case, a knowledge check and the dark theme.</sub>
+
 This branch holds only the lesson, the same way the `webapp` branch holds only the web app. The R package lives on `main`.
 
 The lesson is for researchers who know basic regression and are new to population-adjusted indirect comparisons. It has 13 narrated chapters. Every chapter has an interactive chart, and several have R code cells that run in the browser. The chapter on running mlumr loads the package's own R code with webR and fits its binomial Stan models with TinyStan, all on the page. There are also five knowledge checks, captions, light and dark themes, and a companion R script.
@@ -18,6 +22,7 @@ The lesson is for researchers who know basic regression and are new to populatio
 | `sources.html` | Sources, scope and what runs in the browser. |
 | `lesson.sh`, `finish-site.mjs`, `verify-models.mjs`, `dist-manifest.mjs` | Build wrapper, post-build fixes, the model check and the build manifest. |
 | `browser-qa.mjs`, `QA.md` | Browser checks and their record. |
+| `record-tour.mjs`, `documentation/` | The tour recorder, and the video and gif it writes. |
 | `dist/` | The built site that GitHub Actions publishes. |
 
 ## Build
@@ -51,6 +56,19 @@ TANGIBLE_DIR=/path/to/tangible node browser-qa.mjs http://127.0.0.1:4174
 ```
 
 The script plays the narration, visits every chapter, moves every control, answers every question, switches themes, runs the R cells and browser Stan fits of both models, and checks tablet, landscape phone, portrait phone and 200% zoom sizes. After `lesson.sh adapter`, it also checks that the browser's Stan data equal the native ones. It writes screenshots and a JSON record to `qa-artifacts/`. Add `--no-runtime` to skip the webR and Stan checks when offline.
+
+## The tour
+
+```sh
+python3 -m http.server 4174 --bind 127.0.0.1 --directory dist &
+TANGIBLE_DIR=/path/to/tangible node record-tour.mjs http://127.0.0.1:4174   # writes documentation/tour.mp4 and tour.gif
+```
+
+Playwright drives the built lesson and records it, so the charts, the R output and the Stan fit in the video are the ones a learner gets. A first page loads the narration, webR and the models into the cache; the tour is recorded on a second page at 1280 by 720, so it has no loading waits.
+
+Playwright records no sound. The tour cuts to the start of each chapter's narration by seeking the lesson's audio, the recorder notes where the narration was at every cut, and the encoder lays the same stretches of `audio.m4a` under the video. Two checks keep voice and picture together, because a tour whose voice runs a second late looks fine with the sound off: each stretch warns if the page's narration drifted more than 0.3 seconds from the video, and the caption changes in the finished video are matched with their cue times, which must agree within 0.15 seconds. The current recording measures 0.05 seconds.
+
+Headless recordings have no pointer, and a slider that moves on its own reads as an animation, so the recorder draws one. It also warns and exits with status 1 when a step did not happen: a Run that printed no STC benchmark, a fit that showed no results, a slider that stopped short, or a knowledge check that did not accept its answer. The mp4 is the full tour; the gif is chapter 1's sliders only, because a whole tour at gif frame rates runs to tens of megabytes.
 
 ## Chapters
 
