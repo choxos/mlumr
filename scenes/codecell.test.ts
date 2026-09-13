@@ -224,6 +224,20 @@ describe('code cell lifecycle', () => {
     expect($(slot(), '.fit-out').textContent).toContain('stc warned');
   });
 
+  it('shows a Run that finishes after the cell was left and mounted again', async () => {
+    const running = deferred<RunResult>();
+    const first = mountCell(slot(), mlumrCell, 'workflow');
+    runner.runR.mockReturnValueOnce(running.promise);
+    click(slot(), '[data-act=run]');
+    first.dispose();
+    mountCell(slot(), mlumrCell, 'workflow');
+    expect($<HTMLButtonElement>(slot(), '[data-act=fit]').disabled).toBe(true);
+    running.resolve({ lines: [{ kind: 'out', text: 'built dat' }], fitData: true });
+    await flush();
+    expect($(slot(), '.console').textContent).toBe('built dat');
+    expect($<HTMLButtonElement>(slot(), '[data-act=fit]').disabled).toBe(false);
+  });
+
   it('marks a shown fit as stale when a new Run replaces dat, even for unchanged code', async () => {
     mountCell(slot(), mlumrCell, 'workflow');
     await runOk(slot());

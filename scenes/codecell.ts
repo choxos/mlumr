@@ -24,10 +24,13 @@ const MODEL: Record<Model, string> = { spfa: 'shared slopes (SPFA)', relaxed: 's
  * `fitData` is the Run whose `dat` the shown fit sampled. */
 interface Saved { code: string; revision: number; prepared: number | null; preparedIn?: number; preparedBy?: number; run: number; model: Model; console: string; fit: string; fitRevision: number; fitData?: number; record?: object }
 const saved = new Map<string, Saved>();
+/** The refresh of the cell mounted for each key, so a Run or fit that outlives
+ * the mount it started in still updates the one on screen. */
+const mounted = new Map<string, () => void>();
 let runs = 0;
 
 /** For tests. */
-export const resetSavedCells = () => { saved.clear(); runs = 0; };
+export const resetSavedCells = () => { saved.clear(); mounted.clear(); runs = 0; };
 
 function render(lines: Line[]) {
   return lines.map(({ kind, text }) => {
@@ -161,6 +164,16 @@ export function mountCell(slot: HTMLElement, cell: Cell, key: string, onActivity
     showFit();
   };
 
+  // Work started by an earlier mount of this cell reports here when it ends.
+  const refresh = () => {
+    if (busy) return;
+    if (state.console) output.innerHTML = state.console;
+    sync();
+    showFit();
+  };
+  mounted.set(key, refresh);
+  signal.addEventListener('abort', () => { if (mounted.get(key) === refresh) mounted.delete(key); });
+
   async function execute() {
     if (busy) return;
     onActivity();
@@ -190,7 +203,7 @@ export function mountCell(slot: HTMLElement, cell: Cell, key: string, onActivity
         output.innerHTML = state.console;
         sync();
         showFit();
-      }
+      } else mounted.get(key)?.();
     }
   }
 
@@ -256,7 +269,7 @@ export function mountCell(slot: HTMLElement, cell: Cell, key: string, onActivity
         busy = null;
         showFit();
         sync();
-      }
+      } else mounted.get(key)?.();
     }
   }
 

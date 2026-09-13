@@ -28,15 +28,15 @@ MLUMR_NATIVE=<mlumr checkout at 4cfd366 with a built DLL> bash lesson.sh adapter
 node browser-qa.mjs http://127.0.0.1:4202/
 ```
 
-- `lesson.sh test`: strict TypeScript passed for the scene and, with the WebWorker library, for the Stan worker. **69 unit tests** passed in 6 files:
+- `lesson.sh test`: strict TypeScript passed for the scene and, with the WebWorker library, for the Stan worker. **70 unit tests** passed in 6 files:
   - **Mathematics.** The teaching mathematics, including the survival case with a population hazard ratio of 2.39839 and the log-link counterexample.
   - **Charts.** Chart coordinates across a survival control grid.
-  - **Code cells.** The code cell lifecycle, with the R and Stan runtimes replaced by test doubles, including a Run that succeeds without creating `dat`, a fit cancelled while R prepares the data, a Fit after R restarts from another chapter, a shown fit whose dat a new Run replaced, and R work queued or still running when R restarts.
+  - **Code cells.** The code cell lifecycle, with the R and Stan runtimes replaced by test doubles, including a Run that succeeds without creating `dat`, a fit cancelled while R prepares the data, a Fit after R restarts from another chapter, a shown fit whose dat a new Run replaced, a Run that finishes after its chapter was left and opened again, and R work queued or still running when R restarts.
   - **Worker protocol.** Empty, truncated, reordered and non-finite results, non-finite sampler diagnostics, and failed, cancelled and stalled workers.
   - **Contrast.** WCAG contrast for both themes.
   - **Diagnostics.** R-hat, ESS and MCSE against 17 reference cases generated with the posterior R package, version 1.7.1, which the fixture records and the tests check.
 
-  The chart, code cell and runner tests fail when run against the modules they replaced, and the six newest tests, for the restart, cancel, stale result and sampler diagnostic paths, fail against the modules of the commit before each was added.
+  The chart, code cell and runner tests fail when run against the modules they replaced, and the seven newest tests, for the restart, cancel, stale result and sampler diagnostic paths, fail against the modules of the commit before each was added.
 - `lesson.sh build`: `check: no errors`; the model manifest matched; the compiled narration lasts **1646.10 seconds** (27 minutes 26 seconds). After the build, adding a character to `script.md` made `node dist-manifest.mjs verify build/site` fail, and removing it made the check pass again.
 - `lesson.sh adapter`: all checks passed. It ran with every installed copy of mlumr hidden, as in the browser, and compared the browser's files with the package loaded from the pinned checkout:
   - **Stan data.** The Stan data for both models equal the package's own `mlumr()` data.

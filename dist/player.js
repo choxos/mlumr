@@ -17983,6 +17983,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
   };
   var MODEL = { spfa: "shared slopes (SPFA)", relaxed: "separate slopes (relaxed)" };
   var saved = /* @__PURE__ */ new Map();
+  var mounted = /* @__PURE__ */ new Map();
   var runs = 0;
   function render3(lines) {
     return lines.map(({ kind, text: text2 }) => {
@@ -18107,6 +18108,16 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       sync();
       showFit();
     };
+    const refresh = () => {
+      if (busy) return;
+      if (state.console) output.innerHTML = state.console;
+      sync();
+      showFit();
+    };
+    mounted.set(key, refresh);
+    signal.addEventListener("abort", () => {
+      if (mounted.get(key) === refresh) mounted.delete(key);
+    });
     async function execute() {
       if (busy) return;
       onActivity();
@@ -18138,7 +18149,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
           output.innerHTML = state.console;
           sync();
           showFit();
-        }
+        } else mounted.get(key)?.();
       }
     }
     async function fit() {
@@ -18206,7 +18217,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
           busy = null;
           showFit();
           sync();
-        }
+        } else mounted.get(key)?.();
       }
     }
     function download() {
