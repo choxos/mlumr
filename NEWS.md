@@ -292,7 +292,13 @@
   censoring. Under `model = "spfa"` with `aux_by = "none"` the arms share one
   `beta` as well as one auxiliary, so reaching the comparator check means the
   index did not bound that auxiliary, which under that model means its own
-  design fits exactly and pins the shared slope. Two or more comparator
+  design fits exactly. That is not enough on its own: it must also IDENTIFY
+  the shared slope over the directions the arm's grid spans, since repeated
+  index events at one covariate profile at one time fit exactly and leave
+  `beta` unconstrained, and then whatever node-specific values the
+  comparator's equations pin it to lie in the index's solution set by
+  construction, the sets always intersect, and the arm is refused rather than
+  reported. Two or more comparator
   targets pin it too, to values the integration points fix, and if those sets
   do not intersect then every path to the boundary leaves one side with a
   positive residual whose decay beats the other's growth. Solving that

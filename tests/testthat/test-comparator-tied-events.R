@@ -1096,3 +1096,33 @@ test_that("a censored row already past the matched nodes decides nothing", {
   expect_match(tryCatch(check(both), warning = conditionMessage),
                "they bound on both sides")
 })
+
+test_that("a free shared slope always intersects the comparator's values", {
+  # The multi-target report rests on the index's exact fit pinning `beta` to
+  # a solution set the comparator's node-specific values may miss. An index
+  # of repeated events at one covariate profile at one time is `constant`,
+  # fits exactly, and leaves `beta` unconstrained, so that set is everything
+  # and the values lie in it by construction: both singularities stand and
+  # there is nothing open about it.
+  free <- suppressWarnings(.comp_stub(c(1, 1, 4, 4), rep(1L, 4),
+                                      ipd_time = c(1, 1), ipd_x = c(0, 0),
+                                      n_int = 8))
+  expect_match(msg(free, aux_by = "none", model = "spfa", index_exact = TRUE,
+                   index_design = cbind(1, c(0, 0))),
+               "is therefore improper")
+  # Index covariates that DO identify the slope keep the report.
+  pins <- .comp_stub(c(1, 1, 4, 4), rep(1L, 4),
+                     ipd_time = c(1, 2), ipd_x = c(-1, 1), n_int = 8)
+  w <- tryCatch(check(pins, aux_by = "none", model = "spfa",
+                      index_exact = TRUE,
+                      index_design = cbind(1, c(-1, 1))),
+                warning = conditionMessage)
+  expect_match(w, "comparator equations pin it too")
+  expect_no_match(w, "is therefore improper")
+  # And an index guard that established nothing is not a licence to refuse:
+  # with no design to test, the report stands rather than becoming a stop.
+  w2 <- tryCatch(check(pins, aux_by = "none", model = "spfa",
+                       index_exact = NA, index_design = NULL),
+                 warning = conditionMessage)
+  expect_match(w2, "comparator equations pin it too")
+})

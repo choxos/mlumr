@@ -712,7 +712,12 @@
 #' One combination is reported rather than refused for a reason that is not
 #' about censoring. Under `model = "spfa"` with `aux_by = "none"` the arms
 #' share one `beta` AND one auxiliary, and when the index event design is
-#' itself exact it pins that shared slope to its own solution set.
+#' itself exact AND identifies that slope over the directions the arm's grid
+#' spans, it pins it to its own solution set. Fitting exactly is not enough:
+#' repeated index events at one covariate profile at one time leave `beta`
+#' unconstrained, so whatever node-specific values the comparator's equations
+#' pin it to lie in that set by construction, the sets always intersect, and
+#' the arm is refused rather than reported.
 #' Two or more comparator targets pin it too, to values the integration
 #' points fix, and if those sets do not intersect then every path to the
 #' boundary leaves one side with a positive residual whose exponential decay
@@ -897,6 +902,14 @@
   # index IS exact with a solution set the comparator's node-specific slopes
   # miss, which is the same proper configuration the branch below reports, so
   # refusing there would state a certainty the data do not carry.
+  # It also needs that exact design to IDENTIFY the shared slope, and not
+  # merely to fit. An index of repeated events at one covariate profile at
+  # one time is `constant`, fits exactly, and leaves `beta` unconstrained, so
+  # whatever node-specific values the comparator's equations pin it to lie in
+  # the index's solution set by construction: the sets always intersect,
+  # both singularities stand, and there is nothing open about it. That is
+  # tested per arm below, since which slope directions matter is a property
+  # of the arm's own grid.
   spfa_shared <- shared_aux && identical(model, "spfa") &&
     !identical(index_exact, FALSE)
   pseudo <- data$agd$pseudo_ipd
@@ -1109,6 +1122,13 @@
     one_sided <- !length(side) ||
       (!anyNA(side) && !any(side == "bounded") && length(unique(side)) == 1L)
     cens <- side
+    # `pins_slope()` is FALSE both when the design leaves the slope free and
+    # when there is no design to test at all, and only the first is a reason
+    # to refuse. An index guard that bailed out before its geometry, or one
+    # whose residual status was never settled, establishes nothing about the
+    # slope, and turning that into a refusal is the same mistake as turning
+    # an unsettled order into a zero.
+    slope_free <- !is.null(index_design) && !pins_slope(grid$nodes)
     # A censored row only leaves the answer open if it threatens the ridge in
     # the first place, and at the MATCHED nodes that is decided rather than
     # enumerated. Every ridge point puts a matched node exactly at its
@@ -1168,7 +1188,8 @@
                    spfa_pinned = spfa_shared && pins_slope(grid$nodes) &&
                      rank_d < reachable && threat,
                    two_sided = rank_d < reachable && threat && !one_sided,
-                   spfa_shared = spfa_shared && rank_d > 1L)
+                   spfa_shared = spfa_shared && !slope_free &&
+                     rank_d > 1L)
     }
   }
   # Under `aux_by = "none"` the index and the comparator are written in

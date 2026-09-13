@@ -284,7 +284,12 @@ intercept prior.
 One combination is reported rather than refused for a reason that is not
 about censoring. Under \code{model = "spfa"} with \code{aux_by = "none"} the arms
 share one \code{beta} AND one auxiliary, and when the index event design is
-itself exact it pins that shared slope to its own solution set.
+itself exact AND identifies that slope over the directions the arm's grid
+spans, it pins it to its own solution set. Fitting exactly is not enough:
+repeated index events at one covariate profile at one time leave \code{beta}
+unconstrained, so whatever node-specific values the comparator's equations
+pin it to lie in that set by construction, the sets always intersect, and
+the arm is refused rather than reported.
 Two or more comparator targets pin it too, to values the integration
 points fix, and if those sets do not intersect then every path to the
 boundary leaves one side with a positive residual whose exponential decay
