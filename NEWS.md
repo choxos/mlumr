@@ -184,6 +184,17 @@
   computed quantities, and a tolerance there would certify a ridge that does
   not exist.
 
+  The slope that certificate rests on comes from a solve, and a solve can
+  answer about a different system. `lm.fit()` decides its own rank at a
+  numerical tolerance and can drop a column the exact rank keeps, and zeroing
+  the aliased coefficient then returns the REDUCED model's slope: with rows
+  at `x = (-1, 0, 1, 2)`, a second column `x + 1e-13`, and values equal to
+  that second column, the exact solution is `(0, 0, 1)` and the reduced one
+  is `(1e-13, 1, 0)`, so predictors built from the second differ by whole
+  units. A dropped rank, a non-finite coefficient, and residuals that do not
+  vanish all leave the case reported rather than refused, the same mismatch
+  the censoring-bound check already refuses to answer on.
+
   For a row that does threaten, whether it suppresses turns on `rank(D)`
   against the reach. Its contribution is a mixture
   over the grid too, so it vanishes only if every node's region probability

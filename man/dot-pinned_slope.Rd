@@ -21,4 +21,16 @@ solution is picked does not matter to the caller: it uses the slope only
 through DIFFERENCES of node predictors, \verb{(z_l - z_j)' beta}, and those are
 the same for every solution in the directions the design identifies.
 }
+\details{
+\code{lm.fit()} decides its own rank at a numerical tolerance and can drop a
+column that \code{\link[=.exact_rank]{.exact_rank()}} keeps, and then zeroing the aliased
+coefficient returns the REDUCED model's slope rather than a solution of
+the system asked about. With rows at \verb{x = (-1, 0, 1, 2)}, a second column
+\code{x + 1e-13}, and values equal to that second column, the exact solution is
+\verb{(0, 0, 1)} and the reduced one is \verb{(1e-13, 1, 0)}: predictors built from
+the second differ from the real ones by whole units. The caller turns this
+slope into a REFUSAL, so a drop, a non-finite coefficient, or residuals
+that do not vanish all answer \code{NULL} and leave the case reported.
+\code{\link[=.censoring_bounds_aux]{.censoring_bounds_aux()}} refuses the same mismatch for the same reason.
+}
 \keyword{internal}

@@ -1393,3 +1393,30 @@ test_that("an unmatched node past the censoring time certifies the ridge", {
   )
   expect_equal(unname(attr(idx, "index_slope")), 0)
 })
+
+test_that("a rank-dropped solve does not supply a pinned slope", {
+  ps <- mlumr:::.pinned_slope
+  # `lm.fit()` decides its own rank at a numerical tolerance and can drop a
+  # column that the exact rank keeps. Zeroing the aliased coefficient then
+  # returns the REDUCED model's slope rather than a solution of the system
+  # asked about, and the caller turns that slope into a refusal.
+  x <- c(-1, 0, 1, 2)
+  design <- cbind(1, x, x + 1e-13)
+  value <- x + 1e-13
+  expect_identical(mlumr:::.exact_rank(design)$rank, 3L)
+  expect_lt(stats::lm.fit(design, value)$rank, 3L)
+  # The exact solution is (0, 0, 1) and the reduced one is (1e-13, 1, 0), so
+  # predictors built from the second differ by whole units.
+  expect_equal(as.vector(design %*% c(0, 0, 1)), value)
+  expect_null(ps(design, value))
+  # A well-conditioned pinned system still answers.
+  expect_equal(unname(ps(cbind(1, c(-1, 1)), c(-1, 1))), 1)
+  expect_equal(unname(ps(cbind(1, c(-1, 1)), c(0, 0))), 0)
+  # A system with no solution is not one either: least squares would return
+  # a slope for it, and that slope pins nothing.
+  expect_null(ps(cbind(1, c(-1, 0, 1)), c(0, 1, 0)))
+  # Neither is a degenerate or non-finite one.
+  expect_null(ps(cbind(1, c(-1, 1)), c(-1, NA)))
+  expect_null(ps(matrix(1, nrow = 2L), c(0, 0)))
+  expect_null(ps(NULL, NULL))
+})

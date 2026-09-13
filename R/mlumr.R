@@ -305,6 +305,17 @@
 #' through DIFFERENCES of node predictors, `(z_l - z_j)' beta`, and those are
 #' the same for every solution in the directions the design identifies.
 #'
+#' `lm.fit()` decides its own rank at a numerical tolerance and can drop a
+#' column that [.exact_rank()] keeps, and then zeroing the aliased
+#' coefficient returns the REDUCED model's slope rather than a solution of
+#' the system asked about. With rows at `x = (-1, 0, 1, 2)`, a second column
+#' `x + 1e-13`, and values equal to that second column, the exact solution is
+#' `(0, 0, 1)` and the reduced one is `(1e-13, 1, 0)`: predictors built from
+#' the second differ from the real ones by whole units. The caller turns this
+#' slope into a REFUSAL, so a drop, a non-finite coefficient, or residuals
+#' that do not vanish all answer `NULL` and leave the case reported.
+#' [.censoring_bounds_aux()] refuses the same mismatch for the same reason.
+#'
 #' @param design The pinned rows, intercept first.
 #' @param value What each row's predictor is pinned to.
 #' @return A numeric slope vector, or `NULL`.
@@ -314,11 +325,20 @@
   if (!is.matrix(design) || ncol(design) < 2L) return(NULL)
   if (nrow(design) != length(value)) return(NULL)
   if (!all(is.finite(design)) || !all(is.finite(value))) return(NULL)
+  rank_d <- .exact_rank(design)$rank
   fit <- tryCatch(stats::lm.fit(design, value), error = function(e) NULL)
   if (is.null(fit)) return(NULL)
+  if (!is.numeric(fit$rank) || fit$rank < rank_d) return(NULL)
   b <- fit$coefficients
   b[is.na(b)] <- 0
   if (!all(is.finite(b))) return(NULL)
+  # A solution, not a least-squares approximation. These rows are pinned
+  # exactly, so anything above rounding means the system was not the one
+  # solved and the slope is not the pinned one.
+  pred <- as.vector(design %*% b)
+  if (!all(is.finite(pred))) return(NULL)
+  scale <- pmax(1, abs(value), abs(pred))
+  if (any(abs(pred - value) > 1e-8 * scale)) return(NULL)
   b[-1L]
 }
 
