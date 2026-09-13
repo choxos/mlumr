@@ -620,9 +620,20 @@
 #' `qr()`'s default tolerance while the direction is still there and the
 #' prior is still positive where the ridge sits.
 #'
-#' A censored row in the same arm can suppress this, and whether it does
-#' turns on `rank(D)` against the reach. Its own contribution is a
-#' mixture over the grid too, `log_sum_exp(log S) - log(n_int)`, so it
+#' A censored row in the same arm can suppress this, and it has to threaten
+#' the ridge before any of that is worth asking. Every point of the solution
+#' set puts a MATCHED node exactly at its target, so a row whose region
+#' probability tends to one there suppresses nothing: its own contribution is
+#' a mixture over the grid, `log_sum_exp(log S) - log(n_int)`, which that one
+#' node holds at `1 / n_int` whatever the others do. Two events at `t = 1`
+#' with a right-censored row at `t = 0.5` are that case, and the divergence
+#' is certified rather than open; the same row at `t = 2` does suppress the
+#' matched node and leaves only the other nodes to settle. The ends are
+#' inclusive, since a predictor sitting exactly on a censoring time leaves
+#' that row at a half.
+#'
+#' For a row that does threaten, whether it suppresses turns on `rank(D)`
+#' against the reach. It
 #' vanishes only if EVERY node's region probability vanishes. When `rank(D)`
 #' is below the reach the ridge has a free direction, the node linear
 #' predictors
@@ -1098,6 +1109,42 @@
     one_sided <- !length(side) ||
       (!anyNA(side) && !any(side == "bounded") && length(unique(side)) == 1L)
     cens <- side
+    # A censored row only leaves the answer open if it threatens the ridge in
+    # the first place, and at the MATCHED nodes that is decided rather than
+    # enumerated. Every ridge point puts a matched node exactly at its
+    # target, so a row satisfied at some target is not suppressing anything
+    # there: its mixture holds at `1 / n_int` through that node and the
+    # divergence stands whatever the other nodes do.
+    #
+    # The satisfied set is the same geometry `side` reads, with its ends. A
+    # row is satisfied where its region probability tends to one rather than
+    # to zero, and the ends are inclusive: a predictor sitting exactly on a
+    # censoring time leaves that row at a half, which suppresses nothing.
+    # Two comparator events at `t = 1` with a right-censored row at
+    # `t = 0.5` are the case this decides: `log(0.5)` is below the target, so
+    # the matched node is already past the censoring time, the row holds at
+    # one, and the rate-1 divergence is certified rather than open. The same
+    # row at `t = 2` is above it and does suppress the matched node, leaving
+    # only the other nodes to settle, which is what stays open.
+    sat <- vapply(cens_rows, function(i) {
+      st <- status[i]
+      if (is.na(st) || !is.finite(target[i])) return(c(NA_real_, NA_real_))
+      if (st == 0L) return(c(target[i], Inf))
+      if (st == 2L) return(c(-Inf, target[i]))
+      if (st != 3L) return(c(NA_real_, NA_real_))
+      opens <- isTRUE(is.finite(start[i]) && is.finite(delay[i]) &&
+                        start[i] > delay[i])
+      lo <- if (opens) suppressWarnings(log(start[i])) else -Inf
+      if (!is.finite(lo) && opens) return(c(NA_real_, NA_real_))
+      c(lo, target[i])
+    }, numeric(2L))
+    threat <- length(cens_rows) > 0L &&
+      any(vapply(seq_along(cens_rows), function(ii) {
+        lo <- sat[1L, ii]
+        hi <- sat[2L, ii]
+        if (is.na(lo) || is.na(hi)) return(TRUE)
+        !any(tg >= lo & tg <= hi)
+      }, logical(1L)))
     if (m - rank_d > worst) {
       worst <- m - rank_d
       # `spfa_pinned` is the same geometry as `isolated` arrived at from the
@@ -1117,11 +1164,10 @@
       # exponentials trade rather than cancel, so that fit is proper. With
       # `rank_d = 1` this used to run past both flags into the refusal.
       info <- list(m = m, k = k, rank = rank_d, reach = reachable,
-                   isolated = rank_d >= reachable && length(cens) > 0L,
+                   isolated = rank_d >= reachable && threat,
                    spfa_pinned = spfa_shared && pins_slope(grid$nodes) &&
-                     rank_d < reachable && length(cens) > 0L,
-                   two_sided = rank_d < reachable && length(cens) > 0L &&
-                     !one_sided,
+                     rank_d < reachable && threat,
+                   two_sided = rank_d < reachable && threat && !one_sided,
                    spfa_shared = spfa_shared && rank_d > 1L)
     }
   }

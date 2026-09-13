@@ -156,8 +156,22 @@
   of those cases including the convergent ones, which is why the volume and
   not the profile is what decides this.
 
-  A censored row in the same arm can suppress the divergence, and whether it
-  does turns on `rank(D)` against the reach. Its contribution is a mixture
+  A censored row in the same arm can suppress the divergence, and it has to
+  threaten the ridge before that is worth asking. Every point of the solution
+  set puts a MATCHED node exactly at its target, so a row whose region
+  probability tends to one there suppresses nothing: its contribution is a
+  mixture over the grid, which that one node holds at `1 / n_int` whatever
+  the others do. Two comparator events at `t = 1` with a right-censored row
+  at `t = 0.5` are that case, and the rate-1 divergence is certified rather
+  than left open; the same row at `t = 2` does suppress the matched node and
+  only the other nodes are left to settle. The ends are inclusive, since a
+  predictor sitting exactly on a censoring time leaves that row at a half.
+  That decides at the matched nodes what used to be deferred wholesale, so
+  the point-mass grid measured at rate +1.000 with a right-censored row at
+  `t = 0.5` is now refused rather than reported.
+
+  For a row that does threaten, whether it suppresses turns on `rank(D)`
+  against the reach. Its contribution is a mixture
   over the grid too, so it vanishes only if every node's region probability
   vanishes. Below the reach the ridge has a free direction and pushing it one
   way clears every right-censored row, the other way every left-censored one:

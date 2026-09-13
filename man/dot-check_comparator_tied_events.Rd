@@ -192,9 +192,20 @@ whose columns are independent but badly scaled reads as deficient at
 \code{qr()}'s default tolerance while the direction is still there and the
 prior is still positive where the ridge sits.
 
-A censored row in the same arm can suppress this, and whether it does
-turns on \code{rank(D)} against the reach. Its own contribution is a
-mixture over the grid too, \verb{log_sum_exp(log S) - log(n_int)}, so it
+A censored row in the same arm can suppress this, and it has to threaten
+the ridge before any of that is worth asking. Every point of the solution
+set puts a MATCHED node exactly at its target, so a row whose region
+probability tends to one there suppresses nothing: its own contribution is
+a mixture over the grid, \verb{log_sum_exp(log S) - log(n_int)}, which that one
+node holds at \code{1 / n_int} whatever the others do. Two events at \code{t = 1}
+with a right-censored row at \code{t = 0.5} are that case, and the divergence
+is certified rather than open; the same row at \code{t = 2} does suppress the
+matched node and leaves only the other nodes to settle. The ends are
+inclusive, since a predictor sitting exactly on a censoring time leaves
+that row at a half.
+
+For a row that does threaten, whether it suppresses turns on \code{rank(D)}
+against the reach. It
 vanishes only if EVERY node's region probability vanishes. When \code{rank(D)}
 is below the reach the ridge has a free direction, the node linear
 predictors

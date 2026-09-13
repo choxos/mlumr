@@ -1053,3 +1053,46 @@ test_that("one shared-slope index constraint has nothing to overlap with", {
   )
   expect_identical(attr(two, "order"), 2L)
 })
+
+test_that("a censored row already past the matched nodes decides nothing", {
+  # Every ridge point puts a matched node exactly at its target, so a row
+  # SATISFIED at some target suppresses nothing there: its mixture holds at
+  # `1 / n_int` through that node and the divergence stands whatever the
+  # other nodes do. Reporting such an arm as undecided left a certified
+  # divergence to the sampler.
+  #
+  # Two comparator events at `t = 1` with a right-censored row at `t = 0.5`:
+  # `log(0.5)` is below the target, the matched node is already past the
+  # censoring time, and the rate-1 divergence is certified.
+  past <- .comp_stub(c(1, 1, 0.5), c(1L, 1L, 0L),
+                     ipd_time = c(1, 1), ipd_x = c(-1, 1), n_int = 8)
+  expect_match(msg(past, aux_by = "none", model = "spfa", index_exact = TRUE,
+                   index_design = cbind(1, c(-1, 1))),
+               "is therefore improper")
+  # The same row at `t = 2` is above the target, so it does suppress the
+  # matched node and only the other nodes are left to settle.
+  short <- .comp_stub(c(1, 1, 2), c(1L, 1L, 0L),
+                      ipd_time = c(1, 1), ipd_x = c(-1, 1), n_int = 8)
+  w <- tryCatch(check(short, aux_by = "none", model = "spfa",
+                      index_exact = TRUE,
+                      index_design = cbind(1, c(-1, 1))),
+                warning = conditionMessage)
+  expect_match(w, "neither refused nor passed as proper")
+  # The same distinction on the isolated ridge, where it was already
+  # measured: a point-mass grid with two events at `t = 1` gives rate +1.000
+  # with the row at `t = 0.5` and collapses with it at `t = 2`.
+  flat <- function(ct) {
+    .comp_stub(c(1, 1, ct), c(1L, 1L, 0L), n_int = 4,
+               int_distr = distr(stats::qunif, min = 0, max = 0))
+  }
+  expect_match(msg(flat(0.5)), "is therefore improper")
+  expect_match(tryCatch(check(flat(2)), warning = conditionMessage),
+               "neither refused nor passed as proper")
+  # And on the two-sided one: a left-censored row below every target and a
+  # right-censored row above them both threaten, so that stays open.
+  sv <- survival::Surv(time = c(1, 1, NA, 2), time2 = c(1, 1, 0.5, Inf),
+                       type = "interval2")
+  both <- .comp_stub(NULL, NULL, n_int = 2, agd_surv = sv)
+  expect_match(tryCatch(check(both), warning = conditionMessage),
+               "they bound on both sides")
+})
