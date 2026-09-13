@@ -44,21 +44,24 @@ let mlumrReady: Promise<void> | undefined;
 let session: WebR | undefined;
 
 function startR(status: Status): Promise<WebR> {
+  const mine = generation;
   webRReady ??= (async () => {
     status('Downloading R for your browser. The first time takes up to a minute.');
     const url = WEBR_URL;
     const mod = await import(/* @vite-ignore */ url);
+    live(mine); // a restart during the download must not leave a second session behind
     const webR = new mod.WebR({ channelType: mod.ChannelType.PostMessage, interactive: false });
     session = webR;
     await webR.init();
     await webR.evalRVoid(RUNNER);
     return webR;
-  })().catch(error => { webRReady = undefined; throw error; });
+  })().catch(error => { if (mine === generation) webRReady = undefined; throw error; });
   return webRReady;
 }
 
 /** Load the mlumr R code (not its Stan half) into the browser's R session. */
 function loadMlumr(status: Status): Promise<void> {
+  const mine = generation;
   mlumrReady ??= (async () => {
     const webR = await startR(status);
     status(`Installing the R packages the mlumr cell needs (${R_PACKAGES.join(', ')}).`);
@@ -81,7 +84,7 @@ function loadMlumr(status: Status): Promise<void> {
       await webR.FS.writeFile(`/home/web_user/mlumr/${file}`, new Uint8Array(await (await get(file)).arrayBuffer()));
     }
     await webR.evalRVoid('source("/home/web_user/mlumr/load.R")');
-  })().catch(error => { mlumrReady = undefined; throw error; });
+  })().catch(error => { if (mine === generation) mlumrReady = undefined; throw error; });
   return mlumrReady;
 }
 
@@ -90,10 +93,20 @@ function loadMlumr(status: Status): Promise<void> {
 // rewriting. restartR() is the way out of a call that does not finish.
 let queue: Promise<unknown> = Promise.resolve();
 let interrupt: ((error: Error) => void) | undefined;
-function exclusive<T>(task: () => Promise<T>): Promise<T> {
+// Each restart starts a new generation. Work queued before a restart is refused
+// when its turn comes, and work already running stops at its next step, so
+// nothing from the old session runs beside work in the new one.
+let generation = 0;
+const RESTARTED = 'R was restarted, so every object it held, including dat, is gone. Run the code again.';
+const live = (mine: number) => { if (mine !== generation) throw new Error(RESTARTED); };
+
+/** Exported for tests. */
+export function exclusive<T>(task: (live: () => void) => Promise<T>): Promise<T> {
+  const mine = generation;
   const run = queue.then(() => new Promise<T>((resolve, reject) => {
+    if (mine !== generation) { reject(new Error(RESTARTED)); return; }
     interrupt = reject;
-    task().then(resolve, reject).finally(() => { if (interrupt === reject) interrupt = undefined; });
+    task(() => live(mine)).then(resolve, reject).finally(() => { if (interrupt === reject) interrupt = undefined; });
   }));
   queue = run.catch(() => undefined);
   return run;
@@ -102,12 +115,13 @@ function exclusive<T>(task: () => Promise<T>): Promise<T> {
 /** Stop whatever R is doing by replacing the session. The webR PostMessage
  * channel cannot interrupt a running call, so closing it is the only route. */
 export function restartR() {
+  generation++;
   try { session?.close(); } catch { /* already closed */ }
   session = undefined;
   webRReady = undefined;
   mlumrReady = undefined;
   queue = Promise.resolve();
-  interrupt?.(new Error('R was restarted, so every object it held, including dat, is gone. Run the code again.'));
+  interrupt?.(new Error(RESTARTED));
   interrupt = undefined;
 }
 
@@ -115,15 +129,17 @@ export function restartR() {
 export interface RunResult { lines: Line[]; fitData: boolean }
 
 export function runR(code: string, status: Status, withMlumr = false): Promise<RunResult> {
-  return exclusive(async () => {
-    if (withMlumr) await loadMlumr(status);
+  return exclusive(async live => {
+    if (withMlumr) { await loadMlumr(status); live(); }
     const webR = await startR(status);
+    live();
     status('Running.');
     const shelter = await new webR.Shelter();
     try {
       const result = await shelter.evalR(withMlumr ? 'lesson_workflow_run(code)' : '.lesson_run(code)', { env: { code } });
       const lines: string[] = await result.toArray();
       const fitData = withMlumr && await webR.evalRBoolean('exists("dat", envir = lesson_fit_data, inherits = FALSE)');
+      live();
       return {
         fitData,
         lines: lines.map(line => {
@@ -145,10 +161,13 @@ export type Prepared =
 
 /** Build the Stan data through mlumr() and run the benchmarks, in one R call. */
 export function prepareFit(model: 'spfa' | 'relaxed', status: Status): Promise<Prepared> {
-  return exclusive(async () => {
+  return exclusive(async live => {
     await loadMlumr(status);
+    live();
     const webR = await startR(status);
+    live();
     const text: string = await webR.evalRString(`lesson_prepare_fit(get0("dat", envir = lesson_fit_data, inherits = FALSE), ${JSON.stringify(model)})`);
+    live();
     return JSON.parse(text) as Prepared;
   });
 }

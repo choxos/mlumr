@@ -198,8 +198,14 @@ export function mountCell(slot: HTMLElement, cell: Cell, key: string, onActivity
     announce(`Fit ${spec.run} started: ${MODEL[spec.model]}.`);
     fitOut.innerHTML = '<p>Preparing the Stan data with mlumr().</p>';
     const progress: string[] = [];
+    // R cannot be interrupted, so cancelling while it prepares the data restarts
+    // it. That also frees the R queue for every other cell.
+    const stopR = () => restartR();
+    own.signal.addEventListener('abort', stopR, { once: true });
+    let preparing = true;
     try {
-      const prepared = await prepareFit(spec.model, () => undefined);
+      const prepared = await prepareFit(spec.model, () => undefined).finally(() => own.signal.removeEventListener('abort', stopR));
+      preparing = false;
       if (!prepared.ok) {
         state.prepared = null;
         throw new Error(`mlumr() refused the data: ${prepared.error}`);
@@ -224,10 +230,11 @@ export function mountCell(slot: HTMLElement, cell: Cell, key: string, onActivity
       };
       announce(`Fit ${spec.run} finished: ${MODEL[spec.model]}.`);
     } catch (error) {
-      const cancelled = error instanceof DOMException && error.name === 'AbortError';
+      const cancelled = own.signal.aborted;
       const message = error instanceof Error ? error.message : String(error);
+      if (cancelled && preparing) state.prepared = null;
       state.fit = cancelled
-        ? `<p class="feedback">Fit ${spec.run} was cancelled${signal.aborted ? ' because you left this chapter' : ''}. No result was kept.</p>`
+        ? `<p class="feedback">Fit ${spec.run} was cancelled${signal.aborted ? ' because you left this chapter' : ''}. ${preparing ? 'R was restarted to stop the preparation, so run the code again before fitting. ' : ''}No result was kept.</p>`
         : `<p class="feedback" role="alert">Fit ${spec.run} failed. ${esc(message)}</p>`;
       state.fitRevision = spec.revision;
       state.record = undefined;

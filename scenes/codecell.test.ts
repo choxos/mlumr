@@ -140,6 +140,22 @@ describe('code cell lifecycle', () => {
     expect(runner.runR).toHaveBeenCalledTimes(1);
   });
 
+  it('restarts R when a fit is cancelled while R prepares the data', async () => {
+    mountCell(slot(), mlumrCell, 'workflow');
+    await runOk(slot());
+    const preparing = deferred<Prepared>();
+    runner.prepareFit.mockReturnValue(preparing.promise);
+    runner.restartR.mockImplementation(() => preparing.reject(new Error('R was restarted')));
+    click(slot(), '[data-act=fit]');
+    click(slot(), '[data-act=cancel]');
+    await flush();
+    expect(runner.restartR).toHaveBeenCalledTimes(1);
+    expect(runner.fitStan).not.toHaveBeenCalled();
+    expect($<HTMLButtonElement>(slot(), '[data-act=run]').disabled).toBe(false);
+    expect($<HTMLButtonElement>(slot(), '[data-act=fit]').disabled).toBe(true);
+    expect($(slot(), '.fit-out').textContent).toContain('R was restarted to stop the preparation');
+  });
+
   it('stops a fit when the cell is disposed and never touches the new page', async () => {
     const handle = mountCell(slot(), mlumrCell, 'workflow');
     await runOk(slot());
@@ -151,6 +167,7 @@ describe('code cell lifecycle', () => {
     const signal: AbortSignal = runner.fitStan.mock.calls[0][3];
     handle.dispose();
     expect(signal.aborted).toBe(true);
+    expect(runner.restartR).not.toHaveBeenCalled(); // sampling stops without touching R
     mountCell(slot(), plain, 'integration');
     const before = slot().innerHTML;
     sampling.reject(new DOMException('The fit was cancelled.', 'AbortError'));

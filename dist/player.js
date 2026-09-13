@@ -16196,13 +16196,13 @@
       orientation.className = "xv-orientation-notice";
       orientation.textContent = "For the best experience on a phone, rotate to landscape or use a larger screen.";
       const controls2 = div3("xv-start-controls");
-      const live = div3("xv-start-status");
-      live.setAttribute("role", "status");
-      live.setAttribute("aria-live", "polite");
+      const live2 = div3("xv-start-status");
+      live2.setAttribute("role", "status");
+      live2.setAttribute("aria-live", "polite");
       this.spinner = div3("xv-loading-spinner");
       this.spinner.setAttribute("aria-hidden", "true");
       this.status = document.createElement("span");
-      live.append(this.spinner, this.status);
+      live2.append(this.spinner, this.status);
       this.button = document.createElement("button");
       this.button.type = "button";
       this.button.className = "xv-start-button";
@@ -16212,7 +16212,7 @@
         else
           actions.onStart();
       };
-      controls2.append(live, this.button);
+      controls2.append(live2, this.button);
       content.append(title, interactive, orientation, controls2);
       this.el.append(content);
       this.setLoading();
@@ -17683,6 +17683,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
   var mlumrReady;
   var session;
   function startR(status) {
+    const mine = generation;
     webRReady ??= (async () => {
       status("Downloading R for your browser. The first time takes up to a minute.");
       const url = WEBR_URL;
@@ -17690,18 +17691,20 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         /* @vite-ignore */
         url
       );
+      live(mine);
       const webR = new mod.WebR({ channelType: mod.ChannelType.PostMessage, interactive: false });
       session = webR;
       await webR.init();
       await webR.evalRVoid(RUNNER);
       return webR;
     })().catch((error) => {
-      webRReady = void 0;
+      if (mine === generation) webRReady = void 0;
       throw error;
     });
     return webRReady;
   }
   function loadMlumr(status) {
+    const mine = generation;
     mlumrReady ??= (async () => {
       const webR = await startR(status);
       status(`Installing the R packages the mlumr cell needs (${R_PACKAGES.join(", ")}).`);
@@ -17734,17 +17737,27 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       }
       await webR.evalRVoid('source("/home/web_user/mlumr/load.R")');
     })().catch((error) => {
-      mlumrReady = void 0;
+      if (mine === generation) mlumrReady = void 0;
       throw error;
     });
     return mlumrReady;
   }
   var queue = Promise.resolve();
   var interrupt;
+  var generation = 0;
+  var RESTARTED = "R was restarted, so every object it held, including dat, is gone. Run the code again.";
+  var live = (mine) => {
+    if (mine !== generation) throw new Error(RESTARTED);
+  };
   function exclusive(task) {
+    const mine = generation;
     const run = queue.then(() => new Promise((resolve, reject) => {
+      if (mine !== generation) {
+        reject(new Error(RESTARTED));
+        return;
+      }
       interrupt = reject;
-      task().then(resolve, reject).finally(() => {
+      task(() => live(mine)).then(resolve, reject).finally(() => {
         if (interrupt === reject) interrupt = void 0;
       });
     }));
@@ -17752,6 +17765,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     return run;
   }
   function restartR() {
+    generation++;
     try {
       session?.close();
     } catch {
@@ -17760,19 +17774,24 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     webRReady = void 0;
     mlumrReady = void 0;
     queue = Promise.resolve();
-    interrupt?.(new Error("R was restarted, so every object it held, including dat, is gone. Run the code again."));
+    interrupt?.(new Error(RESTARTED));
     interrupt = void 0;
   }
   function runR(code2, status, withMlumr = false) {
-    return exclusive(async () => {
-      if (withMlumr) await loadMlumr(status);
+    return exclusive(async (live2) => {
+      if (withMlumr) {
+        await loadMlumr(status);
+        live2();
+      }
       const webR = await startR(status);
+      live2();
       status("Running.");
       const shelter = await new webR.Shelter();
       try {
         const result = await shelter.evalR(withMlumr ? "lesson_workflow_run(code)" : ".lesson_run(code)", { env: { code: code2 } });
         const lines = await result.toArray();
         const fitData = withMlumr && await webR.evalRBoolean('exists("dat", envir = lesson_fit_data, inherits = FALSE)');
+        live2();
         return {
           fitData,
           lines: lines.map((line) => {
@@ -17786,10 +17805,13 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     });
   }
   function prepareFit(model, status) {
-    return exclusive(async () => {
+    return exclusive(async (live2) => {
       await loadMlumr(status);
+      live2();
       const webR = await startR(status);
+      live2();
       const text2 = await webR.evalRString(`lesson_prepare_fit(get0("dat", envir = lesson_fit_data, inherits = FALSE), ${JSON.stringify(model)})`);
+      live2();
       return JSON.parse(text2);
     });
   }
@@ -18120,8 +18142,12 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       announce(`Fit ${spec.run} started: ${MODEL[spec.model]}.`);
       fitOut.innerHTML = "<p>Preparing the Stan data with mlumr().</p>";
       const progress = [];
+      const stopR = () => restartR();
+      own.signal.addEventListener("abort", stopR, { once: true });
+      let preparing = true;
       try {
-        const prepared = await prepareFit(spec.model, () => void 0);
+        const prepared = await prepareFit(spec.model, () => void 0).finally(() => own.signal.removeEventListener("abort", stopR));
+        preparing = false;
         if (!prepared.ok) {
           state.prepared = null;
           throw new Error(`mlumr() refused the data: ${prepared.error}`);
@@ -18155,9 +18181,10 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         };
         announce(`Fit ${spec.run} finished: ${MODEL[spec.model]}.`);
       } catch (error) {
-        const cancelled = error instanceof DOMException && error.name === "AbortError";
+        const cancelled = own.signal.aborted;
         const message = error instanceof Error ? error.message : String(error);
-        state.fit = cancelled ? `<p class="feedback">Fit ${spec.run} was cancelled${signal.aborted ? " because you left this chapter" : ""}. No result was kept.</p>` : `<p class="feedback" role="alert">Fit ${spec.run} failed. ${esc2(message)}</p>`;
+        if (cancelled && preparing) state.prepared = null;
+        state.fit = cancelled ? `<p class="feedback">Fit ${spec.run} was cancelled${signal.aborted ? " because you left this chapter" : ""}. ${preparing ? "R was restarted to stop the preparation, so run the code again before fitting. " : ""}No result was kept.</p>` : `<p class="feedback" role="alert">Fit ${spec.run} failed. ${esc2(message)}</p>`;
         state.fitRevision = spec.revision;
         state.record = void 0;
         announce(cancelled ? `Fit ${spec.run} cancelled.` : `Fit ${spec.run} failed.`);

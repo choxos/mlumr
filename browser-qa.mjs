@@ -354,7 +354,18 @@ try {
     await page.waitForFunction(() => /did not create dat/.test(document.querySelector('.code-cell .console').textContent), null, { timeout: 60000 });
     assert(await page.locator('[data-act=fit]').isDisabled(), 'Fit must wait for a Run that creates dat');
     await page.locator('.code-cell [data-act=reset]').click();
-    evidence.push({ webRCell: true, priorCellComparesBothPriors: true, workflowRunsOnceAfterRevisits: true, fitIgnoresDatFromOtherCells: true, fitRefusedWithoutDat: true, stanFitsInBrowser: fits });
+    // Cancelling while R prepares the data restarts R in this browser; a Run in
+    // the new session makes Fit available again.
+    const fitReady = () => page.waitForFunction(() => !document.querySelector('[data-act=fit]').disabled, null, { timeout: 300000 });
+    await page.locator('.code-cell [data-act=run]').click();
+    await fitReady();
+    await page.locator('[data-act=fit]').click();
+    await page.locator('[data-act=cancel]').click();
+    await page.waitForFunction(() => /R was restarted to stop the preparation/.test(document.querySelector('.fit-out').textContent), null, { timeout: 60000 });
+    assert(await page.locator('[data-act=fit]').isDisabled(), 'After a restart, Fit must wait for a new Run');
+    await page.locator('.code-cell [data-act=run]').click();
+    await fitReady();
+    evidence.push({ webRCell: true, priorCellComparesBothPriors: true, workflowRunsOnceAfterRevisits: true, fitIgnoresDatFromOtherCells: true, fitRefusedWithoutDat: true, cancelDuringPreparationRestartsR: true, stanFitsInBrowser: fits });
   }
   // Tablet and landscape phones, portrait phones, and a 1440 by 900 window at 200% zoom.
   for (const [width,height] of [[1024,768],[667,375],[844,390],[896,414],[320,640],[360,740],[390,844],[412,915],[720,450]]) {

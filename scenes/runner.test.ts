@@ -1,6 +1,39 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fitStan, STALL_TIMEOUT_MS, LOAD_TIMEOUT_MS, type Sampler } from './runner.js';
+import { fitStan, exclusive, restartR, STALL_TIMEOUT_MS, LOAD_TIMEOUT_MS, type Sampler } from './runner.js';
+
+describe('the shared R queue', () => {
+  const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+
+  it('refuses work queued before a restart and runs later work alone', async () => {
+    const ran: string[] = [];
+    const stuck = exclusive(() => new Promise<void>(() => undefined));
+    const queued = exclusive(async () => { ran.push('queued'); });
+    await tick();
+    restartR();
+    await expect(stuck).rejects.toThrow('R was restarted');
+    await expect(queued).rejects.toThrow('R was restarted');
+    await exclusive(async () => { ran.push('later'); });
+    await tick();
+    expect(ran).toEqual(['later']);
+  });
+
+  it('stops running work at its next step after a restart', async () => {
+    const steps: string[] = [];
+    let resume!: () => void;
+    const work = exclusive(async live => {
+      await new Promise<void>(resolve => { resume = resolve; });
+      live?.();
+      steps.push('ran on after the restart');
+    });
+    await tick();
+    restartR();
+    await expect(work).rejects.toThrow('R was restarted');
+    resume();
+    await tick();
+    expect(steps).toEqual([]);
+  });
+});
 
 type Behavior = (worker: FakeWorker, message: { type: string }) => void;
 let behavior: Behavior;
