@@ -170,42 +170,6 @@
   the point-mass grid measured at rate +1.000 with a right-censored row at
   `t = 0.5` is now refused rather than reported.
 
-  A pinned ridge is isolated points too, and those ones can be looked at.
-  Under `model = "spfa"` with a shared auxiliary the index's own pinned rows
-  fix the slope, so each ridge point's node predictors are determined:
-  matching one target at node `j` puts every node at
-  `u + (z_l - z_j)' beta`, and a censored row suppresses nothing if ANY of
-  those sits inside its region. Index events at `x = -1, +1` with
-  `t = exp(-1), exp(1)` pin `beta = 1`, and then a comparator with events
-  tied at `t = 1` and right censoring at `t = 2` has a ridge point leaving an
-  unmatched node at 2, past `log 2`, so its divergence is certified rather
-  than deferred. Only a single distinct target is enumerated: past that a
-  point has to match the other targets too, which is an equality between
-  computed quantities, and a tolerance there would certify a ridge that does
-  not exist.
-
-  The slope that certificate rests on comes from a solve, and a solve can
-  answer about a different system. `lm.fit()` decides its own rank at a
-  numerical tolerance and can drop a column the exact rank keeps, and zeroing
-  the aliased coefficient then returns the REDUCED model's slope: with rows
-  at `x = (-1, 0, 1, 2)`, a second column `x + 1e-13`, and values equal to
-  that second column, the exact solution is `(0, 0, 1)` and the reduced one
-  is `(1e-13, 1, 0)`, so predictors built from the second differ by whole
-  units. A dropped rank, a non-finite coefficient, and residuals that do not
-  vanish all leave the case reported rather than refused, the same mismatch
-  the censoring-bound check already refuses to answer on.
-
-  A residual small enough to look like rounding on the INDEX rows is still
-  not small enough to certify anything about the comparator's. The slope
-  error it implies is `norm(r) / sigma_min` at worst, and a node at distance
-  `d` from the matched one turns that into `d * norm(r) / sigma_min` in the
-  predictor. Measured: the same slope of 2 fitted over a design spread across
-  four units comes back to sixteen digits, while over a spread of 1e-9 it
-  comes back as 2.00000004 with a residual still at rounding. The bound
-  travels with the slope and the certificate must clear it, which a fixed
-  tolerance on the residual cannot do: that is the wrong quantity, measured
-  on the wrong rows.
-
   For a row that does threaten, whether it suppresses turns on `rank(D)`
   against the reach. Its contribution is a mixture
   over the grid too, so it vanishes only if every node's region probability
