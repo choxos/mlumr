@@ -220,15 +220,19 @@ try {
   await beat(2800);
   await scrollTo(page.locator('.code-cell [data-act=fit]'), 'center');
   await press(page.locator('.code-cell [data-act=fit]'));
-  await page.waitForFunction(() => (document.querySelector('.fit-out .run-label')?.textContent ?? '').includes('shared slopes'), null, { timeout: 120000 })
-    .catch(() => warn('the Stan fit never showed its results'));
+  const fitted = await page.waitForFunction(() => (document.querySelector('.fit-out .run-label')?.textContent ?? '').includes('shared slopes'), null, { timeout: 120000 })
+    .then(() => true, () => { warn('the Stan fit never showed its results'); return false; });
   await beat(800);
   await scrollTo(page.locator('.fit-out'));
   await beat(2400);
-  await scrollTo(page.locator('.fit-table'), 'center');
-  await beat(3400);
-  await scrollTo(page.locator('.checks'), 'center');
-  await beat(2800);
+  // A failed fit shows only a message, with no table or checks to scroll to,
+  // and waiting for them would end the take before anything is encoded.
+  if (fitted) {
+    await scrollTo(page.locator('.fit-table'), 'center');
+    await beat(3400);
+    await scrollTo(page.locator('.checks'), 'center');
+    await beat(2800);
+  }
 
   // ------------------------------------------------------- 6. Survival curves
   await narrate('survival');
