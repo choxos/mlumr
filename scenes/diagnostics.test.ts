@@ -5,7 +5,9 @@ import { rhat, essBulk, essTail, mcseMean } from './diagnostics.js';
 // Chains and posterior 1.7.1 results written by diagnostics-reference.R; null is R's NA.
 type Stat = number | null;
 interface Case { name: string; chains: (number | string)[][]; rhat: Stat; ess_bulk: Stat; ess_tail: Stat; mcse_mean: Stat }
-const cases: Case[] = JSON.parse(readFileSync(new URL('./diagnostics-reference.json', import.meta.url), 'utf8'));
+const reference: { posterior: string; cases: Case[] } = JSON.parse(readFileSync(new URL('./diagnostics-reference.json', import.meta.url), 'utf8'));
+const cases = reference.cases;
+it('uses reference values from posterior 1.7.1', () => expect(reference.posterior).toBe('1.7.1'));
 const draw = (d: number | string) => typeof d === 'number' ? d : d === 'Inf' ? Infinity : d === '-Inf' ? -Infinity : NaN;
 
 const matches = (actual: number, expected: Stat) => {

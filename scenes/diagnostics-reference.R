@@ -4,6 +4,11 @@
 # Run from the lesson root: Rscript scenes/diagnostics-reference.R
 library(posterior)
 library(jsonlite)
+# The fixture records posterior 1.7.1 results; another version could change them silently.
+if (as.character(packageVersion("posterior")) != "1.7.1") {
+  stop("Install posterior 1.7.1 to regenerate diagnostics-reference.json; found ",
+       packageVersion("posterior"), call. = FALSE)
+}
 set.seed(2026)
 
 # Matrices are iterations by chains, the layout posterior's default methods take.
@@ -46,4 +51,5 @@ out <- suppressWarnings(unname(Map(function(name, x) {
 }, names(cases), cases)))
 
 # digits = I(17) round-trips every double; digits = NA prints 15 significant digits and does not.
-writeLines(toJSON(out, digits = I(17), auto_unbox = TRUE, na = "null"), "scenes/diagnostics-reference.json")
+writeLines(toJSON(list(posterior = "1.7.1", cases = out), digits = I(17), auto_unbox = TRUE, na = "null"),
+           "scenes/diagnostics-reference.json")

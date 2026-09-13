@@ -56,12 +56,16 @@ if (flags.includes('--write')) {
   await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
   console.log(`Wrote ${manifestPath}`);
 } else {
-  const recorded = JSON.parse(await readFile(manifestPath, 'utf8')).models;
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  const recorded = manifest.models;
+  const tinystan = JSON.parse(await readFile(join(lesson, 'runtime', 'package.json'), 'utf8')).dependencies.tinystan;
   const problems = Object.entries(models).flatMap(([name, now]) => Object.entries(now)
     .filter(([key, value]) => recorded[name]?.[key] !== value)
     .map(([key, value]) => `${name} ${key}: manifest ${recorded[name]?.[key] ?? 'missing'}, found ${value}`));
+  // The models were compiled against one TinyStan runtime; a different one may not load them.
+  if (manifest.tinystan !== tinystan) problems.push(`tinystan: manifest ${manifest.tinystan ?? 'missing'}, runtime/package.json ${tinystan}`);
   if (problems.length) {
-    console.error('The browser models do not match the Stan programs being loaded:');
+    console.error('The browser models do not match the Stan programs or TinyStan runtime being loaded:');
     for (const p of problems) console.error(`  ${p}`);
     console.error('Rebuild the WebAssembly from these Stan files and rewrite the manifest, or use the MLUMR_REF the models were built for.');
     process.exit(1);

@@ -15,7 +15,7 @@ September 12 to 13, 2026. This records the checks run on the lesson in this bran
 - **Charts.** No value is moved to the edge of a chart. Axes widen to hold every value, and a chart with a fixed frame clips visibly and prints the exact values. Screen readers get the active values as text.
 - **Text.** Conditional and marginal effects are named as such, the identification quiz is limited to the identity link, the RMST question states what must be held fixed, the SD to SE rule is qualified, Normal notation uses variances, the survival API text follows the pinned help page, and an assumptions box states what an unanchored comparison needs. The prior cell compares both priors in one Run.
 - **Screens and contrast.** Light muted text, reference lines and the review color were darkened to pass WCAG contrast. On phones the notes board is hidden, the chapter list stays on screen, the header fits at 320 pixels, charts keep readable labels and scroll inside their cards, and portrait orientation is allowed.
-- **Build and publishing.** The build refuses a Tangible checkout with local changes and rebuilds its packages from source, refuses Stan programs that do not match the models, hashes every source when it starts and every built file when it ends, and the deploy workflow refuses a `dist/` that does not match its commit.
+- **Build and publishing.** The build refuses a Tangible checkout with local changes and rebuilds its packages from source, refuses Stan programs or a TinyStan version that do not match the models, hashes every source when it starts and every built file when it ends, and the deploy workflow refuses a `dist/` that does not match its commit.
 
 ## Executed checks
 
@@ -28,13 +28,13 @@ MLUMR_NATIVE=<mlumr checkout at 4cfd366 with a built DLL> bash lesson.sh adapter
 node browser-qa.mjs http://127.0.0.1:4202/
 ```
 
-- `lesson.sh test`: strict TypeScript passed for the scene and, with the WebWorker library, for the Stan worker. **67 unit tests** passed in 6 files:
+- `lesson.sh test`: strict TypeScript passed for the scene and, with the WebWorker library, for the Stan worker. **68 unit tests** passed in 6 files:
   - **Mathematics.** The teaching mathematics, including the survival case with a population hazard ratio of 2.39839 and the log-link counterexample.
   - **Charts.** Chart coordinates across a survival control grid.
   - **Code cells.** The code cell lifecycle, with the R and Stan runtimes replaced by test doubles, including a Run that succeeds without creating `dat`, a fit cancelled while R prepares the data, a Fit after R restarts from another chapter, and R work queued or still running when R restarts.
   - **Worker protocol.** Empty, truncated, reordered and non-finite results, non-finite sampler diagnostics, and failed, cancelled and stalled workers.
   - **Contrast.** WCAG contrast for both themes.
-  - **Diagnostics.** R-hat, ESS and MCSE against 17 reference cases generated with the posterior R package.
+  - **Diagnostics.** R-hat, ESS and MCSE against 17 reference cases generated with the posterior R package, version 1.7.1, which the fixture records and the tests check.
 
   The chart, code cell and runner tests fail when run against the modules they replaced, and the five newest tests, for the restart, cancel and sampler diagnostic paths, fail against the modules of the commit before each was added.
 - `lesson.sh build`: `check: no errors`; the model manifest matched; the compiled narration lasts **1646.10 seconds** (27 minutes 26 seconds). After the build, adding a character to `script.md` made `node dist-manifest.mjs verify build/site` fail, and removing it made the check pass again.
