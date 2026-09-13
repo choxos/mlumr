@@ -4,12 +4,25 @@
 \alias{.assert_cmdstan_output}
 \title{Check that a CmdStan run left draws behind before reading them}
 \usage{
-.assert_cmdstan_output(files, chains)
+.assert_cmdstan_output(
+  files,
+  chains,
+  retrieval_error = NULL,
+  return_codes = NULL
+)
 }
 \arguments{
 \item{files}{The output paths the fit reports as readable.}
 
 \item{chains}{The number of chains requested.}
+
+\item{retrieval_error}{The message from asking the fit for its output
+paths, when that itself failed, or \code{NULL}. Discarding it, as this used
+to, threw away the only account of the failure before reporting a
+generic one.}
+
+\item{return_codes}{CmdStan's per-chain return codes, or \code{NULL} when the
+installed \code{cmdstanr} does not report them.}
 }
 \value{
 \code{TRUE} invisibly. Stops when there is nothing to read.
@@ -28,5 +41,14 @@ A chain that ran and failed is a different case and is not an error here:
 \code{cmdstanr} drops it and the run continues on the chains that finished,
 which is the behavior a partly failing multi-chain fit already relies on.
 Only files that are claimed and absent, or no files at all, are refused.
+
+What this reports is the OBSERVATION and whatever evidence came with it.
+An absent file says a chain left nothing behind; it does not say why, and
+a model or data failure, an initialization failure, a killed process and
+an external deletion all look identical from a list of paths. Naming one
+of them, as this used to by calling it a failure of the run rather than
+of the model, states a cause nothing here established. CmdStan's own
+return codes and captured output are the evidence that does bear on it,
+so they are attached where they are available.
 }
 \keyword{internal}
