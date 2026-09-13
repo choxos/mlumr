@@ -1518,20 +1518,15 @@
     # by `mu_comparator` at ANY slope, so the region's own nonemptiness is
     # all that is needed and no pair decides it.
     arm_admits <- if (is.null(admits)) NULL else admits(tg)
-    if (!is.null(arm_admits) && k > 1L) {
-      slope_state <- .admitted_slope_state(grid$nodes, arm_admits)
-      # Outside is a certificate that this arm's divergence cannot happen at
-      # any slope the index leaves: every path to the boundary leaves the
-      # index with a vanishing probability, which beats a polynomial. On the
-      # boundary the region's slice in `mu_index` is a single point rather
-      # than an interval, so the index costs a power that is not counted
-      # here; that is reported rather than refused or passed over.
-      if (identical(slope_state, "outside")) next
-      if (identical(slope_state, "boundary")) {
-        slope_open <- TRUE
-        next
-      }
-    }
+    # Past the grid's reach the slope question and the matching question are
+    # the SAME question, and asking the first on its own answers it too
+    # early: a pair the index admits only on the boundary may be one the
+    # enumeration goes on to rule out. Nodes `(0, 1, 2)` against targets
+    # `(0, 1, 3)` with a region needing `beta >= 1` have boundary pairs at
+    # slope 1, and the target at 3 wants a node at 3 that the grid does not
+    # have. So the filter travels INTO the enumeration, which carries such a
+    # pair through every target before reporting it, and the standalone scan
+    # is kept for the arms the enumeration never sees.
     if (k > reachable) {
       hit <- .grid_hits_targets(grid$nodes, tg, admits = arm_admits)
       if (!isTRUE(hit)) {
@@ -1542,6 +1537,22 @@
         # sampler at 256 with nothing in the result saying so. Carry the
         # reason out of the loop; `FALSE` is a real answer and carries none.
         if (is.na(hit)) declined <- c(declined, attr(hit, "declined"))
+        next
+      }
+    } else if (!is.null(arm_admits) && k > 1L) {
+      # Within the reach there is no further target to survive: any two
+      # distinct nodes carry the two targets, so the pair scan IS the whole
+      # question. Outside is a certificate that this arm's divergence cannot
+      # happen at any slope the index leaves, since every path to the
+      # boundary leaves the index with a vanishing probability, which beats a
+      # polynomial. On the boundary the region's slice in `mu_index` is a
+      # single point rather than an interval, so the index costs a power that
+      # is not counted here; that is reported rather than refused or passed
+      # over.
+      slope_state <- .admitted_slope_state(grid$nodes, arm_admits)
+      if (identical(slope_state, "outside")) next
+      if (identical(slope_state, "boundary")) {
+        slope_open <- TRUE
         next
       }
     }

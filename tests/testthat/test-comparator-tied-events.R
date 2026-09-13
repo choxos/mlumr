@@ -1807,3 +1807,52 @@ test_that("a rounded operand is bounded, not discarded", {
   )
   expect_identical(clean(0, 1), 0)
 })
+
+test_that("past the reach the enumeration decides the slope, not the scan", {
+  skip_if_not_installed("survival")
+  # The slope question and the matching question are the same question there,
+  # and asking the first on its own answers it too early. Nodes `(0, 1, 2)`
+  # against targets `(0, 1, 3)` with an index region needing `beta >= 1` have
+  # node pairs at slope 1 sitting exactly on that boundary, so a standalone
+  # scan reports. The target at 3 wants a node at 3, which the grid does not
+  # have, so the enumeration rules those pairs out and there is nothing to
+  # report. The scan is kept for arms within the reach, which the enumeration
+  # never sees.
+  ip <- suppressWarnings(set_ipd(
+    data.frame(trt = "A", x = c(0, 1)), treatment = "trt", covariates = "x",
+    family = "survival",
+    Surv = survival::Surv(time = c(NA_real_, exp(1)), time2 = c(1, Inf),
+                          type = "interval2")
+  ))
+  ag <- set_agd_surv(
+    data.frame(trt = "B", time = exp(c(0, 1, 3)), status = rep(1L, 3),
+               x_mean = 1, x_sd = 1),
+    treatment = "trt", time = "time", status = "status",
+    cov_means = "x_mean", cov_sds = "x_sd", cov_types = "continuous"
+  )
+  d <- suppressWarnings(add_integration(
+    combine_data(ip, ag), n_int = 3, verbose = FALSE,
+    x = distr(stats::qunif, min = -1, max = 3)
+  ))
+  z <- sort(as.numeric(d$integration_points[1L, , 1L]))
+  expect_equal(z, c(0, 1, 2))
+  index <- mlumr:::.check_survival_scale_collapse(d, "lognormal",
+                                                  aux_by = "none")
+  region <- attr(index, "index_region")
+  ad <- mlumr:::.index_slope_admits(region, 0, 1)
+  # The scan on its own would report, and the enumeration does not.
+  expect_identical(
+    mlumr:::.admitted_slope_state(matrix(z, ncol = 1L), ad), "boundary"
+  )
+  expect_false(mlumr:::.grid_hits_targets(matrix(z, ncol = 1L), c(0, 1, 3),
+                                          admits = ad))
+  # Which is what the caller must follow past the reach.
+  expect_silent(
+    out <- mlumr:::.check_comparator_tied_events(
+      d, "lognormal", aux_by = "none", model = "spfa",
+      index_region = region,
+      index_aux_order = attr(index, "aux_order") %||% 0
+    )
+  )
+  expect_false(out)
+})
