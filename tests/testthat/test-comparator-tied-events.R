@@ -508,8 +508,10 @@ test_that("only an exact determinant certifies a match", {
   expect_false(-log(2) + log(2) * 3 == log(4))
   expect_true(g(m(c(1, 2, 3)), log(c(1, 2, 4))))
   # A residual that is merely small is a near miss, and no affine map removes
-  # it. Certifying it would refuse a proper fit, so it reports undecided.
-  expect_true(is.na(g(m(c(1, 2, 3)), c(0, 1, 2 + 1e-15))))
+  # it. Certifying it would refuse a proper fit. These differences are all
+  # exact, so the exact determinant settles it outright as a miss rather than
+  # leaving it undecided.
+  expect_false(g(m(c(1, 2, 3)), c(0, 1, 2 + 1e-15)))
   # Two nodes a hair apart make the reconstructed slope enormous, so any
   # tolerance scaled by the terms of a prediction swallows a gross miss: on
   # `(1, 1 + 2^-52, 2)` the target at 2 was accepted against a prediction of
@@ -653,13 +655,18 @@ test_that("the enumeration cutoff declines instead of overflowing", {
            log(c(1, 2, 4)))
   expect_true(big)
   expect_null(attr(big, "declined"))
-  # The other two ways of answering NA are not declines: more than one
-  # covariate is the same answer at every grid size, and a close-but-inexact
-  # candidate means the enumeration RAN and certified nothing.
-  expect_null(attr(g(matrix(1:6, ncol = 2L), log(c(1, 2, 4))), "declined"))
-  near <- g(matrix(c(1, 2, 3), ncol = 1L), c(0, 1, 2 + 1e-15))
-  expect_true(is.na(near))
-  expect_null(attr(near, "declined"))
+  # Every NA carries its reason, because the caller does different things
+  # with them: more than one covariate is the same answer at every grid size
+  # and on every arm, while the budget makes the same data answerable at one
+  # `n_int` and unexamined at another.
+  wide_cov <- g(matrix(1:6, ncol = 2L), log(c(1, 2, 4)))
+  expect_true(is.na(wide_cov))
+  expect_identical(attr(wide_cov, "declined"), "dimension")
+  expect_identical(attr(g(matrix(1, ncol = 1L), c(0, 1)), "declined"),
+                   "degenerate")
+  expect_identical(attr(g(matrix(c(0, Inf, 1), ncol = 1L), c(0, 1, 2)),
+                        "declined"), "nonfinite")
+  expect_identical(attr(g(NULL, c(0, 1, 2)), "declined"), "unavailable")
 })
 
 test_that("the refusal survives the public mlumr() call", {
@@ -1353,4 +1360,150 @@ test_that("a rank of one or two is the smallest achievable, not a bound", {
                       index_aux_order = 1))
   expect_false(check(d, aux_by = "none", model = "relaxed",
                      index_aux_order = 1))
+})
+
+test_that("cancelling rounding errors do not withhold an exact certificate", {
+  g <- mlumr:::.grid_hits_targets
+  tp <- mlumr:::.two_prod_err
+  m <- function(v) matrix(v, ncol = 1L)
+  # Asking whether every operation was individually exact is SUFFICIENT for a
+  # computed determinant to be the real one, and reading a sufficient
+  # condition as a necessary one left an exactly consistent grid undecided.
+  # These are the symmetric quartiles of the default Gaussian integration
+  # grid against event times 1, 2 and 4, carried exactly by `mu = log 2` and
+  # slope `log(2) / a`. Neither product is exact and their errors are equal,
+  # so they cancel and the computed zero IS the determinant.
+  a <- stats::qnorm(0.75)
+  expect_equal(stats::qnorm(0.25), -a)
+  expect_true(log(4) == 2 * log(2))
+  e1 <- tp(2 * log(2), a, (2 * log(2)) * a)
+  e2 <- tp(log(2), 2 * a, log(2) * (2 * a))
+  expect_true(e1 != 0)
+  expect_identical(e1, e2)
+  expect_equal((2 * log(2)) * a - log(2) * (2 * a), 0)
+  expect_true(g(m(c(-a, 0, a)), log(c(1, 2, 4))))
+  # The reverse direction is unchanged: a determinant that computes zero
+  # while the real one is -3.4958e-17 is still not a match.
+  zr <- c(0, 0.3961039261018525, 1.04621481495181)
+  ur <- c(0, 0.6209825942831111, 1.6401786176669797)
+  expect_equal((ur[3] - ur[1]) * (zr[2] - zr[1]) -
+                 (ur[2] - ur[1]) * (zr[3] - zr[1]), 0)
+  expect_false(isTRUE(g(m(zr), ur)))
+})
+
+test_that("the exact sum primitive decides a sum, not its operations", {
+  z <- mlumr:::.exact_sum_is_zero
+  # Four doubles whose exact sum is zero, none of them zero.
+  expect_true(z(list(1, 2^-53, -1, -2^-53)))
+  expect_false(z(list(1, 2^-53, -1, -2^-54)))
+  # Terms too small to survive their own addition still count: `1 + 2^-60`
+  # rounds back to 1, so a test that summed and compared would call this
+  # zero. The expansion keeps every error as its own component.
+  expect_false(z(list(1, 2^-60, -1)))
+  expect_true(z(list(1, 2^-60, -1, -2^-60)))
+  # Nothing is established where a term is not finite.
+  expect_true(is.na(z(list(1, NaN, -1))))
+  expect_true(is.na(z(list(Inf, -Inf))))
+  # It answers elementwise over a matrix, which is how the enumeration uses
+  # it, and the first term carries the shape.
+  ans <- z(list(matrix(c(1, 2, 3, 4), nrow = 2L), -c(1, 2), c(0, 0, -2, -2)))
+  expect_identical(dim(ans), c(2L, 2L))
+  expect_identical(as.vector(ans), c(TRUE, TRUE, TRUE, TRUE))
+  off <- z(list(matrix(c(1, 2, 3, 4), nrow = 2L), -c(1, 2), c(0, 0, -2, -1)))
+  expect_identical(as.vector(off), c(TRUE, TRUE, TRUE, FALSE))
+})
+
+test_that("an unsettled determinant is reported, not passed in silence", {
+  g <- mlumr:::.grid_hits_targets
+  # A candidate within rounding of a match whose four differences did not all
+  # survive their own subtraction. `0.3 - 0.1` is 0.19999999999999998, so the
+  # arithmetic that would settle this exactly is the eight-product expansion
+  # of the original operands, which is not built. Exact rational arithmetic
+  # on these very doubles says there is no affine map, so the fit is proper;
+  # the point is that this check did not establish that and says so.
+  near <- g(matrix(c(0.1, 0.3, 0.7), ncol = 1L), c(0, 0.2, 0.6))
+  expect_true(is.na(near))
+  expect_identical(attr(near, "declined"), "inexact")
+  # It reaches the fitting interface as a warning rather than as silence.
+  # Three comparator events in geometric progression against the three
+  # equally spaced nodes of a uniform grid: the map that would carry them is
+  # the one sending the midpoint to the geometric mean, and it misses by
+  # -5.55e-17 on these doubles, so the fit is proper and this check did not
+  # establish that. The precondition is asserted rather than assumed, since
+  # `log()` is the platform's.
+  d <- .comp_stub(agd_time = c(3, 9, 27), agd_status = rep(1L, 3),
+                  int_distr = distr(stats::qunif, min = 0, max = 1),
+                  n_int = 3)
+  nodes <- matrix(d$integration_points[1L, , 1L], ncol = 1L)
+  verdict <- mlumr:::.grid_hits_targets(nodes, log(c(3, 9, 27)))
+  skip_if_not(identical(attr(verdict, "declined"), "inexact"))
+  expect_warning(
+    mlumr:::.check_comparator_tied_events(d, "lognormal", aux_by = ".study"),
+    "was left unexamined"
+  )
+})
+
+test_that("a second declared covariate is documented, not warned about", {
+  # More than one covariate is a standing limit of the enumeration rather
+  # than a fact about one grid: it is the same answer at every `n_int` and on
+  # every arm, and it fires on every multi-covariate survival fit whose
+  # comparator carries its own auxiliary. Warning there would be noise on
+  # every real analysis, so the limit is stated in the guard's documented
+  # scope and the fit is not interrupted.
+  ip <- set_ipd(
+    data.frame(trt = "A", time = exp(c(-0.4, 0.3, 0.1, 0.7)),
+               status = rep(1L, 4), x = c(-0.5, -0.5, 0.5, 0.5),
+               w = c(-0.5, 0.5, -0.5, 0.5)),
+    treatment = "trt", covariates = c("x", "w"), family = "survival",
+    time = "time", status = "status"
+  )
+  ag <- set_agd_surv(
+    data.frame(trt = "B", time = c(1, 2, 4), status = rep(1L, 3),
+               x_mean = 0, x_sd = 1, w_mean = 0, w_sd = 1),
+    treatment = "trt", time = "time", status = "status",
+    cov_means = c("x_mean", "w_mean"), cov_sds = c("x_sd", "w_sd"),
+    cov_types = c("continuous", "continuous")
+  )
+  d <- suppressWarnings(add_integration(
+    combine_data(ip, ag), n_int = 16, verbose = FALSE,
+    x = distr(stats::qnorm, mean = x_mean, sd = x_sd),
+    w = distr(stats::qnorm, mean = w_mean, sd = w_sd)
+  ))
+  expect_silent(
+    out <- mlumr:::.check_comparator_tied_events(d, "lognormal",
+                                                 aux_by = ".study")
+  )
+  expect_false(out)
+})
+
+test_that("an exactly matched Gaussian grid is refused through mlumr()", {
+  # The public path for the same geometry: three comparator events at 1, 2
+  # and 4 against the default Gaussian grid, whose symmetric quartiles carry
+  # them exactly. Rank 2 against three rows leaves one power of the scale,
+  # which does not integrate, and the comparator's own auxiliary means the
+  # index cannot suppress it.
+  ip <- set_ipd(
+    data.frame(trt = "A", time = c(0.8, 1.2, 2, 2.5), status = rep(1L, 4),
+               x = c(-1, -1, 1, 1)),
+    treatment = "trt", family = "survival", time = "time",
+    status = "status", covariates = "x"
+  )
+  ag <- set_agd_surv(
+    data.frame(trt = "B", time = c(1, 2, 4), status = rep(1L, 3),
+               x_mean = 0, x_sd = 1),
+    treatment = "trt", time = "time", status = "status",
+    cov_means = "x_mean", cov_sds = "x_sd", cov_types = "continuous"
+  )
+  d <- suppressWarnings(add_integration(
+    combine_data(ip, ag), n_int = 64, verbose = FALSE,
+    x = distr(stats::qnorm, mean = x_mean, sd = x_sd)
+  ))
+  nodes <- as.numeric(d$integration_points[1L, , 1L])
+  a <- stats::qnorm(0.75)
+  expect_true(all(c(-a, 0, a) %in% nodes))
+  expect_error(
+    mlumr:::.check_comparator_tied_events(d, "lognormal", aux_by = ".study",
+                                          model = "relaxed"),
+    "is therefore improper"
+  )
 })

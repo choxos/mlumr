@@ -297,6 +297,53 @@
   e
 }
 
+#' Whether an exact sum of doubles is exactly zero
+#'
+#' The two transformations above answer "was this one operation exact". That
+#' is a SUFFICIENT condition for a computed result to be the real one and not
+#' a necessary one, and reading it as necessary is how an exactly consistent
+#' grid came back undecided: two rounded products can have exactly cancelling
+#' errors, so their computed difference is the true difference while neither
+#' factor was exact. `(2 log 2) * a - (log 2) * (2 a)` at
+#' `a = qnorm(0.75)` is the case, with both errors `-5.3745e-17`.
+#'
+#' What decides is the exact value of the whole expression, so this takes the
+#' expression already split into terms whose sum is exact by construction and
+#' answers whether that sum is zero. Shewchuk's `GROW-EXPANSION`: fold each
+#' term into a non-overlapping expansion with TwoSum, keeping every error as
+#' its own component, smallest first. The fold is exact at each step, so the
+#' expansion's sum is the terms' sum; being non-overlapping, it is zero
+#' exactly when every component is, since the largest nonzero component
+#' cannot be cancelled by smaller ones that do not reach its bits.
+#'
+#' The cost is one TwoSum per pair, `k (k - 1) / 2` for `k` terms, which is
+#' six for the four this file needs. It is a fixed sequence of elementwise
+#' operations, so it vectorizes over a whole candidate matrix at once.
+#'
+#' @param terms A list of numerics whose exact sum is the quantity in
+#'   question. The first must carry the dimensions the answer should have;
+#'   the rest are recycled against it as usual.
+#' @return Logical, `TRUE` where the exact sum is zero. `NA` where any term
+#'   is not finite, since nothing was established there.
+#' @keywords internal
+.exact_sum_is_zero <- function(terms) {
+  parts <- list()
+  for (t in terms) {
+    q <- t
+    grown <- vector("list", length(parts) + 1L)
+    for (i in seq_along(parts)) {
+      sm <- q + parts[[i]]
+      grown[[i]] <- .two_sum_err(q, parts[[i]], sm)
+      q <- sm
+    }
+    grown[[length(parts) + 1L]] <- q
+    parts <- grown
+  }
+  ok <- parts[[1L]] == 0
+  for (i in seq_along(parts)[-1L]) ok <- ok & parts[[i]] == 0
+  ok
+}
+
 #' Can one affine map send every target onto a grid node?
 #'
 #' The comparator's matching equations are solvable when some coefficient
@@ -324,8 +371,7 @@
 #' positive residual is a ridge the profile abandons as soon as the auxiliary
 #' falls below that residual, so accepting one refuses a proper fit for a
 #' singularity it does not have. Nodes `(1, 2, 3)` against targets
-#' `(0, 1, 2 + 1e-15)` are a near miss no affine map removes, and they report
-#' undecided rather than a match.
+#' `(0, 1, 2 + 1e-15)` are a near miss no affine map removes.
 #'
 #' Consistency is therefore read off the DETERMINANT of the original data,
 #'
@@ -341,27 +387,61 @@
 #' is inexact where the geometry is not: `-log(2) + log(2) * 3 == log(4)` is
 #' FALSE while `log(4) - log(2) * 2 == 0` is TRUE.
 #'
+#' What decides is that determinant's EXACT value, which the computed one
+#' need not be in either direction. Asking instead whether every operation
+#' producing it was individually exact is SUFFICIENT for the computed value
+#' to be the real one, and reading a sufficient condition as a necessary one
+#' left an exactly consistent grid undecided: at `a = qnorm(0.75)`, nodes
+#' `(-a, 0, a)` against targets `(0, log 2, log 4)` are carried by
+#' `mu = log 2` and slope `log(2) / a`, and both products in the determinant
+#' round by the same `-5.3745e-17`, so they cancel and the computed zero is
+#' the true one. Those nodes are the symmetric quartiles of the default
+#' Gaussian integration grid. The determinant is split into its exact parts
+#' instead and [.exact_sum_is_zero()] answers for the whole expression, with
+#' no tolerance anywhere. Verified against exact rational arithmetic on
+#' 12,000 generated grids, half of them carrying a planted affine image:
+#' no disagreement in either direction.
+#'
 #' @param nodes The arm's integration nodes, one row per node.
 #' @param targets The arm's event targets, on the scale the density matches.
-#' @return `TRUE` only where an exact map was found, `FALSE` where the
-#'   enumeration excluded every candidate it examined, and `NA` where the
-#'   case was not
-#'   decided: more than one covariate, a grid past the enumeration budget, or
-#'   a candidate that is close without being exact. An `NA` from the budget
-#'   carries a `declined` attribute of `"budget"`, because that is the only
-#'   one of the three that makes the same data answerable at one `n_int` and
-#'   unexamined at another, and the caller reports it rather than falling
-#'   silent.
+#' @return `TRUE` where an exact map was found, `FALSE` where the enumeration
+#'   excluded every candidate, and `NA` where the question was not decided.
+#'   Every `NA` carries the reason as a `declined` attribute, because a
+#'   question that went unasked is not a question that found nothing and only
+#'   the reason says which of those happened:
+#'
+#'   * `"dimension"`, more than one covariate. A standing limit of the method
+#'     used here, the same answer at every `n_int` and on every arm.
+#'   * `"budget"`, a grid past the enumeration budget. The same data is
+#'     answerable at a smaller `n_int`.
+#'   * `"inexact"`, a candidate within rounding of a match whose determinant
+#'     could not be settled exactly, because one of the four differences
+#'     feeding it rounded. The eight-product expansion of the original
+#'     operands would decide it and is not built here.
+#'   * `"unavailable"`, `"degenerate"`, `"nonfinite"`, no usable grid,
+#'     fewer than two distinct nodes or targets, or non-finite inputs.
+#'
+#'   The caller reports the first two kinds of fact about a particular grid
+#'   and documents the standing limit; see [.check_comparator_tied_events()].
 #' @keywords internal
 .grid_hits_targets <- function(nodes, targets) {
-  if (is.null(nodes) || !is.matrix(nodes) || ncol(nodes) != 1L) return(NA)
+  # Every way of not deciding carries its REASON, because the caller does
+  # different things with them and cannot tell them apart from a bare `NA`.
+  # Exceeding the budget and failing to settle the arithmetic are facts about
+  # this grid, which the caller reports; more than one covariate is a
+  # standing limit of the method used here, the same answer at every `n_int`
+  # and on every arm, which belongs in the documentation rather than in a
+  # warning on every fit that declares two covariates.
+  undecided <- function(why) structure(NA, declined = why)
+  if (is.null(nodes) || !is.matrix(nodes)) return(undecided("unavailable"))
+  if (ncol(nodes) != 1L) return(undecided("dimension"))
   u <- sort(unique(as.numeric(targets)))
   z <- sort(unique(as.numeric(nodes[, 1L])))
   n <- length(z)
-  if (length(u) < 2L || n < 2L) return(NA)
-  if (!all(is.finite(u)) || !all(is.finite(z))) return(NA)
+  if (length(u) < 2L || n < 2L) return(undecided("degenerate"))
+  if (!all(is.finite(u)) || !all(is.finite(z))) return(undecided("nonfinite"))
   b <- u[2L] - u[1L]
-  if (!is.finite(b) || b == 0) return(NA)
+  if (!is.finite(b) || b == 0) return(undecided("nonfinite"))
   rest <- u[-c(1L, 2L)]
   # Two targets are matched by any two distinct nodes, so the only question
   # is whether a usable pair exists at all: finite nodes can still have an
@@ -386,15 +466,8 @@
   # this is meant to decline, and the `if` then aborts the fit with
   # "missing value where TRUE/FALSE needed" instead of answering.
   #
-  # A decline is labeled, because the caller treats it differently from the
-  # other two ways this answers NA. More than one covariate is a documented
-  # limit of the method used here and is the same answer at every grid size;
-  # a close-but-inexact candidate means the enumeration RAN and certified
-  # nothing, which is evidence of a proper fit rather than an absent check.
-  # Only the budget makes the same data answerable at one `n_int` and
-  # unexamined at another, which is the state the caller has to report.
   if (as.double(n) * n * length(rest) > 4e7) {
-    return(structure(NA, declined = "budget"))
+    return(undecided("budget"))
   }
   # Consistency is tested on the DETERMINANT of the original data, never by
   # reconstructing predictions from a fitted `(a, b)`. Anchoring `u[1]` and
@@ -412,24 +485,53 @@
   # survive the round trip, since `-log(2) + log(2) * 3 == log(4)` is FALSE
   # while `log(4) - log(2) * 2 == 0` is TRUE.
   #
-  # And the answer is three-valued. Only an EXACT zero certifies; a residual
-  # that is merely small is a near miss, and calling it a match refuses a
-  # proper fit. Nodes `(1, 2, 3)` against targets `(0, 1, 2 + 1e-15)` leave
-  # 1e-15, which no affine map removes. Those report undecided, which the
-  # caller reads as silence.
+  # And the verdict is the determinant's EXACT value, which the computed one
+  # need not be. Both products are rounded before the subtraction, so a
+  # determinant that is genuinely nonzero can cancel to zero: nodes
+  # `(0, 0.3961039261018525, 1.04621481495181)` against targets
+  # `(0, 0.6209825942831111, 1.6401786176669797)` compute 0 while the
+  # determinant of those very doubles is -3.4958e-17, and no permutation of
+  # them is an affine match. And the reverse: two rounded products can have
+  # exactly cancelling errors, so an exact match computes zero with neither
+  # factor exact. Nodes `(-a, 0, a)` at `a = qnorm(0.75)` against targets
+  # `(0, log 2, log 4)` are matched by `mu = log 2, slope = log(2) / a`, and
+  # both products round by the same `-5.3745e-17`. Those nodes are the
+  # symmetric quartiles of the default Gaussian integration grid, so this is
+  # an ordinary `add_integration()` result rather than a constructed one.
+  #
+  # Asking instead whether EVERY step was individually exact answers the
+  # first case and gets the second wrong, because per-operation exactness is
+  # sufficient for the computed determinant to be the real one and not
+  # necessary. So the two products are split into their exact parts and the
+  # determinant's own value decides:
+  #
+  #   det = (a - bz) + err(a - bz) + err(tm * dz) - err(b * zz)
+  #
+  # is an exact identity between four doubles whenever the four DIFFERENCES
+  # feeding it were exact, and [.exact_sum_is_zero()] answers whether that
+  # sum is zero without a tolerance anywhere. A difference that itself
+  # rounded would need the eight-product expansion of the true operands,
+  # which is not built here; those candidates stay undecided.
+  #
+  # Undecided is a real third answer and is reported as one. Nodes
+  # `(1, 2, 3)` against targets `(0, 1, 2 + 1e-15)` are now certified NOT to
+  # match, since their differences are exact and the exact determinant is
+  # nonzero; what is left undecided is only a rounded difference or an
+  # overflowed product.
   close <- FALSE
-  b_exact <- .two_sum_err(u[2L], -u[1L], b) == 0
+  b_err <- .two_sum_err(u[2L], -u[1L], b)
   tm <- rest - u[1L]
-  tm_exact <- .two_sum_err(rest, -u[1L], tm) == 0
+  tm_err <- .two_sum_err(rest, -u[1L], tm)
   eps64 <- 64 * .Machine$double.eps
   for (j1 in seq_len(n)) {
     z0 <- z[j1]
     dz <- z - z0
     # A pair is ENUMERATED whenever its difference is usable; whether that
-    # difference was itself exact only decides whether the pair can certify.
+    # difference was itself exact only decides whether the pair can be
+    # decided.
     pair <- is.finite(dz) & dz != 0
     if (!any(pair)) next
-    dz_exact <- (.two_sum_err(z, -z0, dz) == 0) & b_exact
+    dz_exact <- (.two_sum_err(z, -z0, dz) == 0) & b_err == 0
     alive <- pair
     exact <- pair
     for (ti in seq_along(rest)) {
@@ -441,7 +543,7 @@
       # certify anything on its own. Four neighbors, since that rounding can
       # land on either side of the node it is looking for.
       a <- tm[ti] * dzi
-      a_exact <- (.two_prod_err(tm[ti], dzi, a) == 0) & tm_exact[ti]
+      a_err <- .two_prod_err(tm[ti], dzi, a)
       want <- z0 + a / b
       i <- findInterval(want, z)
       cand <- pmin(pmax(cbind(i - 1L, i, i + 1L, i + 2L), 1L), n)
@@ -450,34 +552,36 @@
       bz <- b * zz
       det <- a - bz
       tol <- eps64 * pmax(1, abs(a) + abs(bz))
-      # A computed zero is not an exact zero. Both products are rounded
-      # before the subtraction, so a determinant that is genuinely nonzero
-      # can cancel to 0: nodes `(0, 0.3961039261018525, 1.04621481495181)`
-      # against targets `(0, 0.6209825942831111, 1.6401786176669797)`
-      # compute 0 while the determinant of those very doubles is
-      # -3.4958e-17, and no permutation of them is an affine match. So a
-      # zero certifies only when EVERY step that produced it was itself
-      # exact, which makes the computed determinant the real one.
-      ex <- dz_exact[idx] & a_exact &
-        (.two_sum_err(zc, -z0, zz) == 0) &
-        (.two_prod_err(b, zz, bz) == 0) &
-        (.two_sum_err(a, -bz, det) == 0)
-      ex[is.na(ex)] <- FALSE
+      bz_err <- .two_prod_err(b, zz, bz)
+      det_err <- .two_sum_err(a, -bz, det)
+      # The four differences, each exact or the candidate is not decided.
+      # `det` is the only full matrix among the terms, so it leads the sum
+      # and the rest recycle down its columns.
+      settled <- dz_exact[idx] & tm_err[ti] == 0 &
+        (.two_sum_err(zc, -z0, zz) == 0)
+      zero <- .exact_sum_is_zero(list(det, det_err, a_err, -bz_err))
       # Finite nodes and finite targets can still overflow their products:
       # nodes `(0, 5e307, 1e308)` against targets `(-700, 0, 700)` send both
       # `a` and `bz` to infinity, so `det` is NaN and `tol` is Inf, and
       # `abs(NaN) <= Inf` is NA. Comparing on that aborted the fit with
       # "missing value where TRUE/FALSE needed" instead of answering. A
       # candidate whose determinant is not finite tells us nothing, so it is
-      # neither an exact match nor a close one.
+      # neither a match nor a miss.
       usable <- is.finite(det) & is.finite(tol)
-      exact[idx] <- exact[idx] & (rowSums(usable & det == 0 & ex) > 0)
-      alive[idx] <- rowSums(usable & abs(det) <= tol) > 0
+      decided <- settled & usable & !is.na(zero)
+      decided[is.na(decided)] <- FALSE
+      hit <- decided & zero
+      # An undecided candidate is kept alive on the old proximity test,
+      # since it may yet be the match, but it can never certify one.
+      near <- !decided & usable & abs(det) <= tol
+      near[is.na(near)] <- FALSE
+      exact[idx] <- exact[idx] & (rowSums(hit) > 0)
+      alive[idx] <- rowSums(hit | near) > 0
     }
     if (any(exact & alive)) return(TRUE)
     if (any(alive)) close <- TRUE
   }
-  if (close) NA else FALSE
+  if (close) undecided("inexact") else FALSE
 }
 
 #' Refuse a comparator curve whose tied event times collapse its auxiliary
@@ -834,6 +938,36 @@
 #' reweights the ridge by a bounded factor instead of suppressing it. The
 #' reach is `1 + n_cov` under either.
 #'
+#' # What this does not decide
+#'
+#' Silence from this function is not a certificate. Three things are outside
+#' it, and the difference between them is whether the gap is a fact about one
+#' fit or a standing limit of the method.
+#'
+#' Past the grid's reach, whether one affine map carries every comparator
+#' event time onto a node is decided by [.grid_hits_targets()], **and only
+#' for a single declared covariate**. With two or more the map is a
+#' hyperplane, the enumeration that covers every candidate for a line does
+#' not cover it, and no attempt is made: the arm is passed over. That is the
+#' same answer at every `n_int` and on every arm, so it is stated here rather
+#' than warned about on each fit; it fires on every multi-covariate survival
+#' fit whose comparator carries its own auxiliary. Such a fit is not thereby
+#' improper, and it is not thereby certified proper either. `rank(D)` is a
+#' lower bound on the true rate under more than one covariate for the same
+#' reason, which the netting rules above already account for.
+#'
+#' The other two gaps ARE facts about one grid and are warned about when they
+#' occur: a grid past the enumeration budget, and a candidate within rounding
+#' of a match whose determinant the available arithmetic could not settle.
+#' Both are rare. Of 400 arms built from `add_integration()` grids of 8 to
+#' 128 points against 40 reconstructed event times, all 400 were decided
+#' outright.
+#'
+#' Beyond the enumeration, the deferred cases are the PH-Weibull and Gompertz
+#' ridges, whose width does not shrink and whose growth meets the coefficient
+#' priors rather than `prior_aux`, and any allocation of lower rank than the
+#' canonical one under more than one covariate.
+#'
 #' @param data An `mlumr_data` object with `family = "survival"`.
 #' @param distribution The resolved survival distribution.
 #' @param aux_by The auxiliary stratification, as passed to [mlumr()].
@@ -1049,7 +1183,7 @@
   target <- suppressWarnings(log(time))
   worst <- 0L
   info <- NULL
-  declined <- FALSE
+  declined <- character()
   by_arm <- split(seq_along(time)[events], arm[events])
   for (a in names(by_arm)) {
     rows <- by_arm[[a]]
@@ -1090,12 +1224,13 @@
     if (k > reachable) {
       hit <- .grid_hits_targets(grid$nodes, tg)
       if (!isTRUE(hit)) {
-        # A grid too large to enumerate is not a grid with nothing to find.
-        # The same three comparator events over the same declared covariate
-        # are refused at `n_int = 8` and, before the cost model was
-        # corrected, ran to the sampler at 256 with nothing in the result
-        # saying the question had gone unasked. Carry it out of the loop.
-        if (identical(attr(hit, "declined"), "budget")) declined <- TRUE
+        # A question that went UNASKED is not a question that found nothing,
+        # and the difference is the whole point of asking. The same three
+        # comparator events over the same declared covariate are refused at
+        # `n_int = 8` and, before the cost model was corrected, ran to the
+        # sampler at 256 with nothing in the result saying so. Carry the
+        # reason out of the loop; `FALSE` is a real answer and carries none.
+        if (is.na(hit)) declined <- c(declined, attr(hit, "declined"))
         next
       }
     }
@@ -1341,21 +1476,44 @@
     # so is the whole difference between the two. The same three comparator
     # events over the same declared covariate are refused at `n_int = 8`;
     # at a grid past the enumeration budget the question simply goes unasked.
-    if (declined) {
+    #
+    # Which of the reasons reaches the user is a question about the reason,
+    # not about the severity: a fact about THIS grid belongs in the result of
+    # this fit, and a standing limit of the method belongs in its
+    # documentation. The budget and an unsettled determinant are the first
+    # kind, and both are rare: of 400 arms built from `add_integration()`
+    # grids of 8 to 128 points against 40 reconstructed event times, every
+    # one was decided outright. More than one covariate is the second kind.
+    # It is not a property of the data at all, it is the same answer at every
+    # `n_int` and on every arm, and it fires on every multi-covariate
+    # survival fit whose comparator carries its own auxiliary (measured: one
+    # per arm at two, three and four covariates), so a warning there would be
+    # noise on every real analysis rather than news about one. It is stated
+    # in this function's documented scope instead.
+    tell <- intersect(c("budget", "inexact"), declined)
+    for (why in tell) {
+      detail <- if (identical(why, "budget")) {
+        paste0("the grid is past this check's enumeration budget. The same ",
+               "arm on a smaller grid may be refused as improper, so this ",
+               "silence is not a certificate that the posterior exists. ",
+               "Re-run with a smaller `n_int` to have the question ",
+               "answered, or give")
+      } else {
+        paste0("a candidate map came within rounding of carrying them, and ",
+               "whether it does so exactly could not be settled by the ",
+               "arithmetic this grid allows. A map that does carry them ",
+               "makes the posterior improper, so this silence is not a ",
+               "certificate that it exists. Give")
+      }
       warning("The reconstructed comparator curve has more event rows than ",
               "the integration grid's rank, and whether a single affine map ",
               "carries every one of its event times onto a node was left ",
-              "unexamined: the grid is past this check's enumeration ",
-              "budget. The same arm on a smaller grid may be refused as ",
-              "improper, so this silence is not a certificate that the ",
-              "posterior exists. Re-run with a smaller `n_int` to have the ",
-              "question answered, or give the comparator its own auxiliary ",
-              "with `aux_by = \".study\"`, and check the sampler's ",
-              "behavior near the boundary of ", .aux_name(distribution),
-              ".", call. = FALSE)
-      return(invisible(TRUE))
+              "unexamined: ", detail, " the comparator its own auxiliary ",
+              "with `aux_by = \".study\"`, and check the sampler's behavior ",
+              "near the boundary of ", .aux_name(distribution), ".",
+              call. = FALSE)
     }
-    return(invisible(FALSE))
+    return(invisible(length(tell) > 0L))
   }
   # The rate is NOT shared across families, and reading one family's off
   # another is how the wrong exponent gets into a message. What the spikes
