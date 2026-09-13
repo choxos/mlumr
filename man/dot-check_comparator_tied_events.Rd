@@ -298,7 +298,14 @@ Two or more comparator targets pin it too, to values the integration
 points fix, and if those sets do not intersect then every path to the
 boundary leaves one side with a positive residual whose exponential decay
 beats the other's polynomial growth. Solving that combined system is not
-this function's, so the case is warned about. A single distinct target is
+this function's, so the case is warned about. The overlap that makes an
+index order and a comparator rate fail to add needs a design that
+constrains the slope at all: a matched design of rank 1 is one row,
+\verb{(0, 1, z_j)}, whose only vector with a zero second component is the zero
+vector, so nothing of the form \verb{(0, 0, v)} lies in it and the two orders
+add however many index rows there are.
+
+A single distinct target is
 not that case: its one equation is absorbed by the free \code{mu_comparator},
 \code{beta} stays free BY THE EVENTS, the comparator ridge contains whatever
 the index's exact fit needs, and both singularities stand at once. That

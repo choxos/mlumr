@@ -726,7 +726,14 @@
 #' points fix, and if those sets do not intersect then every path to the
 #' boundary leaves one side with a positive residual whose exponential decay
 #' beats the other's polynomial growth. Solving that combined system is not
-#' this function's, so the case is warned about. A single distinct target is
+#' this function's, so the case is warned about. The overlap that makes an
+#' index order and a comparator rate fail to add needs a design that
+#' constrains the slope at all: a matched design of rank 1 is one row,
+#' `(0, 1, z_j)`, whose only vector with a zero second component is the zero
+#' vector, so nothing of the form `(0, 0, v)` lies in it and the two orders
+#' add however many index rows there are.
+#'
+#' A single distinct target is
 #' not that case: its one equation is absorbed by the free `mu_comparator`,
 #' `beta` stays free BY THE EVENTS, the comparator ridge contains whatever
 #' the index's exact fit needs, and both singularities stand at once. That
@@ -1249,14 +1256,22 @@
   # system across every allocation, which this does not do, so a shared slope
   # is reported instead.
   #
-  # Only from order TWO, though. In `(mu_index, mu_comparator, beta)` an
-  # index constraint is `(1, 0, x)` and every comparator constraint is
-  # `(0, 1, z)`, so no combination of comparator rows reaches a nonzero first
-  # component and a SINGLE index row is independent of all of them: the ranks
-  # add whatever the shared slope does, and the stacked system stays
-  # consistent because `mu_index` is left free to satisfy that row. It takes
-  # a second index row for the difference `(0, 0, x_1 - x_2)` to appear,
-  # which is a pure slope direction and can lie in the comparator's span.
+  # Only from order TWO, and only when the comparator constrains the slope at
+  # all. In `(mu_index, mu_comparator, beta)` an index constraint is
+  # `(1, 0, x)` and every comparator constraint is `(0, 1, z)`, so no
+  # combination of comparator rows reaches a nonzero first component and a
+  # SINGLE index row is independent of all of them: the ranks add whatever
+  # the shared slope does, and the stacked system stays consistent because
+  # `mu_index` is left free to satisfy that row. It takes a second index row
+  # for the difference `(0, 0, x_1 - x_2)` to appear, which is a pure slope
+  # direction and can lie in the comparator's span.
+  #
+  # And it has to have somewhere to lie. A matched design of rank 1 is one
+  # row, `(0, 1, z_j)`, whose only vector with a zero second component is the
+  # zero vector, so nothing of the form `(0, 0, v)` is in it and the ranks
+  # add again. Four comparator events tied at one time are rate 3 against two
+  # touching index profiles' 2, and that nets to 1 rather than going
+  # unresolved.
   #
   # And it can only be subtracted from a rate that is EXACT. `worst` is
   # `m - min(k, reach)`, which is the rate for one covariate and a lower
@@ -1278,7 +1293,8 @@
     if (is.na(index_aux_order)) {
       index_unresolved <- worst >= 1L
       unresolved_why <- "unsettled"
-    } else if (index_aux_order > 1 && !separate_slopes) {
+    } else if (index_aux_order > 1 && !separate_slopes &&
+                 isTRUE(info$rank > 1L)) {
       index_unresolved <- worst >= 1L
       unresolved_why <- "overlap"
     } else if (index_aux_order > 0 && !exact_rate &&

@@ -388,7 +388,13 @@
   rows reaches a nonzero first component, a single index row is independent
   of all of them, and the ranks add whatever the shared slope does. It takes
   a second index row for the difference `(0, 0, x_1 - x_2)` to appear, which
-  is a pure slope direction and can lie in the comparator's span.
+  is a pure slope direction and can lie in the comparator's span. It also
+  needs somewhere to lie: a matched design of rank 1 is one row,
+  `(0, 1, z_j)`, whose only vector with a zero second component is the zero
+  vector, so nothing of the form `(0, 0, v)` is in it and the ranks add
+  again. Four comparator events tied at one time are rate 3 against two
+  touching index profiles' 2, and that nets to 1 rather than going
+  unresolved.
 
   Reproducing its own times is also not the same as IDENTIFYING that shared
   slope, and the report needs the second. Repeated index events at one

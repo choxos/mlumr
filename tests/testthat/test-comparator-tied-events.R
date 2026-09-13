@@ -1231,3 +1231,24 @@ test_that("an order is not netted off a rate that is only a lower bound", {
   expect_false(check(one, aux_by = "none", model = "relaxed",
                      index_aux_order = 1))
 })
+
+test_that("a rank-1 comparator design has nothing for the index to overlap", {
+  # A matched design of rank 1 is one row, `(0, 1, z_j)`, whose only vector
+  # with a zero second component is the zero vector. Nothing of the form
+  # `(0, 0, v)` lies in it, so the index's pure-slope differences cannot
+  # overlap it and the ranks add whatever the shared slope does.
+  tied <- .comp_stub(c(1, 1, 1, 1), rep(1L, 4))
+  expect_match(msg(tied), "4 event rows at 1 distinct log-time")
+  expect_match(msg(tied), "diverges at rate 3")
+  # Two touching index profiles remove two powers, so this nets to 1 and is
+  # refused rather than reported as an overlap.
+  expect_match(msg(tied, aux_by = "none", model = "spfa",
+                   index_aux_order = 2), "diverges at rate 1")
+  # Two distinct targets give the design a slope row, and then the overlap
+  # question is real again.
+  pair <- .comp_stub(c(1, 1, 4, 4), rep(1L, 4))
+  w <- tryCatch(check(pair, aux_by = "none", model = "spfa",
+                      index_aux_order = 2), warning = conditionMessage)
+  expect_match(w, "do not simply add")
+  expect_no_match(w, "is therefore improper")
+})
