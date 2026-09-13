@@ -61,7 +61,15 @@ the log-normal survival `1 - Phi((log c - eta) / sigma)` goes to zero as
 
 ## Value
 
-`"bounded"`, `"unbounded"`, or `"undetermined"`.
+`"bounded"`, `"suppresses"`, `"unbounded"`, or `"undetermined"`.
+`"bounded"` means the auxiliary is held away from its boundary, which is
+an exponential suppression and removes any polynomial growth elsewhere.
+`"suppresses"` means it is not, but the coefficient volume that keeps
+the rows' likelihood positive shrinks as the auxiliary's width to the
+power of the `order` attribute, so it cancels that many powers of a
+growth that shares the auxiliary. `"unbounded"` means the contribution
+is a positive constant, and `"undetermined"` that none of the three was
+established.
 
 ## Details
 

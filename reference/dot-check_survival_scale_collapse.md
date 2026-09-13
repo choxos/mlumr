@@ -52,17 +52,43 @@ function did not establish that, which is not the same as establishing
 the opposite.
 [`.check_comparator_tied_events()`](https://choxos.github.io/mlumr/reference/dot-check_comparator_tied_events.md)
 reads it under `aux_by = "none"`. A shared-auxiliary warning also
-carries `index_exact`: `TRUE` when the index event design was shown to
-reproduce its own times and so pins a shared coefficient vector, `FALSE`
-only where it was shown to pin nothing, and `NA` where the question was
-not settled. The three are distinct on purpose, and an index with NO
-events is not automatically the second of them: having no events means
-no design to fit, not that nothing bounds the auxiliary. Censored rows
-alone can bound it, and when they conflict they do, so an eventless
+carries `index_exact`: `TRUE` when the index was shown to pin a shared
+coefficient vector, `FALSE` only where it was shown to pin nothing, and
+`NA` where the question was not settled. An exact event design is the
+usual way to pin one; censored rows whose regions TOUCH are another,
+since left and right censoring meeting at `t = 1` on `x = -1` and
+`x = 1` forces `mu_index` and `beta` to zero exactly as two events there
+would, so that case reports `TRUE` too and carries the touching rows as
+its `index_design`. The three are distinct on purpose, and an index with
+NO events is not automatically the second of them: having no events
+means no design to fit, not that nothing bounds the auxiliary. Censored
+rows alone can bound it, and when they conflict they do, so an eventless
 index is answered by asking whether any linear predictor satisfies every
 one of its regions at once. A certified conflict returns
-`bounds_aux = TRUE`, a certified absence of one returns
-`index_exact = FALSE`, and an undecided case returns neither.
+`bounds_aux = TRUE`.
+
+Absent a conflict, an eventless index also carries `aux_order`, which is
+how many powers of the auxiliary's WIDTH its censored rows already
+remove. The three-way question above is not the same as this one, and
+collapsing them refused proper fits: regions that merely TOUCH pin the
+index predictor to a point rather than to an open region, so the
+coefficient volume keeping their likelihood positive shrinks with the
+width even though the pointwise maximum is a positive constant at every
+scale. `aux_order` is `0` for regions with interior, the rank of the
+touching profile rows where they touch, and `NA` where none of that was
+established, including every family but `lognormal`, for which alone the
+order was measured.
+[`.check_comparator_tied_events()`](https://choxos.github.io/mlumr/reference/dot-check_comparator_tied_events.md)
+subtracts a certified order from its own rate under `aux_by = "none"`
+and reports rather than refuses on an `NA`.
+
+An index WITH events carries it too, and on the same distinction: a
+design shown to reproduce its own times pins rather than suppresses, so
+it reports `0` and the comparator refusal stands, while `undecidable`,
+`unresolved` and `unresolved_log` did not settle whether a residual
+exists at all. A real one there contributes `exp(-RSS / (2 * sdlog^2))`
+and removes the comparator's growth entirely, so those report `NA`
+rather than a zero that would turn an open question into a refusal.
 
 ## Details
 

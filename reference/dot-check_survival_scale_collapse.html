@@ -126,16 +126,39 @@ censored row that bounds). Anything else means this function did not
 establish that, which is not the same as establishing the opposite.
 <code><a href="dot-check_comparator_tied_events.html">.check_comparator_tied_events()</a></code> reads it under <code>aux_by = "none"</code>. A
 shared-auxiliary warning also carries <code>index_exact</code>: <code>TRUE</code> when the index
-event design was shown to reproduce its own times and so pins a shared
-coefficient vector, <code>FALSE</code> only where it was shown to pin nothing, and
-<code>NA</code> where the question was not settled. The three are distinct on
+was shown to pin a shared coefficient vector, <code>FALSE</code> only where it was
+shown to pin nothing, and <code>NA</code> where the question was not settled. An
+exact event design is the usual way to pin one; censored rows whose
+regions TOUCH are another, since left and right censoring meeting at
+<code>t = 1</code> on <code>x = -1</code> and <code>x = 1</code> forces <code>mu_index</code> and <code>beta</code> to zero
+exactly as two events there would, so that case reports <code>TRUE</code> too and
+carries the touching rows as its <code>index_design</code>. The three are distinct on
 purpose, and an index with NO events is not automatically the second of
 them: having no events means no design to fit, not that nothing bounds
 the auxiliary. Censored rows alone can bound it, and when they conflict
 they do, so an eventless index is answered by asking whether any linear
 predictor satisfies every one of its regions at once. A certified
-conflict returns <code>bounds_aux = TRUE</code>, a certified absence of one returns
-<code>index_exact = FALSE</code>, and an undecided case returns neither.</p>
+conflict returns <code>bounds_aux = TRUE</code>.</p>
+<p>Absent a conflict, an eventless index also carries <code>aux_order</code>, which is
+how many powers of the auxiliary's WIDTH its censored rows already
+remove. The three-way question above is not the same as this one, and
+collapsing them refused proper fits: regions that merely TOUCH pin the
+index predictor to a point rather than to an open region, so the
+coefficient volume keeping their likelihood positive shrinks with the
+width even though the pointwise maximum is a positive constant at every
+scale. <code>aux_order</code> is <code>0</code> for regions with interior, the rank of the
+touching profile rows where they touch, and <code>NA</code> where none of that was
+established, including every family but <code>lognormal</code>, for which alone the
+order was measured. <code><a href="dot-check_comparator_tied_events.html">.check_comparator_tied_events()</a></code> subtracts a
+certified order from its own rate under <code>aux_by = "none"</code> and reports
+rather than refuses on an <code>NA</code>.</p>
+<p>An index WITH events carries it too, and on the same distinction: a
+design shown to reproduce its own times pins rather than suppresses, so
+it reports <code>0</code> and the comparator refusal stands, while <code>undecidable</code>,
+<code>unresolved</code> and <code>unresolved_log</code> did not settle whether a residual
+exists at all. A real one there contributes <code>exp(-RSS / (2 * sdlog^2))</code>
+and removes the comparator's growth entirely, so those report <code>NA</code>
+rather than a zero that would turn an open question into a refusal.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

@@ -14,7 +14,9 @@ which is this function's.
   aux_by = ".study",
   index_bounds_aux = FALSE,
   model = "relaxed",
-  index_exact = NA
+  index_exact = NA,
+  index_design = NULL,
+  index_aux_order = 0
 )
 ```
 
@@ -40,6 +42,33 @@ which is this function's.
   [`.check_survival_scale_collapse()`](https://choxos.github.io/mlumr/reference/dot-check_survival_scale_collapse.md)
   reports in its `bounds_aux` attribute. Consulted only when `aux_by` is
   `"none"`, where the comparator shares that parameter.
+
+- index_design:
+
+  The index EVENT design, as
+  [`.check_survival_scale_collapse()`](https://choxos.github.io/mlumr/reference/dot-check_survival_scale_collapse.md)
+  reports in its `index_design` attribute, or `NULL` where it did not
+  establish an exact fit. Reproducing its own times is not the same as
+  identifying the shared `beta`: repeated index events at one covariate
+  profile at one time fit exactly and leave `beta` free, and a free
+  `beta` is the direction the comparator tilts along to lift an
+  integration point past a censoring time. What has to be identified is
+  only the slope directions THIS arm's grid spans, which is why the
+  design arrives whole rather than as a verdict. Consulted only under
+  `model = "spfa"` with `aux_by = "none"`.
+
+- index_aux_order:
+
+  How many powers of the auxiliary's width the index rows already
+  remove, as
+  [`.check_survival_scale_collapse()`](https://choxos.github.io/mlumr/reference/dot-check_survival_scale_collapse.md)
+  reports in its `aux_order` attribute: `0` for an index that
+  contributes a positive constant, a positive number for one whose
+  feasible coefficient volume shrinks with the width, and `NA` for one
+  that was not settled. Consulted only when `aux_by` is `"none"`. A
+  certified order is subtracted from the comparator's own growth, since
+  both are written in powers of the same width; an unsettled one makes
+  this report rather than refuse.
 
 ## Value
 
@@ -74,27 +103,42 @@ repeat, past a reach of 2, and are matched exactly by
 `b = (-log 2, log 2)` for a rank of 2 and a measured slope of -1.0000
 per decade of scale.
 
-`rank(D)` is at most the reach and at most `k`, since rows sharing a
-node share a predictor, and a design of exactly `min(k, reach)` is
-always available: below the reach any `k` independent node rows give a
-consistent system, and past it the certificate below supplies one. So
-the exponent used is `m - min(k, reach)`.
+The rate is the LARGEST of those exponents over the consistent
+allocations, since the marginal is their sum and the smallest rank
+dominates it. What this needs, then, is an upper bound on the smallest
+rank, and the CANONICAL allocation supplies one: send every row sharing
+a target to one node, one node per distinct target. Its design has rank
+at most `k` and at most the reach, and it is consistent, below the reach
+because `k` independent node rows can be sent anywhere and past it
+because the certificate below supplies one. So the exponent used is
+`m - min(k, reach)`.
 
-That is the exponent EXACTLY for one covariate and a LOWER BOUND for
-more than one. `min(k, reach)` is the largest rank a matching design can
-have, and a smaller one gives a larger exponent: with two covariates,
-three collinear nodes carry three distinct targets that run affinely
-along that line at rank 2 rather than 3. So a refusal here is always
-certified, since a positive lower bound is a positive rate, while a skip
-may be hiding one. Searching for a lower-rank consistent allocation
-among two or more covariates is not done in either branch.
+That is a claim about the canonical allocation, not about every one. A
+different allocation can have HIGHER rank than `k`, since rows sharing a
+target may sit at different nodes whenever the coefficients are
+orthogonal to the difference between them, which two or more covariates
+allow. Those allocations are subdominant and change nothing.
+
+The exponent is EXACT for one covariate and a LOWER BOUND for more than
+one, because a consistent allocation of LOWER rank than the canonical
+one can exist and is not searched for: with two covariates, three
+collinear nodes carry three distinct targets that run affinely along
+that line at rank 2 rather than 3. A refusal is therefore always
+certified, since a positive lower bound on the rate is a positive rate,
+while a skip may be hiding one.
 
 Past the reach, existence itself is the question, and this refuses only
 what it can certify: with one covariate the map is a line that two
 (target, node) assignments fix, so enumerating node pairs decides it,
-and anything wider or too large to enumerate is left alone. Silence from
-this function is therefore NOT a certificate that the posterior is
-proper; a refusal is a certificate that it is not.
+and anything wider is left alone. Silence from this function is
+therefore NOT a certificate that the posterior is proper; a refusal is a
+certificate that it is not.
+
+A grid too large to enumerate is a third state, and it is reported
+rather than left silent. The enumeration costs `n * n * (k - 2)`, so its
+budget covers the ordinary resolutions; past that the same data would be
+refused at one `n_int` and unexamined at another, which is what a
+warning names.
 
 All `m` rows are matched on the solution set, so every one of them
 stands on a spike whose height grows as the auxiliary approaches its
@@ -147,50 +191,68 @@ needs the moved-coefficient count and both prior tails per
 configuration, which is a different question from this one and is not
 answered here.
 
-So it takes a REPEAT for any of these to be nonzero. The profile
-maximum, by contrast, grows in every one of those cases including the
-convergent ones, which is why the volume and not the profile is what
-this reasons about.
+What makes any of these nonzero is `m` against `rank(D)`, and a REPEAT
+is only the most obvious way to get there. Distinct times can be carried
+by a design of lower rank than their own count: `t = 1, 2, 4` on nodes
+`1, 2, 3` is three distinct targets with no repeat at rank 2. The
+profile maximum, by contrast, grows in every one of those cases
+including the convergent ones, which is why the volume and not the
+profile is what this reasons about.
 
-Past the grid's reach there is no divergence to refuse. With `k` greater
-than `rank(cbind(1, X_int))` the `k` equations have no solution, the
-best simultaneous match leaves a residual `d > 0`, and the profile
-collapses like `exp(-d^2 / (2 * aux^2))` once the auxiliary falls below
-`d`. What happens before that looks exactly like a divergence and is not
-one: three distinct times over 20 nodes leave `d = 5.99e-4` and the
-profile peaks between `sdlog` of 1e-3 and 1e-4 before falling to -1.8e7
-by 1e-7, while the same times over 64 nodes leave `d = 3.62e-5` and peak
-at 1e-5 instead, collapsing from 1e-6 on. A finer grid moves the
-collapse out; it does not remove it, and the posterior is proper either
-way. A measured slope over any fixed range of the auxiliary cannot tell
-the two apart, so the test here is structural: `k` against the reach,
-never a slope. The reach is the EXACT rank, since a grid whose columns
-are independent but badly scaled reads as deficient at
-[`qr()`](https://rdrr.io/r/base/qr.html)'s default tolerance while the
-direction is still there and the prior is still positive where the ridge
-sits.
+Past the grid's reach there MAY be no divergence to refuse, and which it
+is has to be decided rather than counted. With `k` greater than
+`rank(cbind(1, X_int))` the `k` equations are overdetermined, which does
+not make them inconsistent. When they really are inconsistent the best
+simultaneous match leaves a residual `d > 0` and the profile collapses
+like `exp(-d^2 / (2 * aux^2))` once the auxiliary falls below `d`. What
+happens before that looks exactly like a divergence and is not one:
+three distinct times over 20 nodes leave `d = 5.99e-4` and the profile
+peaks between `sdlog` of 1e-3 and 1e-4 before falling to -1.8e7 by 1e-7,
+while the same times over 64 nodes leave `d = 3.62e-5` and peak at 1e-5
+instead, collapsing from 1e-6 on. A finer grid moves the collapse out;
+it does not remove it, and the posterior is proper either way. A
+measured slope over any fixed range of the auxiliary cannot tell the two
+apart, so the test here is structural, never a slope: `k` against the
+reach decides how the question is ASKED, and past the reach
+[`.grid_hits_targets()`](https://choxos.github.io/mlumr/reference/dot-grid_hits_targets.md)
+answers it by enumerating the candidate maps. The reach is the EXACT
+rank, since a grid whose columns are independent but badly scaled reads
+as deficient at [`qr()`](https://rdrr.io/r/base/qr.html)'s default
+tolerance while the direction is still there and the prior is still
+positive where the ridge sits.
 
-A censored row in the same arm can suppress this, and whether it does
-turns on the same `k` against the reach. Its own contribution is a
-mixture over the grid too, `log_sum_exp(log S) - log(n_int)`, so it
-vanishes only if EVERY node's region probability vanishes. When `k` is
-below the reach the ridge has a free direction, the node linear
-predictors are affine in it with both signs present, and moving along it
-sends some node past any censoring time: that node holds the row's
-mixture at `1 / n_int` and the divergence survives there with positive
-prior density. Measured on 20 nodes, two events at `t = 1` and a
-right-censored row at `t = 2`, reading the ridge as the line where a
-node reproduces the event time: rate +1.000, with the maximum at slope
-0.80, past the 0.24 where a node clears `log 2`.
+A censored row in the same arm can suppress this, and it has to threaten
+the ridge before any of that is worth asking. Every point of the
+solution set puts a MATCHED node exactly at its target, so a row whose
+region probability tends to one there suppresses nothing: its own
+contribution is a mixture over the grid,
+`log_sum_exp(log S) - log(n_int)`, which that one node holds at
+`1 / n_int` whatever the others do. Two events at `t = 1` with a
+right-censored row at `t = 0.5` are that case, and the divergence is
+certified rather than open; the same row at `t = 2` does suppress the
+matched node and leaves only the other nodes to settle. The ends are
+inclusive, since a predictor sitting exactly on a censoring time leaves
+that row at a half.
 
-That escape is one-directional, though, and two more cases are left
+For a row that does threaten, whether it suppresses turns on `rank(D)`
+against the reach. It vanishes only if EVERY node's region probability
+vanishes. When `rank(D)` is below the reach the ridge has a free
+direction, the node linear predictors are affine in it with both signs
+present, and moving along it sends some node past any censoring time:
+that node holds the row's mixture at `1 / n_int` and the divergence
+survives there with positive prior density. Measured on 20 nodes, two
+events at `t = 1` and a right-censored row at `t = 2`, reading the ridge
+as the line where a node reproduces the event time: rate +1.000, with
+the maximum at slope 0.80, past the 0.24 where a node clears `log 2`.
+
+That escape is one-directional, though, and three more cases are left
 undecided rather than refused.
 
-When `k` equals the reach the ridge is isolated points and a censored
-row can cover all of them: on a point-mass grid two events at `t = 1`
-with a right-censored row at `t = 2` collapse, while the same row at
-`t = 0.5` leaves rate +1.000, because the ridge is outside its region.
-Deciding that means enumerating `choose(n_int, k)` ridge points.
+When `rank(D)` reaches the reach the ridge is isolated points and a
+censored row can cover all of them: on a point-mass grid two events at
+`t = 1` with a right-censored row at `t = 2` collapse, while the same
+row at `t = 0.5` leaves rate +1.000, because the ridge is outside its
+region. Deciding that means enumerating `choose(n_int, k)` ridge points.
 
 And when the censored rows bound on BOTH sides, one free direction does
 not clear them all. Pushing it one way clears every right-censored row
@@ -206,11 +268,25 @@ delayed entry; one that opens AT its entry is one-sided, because
 conditioning on survival to the entry piles the mass just above it and
 that pile lies inside the interval, so a node pushed below clears the
 row exactly as a left-censored one does. Which side a row needs is read
-from its region and its entry, not from its status code. Settling the
-genuinely two-sided case means searching the free direction against
-every censoring region, which this does not do.
+from its region and its entry, not from its status code, and only the
+rows that have to be ESCAPED count: one already satisfied at a matched
+node does not need the free direction and cannot make the arm two-sided.
+Settling the genuinely two-sided case means searching the free direction
+against every censoring region, which this does not do.
 
-Both are reported rather than refused, scale family or not.
+And the free direction can be one the comparator does not own. Under
+`model = "spfa"` with `aux_by = "none"` the direction the comparator
+would move along is the shared `beta`, and an index whose own event
+design fits exactly pins it, which leaves the comparator ridge at
+isolated points whatever `rank(D)` is. Index events at `x = -1` and
+`x = +1` both at `t = 1` force `mu_index` and `beta` to zero, so every
+node sits at `mu_comparator` and a comparator right-censored row at
+`t = 2` is above all of them; tilting `beta` to lift one past `log 2`
+costs the index a residual of the same order, so the two exponentials
+trade rather than cancel, and settling it means solving the combined
+system.
+
+All three are reported rather than refused, scale family or not.
 
 What the rate then decides also differs. The scale families diverge as
 `sdlog` goes to zero, where every supported prior has positive density,
@@ -239,17 +315,36 @@ supported intercept prior.
 One combination is reported rather than refused for a reason that is not
 about censoring. Under `model = "spfa"` with `aux_by = "none"` the arms
 share one `beta` AND one auxiliary, and when the index event design is
-itself exact it pins that shared slope to its own solution set. Two or
-more comparator targets pin it too, to values the integration points
-fix, and if those sets do not intersect then every path to the boundary
-leaves one side with a positive residual whose exponential decay beats
-the other's polynomial growth. Solving that combined system is not this
-function's, so the case is warned about. A single distinct target is not
-that case: its one equation is absorbed by the free `mu_comparator`,
-`beta` stays free, the comparator ridge contains whatever the index's
-exact fit needs, and both singularities stand at once. Neither is an
-index that never had an exact design to begin with: failing to bound the
-auxiliary does not imply one, since
+itself exact AND constrains that slope somewhere in the directions the
+arm's grid spans, it pins it to a solution set the comparator's values
+can miss. Fitting exactly is not enough: repeated index events at one
+covariate profile at one time leave `beta` wholly unconstrained, so
+whatever node-specific values the comparator's equations pin it to lie
+in that set by construction, the sets always intersect, and the arm is
+refused rather than reported. PARTIAL identification is not that case
+and is reported: an index that fixes `beta1` at a value none of the
+comparator's pairwise differences reaches leaves the sets disjoint even
+while `beta2` stays free. Two or more comparator targets pin it too, to
+values the integration points fix, and if those sets do not intersect
+then every path to the boundary leaves one side with a positive residual
+whose exponential decay beats the other's polynomial growth. Solving
+that combined system is not this function's, so the case is warned
+about. The overlap that makes an index order and a comparator rate fail
+to add needs a design that constrains the slope at all: a matched design
+of rank 1 is one row, `(0, 1, z_j)`, whose only vector with a zero
+second component is the zero vector, so nothing of the form `(0, 0, v)`
+lies in it and the two orders add however many index rows there are.
+
+A single distinct target is not that case: its one equation is absorbed
+by the free `mu_comparator`, `beta` stays free BY THE EVENTS, the
+comparator ridge contains whatever the index's exact fit needs, and both
+singularities stand at once. That argument is about the EVENT rows only.
+A censored comparator row in the same arm cannot be escaped either once
+`beta` is pinned, which is the isolated-ridge case above and is reported
+rather than refused; a single target with no censored row in the arm is
+what is still refused here. Neither is an index that never had an exact
+design to begin with: failing to bound the auxiliary does not imply one,
+since
 [`.check_survival_scale_collapse()`](https://choxos.github.io/mlumr/reference/dot-check_survival_scale_collapse.md)
 returns before reaching its geometry when the index has no events, and
 an index of nothing but right-censored rows pins no slope at all. Its
@@ -258,33 +353,76 @@ as the scale falls, and the comparator divergence is left whole, so that
 is refused. Under `model = "relaxed"` the comparator has its own
 `beta_comparator` and the question does not arise.
 
-**This is a restriction on an approximation, not a repair of a model.**
-The continuously integrated counterpart is PROPER for the same data.
-Integrating a declared Gaussian covariate exactly leaves
-`log T ~ N(mu, beta^2 + sdlog^2)`, and two tied events give
-`1 / (2 pi tau sqrt(tau^2 + 2 a^2))` for `tau^2 = beta^2 + sdlog^2`.
-That behaves as `1 / sqrt(beta^2 + sdlog^2)` near the origin, which the
-volume element of polar coordinates makes integrable. Two comparator
-events at `t = 1` on 64 nodes, coefficients integrated against
-`normal(0, 10)` and `normal(0, 2.5)`: the grid likelihood runs 0.0143,
-0.185, 1.72, 171 and 17103 as `sdlog` falls through 0.1, 0.001, 0.0001,
-1e-6 and 1e-8, while the continuous one runs 0.0142, 0.0307, 0.0390,
-0.0556 and 0.0721. The quadrature is what fails, not the likelihood it
-approximates.
+**For TWO tied events this is a restriction on an approximation rather
+than a repair of a model, and past two it is not.** For `lognormal` with
+one declared Gaussian covariate the continuous counterpart integrates
+exactly: it leaves `log T ~ N(mu, beta^2 + sdlog^2)`, and `m` events
+tied at one time with a normal `prior_intercept` integrated out give
+`(2 pi)^(-m/2) tau^(1 - m) / sqrt(tau^2 + m a^2)` for
+`tau^2 = beta^2 + sdlog^2`. That behaves as `r^(1 - m)` in
+`r^2 = beta^2 + sdlog^2` against the plane's `r dr`, leaving
+`integral r^(2 - m) dr`, which converges for `m = 2` and DIVERGES from
+`m = 3` on. So two tied events are a quadrature artifact and three or
+more are a property of the model itself. Two comparator events at
+`t = 1` on 64 nodes, coefficients integrated against `normal(0, 10)` and
+`normal(0, 2.5)`: the grid likelihood runs 0.0143, 0.185, 1.72, 171 and
+17103 as `sdlog` falls through 0.1, 0.001, 0.0001, 1e-6 and 1e-8, while
+the continuous one runs 0.0142, 0.0307, 0.0390, 0.0556 and 0.0721.
 
-So a larger `n_int` is not the repair either: a bigger fixed rule is
-still a finite mixture, and within the grid's reach it only scales the
+Nothing here establishes that for the other families or for other
+covariate distributions, and the runtime advice says so per family
+rather than telling them all that exact integration repairs it.
+
+A larger `n_int` is not the repair either: a bigger fixed rule is still
+a finite mixture, and within the grid's reach it only scales the
 coefficient of the same divergence. Neither is jittering the tied times,
 which invents data, nor a floor on the auxiliary, which hides the
-singularity the sampler would have found. The repair is the analytic
-marginal likelihood wherever the declared covariate distribution
-supports one, and that is a change to the model, not to a guard.
+singularity the sampler would have found. Where the ties come from
+rounding, an interval-censored representation of what was actually
+observed is the honest model and
+[`set_agd_surv()`](https://choxos.github.io/mlumr/reference/set_agd_surv.md)
+accepts one.
 
 Under `aux_by = "none"` the index rows share the auxiliary, and an index
 fit that leaves a real residual contributes `exp(-RSS / (2 * sdlog^2))`,
 which goes to zero faster than any power and removes this divergence; so
 does an index censored row that bounds. Sharing does not do it on its
 own.
+
+Between those and contributing nothing there is a third case, and
+reading it as the third one refused proper fits. An index with NO events
+whose censored regions pin its predictor to a point rather than to an
+open region does not bound the auxiliary, and does not leave the
+comparator whole either: the coefficient volume it keeps shrinks as the
+width to the power of however many independent directions it pins. A
+left-censored row at `t = 1` beside a right-censored row at `t = 1` on
+one profile peaks at `1/4` at every scale POINTWISE, which is what the
+old reading saw, while integrating the intercept out against
+`normal(0, a)` gives `arccos(a^2 / (a^2 + s^2)) / (2 pi)`, or
+`s / (sqrt(2) pi a)` near zero. Measured `d log L / d log s` is 1.000000
+for one such profile, 2.000000 for two independent ones, 3.000000 for
+three. Both sides are written in powers of the SAME width, so those come
+off this rate directly: two tied comparator events against one touching
+profile is `1 - 1 = 0` and stands, three is `2 - 1 = 1` and is still
+refused. The order is carried only for `lognormal`, where it was
+measured; the other families report the question as unsettled rather
+than refusing on an unmeasured exponent.
+
+It also only comes off a rate that is EXACT, which is a property of the
+RANK rather than of the covariate count. A consistent allocation's
+design has rank at least 1, and at least 2 whenever two targets differ,
+since its rows all carry an intercept and proportional rows there are
+identical rows, which put every row on one predictor and make every
+target equal. So a recorded rank of 1 or 2 is the smallest achievable
+one however many covariates are declared, and only from 3 can a
+lower-rank allocation exist. Taking a positive order off a rate that IS
+a bound can cross the refusal threshold from the wrong side: four
+comparator events at three distinct targets carried by three collinear
+nodes have a true rate of `4 - 2 = 2` while this records `4 - 3 = 1`,
+and netting one power off that reads as zero. A subtraction that LEAVES
+the rate at or above one is still certified, since the true net is at
+least the reported one; only one that takes it below is reported
+instead.
 [`.check_survival_scale_collapse()`](https://choxos.github.io/mlumr/reference/dot-check_survival_scale_collapse.md)
 only WARNS when the index is itself exact or saturated under a shared
 auxiliary, and supplies no decaying residual there, so skipping this

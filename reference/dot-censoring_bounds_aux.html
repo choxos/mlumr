@@ -130,7 +130,15 @@ types were admitted.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p><code>"bounded"</code>, <code>"unbounded"</code>, or <code>"undetermined"</code>.</p>
+    <p><code>"bounded"</code>, <code>"suppresses"</code>, <code>"unbounded"</code>, or <code>"undetermined"</code>.
+<code>"bounded"</code> means the auxiliary is held away from its boundary, which is
+an exponential suppression and removes any polynomial growth elsewhere.
+<code>"suppresses"</code> means it is not, but the coefficient volume that keeps
+the rows' likelihood positive shrinks as the auxiliary's width to the
+power of the <code>order</code> attribute, so it cancels that many powers of a
+growth that shares the auxiliary. <code>"unbounded"</code> means the contribution
+is a positive constant, and <code>"undetermined"</code> that none of the three was
+established.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
