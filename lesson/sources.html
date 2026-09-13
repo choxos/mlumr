@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>mlumr lesson: sources and scope</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<script>try { var t = localStorage.getItem("mlumr-lesson-theme"); if (t === "dark" || t === "light") document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<style>
+:root { --bg:#eef1f2; --surface:#ffffff; --ink:#10242c; --ink-soft:#41555d; --muted:#6b7c82; --border:#e3e9ea; --accent:#1a6d73; color-scheme:light; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#0a1316; --surface:#132127; --ink:#e9f0f1; --ink-soft:#b6c4c8; --muted:#8ba0a5; --border:#1e2f36; --accent:#5fb8c1; color-scheme:dark; } }
+:root[data-theme="dark"] { --bg:#0a1316; --surface:#132127; --ink:#e9f0f1; --ink-soft:#b6c4c8; --muted:#8ba0a5; --border:#1e2f36; --accent:#5fb8c1; color-scheme:dark; }
+body { margin:0; padding:48px 20px; background:var(--bg); color:var(--ink); font:16px/1.7 "IBM Plex Sans",system-ui,sans-serif; }
+main { max-width:860px; margin:0 auto; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:clamp(20px,4vw,44px); }
+h1 { font-weight:600; letter-spacing:-.02em; line-height:1.2; margin:18px 0 12px; }
+h2 { font-weight:600; letter-spacing:-.01em; margin-top:36px; }
+p, li { color:var(--ink-soft); }
+a { color:var(--accent); text-underline-offset:3px; }
+a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+li { margin-bottom:10px; }
+code { font:.88em "IBM Plex Mono",ui-monospace,monospace; }
+.table-wrap { overflow-x:auto; }
+table { border-collapse:collapse; width:100%; font-size:14px; }
+td, th { padding:10px 12px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top; }
+th { color:var(--muted); font-weight:600; }
+small { color:var(--muted); }
+</style>
+<main>
+<a href="index.html">Back to the lesson</a>
+<h1>Sources, scope and reproducibility</h1>
+<p>This lesson teaches multilevel unanchored meta-regression with the <strong>mlumr</strong> R package. It follows the development version <strong>0.1.0.9000</strong>, which is heading toward 0.2.0, as it stood at commit <a href="https://github.com/choxos/mlumr/tree/4cfd3660f56e22668ae357bde3df4b30cacb23a5"><code>4cfd366</code></a> on September 12, 2026. It does not describe a released 0.2.0, and it does not claim that every extension in the methods paper is implemented.</p>
+
+<h2>What the charts are</h2>
+<p>The interactive charts are small, made-up teaching models with exact calculations. They are not mlumr fits. The integration chart averages over an even grid, while the package uses Sobol points. The prior and subgroup charts use an exact normal posterior. The survival chart uses a mix of two exponential risk groups with a hazard ratio of 0.65 for every patient. The diagnostic pictures are illustrations.</p>
+
+<h2>What runs in your browser</h2>
+<ul>
+<li><strong>R.</strong> The code cells run R through <a href="https://docs.r-wasm.org/webr/latest/">webR 0.6.0</a>, loaded from webr.r-wasm.org. Packages come from the webR package repository: randtoolbox, jsonlite and detectseparation, with their dependencies, for the mlumr cell.</li>
+<li><strong>mlumr's R code.</strong> The mlumr cell loads the package's own R files from commit <code>4cfd366</code>, unchanged, except the four files that need rstan or cmdstanr (<code>stanmodels.R</code>, <code>backend_rstan.R</code>, <code>backend_cmdstanr.R</code>, <code>zzz.R</code>). The S3 methods listed in the package NAMESPACE are registered so results print as they do in R.</li>
+<li><strong>Stan.</strong> The fit button samples the package's binomial SPFA and relaxed Stan programs, compiled to WebAssembly, with <a href="https://github.com/WardBrian/tinystan">TinyStan 0.3.3</a>. These are the same compiled models the <a href="https://choxos.github.io/mlumr/app/">mlumr web app</a> uses, and the binomial Stan programs have not changed since they were compiled. The Stan data are built by mlumr's own internal data builder, and a native check found them identical to what <code>mlumr()</code> passes to its engine.</li>
+<li><strong>Limits.</strong> The browser fit uses 2 chains with 500 warmup and 500 kept draws, a teaching budget. Its R-hat is the classic split R-hat, not the rank-normalized R-hat that mlumr reports. Only binary outcomes can be fitted in the browser.</li>
+</ul>
+<p><a href="workflow.R" download>Download the companion R script</a>. It simulates data, prepares it, runs the naive and STC benchmarks, and with <code>--fit</code> runs real SPFA and relaxed fits in R. No clinical conclusion follows from these invented data.</p>
+
+<h2>Methods and software</h2>
+<ol>
+<li>Chandler and Ishak (2026). <a href="https://arxiv.org/abs/2606.20341">Anchors Away: Navigating Unanchored Indirect Comparisons with Multilevel Unanchored Meta-Regression</a>. Preprint. The source of the ML-UMR framework: shared and relaxed coefficients, the joint likelihood and target standardization. Its extensions to more treatments and studies go beyond this package's two-treatment interface.</li>
+<li>Phillippo et al. (2020). <a href="https://doi.org/10.1111/rssa.12579">Multilevel network meta-regression for population-adjusted treatment comparisons</a>. The foundation for combining individual and aggregate data through integration. ML-NMR and ML-UMR use different evidence structures.</li>
+<li>NICE Decision Support Unit. <a href="https://sheffield.ac.uk/nice-dsu/tsds/population-adjusted">Technical Support Document 18: population-adjusted indirect comparisons</a>. Background on the assumptions behind anchored and unanchored comparisons.</li>
+<li><a href="https://github.com/scienceetonnante/tangible/tree/6a07bbcd5dbc548aa809b253aed503fc0a8c3251">Tangible</a>, pinned revision. The lesson compiler and player: timeline, captions, audio and exploration pauses. Apache-2.0.</li>
+<li><a href="https://huggingface.co/Supertone/supertonic-3">Supertonic 3</a>. The local synthetic voice used for the narration. Word timing inside each sentence is estimated. Model license: OpenRAIL-M.</li>
+<li>IBM Plex Sans and IBM Plex Mono, served by Google Fonts. SIL Open Font License.</li>
+</ol>
+
+<h2>Where each topic lives in the package</h2>
+<div class="table-wrap"><table><thead><tr><th>Lesson topic</th><th>Package files at <code>4cfd366</code></th></tr></thead><tbody>
+<tr><td>Data setup and scope</td><td><a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/R/data_setup.R">R/data_setup.R</a>, <a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/set_agd.Rd">man/set_agd.Rd</a>, <a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/vignettes/introduction.Rmd">vignettes/introduction.Rmd</a></td></tr>
+<tr><td>Shared and separate slopes, priors</td><td><a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/R/mlumr.R">R/mlumr.R</a>, <a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/mlumr.Rd">man/mlumr.Rd</a>, <a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/inst/stan/mlumr_binary_spfa.stan">inst/stan/mlumr_binary_spfa.stan</a>, <a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/prior_sensitivity.Rd">man/prior_sensitivity.Rd</a></td></tr>
+<tr><td>Integration and covariate distributions</td><td><a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/R/integration.R">R/integration.R</a>, <a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/add_integration.Rd">man/add_integration.Rd</a>, <a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/vignettes/data-preparation.Rmd">vignettes/data-preparation.Rmd</a></td></tr>
+<tr><td>Target populations and effects</td><td><a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/R/predict.R">R/predict.R</a>, <a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/marginal_effects.Rd">man/marginal_effects.Rd</a>, <a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/conditional_effects.Rd">man/conditional_effects.Rd</a></td></tr>
+<tr><td>Subgroup information</td><td><a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/R/identification.R">R/identification.R</a>, <a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/check_identification.Rd">man/check_identification.Rd</a>, <a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/vignettes/subgroup-identification.Rmd">vignettes/subgroup-identification.Rmd</a></td></tr>
+<tr><td>Outcome types and benchmarks</td><td><a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/vignettes/binary-outcomes.Rmd">binary</a>, <a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/vignettes/continuous-outcomes.Rmd">continuous</a> and <a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/vignettes/count-outcomes.Rmd">count</a> vignettes, <a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/vignettes/choosing-a-method.Rmd">choosing-a-method.Rmd</a>, <a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/stc.Rd">man/stc.Rd</a></td></tr>
+<tr><td>Survival</td><td><a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/set_agd_surv.Rd">man/set_agd_surv.Rd</a>, <a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/vignettes/survival-outcomes.Rmd">vignettes/survival-outcomes.Rmd</a>, <a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/predict.mlumr_fit.Rd">man/predict.mlumr_fit.Rd</a></td></tr>
+<tr><td>Checking a fit</td><td><a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/R/diagnostics.R">R/diagnostics.R</a>, <a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/vignettes/fitting-and-diagnostics.Rmd">vignettes/fitting-and-diagnostics.Rmd</a>, <a href="https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/NEWS.md">NEWS.md</a></td></tr>
+</tbody></table></div>
+
+<h2>What the method cannot do</h2>
+<p>Population adjustment needs model assumptions and assumptions about carrying results across trials. Integration points cannot recover covariates that trial B never reported. Counting subgroup rows cannot prove what a curved likelihood can identify, and knowing the coefficients is different from knowing a target. Good sampling and good predictive scores cannot show that there are no unmeasured differences between trials.</p>
+<p>For survival, the uncertainty in reconstructed event times is not carried into the fit, and giving each trial its own baseline shape is itself an assumption. Keep the time with every hazard ratio and the horizon with every RMST. The package does not fit networks of many treatments or random study effects.</p>
+<p><small>The lesson source, narration script, tests, build instructions and execution notes are on the <a href="https://github.com/choxos/mlumr/tree/lesson">lesson branch</a> of the mlumr repository.</small></p>
+</main></html>

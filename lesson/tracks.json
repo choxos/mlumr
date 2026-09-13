@@ -1,0 +1,1099 @@
+{
+  "version": 1,
+  "lessonId": "mlumr",
+  "duration": 1581.0742403628117,
+  "audio": {
+    "src": [
+      "audio.webm",
+      "audio.m4a"
+    ],
+    "hash": "cc6ae2e91f8151fc"
+  },
+  "schemaHash": "0b75a28ead5f96",
+  "tracks": {
+    "scene": [
+      {
+        "t": 0.1,
+        "v": "evidence"
+      },
+      {
+        "t": 110.9951700680272,
+        "v": "assumptions"
+      },
+      {
+        "t": 202.8254648526077,
+        "v": "response"
+      },
+      {
+        "t": 310.9840816326531,
+        "v": "integration"
+      },
+      {
+        "t": 427.88174603174605,
+        "v": "dependence"
+      },
+      {
+        "t": 512.9983900226757,
+        "v": "target"
+      },
+      {
+        "t": 644.3408616780046,
+        "v": "identification"
+      },
+      {
+        "t": 750.5864172335602,
+        "v": "workflow"
+      },
+      {
+        "t": 948.5749206349207,
+        "v": "families"
+      },
+      {
+        "t": 1088.761700680272,
+        "v": "survival"
+      },
+      {
+        "t": 1244.7471428571428,
+        "v": "priors"
+      },
+      {
+        "t": 1336.4825170068027,
+        "v": "diagnostics"
+      },
+      {
+        "t": 1472.0053514739227,
+        "v": "practice"
+      }
+    ],
+    "pIndex": [
+      {
+        "t": 0.1,
+        "v": 0.2
+      }
+    ],
+    "pComparator": [
+      {
+        "t": 0.1,
+        "v": 0.8
+      },
+      {
+        "t": 85.03487528344671,
+        "v": 0.8
+      },
+      {
+        "t": 88.03487528344671,
+        "v": 0.2,
+        "ease": "inOutCubic"
+      }
+    ],
+    "target": [
+      {
+        "t": 0.1,
+        "v": 0.5
+      },
+      {
+        "t": 110.9951700680272,
+        "v": 0.5
+      },
+      {
+        "t": 202.8254648526077,
+        "v": 0.5
+      },
+      {
+        "t": 512.9983900226757,
+        "v": 0.1
+      },
+      {
+        "t": 545.8477097505669,
+        "v": 0.1
+      },
+      {
+        "t": 550.8477097505669,
+        "v": 0.9,
+        "ease": "inOutCubic"
+      },
+      {
+        "t": 1088.761700680272,
+        "v": 0.5
+      }
+    ],
+    "board.question": [
+      {
+        "t": 0.1,
+        "v": "shown"
+      },
+      {
+        "t": 110.9951700680272,
+        "v": "hidden"
+      },
+      {
+        "t": 202.8254648526077,
+        "v": "hidden"
+      },
+      {
+        "t": 310.9840816326531,
+        "v": "hidden"
+      },
+      {
+        "t": 427.88174603174605,
+        "v": "hidden"
+      },
+      {
+        "t": 512.9983900226757,
+        "v": "hidden"
+      },
+      {
+        "t": 644.3408616780046,
+        "v": "hidden"
+      },
+      {
+        "t": 750.5864172335602,
+        "v": "hidden"
+      },
+      {
+        "t": 948.5749206349207,
+        "v": "hidden"
+      },
+      {
+        "t": 1088.761700680272,
+        "v": "hidden"
+      },
+      {
+        "t": 1244.7471428571428,
+        "v": "hidden"
+      },
+      {
+        "t": 1336.4825170068027,
+        "v": "hidden"
+      },
+      {
+        "t": 1472.0053514739227,
+        "v": "hidden"
+      }
+    ],
+    "shift": [
+      {
+        "t": 110.9951700680272,
+        "v": 0
+      },
+      {
+        "t": 154.4249886621315,
+        "v": 0
+      },
+      {
+        "t": 157.4249886621315,
+        "v": 0.8,
+        "ease": "inOutCubic"
+      }
+    ],
+    "board.assumption": [
+      {
+        "t": 110.9951700680272,
+        "v": "shown"
+      },
+      {
+        "t": 202.8254648526077,
+        "v": "hidden"
+      },
+      {
+        "t": 310.9840816326531,
+        "v": "hidden"
+      },
+      {
+        "t": 427.88174603174605,
+        "v": "hidden"
+      },
+      {
+        "t": 512.9983900226757,
+        "v": "hidden"
+      },
+      {
+        "t": 644.3408616780046,
+        "v": "hidden"
+      },
+      {
+        "t": 750.5864172335602,
+        "v": "hidden"
+      },
+      {
+        "t": 948.5749206349207,
+        "v": "hidden"
+      },
+      {
+        "t": 1088.761700680272,
+        "v": "hidden"
+      },
+      {
+        "t": 1244.7471428571428,
+        "v": "hidden"
+      },
+      {
+        "t": 1336.4825170068027,
+        "v": "hidden"
+      },
+      {
+        "t": 1472.0053514739227,
+        "v": "hidden"
+      }
+    ],
+    "betaB": [
+      {
+        "t": 202.8254648526077,
+        "v": 2.4
+      },
+      {
+        "t": 260.6792517006803,
+        "v": 2.4
+      },
+      {
+        "t": 263.6792517006803,
+        "v": 0.8,
+        "ease": "inOutCubic"
+      },
+      {
+        "t": 512.9983900226757,
+        "v": 2.4
+      }
+    ],
+    "board.model": [
+      {
+        "t": 202.8254648526077,
+        "v": "shown"
+      },
+      {
+        "t": 310.9840816326531,
+        "v": "hidden"
+      },
+      {
+        "t": 427.88174603174605,
+        "v": "hidden"
+      },
+      {
+        "t": 512.9983900226757,
+        "v": "hidden"
+      },
+      {
+        "t": 644.3408616780046,
+        "v": "hidden"
+      },
+      {
+        "t": 750.5864172335602,
+        "v": "hidden"
+      },
+      {
+        "t": 948.5749206349207,
+        "v": "hidden"
+      },
+      {
+        "t": 1088.761700680272,
+        "v": "hidden"
+      },
+      {
+        "t": 1244.7471428571428,
+        "v": "hidden"
+      },
+      {
+        "t": 1336.4825170068027,
+        "v": "hidden"
+      },
+      {
+        "t": 1472.0053514739227,
+        "v": "hidden"
+      }
+    ],
+    "board.shared": [
+      {
+        "t": 202.8254648526077,
+        "v": "shown"
+      },
+      {
+        "t": 310.9840816326531,
+        "v": "hidden"
+      },
+      {
+        "t": 427.88174603174605,
+        "v": "hidden"
+      },
+      {
+        "t": 512.9983900226757,
+        "v": "hidden"
+      },
+      {
+        "t": 644.3408616780046,
+        "v": "hidden"
+      },
+      {
+        "t": 750.5864172335602,
+        "v": "hidden"
+      },
+      {
+        "t": 948.5749206349207,
+        "v": "hidden"
+      },
+      {
+        "t": 1088.761700680272,
+        "v": "hidden"
+      },
+      {
+        "t": 1244.7471428571428,
+        "v": "hidden"
+      },
+      {
+        "t": 1336.4825170068027,
+        "v": "hidden"
+      },
+      {
+        "t": 1472.0053514739227,
+        "v": "hidden"
+      }
+    ],
+    "width": [
+      {
+        "t": 310.9840816326531,
+        "v": 0
+      },
+      {
+        "t": 349.40022675736964,
+        "v": 0
+      },
+      {
+        "t": 353.40022675736964,
+        "v": 1.5,
+        "ease": "inOutCubic"
+      }
+    ],
+    "points": [
+      {
+        "t": 310.9840816326531,
+        "v": 16
+      },
+      {
+        "t": 388.0232653061225,
+        "v": 4
+      },
+      {
+        "t": 388.0232653061225,
+        "v": 4
+      },
+      {
+        "t": 392.0232653061225,
+        "v": 128,
+        "ease": "inOutCubic"
+      }
+    ],
+    "board.integral": [
+      {
+        "t": 310.9840816326531,
+        "v": "shown"
+      },
+      {
+        "t": 427.88174603174605,
+        "v": "hidden"
+      },
+      {
+        "t": 512.9983900226757,
+        "v": "hidden"
+      },
+      {
+        "t": 644.3408616780046,
+        "v": "hidden"
+      },
+      {
+        "t": 750.5864172335602,
+        "v": "hidden"
+      },
+      {
+        "t": 948.5749206349207,
+        "v": "hidden"
+      },
+      {
+        "t": 1088.761700680272,
+        "v": "hidden"
+      },
+      {
+        "t": 1244.7471428571428,
+        "v": "hidden"
+      },
+      {
+        "t": 1336.4825170068027,
+        "v": "hidden"
+      },
+      {
+        "t": 1472.0053514739227,
+        "v": "hidden"
+      }
+    ],
+    "rho": [
+      {
+        "t": 427.88174603174605,
+        "v": 0
+      },
+      {
+        "t": 451.56614512471657,
+        "v": 0
+      },
+      {
+        "t": 454.56614512471657,
+        "v": 1,
+        "ease": "inOutCubic"
+      },
+      {
+        "t": 469.45106575963723,
+        "v": 1
+      },
+      {
+        "t": 473.45106575963723,
+        "v": -1,
+        "ease": "inOutCubic"
+      }
+    ],
+    "board.joint": [
+      {
+        "t": 427.88174603174605,
+        "v": "shown"
+      },
+      {
+        "t": 512.9983900226757,
+        "v": "hidden"
+      },
+      {
+        "t": 644.3408616780046,
+        "v": "hidden"
+      },
+      {
+        "t": 750.5864172335602,
+        "v": "hidden"
+      },
+      {
+        "t": 948.5749206349207,
+        "v": "hidden"
+      },
+      {
+        "t": 1088.761700680272,
+        "v": "hidden"
+      },
+      {
+        "t": 1244.7471428571428,
+        "v": "hidden"
+      },
+      {
+        "t": 1336.4825170068027,
+        "v": "hidden"
+      },
+      {
+        "t": 1472.0053514739227,
+        "v": "hidden"
+      }
+    ],
+    "board.target": [
+      {
+        "t": 512.9983900226757,
+        "v": "shown"
+      },
+      {
+        "t": 644.3408616780046,
+        "v": "hidden"
+      },
+      {
+        "t": 750.5864172335602,
+        "v": "hidden"
+      },
+      {
+        "t": 948.5749206349207,
+        "v": "hidden"
+      },
+      {
+        "t": 1088.761700680272,
+        "v": "hidden"
+      },
+      {
+        "t": 1244.7471428571428,
+        "v": "hidden"
+      },
+      {
+        "t": 1336.4825170068027,
+        "v": "hidden"
+      },
+      {
+        "t": 1472.0053514739227,
+        "v": "hidden"
+      }
+    ],
+    "board.order": [
+      {
+        "t": 512.9983900226757,
+        "v": "shown"
+      },
+      {
+        "t": 644.3408616780046,
+        "v": "hidden"
+      },
+      {
+        "t": 750.5864172335602,
+        "v": "hidden"
+      },
+      {
+        "t": 948.5749206349207,
+        "v": "hidden"
+      },
+      {
+        "t": 1088.761700680272,
+        "v": "hidden"
+      },
+      {
+        "t": 1244.7471428571428,
+        "v": "hidden"
+      },
+      {
+        "t": 1336.4825170068027,
+        "v": "hidden"
+      },
+      {
+        "t": 1472.0053514739227,
+        "v": "hidden"
+      }
+    ],
+    "design": [
+      {
+        "t": 644.3408616780046,
+        "v": "one"
+      },
+      {
+        "t": 678.3745804988662,
+        "v": "duplicate"
+      },
+      {
+        "t": 697.3788662131519,
+        "v": "separated"
+      },
+      {
+        "t": 1244.7471428571428,
+        "v": "one"
+      }
+    ],
+    "separation": [
+      {
+        "t": 644.3408616780046,
+        "v": 0.8
+      },
+      {
+        "t": 703.8401814058957,
+        "v": 0.8
+      },
+      {
+        "t": 707.8401814058957,
+        "v": 0.02,
+        "ease": "inOutCubic"
+      },
+      {
+        "t": 1244.7471428571428,
+        "v": 0.8
+      }
+    ],
+    "targetX": [
+      {
+        "t": 644.3408616780046,
+        "v": 1
+      },
+      {
+        "t": 1244.7471428571428,
+        "v": 1
+      },
+      {
+        "t": 1274.698707482993,
+        "v": 1
+      },
+      {
+        "t": 1277.698707482993,
+        "v": 0,
+        "ease": "inOutCubic"
+      }
+    ],
+    "priorSD": [
+      {
+        "t": 644.3408616780046,
+        "v": 2
+      },
+      {
+        "t": 1244.7471428571428,
+        "v": 3
+      },
+      {
+        "t": 1261.6490929705215,
+        "v": 3
+      },
+      {
+        "t": 1265.6490929705215,
+        "v": 0.3,
+        "ease": "inOutCubic"
+      }
+    ],
+    "board.rank": [
+      {
+        "t": 644.3408616780046,
+        "v": "shown"
+      },
+      {
+        "t": 750.5864172335602,
+        "v": "hidden"
+      },
+      {
+        "t": 948.5749206349207,
+        "v": "hidden"
+      },
+      {
+        "t": 1088.761700680272,
+        "v": "hidden"
+      },
+      {
+        "t": 1244.7471428571428,
+        "v": "hidden"
+      },
+      {
+        "t": 1336.4825170068027,
+        "v": "hidden"
+      },
+      {
+        "t": 1472.0053514739227,
+        "v": "hidden"
+      }
+    ],
+    "step": [
+      {
+        "t": 750.5864172335602,
+        "v": 0
+      },
+      {
+        "t": 774.6438775510204,
+        "v": 1
+      },
+      {
+        "t": 808.3449886621315,
+        "v": 2
+      },
+      {
+        "t": 834.9809297052154,
+        "v": 3
+      },
+      {
+        "t": 857.071768707483,
+        "v": 4
+      },
+      {
+        "t": 903.1070068027211,
+        "v": 5
+      }
+    ],
+    "board.workflow": [
+      {
+        "t": 750.5864172335602,
+        "v": "shown"
+      },
+      {
+        "t": 948.5749206349207,
+        "v": "hidden"
+      },
+      {
+        "t": 1088.761700680272,
+        "v": "hidden"
+      },
+      {
+        "t": 1244.7471428571428,
+        "v": "hidden"
+      },
+      {
+        "t": 1336.4825170068027,
+        "v": "hidden"
+      },
+      {
+        "t": 1472.0053514739227,
+        "v": "hidden"
+      }
+    ],
+    "family": [
+      {
+        "t": 948.5749206349207,
+        "v": 0
+      },
+      {
+        "t": 988.5118367346939,
+        "v": 1
+      },
+      {
+        "t": 1022.6261451247166,
+        "v": 2
+      },
+      {
+        "t": 1046.0145351473923,
+        "v": 3
+      }
+    ],
+    "board.family": [
+      {
+        "t": 948.5749206349207,
+        "v": "shown"
+      },
+      {
+        "t": 1088.761700680272,
+        "v": "hidden"
+      },
+      {
+        "t": 1244.7471428571428,
+        "v": "hidden"
+      },
+      {
+        "t": 1336.4825170068027,
+        "v": "hidden"
+      },
+      {
+        "t": 1472.0053514739227,
+        "v": "hidden"
+      }
+    ],
+    "time": [
+      {
+        "t": 1088.761700680272,
+        "v": 0
+      },
+      {
+        "t": 1115.1670748299318,
+        "v": 0
+      },
+      {
+        "t": 1122.1670748299318,
+        "v": 24,
+        "ease": "inOutCubic"
+      }
+    ],
+    "heterogeneity": [
+      {
+        "t": 1088.761700680272,
+        "v": 1.8
+      },
+      {
+        "t": 1144.0572789115645,
+        "v": 1.8
+      },
+      {
+        "t": 1147.0572789115645,
+        "v": 0,
+        "ease": "inOutCubic"
+      },
+      {
+        "t": 1153.1403401360544,
+        "v": 0
+      },
+      {
+        "t": 1156.1403401360544,
+        "v": 1.8,
+        "ease": "inOutCubic"
+      }
+    ],
+    "board.survival": [
+      {
+        "t": 1088.761700680272,
+        "v": "shown"
+      },
+      {
+        "t": 1244.7471428571428,
+        "v": "hidden"
+      },
+      {
+        "t": 1336.4825170068027,
+        "v": "hidden"
+      },
+      {
+        "t": 1472.0053514739227,
+        "v": "hidden"
+      }
+    ],
+    "board.hazard": [
+      {
+        "t": 1088.761700680272,
+        "v": "shown"
+      },
+      {
+        "t": 1244.7471428571428,
+        "v": "hidden"
+      },
+      {
+        "t": 1336.4825170068027,
+        "v": "hidden"
+      },
+      {
+        "t": 1472.0053514739227,
+        "v": "hidden"
+      }
+    ],
+    "board.prior": [
+      {
+        "t": 1244.7471428571428,
+        "v": "shown"
+      },
+      {
+        "t": 1336.4825170068027,
+        "v": "hidden"
+      },
+      {
+        "t": 1472.0053514739227,
+        "v": "hidden"
+      }
+    ],
+    "diagnostic": [
+      {
+        "t": 1336.4825170068027,
+        "v": 0
+      },
+      {
+        "t": 1369.9150340136055,
+        "v": 1
+      },
+      {
+        "t": 1385.4691383219954,
+        "v": 2
+      },
+      {
+        "t": 1406.5247165532878,
+        "v": 3
+      },
+      {
+        "t": 1419.5669387755102,
+        "v": 4
+      },
+      {
+        "t": 1431.6282312925168,
+        "v": 5
+      },
+      {
+        "t": 1453.704013605442,
+        "v": 6
+      }
+    ],
+    "board.checks": [
+      {
+        "t": 1336.4825170068027,
+        "v": "shown"
+      },
+      {
+        "t": 1472.0053514739227,
+        "v": "hidden"
+      }
+    ],
+    "question": [
+      {
+        "t": 1472.0053514739227,
+        "v": 0
+      }
+    ],
+    "board.report": [
+      {
+        "t": 1472.0053514739227,
+        "v": "shown"
+      }
+    ]
+  },
+  "chapters": [
+    {
+      "t": 0,
+      "title": "Two trials, no common arm"
+    },
+    {
+      "t": 110.89517006802721,
+      "title": "What adjustment has to assume"
+    },
+    {
+      "t": 202.7254648526077,
+      "title": "Shared or separate slopes"
+    },
+    {
+      "t": 310.8840816326531,
+      "title": "Average the predictions"
+    },
+    {
+      "t": 427.781746031746,
+      "title": "Rebuild the population"
+    },
+    {
+      "t": 512.8983900226757,
+      "title": "Choose what to estimate"
+    },
+    {
+      "t": 644.2408616780045,
+      "title": "What subgroup rows can tell you"
+    },
+    {
+      "t": 750.4864172335601,
+      "title": "Run mlumr in your browser"
+    },
+    {
+      "t": 948.4749206349206,
+      "title": "Pick the outcome model"
+    },
+    {
+      "t": 1088.6617006802721,
+      "title": "Survival after averaging"
+    },
+    {
+      "t": 1244.6471428571429,
+      "title": "When the prior matters"
+    },
+    {
+      "t": 1336.3825170068028,
+      "title": "Read a fit before trusting it"
+    },
+    {
+      "t": 1471.9053514739228,
+      "title": "Report it well"
+    }
+  ],
+  "pauses": [
+    {
+      "t": 110.9,
+      "id": "pause-0",
+      "prompt": "Move the two trial sliders, then the target slider. Which difference reacts to each one?",
+      "tail": 0
+    },
+    {
+      "t": 202.73,
+      "id": "pause-1",
+      "prompt": "Slide the hidden difference through zero. Can the reported risk alone tell you how much came from the treatment?",
+      "tail": 0
+    },
+    {
+      "t": 310.88,
+      "id": "pause-2",
+      "prompt": "Set trial B's slope back to two point four, then lower it. Which odds ratio stays the same, and which one changes?",
+      "tail": 0
+    },
+    {
+      "t": 427.78,
+      "id": "pause-3",
+      "prompt": "Spread the patients out, then compare four points with one hundred twenty-eight. Which change moves the average risk itself, and which only makes the calculation more accurate?",
+      "tail": 0
+    },
+    {
+      "t": 512.9,
+      "id": "pause-4",
+      "prompt": "Keep each marker at half the patients and change only the correlation. Why does the average risk move?",
+      "tail": 0
+    },
+    {
+      "t": 644.24,
+      "id": "pause-5",
+      "prompt": "Compare target shares of zero, one half and one. Why do the patient and population odds ratios agree at zero and at one?",
+      "tail": 0
+    },
+    {
+      "t": 750.49,
+      "id": "pause-6",
+      "prompt": "Compare one row, two rows in the same place, and two separated rows. Then move the target to zero.",
+      "tail": 0
+    },
+    {
+      "t": 948.47,
+      "id": "pause-7",
+      "prompt": "Step through the six code panels. Then run the cell below: first the R code, then the Stan fit.",
+      "tail": 0
+    },
+    {
+      "t": 1088.66,
+      "id": "pause-8",
+      "prompt": "Pick an outcome type. What must trial B report, and which value of the effect means no difference?",
+      "tail": 0
+    },
+    {
+      "t": 1244.65,
+      "id": "pause-9",
+      "prompt": "Compare zero, twelve and twenty-four months. Then remove the risk difference between groups. What happens to the population hazard ratio, and why?",
+      "tail": 0
+    },
+    {
+      "t": 1336.38,
+      "id": "pause-10",
+      "prompt": "Change the prior with the target at zero, then at one. Repeat with two separated rows. Which narrowing comes from data, and which from assumptions?",
+      "tail": 0
+    },
+    {
+      "t": 1471.91,
+      "id": "pause-11",
+      "prompt": "Choose each problem, guess the next step, then reveal the explanation.",
+      "tail": 0
+    },
+    {
+      "t": 1581.01,
+      "id": "pause-12",
+      "prompt": "Answer the five questions. Then pick a chapter whose chart you can now explain in your own words.",
+      "tail": 0
+    }
+  ],
+  "captions": {
+    "src": "captions.vtt"
+  },
+  "boardItems": {
+    "question": {
+      "kind": "text",
+      "source": "Compare A and B in which population?"
+    },
+    "assumption": {
+      "kind": "text",
+      "source": "In this design, the treatment and the trial always go together."
+    },
+    "model": {
+      "kind": "katex",
+      "source": "g(\\theta_k(x))=\\alpha_k+x^T\\beta_k"
+    },
+    "shared": {
+      "kind": "text",
+      "source": "Shared slopes: both treatments get the same covariate effects, on the link scale."
+    },
+    "integral": {
+      "kind": "katex",
+      "source": "\\bar\\theta_{ks}=\\int g^{-1}(\\alpha_k+x^T\\beta_k)f_s(x)\\,dx"
+    },
+    "joint": {
+      "kind": "text",
+      "source": "Summaries for each covariate, plus how they go together, define the population to average over."
+    },
+    "target": {
+      "kind": "katex",
+      "source": "\\Delta_{RD}(P)=E_P[\\theta_A(X)]-E_P[\\theta_B(X)]"
+    },
+    "order": {
+      "kind": "text",
+      "source": "In each posterior draw: predict, average, then compare."
+    },
+    "rank": {
+      "kind": "text",
+      "source": "K slopes plus one intercept need information in K + 1 directions."
+    },
+    "workflow": {
+      "kind": "text",
+      "source": "Define → prepare → integrate → fit → check → report"
+    },
+    "family": {
+      "kind": "text",
+      "source": "Match the likelihood, the link, the summaries and the effect scale."
+    },
+    "survival": {
+      "kind": "katex",
+      "source": "\\bar S_k(t)=E[S_k(t\\mid X)]"
+    },
+    "hazard": {
+      "kind": "katex",
+      "source": "\\bar h_k(t)=\\frac{E[h_k(t\\mid X)S_k(t\\mid X)]}{E[S_k(t\\mid X)]}"
+    },
+    "prior": {
+      "kind": "text",
+      "source": "A prior can narrow an answer. It never adds an observed subgroup."
+    },
+    "checks": {
+      "kind": "text",
+      "source": "Good sampling, identification and comparable trials are three separate questions."
+    },
+    "report": {
+      "kind": "text",
+      "source": "State the target. Defend the assumptions. Show the sensitivity."
+    }
+  },
+  "recorded": {}
+}
