@@ -1,19 +1,18 @@
 // Records the tour of the lesson that the README embeds.
 //
-// Playwright drives the built lesson and records it, so every chart, R run
-// and Stan fit in the video is the one a learner gets. The narration is the
-// lesson's own: Playwright records no sound, so the recorder notes where the
-// narration was at every cut and lays the same stretches of audio.m4a under
-// the video afterwards.
+// Playwright drives the built lesson, so every chart, R run and Stan fit in
+// the video is the one a learner gets. The video is silent with the captions
+// on. The narration still plays in the page, because it moves the chapters
+// and the captions.
 //
 // Usage, from this folder:
 //   python3 -m http.server 4174 --bind 127.0.0.1 --directory dist &
 //   TANGIBLE_DIR=/path/to/tangible node record-tour.mjs http://127.0.0.1:4174
 //
-// It writes documentation/tour.mp4 and documentation/tour.gif.
-import { execFileSync, spawnSync } from 'node:child_process';
+// It writes documentation/tour.mp4 (1920 by 1080) and documentation/tour.gif.
+import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { statSync } from 'node:fs';
+import { statSync, writeFileSync } from 'node:fs';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,10 +23,11 @@ const { chromium } = createRequire(resolve(framework, 'package.json'))('@playwri
 const url = process.argv[2] || 'http://127.0.0.1:4174';
 const outDir = resolve(dir, 'documentation');
 const raw = resolve(dir, 'build/tour');
+const frames = resolve(raw, 'frames');
 const mp4 = resolve(outDir, 'tour.mp4');
 const gif = resolve(outDir, 'tour.gif');
 await rm(raw, { recursive: true, force: true });
-await mkdir(raw, { recursive: true });
+await mkdir(frames, { recursive: true });
 await mkdir(outDir, { recursive: true });
 
 // Headless recordings have no pointer, so a slider that moves on its own
@@ -43,19 +43,19 @@ function showPointer() {
   });
 }
 
-const browser = await chromium.launch({ channel: 'chrome' });
-const context = await browser.newContext({
-  viewport: { width: 1280, height: 720 },
-  recordVideo: { dir: raw, size: { width: 1280, height: 720 } },
-  colorScheme: 'light',
-});
+// Playwright's own recorder captures CSS pixels and scales them up, which
+// blurs every label. Chrome started at a device scale of 1.5 draws the 1280
+// by 720 layout with 1920 by 1080 real pixels, and a screencast keeps them.
+// The window is taller than the page by the 87px headless Chrome keeps for
+// its frame; the take checks the page size rather than trusting that.
+const browser = await chromium.launch({ channel: 'chrome', args: ['--force-device-scale-factor=1.5', '--window-size=1280,807'] });
+const context = await browser.newContext({ viewport: null, colorScheme: 'light' });
 await context.addInitScript(showPointer);
 
 try {
   // ---------------------------------------------------------- Warm the caches
   // The narration, webR and the Stan models download on first use. Doing that
-  // on a throwaway page keeps the take free of loading waits; Playwright
-  // records each page to its own file, so this one is simply discarded.
+  // on a throwaway page keeps the take free of loading waits.
   const warm = await context.newPage();
   await warm.goto(url);
   await warm.getByRole('button', { name: 'Start lesson', exact: true }).click({ timeout: 180000 });
@@ -66,39 +66,37 @@ try {
   await warm.locator('[data-act=fit]').click();
   await warm.waitForSelector('.fit-out .run-label', { timeout: 300000 });
   const tracks = await (await warm.request.get(new URL('tracks.json', url).href)).json();
-  const captions = await (await warm.request.get(new URL('captions.vtt', url).href)).text();
-  await writeFile(resolve(raw, 'audio.m4a'), await (await warm.request.get(new URL('audio.m4a', url).href)).body());
   await warm.close();
 
   // ---------------------------------------------------------------- The take
   const page = await context.newPage();
-  const videoStart = Date.now();
-  const clock = () => (Date.now() - videoStart) / 1000;
   const beat = ms => page.waitForTimeout(ms);
   const warnings = [];
   const warn = message => { warnings.push(message); console.warn(`record-tour: WARNING ${message}`); };
+  await page.goto(url);
+  const size = await page.evaluate(() => [innerWidth, innerHeight, devicePixelRatio].join(' '));
+  if (size !== '1280 720 1.5') throw new Error(`record-tour: the page is ${size} (width, height, scale), not 1280 720 1.5; adjust --window-size`);
+  const labs = await page.locator('[data-chapter]').evaluateAll(buttons => buttons.map(b => b.dataset.chapter));
 
-  // Every kept stretch of video, with where the narration was when it began
-  // (null while the narration has not started). Stretches are joined by cuts.
+  // Chrome sends a frame whenever the page repaints, stamped with the time it
+  // was drawn, and sends the next one only after this one is acknowledged.
+  const shots = [];
+  const cdp = await context.newCDPSession(page);
+  cdp.on('Page.screencastFrame', ({ data, metadata, sessionId }) => {
+    const file = resolve(frames, `${String(shots.length).padStart(6, '0')}.jpg`);
+    writeFileSync(file, Buffer.from(data, 'base64'));
+    shots.push({ file, at: metadata.timestamp });
+    cdp.send('Page.screencastFrameAck', { sessionId }).catch(() => {});
+  });
+  await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 90, maxWidth: 1920, maxHeight: 1080, everyNthFrame: 2 });
+  const clock = () => Date.now() / 1000;
+
+  // Every kept stretch of the take, in the screencast's clock. Stretches are
+  // joined by cuts.
   const segments = [];
   let open = null;
-  const audioTime = () => page.locator('audio').evaluate(a => a.currentTime);
-  async function begin(silent = false) {
-    const audio = silent ? null : await audioTime();
-    open = { from: clock(), audio };
-  }
-  async function end() {
-    const audio = open.audio === null ? null : await audioTime();
-    const to = clock();
-    segments.push({ ...open, to });
-    // The audio is laid down at the rate it should have played. A page that
-    // stalls lets captions and voice drift apart, and that is invisible in a recording.
-    if (audio !== null) {
-      const drift = (audio - open.audio) - (to - open.from);
-      if (Math.abs(drift) > 0.3) warn(`narration drifted ${drift.toFixed(2)}s from the video in segment ${segments.length}`);
-    }
-    open = null;
-  }
+  const begin = () => { open = clock(); };
+  const end = () => { segments.push({ from: open, to: clock() }); open = null; };
   // Where a moment of the take lands in the finished video.
   const finished = at => segments.reduce((sum, s) => sum + (at >= s.to ? s.to - s.from : at > s.from ? at - s.from : 0), 0);
 
@@ -150,16 +148,11 @@ try {
     await beat(1000);
   }
 
-  const labs = await (async () => {
-    await page.goto(url);
-    return page.locator('[data-chapter]').evaluateAll(buttons => buttons.map(b => b.dataset.chapter));
-  })();
-  const returnBar = page.getByRole('button', { name: 'Return to narration', exact: true });
-
   // Cuts to the start of a chapter's narration. Seeking the audio moves the
   // narration; returning to it brings the scene along when a control was touched.
+  const returnBar = page.getByRole('button', { name: 'Return to narration', exact: true });
   async function narrate(lab) {
-    await end();
+    end();
     const at = tracks.chapters[labs.indexOf(lab)].t + 0.05;
     await page.locator('audio').evaluate((a, t) => { a.currentTime = t; }, at);
     if (await returnBar.isVisible()) await returnBar.click();
@@ -167,10 +160,11 @@ try {
     await page.locator('.lab-scroll').evaluate(el => { el.scrollTop = 0; });
     await page.waitForFunction(t => { const a = document.querySelector('audio'); return !a.paused && a.currentTime > t; }, at + 0.1);
     await page.mouse.move(pointer.x, pointer.y);
-    // Settling took a moment of narration, so start the first sentence again.
+    // Settling took a moment of narration, so show the chapter's first caption again.
     await page.locator('audio').evaluate((a, t) => { a.currentTime = t; }, at);
     await page.waitForFunction(t => { const a = document.querySelector('audio'); return !a.paused && a.currentTime > t; }, at);
-    await begin();
+    await beat(150);
+    begin();
   }
 
   // ------------------------------------------------------ 1. Start the lesson
@@ -179,12 +173,10 @@ try {
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some(b => b.textContent.trim() === 'Start lesson' && !b.disabled));
   await page.mouse.move(pointer.x, pointer.y);
   await beat(400);
-  await begin(true);
+  begin();
   await beat(1400);
   await press(start, 350);
   await page.waitForFunction(() => { const a = document.querySelector('audio'); return !a.paused && a.currentTime > 0; });
-  await end();
-  await begin();
 
   // -------------------------------------------- 2. Chapter 1, with captions on
   await beat(1200);
@@ -273,59 +265,35 @@ try {
   await beat(2400);
   await press(page.locator('.chapter-menu > summary'));
   await beat(3600);
-  await end();
-
-  const video = page.video();
-  await context.close();
-  const webm = await video.path();
+  end();
+  await cdp.send('Page.stopScreencast');
 
   // ------------------------------------------------------------------ Encode
-  // Each segment takes its own stretch of video and of narration, and the
-  // stretches are joined in order. A short fade at every cut keeps a sentence
-  // cut in half from clicking. No fps filter: Playwright's screencast is
-  // variable rate, and resampling it duplicates frames unevenly.
-  const parts = [], labels = [];
-  segments.forEach((s, i) => {
-    const length = (s.to - s.from).toFixed(3);
-    parts.push(`[v${i}src]trim=start=${s.from.toFixed(3)}:end=${s.to.toFixed(3)},setpts=PTS-STARTPTS[v${i}]`);
-    const audio = s.audio === null ? `atrim=start=0:duration=${length},volume=0` : `atrim=start=${s.audio.toFixed(3)}:duration=${length}`;
-    parts.push(`[a${i}src]${audio},asetpts=PTS-STARTPTS,afade=t=in:d=0.08,afade=t=out:st=${Math.max(0, length - 0.12).toFixed(3)}:d=0.12[a${i}]`);
-    labels.push(`[v${i}][a${i}]`);
-  });
-  const n = segments.length;
-  const graph = [
-    `[0:v]split=${n}${segments.map((_, i) => `[v${i}src]`).join('')}`,
-    `[1:a]asplit=${n}${segments.map((_, i) => `[a${i}src]`).join('')}`,
-    ...parts,
-    `${labels.join('')}concat=n=${n}:v=1:a=1[vcat][acat]`,
-    '[vcat]scale=1280:720:flags=lanczos,format=yuv420p[vout]',
-  ].join(';');
-  execFileSync('ffmpeg', ['-v', 'error',
-    '-y', '-i', webm, '-i', resolve(raw, 'audio.m4a'),
-    '-filter_complex', graph, '-map', '[vout]', '-map', '[acat]',
-    '-fps_mode', 'passthrough',
-    '-c:v', 'libx264', '-preset', 'slow', '-crf', '24',
-    '-c:a', 'aac', '-b:a', '128k',
-    '-movflags', '+faststart', mp4,
-  ], { stdio: ['ignore', 'ignore', 'inherit'] });
-
-  // Captions follow the page's audio clock, so a caption that changes in the
-  // video when its cue says it should shows the voice sits under the picture.
-  // The crop is the caption strip of the 1280 by 720 layout.
-  const cues = [...captions.matchAll(/(\d+):(\d+):(\d+\.\d+) -->/g)].map(m => Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]));
-  const expected = segments.flatMap(s => s.audio === null ? [] : cues
-    .filter(c => c > s.audio + 0.3 && c < s.audio + s.to - s.from - 0.3)
-    .map(c => finished(s.from) + c - s.audio));
-  const scan = spawnSync('ffmpeg', ['-hide_banner', '-i', mp4, '-vf', 'crop=900:30:20:624,select=gt(scene\\,0.01),showinfo', '-f', 'null', '-'], { encoding: 'utf8' }).stderr;
-  const seen = [...scan.matchAll(/pts_time:([\d.]+)/g)].map(m => Number(m[1]));
-  const offsets = expected
-    .map(e => seen.reduce((best, t) => Math.abs(t - e) < Math.abs(best) ? t - e : best, Infinity))
-    .filter(d => Math.abs(d) < 1)
-    .sort((a, b) => a - b);
-  const offset = offsets[Math.floor(offsets.length / 2)] ?? NaN;
-  if (!(offsets.length >= expected.length / 2 && Math.abs(offset) <= 0.15)) {
-    warn(`captions and narration are ${offset.toFixed(2)}s apart (${offsets.length} of ${expected.length} caption changes found)`);
+  // Each segment starts on the frame that was on screen when it began and
+  // shows every later frame until the next one arrives. No fps filter: frames
+  // come at a variable rate, and resampling them duplicates frames unevenly.
+  const list = ['ffconcat version 1.0'];
+  let last = null;
+  for (const [i, { from, to }] of segments.entries()) {
+    const run = [shots.filter(s => s.at <= from).at(-1), ...shots.filter(s => s.at > from && s.at < to)].filter(Boolean);
+    if (run.length < 2) warn(`segment ${i + 1} caught ${run.length} frames`);
+    run.forEach((shot, k) => {
+      const stop = k + 1 < run.length ? run[k + 1].at : to;
+      list.push(`file '${shot.file}'`, `duration ${(stop - Math.max(shot.at, from)).toFixed(4)}`);
+      last = shot;
+    });
   }
+  // The concat demuxer ignores the last duration unless its file is repeated.
+  list.push(`file '${last.file}'`);
+  const listFile = resolve(raw, 'frames.txt');
+  await writeFile(listFile, list.join('\n') + '\n');
+  execFileSync('ffmpeg', [
+    '-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', listFile,
+    '-vf', 'scale=1920:1080:flags=lanczos,format=yuv420p',
+    '-fps_mode', 'vfr',
+    '-c:v', 'libx264', '-preset', 'slow', '-crf', '20',
+    '-movflags', '+faststart', '-an', mp4,
+  ], { stdio: ['ignore', 'ignore', 'inherit'] });
 
   // The gif shows chapter 1's sliders only: a whole tour at gif frame rates
   // runs to tens of megabytes and GitHub will not play it smoothly.
@@ -335,10 +303,13 @@ try {
   execFileSync('ffmpeg', ['-v', 'error', '-y', '-ss', gifStart.toFixed(2), '-t', gifLength.toFixed(2), '-i', mp4, '-vf', `${gifFilter},palettegen=stats_mode=diff:max_colors=128`, palette], { stdio: ['ignore', 'ignore', 'inherit'] });
   execFileSync('ffmpeg', ['-v', 'error', '-y', '-ss', gifStart.toFixed(2), '-t', gifLength.toFixed(2), '-i', mp4, '-i', palette, '-lavfi', `${gifFilter}[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=4`, gif], { stdio: ['ignore', 'ignore', 'inherit'] });
 
-  await writeFile(resolve(raw, 'segments.json'), JSON.stringify({ segments, gif: { start: gifStart, length: gifLength }, captionOffset: offset, warnings }, null, 2));
+  // The frames run to hundreds of megabytes; the video is what is kept.
+  await rm(frames, { recursive: true, force: true });
+  await rm(listFile, { force: true });
+  await writeFile(resolve(raw, 'segments.json'), JSON.stringify({ segments, frames: shots.length, gif: { start: gifStart, length: gifLength }, warnings }, null, 2));
   const mb = path => (statSync(path).size / 1e6).toFixed(1);
   const total = segments.reduce((sum, s) => sum + s.to - s.from, 0);
-  console.log(`record-tour: tour.mp4 ${total.toFixed(1)}s ${mb(mp4)} MB, tour.gif ${gifLength.toFixed(1)}s ${mb(gif)} MB, captions ${offset.toFixed(2)}s from the voice, ${warnings.length} warnings`);
+  console.log(`record-tour: tour.mp4 ${total.toFixed(1)}s ${mb(mp4)} MB from ${shots.length} frames, tour.gif ${gifLength.toFixed(1)}s ${mb(gif)} MB, ${warnings.length} warnings`);
   if (warnings.length) process.exitCode = 1;
 } finally {
   await browser.close();
