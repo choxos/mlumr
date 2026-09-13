@@ -23,7 +23,7 @@ Move the two trial sliders, then the target slider. Which difference reacts to e
 @clear(board)
 @board(assumption: "In this design, the treatment and the trial always go together.")
 
-Removing the need for a shared control group does not remove the need for assumptions. For an unanchored comparison to work, patients with the same characteristics must be expected to have the same outcome on a given treatment, whichever trial enrolled them. That means measuring every factor that affects the outcome, including factors that change how well a treatment works. The patients in the two trials must also overlap, and the treatments, outcomes and follow-up must mean the same thing in both.
+Removing the need for a shared control group does not remove the need for assumptions. For an unanchored comparison to work, patients with the same characteristics must be expected to have the same outcome on a given treatment, whichever trial enrolled them. That means measuring, before treatment, every factor that affects the outcome, including factors that change how well a treatment works. The patients in the two trials must also overlap, and the treatments, outcomes and follow-up must mean the same thing in both.
 
 Suppose trial B also differed in something nobody measured, such as the quality of care. We can add that as a hidden shift in trial B's risk.
 @cue(shift -> 0.8, over: 3s)
@@ -42,7 +42,7 @@ Slide the hidden difference through zero. Can the reported risk alone tell you h
 
 The outcome model gives each treatment its own starting level, called an intercept. Slopes, also called coefficients, describe how much a patient characteristic, called a covariate, raises or lowers the risk. A covariate that affects the outcome, like our marker, is called a prognostic factor. The shared prognostic factor assumption, or S P F A, says that both treatments have the same slopes on the scale where the model is a straight-line, called the link scale. Here that scale is the log odds.
 
-Each line on the chart shows one treatment's log odds, for patients without the marker and with it. Both slopes are two point four, so the lines are parallel. The gap between them is the same for every patient. That means the odds ratio for any single patient does not depend on the marker.
+Each line on the chart shows one treatment's log odds, for patients without the marker and with it. Both slopes are two point four, so the lines are parallel. The gap between them is the same with and without the marker. That gap is the conditional odds ratio, on the log scale. It compares the model's predictions for patients who share the same marker status. It does not mean anyone was seen under both treatments. Here, it does not depend on the marker.
 
 Now give trial B a different slope.
 @cue(betaB -> 0.8, over: 3s)
@@ -99,12 +99,12 @@ An estimand is a precise statement of what you want to estimate. It names the tw
 
 Both treatments now share their slopes. Move the target population from mostly without the marker to mostly with it.
 @cue(target -> 0.9, over: 5s)
-Every patient has the same odds ratio, but the population odds ratio moves. This surprising behavior is called non-collapsibility. It happens even without effect modification, and even without confounding. The risk difference also changes, because it depends on the baseline risks and on the mix of patients.
+The conditional odds ratio is the same with and without the marker, but the population odds ratio moves. This surprising behavior is called non-collapsibility. It happens even without effect modification, and even without confounding. The risk difference also changes, because it depends on the baseline risks and on the mix of patients.
 
 The package fits a Bayesian model, which produces thousands of plausible sets of parameter values, called posterior draws. Inside every draw it predicts, averages and compares, and only then summarizes. For trial B's own population, subgroups are weighted by their number of patients for binary and continuous outcomes, and by exposure time for counts. These population weights are not the same thing as how precise each subgroup is. If you supply your own target rows, each row counts equally. And to report an odds ratio, exponentiate each log odds ratio draw first, then summarize. Exponentiating the average log odds ratio gives a different number.
 
 You can ask for effects in trial A's population, in trial B's population, or in your own target population. A target changes the question, not the data. It adds no outcomes, and it does not refit the model. Effects for one particular kind of patient are a separate request, called conditional effects.
-Compare target shares of zero, one half and one. Why do the patient and population odds ratios agree at zero and at one?
+Compare target shares of zero, one half and one. Why do the conditional and population odds ratios agree at zero and at one?
 
 @chapter(What subgroup rows can tell you)
 @cue(scene = "identification")
@@ -115,7 +115,7 @@ Compare target shares of zero, one half and one. Why do the patient and populati
 @clear(board)
 @board(rank: "K slopes plus one intercept need information in K + 1 directions.")
 
-Here is a question about the relaxed model: can trial B's summaries pin down trial B's own slope? To see this clearly, we switch to a continuous outcome with a straight-line model. Each subgroup row, one line of trial B's published table, reports its mean outcome and how precise that mean is. A row whose patients average zero on the covariate tells us the height of the line at zero. It cannot tell us both the height and the slope.
+Here is a question about the relaxed model: can trial B's summaries pin down trial B's own slope? To see this clearly, we switch to a continuous outcome with a straight-line model, which is called an identity link. Each subgroup row, one line of trial B's published table, reports its mean outcome and how precise that mean is. A row whose patients average zero on the covariate tells us the height of the line at zero. It cannot tell us both the height and the slope.
 
 Add a second, separate row at the same covariate value.
 @cue(design = "duplicate")
@@ -159,7 +159,7 @@ The package handles four kinds of outcome: binary, continuous, counts and surviv
 
 A binary outcome is yes or no. Trial A gives each patient's result, and trial B gives its number of events and number of patients. The logit link is the default, with probit and complementary log-log as alternatives. Risk differences, risk ratios and log odds ratios are all built from risks averaged over the population.
 @cue(family = 1)
-A continuous outcome uses a normal model. Trial B must report its mean outcome and the standard error of that mean, not the standard deviation of individual patients. The covariate standard deviations are a different thing: they describe how the covariates are spread. Even with a log link, give trial B's mean and its standard error on the original scale, not the log scale. If a paper reports a standard deviation instead, divide it by the square root of the number of patients.
+A continuous outcome uses a normal model. Trial B must report its mean outcome and the standard error of that mean, not the standard deviation of individual patients. The covariate standard deviations are a different thing: they describe how the covariates are spread. Even with a log link, give trial B's mean and its standard error on the original scale, not the log scale. If a paper reports the standard deviation of a simple average of independent patients, divide it by the square root of the number of patients. An adjusted, weighted or clustered estimate needs its own standard error.
 @cue(family = 2)
 Counts need exposure, such as years of follow-up. The effect is a rate ratio, where one means no difference. Keep the exposure units the same in both trials. And if follow-up time depends on the covariates, trial B's covariate summaries should weight each patient by follow-up time, which ordinary published averages usually do not.
 @cue(family = 3)
@@ -175,20 +175,20 @@ Pick an outcome type. What must trial B report, and which value of the effect me
 @board(survival: $\bar S_k(t)=E[S_k(t\mid X)]$)
 @board(hazard: $\bar h_k(t)=\frac{E[h_k(t\mid X)S_k(t\mid X)]}{E[S_k(t\mid X)]}$)
 
-This survival example has two risk groups: patients with the marker, whose hazard is higher, and patients without it. Each patient's survival follows a simple exponential curve, and for every patient, the hazard ratio of A versus B is zero point six five. The target population starts as an equal mix of the two groups.
+This survival example has two risk groups: patients with the marker, whose hazard is higher, and patients without it. Survival in each group follows a simple exponential curve, and within each group, the hazard ratio of A versus B is zero point six five. This is a conditional hazard ratio: it compares the treatments for patients in the same risk group. The target population starts as an equal mix of the two groups.
 
 Now move forward through follow-up.
 @cue(time -> 24, over: 7s)
 High-risk patients have their events sooner, so they leave the group still at risk. The mix of survivors changes, and it changes faster under treatment B. The population hazard is an average over the survivors, not over everyone who started.
 
-That is why the population hazard ratio changes over time, even though every patient's hazard ratio stays constant. Now remove the difference between the risk groups.
+That is why the population hazard ratio changes over time, even though the hazard ratio within each risk group stays constant. Now remove the difference between the risk groups.
 @cue(heterogeneity -> 0, over: 3s)
 With identical risk groups, the survivors never change their mix, and the population hazard ratio stays at zero point six five.
 @cue(heterogeneity -> 1.8, over: 3s)
 
-Restricted mean survival time, or R M S T, is the area under a survival curve up to a chosen time, called the horizon. In plain terms, it is the average time patients stay event free up to that horizon. The shaded area between the two curves is the R M S T difference, measured in months. Change the horizon, and you change the question. Only compare R M S T results that use the same horizon and the same time units.
+Restricted mean survival time, or R M S T, is the area under a survival curve up to a chosen time, called the horizon. In plain terms, it is the average time patients stay event free up to that horizon. The shaded area between the two curves is the R M S T difference, measured in months. Change the horizon, and you change the question. For the same outcome, time origin, treatments and target population, only compare R M S T results that use the same horizon and the same time units.
 
-In the package, each trial gets its own baseline shape by default, whenever the distribution has a shape. Sharing one shape is a stronger assumption, but separate shapes also assume that each shape travels with its treatment, so fit both and compare. A population hazard ratio always needs a time. For accelerated failure time models, the population number is a time ratio only when the slopes and the shape are both shared. Otherwise, the package labels it differently, so it is not mistaken for a time ratio. Patients still event free when follow-up ends, events known only to fall within a time window, and patients who join follow-up late each need their own likelihood terms. A simple count of events cannot replace them.
+In the package, each trial gets its own baseline shape by default, whenever the distribution has a shape. Sharing one shape is a stronger assumption, but separate shapes also assume that each shape travels with its treatment, so fit both and compare. A population hazard ratio always needs a time. Depending on the model, the package gives it at time zero, at a time you choose, rounded to its nearest prediction time, or as a whole curve over time. For accelerated failure time models, the population number is a time ratio only when the slopes and the shape are both shared. Otherwise, the package labels it differently, so it is not mistaken for a time ratio. Patients still event free when follow-up ends, events known only to fall within a time window, and patients who join follow-up late each need their own likelihood terms. A simple count of events cannot replace them. And coding censoring correctly does not show that censoring is unrelated to the outcome.
 Compare zero, twelve and twenty-four months. Then remove the risk difference between groups. What happens to the population hazard ratio, and why?
 
 @chapter(When the prior matters)
@@ -208,7 +208,7 @@ The interval at the target shrinks a lot. No new patient was observed. The answe
 
 Now move the target to where the row is.
 @cue(targetX -> 0, over: 3s)
-Here the data alone pin down the target, even though the slope is still unknown. So a verdict about the coefficients is not automatically a verdict about your target. For a continuous outcome with a straight-line model, the package's identification check asks this question for trial A's population, once with the integration points the model uses, and once with the means trial B published.
+Here the data alone pin down the target, even though the slope is still unknown. Pinned down does not mean certain: the target still has an interval. And this argument needs the straight-line model. With a curved link, matching the row's averages is not enough. So a verdict about the coefficients is not automatically a verdict about your target. For a continuous outcome with a straight-line model, the package's identification check asks this question for trial A's population, once with the integration points the model uses, and once with the means trial B published.
 
 Check prior sensitivity for the target you will actually report. Results in trial B's population can look stable, while results in trial A's population, or in a new target, still depend on the prior. Try several reasonable priors, see how far the result moves under each, and report what you find. Never pick the prior that happens to give the narrowest interval.
 Change the prior with the target at zero, then at one. Repeat with two separated rows. Which narrowing comes from data, and which from assumptions?

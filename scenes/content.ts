@@ -61,11 +61,11 @@ export const families = [
     boundary: 'The "lor" effect is always a logit-scale log odds ratio of the averaged risks, even when the model uses probit or cloglog. Changing the link changes the model, including the scale on which slopes are shared.',
   },
   {
-    name: 'Continuous', equation: 'patient outcome ~ Normal(mean, sigma)\ntrial B mean ~ Normal(average mean, SE)',
+    name: 'Continuous', equation: 'patient outcome ~ Normal(mean, sigma²)\ntrial B mean ~ Normal(average mean, SE²)\nThe second argument is a variance. set_agd() itself takes the SE.',
     input: 'set_agd(data, treatment = "trt", family = "normal",\n        outcome_mean = "y_mean", outcome_se = "y_se",\n        outcome_n = "n", cov_means = ...)',
     effects: 'marginal_effects(effect = "md"). No difference means MD = 0.',
     scale: 'The link is identity by default, or log. Trial B supplies its mean outcome and the standard error of that mean, on the original scale, even with a log link.',
-    boundary: 'The standard error of the mean is not the standard deviation of individual outcomes. If a paper gives a standard deviation instead, divide it by the square root of the number of patients. With more than one row, outcome_n is required so the rows can be weighted by size.',
+    boundary: 'The standard error of the mean is not the standard deviation of individual outcomes. For a simple unweighted mean of independent patients, the SE is the SD divided by the square root of the number of patients. An adjusted, weighted or clustered estimate needs the standard error that belongs to that estimate. With more than one row, outcome_n is required so the rows can be weighted by size.',
   },
   {
     name: 'Counts', equation: 'patient events ~ Poisson(exposure × rate)\ntrial B events ~ Poisson(exposure × average rate)',
@@ -77,7 +77,7 @@ export const families = [
   {
     name: 'Survival', equation: 'likelihood = hazard^event × survival, for each patient\ntrial B terms are averaged over its covariates',
     input: 'set_ipd(data, ..., family = "survival", time = "months", status = "event")\nset_agd_surv(data, treatment = "trt", time = "months",\n             status = "event", cov_means = ...)',
-    effects: 'marginal_effects(effect = "hr" at a time, "tr", "rmstd" or "rmstr" up to a horizon). No difference means HR = 1, TR = 1, RMST difference = 0 and RMST ratio = 1. predict() gives survival, hazard, cumhaz, rmst, median and loghr.',
+    effects: 'marginal_effects() gives one ratio, named for what the fit supports: "hr" for proportional hazards, "tr" for an accelerated failure time fit with shared slopes and one shared shape, and "exp_delta_eta" for other accelerated failure time fits, which is not generally a time ratio. It also gives "rmstd" and "rmstr" up to a horizon. No difference means 1 for the ratios and 0 for the RMST difference. A hazard ratio carries its evaluation time in the at_time column. predict() gives survival, hazard, cumhaz, rmst, median and loghr.',
     scale: 'Trial B enters as reconstructed event times, for example read off a published Kaplan-Meier curve, plus covariate summaries. The default distribution is Weibull.',
     boundary: 'Reconstruction does not recover trial B\'s covariates, and its uncertainty is not carried into the fit. Only one comparator arm is supported. Right, left and interval censoring and delayed entry each need their own likelihood terms.',
   },
@@ -125,16 +125,18 @@ export const diagnosticCases = [
 
 // The correct answers stay at positions 0, 1, 2, 1, 2 (browser-qa.mjs relies on them).
 export const questions = [
-  { q: 'With shared slopes on the logit scale, which statement is true?', options: ['The odds ratio for one patient is the same for every patient.', 'The population odds ratio is the same in every population.', 'Hidden differences between the trials are removed.'], correct: 0, why: 'Shared slopes cancel when you compare the two treatments for one patient. Averaging over a population is curved, so the population odds ratio can still change, and shared slopes do nothing about unmeasured differences.' },
+  { q: 'Under the shared-slopes logit model shown here, which statement is true?', options: ['The conditional odds ratio is the same at every covariate profile.', 'The population odds ratio is the same in every population.', 'Unmeasured differences between the trials are removed.'], correct: 0, why: 'The shared slopes cancel in the conditional log odds ratio, which compares the model\'s predictions for patients with the same covariates. Averaging probabilities over a population is curved, so the population odds ratio can still change. Neither calculation removes unmeasured differences between the trials.' },
   { q: 'What happens when you give newdata to marginal_effects()?', options: ['The model is refitted.', 'Both treatments are averaged over your target rows.', 'The rows become new outcome data.'], correct: 1, why: 'newdata only describes a target population, with every row counting equally. It adds no outcomes and does not refit the model, and the population argument is ignored.' },
-  { q: 'Can one aggregate row with a normal outcome pin down a target mean?', options: ['Never, because the slope is unknown.', 'Always, whatever the target.', 'Yes, if the target sits exactly where the row\'s data are.'], correct: 2, why: 'Knowing every coefficient and knowing one target are different things. A target at the row\'s own covariate mean is pinned down even though the slope is not.' },
-  { q: 'When can two RMST differences be compared?', options: ['Whenever both are called RMST differences.', 'When they use the same horizon and the same time units.', 'When both models have constant hazard ratios.'], correct: 1, why: 'RMST is the area under the survival curve up to a chosen time. A different time gives a different quantity. Constant hazards are not needed.' },
+  { q: 'In the normal identity-link model shown here, can one aggregate row identify a target mean without identifying the slope?', options: ['No, every coefficient must be identified first.', 'Yes, for every possible target population.', 'Yes, when the target has the same covariate means as that row.'], correct: 2, why: 'With an identity link, the target mean depends on the covariate means in a straight line. A row at the same means identifies that target even though the intercept and the slope cannot be separated. The target still has sampling uncertainty, and with a curved link, matching the means is not enough.' },
+  { q: 'For the same outcome, time origin, treatments and target population, which time settings must match before two RMST differences can be compared?', options: ['None; both are RMST differences.', 'The restriction horizon and the time units.', 'Constant hazard ratios in both models.'], correct: 1, why: 'RMST is the area under a survival curve up to a chosen horizon, so a different horizon defines a different quantity. Constant hazard ratios are not needed. The outcome, time origin, treatments and target population must also match, which is why the question fixed them.' },
   { q: 'Can more integration points remove a hidden difference between the trials?', options: ['Yes, with enough points.', 'Only if R-hat is below 1.01.', 'No. Accurate arithmetic and comparable trials are separate questions.'], correct: 2, why: 'Integration points make the model\'s arithmetic more accurate. They cannot add covariates that nobody measured.' },
 ];
 
 export const checklist = [
   'The two treatments, the outcome, the follow-up, the target population and the effect scale.',
   'Where each dataset came from, that subgroup rows do not overlap, and how well the covariates overlap.',
+  'For a continuous outcome, the standard error that belongs to the reported estimate. SD divided by the square root of n holds only for a simple mean of independent patients.',
+  'For survival, the censoring and late-entry assumptions, not only how censoring was coded.',
   'Shared or separate slopes, the priors, the covariate distributions and their correlation.',
   'Sampling checks for every chain, integration checks, and prior sensitivity.',
   'Posterior intervals and the draw counts. For survival, the time of each hazard ratio and each RMST horizon.',
@@ -151,16 +153,16 @@ export const cells: Partial<Record<Lab, Cell>> = {
     code: 'rho <- 0.5\npatients <- expand.grid(marker1 = 0:1, marker2 = 0:1)\npatients$share <- ifelse(patients$marker1 == patients$marker2,\n                         (1 + rho) / 4, (1 - rho) / 4)\npatients$risk <- plogis(-2.8 + 1.6 * patients$marker1 + 1.6 * patients$marker2)\npatients\ntapply(patients$share, patients$marker1, sum)  # marker 1 stays at 50%\nsum(patients$share * patients$risk)              # average risk',
   },
   target: {
-    intro: 'Compare the odds ratio for one patient with the odds ratio for a population.',
-    code: 'q <- 0.5                                  # share of the target with the marker\nriskA <- plogis(c(-1.8, -1.8 + 2.4))      # A: marker absent, present\nriskB <- plogis(c(-1.1, -1.1 + 2.4))      # B: marker absent, present\npA <- sum(c(1 - q, q) * riskA)\npB <- sum(c(1 - q, q) * riskB)\nexp(-1.8 - (-1.1))                        # odds ratio for any one patient\n(pA / (1 - pA)) / (pB / (1 - pB))         # odds ratio for the population\npA - pB                                   # risk difference',
+    intro: 'Compare the conditional odds ratio with the odds ratio for a population.',
+    code: 'q <- 0.5                                  # share of the target with the marker\nriskA <- plogis(c(-1.8, -1.8 + 2.4))      # A: marker absent, present\nriskB <- plogis(c(-1.1, -1.1 + 2.4))      # B: marker absent, present\npA <- sum(c(1 - q, q) * riskA)\npB <- sum(c(1 - q, q) * riskB)\nexp(-1.8 - (-1.1))                        # conditional odds ratio, either marker status\n(pA / (1 - pA)) / (pB / (1 - pB))         # odds ratio for the population\npA - pB                                   # risk difference',
   },
   survival: {
     intro: 'Compute the population hazard ratio and the RMST difference at 12 months.',
     code: 'q <- 0.5; beta <- 1.8; hr <- 0.65\nrateB <- 0.06 * exp(c(0, beta)); rateA <- rateB * hr\nS <- function(t, rate) (1 - q) * exp(-rate[1] * t) + q * exp(-rate[2] * t)\nh <- function(t, rate) ((1 - q) * rate[1] * exp(-rate[1] * t) +\n                         q * rate[2] * exp(-rate[2] * t)) / S(t, rate)\nh(12, rateA) / h(12, rateB)    # population hazard ratio at 12 months\nintegrate(S, 0, 12, rate = rateA)$value -\n  integrate(S, 0, 12, rate = rateB)$value   # RMST difference, months',
   },
   priors: {
-    intro: 'The exact posterior behind the chart: one row at x = 0 and a target at x = 1.',
-    code: 'x <- 0; y <- 0.4; se <- 0.15      # one subgroup mean at x = 0\nprior_sd <- 3; target <- 1\nX <- cbind(1, x)\npost_cov <- solve(crossprod(X) / se^2 + diag(2) / prior_sd^2)\npost_mean <- post_cov %*% crossprod(X, y) / se^2\ng <- c(1, target)\nc(estimate = sum(g * post_mean), sd = sqrt(drop(t(g) %*% post_cov %*% g)))\nprior_sd <- 0.3                     # now rerun the lines above with a tight prior',
+    intro: 'The exact posterior behind the chart, one row at x = 0 and a target at x = 1, under a wide prior and a tight one.',
+    code: '# The normal identity-link model behind the chart, not an mlumr fit\nx <- 0; y <- 0.4; se <- 0.15      # one subgroup mean at x = 0\ntarget <- 1\nsummarize_target <- function(prior_sd) {\n  X <- cbind(1, x)\n  post_cov <- solve(crossprod(X) / se^2 + diag(2) / prior_sd^2)\n  post_mean <- post_cov %*% crossprod(X, y) / se^2\n  g <- c(1, target)\n  estimate <- sum(g * post_mean)\n  sd <- sqrt(drop(t(g) %*% post_cov %*% g))\n  data.frame(prior_sd, estimate, sd,\n             lower = estimate - 1.96 * sd, upper = estimate + 1.96 * sd)\n}\n# One Run compares both priors\ndo.call(rbind, lapply(c(3, 0.3), summarize_target))',
   },
   workflow: {
     mlumr: true,

@@ -75,8 +75,10 @@ export function chapterNavigation(root: HTMLElement, overlay: HTMLElement, choos
       if (last === key) return;
       last = key;
       root.dataset.narratedLab = narrated;
-      returning.hidden = !hasNarration || !exploring || lab === narrated;
-      returning.querySelector('span')!.textContent = `You are exploring. The narration is on: ${labs[narrated][0]}`;
+      returning.hidden = !hasNarration || !exploring;
+      returning.querySelector('span')!.textContent = lab === narrated
+        ? 'You are exploring this chapter. The narration keeps going without changing what you see.'
+        : `You are exploring. The narration is on: ${labs[narrated][0]}`;
       current = entries.findIndex(([key]) => key === lab);
       root.dataset.lab = lab;
       count.textContent = `${String(current + 1).padStart(2, '0')} / ${entries.length}`;

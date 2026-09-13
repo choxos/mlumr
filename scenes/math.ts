@@ -70,12 +70,3 @@ export function quantile(xs: number[], p: number) {
   const h = (sorted.length - 1) * p, lo = Math.floor(h);
   return sorted[lo] + (sorted[Math.min(lo + 1, sorted.length - 1)] - sorted[lo]) * (h - lo);
 }
-
-/** Classic split R-hat (Gelman et al. BDA3). Not the rank-normalized version mlumr reports. */
-export function splitRhat(chains: number[][]) {
-  const halves = chains.flatMap(c => { const n = Math.floor(c.length / 2); return [c.slice(0, n), c.slice(c.length - n)]; });
-  const n = halves[0].length, means = halves.map(mean), grand = mean(means);
-  const within = mean(halves.map((h, i) => h.reduce((s, x) => s + (x - means[i]) ** 2, 0) / (n - 1)));
-  const between = n * means.reduce((s, m) => s + (m - grand) ** 2, 0) / (halves.length - 1);
-  return Math.sqrt(((n - 1) / n * within + between / n) / within);
-}

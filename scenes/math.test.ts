@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { binary, quadrature, logistic, dependence, identification, survival, random, splitRhat, quantile } from './math.js';
+import { binary, quadrature, logistic, dependence, identification, survival, quantile } from './math.js';
 
 describe('lesson mathematics', () => {
   it('standardizes on the response scale and distinguishes marginal odds', () => {
@@ -46,11 +46,25 @@ describe('lesson mathematics', () => {
     const derivative = -(survival(t+h,p).a.s - survival(t-h,p).a.s) / (2*h);
     expect(derivative / survival(t,p).a.s).toBeCloseTo(survival(t,p).a.h, 8);
   });
-  it('reports split R-hat near 1 for mixing chains and above 1.1 for stuck ones', () => {
-    const rng = random(2026);
-    const chain = (shift: number) => Array.from({ length: 1000 }, () => rng.normal() + shift);
-    expect(Math.abs(splitRhat([chain(0), chain(0)]) - 1)).toBeLessThan(.01);
-    expect(splitRhat([chain(0), chain(2)])).toBeGreaterThan(1.1);
+  it('keeps the survival case with a hazard ratio above one', () => {
+    const r = survival(11.5, .99, 2.5);
+    expect(r.hr).toBeCloseTo(2.39839073860708, 10);
+    expect(r.rmstd).toBeCloseTo(0.7303671092625781, 10);
+    expect(r.a.s).toBeGreaterThan(r.b.s);
     expect(quantile([3, 1, 2], .5)).toBe(2);
+  });
+  it('gives the wide normal interval exactly', () => {
+    const d = identification('one', .8, 1.5, 4);
+    expect(d.estimate).toBeCloseTo(0.3994382899048214, 12);
+    expect(d.sd).toBeCloseTo(6.001872074928551, 12);
+  });
+  // Instructor note: matching a row's covariate mean identifies a target only
+  // with an identity link. Two log-link models agree on the row and not on x = 0.
+  it('shows that mean matching does not identify a log-link target', () => {
+    const aggregate = (alpha: number, beta: number) => (Math.exp(alpha - beta) + Math.exp(alpha + beta)) / 2;
+    const other = [-Math.log(Math.cosh(1)), 1];
+    expect(aggregate(0, 0)).toBeCloseTo(aggregate(other[0], other[1]), 12);
+    expect(Math.exp(other[0])).toBeCloseTo(0.6480542736638855, 12);
+    expect(Math.exp(0) - Math.exp(other[0])).toBeGreaterThan(.3);
   });
 });

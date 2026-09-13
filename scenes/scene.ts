@@ -86,7 +86,7 @@ function assumptions(s: Readonly<PlainState>) {
   }),
   metric('True difference', fmt(base.rd)) + metric('Difference we would report', fmt(shifted.rd)) + metric('Error from the hidden difference', fmt(shifted.rd - base.rd)),
   'The hidden difference belongs to trial B, not to treatment B. Trial B has one intercept, and it soaks up both. No covariate adjustment can pull them apart.',
-  `<h3>What an unanchored comparison has to assume</h3><ul class="read-list"><li>The treatments, outcome definitions and follow-up are comparable.</li><li>Every factor that affects the outcome, or changes the treatment effect, was measured and modeled.</li><li>After adjusting for those factors, patients in the two trials are comparable, and their covariates overlap.</li><li>The outcome model and the covariate distributions are close enough to the truth.</li></ul>`);
+  `<h3>What an unanchored comparison has to assume</h3><ul class="read-list"><li>The treatments, the outcome definition, the time origin and the follow-up mean the same thing in both trials.</li><li>The baseline covariates, measured before treatment, are enough for outcome predictions to carry from one trial to the other. These are the prognostic factors and effect modifiers, not everything recorded: adjusting for something the treatment itself changes, or for how patients were selected, can add bias.</li><li>The trials' covariates cover the target population, or any extrapolation is stated.</li><li>The outcome model and the assumed joint covariate distribution are close enough to the truth.</li><li>For survival, censoring and late entry meet the assumptions the likelihood needs. Coding censoring correctly does not show that it is unrelated to the outcome.</li></ul><p>Good sampling and precise integration establish none of these.</p>`);
 }
 
 function response(s: Readonly<PlainState>) {
@@ -100,8 +100,8 @@ function response(s: Readonly<PlainState>) {
     notes: [{ at: [.03, -1.45], text: `gap ${fmt(-.7, 2)}` }, { at: [.97, (.6 - 1.1 + beta) / 2], text: `gap ${fmt(gap1, 2)}`, anchor: 'end' }],
     legend: [['a', 'A: slope 2.4'], ['b', `B: slope ${fmt(beta, 1)}`]],
   }),
-  metric('Odds ratio, marker absent', fmt(Math.exp(-.7))) + metric('Odds ratio, marker present', fmt(Math.exp(gap1))),
-  shared ? 'Shared slopes: the two lines are parallel, so the gap between treatments is the same for every patient on the log odds scale.' : 'Separate slopes: the lines are not parallel, so the gap depends on the marker. The marker now changes the treatment effect.',
+  metric('Conditional odds ratio, marker absent', fmt(Math.exp(-.7))) + metric('Conditional odds ratio, marker present', fmt(Math.exp(gap1))),
+  shared ? 'Shared slopes: the lines are parallel, so the gap between the treatments on the log odds scale is the same with and without the marker. That gap is a conditional log odds ratio. It compares the model\'s predictions for patients who share a marker status; it does not mean anyone was seen under both treatments.' : 'Separate slopes: the lines are not parallel, so the conditional odds ratio depends on the marker. On this scale, the marker now changes the treatment effect.',
   `<p class="formula">log odds for A = −1.8 + 2.4 × marker<br>log odds for B = −1.1 + slope × marker</p>`);
 }
 
@@ -148,15 +148,16 @@ function target(s: Readonly<PlainState>) {
       vlines: [{ x: q }], dots: [{ at: [q, b.a], key: 'a' }, { at: [q, b.b], key: 'b' }], legend: [['a', 'A'], ['b', 'B']],
     })
     + lineChart({
-      title: 'Log odds ratio, A versus B', label: 'Population log odds ratio across target populations compared with the log odds ratio for one patient',
+      title: 'Log odds ratio, A versus B', label: 'Population log odds ratio across target populations compared with the conditional log odds ratios',
+      summary: `Target share ${pct0(q)}: population log odds ratio ${fmt(b.lor)}. Conditional log odds ratio ${shared ? '-0.700 at both marker values' : `-0.700 without the marker, ${fmt(1.7 - beta)} with it`}.`,
       x: [0, 1], y: [lo, hi], xTicks: [0, .25, .5, .75, 1], xFmt: pct0, yTicks: grid(lo, hi, 5), yFmt: v => v.toFixed(2),
       xLabel: 'Share of the target population with the marker', yLabel: 'Log odds ratio',
       hlines: [{ y: -.7, key: 'muted', dash: true }, { y: 1.7 - beta, key: 'muted', dash: true }],
       lines: [{ points: xs.map(p => [p, binary(p, beta).lor]), key: 'ink' }], dots: [{ at: [q, b.lor], key: 'ink', r: 6 }],
-      legend: [['ink', 'population'], ['muted', 'one patient', true]],
+      legend: [['ink', 'population'], ['muted', 'conditional, by marker status', true]],
     }),
-    metric('Risk difference', fmt(b.rd)) + metric('Population odds ratio', fmt(Math.exp(b.lor))) + metric(shared ? 'Odds ratio for one patient' : 'Patient odds ratio, absent / present', shared ? fmt(Math.exp(-.7)) : `${fmt(Math.exp(-.7))} / ${fmt(Math.exp(1.7 - beta))}`),
-    shared ? 'Shared slopes: every patient has the same odds ratio, yet the population odds ratio still moves with the mix. Odds ratios do not average simply, which is called non-collapsibility.' : 'Separate slopes: the marker changes the treatment effect, and the mix of the population changes the population effect as well.',
+    metric('Risk difference', fmt(b.rd)) + metric('Population odds ratio', fmt(Math.exp(b.lor))) + metric(shared ? 'Conditional odds ratio' : 'Conditional odds ratio, absent / present', shared ? fmt(Math.exp(-.7)) : `${fmt(Math.exp(-.7))} / ${fmt(Math.exp(1.7 - beta))}`),
+    shared ? 'Shared slopes: the conditional odds ratio is the same with and without the marker, yet the population odds ratio still moves with the mix. Odds ratios do not average simply, which is called non-collapsibility. The risk difference moves too.' : 'Separate slopes: the marker changes the conditional odds ratio, and the mix of the population changes the population effect as well.',
     '<p>mlumr predicts, averages and compares inside every posterior draw, then summarizes. marginal_effects() does this for trial A\'s population, trial B\'s population, or a target population you pass as newdata.</p>');
 }
 
@@ -167,6 +168,8 @@ function evidenceBand(title: string, s: Readonly<PlainState>) {
     d,
     chart: lineChart({
       title, label: 'Estimated mean outcome across covariate values with a 95% interval band, the subgroup rows, and the target',
+      summary: `Target at x = ${fmt(tx, 2)}: estimate ${fmt(d.estimate, 2)}, 95% interval ${fmt(d.estimate - 1.96 * d.sd, 2)} to ${fmt(d.estimate + 1.96 * d.sd, 2)}. The truth behind the made-up data is ${fmt(.4 + .8 * tx, 2)}.`,
+      clip: `Parts of the band run past this axis, which stops at -2 and 3. At the target, the 95% interval runs from ${fmt(d.estimate - 1.96 * d.sd, 2)} to ${fmt(d.estimate + 1.96 * d.sd, 2)}.`,
       x: [-1.5, 1.5], y: [-2, 3], xTicks: [-1.5, -1, -.5, 0, .5, 1, 1.5], yTicks: [-2, -1, 0, 1, 2, 3], xLabel: 'Covariate value x', yLabel: 'Mean outcome',
       bands: [{ upper: xs.map((x, i) => [x, fits[i].estimate + 1.96 * fits[i].sd]), lower: xs.map((x, i) => [x, fits[i].estimate - 1.96 * fits[i].sd]), key: 'b' }],
       lines: [{ points: xs.map((x, i) => [x, fits[i].estimate]), key: 'b' }, { points: [[-1.5, -.8], [1.5, 1.6]], key: 'muted', dash: true }],
@@ -181,7 +184,7 @@ function identificationView(s: Readonly<PlainState>) {
   const v = evidenceBand('What trial B\'s subgroup rows pin down', s);
   return block(v.chart, v.metrics,
     v.d.rank === 1 ? 'One direction of information: the data fix the mean at x = 0 but not the slope, so the band is narrow only there. Two rows at the same x add precision at that point, not a new direction.' : 'Two different x values give two directions, so the intercept and the slope can both be estimated. Move the rows closer together: the band widens away from them, and the prior matters more.',
-    '<p class="formula">row mean ~ Normal(α + β × x, 0.15²)<br>α, β ~ Normal(0, prior SD²)</p><p>This is an exact calculation for a normal outcome, not an mlumr fit. With K covariates, trial B needs at least K + 1 summaries. For binary and count outcomes, or a continuous outcome with a log link, each row passes through a curved link, so check_identification() only describes the rows and reports flagged = NA when there are enough of them. It refuses reconstructed survival data.</p>');
+    '<p class="formula">row mean ~ Normal(α + β × x, 0.15²)<br>α, β ~ Normal(0, prior SD²)</p><p>The second argument of each Normal is a variance. This is an exact calculation for a normal outcome with an identity link, not an mlumr fit. With K covariates, trial B needs at least K + 1 summaries. For binary and count outcomes, or a continuous outcome with a log link, each row passes through a curved link, so check_identification() only describes the rows and reports flagged = NA when there are enough of them. It refuses reconstructed survival data.</p>');
 }
 
 function priorsView(s: Readonly<PlainState>) {
@@ -189,7 +192,7 @@ function priorsView(s: Readonly<PlainState>) {
   const design = String(s.design), sep = Number(s.separation), tx = Number(s.targetX), sd = Number(s.priorSD);
   const row = (name: string, prior: number, key: 'a' | 'b') => { const d = identification(design, sep, tx, prior); return { name, mean: d.estimate, lo: d.estimate - 1.96 * d.sd, hi: d.estimate + 1.96 * d.sd, key }; };
   return block(v.chart + intervalChart('Target estimate under different priors', 'Point estimates and 95% intervals for the target under several prior standard deviations',
-    [row('prior SD 0.3', .3, 'b'), row('prior SD 1', 1, 'b'), row('prior SD 3', 3, 'b'), row(`your prior SD ${fmt(sd, 1)}`, sd, 'a')], [-6, 7], [-6, -3, 0, 3, 6], [{ x: .4 + .8 * tx, text: 'truth' }], x => x.toFixed(0)),
+    [row('prior SD 0.3', .3, 'b'), row('prior SD 1', 1, 'b'), row('prior SD 3', 3, 'b'), row(`your prior SD ${fmt(sd, 1)}`, sd, 'a')], [-1, 2], [-1, 0, 1, 2], [{ x: .4 + .8 * tx, text: 'truth' }], x => String(x)),
   v.metrics,
   'A tighter prior narrows the interval even though no new data arrived. Near the observed rows the data do the work; far from them, the prior does.',
   '<p>In mlumr, prior_summary() lists the priors, plot_prior_posterior() draws each posterior over its prior, and prior_sensitivity() refits the model over several prior scales. prior_normal(autoscale = TRUE) divides a slope prior\'s scale by each covariate\'s standard deviation.</p>');
@@ -205,23 +208,36 @@ function familyChart(i: number) {
 function survivalView(s: Readonly<PlainState>) {
   const t = Number(s.time), q = Number(s.target), het = Number(s.heterogeneity), r = survival(t, q, het);
   const ts = grid(0, 36, 73), vals = ts.map(x => survival(x, q, het)), area = t > 0 ? grid(0, t, 40).map(x => survival(x, q, het)) : [];
+  const month = `month ${fmt(t, 1)}`;
+  // The explanation follows the state: with one risk group, or two with the
+  // same hazard, there is no changing mix and the ratio stays at 0.65.
+  const note = q === 0 || q === 1
+    ? 'This target contains only one risk group, so the mix of people still event-free never changes. The population and conditional hazard ratios are both 0.65 at every time.'
+    : het === 0
+      ? 'Both risk groups have the same baseline hazard, so mixing them creates no difference in risk. The population hazard ratio stays at 0.65.'
+      : r.hr > 1
+        ? `At ${month} the population hazard ratio is above one, yet A's survival curve is still above B's. A hazard compares event rates among the people still event-free under each treatment, and those are now different mixes of risk groups. The hazard ratio alone does not reverse the survival advantage shown above.`
+        : 'The conditional hazard ratio is 0.65 within both risk groups. High-risk patients have their events sooner, and the mix of people still event-free changes differently under the two treatments. So the population hazard ratio need not stay at 0.65, or stay constant over time.';
   return block(
     lineChart({
       title: 'Survival in the target population', label: 'Survival curves for A and B with the area between them shaded up to the chosen time',
+      summary: `At ${month}, still event-free: A ${pct(r.a.s)}, B ${pct(r.b.s)}. RMST difference to ${month}: ${fmt(r.rmstd, 2)} months.`,
       x: [0, 36], y: [0, 1], xTicks: [0, 6, 12, 18, 24, 30, 36], yTicks: [0, .25, .5, .75, 1], yFmt: pct0, xLabel: 'Months', yLabel: 'Still event-free',
       bands: area.length ? [{ upper: area.map((v, i) => [t * i / 39, v.a.s]), lower: area.map((v, i) => [t * i / 39, v.b.s]), key: 'accent' }] : [],
       lines: [{ points: ts.map((x, i) => [x, vals[i].a.s]), key: 'a' }, { points: ts.map((x, i) => [x, vals[i].b.s]), key: 'b' }],
       vlines: [{ x: t, text: `${fmt(t, 1)} months` }], legend: [['a', 'A'], ['b', 'B'], ['accent', 'RMST difference (shaded area)']],
     })
     + lineChart({
-      title: 'Hazard ratio, A versus B, over time', label: 'Population hazard ratio changing over time, compared with the constant hazard ratio for each patient',
-      x: [0, 36], y: [.5, 1], xTicks: [0, 6, 12, 18, 24, 30, 36], yTicks: [.5, .6, .7, .8, .9, 1], yFmt: v => v.toFixed(1), xLabel: 'Months', yLabel: 'Hazard ratio',
-      hlines: [{ y: .65, key: 'muted', dash: true }], lines: [{ points: ts.map((x, i) => [x, vals[i].hr]), key: 'ink' }], dots: [{ at: [t, r.hr], key: 'ink', r: 6 }],
-      legend: [['ink', 'population'], ['muted', 'each patient', true]],
+      title: 'Hazard ratio, A versus B, over time', label: 'Population hazard ratio over time, with the conditional hazard ratio of 0.65 and the no-difference line at 1',
+      summary: `Population hazard ratio at ${month}: ${fmt(r.hr)}. Conditional hazard ratio within each risk group: 0.650.`,
+      x: [0, 36], y: [.5, 1.1], xTicks: [0, 6, 12, 18, 24, 30, 36], yTicks: [.5, .65, .8, 1], yFmt: v => v.toFixed(2), xLabel: 'Months', yLabel: 'Hazard ratio',
+      hlines: [{ y: .65, key: 'muted', dash: true }, { y: 1, key: 'muted' }], lines: [{ points: ts.map((x, i) => [x, vals[i].hr]), key: 'ink' }], dots: [{ at: [t, r.hr], key: 'ink', r: 6 }],
+      notes: [{ at: [36, 1], text: 'HR = 1, no difference', anchor: 'end', dy: -6, soft: true }],
+      legend: [['ink', 'population'], ['muted', 'conditional, each risk group', true]],
     }),
-    metric('Each patient\'s hazard ratio', '0.650') + metric(`Population hazard ratio, month ${fmt(t, 1)}`, fmt(r.hr)) + metric(`RMST difference to month ${fmt(t, 1)}`, fmt(r.rmstd, 2)),
-    'High-risk patients have their events sooner, so the people still at risk drift toward low risk, and faster under B. The population hazard ratio therefore changes over time even though every patient\'s hazard ratio stays at 0.65.',
-    '<p>In mlumr, a population hazard ratio needs a time (at_time in marginal_effects()), and an RMST needs a horizon (rmst_horizon in mlumr()). predict() gives survival, hazard, cumhaz, rmst, median and loghr.</p>');
+    metric('Conditional HR, each risk group', '0.650') + metric(`Population HR, ${month}`, fmt(r.hr)) + metric(`RMST difference to ${month}`, `${fmt(r.rmstd, 2)} months`),
+    note,
+    '<p>In mlumr, a population hazard ratio needs an evaluation time, and how you get one depends on the fit. With one baseline shape shared by both trials, the hazard ratio from marginal_effects() is its limit at time zero, and at_time is refused. With a separate shape for each trial (aux_by = ".study", the default for distributions that have a shape) or a flexible baseline, at_time picks the time and is rounded to the nearest fitted prediction time; the at_time column records the time actually used. Targets passed as newdata have their own time handling, described on the help page. For the whole curve, use predict(type = "loghr"), which is on the log scale.</p><p>An accelerated failure time fit reports a time ratio, "tr", only with shared slopes and one shared shape. Otherwise its scalar is "exp_delta_eta", which is not generally a time ratio. An RMST always carries its horizon (rmst_horizon in mlumr()) and its time units. Coding censoring correctly does not show that censoring is unrelated to the outcome.</p>');
 }
 
 function diagnosticChart(i: number) {
@@ -243,7 +259,7 @@ function diagnosticChart(i: number) {
     { name: 'shared slopes', mean: -512, lo: -530, hi: -494, key: 'a' }, { name: 'separate slopes', mean: -508, lo: -528, hi: -488, key: 'b' }], [-540, -480], [-540, -520, -500, -480], [], v => String(v));
 }
 
-function view(lab: Lab, s: Readonly<PlainState>) {
+export function view(lab: Lab, s: Readonly<PlainState>) {
   if (lab === 'evidence') return evidence(s);
   if (lab === 'assumptions') return assumptions(s);
   if (lab === 'response') return response(s);
@@ -256,7 +272,7 @@ function view(lab: Lab, s: Readonly<PlainState>) {
   if (lab === 'workflow') {
     const i = Math.round(Number(s.step)), st = workflowSteps[i];
     return block(flowChart('The six steps of an mlumr analysis', workflowSteps, i), '', st.text,
-      `<h3>${st.title}</h3>${code(st.code)}<p>The complete companion script: <a href="workflow.R" download>download workflow.R</a>. Run it in R with mlumr installed, and add --fit for the real Stan fits.</p>`);
+      `<h3>${st.title}</h3><p class="run-where"><strong>Native R example.</strong> These calls need mlumr installed with rstan or cmdstanr, so they do not run in the browser cell below. That cell runs mlumr's data preparation in webR and samples with its own Fit button.</p>${code(st.code)}<p>The complete companion script: <a href="workflow.R" download>download workflow.R</a>. Run it in R with mlumr installed, and add --fit for the real Stan fits.</p>`);
   }
   if (lab === 'families') {
     const i = Math.round(Number(s.family)), f = families[i];
@@ -285,7 +301,7 @@ export const scene: SceneModule = {
     root.className = 'ml-lesson';
     const style = document.createElement('style');
     style.textContent = css;
-    root.innerHTML = `<header class="ml-header"><a class="brand" href="https://choxos.github.io/mlumr/" target="_blank" rel="noopener">mlumr<span class="brand-tag">Lesson</span></a><div class="header-tools"><a href="sources.html" target="_blank" rel="noopener">Sources</a><button type="button" class="theme-toggle" aria-label="Dark theme" aria-pressed="false">${moon}<span class="theme-label">Light</span><span class="theme-track" aria-hidden="true"><span class="theme-thumb"></span></span></button></div></header><div class="lab-scroll"><div class="lab-title"><div><span class="eyebrow"></span><h1 tabindex="-1"></h1><p class="question"></p></div><button type="button" class="reset" data-reset aria-label="Reset lab">Reset</button></div><div class="lab-body"><div class="visual"></div><aside class="lab-controls" aria-label="Experiment controls"></aside></div><div class="code-slot"></div><footer>Teaching models with made-up numbers. The code cells run real R, and the cell in the Run mlumr chapter runs real mlumr code and its Stan model, all in your browser. mlumr development version 0.1.0.9000, working toward 0.2.0.</footer></div>`;
+    root.innerHTML = `<header class="ml-header"><a class="brand" href="https://choxos.github.io/mlumr/" target="_blank" rel="noopener">mlumr<span class="brand-tag">Lesson</span></a><div class="header-tools"><a href="sources.html" target="_blank" rel="noopener">Sources</a><button type="button" class="theme-toggle" aria-label="Dark theme" aria-pressed="false">${moon}<span class="theme-label">Light</span><span class="theme-track" aria-hidden="true"><span class="theme-thumb"></span></span></button></div></header><div class="lab-scroll"><div class="lab-title"><div><span class="eyebrow"></span><h1 tabindex="-1"></h1><p class="question"></p></div><button type="button" class="reset" data-reset aria-label="Reset experiment" title="Restore this chapter's starting values. The narration is not affected.">Reset</button></div><div class="lab-body"><div class="visual"></div><aside class="lab-controls" aria-label="Experiment controls"></aside></div><div class="code-slot"></div><footer>Teaching models with made-up numbers. The code cells run real R, and the cell in the Run mlumr chapter runs real mlumr code and its Stan model, all in your browser. mlumr development version 0.1.0.9000, working toward 0.2.0.</footer></div>`;
     ctx.overlay.append(style, root);
     const disposeTheme = themeToggle(root.querySelector('.theme-toggle') as HTMLButtonElement);
     const defaults: PlainState = Object.fromEntries(Object.entries(schema).map(([key, spec]) => [key, spec.default]));
@@ -301,13 +317,15 @@ export const scene: SceneModule = {
     let current: Lab | undefined;
     let last = '';
     let latest: Readonly<PlainState> = defaults;
-    // Touching a control keeps the learner on this chapter. Narration carries on,
-    // and Return to narration (or Reset on the narrated chapter) rejoins it.
+    // Touching a control, or editing, running or fitting code, keeps the learner
+    // on this chapter. Narration carries on, and Return to narration rejoins it.
     const writeParameter = (param: string, value: PlainState[string]) => {
       exploration ??= { ...narratedState };
       exploration[param] = value;
       draw();
     };
+    const hold = () => { if (!exploration) { exploration = { ...narratedState }; draw(); } };
+    let cellHandle: { dispose(): void } | undefined;
     const onInput = (event: Event) => {
       const input = event.target as HTMLInputElement | HTMLSelectElement;
       const param = input.dataset.param;
@@ -323,15 +341,14 @@ export const scene: SceneModule = {
         const i = Math.round(Number(latest.step)) + Number(button.dataset.stepMove);
         writeParameter('step', Math.min(workflowSteps.length - 1, Math.max(0, i)));
       }
+      // Reset always restores this chapter's starting values, wherever the
+      // narration is. Following the narration again is Return to narration.
       if (button.hasAttribute('data-reset')) {
-        if (current === narratedState.scene) { exploration = null; draw(); }
-        else {
-          control.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-param]').forEach(input => {
-            const key = input.dataset.param!;
-            writeParameter(key, schema[key].default);
-          });
-          if (current === 'workflow') writeParameter('step', schema.step.default);
-        }
+        control.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-param]').forEach(input => {
+          const key = input.dataset.param!;
+          writeParameter(key, schema[key].default);
+        });
+        if (current === 'workflow') writeParameter('step', schema.step.default);
       }
       if (button.dataset.answer !== undefined) {
         const q = questions[Math.round(Number(latest.question))];
@@ -355,9 +372,10 @@ export const scene: SceneModule = {
         (root.querySelector('h1') as HTMLElement).textContent = title;
         (root.querySelector('.question') as HTMLElement).textContent = question;
         control.innerHTML = controls(lab);
+        cellHandle?.dispose();
         const cell = cells[lab];
-        if (cell) mountCell(codeSlot, cell);
-        else codeSlot.replaceChildren();
+        cellHandle = cell ? mountCell(codeSlot, cell, lab, hold) : undefined;
+        if (!cell) codeSlot.replaceChildren();
         (root.querySelector('.lab-scroll') as HTMLElement).scrollTop = 0;
       }
       const key = JSON.stringify(state);
@@ -388,7 +406,7 @@ export const scene: SceneModule = {
     return {
       render(state: Readonly<PlainState>) { narratedState = state; draw(); },
       handles: () => [],
-      dispose() { disposeTheme(); navigation.dispose(); root.removeEventListener('input', onInput); root.removeEventListener('click', onClick); root.remove(); style.remove(); },
+      dispose() { cellHandle?.dispose(); disposeTheme(); navigation.dispose(); root.removeEventListener('input', onInput); root.removeEventListener('click', onClick); root.remove(); style.remove(); },
     };
   },
 };
