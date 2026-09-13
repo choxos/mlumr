@@ -83,6 +83,16 @@ try {
     assert(!afterReturn.paused && afterReturn.time >= beforeReturn && afterReturn.time < beforeReturn + 2, 'Return must not pause or seek narration');
     assert(!(await page.getByRole('button', {name:'Return to narration',exact:true}).isVisible()));
     evidence.push({independentChapterBrowsing:13, explorationSurvivesNarrationChapterChange:true, explorationParametersIsolated:true, returnToCurrentNarration:true, keyboardReturnWhilePaused:true});
+    // Touching a control on the narrated chapter keeps that chapter open when narration moves on.
+    const returnBar = page.getByRole('button', {name:'Return to narration',exact:true});
+    await page.locator('audio').evaluate((a, time) => { a.currentTime = time - 3; }, chapters[2].time);
+    await page.locator('#ml-shift').focus();
+    await page.locator('#ml-shift').press('ArrowRight');
+    assert(!(await returnBar.isVisible()), 'No return bar while the open chapter is still narrated');
+    await page.waitForFunction(() => document.querySelector('.ml-lesson').dataset.narratedLab === 'response');
+    assert.equal(await page.locator('.ml-lesson').getAttribute('data-lab'), 'assumptions', 'A touched chapter must stay open');
+    assert(await returnBar.isVisible() && await page.locator('audio').evaluate(a => !a.paused));
+    evidence.push({ touchedChapterStaysOpen: true });
     // Narration never stops on its own: it crosses every chapter boundary while the learner explores elsewhere.
     assert.equal(tracks.pauses.length, 0, 'The lesson must have no automatic pauses');
     await choose(page, 'workflow');

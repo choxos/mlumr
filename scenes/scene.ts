@@ -301,9 +301,12 @@ export const scene: SceneModule = {
     let current: Lab | undefined;
     let last = '';
     let latest: Readonly<PlainState> = defaults;
+    // Touching a control keeps the learner on this chapter. Narration carries on,
+    // and Return to narration (or Reset on the narrated chapter) rejoins it.
     const writeParameter = (param: string, value: PlainState[string]) => {
-      if (exploration) { exploration[param] = value; draw(); }
-      else ctx.write(param, value);
+      exploration ??= { ...narratedState };
+      exploration[param] = value;
+      draw();
     };
     const onInput = (event: Event) => {
       const input = event.target as HTMLInputElement | HTMLSelectElement;
@@ -321,11 +324,14 @@ export const scene: SceneModule = {
         writeParameter('step', Math.min(workflowSteps.length - 1, Math.max(0, i)));
       }
       if (button.hasAttribute('data-reset')) {
-        control.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-param]').forEach(input => {
-          const key = input.dataset.param!;
-          writeParameter(key, schema[key].default);
-        });
-        if (current === 'workflow') writeParameter('step', schema.step.default);
+        if (current === narratedState.scene) { exploration = null; draw(); }
+        else {
+          control.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-param]').forEach(input => {
+            const key = input.dataset.param!;
+            writeParameter(key, schema[key].default);
+          });
+          if (current === 'workflow') writeParameter('step', schema.step.default);
+        }
       }
       if (button.dataset.answer !== undefined) {
         const q = questions[Math.round(Number(latest.question))];

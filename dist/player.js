@@ -17347,7 +17347,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         if (last === key) return;
         last = key;
         root.dataset.narratedLab = narrated;
-        returning.hidden = !hasNarration || !exploring;
+        returning.hidden = !hasNarration || !exploring || lab === narrated;
         returning.querySelector("span").textContent = `You are exploring. The narration is on: ${labs[narrated][0]}`;
         current = entries.findIndex(([key2]) => key2 === lab);
         root.dataset.lab = lab;
@@ -18094,10 +18094,9 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       let last = "";
       let latest = defaults;
       const writeParameter = (param, value) => {
-        if (exploration) {
-          exploration[param] = value;
-          draw();
-        } else ctx.write(param, value);
+        exploration ??= { ...narratedState };
+        exploration[param] = value;
+        draw();
       };
       const onInput = (event) => {
         const input = event.target;
@@ -18118,11 +18117,16 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
           writeParameter("step", Math.min(workflowSteps.length - 1, Math.max(0, i3)));
         }
         if (button2.hasAttribute("data-reset")) {
-          control.querySelectorAll("[data-param]").forEach((input) => {
-            const key = input.dataset.param;
-            writeParameter(key, schema[key].default);
-          });
-          if (current === "workflow") writeParameter("step", schema.step.default);
+          if (current === narratedState.scene) {
+            exploration = null;
+            draw();
+          } else {
+            control.querySelectorAll("[data-param]").forEach((input) => {
+              const key = input.dataset.param;
+              writeParameter(key, schema[key].default);
+            });
+            if (current === "workflow") writeParameter("step", schema.step.default);
+          }
         }
         if (button2.dataset.answer !== void 0) {
           const q = questions[Math.round(Number(latest.question))];
