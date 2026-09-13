@@ -79,7 +79,12 @@ Stan-enabled suite hit on a single-chain gengamma smoke fit.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.assert_cmdstan_output</span><span class="op">(</span><span class="va">files</span>, <span class="va">chains</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.assert_cmdstan_output</span><span class="op">(</span></span>
+<span>  <span class="va">files</span>,</span>
+<span>  <span class="va">chains</span>,</span>
+<span>  retrieval_error <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  return_codes <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -93,6 +98,18 @@ Stan-enabled suite hit on a single-chain gengamma smoke fit.</p>
 <dt id="arg-chains">chains<a class="anchor" aria-label="anchor" href="#arg-chains"></a></dt>
 <dd><p>The number of chains requested.</p></dd>
 
+
+<dt id="arg-retrieval-error">retrieval_error<a class="anchor" aria-label="anchor" href="#arg-retrieval-error"></a></dt>
+<dd><p>The message from asking the fit for its output
+paths, when that itself failed, or <code>NULL</code>. Discarding it, as this used
+to, threw away the only account of the failure before reporting a
+generic one.</p></dd>
+
+
+<dt id="arg-return-codes">return_codes<a class="anchor" aria-label="anchor" href="#arg-return-codes"></a></dt>
+<dd><p>CmdStan's per-chain return codes, or <code>NULL</code> when the
+installed <code>cmdstanr</code> does not report them.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -104,6 +121,14 @@ Stan-enabled suite hit on a single-chain gengamma smoke fit.</p>
 <code>cmdstanr</code> drops it and the run continues on the chains that finished,
 which is the behavior a partly failing multi-chain fit already relies on.
 Only files that are claimed and absent, or no files at all, are refused.</p>
+<p>What this reports is the OBSERVATION and whatever evidence came with it.
+An absent file says a chain left nothing behind; it does not say why, and
+a model or data failure, an initialization failure, a killed process and
+an external deletion all look identical from a list of paths. Naming one
+of them, as this used to by calling it a failure of the run rather than
+of the model, states a cause nothing here established. CmdStan's own
+return codes and captured output are the evidence that does bear on it,
+so they are attached where they are available.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

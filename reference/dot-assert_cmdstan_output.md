@@ -12,7 +12,12 @@ a single-chain gengamma smoke fit.
 ## Usage
 
 ``` r
-.assert_cmdstan_output(files, chains)
+.assert_cmdstan_output(
+  files,
+  chains,
+  retrieval_error = NULL,
+  return_codes = NULL
+)
 ```
 
 ## Arguments
@@ -25,6 +30,17 @@ a single-chain gengamma smoke fit.
 
   The number of chains requested.
 
+- retrieval_error:
+
+  The message from asking the fit for its output paths, when that itself
+  failed, or `NULL`. Discarding it, as this used to, threw away the only
+  account of the failure before reporting a generic one.
+
+- return_codes:
+
+  CmdStan's per-chain return codes, or `NULL` when the installed
+  `cmdstanr` does not report them.
+
 ## Value
 
 `TRUE` invisibly. Stops when there is nothing to read.
@@ -36,3 +52,12 @@ here: `cmdstanr` drops it and the run continues on the chains that
 finished, which is the behavior a partly failing multi-chain fit already
 relies on. Only files that are claimed and absent, or no files at all,
 are refused.
+
+What this reports is the OBSERVATION and whatever evidence came with it.
+An absent file says a chain left nothing behind; it does not say why,
+and a model or data failure, an initialization failure, a killed process
+and an external deletion all look identical from a list of paths. Naming
+one of them, as this used to by calling it a failure of the run rather
+than of the model, states a cause nothing here established. CmdStan's
+own return codes and captured output are the evidence that does bear on
+it, so they are attached where they are available.

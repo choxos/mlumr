@@ -1181,6 +1181,16 @@
   `cmdstanr` drops it and the run continues on the chains that finished,
   as a partly failing multi-chain fit already relied on.
 
+  What it reports is the observation and the evidence that came with it,
+  not a cause. An absent file says a chain left nothing behind; a model
+  or data failure, an initialization failure, a killed process and a
+  file removed from outside all look identical from a list of paths, so
+  naming one of them would state a cause nothing established. CmdStan’s
+  own return codes are attached where the installed `cmdstanr` reports
+  them, and an exception from asking for the output paths is carried
+  into the message rather than discarded, since when that is what failed
+  it is the only account there is.
+
 ### Transportability to arbitrary target populations
 
 - **`newdata` argument** on
