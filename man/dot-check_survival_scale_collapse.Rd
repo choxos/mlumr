@@ -29,9 +29,13 @@ censored row that bounds). Anything else means this function did not
 establish that, which is not the same as establishing the opposite.
 \code{\link[=.check_comparator_tied_events]{.check_comparator_tied_events()}} reads it under \code{aux_by = "none"}. A
 shared-auxiliary warning also carries \code{index_exact}: \code{TRUE} when the index
-event design was shown to reproduce its own times and so pins a shared
-coefficient vector, \code{FALSE} only where it was shown to pin nothing, and
-\code{NA} where the question was not settled. The three are distinct on
+was shown to pin a shared coefficient vector, \code{FALSE} only where it was
+shown to pin nothing, and \code{NA} where the question was not settled. An
+exact event design is the usual way to pin one; censored rows whose
+regions TOUCH are another, since left and right censoring meeting at
+\code{t = 1} on \code{x = -1} and \code{x = 1} forces \code{mu_index} and \code{beta} to zero
+exactly as two events there would, so that case reports \code{TRUE} too and
+carries the touching rows as its \code{index_design}. The three are distinct on
 purpose, and an index with NO events is not automatically the second of
 them: having no events means no design to fit, not that nothing bounds
 the auxiliary. Censored rows alone can bound it, and when they conflict

@@ -1252,3 +1252,50 @@ test_that("a rank-1 comparator design has nothing for the index to overlap", {
   expect_match(w, "do not simply add")
   expect_no_match(w, "is therefore improper")
 })
+
+test_that("touching index rows pin the shared slope like an event design", {
+  # Left and right censoring touching at `t = 1` on `x = -1` and `x = 1`
+  # forces `mu_index` and `beta` to zero exactly as two events there would.
+  # The comparator's censored rows are then not escapable along the shared
+  # slope, and a fit they exponentially suppress must not be refused.
+  ip <- suppressWarnings(set_ipd(
+    data.frame(trt = "A", x = c(-1, -1, 1, 1)),
+    treatment = "trt", covariates = "x", family = "survival",
+    Surv = survival::Surv(time = c(NA, 1, NA, 1), time2 = c(1, Inf, 1, Inf),
+                          type = "interval2")
+  ))
+  ag <- set_agd_surv(
+    data.frame(trt = "B", time = c(1, 1, 1, 1, 2),
+               status = c(1L, 1L, 1L, 1L, 0L), x_mean = 0, x_sd = 1),
+    treatment = "trt", time = "time", status = "status",
+    cov_means = "x_mean", cov_sds = "x_sd", cov_types = "continuous"
+  )
+  d <- suppressWarnings(add_integration(combine_data(ip, ag), n_int = 8,
+                                        verbose = FALSE,
+                                        x = distr(stats::qnorm, mean = x_mean,
+                                                  sd = x_sd)))
+  idx <- mlumr:::.check_survival_scale_collapse(d, "lognormal",
+                                                aux_by = "none",
+                                                center = FALSE)
+  # Two independent touching profiles: order 2, and the design that pins.
+  expect_identical(attr(idx, "aux_order"), 2)
+  expect_equal(unname(attr(idx, "index_design")), cbind(1, c(-1, 1)))
+  expect_true(attr(idx, "index_exact"))
+  # Four comparator events tied at one time are rate 3 and the order nets it
+  # to 1, but the censored row at `t = 2` sits above every pinned node, so
+  # the escape is blocked and the arm is reported rather than refused.
+  w <- tryCatch(check(d, aux_by = "none", model = "spfa",
+                      index_exact = TRUE, index_aux_order = 2,
+                      index_design = cbind(1, c(-1, 1))),
+                warning = conditionMessage)
+  expect_match(w, "the shared `beta`")
+  expect_no_match(w, "is therefore improper")
+  # Regions with interior pin nothing and carry no design, so the comparator
+  # still treats the slope as free.
+  open <- .eventless_stub(survival::Surv(time = c(2, 4), event = c(0, 0)))
+  idx2 <- mlumr:::.check_survival_scale_collapse(open, "lognormal",
+                                                 aux_by = "none",
+                                                 center = FALSE)
+  expect_null(attr(idx2, "index_design"))
+  expect_false(attr(idx2, "index_exact"))
+})

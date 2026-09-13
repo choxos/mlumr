@@ -1224,8 +1224,12 @@
       # `rank_d = 1` this used to run past both flags into the refusal.
       info <- list(m = m, k = k, rank = rank_d, reach = reachable,
                    isolated = rank_d >= reachable && threat,
-                   spfa_pinned = spfa_shared && slope$all &&
-                     rank_d < reachable && threat,
+                   # Not gated on `spfa_shared`, which asks whether the
+                   # index's EVENT design fits exactly. What this needs is
+                   # only that the index pin the slope, however it does so,
+                   # and `slope$all` tests that on the design directly.
+                   spfa_pinned = shared_aux && identical(model, "spfa") &&
+                     slope$all && rank_d < reachable && threat,
                    two_sided = rank_d < reachable && threat && !one_sided,
                    spfa_shared = spfa_shared && !slope_free &&
                      rank_d > 1L)
@@ -2005,9 +2009,13 @@
 #'   establish that, which is not the same as establishing the opposite.
 #'   [.check_comparator_tied_events()] reads it under `aux_by = "none"`. A
 #'   shared-auxiliary warning also carries `index_exact`: `TRUE` when the index
-#'   event design was shown to reproduce its own times and so pins a shared
-#'   coefficient vector, `FALSE` only where it was shown to pin nothing, and
-#'   `NA` where the question was not settled. The three are distinct on
+#'   was shown to pin a shared coefficient vector, `FALSE` only where it was
+#'   shown to pin nothing, and `NA` where the question was not settled. An
+#'   exact event design is the usual way to pin one; censored rows whose
+#'   regions TOUCH are another, since left and right censoring meeting at
+#'   `t = 1` on `x = -1` and `x = 1` forces `mu_index` and `beta` to zero
+#'   exactly as two events there would, so that case reports `TRUE` too and
+#'   carries the touching rows as its `index_design`. The three are distinct on
 #'   purpose, and an index with NO events is not automatically the second of
 #'   them: having no events means no design to fit, not that nothing bounds
 #'   the auxiliary. Censored rows alone can bound it, and when they conflict
@@ -2205,8 +2213,17 @@
     # reason to report rather than to refuse.
     if (identical(as.character(eventless), "suppresses")) {
       ord <- attr(eventless, "order")
+      # Those touching rows pin directions of the coefficient vector exactly
+      # as an exact EVENT design does, so they are the design the comparator
+      # has to test against: left and right censoring touching at `t = 1` on
+      # `x = -1` and `x = 1` forces `mu_index` and `beta` to zero just as two
+      # events there would. Discarding them and reporting that the index pins
+      # nothing left the comparator treating the shared slope as free, so its
+      # censored rows read as escapable and a fit they exponentially suppress
+      # was refused.
+      touch <- attr(eventless, "design")
       return(invisible(structure(
-        FALSE, index_exact = FALSE,
+        FALSE, index_exact = !is.null(touch), index_design = touch,
         aux_order = if (identical(distribution, "lognormal")) {
           as.numeric(ord)
         } else {
@@ -2834,8 +2851,9 @@
     # conflict with the open ones, and the order is not read off a count.
     if (rank_p == nrow(profiles)) {
       if (!any(touch)) return("unbounded")
-      return(structure("suppresses",
-                       order = .exact_rank(profiles[touch, , drop = FALSE])$rank))
+      pinned <- profiles[touch, , drop = FALSE]
+      return(structure("suppresses", order = .exact_rank(pinned)$rank,
+                       design = pinned))
     }
     return("undetermined")
   }

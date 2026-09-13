@@ -396,6 +396,16 @@
   touching index profiles' 2, and that nets to 1 rather than going
   unresolved.
 
+  Those touching rows also PIN, exactly as an exact event design does, and
+  the comparator has to test against them: left and right censoring meeting
+  at `t = 1` on `x = -1` and `x = 1` forces `mu_index` and `beta` to zero
+  just as two events there would. Reporting that the index pinned nothing
+  left the comparator treating the shared slope as free, so its censored rows
+  read as escapable and a fit they exponentially suppress was refused. The
+  eventless path now carries that design, and the pinned-ridge report asks
+  whether the index pins the slope rather than whether its EVENT design fits
+  exactly.
+
   Reproducing its own times is also not the same as IDENTIFYING that shared
   slope, and the report needs the second. Repeated index events at one
   covariate profile at one time are `constant`, fit exactly, and pin only
