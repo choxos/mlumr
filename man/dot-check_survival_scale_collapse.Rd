@@ -29,16 +29,41 @@ censored row that bounds). Anything else means this function did not
 establish that, which is not the same as establishing the opposite.
 \code{\link[=.check_comparator_tied_events]{.check_comparator_tied_events()}} reads it under \code{aux_by = "none"}. A
 shared-auxiliary warning also carries \code{index_exact}: \code{TRUE} when the index
-event design was shown to reproduce its own times and so pins a shared
-coefficient vector, \code{FALSE} only where it was shown to pin nothing, and
-\code{NA} where the question was not settled. The three are distinct on
+was shown to pin a shared coefficient vector, \code{FALSE} only where it was
+shown to pin nothing, and \code{NA} where the question was not settled. An
+exact event design is the usual way to pin one; censored rows whose
+regions TOUCH are another, since left and right censoring meeting at
+\code{t = 1} on \code{x = -1} and \code{x = 1} forces \code{mu_index} and \code{beta} to zero
+exactly as two events there would, so that case reports \code{TRUE} too and
+carries the touching rows as its \code{index_design}. The three are distinct on
 purpose, and an index with NO events is not automatically the second of
 them: having no events means no design to fit, not that nothing bounds
 the auxiliary. Censored rows alone can bound it, and when they conflict
 they do, so an eventless index is answered by asking whether any linear
 predictor satisfies every one of its regions at once. A certified
-conflict returns \code{bounds_aux = TRUE}, a certified absence of one returns
-\code{index_exact = FALSE}, and an undecided case returns neither.
+conflict returns \code{bounds_aux = TRUE}.
+
+Absent a conflict, an eventless index also carries \code{aux_order}, which is
+how many powers of the auxiliary's WIDTH its censored rows already
+remove. The three-way question above is not the same as this one, and
+collapsing them refused proper fits: regions that merely TOUCH pin the
+index predictor to a point rather than to an open region, so the
+coefficient volume keeping their likelihood positive shrinks with the
+width even though the pointwise maximum is a positive constant at every
+scale. \code{aux_order} is \code{0} for regions with interior, the rank of the
+touching profile rows where they touch, and \code{NA} where none of that was
+established, including every family but \code{lognormal}, for which alone the
+order was measured. \code{\link[=.check_comparator_tied_events]{.check_comparator_tied_events()}} subtracts a
+certified order from its own rate under \code{aux_by = "none"} and reports
+rather than refuses on an \code{NA}.
+
+An index WITH events carries it too, and on the same distinction: a
+design shown to reproduce its own times pins rather than suppresses, so
+it reports \code{0} and the comparator refusal stands, while \code{undecidable},
+\code{unresolved} and \code{unresolved_log} did not settle whether a residual
+exists at all. A real one there contributes \code{exp(-RSS / (2 * sdlog^2))}
+and removes the comparator's growth entirely, so those report \code{NA}
+rather than a zero that would turn an open question into a refusal.
 }
 \description{
 A log-normal AFT is a normal model for \code{log(t)} with a positive scale

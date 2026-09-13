@@ -313,6 +313,13 @@
 #' would cost more than the fit, is left undecided rather than guessed: a
 #' false certificate here refuses a working model.
 #'
+#' The enumeration anchors the first target at each node in turn and runs the
+#' second anchor and every candidate node as a vectorized pass, so it costs
+#' `n * n * (k - 2)` elementary operations for `n` nodes and `k` targets, not
+#' the `n * n * (n + k)` of a scalar inner loop. That distinction is the
+#' whole reach of the check: the old cost model capped it near 170 nodes, so
+#' an `n_int` of 256 left unexamined the arm that 8 nodes refused.
+#'
 #' The match must be EXACT, not merely close. A best match that leaves a
 #' positive residual is a ridge the profile abandons as soon as the auxiliary
 #' falls below that residual, so accepting one refuses a proper fit for a
@@ -340,7 +347,11 @@
 #'   enumeration excluded every candidate it examined, and `NA` where the
 #'   case was not
 #'   decided: more than one covariate, a grid past the enumeration budget, or
-#'   a candidate that is close without being exact.
+#'   a candidate that is close without being exact. An `NA` from the budget
+#'   carries a `declined` attribute of `"budget"`, because that is the only
+#'   one of the three that makes the same data answerable at one `n_int` and
+#'   unexamined at another, and the caller reports it rather than falling
+#'   silent.
 #' @keywords internal
 .grid_hits_targets <- function(nodes, targets) {
   if (is.null(nodes) || !is.matrix(nodes) || ncol(nodes) != 1L) return(NA)
@@ -349,12 +360,42 @@
   n <- length(z)
   if (length(u) < 2L || n < 2L) return(NA)
   if (!all(is.finite(u)) || !all(is.finite(z))) return(NA)
-  # `as.double`, because `n` and `length(u)` are integers and the product
-  # overflows the integer range for a grid this check is meant to decline:
-  # at `n_int = 2048` it is about 8.6e9, which becomes NA, and the `if` then
-  # aborts the fit with "missing value where TRUE/FALSE needed" instead of
-  # returning the undecided answer the cutoff exists to give.
-  if (as.double(n) * n * (n + length(u)) > 5e6) return(NA)
+  b <- u[2L] - u[1L]
+  if (!is.finite(b) || b == 0) return(NA)
+  rest <- u[-c(1L, 2L)]
+  # Two targets are matched by any two distinct nodes, so the only question
+  # is whether a usable pair exists at all: finite nodes can still have an
+  # infinite difference, and a grid of nothing but such pairs matches
+  # nothing. Distinct doubles never subtract to zero.
+  if (!length(rest)) {
+    d <- diff(z)
+    return(any(is.finite(d) & d != 0))
+  }
+  # The enumeration is `n` anchors against a vectorized inner pass over the
+  # other `n` nodes, once per remaining target, so its cost is `n * n *
+  # length(rest)` elementary operations rather than the `n * n * (n + k)`
+  # this used to charge. That formula was the cost of a scalar inner loop,
+  # and charging it capped the grid at about 170 nodes, so an `n_int` of 256
+  # declined to examine an arm that 8 nodes refused and said nothing about
+  # having declined. Worst case measured here, on an integer grid against
+  # integer targets where no anchor is ever excluded early: 0.05 s at 256
+  # nodes with one remaining target, 3.6 s at 1024 nodes with 38, and 10 s
+  # at 2048 with 38. The cutoff is set below three seconds of that.
+  #
+  # `as.double`, because the product overflows the integer range for a grid
+  # this is meant to decline, and the `if` then aborts the fit with
+  # "missing value where TRUE/FALSE needed" instead of answering.
+  #
+  # A decline is labeled, because the caller treats it differently from the
+  # other two ways this answers NA. More than one covariate is a documented
+  # limit of the method used here and is the same answer at every grid size;
+  # a close-but-inexact candidate means the enumeration RAN and certified
+  # nothing, which is evidence of a proper fit rather than an absent check.
+  # Only the budget makes the same data answerable at one `n_int` and
+  # unexamined at another, which is the state the caller has to report.
+  if (as.double(n) * n * length(rest) > 4e7) {
+    return(structure(NA, declined = "budget"))
+  }
   # Consistency is tested on the DETERMINANT of the original data, never by
   # reconstructing predictions from a fitted `(a, b)`. Anchoring `u[1]` and
   # `u[2]` at two nodes, a third target sits on the same line exactly when
@@ -377,66 +418,64 @@
   # 1e-15, which no affine map removes. Those report undecided, which the
   # caller reads as silence.
   close <- FALSE
+  b_exact <- .two_sum_err(u[2L], -u[1L], b) == 0
+  tm <- rest - u[1L]
+  tm_exact <- .two_sum_err(rest, -u[1L], tm) == 0
+  eps64 <- 64 * .Machine$double.eps
   for (j1 in seq_len(n)) {
-    for (j2 in seq_len(n)) {
-      if (j1 == j2) next
-      z0 <- z[j1]
-      dz <- z[j2] - z0
-      b <- u[2L] - u[1L]
-      if (!is.finite(dz) || dz == 0 || !is.finite(b) || b == 0) next
-      # The anchor differences are data too, and a rounded one makes every
-      # determinant below the determinant of something other than the grid.
-      dz_exact <- .two_sum_err(z[j2], -z0, dz) == 0
-      b_exact <- .two_sum_err(u[2L], -u[1L], b) == 0
-      rest <- u[-c(1L, 2L)]
-      if (!length(rest)) return(TRUE)
+    z0 <- z[j1]
+    dz <- z - z0
+    # A pair is ENUMERATED whenever its difference is usable; whether that
+    # difference was itself exact only decides whether the pair can certify.
+    pair <- is.finite(dz) & dz != 0
+    if (!any(pair)) next
+    dz_exact <- (.two_sum_err(z, -z0, dz) == 0) & b_exact
+    alive <- pair
+    exact <- pair
+    for (ti in seq_along(rest)) {
+      idx <- which(alive)
+      if (!length(idx)) break
+      dzi <- dz[idx]
       # `a / b` only LOCATES the candidate nodes; the verdict is the
       # determinant evaluated at them, so the division's rounding cannot
       # certify anything on its own. Four neighbors, since that rounding can
       # land on either side of the node it is looking for.
-      exact_all <- TRUE
-      close_all <- TRUE
-      for (t in rest) {
-        tm <- t - u[1L]
-        a <- tm * dz
-        want <- z0 + a / b
-        i <- findInterval(want, z)
-        cand <- unique(pmin(pmax(c(i - 1L, i, i + 1L, i + 2L), 1L), n))
-        zz <- z[cand] - z0
-        bz <- b * zz
-        det <- a - bz
-        scale <- abs(a) + abs(bz)
-        tol <- 64 * .Machine$double.eps * pmax(1, scale)
-        # A computed zero is not an exact zero. Both products are rounded
-        # before the subtraction, so a determinant that is genuinely nonzero
-        # can cancel to 0: nodes `(0, 0.3961039261018525, 1.04621481495181)`
-        # against targets `(0, 0.6209825942831111, 1.6401786176669797)`
-        # compute 0 while the determinant of those very doubles is
-        # -3.4958e-17, and no permutation of them is an affine match. So a
-        # zero certifies only when EVERY step that produced it was itself
-        # exact, which makes the computed determinant the real one.
-        exact_here <- dz_exact & b_exact &
-          (.two_sum_err(t, -u[1L], tm) == 0) &
-          (.two_prod_err(tm, dz, a) == 0) &
-          (.two_sum_err(z[cand], -z0, zz) == 0) &
-          (.two_prod_err(b, zz, bz) == 0) &
-          (.two_sum_err(a, -bz, det) == 0)
-        exact_here[is.na(exact_here)] <- FALSE
-        # Finite nodes and finite targets can still overflow their products:
-        # nodes `(0, 5e307, 1e308)` against targets `(-700, 0, 700)` send
-        # both `a` and `bz` to infinity, so `det` is NaN and `tol` is Inf,
-        # and `abs(NaN) <= Inf` is NA. Comparing on that aborted the fit with
-        # "missing value where TRUE/FALSE needed" instead of answering. A
-        # candidate whose determinant is not finite tells us nothing, so it
-        # is neither an exact match nor a close one.
-        usable <- is.finite(det) & is.finite(tol)
-        if (!any(usable & det == 0 & exact_here)) exact_all <- FALSE
-        if (!any(usable & abs(det) <= tol)) close_all <- FALSE
-        if (!close_all) break
-      }
-      if (exact_all) return(TRUE)
-      if (close_all) close <- TRUE
+      a <- tm[ti] * dzi
+      a_exact <- (.two_prod_err(tm[ti], dzi, a) == 0) & tm_exact[ti]
+      want <- z0 + a / b
+      i <- findInterval(want, z)
+      cand <- pmin(pmax(cbind(i - 1L, i, i + 1L, i + 2L), 1L), n)
+      zc <- matrix(z[cand], nrow = length(idx))
+      zz <- zc - z0
+      bz <- b * zz
+      det <- a - bz
+      tol <- eps64 * pmax(1, abs(a) + abs(bz))
+      # A computed zero is not an exact zero. Both products are rounded
+      # before the subtraction, so a determinant that is genuinely nonzero
+      # can cancel to 0: nodes `(0, 0.3961039261018525, 1.04621481495181)`
+      # against targets `(0, 0.6209825942831111, 1.6401786176669797)`
+      # compute 0 while the determinant of those very doubles is
+      # -3.4958e-17, and no permutation of them is an affine match. So a
+      # zero certifies only when EVERY step that produced it was itself
+      # exact, which makes the computed determinant the real one.
+      ex <- dz_exact[idx] & a_exact &
+        (.two_sum_err(zc, -z0, zz) == 0) &
+        (.two_prod_err(b, zz, bz) == 0) &
+        (.two_sum_err(a, -bz, det) == 0)
+      ex[is.na(ex)] <- FALSE
+      # Finite nodes and finite targets can still overflow their products:
+      # nodes `(0, 5e307, 1e308)` against targets `(-700, 0, 700)` send both
+      # `a` and `bz` to infinity, so `det` is NaN and `tol` is Inf, and
+      # `abs(NaN) <= Inf` is NA. Comparing on that aborted the fit with
+      # "missing value where TRUE/FALSE needed" instead of answering. A
+      # candidate whose determinant is not finite tells us nothing, so it is
+      # neither an exact match nor a close one.
+      usable <- is.finite(det) & is.finite(tol)
+      exact[idx] <- exact[idx] & (rowSums(usable & det == 0 & ex) > 0)
+      alive[idx] <- rowSums(usable & abs(det) <= tol) > 0
     }
+    if (any(exact & alive)) return(TRUE)
+    if (any(alive)) close <- TRUE
   }
   if (close) NA else FALSE
 }
@@ -471,27 +510,41 @@
 #' past a reach of 2, and are matched exactly by `b = (-log 2, log 2)` for a
 #' rank of 2 and a measured slope of -1.0000 per decade of scale.
 #'
-#' `rank(D)` is at most the reach and at most `k`, since rows sharing a node
-#' share a predictor, and a design of exactly `min(k, reach)` is always
-#' available: below the reach any `k` independent node rows give a consistent
-#' system, and past it the certificate below supplies one. So the exponent
-#' used is `m - min(k, reach)`.
+#' The rate is the LARGEST of those exponents over the consistent
+#' allocations, since the marginal is their sum and the smallest rank
+#' dominates it. What this needs, then, is an upper bound on the smallest
+#' rank, and the CANONICAL allocation supplies one: send every row sharing a
+#' target to one node, one node per distinct target. Its design has rank at
+#' most `k` and at most the reach, and it is consistent, below the reach
+#' because `k` independent node rows can be sent anywhere and past it because
+#' the certificate below supplies one. So the exponent used is
+#' `m - min(k, reach)`.
 #'
-#' That is the exponent EXACTLY for one covariate and a LOWER BOUND for more
-#' than one. `min(k, reach)` is the largest rank a matching design can have,
-#' and a smaller one gives a larger exponent: with two covariates, three
-#' collinear nodes carry three distinct targets that run affinely along that
-#' line at rank 2 rather than 3. So a refusal here is always certified, since
-#' a positive lower bound is a positive rate, while a skip may be hiding one.
-#' Searching for a lower-rank consistent allocation among two or more
-#' covariates is not done in either branch.
+#' That is a claim about the canonical allocation, not about every one. A
+#' different allocation can have HIGHER rank than `k`, since rows sharing a
+#' target may sit at different nodes whenever the coefficients are orthogonal
+#' to the difference between them, which two or more covariates allow. Those
+#' allocations are subdominant and change nothing.
+#'
+#' The exponent is EXACT for one covariate and a LOWER BOUND for more than
+#' one, because a consistent allocation of LOWER rank than the canonical one
+#' can exist and is not searched for: with two covariates, three collinear
+#' nodes carry three distinct targets that run affinely along that line at
+#' rank 2 rather than 3. A refusal is therefore always certified, since a
+#' positive lower bound on the rate is a positive rate, while a skip may be
+#' hiding one.
 #'
 #' Past the reach, existence itself is the question, and this refuses only
 #' what it can certify: with one covariate the map is a line that two
 #' (target, node) assignments fix, so enumerating node pairs decides it, and
-#' anything wider or too large to enumerate is left alone. Silence from this
-#' function is therefore NOT a certificate that the posterior is proper; a
-#' refusal is a certificate that it is not.
+#' anything wider is left alone. Silence from this function is therefore NOT
+#' a certificate that the posterior is proper; a refusal is a certificate
+#' that it is not.
+#'
+#' A grid too large to enumerate is a third state, and it is reported rather
+#' than left silent. The enumeration costs `n * n * (k - 2)`, so its budget
+#' covers the ordinary resolutions; past that the same data would be refused
+#' at one `n_int` and unexamined at another, which is what a warning names.
 #'
 #' All `m` rows are matched on the solution set, so every one of them stands
 #' on a spike whose height grows as the auxiliary approaches its boundary,
@@ -539,14 +592,19 @@
 #' count and both prior tails per configuration, which is a different
 #' question from this one and is not answered here.
 #'
-#' So it takes a REPEAT for any of these to be nonzero. The profile maximum,
-#' by contrast, grows in every one of those cases including the convergent
-#' ones, which is why the volume and not the profile is what this reasons
-#' about.
+#' What makes any of these nonzero is `m` against `rank(D)`, and a REPEAT is
+#' only the most obvious way to get there. Distinct times can be carried by a
+#' design of lower rank than their own count: `t = 1, 2, 4` on nodes
+#' `1, 2, 3` is three distinct targets with no repeat at rank 2. The profile
+#' maximum, by contrast, grows in every one of those cases including the
+#' convergent ones, which is why the volume and not the profile is what this
+#' reasons about.
 #'
-#' Past the grid's reach there is no divergence to refuse. With `k` greater
-#' than `rank(cbind(1, X_int))` the `k` equations have no solution, the best
-#' simultaneous match leaves a residual `d > 0`, and the profile collapses
+#' Past the grid's reach there MAY be no divergence to refuse, and which it
+#' is has to be decided rather than counted. With `k` greater than
+#' `rank(cbind(1, X_int))` the `k` equations are overdetermined, which does
+#' not make them inconsistent. When they really are inconsistent the best
+#' simultaneous match leaves a residual `d > 0` and the profile collapses
 #' like `exp(-d^2 / (2 * aux^2))` once the auxiliary falls below `d`. What
 #' happens before that looks exactly like a divergence and is not one: three
 #' distinct times over 20 nodes leave `d = 5.99e-4` and the profile peaks
@@ -555,16 +613,30 @@
 #' collapsing from 1e-6 on. A finer grid moves the collapse out; it does not
 #' remove it, and the posterior is proper either way. A measured slope over
 #' any fixed range of the auxiliary cannot tell the two apart, so the test
-#' here is structural: `k` against the reach, never a slope. The reach is the
-#' EXACT rank, since a grid whose columns are independent but badly scaled
-#' reads as deficient at `qr()`'s default tolerance while the direction is
-#' still there and the prior is still positive where the ridge sits.
+#' here is structural, never a slope: `k` against the reach decides how the
+#' question is ASKED, and past the reach [.grid_hits_targets()] answers it by
+#' enumerating the candidate maps. The reach is the EXACT rank, since a grid
+#' whose columns are independent but badly scaled reads as deficient at
+#' `qr()`'s default tolerance while the direction is still there and the
+#' prior is still positive where the ridge sits.
 #'
-#' A censored row in the same arm can suppress this, and whether it does
-#' turns on the same `k` against the reach. Its own contribution is a
-#' mixture over the grid too, `log_sum_exp(log S) - log(n_int)`, so it
-#' vanishes only if EVERY node's region probability vanishes. When `k` is
-#' below the reach the ridge has a free direction, the node linear predictors
+#' A censored row in the same arm can suppress this, and it has to threaten
+#' the ridge before any of that is worth asking. Every point of the solution
+#' set puts a MATCHED node exactly at its target, so a row whose region
+#' probability tends to one there suppresses nothing: its own contribution is
+#' a mixture over the grid, `log_sum_exp(log S) - log(n_int)`, which that one
+#' node holds at `1 / n_int` whatever the others do. Two events at `t = 1`
+#' with a right-censored row at `t = 0.5` are that case, and the divergence
+#' is certified rather than open; the same row at `t = 2` does suppress the
+#' matched node and leaves only the other nodes to settle. The ends are
+#' inclusive, since a predictor sitting exactly on a censoring time leaves
+#' that row at a half.
+#'
+#' For a row that does threaten, whether it suppresses turns on `rank(D)`
+#' against the reach. It
+#' vanishes only if EVERY node's region probability vanishes. When `rank(D)`
+#' is below the reach the ridge has a free direction, the node linear
+#' predictors
 #' are affine in it with both signs present, and moving along it sends some
 #' node past any censoring time: that node holds the row's mixture at
 #' `1 / n_int` and the divergence survives there with positive prior
@@ -573,10 +645,11 @@
 #' event time: rate +1.000, with the maximum at slope 0.80, past the 0.24
 #' where a node clears `log 2`.
 #'
-#' That escape is one-directional, though, and two more cases are left
+#' That escape is one-directional, though, and three more cases are left
 #' undecided rather than refused.
 #'
-#' When `k` equals the reach the ridge is isolated points and a censored row
+#' When `rank(D)` reaches the reach the ridge is isolated points and a
+#' censored row
 #' can cover all of them: on a point-mass grid two events at `t = 1` with a
 #' right-censored row at `t = 2` collapse, while the same row at `t = 0.5`
 #' leaves rate +1.000, because the ridge is outside its region. Deciding that
@@ -596,10 +669,24 @@
 #' entry piles the mass just above it and that pile lies inside the interval,
 #' so a node pushed below clears the row exactly as a left-censored one does.
 #' Which side a row needs is read from its region and its entry, not from its
-#' status code. Settling the genuinely two-sided case means searching the free
-#' direction against every censoring region, which this does not do.
+#' status code, and only the rows that have to be ESCAPED count: one already
+#' satisfied at a matched node does not need the free direction and cannot
+#' make the arm two-sided. Settling the genuinely two-sided case means
+#' searching the free direction against every censoring region, which this
+#' does not do.
 #'
-#' Both are reported rather than refused, scale family or not.
+#' And the free direction can be one the comparator does not own. Under
+#' `model = "spfa"` with `aux_by = "none"` the direction the comparator would
+#' move along is the shared `beta`, and an index whose own event design fits
+#' exactly pins it, which leaves the comparator ridge at isolated points
+#' whatever `rank(D)` is. Index events at `x = -1` and `x = +1` both at
+#' `t = 1` force `mu_index` and `beta` to zero, so every node sits at
+#' `mu_comparator` and a comparator right-censored row at `t = 2` is above
+#' all of them; tilting `beta` to lift one past `log 2` costs the index a
+#' residual of the same order, so the two exponentials trade rather than
+#' cancel, and settling it means solving the combined system.
+#'
+#' All three are reported rather than refused, scale family or not.
 #'
 #' What the rate then decides also differs. The scale families diverge as
 #' `sdlog` goes to zero, where every supported prior has positive density,
@@ -628,15 +715,36 @@
 #' One combination is reported rather than refused for a reason that is not
 #' about censoring. Under `model = "spfa"` with `aux_by = "none"` the arms
 #' share one `beta` AND one auxiliary, and when the index event design is
-#' itself exact it pins that shared slope to its own solution set.
+#' itself exact AND constrains that slope somewhere in the directions the
+#' arm's grid spans, it pins it to a solution set the comparator's values can
+#' miss. Fitting exactly is not enough: repeated index events at one
+#' covariate profile at one time leave `beta` wholly unconstrained, so
+#' whatever node-specific values the comparator's equations pin it to lie in
+#' that set by construction, the sets always intersect, and the arm is
+#' refused rather than reported. PARTIAL identification is not that case and
+#' is reported: an index that fixes `beta1` at a value none of the
+#' comparator's pairwise differences reaches leaves the sets disjoint even
+#' while `beta2` stays free.
 #' Two or more comparator targets pin it too, to values the integration
 #' points fix, and if those sets do not intersect then every path to the
 #' boundary leaves one side with a positive residual whose exponential decay
 #' beats the other's polynomial growth. Solving that combined system is not
-#' this function's, so the case is warned about. A single distinct target is
+#' this function's, so the case is warned about. The overlap that makes an
+#' index order and a comparator rate fail to add needs a design that
+#' constrains the slope at all: a matched design of rank 1 is one row,
+#' `(0, 1, z_j)`, whose only vector with a zero second component is the zero
+#' vector, so nothing of the form `(0, 0, v)` lies in it and the two orders
+#' add however many index rows there are.
+#'
+#' A single distinct target is
 #' not that case: its one equation is absorbed by the free `mu_comparator`,
-#' `beta` stays free, the comparator ridge contains whatever the index's
-#' exact fit needs, and both singularities stand at once. Neither is an index
+#' `beta` stays free BY THE EVENTS, the comparator ridge contains whatever
+#' the index's exact fit needs, and both singularities stand at once. That
+#' argument is about the EVENT rows only. A censored comparator row in the
+#' same arm cannot be escaped either once `beta` is pinned, which is the
+#' isolated-ridge case above and is reported rather than refused; a single
+#' target with no censored row in the arm is what is still refused here.
+#' Neither is an index
 #' that never had an exact design to begin with: failing to bound the
 #' auxiliary does not imply one, since
 #' [.check_survival_scale_collapse()] returns before reaching its geometry
@@ -647,31 +755,71 @@
 #' the comparator has its own `beta_comparator` and the question does not
 #' arise.
 #'
-#' **This is a restriction on an approximation, not a repair of a model.**
-#' The continuously integrated counterpart is PROPER for the same data.
-#' Integrating a declared Gaussian covariate exactly leaves
-#' `log T ~ N(mu, beta^2 + sdlog^2)`, and two tied events give
-#' `1 / (2 pi tau sqrt(tau^2 + 2 a^2))` for `tau^2 = beta^2 + sdlog^2`. That
-#' behaves as `1 / sqrt(beta^2 + sdlog^2)` near the origin, which the volume
-#' element of polar coordinates makes integrable. Two comparator events at
-#' `t = 1` on 64 nodes, coefficients integrated against `normal(0, 10)` and
+#' **For TWO tied events this is a restriction on an approximation rather
+#' than a repair of a model, and past two it is not.** For `lognormal` with
+#' one declared Gaussian covariate the continuous counterpart integrates
+#' exactly: it leaves `log T ~ N(mu, beta^2 + sdlog^2)`, and `m` events tied
+#' at one time with a normal `prior_intercept` integrated out give
+#' `(2 pi)^(-m/2) tau^(1 - m) / sqrt(tau^2 + m a^2)` for
+#' `tau^2 = beta^2 + sdlog^2`. That behaves as `r^(1 - m)` in
+#' `r^2 = beta^2 + sdlog^2` against the plane's `r dr`, leaving
+#' `integral r^(2 - m) dr`, which converges for `m = 2` and DIVERGES from
+#' `m = 3` on. So two tied events are a quadrature artifact and three or
+#' more are a property of the model itself. Two comparator events at `t = 1`
+#' on 64 nodes, coefficients integrated against `normal(0, 10)` and
 #' `normal(0, 2.5)`: the grid likelihood runs 0.0143, 0.185, 1.72, 171 and
 #' 17103 as `sdlog` falls through 0.1, 0.001, 0.0001, 1e-6 and 1e-8, while
-#' the continuous one runs 0.0142, 0.0307, 0.0390, 0.0556 and 0.0721. The
-#' quadrature is what fails, not the likelihood it approximates.
+#' the continuous one runs 0.0142, 0.0307, 0.0390, 0.0556 and 0.0721.
 #'
-#' So a larger `n_int` is not the repair either: a bigger fixed rule is still
-#' a finite mixture, and within the grid's reach it only scales the
-#' coefficient of the same divergence. Neither is jittering the tied times,
-#' which invents data, nor a floor on the auxiliary, which hides the
-#' singularity the sampler would have found. The repair is the analytic
-#' marginal likelihood wherever the declared covariate distribution supports
-#' one, and that is a change to the model, not to a guard.
+#' Nothing here establishes that for the other families or for other
+#' covariate distributions, and the runtime advice says so per family rather
+#' than telling them all that exact integration repairs it.
+#'
+#' A larger `n_int` is not the repair either: a bigger fixed rule is still a
+#' finite mixture, and within the grid's reach it only scales the coefficient
+#' of the same divergence. Neither is jittering the tied times, which invents
+#' data, nor a floor on the auxiliary, which hides the singularity the
+#' sampler would have found. Where the ties come from rounding, an
+#' interval-censored representation of what was actually observed is the
+#' honest model and `set_agd_surv()` accepts one.
 #'
 #' Under `aux_by = "none"` the index rows share the auxiliary, and an index
 #' fit that leaves a real residual contributes `exp(-RSS / (2 * sdlog^2))`,
 #' which goes to zero faster than any power and removes this divergence; so
 #' does an index censored row that bounds. Sharing does not do it on its own.
+#'
+#' Between those and contributing nothing there is a third case, and reading
+#' it as the third one refused proper fits. An index with NO events whose
+#' censored regions pin its predictor to a point rather than to an open
+#' region does not bound the auxiliary, and does not leave the comparator
+#' whole either: the coefficient volume it keeps shrinks as the width to the
+#' power of however many independent directions it pins. A left-censored row
+#' at `t = 1` beside a right-censored row at `t = 1` on one profile peaks at
+#' `1/4` at every scale POINTWISE, which is what the old reading saw, while
+#' integrating the intercept out against `normal(0, a)` gives
+#' `arccos(a^2 / (a^2 + s^2)) / (2 pi)`, or `s / (sqrt(2) pi a)` near zero.
+#' Measured `d log L / d log s` is 1.000000 for one such profile, 2.000000
+#' for two independent ones, 3.000000 for three. Both sides are written in
+#' powers of the SAME width, so those come off this rate directly: two tied
+#' comparator events against one touching profile is `1 - 1 = 0` and stands,
+#' three is `2 - 1 = 1` and is still refused. The order is carried only for
+#' `lognormal`, where it was measured; the other families report the
+#' question as unsettled rather than refusing on an unmeasured exponent.
+#'
+#' It also only comes off a rate that is EXACT, which is a property of the
+#' RANK rather than of the covariate count. A consistent allocation's design
+#' has rank at least 1, and at least 2 whenever two targets differ, since its
+#' rows all carry an intercept and proportional rows there are identical
+#' rows, which put every row on one predictor and make every target equal. So
+#' a recorded rank of 1 or 2 is the smallest achievable one however many
+#' covariates are declared, and only from 3 can a lower-rank allocation
+#' exist. Taking a positive order off a rate that IS a bound can cross the
+#' refusal threshold from the wrong side: four
+#' comparator events at three distinct targets carried by three collinear
+#' nodes have a true rate of `4 - 2 = 2` while this records `4 - 3 = 1`, and
+#' netting one power off that reads as zero. A subtraction that LEAVES the
+#' rate at or above one is still certified, since the true net is at least
+#' the reported one; only one that takes it below is reported instead.
 #' [.check_survival_scale_collapse()] only WARNS when the index is itself
 #' exact or saturated under a shared auxiliary, and supplies no decaying
 #' residual there, so skipping this check whenever the auxiliary is shared
@@ -693,6 +841,24 @@
 #'   auxiliary away from its boundary, as [.check_survival_scale_collapse()]
 #'   reports in its `bounds_aux` attribute. Consulted only when `aux_by` is
 #'   `"none"`, where the comparator shares that parameter.
+#' @param index_design The index EVENT design, as
+#'   [.check_survival_scale_collapse()] reports in its `index_design`
+#'   attribute, or `NULL` where it did not establish an exact fit.
+#'   Reproducing its own times is not the same as identifying the shared
+#'   `beta`: repeated index events at one covariate profile at one time fit
+#'   exactly and leave `beta` free, and a free `beta` is the direction the
+#'   comparator tilts along to lift an integration point past a censoring
+#'   time. What has to be identified is only the slope directions THIS arm's
+#'   grid spans, which is why the design arrives whole rather than as a
+#'   verdict. Consulted only under `model = "spfa"` with `aux_by = "none"`.
+#' @param index_aux_order How many powers of the auxiliary's width the index
+#'   rows already remove, as [.check_survival_scale_collapse()] reports in
+#'   its `aux_order` attribute: `0` for an index that contributes a positive
+#'   constant, a positive number for one whose feasible coefficient volume
+#'   shrinks with the width, and `NA` for one that was not settled. Consulted
+#'   only when `aux_by` is `"none"`. A certified order is subtracted from the
+#'   comparator's own growth, since both are written in powers of the same
+#'   width; an unsettled one makes this report rather than refuse.
 #' @return `TRUE` invisibly if the data were warned about, `FALSE` otherwise.
 #'   A refused configuration stops instead.
 #' @keywords internal
@@ -700,7 +866,9 @@
                                           aux_by = ".study",
                                           index_bounds_aux = FALSE,
                                           model = "relaxed",
-                                          index_exact = NA) {
+                                          index_exact = NA,
+                                          index_design = NULL,
+                                          index_aux_order = 0) {
   scale_families <- c("lognormal", "gengamma")
   # The proportional-hazards Weibull and Gompertz are deliberately NOT here.
   # Their ridge width does not shrink with the auxiliary at all, so their
@@ -739,12 +907,15 @@
   # system, which this does not solve, so that case is reported rather than
   # refused.
   #
-  # A single distinct target is not that case, and is still refused: the one
-  # equation is absorbed by `mu_comparator` entirely, `beta` is left free, so
-  # the comparator ridge contains whatever the index's exact fit requires and
-  # both singularities stand at once. Under `model = "relaxed"` the
-  # comparator carries its own `beta_comparator` and the question does not
-  # arise at all.
+  # A single distinct target is not that case. The one equation is absorbed
+  # by `mu_comparator` entirely and `beta` is left free BY THE EVENTS, so the
+  # comparator ridge contains whatever the index's exact fit requires and
+  # both singularities stand at once. That reasoning covers the event rows
+  # only: a censored comparator row cannot be escaped either once `beta` is
+  # pinned, and `spfa_pinned` below routes that to the same isolated-ridge
+  # report. A single target with no censored row in the arm is what stays
+  # refused. Under `model = "relaxed"` the comparator carries its own
+  # `beta_comparator` and the question does not arise at all.
   #
   # It also needs the index to HAVE an exact event design, which failing to
   # bound the auxiliary does not imply. [.check_survival_scale_collapse()]
@@ -760,6 +931,14 @@
   # index IS exact with a solution set the comparator's node-specific slopes
   # miss, which is the same proper configuration the branch below reports, so
   # refusing there would state a certainty the data do not carry.
+  # It also needs that exact design to IDENTIFY the shared slope, and not
+  # merely to fit. An index of repeated events at one covariate profile at
+  # one time is `constant`, fits exactly, and leaves `beta` unconstrained, so
+  # whatever node-specific values the comparator's equations pin it to lie in
+  # the index's solution set by construction: the sets always intersect,
+  # both singularities stand, and there is nothing open about it. That is
+  # tested per arm below, since which slope directions matter is a property
+  # of the arm's own grid.
   spfa_shared <- shared_aux && identical(model, "spfa") &&
     !identical(index_exact, FALSE)
   pseudo <- data$agd$pseudo_ipd
@@ -823,9 +1002,54 @@
   # one predictor. (Gompertz reads its ridge on the time scale instead, which
   # is [.check_survival_scale_collapse()]'s business; this function does not
   # examine it.)
+  # Does the index pin every slope direction THIS arm's grid can move along?
+  # The escape the comparator would use is a change in the node linear
+  # predictors, which is `(z_j - z_1)' beta`, so the directions that matter
+  # are the span of the node differences and nothing else. A covariate the
+  # grid integrates as a point mass contributes no such direction, and
+  # leaving its coefficient unidentified costs the comparator nothing:
+  # requiring the whole design to have full column rank refused a fit whose
+  # only free direction no integration point can move along.
+  #
+  # Estimability of a pure-slope functional `v` is `(0, v)` lying in the row
+  # space of the index event design, which is what the rank comparison tests
+  # exactly. A grid whose nodes all share one covariate vector spans no
+  # direction at all, so there is nothing to pin; `rank_d < reachable`
+  # already excludes that case before this is consulted.
+  # Three answers, not two. Adding the node-difference rows to the index
+  # design raises its rank by however many of those directions the index
+  # does NOT already estimate, so a gain of zero means it estimates all of
+  # them and a gain of the full node-difference rank means it estimates none.
+  # In between is PARTIAL identification, which is neither: with two
+  # covariates an index can fix `beta1` while leaving `beta2` free, and the
+  # two branches below want opposite things from that. The escape one needs
+  # every direction pinned, since one free direction is enough to move a node
+  # past a censoring time. The intersection one needs NO direction pinned,
+  # since only then do the comparator's node-specific values lie in the
+  # index's solution set by construction; a `beta1` the index fixes at a
+  # value none of the comparator's pairwise differences reaches leaves the
+  # sets disjoint and the fit proper.
+  slope_reach <- function(nodes) {
+    blind <- list(all = FALSE, any = FALSE, testable = FALSE)
+    if (is.null(index_design) || is.null(nodes)) return(blind)
+    if (!is.matrix(nodes) || ncol(index_design) != ncol(nodes) + 1L) {
+      return(blind)
+    }
+    if (!all(is.finite(nodes)) || !all(is.finite(index_design))) return(blind)
+    zc <- sweep(nodes, 2L, nodes[1L, ], "-")
+    zc <- zc[rowSums(zc != 0) > 0L, , drop = FALSE]
+    # A grid whose nodes all share one covariate vector spans no direction,
+    # so there is nothing to pin and nothing to escape along.
+    if (!nrow(zc)) return(list(all = TRUE, any = TRUE, testable = TRUE))
+    base <- .exact_rank(index_design)$rank
+    gain <- .exact_rank(rbind(index_design, cbind(0, zc)))$rank - base
+    list(all = gain == 0L, any = gain < .exact_rank(zc)$rank,
+         testable = TRUE)
+  }
   target <- suppressWarnings(log(time))
   worst <- 0L
   info <- NULL
+  declined <- FALSE
   by_arm <- split(seq_along(time)[events], arm[events])
   for (a in names(by_arm)) {
     rows <- by_arm[[a]]
@@ -863,7 +1087,18 @@
     # is a gap in coverage, not a wrong verdict.
     rank_d <- min(k, reachable)
     if (m <= rank_d) next
-    if (k > reachable && !isTRUE(.grid_hits_targets(grid$nodes, tg))) next
+    if (k > reachable) {
+      hit <- .grid_hits_targets(grid$nodes, tg)
+      if (!isTRUE(hit)) {
+        # A grid too large to enumerate is not a grid with nothing to find.
+        # The same three comparator events over the same declared covariate
+        # are refused at `n_int = 8` and, before the cost model was
+        # corrected, ran to the sampler at 256 with nothing in the result
+        # saying the question had gone unasked. Carry it out of the loop.
+        if (identical(attr(hit, "declined"), "budget")) declined <- TRUE
+        next
+      }
+    }
     # A censored row in the same arm can suppress this, but only sometimes,
     # and which case it is turns on whether the ridge is a point or a set.
     #
@@ -931,19 +1166,197 @@
                         start[i] > delay[i])
       if (opens) "bounded" else "below"
     }, "")
-    one_sided <- !length(side) ||
-      (!anyNA(side) && !any(side == "bounded") && length(unique(side)) == 1L)
     cens <- side
+    # A design that pins NOTHING, a design that pins something, and no design
+    # to test are three answers, and only the first is a reason to refuse.
+    # An index guard that bailed out before its geometry, or one whose
+    # residual status was never settled, establishes nothing about the slope,
+    # and turning that into a refusal is the same mistake as turning an
+    # unsettled order into a zero.
+    slope <- slope_reach(grid$nodes)
+    slope_free <- slope$testable && !slope$any
+    # A censored row only leaves the answer open if it threatens the ridge in
+    # the first place, and at the MATCHED nodes that is decided rather than
+    # enumerated. Every ridge point puts a matched node exactly at its
+    # target, so a row satisfied at some target is not suppressing anything
+    # there: its mixture holds at `1 / n_int` through that node and the
+    # divergence stands whatever the other nodes do.
+    #
+    # The satisfied set is the same geometry `side` reads, with its ends. A
+    # row is satisfied where its region probability tends to one rather than
+    # to zero, and the ends are inclusive: a predictor sitting exactly on a
+    # censoring time leaves that row at a half, which suppresses nothing.
+    # Two comparator events at `t = 1` with a right-censored row at
+    # `t = 0.5` are the case this decides: `log(0.5)` is below the target, so
+    # the matched node is already past the censoring time, the row holds at
+    # one, and the rate-1 divergence is certified rather than open. The same
+    # row at `t = 2` is above it and does suppress the matched node, leaving
+    # only the other nodes to settle, which is what stays open.
+    sat <- vapply(cens_rows, function(i) {
+      st <- status[i]
+      if (is.na(st) || !is.finite(target[i])) return(c(NA_real_, NA_real_))
+      if (st == 0L) return(c(target[i], Inf))
+      if (st == 2L) return(c(-Inf, target[i]))
+      if (st != 3L) return(c(NA_real_, NA_real_))
+      opens <- isTRUE(is.finite(start[i]) && is.finite(delay[i]) &&
+                        start[i] > delay[i])
+      lo <- if (opens) suppressWarnings(log(start[i])) else -Inf
+      if (!is.finite(lo) && opens) return(c(NA_real_, NA_real_))
+      c(lo, target[i])
+    }, numeric(2L))
+    threatens <- vapply(seq_along(cens_rows), function(ii) {
+      lo <- sat[1L, ii]
+      hi <- sat[2L, ii]
+      if (is.na(lo) || is.na(hi)) return(TRUE)
+      !any(tg >= lo & tg <= hi)
+    }, logical(1L))
+    threat <- any(threatens)
+    # Sidedness is about the rows that have to be ESCAPED, and a row already
+    # satisfied at a matched node is not one of them. Tied events at `t = 1`
+    # with a right-censored row at `t = 2` and a left-censored row bounded
+    # above at `t = 2` read as two-sided over both rows, while the left one
+    # stays positive through the matched node and only the right one needs
+    # the free direction: one direction clears it, and the divergence is
+    # certified rather than open.
+    open_side <- side[threatens]
+    one_sided <- !length(open_side) ||
+      (!anyNA(open_side) && !any(open_side == "bounded") &&
+         length(unique(open_side)) == 1L)
     if (m - rank_d > worst) {
       worst <- m - rank_d
+      # `spfa_pinned` is the same geometry as `isolated` arrived at from the
+      # other side. Reading the reach alone says the ridge is a SET whenever
+      # `rank_d` is below it, and under `model = "spfa"` with a shared
+      # auxiliary that is false: the direction the comparator would move
+      # along is the shared `beta`, and an index whose own event design fits
+      # exactly pins it. What is left is `n_int` isolated points, one per
+      # node, exactly as when the comparator's own equations use up the
+      # reach, and a censored row can cover all of them.
+      #
+      # Index events at `x = -1` and `x = +1` both at `t = 1` force
+      # `mu_index = beta = 0`, so every comparator node sits at
+      # `mu_comparator` and a comparator right-censored row at `t = 2` is
+      # above every one of them. Tilting `beta` to lift a node past `log 2`
+      # costs the index a residual of the same order, and the two
+      # exponentials trade rather than cancel, so that fit is proper. With
+      # `rank_d = 1` this used to run past both flags into the refusal.
       info <- list(m = m, k = k, rank = rank_d, reach = reachable,
-                   isolated = rank_d >= reachable && length(cens) > 0L,
-                   two_sided = rank_d < reachable && length(cens) > 0L &&
-                     !one_sided,
-                   spfa_shared = spfa_shared && rank_d > 1L)
+                   isolated = rank_d >= reachable && threat,
+                   # Not gated on `spfa_shared`, which asks whether the
+                   # index's EVENT design fits exactly. What this needs is
+                   # only that the index pin the slope, however it does so,
+                   # and `slope$all` tests that on the design directly.
+                   spfa_pinned = shared_aux && identical(model, "spfa") &&
+                     slope$all && rank_d < reachable && threat,
+                   two_sided = rank_d < reachable && threat && !one_sided,
+                   spfa_shared = spfa_shared && !slope_free &&
+                     rank_d > 1L)
     }
   }
-  if (worst < 1L) return(invisible(FALSE))
+  # Under `aux_by = "none"` the index and the comparator are written in
+  # powers of ONE width, so what decides is the NET. The comparator grows by
+  # `m - rank(D)` powers of one over that width; an index whose censored
+  # rows pin its predictor to a point rather than to a region costs that
+  # many powers of the width back. Two tied comparator events against a
+  # touching index profile is `1 - 1 = 0`, which integrates, and refusing it
+  # was reading a per-arm label where the joint order was the question.
+  # Three tied events leaves `2 - 1 = 1` and is still refused.
+  #
+  # The subtraction is only valid where the two sides' pinned directions are
+  # INDEPENDENT, and that is a property of the model. Under `relaxed` the
+  # index constrains `mu_index` and `beta` while the comparator constrains
+  # `mu_comparator` and `beta_comparator`, so the stacked system is block
+  # diagonal, its rank is exactly the sum, and the difference is exact. Under
+  # `spfa` the arms share `beta` and the blocks can overlap: two independent
+  # touching index profiles give order 2 while four comparator events at two
+  # matched times give rate 2, and if both sides pin the shared slope the
+  # stacked rank gains only one index direction, leaving a true rate of 1
+  # that a full subtraction would report as 0 and admit. The stacked rank is
+  # a lower bound either way, so the error is toward silence rather than
+  # toward a refusal, but silence on a known-improper fit is what this guard
+  # exists to prevent. Computing the joint rank means solving the combined
+  # system across every allocation, which this does not do, so a shared slope
+  # is reported instead.
+  #
+  # Only from order TWO, and only when the comparator constrains the slope at
+  # all. In `(mu_index, mu_comparator, beta)` an index constraint is
+  # `(1, 0, x)` and every comparator constraint is `(0, 1, z)`, so no
+  # combination of comparator rows reaches a nonzero first component and a
+  # SINGLE index row is independent of all of them: the ranks add whatever
+  # the shared slope does, and the stacked system stays consistent because
+  # `mu_index` is left free to satisfy that row. It takes a second index row
+  # for the difference `(0, 0, x_1 - x_2)` to appear, which is a pure slope
+  # direction and can lie in the comparator's span.
+  #
+  # And it has to have somewhere to lie. A matched design of rank 1 is one
+  # row, `(0, 1, z_j)`, whose only vector with a zero second component is the
+  # zero vector, so nothing of the form `(0, 0, v)` is in it and the ranks
+  # add again. Four comparator events tied at one time are rate 3 against two
+  # touching index profiles' 2, and that nets to 1 rather than going
+  # unresolved.
+  #
+  # And it can only be subtracted from a rate that is EXACT. `worst` is
+  # `m - min(k, reach)`, which is the rate for one covariate and a lower
+  # bound for more, since a consistent allocation of lower rank can exist and
+  # is not searched for. Taking a positive order off a lower bound can cross
+  # the refusal threshold from the wrong side: four comparator events at
+  # three distinct targets carried by three collinear nodes have a true rate
+  # of `4 - 2 = 2` while this records `4 - 3 = 1`, and netting one index
+  # power off that reads as zero and passes a fit whose true net is 1. A
+  # subtraction that LEAVES the rate at or above one is still certified,
+  # since the true net is at least the reported one; only one that takes it
+  # below is reported instead.
+  index_unresolved <- FALSE
+  unresolved_why <- ""
+  netted_order <- 0
+  if (shared_aux) {
+    separate_slopes <- !identical(model, "spfa")
+    # Exactness of the rate is a property of the RANK, not of the covariate
+    # count. A consistent allocation's design has rank at least 1, and at
+    # least 2 whenever two targets differ, since its rows all carry an
+    # intercept and proportional rows there are identical rows, which put
+    # every row on one predictor and make every target equal. So a recorded
+    # rank of 1 or 2 is the smallest achievable one however many covariates
+    # are declared, and only from 3 can a lower-rank allocation exist, which
+    # is the collinear-nodes case.
+    exact_rate <- isTRUE(info$rank <= 2L)
+    if (is.na(index_aux_order)) {
+      index_unresolved <- worst >= 1L
+      unresolved_why <- "unsettled"
+    } else if (index_aux_order > 1 && !separate_slopes &&
+                 isTRUE(info$rank > 1L)) {
+      index_unresolved <- worst >= 1L
+      unresolved_why <- "overlap"
+    } else if (index_aux_order > 0 && !exact_rate &&
+                 worst - index_aux_order < 1L) {
+      index_unresolved <- worst >= 1L
+      unresolved_why <- "lower_bound"
+    } else {
+      netted_order <- index_aux_order
+      worst <- worst - index_aux_order
+    }
+  }
+  if (worst < 1L && !index_unresolved) {
+    # A check that was not run is not a check that found nothing, and saying
+    # so is the whole difference between the two. The same three comparator
+    # events over the same declared covariate are refused at `n_int = 8`;
+    # at a grid past the enumeration budget the question simply goes unasked.
+    if (declined) {
+      warning("The reconstructed comparator curve has more event rows than ",
+              "the integration grid's rank, and whether a single affine map ",
+              "carries every one of its event times onto a node was left ",
+              "unexamined: the grid is past this check's enumeration ",
+              "budget. The same arm on a smaller grid may be refused as ",
+              "improper, so this silence is not a certificate that the ",
+              "posterior exists. Re-run with a smaller `n_int` to have the ",
+              "question answered, or give the comparator its own auxiliary ",
+              "with `aux_by = \".study\"`, and check the sampler's ",
+              "behavior near the boundary of ", .aux_name(distribution),
+              ".", call. = FALSE)
+      return(invisible(TRUE))
+    }
+    return(invisible(FALSE))
+  }
   # The rate is NOT shared across families, and reading one family's off
   # another is how the wrong exponent gets into a message. What the spikes
   # and the ridge width do with the auxiliary, per family:
@@ -1000,11 +1413,22 @@
   } else {
     format(rate_num / rate_den)
   }
+  # When the index already removed powers of the same width, the reported
+  # rate is the NET and the arithmetic has to say so, or the exponent will
+  # not match the row and rank counts in the same sentence.
+  netted <- if (netted_order > 0) {
+    paste0(", less the ", format(netted_order), " the index rows ",
+           "already remove: their censored regions pin the index predictor ",
+           "to a point rather than to a region, so the coefficient volume ",
+           "they keep shrinks ", shrink, " in that many directions too")
+  } else {
+    ""
+  }
   volume <- {
     paste0("while the coefficient volume shrinks ", shrink, " in each of the ",
            info$rank, " pinned direction", if (info$rank > 1L) "s" else "",
-           " and in no other, so the difference survives: with the ",
-           "coefficients integrated out the marginal diverges at rate ",
+           " and in no other", netted, ", so the difference survives: with ",
+           "the coefficients integrated out the marginal diverges at rate ",
            rate_text)
   }
   solvable <- if (info$k <= info$reach) {
@@ -1074,6 +1498,46 @@
     "interval-censored representation of what was actually observed is the ",
     "honest model; `set_agd_surv()` accepts one."
   )
+  # An index whose own contribution was not settled cannot be netted, and
+  # reading "not settled" as "contributes nothing" is a refusal built on an
+  # open question.
+  if (index_unresolved) {
+    why_index <- if (identical(unresolved_why, "overlap")) {
+      paste0("the index rows remove ", format(index_aux_order),
+             " powers of the same width, but under `model = \"spfa\"` the ",
+             "arms share one `beta`, so from the second row on the ",
+             "directions they pin can be the same directions this arm's ",
+             "equations pin and the two do not simply add. Whether they ",
+             "overlap is a property of the combined system across every ",
+             "allocation, which this check does not solve")
+    } else if (identical(unresolved_why, "lower_bound")) {
+      paste0("the index rows remove ", format(index_aux_order),
+             " power", if (index_aux_order > 1) "s" else "",
+             " of the same width, and this arm's own rate is a LOWER BOUND ",
+             "rather than the rate: with more than one covariate a ",
+             "consistent allocation of lower rank than `min(k, reach)` can ",
+             "exist and is not searched for, so subtracting from it can ",
+             "cross zero from the wrong side. The un-netted rate is ",
+             format(worst), ", which is certified; what the difference is ",
+             "takes the smallest matching rank, which this check does not ",
+             "compute")
+    } else {
+      paste0("their own contribution to it was not settled: their censored ",
+             "regions pin the index predictor somewhere between a point and ",
+             "an open region, or its event design left a residual this ",
+             "check could not resolve, and how many powers of the width ",
+             "that costs has not been established for ",
+             .aux_name(distribution))
+    }
+    warning(shared, " Under `aux_by = \"none\"` the index rows share that ",
+            "parameter, and ", why_index, ". Those powers come off this ",
+            "rate directly, so the fit is neither refused nor passed as ",
+            "proper: check the sampler near the boundary of ",
+            .aux_name(distribution), ", or give the comparator its own ",
+            "auxiliary with `aux_by = \".study\"`, which makes this ",
+            "question moot.", restriction, call. = FALSE)
+    return(invisible(TRUE))
+  }
   # A censored row in the arm can suppress an isolated ridge, and which
   # points it covers is not settled here, so nothing is refused on it.
   if (isTRUE(info$spfa_shared)) {
@@ -1093,8 +1557,22 @@
             "makes this question moot.", restriction, call. = FALSE)
     return(invisible(TRUE))
   }
-  if (isTRUE(info$isolated) || isTRUE(info$two_sided)) {
-    why <- if (isTRUE(info$isolated)) {
+  if (isTRUE(info$isolated) || isTRUE(info$spfa_pinned) ||
+        isTRUE(info$two_sided)) {
+    why <- if (isTRUE(info$spfa_pinned)) {
+      paste0("the direction along which the comparator would escape them is ",
+             "the shared `beta`, and under `model = \"spfa\"` with ",
+             "`aux_by = \"none\"` the index pins it. Its own event design ",
+             "fits exactly, which is why it bounded nothing, and that fit ",
+             "fixes the slope: index events at `x = -1` and `x = +1` both ",
+             "at `t = 1` force `mu_index` and `beta` to zero, so every ",
+             "integration point sits at `mu_comparator` and a comparator ",
+             "right-censored row at `t = 2` is above all of them. Tilting ",
+             "`beta` to lift one past `log 2` costs the index a residual of ",
+             "the same order, so the two exponentials trade rather than ",
+             "cancel. Which way that trade goes takes solving the combined ",
+             "system")
+    } else if (isTRUE(info$isolated)) {
       paste0("with as many distinct times as the grid reaches, the ridge is ",
              "isolated points rather than a set: a censored row whose region ",
              "covers every one of them suppresses this, and one whose region ",
@@ -1557,16 +2035,41 @@
 #'   establish that, which is not the same as establishing the opposite.
 #'   [.check_comparator_tied_events()] reads it under `aux_by = "none"`. A
 #'   shared-auxiliary warning also carries `index_exact`: `TRUE` when the index
-#'   event design was shown to reproduce its own times and so pins a shared
-#'   coefficient vector, `FALSE` only where it was shown to pin nothing, and
-#'   `NA` where the question was not settled. The three are distinct on
+#'   was shown to pin a shared coefficient vector, `FALSE` only where it was
+#'   shown to pin nothing, and `NA` where the question was not settled. An
+#'   exact event design is the usual way to pin one; censored rows whose
+#'   regions TOUCH are another, since left and right censoring meeting at
+#'   `t = 1` on `x = -1` and `x = 1` forces `mu_index` and `beta` to zero
+#'   exactly as two events there would, so that case reports `TRUE` too and
+#'   carries the touching rows as its `index_design`. The three are distinct on
 #'   purpose, and an index with NO events is not automatically the second of
 #'   them: having no events means no design to fit, not that nothing bounds
 #'   the auxiliary. Censored rows alone can bound it, and when they conflict
 #'   they do, so an eventless index is answered by asking whether any linear
 #'   predictor satisfies every one of its regions at once. A certified
-#'   conflict returns `bounds_aux = TRUE`, a certified absence of one returns
-#'   `index_exact = FALSE`, and an undecided case returns neither.
+#'   conflict returns `bounds_aux = TRUE`.
+#'
+#'   Absent a conflict, an eventless index also carries `aux_order`, which is
+#'   how many powers of the auxiliary's WIDTH its censored rows already
+#'   remove. The three-way question above is not the same as this one, and
+#'   collapsing them refused proper fits: regions that merely TOUCH pin the
+#'   index predictor to a point rather than to an open region, so the
+#'   coefficient volume keeping their likelihood positive shrinks with the
+#'   width even though the pointwise maximum is a positive constant at every
+#'   scale. `aux_order` is `0` for regions with interior, the rank of the
+#'   touching profile rows where they touch, and `NA` where none of that was
+#'   established, including every family but `lognormal`, for which alone the
+#'   order was measured. [.check_comparator_tied_events()] subtracts a
+#'   certified order from its own rate under `aux_by = "none"` and reports
+#'   rather than refuses on an `NA`.
+#'
+#'   An index WITH events carries it too, and on the same distinction: a
+#'   design shown to reproduce its own times pins rather than suppresses, so
+#'   it reports `0` and the comparator refusal stands, while `undecidable`,
+#'   `unresolved` and `unresolved_log` did not settle whether a residual
+#'   exists at all. A real one there contributes `exp(-RSS / (2 * sdlog^2))`
+#'   and removes the comparator's growth entirely, so those report `NA`
+#'   rather than a zero that would turn an open question into a refusal.
 #' @keywords internal
 .check_survival_scale_collapse <- function(data, distribution,
                                            aux_by = ".study",
@@ -1712,13 +2215,52 @@
     reg <- cens_region()
     eventless <- .censoring_bounds_aux(X, y, events,
                                        lower = reg$lower, upper = reg$upper)
-    if (identical(eventless, "bounded")) {
+    if (identical(as.character(eventless), "bounded")) {
       return(invisible(structure(FALSE, bounds_aux = TRUE)))
     }
-    if (identical(eventless, "unbounded")) {
-      return(invisible(structure(FALSE, index_exact = FALSE)))
+    if (identical(as.character(eventless), "unbounded")) {
+      return(invisible(structure(FALSE, index_exact = FALSE,
+                                 aux_order = 0)))
     }
-    return(invisible(FALSE))
+    # A censored index that pins its predictor to a point rather than to a
+    # region does not bound the auxiliary, and does not leave the comparator
+    # whole either: the coefficient volume it keeps shrinks with the width,
+    # by as many powers as it pins independent directions, and that cancels
+    # the same number of the comparator's. The order is carried up rather
+    # than flattened to a yes or no, because flattening it is what refused a
+    # touching index beside two tied comparator events.
+    #
+    # Only `lognormal` carries a number. The argument is the same in every
+    # family, since each one's rate is written in powers of one over the
+    # SAME width the volume shrinks by, but it has only been measured here
+    # for the normal on the log scale, and reporting an unmeasured rate as a
+    # certificate is how a wrong exponent gets into a refusal. The others
+    # report the order as unsettled, which the comparator check reads as a
+    # reason to report rather than to refuse.
+    if (identical(as.character(eventless), "suppresses")) {
+      ord <- attr(eventless, "order")
+      # Those touching rows pin directions of the coefficient vector exactly
+      # as an exact EVENT design does, so they are the design the comparator
+      # has to test against: left and right censoring touching at `t = 1` on
+      # `x = -1` and `x = 1` forces `mu_index` and `beta` to zero just as two
+      # events there would. Discarding them and reporting that the index pins
+      # nothing left the comparator treating the shared slope as free, so its
+      # censored rows read as escapable and a fit they exponentially suppress
+      # was refused.
+      touch <- attr(eventless, "design")
+      return(invisible(structure(
+        FALSE, index_exact = !is.null(touch), index_design = touch,
+        aux_order = if (identical(distribution, "lognormal")) {
+          as.numeric(ord)
+        } else {
+          NA_real_
+        }
+      )))
+    }
+    # Undetermined is not "contributes nothing". Under a shared auxiliary
+    # the comparator would refuse on that reading, so it is reported as
+    # unsettled instead.
+    return(invisible(structure(FALSE, aux_order = NA_real_)))
   }
   s <- .residual_variation_status(X[events, , drop = FALSE], y[events],
                                   "identity")
@@ -1801,12 +2343,46 @@
     # `unresolved_log` did not establish a positive residual, so calling them
     # "not exact" would turn an open question into a definite verdict
     # downstream; they report NA instead.
+    #
+    # `aux_order` is the same three-way distinction about the same shared
+    # parameter. An index whose design reproduces its own times contributes
+    # a divergence of its own rather than a suppression, so zero is right
+    # for it and the comparator refusal stands. The statuses that did not
+    # SETTLE whether a residual exists are the other case: a real residual
+    # there contributes `exp(-RSS / (2 * sdlog^2))` and removes the
+    # comparator's growth entirely, so reading them as zero turns an open
+    # question into a refusal, exactly as reading an eventless index as
+    # "pins nothing" did.
+    #
+    # Reproducing its own times is not the same as IDENTIFYING the slope the
+    # comparator would escape along, and the comparator needs the second.
+    # Which directions those are is a property of the COMPARATOR's grid, so
+    # the design is handed over rather than reduced to a verdict here: what
+    # matters is only whether the index estimates the slope directions that
+    # grid actually spans, and testing every column instead refuses a fit
+    # whose unidentified direction no integration point can move along.
+    #
+    # Centering does not affect the answer. It adds multiples of the
+    # intercept column to the others, which leaves the SLOPE coefficients
+    # unchanged, and node differences shift by the same constant, so a
+    # pure-slope functional is estimable in one parameterization exactly
+    # when it is in the other.
     return(invisible(structure(
       TRUE,
       index_exact = if (s$status %in% c("exact", "constant", "saturated")) {
         TRUE
       } else {
         NA
+      },
+      index_design = if (s$status %in% c("exact", "constant", "saturated")) {
+        X[events, , drop = FALSE]
+      } else {
+        NULL
+      },
+      aux_order = if (s$status %in% c("exact", "constant", "saturated")) {
+        0
+      } else {
+        NA_real_
       }
     )))
   }
@@ -2160,7 +2736,15 @@
 #'   right-censored region, `y[!events]` and `Inf`, so a caller that knows
 #'   only times gets the behavior it had before the other two censoring
 #'   types were admitted.
-#' @return `"bounded"`, `"unbounded"`, or `"undetermined"`.
+#' @return `"bounded"`, `"suppresses"`, `"unbounded"`, or `"undetermined"`.
+#'   `"bounded"` means the auxiliary is held away from its boundary, which is
+#'   an exponential suppression and removes any polynomial growth elsewhere.
+#'   `"suppresses"` means it is not, but the coefficient volume that keeps
+#'   the rows' likelihood positive shrinks as the auxiliary's width to the
+#'   power of the `order` attribute, so it cancels that many powers of a
+#'   growth that shares the auxiliary. `"unbounded"` means the contribution
+#'   is a positive constant, and `"undetermined"` that none of the three was
+#'   established.
 #' @keywords internal
 .censoring_bounds_aux <- function(X, y, events, exact_fit = FALSE,
                                   lower = NULL, upper = NULL) {
@@ -2242,26 +2826,61 @@
       # therefore refused proper fits rather than protecting any.
       #
       # Only exact equality is not a conflict. There the shared predictor
-      # sits on both boundaries, each row contributes a half rather than a
-      # zero, and a positive constant suppresses nothing.
+      # sits on both boundaries and each row contributes a half rather than
+      # a zero. That is a statement about one coefficient vector, not about
+      # the volume of them, and the volume is what decides: see the
+      # `suppresses` order below.
       isTRUE(lo > up)
     }, logical(1L))
     if (any(conflict)) return("bounded")
-    profiles <- Xc[!duplicated(keys), , drop = FALSE]
+    # Equality is not a conflict and it is not freedom either. The shared
+    # predictor has to sit ON that one point, so the coefficients keeping
+    # the group's likelihood away from zero are a shrinking neighborhood of
+    # a hyperplane rather than an open region, and the volume they cost is
+    # what the auxiliary sees. A left-censored row at `t = 1` beside a
+    # right-censored row at `t = 1` on one profile has pointwise maximum
+    # `1/4` at every scale, and integrating the intercept out against
+    # `normal(0, a)` gives `arccos(a^2 / (a^2 + s^2)) / (2 pi)`, which is
+    # `s / (sqrt(2) pi a)` near zero: one power of the scale, not a
+    # constant. Measured `d log L / d log s` is 1.000000 for one such
+    # profile, 2.000000 for two independent ones and 3.000000 for three.
+    #
+    # Reporting that as "unbounded" is what refused the proper fit. The
+    # comparator's own growth is `m - rank(D)` powers of one over the same
+    # width; two tied comparator events against one touching index profile
+    # is `1 - 1 = 0`, which integrates, while three tied events leaves `1`
+    # and is still improper.
+    touch <- vapply(groups, function(ix) {
+      lo <- max(lower[ix])
+      up <- min(upper[ix])
+      is.finite(lo) && is.finite(up) && lo == up
+    }, logical(1L))
+    profiles <- Xc[vapply(groups, function(ix) ix[1L], integer(1L)), ,
+                   drop = FALSE]
     rank_p <- .exact_rank(profiles)$rank
     # A one-sided system is always satisfiable when the predictors can be
     # moved together: with no finite upper end, raising every predictor at
     # once clears every lower end, and with no finite lower end, lowering
     # them clears every upper one. That needs a constant direction to be
-    # reachable, which an intercept column supplies.
+    # reachable, which an intercept column supplies. A touching group has
+    # finite ends on both sides, so it cannot arise on this branch.
     one_sided <- all(!is.finite(upper)) || all(!is.finite(lower))
     constant_reachable <-
       .exact_rank(cbind(profiles, 1))$rank == rank_p
     if (one_sided && constant_reachable) return("unbounded")
     # Otherwise the groups are individually satisfiable, and they can be
     # satisfied at once whenever their profiles are independent, since then
-    # the predictors are free of one another.
-    if (rank_p == nrow(profiles)) return("unbounded")
+    # the predictors are free of one another. Independence is also what
+    # makes the order countable: the touching groups pin that many
+    # independent linear functionals of the coefficients, and the rest keep
+    # an open region. Without it the pinned directions can coincide or
+    # conflict with the open ones, and the order is not read off a count.
+    if (rank_p == nrow(profiles)) {
+      if (!any(touch)) return("unbounded")
+      pinned <- profiles[touch, , drop = FALSE]
+      return(structure("suppresses", order = .exact_rank(pinned)$rank,
+                       design = pinned))
+    }
     return("undetermined")
   }
   if (isTRUE(exact_fit)) {
@@ -3419,7 +4038,9 @@ mlumr <- function(data,
       aux_by = aux_by,
       index_bounds_aux = isTRUE(attr(index_collapse, "bounds_aux")),
       model = model,
-      index_exact = attr(index_collapse, "index_exact") %||% NA
+      index_exact = attr(index_collapse, "index_exact") %||% NA,
+      index_design = attr(index_collapse, "index_design"),
+      index_aux_order = attr(index_collapse, "aux_order") %||% 0
     )
   }
 

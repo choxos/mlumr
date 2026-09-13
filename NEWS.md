@@ -104,10 +104,17 @@
   rows to a grid node; its design `D` carries that node's covariate vector
   beside an intercept, one row per event row, and the rows stand on spikes
   together exactly when `D b = targets` is consistent. The exponent is
-  `m - rank(D)`, and `rank(D)` is bounded by the dimension the grid reaches,
-  `rank(cbind(1, X_int))`, which is `1 + n_cov` for any grid that is not
-  degenerate, and by the number of distinct times, since rows sharing a node
-  share a predictor.
+  `m - rank(D)`, and the rate is the LARGEST of those over the consistent
+  allocations, since the marginal is their sum and the smallest rank
+  dominates it. What bounds that smallest rank is the CANONICAL allocation,
+  which sends every row sharing a target to one node: its design has rank at
+  most the dimension the grid reaches, `rank(cbind(1, X_int))`, which is
+  `1 + n_cov` for any grid that is not degenerate, and at most the number of
+  distinct times. That is a claim about the canonical allocation and not
+  about every one, since rows sharing a target can sit at different nodes
+  wherever the coefficients are orthogonal to the difference between them,
+  which two or more covariates allow; those allocations have higher rank,
+  are subdominant, and change nothing.
 
   All `m` rows are matched on the solution set, so each stands on a spike
   that grows as the auxiliary approaches its boundary, while the set is
@@ -149,15 +156,29 @@
   of those cases including the convergent ones, which is why the volume and
   not the profile is what decides this.
 
-  A censored row in the same arm can suppress the divergence, and whether it
-  does turns on the same `k` against the reach. Its contribution is a mixture
+  A censored row in the same arm can suppress the divergence, and it has to
+  threaten the ridge before that is worth asking. Every point of the solution
+  set puts a MATCHED node exactly at its target, so a row whose region
+  probability tends to one there suppresses nothing: its contribution is a
+  mixture over the grid, which that one node holds at `1 / n_int` whatever
+  the others do. Two comparator events at `t = 1` with a right-censored row
+  at `t = 0.5` are that case, and the rate-1 divergence is certified rather
+  than left open; the same row at `t = 2` does suppress the matched node and
+  only the other nodes are left to settle. The ends are inclusive, since a
+  predictor sitting exactly on a censoring time leaves that row at a half.
+  That decides at the matched nodes what used to be deferred wholesale, so
+  the point-mass grid measured at rate +1.000 with a right-censored row at
+  `t = 0.5` is now refused rather than reported.
+
+  For a row that does threaten, whether it suppresses turns on `rank(D)`
+  against the reach. Its contribution is a mixture
   over the grid too, so it vanishes only if every node's region probability
   vanishes. Below the reach the ridge has a free direction and pushing it one
   way clears every right-censored row, the other way every left-censored one:
   measured at rate +1.000 for two events at `t = 1` with a right-censored row
   at `t = 2` on 20 nodes.
 
-  Two cases are left undecided instead. At the reach the ridge is isolated
+  Three cases are left undecided instead. At the reach the ridge is isolated
   points and a censored row can cover all of them, so on a point-mass grid
   that same pair collapses while the row at `t = 0.5` leaves rate +1.000, and
   deciding which takes enumerating `choose(n_int, k)` ridge points. And when
@@ -166,11 +187,20 @@
   side: with `n_int = 2` a right-censored row at `t = 2` together with a
   left-censored row at `t = 0.5` collapses whichever node is matched, while
   either alone leaves rate +1.000, and the same pair on 20 nodes stays
-  divergent at +1.000. Such an arm is reported rather than refused, scale
-  family or not.
+  divergent at +1.000. And the free direction can be one the comparator does
+  not own: under `model = "spfa"` with `aux_by = "none"` that direction is
+  the shared `beta`, which an exactly fitting index pins, leaving the ridge
+  at isolated points whatever `rank(D)` is. Index events at `x = -1` and
+  `x = +1` both at `t = 1` force `mu_index` and `beta` to zero, so every node
+  sits at `mu_comparator` and a comparator right-censored row at `t = 2` is
+  above all of them; tilting `beta` to lift one past `log 2` costs the index
+  a residual of the same order, so the two exponentials trade rather than
+  cancel. Such an arm is reported rather than refused, scale family or not.
 
   Which side a row needs is read from its region and its delayed entry, not
-  from its status code. A right-censored row is satisfied above its time and a
+  from its status code, and only the rows that have to be ESCAPED count: one
+  already satisfied at a matched node does not need the free direction and
+  cannot make the arm two-sided. A right-censored row is satisfied above its time and a
   left-censored one below its bound, including below its entry, since
   conditioning on survival to the entry piles the mass just above it and that
   pile lies inside the region. An interval-censored row is two-sided only when
@@ -211,8 +241,15 @@
   are matched exactly by `b = (-log 2, log 2)`: rank 2 against 3 rows, and a
   measured slope of -1.0000 per decade of scale. With one covariate the map
   is a line that two (target, node) assignments fix, so node pairs are
-  enumerated and this case is refused; wider designs, and grids too large to
-  enumerate, are left alone. Consistency is read off the determinant of the
+  enumerated and this case is refused; wider designs are left alone, and a
+  grid too large to enumerate is REPORTED rather than left silent. The
+  enumeration anchors the first target at each node and runs the rest as a
+  vectorized pass, so it costs `n * n * (k - 2)` rather than the
+  `n * n * (n + k)` of a scalar inner loop, and its budget covers the
+  ordinary resolutions; past that the same three events over the same
+  declared covariate would be refused at one `n_int` and unexamined at
+  another, which is what the warning names. Consistency is read off the
+  determinant of the
   original data, `(u[i] - u[1]) * (z[j2] - z[j1]) - (u[2] - u[1]) *
   (z[j] - z[j1])`, which has no division and no slope in it, and only an
   exact zero certifies: a residual that is merely small is a near miss no
@@ -227,8 +264,9 @@
   that the posterior is proper. A refusal is a certificate that it is not.
 
   The exponent used is `m - min(k, reach)`, which is exact for one covariate
-  and a lower bound for more than one. `min(k, reach)` is the largest rank a
-  matching design can have, and a smaller rank gives a larger exponent: among
+  and a lower bound for more than one. `min(k, reach)` bounds the canonical
+  allocation's rank, and a consistent allocation of lower rank gives a larger
+  exponent: among
   two covariates, three collinear nodes carry three distinct targets affinely
   along that line at rank 2 rather than 3. A refusal is therefore still
   certified, since a positive lower bound is a positive rate, while a skip
@@ -256,14 +294,30 @@
   censoring. Under `model = "spfa"` with `aux_by = "none"` the arms share one
   `beta` as well as one auxiliary, so reaching the comparator check means the
   index did not bound that auxiliary, which under that model means its own
-  design fits exactly and pins the shared slope. Two or more comparator
+  design fits exactly. That is not enough on its own: it must also CONSTRAIN
+  the shared slope somewhere in the directions the arm's grid spans, since
+  repeated index events at one covariate profile at one time fit exactly and
+  leave `beta` wholly unconstrained, and then whatever node-specific values
+  the comparator's equations pin it to lie in the index's solution set by
+  construction, the sets always intersect, and the arm is refused rather than
+  reported. Partial identification is not that case and stays reported: an
+  index that fixes `beta1` at a value none of the comparator's pairwise
+  differences reaches leaves the sets disjoint even while `beta2` is free.
+  The pinned-ridge report wants the opposite of the same measurement, since
+  one free direction is enough to move an integration point past a censoring
+  time, so it asks for every spanned direction rather than for any. Two or
+  more comparator
   targets pin it too, to values the integration points fix, and if those sets
   do not intersect then every path to the boundary leaves one side with a
   positive residual whose decay beats the other's growth. Solving that
   combined system is out of scope, so the case is warned about. A single
-  distinct target is not that case and is still refused: its one equation is
-  absorbed by the free `mu_comparator`, so the shared slope stays free and
-  both singularities stand at once. Neither is an index that never had an
+  distinct target is not that case: its one equation is absorbed by the free
+  `mu_comparator`, so the shared slope stays free BY THE EVENTS and both
+  singularities stand at once. That reasoning covers the event rows only. A
+  censored comparator row cannot be escaped either once the index pins that
+  slope, so a single target WITH a censored row in the arm is the
+  isolated-ridge report above and only one without is still refused.
+  Neither is an index that never had an
   exact design: failing to bound the auxiliary does not imply one, and an
   index of nothing but right-censored rows pins no slope at all, its
   `mu_index` rising above every censoring time so that its likelihood tends
@@ -293,8 +347,95 @@
   times rather than the output of a solve, and a gap of any positive size
   bounds, since ends `d` apart contribute `exp(-(d / (2 sdlog))^2)` and
   `integral sdlog^-m exp(-(d / (2 sdlog))^2)` converges at zero for every
-  `d > 0`. Only exact equality is not a conflict, where the shared predictor
-  sits on both boundaries and each row contributes a half.
+  `d > 0`. Exact equality is not a conflict, and it is not freedom either:
+  the shared predictor has to sit ON that point, so the coefficients keeping
+  the group's likelihood positive are a shrinking neighborhood of a
+  hyperplane rather than an open region. A left-censored row at `t = 1`
+  beside a right-censored row at `t = 1` on one profile peaks at `1/4` at
+  every scale POINTWISE, while integrating the intercept out against
+  `normal(0, a)` gives `arccos(a^2 / (a^2 + s^2)) / (2 pi)`, or
+  `s / (sqrt(2) pi a)` near zero: one power of the scale, not a constant.
+  Measured `d log L / d log s` is 1.000000 for one such profile, 2.000000 for
+  two independent ones and 3.000000 for three. Both sides are written in
+  powers of the same width, so those come off the comparator's rate directly
+  and the eventless index reports an ORDER rather than a flag: two tied
+  comparator events against one touching profile is `1 - 1 = 0` and stands,
+  three is `2 - 1 = 1` and is still refused. The order is carried only for
+  `lognormal`, where it was measured; the other families report the question
+  as unsettled rather than refusing on an unmeasured exponent.
+
+  It also only comes off a rate that is EXACT, which is a property of the
+  RANK rather than of the covariate count. A consistent allocation's design
+  has rank at least 1, and at least 2 whenever two targets differ, since its
+  rows all carry an intercept and proportional rows there are identical rows,
+  which put every row on one predictor and make every target equal. So a
+  recorded rank of 1 or 2 is the smallest achievable one however many
+  covariates are declared, and only from 3 can a lower-rank allocation exist.
+  Taking a positive order off a rate that IS a bound can cross the refusal
+  threshold from the wrong side: four
+  comparator events at three distinct targets carried by three collinear
+  nodes have a true rate of `4 - 2 = 2` while the recorded one is
+  `4 - 3 = 1`, and netting one power off that reads as zero. A subtraction
+  that LEAVES the rate at or above one is still certified, since the true net
+  is at least the reported one; only one that takes it below is reported.
+
+  The subtraction is valid only where the two sides pin INDEPENDENT
+  directions, which is a property of the model. Under `relaxed` the index
+  constrains `mu_index` and `beta` while the comparator constrains
+  `mu_comparator` and `beta_comparator`, so the stacked system is block
+  diagonal and the rank is exactly the sum. Under `spfa` the arms share
+  `beta` and the blocks can overlap: two independent touching index profiles
+  give order 2 while four comparator events at two matched times give rate 2,
+  and if both sides pin the shared slope the stacked rank gains only one
+  index direction, leaving a true rate of 1 that a full subtraction would
+  report as 0. Computing the joint rank means solving the combined system
+  across every allocation, which is out of scope, so a shared slope is
+  reported instead of netted. Only from order TWO, though: in
+  `(mu_index, mu_comparator, beta)` an index constraint is `(1, 0, x)` while
+  every comparator constraint is `(0, 1, z)`, so no combination of comparator
+  rows reaches a nonzero first component, a single index row is independent
+  of all of them, and the ranks add whatever the shared slope does. It takes
+  a second index row for the difference `(0, 0, x_1 - x_2)` to appear, which
+  is a pure slope direction and can lie in the comparator's span. It also
+  needs somewhere to lie: a matched design of rank 1 is one row,
+  `(0, 1, z_j)`, whose only vector with a zero second component is the zero
+  vector, so nothing of the form `(0, 0, v)` is in it and the ranks add
+  again. Four comparator events tied at one time are rate 3 against two
+  touching index profiles' 2, and that nets to 1 rather than going
+  unresolved.
+
+  Those touching rows also PIN, exactly as an exact event design does, and
+  the comparator has to test against them: left and right censoring meeting
+  at `t = 1` on `x = -1` and `x = 1` forces `mu_index` and `beta` to zero
+  just as two events there would. Reporting that the index pinned nothing
+  left the comparator treating the shared slope as free, so its censored rows
+  read as escapable and a fit they exponentially suppress was refused. The
+  eventless path now carries that design, and the pinned-ridge report asks
+  whether the index pins the slope rather than whether its EVENT design fits
+  exactly.
+
+  Reproducing its own times is also not the same as IDENTIFYING that shared
+  slope, and the report needs the second. Repeated index events at one
+  covariate profile at one time are `constant`, fit exactly, and pin only
+  `mu_index`: `beta` stays free, and a free `beta` is the direction the
+  comparator tilts along to lift an integration point past a censoring time,
+  so that arm keeps the refusal. What has to be identified is only the slope
+  directions the COMPARATOR's grid spans, since the escape is a change in the
+  node linear predictors and that is `(z_j - z_1)' beta`: a covariate the grid
+  integrates as a point mass contributes no such direction, and leaving its
+  coefficient unidentified costs the comparator nothing. The index guard
+  therefore hands its event design over rather than reducing it to a verdict,
+  and the comparator tests estimability of exactly the node-difference
+  directions. Centering does not affect the answer, since it leaves the slope
+  coefficients unchanged and shifts node differences by nothing.
+
+  An index WITH events carries the same order, on the same distinction. A
+  design shown to reproduce its own times pins rather than suppresses, so it
+  reports zero and the comparator refusal stands, while `undecidable`,
+  `unresolved` and `unresolved_log` did not settle whether a residual exists
+  at all; a real one there contributes `exp(-RSS / (2 sdlog^2))` and removes
+  the comparator's growth entirely, so those report the question as unsettled
+  rather than a zero that would turn it into a refusal.
 
   Exactly integrating a declared Gaussian covariate is a different model
   rather than a guaranteed repair, and how far that goes is worth being
