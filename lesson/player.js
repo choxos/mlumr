@@ -17181,6 +17181,11 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 .ml-lesson svg .node text {fill:var(--ink-soft)}
 .ml-lesson svg .node.on rect {fill:var(--tint);stroke:var(--accent);stroke-width:2}
 .ml-lesson svg .node.on text {fill:var(--accent-strong)}
+.ml-lesson svg .node[data-step] {cursor:pointer}
+.ml-lesson svg .node[data-step]:hover rect {stroke:var(--accent)}
+.ml-lesson .stepper {display:flex;align-items:center;gap:8px}
+.ml-lesson .stepper button {width:44px;min-height:44px;padding:0;font-size:22px;line-height:1;color:var(--ink-soft)}.ml-lesson .step-count {flex:1;text-align:center;font-weight:600;color:var(--ink)}
+.ml-lesson .step-hint {font-weight:500;color:var(--muted)}
 .ml-lesson svg .off {fill:var(--border-strong)!important}
 .ml-lesson .joint-grid {display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .ml-lesson .joint-grid>div {padding:18px;border-radius:var(--radius-sm);border:1px solid var(--border);background:color-mix(in srgb,var(--series-a) var(--w),var(--surface))}
@@ -17424,7 +17429,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     const s2 = steps.map((st, i3) => {
       const x2 = i3 * (w2 + gap);
       const arrow = i3 < n - 1 ? `<path class="axis" d="M${x2 + w2 + 1} 46h${gap - 3}" stroke-width="2"/><path class="k-muted" d="M${x2 + w2 + gap - 1} 46l-5 -4v8z"/>` : "";
-      return `<g class="node${i3 === current ? " on" : ""}"><rect x="${x2}" y="10" width="${w2}" height="72" rx="9"/><text x="${x2 + w2 / 2}" y="36" text-anchor="middle" font-size="11" font-family="var(--font-mono)">${String(i3 + 1).padStart(2, "0")}</text><text x="${x2 + w2 / 2}" y="58" text-anchor="middle" font-size="13" font-weight="650">${esc(st.name)}</text><text class="label" x="${x2 + w2 / 2}" y="100" text-anchor="middle" font-size="10.5" font-family="var(--font-mono)">${esc(st.detail)}</text></g>${arrow}`;
+      return `<g class="node${i3 === current ? " on" : ""}" data-step="${i3}"><title>Go to step ${i3 + 1}, ${esc(st.name)}</title><rect x="${x2}" y="10" width="${w2}" height="72" rx="9"/><text x="${x2 + w2 / 2}" y="36" text-anchor="middle" font-size="11" font-family="var(--font-mono)">${String(i3 + 1).padStart(2, "0")}</text><text x="${x2 + w2 / 2}" y="58" text-anchor="middle" font-size="13" font-weight="650">${esc(st.name)}</text><text class="label" x="${x2 + w2 / 2}" y="100" text-anchor="middle" font-size="10.5" font-family="var(--font-mono)">${esc(st.detail)}</text></g>${arrow}`;
     }).join("");
     return card(title, `<svg viewBox="0 0 ${W} ${h2}" role="img" aria-label="${esc(`Analysis steps; step ${current + 1}, ${steps[current].name}, is highlighted`)}">${s2}</svg>`);
   }
@@ -17740,7 +17745,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     if (lab === "dependence") return slider("rho", "How often the two markers go together", -1, 1, 0.05);
     if (lab === "target") return targetControl() + slider("betaB", "Trial B marker slope (shared value 2.4)", -1, 4, 0.1);
     if (lab === "identification" || lab === "priors") return designControls();
-    if (lab === "workflow") return indexed("step", "Analysis step", workflowSteps.map((s2) => s2.title));
+    if (lab === "workflow") return '<div class="control"><span>Analysis step</span><div class="stepper" role="group" aria-label="Analysis step"><button type="button" data-step-move="-1" aria-label="Previous step">\u2039</button><span class="step-count" aria-live="polite"></span><button type="button" data-step-move="1" aria-label="Next step">\u203A</button></div><span class="step-hint">Or click a step in the chart.</span></div>';
     if (lab === "families") return indexed("family", "Outcome type", families.map((s2) => s2.name));
     if (lab === "survival") return slider("time", "Months of follow-up (and RMST horizon)", 0, 36, 0.5) + targetControl() + slider("heterogeneity", "How much the marker raises the hazard", 0, 2.5, 0.1);
     if (lab === "diagnostics") return indexed("diagnostic", "Problem to inspect", diagnosticCases.map((s2) => s2.name));
@@ -18101,13 +18106,23 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         writeParameter(param, param === "design" ? input.value : Number(input.value));
       };
       const onClick = (event) => {
+        const node = event.target.closest("[data-step]");
+        if (node) {
+          writeParameter("step", Number(node.dataset.step));
+          return;
+        }
         const button2 = event.target.closest("button");
         if (!button2) return;
+        if (button2.dataset.stepMove) {
+          const i3 = Math.round(Number(latest.step)) + Number(button2.dataset.stepMove);
+          writeParameter("step", Math.min(workflowSteps.length - 1, Math.max(0, i3)));
+        }
         if (button2.hasAttribute("data-reset")) {
           control.querySelectorAll("[data-param]").forEach((input) => {
             const key = input.dataset.param;
             writeParameter(key, schema[key].default);
           });
+          if (current === "workflow") writeParameter("step", schema.step.default);
         }
         if (button2.dataset.answer !== void 0) {
           const q = questions[Math.round(Number(latest.question))];
@@ -18140,6 +18155,15 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         if (key === last) return;
         last = key;
         visual.innerHTML = view(lab, state);
+        const stepper = control.querySelector(".stepper");
+        if (stepper) {
+          const i3 = Math.round(Number(state.step));
+          stepper.querySelector(".step-count").textContent = `Step ${i3 + 1} of ${workflowSteps.length}: ${workflowSteps[i3].name}`;
+          stepper.querySelectorAll("[data-step-move]").forEach((b2) => {
+            const to = i3 + Number(b2.dataset.stepMove);
+            b2.disabled = to < 0 || to >= workflowSteps.length;
+          });
+        }
         control.querySelectorAll("[data-param]").forEach((input) => {
           const param = input.dataset.param, value = state[param];
           input.value = String(input.tagName === "SELECT" && typeof value === "number" ? Math.round(value) : value);
