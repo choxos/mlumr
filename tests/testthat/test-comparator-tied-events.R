@@ -835,8 +835,9 @@ test_that("a shared slope pinned by the index blocks the censoring escape", {
   expect_match(w, "neither refused nor passed as proper")
   expect_no_match(w, "is therefore improper")
   # One distinct comparator time, so the rank is 1 and the old gate
-  # (`rank_d > 1`) left this to the refusal.
-  expect_match(w, "3 event rows at 2 distinct log-times|2 event rows")
+  # (`rank_d > 1`) left this to the refusal. The censored row is not an
+  # event row and does not count toward `m`.
+  expect_match(w, "2 event rows at 1 distinct log-time")
   # Remove the censored row and the escape question is moot: nothing
   # suppresses the ridge and the refusal is right.
   bare <- .comp_stub(c(1, 1), c(1L, 1L), ipd_time = c(1, 1),
@@ -847,4 +848,78 @@ test_that("a shared slope pinned by the index blocks the censoring escape", {
   # carries its own `beta_comparator`, which the index does not pin.
   expect_match(msg(pinned, aux_by = "none", model = "relaxed"),
                "is therefore improper")
+})
+
+test_that("a shared slope is not netted against the index's own order", {
+  # The subtraction assumes the two sides pin INDEPENDENT directions, which
+  # is a property of the model. Under `relaxed` the index constrains
+  # `mu_index` and `beta` while the comparator constrains `mu_comparator`
+  # and `beta_comparator`, so the stacked system is block diagonal and the
+  # rank is exactly the sum. Under `spfa` they share `beta` and can overlap.
+  #
+  # Two independent touching index profiles give order 2, and four
+  # comparator events at two matched times give rate 2. If both sides pin
+  # the shared slope the stacked rank gains only one index direction, so the
+  # true rate is 1 and the fit is improper, while a full subtraction reports
+  # 0 and admits it.
+  ip <- suppressWarnings(set_ipd(
+    data.frame(trt = "A", x = c(0, 0, 1, 1)),
+    treatment = "trt", covariates = "x", family = "survival",
+    Surv = survival::Surv(time = c(NA, 1, NA, 1), time2 = c(1, Inf, 1, Inf),
+                          type = "interval2")
+  ))
+  ag <- set_agd_surv(
+    data.frame(trt = "B", time = c(1, 1, 4, 4), status = rep(1L, 4),
+               x_mean = 0, x_sd = 1),
+    treatment = "trt", time = "time", status = "status",
+    cov_means = "x_mean", cov_sds = "x_sd", cov_types = "continuous"
+  )
+  d <- suppressWarnings(add_integration(combine_data(ip, ag), n_int = 8,
+                                        verbose = FALSE,
+                                        x = distr(stats::qnorm, mean = x_mean,
+                                                  sd = x_sd)))
+  idx <- mlumr:::.check_survival_scale_collapse(d, "lognormal",
+                                                aux_by = "none",
+                                                center = FALSE)
+  expect_identical(attr(idx, "aux_order"), 2)
+  # `relaxed` gives the comparator its own slope, so the blocks are disjoint
+  # and `2 - 2 = 0` is exact.
+  expect_false(check(d, aux_by = "none", model = "relaxed",
+                     index_aux_order = 2))
+  # `spfa` shares it, so this reports instead of admitting it in silence.
+  w <- tryCatch(check(d, aux_by = "none", model = "spfa",
+                      index_aux_order = 2), warning = conditionMessage)
+  expect_match(w, "share one `beta`")
+  expect_match(w, "do not simply add")
+  expect_no_match(w, "is therefore improper")
+  # A zero order is nothing to overlap, so a shared slope changes nothing.
+  bare <- .comp_stub(c(1, 1, 4, 4), rep(1L, 4))
+  expect_match(msg(bare, aux_by = "none", model = "spfa",
+                   index_exact = FALSE, index_aux_order = 0),
+               "is therefore improper")
+})
+
+test_that("an index residual this check could not resolve is not a zero", {
+  # `unresolved`, `unresolved_log` and `undecidable` did not establish
+  # whether the index leaves a residual. A real one contributes
+  # `exp(-RSS / (2 sdlog^2))` and removes the comparator's growth entirely,
+  # so reading them as "contributes nothing" turns an open question into a
+  # refusal. Only a design shown to reproduce its own times is a zero.
+  d <- .comp_stub(c(1, 1, 4), c(1L, 1L, 1L))
+  expect_match(msg(d, aux_by = "none", model = "relaxed",
+                   index_aux_order = 0), "is therefore improper")
+  w <- tryCatch(check(d, aux_by = "none", model = "relaxed",
+                      index_aux_order = NA_real_), warning = conditionMessage)
+  expect_match(w, "could not resolve")
+  expect_no_match(w, "is therefore improper")
+  # The index guard now says which of the two it established. An exact index
+  # design pins rather than suppresses, so it reports a zero.
+  exact <- .comp_stub(c(1, 1, 4), c(1L, 1L, 1L),
+                      ipd_time = c(1, 2), ipd_x = c(0, 1))
+  idx <- suppressWarnings(
+    mlumr:::.check_survival_scale_collapse(exact, "lognormal",
+                                           aux_by = "none", center = FALSE)
+  )
+  expect_true(attr(idx, "index_exact"))
+  expect_identical(attr(idx, "aux_order"), 0)
 })

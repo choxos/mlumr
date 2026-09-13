@@ -336,6 +336,27 @@
   `lognormal`, where it was measured; the other families report the question
   as unsettled rather than refusing on an unmeasured exponent.
 
+  The subtraction is valid only where the two sides pin INDEPENDENT
+  directions, which is a property of the model. Under `relaxed` the index
+  constrains `mu_index` and `beta` while the comparator constrains
+  `mu_comparator` and `beta_comparator`, so the stacked system is block
+  diagonal and the rank is exactly the sum. Under `spfa` the arms share
+  `beta` and the blocks can overlap: two independent touching index profiles
+  give order 2 while four comparator events at two matched times give rate 2,
+  and if both sides pin the shared slope the stacked rank gains only one
+  index direction, leaving a true rate of 1 that a full subtraction would
+  report as 0. Computing the joint rank means solving the combined system
+  across every allocation, which is out of scope, so a shared slope with a
+  positive index order is reported instead of netted.
+
+  An index WITH events carries the same order, on the same distinction. A
+  design shown to reproduce its own times pins rather than suppresses, so it
+  reports zero and the comparator refusal stands, while `undecidable`,
+  `unresolved` and `unresolved_log` did not settle whether a residual exists
+  at all; a real one there contributes `exp(-RSS / (2 sdlog^2))` and removes
+  the comparator's growth entirely, so those report the question as unsettled
+  rather than a zero that would turn it into a refusal.
+
   Exactly integrating a declared Gaussian covariate is a different model
   rather than a guaranteed repair, and how far that goes is worth being
   precise about. It leaves `log T ~ N(mu, beta^2 + sdlog^2)`, and with

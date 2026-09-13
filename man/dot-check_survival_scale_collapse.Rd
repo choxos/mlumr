@@ -52,6 +52,14 @@ established, including every family but \code{lognormal}, for which alone the
 order was measured. \code{\link[=.check_comparator_tied_events]{.check_comparator_tied_events()}} subtracts a
 certified order from its own rate under \code{aux_by = "none"} and reports
 rather than refuses on an \code{NA}.
+
+An index WITH events carries it too, and on the same distinction: a
+design shown to reproduce its own times pins rather than suppresses, so
+it reports \code{0} and the comparator refusal stands, while \code{undecidable},
+\code{unresolved} and \code{unresolved_log} did not settle whether a residual
+exists at all. A real one there contributes \code{exp(-RSS / (2 * sdlog^2))}
+and removes the comparator's growth entirely, so those report \code{NA}
+rather than a zero that would turn an open question into a refusal.
 }
 \description{
 A log-normal AFT is a normal model for \code{log(t)} with a positive scale

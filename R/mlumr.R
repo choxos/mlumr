@@ -1096,11 +1096,31 @@
   # touching index profile is `1 - 1 = 0`, which integrates, and refusing it
   # was reading a per-arm label where the joint order was the question.
   # Three tied events leaves `2 - 1 = 1` and is still refused.
+  #
+  # The subtraction is only valid where the two sides' pinned directions are
+  # INDEPENDENT, and that is a property of the model. Under `relaxed` the
+  # index constrains `mu_index` and `beta` while the comparator constrains
+  # `mu_comparator` and `beta_comparator`, so the stacked system is block
+  # diagonal, its rank is exactly the sum, and the difference is exact. Under
+  # `spfa` the arms share `beta` and the blocks can overlap: two independent
+  # touching index profiles give order 2 while four comparator events at two
+  # matched times give rate 2, and if both sides pin the shared slope the
+  # stacked rank gains only one index direction, leaving a true rate of 1
+  # that a full subtraction would report as 0 and admit. The stacked rank is
+  # a lower bound either way, so the error is toward silence rather than
+  # toward a refusal, but silence on a known-improper fit is what this guard
+  # exists to prevent. Computing the joint rank means solving the combined
+  # system across every allocation, which this does not do, so a shared slope
+  # with a positive index order is reported instead.
   index_unresolved <- FALSE
+  netted_order <- 0
   if (shared_aux) {
-    if (is.na(index_aux_order)) {
+    separate_slopes <- !identical(model, "spfa")
+    if (is.na(index_aux_order) ||
+          (index_aux_order > 0 && !separate_slopes)) {
       index_unresolved <- worst >= 1L
     } else {
+      netted_order <- index_aux_order
       worst <- worst - index_aux_order
     }
   }
@@ -1184,9 +1204,8 @@
   # When the index already removed powers of the same width, the reported
   # rate is the NET and the arithmetic has to say so, or the exponent will
   # not match the row and rank counts in the same sentence.
-  netted <- if (shared_aux && !is.na(index_aux_order) &&
-                  index_aux_order > 0) {
-    paste0(", less the ", format(index_aux_order), " the index rows ",
+  netted <- if (netted_order > 0) {
+    paste0(", less the ", format(netted_order), " the index rows ",
            "already remove: their censored regions pin the index predictor ",
            "to a point rather than to a region, so the coefficient volume ",
            "they keep shrinks ", shrink, " in that many directions too")
@@ -1267,6 +1286,36 @@
     "interval-censored representation of what was actually observed is the ",
     "honest model; `set_agd_surv()` accepts one."
   )
+  # An index whose own contribution was not settled cannot be netted, and
+  # reading "not settled" as "contributes nothing" is a refusal built on an
+  # open question.
+  if (index_unresolved) {
+    why_index <- if (!is.na(index_aux_order) && identical(model, "spfa")) {
+      paste0("the index rows remove ", format(index_aux_order),
+             " power", if (index_aux_order > 1) "s" else "",
+             " of the same width, but under `model = \"spfa\"` the arms ",
+             "share one `beta`, so the directions they pin can be the same ",
+             "directions this arm's equations pin and the two do not simply ",
+             "add. Whether they overlap is a property of the combined ",
+             "system across every allocation, which this check does not ",
+             "solve")
+    } else {
+      paste0("their own contribution to it was not settled: their censored ",
+             "regions pin the index predictor somewhere between a point and ",
+             "an open region, or its event design left a residual this ",
+             "check could not resolve, and how many powers of the width ",
+             "that costs has not been established for ",
+             .aux_name(distribution))
+    }
+    warning(shared, " Under `aux_by = \"none\"` the index rows share that ",
+            "parameter, and ", why_index, ". Those powers come off this ",
+            "rate directly, so the fit is neither refused nor passed as ",
+            "proper: check the sampler near the boundary of ",
+            .aux_name(distribution), ", or give the comparator its own ",
+            "auxiliary with `aux_by = \".study\"`, which makes this ",
+            "question moot.", restriction, call. = FALSE)
+    return(invisible(TRUE))
+  }
   # A censored row in the arm can suppress an isolated ridge, and which
   # points it covers is not settled here, so nothing is refused on it.
   if (isTRUE(info$spfa_shared)) {
@@ -1284,23 +1333,6 @@
             "boundary of ", .aux_name(distribution), ", or give the ",
             "comparator its own auxiliary with `aux_by = \".study\"`, which ",
             "makes this question moot.", restriction, call. = FALSE)
-    return(invisible(TRUE))
-  }
-  # An index whose own contribution was not settled cannot be netted, and
-  # reading "not settled" as "contributes nothing" is a refusal built on an
-  # open question.
-  if (index_unresolved) {
-    warning(shared, " Under `aux_by = \"none\"` the index rows share that ",
-            "parameter, and their own contribution to it was not settled: ",
-            "their censored regions pin the index predictor somewhere ",
-            "between a point and an open region, and how many powers of the ",
-            "width that costs has not been established for ",
-            .aux_name(distribution), ". Those powers come off this rate ",
-            "directly, so the fit is neither refused nor passed as proper: ",
-            "check the sampler near the boundary of ",
-            .aux_name(distribution), ", or give the comparator its own ",
-            "auxiliary with `aux_by = \".study\"`, which makes this ",
-            "question moot.", restriction, call. = FALSE)
     return(invisible(TRUE))
   }
   if (isTRUE(info$isolated) || isTRUE(info$spfa_pinned) ||
@@ -1804,6 +1836,14 @@
 #'   order was measured. [.check_comparator_tied_events()] subtracts a
 #'   certified order from its own rate under `aux_by = "none"` and reports
 #'   rather than refuses on an `NA`.
+#'
+#'   An index WITH events carries it too, and on the same distinction: a
+#'   design shown to reproduce its own times pins rather than suppresses, so
+#'   it reports `0` and the comparator refusal stands, while `undecidable`,
+#'   `unresolved` and `unresolved_log` did not settle whether a residual
+#'   exists at all. A real one there contributes `exp(-RSS / (2 * sdlog^2))`
+#'   and removes the comparator's growth entirely, so those report `NA`
+#'   rather than a zero that would turn an open question into a refusal.
 #' @keywords internal
 .check_survival_scale_collapse <- function(data, distribution,
                                            aux_by = ".study",
@@ -2068,12 +2108,27 @@
     # `unresolved_log` did not establish a positive residual, so calling them
     # "not exact" would turn an open question into a definite verdict
     # downstream; they report NA instead.
+    #
+    # `aux_order` is the same three-way distinction about the same shared
+    # parameter. An index whose design reproduces its own times contributes
+    # a divergence of its own rather than a suppression, so zero is right
+    # for it and the comparator refusal stands. The statuses that did not
+    # SETTLE whether a residual exists are the other case: a real residual
+    # there contributes `exp(-RSS / (2 * sdlog^2))` and removes the
+    # comparator's growth entirely, so reading them as zero turns an open
+    # question into a refusal, exactly as reading an eventless index as
+    # "pins nothing" did.
     return(invisible(structure(
       TRUE,
       index_exact = if (s$status %in% c("exact", "constant", "saturated")) {
         TRUE
       } else {
         NA
+      },
+      aux_order = if (s$status %in% c("exact", "constant", "saturated")) {
+        0
+      } else {
+        NA_real_
       }
     )))
   }
