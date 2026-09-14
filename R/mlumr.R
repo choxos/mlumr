@@ -1469,6 +1469,30 @@
 #' priors rather than `prior_aux`, and any allocation of lower rank than the
 #' canonical one under more than one covariate.
 #'
+#' # The grid the model fits
+#'
+#' `mlumr()` centers the covariates by default, and the grid Stan receives is
+#' then `sweep(integration_points, 3, center)`, a floating-point subtraction.
+#' At a large enough offset between the populations, or on a very small grid,
+#' that subtraction can merge integration points or move them by a rounding
+#' error that makes or breaks an exact match, so a verdict read off the grid
+#' as declared can describe a model that is never fitted. Nor is the declared
+#' grid's verdict self-consistent there: the index geometry arrives from
+#' [.check_survival_scale_collapse()] in centered coordinates, while the node
+#' differences come from the declared grid.
+#'
+#' Given `fitted_points`, the whole check therefore runs twice, on the
+#' declared grid and on the fitted one, and the two OUTCOMES are compared
+#' rather than two match flags: which slope the index admits, whether a
+#' censored row can be escaped, and how the index's order nets off all depend
+#' on the grid, and two grids that both carry a match can still disagree
+#' about the first. When both refuse, the declared grid's refusal stands.
+#' When exactly one refuses, the fit is refused as a numerical representation
+#' problem, which states nothing about the posterior. When neither refuses,
+#' the declared grid's warnings are kept, or the fitted grid's when the
+#' declared one has none. The rotation that `qr = TRUE` applies afterwards is a
+#' further floating-point step, and this does not examine it.
+#'
 #' @param data An `mlumr_data` object with `family = "survival"`.
 #' @param distribution The resolved survival distribution.
 #' @param aux_by The auxiliary stratification, as passed to [mlumr()].
@@ -1514,6 +1538,10 @@
 #'   only when `aux_by` is `"none"`. A certified order is subtracted from the
 #'   comparator's own growth, since both are written in powers of the same
 #'   width; an unsettled one makes this report rather than refuse.
+#' @param fitted_points The integration grid the model actually fits, in the
+#'   layout of `data$integration_points`: `stan_data$X_int` once the
+#'   covariates are centered. `NULL`, or a grid identical to the declared one,
+#'   checks the declared grid alone; see "The grid the model fits".
 #' @return `TRUE` invisibly if the data were warned about, `FALSE` otherwise.
 #'   A refused configuration stops instead.
 #' @keywords internal
@@ -1524,7 +1552,8 @@
                                           index_exact = NA,
                                           index_design = NULL,
                                           index_aux_order = 0,
-                                          index_region = NULL) {
+                                          index_region = NULL,
+                                          fitted_points = NULL) {
   scale_families <- c("lognormal", "gengamma")
   # The proportional-hazards Weibull and Gompertz are deliberately NOT here.
   # Their ridge width does not shrink with the auxiliary at all, so their
@@ -1619,6 +1648,59 @@
                                          rep(0, nrow(pseudo))))
   delay <- suppressWarnings(as.numeric(pseudo$.delay_time %||%
                                          rep(0, nrow(pseudo))))
+  # The grid the model fits can differ from the grid as declared; see "The
+  # grid the model fits". Each grid gets the whole check and the OUTCOMES are
+  # compared: two grids that both carry a match can still disagree about
+  # whether the index admits its slope, so match flags alone decide nothing.
+  if (!is.null(fitted_points) &&
+        !identical(unname(fitted_points), unname(data$integration_points))) {
+    judge <- function(points) {
+      at <- data
+      at$integration_points <- points
+      warned <- list()
+      outcome <- withCallingHandlers(
+        tryCatch(
+          .check_comparator_tied_events(
+            at, distribution, aux_by = aux_by,
+            index_bounds_aux = index_bounds_aux, model = model,
+            index_exact = index_exact, index_design = index_design,
+            index_aux_order = index_aux_order, index_region = index_region
+          ),
+          mlumr_comparator_improper = function(e) e
+        ),
+        warning = function(w) {
+          warned[[length(warned) + 1L]] <<- w
+          invokeRestart("muffleWarning")
+        }
+      )
+      list(refused = inherits(outcome, "mlumr_comparator_improper"),
+           outcome = outcome, warned = warned)
+    }
+    declared <- judge(data$integration_points)
+    fitted <- judge(fitted_points)
+    if (declared$refused && fitted$refused) stop(declared$outcome)
+    if (declared$refused || fitted$refused) {
+      refusing <- if (declared$refused) "declared" else "centered"
+      passing <- if (declared$refused) "centered" else "declared"
+      stop(errorCondition(paste0(
+        "The check on the reconstructed comparator curve gives different ",
+        "answers on the integration grid as declared and on the centered ",
+        "grid the model fits: it refuses the fit on the ", refusing,
+        " grid and not on the ", passing, " one. Centering subtracts the ",
+        "pooled covariate means from every integration point in floating ",
+        "point, and the rounding in that subtraction is what separates the ",
+        "two answers. A verdict that turns on rounding is a numerical ",
+        "representation problem rather than a property of the data, so the ",
+        "fit is refused rather than sampled. Re-express the covariates so ",
+        "that both populations lie near a common origin at a moderate scale, ",
+        "for example by subtracting a round value close to their mean before ",
+        "`set_ipd()` and `set_agd_surv()`, or fit with `center = FALSE`."
+      ), class = "mlumr_comparator_representation", call = NULL))
+    }
+    kept <- if (length(declared$warned)) declared$warned else fitted$warned
+    for (w in kept) warning(w)
+    return(invisible(length(kept) > 0L))
+  }
   # How many linear predictors the arm's grid can reach independently: the
   # `k` matching equations are solvable only up to this rank. It is
   # `1 + n_cov` for any grid that is not degenerate, and less when the
@@ -2390,7 +2472,9 @@
             "refused nor passed as proper: check the sampler near the ",
             "boundary of ", .aux_name(distribution), ", or give the ",
             "comparator its own auxiliary with `aux_by = \".study\"`, which ",
-            "makes this question moot.", restriction, call. = FALSE)
+            "takes the index out of this question but does not by itself ",
+            "make the posterior proper: the comparator's own events are then ",
+            "checked on their own.", restriction, call. = FALSE)
     return(invisible(TRUE))
   }
   # A censored row in the arm can suppress an isolated ridge, and which
@@ -2409,7 +2493,9 @@
             "refused nor passed as proper: check the sampler near the ",
             "boundary of ", .aux_name(distribution), ", or give the ",
             "comparator its own auxiliary with `aux_by = \".study\"`, which ",
-            "makes this question moot.", restriction, call. = FALSE)
+            "takes the index out of this question but does not by itself ",
+            "make the posterior proper: the comparator's own events are then ",
+            "checked on their own.", restriction, call. = FALSE)
     return(invisible(TRUE))
   }
   if (isTRUE(info$isolated) || isTRUE(info$spfa_pinned) ||
@@ -2464,13 +2550,16 @@
     # the auxiliary; the shape families run to infinity and it is in the
     # auxiliary itself. Same rate, opposite boundary, so the exponent is
     # written per branch rather than once above.
-    stop(shared, " The posterior for ", .aux_name(distribution),
-         " is therefore improper: the marginal behaves as `(1 / ",
-         .aux_symbol(distribution), ")^", rate_text, "` and the divergence ",
-         "is at zero, where every supported prior has positive density, so ",
-         "no choice of `prior_aux` repairs it and the sampler would drift ",
-         "toward zero and report where it stopped.", restriction,
-         call. = FALSE)
+    # Classed, so a caller comparing two grids can tell this verdict from an
+    # error that is not a verdict at all.
+    stop(errorCondition(paste0(
+      shared, " The posterior for ", .aux_name(distribution),
+      " is therefore improper: the marginal behaves as `(1 / ",
+      .aux_symbol(distribution), ")^", rate_text, "` and the divergence ",
+      "is at zero, where every supported prior has positive density, so ",
+      "no choice of `prior_aux` repairs it and the sampler would drift ",
+      "toward zero and report where it stopped.", restriction
+    ), class = "mlumr_comparator_improper", call = NULL))
   }
   # Gamma's ridge does not leave the coefficients where it found them: it
   # matches `eta = log(t) - log(shape)`, so the intercept is displaced by
@@ -5091,7 +5180,9 @@ mlumr <- function(data,
       index_exact = attr(index_collapse, "index_exact") %||% NA,
       index_design = attr(index_collapse, "index_design"),
       index_aux_order = attr(index_collapse, "aux_order") %||% 0,
-      index_region = attr(index_collapse, "index_region")
+      index_region = attr(index_collapse, "index_region"),
+      # The grid the sampler receives, centered as the model centers it.
+      fitted_points = stan_data$X_int
     )
   }
 
