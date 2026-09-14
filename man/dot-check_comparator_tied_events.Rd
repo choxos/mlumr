@@ -13,7 +13,8 @@
   index_exact = NA,
   index_design = NULL,
   index_aux_order = 0,
-  index_region = NULL
+  index_region = NULL,
+  fitted_points = NULL
 )
 }
 \arguments{
@@ -68,6 +69,11 @@ where the two share the slope AND the auxiliary; see
 \code{\link[=.index_slope_admits]{.index_slope_admits()}} for one candidate slope and
 \code{\link[=.slope_escape_feasible]{.slope_escape_feasible()}} for whether an admitted one also escapes a
 comparator censoring threshold.}
+
+\item{fitted_points}{The integration grid the model actually fits, in the
+layout of \code{data$integration_points}: \code{stan_data$X_int} once the
+covariates are centered. \code{NULL}, or a grid identical to the declared one,
+checks the declared grid alone; see "The grid the model fits".}
 }
 \value{
 \code{TRUE} invisibly if the data were warned about, \code{FALSE} otherwise.
@@ -456,6 +462,30 @@ Beyond the enumeration, the deferred cases are the PH-Weibull and Gompertz
 ridges, whose width does not shrink and whose growth meets the coefficient
 priors rather than \code{prior_aux}, and any allocation of lower rank than the
 canonical one under more than one covariate.
+}
+
+\section{The grid the model fits}{
+\code{mlumr()} centers the covariates by default, and the grid Stan receives is
+then \code{sweep(integration_points, 3, center)}, a floating-point subtraction.
+At a large enough offset between the populations, or on a very small grid,
+that subtraction can merge integration points or move them by a rounding
+error that makes or breaks an exact match, so a verdict read off the grid
+as declared can describe a model that is never fitted. Nor is the declared
+grid's verdict self-consistent there: the index geometry arrives from
+\code{\link[=.check_survival_scale_collapse]{.check_survival_scale_collapse()}} in centered coordinates, while the node
+differences come from the declared grid.
+
+Given \code{fitted_points}, the whole check therefore runs twice, on the
+declared grid and on the fitted one, and the two OUTCOMES are compared
+rather than two match flags: which slope the index admits, whether a
+censored row can be escaped, and how the index's order nets off all depend
+on the grid, and two grids that both carry a match can still disagree
+about the first. When both refuse, the declared grid's refusal stands.
+When exactly one refuses, the fit is refused as a numerical representation
+problem, which states nothing about the posterior. When neither refuses,
+the declared grid's warnings are kept, or the fitted grid's when the
+declared one has none. The rotation that \code{qr = TRUE} applies afterwards is a
+further floating-point step, and this does not examine it.
 }
 
 \keyword{internal}

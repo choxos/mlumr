@@ -2533,3 +2533,293 @@ test_that("the overlap gate reads the pinned rows, not the netted order", {
   # order comes off exactly.
   expect_identical(.tied_outcome(build(c(1, 1))), "silent")
 })
+
+test_that("a separate comparator scale is not offered as a guarantee", {
+  skip_if_not_installed("survival")
+  d <- .two_binary(c(1, 1, NA, 2, NA, 1), c(1, 1, 2, Inf, 1, Inf), c(1, 1, 2),
+                   x1 = c(0, 0, 1, 1, 0, 0), x2 = c(0, 0, 0, 0, 1, 1))
+  idx <- suppressWarnings(mlumr:::.check_survival_scale_collapse(
+    d, "lognormal", aux_by = "none", center = FALSE
+  ))
+  w <- tryCatch(
+    mlumr:::.check_comparator_tied_events(
+      d, "lognormal", aux_by = "none", model = "spfa",
+      index_bounds_aux = isTRUE(attr(idx, "bounds_aux")),
+      index_exact = attr(idx, "index_exact") %||% NA,
+      index_design = attr(idx, "index_design"),
+      index_aux_order = attr(idx, "aux_order") %||% 0,
+      index_region = attr(idx, "index_region")
+    ),
+    warning = conditionMessage
+  )
+  # A separate scale takes the index out of the shared question; the
+  # comparator's own events can still leave its scale without a posterior.
+  expect_match(w, "aux_by = \".study\"", fixed = TRUE)
+  expect_no_match(w, "moot")
+  expect_match(w, "does not by itself make the posterior proper", fixed = TRUE)
+})
+
+# ---- the grid the model fits, not only the grid as declared --------------
+
+# The public call with the backend replaced, returning the condition itself so
+# a test can read its class as well as its message.
+.centered_call <- function(d, model = "relaxed", aux = ".study",
+                           center = TRUE) {
+  testthat::local_mocked_bindings(
+    .mlumr_fit_backend = function(...) stop("SENTINEL_BACKEND_REACHED")
+  )
+  tryCatch({
+    suppressWarnings(mlumr(d, model = model, distribution = "lognormal",
+                           aux_by = aux, center = center, qr = FALSE,
+                           engine = "rstan", seed = 2026, verbose = FALSE,
+                           refresh = 0, chains = 1, iter = 10, warmup = 5))
+    "returned"
+  }, error = function(e) e)
+}
+
+# The center `mlumr()` computes for a one-covariate fixture, and the grid it
+# hands the sampler.
+.fitted_grid <- function(d) {
+  n <- nrow(d$agd$pseudo_ipd)
+  prep <- mlumr:::.mlumr_center_covariates(
+    list(X_ipd = as.matrix(d$ipd$data[, "x", drop = FALSE]),
+         X_int = d$integration_points, agd_arm = rep(1L, n), n_agd = n),
+    center = TRUE, family = "survival",
+    agd_means = as.matrix(d$agd$data[, "x_mean", drop = FALSE])
+  )
+  list(center = as.numeric(prep$cov_center), points = prep$X_int)
+}
+
+# Index profiles at `7 * 2^53 +- 8` beside a comparator on `U(0, 4)`: the
+# pooled center rounds to `2^55`, where every point of `[0, 4]` centers to one
+# of two values.
+.offset_uniform <- function() {
+  m <- 7 * 2^53
+  ip <- suppressWarnings(set_ipd(
+    data.frame(trt = "A", x = c(m - 8, m - 8, m + 8, m + 8),
+               time = c(1, 2, 1, 3), status = 1L),
+    treatment = "trt", covariates = "x", family = "survival",
+    time = "time", status = "status"
+  ))
+  ag <- set_agd_surv(
+    data.frame(trt = "B", time = c(1, 2, 4), status = 1L, x_mean = 2,
+               x_sd = sqrt(4 / 3)),
+    treatment = "trt", time = "time", status = "status",
+    cov_means = "x_mean", cov_sds = "x_sd", cov_types = "continuous"
+  )
+  suppressWarnings(add_integration(combine_data(ip, ag), n_int = 64,
+                                   verbose = FALSE,
+                                   x = distr(stats::qunif, min = 0, max = 4)))
+}
+
+test_that("a centered grid that merges nodes is refused as representation", {
+  d <- .offset_uniform()
+  raw <- d$integration_points[1L, , 1L]
+  expect_true(all(c(1, 2, 3) %in% raw))
+  fit <- .fitted_grid(d)
+  expect_identical(fit$center, 2^55)
+  cen <- fit$points[1L, , 1L]
+  expect_identical(sort(unique(cen)), c(-2^55, -2^55 + 4))
+  tg <- log(c(1, 2, 4))
+  # Nodes 1, 2, 3 carry the times on the declared grid; two centered values
+  # cannot carry three distinct times at all.
+  expect_true(isTRUE(mlumr:::.grid_hits_targets(matrix(raw, ncol = 1L), tg)))
+  expect_false(isTRUE(mlumr:::.grid_hits_targets(matrix(cen, ncol = 1L), tg)))
+  e <- .centered_call(d)
+  expect_s3_class(e, "mlumr_comparator_representation")
+  expect_match(conditionMessage(e), "numerical representation")
+  expect_no_match(conditionMessage(e), "improper")
+  # Uncentered, the index profiles sit two rounding units apart and the index
+  # guard refuses first, as undecidable at double precision.
+  e0 <- .centered_call(d, center = FALSE)
+  expect_s3_class(e0, "error")
+  expect_match(conditionMessage(e0), "could not be decided")
+})
+
+test_that("two grids that both carry a match can disagree about the slope", {
+  skip_if_not_installed("survival")
+  # A shared slope and scale, an index left-censored at 1 on one profile and
+  # right-censored at 64 on the other, 8 apart, and a binary comparator grid.
+  # The index needs `beta >= 6 log(2) / 8`. Centering at `2^53 + 2` keeps the
+  # index difference at 8 but stretches the node span from 1 to 2.
+  x <- c(5 * 2^52, 5 * 2^52 + 8)
+  ip <- suppressWarnings(set_ipd(
+    data.frame(trt = "A", x = x), treatment = "trt", covariates = "x",
+    family = "survival",
+    Surv = survival::Surv(c(NA_real_, 64), c(1, Inf), type = "interval2")
+  ))
+  ag <- set_agd_surv(
+    data.frame(trt = "B", time = c(1, 1, 2), status = 1L, x_mean = 0.5),
+    treatment = "trt", time = "time", status = "status",
+    cov_means = "x_mean", cov_types = "binary"
+  )
+  d <- suppressWarnings(add_integration(combine_data(ip, ag), n_int = 64,
+                                        verbose = FALSE,
+                                        x = distr(qbern, prob = x_mean)))
+  expect_identical(as.integer(d$ipd$data$.status), c(2L, 0L))
+  raw <- matrix(d$integration_points[1L, , 1L], ncol = 1L)
+  expect_setequal(unique(as.numeric(raw)), c(0, 1))
+  fit <- .fitted_grid(d)
+  expect_identical(fit$center, 2^53 + 2)
+  cen <- matrix(fit$points[1L, , 1L], ncol = 1L)
+  expect_identical(diff(range(cen)), 2)
+  tg <- log(c(1, 1, 2))
+  expect_true(isTRUE(mlumr:::.grid_hits_targets(raw, tg)))
+  expect_true(isTRUE(mlumr:::.grid_hits_targets(cen, tg)))
+  idx <- suppressWarnings(mlumr:::.check_survival_scale_collapse(
+    d, "lognormal", aux_by = "none", center = fit$center
+  ))
+  admits <- mlumr:::.index_slope_admits(attr(idx, "index_region"), 0, log(2))
+  # The matching slope is `log 2` on the declared grid and `log(2) / 2` on
+  # the centered one, and only the first is one the index admits.
+  expect_identical(mlumr:::.admitted_slope_state(raw, admits), "inside")
+  expect_identical(mlumr:::.admitted_slope_state(cen, admits), "outside")
+  e <- .centered_call(d, model = "spfa", aux = "none")
+  expect_s3_class(e, "mlumr_comparator_representation")
+  expect_no_match(conditionMessage(e), "improper")
+})
+
+# Four Gaussian integration points and three comparator events at 1, 2, 4:
+# the symmetric quartiles carry the times exactly, and the pooled center is 0.5.
+.gaussian_four <- function() {
+  ip <- suppressWarnings(set_ipd(
+    data.frame(trt = "A", x = c(0.5, 0.75, 1, 1.25), time = c(1, 1, 2, 4),
+               status = 1L),
+    treatment = "trt", covariates = "x", family = "survival",
+    time = "time", status = "status"
+  ))
+  ag <- set_agd_surv(
+    data.frame(trt = "B", time = c(1, 2, 4), status = 1L, x_mean = 0,
+               x_sd = 1),
+    treatment = "trt", time = "time", status = "status",
+    cov_means = "x_mean", cov_sds = "x_sd", cov_types = "continuous"
+  )
+  suppressWarnings(add_integration(combine_data(ip, ag), n_int = 4,
+                                   verbose = FALSE,
+                                   x = distr(stats::qnorm, mean = x_mean,
+                                             sd = x_sd)))
+}
+
+test_that("a match the centered grid keeps only within rounding is not sampled", {
+  d <- .gaussian_four()
+  fit <- .fitted_grid(d)
+  expect_identical(fit$center, 0.5)
+  tg <- log(c(1, 2, 4))
+  raw <- matrix(d$integration_points[1L, , 1L], ncol = 1L)
+  expect_true(isTRUE(mlumr:::.grid_hits_targets(raw, tg)))
+  # Centering by 0.5 moves the symmetric quartiles' relation by `2^-53`: the
+  # best allocation leaves a residual near `5e-17`, which the exact test
+  # cannot call a match and floating-point sampling cannot tell from one.
+  hit <- mlumr:::.grid_hits_targets(matrix(fit$points[1L, , 1L], ncol = 1L),
+                                    tg)
+  expect_true(is.na(hit))
+  expect_identical(attr(hit, "declined"), "inexact")
+  expect_s3_class(.centered_call(d), "mlumr_comparator_representation")
+  # Uncentered, the declared grid is the fitted grid and the refusal is the
+  # certified one.
+  expect_s3_class(.centered_call(d, center = FALSE),
+                  "mlumr_comparator_improper")
+})
+
+test_that("an ordinary centering keeps the refusal both grids certify", {
+  # A regression guard: the default centering of an ordinary grid changes
+  # nothing about a refusal the data earn.
+  e <- .centered_call(.uniform_stub(c(1, 2, 4)))
+  expect_s3_class(e, "error")
+  expect_match(conditionMessage(e), "is therefore improper")
+})
+
+test_that("the guard is handed the grid the sampler receives", {
+  d <- .uniform_stub(c(1, 2, 4))
+  seen <- NULL
+  sent <- NULL
+  testthat::local_mocked_bindings(
+    .check_comparator_tied_events = function(..., fitted_points = NULL) {
+      seen <<- fitted_points
+      invisible(FALSE)
+    },
+    .mlumr_fit_backend = function(...) {
+      sent <<- list(...)$stan_data
+      stop("SENTINEL_BACKEND_REACHED")
+    }
+  )
+  expect_error(
+    suppressWarnings(mlumr(d, model = "relaxed", distribution = "lognormal",
+                           center = TRUE, qr = FALSE, engine = "rstan",
+                           seed = 2026, verbose = FALSE, refresh = 0,
+                           chains = 1, iter = 10, warmup = 5)),
+    "SENTINEL_BACKEND_REACHED"
+  )
+  expect_false(is.null(seen))
+  expect_identical(seen, sent$X_int)
+  expect_false(identical(unname(seen), unname(d$integration_points)))
+})
+
+test_that("a fitted grid identical to the declared one is checked once", {
+  d <- .uniform_stub(c(1, 2, 4))
+  expect_identical(msg(d, fitted_points = d$integration_points), msg(d))
+  expect_match(msg(d, fitted_points = d$integration_points), "improper")
+})
+
+test_that("the two-grid check keeps one set of warnings and no more", {
+  skip_if_not_installed("survival")
+  # Warnings and refusals kept or dropped, with the declared and the centered
+  # grid each given the role the other played.
+  signals <- function(x, ...) {
+    w <- character()
+    value <- tryCatch(
+      withCallingHandlers(check(x, ...), warning = function(cond) {
+        w <<- c(w, conditionMessage(cond))
+        invokeRestart("muffleWarning")
+      }),
+      error = function(err) err
+    )
+    list(value = value, warnings = w)
+  }
+  d <- .gaussian_four()
+  fit <- .fitted_grid(d)
+  # The centered grid alone warns: its match holds only within rounding.
+  within <- d
+  within$integration_points <- fit$points
+  alone <- signals(within)
+  expect_length(alone$warnings, 1L)
+  expect_match(alone$warnings, "within rounding")
+  # A grid no affine map carries, since no three of its nodes are equally
+  # spaced, is silent.
+  silent <- d
+  silent$integration_points[1L, , 1L] <- c(0, 1, 5, 17)
+  expect_length(signals(silent)$warnings, 0L)
+  # Only the fitted grid warns: its warning is kept.
+  only_fitted <- signals(silent, fitted_points = fit$points)
+  expect_identical(only_fitted$warnings, alone$warnings)
+  expect_true(only_fitted$value)
+  # Only the declared grid warns: its warning is kept.
+  only_declared <- signals(within, fitted_points = silent$integration_points)
+  expect_identical(only_declared$warnings, alone$warnings)
+  expect_true(only_declared$value)
+  # One grid refusing while the other warns is a representation refusal, and
+  # the other grid's warning is not emitted beside it.
+  split <- signals(d, fitted_points = fit$points)
+  expect_s3_class(split$value, "mlumr_comparator_representation")
+  expect_length(split$warnings, 0L)
+  # Both warning: the warning appears once, not once per grid. A binary grid
+  # moved by an exact half keeps every node difference, so both grids warn
+  # alike.
+  b <- .two_binary(c(1, 1, NA, 2, NA, 1), c(1, 1, 2, Inf, 1, Inf), c(1, 1, 2),
+                   x1 = c(0, 0, 1, 1, 0, 0), x2 = c(0, 0, 0, 0, 1, 1))
+  idx <- suppressWarnings(mlumr:::.check_survival_scale_collapse(
+    b, "lognormal", aux_by = "none", center = FALSE
+  ))
+  shared <- function(...) {
+    signals(b, aux_by = "none", model = "spfa",
+            index_bounds_aux = isTRUE(attr(idx, "bounds_aux")),
+            index_exact = attr(idx, "index_exact") %||% NA,
+            index_design = attr(idx, "index_design"),
+            index_aux_order = attr(idx, "aux_order") %||% 0,
+            index_region = attr(idx, "index_region"), ...)
+  }
+  one <- shared()
+  expect_length(one$warnings, 1L)
+  both <- shared(fitted_points = b$integration_points - 0.5)
+  expect_identical(both$warnings, one$warnings)
+})
