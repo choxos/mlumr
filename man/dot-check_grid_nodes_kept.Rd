@@ -30,7 +30,10 @@ its neighbor, and so represents a covariate distribution the caller did
 not declare. The guards that follow judge that grid, and the comparator
 check refuses when it and the declared grid give different verdicts, but a
 grid that lost nodes without changing any verdict reached the sampler as
-though it were the declared one.
+though it were the declared one. The check runs inside
+\code{\link[=.mlumr_build_stan_data]{.mlumr_build_stan_data()}}, between centering and the QR step, since a
+grid collapsed to one value makes the QR design rank deficient and that
+step would otherwise refuse it first, advising the wrong remedy.
 }
 \details{
 The check counts the distinct values of each covariate on each aggregate

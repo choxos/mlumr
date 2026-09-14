@@ -2592,11 +2592,12 @@ test_that("a separate comparator scale is not offered as a guarantee", {
 
 # Index profiles at `7 * 2^53 +- 8` beside a comparator on `U(0, 4)`: the
 # pooled center rounds to `2^55`, where every point of `[0, 4]` centers to one
-# of two values.
-.offset_uniform <- function(status = 1L) {
-  m <- 7 * 2^53
+# of two values. At `m = 7 * 2^55` the center is `2^57` and every point
+# centers to one value; the index profiles then need a step of 32 to stay
+# distinct doubles.
+.offset_uniform <- function(status = 1L, m = 7 * 2^53, step = 8) {
   ip <- suppressWarnings(set_ipd(
-    data.frame(trt = "A", x = c(m - 8, m - 8, m + 8, m + 8),
+    data.frame(trt = "A", x = c(m - step, m - step, m + step, m + step),
                time = c(1, 2, 1, 3), status = 1L),
     treatment = "trt", covariates = "x", family = "survival",
     time = "time", status = "status"
@@ -2660,6 +2661,33 @@ test_that("a merged grid is refused whatever the guards would say of it", {
     e <- .centered_call(d)
     expect_s3_class(e, "mlumr_grid_representation")
     expect_match(conditionMessage(e), "`x` has 64 distinct values")
+  }
+})
+
+test_that("a grid collapsed to one value is refused before the QR step", {
+  # With `qr = TRUE` the builder factors the combined design, and a grid
+  # whose covariate column is one constant makes that design rank deficient.
+  # The QR step would refuse it first, telling the caller to drop the
+  # covariate or turn QR off; the grid check answers before it, with the
+  # remedy that fits.
+  d <- .offset_uniform(m = 7 * 2^55, step = 32)
+  fit <- .fitted_grid(d)
+  expect_identical(fit$center, 2^57)
+  expect_identical(length(unique(fit$points[1L, , 1L])), 1L)
+  testthat::local_mocked_bindings(
+    .mlumr_fit_backend = function(...) stop("SENTINEL_BACKEND_REACHED")
+  )
+  for (model in c("relaxed", "spfa")) {
+    e <- tryCatch(
+      suppressWarnings(mlumr(d, model = model, distribution = "lognormal",
+                             aux_by = ".study", center = TRUE, qr = TRUE,
+                             engine = "rstan", seed = 2026, verbose = FALSE,
+                             refresh = 0, chains = 1, iter = 10, warmup = 5)),
+      error = function(e) e
+    )
+    expect_s3_class(e, "mlumr_grid_representation")
+    expect_match(conditionMessage(e), "64 distinct values .* and 1 on the centered grid")
+    expect_no_match(conditionMessage(e), "full-rank")
   }
 })
 

@@ -5157,11 +5157,6 @@ mlumr <- function(data,
     qr = qr
   )
   stan_data <- prepared$stan_data
-  # Centering can round two declared integration points onto one, and a grid
-  # that lost nodes is not the declared distribution whatever the guards
-  # below make of it, so that is asked first, for every family.
-  .check_grid_nodes_kept(data$integration_points, stan_data$X_int,
-                         covariates = data$covariates)
   # The exact-fit guard judges the design the model fits, so it runs once
   # the covariates carry the model's own centers (zeros when it does not
   # center). Still before any backend is chosen or a model compiled.
@@ -5504,6 +5499,12 @@ mlumr <- function(data,
   stan_data <- .mlumr_center_covariates(
     stan_data, center = center, family = family, agd_means = agd_means
   )
+  # Centering can round two declared integration points onto one, and a grid
+  # that lost nodes is not the declared distribution whatever the guards
+  # make of it later, so that is asked here, for every family, before the QR
+  # rank check below can refuse the same grid for a reason of its own.
+  .check_grid_nodes_kept(data$integration_points, stan_data$X_int,
+                         covariates = data$covariates)
   stan_data <- .mlumr_qr_design(stan_data, model = model, qr = qr)
 
   list(stan_data = stan_data,
@@ -5599,7 +5600,10 @@ mlumr <- function(data,
 #' not declare. The guards that follow judge that grid, and the comparator
 #' check refuses when it and the declared grid give different verdicts, but a
 #' grid that lost nodes without changing any verdict reached the sampler as
-#' though it were the declared one.
+#' though it were the declared one. The check runs inside
+#' [.mlumr_build_stan_data()], between centering and the QR step, since a
+#' grid collapsed to one value makes the QR design rank deficient and that
+#' step would otherwise refuse it first, advising the wrong remedy.
 #'
 #' The check counts the distinct values of each covariate on each aggregate
 #' row, before and after centering, and refuses when the centered grid has
