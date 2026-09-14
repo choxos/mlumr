@@ -28,7 +28,8 @@ make_ll_fit <- function(model = "spfa", n_draws = 400,
     ),
     model = model,
     diagnostics = list(n_divergent = 0, n_max_treedepth = 0),
-    sampling_args = list(adapt_delta = 0.95, max_treedepth = 15, chains = 4)
+    sampling_args = list(adapt_delta = 0.95, max_treedepth = 15, chains = 4),
+    stan_data = list(n_ipd = n_ipd, n_agd_rows = n_agd)
   )
   class(out) <- c("mlumr_fit", "list")
   out
@@ -154,7 +155,8 @@ test_that("survival LOO/WAIC can group the comparator pseudo-IPD by arm/aggregat
     check.names = FALSE
   )
   obj <- list(family = "survival", draws = draws,
-              stan_data = list(agd_arm = c(1L, 1L, 2L, 2L)))
+              stan_data = list(n_ipd = 2L, n_agd = 4L,
+                               agd_arm = c(1L, 1L, 2L, 2L)))
   arm <- glb(obj, "arm")
   expect_equal(ncol(arm), 4L)
   expect_equal(unname(arm[, 3]), c(-0.1 - 0.3, -0.2 - 0.4))
@@ -762,4 +764,134 @@ test_that("a column with no name does not stop the key", {
   same <- data.frame(a = c(1, 1), b = c(3, 4))
   names(same) <- c("a", NA)
   expect_equal(length(unique(.source_row_keys(same))), 1L)
+})
+
+
+# ---- the saved likelihood has to cover the data the model was fitted to ----
+
+drop_columns <- function(fit, pattern) {
+  fit$draws <- fit$draws[, !grepl(pattern, names(fit$draws)), drop = FALSE]
+  fit
+}
+
+test_that("diagnostics refuse a fit saved without a whole likelihood block", {
+  skip_if_not_installed("loo")
+  fit <- make_ll_fit(n_ipd = 5L, n_agd = 2L)
+  no_agd <- drop_columns(fit, "^log_lik_agd\\[")
+  no_ipd <- drop_columns(fit, "^log_lik_ipd\\[")
+  expect_error(calculate_dic(no_agd),
+               "`log_lik_agd` should hold one column for each of the 2 aggregate rows",
+               fixed = TRUE)
+  expect_error(calculate_dic(no_ipd),
+               "`log_lik_ipd` should hold one column for each of the 5 index observations",
+               fixed = TRUE)
+  for (partial in list(no_agd, no_ipd)) {
+    expect_error(calculate_loo(partial), "should hold one column")
+    expect_error(calculate_waic(partial), "should hold one column")
+  }
+})
+
+test_that("a missing, repeated, or misnumbered column is refused by index", {
+  fit <- make_ll_fit(n_ipd = 5L, n_agd = 2L)
+  expect_error(calculate_dic(drop_columns(fit, "^log_lik_ipd\\[2\\]$")),
+               "(missing 2)", fixed = TRUE)
+  # The same count as the complete fit, with the wrong index.
+  moved <- fit
+  names(moved$draws)[names(moved$draws) == "log_lik_ipd[2]"] <- "log_lik_ipd[9]"
+  expect_error(calculate_dic(moved), "(missing 2; outside that range 9)",
+               fixed = TRUE)
+  twice <- fit
+  twice$draws[["log_lik_ipd[01]"]] <- twice$draws[["log_lik_ipd[1]"]]
+  expect_error(calculate_dic(twice), "(repeated 1)", fixed = TRUE)
+  odd <- fit
+  odd$draws[["log_lik_agd[1.5]"]] <- 0
+  expect_error(calculate_dic(odd), "(unreadable `log_lik_agd[1.5]`)",
+               fixed = TRUE)
+})
+
+test_that("two fits missing the same block are not compared on what is left", {
+  y <- rep(c(0L, 1L), 6L)
+  a <- drop_columns(with_data(make_ll_fit("spfa", seed = 2026), y),
+                    "^log_lik_agd\\[")
+  b <- drop_columns(with_data(make_ll_fit("relaxed", seed = 7), y),
+                    "^log_lik_agd\\[")
+  expect_error(compare_models(a, b, criterion = "dic"), "should hold one column")
+})
+
+test_that("grouped survival diagnostics refuse a fit without its index block", {
+  obj <- list(
+    family = "survival",
+    stan_data = list(n_ipd = 2L, n_agd = 4L, agd_arm = c(1L, 1L, 2L, 2L)),
+    draws = data.frame(`log_lik_agd[1]` = c(-0.1, -0.2),
+                       `log_lik_agd[2]` = c(-0.3, -0.4),
+                       `log_lik_agd[3]` = c(-0.5, -0.6),
+                       `log_lik_agd[4]` = c(-0.7, -0.8), check.names = FALSE)
+  )
+  glb <- mlumr:::.survival_log_lik_by_unit
+  expect_error(glb(obj, "arm"),
+               "`log_lik_ipd` should hold one column for each of the 2 index observations",
+               fixed = TRUE)
+  expect_error(glb(obj, "aggregate"), "should hold one column")
+})
+
+test_that("a fit that does not record its observation counts is refused", {
+  fit <- make_ll_fit(n_ipd = 5L, n_agd = 2L)
+  fit$stan_data <- NULL
+  expect_error(calculate_dic(fit), "does not record how many observations")
+})
+
+test_that("the expected columns follow the family's pointwise unit", {
+  # A regression guard: every complete fit below passed before and must pass
+  # after. Survival counts one column per reconstructed pseudo-individual.
+  surv <- make_ll_fit(n_ipd = 3L, n_agd = 4L)
+  surv$family <- "survival"
+  surv$stan_data <- list(n_ipd = 3L, n_agd_rows = 1L, n_agd = 4L)
+  expect_identical(ncol(mlumr:::extract_log_lik(surv)), 7L)
+  # Elsewhere `n_agd` is each row's sample size and the columns are the rows.
+  bin <- make_ll_fit(n_ipd = 3L, n_agd = 1L)
+  bin$stan_data <- list(n_ipd = 3L, n_agd_rows = 1L, n_agd = 200L)
+  expect_identical(ncol(mlumr:::extract_log_lik(bin)), 4L)
+  # Expanded tied rows: one column per original observation.
+  tied <- make_ll_fit(n_ipd = 3L, n_agd = 6L)
+  tied$stan_data <- list(n_ipd = 3L, n_agd_rows = 3L,
+                         agd_count = c(2L, 1L, 3L))
+  expect_identical(ncol(mlumr:::extract_log_lik(tied)), 9L)
+  # A complete fit in another column order scores exactly as before.
+  fit <- make_ll_fit(n_ipd = 5L, n_agd = 2L)
+  shuffled <- fit
+  shuffled$draws <- shuffled$draws[, rev(seq_along(shuffled$draws))]
+  expect_identical(calculate_dic(shuffled)$DIC, calculate_dic(fit)$DIC)
+})
+
+test_that("calculate_loo refuses moment matching it cannot perform", {
+  skip_if_not_installed("loo")
+  fit <- make_ll_fit()
+  expect_error(calculate_loo(fit, moment_match = TRUE),
+               "`moment_match` is not available", fixed = TRUE)
+  expect_error(calculate_loo(fit, save_psi = TRUE),
+               "does not use `save_psi`", fixed = TRUE)
+  expect_error(calculate_loo(fit, r_eff = 1),
+               "computed from the fit's chains", fixed = TRUE)
+  expect_error(calculate_loo(fit, "observation", TRUE), "has to be named")
+  expect_error(calculate_waic(fit, cores = 1), "does not use `cores`",
+               fixed = TRUE)
+  # What the matrix method does read still reaches it.
+  res <- calculate_loo(fit, cores = 1, save_psis = TRUE)
+  expect_s3_class(res, "psis_loo")
+  expect_false(is.null(res$psis_object))
+})
+
+test_that("the arguments accepted follow the installed loo", {
+  skip_if_not_installed("loo")
+  fit <- make_ll_fit()
+  expect_true("is_method" %in% mlumr:::.loo_matrix_reads("loo"))
+  expect_length(mlumr:::.loo_matrix_reads("waic"), 0L)
+  # A loo whose matrix method has no `is_method` would drop it through `...`.
+  testthat::local_mocked_bindings(
+    loo.matrix = function(x, ..., r_eff = 1, save_psis = FALSE, cores = 1) NULL,
+    .package = "loo"
+  )
+  expect_identical(mlumr:::.loo_matrix_reads("loo"), c("save_psis", "cores"))
+  expect_error(calculate_loo(fit, is_method = "tis"),
+               "does not use `is_method`", fixed = TRUE)
 })

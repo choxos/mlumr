@@ -59,6 +59,103 @@
 }
 
 
+#' Refuse a pointwise log-likelihood that does not cover the fitted data
+#'
+#' LOO, WAIC, and DIC score whatever `log_lik_ipd` and `log_lik_agd` columns
+#' the saved draws hold, and extracting them used to stop only when both were
+#' absent. rstan's `pars` with `include = FALSE`, passed through the `...` of
+#' [mlumr()], saves a fit without either block, and a fit object edited
+#' afterwards can lose single columns. The criteria were then computed over
+#' part of the data the model was fitted to, with only the column count to
+#' show for it, and two fits missing the same block were compared without
+#' complaint although that part can rank them differently than all of it.
+#'
+#' The columns that belong are fixed by the Stan models: `log_lik_ipd` holds
+#' one per index observation, `1:n_ipd`, and `log_lik_agd` one per aggregate
+#' row, `1:n_agd_rows`, except under survival, where the comparator enters as
+#' reconstructed pseudo-individuals and there is one per pseudo-individual,
+#' `1:n_agd`. Outside survival `n_agd` is each row's sample size, not a column
+#' count. Where tied rows were collapsed, the expanded count `sum(agd_count)`
+#' is what has to be there, and [.assert_agd_loglik_per_observation()] has
+#' already refused the collapsed shape. The indexes are compared as a set, so
+#' a missing column, a repeated one, and a misnumbered one that keeps the
+#' count are all refused, and so is a column named as a pointwise value whose
+#' index cannot be read.
+#' @param object An `mlumr_fit` object.
+#' @return `TRUE` invisibly; stops otherwise.
+#' @keywords internal
+.assert_log_lik_complete <- function(object) {
+  draws <- object$draws
+  if (is.null(draws) || is.null(colnames(draws))) return(invisible(TRUE))
+  sd <- object$stan_data
+  survival <- identical(object$family, "survival")
+  cnt <- sd$agd_count
+  agd_field <- if (survival) "n_agd" else "n_agd_rows"
+  expected <- list(ipd = sd$n_ipd,
+                   agd = if (length(cnt)) sum(cnt) else sd[[agd_field]])
+  counted <- vapply(expected, function(n) {
+    is.numeric(n) && length(n) == 1L && is.finite(n) && n >= 0 && n == trunc(n)
+  }, logical(1L))
+  if (!all(counted)) {
+    stop("This fit does not record how many observations its pointwise ",
+         "log-likelihood covers (`stan_data$n_ipd` and `stan_data$",
+         agd_field, "`), so whether every one was saved cannot be checked ",
+         "and LOO, WAIC, and DIC are not computed from it. A fit from an ",
+         "older version of mlumr has to be refitted with the current one.",
+         call. = FALSE)
+  }
+  unit <- list(ipd = "index observation",
+               agd = if (survival) {
+                 "reconstructed comparator pseudo-individual"
+               } else {
+                 "aggregate row"
+               })
+  listed <- function(v) {
+    v <- sort(unique(v))
+    if (length(v) <= 5L) return(paste(v, collapse = ", "))
+    paste0(paste(v[1:5], collapse = ", "), " and ", length(v) - 5L, " more")
+  }
+  for (source in c("ipd", "agd")) {
+    stem <- paste0("log_lik_", source)
+    named <- grep(paste0("^", stem, "\\["), colnames(draws), value = TRUE)
+    readable <- grepl(paste0("^", stem, "\\[[0-9]+\\]$"), named)
+    idx <- suppressWarnings(.log_lik_column_index(named[readable], source))
+    n <- as.integer(expected[[source]])
+    if (all(readable) && !anyNA(idx) && identical(sort(idx), seq_len(n))) next
+    known <- idx[!is.na(idx)]
+    outside <- known[known < 1L | known > n]
+    unreadable <- c(named[!readable], named[readable][is.na(idx)])
+    problems <- c(
+      if (length(setdiff(seq_len(n), known))) {
+        paste("missing", listed(setdiff(seq_len(n), known)))
+      },
+      if (length(outside)) paste("outside that range", listed(outside)),
+      if (anyDuplicated(known)) paste("repeated", listed(known[duplicated(known)])),
+      if (length(unreadable)) {
+        paste0("unreadable ", paste0("`", unreadable, "`", collapse = ", "))
+      }
+    )
+    want <- if (n == 1L) {
+      paste0("one column for the one ", unit[[source]],
+             " the model was fitted to, numbered 1")
+    } else {
+      paste0("one column for each of the ", n, " ", unit[[source]],
+             "s the model was fitted to, numbered 1 to ", n)
+    }
+    stop("`", stem, "` should hold ", want, ", but the saved draws have ",
+         length(named), " (",
+         paste(problems, collapse = "; "), "). LOO, WAIC, and DIC computed ",
+         "from them would score only part of that data, and fits missing the ",
+         "same columns can rank differently than on all of it. Columns go ",
+         "unsaved when the sampler is told not to keep them, for example ",
+         "with rstan's `pars` and `include = FALSE` passed through `mlumr()`; ",
+         "refit saving every `log_lik_ipd` and `log_lik_agd` element.",
+         call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+
 #' Extract the full pointwise log-likelihood matrix from an mlumr_fit
 #'
 #' Combines the IPD and AgD per-observation log-likelihood draws into a
@@ -96,6 +193,7 @@ extract_log_lik <- function(object) {
       call. = FALSE
     )
   }
+  .assert_log_lik_complete(object)
 
   selected <- draws[, c(ipd_cols, agd_cols), drop = FALSE]
   numeric_cols <- vapply(selected, is.numeric, logical(1))
@@ -443,6 +541,11 @@ extract_log_lik <- function(object) {
 #' principled Bayesian model comparison, prefer [calculate_loo()] or
 #' [calculate_waic()] (Vehtari, Gelman, Gabry 2017).
 #'
+#' The saved pointwise log-likelihood has to cover every observation the model
+#' was fitted to. A fit missing any of those columns, as rstan's `pars` with
+#' `include = FALSE` can leave one, is refused rather than scored on part of
+#' its data, and the same holds for [calculate_loo()] and [calculate_waic()].
+#'
 #' @param object An `mlumr_fit` object
 #'
 #' @return A list of class `mlumr_dic` with components `DIC`, `pD`, `D_bar`,
@@ -506,9 +609,13 @@ print.mlumr_dic <- function(x, ...) {
 #'
 #' Pareto-k diagnostics: values > 0.7 indicate observations for which the
 #' PSIS approximation is unreliable; the printed output flags these.
-#' Typical remedies are running more iterations, using `moment_match = TRUE`,
-#' or (for highly influential AgD rows) refitting without the offending
-#' observation to check sensitivity.
+#' Typical remedies are running more iterations or, for highly influential
+#' AgD rows, refitting without the offending observation to check
+#' sensitivity. Moment matching ([loo::loo_moment_match()]) is not available
+#' here: it needs the fitted model rather than the saved pointwise
+#' log-likelihood, and `loo` ignores `moment_match` for a matrix, so
+#' `calculate_loo()` refuses the argument instead of returning the unchanged
+#' estimate.
 #'
 #' @note
 #' **AgD rows are treated as independent observations.** Each AgD row
@@ -536,8 +643,11 @@ print.mlumr_dic <- function(x, ...) {
 #'   each external arm is one held-out unit), or `"aggregate"` (all comparator
 #'   pseudo-IPD as a single external-evidence unit). The index IPD always stays
 #'   per-individual. Ignored for non-survival families.
-#' @param ... Additional arguments passed to [loo::loo()] (the `log_lik` matrix
-#'   dispatches to `loo::loo.matrix()`).
+#' @param ... Further arguments for the matrix method of [loo::loo()], as the
+#'   installed `loo` defines it: `save_psis`, `cores`, and `is_method` in
+#'   current releases. Anything else is refused rather than dropped,
+#'   `moment_match` included (see Details); `r_eff` is computed from the fit's
+#'   chains.
 #'
 #' @return An object of class `psis_loo` (see [loo::loo()]).
 #' @export
@@ -553,10 +663,82 @@ calculate_loo <- function(object,
     stop("The 'loo' package is required for calculate_loo(). ",
          "Install with install.packages('loo').", call. = FALSE)
   }
+  .refuse_ignored_loo_arguments(list(...), .loo_matrix_reads("loo"),
+                                "calculate_loo")
   survival_unit <- match.arg(survival_unit)
   log_lik <- .survival_log_lik_by_unit(object, survival_unit)
   r_eff <- .relative_eff_from_log_lik(log_lik, .chain_id(object))
   loo::loo(log_lik, r_eff = r_eff, ...)
+}
+
+
+#' The further arguments the installed loo reads for a log-likelihood matrix
+#'
+#' Read off the formals of `loo.matrix` or `waic.matrix` in the installed
+#' `loo`, less `x` and `r_eff`, which mlumr supplies. A fixed list would
+#' accept an argument that some `loo` release may not define, `is_method` for
+#' one, and that release would drop it through `...` without notice, which is
+#' the failure the refusal exists to prevent.
+#' @param generic `"loo"` or `"waic"`.
+#' @return A character vector of argument names; empty if the method is not
+#'   found.
+#' @keywords internal
+.loo_matrix_reads <- function(generic) {
+  method <- get0(paste0(generic, ".matrix"), envir = asNamespace("loo"),
+                 mode = "function", inherits = FALSE)
+  if (is.null(method)) return(character())
+  setdiff(names(formals(method)), c("x", "...", "r_eff"))
+}
+
+
+#' Refuse arguments that loo's matrix methods would drop
+#'
+#' [calculate_loo()] and [calculate_waic()] hand `loo` a log-likelihood
+#' matrix, and the matrix methods read only their own formals: any other
+#' argument is accepted through `...` and dropped, so the estimate comes back
+#' as though it had never been asked for. `moment_match = TRUE` was the
+#' documented case. Moment matching re-evaluates the posterior and each
+#' observation's likelihood at transformed draws, which needs the fitted
+#' model, and a matrix does not carry it.
+#'
+#' @param args The caller's `...`, as a list.
+#' @param accepted The further arguments the matrix method does read, from
+#'   [.loo_matrix_reads()].
+#' @param fun The caller's name, for the message.
+#' @return `TRUE` invisibly; stops otherwise.
+#' @keywords internal
+.refuse_ignored_loo_arguments <- function(args, accepted, fun) {
+  if (!length(args)) return(invisible(TRUE))
+  given <- names(args)
+  if (is.null(given) || any(!nzchar(given))) {
+    stop("Every further argument to `", fun, "()` has to be named, so that ",
+         "it can be checked against the ones `loo` reads.", call. = FALSE)
+  }
+  if ("moment_match" %in% given) {
+    stop("`moment_match` is not available through `", fun, "()`. Moment ",
+         "matching re-evaluates the posterior and each observation's ",
+         "likelihood at transformed draws, which needs the fitted model, and ",
+         "`loo` ignores the request for the log-likelihood matrix this ",
+         "function passes, so the estimate would come back unchanged. For ",
+         "observations with high Pareto k, run more iterations, or refit ",
+         "without the influential observation to check its influence.",
+         call. = FALSE)
+  }
+  ignored <- setdiff(given, accepted)
+  if (length(ignored)) {
+    stop("`", fun, "()` does not use ",
+         paste0("`", ignored, "`", collapse = ", "), ". ",
+         if (length(accepted)) {
+           paste0("For a log-likelihood matrix `loo` reads only ",
+                  paste0("`", accepted, "`", collapse = ", "))
+         } else {
+           "For a log-likelihood matrix `loo` reads no further arguments"
+         },
+         ", and anything else would be dropped without notice.",
+         if ("r_eff" %in% ignored) " `r_eff` is computed from the fit's chains.",
+         call. = FALSE)
+  }
+  invisible(TRUE)
 }
 
 
@@ -617,6 +799,8 @@ calculate_loo <- function(object,
     stop("Grouped survival LOO/WAIC needs AgD pointwise log-likelihood ",
          "columns (`log_lik_agd`).", call. = FALSE)
   }
+  # Grouping sums columns, so a missing one would vanish into its group.
+  .assert_log_lik_complete(object)
   agd_mat <- as.matrix(draws[, agd_cols, drop = FALSE])
 
   groups <- if (identical(survival_unit, "aggregate")) {
@@ -668,7 +852,9 @@ calculate_loo <- function(object,
 #' @param survival_unit For survival fits, the WAIC pointwise unit:
 #'   `"observation"` (default), `"arm"`, or `"aggregate"` (see [calculate_loo()]
 #'   for details). Ignored for non-survival families.
-#' @param ... Additional arguments passed to [loo::waic()].
+#' @param ... Further arguments for the matrix method of [loo::waic()], as the
+#'   installed `loo` defines it. Current releases read none, so any given here
+#'   is refused rather than dropped.
 #'
 #' @return An object of class `waic` (see [loo::waic()]).
 #' @export
@@ -683,6 +869,8 @@ calculate_waic <- function(object,
     stop("The 'loo' package is required for calculate_waic(). ",
          "Install with install.packages('loo').", call. = FALSE)
   }
+  .refuse_ignored_loo_arguments(list(...), .loo_matrix_reads("waic"),
+                                "calculate_waic")
   survival_unit <- match.arg(survival_unit)
   log_lik <- .survival_log_lik_by_unit(object, survival_unit)
   loo::waic(log_lik, ...)
