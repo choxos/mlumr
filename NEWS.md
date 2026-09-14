@@ -1014,9 +1014,10 @@
   `calculate_loo()` passes, so the estimate came back unchanged. Moment
   matching needs the fitted model and is not available through this
   function. Further arguments are now limited to the ones the matrix method
-  reads (`save_psis`, `cores`, `is_method`), and anything else, a misspelling
-  included, is refused rather than dropped. `calculate_waic()` refuses any
-  further argument, since `loo` reads none for a matrix there.
+  of the installed `loo` reads (`save_psis`, `cores`, and `is_method` in
+  current releases), and anything else, a misspelling included, is refused
+  rather than dropped. `calculate_waic()` follows the same rule, and current
+  releases of `loo` read no further argument there.
 
 * **`compare_models()` no longer reads a standard error as a threshold, and
   refuses fits built on different observations.** The LOO/WAIC printout said

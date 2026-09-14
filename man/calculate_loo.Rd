@@ -20,10 +20,11 @@ each external arm is one held-out unit), or \code{"aggregate"} (all comparator
 pseudo-IPD as a single external-evidence unit). The index IPD always stays
 per-individual. Ignored for non-survival families.}
 
-\item{...}{Further arguments for the matrix method of \code{\link[loo:loo]{loo::loo()}}:
-\code{save_psis}, \code{cores}, or \code{is_method}. Anything else is refused rather than
-dropped, \code{moment_match} included (see Details); \code{r_eff} is computed from
-the fit's chains.}
+\item{...}{Further arguments for the matrix method of \code{\link[loo:loo]{loo::loo()}}, as the
+installed \code{loo} defines it: \code{save_psis}, \code{cores}, and \code{is_method} in
+current releases. Anything else is refused rather than dropped,
+\code{moment_match} included (see Details); \code{r_eff} is computed from the fit's
+chains.}
 }
 \value{
 An object of class \code{psis_loo} (see \code{\link[loo:loo]{loo::loo()}}).

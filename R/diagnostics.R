@@ -643,10 +643,11 @@ print.mlumr_dic <- function(x, ...) {
 #'   each external arm is one held-out unit), or `"aggregate"` (all comparator
 #'   pseudo-IPD as a single external-evidence unit). The index IPD always stays
 #'   per-individual. Ignored for non-survival families.
-#' @param ... Further arguments for the matrix method of [loo::loo()]:
-#'   `save_psis`, `cores`, or `is_method`. Anything else is refused rather than
-#'   dropped, `moment_match` included (see Details); `r_eff` is computed from
-#'   the fit's chains.
+#' @param ... Further arguments for the matrix method of [loo::loo()], as the
+#'   installed `loo` defines it: `save_psis`, `cores`, and `is_method` in
+#'   current releases. Anything else is refused rather than dropped,
+#'   `moment_match` included (see Details); `r_eff` is computed from the fit's
+#'   chains.
 #'
 #' @return An object of class `psis_loo` (see [loo::loo()]).
 #' @export
@@ -658,17 +659,35 @@ print.mlumr_dic <- function(x, ...) {
 calculate_loo <- function(object,
                           survival_unit = c("observation", "arm", "aggregate"),
                           ...) {
-  # The only further arguments loo's matrix method reads.
-  .refuse_ignored_loo_arguments(list(...), c("save_psis", "cores", "is_method"),
-                                "calculate_loo")
   if (!requireNamespace("loo", quietly = TRUE)) {
     stop("The 'loo' package is required for calculate_loo(). ",
          "Install with install.packages('loo').", call. = FALSE)
   }
+  .refuse_ignored_loo_arguments(list(...), .loo_matrix_reads("loo"),
+                                "calculate_loo")
   survival_unit <- match.arg(survival_unit)
   log_lik <- .survival_log_lik_by_unit(object, survival_unit)
   r_eff <- .relative_eff_from_log_lik(log_lik, .chain_id(object))
   loo::loo(log_lik, r_eff = r_eff, ...)
+}
+
+
+#' The further arguments the installed loo reads for a log-likelihood matrix
+#'
+#' Read off the formals of `loo.matrix` or `waic.matrix` in the installed
+#' `loo`, less `x` and `r_eff`, which mlumr supplies. A fixed list would
+#' accept an argument that some `loo` release may not define, `is_method` for
+#' one, and that release would drop it through `...` without notice, which is
+#' the failure the refusal exists to prevent.
+#' @param generic `"loo"` or `"waic"`.
+#' @return A character vector of argument names; empty if the method is not
+#'   found.
+#' @keywords internal
+.loo_matrix_reads <- function(generic) {
+  method <- get0(paste0(generic, ".matrix"), envir = asNamespace("loo"),
+                 mode = "function", inherits = FALSE)
+  if (is.null(method)) return(character())
+  setdiff(names(formals(method)), c("x", "...", "r_eff"))
 }
 
 
@@ -683,7 +702,8 @@ calculate_loo <- function(object,
 #' model, and a matrix does not carry it.
 #'
 #' @param args The caller's `...`, as a list.
-#' @param accepted The further arguments the matrix method does read.
+#' @param accepted The further arguments the matrix method does read, from
+#'   [.loo_matrix_reads()].
 #' @param fun The caller's name, for the message.
 #' @return `TRUE` invisibly; stops otherwise.
 #' @keywords internal
@@ -832,8 +852,9 @@ calculate_loo <- function(object,
 #' @param survival_unit For survival fits, the WAIC pointwise unit:
 #'   `"observation"` (default), `"arm"`, or `"aggregate"` (see [calculate_loo()]
 #'   for details). Ignored for non-survival families.
-#' @param ... Not used. For a log-likelihood matrix [loo::waic()] reads no
-#'   further arguments, so any given here is refused rather than dropped.
+#' @param ... Further arguments for the matrix method of [loo::waic()], as the
+#'   installed `loo` defines it. Current releases read none, so any given here
+#'   is refused rather than dropped.
 #'
 #' @return An object of class `waic` (see [loo::waic()]).
 #' @export
@@ -844,14 +865,15 @@ calculate_loo <- function(object,
 calculate_waic <- function(object,
                            survival_unit = c("observation", "arm", "aggregate"),
                            ...) {
-  .refuse_ignored_loo_arguments(list(...), character(), "calculate_waic")
   if (!requireNamespace("loo", quietly = TRUE)) {
     stop("The 'loo' package is required for calculate_waic(). ",
          "Install with install.packages('loo').", call. = FALSE)
   }
+  .refuse_ignored_loo_arguments(list(...), .loo_matrix_reads("waic"),
+                                "calculate_waic")
   survival_unit <- match.arg(survival_unit)
   log_lik <- .survival_log_lik_by_unit(object, survival_unit)
-  loo::waic(log_lik)
+  loo::waic(log_lik, ...)
 }
 
 

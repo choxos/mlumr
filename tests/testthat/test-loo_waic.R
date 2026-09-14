@@ -880,3 +880,18 @@ test_that("calculate_loo refuses moment matching it cannot perform", {
   expect_s3_class(res, "psis_loo")
   expect_false(is.null(res$psis_object))
 })
+
+test_that("the arguments accepted follow the installed loo", {
+  skip_if_not_installed("loo")
+  fit <- make_ll_fit()
+  expect_true("is_method" %in% mlumr:::.loo_matrix_reads("loo"))
+  expect_length(mlumr:::.loo_matrix_reads("waic"), 0L)
+  # A loo whose matrix method has no `is_method` would drop it through `...`.
+  testthat::local_mocked_bindings(
+    loo.matrix = function(x, ..., r_eff = 1, save_psis = FALSE, cores = 1) NULL,
+    .package = "loo"
+  )
+  expect_identical(mlumr:::.loo_matrix_reads("loo"), c("save_psis", "cores"))
+  expect_error(calculate_loo(fit, is_method = "tis"),
+               "does not use `is_method`", fixed = TRUE)
+})

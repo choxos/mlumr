@@ -9,7 +9,8 @@
 \arguments{
 \item{args}{The caller's \code{...}, as a list.}
 
-\item{accepted}{The further arguments the matrix method does read.}
+\item{accepted}{The further arguments the matrix method does read, from
+\code{\link[=.loo_matrix_reads]{.loo_matrix_reads()}}.}
 
 \item{fun}{The caller's name, for the message.}
 }
