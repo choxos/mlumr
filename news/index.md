@@ -1124,7 +1124,13 @@
   survival, by index rather than by count, so a missing, repeated, or
   misnumbered column is refused too. A fit that does not record those
   counts is refused with a request to refit. A complete fit scores
-  exactly as before.
+  exactly as before. A `mlumr_dic` object handed to
+  [`compare_models()`](https://choxos.github.io/mlumr/reference/compare_models.md)
+  is checked the same way against the observations it carries, since a
+  saved score outlives the fix: one computed over part of a fit’s data
+  is refused rather than ranked, and one from a version before the
+  counts were recorded is compared as before, with the message that it
+  could not be checked.
 
 - **[`calculate_loo()`](https://choxos.github.io/mlumr/reference/calculate_loo.md)
   no longer recommends `moment_match = TRUE`, and refuses it.** Its

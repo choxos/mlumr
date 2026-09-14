@@ -55,6 +55,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_agd_loglik_per_observation.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_basis_support.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_cmdstan_output.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-assert_dic_covers_observations.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_log_lik_complete.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_same_observations.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_shared_basis_identified.html</loc></url>

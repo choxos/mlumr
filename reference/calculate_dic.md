@@ -24,7 +24,7 @@ A list of class `mlumr_dic` with components `DIC`, `pD`, `D_bar`,
 kept for
 [`compare_models()`](https://choxos.github.io/mlumr/reference/compare_models.md),
 so a DIC object can still be checked against the fits it is compared
-with.
+with, and its `n_obs` against the observations it carries.
 
 ## Details
 
