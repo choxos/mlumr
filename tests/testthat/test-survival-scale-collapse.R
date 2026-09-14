@@ -475,11 +475,15 @@ test_that("a numerical rank below the exact one answers nothing", {
     mlumr:::.censoring_bounds_aux(cbind(1, rep(-0.5, 3L)), c(0, 0, 3), ev3),
     "bounded"
   )
-  expect_identical(
-    mlumr:::.censoring_bounds_aux(cbind(1, c(-0.5, -0.5, 0.5)), c(0, 0, 3),
-                                  ev3),
-    "undetermined"
-  )
+  # The VERDICT, not its attributes. A censored row at a profile the event
+  # design does not place still leaves undetermined whether it falls below
+  # its own censoring time; what now travels beside that answer is how many
+  # coefficient directions such rows pin, which is a different question and
+  # is zero here because this row's region has an interior.
+  free <- mlumr:::.censoring_bounds_aux(cbind(1, c(-0.5, -0.5, 0.5)),
+                                        c(0, 0, 3), ev3)
+  expect_identical(as.character(free), "undetermined")
+  expect_identical(attr(free, "order"), 0L)
 })
 
 test_that("a censored row repeating an event profile bounds without a solve", {

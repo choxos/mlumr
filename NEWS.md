@@ -421,11 +421,14 @@
   restrict nothing here.
 
   The region is built from EVERY index row, and reading it off the censored
-  ones alone was the same as not having it. A lone censoring inequality is
-  satisfied by moving `mu_index`, so censored rows on their own restrict no
-  slope; an EVENT row is what takes that freedom away, because its density
-  grows only where the predictor reproduces its own time and vanishes
-  exponentially anywhere else, which confines the predictor to a single point
+  ones alone was the same as not having it. A SINGLE one-sided censoring
+  inequality is satisfied by moving `mu_index`, and says nothing about the
+  slope on its own, nor do any number of them bounded on the same side;
+  SIMULTANEOUS censoring regions bounded on opposite sides can restrict it,
+  which is what the eventless case above turns on; and an EVENT row
+  restricts it further still, because its density grows only where the
+  predictor reproduces its own time and vanishes exponentially anywhere
+  else, which confines the predictor to a single point
   exactly as censoring confines it to an interval. An index with one event at
   `t = 1` on `x = 0` beside a right-censored row at `t = 4` on `x = 1` pins
   `mu_index` to zero and then needs `beta >= log 4`, out of reach of the same
@@ -460,6 +463,51 @@
   verdict was contradicted, and 3 cases went unsettled where the exact
   arithmetic decides.
 
+  The order the index removes counts its CENSORED rows too, and reading it
+  off the event rows alone reported a suppression the index really supplies
+  as none. An index's own order was zero whenever its event design fit
+  exactly, which is right for the event rows on their own: as many density
+  spikes as the directions they pin, which cancel. It is not right once the
+  index also carries censored rows whose predictors that design does not
+  place, because such a row can pin a direction the events left free and
+  every pinned direction takes another power of the width off the
+  comparator's growth. An exact event at `t = 1` on `x = 0` beside a
+  left-censored row at `t = 1` and a right-censored row at `t = 1`, both on
+  `x = 1`: the event pins `mu_index`, the touching pair pins
+  `mu_index + beta`, and TWO directions shrink against ONE spike. The index's
+  coefficient-integrated likelihood is then
+  `arccos(v_s / (v_s + s^2)) / (2 pi sqrt(2 pi (a^2 + s^2)))`, which is
+  `s / (2 pi^(3/2) a h)` near zero rather than a constant, and it cancels two
+  tied comparator events' `1 / s` exactly: the product has a finite limit and
+  the posterior is proper under both models. Reported as zero, that fit was
+  refused. The count is read only where it is readable, from profiles
+  independent of one another and of the event design, and only for
+  `lognormal` where the rate was measured; anything else reports the order as
+  unsettled rather than as a zero. A third tied comparator event leaves
+  `2 - 1 = 1` and is still refused, and so is the same index with the
+  touching pair broken, whose remaining row pins nothing.
+
+  With more than one declared covariate the index's region is a polyhedron
+  whose projection onto the slope this check does not compute, and returning
+  nothing there was read by the caller as no restriction at all. The
+  difference is a certificate: an index at three independent profiles needing
+  `beta1` in `[2 log 2, 3 log 2]` and `beta2` in `[5 log 2, 6 log 2]` admits
+  no difference of binary integration points equal to `log 2`, since every
+  nonzero magnitude is at least `2 log 2` and `beta2 - beta1` lies in
+  `[2 log 2, 4 log 2]`; that posterior is proper and was refused. The
+  projection is still not computed, so the arm is now reported rather than
+  refused, and the one part that IS exactly answerable is asked first: a
+  region constrains only the functionals in its own row space, so where none
+  of the grid's node-difference directions lies in that space the region
+  cannot bear on this arm and the refusal stands. Nor can rows bounded on one
+  side only, however many directions they span: raising `mu_index` clears
+  every lower end at any slope, so an index of right-censored rows alone
+  keeps the refusal too. Widening the first interval
+  to `1 < T <= 4` admits `beta1 = log 2` and really is improper; without the
+  projection the two cannot be told apart, so that refusal is given up along
+  with the wrong one. Under `relaxed` the comparator carries its own slope
+  and under `aux_by = ".study"` its own auxiliary, so neither is affected.
+
   It also only comes off a rate that is EXACT, which is a property of the
   RANK rather than of the covariate count. A consistent allocation's design
   has rank at least 1, and at least 2 whenever two targets differ, since its
@@ -486,13 +534,18 @@
   index direction, leaving a true rate of 1 that a full subtraction would
   report as 0. Computing the joint rank means solving the combined system
   across every allocation, which is out of scope, so a shared slope is
-  reported instead of netted. Only from order TWO, though: in
+  reported instead of netted. Only from a second pinned index ROW, though: in
   `(mu_index, mu_comparator, beta)` an index constraint is `(1, 0, x)` while
   every comparator constraint is `(0, 1, z)`, so no combination of comparator
   rows reaches a nonzero first component, a single index row is independent
   of all of them, and the ranks add whatever the shared slope does. It takes
   a second index row for the difference `(0, 0, x_1 - x_2)` to appear, which
-  is a pure slope direction and can lie in the comparator's span. It also
+  is a pure slope direction and can lie in the comparator's span. That counts
+  pinned ROWS, events and touching profiles together, and not the order,
+  which stops being the same number once exact events are netted against
+  their own spikes: two repeated events at one profile beside touching pairs
+  at two others pin three rows and both slope directions at a net order of
+  1, and gating on the order netted such an overlap to zero. It also
   needs somewhere to lie: a matched design of rank 1 is one row,
   `(0, 1, z_j)`, whose only vector with a zero second component is the zero
   vector, so nothing of the form `(0, 0, v)` is in it and the ranks add
@@ -506,7 +559,8 @@
   just as two events there would. Reporting that the index pinned nothing
   left the comparator treating the shared slope as free, so its censored rows
   read as escapable and a fit they exponentially suppress was refused. The
-  eventless path now carries that design, and the pinned-ridge report asks
+  eventless path and the path with events both carry that design, and the
+  pinned-ridge report asks
   whether the index pins the slope rather than whether its EVENT design fits
   exactly.
 

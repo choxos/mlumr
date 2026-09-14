@@ -2148,6 +2148,67 @@ test_that("a lone comparator target still answers to the index's region", {
   expect_identical(go(4, aux = ".study"), "refused")
 })
 
+# What the tied-comparator guard does with one fit, read from what it SAID: a
+# refusal, a report named by its reason, or nothing. Muffling the warnings and
+# returning a constant reads a silent return as a report and a report as
+# silence, so the conditions are observed instead.
+.tied_outcome <- function(d, model = "spfa", aux = "none") {
+  idx <- suppressWarnings(
+    mlumr:::.check_survival_scale_collapse(d, "lognormal", aux_by = aux,
+                                           center = FALSE)
+  )
+  w <- character()
+  tryCatch({
+    withCallingHandlers(
+      mlumr:::.check_comparator_tied_events(
+        d, "lognormal", aux_by = aux, model = model,
+        index_bounds_aux = isTRUE(attr(idx, "bounds_aux")),
+        index_exact = attr(idx, "index_exact") %||% NA,
+        index_design = attr(idx, "index_design"),
+        index_aux_order = attr(idx, "aux_order") %||% 0,
+        index_region = attr(idx, "index_region")
+      ),
+      warning = function(x) {
+        w <<- c(w, conditionMessage(x))
+        invokeRestart("muffleWarning")
+      }
+    )
+    if (any(grepl("polyhedron", w))) {
+      "dimension"
+    } else if (any(grepl("do not simply add", w))) {
+      "overlap"
+    } else if (length(w)) {
+      "reported"
+    } else {
+      "silent"
+    }
+  }, error = function(e) {
+    if (grepl("improper", conditionMessage(e))) "refused" else conditionMessage(e)
+  })
+}
+
+# An index on two binary covariates, one row per `Surv(left, right)` interval,
+# beside a comparator arm on the matching binary integration grid.
+.two_binary <- function(left, right, times, status = rep(1L, length(times)),
+                        x1 = c(0, 1, 0), x2 = c(0, 0, 1)) {
+  ip <- suppressWarnings(set_ipd(
+    data.frame(trt = "A", x1 = x1, x2 = x2),
+    treatment = "trt", covariates = c("x1", "x2"), family = "survival",
+    Surv = survival::Surv(left, right, type = "interval2")
+  ))
+  ag <- set_agd_surv(
+    data.frame(trt = "B", time = times, status = status,
+               x1_mean = 0.5, x2_mean = 0.5),
+    treatment = "trt", time = "time", status = "status",
+    cov_means = c("x1_mean", "x2_mean"), cov_types = c("binary", "binary")
+  )
+  suppressWarnings(add_integration(
+    combine_data(ip, ag), n_int = 16, cor = diag(2), cor_adjust = "none",
+    verbose = FALSE, x1 = distr(qbern, prob = x1_mean),
+    x2 = distr(qbern, prob = x2_mean)
+  ))
+}
+
 test_that("the region and the escape compose on one fit", {
   skip_if_not_installed("survival")
   # Neither repair decides this one alone. The index carries an exact event
@@ -2166,15 +2227,194 @@ test_that("the region and the escape compose on one fit", {
     region <- attr(idx, "index_region")
     expect_identical(region$lower, c(0, 0))
     expect_identical(region$upper, c(0, log(2)))
+    .tied_outcome(d)
+  }
+  # Proper: measured profile `d log L / d log s` runs +2.9, +7.9, +18.7, +38.8
+  # as `s` falls through 0.15 to 0.05.
+  expect_identical(go(4), "silent")
+  # And the control, where the escape is inside the region, stays refused.
+  expect_identical(go(1.5), "refused")
+})
+
+# ---- what the index's censored rows take off the shared rate -------------
+
+.k01_index <- function(drop_left = FALSE) {
+  # An exact event at t = 1 on x = 0, and on x = 1 either a touching pair
+  # (left-censored at t = 1 beside right-censored at t = 1) or the right one
+  # alone. The pair pins `mu_index + beta`; the lone row leaves it an
+  # interval.
+  if (drop_left) {
+    sv <- survival::Surv(c(1, 1), c(1, Inf), type = "interval2")
+    x <- c(0, 1)
+  } else {
+    sv <- survival::Surv(c(1, NA_real_, 1), c(1, 1, Inf), type = "interval2")
+    x <- c(0, 1, 1)
+  }
+  suppressWarnings(set_ipd(
+    data.frame(trt = "A", x = x), treatment = "trt", covariates = "x",
+    family = "survival", Surv = sv
+  ))
+}
+
+test_that("a censored row the event fit does not place still pins a direction", {
+  skip_if_not_installed("survival")
+  ip <- .k01_index()
+  expect_identical(as.integer(ip$data$.status), c(1L, 2L, 0L))
+  X <- cbind(1, c(0, 1, 1))
+  y <- rep(0, 3L)
+  events <- c(TRUE, FALSE, FALSE)
+  # The touching pair sits at a profile the one-row event design does not
+  # place, so whether either of them falls below its own censoring time stays
+  # undetermined. How many directions they PIN is a different question, and
+  # this one is answerable: the profile is independent of the event design
+  # and its region has closed to a point, so it pins one.
+  out <- mlumr:::.censoring_bounds_aux(X, y, events, exact_fit = TRUE,
+                                       lower = c(-Inf, 0), upper = c(0, Inf))
+  expect_identical(as.character(out), "undetermined")
+  expect_identical(attr(out, "order"), 1L)
+  # Drop the left-censored row and the region keeps an interior, so the
+  # remaining row pins nothing and the count is zero rather than unsettled.
+  lone <- mlumr:::.censoring_bounds_aux(cbind(1, c(0, 1)), c(0, 0),
+                                        c(TRUE, FALSE), exact_fit = TRUE,
+                                        lower = 0, upper = Inf)
+  expect_identical(attr(lone, "order"), 0L)
+  # A profile the event design DOES place is answered as before, by its
+  # fitted value, and carries no count at all.
+  placed <- mlumr:::.censoring_bounds_aux(cbind(1, c(0, 0)), c(0, 0),
+                                          c(TRUE, FALSE), exact_fit = TRUE,
+                                          lower = -1, upper = Inf)
+  expect_identical(as.character(placed), "unbounded")
+  expect_null(attr(placed, "order"))
+})
+
+test_that("the index's own order counts its censored rows, not just its events", {
+  skip_if_not_installed("survival")
+  order_of <- function(drop_left) {
+    d <- .binary_grid(.k01_index(drop_left),
+                      .binary_arm(rep(1, 2), rep(1L, 2)))
+    idx <- suppressWarnings(
+      mlumr:::.check_survival_scale_collapse(d, "lognormal", aux_by = "none",
+                                             center = FALSE)
+    )
+    attr(idx, "aux_order")
+  }
+  # Two directions shrink against one density spike, so the index removes a
+  # power of the width rather than none. Reported as zero, a proper fit was
+  # refused: its coefficient-integrated likelihood is `s / (2 pi^(3/2) a h)`
+  # near zero, which cancels two tied comparator events' `1 / s` exactly.
+  expect_identical(order_of(FALSE), 1)
+  # With the touching pair broken the remaining row pins nothing, the index
+  # removes no power, and the tied comparator is improper as before.
+  expect_identical(order_of(TRUE), 0)
+})
+
+test_that("a mixed index cancels a tied comparator it cannot outgrow", {
+  skip_if_not_installed("survival")
+  go <- function(drop_left = FALSE, n_events = 2L, model = "relaxed") {
+    d <- .binary_grid(.k01_index(drop_left),
+                      .binary_arm(rep(1, n_events), rep(1L, n_events)))
+    .tied_outcome(d, model = model)
+  }
+  # One power off a rate of one nets to zero, under either model: the
+  # comparator's own blocks are independent of the index's under `relaxed`,
+  # and under `spfa` the bound holds without factorizing the shared slope.
+  expect_identical(go(), "silent")
+  expect_identical(go(model = "spfa"), "silent")
+  # A third tied comparator event makes the rate two, and one power off that
+  # still leaves one.
+  expect_identical(go(n_events = 3L), "refused")
+  # Breaking the touching pair takes the index's power away entirely.
+  expect_identical(go(drop_left = TRUE), "refused")
+})
+
+# ---- a region that could not be projected is not a region that is empty ---
+
+test_that("the region's reach into a grid's slope directions is exact", {
+  # Three independent index profiles, so the region constrains both slope
+  # directions a two-covariate binary grid spans.
+  region <- list(X = cbind(1, c(0, 1, 0), c(0, 0, 1)),
+                 lower = c(0, log(4), log(32)),
+                 upper = c(0, log(8), log(64)))
+  nodes <- as.matrix(expand.grid(c(0, 1), c(0, 1)))
+  expect_true(mlumr:::.region_slope_reach(region, nodes))
+  # A region whose rows carry no finite end constrains nothing at all.
+  open <- region
+  open$lower <- rep(-Inf, 3L)
+  open$upper <- rep(Inf, 3L)
+  expect_false(mlumr:::.region_slope_reach(open, nodes))
+  # And one whose only constrained row is the intercept says nothing about
+  # any slope: the grid's directions stay free whatever the polyhedron is.
+  flat <- list(X = cbind(1, c(0, 0), c(0, 0)), lower = c(0, -Inf),
+               upper = c(0, Inf))
+  expect_false(mlumr:::.region_slope_reach(flat, nodes))
+  # A grid on one covariate value spans no direction to constrain.
+  one <- nodes[c(1L, 1L), , drop = FALSE]
+  expect_false(mlumr:::.region_slope_reach(region, one))
+  # Rows bounded on one side only restrict no slope, however many directions
+  # they span: raising `mu_index` clears every lower end at any slope, and
+  # lowering it every upper one.
+  above <- list(X = region$X, lower = c(0, log(4), log(32)),
+                upper = rep(Inf, 3L))
+  expect_false(mlumr:::.region_slope_reach(above, nodes))
+  below <- list(X = region$X, lower = rep(-Inf, 3L),
+                upper = c(0, log(4), log(32)))
+  expect_false(mlumr:::.region_slope_reach(below, nodes))
+  # One finite end on the other side is enough to pin a slope between them.
+  above$upper[1L] <- 0
+  expect_true(mlumr:::.region_slope_reach(above, nodes))
+})
+
+test_that("a region too wide to project is reported, not read as absent", {
+  skip_if_not_installed("survival")
+  go <- function(control = FALSE, model = "spfa", aux = "none") {
+    lo <- if (control) 1 else 4
+    hi <- if (control) 4 else 8
+    ip <- suppressWarnings(set_ipd(
+      data.frame(trt = "A", x1 = c(0, 1, 0), x2 = c(0, 0, 1)),
+      treatment = "trt", covariates = c("x1", "x2"), family = "survival",
+      Surv = survival::Surv(c(1, lo, 32), c(1, hi, 64), type = "interval2")
+    ))
+    ag <- set_agd_surv(
+      data.frame(trt = "B", time = c(1, 1, 2), status = rep(1L, 3),
+                 x1_mean = 0.5, x2_mean = 0.5),
+      treatment = "trt", time = "time", status = "status",
+      cov_means = c("x1_mean", "x2_mean"),
+      cov_types = c("binary", "binary")
+    )
+    d <- suppressWarnings(add_integration(
+      combine_data(ip, ag), n_int = 16, cor = diag(2), cor_adjust = "none",
+      verbose = FALSE, x1 = distr(qbern, prob = x1_mean),
+      x2 = distr(qbern, prob = x2_mean)
+    ))
+    idx <- suppressWarnings(
+      mlumr:::.check_survival_scale_collapse(d, "lognormal", aux_by = aux,
+                                             center = FALSE)
+    )
+    w <- character()
     tryCatch({
-      suppressWarnings(mlumr:::.check_comparator_tied_events(
-        d, "lognormal", aux_by = "none", model = "spfa",
-        index_exact = attr(idx, "index_exact") %||% NA,
-        index_design = attr(idx, "index_design"),
-        index_aux_order = attr(idx, "aux_order") %||% 0,
-        index_region = region
-      ))
-      "silent"
+      out <- withCallingHandlers(
+        mlumr:::.check_comparator_tied_events(
+          d, "lognormal", aux_by = aux, model = model,
+          index_bounds_aux = isTRUE(attr(idx, "bounds_aux")),
+          index_exact = attr(idx, "index_exact") %||% NA,
+          index_design = attr(idx, "index_design"),
+          index_aux_order = attr(idx, "aux_order") %||% 0,
+          index_region = attr(idx, "index_region")
+        ),
+        warning = function(x) {
+          w <<- c(w, conditionMessage(x))
+          invokeRestart("muffleWarning")
+        }
+      )
+      if (any(grepl("polyhedron", w))) {
+        "dimension"
+      } else if (length(w)) {
+        "other_warning"
+      } else if (isTRUE(out)) {
+        "reported"
+      } else {
+        "silent"
+      }
     }, error = function(e) {
       if (grepl("improper", conditionMessage(e))) {
         "refused"
@@ -2183,9 +2423,113 @@ test_that("the region and the escape compose on one fit", {
       }
     })
   }
-  # Proper: measured profile `d log L / d log s` runs +2.9, +7.9, +18.7, +38.8
-  # as `s` falls through 0.15 to 0.05.
-  expect_identical(go(4), "silent")
-  # And the control, where the escape is inside the region, stays refused.
-  expect_identical(go(1.5), "refused")
+  # The index needs `beta1` in `[2 log 2, 3 log 2]` and `beta2` in
+  # `[5 log 2, 6 log 2]`, and no difference of binary integration points
+  # equals `log 2`: every nonzero magnitude is at least `2 log 2`, and
+  # `beta2 - beta1` lies in `[2 log 2, 4 log 2]`. The posterior is proper,
+  # and it was being refused because the region's projection onto the slope
+  # is computed only for one declared covariate and `NULL` there was read as
+  # no restriction at all.
+  expect_identical(go(), "dimension")
+  # Widening the first interval to `1 < T <= 4` admits `beta1 = log 2` and
+  # the fit really is improper. This check cannot tell the two apart without
+  # projecting the polyhedron, which it does not do, so it reports both
+  # rather than certifying either. The refusal that was right is given up
+  # with the one that was wrong; that is the cost of not solving it.
+  expect_identical(go(control = TRUE), "dimension")
+  # The region restricts the comparator only where the two share BOTH the
+  # slope and the auxiliary, so neither other configuration is touched.
+  expect_identical(go(model = "relaxed"), "refused")
+  expect_identical(go(aux = ".study"), "refused")
+})
+
+test_that("the index order nets its censored rows against its own spikes", {
+  # An exact fit pins `rank_e` directions against `nrow(Xe)` spikes, so it
+  # removes `rank_e - nrow(Xe)` powers: zero for a saturated design and
+  # NEGATIVE once a profile repeats. The touching count alone is not the
+  # index's order there, and the caller subtracts whatever it is told.
+  order_of <- function(n_events) {
+    x <- c(rep(0, n_events), 1, 1)
+    ev <- c(rep(TRUE, n_events), FALSE, FALSE)
+    out <- mlumr:::.censoring_bounds_aux(
+      cbind(1, x), rep(0, length(x)), ev, exact_fit = TRUE,
+      lower = c(-Inf, 0), upper = c(0, Inf)
+    )
+    attr(out, "order")
+  }
+  # One event, one touching profile: one direction pinned beyond the spike.
+  expect_identical(order_of(1L), 1L)
+  # Two identical events at one profile are two spikes against one pinned
+  # direction, so the touching profile only pays that back: `1 - (2 - 1)`.
+  # Reported as 1, a comparator rate of one netted to zero and a fit whose
+  # marginal still behaves as `1 / s` was passed.
+  expect_identical(order_of(2L), 0L)
+  # And a third spike does not make the order negative. A negative net says
+  # the index ADDS to the comparator's rate, which would strengthen a
+  # refusal rather than weaken one; zero leaves it resting on the
+  # comparator's own rate, which is a lower bound on the truth.
+  expect_identical(order_of(3L), 0L)
+})
+
+test_that("a lone target does not need the region projected", {
+  skip_if_not_installed("survival")
+  go <- function(censor = NULL) {
+    times <- if (is.null(censor)) c(1, 1) else c(1, 1, censor)
+    status <- if (is.null(censor)) c(1L, 1L) else c(1L, 1L, 0L)
+    .tied_outcome(.two_binary(c(1, 4, 32), c(1, 8, 64), times, status))
+  }
+  # One distinct target is absorbed by `mu_comparator` at EVERY slope, so the
+  # events match whatever the region allows and the rate is certified without
+  # projecting it. Reporting there gave up a refusal the projection could
+  # never have overturned.
+  expect_identical(go(), "refused")
+  # A censored row that has to be escaped reopens the question, because the
+  # escape needs a particular slope and the region may exclude it.
+  expect_identical(go(censor = 4), "dimension")
+})
+
+test_that("an index bounded on one side leaves the refusal standing", {
+  skip_if_not_installed("survival")
+  # Right-censored rows at three independent profiles span both slope
+  # directions of a two-covariate binary grid and restrict neither: raising
+  # `mu_index` clears all three at any slope, so the index is a positive
+  # constant and the comparator's `1, 1, 2` diverges at rate 1. Reading the
+  # rows' span as a restriction reported that fit instead of refusing it.
+  expect_identical(
+    .tied_outcome(.two_binary(c(1, 4, 32), rep(Inf, 3L), c(1, 1, 2))),
+    "refused"
+  )
+  expect_identical(
+    .tied_outcome(.two_binary(rep(NA_real_, 3L), c(1, 4, 32), c(1, 1, 2))),
+    "refused"
+  )
+})
+
+test_that("the overlap gate reads the pinned rows, not the netted order", {
+  skip_if_not_installed("survival")
+  # Two repeated events at `(0, 0)` and touching pairs at `(1, 0)` and
+  # `(0, 1)`: three pinned rows covering both slope directions, at a net
+  # order of `2 - (2 - 1) = 1`.
+  build <- function(times) {
+    .two_binary(c(1, 1, NA, 2, NA, 1), c(1, 1, 2, Inf, 1, Inf), times,
+                x1 = c(0, 0, 1, 1, 0, 0), x2 = c(0, 0, 0, 0, 1, 1))
+  }
+  d <- build(c(1, 1, 2))
+  idx <- suppressWarnings(mlumr:::.check_survival_scale_collapse(
+    d, "lognormal", aux_by = "none", center = FALSE
+  ))
+  expect_identical(attr(idx, "aux_order"), 1)
+  expect_identical(mlumr:::.exact_rank(attr(idx, "index_design"))$rank, 3L)
+  # The index pins `beta = (log 2, 0)`, and `1, 1, 2` needs a node difference
+  # at `log 2`, which that slope supplies: the stacked rank is 4 rather than
+  # 5, and five spikes against it leave a joint rate of 1. Subtracting the
+  # net order read that as zero and passed it in silence.
+  expect_identical(.tied_outcome(d), "overlap")
+  # At `1, 1, 8` no node difference reaches `log 8` at that slope, and the fit
+  # is proper. The two differ only in the values the index pins, which this
+  # does not solve for, so both are reported.
+  expect_identical(.tied_outcome(build(c(1, 1, 8))), "overlap")
+  # A single comparator target pins no slope, so nothing overlaps and the net
+  # order comes off exactly.
+  expect_identical(.tied_outcome(build(c(1, 1))), "silent")
 })
