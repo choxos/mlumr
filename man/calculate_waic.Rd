@@ -17,7 +17,8 @@ calculate_waic(
 \code{"observation"} (default), \code{"arm"}, or \code{"aggregate"} (see \code{\link[=calculate_loo]{calculate_loo()}}
 for details). Ignored for non-survival families.}
 
-\item{...}{Additional arguments passed to \code{\link[loo:waic]{loo::waic()}}.}
+\item{...}{Not used. For a log-likelihood matrix \code{\link[loo:waic]{loo::waic()}} reads no
+further arguments, so any given here is refused rather than dropped.}
 }
 \value{
 An object of class \code{waic} (see \code{\link[loo:waic]{loo::waic()}}).

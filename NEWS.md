@@ -991,6 +991,33 @@
   was 57% low on a wide interval whose mass is small because the density falls
   a hundredfold across it.
 
+* **LOO, WAIC, and DIC refuse a saved likelihood that does not cover the
+  data.** `calculate_dic()`, `calculate_loo()`, `calculate_waic()`, and
+  `compare_models()` scored whichever `log_lik_ipd` and `log_lik_agd` columns
+  a fit's draws held, and stopped only when both were absent. A fit sampled
+  with rstan's `pars` and `include = FALSE` passed through the `...` of
+  `mlumr()`, or a fit object that lost columns afterwards, was therefore
+  scored on part of its data with nothing said: dropping `log_lik_agd` left
+  the index observations alone, dropping `log_lik_ipd` left the comparator
+  alone, and two fits missing the same block were compared, and could be
+  ranked the other way, on what remained. Each block is now checked against
+  the observations the fit was built from, one column per index observation
+  and one per aggregate row, or per reconstructed pseudo-individual for
+  survival, by index rather than by count, so a missing, repeated, or
+  misnumbered column is refused too. A fit that does not record those counts
+  is refused with a request to refit. A complete fit scores exactly as
+  before.
+
+* **`calculate_loo()` no longer recommends `moment_match = TRUE`, and
+  refuses it.** Its documentation suggested the flag for high Pareto k, but
+  `loo` ignores it for a log-likelihood matrix, which is what
+  `calculate_loo()` passes, so the estimate came back unchanged. Moment
+  matching needs the fitted model and is not available through this
+  function. Further arguments are now limited to the ones the matrix method
+  reads (`save_psis`, `cores`, `is_method`), and anything else, a misspelling
+  included, is refused rather than dropped. `calculate_waic()` refuses any
+  further argument, since `loo` reads none for a matrix there.
+
 * **`compare_models()` no longer reads a standard error as a threshold, and
   refuses fits built on different observations.** The LOO/WAIC printout said
   that `se_diff > 2` is the conventional threshold for a meaningful difference.

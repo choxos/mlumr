@@ -34,7 +34,8 @@ make_mock_fit <- function(model = "spfa", n_draws = 100,
     summary = summary_df,
     model = model,
     diagnostics = list(n_divergent = 0, n_max_treedepth = 0),
-    sampling_args = list(adapt_delta = 0.95, max_treedepth = 15, chains = 4)
+    sampling_args = list(adapt_delta = 0.95, max_treedepth = 15, chains = 4),
+    stan_data = list(n_ipd = n_ipd, n_agd_rows = n_agd)
   )
   class(out) <- c("mlumr_fit", "list")
   out
