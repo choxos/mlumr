@@ -35,6 +35,14 @@ or
 [`calculate_waic()`](https://choxos.github.io/mlumr/reference/calculate_waic.md)
 (Vehtari, Gelman, Gabry 2017).
 
+The saved pointwise log-likelihood has to cover every observation the
+model was fitted to. A fit missing any of those columns, as rstan's
+`pars` with `include = FALSE` can leave one, is refused rather than
+scored on part of its data, and the same holds for
+[`calculate_loo()`](https://choxos.github.io/mlumr/reference/calculate_loo.md)
+and
+[`calculate_waic()`](https://choxos.github.io/mlumr/reference/calculate_waic.md).
+
 ## Examples
 
 ``` r

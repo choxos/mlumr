@@ -31,10 +31,12 @@ calculate_loo(
 
 - ...:
 
-  Additional arguments passed to
-  [`loo::loo()`](https://mc-stan.org/loo/reference/loo.html) (the
-  `log_lik` matrix dispatches to
-  [`loo::loo.matrix()`](https://mc-stan.org/loo/reference/loo.html)).
+  Further arguments for the matrix method of
+  [`loo::loo()`](https://mc-stan.org/loo/reference/loo.html), as the
+  installed `loo` defines it: `save_psis`, `cores`, and `is_method` in
+  current releases. Anything else is refused rather than dropped,
+  `moment_match` included (see Details); `r_eff` is computed from the
+  fit's chains.
 
 ## Value
 
@@ -45,9 +47,14 @@ An object of class `psis_loo` (see
 
 Pareto-k diagnostics: values \> 0.7 indicate observations for which the
 PSIS approximation is unreliable; the printed output flags these.
-Typical remedies are running more iterations, using
-`moment_match = TRUE`, or (for highly influential AgD rows) refitting
-without the offending observation to check sensitivity.
+Typical remedies are running more iterations or, for highly influential
+AgD rows, refitting without the offending observation to check
+sensitivity. Moment matching
+([`loo::loo_moment_match()`](https://mc-stan.org/loo/reference/loo_moment_match.html))
+is not available here: it needs the fitted model rather than the saved
+pointwise log-likelihood, and `loo` ignores `moment_match` for a matrix,
+so `calculate_loo()` refuses the argument instead of returning the
+unchanged estimate.
 
 ## Note
 

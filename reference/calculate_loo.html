@@ -92,8 +92,11 @@ per-individual. Ignored for non-survival families.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>Additional arguments passed to <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo::loo()</a></code> (the <code>log_lik</code> matrix
-dispatches to <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo::loo.matrix()</a></code>).</p></dd>
+<dd><p>Further arguments for the matrix method of <code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo::loo()</a></code>, as the
+installed <code>loo</code> defines it: <code>save_psis</code>, <code>cores</code>, and <code>is_method</code> in
+current releases. Anything else is refused rather than dropped,
+<code>moment_match</code> included (see Details); <code>r_eff</code> is computed from the fit's
+chains.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -104,9 +107,13 @@ dispatches to <code><a href="https://mc-stan.org/loo/reference/loo.html" class="
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>Pareto-k diagnostics: values &gt; 0.7 indicate observations for which the
 PSIS approximation is unreliable; the printed output flags these.
-Typical remedies are running more iterations, using <code>moment_match = TRUE</code>,
-or (for highly influential AgD rows) refitting without the offending
-observation to check sensitivity.</p>
+Typical remedies are running more iterations or, for highly influential
+AgD rows, refitting without the offending observation to check
+sensitivity. Moment matching (<code><a href="https://mc-stan.org/loo/reference/loo_moment_match.html" class="external-link">loo::loo_moment_match()</a></code>) is not available
+here: it needs the fitted model rather than the saved pointwise
+log-likelihood, and <code>loo</code> ignores <code>moment_match</code> for a matrix, so
+<code>calculate_loo()</code> refuses the argument instead of returning the unchanged
+estimate.</p>
     </div>
     <div class="section level2">
     <h2 id="note">Note<a class="anchor" aria-label="anchor" href="#note"></a></h2>

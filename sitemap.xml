@@ -55,6 +55,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_agd_loglik_per_observation.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_basis_support.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_cmdstan_output.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-assert_log_lik_complete.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_same_observations.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_shared_basis_identified.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-attach_integration_points.html</loc></url>
@@ -137,6 +138,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-log_link_response_ratio.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-logitnorm_pars.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-logspace_add.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-loo_matrix_reads.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-marginal_effects_survival.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-marginal_effects_target.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-marginal_effects_target_survival.html</loc></url>
@@ -194,6 +196,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-r_log_haz.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-r_log_surv.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-realized_matches_declared.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-refuse_ignored_loo_arguments.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-region_slope_reach.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-reject_ambiguous_series.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-reject_factor_time.html</loc></url>

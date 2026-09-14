@@ -31,8 +31,10 @@ calculate_waic(
 
 - ...:
 
-  Additional arguments passed to
-  [`loo::waic()`](https://mc-stan.org/loo/reference/waic.html).
+  Further arguments for the matrix method of
+  [`loo::waic()`](https://mc-stan.org/loo/reference/waic.html), as the
+  installed `loo` defines it. Current releases read none, so any given
+  here is refused rather than dropped.
 
 ## Value
 
