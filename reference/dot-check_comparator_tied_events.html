@@ -76,7 +76,8 @@ different geometry, and a worse one, which is this function's.</p>
 <span>  index_exact <span class="op">=</span> <span class="cn">NA</span>,</span>
 <span>  index_design <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  index_aux_order <span class="op">=</span> <span class="fl">0</span>,</span>
-<span>  index_region <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  index_region <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  fitted_points <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -148,6 +149,13 @@ where the two share the slope AND the auxiliary; see
 <code><a href="dot-index_slope_admits.html">.index_slope_admits()</a></code> for one candidate slope and
 <code><a href="dot-slope_escape_feasible.html">.slope_escape_feasible()</a></code> for whether an admitted one also escapes a
 comparator censoring threshold.</p></dd>
+
+
+<dt id="arg-fitted-points">fitted_points<a class="anchor" aria-label="anchor" href="#arg-fitted-points"></a></dt>
+<dd><p>The integration grid the model actually fits, in the
+layout of <code>data$integration_points</code>: <code>stan_data$X_int</code> once the
+covariates are centered. <code>NULL</code>, or a grid identical to the declared one,
+checks the declared grid alone; see "The grid the model fits".</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -501,6 +509,29 @@ outright.</p>
 ridges, whose width does not shrink and whose growth meets the coefficient
 priors rather than <code>prior_aux</code>, and any allocation of lower rank than the
 canonical one under more than one covariate.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="the-grid-the-model-fits">The grid the model fits<a class="anchor" aria-label="anchor" href="#the-grid-the-model-fits"></a></h2>
+    <p><code><a href="mlumr.html">mlumr()</a></code> centers the covariates by default, and the grid Stan receives is
+then <code>sweep(integration_points, 3, center)</code>, a floating-point subtraction.
+At a large enough offset between the populations, or on a very small grid,
+that subtraction can merge integration points or move them by a rounding
+error that makes or breaks an exact match, so a verdict read off the grid
+as declared can describe a model that is never fitted. Nor is the declared
+grid's verdict self-consistent there: the index geometry arrives from
+<code><a href="dot-check_survival_scale_collapse.html">.check_survival_scale_collapse()</a></code> in centered coordinates, while the node
+differences come from the declared grid.</p>
+<p>Given <code>fitted_points</code>, the whole check therefore runs twice, on the
+declared grid and on the fitted one, and the two OUTCOMES are compared
+rather than two match flags: which slope the index admits, whether a
+censored row can be escaped, and how the index's order nets off all depend
+on the grid, and two grids that both carry a match can still disagree
+about the first. When both refuse, the declared grid's refusal stands.
+When exactly one refuses, the fit is refused as a numerical representation
+problem, which states nothing about the posterior. When neither refuses,
+the declared grid's warnings are kept, or the fitted grid's when the
+declared one has none. The rotation that <code>qr = TRUE</code> applies afterwards is a
+further floating-point step, and this does not examine it.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

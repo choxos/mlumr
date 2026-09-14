@@ -302,6 +302,21 @@
   at every `n_int` and on every arm, and it is documented in the guard’s
   scope rather than warned about on every multi-covariate fit.
 
+  The check reads the grid the model fits.
+  [`mlumr()`](https://choxos.github.io/mlumr/reference/mlumr.md) centers
+  the covariates by default, and the centered grid is a floating-point
+  subtraction from the declared one: at a large enough offset between
+  the populations, or on a very small grid, it can merge integration
+  points or move them by a rounding error that makes or breaks an exact
+  match. The whole check therefore runs on both grids and compares the
+  two outcomes, not only whether each carries a match, since two grids
+  that both carry one can still disagree about whether the index admits
+  its slope. When exactly one of them refuses, the fit is refused as a
+  numerical representation problem, with no claim about the posterior,
+  and the message suggests re-expressing the covariates near a common
+  origin or fitting with `center = FALSE`. The rotation that `qr = TRUE`
+  applies afterwards is not examined.
+
   The exponent used is `m - min(k, reach)`, which is exact for one
   covariate and a lower bound for more than one. `min(k, reach)` bounds
   the canonical allocation’s rank, and a consistent allocation of lower
