@@ -4619,6 +4619,11 @@
 #'   invariant to that transformation, so `center = TRUE` and `FALSE` can imply
 #'   different joint priors even when their likelihoods represent the same
 #'   regression model. Set `FALSE` to fit on the raw covariate scale.
+#'   Centering is a floating-point subtraction: when the populations sit far
+#'   from a common origin relative to the spread of the integration points,
+#'   two points can round to one, and a fit whose centered grid has fewer
+#'   distinct points than the declared one is refused rather than sampled on
+#'   a distribution other than the one declared.
 #' @param qr Logical (default `FALSE`). Apply a thin-QR
 #'   reparameterization to the combined (intercepts + covariates) design matrix.
 #'   This decorrelates the design columns for more efficient HMC. The Stan model
@@ -5152,6 +5157,11 @@ mlumr <- function(data,
     qr = qr
   )
   stan_data <- prepared$stan_data
+  # Centering can round two declared integration points onto one, and a grid
+  # that lost nodes is not the declared distribution whatever the guards
+  # below make of it, so that is asked first, for every family.
+  .check_grid_nodes_kept(data$integration_points, stan_data$X_int,
+                         covariates = data$covariates)
   # The exact-fit guard judges the design the model fits, so it runs once
   # the covariates carry the model's own centers (zeros when it does not
   # center). Still before any backend is chosen or a model compiled.
@@ -5573,6 +5583,70 @@ mlumr <- function(data,
     return(fallback)
   }
   w
+}
+
+
+#' Refuse a centered integration grid that merged declared nodes
+#'
+#' `mlumr()` centers the covariates by default, and every integration point
+#' has the pooled covariate mean subtracted in floating point. Two distinct
+#' doubles stay distinct under that subtraction unless the rounding unit of
+#' the result exceeds their difference, which takes a mean far larger than
+#' the spread of the points about it; at such an offset two declared nodes
+#' round to one centered value. The grid the sampler then receives has fewer
+#' nodes than `add_integration()` drew, with the weight of the lost node on
+#' its neighbor, and so represents a covariate distribution the caller did
+#' not declare. The guards that follow judge that grid, and the comparator
+#' check refuses when it and the declared grid give different verdicts, but a
+#' grid that lost nodes without changing any verdict reached the sampler as
+#' though it were the declared one.
+#'
+#' The check counts the distinct values of each covariate on each aggregate
+#' row, before and after centering, and refuses when the centered grid has
+#' fewer. The count is exact to compare, so this is not a tolerance, and an
+#' ordinary rounded subtraction that moves every node by its own rounding
+#' error is not refused: those nodes stay distinct. Whether such a move makes
+#' or breaks an exact match is the comparator check's question. What is not
+#' examined here is the rank of a multi-covariate grid, since a floating-point
+#' rank is not exact, and the IPD design, whose values the identification
+#' guards read in the model's own coordinates.
+#' @param declared The integration grid as `add_integration()` stored it,
+#'   `[n_agd_rows, n_int, n_cov]`.
+#' @param fitted The grid the sampler receives, centered as the model centers
+#'   it, with the same dimensions.
+#' @param covariates The covariate names, in the grid's order.
+#' @return `TRUE` invisibly; stops otherwise.
+#' @keywords internal
+.check_grid_nodes_kept <- function(declared, fitted, covariates = NULL) {
+  if (is.null(declared) || is.null(fitted)) return(invisible(TRUE))
+  d <- dim(fitted)
+  if (length(d) != 3L || any(d == 0L) || !identical(dim(declared), d)) {
+    return(invisible(TRUE))
+  }
+  for (k in seq_len(d[1L])) {
+    for (j in seq_len(d[3L])) {
+      before <- length(unique(declared[k, , j]))
+      after <- length(unique(fitted[k, , j]))
+      if (after >= before) next
+      name <- if (length(covariates) >= j) paste0("`", covariates[[j]], "`") else paste("covariate", j)
+      stop(errorCondition(paste0(
+        "Centering the covariates merged integration points: on aggregate row ",
+        k, ", ", name, " has ", before, " distinct values on the integration ",
+        "grid as declared and ", after, " on the centered grid the model fits. ",
+        "Centering subtracts the pooled covariate mean from every integration ",
+        "point in floating point, and at this offset between the populations ",
+        "the rounding in that subtraction maps two declared nodes onto one, so ",
+        "the grid the sampler would integrate over represents a covariate ",
+        "distribution other than the one declared. That is a numerical ",
+        "representation problem rather than a property of the data, and the fit ",
+        "is refused rather than sampled. Re-express the covariates so that both ",
+        "populations lie near a common origin at a moderate scale, for example ",
+        "by subtracting a round value close to their mean before `set_ipd()` ",
+        "and `set_agd()` or `set_agd_surv()`, or fit with `center = FALSE`."
+      ), class = "mlumr_grid_representation", call = NULL))
+    }
+  }
+  invisible(TRUE)
 }
 
 
