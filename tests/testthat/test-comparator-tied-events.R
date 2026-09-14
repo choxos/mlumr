@@ -2679,7 +2679,9 @@ test_that("two grids that both carry a match can disagree about the slope", {
   expect_no_match(conditionMessage(e), "improper")
 })
 
-test_that("a match the centered grid keeps only within rounding is not sampled", {
+# Four Gaussian integration points and three comparator events at 1, 2, 4:
+# the symmetric quartiles carry the times exactly, and the pooled center is 0.5.
+.gaussian_four <- function() {
   ip <- suppressWarnings(set_ipd(
     data.frame(trt = "A", x = c(0.5, 0.75, 1, 1.25), time = c(1, 1, 2, 4),
                status = 1L),
@@ -2692,10 +2694,14 @@ test_that("a match the centered grid keeps only within rounding is not sampled",
     treatment = "trt", time = "time", status = "status",
     cov_means = "x_mean", cov_sds = "x_sd", cov_types = "continuous"
   )
-  d <- suppressWarnings(add_integration(combine_data(ip, ag), n_int = 4,
-                                        verbose = FALSE,
-                                        x = distr(stats::qnorm, mean = x_mean,
-                                                  sd = x_sd)))
+  suppressWarnings(add_integration(combine_data(ip, ag), n_int = 4,
+                                   verbose = FALSE,
+                                   x = distr(stats::qnorm, mean = x_mean,
+                                             sd = x_sd)))
+}
+
+test_that("a match the centered grid keeps only within rounding is not sampled", {
+  d <- .gaussian_four()
   fit <- .fitted_grid(d)
   expect_identical(fit$center, 0.5)
   tg <- log(c(1, 2, 4))
@@ -2753,4 +2759,67 @@ test_that("a fitted grid identical to the declared one is checked once", {
   d <- .uniform_stub(c(1, 2, 4))
   expect_identical(msg(d, fitted_points = d$integration_points), msg(d))
   expect_match(msg(d, fitted_points = d$integration_points), "improper")
+})
+
+test_that("the two-grid check keeps one set of warnings and no more", {
+  skip_if_not_installed("survival")
+  # Warnings and refusals kept or dropped, with the declared and the centered
+  # grid each given the role the other played.
+  signals <- function(x, ...) {
+    w <- character()
+    value <- tryCatch(
+      withCallingHandlers(check(x, ...), warning = function(cond) {
+        w <<- c(w, conditionMessage(cond))
+        invokeRestart("muffleWarning")
+      }),
+      error = function(err) err
+    )
+    list(value = value, warnings = w)
+  }
+  d <- .gaussian_four()
+  fit <- .fitted_grid(d)
+  # The centered grid alone warns: its match holds only within rounding.
+  within <- d
+  within$integration_points <- fit$points
+  alone <- signals(within)
+  expect_length(alone$warnings, 1L)
+  expect_match(alone$warnings, "within rounding")
+  # A grid no affine map carries, since no three of its nodes are equally
+  # spaced, is silent.
+  silent <- d
+  silent$integration_points[1L, , 1L] <- c(0, 1, 5, 17)
+  expect_length(signals(silent)$warnings, 0L)
+  # Only the fitted grid warns: its warning is kept.
+  only_fitted <- signals(silent, fitted_points = fit$points)
+  expect_identical(only_fitted$warnings, alone$warnings)
+  expect_true(only_fitted$value)
+  # Only the declared grid warns: its warning is kept.
+  only_declared <- signals(within, fitted_points = silent$integration_points)
+  expect_identical(only_declared$warnings, alone$warnings)
+  expect_true(only_declared$value)
+  # One grid refusing while the other warns is a representation refusal, and
+  # the other grid's warning is not emitted beside it.
+  split <- signals(d, fitted_points = fit$points)
+  expect_s3_class(split$value, "mlumr_comparator_representation")
+  expect_length(split$warnings, 0L)
+  # Both warning: the warning appears once, not once per grid. A binary grid
+  # moved by an exact half keeps every node difference, so both grids warn
+  # alike.
+  b <- .two_binary(c(1, 1, NA, 2, NA, 1), c(1, 1, 2, Inf, 1, Inf), c(1, 1, 2),
+                   x1 = c(0, 0, 1, 1, 0, 0), x2 = c(0, 0, 0, 0, 1, 1))
+  idx <- suppressWarnings(mlumr:::.check_survival_scale_collapse(
+    b, "lognormal", aux_by = "none", center = FALSE
+  ))
+  shared <- function(...) {
+    signals(b, aux_by = "none", model = "spfa",
+            index_bounds_aux = isTRUE(attr(idx, "bounds_aux")),
+            index_exact = attr(idx, "index_exact") %||% NA,
+            index_design = attr(idx, "index_design"),
+            index_aux_order = attr(idx, "aux_order") %||% 0,
+            index_region = attr(idx, "index_region"), ...)
+  }
+  one <- shared()
+  expect_length(one$warnings, 1L)
+  both <- shared(fitted_points = b$integration_points - 0.5)
+  expect_identical(both$warnings, one$warnings)
 })
