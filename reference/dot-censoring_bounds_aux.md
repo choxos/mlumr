@@ -61,15 +61,21 @@ the log-normal survival `1 - Phi((log c - eta) / sigma)` goes to zero as
 
 ## Value
 
-`"bounded"`, `"suppresses"`, `"unbounded"`, or `"undetermined"`.
-`"bounded"` means the auxiliary is held away from its boundary, which is
-an exponential suppression and removes any polynomial growth elsewhere.
-`"suppresses"` means it is not, but the coefficient volume that keeps
-the rows' likelihood positive shrinks as the auxiliary's width to the
-power of the `order` attribute, so it cancels that many powers of a
-growth that shares the auxiliary. `"unbounded"` means the contribution
-is a positive constant, and `"undetermined"` that none of the three was
-established.
+`"bounded"`, `"suppresses"`, `"unbounded"`, or `"undetermined"`. An
+`"undetermined"` reached past an exact event design carries `order` and
+`design` when the rows it could not place sit at profiles independent of
+one another and of that design: how many coefficient directions they
+pin, and which profiles those are. That is a different question from the
+verdict, which stays undetermined because whether one of them falls
+below its own censoring time is still not decided, and the caller needs
+both. Absent where the count is not readable. `"bounded"` means the
+auxiliary is held away from its boundary, which is an exponential
+suppression and removes any polynomial growth elsewhere. `"suppresses"`
+means it is not, but the coefficient volume that keeps the rows'
+likelihood positive shrinks as the auxiliary's width to the power of the
+`order` attribute, so it cancels that many powers of a growth that
+shares the auxiliary. `"unbounded"` means the contribution is a positive
+constant, and `"undetermined"` that none of the three was established.
 
 ## Details
 

@@ -131,6 +131,13 @@ types were admitted.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p><code>"bounded"</code>, <code>"suppresses"</code>, <code>"unbounded"</code>, or <code>"undetermined"</code>.
+An <code>"undetermined"</code> reached past an exact event design carries <code>order</code>
+and <code>design</code> when the rows it could not place sit at profiles
+independent of one another and of that design: how many coefficient
+directions they pin, and which profiles those are. That is a different
+question from the verdict, which stays undetermined because whether one
+of them falls below its own censoring time is still not decided, and
+the caller needs both. Absent where the count is not readable.
 <code>"bounded"</code> means the auxiliary is held away from its boundary, which is
 an exponential suppression and removes any polynomial growth elsewhere.
 <code>"suppresses"</code> means it is not, but the coefficient volume that keeps

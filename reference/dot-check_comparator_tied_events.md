@@ -46,17 +46,19 @@ which is this function's.
 
 - index_design:
 
-  The index EVENT design, as
+  The design of the rows the index PINS, as
   [`.check_survival_scale_collapse()`](https://choxos.github.io/mlumr/reference/dot-check_survival_scale_collapse.md)
-  reports in its `index_design` attribute, or `NULL` where it did not
-  establish an exact fit. Reproducing its own times is not the same as
-  identifying the shared `beta`: repeated index events at one covariate
-  profile at one time fit exactly and leave `beta` free, and a free
-  `beta` is the direction the comparator tilts along to lift an
-  integration point past a censoring time. What has to be identified is
-  only the slope directions THIS arm's grid spans, which is why the
-  design arrives whole rather than as a verdict. Consulted only under
-  `model = "spfa"` with `aux_by = "none"`.
+  reports in its `index_design` attribute: its exact event rows, and any
+  censored profile whose region has closed to a point, which pins its
+  direction just as an event does. `NULL` where it did not establish an
+  exact fit. Reproducing its own times is not the same as identifying
+  the shared `beta`: repeated index events at one covariate profile at
+  one time fit exactly and leave `beta` free, and a free `beta` is the
+  direction the comparator tilts along to lift an integration point past
+  a censoring time. What has to be identified is only the slope
+  directions THIS arm's grid spans, which is why the design arrives
+  whole rather than as a verdict. Consulted only under `model = "spfa"`
+  with `aux_by = "none"`.
 
 - index_aux_order:
 
@@ -78,13 +80,16 @@ which is this function's.
   [`.check_survival_scale_collapse()`](https://choxos.github.io/mlumr/reference/dot-check_survival_scale_collapse.md)
   reports in its `index_region` attribute. Every row is in it: a
   censored row through the interval its censoring puts it in, an EVENT
-  row through the single point its own time puts it at. Censored rows on
-  their own restrict no slope, since moving `mu_index` satisfies a lone
-  inequality, so building the region without the event rows is the same
-  as not having one. An order of zero says these rows remove no power of
-  the auxiliary's width; it does not say they leave the slope free, and
-  treating it as though it did refused fits whose index and comparator
-  cannot reach the boundary together. Consulted only under
+  row through the single point its own time puts it at. A SINGLE
+  one-sided censored row restricts no slope, since moving `mu_index`
+  satisfies one inequality, and nor do any number bounded on the same
+  side; SIMULTANEOUS censored rows bounded on opposite sides can
+  restrict it, and an event row's equality restricts it further, so
+  building the region without the event rows loses restrictions the
+  whole index carries. An order of zero says these rows remove no power
+  of the auxiliary's width; it does not say they leave the slope free,
+  and treating it as though it did refused fits whose index and
+  comparator cannot reach the boundary together. Consulted only under
   `model = "spfa"` with `aux_by = "none"`, where the two share the slope
   AND the auxiliary; see
   [`.index_slope_admits()`](https://choxos.github.io/mlumr/reference/dot-index_slope_admits.md)
