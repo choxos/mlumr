@@ -542,6 +542,96 @@ test_that("a DIC object carries its observations into the check", {
                "not built on the same observations")
 })
 
+# The way `calculate_dic()` scored a fit before the completeness check: over
+# whichever index columns it held, recording how many that was. What such an
+# object looks like when it is loaded after the fix.
+legacy_dic <- function(fit) {
+  ll <- as.matrix(fit$draws[, grep("^log_lik_ipd\\[", names(fit$draws))])
+  D <- -2 * rowSums(ll)
+  structure(list(DIC = mean(D) + 0.5 * var(D), pD = 0.5 * var(D), D_bar = mean(D),
+                 n_obs = ncol(ll), model = fit$model,
+                 observations = .observation_frames(fit)),
+            class = "mlumr_dic")
+}
+
+test_that("a cached DIC computed over part of its data is refused", {
+  # `compare_models()` uses a supplied `mlumr_dic` as it is, so the check on
+  # the draws never sees it, and two objects that are partial alike agree on
+  # `n_obs`. The object carries the observations, and the count is checked
+  # against them.
+  y <- rep(c(0L, 1L), 6L)
+  fit1 <- with_data(make_ll_fit("spfa", seed = 2026), y)
+  fit2 <- with_data(make_ll_fit("relaxed", seed = 2026), y)
+  bad1 <- legacy_dic(fit1)
+  bad2 <- legacy_dic(fit2)
+  expect_identical(bad1$n_obs, 12L)
+  expect_error(compare_models(bad1, bad2), "computed over 12 pointwise values")
+  expect_error(compare_models(bad1, bad2),
+               "16 observations \\(12 index observations and 4 aggregate rows\\)")
+  expect_error(compare_models(bad1, bad2), "Recompute it with `calculate_dic\\(\\)`")
+  # One partial cached score beside a complete fit is refused too, rather
+  # than ranked under the unequal-count warning.
+  expect_error(compare_models(bad1, fit2), "computed over 12 pointwise values")
+  # A saved object is the same object when it is loaded again.
+  f <- withr::local_tempfile(fileext = ".rds")
+  saveRDS(list(bad1, bad2), f)
+  restored <- readRDS(f)
+  expect_error(compare_models(restored[[1L]], restored[[2L]]),
+               "computed over 12 pointwise values")
+})
+
+test_that("a cached DIC that covers its data is compared as before", {
+  y <- rep(c(0L, 1L), 6L)
+  fit1 <- with_data(make_ll_fit("spfa", seed = 2026), y)
+  fit2 <- with_data(make_ll_fit("relaxed", seed = 2026), y)
+  dic1 <- calculate_dic(fit1)
+  dic2 <- calculate_dic(fit2)
+  expect_identical(dic1$n_obs, 16L)
+  out <- NULL
+  expect_no_message(capture.output(out <- compare_models(a = dic1, b = dic2)))
+  expect_setequal(out$Model, c("a", "b"))
+  expect_equal(out$DIC[out$Model == "a"], round(dic1$DIC, 2))
+  # An object from before `n_obs` and the observations were recorded cannot
+  # be checked, and is compared with that said, as it was.
+  old <- structure(list(DIC = dic1$DIC, pD = dic1$pD, D_bar = dic1$D_bar,
+                        model = dic1$model),
+                   class = "mlumr_dic")
+  expect_message(capture.output(compare_models(old, dic2)), "Could not verify")
+  expect_no_error(suppressMessages(capture.output(compare_models(old, dic2))))
+})
+
+test_that("a survival DIC is counted against the pseudo-individuals", {
+  # A survival comparator's pointwise units are the reconstructed
+  # pseudo-individuals, one per row of `pseudo`, and not the aggregate rows
+  # that carry its covariate summaries. Here one aggregate row stands for
+  # four pseudo-individuals, so a count against the rows would refuse a
+  # complete object.
+  y <- rep(c(0L, 1L), 6L)
+  surv <- function(model) {
+    fit <- with_data(make_ll_fit(model, seed = 2026), y)
+    fit$family <- "survival"
+    fit$stan_data <- list(n_ipd = 12L, n_agd = 4L)
+    fit$data$agd$data <- data.frame(.study = "B", .trt = "z", .arm = "B",
+                                    age_mean = 50, age_sd = 8)
+    fit$data$agd$pseudo_ipd <- data.frame(.study = "B", .trt = "z", .arm = "B",
+                                          .time = c(3, 5, 8, 9),
+                                          .status = c(1L, 0L, 1L, 1L),
+                                          .source_key = paste0(strrep("0", 32L), ":", 1:4))
+    fit
+  }
+  fit1 <- surv("spfa")
+  fit2 <- surv("relaxed")
+  dic1 <- calculate_dic(fit1)
+  dic2 <- calculate_dic(fit2)
+  expect_identical(dic1$n_obs, 16L)
+  expect_identical(nrow(dic1$observations$agd), 1L)
+  expect_identical(nrow(dic1$observations$pseudo), 4L)
+  expect_no_error(capture.output(compare_models(dic1, dic2)))
+  bad <- legacy_dic(fit1)
+  expect_error(compare_models(bad, dic2),
+               "12 index observations and 4 reconstructed comparator pseudo-individuals")
+})
+
 test_that("compare_models says when it cannot verify the observations", {
   skip_if_not_installed("loo")
   fit1 <- make_ll_fit("spfa", seed = 2026)

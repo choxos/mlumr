@@ -1019,7 +1019,11 @@
   survival, by index rather than by count, so a missing, repeated, or
   misnumbered column is refused too. A fit that does not record those counts
   is refused with a request to refit. A complete fit scores exactly as
-  before.
+  before. A `mlumr_dic` object handed to `compare_models()` is checked the
+  same way against the observations it carries, since a saved score outlives
+  the fix: one computed over part of a fit's data is refused rather than
+  ranked, and one from a version before the counts were recorded is compared
+  as before, with the message that it could not be checked.
 
 * **`calculate_loo()` no longer recommends `moment_match = TRUE`, and
   refuses it.** Its documentation suggested the flag for high Pareto k, but
