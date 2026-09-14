@@ -531,6 +531,54 @@ extract_log_lik <- function(object) {
 }
 
 
+#' Refuse a cached DIC that does not cover the observations it carries
+#'
+#' [compare_models()] accepts `mlumr_dic` objects beside fits and uses their
+#' numbers as they are, so [.assert_log_lik_complete()] never sees the draws
+#' they were computed from. [calculate_dic()] used to score whatever
+#' `log_lik_ipd` and `log_lik_agd` columns a fit held, and an object it made
+#' then records in `n_obs` how many columns that was, beside the frames of the
+#' observations the fit was built from. A saved object outlives the fix, since
+#' loading it is not recomputing it, and the check between objects that their
+#' `n_obs` agree does not see two that are partial alike.
+#'
+#' The pointwise units are fixed by the data the object carries: one per index
+#' row, and one per aggregate row, or per reconstructed comparator
+#' pseudo-individual under survival, where the `pseudo` frame is present. An
+#' `n_obs` that differs from that count was computed over part of the data, or
+#' over columns that were not the fit's, and is refused: the omitted terms'
+#' covariance with the kept ones enters the variance penalty, so the score
+#' cannot be completed from its value. A count that agrees is consistent with
+#' a complete score rather than proof of one, since columns misnumbered within
+#' the right count leave no trace in a scalar. An object without `n_obs` or
+#' without its observations, from a version before either was recorded,
+#' cannot be checked and is compared as before, with the message that
+#' [.assert_same_observations()] gives for a model carrying no data.
+#' @param dic An `mlumr_dic` object.
+#' @return `TRUE` invisibly; stops otherwise.
+#' @keywords internal
+.assert_dic_covers_observations <- function(dic) {
+  obs <- dic$observations
+  n_obs <- dic$n_obs
+  if (is.null(obs) || is.null(n_obs)) return(invisible(TRUE))
+  rows <- function(df) if (is.null(df)) 0L else nrow(df)
+  survival <- !is.null(obs$pseudo)
+  n_ipd <- rows(obs$ipd)
+  n_agd <- if (survival) rows(obs$pseudo) else rows(obs$agd)
+  if (isTRUE(n_obs == n_ipd + n_agd)) return(invisible(TRUE))
+  plural <- function(n, one) paste0(n, " ", one, if (n == 1) "" else "s")
+  unit <- if (survival) "reconstructed comparator pseudo-individual" else "aggregate row"
+  stop("The DIC for `", dic$model %||% "this model", "` was computed over ",
+       plural(n_obs, "pointwise value"), ", but the data it carries has ",
+       n_ipd + n_agd, " observations (", plural(n_ipd, "index observation"),
+       " and ", plural(n_agd, unit), "). It was scored over part of that data, ",
+       "as `calculate_dic()` did when a fit had not saved every `log_lik_ipd` ",
+       "and `log_lik_agd` element, and a DIC cannot be completed from its ",
+       "value. Recompute it with `calculate_dic()` from a fit that saved them all.",
+       call. = FALSE)
+}
+
+
 #' Calculate DIC for model comparison
 #'
 #' Computes the Deviance Information Criterion using the variance-based
@@ -551,7 +599,8 @@ extract_log_lik <- function(object) {
 #' @return A list of class `mlumr_dic` with components `DIC`, `pD`, `D_bar`,
 #'   `n_obs`, `model`, and `observations`, the fit's observation frames as
 #'   kept for [compare_models()], so a DIC object can still be checked against
-#'   the fits it is compared with.
+#'   the fits it is compared with, and its `n_obs` against the observations it
+#'   carries.
 #' @export
 #'
 #' @examples
@@ -890,7 +939,11 @@ calculate_waic <- function(object,
 #' requires the optional `loo` package.
 #'
 #' @param ... Two or more `mlumr_fit` objects. For DIC, `mlumr_dic`
-#'   objects are also accepted.
+#'   objects are also accepted. One whose `n_obs` does not cover the
+#'   observations it carries, as an object computed by an earlier version over
+#'   part of a fit's saved likelihood does, is refused rather than ranked; one
+#'   from before those were recorded is compared as before, with a message
+#'   that it could not be checked.
 #' @param criterion One of `"dic"` (default), `"loo"`, or `"waic"`.
 #'   LOO and WAIC require the optional `loo` package.
 #' @param survival_unit For survival fits compared by `"loo"`/`"waic"`, the
@@ -928,6 +981,9 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic"),
       if (inherits(m, "mlumr_fit")) {
         calculate_dic(m)
       } else if (inherits(m, "mlumr_dic")) {
+        # A supplied score is used as it is, so the check that the draws
+        # covered the data has to be asked of the object itself.
+        .assert_dic_covers_observations(m)
         m
       } else {
         stop("For criterion = 'dic', arguments must be mlumr_fit or mlumr_dic objects",
