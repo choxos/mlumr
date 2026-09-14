@@ -2592,17 +2592,18 @@ test_that("a separate comparator scale is not offered as a guarantee", {
 
 # Index profiles at `7 * 2^53 +- 8` beside a comparator on `U(0, 4)`: the
 # pooled center rounds to `2^55`, where every point of `[0, 4]` centers to one
-# of two values.
-.offset_uniform <- function() {
-  m <- 7 * 2^53
+# of two values. At `m = 7 * 2^55` the center is `2^57` and every point
+# centers to one value; the index profiles then need a step of 32 to stay
+# distinct doubles.
+.offset_uniform <- function(status = 1L, m = 7 * 2^53, step = 8) {
   ip <- suppressWarnings(set_ipd(
-    data.frame(trt = "A", x = c(m - 8, m - 8, m + 8, m + 8),
+    data.frame(trt = "A", x = c(m - step, m - step, m + step, m + step),
                time = c(1, 2, 1, 3), status = 1L),
     treatment = "trt", covariates = "x", family = "survival",
     time = "time", status = "status"
   ))
   ag <- set_agd_surv(
-    data.frame(trt = "B", time = c(1, 2, 4), status = 1L, x_mean = 2,
+    data.frame(trt = "B", time = c(1, 2, 4), status = status, x_mean = 2,
                x_sd = sqrt(4 / 3)),
     treatment = "trt", time = "time", status = "status",
     cov_means = "x_mean", cov_sds = "x_sd", cov_types = "continuous"
@@ -2625,15 +2626,129 @@ test_that("a centered grid that merges nodes is refused as representation", {
   # cannot carry three distinct times at all.
   expect_true(isTRUE(mlumr:::.grid_hits_targets(matrix(raw, ncol = 1L), tg)))
   expect_false(isTRUE(mlumr:::.grid_hits_targets(matrix(cen, ncol = 1L), tg)))
+  # A grid that lost nodes is refused before any guard is asked about it.
   e <- .centered_call(d)
-  expect_s3_class(e, "mlumr_comparator_representation")
-  expect_match(conditionMessage(e), "numerical representation")
+  expect_s3_class(e, "mlumr_grid_representation")
+  expect_match(conditionMessage(e), "merged integration points")
+  expect_match(conditionMessage(e), "64 distinct values .* and 2 on the centered grid")
   expect_no_match(conditionMessage(e), "improper")
+  # Handed both grids directly, the comparator check refuses on the declared
+  # one and not on the centered one, and reports the disagreement.
+  e2 <- tryCatch(
+    suppressWarnings(mlumr:::.check_comparator_tied_events(
+      d, "lognormal", aux_by = ".study", fitted_points = fit$points
+    )),
+    error = function(e) e
+  )
+  expect_s3_class(e2, "mlumr_comparator_representation")
+  expect_match(conditionMessage(e2), "refuses the fit on the declared grid")
+  expect_no_match(conditionMessage(e2), "improper")
   # Uncentered, the index profiles sit two rounding units apart and the index
   # guard refuses first, as undecidable at double precision.
   e0 <- .centered_call(d, center = FALSE)
   expect_s3_class(e0, "error")
   expect_match(conditionMessage(e0), "could not be decided")
+})
+
+test_that("a merged grid is refused whatever the guards would say of it", {
+  # With one comparator event, or none, the two grids agree and the guard has
+  # nothing to refuse; the grid the sampler would receive still has two nodes
+  # standing for sixty-four.
+  for (status in list(c(1L, 0L, 0L), c(0L, 0L, 0L))) {
+    d <- .offset_uniform(status = status)
+    expect_identical(length(unique(d$integration_points[1L, , 1L])), 64L)
+    expect_identical(length(unique(.fitted_grid(d)$points[1L, , 1L])), 2L)
+    e <- .centered_call(d)
+    expect_s3_class(e, "mlumr_grid_representation")
+    expect_match(conditionMessage(e), "`x` has 64 distinct values")
+  }
+})
+
+test_that("a grid collapsed to one value is refused before the QR step", {
+  # With `qr = TRUE` the builder factors the combined design, and a grid
+  # whose covariate column is one constant makes that design rank deficient.
+  # The QR step would refuse it first, telling the caller to drop the
+  # covariate or turn QR off; the grid check answers before it, with the
+  # remedy that fits.
+  d <- .offset_uniform(m = 7 * 2^55, step = 32)
+  fit <- .fitted_grid(d)
+  expect_identical(fit$center, 2^57)
+  expect_identical(length(unique(fit$points[1L, , 1L])), 1L)
+  testthat::local_mocked_bindings(
+    .mlumr_fit_backend = function(...) stop("SENTINEL_BACKEND_REACHED")
+  )
+  for (model in c("relaxed", "spfa")) {
+    e <- tryCatch(
+      suppressWarnings(mlumr(d, model = model, distribution = "lognormal",
+                             aux_by = ".study", center = TRUE, qr = TRUE,
+                             engine = "rstan", seed = 2026, verbose = FALSE,
+                             refresh = 0, chains = 1, iter = 10, warmup = 5)),
+      error = function(e) e
+    )
+    expect_s3_class(e, "mlumr_grid_representation")
+    expect_match(conditionMessage(e), "64 distinct values .* and 1 on the centered grid")
+    expect_no_match(conditionMessage(e), "full-rank")
+  }
+})
+
+test_that("every family refuses a centered grid that merged nodes", {
+  # The same offset on a binomial fit, which has no comparator guard to catch
+  # anything: the check runs before the family is asked.
+  m <- 7 * 2^53
+  ip <- suppressWarnings(set_ipd(
+    data.frame(trt = "A", x = c(m - 8, m - 8, m + 8, m + 8, m - 8, m + 8),
+               y = c(0L, 1L, 0L, 1L, 1L, 0L)),
+    treatment = "trt", outcome = "y", covariates = "x", family = "binomial"
+  ))
+  ag <- set_agd(
+    data.frame(trt = "B", n = 30L, r = 12L, x_mean = 2, x_sd = sqrt(4 / 3)),
+    treatment = "trt", outcome_n = "n", outcome_r = "r",
+    cov_means = "x_mean", cov_sds = "x_sd", cov_types = "continuous"
+  )
+  d <- suppressWarnings(add_integration(combine_data(ip, ag), n_int = 64,
+                                        verbose = FALSE,
+                                        x = distr(stats::qunif, min = 0, max = 4)))
+  testthat::local_mocked_bindings(
+    .mlumr_fit_backend = function(...) stop("SENTINEL_BACKEND_REACHED")
+  )
+  call <- function(center) {
+    tryCatch({
+      suppressWarnings(mlumr(d, model = "spfa", center = center, qr = FALSE,
+                             engine = "rstan", seed = 2026, verbose = FALSE,
+                             refresh = 0, chains = 1, iter = 10, warmup = 5))
+      "returned"
+    }, error = function(e) e)
+  }
+  e <- call(TRUE)
+  expect_s3_class(e, "mlumr_grid_representation")
+  expect_match(conditionMessage(e), "aggregate row 1, `x` has 64 distinct values")
+  expect_match(conditionMessage(e), "`set_agd\\(\\)` or `set_agd_surv\\(\\)`")
+  # Uncentered, the declared grid is the fitted grid and the fit proceeds.
+  e0 <- call(FALSE)
+  expect_s3_class(e0, "error")
+  expect_match(conditionMessage(e0), "SENTINEL_BACKEND_REACHED")
+})
+
+test_that("the node check counts each covariate on each row, exactly", {
+  check <- mlumr:::.check_grid_nodes_kept
+  declared <- array(c(1, 2, 3, 4, 10, 20, 30, 40), dim = c(2L, 2L, 2L))
+  # An ordinary centering moves every node and merges none.
+  expect_invisible(check(declared, declared - 0.1, c("a", "b")))
+  expect_true(check(declared, declared, c("a", "b")))
+  # A merge on one row and one covariate is named as such.
+  merged <- declared - 0.1
+  merged[2L, , 2L] <- merged[2L, 1L, 2L]
+  expect_error(check(declared, merged, c("a", "b")),
+               "on aggregate row 2, `b` has 2 distinct values .* and 1 on",
+               class = "mlumr_grid_representation")
+  # A grid whose declared nodes were already alike is not refused for it.
+  same <- declared
+  same[1L, , 1L] <- 1
+  expect_true(check(same, same - 0.1, c("a", "b")))
+  # Nothing to compare: no grid, or shapes that are not a grid.
+  expect_true(check(NULL, merged))
+  expect_true(check(declared, NULL))
+  expect_true(check(declared, matrix(1, 2L, 2L)))
 })
 
 test_that("two grids that both carry a match can disagree about the slope", {

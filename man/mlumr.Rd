@@ -229,7 +229,12 @@ slopes, and centering often improves sampling geometry. Priors specified
 independently on the numerical intercept and slopes are not generally
 invariant to that transformation, so \code{center = TRUE} and \code{FALSE} can imply
 different joint priors even when their likelihoods represent the same
-regression model. Set \code{FALSE} to fit on the raw covariate scale.}
+regression model. Set \code{FALSE} to fit on the raw covariate scale.
+Centering is a floating-point subtraction: when the populations sit far
+from a common origin relative to the spread of the integration points,
+two points can round to one, and a fit whose centered grid has fewer
+distinct points than the declared one is refused rather than sampled on
+a distribution other than the one declared.}
 
 \item{qr}{Logical (default \code{FALSE}). Apply a thin-QR
 reparameterization to the combined (intercepts + covariates) design matrix.
