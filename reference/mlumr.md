@@ -291,7 +291,12 @@ mlumr(
   generally invariant to that transformation, so `center = TRUE` and
   `FALSE` can imply different joint priors even when their likelihoods
   represent the same regression model. Set `FALSE` to fit on the raw
-  covariate scale.
+  covariate scale. Centering is a floating-point subtraction: when the
+  populations sit far from a common origin relative to the spread of the
+  integration points, two points can round to one, and a fit whose
+  centered grid has fewer distinct points than the declared one is
+  refused rather than sampled on a distribution other than the one
+  declared.
 
 - qr:
 

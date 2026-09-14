@@ -317,6 +317,17 @@
   origin or fitting with `center = FALSE`. The rotation that `qr = TRUE`
   applies afterwards is not examined.
 
+  Before any of that, and for every family,
+  [`mlumr()`](https://choxos.github.io/mlumr/reference/mlumr.md) counts
+  the distinct values of each covariate on each aggregate row of the
+  declared grid and of the centered grid, and refuses the fit when the
+  centered grid has fewer: two declared nodes rounded onto one make a
+  grid that represents a covariate distribution other than the declared
+  one, whatever the guards would then say about it, and such a grid had
+  reached the sampler whenever the two grids agreed. The count is exact,
+  so an ordinary rounded subtraction, which moves every node by its own
+  rounding error and merges none, is not refused.
+
   The exponent used is `m - min(k, reach)`, which is exact for one
   covariate and a lower bound for more than one. `min(k, reach)` bounds
   the canonical allocation’s rank, and a consistent allocation of lower
