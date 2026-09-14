@@ -423,11 +423,12 @@
   The region is built from EVERY index row, and reading it off the censored
   ones alone was the same as not having it. A SINGLE one-sided censoring
   inequality is satisfied by moving `mu_index`, and says nothing about the
-  slope on its own; SIMULTANEOUS censoring regions can restrict it, which is
-  what the eventless case above turns on; and an EVENT row restricts it
-  further still, because its density grows only where the predictor
-  reproduces its own time and vanishes exponentially anywhere else, which
-  confines the predictor to a single point
+  slope on its own, nor do any number of them bounded on the same side;
+  SIMULTANEOUS censoring regions bounded on opposite sides can restrict it,
+  which is what the eventless case above turns on; and an EVENT row
+  restricts it further still, because its density grows only where the
+  predictor reproduces its own time and vanishes exponentially anywhere
+  else, which confines the predictor to a single point
   exactly as censoring confines it to an interval. An index with one event at
   `t = 1` on `x = 0` beside a right-censored row at `t = 4` on `x = 1` pins
   `mu_index` to zero and then needs `beta >= log 4`, out of reach of the same
@@ -498,7 +499,10 @@
   refused, and the one part that IS exactly answerable is asked first: a
   region constrains only the functionals in its own row space, so where none
   of the grid's node-difference directions lies in that space the region
-  cannot bear on this arm and the refusal stands. Widening the first interval
+  cannot bear on this arm and the refusal stands. Nor can rows bounded on one
+  side only, however many directions they span: raising `mu_index` clears
+  every lower end at any slope, so an index of right-censored rows alone
+  keeps the refusal too. Widening the first interval
   to `1 < T <= 4` admits `beta1 = log 2` and really is improper; without the
   projection the two cannot be told apart, so that refusal is given up along
   with the wrong one. Under `relaxed` the comparator carries its own slope
@@ -530,13 +534,18 @@
   index direction, leaving a true rate of 1 that a full subtraction would
   report as 0. Computing the joint rank means solving the combined system
   across every allocation, which is out of scope, so a shared slope is
-  reported instead of netted. Only from order TWO, though: in
+  reported instead of netted. Only from a second pinned index ROW, though: in
   `(mu_index, mu_comparator, beta)` an index constraint is `(1, 0, x)` while
   every comparator constraint is `(0, 1, z)`, so no combination of comparator
   rows reaches a nonzero first component, a single index row is independent
   of all of them, and the ranks add whatever the shared slope does. It takes
   a second index row for the difference `(0, 0, x_1 - x_2)` to appear, which
-  is a pure slope direction and can lie in the comparator's span. It also
+  is a pure slope direction and can lie in the comparator's span. That counts
+  pinned ROWS, events and touching profiles together, and not the order,
+  which stops being the same number once exact events are netted against
+  their own spikes: two repeated events at one profile beside touching pairs
+  at two others pin three rows and both slope directions at a net order of
+  1, and gating on the order netted such an overlap to zero. It also
   needs somewhere to lie: a matched design of rank 1 is one row,
   `(0, 1, z_j)`, whose only vector with a zero second component is the zero
   vector, so nothing of the form `(0, 0, v)` is in it and the ranks add
@@ -550,7 +559,8 @@
   just as two events there would. Reporting that the index pinned nothing
   left the comparator treating the shared slope as free, so its censored rows
   read as escapable and a fit they exponentially suppress was refused. The
-  eventless path now carries that design, and the pinned-ridge report asks
+  eventless path and the path with events both carry that design, and the
+  pinned-ridge report asks
   whether the index pins the slope rather than whether its EVENT design fits
   exactly.
 

@@ -37,5 +37,12 @@ the region says nothing about this arm. Adding the node-difference rows
 raises the rank by however many of those directions the region does NOT
 already constrain, so a gain equal to their own rank means it constrains
 none of them.
+
+The row space does not see which way a row is bounded, and that matters.
+Rows bounded on one side only restrict no slope however many directions
+they span: raising \code{mu_index} clears every lower end at any slope, and
+lowering it every upper one. A slope is pinned only between a finite
+lower end and a finite upper one, which is also where
+\code{\link[=.slope_region_pairs]{.slope_region_pairs()}} finds its pairs.
 }
 \keyword{internal}

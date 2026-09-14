@@ -28,9 +28,11 @@ auxiliary away from its boundary, as \code{\link[=.check_survival_scale_collapse
 reports in its \code{bounds_aux} attribute. Consulted only when \code{aux_by} is
 \code{"none"}, where the comparator shares that parameter.}
 
-\item{index_design}{The index EVENT design, as
+\item{index_design}{The design of the rows the index PINS, as
 \code{\link[=.check_survival_scale_collapse]{.check_survival_scale_collapse()}} reports in its \code{index_design}
-attribute, or \code{NULL} where it did not establish an exact fit.
+attribute: its exact event rows, and any censored profile whose region
+has closed to a point, which pins its direction just as an event does.
+\code{NULL} where it did not establish an exact fit.
 Reproducing its own times is not the same as identifying the shared
 \code{beta}: repeated index events at one covariate profile at one time fit
 exactly and leave \code{beta} free, and a free \code{beta} is the direction the
@@ -53,8 +55,9 @@ width; an unsettled one makes this report rather than refuse.}
 its \code{index_region} attribute. Every row is in it: a censored row through
 the interval its censoring puts it in, an EVENT row through the single
 point its own time puts it at. A SINGLE one-sided censored row restricts
-no slope, since moving \code{mu_index} satisfies one inequality; SIMULTANEOUS
-censored rows can restrict it, and an event row's equality restricts it
+no slope, since moving \code{mu_index} satisfies one inequality, and nor do
+any number bounded on the same side; SIMULTANEOUS censored rows bounded
+on opposite sides can restrict it, and an event row's equality restricts it
 further, so building the region without the event rows loses
 restrictions the whole index carries. An
 order of zero says these rows remove no power of the auxiliary's width;

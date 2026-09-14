@@ -554,6 +554,13 @@
 #' already constrain, so a gain equal to their own rank means it constrains
 #' none of them.
 #'
+#' The row space does not see which way a row is bounded, and that matters.
+#' Rows bounded on one side only restrict no slope however many directions
+#' they span: raising `mu_index` clears every lower end at any slope, and
+#' lowering it every upper one. A slope is pinned only between a finite
+#' lower end and a finite upper one, which is also where
+#' [.slope_region_pairs()] finds its pairs.
+#'
 #' @param region The index's design and region ends, as
 #'   [.check_survival_scale_collapse()] reports in its `index_region`
 #'   attribute.
@@ -572,10 +579,13 @@
   if (length(lo) != nrow(region$X) || length(up) != nrow(region$X)) {
     return(NA)
   }
-  # Only the rows that carry a finite end constrain anything.
+  # Only the rows that carry a finite end constrain anything, and only from
+  # both sides: bounded on one side only, the intercept clears every row at
+  # any slope.
   keep <- is.finite(lo) | is.finite(up)
   keep[is.na(keep)] <- FALSE
   if (!any(keep)) return(FALSE)
+  if (all(!is.finite(up[keep])) || all(!is.finite(lo[keep]))) return(FALSE)
   rows <- region$X[keep, , drop = FALSE]
   if (!all(is.finite(rows)) || !all(is.finite(nodes))) return(NA)
   zc <- sweep(nodes, 2L, nodes[1L, ], "-")
@@ -1466,9 +1476,11 @@
 #'   auxiliary away from its boundary, as [.check_survival_scale_collapse()]
 #'   reports in its `bounds_aux` attribute. Consulted only when `aux_by` is
 #'   `"none"`, where the comparator shares that parameter.
-#' @param index_design The index EVENT design, as
+#' @param index_design The design of the rows the index PINS, as
 #'   [.check_survival_scale_collapse()] reports in its `index_design`
-#'   attribute, or `NULL` where it did not establish an exact fit.
+#'   attribute: its exact event rows, and any censored profile whose region
+#'   has closed to a point, which pins its direction just as an event does.
+#'   `NULL` where it did not establish an exact fit.
 #'   Reproducing its own times is not the same as identifying the shared
 #'   `beta`: repeated index events at one covariate profile at one time fit
 #'   exactly and leave `beta` free, and a free `beta` is the direction the
@@ -1481,8 +1493,9 @@
 #'   its `index_region` attribute. Every row is in it: a censored row through
 #'   the interval its censoring puts it in, an EVENT row through the single
 #'   point its own time puts it at. A SINGLE one-sided censored row restricts
-#'   no slope, since moving `mu_index` satisfies one inequality; SIMULTANEOUS
-#'   censored rows can restrict it, and an event row's equality restricts it
+#'   no slope, since moving `mu_index` satisfies one inequality, and nor do
+#'   any number bounded on the same side; SIMULTANEOUS censored rows bounded
+#'   on opposite sides can restrict it, and an event row's equality restricts it
 #'   further, so building the region without the event rows loses
 #'   restrictions the whole index carries. An
 #'   order of zero says these rows remove no power of the auxiliary's width;
@@ -2009,6 +2022,10 @@
                    # leaves that direction free whatever the polyhedron does.
                    region_open = region_wide && (k > 1L || threat) &&
                      !isFALSE(.region_slope_reach(index_region, grid$nodes)),
+                   # The index pins a slope direction this grid moves along
+                   # and this arm's matched design pins one too, so the two
+                   # can coincide; the netting below has to know.
+                   overlap = !slope_free && rank_d > 1L,
                    spfa_shared = spfa_shared && !slope_free &&
                      rank_d > 1L)
     }
@@ -2038,15 +2055,26 @@
   # system across every allocation, which this does not do, so a shared slope
   # is reported instead.
   #
-  # Only from order TWO, and only when the comparator constrains the slope at
-  # all. In `(mu_index, mu_comparator, beta)` an index constraint is
-  # `(1, 0, x)` and every comparator constraint is `(0, 1, z)`, so no
-  # combination of comparator rows reaches a nonzero first component and a
-  # SINGLE index row is independent of all of them: the ranks add whatever
+  # Only from a second pinned index ROW, and only when the comparator
+  # constrains the slope at all. In `(mu_index, mu_comparator, beta)` an index
+  # constraint is `(1, 0, x)` and every comparator constraint is `(0, 1, z)`,
+  # so no combination of comparator rows reaches a nonzero first component and
+  # a SINGLE index row is independent of all of them: the ranks add whatever
   # the shared slope does, and the stacked system stays consistent because
   # `mu_index` is left free to satisfy that row. It takes a second index row
   # for the difference `(0, 0, x_1 - x_2)` to appear, which is a pure slope
-  # direction and can lie in the comparator's span.
+  # direction, and it can lie in the comparator's span only by lying in the
+  # grid's, since every comparator slope direction is a difference of nodes.
+  # Both are read off the index's pinned design by `slope_reach()`, which is
+  # what `info$overlap` records.
+  #
+  # Rows, not the order. The two were one number while the index was censored
+  # rows alone, and they part once its events are netted against their own
+  # spikes: two repeated events at `(0, 0)` beside touching pairs at `(1, 0)`
+  # and `(0, 1)` pin three rows and both slope directions at a net order of
+  # `2 - (2 - 1) = 1`. Gating on that order took three comparator events at
+  # two targets from rate 1 to 0 in silence, although their matched design
+  # shares a slope direction with the index and the stacked rank is 4, not 5.
   #
   # And it has to have somewhere to lie. A matched design of rank 1 is one
   # row, `(0, 1, z_j)`, whose only vector with a zero second component is the
@@ -2083,8 +2111,8 @@
     if (is.na(index_aux_order)) {
       index_unresolved <- worst >= 1L
       unresolved_why <- "unsettled"
-    } else if (index_aux_order > 1 && !separate_slopes &&
-                 isTRUE(info$rank > 1L)) {
+    } else if (index_aux_order > 0 && !separate_slopes &&
+                 isTRUE(info$overlap)) {
       index_unresolved <- worst >= 1L
       unresolved_why <- "overlap"
     } else if (index_aux_order > 0 && !exact_rate &&
@@ -2302,7 +2330,8 @@
   if (index_unresolved) {
     why_index <- if (identical(unresolved_why, "overlap")) {
       paste0("the index rows remove ", format(index_aux_order),
-             " powers of the same width, but under `model = \"spfa\"` the ",
+             " power", if (index_aux_order > 1) "s" else "",
+             " of the same width, but under `model = \"spfa\"` the ",
              "arms share one `beta`, so from the second row on the ",
              "directions they pin can be the same directions this arm's ",
              "equations pin and the two do not simply add. Whether they ",
@@ -3047,8 +3076,9 @@
   # single point exactly as a censored row confines it to an interval.
   #
   # Building this from the censored rows alone is what refused a proper fit.
-  # Not because censored rows say nothing about the slope: SEVERAL of them
-  # can pin it between them, which is the eventless case this function
+  # Not because censored rows say nothing about the slope: SEVERAL of them,
+  # bounded on opposite sides, can pin it between them, which is the
+  # eventless case this function
   # already answered, where left censoring at `t = 1` on `x = 0` beside
   # right censoring at `t = 4` on `x = 1` leaves `beta >= log 4`. It is the
   # rows a LONE inequality leaves free that the event rows take back. One
@@ -3264,8 +3294,13 @@
       } else {
         NA
       },
+      # With the censored profiles whose regions closed to a point, which pin
+      # a direction exactly as an event does; the eventless branch hands its
+      # over for the same reason. Left out, an index that pins every slope
+      # read as pinning none: two repeated events at one profile pin only
+      # `mu_index`, while touching pairs at two more profiles pin both slopes.
       index_design = if (s$status %in% c("exact", "constant", "saturated")) {
-        X[events, , drop = FALSE]
+        rbind(X[events, , drop = FALSE], attr(bound, "design"))
       } else {
         NULL
       },
