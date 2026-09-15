@@ -7,6 +7,22 @@ import { css } from './style.js';
 import { chapterNavigation, themeToggle } from './navigation.js';
 import { lineChart, barChart, intervalChart, flowChart, populations, card, type Point } from './charts.js';
 import { mountCell } from './codecell.js';
+import nativeRecord from './native-record.json';
+
+/** What workflow.R --fit --sensitivity --record wrote at the pinned commit.
+ * The report chart and the sensitivity panel read it, so no fitted number
+ * is typed into the lesson by hand. */
+interface NativeRecord {
+  truth: { target_rd: number };
+  fit: Record<'spfa' | 'relaxed', { n_int: number; chains: number; kept_draws: number; seed: number; divergences: number; max_rhat: number; target_rd: { mean: number; lower: number; upper: number } }>;
+  sensitivity: { scenario: string; model: string; n_int: number; comparator_scale: number; target: string; mean: number; mcse: number; ess_bulk: number; lower: number; upper: number }[];
+  sensitivity_checks: Record<string, { divergences: number; max_rhat: number }>;
+  transport_overlap?: Record<string, number>;
+  package: { version: string; engine: string; r: string; cmdstan?: string | null };
+  script_sha256?: string | null;
+  run: string;
+}
+const native = nativeRecord as NativeRecord;
 
 const scalar = (label: string, range: [number, number], value: number): Schema[string] => ({ type: { kind: 'scalar', range }, default: value, interpolate: 'lerp', ownership: 'shared', label });
 export const schema: Schema = {
@@ -196,7 +212,29 @@ function priorsView(s: Readonly<PlainState>) {
     [row('prior SD 0.3', .3, 'b'), row('prior SD 1', 1, 'b'), row('prior SD 3', 3, 'b'), row(`your prior SD ${fmt(sd, 1)}`, sd, 'a')], [-1, 2], [-1, 0, 1, 2], [{ x: .4 + .8 * tx, text: 'truth' }], x => String(x)),
   v.metrics,
   'A tighter prior narrows the interval even though no new data arrived. Near the observed rows the data do the work; far from them, the prior does.',
-  '<p>In mlumr, prior_summary() lists the priors, plot_prior_posterior() draws each posterior over its prior, and prior_sensitivity() refits the model over several prior scales. prior_normal(autoscale = TRUE) divides a slope prior\'s scale by each covariate\'s standard deviation.</p>');
+  '<p>In mlumr, prior_summary() lists the priors, plot_prior_posterior() draws each posterior over its prior, and prior_sensitivity() refits the model over several prior scales. prior_normal(autoscale = TRUE) divides a slope prior\'s scale by each covariate\'s standard deviation.</p>' + sensitivityPanel());
+}
+
+/** The native sensitivity loop's results, read from the run record. */
+function sensitivityPanel() {
+  const rows = native.sensitivity;
+  if (!rows.length) return '';
+  const cell = (v: number, digits = 4) => Number.isFinite(v) ? v.toFixed(digits) : 'not available';
+  const tr = (r: NativeRecord['sensitivity'][number]) => `<tr><td>${esc(r.scenario)}</td><td>${esc(r.model)}</td><td>${r.n_int}</td><td>${r.comparator_scale}</td><td>${esc(r.target)}</td><td>${cell(r.mean)}</td><td>${cell(r.mcse)}</td><td>${cell(r.lower)} to ${cell(r.upper)}</td></tr>`;
+  const base = rows.filter(r => r.scenario === 'base'), grid = rows.filter(r => r.scenario === 'integration'), prior = rows.filter(r => r.scenario === 'comparator prior');
+  const transport = rows.filter(r => r.scenario === 'transport' && r.target !== 'prespecified');
+  const moved = (a: typeof rows[number], b: typeof rows[number]) => Math.abs(a.mean - b.mean) / Math.hypot(a.mcse, b.mcse);
+  const gridNote = grid.map(g => { const b = base.find(x => x.model === g.model)!; return `${g.model}: ${cell(b.mean, 3)} at 512 against ${cell(g.mean, 3)} at 2048 points, a difference of ${moved(b, g).toFixed(1)} times the MCSE of the difference`; }).join('; ');
+  const priorSpan = prior.length ? `${cell(Math.min(...prior.map(r => r.mean)), 3)} to ${cell(Math.max(...prior.map(r => r.mean)), 3)}` : 'not run';
+  const worst = transport.length ? transport.reduce((a, b) => (b.upper - b.lower > a.upper - a.lower ? b : a)) : null;
+  return `<details><summary>What the native sensitivity run found for the prespecified target</summary>
+<p>From <code>Rscript workflow.R --fit --sensitivity --record</code> at mlumr ${esc(native.package.version)} with ${esc(native.package.engine)}${native.package.cmdstan ? ` (CmdStan ${esc(native.package.cmdstan)})` : ''}, run ${esc(native.run)}. Every row is the risk difference, A minus B, in the same 400-row target, re-extracted from each refit; the true value behind the simulated data is ${cell(native.truth.target_rd, 3)}. MCSE is the Monte Carlo standard error of the posterior mean.</p>
+<div class="table-wrap"><table class="fit-table"><thead><tr><th>Scenario</th><th>Model</th><th>n_int</th><th>Comparator prior scale</th><th>Target</th><th>Mean</th><th>MCSE</th><th>95% posterior interval</th></tr></thead><tbody>${rows.map(tr).join('')}</tbody></table></div>
+<ul class="read-list"><li><strong>Integration.</strong> ${gridNote}. A difference of a few MCSEs or less is Monte Carlo noise, not integration bias.</li>
+<li><strong>Comparator slope prior.</strong> With prior_beta held at normal(0, 1), the relaxed model's target mean spans ${priorSpan} across comparator prior scales ${prior.map(r => r.comparator_scale).join(', ')}. This example has one covariate and three comparator rows, so trial B's slope is informed by the data; a wider spread here would mean the target depends on an assumption, not on evidence.</li>
+<li><strong>Transport.</strong> ${Object.entries(native.transport_overlap ?? {}).map(([name, share]) => `${esc(name)}: ${Math.round(100 * share)}% of the target rows lie inside trial A's central 95% covariate range`).join('; ')}. ${worst ? `The target "${esc(worst.target)}" gives the widest interval, ${cell(worst.lower, 3)} to ${cell(worst.upper, 3)} for the ${esc(worst.model)} model${worst.lower < 0 && worst.upper > 0 ? ', which crosses zero' : ''}, and the two models separate as the target leaves trial A's covariate range.` : 'No other target was evaluated.'} For a target that extrapolates beyond the trials, the defensible conclusion is that the evidence does not support a headline number.</li>
+<li><strong>Sampling checks.</strong> ${Object.entries(native.sensitivity_checks).map(([name, c]) => `${esc(name.replaceAll('_', ' '))}: ${c.divergences} divergences, largest R-hat ${cell(c.max_rhat, 3)}`).join('; ')}.</li></ul>
+<p>With one covariate there is no correlation between covariates to carry from trial A to trial B, so no dependence scenario applies. The package notes on the lesson branch record the full output.</p></details>`;
 }
 
 function familyChart(i: number) {
@@ -288,10 +326,12 @@ export function view(lab: Lab, s: Readonly<PlainState>) {
       `<div class="case"><span class="eyebrow">A fit arrives on your desk</span><h3>${esc(c.symptom)}</h3><details><summary>Reveal interpretation and next action</summary><p class="interpretation">${esc(c.answer)}</p>${code(c.tool)}</details></div><p>Sampling, numerical integration, identification, model fit and comparable trials are separate questions. Passing one check says nothing about the others.</p>` + uncertaintyPanel);
   }
   const qi = Math.round(Number(s.question)), q = questions[qi];
+  const { spfa, relaxed } = native.fit, truth = native.truth.target_rd;
+  const covers = (f: typeof spfa) => f.target_rd.lower <= truth && truth <= f.target_rd.upper;
   return block(intervalChart('What a report shows: estimate, interval and target (native companion fits)', 'Risk difference in a made-up target population from the companion script fits, with the true value marked', [
-    { name: 'Shared slopes (SPFA)', mean: -0.09132, lo: -0.16660, hi: -0.01359, key: 'a' },
-    { name: 'Separate slopes (relaxed)', mean: -0.09105, lo: -0.17276, hi: -0.01359, key: 'b' }], [-.2, .05], [-.2, -.15, -.1, -.05, 0, .05], [{ x: -0.12408, text: 'true value' }, { x: 0, text: 'no difference' }]),
-  '', 'These are the companion script\'s real mlumr fits to made-up data (workflow.R with --fit: simulated comparator rows, 512 integration points, four chains of 1000 kept draws, seed 2026), for the 400-row target the script defines. They are not the browser cell\'s fit, whose comparator rows, integration points and draws differ. Both 95% posterior intervals contain the true value. The separate slopes model is a little less certain, because trial B\'s slope has to be learned from three summaries.',
+    { name: 'Shared slopes (SPFA)', mean: spfa.target_rd.mean, lo: spfa.target_rd.lower, hi: spfa.target_rd.upper, key: 'a' },
+    { name: 'Separate slopes (relaxed)', mean: relaxed.target_rd.mean, lo: relaxed.target_rd.lower, hi: relaxed.target_rd.upper, key: 'b' }], [-.2, .05], [-.2, -.15, -.1, -.05, 0, .05], [{ x: truth, text: 'true value' }, { x: 0, text: 'no difference' }]),
+  '', `These are the companion script's real mlumr fits to made-up data (workflow.R with --fit: simulated comparator rows, ${spfa.n_int} integration points, ${spfa.chains} chains of ${spfa.kept_draws / spfa.chains} kept draws, seed ${spfa.seed}, mlumr ${native.package.version} with ${native.package.engine}), for the 400-row target the script defines. They are not the browser cell's fit, whose comparator rows, integration points and draws differ. ${covers(spfa) && covers(relaxed) ? 'Both' : covers(spfa) || covers(relaxed) ? 'One of the' : 'Neither of the'} 95% posterior intervals contain${covers(spfa) && covers(relaxed) ? '' : 's'} the true value. The separate slopes model is a little less certain, because trial B's slope has to be learned from three summaries. The numbers are read from the run's own record, written by the script.`,
   `<div class="case"><span class="eyebrow">Question ${qi + 1} of ${questions.length}</span><h3>${esc(q.q)}</h3><div class="answers">${q.options.map((a, i) => `<button type="button" data-answer="${i}">${esc(a)}</button>`).join('')}</div><p class="feedback" role="status" aria-live="polite"></p></div><details><summary>Checklist for your report</summary><ul class="read-list">${checklist.map(c => `<li>${esc(c)}</li>`).join('')}</ul></details>${capstonePanel}<p><a href="sources.html" target="_blank" rel="noopener">Sources and scope</a> · <a href="transcript.html" target="_blank" rel="noopener">Narration transcript</a> · <a href="workflow.R" download>Companion R script</a> · <a href="https://choxos.github.io/mlumr/" target="_blank" rel="noopener">mlumr documentation</a></p>`);
 }
 

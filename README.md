@@ -14,7 +14,7 @@ The lesson is for researchers who know basic regression and are new to populatio
 | `scenes/` | The scene: `scene.ts` (views and state), `content.ts` (text, steps, questions, code cells), `charts.ts` (SVG charts), `style.ts` (light and dark themes), `navigation.ts` (chapters and theme switch), `codecell.ts` and `runner.ts` (webR and TinyStan), `diagnostics.ts` (R-hat, ESS and MCSE as in the posterior R package), `math.ts` (the teaching models), and `*.test.ts` unit tests. |
 | `r/` | R files for the in-browser mlumr cell: `load.R` loads the package sources and stands in for the Stan backend step, `lesson-helpers.R` prepares a fit through the public `mlumr()`, and `check-adapter.R` checks that natively. |
 | `runtime/` | The TinyStan worker and the precompiled binomial mlumr models (`mlumr_binary_spfa`, `mlumr_binary_relaxed`), copied from the `webapp` branch, with `models/manifest.json` binding each binary to its Stan program. |
-| `workflow.R`, `package-notes.md` | The companion script and its API notes and execution record. |
+| `workflow.R`, `package-notes.md` | The companion script and its API notes and execution record. With `--fit --sensitivity --record=FILE` it writes the fitted target effects and the sensitivity table as JSON; `scenes/native-record.json` is that file from the recorded run, and the report chart in the last chapter and the sensitivity panel in the priors chapter read it. |
 | `sources.html` | Sources, scope and what runs in the browser. |
 | `lesson.sh`, `finish-site.mjs`, `verify-models.mjs`, `dist-manifest.mjs` | Build wrapper, post-build fixes, the model check and the build manifest. |
 | `browser-qa.mjs`, `QA.md` | Browser checks and their record. |
@@ -37,6 +37,14 @@ bash lesson.sh adapter   # after a build: check the browser mlumr adapter native
 The build checks `runtime/models/manifest.json` against the Stan programs at `MLUMR_REF` and stops if they differ, and it writes `build-manifest.json` with the SHA-256 of every source and built file. `lesson.sh adapter` needs R with mlumr's dependencies; set `MLUMR_NATIVE` to an mlumr checkout at `MLUMR_REF` with a built DLL to compare the browser's Stan data, refusals and warnings with the package itself.
 
 `finish-site.mjs` finishes the site after Tangible builds it. It applies the saved theme before the page paints and restyles the loading screen, lists the R files that the browser writes into webR, and writes `transcript.html`, the spoken text of `script.md` by chapter with each chapter's start time.
+
+## Native companion run
+
+```sh
+Rscript workflow.R --source=/path/to/mlumr-at-4cfd366 --fit --sensitivity --record=scenes/native-record.json --engine=cmdstanr
+```
+
+`--fit` fits the shared and separate slopes models and prints their checks and effects. `--sensitivity` runs the analyst loop on the prespecified 400-row target: an integration refit at 2048 points, the relaxed model under comparator slope prior scales 0.25 to 5 with the index prior held fixed, and the same fits evaluated in a shifted and an extrapolating target, re-extracting the target effect from every refit. `--record` writes the results as JSON with the package version, engine, CmdStan version and the script's SHA-256, so the lesson can show fitted numbers without anyone typing them. The run takes a few minutes with cmdstanr; `package-notes.md` records the output.
 
 ## Publish
 

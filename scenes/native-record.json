@@ -1,0 +1,267 @@
+{
+  "truth": {
+    "target_rd": -0.12407955087911,
+    "target_risks": {
+      "A": 0.391913166869191,
+      "B": 0.515992717748301
+    }
+  },
+  "benchmarks": {
+    "naive_lor": {
+      "estimate": -0.848939447623156,
+      "lower": -1.15218609134281,
+      "upper": -0.545692803903505
+    },
+    "stc_lor": {
+      "estimate": -0.347673788537471,
+      "lower": -0.659185427825253,
+      "upper": -0.0361621492496896
+    }
+  },
+  "fit": {
+    "spfa": {
+      "n_int": 512,
+      "chains": 4,
+      "kept_draws": 4000,
+      "seed": 2026,
+      "divergences": 0,
+      "max_rhat": 1.00338781584657,
+      "target_rd": {
+        "mean": -0.0913195218343429,
+        "lower": -0.166596177880224,
+        "upper": -0.013585291008749
+      }
+    },
+    "relaxed": {
+      "n_int": 512,
+      "chains": 4,
+      "kept_draws": 4000,
+      "seed": 2026,
+      "divergences": 0,
+      "max_rhat": 1.00631835379446,
+      "target_rd": {
+        "mean": -0.0910549602355891,
+        "lower": -0.172756760972164,
+        "upper": -0.0135895033721645
+      }
+    }
+  },
+  "transport_overlap": {
+    "prespecified": 0.945,
+    "shifted, mean 1.0": 0.8025,
+    "extrapolating, mean 2.2": 0.15
+  },
+  "sensitivity": [
+    {
+      "scenario": "base",
+      "model": "spfa",
+      "n_int": 512,
+      "comparator_scale": 1,
+      "target": "prespecified",
+      "mean": -0.0913195218343429,
+      "mcse": 0.000702993120851622,
+      "ess_bulk": 3060.72913373142,
+      "lower": -0.166596177880224,
+      "upper": -0.013585291008749
+    },
+    {
+      "scenario": "base",
+      "model": "relaxed",
+      "n_int": 512,
+      "comparator_scale": 1,
+      "target": "prespecified",
+      "mean": -0.0910549602355891,
+      "mcse": 0.000624425558776655,
+      "ess_bulk": 4280.70126936296,
+      "lower": -0.172756760972164,
+      "upper": -0.0135895033721645
+    },
+    {
+      "scenario": "integration",
+      "model": "spfa",
+      "n_int": 2048,
+      "comparator_scale": 1,
+      "target": "prespecified",
+      "mean": -0.0897828487022347,
+      "mcse": 0.000634323723013871,
+      "ess_bulk": 3564.08143644893,
+      "lower": -0.16549955126312,
+      "upper": -0.0140821600201266
+    },
+    {
+      "scenario": "integration",
+      "model": "relaxed",
+      "n_int": 2048,
+      "comparator_scale": 1,
+      "target": "prespecified",
+      "mean": -0.0906863151856677,
+      "mcse": 0.000622542811161363,
+      "ess_bulk": 4324.75964941111,
+      "lower": -0.173270503457469,
+      "upper": -0.011676165448936
+    },
+    {
+      "scenario": "comparator prior",
+      "model": "relaxed",
+      "n_int": 512,
+      "comparator_scale": 0.25,
+      "target": "prespecified",
+      "mean": -0.0891263309969863,
+      "mcse": 0.000551562655771278,
+      "ess_bulk": 5162.87783743732,
+      "lower": -0.165519938434001,
+      "upper": -0.0120041468397111
+    },
+    {
+      "scenario": "comparator prior",
+      "model": "relaxed",
+      "n_int": 512,
+      "comparator_scale": 0.5,
+      "target": "prespecified",
+      "mean": -0.0909369636214221,
+      "mcse": 0.000595657502102525,
+      "ess_bulk": 4596.43817809235,
+      "lower": -0.168546169477087,
+      "upper": -0.0121247271399748
+    },
+    {
+      "scenario": "comparator prior",
+      "model": "relaxed",
+      "n_int": 512,
+      "comparator_scale": 2.5,
+      "target": "prespecified",
+      "mean": -0.0924205015038444,
+      "mcse": 0.00057756468694748,
+      "ess_bulk": 4535.17350082449,
+      "lower": -0.167697770642786,
+      "upper": -0.0163313343280939
+    },
+    {
+      "scenario": "comparator prior",
+      "model": "relaxed",
+      "n_int": 512,
+      "comparator_scale": 5,
+      "target": "prespecified",
+      "mean": -0.092420242532623,
+      "mcse": 0.00066754131214106,
+      "ess_bulk": 3672.46731420458,
+      "lower": -0.171377112717305,
+      "upper": -0.0129293916824215
+    },
+    {
+      "scenario": "transport",
+      "model": "spfa",
+      "n_int": 512,
+      "comparator_scale": 1,
+      "target": "prespecified",
+      "mean": -0.0913195218343429,
+      "mcse": 0.000702993120851622,
+      "ess_bulk": 3060.72913373142,
+      "lower": -0.166596177880224,
+      "upper": -0.013585291008749
+    },
+    {
+      "scenario": "transport",
+      "model": "relaxed",
+      "n_int": 512,
+      "comparator_scale": 1,
+      "target": "prespecified",
+      "mean": -0.0910549602355891,
+      "mcse": 0.000624425558776655,
+      "ess_bulk": 4280.70126936296,
+      "lower": -0.172756760972164,
+      "upper": -0.0135895033721645
+    },
+    {
+      "scenario": "transport",
+      "model": "spfa",
+      "n_int": 512,
+      "comparator_scale": 1,
+      "target": "shifted, mean 1.0",
+      "mean": -0.091695303861073,
+      "mcse": 0.000717507745601935,
+      "ess_bulk": 3043.65440204052,
+      "lower": -0.168953159990882,
+      "upper": -0.0134295717368587
+    },
+    {
+      "scenario": "transport",
+      "model": "relaxed",
+      "n_int": 512,
+      "comparator_scale": 1,
+      "target": "shifted, mean 1.0",
+      "mean": -0.0924524555767004,
+      "mcse": 0.000840826995891615,
+      "ess_bulk": 4280.58648129297,
+      "lower": -0.203076306099767,
+      "upper": 0.0122669671034488
+    },
+    {
+      "scenario": "transport",
+      "model": "spfa",
+      "n_int": 512,
+      "comparator_scale": 1,
+      "target": "extrapolating, mean 2.2",
+      "mean": -0.067753959441186,
+      "mcse": 0.000597572132192011,
+      "ess_bulk": 2904.18185968674,
+      "lower": -0.134765873763508,
+      "upper": -0.00893247267063178
+    },
+    {
+      "scenario": "transport",
+      "model": "relaxed",
+      "n_int": 512,
+      "comparator_scale": 1,
+      "target": "extrapolating, mean 2.2",
+      "mean": -0.070984844213103,
+      "mcse": 0.00121806169536175,
+      "ess_bulk": 4138.54596648284,
+      "lower": -0.235495001949696,
+      "upper": 0.0788252659775373
+    }
+  ],
+  "sensitivity_checks": {
+    "spfa_base": {
+      "divergences": 0,
+      "max_rhat": 1.00338781584657
+    },
+    "relaxed_base": {
+      "divergences": 0,
+      "max_rhat": 1.00631835379446
+    },
+    "spfa_n_int_2048": {
+      "divergences": 0,
+      "max_rhat": 1.00482059713669
+    },
+    "relaxed_n_int_2048": {
+      "divergences": 0,
+      "max_rhat": 1.00438659904769
+    },
+    "relaxed_comparator_scale_0.25": {
+      "divergences": 0,
+      "max_rhat": 1.00319775053041
+    },
+    "relaxed_comparator_scale_0.5": {
+      "divergences": 0,
+      "max_rhat": 1.00310507797938
+    },
+    "relaxed_comparator_scale_2.5": {
+      "divergences": 0,
+      "max_rhat": 1.00324411294331
+    },
+    "relaxed_comparator_scale_5": {
+      "divergences": 0,
+      "max_rhat": 1.00299464074674
+    }
+  },
+  "about": "Fitted results of workflow.R on simulated data. Not clinical evidence.",
+  "package": {
+    "version": "0.1.0.9000",
+    "engine": "cmdstanr",
+    "r": "R version 4.6.0 (2026-04-24)",
+    "cmdstan": "2.39.0"
+  },
+  "script_sha256": "e75445a5dcdc30ea0122a728582a162536ccef222f77f499966cbc0d6e849543",
+  "run": "2026-09-15T09:36:36-0400"
+}

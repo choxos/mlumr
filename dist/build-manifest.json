@@ -1,11 +1,11 @@
 {
-  "id": "fecd6537d29fd606a477eae9a1b7f7cb8d26591a11da443bdfd7f235902d2cc9",
+  "id": "ad1f4cfef6275c624afc2afdc064424b383aad736dd3667ab28ad1dfd6b18aad",
   "pins": {
     "tangible": "6a07bbcd5dbc548aa809b253aed503fc0a8c3251",
     "mlumr": "4cfd3660f56e22668ae357bde3df4b30cacb23a5"
   },
   "sources": {
-    "dist-manifest.mjs": "094ece6643d6c3473c9129c24b6a19586df3e66832e6117d4a96d16b43c33e38",
+    "dist-manifest.mjs": "9afcf1946e0537941034b5d6b728d1479d27656616494dd1e1bb6178872f21fb",
     "finish-site.mjs": "13d4cf32691d56246a0607bc20cca8d5b7c6b37947e0e4ea3c7a628e45ceb0a4",
     "lesson.sh": "05894b01ea73bd93e6c5384e4531c9ad129765113571e30bc0d4435cacf71d40",
     "lesson.yaml": "743c5440b26d23ebf2f67b59f80902708763ef6f1064d3800725473cb6c271f3",
@@ -25,15 +25,16 @@
     "scenes/content.ts": "302827aa0916ece26dd5220efd6200c1241db93c0efab956a534eb024fed561c",
     "scenes/diagnostics.ts": "b760ed1169686fd47d51853bbcd315dac0e559d79d03b724b249c689055692df",
     "scenes/math.ts": "dfb64e35711c3ffc82f50a3e345846ecf31c343d688bd814f3fa473b96616600",
+    "scenes/native-record.json": "8b9fdd52f8f2da2ab27c7f8366757f4905f66702bed0c913f8e273386619413b",
     "scenes/navigation.ts": "0985518a19aae71f323763d6eed8e8fb7134ed1e348bc97f8717e4421c8a6f3b",
     "scenes/runner.ts": "50754eb8b984458bcfb0589ae174aafcf0a59484d8626fbcd4b33a92253c0136",
-    "scenes/scene.ts": "bea0d55367b7e4639e8cb0f7effcdd5980ca0779c9ba35f298c674cda8802fab",
+    "scenes/scene.ts": "20f6ba9e0d0bd44c2ea65a3d1be4a813e6ddccc342f72a401a2a0339dfcba668",
     "scenes/style.ts": "7dcbf0b4c14a65d54dea2a1d02a14ddc89a97a28db28bd02aab072da9c13b292",
     "script.md": "ce90a8f1ed252cf53b90fbe2728bf96130167c4775a4565f4038755e16edaa1b",
     "sources.html": "15f87e940e73fdc93c76f8d95aaf5a313a8955ba681d9085f85137190936fda6",
-    "tsconfig.json": "f6f400fef5b8fc07ea7c3996fe2976b7492a49d8b95d7b5e5c70eee05bb5ac97",
+    "tsconfig.json": "64f39ce6e18d717ba68ea81f5cef6a6c9aa3ef85c052358d76eb28627d01021d",
     "verify-models.mjs": "435f862e82220e702fe77983292da945676661ea830f08c0bc3521a29d3fc878",
-    "workflow.R": "e01612266acdaf14e3dc1f4e677b0714dd49f62b46efd599ef7afdc309f5e3b2"
+    "workflow.R": "e75445a5dcdc30ea0122a728582a162536ccef222f77f499966cbc0d6e849543"
   },
   "assets": {
     "audio.m4a": "d47919a3dcc4cc8f241fa65fc8a73adbbc0e3bf18abb8288da8836ab851a805c",
@@ -101,7 +102,7 @@
     "fonts/KaTeX_Typewriter-Regular.woff2": "71d517d67827787cfabdf186914cc3358eda539e37931941f2b2fd4a21f68c0b",
     "index.html": "db6efd2715d01cce576cb17d7cc1141656968fe1baf1f9988e7f6d69e1fd8013",
     "katex.css": "0289a02cf451a44dd73add683a09644252363871ac11713a647b732cee8b1ee3",
-    "player.js": "b5b281d1355e36cf7422fcca4b7c5de3493fe6b6fab5ab4b7bd5a25de1270b82",
+    "player.js": "2d1e5ae692f5dd344d0c78f68625d0a8c5737eaaa03aa6f50b892f812875238d",
     "r/DESCRIPTION": "c2be7c05cb9c85df5b20e7113252116eac846b26d5f74c63b9e5f7f62c179e8a",
     "r/NAMESPACE": "13bf4fce50f14050e525483149a5d142f5fb87153e0459169fcfe989e3d3c3b2",
     "r/R/mlumr.R": "d8eb838a293c1310f1b87019d0273c1f5afd2dd23bbfbf3494ae4ace57dcc9c7",
@@ -127,6 +128,6 @@
     "stan/worker.js": "7610fc6739fa07abfe1db3a2f0a21e90dda6d363bc21355f5e9e3d32d5437b67",
     "tracks.json": "ffa8dae1dbb411b8d3215a59670a82a443d422a949f3f74235b2b8c51a53906d",
     "transcript.html": "7b920eb4950a74aedf672aa96f27dc0e3e0d54c3f3ebe6c770970c9f873898d6",
-    "workflow.R": "e01612266acdaf14e3dc1f4e677b0714dd49f62b46efd599ef7afdc309f5e3b2"
+    "workflow.R": "e75445a5dcdc30ea0122a728582a162536ccef222f77f499966cbc0d6e849543"
   }
 }

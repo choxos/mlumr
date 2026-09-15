@@ -18401,7 +18401,277 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     return { dispose: () => lifetime.abort() };
   }
 
+  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/native-record.json
+  var native_record_default = {
+    truth: {
+      target_rd: -0.12407955087911,
+      target_risks: {
+        A: 0.391913166869191,
+        B: 0.515992717748301
+      }
+    },
+    benchmarks: {
+      naive_lor: {
+        estimate: -0.848939447623156,
+        lower: -1.15218609134281,
+        upper: -0.545692803903505
+      },
+      stc_lor: {
+        estimate: -0.347673788537471,
+        lower: -0.659185427825253,
+        upper: -0.0361621492496896
+      }
+    },
+    fit: {
+      spfa: {
+        n_int: 512,
+        chains: 4,
+        kept_draws: 4e3,
+        seed: 2026,
+        divergences: 0,
+        max_rhat: 1.00338781584657,
+        target_rd: {
+          mean: -0.0913195218343429,
+          lower: -0.166596177880224,
+          upper: -0.013585291008749
+        }
+      },
+      relaxed: {
+        n_int: 512,
+        chains: 4,
+        kept_draws: 4e3,
+        seed: 2026,
+        divergences: 0,
+        max_rhat: 1.00631835379446,
+        target_rd: {
+          mean: -0.0910549602355891,
+          lower: -0.172756760972164,
+          upper: -0.0135895033721645
+        }
+      }
+    },
+    transport_overlap: {
+      prespecified: 0.945,
+      "shifted, mean 1.0": 0.8025,
+      "extrapolating, mean 2.2": 0.15
+    },
+    sensitivity: [
+      {
+        scenario: "base",
+        model: "spfa",
+        n_int: 512,
+        comparator_scale: 1,
+        target: "prespecified",
+        mean: -0.0913195218343429,
+        mcse: 702993120851622e-18,
+        ess_bulk: 3060.72913373142,
+        lower: -0.166596177880224,
+        upper: -0.013585291008749
+      },
+      {
+        scenario: "base",
+        model: "relaxed",
+        n_int: 512,
+        comparator_scale: 1,
+        target: "prespecified",
+        mean: -0.0910549602355891,
+        mcse: 624425558776655e-18,
+        ess_bulk: 4280.70126936296,
+        lower: -0.172756760972164,
+        upper: -0.0135895033721645
+      },
+      {
+        scenario: "integration",
+        model: "spfa",
+        n_int: 2048,
+        comparator_scale: 1,
+        target: "prespecified",
+        mean: -0.0897828487022347,
+        mcse: 634323723013871e-18,
+        ess_bulk: 3564.08143644893,
+        lower: -0.16549955126312,
+        upper: -0.0140821600201266
+      },
+      {
+        scenario: "integration",
+        model: "relaxed",
+        n_int: 2048,
+        comparator_scale: 1,
+        target: "prespecified",
+        mean: -0.0906863151856677,
+        mcse: 622542811161363e-18,
+        ess_bulk: 4324.75964941111,
+        lower: -0.173270503457469,
+        upper: -0.011676165448936
+      },
+      {
+        scenario: "comparator prior",
+        model: "relaxed",
+        n_int: 512,
+        comparator_scale: 0.25,
+        target: "prespecified",
+        mean: -0.0891263309969863,
+        mcse: 551562655771278e-18,
+        ess_bulk: 5162.87783743732,
+        lower: -0.165519938434001,
+        upper: -0.0120041468397111
+      },
+      {
+        scenario: "comparator prior",
+        model: "relaxed",
+        n_int: 512,
+        comparator_scale: 0.5,
+        target: "prespecified",
+        mean: -0.0909369636214221,
+        mcse: 595657502102525e-18,
+        ess_bulk: 4596.43817809235,
+        lower: -0.168546169477087,
+        upper: -0.0121247271399748
+      },
+      {
+        scenario: "comparator prior",
+        model: "relaxed",
+        n_int: 512,
+        comparator_scale: 2.5,
+        target: "prespecified",
+        mean: -0.0924205015038444,
+        mcse: 57756468694748e-17,
+        ess_bulk: 4535.17350082449,
+        lower: -0.167697770642786,
+        upper: -0.0163313343280939
+      },
+      {
+        scenario: "comparator prior",
+        model: "relaxed",
+        n_int: 512,
+        comparator_scale: 5,
+        target: "prespecified",
+        mean: -0.092420242532623,
+        mcse: 66754131214106e-17,
+        ess_bulk: 3672.46731420458,
+        lower: -0.171377112717305,
+        upper: -0.0129293916824215
+      },
+      {
+        scenario: "transport",
+        model: "spfa",
+        n_int: 512,
+        comparator_scale: 1,
+        target: "prespecified",
+        mean: -0.0913195218343429,
+        mcse: 702993120851622e-18,
+        ess_bulk: 3060.72913373142,
+        lower: -0.166596177880224,
+        upper: -0.013585291008749
+      },
+      {
+        scenario: "transport",
+        model: "relaxed",
+        n_int: 512,
+        comparator_scale: 1,
+        target: "prespecified",
+        mean: -0.0910549602355891,
+        mcse: 624425558776655e-18,
+        ess_bulk: 4280.70126936296,
+        lower: -0.172756760972164,
+        upper: -0.0135895033721645
+      },
+      {
+        scenario: "transport",
+        model: "spfa",
+        n_int: 512,
+        comparator_scale: 1,
+        target: "shifted, mean 1.0",
+        mean: -0.091695303861073,
+        mcse: 717507745601935e-18,
+        ess_bulk: 3043.65440204052,
+        lower: -0.168953159990882,
+        upper: -0.0134295717368587
+      },
+      {
+        scenario: "transport",
+        model: "relaxed",
+        n_int: 512,
+        comparator_scale: 1,
+        target: "shifted, mean 1.0",
+        mean: -0.0924524555767004,
+        mcse: 840826995891615e-18,
+        ess_bulk: 4280.58648129297,
+        lower: -0.203076306099767,
+        upper: 0.0122669671034488
+      },
+      {
+        scenario: "transport",
+        model: "spfa",
+        n_int: 512,
+        comparator_scale: 1,
+        target: "extrapolating, mean 2.2",
+        mean: -0.067753959441186,
+        mcse: 597572132192011e-18,
+        ess_bulk: 2904.18185968674,
+        lower: -0.134765873763508,
+        upper: -0.00893247267063178
+      },
+      {
+        scenario: "transport",
+        model: "relaxed",
+        n_int: 512,
+        comparator_scale: 1,
+        target: "extrapolating, mean 2.2",
+        mean: -0.070984844213103,
+        mcse: 0.00121806169536175,
+        ess_bulk: 4138.54596648284,
+        lower: -0.235495001949696,
+        upper: 0.0788252659775373
+      }
+    ],
+    sensitivity_checks: {
+      spfa_base: {
+        divergences: 0,
+        max_rhat: 1.00338781584657
+      },
+      relaxed_base: {
+        divergences: 0,
+        max_rhat: 1.00631835379446
+      },
+      spfa_n_int_2048: {
+        divergences: 0,
+        max_rhat: 1.00482059713669
+      },
+      relaxed_n_int_2048: {
+        divergences: 0,
+        max_rhat: 1.00438659904769
+      },
+      "relaxed_comparator_scale_0.25": {
+        divergences: 0,
+        max_rhat: 1.00319775053041
+      },
+      "relaxed_comparator_scale_0.5": {
+        divergences: 0,
+        max_rhat: 1.00310507797938
+      },
+      "relaxed_comparator_scale_2.5": {
+        divergences: 0,
+        max_rhat: 1.00324411294331
+      },
+      relaxed_comparator_scale_5: {
+        divergences: 0,
+        max_rhat: 1.00299464074674
+      }
+    },
+    about: "Fitted results of workflow.R on simulated data. Not clinical evidence.",
+    package: {
+      version: "0.1.0.9000",
+      engine: "cmdstanr",
+      r: "R version 4.6.0 (2026-04-24)",
+      cmdstan: "2.39.0"
+    },
+    script_sha256: "e75445a5dcdc30ea0122a728582a162536ccef222f77f499966cbc0d6e849543",
+    run: "2026-09-15T09:36:36-0400"
+  };
+
   // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/scene.ts
+  var native = native_record_default;
   var scalar = (label, range, value) => ({ type: { kind: "scalar", range }, default: value, interpolate: "lerp", ownership: "shared", label });
   var schema = {
     scene: { type: { kind: "enum", values: Object.keys(labs) }, default: "evidence", interpolate: "snap", ownership: "shared" },
@@ -18651,8 +18921,31 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       ),
       v2.metrics,
       "A tighter prior narrows the interval even though no new data arrived. Near the observed rows the data do the work; far from them, the prior does.",
-      "<p>In mlumr, prior_summary() lists the priors, plot_prior_posterior() draws each posterior over its prior, and prior_sensitivity() refits the model over several prior scales. prior_normal(autoscale = TRUE) divides a slope prior's scale by each covariate's standard deviation.</p>"
+      "<p>In mlumr, prior_summary() lists the priors, plot_prior_posterior() draws each posterior over its prior, and prior_sensitivity() refits the model over several prior scales. prior_normal(autoscale = TRUE) divides a slope prior's scale by each covariate's standard deviation.</p>" + sensitivityPanel()
     );
+  }
+  function sensitivityPanel() {
+    const rows = native.sensitivity;
+    if (!rows.length) return "";
+    const cell = (v2, digits = 4) => Number.isFinite(v2) ? v2.toFixed(digits) : "not available";
+    const tr = (r2) => `<tr><td>${esc3(r2.scenario)}</td><td>${esc3(r2.model)}</td><td>${r2.n_int}</td><td>${r2.comparator_scale}</td><td>${esc3(r2.target)}</td><td>${cell(r2.mean)}</td><td>${cell(r2.mcse)}</td><td>${cell(r2.lower)} to ${cell(r2.upper)}</td></tr>`;
+    const base = rows.filter((r2) => r2.scenario === "base"), grid2 = rows.filter((r2) => r2.scenario === "integration"), prior = rows.filter((r2) => r2.scenario === "comparator prior");
+    const transport = rows.filter((r2) => r2.scenario === "transport" && r2.target !== "prespecified");
+    const moved = (a2, b2) => Math.abs(a2.mean - b2.mean) / Math.hypot(a2.mcse, b2.mcse);
+    const gridNote = grid2.map((g) => {
+      const b2 = base.find((x2) => x2.model === g.model);
+      return `${g.model}: ${cell(b2.mean, 3)} at 512 against ${cell(g.mean, 3)} at 2048 points, a difference of ${moved(b2, g).toFixed(1)} times the MCSE of the difference`;
+    }).join("; ");
+    const priorSpan = prior.length ? `${cell(Math.min(...prior.map((r2) => r2.mean)), 3)} to ${cell(Math.max(...prior.map((r2) => r2.mean)), 3)}` : "not run";
+    const worst = transport.length ? transport.reduce((a2, b2) => b2.upper - b2.lower > a2.upper - a2.lower ? b2 : a2) : null;
+    return `<details><summary>What the native sensitivity run found for the prespecified target</summary>
+<p>From <code>Rscript workflow.R --fit --sensitivity --record</code> at mlumr ${esc3(native.package.version)} with ${esc3(native.package.engine)}${native.package.cmdstan ? ` (CmdStan ${esc3(native.package.cmdstan)})` : ""}, run ${esc3(native.run)}. Every row is the risk difference, A minus B, in the same 400-row target, re-extracted from each refit; the true value behind the simulated data is ${cell(native.truth.target_rd, 3)}. MCSE is the Monte Carlo standard error of the posterior mean.</p>
+<div class="table-wrap"><table class="fit-table"><thead><tr><th>Scenario</th><th>Model</th><th>n_int</th><th>Comparator prior scale</th><th>Target</th><th>Mean</th><th>MCSE</th><th>95% posterior interval</th></tr></thead><tbody>${rows.map(tr).join("")}</tbody></table></div>
+<ul class="read-list"><li><strong>Integration.</strong> ${gridNote}. A difference of a few MCSEs or less is Monte Carlo noise, not integration bias.</li>
+<li><strong>Comparator slope prior.</strong> With prior_beta held at normal(0, 1), the relaxed model's target mean spans ${priorSpan} across comparator prior scales ${prior.map((r2) => r2.comparator_scale).join(", ")}. This example has one covariate and three comparator rows, so trial B's slope is informed by the data; a wider spread here would mean the target depends on an assumption, not on evidence.</li>
+<li><strong>Transport.</strong> ${Object.entries(native.transport_overlap ?? {}).map(([name, share]) => `${esc3(name)}: ${Math.round(100 * share)}% of the target rows lie inside trial A's central 95% covariate range`).join("; ")}. ${worst ? `The target "${esc3(worst.target)}" gives the widest interval, ${cell(worst.lower, 3)} to ${cell(worst.upper, 3)} for the ${esc3(worst.model)} model${worst.lower < 0 && worst.upper > 0 ? ", which crosses zero" : ""}, and the two models separate as the target leaves trial A's covariate range.` : "No other target was evaluated."} For a target that extrapolates beyond the trials, the defensible conclusion is that the evidence does not support a headline number.</li>
+<li><strong>Sampling checks.</strong> ${Object.entries(native.sensitivity_checks).map(([name, c2]) => `${esc3(name.replaceAll("_", " "))}: ${c2.divergences} divergences, largest R-hat ${cell(c2.max_rhat, 3)}`).join("; ")}.</li></ul>
+<p>With one covariate there is no correlation between covariates to carry from trial A to trial B, so no dependence scenario applies. The package notes on the lesson branch record the full output.</p></details>`;
   }
   function familyChart(i3) {
     if (i3 === 0) return lineChart({ title: "Binary: the logit link turns a straight line into a chance", label: "S-shaped logistic curve", x: [-5, 5], y: [0, 1], xTicks: [-4, -2, 0, 2, 4], yTicks: [0, 0.5, 1], yFmt: pct0, xLabel: "Linear predictor \u03B1 + \u03B2x", yLabel: "Chance of the event", hlines: [{ y: 0.5, key: "muted", dash: true }], lines: [{ points: grid(-5, 5, 81).map((x2) => [x2, logistic(x2)]), key: "a" }] });
@@ -18769,13 +19062,15 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       );
     }
     const qi = Math.round(Number(s2.question)), q = questions[qi];
+    const { spfa, relaxed } = native.fit, truth = native.truth.target_rd;
+    const covers = (f2) => f2.target_rd.lower <= truth && truth <= f2.target_rd.upper;
     return block(
       intervalChart("What a report shows: estimate, interval and target (native companion fits)", "Risk difference in a made-up target population from the companion script fits, with the true value marked", [
-        { name: "Shared slopes (SPFA)", mean: -0.09132, lo: -0.1666, hi: -0.01359, key: "a" },
-        { name: "Separate slopes (relaxed)", mean: -0.09105, lo: -0.17276, hi: -0.01359, key: "b" }
-      ], [-0.2, 0.05], [-0.2, -0.15, -0.1, -0.05, 0, 0.05], [{ x: -0.12408, text: "true value" }, { x: 0, text: "no difference" }]),
+        { name: "Shared slopes (SPFA)", mean: spfa.target_rd.mean, lo: spfa.target_rd.lower, hi: spfa.target_rd.upper, key: "a" },
+        { name: "Separate slopes (relaxed)", mean: relaxed.target_rd.mean, lo: relaxed.target_rd.lower, hi: relaxed.target_rd.upper, key: "b" }
+      ], [-0.2, 0.05], [-0.2, -0.15, -0.1, -0.05, 0, 0.05], [{ x: truth, text: "true value" }, { x: 0, text: "no difference" }]),
       "",
-      "These are the companion script's real mlumr fits to made-up data (workflow.R with --fit: simulated comparator rows, 512 integration points, four chains of 1000 kept draws, seed 2026), for the 400-row target the script defines. They are not the browser cell's fit, whose comparator rows, integration points and draws differ. Both 95% posterior intervals contain the true value. The separate slopes model is a little less certain, because trial B's slope has to be learned from three summaries.",
+      `These are the companion script's real mlumr fits to made-up data (workflow.R with --fit: simulated comparator rows, ${spfa.n_int} integration points, ${spfa.chains} chains of ${spfa.kept_draws / spfa.chains} kept draws, seed ${spfa.seed}, mlumr ${native.package.version} with ${native.package.engine}), for the 400-row target the script defines. They are not the browser cell's fit, whose comparator rows, integration points and draws differ. ${covers(spfa) && covers(relaxed) ? "Both" : covers(spfa) || covers(relaxed) ? "One of the" : "Neither of the"} 95% posterior intervals contain${covers(spfa) && covers(relaxed) ? "" : "s"} the true value. The separate slopes model is a little less certain, because trial B's slope has to be learned from three summaries. The numbers are read from the run's own record, written by the script.`,
       `<div class="case"><span class="eyebrow">Question ${qi + 1} of ${questions.length}</span><h3>${esc3(q.q)}</h3><div class="answers">${q.options.map((a2, i3) => `<button type="button" data-answer="${i3}">${esc3(a2)}</button>`).join("")}</div><p class="feedback" role="status" aria-live="polite"></p></div><details><summary>Checklist for your report</summary><ul class="read-list">${checklist.map((c2) => `<li>${esc3(c2)}</li>`).join("")}</ul></details>${capstonePanel}<p><a href="sources.html" target="_blank" rel="noopener">Sources and scope</a> \xB7 <a href="transcript.html" target="_blank" rel="noopener">Narration transcript</a> \xB7 <a href="workflow.R" download>Companion R script</a> \xB7 <a href="https://choxos.github.io/mlumr/" target="_blank" rel="noopener">mlumr documentation</a></p>`
     );
   }
