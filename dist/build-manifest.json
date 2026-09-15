@@ -1,11 +1,12 @@
 {
+  "id": "f9fe470d5a388839646ed3cc80042ca28141a78615b0bbc25fe829019db590d9",
   "pins": {
     "tangible": "6a07bbcd5dbc548aa809b253aed503fc0a8c3251",
     "mlumr": "4cfd3660f56e22668ae357bde3df4b30cacb23a5"
   },
   "sources": {
-    "dist-manifest.mjs": "87d51c46cfe1ad4c109268cc4526f1191ac078d895eb41803883d75dadc85b57",
-    "finish-site.mjs": "977f7903d5c28bdad2b627f72db125f348a0f43a13a9f865bcabdd18fda4eb88",
+    "dist-manifest.mjs": "9cbe7e3076573485dc916756fa9f7ae127d817f60a40c67017db53f7a8596e24",
+    "finish-site.mjs": "13d4cf32691d56246a0607bc20cca8d5b7c6b37947e0e4ea3c7a628e45ceb0a4",
     "lesson.sh": "05894b01ea73bd93e6c5384e4531c9ad129765113571e30bc0d4435cacf71d40",
     "lesson.yaml": "743c5440b26d23ebf2f67b59f80902708763ef6f1064d3800725473cb6c271f3",
     "r/lesson-helpers.R": "ffd0f1605419049cf749e5001e4ae219cc99148a853e7a2a85da1e448b36c3ed",
@@ -19,15 +20,15 @@
     "runtime/package.json": "3035ba9f9d9d87b4d6d722613fcf97cf8b8465d9b65ddb2fcba5d0e9ae9d4a41",
     "runtime/stan-worker.ts": "d544311d83bcc6e049bfc410b93ce3b618437c19d0007893887f05008f700a46",
     "runtime/tsconfig.json": "197b7eaa1333dfdfcf90b3ae81ffd7da4d9e6895b9c7be8e440adf1320b4f252",
-    "scenes/charts.ts": "446b3c30d1e65d4c426fb0777af35ab4b549397a79df043ee4c36889ff45fb18",
-    "scenes/codecell.ts": "cd87207eba80a61cf2786c28dc4d3cc1e08c3a64cfd9309ab3a4802e46435c27",
+    "scenes/charts.ts": "5164aa458df983df3baadea6e28eaacc9021d326651113c98450a2936b3d1e06",
+    "scenes/codecell.ts": "ec668116490074924318c2e1bacb3916a2919a179e22b95049fae10375947491",
     "scenes/content.ts": "2a401106db70f79588c626b944c21254e9286be11e38936c23d6e69687119532",
     "scenes/diagnostics.ts": "b760ed1169686fd47d51853bbcd315dac0e559d79d03b724b249c689055692df",
     "scenes/math.ts": "dfb64e35711c3ffc82f50a3e345846ecf31c343d688bd814f3fa473b96616600",
     "scenes/navigation.ts": "0985518a19aae71f323763d6eed8e8fb7134ed1e348bc97f8717e4421c8a6f3b",
-    "scenes/runner.ts": "5156eeb9b92a67d1ca70b08ae8245d1ce21d6e3844c55ad71f93bd45b7846e93",
-    "scenes/scene.ts": "ac9a6b71283c2c3b2e0b776f1ebfbd306b7ffa72392408f4e9814e37134395ac",
-    "scenes/style.ts": "a9032b9284c71b8369968671b0c4fa875ed3d596257453f9400a5024385cabd6",
+    "scenes/runner.ts": "50754eb8b984458bcfb0589ae174aafcf0a59484d8626fbcd4b33a92253c0136",
+    "scenes/scene.ts": "df085044fe06ab7c0cf29b6fb52356035253c9c20bf371383011cfded4080178",
+    "scenes/style.ts": "878d3a5565b0b2d04f50bafc0e0c25549040c3555e3877db85f5caa93da74e44",
     "script.md": "afc32c57821e40f369b445ed73a83c693e6c25b27827a2b2c5301072789a0092",
     "sources.html": "90fdb13a7f41e979279c76e5454b8481b967f0e38fb27dad8ef0416f6f9a393c",
     "tsconfig.json": "f6f400fef5b8fc07ea7c3996fe2976b7492a49d8b95d7b5e5c70eee05bb5ac97",
@@ -100,7 +101,7 @@
     "fonts/KaTeX_Typewriter-Regular.woff2": "71d517d67827787cfabdf186914cc3358eda539e37931941f2b2fd4a21f68c0b",
     "index.html": "db6efd2715d01cce576cb17d7cc1141656968fe1baf1f9988e7f6d69e1fd8013",
     "katex.css": "0289a02cf451a44dd73add683a09644252363871ac11713a647b732cee8b1ee3",
-    "player.js": "c72cc66b15f84f792d5bbe0151fc7d1e74df091660708a66db4d4c2e000becaf",
+    "player.js": "5bd39339ba56b8083dc7aa082cb0256799a39e2342887ed1f35a143f394e208a",
     "r/DESCRIPTION": "c2be7c05cb9c85df5b20e7113252116eac846b26d5f74c63b9e5f7f62c179e8a",
     "r/NAMESPACE": "13bf4fce50f14050e525483149a5d142f5fb87153e0459169fcfe989e3d3c3b2",
     "r/R/mlumr.R": "d8eb838a293c1310f1b87019d0273c1f5afd2dd23bbfbf3494ae4ace57dcc9c7",
@@ -125,6 +126,7 @@
     "stan/mlumr_binary_spfa/main.wasm": "9f22f8e5ac723031e02f122ab7a2e067c9af4a9348337422cf132a65d7221e1d",
     "stan/worker.js": "7610fc6739fa07abfe1db3a2f0a21e90dda6d363bc21355f5e9e3d32d5437b67",
     "tracks.json": "3e9974cb395f841bc23ad381d0825a99a54a6e25e5e7f112154a3964b28ed805",
+    "transcript.html": "dfd49be6f549d8be394c9e3f7bc10840f52b21d61975e23964983bf0dd5f3473",
     "workflow.R": "e01612266acdaf14e3dc1f4e677b0714dd49f62b46efd599ef7afdc309f5e3b2"
   }
 }

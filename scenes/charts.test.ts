@@ -36,7 +36,8 @@ describe('charts show values where they are', () => {
     expect(html).toContain('still above B');
   });
 
-  it('keeps every survival setting inside finite, widened axes', () => {
+  // 1,100 renders through jsdom; the budget keeps a loaded machine from failing it.
+  it('keeps every survival setting inside finite, widened axes', { timeout: 30000 }, () => {
     for (let time = 0; time <= 36; time += 1.5) for (let target = 0; target <= 1.0001; target += .1) for (const heterogeneity of [0, .5, 1.5, 2.5]) {
       const html = view('survival', { ...defaults, scene: 'survival', time, target: Number(target.toFixed(2)), heterogeneity });
       for (const svg of svgs(html)) {
