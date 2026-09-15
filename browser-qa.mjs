@@ -318,6 +318,18 @@ try {
     await page.getByRole('button', {name:'Pause lesson',exact:true}).click();
     evidence.push({ playThisChapterSeeks: chapterAt('survival') });
   }
+  // The priors chapter's sensitivity panel is read from the native record:
+  // it names the checkout commit, carries every row, and says which rows refit.
+  {
+    const native = JSON.parse(await readFile(resolve(dir, 'scenes/native-record.json'), 'utf8'));
+    await choose(page, 'priors');
+    const panel = page.locator('.extra details', { hasText: 'What the native sensitivity run found' });
+    const text = await panel.evaluate(el => el.textContent);
+    assert(text.includes(`commit ${native.package.commit.slice(0, 7)}`) && text.includes('clean tree'), 'The sensitivity panel must name the record\'s commit and tree state');
+    assert.equal(await panel.locator('tbody tr').count(), native.sensitivity.length, 'The sensitivity panel must show every recorded row');
+    assert(text.includes('The transport rows do not refit') && text.includes('consistent with Monte Carlo noise'), 'The panel must distinguish the transport rows and not call a small change proof of an adequate grid');
+    evidence.push({ sensitivityPanel: { commit: native.package.commit, rows: native.sensitivity.length } });
+  }
   // Native code examples and prose can be selected and copied.
   await choose(page, 'workflow');
   const codeBlock = page.locator('.extra .code-block').first();

@@ -76,7 +76,7 @@ Checked against `4cfd366`: [set_agd](https://github.com/choxos/mlumr/blob/4cfd36
 
 ## Sensitivity loop for the prespecified target
 
-`Rscript workflow.R --fit --sensitivity --record=FILE` runs the analyst loop that the lesson's priors and diagnostics chapters describe, and writes its results as JSON. Every scenario refits or re-evaluates the model and then extracts the risk difference, A minus B, in the same prespecified 400-row target again. `prior_sensitivity()` is not used for this: it summarizes the built-in populations and, for a relaxed fit, forwards its extra arguments to `mlumr()`, not to `marginal_effects()`, so an external target has to be re-extracted from each refit explicitly, which is what the script does.
+`Rscript workflow.R --fit --sensitivity --record=FILE` runs the analyst loop that the lesson's priors and diagnostics chapters describe, and writes its results as JSON. The integration and prior scenarios refit the model and extract the risk difference, A minus B, in the same prespecified 400-row target again; the transport scenario keeps the base fits and evaluates them in three targets. `prior_sensitivity()` is not used for this: it summarizes the built-in populations and, for a relaxed fit, forwards its extra arguments to `mlumr()`, not to `marginal_effects()`, so an external target has to be re-extracted from each refit explicitly, which is what the script does.
 
 - **Integration refit.** Both models refitted with `n_int = 2048` against the base 512, same priors and seed.
 - **Comparator slope prior.** The relaxed model refitted with `prior_beta_comparator` scales 0.25, 0.5, 2.5 and 5 while `prior_beta` stays at `normal(0, 1)`, so only the comparator prior moves.
@@ -86,7 +86,7 @@ The MCSE column is the Monte Carlo standard error of the posterior mean, from th
 
 ### Execution record, September 15, 2026
 
-`Rscript workflow.R --source=<mlumr checkout at 4cfd366> --fit --sensitivity --record=scenes/native-record.json --engine=cmdstanr` completed with exit code 0 in about four minutes, using R 4.6.0, cmdstanr 0.9.0, CmdStan 2.39.0 and mlumr 0.1.0.9000. The record it wrote is `scenes/native-record.json` on the lesson branch, and the lesson reads the report chart and the sensitivity panel from it. The base fits reproduce the September 12 record exactly (same seed). Every refit had 0 divergences and a largest R-hat of at most 1.007. The true target risk difference behind the simulated data is -0.12408.
+`Rscript workflow.R --source=<mlumr checkout at 4cfd366> --fit --sensitivity --record=scenes/native-record.json --engine=cmdstanr` completed with exit code 0 in about four minutes, using R 4.6.0, cmdstanr 0.9.0, CmdStan 2.39.0 and mlumr 0.1.0.9000. The record it wrote is `scenes/native-record.json` on the lesson branch, and the lesson reads the report chart and the sensitivity panel from it. The record names the checkout's commit and whether its tree was clean, because the development version number alone cannot tell one checkout from another; `dist-manifest.mjs verify` refuses a build whose record names a commit other than the pin in `lesson.sh` or a tree with local changes. The base fits reproduce the September 12 record exactly (same seed). Every refit had 0 divergences and a largest R-hat of at most 1.007. The true target risk difference behind the simulated data is -0.12408.
 
 | Scenario | Model | n_int | Comparator prior scale | Target | Mean | MCSE | Bulk ESS | 95% posterior interval |
 | --- | --- | ---: | ---: | --- | ---: | ---: | ---: | --- |
@@ -107,7 +107,7 @@ Share of target rows inside trial A's central 95% covariate range: prespecified 
 
 How to read it:
 
-- **Integration.** Going from 512 to 2048 points moved the SPFA target mean by 0.0015, about 1.6 times the MCSE of the difference, and the relaxed mean by 0.0004, about 0.4 times. That is Monte Carlo noise, not integration bias; the grid was fine enough at 512.
+- **Integration.** Going from 512 to 2048 points moved the SPFA target mean by 0.0015, about 1.6 times the MCSE of the difference, and the relaxed mean by 0.0004, about 0.4 times. Both differences are consistent with Monte Carlo noise and show no grid effect; the comparison cannot see an effect smaller than about one MCSE, so a tighter bound would need more draws or a tolerance set in advance.
 - **Comparator prior.** Across comparator prior scales from 0.25 to 5, with the index prior fixed, the relaxed target mean spans -0.0891 to -0.0924, a range of about five MCSEs and a tenth of the interval width. Trial B's three rows inform its slope here, so the prior does little. A wide spread in this row would mean the target depends on an assumption.
 - **Transport.** In the shifted target, where a fifth of the rows leave trial A's central range, the relaxed interval already reaches past zero. In the extrapolating target, where 85% of the rows lie outside, the relaxed interval runs from -0.24 to 0.08 and the SPFA and relaxed means separate. For that target the defensible conclusion is that the evidence does not support a headline number, whichever interval is narrower.
 - **Dependence.** Not applicable: one covariate.

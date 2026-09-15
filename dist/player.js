@@ -17032,7 +17032,7 @@ ${li([
 <div class="table-wrap"><table class="fit-table"><thead><tr><th>Source of uncertainty</th><th>In the 95% posterior interval?</th><th>How to see it</th></tr></thead><tbody>
 <tr><td>Parameter uncertainty given the model, the priors and the declared covariate distributions</td><td>Yes</td><td>The interval itself; the MCSE says how precisely its summaries were computed, which is a different thing</td></tr>
 <tr><td>Which prior was used for trial B's slopes</td><td>No</td><td>Refit at other prior scales and re-extract the same target (the companion script's <code>--sensitivity</code> run)</td></tr>
-<tr><td>The number of integration points</td><td>No</td><td>Refit at a larger grid and compare the target effect against its MCSE</td></tr>
+<tr><td>The number of integration points</td><td>No</td><td>Refit at a larger grid; a change within a few MCSEs of the difference is consistent with noise, not proof of an adequate grid, and a larger change is a grid effect</td></tr>
 <tr><td>The covariate distribution and dependence declared for trial B</td><td>No</td><td>Declare other plausible distributions and correlations; with one covariate there is no dependence to vary</td></tr>
 <tr><td>The target population you supplied</td><td>No</td><td>Evaluate the same fit in other targets and report how far each sits from trial A's covariates</td></tr>
 <tr><td>Covariates nobody measured, and other differences between the trials</td><td>No</td><td>Cannot be estimated from these data; state them as assumptions</td></tr>
@@ -18664,10 +18664,13 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       version: "0.1.0.9000",
       engine: "cmdstanr",
       r: "R version 4.6.0 (2026-04-24)",
-      cmdstan: "2.39.0"
+      cmdstan: "2.39.0",
+      loaded_from: "source",
+      commit: "4cfd3660f56e22668ae357bde3df4b30cacb23a5",
+      dirty: false
     },
-    script_sha256: "e75445a5dcdc30ea0122a728582a162536ccef222f77f499966cbc0d6e849543",
-    run: "2026-09-15T09:36:36-0400"
+    script_sha256: "e376f846a20a83ef8e4ac7746897f9223524444487ce8be985fcdef080d005d8",
+    run: "2026-09-15T09:52:02-0400"
   };
 
   // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/scene.ts
@@ -18938,10 +18941,10 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     }).join("; ");
     const priorSpan = prior.length ? `${cell(Math.min(...prior.map((r2) => r2.mean)), 3)} to ${cell(Math.max(...prior.map((r2) => r2.mean)), 3)}` : "not run";
     const worst = transport.length ? transport.reduce((a2, b2) => b2.upper - b2.lower > a2.upper - a2.lower ? b2 : a2) : null;
-    return `<details><summary>What the native sensitivity run found for the prespecified target</summary>
-<p>From <code>Rscript workflow.R --fit --sensitivity --record</code> at mlumr ${esc3(native.package.version)} with ${esc3(native.package.engine)}${native.package.cmdstan ? ` (CmdStan ${esc3(native.package.cmdstan)})` : ""}, run ${esc3(native.run)}. Every row is the risk difference, A minus B, in the same 400-row target, re-extracted from each refit; the true value behind the simulated data is ${cell(native.truth.target_rd, 3)}. MCSE is the Monte Carlo standard error of the posterior mean.</p>
+    return `<details><summary>What the native sensitivity run found</summary>
+<p>From <code>Rscript workflow.R --fit --sensitivity --record</code> at mlumr ${esc3(native.package.version)}${native.package.commit ? ` (commit ${esc3(native.package.commit.slice(0, 7))}${native.package.dirty ? ", tree with local changes" : ", clean tree"})` : ""} with ${esc3(native.package.engine)}${native.package.cmdstan ? ` (CmdStan ${esc3(native.package.cmdstan)})` : ""}, run ${esc3(native.run)}. The base, integration and comparator prior rows are the risk difference, A minus B, in the same prespecified 400-row target, re-extracted from each refit. The transport rows do not refit: they evaluate the two base fits in the three 400-row targets named in the Target column. The true value behind the simulated data in the prespecified target is ${cell(native.truth.target_rd, 3)}. MCSE is the Monte Carlo standard error of the posterior mean.</p>
 <div class="table-wrap"><table class="fit-table"><thead><tr><th>Scenario</th><th>Model</th><th>n_int</th><th>Comparator prior scale</th><th>Target</th><th>Mean</th><th>MCSE</th><th>95% posterior interval</th></tr></thead><tbody>${rows.map(tr).join("")}</tbody></table></div>
-<ul class="read-list"><li><strong>Integration.</strong> ${gridNote}. A difference of a few MCSEs or less is Monte Carlo noise, not integration bias.</li>
+<ul class="read-list"><li><strong>Integration.</strong> ${gridNote}. A difference within a few MCSEs is consistent with Monte Carlo noise and shows no grid effect; it cannot rule out an effect smaller than that noise, so a tighter bound needs more draws or a tolerance set in advance.</li>
 <li><strong>Comparator slope prior.</strong> With prior_beta held at normal(0, 1), the relaxed model's target mean spans ${priorSpan} across comparator prior scales ${prior.map((r2) => r2.comparator_scale).join(", ")}. This example has one covariate and three comparator rows, so trial B's slope is informed by the data; a wider spread here would mean the target depends on an assumption, not on evidence.</li>
 <li><strong>Transport.</strong> ${Object.entries(native.transport_overlap ?? {}).map(([name, share]) => `${esc3(name)}: ${Math.round(100 * share)}% of the target rows lie inside trial A's central 95% covariate range`).join("; ")}. ${worst ? `The target "${esc3(worst.target)}" gives the widest interval, ${cell(worst.lower, 3)} to ${cell(worst.upper, 3)} for the ${esc3(worst.model)} model${worst.lower < 0 && worst.upper > 0 ? ", which crosses zero" : ""}, and the two models separate as the target leaves trial A's covariate range.` : "No other target was evaluated."} For a target that extrapolates beyond the trials, the defensible conclusion is that the evidence does not support a headline number.</li>
 <li><strong>Sampling checks.</strong> ${Object.entries(native.sensitivity_checks).map(([name, c2]) => `${esc3(name.replaceAll("_", " "))}: ${c2.divergences} divergences, largest R-hat ${cell(c2.max_rhat, 3)}`).join("; ")}.</li></ul>

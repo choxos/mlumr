@@ -240,7 +240,7 @@ export const uncertaintyPanel = `<details><summary>What the posterior interval i
 <div class="table-wrap"><table class="fit-table"><thead><tr><th>Source of uncertainty</th><th>In the 95% posterior interval?</th><th>How to see it</th></tr></thead><tbody>
 <tr><td>Parameter uncertainty given the model, the priors and the declared covariate distributions</td><td>Yes</td><td>The interval itself; the MCSE says how precisely its summaries were computed, which is a different thing</td></tr>
 <tr><td>Which prior was used for trial B\'s slopes</td><td>No</td><td>Refit at other prior scales and re-extract the same target (the companion script\'s <code>--sensitivity</code> run)</td></tr>
-<tr><td>The number of integration points</td><td>No</td><td>Refit at a larger grid and compare the target effect against its MCSE</td></tr>
+<tr><td>The number of integration points</td><td>No</td><td>Refit at a larger grid; a change within a few MCSEs of the difference is consistent with noise, not proof of an adequate grid, and a larger change is a grid effect</td></tr>
 <tr><td>The covariate distribution and dependence declared for trial B</td><td>No</td><td>Declare other plausible distributions and correlations; with one covariate there is no dependence to vary</td></tr>
 <tr><td>The target population you supplied</td><td>No</td><td>Evaluate the same fit in other targets and report how far each sits from trial A\'s covariates</td></tr>
 <tr><td>Covariates nobody measured, and other differences between the trials</td><td>No</td><td>Cannot be estimated from these data; state them as assumptions</td></tr>

@@ -31,6 +31,33 @@ if (any(grepl("^--source=", args))) {
   library(mlumr)
 }
 cat("Package version:", as.character(packageVersion("mlumr")), "\n")
+
+# The package version alone cannot tell one development checkout from another,
+# so the record names the exact commit and whether the tree had local changes.
+git_out <- function(root, ...) {
+  out <- tryCatch(suppressWarnings(system2("git", c("-C", shQuote(root), ...), stdout = TRUE, stderr = FALSE)),
+                  error = function(e) character())
+  if (!is.null(attr(out, "status"))) character() else out
+}
+source_identity <- if (exists("root")) {
+  head_sha <- git_out(root, "rev-parse", "HEAD")
+  if (length(head_sha) == 1L && grepl("^[0-9a-f]{40}$", head_sha)) {
+    list(loaded_from = "source", commit = head_sha, dirty = length(git_out(root, "status", "--porcelain")) > 0L)
+  } else {
+    list(loaded_from = "source", commit = NULL, dirty = NULL)
+  }
+} else {
+  sha <- packageDescription("mlumr")$RemoteSha
+  list(loaded_from = "installed", commit = if (is.null(sha)) NULL else sha, dirty = NULL)
+}
+tree_state <- if (isTRUE(source_identity$dirty)) {
+  "(tree has local changes)"
+} else if (isFALSE(source_identity$dirty)) {
+  "(clean tree)"
+} else {
+  ""
+}
+cat("Package commit:", if (is.null(source_identity$commit)) "unknown" else source_identity$commit, tree_state, "\n")
 if (packageVersion("mlumr") < package_version("0.1.0.9000")) {
   stop("This lesson needs the development checkout (0.1.0.9000) or a compatible later release.")
 }
@@ -228,7 +255,8 @@ if ("--sensitivity" %in% args) {
   record$sensitivity_checks <- all_checks
   cat("\nHow to read this: the integration and prior rows should move the\n",
       "prespecified target by less than a few MCSEs if the analysis is ready to\n",
-      "report. A target that extrapolates beyond trial A's covariates widens and\n",
+      "report; a change inside that noise is consistent with an adequate grid,\n",
+      "not proof of one. A target that extrapolates beyond trial A's covariates widens and\n",
       "separates the two models; for such a target the defensible conclusion is\n",
       "that the evidence does not support a headline number, not the narrowest\n",
       "interval.\n", sep = "")
@@ -238,9 +266,10 @@ if (length(record_file)) {
   if (!requireNamespace("jsonlite", quietly = TRUE)) stop("Install jsonlite for --record.")
   record$about <- "Fitted results of workflow.R on simulated data. Not clinical evidence."
   has_cmdstan <- engine == "cmdstanr" && requireNamespace("cmdstanr", quietly = TRUE)
-  record$package <- list(version = as.character(packageVersion("mlumr")), engine = engine,
-                         r = R.version.string,
-                         cmdstan = if (has_cmdstan) as.character(cmdstanr::cmdstan_version()) else NULL)
+  record$package <- c(list(version = as.character(packageVersion("mlumr")), engine = engine,
+                           r = R.version.string,
+                           cmdstan = if (has_cmdstan) as.character(cmdstanr::cmdstan_version()) else NULL),
+                      source_identity)
   script_path <- sub("^--file=", "", grep("^--file=", commandArgs(), value = TRUE)[1])
   record$script_sha256 <- if (requireNamespace("digest", quietly = TRUE)) {
     digest::digest(file = script_path, algo = "sha256")

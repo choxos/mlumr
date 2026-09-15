@@ -260,8 +260,11 @@
     "version": "0.1.0.9000",
     "engine": "cmdstanr",
     "r": "R version 4.6.0 (2026-04-24)",
-    "cmdstan": "2.39.0"
+    "cmdstan": "2.39.0",
+    "loaded_from": "source",
+    "commit": "4cfd3660f56e22668ae357bde3df4b30cacb23a5",
+    "dirty": false
   },
-  "script_sha256": "e75445a5dcdc30ea0122a728582a162536ccef222f77f499966cbc0d6e849543",
-  "run": "2026-09-15T09:36:36-0400"
+  "script_sha256": "e376f846a20a83ef8e4ac7746897f9223524444487ce8be985fcdef080d005d8",
+  "run": "2026-09-15T09:52:02-0400"
 }
