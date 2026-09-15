@@ -87,6 +87,97 @@ test_that("geom_km() rejects left/interval-censored data (right-censored only)",
   expect_error(geom_km(dat_interval), "left- or interval-censored")
 })
 
+# Four index individuals and a comparator of four, through the public route.
+# `kind` sets the second index observation: an exact event at 2, an interval
+# event in (2, 2.5], or a left-censored one at 2. The comparator is always
+# right-censored or exact, with the closed-form KM 3/4, 1/2, 1/2, 0.
+.km_mixed_data <- function(kind = c("right", "interval", "left")) {
+  kind <- match.arg(kind)
+  lo <- c(1, 2, 3, 4)
+  hi <- c(1, 2, Inf, 4)
+  if (kind == "interval") hi[2] <- 2.5
+  if (kind == "left") lo[2] <- NA_real_
+  ip <- set_ipd(data.frame(trt = "A", x = c(0, 0, 1, 1)),
+                treatment = "trt", covariates = "x", family = "survival",
+                Surv = survival::Surv(lo, hi, type = "interval2"))
+  ag <- set_agd_surv(
+    data.frame(trt = "B", time = c(2, 4, 6, 8), status = c(1L, 1L, 0L, 1L),
+               x_mean = 0.5),
+    treatment = "trt", time = "time", status = "status",
+    cov_means = "x_mean", cov_types = "binary"
+  )
+  combine_data(ip, ag)
+}
+
+test_that("geom_km() examines only the cohorts it is asked to draw", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("survival")
+  # The censoring check ran on both cohorts before the selection was applied,
+  # so an interval-censored index refused a comparator-only overlay although
+  # the comparator was entirely eligible.
+  ordinary <- .km_mixed_data("right")
+  expect_identical(as.integer(ordinary$ipd$data$.status), c(1L, 1L, 0L, 1L))
+  interval <- .km_mixed_data("interval")
+  expect_identical(as.integer(interval$ipd$data$.status), c(1L, 3L, 0L, 1L))
+  left <- .km_mixed_data("left")
+  expect_identical(as.integer(left$ipd$data$.status), c(1L, 2L, 0L, 1L))
+  comparator_km <- function(layers) {
+    step <- layers[[1L]]$data
+    expect_setequal(unique(as.character(step$population)), "Comparator")
+    expect_true(all(step$treatment == "B"))
+    at <- function(t) step$surv[step$time == t]
+    expect_equal(c(at(0), at(2), at(4), at(6), at(8)), c(1, 3 / 4, 1 / 2, 1 / 2, 0))
+    # The censoring mark is the one comparator censoring, at 6.
+    expect_equal(layers[[2L]]$data$time, 6)
+    expect_no_error(ggplot2::ggplot_build(ggplot2::ggplot() + layers))
+  }
+  for (d in list(ordinary, interval, left)) {
+    comparator_km(geom_km(d, population = "Comparator"))
+    comparator_km(geom_km(d, treatments = "B"))
+  }
+  # A selected cohort with such observations is still refused, and named.
+  expect_error(geom_km(interval, population = "Index"), "left- or interval-censored")
+  expect_error(geom_km(interval, population = "Index"), "which the Index cohort has")
+  expect_error(geom_km(interval), "left- or interval-censored")
+  expect_error(geom_km(left, treatments = "A"), "which the Index cohort has")
+  # Ordinary data draws either cohort or both, each against its own direct fit.
+  both <- geom_km(ordinary)[[1L]]$data
+  expect_setequal(unique(as.character(both$population)), c("Index", "Comparator"))
+  index_only <- geom_km(ordinary, population = "Index")[[1L]]$data
+  expect_setequal(unique(as.character(index_only$population)), "Index")
+  ref <- survival::survfit(survival::Surv(c(1, 2, 3, 4), c(1, 1, 0, 1)) ~ 1)
+  expect_equal(index_only$surv[match(ref$time, index_only$time)], ref$surv)
+  expect_equal(both$surv[both$population == "Index"][match(ref$time, both$time[both$population == "Index"])],
+               ref$surv)
+  # A label that names no observed arm drew nothing and looked like success;
+  # two selectors that agree on no arm are refused too.
+  expect_error(geom_km(ordinary, treatments = "C"), "names an arm that was not observed: 'C'")
+  expect_error(geom_km(ordinary, population = "Index", treatments = "B"),
+               "select no arm in common")
+})
+
+test_that("a single selected cohort with a shared label keeps its own curve", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("survival")
+  # A single cohort is a single survfit curve, which carries no `strata`; the
+  # labels have to come from the cohort itself. With the labels edited to
+  # coincide, the index's interval event must still not stop the comparator.
+  same <- .km_mixed_data("interval")
+  same$comparator_treatment <- same$index_treatment
+  only_cmp <- geom_km(same, population = "Comparator")
+  step <- only_cmp[[1L]]$data
+  expect_setequal(unique(as.character(step$population)), "Comparator")
+  expect_true(all(step$treatment == "A"))
+  expect_equal(step$surv[match(c(2, 4, 6, 8), step$time)], c(3 / 4, 1 / 2, 1 / 2, 0))
+  expect_error(geom_km(same), "which the Index cohort has")
+  ordinary <- .km_mixed_data("right")
+  ordinary$comparator_treatment <- ordinary$index_treatment
+  both <- geom_km(ordinary)[[1L]]$data
+  expect_setequal(unique(as.character(both$population)), c("Index", "Comparator"))
+  expect_true(all(both$treatment == "A"))
+  expect_no_error(ggplot2::ggplot_build(ggplot2::ggplot() + geom_km(ordinary)))
+})
+
 test_that("mlumr_forest() returns a ggplot and validates its columns", {
   skip_if_not_installed("ggplot2")
   forest_df <- data.frame(
