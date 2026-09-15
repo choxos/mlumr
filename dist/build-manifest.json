@@ -1,11 +1,11 @@
 {
-  "id": "c3c8f312fe59ff4f1854546b341a6d3c3c95c37613094d2427b4b7ac0bbb5b70",
+  "id": "8a4b2c0f28d6347267ec9e582e0c042f2f5e21bb2e890738287d879762138fb1",
   "pins": {
     "tangible": "6a07bbcd5dbc548aa809b253aed503fc0a8c3251",
     "mlumr": "4cfd3660f56e22668ae357bde3df4b30cacb23a5"
   },
   "sources": {
-    "dist-manifest.mjs": "7c2e9460d4c2e8e9f82cf35ade29072ff9e5a8d6d4be1f01a7720d3ef25ef8ac",
+    "dist-manifest.mjs": "1c2f36c2d4664d0d4fc2f42e1420686d3ebe66ade7c3a8f88d37cb265db1b1ee",
     "finish-site.mjs": "13d4cf32691d56246a0607bc20cca8d5b7c6b37947e0e4ea3c7a628e45ceb0a4",
     "lesson.sh": "05894b01ea73bd93e6c5384e4531c9ad129765113571e30bc0d4435cacf71d40",
     "lesson.yaml": "743c5440b26d23ebf2f67b59f80902708763ef6f1064d3800725473cb6c271f3",

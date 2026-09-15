@@ -84,7 +84,17 @@ if (mode === 'snapshot') {
   if (native.dirty !== false) problems.push('native record: the mlumr checkout had local changes or its state was not recorded');
   if (native.dll_current !== true) problems.push('native record: the checkout\'s compiled code was older than its sources, or was not checked');
   if (record.script_sha256 !== sha256(await readFile(join(lesson, 'workflow.R')))) problems.push('native record: written by another revision of workflow.R; rerun the native loop with --record');
-  if (!(record.fit?.spfa?.target_rd && record.fit?.relaxed?.target_rd && Array.isArray(record.sensitivity) && record.sensitivity.length)) problems.push('native record: missing the fits or the sensitivity table; run with --fit --sensitivity --record');
+  // The page reads these fields as numbers, so each must be present and finite.
+  const finite = value => typeof value === 'number' && Number.isFinite(value);
+  const interval = x => Boolean(x) && ['mean', 'lower', 'upper'].every(key => finite(x[key]));
+  const row = r => Boolean(r) && ['scenario', 'model', 'target'].every(key => typeof r[key] === 'string' && r[key]) && ['n_int', 'comparator_scale', 'seed', 'mean', 'mcse', 'ess_bulk', 'lower', 'upper'].every(key => finite(r[key]));
+  const check = c => Boolean(c) && finite(c.divergences) && finite(c.max_rhat);
+  const shaped = finite(record.truth?.target_rd)
+    && ['spfa', 'relaxed'].every(model => interval(record.fit?.[model]?.target_rd) && ['chains', 'kept_draws', 'divergences', 'max_rhat'].every(key => finite(record.fit[model][key])))
+    && Array.isArray(record.sensitivity) && record.sensitivity.length > 0 && record.sensitivity.every(row)
+    && record.sensitivity_checks && Object.values(record.sensitivity_checks).length > 0 && Object.values(record.sensitivity_checks).every(check)
+    && record.transport_overlap && Object.values(record.transport_overlap).length > 0 && Object.values(record.transport_overlap).every(finite);
+  if (!shaped) problems.push('native record: the truth, the fits, the sensitivity table, its checks or the overlap shares are missing or malformed; run with --fit --sensitivity --record');
   compare('built file', manifest.assets ?? {}, await assets());
   const built = Object.keys(manifest.assets ?? {});
   for (const required of ['index.html', 'player.js', 'tracks.json', 'captions.vtt', 'r/files.json', 'stan/worker.js', 'stan/manifest.json']) {

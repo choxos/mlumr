@@ -12,7 +12,7 @@ Rscript workflow.R
 Rscript workflow.R --fit
 ```
 
-To load a source checkout instead of the installed package, pass its path. The checkout needs a built package DLL in `src/`, because `pkgload::load_all(compile = FALSE)` does not compile it. The script uses rstan by default; `--engine=cmdstanr` uses an installed CmdStan. The script installs nothing.
+To load a source checkout instead of the installed package, pass its path. The script loads it with `pkgload::load_all(compile = NA)`, which compiles the package DLL when any source under `src/` is newer than it (the Stan models take a while), and stops if the compiled code is still older than the sources. The script uses rstan by default; `--engine=cmdstanr` uses an installed CmdStan. The script installs nothing.
 
 ```sh
 Rscript workflow.R --source=/path/to/mlumr --fit --engine=cmdstanr
