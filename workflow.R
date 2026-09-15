@@ -11,7 +11,7 @@ if ("--help" %in% args) {
       "--fit: fit SPFA and relaxed models; print diagnostics and effect summaries.\n",
       "--sensitivity: refit at a larger grid and under other comparator slope priors, and\n",
       "  evaluate other targets, extracting the prespecified target effect from every refit.\n",
-      "  It runs its own base fits. Each refit uses its own seed, 2026 plus the scenario number.\n",
+      "  It runs its own base fits. Each scenario uses its own seed, 2026 plus the scenario number.\n",
       "--record=FILE: write the fitted target effects and the sensitivity table as JSON;\n",
       "  needs both --fit and --sensitivity so the record is complete.\n",
       "Fits use four chains, 1000 warmup + 1000 retained iterations per chain.\n",
@@ -24,6 +24,10 @@ record_file <- sub("^--record=", "", grep("^--record=", args, value = TRUE))
 if (length(record_file) > 1L) stop("Choose one --record file.")
 if (length(record_file) && !all(c("--fit", "--sensitivity") %in% args)) {
   stop("--record needs both --fit and --sensitivity so the record holds the fits and the sensitivity table.")
+}
+# The record needs its hashes and its JSON writer; refuse before any fit runs.
+for (pkg in if (length(record_file)) c("jsonlite", "digest") else character()) {
+  if (!requireNamespace(pkg, quietly = TRUE)) stop(sprintf("Install %s for --record.", pkg))
 }
 record <- list()
 engine <- if ("--engine=cmdstanr" %in% args) "cmdstanr" else "rstan"
@@ -53,6 +57,7 @@ source_identity <- if (exists("root")) {
   } else {
     NULL
   }
+  if (length(record_file) && is.null(dll_sha256)) stop("The checkout has no compiled code to record.")
   # TRUE when the loaded DLL is not older than any source under src/.
   dll_current <- file.exists(dll) && !pkgbuild::needs_compile(root)
   if (length(head_sha) == 1L && grepl("^[0-9a-f]{40}$", head_sha)) {
@@ -197,10 +202,11 @@ if ("--sensitivity" %in% args) {
   # re-extracted from each refit explicitly.
   if (!requireNamespace("posterior", quietly = TRUE)) stop("Install posterior for --sensitivity.")
   chains <- 4L
-  # Each refit gets its own seed (2026 plus the scenario number), so the Monte
-  # Carlo error of one row is independent of another's and the MCSE of a
-  # difference between rows combines the two MCSEs. The base fits keep 2026
-  # and therefore equal the --fit fits.
+  # Each scenario gets its own seed (2026 plus the scenario number; the two
+  # models within a scenario share it), so a refit and the base fit of the same
+  # model have independent Monte Carlo errors and the MCSE of their difference
+  # combines the two MCSEs. The base fits keep 2026 and therefore equal the
+  # --fit fits.
   fit_with <- function(data, model, comparator_scale = 1, seed = 2026L) {
     complete(mlumr(data, model = model, link = "logit", engine = engine,
                    prior_intercept = prior_normal(0, 2.5),
@@ -304,7 +310,6 @@ if ("--sensitivity" %in% args) {
 }
 
 if (length(record_file)) {
-  if (!requireNamespace("jsonlite", quietly = TRUE)) stop("Install jsonlite for --record.")
   record$about <- "Fitted results of workflow.R on simulated data. Not clinical evidence."
   has_cmdstan <- engine == "cmdstanr" && requireNamespace("cmdstanr", quietly = TRUE)
   record$package <- c(list(version = as.character(packageVersion("mlumr")), engine = engine,
@@ -312,11 +317,7 @@ if (length(record_file)) {
                            cmdstan = if (has_cmdstan) as.character(cmdstanr::cmdstan_version()) else NULL),
                       source_identity)
   script_path <- sub("^--file=", "", grep("^--file=", commandArgs(), value = TRUE)[1])
-  record$script_sha256 <- if (requireNamespace("digest", quietly = TRUE)) {
-    digest::digest(file = script_path, algo = "sha256")
-  } else {
-    NULL
-  }
+  record$script_sha256 <- digest::digest(file = script_path, algo = "sha256")
   record$run <- format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z")
   writeLines(jsonlite::toJSON(record, auto_unbox = TRUE, pretty = TRUE, digits = NA, null = "null"), record_file)
   cat("\nWrote", record_file, "\n")

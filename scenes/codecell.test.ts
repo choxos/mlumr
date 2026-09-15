@@ -306,6 +306,28 @@ describe('code cell lifecycle', () => {
     expect(slot().querySelector('.fit-out .feedback')).toBeNull();
   });
 
+  it('records the build that was live when the fit started, not one deployed while it sampled', async () => {
+    mountCell(slot(), mlumrCell, 'workflow');
+    await runOk(slot());
+    const sampling = deferred<Fit>();
+    runner.prepareFit.mockResolvedValue(prepared);
+    runner.fitStan.mockReturnValue(sampling.promise);
+    click(slot(), '[data-act=fit]');
+    await vi.waitFor(() => expect(runner.fitStan).toHaveBeenCalledTimes(1));
+    await flush();
+    // A deploy replaces both manifests while the chains run.
+    manifests['build-manifest.json'] = { id: 'build-id-2', pins: { mlumr: 'mlumr-pin-2', tangible: 'tangible-pin' } };
+    manifests['stan/manifest.json'] = { tinystan: '0.3.4', models: { mlumr_binary_spfa: { stan_sha256: 'stan-2', wasm_sha256: 'wasm-2', stanc: '2.40.0' } } };
+    sampling.resolve(fit());
+    await fitShown();
+    await flush(); await flush();
+    const record = savedRecord('workflow')!;
+    expect((record.provenance as { lesson: { build: string } }).lesson.build).toBe('build-id-1');
+    expect((record.provenance as { models: Record<string, { wasm_sha256: string }> }).models.mlumr_binary_spfa.wasm_sha256).toBe('wasm-1');
+    manifests['build-manifest.json'] = { id: 'build-id-1', pins: { mlumr: 'mlumr-pin', tangible: 'tangible-pin' } };
+    manifests['stan/manifest.json'] = { tinystan: '0.3.3', models: { mlumr_binary_spfa: { stan_sha256: 'stan-1', wasm_sha256: 'wasm-1', stanc: '2.39.0' } } };
+  });
+
   it('commits nothing when a fit is cancelled while hashing', async () => {
     const held = deferred<ArrayBuffer>();
     digest.mockReturnValueOnce(held.promise);

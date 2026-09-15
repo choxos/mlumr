@@ -18165,9 +18165,15 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
   function provenance() {
     provenanceReady ??= (async () => {
       const get = async (path2) => {
-        const response2 = await fetch(new URL(path2, document.baseURI));
-        if (!response2.ok) throw new Error(`${path2} returned ${response2.status}`);
-        return response2.json();
+        const timeout = new AbortController();
+        const timer = setTimeout(() => timeout.abort(), 15e3);
+        try {
+          const response2 = await fetch(new URL(path2, document.baseURI), { signal: timeout.signal });
+          if (!response2.ok) throw new Error(`${path2} returned ${response2.status}`);
+          return response2.json();
+        } finally {
+          clearTimeout(timer);
+        }
       };
       const [build, models] = await Promise.all([get("build-manifest.json"), get("stan/manifest.json")]);
       return {
@@ -18287,6 +18293,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       if (busy || !fitButton || !fitOut || !fitReady()) return;
       onActivity();
       const spec = { run: ++runs, model: state.model, revision: state.revision, data: state.preparedBy, code: state.code, session: rSession() };
+      const identity = provenance();
       state.activeFit = spec.run;
       busy = "fit";
       job = new AbortController();
@@ -18314,12 +18321,17 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         if (!current()) throw new DOMException("The fit was cancelled.", "AbortError");
         if (!signal.aborted) fitOut.innerHTML = `<p>Finalizing fit ${spec.run}: hashing the code and the Stan data, and writing the run record.</p>`;
         const view2 = fitView(spec, prepared, result);
-        const [code_sha256, stan_data_sha256, identity] = await Promise.all([sha256(spec.code), sha256(prepared.stan), provenance()]);
+        const cancelled = new Promise((_2, reject) => {
+          const abort = () => reject(new DOMException("The fit was cancelled.", "AbortError"));
+          if (own.signal.aborted) abort();
+          else own.signal.addEventListener("abort", abort, { once: true });
+        });
+        const [code_sha256, stan_data_sha256, provenanceIdentity] = await Promise.race([Promise.all([sha256(spec.code), sha256(prepared.stan), identity]), cancelled]);
         const record = {
           lesson: "mlumr lesson, Run mlumr in your browser",
           created: (/* @__PURE__ */ new Date()).toISOString(),
           run: spec.run,
-          provenance: identity,
+          provenance: provenanceIdentity,
           contents: "The R code as it ran, the Stan data mlumr() prepared, the sampler settings, summaries of the four reported quantities, the sampling checks and the benchmarks. No posterior draws.",
           model: spec.model,
           stan_model: prepared.model_name,
@@ -18688,8 +18700,8 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       dll_sha256: "d3a6a02d32319d6e700f86dee058965d94ef1e5671e50849a4d408f44d3fa664",
       dll_current: true
     },
-    script_sha256: "790a93c6068f1effcd7ee4c4adc57ad1d7677a5f3869fecc4b0868d1d449d56b",
-    run: "2026-09-15T10:50:24-0400"
+    script_sha256: "637e2c6498c773f56e0ef7ee51368485b4b2fe101e74763d81ceb703920a26ac",
+    run: "2026-09-15T11:59:25-0400"
   };
 
   // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/scene.ts
@@ -18961,7 +18973,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     const priorSpan = prior.length ? `${cell(Math.min(...prior.map((r2) => r2.mean)), 3)} to ${cell(Math.max(...prior.map((r2) => r2.mean)), 3)}` : "not run";
     const worst = transport.length ? transport.reduce((a2, b2) => b2.upper - b2.lower > a2.upper - a2.lower ? b2 : a2) : null;
     return `<details><summary>What the native sensitivity run found</summary>
-<p>From <code>Rscript workflow.R --fit --sensitivity --record</code> at mlumr ${esc3(native.package.version)}${native.package.commit ? ` (commit ${esc3(native.package.commit.slice(0, 7))}${native.package.dirty ? ", tree with local changes" : ", clean tree"})` : ""} with ${esc3(native.package.engine)}${native.package.cmdstan ? ` (CmdStan ${esc3(native.package.cmdstan)})` : ""}, run ${esc3(native.run)}. The base, integration and comparator prior rows are the risk difference, A minus B, in the same prespecified 400-row target, re-extracted from each refit; each refit ran with its own seed, so the Monte Carlo errors of two rows are independent and the MCSE of their difference combines the two. The transport rows do not refit: they evaluate the two base fits in the three 400-row targets named in the Target column. The true value behind the simulated data in the prespecified target is ${cell(native.truth.target_rd, 3)}. MCSE is the Monte Carlo standard error of the posterior mean.</p>
+<p>From <code>Rscript workflow.R --fit --sensitivity --record</code> at mlumr ${esc3(native.package.version)}${native.package.commit ? ` (commit ${esc3(native.package.commit.slice(0, 7))}${native.package.dirty ? ", tree with local changes" : ", clean tree"})` : ""} with ${esc3(native.package.engine)}${native.package.cmdstan ? ` (CmdStan ${esc3(native.package.cmdstan)})` : ""}, run ${esc3(native.run)}. The base, integration and comparator prior rows are the risk difference, A minus B, in the same prespecified 400-row target, re-extracted from each refit; each scenario ran with its own seed, so a refit and the base fit of the same model have independent Monte Carlo errors and the MCSE of their difference combines the two. The transport rows do not refit: they evaluate the two base fits in the three 400-row targets named in the Target column. The true value behind the simulated data in the prespecified target is ${cell(native.truth.target_rd, 3)}. MCSE is the Monte Carlo standard error of the posterior mean.</p>
 <div class="table-wrap"><table class="fit-table"><thead><tr><th>Scenario</th><th>Model</th><th>n_int</th><th>Comparator prior scale</th><th>Target</th><th>Mean</th><th>MCSE</th><th>95% posterior interval</th></tr></thead><tbody>${rows.map(tr).join("")}</tbody></table></div>
 <ul class="read-list"><li><strong>Integration.</strong> ${gridNote}. A difference within a few MCSEs is consistent with Monte Carlo noise and shows no grid effect; it cannot rule out an effect smaller than that noise, so a tighter bound needs more draws or a tolerance set in advance.</li>
 <li><strong>Comparator slope prior.</strong> With prior_beta held at normal(0, 1), the relaxed model's target mean spans ${priorSpan} across comparator prior scales ${prior.map((r2) => r2.comparator_scale).join(", ")}. This example has one covariate and three comparator rows, so trial B's slope is informed by the data; a wider spread here would mean the target depends on an assumption, not on evidence.</li>

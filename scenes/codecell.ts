@@ -114,9 +114,16 @@ let provenanceReady: Promise<Provenance> | undefined;
 function provenance(): Promise<Provenance | { unavailable: string }> {
   provenanceReady ??= (async () => {
     const get = async (path: string) => {
-      const response = await fetch(new URL(path, document.baseURI));
-      if (!response.ok) throw new Error(`${path} returned ${response.status}`);
-      return response.json();
+      // A manifest request that hangs must not hold a finished fit.
+      const timeout = new AbortController();
+      const timer = setTimeout(() => timeout.abort(), 15000);
+      try {
+        const response = await fetch(new URL(path, document.baseURI), { signal: timeout.signal });
+        if (!response.ok) throw new Error(`${path} returned ${response.status}`);
+        return response.json();
+      } finally {
+        clearTimeout(timer);
+      }
     };
     const [build, models] = await Promise.all([get('build-manifest.json'), get('stan/manifest.json')]);
     return {
@@ -240,6 +247,9 @@ export function mountCell(slot: HTMLElement, cell: Cell, key: string, onActivity
     // model buttons or edits to the code cannot change what this run is, and
     // the record hashes the code text captured here, not the code at the end.
     const spec = { run: ++runs, model: state.model, revision: state.revision, data: state.preparedBy, code: state.code, session: rSession() };
+    // The manifests are requested now, so the record names the build that was
+    // live when this fit started, not one deployed while the chains ran.
+    const identity = provenance();
     state.activeFit = spec.run;
     busy = 'fit';
     job = new AbortController();
@@ -273,10 +283,16 @@ export function mountCell(slot: HTMLElement, cell: Cell, key: string, onActivity
       // check: a fit cancelled while hashing commits nothing.
       if (!signal.aborted) fitOut.innerHTML = `<p>Finalizing fit ${spec.run}: hashing the code and the Stan data, and writing the run record.</p>`;
       const view = fitView(spec, prepared, result);
-      const [code_sha256, stan_data_sha256, identity] = await Promise.all([sha256(spec.code), sha256(prepared.stan), provenance()]);
+      // Cancelling while hashing or while a manifest request is pending ends
+      // the finalization at once instead of after the slowest promise.
+      const cancelled = new Promise<never>((_, reject) => {
+        const abort = () => reject(new DOMException('The fit was cancelled.', 'AbortError'));
+        if (own.signal.aborted) abort(); else own.signal.addEventListener('abort', abort, { once: true });
+      });
+      const [code_sha256, stan_data_sha256, provenanceIdentity] = await Promise.race([Promise.all([sha256(spec.code), sha256(prepared.stan), identity]), cancelled]);
       const record = {
         lesson: 'mlumr lesson, Run mlumr in your browser', created: new Date().toISOString(), run: spec.run,
-        provenance: identity, contents: 'The R code as it ran, the Stan data mlumr() prepared, the sampler settings, summaries of the four reported quantities, the sampling checks and the benchmarks. No posterior draws.',
+        provenance: provenanceIdentity, contents: 'The R code as it ran, the Stan data mlumr() prepared, the sampler settings, summaries of the four reported quantities, the sampling checks and the benchmarks. No posterior draws.',
         model: spec.model, stan_model: prepared.model_name, code_revision: spec.revision, r_session: spec.session,
         code: spec.code, code_sha256, stan_data_sha256, stan_data: JSON.parse(prepared.stan),
         runtime: { webr: WEBR_URL, r_packages: R_PACKAGES, stan_version: result.stanVersion },
