@@ -18,13 +18,16 @@ geom_km(
 
 \item{treatments}{Optional character vector of treatment labels to draw. By
 default both observed arms are drawn. This cannot separate the arms when
-both carry the same label, which \code{\link[=combine_data]{combine_data()}} permits; use \code{population}
-there.}
+both carry the same label; use \code{population} there. A label that names no
+observed arm is refused rather than drawn as nothing.}
 
 \item{population}{Optional cohort to draw, \code{"Index"} and/or \code{"Comparator"}.
 Selects the arm itself rather than its display name, so
 \code{population = "Comparator"} overlays only the comparator KM on a
-comparator-population prediction whatever the treatments are called.}
+comparator-population prediction whatever the treatments are called. Only
+the selected cohorts are examined: a left- or interval-censored
+observation in a cohort that is not drawn does not stop the plot, and one
+in a cohort that is drawn refuses it.}
 
 \item{marks}{Logical; draw censoring marks (default \code{TRUE}).}
 

@@ -250,12 +250,15 @@ plot.mlumr_marginal_effects <- function(x, ref_line = NULL, ...) {
 #' @param data An `mlumr_data` survival object from [combine_data()].
 #' @param treatments Optional character vector of treatment labels to draw. By
 #'   default both observed arms are drawn. This cannot separate the arms when
-#'   both carry the same label, which [combine_data()] permits; use `population`
-#'   there.
+#'   both carry the same label; use `population` there. A label that names no
+#'   observed arm is refused rather than drawn as nothing.
 #' @param population Optional cohort to draw, `"Index"` and/or `"Comparator"`.
 #'   Selects the arm itself rather than its display name, so
 #'   `population = "Comparator"` overlays only the comparator KM on a
-#'   comparator-population prediction whatever the treatments are called.
+#'   comparator-population prediction whatever the treatments are called. Only
+#'   the selected cohorts are examined: a left- or interval-censored
+#'   observation in a cohort that is not drawn does not stop the plot, and one
+#'   in a cohort that is drawn refuses it.
 #' @param marks Logical; draw censoring marks (default `TRUE`).
 #' @param linewidth Step line width (default `0.4`).
 #' @param ... Passed to [ggplot2::geom_step()].
@@ -275,27 +278,47 @@ plot.mlumr_marginal_effects <- function(x, ref_line = NULL, ...) {
 geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
                     linewidth = 0.4, ...) {
   .need_ggplot2()
-  km <- .km_observed(data)
+  .validate_km_data(data)
+  # The cohorts are chosen before anything is examined: an observation the
+  # plot is not asked to draw has no say in whether it can be drawn, so an
+  # interval-censored index does not stop a comparator-only overlay, whether
+  # the comparator was selected by population or by label.
   # Selecting by treatment label cannot separate the arms when both carry the
-  # same name, which combine_data() permits: the documented comparator-only
-  # overlay then drew the index cohort too. `population` selects the cohort
-  # itself and is the reliable selector in that case.
-  if (!is.null(population)) {
-    population <- .validate_km_population(population)
-    km$steps <- km$steps[km$steps$population %in% population, , drop = FALSE]
-    km$censor <- km$censor[km$censor$population %in% population, , drop = FALSE]
+  # same name: the documented comparator-only overlay then drew the index
+  # cohort too. `population` selects the cohort itself and is the reliable
+  # selector in that case.
+  selected <- if (is.null(population)) {
+    c("Index", "Comparator")
+  } else {
+    .validate_km_population(population)
   }
   if (!is.null(treatments)) {
-    if (identical(data$index_treatment, data$comparator_treatment) &&
+    labels <- c(Index = data$index_treatment,
+                Comparator = data$comparator_treatment)
+    if (identical(labels[["Index"]], labels[["Comparator"]]) &&
           is.null(population)) {
-      warning("Both arms are labelled '", data$index_treatment,
+      warning("Both arms are labelled '", labels[["Index"]],
               "', so `treatments` cannot tell them apart and selects both. ",
               "Use `population = \"Index\"` or `population = \"Comparator\"`.",
               call. = FALSE)
     }
-    km$steps <- km$steps[km$steps$treatment %in% treatments, , drop = FALSE]
-    km$censor <- km$censor[km$censor$treatment %in% treatments, , drop = FALSE]
+    unknown <- setdiff(treatments, labels)
+    if (length(unknown)) {
+      stop("`treatments` names an arm that was not observed: ",
+           paste0("'", unknown, "'", collapse = ", "), ". The observed arms ",
+           "are labelled ", paste0("'", unique(labels), "'", collapse = " and "),
+           ".", call. = FALSE)
+    }
+    selected <- selected[labels[selected] %in% treatments]
+    if (!length(selected)) {
+      stop("`population` and `treatments` select no arm in common: the ",
+           paste(population, collapse = " and "), " cohort",
+           if (length(population) > 1L) "s are" else " is", " labelled ",
+           paste0("'", unique(labels[population]), "'", collapse = " and "),
+           ".", call. = FALSE)
+    }
   }
+  km <- .km_observed(data, selected)
   # Group on the population, not on the colour. Colour is the treatment label,
   # and when both arms share one label ggplot2 puts the two separately fitted
   # curves in a single group and `geom_step()` joins their interleaved points
@@ -323,6 +346,17 @@ geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
   layers
 }
 
+#' Refuse anything but a survival `mlumr_data` for `geom_km()`
+#' @keywords internal
+.validate_km_data <- function(data) {
+  if (!inherits(data, "mlumr_data") || (data$family %||% "") != "survival") {
+    stop("`geom_km()` requires a survival `mlumr_data` object from combine_data().",
+      call. = FALSE
+    )
+  }
+  invisible(TRUE)
+}
+
 #' Validate a `geom_km()` population selector
 #' @keywords internal
 .validate_km_population <- function(population) {
@@ -336,75 +370,77 @@ geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
 }
 
 #' Observed Kaplan-Meier step + censoring data for a survival mlumr_data
+#'
+#' Each selected cohort is fitted on its own, so a single cohort is a single
+#' curve and nothing depends on the `strata` a multi-curve fit carries, and
+#' the two cohorts stay apart when their treatment labels coincide.
+#' @param data A survival `mlumr_data`.
+#' @param population The cohorts to fit, `"Index"` and/or `"Comparator"`.
 #' @keywords internal
-.km_observed <- function(data) {
-  if (!inherits(data, "mlumr_data") || (data$family %||% "") != "survival") {
-    stop("`geom_km()` requires a survival `mlumr_data` object from combine_data().",
-      call. = FALSE
-    )
-  }
+.km_observed <- function(data, population = c("Index", "Comparator")) {
+  .validate_km_data(data)
   if (!requireNamespace("survival", quietly = TRUE)) {
     stop("Package 'survival' is required for geom_km().", call. = FALSE)
   }
-  ipd <- data$ipd$data
-  pseudo <- data$agd$pseudo_ipd
-  ipd_entry <- if (!is.null(ipd$.delay_time)) ipd$.delay_time else
-    rep(0, nrow(ipd))
-  pseudo_entry <- if (!is.null(pseudo$.delay_time)) pseudo$.delay_time else
-    rep(0, nrow(pseudo))
-  obs <- rbind(
-    data.frame(
-      entry = ipd_entry, time = ipd$.time, status = ipd$.status,
-      treatment = data$index_treatment, population = "Index"
-    ),
-    data.frame(
-      entry = pseudo_entry, time = pseudo$.time, status = pseudo$.status,
-      treatment = data$comparator_treatment, population = "Comparator"
-    )
-  )
+  cohort <- function(df, treatment, label) {
+    entry <- if (!is.null(df$.delay_time)) df$.delay_time else rep(0, nrow(df))
+    data.frame(entry = entry, time = df$.time, status = df$.status,
+               treatment = treatment, population = label)
+  }
+  frames <- list(
+    Index = cohort(data$ipd$data, data$index_treatment, "Index"),
+    Comparator = cohort(data$agd$pseudo_ipd, data$comparator_treatment,
+                        "Comparator")
+  )[population]
   # geom_km() draws a right-censored Kaplan-Meier curve. Internal `.status`
   # encodes 0 = right-censored, 1 = event, 2 = left-censored, 3 = interval-
   # censored. The survival model handles 2/3, but a plain right-censored KM step
   # function cannot represent them, so reject rather than silently mislabel them
-  # as right-censored.
-  if (any(obs$status %in% c(2L, 3L))) {
+  # as right-censored. Only the cohorts being drawn are examined.
+  unsupported <- names(frames)[vapply(frames, function(o) {
+    any(o$status %in% c(2L, 3L))
+  }, logical(1L))]
+  if (length(unsupported)) {
     stop("`geom_km()` draws a right-censored Kaplan-Meier curve and cannot ",
          "represent left- or interval-censored observations (internal status ",
-         "2 or 3). These are supported by the survival model but not by this KM ",
-         "helper; restrict the plot to right-censored/event data or use an ",
-         "interval-censored estimator.", call. = FALSE)
+         "2 or 3), which the ", paste(unsupported, collapse = " and "),
+         " cohort", if (length(unsupported) > 1L) "s have" else " has",
+         ". These are supported by the survival model but not by this KM ",
+         "helper; restrict the plot to right-censored/event data, select a ",
+         "cohort without them with `population`, or use an interval-censored ",
+         "estimator.", call. = FALSE)
   }
   # Honor delayed entry (left truncation): with any positive entry time, use the
   # counting-process Surv(entry, time, status) so the risk set is counted from
   # each subject's entry, matching naive()/stc() and the survival model. With all
   # entries 0 this reduces exactly to the standard right-censored KM.
-  # Stratify by POPULATION, not by the treatment label. Each study contributes
-  # one arm, so the population identifies the cohort, while the two labels can
-  # coincide: combine_data() permits an IPD and an AgD arm with the same
-  # treatment name (with a warning). Stratifying on the label there would merge
-  # the two observed cohorts into one curve and leave a facet empty.
-  km_fit <- if (any(obs$entry > 0)) {
-    survival::survfit(survival::Surv(entry, time, status) ~ population,
-                      data = obs)
-  } else {
-    survival::survfit(survival::Surv(time, status) ~ population, data = obs)
+  # One fit per POPULATION, not per treatment label. Each study contributes one
+  # arm, so the population identifies the cohort, while the two labels can
+  # coincide on an edited object; fitting on the label there would merge the
+  # two observed cohorts into one curve and leave a facet empty. `plot()`
+  # facets the predictions by population, and a layer with no `population`
+  # column is drawn into EVERY facet, so the column is kept on every row.
+  fit_one <- function(o) {
+    sf <- if (any(o$entry > 0)) {
+      survival::survfit(survival::Surv(entry, time, status) ~ 1, data = o)
+    } else {
+      survival::survfit(survival::Surv(time, status) ~ 1, data = o)
+    }
+    steps <- data.frame(time = sf$time, surv = sf$surv,
+                        treatment = o$treatment[[1L]],
+                        population = o$population[[1L]])
+    # Censoring marks are read off the fitted rows, before the origin is added.
+    cens <- if (!is.null(sf$n.censor)) {
+      steps[sf$n.censor > 0, , drop = FALSE]
+    } else {
+      steps[0, , drop = FALSE]
+    }
+    list(steps = steps, censor = cens)
   }
-  sf <- km_fit
-  # `plot()` facets the predictions by population, and a layer with no
-  # `population` column is drawn into EVERY facet, so both observed curves
-  # appeared in both panels: an observed index-population curve sat next to
-  # comparator-standardized predictions, and vice versa.
-  pop <- rep(sub("population=", "", names(sf$strata)), sf$strata)
-  trt <- ifelse(pop == "Index", data$index_treatment,
-                data$comparator_treatment)
-  steps <- data.frame(time = sf$time, surv = sf$surv, treatment = trt,
-                      population = pop)
-  # Censoring marks are read off the fitted rows, before the origin is added.
-  cens <- if (!is.null(sf$n.censor)) {
-    steps[sf$n.censor > 0, , drop = FALSE]
-  } else {
-    steps[0, , drop = FALSE]
-  }
+  fits <- lapply(frames, fit_one)
+  steps <- do.call(rbind, lapply(fits, `[[`, "steps"))
+  cens <- do.call(rbind, lapply(fits, `[[`, "censor"))
+  rownames(cens) <- NULL
   # Start each curve at (0, 1). S(0) = 1 exactly, by definition, so the step
   # function begins at the top-left corner rather than at the first event time,
   # matching the convention the model curves already follow. This is what
