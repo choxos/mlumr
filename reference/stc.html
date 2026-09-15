@@ -233,7 +233,10 @@ normal identity link it is: <code>$estimate</code> is that same mean difference.
 Under a nonlinear link it is not, and <code>$estimate</code> is instead the
 link-scale contrast of the two standardized quantities, a marginal log
 odds ratio under a binomial logit, a log rate ratio under Poisson and a
-log mean ratio under a log link, as the scale note above says.</p>
+log mean ratio under a log link, as the scale note above says. <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>
+headlines <code>$estimate</code> under the name of its scale, and the effect-measures
+table it ends with lists the mean difference from <code>$md</code>, and under a log
+link the log mean ratio and the mean ratio as well.</p>
 <p>For the GLM families no comparator response model is fitted and none is
 transported, so <code>beta_A = beta_B</code> is not among the assumptions and effect
 modification by itself is not a reason to set STC aside. With a binary

@@ -189,6 +189,10 @@ difference. Under a nonlinear link it is not, and `$estimate` is instead
 the link-scale contrast of the two standardized quantities, a marginal
 log odds ratio under a binomial logit, a log rate ratio under Poisson
 and a log mean ratio under a log link, as the scale note above says.
+[`print()`](https://rdrr.io/r/base/print.html) headlines `$estimate`
+under the name of its scale, and the effect-measures table it ends with
+lists the mean difference from `$md`, and under a log link the log mean
+ratio and the mean ratio as well.
 
 For the GLM families no comparator response model is fitted and none is
 transported, so `beta_A = beta_B` is not among the assumptions and

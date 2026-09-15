@@ -24,8 +24,9 @@ compare_models(
   accepted. One whose `n_obs` does not cover the observations it
   carries, as an object computed by an earlier version over part of a
   fit's saved likelihood does, is refused rather than ranked; one from
-  before those were recorded is compared as before, with a message that
-  it could not be checked.
+  before those were recorded, or one recording its observations but not
+  the count, is compared as before, with a message that it could not be
+  checked.
 
 - criterion:
 
