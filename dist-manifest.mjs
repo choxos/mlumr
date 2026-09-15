@@ -83,6 +83,7 @@ if (mode === 'snapshot') {
   if (native.commit !== expected.mlumr) problems.push(`native record: produced at mlumr ${native.commit ?? 'an unknown commit'}, lesson.sh pins ${expected.mlumr}`);
   if (native.dirty !== false) problems.push('native record: the mlumr checkout had local changes or its state was not recorded');
   if (record.script_sha256 !== sha256(await readFile(join(lesson, 'workflow.R')))) problems.push('native record: written by another revision of workflow.R; rerun the native loop with --record');
+  if (!(record.fit?.spfa?.target_rd && record.fit?.relaxed?.target_rd && Array.isArray(record.sensitivity) && record.sensitivity.length)) problems.push('native record: missing the fits or the sensitivity table; run with --fit --sensitivity --record');
   compare('built file', manifest.assets ?? {}, await assets());
   const built = Object.keys(manifest.assets ?? {});
   for (const required of ['index.html', 'player.js', 'tracks.json', 'captions.vtt', 'r/files.json', 'stan/worker.js', 'stan/manifest.json']) {

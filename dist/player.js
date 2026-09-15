@@ -18465,6 +18465,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         n_int: 512,
         comparator_scale: 1,
         target: "prespecified",
+        seed: 2026,
         mean: -0.0913195218343429,
         mcse: 702993120851622e-18,
         ess_bulk: 3060.72913373142,
@@ -18477,6 +18478,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         n_int: 512,
         comparator_scale: 1,
         target: "prespecified",
+        seed: 2026,
         mean: -0.0910549602355891,
         mcse: 624425558776655e-18,
         ess_bulk: 4280.70126936296,
@@ -18489,11 +18491,12 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         n_int: 2048,
         comparator_scale: 1,
         target: "prespecified",
-        mean: -0.0897828487022347,
-        mcse: 634323723013871e-18,
-        ess_bulk: 3564.08143644893,
-        lower: -0.16549955126312,
-        upper: -0.0140821600201266
+        seed: 2027,
+        mean: -0.0907219739730984,
+        mcse: 730505140053343e-18,
+        ess_bulk: 2907.18001095926,
+        lower: -0.167535299624902,
+        upper: -0.0148044106585219
       },
       {
         scenario: "integration",
@@ -18501,11 +18504,12 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         n_int: 2048,
         comparator_scale: 1,
         target: "prespecified",
-        mean: -0.0906863151856677,
-        mcse: 622542811161363e-18,
-        ess_bulk: 4324.75964941111,
-        lower: -0.173270503457469,
-        upper: -0.011676165448936
+        seed: 2027,
+        mean: -0.0912523612013322,
+        mcse: 631601599798556e-18,
+        ess_bulk: 3873.61619663015,
+        lower: -0.167905763228935,
+        upper: -0.0138094168316703
       },
       {
         scenario: "comparator prior",
@@ -18513,11 +18517,12 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         n_int: 512,
         comparator_scale: 0.25,
         target: "prespecified",
-        mean: -0.0891263309969863,
-        mcse: 551562655771278e-18,
-        ess_bulk: 5162.87783743732,
-        lower: -0.165519938434001,
-        upper: -0.0120041468397111
+        seed: 2028,
+        mean: -0.0897441274858968,
+        mcse: 581438994737196e-18,
+        ess_bulk: 4638.9754967347,
+        lower: -0.166185193210251,
+        upper: -0.0123172449788689
       },
       {
         scenario: "comparator prior",
@@ -18525,11 +18530,12 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         n_int: 512,
         comparator_scale: 0.5,
         target: "prespecified",
-        mean: -0.0909369636214221,
-        mcse: 595657502102525e-18,
-        ess_bulk: 4596.43817809235,
-        lower: -0.168546169477087,
-        upper: -0.0121247271399748
+        seed: 2029,
+        mean: -0.0916487831119142,
+        mcse: 575979092041985e-18,
+        ess_bulk: 5025.05078578914,
+        lower: -0.170580031927287,
+        upper: -0.011864307912112
       },
       {
         scenario: "comparator prior",
@@ -18537,11 +18543,12 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         n_int: 512,
         comparator_scale: 2.5,
         target: "prespecified",
-        mean: -0.0924205015038444,
-        mcse: 57756468694748e-17,
-        ess_bulk: 4535.17350082449,
-        lower: -0.167697770642786,
-        upper: -0.0163313343280939
+        seed: 2030,
+        mean: -0.0925933415025966,
+        mcse: 639774214618842e-18,
+        ess_bulk: 3806.32760212928,
+        lower: -0.168848397540109,
+        upper: -0.0121436595893591
       },
       {
         scenario: "comparator prior",
@@ -18549,11 +18556,12 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         n_int: 512,
         comparator_scale: 5,
         target: "prespecified",
-        mean: -0.092420242532623,
-        mcse: 66754131214106e-17,
-        ess_bulk: 3672.46731420458,
-        lower: -0.171377112717305,
-        upper: -0.0129293916824215
+        seed: 2031,
+        mean: -0.091273469915908,
+        mcse: 642646851789462e-18,
+        ess_bulk: 3805.16423617439,
+        lower: -0.169047440422021,
+        upper: -0.0121806815808471
       },
       {
         scenario: "transport",
@@ -18561,6 +18569,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         n_int: 512,
         comparator_scale: 1,
         target: "prespecified",
+        seed: 2026,
         mean: -0.0913195218343429,
         mcse: 702993120851622e-18,
         ess_bulk: 3060.72913373142,
@@ -18573,6 +18582,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         n_int: 512,
         comparator_scale: 1,
         target: "prespecified",
+        seed: 2026,
         mean: -0.0910549602355891,
         mcse: 624425558776655e-18,
         ess_bulk: 4280.70126936296,
@@ -18585,6 +18595,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         n_int: 512,
         comparator_scale: 1,
         target: "shifted, mean 1.0",
+        seed: 2026,
         mean: -0.091695303861073,
         mcse: 717507745601935e-18,
         ess_bulk: 3043.65440204052,
@@ -18597,6 +18608,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         n_int: 512,
         comparator_scale: 1,
         target: "shifted, mean 1.0",
+        seed: 2026,
         mean: -0.0924524555767004,
         mcse: 840826995891615e-18,
         ess_bulk: 4280.58648129297,
@@ -18609,6 +18621,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         n_int: 512,
         comparator_scale: 1,
         target: "extrapolating, mean 2.2",
+        seed: 2026,
         mean: -0.067753959441186,
         mcse: 597572132192011e-18,
         ess_bulk: 2904.18185968674,
@@ -18621,6 +18634,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         n_int: 512,
         comparator_scale: 1,
         target: "extrapolating, mean 2.2",
+        seed: 2026,
         mean: -0.070984844213103,
         mcse: 0.00121806169536175,
         ess_bulk: 4138.54596648284,
@@ -18639,27 +18653,27 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       },
       spfa_n_int_2048: {
         divergences: 0,
-        max_rhat: 1.00482059713669
+        max_rhat: 1.00243229048679
       },
       relaxed_n_int_2048: {
         divergences: 0,
-        max_rhat: 1.00438659904769
+        max_rhat: 1.00219816776348
       },
       "relaxed_comparator_scale_0.25": {
         divergences: 0,
-        max_rhat: 1.00319775053041
+        max_rhat: 1.0032373631698
       },
       "relaxed_comparator_scale_0.5": {
         divergences: 0,
-        max_rhat: 1.00310507797938
+        max_rhat: 1.00324288889612
       },
       "relaxed_comparator_scale_2.5": {
         divergences: 0,
-        max_rhat: 1.00324411294331
+        max_rhat: 1.00293356846003
       },
       relaxed_comparator_scale_5: {
         divergences: 0,
-        max_rhat: 1.00299464074674
+        max_rhat: 1.00466562114478
       }
     },
     about: "Fitted results of workflow.R on simulated data. Not clinical evidence.",
@@ -18672,8 +18686,8 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       commit: "4cfd3660f56e22668ae357bde3df4b30cacb23a5",
       dirty: false
     },
-    script_sha256: "89a21ed9584c82852ab931bdcbf336d11d4dc6208a986e38a3a100bf71901207",
-    run: "2026-09-15T10:06:21-0400"
+    script_sha256: "acda9995255735baf0ac21bf04595528f0bb4a529fb727245a902162a6b43c5e",
+    run: "2026-09-15T10:23:18-0400"
   };
 
   // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/scene.ts
@@ -18945,7 +18959,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     const priorSpan = prior.length ? `${cell(Math.min(...prior.map((r2) => r2.mean)), 3)} to ${cell(Math.max(...prior.map((r2) => r2.mean)), 3)}` : "not run";
     const worst = transport.length ? transport.reduce((a2, b2) => b2.upper - b2.lower > a2.upper - a2.lower ? b2 : a2) : null;
     return `<details><summary>What the native sensitivity run found</summary>
-<p>From <code>Rscript workflow.R --fit --sensitivity --record</code> at mlumr ${esc3(native.package.version)}${native.package.commit ? ` (commit ${esc3(native.package.commit.slice(0, 7))}${native.package.dirty ? ", tree with local changes" : ", clean tree"})` : ""} with ${esc3(native.package.engine)}${native.package.cmdstan ? ` (CmdStan ${esc3(native.package.cmdstan)})` : ""}, run ${esc3(native.run)}. The base, integration and comparator prior rows are the risk difference, A minus B, in the same prespecified 400-row target, re-extracted from each refit. The transport rows do not refit: they evaluate the two base fits in the three 400-row targets named in the Target column. The true value behind the simulated data in the prespecified target is ${cell(native.truth.target_rd, 3)}. MCSE is the Monte Carlo standard error of the posterior mean.</p>
+<p>From <code>Rscript workflow.R --fit --sensitivity --record</code> at mlumr ${esc3(native.package.version)}${native.package.commit ? ` (commit ${esc3(native.package.commit.slice(0, 7))}${native.package.dirty ? ", tree with local changes" : ", clean tree"})` : ""} with ${esc3(native.package.engine)}${native.package.cmdstan ? ` (CmdStan ${esc3(native.package.cmdstan)})` : ""}, run ${esc3(native.run)}. The base, integration and comparator prior rows are the risk difference, A minus B, in the same prespecified 400-row target, re-extracted from each refit; each refit ran with its own seed, so the Monte Carlo errors of two rows are independent and the MCSE of their difference combines the two. The transport rows do not refit: they evaluate the two base fits in the three 400-row targets named in the Target column. The true value behind the simulated data in the prespecified target is ${cell(native.truth.target_rd, 3)}. MCSE is the Monte Carlo standard error of the posterior mean.</p>
 <div class="table-wrap"><table class="fit-table"><thead><tr><th>Scenario</th><th>Model</th><th>n_int</th><th>Comparator prior scale</th><th>Target</th><th>Mean</th><th>MCSE</th><th>95% posterior interval</th></tr></thead><tbody>${rows.map(tr).join("")}</tbody></table></div>
 <ul class="read-list"><li><strong>Integration.</strong> ${gridNote}. A difference within a few MCSEs is consistent with Monte Carlo noise and shows no grid effect; it cannot rule out an effect smaller than that noise, so a tighter bound needs more draws or a tolerance set in advance.</li>
 <li><strong>Comparator slope prior.</strong> With prior_beta held at normal(0, 1), the relaxed model's target mean spans ${priorSpan} across comparator prior scales ${prior.map((r2) => r2.comparator_scale).join(", ")}. This example has one covariate and three comparator rows, so trial B's slope is informed by the data; a wider spread here would mean the target depends on an assumption, not on evidence.</li>

@@ -11,8 +11,9 @@ if ("--help" %in% args) {
       "--fit: fit SPFA and relaxed models; print diagnostics and effect summaries.\n",
       "--sensitivity: refit at a larger grid and under other comparator slope priors, and\n",
       "  evaluate other targets, extracting the prespecified target effect from every refit.\n",
-      "  It runs its own base fits, so --fit is not required.\n",
-      "--record=FILE: write the fitted target effects and the sensitivity table as JSON.\n",
+      "  It runs its own base fits. Each refit uses its own seed, 2026 plus the scenario number.\n",
+      "--record=FILE: write the fitted target effects and the sensitivity table as JSON;\n",
+      "  needs both --fit and --sensitivity so the record is complete.\n",
       "Fits use four chains, 1000 warmup + 1000 retained iterations per chain.\n",
       "This is a teaching run; examine diagnostics before interpreting a posterior.\n",
       sep = "")
@@ -21,6 +22,9 @@ if ("--help" %in% args) {
 if (sum(grepl("^--engine=", args)) > 1L) stop("Choose one Stan engine.")
 record_file <- sub("^--record=", "", grep("^--record=", args, value = TRUE))
 if (length(record_file) > 1L) stop("Choose one --record file.")
+if (length(record_file) && !all(c("--fit", "--sensitivity") %in% args)) {
+  stop("--record needs both --fit and --sensitivity so the record holds the fits and the sensitivity table.")
+}
 record <- list()
 engine <- if ("--engine=cmdstanr" %in% args) "cmdstanr" else "rstan"
 if (any(grepl("^--source=", args))) {
@@ -179,12 +183,16 @@ if ("--sensitivity" %in% args) {
   # re-extracted from each refit explicitly.
   if (!requireNamespace("posterior", quietly = TRUE)) stop("Install posterior for --sensitivity.")
   chains <- 4L
-  fit_with <- function(data, model, comparator_scale = 1) {
+  # Each refit gets its own seed (2026 plus the scenario number), so the Monte
+  # Carlo error of one row is independent of another's and the MCSE of a
+  # difference between rows combines the two MCSEs. The base fits keep 2026
+  # and therefore equal the --fit fits.
+  fit_with <- function(data, model, comparator_scale = 1, seed = 2026L) {
     complete(mlumr(data, model = model, link = "logit", engine = engine,
                    prior_intercept = prior_normal(0, 2.5),
                    prior_beta = prior_normal(0, 1),
                    prior_beta_comparator = prior_normal(0, comparator_scale),
-                   chains = chains, iter = 2000, warmup = 1000, seed = 2026,
+                   chains = chains, iter = 2000, warmup = 1000, seed = seed,
                    adapt_delta = 0.95, refresh = 0, verbose = FALSE))
   }
   # Posterior mean, its Monte Carlo standard error, and the 95% interval of
@@ -203,10 +211,10 @@ if ("--sensitivity" %in% args) {
     list(divergences = fit$diagnostics$n_divergent, max_rhat = max(fit$summary$Rhat, na.rm = TRUE))
   }
   rows <- list()
-  row_of <- function(scenario, model, n_int, comparator_scale, target_name, fit, newdata = target) {
+  row_of <- function(scenario, model, n_int, comparator_scale, target_name, fit, newdata = target, seed = 2026L) {
     est <- target_rd(fit, newdata)
     cbind(data.frame(scenario = scenario, model = model, n_int = n_int, comparator_scale = comparator_scale,
-                     target = target_name, row.names = NULL),
+                     target = target_name, seed = seed, row.names = NULL),
           as.data.frame(t(est)))
   }
 
@@ -215,11 +223,11 @@ if ("--sensitivity" %in% args) {
   base <- list(spfa = fit_with(dat, "spfa"), relaxed = fit_with(dat, "relaxed"))
   for (model in names(base)) rows[[length(rows) + 1L]] <- row_of("base", model, 512L, 1, "prespecified", base[[model]])
 
-  cat("\n-- 1. Integration refit: n_int 2048 against 512, same priors and seed --\n")
+  cat("\n-- 1. Integration refit: n_int 2048 against 512, same priors, seed 2027 --\n")
   dat_big <- add_integration(dat, n_int = 2048L, x = distr(qnorm, mean = x_mean, sd = x_sd))
-  big <- list(spfa = fit_with(dat_big, "spfa"), relaxed = fit_with(dat_big, "relaxed"))
+  big <- list(spfa = fit_with(dat_big, "spfa", seed = 2027L), relaxed = fit_with(dat_big, "relaxed", seed = 2027L))
   for (model in names(big)) {
-    rows[[length(rows) + 1L]] <- row_of("integration", model, 2048L, 1, "prespecified", big[[model]])
+    rows[[length(rows) + 1L]] <- row_of("integration", model, 2048L, 1, "prespecified", big[[model]], seed = 2027L)
   }
   cat("Read the difference between the two posterior means against the MCSE of\n",
       "each, not as an exact number: two independent sets of chains differ by\n",
@@ -227,10 +235,13 @@ if ("--sensitivity" %in% args) {
 
   cat("\n-- 2. Comparator slope prior, relaxed model, prior_beta fixed at normal(0, 1) --\n")
   prior_checks <- list()
-  for (scale in c(0.25, 0.5, 2.5, 5)) {
-    fit <- fit_with(dat, "relaxed", comparator_scale = scale)
+  scales <- c(0.25, 0.5, 2.5, 5)
+  for (k in seq_along(scales)) {
+    scale <- scales[k]
+    seed <- 2027L + k
+    fit <- fit_with(dat, "relaxed", comparator_scale = scale, seed = seed)
     prior_checks[[as.character(scale)]] <- checks(fit)
-    rows[[length(rows) + 1L]] <- row_of("comparator prior", "relaxed", 512L, scale, "prespecified", fit)
+    rows[[length(rows) + 1L]] <- row_of("comparator prior", "relaxed", 512L, scale, "prespecified", fit, seed = seed)
     cat(sprintf("prior_beta_comparator normal(0, %s): built-in populations\n", scale))
     print(marginal_effects(fit, population = "both", effect = "rd"))
   }
