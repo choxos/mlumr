@@ -11,7 +11,9 @@ const url = process.argv[2] || 'http://127.0.0.1:4174';
 const sceneOnly = process.argv.includes('--scene');
 const out = resolve(dir, 'qa-artifacts');
 await mkdir(out, { recursive: true });
-const browser = await chromium.launch({ channel: 'chrome' });
+// Installed Chrome by default; QA_BROWSER_CHANNEL= (empty) uses Playwright's own Chromium, as in CI.
+const channel = process.env.QA_BROWSER_CHANNEL ?? 'chrome';
+const browser = await chromium.launch(channel ? { channel } : {});
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 const failures = [];
 // Browser and native R build the same Stan data, but integration points can

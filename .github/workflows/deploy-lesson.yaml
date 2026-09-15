@@ -1,10 +1,18 @@
-# Publishes the narrated mlumr lesson from this lesson-only branch at
+# Checks and publishes the narrated mlumr lesson from this lesson-only branch at
 # https://choxos.github.io/mlumr/lesson .
 #
 # The site is built locally with `bash lesson.sh dist` and committed as dist/.
 # Building here would need the pinned Tangible checkout, its native speech
 # model and about twenty minutes of local speech synthesis, so this workflow
-# only checks and publishes the committed build.
+# checks the sources and the committed build, and publishes the build only
+# after every check passes.
+#
+# The check job runs on every pull request into lesson and on every push to it:
+# strict TypeScript and the unit tests through lesson.sh test, the committed
+# dist/ against this commit's sources, the WebAssembly models against the Stan
+# programs of the mlumr commit lesson.sh names, and the browser checks in
+# browser-qa.mjs without the webR and TinyStan runtimes. Screenshots and the
+# JSON record of the browser run are kept as a workflow artifact.
 #
 # How this coexists with the other writers of gh-pages:
 #   * pkgdown.yaml on main deploys the package website to the gh-pages root
@@ -15,21 +23,102 @@
 #     `clean: true` is scoped to lesson/.
 #   * Every writer pushes with `force: false`, so a push that races another
 #     rebases onto it and retries. The writers touch disjoint paths, so the
-#     rebase is clean. No shared concurrency group is used: with the default
-#     queue a newly queued member cancels a pending one on another branch.
+#     rebase is clean. No concurrency group is shared with the other writers:
+#     with the default queue a newly queued member cancels a pending one on
+#     another branch. The group below is scoped to this workflow and ref, so
+#     two pushes to lesson in quick succession cannot publish the older one
+#     after the newer one: the newer push cancels the older run.
 name: deploy-lesson.yaml
 
 on:
   push:
     branches: [lesson]
+  pull_request:
+    branches: [lesson]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# The check job runs repository code on pull requests, so it gets read access
+# only; the deploy job alone can write.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  deploy-lesson:
+  check:
     runs-on: ubuntu-latest
+    env:
+      TANGIBLE_DIR: ${{ github.workspace }}/.cache/tangible
+      # Playwright's own Chromium; browser-qa.mjs uses installed Chrome when this is unset.
+      QA_BROWSER_CHANNEL: ""
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        run: npm install --global pnpm@11.9.0
+
+      - name: Read the pins lesson.sh names
+        id: pins
+        run: |
+          echo "tangible=$(sed -n 's/^tangible_revision=\([0-9a-f]\{40\}\)$/\1/p' lesson.sh)" >> "$GITHUB_OUTPUT"
+          echo "mlumr=$(sed -n 's/.*MLUMR_REF:-\([0-9a-f]\{40\}\).*/\1/p' lesson.sh)" >> "$GITHUB_OUTPUT"
+
+      # The pinned Tangible checkout with its dependencies and compiled packages.
+      - uses: actions/cache@v4
+        id: tangible
+        with:
+          path: .cache/tangible
+          key: tangible-${{ steps.pins.outputs.tangible }}-node22
+
+      # lesson.sh fetches and builds Tangible when the cache is empty.
+      - name: TypeScript and unit tests
+        run: bash lesson.sh test
+
+      - name: Check that dist/ was built from this commit
+        run: node dist-manifest.mjs verify dist
+
+      # The Stan programs of the mlumr commit whose R code the browser runs.
+      - uses: actions/checkout@v6
+        with:
+          repository: choxos/mlumr
+          ref: ${{ steps.pins.outputs.mlumr }}
+          path: .cache/mlumr-pin
+          sparse-checkout: inst/stan
+          persist-credentials: false
+
+      - name: Check the WebAssembly models against the Stan programs
+        run: node verify-models.mjs .cache/mlumr-pin/inst/stan
+
+      - name: Install Playwright's Chromium
+        run: cd "$TANGIBLE_DIR" && pnpm exec playwright install --with-deps chromium
+
+      - name: Browser checks on the committed build
+        run: |
+          python3 -m http.server 4174 --bind 127.0.0.1 --directory dist > /dev/null 2>&1 &
+          for i in $(seq 1 50); do curl --silent --fail --output /dev/null http://127.0.0.1:4174/index.html && break; sleep 0.2; done
+          node browser-qa.mjs http://127.0.0.1:4174/ --no-runtime
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-qa
+          path: qa-artifacts
+          if-no-files-found: ignore
+
+  deploy-lesson:
+    needs: check
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       # The deploy action brings its own token, so no later step gets one.
       - uses: actions/checkout@v6
