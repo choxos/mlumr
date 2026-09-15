@@ -135,6 +135,8 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 .ml-lesson .chapter-list button[aria-current=step] {background:var(--tint);color:var(--accent-strong);font-weight:650}
 .ml-lesson .chapter-list button[data-narrated=true]::after {content:"Narration here";margin-left:auto;font-size:11px;font-weight:650;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:2px 8px}
 .ml-lesson .chapter-list button:hover {background:var(--surface-3)}
+.ml-lesson .chapter-list .menu-transcript {display:flex;align-items:center;min-height:42px;margin-top:6px;padding:0 10px;border-top:1px solid var(--border);color:var(--accent-strong);font-size:14px;font-weight:600;text-decoration:none}
+.ml-lesson .chapter-list .menu-transcript:hover {background:var(--surface-3)}
 .ml-lesson .narration-return {display:flex;align-items:center;justify-content:space-between;gap:16px;margin-right:var(--board-w);padding:6px 22px;background:var(--tint);border-bottom:1px solid var(--border);flex-shrink:0}
 .ml-lesson .narration-return[hidden] {display:none}
 .ml-lesson .narration-return span {font-size:13px;color:var(--ink-soft);min-width:0}
@@ -297,7 +299,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 }
 .ml-lesson .sr-only {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 
-@media (max-width:1100px) { .ml-lesson .brand-tag,.ml-lesson .header-tools a {display:none} .ml-lesson .lab-scroll {padding:16px 18px 22px} .ml-lesson .ml-header {padding:0 14px} }
+@media (max-width:1100px) { .ml-lesson .brand-tag,.ml-lesson .header-tools a:not(.transcript-link) {display:none} .ml-lesson .lab-scroll {padding:16px 18px 22px} .ml-lesson .ml-header {padding:0 14px} }
 @media (max-width:900px), (max-height:500px) {
   :root {--header-h:52px;--chrome-h:48px;--captions-h:40px;--board-w:24%}
   .ml-lesson .brand-tag {display:none}
@@ -326,6 +328,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
   .ml-lesson .chapter-list {position:fixed;top:calc(var(--header-h) + 4px);left:16px;right:16px;width:auto;transform:none}
   .ml-lesson .theme-toggle {min-width:44px;padding:0 13px;justify-content:center}
   .ml-lesson .theme-toggle .theme-track {display:none}
+  .ml-lesson .header-tools .transcript-link {display:none}
   .ml-lesson .chapter-count {min-width:44px;font-size:12px}
 }
 @media (max-width:360px) {

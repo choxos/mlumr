@@ -1,0 +1,286 @@
+{
+  "truth": {
+    "target_rd": -0.12407955087911,
+    "target_risks": {
+      "A": 0.391913166869191,
+      "B": 0.515992717748301
+    }
+  },
+  "benchmarks": {
+    "naive_lor": {
+      "estimate": -0.848939447623156,
+      "lower": -1.15218609134281,
+      "upper": -0.545692803903505
+    },
+    "stc_lor": {
+      "estimate": -0.347673788537471,
+      "lower": -0.659185427825253,
+      "upper": -0.0361621492496896
+    }
+  },
+  "fit": {
+    "spfa": {
+      "n_int": 512,
+      "chains": 4,
+      "kept_draws": 4000,
+      "seed": 2026,
+      "divergences": 0,
+      "max_rhat": 1.00338781584657,
+      "target_rd": {
+        "mean": -0.0913195218343429,
+        "lower": -0.166596177880224,
+        "upper": -0.013585291008749
+      }
+    },
+    "relaxed": {
+      "n_int": 512,
+      "chains": 4,
+      "kept_draws": 4000,
+      "seed": 2026,
+      "divergences": 0,
+      "max_rhat": 1.00631835379446,
+      "target_rd": {
+        "mean": -0.0910549602355891,
+        "lower": -0.172756760972164,
+        "upper": -0.0135895033721645
+      }
+    }
+  },
+  "transport_overlap": {
+    "prespecified": 0.945,
+    "shifted, mean 1.0": 0.8025,
+    "extrapolating, mean 2.2": 0.15
+  },
+  "sensitivity": [
+    {
+      "scenario": "base",
+      "model": "spfa",
+      "n_int": 512,
+      "comparator_scale": 1,
+      "target": "prespecified",
+      "seed": 2026,
+      "mean": -0.0913195218343429,
+      "mcse": 0.000702993120851622,
+      "ess_bulk": 3060.72913373142,
+      "lower": -0.166596177880224,
+      "upper": -0.013585291008749
+    },
+    {
+      "scenario": "base",
+      "model": "relaxed",
+      "n_int": 512,
+      "comparator_scale": 1,
+      "target": "prespecified",
+      "seed": 2026,
+      "mean": -0.0910549602355891,
+      "mcse": 0.000624425558776655,
+      "ess_bulk": 4280.70126936296,
+      "lower": -0.172756760972164,
+      "upper": -0.0135895033721645
+    },
+    {
+      "scenario": "integration",
+      "model": "spfa",
+      "n_int": 2048,
+      "comparator_scale": 1,
+      "target": "prespecified",
+      "seed": 2027,
+      "mean": -0.0907219739730984,
+      "mcse": 0.000730505140053343,
+      "ess_bulk": 2907.18001095926,
+      "lower": -0.167535299624902,
+      "upper": -0.0148044106585219
+    },
+    {
+      "scenario": "integration",
+      "model": "relaxed",
+      "n_int": 2048,
+      "comparator_scale": 1,
+      "target": "prespecified",
+      "seed": 2027,
+      "mean": -0.0912523612013322,
+      "mcse": 0.000631601599798556,
+      "ess_bulk": 3873.61619663015,
+      "lower": -0.167905763228935,
+      "upper": -0.0138094168316703
+    },
+    {
+      "scenario": "comparator prior",
+      "model": "relaxed",
+      "n_int": 512,
+      "comparator_scale": 0.25,
+      "target": "prespecified",
+      "seed": 2028,
+      "mean": -0.0897441274858968,
+      "mcse": 0.000581438994737196,
+      "ess_bulk": 4638.9754967347,
+      "lower": -0.166185193210251,
+      "upper": -0.0123172449788689
+    },
+    {
+      "scenario": "comparator prior",
+      "model": "relaxed",
+      "n_int": 512,
+      "comparator_scale": 0.5,
+      "target": "prespecified",
+      "seed": 2029,
+      "mean": -0.0916487831119142,
+      "mcse": 0.000575979092041985,
+      "ess_bulk": 5025.05078578914,
+      "lower": -0.170580031927287,
+      "upper": -0.011864307912112
+    },
+    {
+      "scenario": "comparator prior",
+      "model": "relaxed",
+      "n_int": 512,
+      "comparator_scale": 2.5,
+      "target": "prespecified",
+      "seed": 2030,
+      "mean": -0.0925933415025966,
+      "mcse": 0.000639774214618842,
+      "ess_bulk": 3806.32760212928,
+      "lower": -0.168848397540109,
+      "upper": -0.0121436595893591
+    },
+    {
+      "scenario": "comparator prior",
+      "model": "relaxed",
+      "n_int": 512,
+      "comparator_scale": 5,
+      "target": "prespecified",
+      "seed": 2031,
+      "mean": -0.091273469915908,
+      "mcse": 0.000642646851789462,
+      "ess_bulk": 3805.16423617439,
+      "lower": -0.169047440422021,
+      "upper": -0.0121806815808471
+    },
+    {
+      "scenario": "transport",
+      "model": "spfa",
+      "n_int": 512,
+      "comparator_scale": 1,
+      "target": "prespecified",
+      "seed": 2026,
+      "mean": -0.0913195218343429,
+      "mcse": 0.000702993120851622,
+      "ess_bulk": 3060.72913373142,
+      "lower": -0.166596177880224,
+      "upper": -0.013585291008749
+    },
+    {
+      "scenario": "transport",
+      "model": "relaxed",
+      "n_int": 512,
+      "comparator_scale": 1,
+      "target": "prespecified",
+      "seed": 2026,
+      "mean": -0.0910549602355891,
+      "mcse": 0.000624425558776655,
+      "ess_bulk": 4280.70126936296,
+      "lower": -0.172756760972164,
+      "upper": -0.0135895033721645
+    },
+    {
+      "scenario": "transport",
+      "model": "spfa",
+      "n_int": 512,
+      "comparator_scale": 1,
+      "target": "shifted, mean 1.0",
+      "seed": 2026,
+      "mean": -0.091695303861073,
+      "mcse": 0.000717507745601935,
+      "ess_bulk": 3043.65440204052,
+      "lower": -0.168953159990882,
+      "upper": -0.0134295717368587
+    },
+    {
+      "scenario": "transport",
+      "model": "relaxed",
+      "n_int": 512,
+      "comparator_scale": 1,
+      "target": "shifted, mean 1.0",
+      "seed": 2026,
+      "mean": -0.0924524555767004,
+      "mcse": 0.000840826995891615,
+      "ess_bulk": 4280.58648129297,
+      "lower": -0.203076306099767,
+      "upper": 0.0122669671034488
+    },
+    {
+      "scenario": "transport",
+      "model": "spfa",
+      "n_int": 512,
+      "comparator_scale": 1,
+      "target": "extrapolating, mean 2.2",
+      "seed": 2026,
+      "mean": -0.067753959441186,
+      "mcse": 0.000597572132192011,
+      "ess_bulk": 2904.18185968674,
+      "lower": -0.134765873763508,
+      "upper": -0.00893247267063178
+    },
+    {
+      "scenario": "transport",
+      "model": "relaxed",
+      "n_int": 512,
+      "comparator_scale": 1,
+      "target": "extrapolating, mean 2.2",
+      "seed": 2026,
+      "mean": -0.070984844213103,
+      "mcse": 0.00121806169536175,
+      "ess_bulk": 4138.54596648284,
+      "lower": -0.235495001949696,
+      "upper": 0.0788252659775373
+    }
+  ],
+  "sensitivity_checks": {
+    "spfa_base": {
+      "divergences": 0,
+      "max_rhat": 1.00338781584657
+    },
+    "relaxed_base": {
+      "divergences": 0,
+      "max_rhat": 1.00631835379446
+    },
+    "spfa_n_int_2048": {
+      "divergences": 0,
+      "max_rhat": 1.00243229048679
+    },
+    "relaxed_n_int_2048": {
+      "divergences": 0,
+      "max_rhat": 1.00219816776348
+    },
+    "relaxed_comparator_scale_0.25": {
+      "divergences": 0,
+      "max_rhat": 1.0032373631698
+    },
+    "relaxed_comparator_scale_0.5": {
+      "divergences": 0,
+      "max_rhat": 1.00324288889612
+    },
+    "relaxed_comparator_scale_2.5": {
+      "divergences": 0,
+      "max_rhat": 1.00293356846003
+    },
+    "relaxed_comparator_scale_5": {
+      "divergences": 0,
+      "max_rhat": 1.00466562114478
+    }
+  },
+  "about": "Fitted results of workflow.R on simulated data. Not clinical evidence.",
+  "package": {
+    "version": "0.1.0.9000",
+    "engine": "cmdstanr",
+    "r": "R version 4.6.0 (2026-04-24)",
+    "cmdstan": "2.39.0",
+    "loaded_from": "source",
+    "commit": "4cfd3660f56e22668ae357bde3df4b30cacb23a5",
+    "dirty": false,
+    "dll_sha256": "d3a6a02d32319d6e700f86dee058965d94ef1e5671e50849a4d408f44d3fa664",
+    "dll_current": true
+  },
+  "script_sha256": "637e2c6498c773f56e0ef7ee51368485b4b2fe101e74763d81ceb703920a26ac",
+  "run": "2026-09-15T11:59:25-0400"
+}

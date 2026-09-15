@@ -12,7 +12,7 @@ Rscript workflow.R
 Rscript workflow.R --fit
 ```
 
-To load a source checkout instead of the installed package, pass its path. The checkout needs a built package DLL in `src/`, because `pkgload::load_all(compile = FALSE)` does not compile it. The script uses rstan by default; `--engine=cmdstanr` uses an installed CmdStan. The script installs nothing.
+To load a source checkout instead of the installed package, pass its path. The script loads it with `pkgload::load_all(compile = NA)`, which compiles the package DLL when any source under `src/` is newer than it (the Stan models take a while), and stops if the compiled code is still older than the sources. The script uses rstan by default; `--engine=cmdstanr` uses an installed CmdStan. The script installs nothing.
 
 ```sh
 Rscript workflow.R --source=/path/to/mlumr --fit --engine=cmdstanr
@@ -73,6 +73,48 @@ The package ships four example datasets: `psoriasis_ipd`/`psoriasis_agd`, `ndmm_
 ## Source anchors
 
 Checked against `4cfd366`: [set_agd](https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/set_agd.Rd), [add_integration](https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/add_integration.Rd), [mlumr](https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/mlumr.Rd), [predict](https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/predict.mlumr_fit.Rd), [marginal_effects](https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/marginal_effects.Rd), [conditional_effects](https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/conditional_effects.Rd), [check_identification](https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/check_identification.Rd), [stc](https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/stc.Rd), [set_agd_surv](https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/set_agd_surv.Rd), [prior_sensitivity](https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/prior_sensitivity.Rd), [plot_prior_posterior](https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/plot_prior_posterior.Rd) and [prior_normal](https://github.com/choxos/mlumr/blob/4cfd3660f56e22668ae357bde3df4b30cacb23a5/man/prior_normal.Rd). The R source at the same commit is the implementation.
+
+## Sensitivity loop for the prespecified target
+
+`Rscript workflow.R --fit --sensitivity --record=FILE` runs the analyst loop that the lesson's priors and diagnostics chapters describe, and writes its results as JSON. The integration and prior scenarios refit the model and extract the risk difference, A minus B, in the same prespecified 400-row target again; the transport scenario keeps the base fits and evaluates them in three targets. `prior_sensitivity()` is not used for this: it summarizes the built-in populations and, for a relaxed fit, forwards its extra arguments to `mlumr()`, not to `marginal_effects()`, so an external target has to be re-extracted from each refit explicitly, which is what the script does.
+
+- **Integration refit.** Both models refitted with `n_int = 2048` against the base 512, same priors. Every scenario uses its own seed (2026 plus the scenario number; the two models within a scenario share it, and the base fits keep 2026 so they equal the `--fit` fits), so a refit and the base fit of the same model have independent Monte Carlo errors and the MCSE of their difference is the square root of the sum of the two squared MCSEs. Rows of different models are not compared this way.
+- **Comparator slope prior.** The relaxed model refitted with `prior_beta_comparator` scales 0.25, 0.5, 2.5 and 5 while `prior_beta` stays at `normal(0, 1)`, so only the comparator prior moves.
+- **Transport.** The base fits evaluated in the prespecified target, a shifted target (mean 1.0, SD 0.8) and an extrapolating target (mean 2.2, SD 0.5), with the share of each target's rows inside trial A's central 95% covariate range as an overlap measure. With one covariate there is no correlation to carry from trial A to trial B, so no dependence scenario applies.
+
+The MCSE column is the Monte Carlo standard error of the posterior mean, from the `posterior` package on the draws folded into an iterations by chains matrix by the fit's chain labels. Read a difference between two rows against the MCSEs of both, not as an exact number: independent chains differ by Monte Carlo noise even when nothing else changed. `--record` needs both `--fit` and `--sensitivity`, and `dist-manifest.mjs verify` refuses a record without the fits or the table, so the lesson never reads a partial record.
+
+### Execution record, September 15, 2026
+
+`Rscript workflow.R --source=<mlumr checkout at 4cfd366> --fit --sensitivity --record=scenes/native-record.json --engine=cmdstanr` completed with exit code 0 in about four minutes, using R 4.6.0, cmdstanr 0.9.0, CmdStan 2.39.0 and mlumr 0.1.0.9000. The record it wrote is `scenes/native-record.json` on the lesson branch, and the lesson reads the report chart and the sensitivity panel from it. The record names the checkout's commit, whether its tree was clean, and the SHA-256 of its compiled code together with whether that code was at least as new as every source under `src/` (the script loads the checkout with `pkgload::load_all(compile = NA)`, which rebuilds an older DLL, and stops if one still is), because the development version number alone cannot tell one checkout from another; `dist-manifest.mjs verify` refuses a build whose record names a commit other than the pin in `lesson.sh`, a tree with local changes, or compiled code older than its sources, and one whose script SHA-256 differs from the committed `workflow.R`, so the fitted numbers on the page always come from the analysis code in the same commit. The MCSE and ESS fold the draws by the fit's own chain labels, and a fit that lost a chain stops the script instead of being recorded. The base fits reproduce the September 12 record exactly (same seed). Every refit had 0 divergences and a largest R-hat of at most 1.007. The true target risk difference behind the simulated data is -0.12408.
+
+| Scenario | Model | n_int | Comparator prior scale | Seed | Target | Mean | MCSE | Bulk ESS | 95% posterior interval |
+| --- | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | --- |
+| base | SPFA | 512 | 1 | 2026 | prespecified | -0.09132 | 0.00070 | 3061 | -0.1666 to -0.0136 |
+| base | relaxed | 512 | 1 | 2026 | prespecified | -0.09105 | 0.00062 | 4281 | -0.1728 to -0.0136 |
+| integration | SPFA | 2048 | 1 | 2027 | prespecified | -0.09072 | 0.00073 | 2907 | -0.1675 to -0.0148 |
+| integration | relaxed | 2048 | 1 | 2027 | prespecified | -0.09125 | 0.00063 | 3874 | -0.1679 to -0.0138 |
+| comparator prior | relaxed | 512 | 0.25 | 2028 | prespecified | -0.08974 | 0.00058 | 4639 | -0.1662 to -0.0123 |
+| comparator prior | relaxed | 512 | 0.5 | 2029 | prespecified | -0.09165 | 0.00058 | 5025 | -0.1706 to -0.0119 |
+| comparator prior | relaxed | 512 | 2.5 | 2030 | prespecified | -0.09259 | 0.00064 | 3806 | -0.1688 to -0.0121 |
+| comparator prior | relaxed | 512 | 5 | 2031 | prespecified | -0.09127 | 0.00064 | 3805 | -0.1690 to -0.0122 |
+| transport | SPFA | 512 | 1 | 2026 | prespecified | -0.09132 | 0.00070 | 3061 | -0.1666 to -0.0136 |
+| transport | relaxed | 512 | 1 | 2026 | prespecified | -0.09105 | 0.00062 | 4281 | -0.1728 to -0.0136 |
+| transport | SPFA | 512 | 1 | 2026 | shifted, mean 1.0 | -0.09170 | 0.00072 | 3044 | -0.1690 to -0.0134 |
+| transport | relaxed | 512 | 1 | 2026 | shifted, mean 1.0 | -0.09245 | 0.00084 | 4281 | -0.2031 to 0.0123 |
+| transport | SPFA | 512 | 1 | 2026 | extrapolating, mean 2.2 | -0.06775 | 0.00060 | 2904 | -0.1348 to -0.0089 |
+| transport | relaxed | 512 | 1 | 2026 | extrapolating, mean 2.2 | -0.07098 | 0.00122 | 4139 | -0.2355 to 0.0788 |
+
+Share of target rows inside trial A's central 95% covariate range: prespecified 0.945, shifted 0.803, extrapolating 0.150.
+
+How to read it:
+
+- **Integration.** Going from 512 to 2048 points, with its own seed, moved the SPFA target mean by 0.0006, about 0.6 times the MCSE of the difference, and the relaxed mean by 0.0002, about 0.2 times. Both differences are consistent with Monte Carlo noise and show no grid effect; the comparison cannot see an effect smaller than about one MCSE, so a tighter bound would need more draws or a tolerance set in advance.
+- **Comparator prior.** Across comparator prior scales from 0.25 to 5, with the index prior fixed, the relaxed target mean spans -0.0897 to -0.0926, a range of about four MCSEs and 2% of the interval width. Trial B's three rows inform its slope here, so the prior does little. A wide spread in this row would mean the target depends on an assumption.
+- **Transport.** In the shifted target, where a fifth of the rows leave trial A's central range, the relaxed interval already reaches past zero. In the extrapolating target, where 85% of the rows lie outside, the relaxed interval runs from -0.24 to 0.08 and the SPFA and relaxed means separate. For that target the defensible conclusion is that the evidence does not support a headline number, whichever interval is narrower.
+- **Dependence.** Not applicable: one covariate.
+
+Not run: rstan fits, the survival routes, repeated simulation and other outcome models. The benchmarks on the same data were unchanged: naive log odds ratio -0.8489 (95% confidence interval -1.1522 to -0.5457), STC -0.3477 (-0.6592 to -0.0362).
 
 ## Execution record, September 12, 2026
 
