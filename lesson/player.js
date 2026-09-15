@@ -17104,10 +17104,11 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 .ml-player {background:var(--bg);color:var(--ink);height:100dvh;aspect-ratio:auto;font-family:var(--font-sans);-webkit-font-smoothing:antialiased}
 .ml-player :focus-visible {outline:2px solid var(--accent);outline-offset:2px}
 
-/* Narration notes board */
+/* Key points board: the narration's notes, or the explored chapter's */
 .ml-player .xv-board {top:var(--header-h);bottom:calc(var(--chrome-h) + var(--captions-h));height:auto;width:var(--board-w);padding:22px 24px;background:var(--surface-2);border-left:1px solid var(--border);color:var(--ink-soft);font-size:clamp(13px,1.1vw,16px);line-height:1.6;pointer-events:auto}
-.ml-player .xv-board::before {content:"Notes";display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:18px}
+.ml-player .xv-board::before {content:"Key points";display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:18px}
 .ml-player .xv-board-inner {gap:18px}
+.ml-player .xv-board-inner[hidden] {display:none}
 .ml-player .xv-board .katex {color:var(--ink);font-size:1.25em}
 .ml-player .xv-board .katex-display {margin:0;overflow-x:auto;overflow-y:hidden}
 .ml-player .xv-hl {background:var(--tint);color:var(--accent-strong)}
@@ -17377,7 +17378,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
   .ml-player .xv-credit {font-size:9px;padding:0 6px}
   .ml-player .xv-elapsed {min-width:72px;font-size:10px}
 }
-/* Narrow portrait phones: the notes board repeats what the captions and the
+/* Narrow portrait phones: the key points board repeats what the captions and the
    chapter already show, so it gives its width back to the lesson. */
 @media (max-width:640px) {
   :root {--board-w:0px}
@@ -19140,11 +19141,42 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       const audio = player?.querySelector("audio") ?? null;
       const playButton = root.querySelector("[data-play-chapter]");
       let chapterStart = {};
+      let boardTracks = {};
+      let chapterOrder = [];
       if (audio) {
         fetch(new URL("tracks.json", document.baseURI)).then((response2) => response2.ok ? response2.json() : Promise.reject(new Error(`tracks.json returned ${response2.status}`))).then((tracks) => {
           chapterStart = Object.fromEntries((tracks.tracks?.scene ?? []).map((entry) => [entry.v, entry.t]));
           playButton.hidden = !Object.keys(chapterStart).length;
+          boardTracks = Object.fromEntries(Object.entries(tracks.tracks ?? {}).filter(([key]) => /^board\.[^.]+$/.test(key)).map(([key, cues]) => [key.slice("board.".length), cues]));
+          chapterOrder = Object.entries(chapterStart).map(([lab, t2]) => ({ lab, t: t2 })).sort((a2, b2) => a2.t - b2.t);
+          syncBoard();
         }).catch(() => void 0);
+      }
+      const boardStateAt = (time) => Object.fromEntries(Object.entries(boardTracks).map(([id, cues]) => [id, cues.filter((cue) => cue.t <= time).at(-1)?.v ?? "hidden"]));
+      let boardShown = "";
+      function syncBoard() {
+        const inner2 = player?.querySelector(".xv-board-inner:not(.xv-board-explore)");
+        if (!inner2) return;
+        const lab = exploration && current && current !== narratedState.scene ? current : "";
+        const i3 = chapterOrder.findIndex((chapter) => chapter.lab === lab);
+        const key = i3 === -1 ? "" : lab;
+        if (key === boardShown) return;
+        boardShown = key;
+        player.querySelector(".xv-board-explore")?.remove();
+        inner2.hidden = key !== "";
+        if (!key) return;
+        const end = i3 + 1 < chapterOrder.length ? chapterOrder[i3 + 1].t - 1e-3 : Number.POSITIVE_INFINITY;
+        const states = boardStateAt(end);
+        const block2 = document.createElement("div");
+        block2.className = "xv-board-inner xv-board-explore";
+        for (const item of inner2.querySelectorAll(".xv-board-item[data-id]")) {
+          const state = states[item.dataset.id];
+          if (state !== "shown" && state !== "dimmed") continue;
+          const clone3 = item.cloneNode(true);
+          clone3.className = `xv-board-item xv-${state}`;
+          block2.append(clone3);
+        }
+        inner2.after(block2);
       }
       const defaults = Object.fromEntries(Object.entries(schema).map(([key, spec]) => [key, spec.default]));
       let narratedState = defaults;
@@ -19253,6 +19285,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
           if (!cell) codeSlot.replaceChildren();
           root.querySelector(".lab-scroll").scrollTop = 0;
         }
+        syncBoard();
         const key = JSON.stringify(state);
         if (key === last) return;
         last = key;
@@ -19291,6 +19324,9 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
           observer?.disconnect();
           window.removeEventListener("resize", onResize);
           player?.style.removeProperty("--captions-h");
+          player?.querySelector(".xv-board-explore")?.remove();
+          const boardInner = player?.querySelector(".xv-board-inner");
+          if (boardInner) boardInner.hidden = false;
           root.removeEventListener("input", onInput);
           root.removeEventListener("click", onClick);
           root.removeEventListener("toggle", onToggle, true);

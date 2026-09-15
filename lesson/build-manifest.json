@@ -1,5 +1,5 @@
 {
-  "id": "8a4b2c0f28d6347267ec9e582e0c042f2f5e21bb2e890738287d879762138fb1",
+  "id": "920bd59e6df8def2436b8badc71b01d7ed36f12b53120383f61b9c10cd01aa9d",
   "pins": {
     "tangible": "6a07bbcd5dbc548aa809b253aed503fc0a8c3251",
     "mlumr": "4cfd3660f56e22668ae357bde3df4b30cacb23a5"
@@ -28,8 +28,8 @@
     "scenes/native-record.json": "7c37a95657e98bbfe121040535d663a2b6a08045198d6bc7ff317610effd7faa",
     "scenes/navigation.ts": "d3a2acb8f490d9a9e42d729a400ec22ba07d8b13e14e14a9260b212d10acf321",
     "scenes/runner.ts": "50754eb8b984458bcfb0589ae174aafcf0a59484d8626fbcd4b33a92253c0136",
-    "scenes/scene.ts": "f17fa4898ec1dddbb9a13b2527b8e326c1f515302d0d4b514edccc5a69eaa829",
-    "scenes/style.ts": "7d9e4ed03cafdfe6c6f8b91ddfa0e8380f94f338cd2b672d3111249976bf4b6b",
+    "scenes/scene.ts": "9b5369342b12efd5a9b7ea13451b30c7fef32416a0a8d21eefd854a2ab040a47",
+    "scenes/style.ts": "7c1821dfe41c8e9d1710069d9fb34b539674780db95deb4ea727cacb45fb61db",
     "script.md": "ce90a8f1ed252cf53b90fbe2728bf96130167c4775a4565f4038755e16edaa1b",
     "sources.html": "15f87e940e73fdc93c76f8d95aaf5a313a8955ba681d9085f85137190936fda6",
     "tsconfig.json": "64f39ce6e18d717ba68ea81f5cef6a6c9aa3ef85c052358d76eb28627d01021d",
@@ -102,7 +102,7 @@
     "fonts/KaTeX_Typewriter-Regular.woff2": "71d517d67827787cfabdf186914cc3358eda539e37931941f2b2fd4a21f68c0b",
     "index.html": "db6efd2715d01cce576cb17d7cc1141656968fe1baf1f9988e7f6d69e1fd8013",
     "katex.css": "0289a02cf451a44dd73add683a09644252363871ac11713a647b732cee8b1ee3",
-    "player.js": "3ff2931dccf2aeab76344a7ca6d9fbb8b77a8dd2817ac58947b10a047b509c2c",
+    "player.js": "6ba04b36048436020baea49ad5e66512d6436f7b53429b99823333acfa06eef6",
     "r/DESCRIPTION": "c2be7c05cb9c85df5b20e7113252116eac846b26d5f74c63b9e5f7f62c179e8a",
     "r/NAMESPACE": "13bf4fce50f14050e525483149a5d142f5fb87153e0459169fcfe989e3d3c3b2",
     "r/R/mlumr.R": "d8eb838a293c1310f1b87019d0273c1f5afd2dd23bbfbf3494ae4ace57dcc9c7",
