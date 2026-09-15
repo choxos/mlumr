@@ -66,6 +66,8 @@ if (mode === 'snapshot') {
   const manifest = JSON.parse(await readFile(join(site, NAME), 'utf8').catch(() => { throw new Error(`${siteArg}/${NAME} is missing; build with lesson.sh dist.`); }));
   const expected = await pins();
   for (const key of ['tangible', 'mlumr']) if (manifest.pins?.[key] !== expected[key]) problems.push(`pin ${key}: built with ${manifest.pins?.[key]}, lesson.sh names ${expected[key]}`);
+  // The id must be the hash of the recorded sources, or a run record would cite a build that never existed.
+  if (manifest.id !== sha256(JSON.stringify(manifest.sources ?? {}))) problems.push(`build id ${manifest.id} is not the hash of the recorded sources`);
   const compare = (label, recorded, now) => {
     for (const file of new Set([...Object.keys(recorded), ...Object.keys(now)])) {
       if (!(file in now)) problems.push(`${label} ${file} is gone`);
