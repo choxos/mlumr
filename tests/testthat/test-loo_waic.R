@@ -600,6 +600,22 @@ test_that("a cached DIC that covers its data is compared as before", {
   expect_no_error(suppressMessages(capture.output(compare_models(old, dic2))))
 })
 
+test_that("a cached DIC that records its observations but not the count says so", {
+  # With the observations present the same-observations check verifies them
+  # and says nothing, and a missing `n_obs` drops out of the count comparison,
+  # so nothing disclosed that the coverage could not be checked.
+  y <- rep(c(0L, 1L), 6L)
+  fit1 <- with_data(make_ll_fit("spfa", seed = 2026), y)
+  fit2 <- with_data(make_ll_fit("relaxed", seed = 2026), y)
+  dic2 <- calculate_dic(fit2)
+  uncounted <- calculate_dic(fit1)
+  uncounted$n_obs <- NULL
+  expect_message(capture.output(compare_models(uncounted, dic2)),
+                 "does not record how many pointwise values")
+  expect_no_error(suppressMessages(capture.output(compare_models(uncounted, dic2))))
+  expect_no_message(capture.output(compare_models(calculate_dic(fit1), dic2)))
+})
+
 test_that("a survival DIC is counted against the pseudo-individuals", {
   # A survival comparator's pointwise units are the reconstructed
   # pseudo-individuals, one per row of `pseudo`, and not the aggregate rows

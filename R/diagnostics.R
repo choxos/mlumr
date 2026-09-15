@@ -550,17 +550,28 @@ extract_log_lik <- function(object) {
 #' covariance with the kept ones enters the variance penalty, so the score
 #' cannot be completed from its value. A count that agrees is consistent with
 #' a complete score rather than proof of one, since columns misnumbered within
-#' the right count leave no trace in a scalar. An object without `n_obs` or
-#' without its observations, from a version before either was recorded,
-#' cannot be checked and is compared as before, with the message that
-#' [.assert_same_observations()] gives for a model carrying no data.
+#' the right count leave no trace in a scalar. An object without its
+#' observations, from a version before they were recorded, cannot be checked
+#' and is compared as before, with the message that
+#' [.assert_same_observations()] gives for a model carrying no data; one that
+#' carries its observations but not `n_obs` is compared with a message of its
+#' own saying that the count is not recorded.
 #' @param dic An `mlumr_dic` object.
 #' @return `TRUE` invisibly; stops otherwise.
 #' @keywords internal
 .assert_dic_covers_observations <- function(dic) {
   obs <- dic$observations
   n_obs <- dic$n_obs
-  if (is.null(obs) || is.null(n_obs)) return(invisible(TRUE))
+  # No observations: .assert_same_observations() has already said that this
+  # object carries no data to check.
+  if (is.null(obs)) return(invisible(TRUE))
+  if (is.null(n_obs)) {
+    message("The DIC for `", dic$model %||% "this model", "` does not record ",
+            "how many pointwise values it was computed over, so whether it ",
+            "covers the observations it carries cannot be checked. The ",
+            "comparison assumes it does.")
+    return(invisible(TRUE))
+  }
   rows <- function(df) if (is.null(df)) 0L else nrow(df)
   survival <- !is.null(obs$pseudo)
   n_ipd <- rows(obs$ipd)
@@ -942,8 +953,9 @@ calculate_waic <- function(object,
 #'   objects are also accepted. One whose `n_obs` does not cover the
 #'   observations it carries, as an object computed by an earlier version over
 #'   part of a fit's saved likelihood does, is refused rather than ranked; one
-#'   from before those were recorded is compared as before, with a message
-#'   that it could not be checked.
+#'   from before those were recorded, or one recording its observations but
+#'   not the count, is compared as before, with a message that it could not be
+#'   checked.
 #' @param criterion One of `"dic"` (default), `"loo"`, or `"waic"`.
 #'   LOO and WAIC require the optional `loo` package.
 #' @param survival_unit For survival fits compared by `"loo"`/`"waic"`, the

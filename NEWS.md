@@ -1032,8 +1032,9 @@
   before. A `mlumr_dic` object handed to `compare_models()` is checked the
   same way against the observations it carries, since a saved score outlives
   the fix: one computed over part of a fit's data is refused rather than
-  ranked, and one from a version before the counts were recorded is compared
-  as before, with the message that it could not be checked.
+  ranked, and one from a version before the counts were recorded, or one
+  recording its observations but not the count, is compared as before, with
+  the message that it could not be checked.
 
 * **`calculate_loo()` no longer recommends `moment_match = TRUE`, and
   refuses it.** Its documentation suggested the flag for high Pareto k, but
@@ -1249,6 +1250,20 @@
   for single-row aggregate data. The reported comparator event rate is now the
   observed proportion; the continuity correction is applied only inside the
   effect calculation.
+
+* **A normal-family `stc()` under a log link reports the log mean ratio in
+  `$estimate` and the mean difference in `$md`.** v0.1.0 returned the
+  response-scale mean difference in `$estimate` under every link. Under a log
+  link the model's own contrast is the log of the ratio of the two
+  standardized means, so `$estimate`, `$se` and the interval now hold that,
+  as they hold the log odds ratio for a binomial logit and the log rate ratio
+  for Poisson, and the mean difference with its own standard error and
+  interval is recorded in `$md`, `$md_se`, `$md_lower` and `$md_upper`.
+  Under the identity link the two coincide. `print()` headlines `$estimate`
+  under the name of its scale, and the effect-measures table lists the mean
+  difference from `$md`, and under a log link the log mean ratio and the mean
+  ratio as well; a v0.1.0 result, which carries no `$md`, is still read as
+  the mean difference it holds.
 
 * **`stc()` no longer reports an index-population contrast.** For the binomial,
   normal, and count families `stc()` previously returned an index-population
