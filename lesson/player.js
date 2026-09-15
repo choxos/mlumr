@@ -16845,7 +16845,7 @@
     },
     {
       name: "Report",
-      detail: "predict()",
+      detail: "marginal_effects()",
       title: "Step 6. Compare in one population",
       code: 'marginal_effects(fit, population = "both", effect = "rd")\nmarginal_effects(fit, newdata = target, effect = "lor")\nconditional_effects(fit, newdata = profiles)\npredict(fit, type = "response")\nplot(marginal_effects(fit))\nstc(dat)\nnaive(dat)',
       text: `marginal_effects() compares both treatments in one population: trial A's, trial B's, or a target you pass as newdata, where every row counts equally. effect = "lor" is a log odds ratio. For odds ratio summaries, ask for summary = FALSE and exponentiate each draw first. stc() and naive() are quick benchmarks that answer different questions.`
@@ -17032,7 +17032,7 @@ ${li([
 <div class="table-wrap"><table class="fit-table"><thead><tr><th>Source of uncertainty</th><th>In the 95% posterior interval?</th><th>How to see it</th></tr></thead><tbody>
 <tr><td>Parameter uncertainty given the model, the priors and the declared covariate distributions</td><td>Yes</td><td>The interval itself; the MCSE says how precisely its summaries were computed, which is a different thing</td></tr>
 <tr><td>Which prior was used for trial B's slopes</td><td>No</td><td>Refit at other prior scales and re-extract the same target (the companion script's <code>--sensitivity</code> run)</td></tr>
-<tr><td>The number of integration points</td><td>No</td><td>Refit at a larger grid and compare the target effect against its MCSE</td></tr>
+<tr><td>The number of integration points</td><td>No</td><td>Refit at a larger grid; a change within a few MCSEs of the difference is consistent with noise, not proof of an adequate grid, and a larger change is a grid effect</td></tr>
 <tr><td>The covariate distribution and dependence declared for trial B</td><td>No</td><td>Declare other plausible distributions and correlations; with one covariate there is no dependence to vary</td></tr>
 <tr><td>The target population you supplied</td><td>No</td><td>Evaluate the same fit in other targets and report how far each sits from trial A's covariates</td></tr>
 <tr><td>Covariates nobody measured, and other differences between the trials</td><td>No</td><td>Cannot be estimated from these data; state them as assumptions</td></tr>
@@ -17192,6 +17192,8 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 .ml-lesson .chapter-list button[aria-current=step] {background:var(--tint);color:var(--accent-strong);font-weight:650}
 .ml-lesson .chapter-list button[data-narrated=true]::after {content:"Narration here";margin-left:auto;font-size:11px;font-weight:650;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:2px 8px}
 .ml-lesson .chapter-list button:hover {background:var(--surface-3)}
+.ml-lesson .chapter-list .menu-transcript {display:flex;align-items:center;min-height:42px;margin-top:6px;padding:0 10px;border-top:1px solid var(--border);color:var(--accent-strong);font-size:14px;font-weight:600;text-decoration:none}
+.ml-lesson .chapter-list .menu-transcript:hover {background:var(--surface-3)}
 .ml-lesson .narration-return {display:flex;align-items:center;justify-content:space-between;gap:16px;margin-right:var(--board-w);padding:6px 22px;background:var(--tint);border-bottom:1px solid var(--border);flex-shrink:0}
 .ml-lesson .narration-return[hidden] {display:none}
 .ml-lesson .narration-return span {font-size:13px;color:var(--ink-soft);min-width:0}
@@ -17354,7 +17356,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 }
 .ml-lesson .sr-only {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 
-@media (max-width:1100px) { .ml-lesson .brand-tag,.ml-lesson .header-tools a {display:none} .ml-lesson .lab-scroll {padding:16px 18px 22px} .ml-lesson .ml-header {padding:0 14px} }
+@media (max-width:1100px) { .ml-lesson .brand-tag,.ml-lesson .header-tools a:not(.transcript-link) {display:none} .ml-lesson .lab-scroll {padding:16px 18px 22px} .ml-lesson .ml-header {padding:0 14px} }
 @media (max-width:900px), (max-height:500px) {
   :root {--header-h:52px;--chrome-h:48px;--captions-h:40px;--board-w:24%}
   .ml-lesson .brand-tag {display:none}
@@ -17383,6 +17385,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
   .ml-lesson .chapter-list {position:fixed;top:calc(var(--header-h) + 4px);left:16px;right:16px;width:auto;transform:none}
   .ml-lesson .theme-toggle {min-width:44px;padding:0 13px;justify-content:center}
   .ml-lesson .theme-toggle .theme-track {display:none}
+  .ml-lesson .header-tools .transcript-link {display:none}
   .ml-lesson .chapter-count {min-width:44px;font-size:12px}
 }
 @media (max-width:360px) {
@@ -17430,7 +17433,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     const nav = document.createElement("nav");
     nav.className = "ml-chapter-nav";
     nav.setAttribute("aria-label", "Lesson chapters");
-    nav.innerHTML = `<button type="button" data-direction="-1" aria-label="Previous chapter">\u2039</button><span class="chapter-count" aria-live="polite"></span><button type="button" data-direction="1" aria-label="Next chapter">\u203A</button><details class="chapter-menu"><summary><i class="menu-icon" aria-hidden="true"></i><span class="menu-text">Chapters</span></summary><div class="chapter-list"><p>Open any chapter. The narration keeps playing where it is.</p>${entries.map(([key, [title]], i3) => `<button type="button" data-chapter="${key}"><span>${String(i3 + 1).padStart(2, "0")}</span>${title}</button>`).join("")}</div></details>`;
+    nav.innerHTML = `<button type="button" data-direction="-1" aria-label="Previous chapter">\u2039</button><span class="chapter-count" aria-live="polite"></span><button type="button" data-direction="1" aria-label="Next chapter">\u203A</button><details class="chapter-menu"><summary><i class="menu-icon" aria-hidden="true"></i><span class="menu-text">Chapters</span></summary><div class="chapter-list"><p>Open any chapter. The narration keeps playing where it is.</p>${entries.map(([key, [title]], i3) => `<button type="button" data-chapter="${key}"><span>${String(i3 + 1).padStart(2, "0")}</span>${title}</button>`).join("")}<a class="menu-transcript" href="transcript.html" target="_blank" rel="noopener">Transcript of the narration</a></div></details>`;
     root.querySelector(".ml-header .brand").after(nav);
     const menu = nav.querySelector("details");
     const summary = menu.querySelector("summary");
@@ -17601,11 +17604,11 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     return card(title, `<svg viewBox="0 0 ${W} ${h2}" role="img" aria-label="${esc(label)}">${s2}</svg>${describe(summary)}`);
   }
   function flowChart(title, steps, current) {
-    const n = steps.length, gap = 12, w2 = (W - gap * (n - 1)) / n, h2 = 110;
+    const n = steps.length, gap = 12, w2 = (W - gap * (n - 1)) / n, h2 = 128;
     const s2 = steps.map((st, i3) => {
-      const x2 = i3 * (w2 + gap);
+      const x2 = i3 * (w2 + gap), labelY = 100 + i3 % 2 * 18;
       const arrow = i3 < n - 1 ? `<path class="axis" d="M${x2 + w2 + 1} 46h${gap - 3}" stroke-width="2"/><path class="k-muted" d="M${x2 + w2 + gap - 1} 46l-5 -4v8z"/>` : "";
-      return `<g class="node${i3 === current ? " on" : ""}" data-step="${i3}"><title>Go to step ${i3 + 1}, ${esc(st.name)}</title><rect x="${x2}" y="10" width="${w2}" height="72" rx="9"/><text x="${x2 + w2 / 2}" y="36" text-anchor="middle" font-size="12" font-family="var(--font-mono)">${String(i3 + 1).padStart(2, "0")}</text><text x="${x2 + w2 / 2}" y="58" text-anchor="middle" font-size="14" font-weight="650">${esc(st.name)}</text><text class="label" x="${x2 + w2 / 2}" y="100" text-anchor="middle" font-size="12" font-family="var(--font-mono)">${esc(st.detail)}</text></g>${arrow}`;
+      return `<g class="node${i3 === current ? " on" : ""}" data-step="${i3}"><title>Go to step ${i3 + 1}, ${esc(st.name)}</title><rect x="${x2}" y="10" width="${w2}" height="72" rx="9"/><text x="${x2 + w2 / 2}" y="36" text-anchor="middle" font-size="12" font-family="var(--font-mono)">${String(i3 + 1).padStart(2, "0")}</text><text x="${x2 + w2 / 2}" y="58" text-anchor="middle" font-size="14" font-weight="650">${esc(st.name)}</text><text class="label" x="${x2 + w2 / 2}" y="${labelY}" text-anchor="middle" font-size="12" font-family="var(--font-mono)">${esc(st.detail)}</text></g>${arrow}`;
     }).join("");
     return card(title, `<svg viewBox="0 0 ${W} ${h2}" role="img" aria-label="${esc(`Analysis steps; step ${current + 1}, ${steps[current].name}, is highlighted`)}">${s2}</svg>`);
   }
@@ -18162,9 +18165,15 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
   function provenance() {
     provenanceReady ??= (async () => {
       const get = async (path2) => {
-        const response2 = await fetch(new URL(path2, document.baseURI));
-        if (!response2.ok) throw new Error(`${path2} returned ${response2.status}`);
-        return response2.json();
+        const timeout = new AbortController();
+        const timer = setTimeout(() => timeout.abort(), 15e3);
+        try {
+          const response2 = await fetch(new URL(path2, document.baseURI), { signal: timeout.signal });
+          if (!response2.ok) throw new Error(`${path2} returned ${response2.status}`);
+          return response2.json();
+        } finally {
+          clearTimeout(timer);
+        }
       };
       const [build, models] = await Promise.all([get("build-manifest.json"), get("stan/manifest.json")]);
       return {
@@ -18284,6 +18293,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       if (busy || !fitButton || !fitOut || !fitReady()) return;
       onActivity();
       const spec = { run: ++runs, model: state.model, revision: state.revision, data: state.preparedBy, code: state.code, session: rSession() };
+      const identity = provenance();
       state.activeFit = spec.run;
       busy = "fit";
       job = new AbortController();
@@ -18311,12 +18321,17 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         if (!current()) throw new DOMException("The fit was cancelled.", "AbortError");
         if (!signal.aborted) fitOut.innerHTML = `<p>Finalizing fit ${spec.run}: hashing the code and the Stan data, and writing the run record.</p>`;
         const view2 = fitView(spec, prepared, result);
-        const [code_sha256, stan_data_sha256, identity] = await Promise.all([sha256(spec.code), sha256(prepared.stan), provenance()]);
+        const cancelled = new Promise((_2, reject) => {
+          const abort = () => reject(new DOMException("The fit was cancelled.", "AbortError"));
+          if (own.signal.aborted) abort();
+          else own.signal.addEventListener("abort", abort, { once: true });
+        });
+        const [code_sha256, stan_data_sha256, provenanceIdentity] = await Promise.race([Promise.all([sha256(spec.code), sha256(prepared.stan), identity]), cancelled]);
         const record = {
           lesson: "mlumr lesson, Run mlumr in your browser",
           created: (/* @__PURE__ */ new Date()).toISOString(),
           run: spec.run,
-          provenance: identity,
+          provenance: provenanceIdentity,
           contents: "The R code as it ran, the Stan data mlumr() prepared, the sampler settings, summaries of the four reported quantities, the sampling checks and the benchmarks. No posterior draws.",
           model: spec.model,
           stan_model: prepared.model_name,
@@ -18401,7 +18416,296 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     return { dispose: () => lifetime.abort() };
   }
 
+  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/native-record.json
+  var native_record_default = {
+    truth: {
+      target_rd: -0.12407955087911,
+      target_risks: {
+        A: 0.391913166869191,
+        B: 0.515992717748301
+      }
+    },
+    benchmarks: {
+      naive_lor: {
+        estimate: -0.848939447623156,
+        lower: -1.15218609134281,
+        upper: -0.545692803903505
+      },
+      stc_lor: {
+        estimate: -0.347673788537471,
+        lower: -0.659185427825253,
+        upper: -0.0361621492496896
+      }
+    },
+    fit: {
+      spfa: {
+        n_int: 512,
+        chains: 4,
+        kept_draws: 4e3,
+        seed: 2026,
+        divergences: 0,
+        max_rhat: 1.00338781584657,
+        target_rd: {
+          mean: -0.0913195218343429,
+          lower: -0.166596177880224,
+          upper: -0.013585291008749
+        }
+      },
+      relaxed: {
+        n_int: 512,
+        chains: 4,
+        kept_draws: 4e3,
+        seed: 2026,
+        divergences: 0,
+        max_rhat: 1.00631835379446,
+        target_rd: {
+          mean: -0.0910549602355891,
+          lower: -0.172756760972164,
+          upper: -0.0135895033721645
+        }
+      }
+    },
+    transport_overlap: {
+      prespecified: 0.945,
+      "shifted, mean 1.0": 0.8025,
+      "extrapolating, mean 2.2": 0.15
+    },
+    sensitivity: [
+      {
+        scenario: "base",
+        model: "spfa",
+        n_int: 512,
+        comparator_scale: 1,
+        target: "prespecified",
+        seed: 2026,
+        mean: -0.0913195218343429,
+        mcse: 702993120851622e-18,
+        ess_bulk: 3060.72913373142,
+        lower: -0.166596177880224,
+        upper: -0.013585291008749
+      },
+      {
+        scenario: "base",
+        model: "relaxed",
+        n_int: 512,
+        comparator_scale: 1,
+        target: "prespecified",
+        seed: 2026,
+        mean: -0.0910549602355891,
+        mcse: 624425558776655e-18,
+        ess_bulk: 4280.70126936296,
+        lower: -0.172756760972164,
+        upper: -0.0135895033721645
+      },
+      {
+        scenario: "integration",
+        model: "spfa",
+        n_int: 2048,
+        comparator_scale: 1,
+        target: "prespecified",
+        seed: 2027,
+        mean: -0.0907219739730984,
+        mcse: 730505140053343e-18,
+        ess_bulk: 2907.18001095926,
+        lower: -0.167535299624902,
+        upper: -0.0148044106585219
+      },
+      {
+        scenario: "integration",
+        model: "relaxed",
+        n_int: 2048,
+        comparator_scale: 1,
+        target: "prespecified",
+        seed: 2027,
+        mean: -0.0912523612013322,
+        mcse: 631601599798556e-18,
+        ess_bulk: 3873.61619663015,
+        lower: -0.167905763228935,
+        upper: -0.0138094168316703
+      },
+      {
+        scenario: "comparator prior",
+        model: "relaxed",
+        n_int: 512,
+        comparator_scale: 0.25,
+        target: "prespecified",
+        seed: 2028,
+        mean: -0.0897441274858968,
+        mcse: 581438994737196e-18,
+        ess_bulk: 4638.9754967347,
+        lower: -0.166185193210251,
+        upper: -0.0123172449788689
+      },
+      {
+        scenario: "comparator prior",
+        model: "relaxed",
+        n_int: 512,
+        comparator_scale: 0.5,
+        target: "prespecified",
+        seed: 2029,
+        mean: -0.0916487831119142,
+        mcse: 575979092041985e-18,
+        ess_bulk: 5025.05078578914,
+        lower: -0.170580031927287,
+        upper: -0.011864307912112
+      },
+      {
+        scenario: "comparator prior",
+        model: "relaxed",
+        n_int: 512,
+        comparator_scale: 2.5,
+        target: "prespecified",
+        seed: 2030,
+        mean: -0.0925933415025966,
+        mcse: 639774214618842e-18,
+        ess_bulk: 3806.32760212928,
+        lower: -0.168848397540109,
+        upper: -0.0121436595893591
+      },
+      {
+        scenario: "comparator prior",
+        model: "relaxed",
+        n_int: 512,
+        comparator_scale: 5,
+        target: "prespecified",
+        seed: 2031,
+        mean: -0.091273469915908,
+        mcse: 642646851789462e-18,
+        ess_bulk: 3805.16423617439,
+        lower: -0.169047440422021,
+        upper: -0.0121806815808471
+      },
+      {
+        scenario: "transport",
+        model: "spfa",
+        n_int: 512,
+        comparator_scale: 1,
+        target: "prespecified",
+        seed: 2026,
+        mean: -0.0913195218343429,
+        mcse: 702993120851622e-18,
+        ess_bulk: 3060.72913373142,
+        lower: -0.166596177880224,
+        upper: -0.013585291008749
+      },
+      {
+        scenario: "transport",
+        model: "relaxed",
+        n_int: 512,
+        comparator_scale: 1,
+        target: "prespecified",
+        seed: 2026,
+        mean: -0.0910549602355891,
+        mcse: 624425558776655e-18,
+        ess_bulk: 4280.70126936296,
+        lower: -0.172756760972164,
+        upper: -0.0135895033721645
+      },
+      {
+        scenario: "transport",
+        model: "spfa",
+        n_int: 512,
+        comparator_scale: 1,
+        target: "shifted, mean 1.0",
+        seed: 2026,
+        mean: -0.091695303861073,
+        mcse: 717507745601935e-18,
+        ess_bulk: 3043.65440204052,
+        lower: -0.168953159990882,
+        upper: -0.0134295717368587
+      },
+      {
+        scenario: "transport",
+        model: "relaxed",
+        n_int: 512,
+        comparator_scale: 1,
+        target: "shifted, mean 1.0",
+        seed: 2026,
+        mean: -0.0924524555767004,
+        mcse: 840826995891615e-18,
+        ess_bulk: 4280.58648129297,
+        lower: -0.203076306099767,
+        upper: 0.0122669671034488
+      },
+      {
+        scenario: "transport",
+        model: "spfa",
+        n_int: 512,
+        comparator_scale: 1,
+        target: "extrapolating, mean 2.2",
+        seed: 2026,
+        mean: -0.067753959441186,
+        mcse: 597572132192011e-18,
+        ess_bulk: 2904.18185968674,
+        lower: -0.134765873763508,
+        upper: -0.00893247267063178
+      },
+      {
+        scenario: "transport",
+        model: "relaxed",
+        n_int: 512,
+        comparator_scale: 1,
+        target: "extrapolating, mean 2.2",
+        seed: 2026,
+        mean: -0.070984844213103,
+        mcse: 0.00121806169536175,
+        ess_bulk: 4138.54596648284,
+        lower: -0.235495001949696,
+        upper: 0.0788252659775373
+      }
+    ],
+    sensitivity_checks: {
+      spfa_base: {
+        divergences: 0,
+        max_rhat: 1.00338781584657
+      },
+      relaxed_base: {
+        divergences: 0,
+        max_rhat: 1.00631835379446
+      },
+      spfa_n_int_2048: {
+        divergences: 0,
+        max_rhat: 1.00243229048679
+      },
+      relaxed_n_int_2048: {
+        divergences: 0,
+        max_rhat: 1.00219816776348
+      },
+      "relaxed_comparator_scale_0.25": {
+        divergences: 0,
+        max_rhat: 1.0032373631698
+      },
+      "relaxed_comparator_scale_0.5": {
+        divergences: 0,
+        max_rhat: 1.00324288889612
+      },
+      "relaxed_comparator_scale_2.5": {
+        divergences: 0,
+        max_rhat: 1.00293356846003
+      },
+      relaxed_comparator_scale_5: {
+        divergences: 0,
+        max_rhat: 1.00466562114478
+      }
+    },
+    about: "Fitted results of workflow.R on simulated data. Not clinical evidence.",
+    package: {
+      version: "0.1.0.9000",
+      engine: "cmdstanr",
+      r: "R version 4.6.0 (2026-04-24)",
+      cmdstan: "2.39.0",
+      loaded_from: "source",
+      commit: "4cfd3660f56e22668ae357bde3df4b30cacb23a5",
+      dirty: false,
+      dll_sha256: "d3a6a02d32319d6e700f86dee058965d94ef1e5671e50849a4d408f44d3fa664",
+      dll_current: true
+    },
+    script_sha256: "637e2c6498c773f56e0ef7ee51368485b4b2fe101e74763d81ceb703920a26ac",
+    run: "2026-09-15T11:59:25-0400"
+  };
+
   // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/scene.ts
+  var native = native_record_default;
   var scalar = (label, range, value) => ({ type: { kind: "scalar", range }, default: value, interpolate: "lerp", ownership: "shared", label });
   var schema = {
     scene: { type: { kind: "enum", values: Object.keys(labs) }, default: "evidence", interpolate: "snap", ownership: "shared" },
@@ -18651,8 +18955,31 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       ),
       v2.metrics,
       "A tighter prior narrows the interval even though no new data arrived. Near the observed rows the data do the work; far from them, the prior does.",
-      "<p>In mlumr, prior_summary() lists the priors, plot_prior_posterior() draws each posterior over its prior, and prior_sensitivity() refits the model over several prior scales. prior_normal(autoscale = TRUE) divides a slope prior's scale by each covariate's standard deviation.</p>"
+      "<p>In mlumr, prior_summary() lists the priors, plot_prior_posterior() draws each posterior over its prior, and prior_sensitivity() refits the model over several prior scales. prior_normal(autoscale = TRUE) divides a slope prior's scale by each covariate's standard deviation.</p>" + sensitivityPanel()
     );
+  }
+  function sensitivityPanel() {
+    const rows = native.sensitivity;
+    if (!rows.length) return "";
+    const cell = (v2, digits = 4) => Number.isFinite(v2) ? v2.toFixed(digits) : "not available";
+    const tr = (r2) => `<tr><td>${esc3(r2.scenario)}</td><td>${esc3(r2.model)}</td><td>${r2.n_int}</td><td>${r2.comparator_scale}</td><td>${esc3(r2.target)}</td><td>${cell(r2.mean)}</td><td>${cell(r2.mcse)}</td><td>${cell(r2.lower)} to ${cell(r2.upper)}</td></tr>`;
+    const base = rows.filter((r2) => r2.scenario === "base"), grid2 = rows.filter((r2) => r2.scenario === "integration"), prior = rows.filter((r2) => r2.scenario === "comparator prior");
+    const transport = rows.filter((r2) => r2.scenario === "transport" && r2.target !== "prespecified");
+    const moved = (a2, b2) => Math.abs(a2.mean - b2.mean) / Math.hypot(a2.mcse, b2.mcse);
+    const gridNote = grid2.map((g) => {
+      const b2 = base.find((x2) => x2.model === g.model);
+      return `${g.model}: ${cell(b2.mean, 3)} at 512 against ${cell(g.mean, 3)} at 2048 points, a difference of ${moved(b2, g).toFixed(1)} times the MCSE of the difference`;
+    }).join("; ");
+    const priorSpan = prior.length ? `${cell(Math.min(...prior.map((r2) => r2.mean)), 3)} to ${cell(Math.max(...prior.map((r2) => r2.mean)), 3)}` : "not run";
+    const worst = transport.length ? transport.reduce((a2, b2) => b2.upper - b2.lower > a2.upper - a2.lower ? b2 : a2) : null;
+    return `<details><summary>What the native sensitivity run found</summary>
+<p>From <code>Rscript workflow.R --fit --sensitivity --record</code> at mlumr ${esc3(native.package.version)}${native.package.commit ? ` (commit ${esc3(native.package.commit.slice(0, 7))}${native.package.dirty ? ", tree with local changes" : ", clean tree"})` : ""} with ${esc3(native.package.engine)}${native.package.cmdstan ? ` (CmdStan ${esc3(native.package.cmdstan)})` : ""}, run ${esc3(native.run)}. The base, integration and comparator prior rows are the risk difference, A minus B, in the same prespecified 400-row target, re-extracted from each refit; each scenario ran with its own seed, so a refit and the base fit of the same model have independent Monte Carlo errors and the MCSE of their difference combines the two. The transport rows do not refit: they evaluate the two base fits in the three 400-row targets named in the Target column. The true value behind the simulated data in the prespecified target is ${cell(native.truth.target_rd, 3)}. MCSE is the Monte Carlo standard error of the posterior mean.</p>
+<div class="table-wrap"><table class="fit-table"><thead><tr><th>Scenario</th><th>Model</th><th>n_int</th><th>Comparator prior scale</th><th>Target</th><th>Mean</th><th>MCSE</th><th>95% posterior interval</th></tr></thead><tbody>${rows.map(tr).join("")}</tbody></table></div>
+<ul class="read-list"><li><strong>Integration.</strong> ${gridNote}. A difference within a few MCSEs is consistent with Monte Carlo noise and shows no grid effect; it cannot rule out an effect smaller than that noise, so a tighter bound needs more draws or a tolerance set in advance.</li>
+<li><strong>Comparator slope prior.</strong> With prior_beta held at normal(0, 1), the relaxed model's target mean spans ${priorSpan} across comparator prior scales ${prior.map((r2) => r2.comparator_scale).join(", ")}. This example has one covariate and three comparator rows, so trial B's slope is informed by the data; a wider spread here would mean the target depends on an assumption, not on evidence.</li>
+<li><strong>Transport.</strong> ${Object.entries(native.transport_overlap ?? {}).map(([name, share]) => `${esc3(name)}: ${Math.round(100 * share)}% of the target rows lie inside trial A's central 95% covariate range`).join("; ")}. ${worst ? `The target "${esc3(worst.target)}" gives the widest interval, ${cell(worst.lower, 3)} to ${cell(worst.upper, 3)} for the ${esc3(worst.model)} model${worst.lower < 0 && worst.upper > 0 ? ", which crosses zero" : ""}, and the two models separate as the target leaves trial A's covariate range.` : "No other target was evaluated."} For a target that extrapolates beyond the trials, the defensible conclusion is that the evidence does not support a headline number.</li>
+<li><strong>Sampling checks.</strong> ${Object.entries(native.sensitivity_checks).map(([name, c2]) => `${esc3(name.replaceAll("_", " "))}: ${c2.divergences} divergences, largest R-hat ${cell(c2.max_rhat, 3)}`).join("; ")}.</li></ul>
+<p>With one covariate there is no correlation between covariates to carry from trial A to trial B, so no dependence scenario applies. The package notes on the lesson branch record the full output.</p></details>`;
   }
   function familyChart(i3) {
     if (i3 === 0) return lineChart({ title: "Binary: the logit link turns a straight line into a chance", label: "S-shaped logistic curve", x: [-5, 5], y: [0, 1], xTicks: [-4, -2, 0, 2, 4], yTicks: [0, 0.5, 1], yFmt: pct0, xLabel: "Linear predictor \u03B1 + \u03B2x", yLabel: "Chance of the event", hlines: [{ y: 0.5, key: "muted", dash: true }], lines: [{ points: grid(-5, 5, 81).map((x2) => [x2, logistic(x2)]), key: "a" }] });
@@ -18769,13 +19096,15 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       );
     }
     const qi = Math.round(Number(s2.question)), q = questions[qi];
+    const { spfa, relaxed } = native.fit, truth = native.truth.target_rd;
+    const covers = (f2) => f2.target_rd.lower <= truth && truth <= f2.target_rd.upper;
     return block(
       intervalChart("What a report shows: estimate, interval and target (native companion fits)", "Risk difference in a made-up target population from the companion script fits, with the true value marked", [
-        { name: "Shared slopes (SPFA)", mean: -0.09132, lo: -0.1666, hi: -0.01359, key: "a" },
-        { name: "Separate slopes (relaxed)", mean: -0.09105, lo: -0.17276, hi: -0.01359, key: "b" }
-      ], [-0.2, 0.05], [-0.2, -0.15, -0.1, -0.05, 0, 0.05], [{ x: -0.12408, text: "true value" }, { x: 0, text: "no difference" }]),
+        { name: "Shared slopes (SPFA)", mean: spfa.target_rd.mean, lo: spfa.target_rd.lower, hi: spfa.target_rd.upper, key: "a" },
+        { name: "Separate slopes (relaxed)", mean: relaxed.target_rd.mean, lo: relaxed.target_rd.lower, hi: relaxed.target_rd.upper, key: "b" }
+      ], [-0.2, 0.05], [-0.2, -0.15, -0.1, -0.05, 0, 0.05], [{ x: truth, text: "true value" }, { x: 0, text: "no difference" }]),
       "",
-      "These are the companion script's real mlumr fits to made-up data (workflow.R with --fit: simulated comparator rows, 512 integration points, four chains of 1000 kept draws, seed 2026), for the 400-row target the script defines. They are not the browser cell's fit, whose comparator rows, integration points and draws differ. Both 95% posterior intervals contain the true value. The separate slopes model is a little less certain, because trial B's slope has to be learned from three summaries.",
+      `These are the companion script's real mlumr fits to made-up data (workflow.R with --fit: simulated comparator rows, ${spfa.n_int} integration points, ${spfa.chains} chains of ${spfa.kept_draws / spfa.chains} kept draws, seed ${spfa.seed}, mlumr ${native.package.version} with ${native.package.engine}), for the 400-row target the script defines. They are not the browser cell's fit, whose comparator rows, integration points and draws differ. ${covers(spfa) && covers(relaxed) ? "Both" : covers(spfa) || covers(relaxed) ? "One of the" : "Neither of the"} 95% posterior intervals contain${covers(spfa) && covers(relaxed) ? "" : "s"} the true value. The separate slopes model is a little less certain, because trial B's slope has to be learned from three summaries. The numbers are read from the run's own record, written by the script.`,
       `<div class="case"><span class="eyebrow">Question ${qi + 1} of ${questions.length}</span><h3>${esc3(q.q)}</h3><div class="answers">${q.options.map((a2, i3) => `<button type="button" data-answer="${i3}">${esc3(a2)}</button>`).join("")}</div><p class="feedback" role="status" aria-live="polite"></p></div><details><summary>Checklist for your report</summary><ul class="read-list">${checklist.map((c2) => `<li>${esc3(c2)}</li>`).join("")}</ul></details>${capstonePanel}<p><a href="sources.html" target="_blank" rel="noopener">Sources and scope</a> \xB7 <a href="transcript.html" target="_blank" rel="noopener">Narration transcript</a> \xB7 <a href="workflow.R" download>Companion R script</a> \xB7 <a href="https://choxos.github.io/mlumr/" target="_blank" rel="noopener">mlumr documentation</a></p>`
     );
   }
@@ -18787,7 +19116,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       root.className = "ml-lesson";
       const style = document.createElement("style");
       style.textContent = css;
-      root.innerHTML = `<header class="ml-header"><a class="brand" href="https://choxos.github.io/mlumr/" target="_blank" rel="noopener">mlumr<span class="brand-tag">Lesson</span></a><div class="header-tools"><a href="transcript.html" target="_blank" rel="noopener">Transcript</a><a href="sources.html" target="_blank" rel="noopener">Sources</a><button type="button" class="theme-toggle" aria-label="Dark theme" aria-pressed="false">${moon}<span class="theme-label">Light</span><span class="theme-track" aria-hidden="true"><span class="theme-thumb"></span></span></button></div></header><div class="lab-scroll"><div class="lab-title"><div><span class="eyebrow"></span><h1 tabindex="-1"></h1><p class="question"></p></div><div class="lab-actions"><button type="button" class="play-here" data-play-chapter hidden title="Seek the narration to the start of this chapter and play it.">Play this chapter</button><button type="button" class="reset" data-reset title="Restore this chapter's starting control values. The narration and your code are not affected.">Reset controls</button></div></div><div class="lab-body"><div class="visual"></div><aside class="lab-controls" aria-label="Experiment controls"></aside></div><div class="code-slot"></div><footer>Teaching models with made-up numbers. The code cells run real R, and the cell in the Run mlumr chapter runs real mlumr code and its Stan model, all in your browser. mlumr development version 0.1.0.9000, working toward 0.2.0.</footer></div>`;
+      root.innerHTML = `<header class="ml-header"><a class="brand" href="https://choxos.github.io/mlumr/" target="_blank" rel="noopener">mlumr<span class="brand-tag">Lesson</span></a><div class="header-tools"><a class="transcript-link" href="transcript.html" target="_blank" rel="noopener">Transcript</a><a href="sources.html" target="_blank" rel="noopener">Sources</a><button type="button" class="theme-toggle" aria-label="Dark theme" aria-pressed="false">${moon}<span class="theme-label">Light</span><span class="theme-track" aria-hidden="true"><span class="theme-thumb"></span></span></button></div></header><div class="lab-scroll"><div class="lab-title"><div><span class="eyebrow"></span><h1 tabindex="-1"></h1><p class="question"></p></div><div class="lab-actions"><button type="button" class="play-here" data-play-chapter hidden title="Seek the narration to the start of this chapter and play it.">Play this chapter</button><button type="button" class="reset" data-reset title="Restore this chapter's starting control values. The narration and your code are not affected.">Reset controls</button></div></div><div class="lab-body"><div class="visual"></div><aside class="lab-controls" aria-label="Experiment controls"></aside></div><div class="code-slot"></div><footer>Teaching models with made-up numbers. The code cells run real R, and the cell in the Run mlumr chapter runs real mlumr code and its Stan model, all in your browser. mlumr development version 0.1.0.9000, working toward 0.2.0.</footer></div>`;
       ctx.overlay.append(style, root);
       const disposeTheme = themeToggle(root.querySelector(".theme-toggle"));
       const player = ctx.overlay.parentElement;
