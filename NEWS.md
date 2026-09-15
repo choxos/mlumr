@@ -2,689 +2,6 @@
 
 ## Behavior and validation changes to existing functions
 
-* **A log-normal or generalized-gamma survival fit whose covariates
-  reproduce every event time exactly is now refused too.** The exact-fit guard ran only for
-  `family = "normal"`, and a log-normal AFT is a normal model for `log(t)`
-  with a positive scale: the same singularity is there. With `n` uncensored
-  index rows, a design of rank `r` that reaches every `log(t)`, and the
-  coefficients integrated out, the density of `sdlog` behaves as
-  `sdlog^(r - n)` near zero and does not integrate for any `n` above `r`.
-  `prior_aux` defaults to a half-normal and every supported alternative has
-  positive density at zero, so none of them repairs it, and no convergence
-  diagnostic can: the sampler drifts toward zero and reports where it
-  stopped. `mlumr()` now decides this before dispatch, with the same exact
-  geometry the normal guard uses.
-
-  Which families, decided by what the auxiliary *is* rather than by the
-  family's name. `"lognormal"` and `"gengamma"` are refused, because for
-  both of them the first auxiliary is a scale: the log-scale SD for one, and
-  the Lawless `sigma` for the other, which the density divides the log
-  residual by and carries a `-log(sigma)` term for. An exact fit sends
-  either to zero. The generalized gamma's *second* auxiliary is its shape,
-  and it is not what diverges: at an exact fit the density's dependence on
-  it is bounded. The Weibull, log-logistic and gamma carry a shape as their
-  only auxiliary, so the same exact fit sends it to `+Inf`, where a
-  half-normal or exponential prior's tail integrates the growth and a
-  half-t's need not. Propriety is then a property of the prior rather than
-  of the data, and refusing the data would refuse well-posed default fits,
-  so those warn instead. The Gompertz is one of them, and it is read on the
-  TIME scale rather than the log-time one the others are: its hazard is
-  `exp(eta + shape * t)`, so an exact fit drives the linear predictor to
-  about `log(shape) - shape * t`, and that ridge needs the event times
-  themselves in the column space rather than their logarithms. With the
-  coefficients integrated out the marginal goes as `shape^(n - 2k)`, for the
-  `k` coefficients the ridge moves, so a Cauchy on `prior_aux` and on those
-  leaves a tail that does not integrate. Five events at `t = 1:5` over
-  `x = 0:4` are exactly linear in `x` on the time scale and their marginal
-  slope `d log M / d log shape` is 1.000, which a Cauchy `prior_aux` turns
-  into `shape^-1`; three events at `t = exp(0:2)`, exactly linear on the log
-  scale instead, have no such ridge and measure -577,014 per decade. Each
-  censored row is placed in its observation region on the same scale. The
-  Gompertz previously received no diagnosis at all.
-
-  A saturated design, with as many uncensored rows as its design has free
-  columns, is an exact fit too: it reproduces every event time and leaves no
-  residual degree of freedom. It is also the one case where integrating the
-  coefficients out cancels the auxiliary's growth exactly, so it is proper
-  for every family but two, and it warns instead that nothing in the index
-  data separates the auxiliary from the coefficients. The first exception is
-  the proportional-hazards Weibull, whose cumulative hazard `t^shape e^eta`
-  leaves the width in the location of order one so that nothing cancels: two
-  rank-2 rows both at `t = 1` give a profile likelihood of exactly
-  `shape^2 e^-2`, with the coefficients held at `eta = 0` rather than moving
-  into their prior tails, so a `prior_cauchy()` auxiliary contributing
-  `shape^-2` leaves a constant tail that does not integrate. That one keeps
-  the prior-tail warning.
-
-  The Gompertz is the second, for a different reason. Integrating one of its
-  rows over its own linear predictor gives
-  `shape * e^(shape t) / expm1(shape t)`, which tends to the SHAPE rather
-  than to a constant, so a saturated design contributes `shape^n` against
-  `shape^-2` for each coefficient the ridge moves: the marginal goes as
-  `shape^(n - 2k)` and propriety fails once `n >= 2k + 1`, which is not a
-  property of `n == rank` at all. Three events all at `t = 1` on a rank-3
-  design, whose times are the intercept alone, measure a slope of 1.000, and
-  six rows whose times need two of six columns measure 2.000; a Cauchy
-  `prior_aux` takes off 2 and leaves `shape^-1` and `shape^0`, neither of
-  which integrates. Which coefficients the ridge moves is not decidable at
-  double precision, for the same reason exactness is not, so every saturated
-  Gompertz takes the prior-tail warning rather than a guess at which ones
-  are the proper ones. The exemption belongs to `n == rank` alone: with
-  more uncensored rows than the rank the cancellation is partial and every
-  shape family is warned about as before.
-
-  The censoring check refuses a design it cannot rescale exactly. Its
-  tolerance bounds the solve's error with the COLUMN-SCALED design's
-  condition number, which is sound because the two are the same computation:
-  Householder QR is equivariant under an exact power-of-two column scaling
-  and the pivot test is per-column relative, so over 20,000 random designs
-  the rescaled unscaled solve was bit-identical to the scaled one, with the
-  same rank and pivots, and the predictor error never reached the tolerance
-  when measured against the exact rational solution. A column whose own
-  entries span more than the exponent field breaks that, and toward the
-  unsafe answer: dividing `c(2^1020, 2^-100, 2^200, 2^-300)` by `2^1020`
-  flushes two entries to zero, so the scaled design reads as well
-  conditioned (kappa 18.8) exactly because the information is gone, where
-  the design solved has kappa 5.5e307. The tolerance from 18.8 is far too
-  small and the row came back `"bounded"`, which suppresses the refusal.
-  Such a design is now `"undetermined"`.
-
-* **A comparator curve whose event rows outnumber the rank of the
-  integration nodes that match them is refused for a log-normal survival fit,
-  and warned about for the shape families.** The comparator likelihood is not the continuously
-  integrated one the model is written to mean. Each reconstructed
-  pseudo-individual contributes `log_sum_exp(ll) - log(n_int)`, a finite
-  equally weighted mixture over the integration grid, and every
-  pseudo-individual in an arm sees the same grid, so a node reproducing a
-  row's event time carries a density spike proportional to one over the
-  auxiliary's width.
-
-  What decides propriety is how many spikes stand up at once and what
-  coefficient volume that costs. An allocation sends each of the `m` event
-  rows to a grid node; its design `D` carries that node's covariate vector
-  beside an intercept, one row per event row, and the rows stand on spikes
-  together exactly when `D b = targets` is consistent. The exponent is
-  `m - rank(D)`, and the rate is the LARGEST of those over the consistent
-  allocations, since the marginal is their sum and the smallest rank
-  dominates it. What bounds that smallest rank is the CANONICAL allocation,
-  which sends every row sharing a target to one node: its design has rank at
-  most the dimension the grid reaches, `rank(cbind(1, X_int))`, which is
-  `1 + n_cov` for any grid that is not degenerate, and at most the number of
-  distinct times. That is a claim about the canonical allocation and not
-  about every one, since rows sharing a target can sit at different nodes
-  wherever the coefficients are orthogonal to the difference between them,
-  which two or more covariates allow; those allocations have higher rank,
-  are subdominant, and change nothing.
-
-  All `m` rows are matched on the solution set, so each stands on a spike
-  that grows as the auxiliary approaches its boundary, while the set is
-  pinned in only the `rank(D)` directions the equations fix and its width
-  shrinks in each of those. The rate is the difference, and neither factor is
-  shared across families:
-
-  * `lognormal` and `gengamma`: height `1 / sdlog`, width `sdlog`, rate
-    `m - rank(D)` as the scale goes to zero. Measured over 20 midpoint normal
-    nodes with the coefficients integrated against normal priors,
-    `d log M / d log sdlog` is -0.000, -1.000 and -2.000 across `1,4`,
-    `1,1,4` and `1,1,4,4`.
-  * `weibull-aft` and `loglogistic`: height `shape`, width `1 / shape`, rate
-    `m - rank(D)` as the shape grows. `d log M / d log shape` is +0.000, +1.000
-    and +2.000 on the same three, for both.
-  * `gamma`: height `sqrt(shape)`, width `1 / sqrt(shape)`, so the rate is
-    half, `(m - rank(D)) / 2`. For `m` rows on one time the integral is exactly
-    `Gamma(m k) / m^(m k) / Gamma(k)^m`, whose slope in `log k` is
-    `(m - 1) / 2`: 0.500002, 1.000003 and 1.500005 for `m` of 2, 3 and 4,
-    the closed form agreeing with quadrature to 7e-12 at `k` of 10 to 1000.
-    Reporting `m - rank(D)` would claim non-integrability against a half-t
-    `prior_aux` with degrees of freedom in (0.5, 1) that does integrate it.
-  The proportional-hazards Weibull and Gompertz are deliberately not
-  examined. Their width does not shrink at all, since `t^shape e^eta` and
-  `e^eta expm1(shape t) / shape` both leave a row's curvature at -1 whatever
-  the shape is, so their growth is `m` regardless of `k`: measured with the
-  coefficient priors out, +2.000, +2.000, +3.000 and +4.000 across `1,1`,
-  `1,4`, `1,1,4` and `1,1,4,4`. A repeat is therefore not what causes it, and
-  firing on repeats would attribute to ties something they do not do. What
-  the growth meets is the coefficient priors, through however many
-  coefficients the ridge moves and each of their tails, and settling that
-  needs those counts per configuration. It is a different question and is not
-  answered here.
-
-  What makes any of these nonzero is more event rows than the matched
-  design has rank, which repeated times are the usual but not the only way to
-  reach; tied CENSORED times contribute a survival probability rather than a
-  density spike and do not count toward it at all. The profile maximum, by contrast, grows in every one
-  of those cases including the convergent ones, which is why the volume and
-  not the profile is what decides this.
-
-  A censored row in the same arm can suppress the divergence, and it has to
-  threaten the ridge before that is worth asking. Every point of the solution
-  set puts a MATCHED node exactly at its target, so a row whose region
-  probability tends to one there suppresses nothing: its contribution is a
-  mixture over the grid, which that one node holds at `1 / n_int` whatever
-  the others do. Two comparator events at `t = 1` with a right-censored row
-  at `t = 0.5` are that case, and the rate-1 divergence is certified rather
-  than left open; the same row at `t = 2` does suppress the matched node and
-  only the other nodes are left to settle. The ends are inclusive, since a
-  predictor sitting exactly on a censoring time leaves that row at a half.
-  That decides at the matched nodes what used to be deferred wholesale, so
-  the point-mass grid measured at rate +1.000 with a right-censored row at
-  `t = 0.5` is now refused rather than reported.
-
-  For a row that does threaten, whether it suppresses turns on `rank(D)`
-  against the reach. Its contribution is a mixture
-  over the grid too, so it vanishes only if every node's region probability
-  vanishes. Below the reach the ridge has a free direction and pushing it one
-  way clears every right-censored row, the other way every left-censored one:
-  measured at rate +1.000 for two events at `t = 1` with a right-censored row
-  at `t = 2` on 20 nodes.
-
-  Three cases are left undecided instead. At the reach the ridge is isolated
-  points and a censored row can cover all of them, so on a point-mass grid
-  that same pair collapses while the row at `t = 0.5` leaves rate +1.000, and
-  deciding which takes enumerating `choose(n_int, k)` ridge points. And when
-  the censored rows bound on both sides, one free direction cannot clear them
-  all unless the matched node has unpinned neighbors far enough out on each
-  side: with `n_int = 2` a right-censored row at `t = 2` together with a
-  left-censored row at `t = 0.5` collapses whichever node is matched, while
-  either alone leaves rate +1.000, and the same pair on 20 nodes stays
-  divergent at +1.000. And the free direction can be one the comparator does
-  not own: under `model = "spfa"` with `aux_by = "none"` that direction is
-  the shared `beta`, which an exactly fitting index pins, leaving the ridge
-  at isolated points whatever `rank(D)` is. Index events at `x = -1` and
-  `x = +1` both at `t = 1` force `mu_index` and `beta` to zero, so every node
-  sits at `mu_comparator` and a comparator right-censored row at `t = 2` is
-  above all of them; tilting `beta` to lift one past `log 2` costs the index
-  a residual of the same order, so the two exponentials trade rather than
-  cancel. Such an arm is reported rather than refused, scale family or not.
-
-  Which side a row needs is read from its region and its delayed entry, not
-  from its status code, and only the rows that have to be ESCAPED count: one
-  already satisfied at a matched node does not need the free direction and
-  cannot make the arm two-sided. A right-censored row is satisfied above its time and a
-  left-censored one below its bound, including below its entry, since
-  conditioning on survival to the entry piles the mass just above it and that
-  pile lies inside the region. An interval-censored row is two-sided only when
-  it opens strictly above its entry; one that opens AT its entry has that pile
-  inside it and is one-sided like a left-censored row, so such an arm keeps
-  the refusal.
-
-  Distinctness is counted on the scale the density matches, which for every
-  family this examines is `log(time)`. Two distinct doubles can share a
-  logarithm, and counting raw times reads one target as two, so `k` came out
-  too large and the check returned silently on a curve whose spikes all
-  collapse onto one predictor. The
-  grid's reach likewise uses the exact rank rather than `qr()`'s default
-  tolerance, under which independent but badly scaled columns read as
-  deficient while the direction is still there.
-
-  Past the grid's reach there may be nothing to refuse, and this is
-  deliberately narrow about which case it is in. With `k` above
-  `rank(cbind(1, X_int))` the `k` equations need not have a solution, and
-  where they do not the best simultaneous match leaves a residual `d > 0`,
-  and the profile collapses like `exp(-d^2 / (2 aux^2))` once the auxiliary
-  falls below `d`. What happens before that looks exactly like a divergence
-  and is not one: three distinct times over 20 nodes leave `d = 5.99e-4` and
-  the profile peaks between `sdlog` of 1e-3 and 1e-4 before falling to
-  -1.8e7 by 1e-7, while the same times over 64 nodes leave `d = 3.62e-5`,
-  peak at 1e-5 instead, and collapse from 1e-6 on. A finer grid moves the
-  collapse out rather than removing it, and the posterior is proper either
-  way, so an ordinary reconstructed curve with many distinct times and one
-  rounding tie is not refused. A slope measured over any fixed range of the
-  auxiliary cannot tell the two apart, which is why the test is structural.
-
-  A count is not that structure, though. Distinct response values are not
-  independent linear constraints, and an overdetermined system can still be
-  consistent, so neither an absence of repeats nor more distinct times than
-  the reach establishes `d > 0`. Comparator events at `t = 1, 2, 4` on the
-  nodes `1, 2, 3` that `add_integration()` really builds for a uniform
-  covariate are three distinct times with no repeat, past a reach of 2, and
-  are matched exactly by `b = (-log 2, log 2)`: rank 2 against 3 rows, and a
-  measured slope of -1.0000 per decade of scale. With one covariate the map
-  is a line that two (target, node) assignments fix, so node pairs are
-  enumerated and this case is refused; wider designs are left alone, and a
-  grid too large to enumerate is REPORTED rather than left silent. The
-  enumeration anchors the first target at each node and runs the rest as a
-  vectorized pass, so it costs `n * n * (k - 2)` rather than the
-  `n * n * (n + k)` of a scalar inner loop, and its budget covers the
-  ordinary resolutions; past that the same three events over the same
-  declared covariate would be refused at one `n_int` and unexamined at
-  another, which is what the warning names. Consistency is read off the
-  determinant of the
-  original data, `(u[i] - u[1]) * (z[j2] - z[j1]) - (u[2] - u[1]) *
-  (z[j] - z[j1])`, which has no division and no slope in it, and what decides
-  is that determinant's EXACT value, which the computed one need not be in
-  either direction. A computed zero can be a genuinely nonzero determinant
-  that cancelled: nodes `(0, 0.3961039261018525, 1.04621481495181)` against
-  targets `(0, 0.6209825942831111, 1.6401786176669797)` compute 0 while the
-  determinant of those very doubles is -3.4958e-17, and no permutation of
-  them is an affine match. And an exact match can compute zero with neither
-  product exact: at `a = qnorm(0.75)`, nodes `(-a, 0, a)` against event times
-  1, 2 and 4 are carried exactly by `mu = log 2` and slope `log(2) / a`, and
-  both products round by the same `-5.3745e-17`, so they cancel. Those nodes
-  are the symmetric quartiles of the default Gaussian integration grid. The
-  determinant is therefore split into its exact parts and the whole
-  expression's value decides, with no tolerance anywhere; checked against
-  exact rational arithmetic on 12,000 generated grids, half carrying a
-  planted affine image, with no disagreement in either direction.
-
-  Silence from this check is not a certificate that the posterior is proper.
-  A refusal is a certificate that it is not. Every way of not deciding now
-  carries its reason, and the two that are facts about a particular grid are
-  reported at the fitting interface rather than passed over: a grid beyond
-  the enumeration budget, and a candidate within rounding of a match whose
-  determinant the available arithmetic could not settle. Both are rare; of
-  400 arms built from `add_integration()` grids of 8 to 128 points against 40
-  reconstructed event times, all 400 were decided outright. More than one
-  declared covariate is not a fact about a grid but a standing limit of the
-  enumeration, the same answer at every `n_int` and on every arm, and it is
-  documented in the guard's scope rather than warned about on every
-  multi-covariate fit.
-
-  The check reads the grid the model fits. `mlumr()` centers the covariates
-  by default, and the centered grid is a floating-point subtraction from the
-  declared one: at a large enough offset between the populations, or on a
-  very small grid, it can merge integration points or move them by a
-  rounding error that makes or breaks an exact match. The whole check
-  therefore runs on both grids and compares the two outcomes, not only
-  whether each carries a match, since two grids that both carry one can
-  still disagree about whether the index admits its slope. When exactly one
-  of them refuses, the fit is refused as a numerical representation problem,
-  with no claim about the posterior, and the message suggests re-expressing
-  the covariates near a common origin or fitting with `center = FALSE`. The
-  rotation that `qr = TRUE` applies afterwards is not examined.
-
-  Before any of that, and for every family, `mlumr()` counts the distinct
-  values of each covariate on each aggregate row of the declared grid and of
-  the centered grid, and refuses the fit when the centered grid has fewer:
-  two declared nodes rounded onto one make a grid that represents a
-  covariate distribution other than the declared one, whatever the guards
-  would then say about it, and such a grid had reached the sampler whenever
-  the two grids agreed. The count is exact, so an ordinary rounded
-  subtraction, which moves every node by its own rounding error and merges
-  none, is not refused.
-
-  The exponent used is `m - min(k, reach)`, which is exact for one covariate
-  and a lower bound for more than one. `min(k, reach)` bounds the canonical
-  allocation's rank, and a consistent allocation of lower rank gives a larger
-  exponent: among
-  two covariates, three collinear nodes carry three distinct targets affinely
-  along that line at rank 2 rather than 3. A refusal is therefore still
-  certified, since a positive lower bound is a positive rate, while a skip
-  may be hiding one. Searching for a lower-rank consistent allocation among
-  two or more covariates is not attempted.
-
-  What the rate decides differs too. The scale families diverge as the scale
-  goes to zero, where every supported prior has positive density, so no
-  prior repairs it and the fit is refused. `weibull-aft` and `loglogistic`
-  diverge as the shape grows, where the rate meets `prior_aux`'s tail, so a
-  half-normal or an exponential integrates it and a half-t need not, and
-  that is reported rather than refused. `gamma` is reported on a different
-  pair: its ridge also displaces the comparator intercept by `-log(shape)`,
-  and a normal `prior_intercept` contributes `exp(-(log shape)^2 / 200)` at
-  the default width, which integrates any polynomial, so the posterior
-  exists and the shape concentrates far out. It is a heavy-tailed intercept
-  prior that leaves `prior_aux` to integrate the growth, which a half-t does
-  for degrees of freedom of at least `(m - rank(D)) / 2`. Equality integrates
-  rather than failing: the auxiliary's `shape^-(df + 1)` meets the Student-t
-  intercept's `(log shape)^-(df + 1)` on the `-log(shape)` ridge, and
-  `1 / (shape * (log shape)^(df + 1))` integrates for every supported
-  intercept prior.
-
-  One combination is reported rather than refused for a reason unrelated to
-  censoring. Under `model = "spfa"` with `aux_by = "none"` the arms share one
-  `beta` as well as one auxiliary, so reaching the comparator check means the
-  index did not bound that auxiliary, which under that model means its own
-  design fits exactly. That is not enough on its own: it must also CONSTRAIN
-  the shared slope somewhere in the directions the arm's grid spans, since
-  repeated index events at one covariate profile at one time fit exactly and
-  leave `beta` wholly unconstrained, and then whatever node-specific values
-  the comparator's equations pin it to lie in the index's solution set by
-  construction, the sets always intersect, and the arm is refused rather than
-  reported. Partial identification is not that case and stays reported: an
-  index that fixes `beta1` at a value none of the comparator's pairwise
-  differences reaches leaves the sets disjoint even while `beta2` is free.
-  The pinned-ridge report wants the opposite of the same measurement, since
-  one free direction is enough to move an integration point past a censoring
-  time, so it asks for every spanned direction rather than for any. Two or
-  more comparator
-  targets pin it too, to values the integration points fix, and if those sets
-  do not intersect then every path to the boundary leaves one side with a
-  positive residual whose decay beats the other's growth. Solving that
-  combined system is out of scope, so the case is warned about. A single
-  distinct target is not that case: its one equation is absorbed by the free
-  `mu_comparator`, so the shared slope stays free BY THE EVENTS and both
-  singularities stand at once. That reasoning covers the event rows only. A
-  censored comparator row cannot be escaped either once the index pins that
-  slope, so a single target WITH a censored row in the arm is the
-  isolated-ridge report above and only one without is still refused.
-  Neither is an index that never had an
-  exact design: failing to bound the auxiliary does not imply one, and an
-  index of nothing but right-censored rows pins no slope at all, its
-  `mu_index` rising above every censoring time so that its likelihood tends
-  to one while the comparator divergence is left whole. The
-  index guard now reports what it established in an `index_exact` attribute
-  and the comparator check reads it. That attribute is three-valued: `FALSE`
-  only where the index was shown to pin nothing, `TRUE` where its event
-  design reproduces its own times, and `NA` where the question was not
-  settled. `undecidable` and `unresolved` leave it `NA` rather than `FALSE`,
-  since those do not establish a positive residual and the index may yet be
-  exact with a solution set the comparator's slopes miss, which is the same
-  proper configuration the branch reports.
-
-  An index with no events at all is not automatically the `FALSE` of those
-  three. Having no events means there is no design to fit, not that nothing
-  bounds the auxiliary: censored rows alone can bound it, and conflicting
-  ones do. An index carrying one row left-censored at `t = 1` and another
-  right-censored at `t = 4` on the same covariate profile has no linear
-  predictor satisfying both, `sup_mu L = Phi(-log(4) / (2 sdlog))^2` falls
-  faster than the comparator's `sdlog^-2` grows, and the shared-scale fit is
-  proper. So an eventless index is answered by asking whether any linear
-  predictor satisfies every one of its observation regions at once: rows at
-  one covariate profile share a predictor, so their regions must overlap, and
-  a certified conflict reports the bound while a certified absence of one
-  reports that the index pins nothing. Anything else is left undecided. The
-  overlap is tested by exact ordering: these ends are stored observation
-  times rather than the output of a solve, and a gap of any positive size
-  bounds, since ends `d` apart contribute `exp(-(d / (2 sdlog))^2)` and
-  `integral sdlog^-m exp(-(d / (2 sdlog))^2)` converges at zero for every
-  `d > 0`. Exact equality is not a conflict, and it is not freedom either:
-  the shared predictor has to sit ON that point, so the coefficients keeping
-  the group's likelihood positive are a shrinking neighborhood of a
-  hyperplane rather than an open region. A left-censored row at `t = 1`
-  beside a right-censored row at `t = 1` on one profile peaks at `1/4` at
-  every scale POINTWISE, while integrating the intercept out against
-  `normal(0, a)` gives `arccos(a^2 / (a^2 + s^2)) / (2 pi)`, or
-  `s / (sqrt(2) pi a)` near zero: one power of the scale, not a constant.
-  Measured `d log L / d log s` is 1.000000 for one such profile, 2.000000 for
-  two independent ones and 3.000000 for three. Both sides are written in
-  powers of the same width, so those come off the comparator's rate directly
-  and the eventless index reports an ORDER rather than a flag: two tied
-  comparator events against one touching profile is `1 - 1 = 0` and stands,
-  three is `2 - 1 = 1` and is still refused. The order is carried only for
-  `lognormal`, where it was measured; the other families report the question
-  as unsettled rather than refusing on an unmeasured exponent.
-
-  An order of zero says those rows remove no power of the width. It does NOT
-  say they leave the shared slope free, and reading it that way refused
-  proper fits. A nonempty coefficient region is not an unconstrained slope:
-  the rows confine `(mu_index, beta)` to
-  `lower_i <= mu_index + beta' x_i <= upper_i`, and under `model = "spfa"`
-  with `aux_by = "none"` the comparator shares that slope AND that
-  auxiliary, so its ridge has to sit inside the region. An index left-
-  censored at `t = 1` on `x = 0` beside one right-censored at `t = 4` on
-  `x = 1` needs `beta >= log 4`, while a binary comparator's exact fit at
-  times `(1, 1, 2)` needs `beta = +/- log 2`; neither is reachable, and the
-  measured `d log L / d log s` runs +2.5, +3.8, +7.9, +18.7 and +38.8 as the
-  scale falls through 0.2, 0.15, 0.1, 0.07 and 0.05, which is `exp(-c / s^2)`
-  rather than a power. That fit is proper and was being refused.
-
-  The region now travels to the comparator check, which eliminates
-  `mu_index` between a row with a finite lower end and one with a finite
-  upper end (Fourier-Motzkin), leaving `lower_i - upper_j <= beta (x_i -
-  x_j)`, and tests every candidate slope `(u[2] - u[1]) / (z_b - z_a)`
-  against it. The test is CROSS-MULTIPLIED rather than divided, since a
-  floating-point solve certifies nothing, and its sign is taken exactly. None
-  of the four operands is a difference that survives its own subtraction on
-  ordinary data, so their errors are carried as values and the cheap sign is
-  accepted wherever it provably cannot be overturned: only genuine
-  cancellation at the last bits is left unsettled. Checked against exact
-  rational arithmetic on 3,266 generated regions and grids, the verdict was
-  never contradicted and exactly one case went unsettled, the one the exact
-  arithmetic also calls a boundary. The answer is three-valued, as it has to
-  be: strictly inside leaves the rate
-  standing and the arm is refused as before; strictly outside is a
-  certificate that this divergence cannot happen at any slope the index
-  leaves, and the arm is passed over; ON the boundary `mu_index` is pinned to
-  a point rather than to an interval, which costs a power that is not counted
-  here, and that is reported rather than decided either way. Lowering the
-  same index's right-censoring time to `t = 0.5` admits the comparator's own
-  slope, the profile grows as `s^-3` (measured -3.0000 per decade), and the
-  refusal stands. One declared covariate only, where the region's projection
-  is an interval; wider designs leave a polyhedron this does not solve and
-  restrict nothing here.
-
-  The region is built from EVERY index row, and reading it off the censored
-  ones alone was the same as not having it. A SINGLE one-sided censoring
-  inequality is satisfied by moving `mu_index`, and says nothing about the
-  slope on its own, nor do any number of them bounded on the same side;
-  SIMULTANEOUS censoring regions bounded on opposite sides can restrict it,
-  which is what the eventless case above turns on; and an EVENT row
-  restricts it further still, because its density grows only where the
-  predictor reproduces its own time and vanishes exponentially anywhere
-  else, which confines the predictor to a single point
-  exactly as censoring confines it to an interval. An index with one event at
-  `t = 1` on `x = 0` beside a right-censored row at `t = 4` on `x = 1` pins
-  `mu_index` to zero and then needs `beta >= log 4`, out of reach of the same
-  binary comparator's `+/- log 2`; the measured `d log L / d log s` runs
-  +1.3, +6.2, +16.9 and +36.9 as the scale falls through 0.15, 0.1, 0.07 and
-  0.05, so that fit is proper too and was being refused. The region travels
-  under every residual status, since whether a factorization at double
-  precision can tell an exact fit from a near one does not bear on where a
-  row is observed to lie.
-
-  A comparator arm with ONE distinct event target does not have a free slope
-  either, and reading a free ridge direction as one refused a third proper
-  configuration. The single matching equation is absorbed by `mu_comparator`
-  at any slope, so the arm's EVENTS leave `beta` free; its CENSORED rows do
-  not. With the tied rows matched at one node every node sits at
-  `t + beta (z_j - z_m)`, so escaping a threatening row's threshold is one
-  more condition of the region's own shape, `c <= beta d`, and the two are
-  now read together as a one-dimensional feasibility question: every lower
-  end at or below every upper end, decided by the sign of
-  `c_k d_l - c_l d_k` and never by a division. Only the widest node
-  separation matters in each direction, because a row satisfied AT the target
-  is not threatening, which leaves `c` positive and makes a larger `|d|` the
-  weaker condition. An index of two interval-censored rows, `1 < T <= 2` at
-  `x = 0` and at `x = 1`, leaves `abs(beta) <= log 2`, while two comparator
-  events at `t = 1` with a right-censored row at `t = 4` need a node at
-  `log 4` that no admitted slope reaches: measured +4.4, +9.5, +20.4 and
-  +40.6 over the same scales. Moving that censoring time to `t = 1.5` makes
-  the escape strictly feasible and the refusal right, and at `t = 2` it is
-  feasible only with equality, which is reported rather than decided. Checked
-  against exact rational arithmetic that scans every node pair rather than
-  the two extremes, on 12,000 generated regions, grids and thresholds: no
-  verdict was contradicted, and 3 cases went unsettled where the exact
-  arithmetic decides.
-
-  The order the index removes counts its CENSORED rows too, and reading it
-  off the event rows alone reported a suppression the index really supplies
-  as none. An index's own order was zero whenever its event design fit
-  exactly, which is right for the event rows on their own: as many density
-  spikes as the directions they pin, which cancel. It is not right once the
-  index also carries censored rows whose predictors that design does not
-  place, because such a row can pin a direction the events left free and
-  every pinned direction takes another power of the width off the
-  comparator's growth. An exact event at `t = 1` on `x = 0` beside a
-  left-censored row at `t = 1` and a right-censored row at `t = 1`, both on
-  `x = 1`: the event pins `mu_index`, the touching pair pins
-  `mu_index + beta`, and TWO directions shrink against ONE spike. The index's
-  coefficient-integrated likelihood is then
-  `arccos(v_s / (v_s + s^2)) / (2 pi sqrt(2 pi (a^2 + s^2)))`, which is
-  `s / (2 pi^(3/2) a h)` near zero rather than a constant, and it cancels two
-  tied comparator events' `1 / s` exactly: the product has a finite limit and
-  the posterior is proper under both models. Reported as zero, that fit was
-  refused. The count is read only where it is readable, from profiles
-  independent of one another and of the event design, and only for
-  `lognormal` where the rate was measured; anything else reports the order as
-  unsettled rather than as a zero. A third tied comparator event leaves
-  `2 - 1 = 1` and is still refused, and so is the same index with the
-  touching pair broken, whose remaining row pins nothing.
-
-  With more than one declared covariate the index's region is a polyhedron
-  whose projection onto the slope this check does not compute, and returning
-  nothing there was read by the caller as no restriction at all. The
-  difference is a certificate: an index at three independent profiles needing
-  `beta1` in `[2 log 2, 3 log 2]` and `beta2` in `[5 log 2, 6 log 2]` admits
-  no difference of binary integration points equal to `log 2`, since every
-  nonzero magnitude is at least `2 log 2` and `beta2 - beta1` lies in
-  `[2 log 2, 4 log 2]`; that posterior is proper and was refused. The
-  projection is still not computed, so the arm is now reported rather than
-  refused, and the one part that IS exactly answerable is asked first: a
-  region constrains only the functionals in its own row space, so where none
-  of the grid's node-difference directions lies in that space the region
-  cannot bear on this arm and the refusal stands. Nor can rows bounded on one
-  side only, however many directions they span: raising `mu_index` clears
-  every lower end at any slope, so an index of right-censored rows alone
-  keeps the refusal too. Widening the first interval
-  to `1 < T <= 4` admits `beta1 = log 2` and really is improper; without the
-  projection the two cannot be told apart, so that refusal is given up along
-  with the wrong one. Under `relaxed` the comparator carries its own slope
-  and under `aux_by = ".study"` its own auxiliary, so neither is affected.
-
-  It also only comes off a rate that is EXACT, which is a property of the
-  RANK rather than of the covariate count. A consistent allocation's design
-  has rank at least 1, and at least 2 whenever two targets differ, since its
-  rows all carry an intercept and proportional rows there are identical rows,
-  which put every row on one predictor and make every target equal. So a
-  recorded rank of 1 or 2 is the smallest achievable one however many
-  covariates are declared, and only from 3 can a lower-rank allocation exist.
-  Taking a positive order off a rate that IS a bound can cross the refusal
-  threshold from the wrong side: four
-  comparator events at three distinct targets carried by three collinear
-  nodes have a true rate of `4 - 2 = 2` while the recorded one is
-  `4 - 3 = 1`, and netting one power off that reads as zero. A subtraction
-  that LEAVES the rate at or above one is still certified, since the true net
-  is at least the reported one; only one that takes it below is reported.
-
-  The subtraction is valid only where the two sides pin INDEPENDENT
-  directions, which is a property of the model. Under `relaxed` the index
-  constrains `mu_index` and `beta` while the comparator constrains
-  `mu_comparator` and `beta_comparator`, so the stacked system is block
-  diagonal and the rank is exactly the sum. Under `spfa` the arms share
-  `beta` and the blocks can overlap: two independent touching index profiles
-  give order 2 while four comparator events at two matched times give rate 2,
-  and if both sides pin the shared slope the stacked rank gains only one
-  index direction, leaving a true rate of 1 that a full subtraction would
-  report as 0. Computing the joint rank means solving the combined system
-  across every allocation, which is out of scope, so a shared slope is
-  reported instead of netted. Only from a second pinned index ROW, though: in
-  `(mu_index, mu_comparator, beta)` an index constraint is `(1, 0, x)` while
-  every comparator constraint is `(0, 1, z)`, so no combination of comparator
-  rows reaches a nonzero first component, a single index row is independent
-  of all of them, and the ranks add whatever the shared slope does. It takes
-  a second index row for the difference `(0, 0, x_1 - x_2)` to appear, which
-  is a pure slope direction and can lie in the comparator's span. That counts
-  pinned ROWS, events and touching profiles together, and not the order,
-  which stops being the same number once exact events are netted against
-  their own spikes: two repeated events at one profile beside touching pairs
-  at two others pin three rows and both slope directions at a net order of
-  1, and gating on the order netted such an overlap to zero. It also
-  needs somewhere to lie: a matched design of rank 1 is one row,
-  `(0, 1, z_j)`, whose only vector with a zero second component is the zero
-  vector, so nothing of the form `(0, 0, v)` is in it and the ranks add
-  again. Four comparator events tied at one time are rate 3 against two
-  touching index profiles' 2, and that nets to 1 rather than going
-  unresolved.
-
-  Those touching rows also PIN, exactly as an exact event design does, and
-  the comparator has to test against them: left and right censoring meeting
-  at `t = 1` on `x = -1` and `x = 1` forces `mu_index` and `beta` to zero
-  just as two events there would. Reporting that the index pinned nothing
-  left the comparator treating the shared slope as free, so its censored rows
-  read as escapable and a fit they exponentially suppress was refused. The
-  eventless path and the path with events both carry that design, and the
-  pinned-ridge report asks
-  whether the index pins the slope rather than whether its EVENT design fits
-  exactly.
-
-  Reproducing its own times is also not the same as IDENTIFYING that shared
-  slope, and the report needs the second. Repeated index events at one
-  covariate profile at one time are `constant`, fit exactly, and pin only
-  `mu_index`: `beta` stays free, and a free `beta` is the direction the
-  comparator tilts along to lift an integration point past a censoring time,
-  so that arm keeps the refusal. What has to be identified is only the slope
-  directions the COMPARATOR's grid spans, since the escape is a change in the
-  node linear predictors and that is `(z_j - z_1)' beta`: a covariate the grid
-  integrates as a point mass contributes no such direction, and leaving its
-  coefficient unidentified costs the comparator nothing. The index guard
-  therefore hands its event design over rather than reducing it to a verdict,
-  and the comparator tests estimability of exactly the node-difference
-  directions. Centering does not affect the answer, since it leaves the slope
-  coefficients unchanged and shifts node differences by nothing.
-
-  An index WITH events carries the same order, on the same distinction. A
-  design shown to reproduce its own times pins rather than suppresses, so it
-  reports zero and the comparator refusal stands, while `undecidable`,
-  `unresolved` and `unresolved_log` did not settle whether a residual exists
-  at all; a real one there contributes `exp(-RSS / (2 sdlog^2))` and removes
-  the comparator's growth entirely, so those report the question as unsettled
-  rather than a zero that would turn it into a refusal.
-
-  Exactly integrating a declared Gaussian covariate is a different model
-  rather than a guaranteed repair, and how far that goes is worth being
-  precise about. It leaves `log T ~ N(mu, beta^2 + sdlog^2)`, and with
-  `mu ~ N(0, a^2)` integrated out, `m` events tied at one time give
-  `(2 pi)^(-m / 2) tau^(1 - m) / sqrt(tau^2 + m a^2)` for
-  `tau^2 = beta^2 + sdlog^2`. That behaves as `r^(1 - m)` near the origin
-  against the plane's own `r dr`, leaving `integral r^(2 - m) dr`: finite for
-  two tied events and divergent from three on. So for two the quadrature is
-  what creates the singularity and exact integration removes it, while for
-  three or more the exactly integrated model is improper as well. Nothing
-  here establishes the question for the other families or for other covariate
-  distributions, and they are no longer told it holds for them. Two comparator events at `t = 1`
-  on 64 nodes, coefficients integrated against `normal(0, 10)` and
-  `normal(0, 2.5)`: the grid likelihood runs 0.0143, 0.185, 1.72, 171 and
-  17103 as `sdlog` falls through 0.1, 0.001, 0.0001, 1e-6 and 1e-8, while
-  the continuous one runs 0.0142, 0.0307, 0.0390, 0.0556 and 0.0721. So a
-  larger `n_int` is not the repair: within the grid's reach a bigger fixed
-  rule is still a finite mixture and only scales the coefficient of the same
-  divergence. Neither is jittering the tied times. Where ties come from
-  rounding, an interval-censored representation of what was actually observed
-  is the honest model and `set_agd_surv()` accepts one. The index-side guard
-  says nothing about the rest of this: the refused configuration has a
-  perfectly healthy index fit.
-
-  Under `aux_by = "none"` the index rows share the auxiliary, and an index
-  fit that leaves a real residual contributes `exp(-RSS / (2 sdlog^2))`,
-  which goes to zero faster than any power and removes this divergence; so
-  does an index censored row that bounds. Sharing does not do it on its own,
-  so the comparator check is skipped for a shared auxiliary only where the
-  index guard established the bound, and not where it merely warned about an
-  exact or saturated index.
-
-  Right-censored rows are consulted before any of that is said, for the
-  shape families too: one whose fitted time falls below its censoring time
-  has survival going to zero faster than any power of the scale, and
-  `exp(-(c e^-eta)^k)` goes to zero as `k` grows for exactly the same rows,
-  so either way the posterior is proper and nothing is said, including the
-  near-exact and saturated messages. One at or above its censoring time does
-  nothing. A censored row's predictor counts as determined when its
-  covariate vector lies in the row space of the event design, which is
-  weaker than every coefficient being identified: exact events and a
-  censored row at the same covariate profile fix that row's predictor
-  however deficient the design is. When it is not determined the question is
-  said to be undecided rather than guessed.
-
-  Under `aux_by = "none"` the comparator rows share the auxiliary. That does
-  not bound it on its own, since a comparator of right-censored rows whose
-  fitted times sit above their censoring times contributes a likelihood
-  tending to one at the boundary, and whether it does bound it belongs to
-  the marginalized aggregate likelihood, which this geometry does not see.
-  So that case warns and is not refused. A fit that is nearly rather than
-  exactly exact warns that the auxiliary will concentrate against its
-  boundary, as the normal guard warns about sigma; under the
-  proportional-hazards Weibull and the gamma it says the auxiliary may
-  rather than will, because the ridge moves the coefficients there and an
-  ordinary `prior_beta` or `prior_intercept` can stop the shape before the
-  residual does.
-  Every censoring type is examined, through the OBSERVATION REGION each row
-  is known to lie in on the log scale. A right-censored row runs from its
-  own time upwards with no upper end; a left-censored one runs up to its
-  own time with no lower end; an interval one runs between its two. As the
-  auxiliary goes to its boundary the fitted distribution concentrates at the
-  fitted value, so a row's contribution tends to one when that value is
-  strictly inside its region and to zero when it is strictly outside, and
-  only the second bounds the auxiliary.
-
-  A delayed entry is not a lower end of that region. It conditions the
-  observation on survival to it, and with the fitted value BELOW the entry
-  the conditional law piles up just above the entry, so the probability
-  tends to one rather than to zero. An interval that opens strictly above
-  its entry does still bound from below, since the pile is then outside it.
-  So neither delayed entry nor a left-censored row whose upper bound sits
-  above the fitted time rescues an exact fit. The comparator side is not
-  examined.
-
 * **A normal fit whose covariates reproduce the outcome exactly is now
   refused.** Integrating out the coefficients leaves a marginal density for
   the residual SD proportional to `sigma^(rank - n)` near zero, which does not
@@ -734,6 +51,7 @@
   data separates the residual SD from the coefficients, so the estimate of
   sigma is potentially strongly sensitive to the coefficient priors. The
   check runs before any model is compiled or sampled.
+
 * **Posterior summaries now carry how many draws they used.** The summaries
   behind `predict()`, `marginal_effects()`, `conditional_effects()` and
   `conditional_predict()` pass `na.rm = TRUE`, which is right: one bad draw
@@ -769,15 +87,6 @@
   a count that is not a whole number or is past the integer range, both of
   which `as.integer()` had been turning into a clean zero or a silent `NA`.
 
-* **`mlumr_forest()` takes its null from the effect rather than from the
-  axis.** The reference line defaulted to `1` when `log_x = TRUE` and `0`
-  otherwise, so a hazard ratio, risk ratio or RMST ratio drawn on a linear axis
-  got a null line at 0, which is not a value those measures can take. When the
-  frame carries an `effect` column the null is now read from it through the
-  same resolver the package's own forest method uses, so both figures agree.
-  Without that column the axis remains the only hint and the previous default
-  applies.
-
 * **`set_agd()` no longer rejects a valid binary covariate's standard
   deviation.** The check compared a reported SD against `sqrt(p * (1 - p))`,
   which is the POPULATION standard deviation of a Bernoulli variable. A sample
@@ -801,72 +110,11 @@
   precise report would have ruled out. A pair no rounding can reconcile is
   still refused.
 
-* **`dlogitnorm()` rejects arguments it cannot use.** `plogitnorm()` and
-  `qlogitnorm()` pass `...` to `pnorm()` and `qnorm()`, so a misspelled name
-  reaches those functions and errors. The density computes its own value and
-  silently discarded whatever `...` collected, so `dlogitnorm(0.5, lgo = TRUE)`
-  returned the natural-scale density and looked like an answer. Unused
-  arguments are now named in an error.
-
-* **`conditional_effects()` explains an `hr`/`tr` refusal without a false
-  claim about the model.** The messages said that a proportional-hazards model
-  has no constant time ratio and that an accelerated failure time model's
-  hazard ratio varies with time. Neither is true of the exponential or the
-  Weibull, which are both proportional-hazards AND accelerated failure time:
-  with a baseline shape shared across arms each has a constant hazard ratio and
-  a constant time ratio, related by `TR = HR^(-1/shape)` (`1/HR` for an
-  exponential). The refusal now describes the parameterization the fit
-  estimates, gives that conversion for the dual families, and reserves the
-  time-varying explanation for the log-normal and log-logistic, where it holds.
-
 * **`prior_sensitivity()` says what it cannot reproduce.** `mlumr()` forwards
   `...` to the sampler, so a fit could have run with a non-default `thin` or
   `init` that nothing recorded, and the refits then silently used the defaults.
   The names of those arguments are now stored with the fit, and a refit that
   cannot replay them warns and names them.
-
-* **`naive()` no longer reports a Cox comparison that has no maximum, or one
-  that never converged.** Events in both arms are necessary for the partial
-  likelihood to identify the treatment coefficient and are not sufficient: the
-  likelihood can be monotone, with no interior maximum, while `coxph()` stops
-  on its convergence criterion and returns finite numbers anyway. Six
-  uncensored subjects with the three index events all before the three
-  comparator ones give a coefficient of 21.9 with a standard error of 24795,
-  and `coxph()` says so in a warning that nothing read. That warning is now
-  inspected and the comparison refused.
-
-  What makes the likelihood monotone is the risk sets, not the order of the
-  event times. Ordered events are enough only when censoring leaves nobody from
-  the earlier arm at risk when the later arm fails: with an index subject
-  failing at 1 and censored at 4, and a comparator failing at 2 and censored at
-  3, every index event still precedes every comparator event and the maximum is
-  a finite log hazard ratio of 0.347. Nothing refuses that fit, and the
-  explanation no longer claims the ordering alone is the problem.
-
-  A failure to converge is not an ordinary warning either. `coxph()` documents
-  several termination conditions and states that its own detection of an
-  infinite coefficient is not always successful, so the absence of the monotone
-  warning is not a certificate that a finite maximum exists. Nonconvergence was
-  reissued to the caller and the coefficient then packaged with a Wald
-  interval; it is now refused. Any other `coxph()` warning is still passed
-  through unchanged rather than turned into a rejection.
-
-* **STC detects quasi-complete separation when \pkg{detectseparation} is
-  installed.** The existing screen requires every fitted probability to sit at
-  0 or 1, which complete separation produces and quasi-complete separation does
-  not: rows on the separating hyperplane keep fitted probabilities of exactly
-  0.5, so a fit with an infinite maximum likelihood estimate passed with
-  `converged = TRUE` and finite coefficients. Whether a finite maximum exists
-  is a linear program rather than a threshold, so the exact test lives behind a
-  new **Suggests** dependency and runs when it is available. A check that
-  cannot be completed is treated as unknown rather than as separated, which is
-  right, and it is no longer treated as a clean bill either. The result is a
-  status of `"separated"`, `"not_separated"` or `"unknown"` with a reason, and
-  an unknown one now warns: the estimate is still returned, but it says that
-  only the fitted-value screen ran, that the screen cannot see quasi-complete
-  separation, and that the interval is therefore unverified. Previously every
-  way of not knowing, an absent dependency most of all, took the same path as a
-  fit that had been checked and cleared.
 
 * **Directly observed arms get exact intervals.** The proportions and
   rates that `naive()` reports for each arm, and the observed comparator
@@ -883,48 +131,23 @@
   are not exact and are not claimed to be: the link-scale contrast and the
   log risk ratio remain Wald around the boundary-corrected quantities and
   the risk difference remains Wald on the natural scale around the raw
-  difference of proportions. Twelve configurations at 100 observations per
-  arm are pinned in the tests by enumerating every pair of counts, and the
-  documentation now reports those twelve as the values at those true
-  probabilities rather than as a range: they run from 0.853 to 0.9999. The
-  risk difference is worst between opposite boundaries, where a true
-  difference of 0.966 is covered 85.3% of the time, and the log risk ratio
-  is worst with both arms near the same boundary, where 0.986 against 0.957
-  is covered 92.1%. The standardized index probability
-  of an STC is a model prediction and keeps its delta-method interval,
-  documented as an asymptotic approximation.
+  difference of proportions. Enumerated over every pair of counts at 100
+  observations per arm, their coverage at twelve pairs of true probabilities
+  runs from 0.853 to 0.9999, and the documentation reports those values
+  rather than a range. The risk difference is worst between opposite
+  boundaries, where a true difference of 0.966 is covered 85.3% of the time,
+  and the log risk ratio is worst with both arms near the same boundary,
+  where 0.986 against 0.957 is covered 92.1%. The standardized index
+  probability of an STC is a model prediction and keeps its delta-method
+  interval, documented as an asymptotic approximation.
 
-* **Binomial STC uncertainty no longer depends on the units of a covariate.**
-  The delta-method gradients of the standardized event probability, its
-  logarithm and its link-scale value were central differences in coefficient
-  space with a step proportional to `max(1, |beta|)`. That step is not a
-  property of the model: multiply a predictor by 1e6 and its coefficient
-  shrinks by 1e6 while the step stays near 6e-6, so the perturbation moved
-  the target linear predictor by about 6, and a comparator probability of
-  0.75 on 40 subjects at the observed profile reported a standard error of
-  0.032 at units 1e6 and 0.019 at 1e8 instead of the 0.068 the data give.
-  The gradients are now analytic, `sum(w_i p_i'(eta_i) X_i)` and its chain
-  rules through the link, formed on the log scale so a grid point in either
-  tail keeps its share, and they transform with the design: equivalent
-  units give identical uncertainty for every binomial link.
-
-* **`check_integration()` judges a binary margin against its distribution,
-  and says which correlation pairs it measured.** The declared-target SD of a
-  binary covariate was read from a supplied `_sd` column when the AgD had
-  one. That column is a sample SD of the source data: two zeros and two
-  ones have SD 0.577, while the Bernoulli(0.5) distribution has SD 0.5 and
-  the largest sample SD any binary grid of `m` points can reach is
-  `sqrt(m / (m - 1)) / 2`, so the grid read as 13% off at every resolution
-  and the target verdict never left `review`. The target SD of a binary
-  margin is now `sqrt(p * (1 - p))` from the declared mean, and grid SDs
-  are population SDs, since a deterministic grid is not a sample. On the
-  joint side, the maximum discrepancy was taken over the pairs with a finite
-  realized correlation, so a variable constant on the grid dropped its pairs
-  and one measured pair out of three was summarized as `close`. The
-  correlation verdicts are now `"partial"` when the measured pairs pass but
-  some pair with a correlation to realize could not be measured, and
-  `"review"` whenever a measured pair misses the heuristic, whatever else
-  is missing. A new `correlation_pairs` component counts the pairs
+* **`check_integration()` says which correlation pairs it measured.** The
+  maximum discrepancy was taken over the pairs with a finite realized
+  correlation, so a variable constant on the grid dropped its pairs and one
+  measured pair out of three was summarized as `close`. The correlation
+  verdicts are now `"partial"` when the measured pairs pass but some pair
+  with a correlation to realize could not be measured, and `"review"`
+  whenever a measured pair misses the heuristic, whatever else is missing. A new `correlation_pairs` component counts the pairs
   expected and measured, on the doubled grid and between resolutions, and
   names the omitted ones with a reason; a margin declared with no variance
   has no correlation to realize, so its pairs are listed separately and
@@ -942,77 +165,12 @@
   deviance stops changing, and reported convergence, finite coefficients
   and a finite covariance from where it stopped: 80 zero counts gave an
   intercept near -27 with a standard error near 57,500, and a zero-event
-  subgroup beside a positive one a slope near 21. The binomial separation
-  check does not apply there and said so, which was not a certificate.
-  `stc()` now refuses a Poisson outcome model with no events, and one where
-  such a direction exists, deciding the latter exactly for up to two free
-  directions with the same feasibility test the normal guard uses and
-  refusing what it cannot decide. A returned Poisson result records on its
-  `separation` component that the check ran and the maximum is finite. The
-  variance floor that stood in for a zero-event index arm is gone with it,
-  since the fit it patched is no longer returned.
-
-* **M-spline basis support is judged over the period a study was at risk.** The
-  check evaluated each basis column on `[0, max(time)]`. A column supported
-  only where nobody is under observation multiplies no event hazard and no
-  exposure increment, so its coefficient is moved by the prior alone, yet it
-  counted as supported. Support is now evaluated over the merged union of the
-  study's per-subject `[entry, exit]` intervals, and strictly inside them: that
-  excludes the stretch before the earliest entry under delayed entry, and also
-  any gap in which the risk set is empty, which a single span from first entry
-  to last exit would have treated as observed. Every path that builds a basis
-  passes those times, including user-supplied per-study knots and the shared
-  baseline. Where entry is delayed, a message also records which stretch of the
-  curve nobody was at risk over. It no longer calls that stretch prior-driven:
-  a basis column straddling the entry time is one parameter governing both
-  sides, so the observed part informs the unobserved part and the hazard below
-  entry is extrapolated under the spline restrictions, with the prior deciding
-  whatever those leave weakly determined. Absolute survival and RMST integrate
-  from 0 and so depend on it; conditioning on survival to a landmark cancels
-  the pre-landmark cumulative hazard, which is not the same as being free of
-  the smoothing prior or of shape uncertainty.
-
-* **A shared baseline whose studies never overlap on a spline column is
-  refused.** Column support says every column carries likelihood for SOMEBODY.
-  It cannot say the studies are tied to each other, and with `aux_by = "none"`
-  they have to be: that model has one weight simplex and one intercept per
-  study, so if the studies' observed exposure falls on disjoint sets of
-  columns, mass can be moved between the sets and absorbed exactly by the
-  intercepts. With a piecewise-exponential baseline on `[0, 3]` split at 1, the
-  index study observed on `[0, 1]` and the comparator on `[2, 3]`, replacing
-  the weight `w` by any other value in (0, 1) and shifting the two intercepts
-  to match leaves every likelihood term identical while the conditional hazard
-  ratio moves from 1 to 3. Every column is supported, so nothing objected.
-  `mlumr()` now also requires the studies and the columns they touch to form
-  one connected component, and says which studies are cut off from which. This
-  is exact at degree 0, where columns have disjoint supports. Above it the
-  supports overlap, so connectivity rules out this failure mode and is not a
-  proof of identification.
-
-* **Interval- and left-censored likelihoods under delayed entry are evaluated
-  in whichever form the numbers survive.** The interval branch formed the
-  unconditional interval probability and then subtracted `log S(entry)`. That
-  is correct algebra and poor arithmetic: both terms grow without bound in the
-  tail, so the subtraction cancels the significant digits and yields `NaN` once
-  either underflows. Rebuilding it from increments as
-  `log S(lower)/S(entry) + log[1 - S(upper)/S(lower)]` fixed that end and broke
-  the other, where survival rounds to exactly 1 and every increment collapses
-  to zero. A Gamma baseline with shape 10, entry at 0.025 and an event in
-  (0.05, 0.1] has a conditional log probability of -38.222; built from
-  increments it came back unusable, and left censoring under delayed entry took
-  the same route. Each route is now used only where its rounding is well
-  below the interval's mass, and neither is used at all where a closed form
-  exists: the exponential, Weibull and Gompertz families take analytic
-  cumulative-hazard differences in every regime, and the log-logistic has an
-  exact expression of its own. For the log-normal, gamma and generalized gamma
-  the CDF difference serves the lower half and the survival increment the
-  upper, each behind a resolution test, and an interval neither resolves is
-  integrated from the density by Simpson's rule in log time, refined until two
-  estimates agree. A difference that is merely finite is not thereby accurate:
-  four ULPs from 0.1 came back 16% low from one difference and 29% high from
-  the other, and a midpoint density times the width, the earlier fallback,
-  was 57% low on a wide interval whose mass is small because the density falls
-  a hundredfold across it.
+  subgroup beside a positive one a slope near 21. `stc()` now refuses a
+  Poisson outcome model with no events, and one where such a direction
+  exists, deciding the latter exactly for up to two free directions with the
+  same feasibility test the normal guard uses and refusing what it cannot
+  decide. A returned Poisson result records on its
+  `separation` component that the check ran and the maximum is finite.
 
 * **LOO, WAIC, and DIC refuse a saved likelihood that does not cover the
   data.** `calculate_dic()`, `calculate_loo()`, `calculate_waic()`, and
@@ -1032,9 +190,8 @@
   before. A `mlumr_dic` object handed to `compare_models()` is checked the
   same way against the observations it carries, since a saved score outlives
   the fix: one computed over part of a fit's data is refused rather than
-  ranked, and one from a version before the counts were recorded, or one
-  recording its observations but not the count, is compared as before, with
-  the message that it could not be checked.
+  ranked, and one from a version before the counts were recorded is
+  compared as before, with the message that it could not be checked.
 
 * **`calculate_loo()` no longer recommends `moment_match = TRUE`, and
   refuses it.** Its documentation suggested the flag for high Pareto k, but
@@ -1078,11 +235,11 @@
   checked too. A model whose object carries no data is reported as
   unverifiable rather than assumed to match.
 
-* **`prior_sensitivity()` validates `probs` with the shared validator.** Its
-  local copy of the check omitted the duplicate test that `.validate_probs()`
-  applies everywhere else, so two equal probabilities produced two identically
-  named `qNN` columns and the second silently overwrote the first: the caller
-  asked for n quantiles and received fewer, with no error.
+* **`prior_sensitivity()` validates `probs`.** Two equal probabilities
+  produced two identically named quantile columns and the second silently
+  overwrote the first, so the caller asked for n quantiles and received
+  fewer, with no error. The shared validator the rest of the package uses
+  refuses duplicates.
 
 * **`prior_summary()` names the constrained prior instead of calling every
   positive-constrained prior a "half-distribution".** Two of those labels were
@@ -1092,7 +249,7 @@
 
 * **`prior_sensitivity()` names its quantile columns like the rest of the
   package.** They were built with `paste0("q", round(100 * probs))`, which
-  labelled the default 2.5th and 97.5th percentiles `q2` and `q98`, and made
+  labeled the default 2.5th and 97.5th percentiles `q2` and `q98`, and made
   distinct probabilities collide: `probs = c(0.024, 0.025)` produced `q2` twice
   and the second silently overwrote the first. The columns are now `q2.5`,
   `q50`, `q97.5`, matching `marginal_effects()`, so the two can be joined by
@@ -1122,7 +279,10 @@
   that a ratio whose true value overflows double precision is now `Inf` rather
   than a large finite surrogate. That needs only a finite log contrast above
   `log(.Machine$double.xmax)`, about 709.78, not an infinite linear predictor.
-  Read the log-scale generated quantities when it happens.
+  Read the log-scale generated quantities when it happens. A contrast of two
+  logs that are both `+Inf` is left undefined rather than reported as zero,
+  in the R helper and its Stan counterpart alike; two `-Inf` logs give zero,
+  because both quantities are zero.
   See `?mlumr-numerical-evaluation`.
 
 * **`predict(type = "link")` reports the marginal link, not the mean linear
@@ -1203,7 +363,9 @@
   the mean and standard deviation declared in `set_agd()`, which answers the
   different question "does the grid represent the population it claims to". A
   `distr()` specification can be numerically well resolved and still target the
-  wrong marginal.
+  wrong marginal. The target SD of a binary margin is `sqrt(p * (1 - p))`
+  from the declared mean, not a sample SD read from an `_sd` column, and
+  grid SDs are population SDs, since a deterministic grid is not a sample.
 
 * **`add_integration()` states where the copula correction does not apply.** The
   Spearman and Pearson maps branch on continuous versus binary margins. A
@@ -1277,51 +439,35 @@
   reports both populations without that assumption, when the index population is
   the decision target.
 
-* **`seed` defaults to 2026 and says so.** `seed = NULL` previously drew from
-  the session RNG whenever `.Random.seed` existed. R initializes that variable
-  on demand from the clock and the process id, so its presence never
-  established that `set.seed()` had been called: an unseeded fit was silently
-  irreproducible, and drawing from the state also advanced the caller's stream.
+* **`seed` defaults to 2026 and says so.** `seed = NULL` passed through to
+  the sampler, which drew a seed from the session RNG: an unseeded fit was
+  silently irreproducible, and the draw advanced the caller's stream.
   `seed = NULL` now uses the documented default of 2026 and warns, and the fit
   banner marks the seed as a default.
 
-* **A difference of two unbounded quantities is undefined, not zero.** The
-  log-scale contrast used by the marginal summaries returned an exact zero when
-  both logs were `+Inf`, reporting an indeterminate difference as a null
-  effect. Both the R helper and its Stan counterpart now leave it undefined.
-  Two `-Inf` logs still give zero, because both quantities are zero.
+* **`set_ipd()` warns about a rank-deficient or nearly collinear covariate
+  design.** With fewer complete IPD rows than the intercept and the varying
+  covariates together, the design is rank deficient and the coefficients are
+  not separately identified from the IPD; with more rows, a condition number
+  of the covariate correlation matrix above 1000 names the near-redundant
+  covariates. Autoscaling falls back to the unscaled prior, with a warning
+  naming the covariate, where a covariate has no usable empirical scale: a
+  constant one, or one whose standard deviation a single IPD row leaves
+  undefined.
 
-* **Zero exposures and zero aggregate standard errors are refused again.**
-  `E_ipd` and `E_agd` in the poisson models and `se_agd` in the normal models
-  are declared `<lower=1e-12>`, as they were in 0.1.0. Under a bound of zero an
-  exposure of exactly zero reaches `log()` in the linear predictor, and a zero
-  aggregate standard error makes the normal likelihood improper.
-
-* **The collinearity guard reports a design that cannot be full rank.** It
-  returned quietly whenever there were no more complete IPD rows than
-  covariates, which is exactly the case it exists to catch. A covariate whose
-  empirical standard deviation is undefined, which is what a single IPD row
-  produces, is treated as having no usable scale instead of aborting
-  autoscaling.
-
-* **Tail ESS is computed rather than looked for.** `check_diagnostics()` tested
-  a column that the default rstan backend never produced, so the check was
-  inert on every fit the package makes. Tail ESS is now computed chain-aware
+* **`check_diagnostics()` computes tail ESS.** It is computed chain-aware
   from the post-warmup draws, and a fit that cannot supply it is reported as
   such rather than passing silently.
 
 * **`check_integration()` no longer passes a comparison it did not make.** An
   all-missing set of differences gave `-Inf` from `max(na.rm = TRUE)`, which
   clears every threshold and printed as "close"; such a comparison now reads
-  "unavailable". The declared-target standard deviation falls back to the
-  Bernoulli form only for margins declared binary, rather than for any
-  covariate whose mean happens to land in `[0, 1]`. A correlation matrix passed
-  directly is resolved by name the way `add_integration()` resolves it, so
-  reversed dimnames no longer produce a verdict about the wrong pairs. Under
-  `cor_adjust = "none"` the supplied matrix is the latent Gaussian copula
-  correlation, which the realized covariate-scale correlation does not
-  estimate; that comparison is withheld and named instead of scored across the
-  two scales.
+  "unavailable". A correlation matrix passed directly is resolved by name the
+  way `add_integration()` resolves it, so reversed dimnames no longer produce
+  a verdict about the wrong pairs. Under `cor_adjust = "none"` the supplied
+  matrix is the latent Gaussian copula correlation, which the realized
+  covariate-scale correlation does not estimate; that comparison is withheld
+  and named instead of scored across the two scales.
 
 * **The cmdstanr executable cache now notices a changed include.** The cache
   key concatenated the MD5 of the model file with the MD5 of every include and
@@ -1336,22 +482,28 @@
   compiler upgrade with everything else unchanged does not, and does not need
   to. Anyone carrying a cache from an earlier version will get one recompile.
 
-* **`stc()` refuses an outcome model whose fitted probabilities have all
-  reached a boundary.** Its checks looked for a failure the fitting reports,
-  and separation is not one: iterative
+* **`stc()` refuses a separated binomial outcome model.** Its checks looked
+  for a failure the fitting reports, and separation is not one: iterative
   reweighting stops when the deviance stops changing, and a separated fit has
   no maximum for it to stop at, so a binomial arm with no events returned
   convergence, finite coefficients and a finite covariance. A hundred rows with
   the outcome always zero produced a coefficient of -26.6 and a largest fitted
   probability of 3e-12, with a confidence interval to match, every number a
   property of where the iteration stopped rather than of the data. Raising
-  `maxit` changes none of them. The symptom separation always leaves is now
-  an error: every fitted probability against a boundary, either one, tested
-  only where a boundary exists, so a genuinely rare event still fits.
-  Quasi-complete separation, where rows sit on the separating hyperplane and
-  keep interior fitted probabilities, is not detected; separating that from a
-  strong but identified fit needs an exact test rather than the fitted
-  values.
+  `maxit` changes none of them. The symptom complete separation always leaves
+  is now an error: every fitted probability against a boundary, either one,
+  tested only where a boundary exists, so a genuinely rare event still fits.
+  Quasi-complete separation is not that symptom: rows on the separating
+  hyperplane keep fitted probabilities of exactly 0.5, so a fit with an
+  infinite maximum likelihood estimate passes the screen with finite
+  coefficients, and whether a finite maximum exists is a linear program
+  rather than a threshold. That exact test runs when \pkg{detectseparation}
+  (a Suggests dependency) is installed. The result is a status of
+  `"separated"`, `"not_separated"` or `"unknown"` with a reason on the
+  returned `separation` component, and an unknown one warns: the estimate is
+  still returned, but the message says that only the fitted-value screen
+  ran, that the screen cannot see quasi-complete separation, and that the
+  interval is therefore unverified.
 
 * **A caller's rstan `control` reaches the sampler.** `...` is documented as
   passing arguments to `rstan::sampling()`, but the backend supplied its own
@@ -1453,7 +605,7 @@
   contrasts. A forest showing only ratio measures is drawn on a log axis, so
   reciprocal effects sit at equal distances from the null. The interval's
   coverage is read from the quantiles the result carries rather than assumed to
-  be 95%, and a time-specific marginal hazard ratio is labelled with the
+  be 95%, and a time-specific marginal hazard ratio is labeled with the
   evaluation time it belongs to.
 * **`geom_km()`** overlays the observed Kaplan-Meier curves (from the
   `mlumr_data` object) on a model survival plot, colored by treatment and
@@ -1473,7 +625,10 @@
   they mix estimators: putting `naive()`, `stc()`, and both ML-UMR models on one
   axis, for instance. It takes the reference line, axis label, title, and
   subtitle as arguments so the caller sets the measure's null rather than
-  inheriting one. One interval far wider than the rest is clipped to a viewport
+  inheriting one; a frame carrying an `effect` column gets the null that
+  measure implies, through the same resolver the `plot()` methods use, and
+  without either the default follows the axis, 1 under `log_x = TRUE` and 0
+  otherwise. One interval far wider than the rest is clipped to a viewport
   built from the others, with an arrow on the side it runs past, so a single
   wide row does not squeeze the rest into a line. A bound that is infinite is
   clipped that way; a bound that is MISSING is not, because no interval was
@@ -1488,18 +643,17 @@
 
 ## Time-to-event (survival) outcomes
 
-* **New `prior_aux2` argument for the second generalized-gamma auxiliary
+* **`prior_aux2` sets the prior on the second generalized-gamma auxiliary
   parameter.** The two auxiliaries govern different features of the hazard and
-  can need different regularization; both previously took whatever `prior_aux`
-  specified. `NULL` (the default) reuses `prior_aux`, so existing fits are
-  unchanged, and `prior_summary()` shows the two separately when they can
-  differ, naming them as the generalized-gamma `sigma` and `k = 1 / Q^2` for the
-  Lawless shape `Q` rather than as anonymous auxiliaries. Supplying it for a
+  can need different regularization. `NULL` (the default) reuses `prior_aux`,
+  and `prior_summary()` shows the two separately when they can differ, naming
+  them as the generalized-gamma `sigma` and `k = 1 / Q^2` for the Lawless
+  shape `Q` rather than as anonymous auxiliaries. Supplying it for a
   distribution with fewer than two auxiliary parameters warns and is discarded
-  without being validated, rather than being silently ignored, and
-  `prior_sensitivity()` refuses to vary it mid-sweep like
-  every other scenario-defining argument. `prior_aux`'s documentation now also
-  records that one default is reused across auxiliary parameters that do not
+  without being validated, and `prior_sensitivity()` refuses to vary it
+  mid-sweep like every other scenario-defining argument. `prior_aux`'s
+  documentation records that one default is reused across auxiliary
+  parameters that do not
   share a scale: the Gompertz shape has units of 1 / time, so the same trial
   expressed in days rather than years gives a half-normal(0, 2) an entirely
   different meaning.
@@ -1519,13 +673,30 @@
   `naive()` is on the **log** scale, so it is not directly comparable with
   `marginal_effects(effect = "hr")` unless exponentiated.
 
+  `naive()` refuses a Cox comparison whose partial likelihood has no maximum,
+  and one that never converged. Events in both arms are necessary for the
+  partial likelihood to identify the treatment coefficient and are not
+  sufficient: the likelihood can be monotone, with no interior maximum, while
+  `coxph()` stops on its convergence criterion and returns finite numbers
+  anyway. Six uncensored subjects with the three index events all before the
+  three comparator ones give a coefficient of 21.9 with a standard error of
+  24795, and `coxph()` says so in a warning, which is read and the comparison
+  refused. What makes the likelihood monotone is the risk sets, not the order
+  of the event times: with an index subject failing at 1 and censored at 4,
+  and a comparator failing at 2 and censored at 3, every index event still
+  precedes every comparator event and the maximum is a finite log hazard
+  ratio of 0.347, which is returned. `coxph()` documents several termination
+  conditions and states that its own detection of an infinite coefficient is
+  not always successful, so nonconvergence is refused too rather than
+  packaged with a Wald interval. Any other `coxph()` warning is passed
+  through unchanged.
+
 * **Survival `stc()` uncertainty is a nonparametric bootstrap**, not the delta
   method the other families use: the RMST is an integral of a fitted survival
   function and has no convenient closed-form variance. `n_boot` (default 200,
   `0` for a point estimate with no interval) and `seed` control it, and the seed
   is restored on exit so the caller's RNG stream is untouched. `n_boot = 1` is
-  rejected, because the standard error of a single resample is undefined and was
-  otherwise indistinguishable from every resample having failed.
+  rejected, because the standard error of a single resample is undefined.
 
 * **`survival_unit` for LOO and WAIC.** `calculate_loo()`, `calculate_waic()`,
   and `compare_models()` gain a `survival_unit` argument controlling what one
@@ -1589,6 +760,16 @@
   a time ratio, and the same applies to any relaxed AFT fit even with shared
   shapes. An explicit `effect = "hr"` / `"tr"` request stops in these cases and
   names the alternative rather than returning a differently-named quantity.
+  `conditional_effects()` likewise refuses `effect = "tr"` on a
+  proportional-hazards fit and `effect = "hr"` on an accelerated failure
+  time fit, since the coefficient such a fit estimates is the other measure,
+  and its message describes the parameterization: the exponential and
+  Weibull are both proportional-hazards and accelerated failure time, so
+  with a baseline shape shared across arms each has a constant hazard ratio
+  and a constant time ratio, related by `TR = HR^(-1/shape)` (`1/HR` for an
+  exponential), and the message gives that conversion; the time-varying
+  explanation is reserved for the log-normal and log-logistic, where it
+  holds.
 
 * **Parametric and flexible baselines** via the `distribution` argument to
   `mlumr()`:
@@ -1625,9 +806,698 @@
   `0`/`1`) and optional delayed entry; supply a `Surv` object for left- or
   interval-censored data.
 
-* `outcome` is no longer required for `family = "survival"`, which uses
+* `outcome` is not required for `family = "survival"`, which uses
   `Surv`/`time`/`status` instead. It is still required for the other families,
-  and its absence is now reported as such.
+  and a call that omits it is refused with a message naming it, where 0.1.0
+  failed with R's own missing-argument error.
+
+* **Interval- and left-censored likelihoods under delayed entry are evaluated
+  in whichever form the numbers survive.** The conditional interval
+  probability can be formed as the unconditional interval probability less
+  `log S(entry)`, which cancels the significant digits in the tail once either
+  term underflows, or from increments as
+  `log S(lower)/S(entry) + log[1 - S(upper)/S(lower)]`, which collapses to
+  zero where survival rounds to exactly 1: a Gamma baseline with shape 10,
+  entry at 0.025 and an event in (0.05, 0.1] has a conditional log
+  probability of -38.222 that only one of the two forms reaches. Each route is
+  used only where its rounding is well below the interval's mass, and neither
+  is used at all where a closed form exists: the exponential, Weibull and
+  Gompertz families take analytic cumulative-hazard differences in every
+  regime, and the log-logistic has an exact expression of its own. For the
+  log-normal, gamma and generalized gamma the CDF difference serves the lower
+  half and the survival increment the upper, each behind a resolution test,
+  and an interval neither resolves is integrated from the density by Simpson's
+  rule in log time, refined until two estimates agree. A difference that is
+  merely finite is not thereby accurate: four ULPs from 0.1 come back 16% low
+  from one difference and 29% high from the other, and a midpoint density
+  times the width is 57% low on a wide interval whose mass is small because
+  the density falls a hundredfold across it.
+
+* **M-spline basis support is judged over the period a study was at risk.** A
+  basis column supported only where nobody is under observation multiplies no
+  event hazard and no exposure increment, so its coefficient is moved by the
+  prior alone, and such a basis is refused. Support is evaluated over the
+  merged union of the study's per-subject `[entry, exit]` intervals, and
+  strictly inside them: that excludes the stretch before the earliest entry
+  under delayed entry, and also any gap in which the risk set is empty, which
+  a single span from first entry to last exit would treat as observed. Every
+  path that builds a basis passes those times, including user-supplied
+  per-study knots and the shared baseline. Where entry is delayed, a message
+  records which stretch of the curve nobody was at risk over. That stretch is
+  not prior-driven: a basis column straddling the entry time is one parameter
+  governing both sides, so the observed part informs the unobserved part and
+  the hazard below entry is extrapolated under the spline restrictions, with
+  the prior deciding whatever those leave weakly determined. Absolute survival
+  and RMST integrate from 0 and so depend on it; conditioning on survival to a
+  landmark cancels the pre-landmark cumulative hazard, which is not the same
+  as being free of the smoothing prior or of shape uncertainty.
+
+* **A shared baseline whose studies never overlap on a spline column is
+  refused.** Column support says every column carries likelihood for somebody.
+  It cannot say the studies are tied to each other, and with `aux_by = "none"`
+  they have to be: that model has one weight simplex and one intercept per
+  study, so if the studies' observed exposure falls on disjoint sets of
+  columns, mass can be moved between the sets and absorbed exactly by the
+  intercepts. With a piecewise-exponential baseline on `[0, 3]` split at 1, the
+  index study observed on `[0, 1]` and the comparator on `[2, 3]`, replacing
+  the weight `w` by any other value in (0, 1) and shifting the two intercepts
+  to match leaves every likelihood term identical while the conditional hazard
+  ratio moves from 1 to 3. `mlumr()` therefore also requires the studies and
+  the columns they touch to form one connected component, and says which
+  studies are cut off from which. This is exact at degree 0, where columns
+  have disjoint supports. Above it the supports overlap, so connectivity rules
+  out this failure mode and is not a proof of identification.
+
+* **An index fit whose covariates reproduce every event time exactly is
+  refused for the scale families and warned about for the shape families.**
+  A log-normal AFT is a normal model for `log(t)` with a positive scale, so
+  the exact-fit singularity of the normal family is there too: with `n`
+  uncensored index rows, a design of rank `r` that reaches every `log(t)`,
+  and the coefficients integrated out, the density of `sdlog` behaves as
+  `sdlog^(r - n)` near zero and does not integrate for any `n` above `r`.
+  `prior_aux` defaults to a half-normal and every supported alternative has
+  positive density at zero, so no prior repairs it, and no convergence
+  diagnostic can see it: the sampler drifts toward zero and reports where it
+  stopped. `mlumr()` decides this before dispatch, with the same exact
+  geometry the normal family's guard uses.
+
+  Which families is decided by what the auxiliary is rather than by the
+  family's name. `"lognormal"` and `"gengamma"` are refused: for both the
+  first auxiliary is a scale, the log-scale SD for one and the Lawless
+  `sigma` for the other, which the density divides the log residual by and
+  carries a `-log(sigma)` term for, and an exact fit sends it to zero. The
+  generalized gamma's second auxiliary is its shape, and at an exact fit the
+  density's dependence on it is bounded. The Weibull, log-logistic and gamma
+  carry a shape as their only auxiliary, so the same exact fit sends it to
+  `+Inf`, where a half-normal or exponential prior's tail integrates the
+  growth and a half-t's need not; propriety is then a property of the prior
+  rather than of the data, and refusing the data would refuse well-posed
+  default fits, so those warn instead. The Gompertz is read on the time
+  scale rather than the log-time one: its hazard is `exp(eta + shape * t)`,
+  so an exact fit drives the linear predictor to about
+  `log(shape) - shape * t`, and that ridge needs the event times themselves
+  in the column space rather than their logarithms. With the coefficients
+  integrated out its marginal goes as `shape^(n - 2k)`, for the `k`
+  coefficients the ridge moves, so a Cauchy on `prior_aux` and on those
+  leaves a tail that does not integrate: five events at `t = 1:5` over
+  `x = 0:4`, exactly linear on the time scale, have a marginal slope
+  `d log M / d log shape` of 1.000, which a Cauchy `prior_aux` turns into
+  `shape^-1`, while three events at `t = exp(0:2)`, exactly linear on the
+  log scale instead, have no such ridge and measure -577,014 per decade.
+  Each censored row is placed in its observation region on the same scale.
+
+  A saturated design, with as many uncensored rows as its design has free
+  columns, is an exact fit too: it reproduces every event time and leaves no
+  residual degree of freedom. It is also the one case where integrating the
+  coefficients out cancels the auxiliary's growth exactly, so it is proper
+  for every family but two, and it warns instead that nothing in the index
+  data separates the auxiliary from the coefficients. The first exception is
+  the proportional-hazards Weibull, whose cumulative hazard `t^shape e^eta`
+  leaves the width in the location of order one so that nothing cancels: two
+  rank-2 rows both at `t = 1` give a profile likelihood of exactly
+  `shape^2 e^-2`, with the coefficients held at `eta = 0` rather than moving
+  into their prior tails, so a `prior_cauchy()` auxiliary contributing
+  `shape^-2` leaves a constant tail that does not integrate. That one keeps
+  the prior-tail warning. The Gompertz is the second, for a different reason.
+  Integrating one of its rows over its own linear predictor gives
+  `shape * e^(shape t) / expm1(shape t)`, which tends to the shape rather
+  than to a constant, so a saturated design contributes `shape^n` against
+  `shape^-2` for each coefficient the ridge moves: the marginal goes as
+  `shape^(n - 2k)` and propriety fails once `n >= 2k + 1`, which is not a
+  property of `n == rank` at all. Three events all at `t = 1` on a rank-3
+  design, whose times are the intercept alone, measure a slope of 1.000, and
+  six rows whose times need two of six columns measure 2.000; a Cauchy
+  `prior_aux` takes off 2 and leaves `shape^-1` and `shape^0`, neither of
+  which integrates. Which coefficients the ridge moves is not decidable at
+  double precision, for the same reason exactness is not, so every saturated
+  Gompertz takes the prior-tail warning rather than a guess at which ones
+  are the proper ones. The exemption belongs to `n == rank` alone: with more
+  uncensored rows than the rank the cancellation is partial and every shape
+  family is warned about.
+
+  Censored rows are consulted before any of that is said, for the shape
+  families too, through the observation region each row is known to lie in
+  on the log scale. A right-censored row runs from its own time upwards with
+  no upper end; a left-censored one runs up to its own time with no lower
+  end; an interval one runs between its two. As the auxiliary goes to its
+  boundary the fitted distribution concentrates at the fitted value, so a
+  row's contribution tends to one when that value is strictly inside its
+  region and to zero when it is strictly outside, and only the second bounds
+  the auxiliary: a right-censored row whose fitted time falls below its
+  censoring time has survival going to zero faster than any power of the
+  scale, and `exp(-(c e^-eta)^k)` goes to zero as `k` grows for exactly the
+  same rows, so either way the posterior is proper and nothing is said,
+  including the near-exact and saturated messages. One at or above its
+  censoring time does nothing. A delayed entry is not a lower end of that
+  region. It conditions the observation on survival to it, and with the
+  fitted value below the entry the conditional law piles up just above the
+  entry, so the probability tends to one rather than to zero; an interval
+  that opens strictly above its entry does still bound from below, since the
+  pile is then outside it. So neither delayed entry nor a left-censored row
+  whose upper bound sits above the fitted time rescues an exact fit. A
+  censored row's predictor counts as determined when its covariate vector
+  lies in the row space of the event design, which is weaker than every
+  coefficient being identified: exact events and a censored row at the same
+  covariate profile fix that row's predictor however deficient the design
+  is. When it is not determined the question is reported as undecided rather
+  than guessed.
+
+  Under `aux_by = "none"` the comparator rows share the auxiliary. That does
+  not bound it on its own, since a comparator of right-censored rows whose
+  fitted times sit above their censoring times contributes a likelihood
+  tending to one at the boundary, and whether it does bound it belongs to
+  the marginalized aggregate likelihood, which this geometry does not see;
+  so that case warns and is not refused. A fit that is nearly rather than
+  exactly exact warns that the auxiliary will concentrate against its
+  boundary, as the normal guard warns about sigma; under the
+  proportional-hazards Weibull and the gamma it says the auxiliary may
+  rather than will, because the ridge moves the coefficients there and an
+  ordinary `prior_beta` or `prior_intercept` can stop the shape before the
+  residual does.
+
+  The censoring check refuses a design it cannot rescale exactly. Its
+  tolerance bounds the solve's error with the column-scaled design's
+  condition number, which is sound because the two are the same computation:
+  Householder QR is equivariant under an exact power-of-two column scaling
+  and the pivot test is per-column relative, so over 20,000 random designs
+  the rescaled unscaled solve was bit-identical to the scaled one, with the
+  same rank and pivots, and the predictor error never reached the tolerance
+  when measured against the exact rational solution. A column whose own
+  entries span more than the exponent field breaks that, and toward the
+  unsafe answer: dividing `c(2^1020, 2^-100, 2^200, 2^-300)` by `2^1020`
+  flushes two entries to zero, so the scaled design reads as well
+  conditioned (kappa 18.8) exactly because the information is gone, where
+  the design solved has kappa 5.5e307. Such a design is `"undetermined"`.
+
+* **A comparator curve whose event rows outnumber the rank of the
+  integration nodes that match them is refused for a log-normal fit and
+  warned about for the shape families.** The comparator likelihood is not the
+  continuously integrated one the model is written to mean. Each
+  reconstructed pseudo-individual contributes `log_sum_exp(ll) - log(n_int)`,
+  a finite equally weighted mixture over the integration grid, and every
+  pseudo-individual in an arm sees the same grid, so a node reproducing a
+  row's event time carries a density spike proportional to one over the
+  auxiliary's width. `mlumr()` examines that geometry before dispatch. What
+  follows is what it decides, on what evidence, and where it stops.
+
+  **The rate.** What decides propriety is how many spikes stand up at once
+  and what coefficient volume that costs. An allocation sends each of the `m`
+  event rows to a grid node; its design `D` carries that node's covariate
+  vector beside an intercept, one row per event row, and the rows stand on
+  spikes together exactly when `D b = targets` is consistent. The exponent is
+  `m - rank(D)`, and the rate is the largest of those over the consistent
+  allocations, since the marginal is their sum and the smallest rank
+  dominates it. What bounds that smallest rank is the canonical allocation,
+  which sends every row sharing a target to one node: its design has rank at
+  most the dimension the grid reaches, `rank(cbind(1, X_int))`, which is
+  `1 + n_cov` for any grid that is not degenerate, and at most the number of
+  distinct times. That is a claim about the canonical allocation and not
+  about every one, since rows sharing a target can sit at different nodes
+  wherever the coefficients are orthogonal to the difference between them,
+  which two or more covariates allow; those allocations have higher rank,
+  are subdominant, and change nothing. All `m` rows are matched on the
+  solution set, so each stands on a spike that grows as the auxiliary
+  approaches its boundary, while the set is pinned in only the `rank(D)`
+  directions the equations fix and its width shrinks in each of those. The
+  rate is the difference, and neither factor is shared across families:
+
+  * `lognormal` and `gengamma`: height `1 / sdlog`, width `sdlog`, rate
+    `m - rank(D)` as the scale goes to zero. Measured over 20 midpoint normal
+    nodes with the coefficients integrated against normal priors,
+    `d log M / d log sdlog` is -0.000, -1.000 and -2.000 across `1,4`,
+    `1,1,4` and `1,1,4,4`.
+  * `weibull-aft` and `loglogistic`: height `shape`, width `1 / shape`, rate
+    `m - rank(D)` as the shape grows. `d log M / d log shape` is +0.000,
+    +1.000 and +2.000 on the same three, for both.
+  * `gamma`: height `sqrt(shape)`, width `1 / sqrt(shape)`, so the rate is
+    half, `(m - rank(D)) / 2`. For `m` rows on one time the integral is
+    exactly `Gamma(m k) / m^(m k) / Gamma(k)^m`, whose slope in `log k` is
+    `(m - 1) / 2`: 0.500002, 1.000003 and 1.500005 for `m` of 2, 3 and 4,
+    the closed form agreeing with quadrature to 7e-12 at `k` of 10 to 1000.
+    Reporting `m - rank(D)` would claim non-integrability against a half-t
+    `prior_aux` with degrees of freedom in (0.5, 1) that does integrate it.
+
+  The proportional-hazards Weibull and Gompertz are deliberately not
+  examined. Their width does not shrink at all, since `t^shape e^eta` and
+  `e^eta expm1(shape t) / shape` both leave a row's curvature at -1 whatever
+  the shape is, so their growth is `m` regardless of `k`: measured with the
+  coefficient priors out, +2.000, +2.000, +3.000 and +4.000 across `1,1`,
+  `1,4`, `1,1,4` and `1,1,4,4`. A repeat is therefore not what causes it, and
+  firing on repeats would attribute to ties something they do not do. What
+  the growth meets is the coefficient priors, through however many
+  coefficients the ridge moves and each of their tails, and settling that
+  needs those counts per configuration. It is a different question and is
+  not answered here.
+
+  What makes any of these nonzero is more event rows than the matched design
+  has rank, which repeated times are the usual but not the only way to
+  reach; tied censored times contribute a survival probability rather than a
+  density spike and do not count toward it at all. The profile maximum, by
+  contrast, grows in every one of those cases including the convergent ones,
+  which is why the volume and not the profile is what decides this.
+  Distinctness is counted on the scale the density matches, which for every
+  family this examines is `log(time)`: two distinct doubles can share a
+  logarithm, and counting raw times would read one target as two. The grid's
+  reach likewise uses the exact rank rather than `qr()`'s default tolerance,
+  under which independent but badly scaled columns read as deficient while
+  the direction is still there.
+
+  **Three answers.** The scale families diverge as the scale goes to zero,
+  where every supported prior has positive density, so no prior repairs it
+  and the fit is refused. `weibull-aft` and `loglogistic` diverge as the
+  shape grows, where the rate meets `prior_aux`'s tail, so a half-normal or
+  an exponential integrates it and a half-t need not, and that is reported
+  rather than refused. `gamma` is reported on a different pair: its ridge
+  also displaces the comparator intercept by `-log(shape)`, and a normal
+  `prior_intercept` contributes `exp(-(log shape)^2 / 200)` at the default
+  width, which integrates any polynomial, so the posterior exists and the
+  shape concentrates far out. It is a heavy-tailed intercept prior that
+  leaves `prior_aux` to integrate the growth, which a half-t does for degrees
+  of freedom of at least `(m - rank(D)) / 2`. Equality integrates rather than
+  failing: the auxiliary's `shape^-(df + 1)` meets the Student-t intercept's
+  `(log shape)^-(df + 1)` on the `-log(shape)` ridge, and
+  `1 / (shape * (log shape)^(df + 1))` integrates for every supported
+  intercept prior.
+
+  Silence from this check is not a certificate that the posterior is proper.
+  A refusal is a certificate that it is not. Every way of not deciding
+  carries its reason, and the two that are facts about a particular grid are
+  reported at the fitting interface rather than passed over: a grid beyond
+  the enumeration budget, and a candidate within rounding of a match whose
+  determinant the available arithmetic could not settle. Both are rare; of
+  400 arms built from `add_integration()` grids of 8 to 128 points against
+  40 reconstructed event times, all 400 were decided outright. More than one
+  declared covariate is not a fact about a grid but a standing limit of the
+  enumeration, the same answer at every `n_int` and on every arm, and it is
+  documented in the guard's scope rather than warned about on every
+  multi-covariate fit.
+
+  **Censored rows in the same arm.** A censored row can suppress the
+  divergence, and it has to threaten the ridge before that is worth asking.
+  Every point of the solution set puts a matched node exactly at its target,
+  so a row whose region probability tends to one there suppresses nothing:
+  its contribution is a mixture over the grid, which that one node holds at
+  `1 / n_int` whatever the others do. Two comparator events at `t = 1` with
+  a right-censored row at `t = 0.5` are that case, and the rate-1 divergence
+  is certified; the same row at `t = 2` does suppress the matched node and
+  only the other nodes are left to settle. The ends are inclusive, since a
+  predictor sitting exactly on a censoring time leaves that row at a half.
+  For a row that does threaten, whether it suppresses turns on `rank(D)`
+  against the reach. Its contribution is a mixture over the grid too, so it
+  vanishes only if every node's region probability vanishes. Below the reach
+  the ridge has a free direction and pushing it one way clears every
+  right-censored row, the other way every left-censored one: measured at
+  rate +1.000 for two events at `t = 1` with a right-censored row at `t = 2`
+  on 20 nodes, and such an arm keeps its rate.
+
+  Three cases are left undecided instead. At the reach the ridge is isolated
+  points and a censored row can cover all of them, so on a point-mass grid
+  that same pair collapses while the row at `t = 0.5` leaves rate +1.000,
+  and deciding which takes enumerating `choose(n_int, k)` ridge points. When
+  the censored rows bound on both sides, one free direction cannot clear
+  them all unless the matched node has unpinned neighbors far enough out on
+  each side: with `n_int = 2` a right-censored row at `t = 2` together with
+  a left-censored row at `t = 0.5` collapses whichever node is matched,
+  while either alone leaves rate +1.000, and the same pair on 20 nodes stays
+  divergent at +1.000. And the free direction can be one the comparator does
+  not own: under `model = "spfa"` with `aux_by = "none"` that direction is
+  the shared `beta`, which an exactly fitting index pins, leaving the ridge
+  at isolated points whatever `rank(D)` is. Index events at `x = -1` and
+  `x = +1` both at `t = 1` force `mu_index` and `beta` to zero, so every node
+  sits at `mu_comparator` and a comparator right-censored row at `t = 2` is
+  above all of them; tilting `beta` to lift one past `log 2` costs the index
+  a residual of the same order, so the two exponentials trade rather than
+  cancel. Such an arm is reported rather than refused, scale family or not.
+
+  Which side a row needs is read from its region and its delayed entry, not
+  from its status code, and only the rows that have to be escaped count: one
+  already satisfied at a matched node does not need the free direction and
+  cannot make the arm two-sided. A right-censored row is satisfied above its
+  time and a left-censored one below its bound, including below its entry,
+  since conditioning on survival to the entry piles the mass just above it
+  and that pile lies inside the region. An interval-censored row is two-sided
+  only when it opens strictly above its entry; one that opens at its entry
+  has that pile inside it and is one-sided like a left-censored row, so such
+  an arm keeps the refusal.
+
+  **Past the grid's reach.** With `k` distinct targets above
+  `rank(cbind(1, X_int))` the `k` equations need not have a solution, and
+  where they do not the best simultaneous match leaves a residual `d > 0`,
+  and the profile collapses like `exp(-d^2 / (2 aux^2))` once the auxiliary
+  falls below `d`. What happens before that looks exactly like a divergence
+  and is not one: three distinct times over 20 nodes leave `d = 5.99e-4` and
+  the profile peaks between `sdlog` of 1e-3 and 1e-4 before falling to
+  -1.8e7 by 1e-7, while the same times over 64 nodes leave `d = 3.62e-5`,
+  peak at 1e-5 instead, and collapse from 1e-6 on. A finer grid moves the
+  collapse out rather than removing it, and the posterior is proper either
+  way, so an ordinary reconstructed curve with many distinct times and one
+  rounding tie is not refused. A slope measured over any fixed range of the
+  auxiliary cannot tell the two apart, which is why the test is structural.
+
+  A count is not that structure, though. Distinct response values are not
+  independent linear constraints, and an overdetermined system can still be
+  consistent, so neither an absence of repeats nor more distinct times than
+  the reach establishes `d > 0`. Comparator events at `t = 1, 2, 4` on the
+  nodes `1, 2, 3` that `add_integration()` builds for a uniform covariate are
+  three distinct times with no repeat, past a reach of 2, and are matched
+  exactly by `b = (-log 2, log 2)`: rank 2 against 3 rows, and a measured
+  slope of -1.0000 per decade of scale. With one covariate the map is a line
+  that two (target, node) assignments fix, so node pairs are enumerated and
+  this case is refused; wider designs are left alone, and a grid too large
+  to enumerate is reported rather than left silent. The enumeration anchors
+  the first target at each node and runs the rest as a vectorized pass, so
+  it costs `n * n * (k - 2)` rather than the `n * n * (n + k)` of a scalar
+  inner loop, and its budget covers the ordinary resolutions; past that the
+  same three events over the same declared covariate would be refused at one
+  `n_int` and unexamined at another, which is what the warning names.
+  Consistency is read off the determinant of the original data,
+  `(u[i] - u[1]) * (z[j2] - z[j1]) - (u[2] - u[1]) * (z[j] - z[j1])`, which
+  has no division and no slope in it, and what decides is that determinant's
+  exact value, which the computed one need not be in either direction. A
+  computed zero can be a genuinely nonzero determinant that canceled: nodes
+  `(0, 0.3961039261018525, 1.04621481495181)` against targets
+  `(0, 0.6209825942831111, 1.6401786176669797)` compute 0 while the
+  determinant of those very doubles is -3.4958e-17, and no permutation of
+  them is an affine match. And an exact match can compute zero with neither
+  product exact: at `a = qnorm(0.75)`, nodes `(-a, 0, a)` against event times
+  1, 2 and 4 are carried exactly by `mu = log 2` and slope `log(2) / a`, and
+  both products round by the same `-5.3745e-17`, so they cancel. Those nodes
+  are the symmetric quartiles of the default Gaussian integration grid. The
+  determinant is therefore split into its exact parts and the whole
+  expression's value decides, with no tolerance anywhere; checked against
+  exact rational arithmetic on 12,000 generated grids, half carrying a
+  planted affine image, with no disagreement in either direction.
+
+  **What the index settles under a shared slope.** Under `model = "spfa"`
+  with `aux_by = "none"` the arms share one `beta` as well as one auxiliary,
+  so reaching the comparator check means the index did not bound that
+  auxiliary. The index guard hands over what it established in an
+  `index_exact` attribute, three-valued: `FALSE` only where the index was
+  shown to pin nothing, `TRUE` where its event design reproduces its own
+  times, and `NA` where the question was not settled. `undecidable` and
+  `unresolved` leave it `NA` rather than `FALSE`, since those do not
+  establish a positive residual and the index may yet be exact with a
+  solution set the comparator's slopes miss, which is a proper
+  configuration. An index that never had an exact design is not `FALSE`
+  either: failing to bound the auxiliary does not imply one, and an index of
+  nothing but right-censored rows pins no slope at all, its `mu_index`
+  rising above every censoring time so that its likelihood tends to one
+  while the comparator divergence is left whole.
+
+  An exact index design pins rather than suppresses, and what matters to the
+  comparator is whether it also constrains the shared slope in the
+  directions the arm's grid spans. Repeated index events at one covariate
+  profile at one time are `constant`, fit exactly, and pin only `mu_index`:
+  `beta` stays free, whatever node-specific values the comparator's
+  equations pin it to lie in the index's solution set by construction, and
+  the arm is refused. What has to be identified is only the slope directions
+  the comparator's grid spans, since the escape is a change in the node
+  linear predictors and that is `(z_j - z_1)' beta`: a covariate the grid
+  integrates as a point mass contributes no such direction, and leaving its
+  coefficient unidentified costs the comparator nothing. The index guard
+  therefore hands its event design over rather than reducing it to a
+  verdict, and the comparator tests estimability of exactly the
+  node-difference directions; centering leaves the slope coefficients
+  unchanged and shifts node differences by nothing, so it does not affect
+  the answer. Where the index does pin the slope, two or more comparator
+  targets pin it too, to values the integration points fix, and if those
+  sets do not intersect then every path to the boundary leaves one side with
+  a positive residual whose decay beats the other's growth. With one
+  declared covariate that question is answered exactly by the region test
+  below; otherwise solving the combined system is out of scope and the case
+  is reported, as is partial identification, where an index that fixes
+  `beta1` at a value none of the comparator's pairwise differences reaches
+  leaves the sets disjoint even while `beta2` is free. A single distinct
+  comparator target is absorbed by the free `mu_comparator` at any slope, so
+  its events leave the shared slope free and both singularities stand at
+  once: that arm is refused, unless a censored row in it has to be escaped,
+  which is the isolated-ridge report above.
+
+  An index with no events is answered by asking whether any linear predictor
+  satisfies every one of its observation regions at once. Having no events
+  means there is no design to fit, not that nothing bounds the auxiliary:
+  censored rows alone can bound it, and conflicting ones do. An index
+  carrying one row left-censored at `t = 1` and another right-censored at
+  `t = 4` on the same covariate profile has no linear predictor satisfying
+  both, `sup_mu L = Phi(-log(4) / (2 sdlog))^2` falls faster than the
+  comparator's `sdlog^-2` grows, and the shared-scale fit is proper. Rows at
+  one covariate profile share a predictor, so their regions must overlap; a
+  certified conflict reports the bound, a certified absence of one reports
+  that the index pins nothing, and anything else is left undecided. The
+  overlap is tested by exact ordering, since these ends are stored
+  observation times rather than the output of a solve, and a gap of any
+  positive size bounds: ends `d` apart contribute `exp(-(d / (2 sdlog))^2)`,
+  and `integral sdlog^-m exp(-(d / (2 sdlog))^2)` converges at zero for every
+  `d > 0`. Exact equality is not a conflict, and it is not freedom either:
+  the shared predictor has to sit on that point, so the coefficients keeping
+  the group's likelihood positive are a shrinking neighborhood of a
+  hyperplane rather than an open region. A left-censored row at `t = 1`
+  beside a right-censored row at `t = 1` on one profile peaks at `1/4` at
+  every scale pointwise, while integrating the intercept out against
+  `normal(0, a)` gives `arccos(a^2 / (a^2 + s^2)) / (2 pi)`, or
+  `s / (sqrt(2) pi a)` near zero: one power of the scale, not a constant.
+  Measured `d log L / d log s` is 1.000000 for one such profile, 2.000000
+  for two independent ones and 3.000000 for three. Both sides are written in
+  powers of the same width, so those come off the comparator's rate directly
+  and the eventless index reports an order rather than a flag: two tied
+  comparator events against one touching profile is `1 - 1 = 0` and stands,
+  three is `2 - 1 = 1` and is refused. The order is carried only for
+  `lognormal`, where it was measured; the other families report the question
+  as unsettled rather than refusing on an unmeasured exponent. Touching rows
+  also pin, exactly as an exact event design does, and the comparator tests
+  against them: left and right censoring meeting at `t = 1` on `x = -1` and
+  `x = 1` forces `mu_index` and `beta` to zero just as two events there
+  would, so a comparator censored row those rows leave unescapable takes the
+  isolated-ridge report rather than a refusal.
+
+  An order of zero says those rows remove no power of the width. It does not
+  say they leave the shared slope free: the rows confine `(mu_index, beta)`
+  to `lower_i <= mu_index + beta' x_i <= upper_i`, and under
+  `model = "spfa"` with `aux_by = "none"` the comparator shares that slope
+  and that auxiliary, so its ridge has to sit inside the region. That region
+  is built from every index row and travels to the comparator check, which
+  eliminates `mu_index` between a row with a finite lower end and one with a
+  finite upper end (Fourier-Motzkin), leaving
+  `lower_i - upper_j <= beta (x_i - x_j)`, and tests every candidate slope
+  `(u[2] - u[1]) / (z_b - z_a)` against it. The test is cross-multiplied
+  rather than divided, since a floating-point solve certifies nothing, and
+  its sign is taken exactly: none of the four operands is a difference that
+  survives its own subtraction on ordinary data, so their errors are carried
+  as values and the cheap sign is accepted wherever it provably cannot be
+  overturned, with only genuine cancellation at the last bits left
+  unsettled. Checked against exact rational arithmetic on 3,266 generated
+  regions and grids, the verdict was never contradicted and exactly one case
+  went unsettled, the one the exact arithmetic also calls a boundary. The
+  answer is three-valued: strictly inside leaves the rate standing and the
+  arm is refused; strictly outside is a certificate that this divergence
+  cannot happen at any slope the index leaves, and the arm is passed over;
+  on the boundary `mu_index` is pinned to a point rather than to an
+  interval, which costs a power that is not counted here, and that is
+  reported rather than decided either way. An index left-censored at `t = 1`
+  on `x = 0` beside one right-censored at `t = 4` on `x = 1` needs
+  `beta >= log 4`, while a binary comparator's exact fit at times `(1, 1, 2)`
+  needs `beta = +/- log 2`; neither is reachable, the measured
+  `d log L / d log s` runs +2.5, +3.8, +7.9, +18.7 and +38.8 as the scale
+  falls through 0.2, 0.15, 0.1, 0.07 and 0.05, which is `exp(-c / s^2)`
+  rather than a power, and that fit is passed over. Lowering the same
+  index's right-censoring time to `t = 0.5` admits the comparator's own
+  slope, the profile grows as `s^-3` (measured -3.0000 per decade), and the
+  refusal stands. A single one-sided censoring inequality is satisfied by
+  moving `mu_index` and says nothing about the slope on its own, nor do any
+  number of them bounded on the same side; simultaneous regions bounded on
+  opposite sides can restrict it; and an event row restricts it further
+  still, because its density grows only where the predictor reproduces its
+  own time and vanishes exponentially anywhere else, which confines the
+  predictor to a single point exactly as censoring confines it to an
+  interval. An index with one event at `t = 1` on `x = 0` beside a
+  right-censored row at `t = 4` on `x = 1` pins `mu_index` to zero and then
+  needs `beta >= log 4`, out of reach of the same binary comparator: the
+  measured `d log L / d log s` runs +1.3, +6.2, +16.9 and +36.9 as the scale
+  falls through 0.15, 0.1, 0.07 and 0.05, and that fit is passed over too.
+  The region travels under every residual status, since whether a
+  factorization at double precision can tell an exact fit from a near one
+  does not bear on where a row is observed to lie. One declared covariate
+  only, where the region's projection is an interval; wider designs leave a
+  polyhedron this does not solve.
+
+  A comparator arm with one distinct event target does not have a free slope
+  either. The single matching equation is absorbed by `mu_comparator` at any
+  slope, so the arm's events leave `beta` free; its censored rows do not.
+  With the tied rows matched at one node every node sits at
+  `t + beta (z_j - z_m)`, so escaping a threatening row's threshold is one
+  more condition of the region's own shape, `c <= beta d`, and the two are
+  read together as a one-dimensional feasibility question: every lower end
+  at or below every upper end, decided by the sign of `c_k d_l - c_l d_k`
+  and never by a division. Only the widest node separation matters in each
+  direction, because a row satisfied at the target is not threatening, which
+  leaves `c` positive and makes a larger `|d|` the weaker condition. An index
+  of two interval-censored rows, `1 < T <= 2` at `x = 0` and at `x = 1`,
+  leaves `abs(beta) <= log 2`, while two comparator events at `t = 1` with a
+  right-censored row at `t = 4` need a node at `log 4` that no admitted
+  slope reaches: measured +4.4, +9.5, +20.4 and +40.6 over the same scales,
+  and passed over. Moving that censoring time to `t = 1.5` makes the escape
+  strictly feasible and the refusal right, and at `t = 2` it is feasible
+  only with equality, which is reported rather than decided. Checked against
+  exact rational arithmetic that scans every node pair rather than the two
+  extremes, on 12,000 generated regions, grids and thresholds: no verdict
+  was contradicted, and 3 cases went unsettled where the exact arithmetic
+  decides.
+
+  The order the index removes counts its censored rows too. An index's own
+  order is zero whenever its event design fits exactly, which is right for
+  the event rows on their own: as many density spikes as the directions they
+  pin, which cancel. It is not right once the index also carries censored
+  rows whose predictors that design does not place, because such a row can
+  pin a direction the events left free and every pinned direction takes
+  another power of the width off the comparator's growth. An exact event at
+  `t = 1` on `x = 0` beside a left-censored row at `t = 1` and a
+  right-censored row at `t = 1`, both on `x = 1`: the event pins `mu_index`,
+  the touching pair pins `mu_index + beta`, and two directions shrink
+  against one spike. The index's coefficient-integrated likelihood is then
+  `arccos(v_s / (v_s + s^2)) / (2 pi sqrt(2 pi (a^2 + s^2)))`, which is
+  `s / (2 pi^(3/2) a h)` near zero rather than a constant, and it cancels two
+  tied comparator events' `1 / s` exactly: the product has a finite limit
+  and the posterior is proper under both models. The count is read only
+  where it is readable, from profiles independent of one another and of the
+  event design, and only for `lognormal` where the rate was measured;
+  anything else reports the order as unsettled rather than as a zero. A
+  third tied comparator event leaves `2 - 1 = 1` and is refused, and so is
+  the same index with the touching pair broken, whose remaining row pins
+  nothing. An index with events carries the same order on the same
+  distinction: a design shown to reproduce its own times pins rather than
+  suppresses, so it reports zero and the comparator refusal stands, while
+  `undecidable`, `unresolved` and `unresolved_log` did not settle whether a
+  residual exists at all; a real one there contributes
+  `exp(-RSS / (2 sdlog^2))` and removes the comparator's growth entirely, so
+  those report the question as unsettled rather than a zero that would turn
+  it into a refusal.
+
+  The order comes off only a rate that is exact, which is a property of the
+  rank rather than of the covariate count. A consistent allocation's design
+  has rank at least 1, and at least 2 whenever two targets differ, since its
+  rows all carry an intercept and proportional rows there are identical
+  rows, which put every row on one predictor and make every target equal. So
+  a recorded rank of 1 or 2 is the smallest achievable one however many
+  covariates are declared, and only from 3 can a lower-rank allocation
+  exist. Taking a positive order off a rate that is a bound can cross the
+  refusal threshold from the wrong side: four comparator events at three
+  distinct targets carried by three collinear nodes have a true rate of
+  `4 - 2 = 2` while the recorded one is `4 - 3 = 1`, and netting one power
+  off that reads as zero. A subtraction that leaves the rate at or above one
+  is still certified, since the true net is at least the reported one; only
+  one that takes it below is reported.
+
+  The subtraction is valid only where the two sides pin independent
+  directions, which is a property of the model. Under `relaxed` the index
+  constrains `mu_index` and `beta` while the comparator constrains
+  `mu_comparator` and `beta_comparator`, so the stacked system is block
+  diagonal and the rank is exactly the sum. Under `spfa` the arms share
+  `beta` and the blocks can overlap: two independent touching index profiles
+  give order 2 while four comparator events at two matched times give rate
+  2, and if both sides pin the shared slope the stacked rank gains only one
+  index direction, leaving a true rate of 1 that a full subtraction would
+  report as 0. Computing the joint rank means solving the combined system
+  across every allocation, which is out of scope, so a shared slope is
+  reported instead of netted. Only from a second pinned index row, though:
+  in `(mu_index, mu_comparator, beta)` an index constraint is `(1, 0, x)`
+  while every comparator constraint is `(0, 1, z)`, so no combination of
+  comparator rows reaches a nonzero first component, a single index row is
+  independent of all of them, and the ranks add whatever the shared slope
+  does. It takes a second index row for the difference `(0, 0, x_1 - x_2)`
+  to appear, which is a pure slope direction and can lie in the comparator's
+  span. That counts pinned rows, events and touching profiles together, and
+  not the order, which stops being the same number once exact events are
+  netted against their own spikes: two repeated events at one profile beside
+  touching pairs at two others pin three rows and both slope directions at a
+  net order of 1. It also needs somewhere to lie: a matched design of rank 1
+  is one row, `(0, 1, z_j)`, whose only vector with a zero second component
+  is the zero vector, so nothing of the form `(0, 0, v)` is in it and the
+  ranks add again. Four comparator events tied at one time are rate 3
+  against two touching index profiles' 2, and that nets to 1 rather than
+  going unresolved.
+
+  With more than one declared covariate the index's region is a polyhedron
+  whose projection onto the slope this check does not compute, and the arm
+  is reported rather than refused. The difference is a certificate: an index
+  at three independent profiles needing `beta1` in `[2 log 2, 3 log 2]` and
+  `beta2` in `[5 log 2, 6 log 2]` admits no difference of binary integration
+  points equal to `log 2`, since every nonzero magnitude is at least
+  `2 log 2` and `beta2 - beta1` lies in `[2 log 2, 4 log 2]`, so that
+  posterior is proper, while widening the first interval to `1 < T <= 4`
+  admits `beta1 = log 2` and really is improper; without the projection the
+  two cannot be told apart. The one part that is exactly answerable is asked
+  first: a region constrains only the functionals in its own row space, so
+  where none of the grid's node-difference directions lies in that space the
+  region cannot bear on this arm and the refusal stands. Nor can rows
+  bounded on one side only, however many directions they span: raising
+  `mu_index` clears every lower end at any slope, so an index of
+  right-censored rows alone keeps the refusal too. Under `relaxed` the
+  comparator carries its own slope and under `aux_by = ".study"` its own
+  auxiliary, so neither is affected.
+
+  Under `aux_by = "none"` the index rows share the auxiliary, and an index
+  fit that leaves a real residual contributes `exp(-RSS / (2 sdlog^2))`,
+  which goes to zero faster than any power and removes this divergence; so
+  does an index censored row that bounds. Sharing does not do it on its own,
+  so the comparator check is skipped for a shared auxiliary only where the
+  index guard established the bound, and not where it merely warned about an
+  exact or saturated index.
+
+  **What is not a repair.** Exactly integrating a declared Gaussian
+  covariate is a different model rather than a guaranteed repair. It leaves
+  `log T ~ N(mu, beta^2 + sdlog^2)`, and with `mu ~ N(0, a^2)` integrated
+  out, `m` events tied at one time give
+  `(2 pi)^(-m / 2) tau^(1 - m) / sqrt(tau^2 + m a^2)` for
+  `tau^2 = beta^2 + sdlog^2`. That behaves as `r^(1 - m)` near the origin
+  against the plane's own `r dr`, leaving `integral r^(2 - m) dr`: finite
+  for two tied events and divergent from three on. So for two the quadrature
+  is what creates the singularity and exact integration removes it, while
+  for three or more the exactly integrated model is improper as well.
+  Nothing here establishes the question for the other families or for other
+  covariate distributions, and the message does not claim it does. Two
+  comparator events at `t = 1` on 64 nodes, coefficients integrated against
+  `normal(0, 10)` and `normal(0, 2.5)`: the grid likelihood runs 0.0143,
+  0.185, 1.72, 171 and 17103 as `sdlog` falls through 0.1, 0.001, 0.0001,
+  1e-6 and 1e-8, while the continuous one runs 0.0142, 0.0307, 0.0390,
+  0.0556 and 0.0721. So a larger `n_int` is not the repair: within the
+  grid's reach a bigger fixed rule is still a finite mixture and only scales
+  the coefficient of the same divergence. Neither is jittering the tied
+  times. Where ties come from rounding, an interval-censored representation
+  of what was actually observed is the honest model and `set_agd_surv()`
+  accepts one. The index-side guard says nothing about the rest of this: the
+  refused configuration has a perfectly healthy index fit.
+
+  **The grid the model fits.** `mlumr()` centers the covariates by default,
+  and the centered grid is a floating-point subtraction from the declared
+  one: at a large enough offset between the populations, or on a very small
+  grid, it can merge integration points or move them by a rounding error
+  that makes or breaks an exact match. The whole check therefore runs on
+  both grids and compares the two outcomes, not only whether each carries a
+  match, since two grids that both carry one can still disagree about
+  whether the index admits its slope. When exactly one of them refuses, the
+  fit is refused as a numerical representation problem, with no claim about
+  the posterior, and the message suggests re-expressing the covariates near
+  a common origin or fitting with `center = FALSE`. Before any of that, and
+  for every family, `mlumr()` counts the distinct values of each covariate
+  on each aggregate row of the declared grid and of the centered grid, and
+  refuses the fit when the centered grid has fewer: two declared nodes
+  rounded onto one make a grid that represents a covariate distribution
+  other than the declared one, whatever the guards would then say about it.
+  The count is exact, so an ordinary rounded subtraction, which moves every
+  node by its own rounding error and merges none, is not refused. The
+  rotation that `qr = TRUE` applies afterwards is not examined.
+
+  **Stated limits.** The exponent used is `m - min(k, reach)`, which is
+  exact for one covariate and a lower bound for more than one:
+  `min(k, reach)` bounds the canonical allocation's rank, and a consistent
+  allocation of lower rank gives a larger exponent, as when among two
+  covariates three collinear nodes carry three distinct targets affinely
+  along that line at rank 2 rather than 3. A refusal is therefore still
+  certified, since a positive lower bound is a positive rate, while a skip
+  may be hiding one. Searching for a lower-rank consistent allocation among
+  two or more covariates is not attempted, the index region's projection is
+  computed for one declared covariate only, and the enumeration past the
+  reach covers one covariate only.
 
 ## Identifying the relaxed model's comparator coefficients
 
@@ -1665,6 +1535,12 @@
   `prior_beta_comparator_mean` / `_sd` / `_dist` / `_df`, so the comparator
   coefficients can use a fully independent prior including a different family
   from `beta_index` (for example a heavy-tailed Student-t for regularization).
+  The AgD likelihood informs the comparator-population outcome, but
+  identifying `beta_comparator` or a treatment contrast depends on the number
+  and geometry of the independent aggregate summaries, the link, the
+  covariate distribution, the outcome precision, and the prior; the
+  documentation says so, and points at `check_identification()` and
+  `prior_sensitivity()`.
 
 * **The weak-identifiability warning no longer counts a duplicated row as
   evidence.** Version 0.1.0 warned when `n_agd_rows < 2 * n_cov`, so repeating
@@ -1705,6 +1581,9 @@
   shape and rate. Without `mean` and `sd` they forward to \pkg{stats}
   unchanged, so they are drop-in safe. The logit-normal is the natural marginal
   for a covariate reported as a proportion, such as percent body surface area.
+  `dlogitnorm()` computes its own value and refuses, by name, arguments it
+  cannot use, where `plogitnorm()` and `qlogitnorm()` pass `...` on to
+  `pnorm()` and `qnorm()`.
 
   Both parameterizations validate what they are given. `mean` and `sd` must be
   supplied together (half a moment specification is an error, not a silent
@@ -1744,11 +1623,10 @@
   `data-raw/prepare_multinma_subsets.R` reproduces every bundled dataset.
 
 * `psoriasis_ipd$prevsys` is `integer` 0/1 rather than `logical`, matching
-  every other binary covariate in the bundled sets. `set_ipd()` declines a
-  logical covariate, so the pair previously could not be used without coercing
-  it first. The values are unchanged, and no dataset shipped in 0.1.0.
+  every other binary covariate in the bundled sets, since `set_ipd()` declines
+  a logical covariate.
 
-* Each help page now records the covariates that look wrong but are not:
+* Each help page records the covariates that look wrong but are not:
   `caries_ipd$exposure` is the poisson offset that `set_ipd()` requires,
   constant at 1 because `dmft` is a whole-mouth count with no time at risk;
   `caries_ipd$log_cfu` is bimodal, with 9 of 103 values at exactly zero;
@@ -1782,23 +1660,14 @@
 
 ## Documentation
 
-* **The `shoulder` and `caries` examples no longer call a reference estimate
-  a known truth.** Both are synthesized from a single randomized trial and then
-  split into a single-arm IPD source and a single-arm aggregate source, and the
-  documentation said this made them examples "whose true answer is still
-  known". What is available is a randomized reference comparison, obtained by
-  fitting the two arms together on the full data. That is an estimate carrying
-  sampling error, not an evaluated population causal truth, since neither
-  dataset comes from a declared generating model with a computable estimand.
-
-* **The relaxed model's identification claim is corrected.**
-  `prior_beta_comparator` said the comparator-population effect "is identified
-  directly by the AgD". The AgD likelihood informs the comparator-population
-  outcome, but identifying `beta_comparator` or a treatment contrast depends on
-  the number and geometry of the independent aggregate summaries, the link, the
-  covariate distribution, the outcome precision, and the prior. The
-  documentation says so, and points at `check_identification()` and
-  `prior_sensitivity()`.
+* **The `shoulder` and `caries` examples describe their reference comparison
+  as an estimate, not a known truth.** Both are synthesized from a single
+  randomized trial and then split into a single-arm IPD source and a
+  single-arm aggregate source. What is available is a randomized reference
+  comparison, obtained by fitting the two arms together on the full data.
+  That is an estimate carrying sampling error, not an evaluated population
+  causal truth, since neither dataset comes from a declared generating model
+  with a computable estimand.
 
 * **`set_agd_surv()` states that reconstruction uncertainty is not propagated.**
   Pseudo-individual records enter the likelihood as observed data, so a survival
@@ -1806,7 +1675,7 @@
   none of the uncertainty in producing it: intervals are narrower than the
   evidence supports, most visibly for flexible baselines, late-tail RMST and
   medians, and weakly identified relaxed comparator coefficients. The help page
-  now says this and describes refitting across plausible reconstructions as the
+  says this and describes refitting across plausible reconstructions as the
   way to see how much it matters.
 
 * Reorganized the vignettes into nine outcome-focused guides: `introduction`,
@@ -1838,7 +1707,7 @@
   vignette additionally calls one internal diagnostic helper. The survival
   vignette leads with the M-spline baseline, matching multinma's NDMM example,
   and adds a relaxed-model effect-modification section.
-* `?set_agd` now states what an aggregate Poisson row assumes about exposure.
+* `?set_agd` states what an aggregate Poisson row assumes about exposure.
   The likelihood multiplies a row's total exposure by the rate averaged over
   the supplied covariate distribution. That reproduces the sum of each
   person's exposure times their own rate exactly when the distribution is
@@ -1853,7 +1722,7 @@
   two populations coincide whenever mean exposure does not vary with the
   covariates, and published subgroup tables usually report the person-level
   reading without saying which one they support.
-* `?set_agd_surv` now states which population the covariate moments must
+* `?set_agd_surv` states which population the covariate moments must
   describe when the comparator has delayed entry. The model conditions on
   survival to entry inside the covariate integral and averages afterwards, so
   the distribution integrated over, its shape and dependence as well as its
@@ -1863,16 +1732,14 @@
   more, since the model carries a single covariate distribution per arm while
   the population observed at each entry time can differ, both because each
   entry time selects a different subgroup and because who enters when can be
-  related to the covariates. A test now compares the
-  model's aggregate delayed-entry likelihood, draw by draw, against direct
-  integration under that definition over a two-component covariate mixture,
-  and against the other order of conditioning and averaging, which gives a
-  different number.
+  related to the covariates.
 
 ## Dependencies
 
-* Added `splines2` and `survival` to Imports, and `flexsurv` to Suggests; the
-  survival STC G-computation uses `flexsurv` when it is available.
+* Added `splines2` and `survival` to Imports, and `flexsurv` and
+  `detectseparation` to Suggests; the survival STC G-computation uses
+  `flexsurv` when it is available, and the exact separation test in `stc()`
+  uses `detectseparation`.
 * Moved `ggplot2` from Suggests to Imports. The `plot()` methods,
   `mlumr_forest()`, `geom_km()`, and `plot_prior_posterior()` build ggplot
   objects at run time rather than only in examples.
