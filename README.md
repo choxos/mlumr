@@ -4,7 +4,7 @@ A narrated, interactive lesson on multilevel unanchored meta-regression (ML-UMR)
 
 This branch holds only the lesson, the same way the `webapp` branch holds only the web app. The R package lives on `main`.
 
-The lesson is for researchers who know basic regression and are new to population-adjusted indirect comparisons. It has 13 narrated chapters. Every chapter has an interactive chart, and several have R code cells that run in the browser. The chapter on running mlumr loads the package's own R code with webR and fits its binomial Stan models with TinyStan, all on the page. There are also five knowledge checks, captions, light and dark themes, and a companion R script.
+The lesson is for researchers who know basic regression and are new to population-adjusted indirect comparisons. It has 13 narrated chapters. Every chapter has an interactive chart, and several have R code cells that run in the browser. The chapter on running mlumr loads the package's own R code with webR and fits its binomial Stan models with TinyStan, all on the page. There are also ten knowledge check questions, captions, light and dark themes, and a companion R script.
 
 ## Layout
 
@@ -44,7 +44,7 @@ The build checks `runtime/models/manifest.json` against the Stan programs at `ML
 Rscript workflow.R --source=/path/to/mlumr-at-4cfd366 --fit --sensitivity --record=scenes/native-record.json --engine=cmdstanr
 ```
 
-`--fit` fits the shared and separate slopes models and prints their checks and effects. `--sensitivity` runs the analyst loop on the prespecified 400-row target: an integration refit at 2048 points, the relaxed model under comparator slope prior scales 0.25 to 5 with the index prior held fixed, and the same fits evaluated in a shifted and an extrapolating target, re-extracting the target effect from every refit. `--record` writes the results as JSON with the package version, the checkout's commit and clean or dirty state, the engine, the CmdStan version and the script's SHA-256, so the lesson can show fitted numbers without anyone typing them; the manifest check refuses a build whose record names another commit than the pin or was written by another revision of the script. The run takes a few minutes with cmdstanr; `package-notes.md` records the output.
+`--fit` fits the shared and separate slopes models and prints their checks and effects. `--sensitivity` runs the analyst loop on the prespecified 400-row target: an integration refit at 2048 points, the relaxed model under comparator slope prior scales 0.25 to 5 with the index prior held fixed, and the same fits evaluated in a shifted and an extrapolating target, re-extracting the target effect from every refit. `--record` writes the results as JSON with the package version, the checkout's commit and clean or dirty state, the hash of its compiled code and whether that code was current, the engine, the CmdStan version and the script's SHA-256, so the lesson can show fitted numbers without anyone typing them; the manifest check refuses a build whose record names another commit than the pin or was written by another revision of the script. The run takes a few minutes with cmdstanr; `package-notes.md` records the output.
 
 ## Publish
 

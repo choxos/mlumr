@@ -18684,10 +18684,12 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       cmdstan: "2.39.0",
       loaded_from: "source",
       commit: "4cfd3660f56e22668ae357bde3df4b30cacb23a5",
-      dirty: false
+      dirty: false,
+      dll_sha256: "d3a6a02d32319d6e700f86dee058965d94ef1e5671e50849a4d408f44d3fa664",
+      dll_current: true
     },
-    script_sha256: "acda9995255735baf0ac21bf04595528f0bb4a529fb727245a902162a6b43c5e",
-    run: "2026-09-15T10:23:18-0400"
+    script_sha256: "790a93c6068f1effcd7ee4c4adc57ad1d7677a5f3869fecc4b0868d1d449d56b",
+    run: "2026-09-15T10:50:24-0400"
   };
 
   // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/scene.ts

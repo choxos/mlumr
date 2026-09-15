@@ -7,7 +7,7 @@ if (!all(known)) stop("Unknown argument. Run with --help.")
 if ("--help" %in% args) {
   cat("Usage: Rscript workflow.R [--source=DIR] [--fit] [--sensitivity] [--record=FILE] [--engine=cmdstanr|rstan]\n",
       "Default: simulate, prepare IPD/AgD, integrate, inspect geometry, run benchmarks.\n",
-      "--source=DIR: load the mlumr checkout at DIR with pkgload (needs a built DLL).\n",
+      "--source=DIR: load the mlumr checkout at DIR with pkgload; a DLL older than the sources is rebuilt.\n",
       "--fit: fit SPFA and relaxed models; print diagnostics and effect summaries.\n",
       "--sensitivity: refit at a larger grid and under other comparator slope priors, and\n",
       "  evaluate other targets, extracting the prespecified target effect from every refit.\n",
@@ -30,7 +30,9 @@ engine <- if ("--engine=cmdstanr" %in% args) "cmdstanr" else "rstan"
 if (any(grepl("^--source=", args))) {
   if (!requireNamespace("pkgload", quietly = TRUE)) stop("Install pkgload for --source.")
   root <- normalizePath(sub("^--source=", "", grep("^--source=", args, value = TRUE)), mustWork = TRUE)
-  pkgload::load_all(root, compile = FALSE, quiet = TRUE)
+  # compile = NA rebuilds the DLL when any file under src/ is newer than it, so
+  # a checkout switched to another revision cannot run the previous binary.
+  pkgload::load_all(root, compile = NA, quiet = TRUE)
 } else {
   library(mlumr)
 }
@@ -45,10 +47,19 @@ git_out <- function(root, ...) {
 }
 source_identity <- if (exists("root")) {
   head_sha <- git_out(root, "rev-parse", "HEAD")
-  if (length(head_sha) == 1L && grepl("^[0-9a-f]{40}$", head_sha)) {
-    list(loaded_from = "source", commit = head_sha, dirty = length(git_out(root, "status", "--porcelain")) > 0L)
+  dll <- file.path(root, "src", paste0("mlumr", .Platform$dynlib.ext))
+  dll_sha256 <- if (file.exists(dll) && requireNamespace("digest", quietly = TRUE)) {
+    digest::digest(file = dll, algo = "sha256")
   } else {
-    list(loaded_from = "source", commit = NULL, dirty = NULL)
+    NULL
+  }
+  # TRUE when the loaded DLL is not older than any source under src/.
+  dll_current <- file.exists(dll) && !pkgbuild::needs_compile(root)
+  if (length(head_sha) == 1L && grepl("^[0-9a-f]{40}$", head_sha)) {
+    list(loaded_from = "source", commit = head_sha, dirty = length(git_out(root, "status", "--porcelain")) > 0L,
+         dll_sha256 = dll_sha256, dll_current = dll_current)
+  } else {
+    list(loaded_from = "source", commit = NULL, dirty = NULL, dll_sha256 = dll_sha256, dll_current = dll_current)
   }
 } else {
   sha <- packageDescription("mlumr")$RemoteSha
@@ -62,6 +73,9 @@ tree_state <- if (isTRUE(source_identity$dirty)) {
   ""
 }
 cat("Package commit:", if (is.null(source_identity$commit)) "unknown" else source_identity$commit, tree_state, "\n")
+if (isFALSE(source_identity$dll_current)) {
+  stop("The checkout's compiled code is older than its sources; rebuild it before recording.")
+}
 if (packageVersion("mlumr") < package_version("0.1.0.9000")) {
   stop("This lesson needs the development checkout (0.1.0.9000) or a compatible later release.")
 }
