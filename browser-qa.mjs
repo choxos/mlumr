@@ -317,6 +317,21 @@ try {
     assert(!(await returnButton.isVisible()), 'Play this chapter rejoins the narration');
     await page.getByRole('button', {name:'Pause lesson',exact:true}).click();
     evidence.push({ playThisChapterSeeks: chapterAt('survival') });
+    // The key points board shows the explored chapter's points while the
+    // narration stays elsewhere, and the narration's own again on Return.
+    await choose(page, 'target');
+    const explored = page.locator('.xv-board-explore');
+    await explored.waitFor({ state: 'visible' });
+    assert(!(await page.locator('.xv-board-inner:not(.xv-board-explore)').isVisible()), 'The player\'s own board items hide while exploring');
+    const shownIds = await explored.locator('.xv-board-item').evaluateAll(items => items.map(i => i.dataset.id));
+    const nextStart = Math.min(...tracks.chapters.map(c => c.t).filter(t => t > chapterAt('target')));
+    const expectedIds = Object.entries(tracks.tracks).filter(([k]) => /^board\.[^.]+$/.test(k)).filter(([, cues]) => (cues.filter(c => c.t < nextStart).at(-1)?.v) === 'shown').map(([k]) => k.slice(6));
+    assert.deepEqual(shownIds, expectedIds, `The explored chapter's board shows exactly its points: ${shownIds} against ${expectedIds}`);
+    assert(expectedIds.length > 0 && (await explored.textContent()).includes('RD'), 'The target chapter\'s point is the risk difference');
+    await returnButton.click();
+    await page.waitForFunction(() => !document.querySelector('.xv-board-explore'));
+    assert(await page.locator('.xv-board-inner').isVisible(), 'Return to narration restores the player\'s board');
+    evidence.push({ boardFollowsExploration: shownIds });
   }
   // The priors chapter's sensitivity panel is read from the native record:
   // it names the checkout commit, carries every row, and says which rows refit.

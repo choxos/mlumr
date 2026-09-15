@@ -47,10 +47,11 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 .ml-player {background:var(--bg);color:var(--ink);height:100dvh;aspect-ratio:auto;font-family:var(--font-sans);-webkit-font-smoothing:antialiased}
 .ml-player :focus-visible {outline:2px solid var(--accent);outline-offset:2px}
 
-/* Narration notes board */
+/* Key points board: the narration's notes, or the explored chapter's */
 .ml-player .xv-board {top:var(--header-h);bottom:calc(var(--chrome-h) + var(--captions-h));height:auto;width:var(--board-w);padding:22px 24px;background:var(--surface-2);border-left:1px solid var(--border);color:var(--ink-soft);font-size:clamp(13px,1.1vw,16px);line-height:1.6;pointer-events:auto}
-.ml-player .xv-board::before {content:"Notes";display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:18px}
+.ml-player .xv-board::before {content:"Key points";display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:18px}
 .ml-player .xv-board-inner {gap:18px}
+.ml-player .xv-board-inner[hidden] {display:none}
 .ml-player .xv-board .katex {color:var(--ink);font-size:1.25em}
 .ml-player .xv-board .katex-display {margin:0;overflow-x:auto;overflow-y:hidden}
 .ml-player .xv-hl {background:var(--tint);color:var(--accent-strong)}
@@ -320,7 +321,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
   .ml-player .xv-credit {font-size:9px;padding:0 6px}
   .ml-player .xv-elapsed {min-width:72px;font-size:10px}
 }
-/* Narrow portrait phones: the notes board repeats what the captions and the
+/* Narrow portrait phones: the key points board repeats what the captions and the
    chapter already show, so it gives its width back to the lesson. */
 @media (max-width:640px) {
   :root {--board-w:0px}

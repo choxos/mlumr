@@ -368,14 +368,49 @@ export const scene: SceneModule = {
     const audio = player?.querySelector('audio') ?? null;
     const playButton = root.querySelector('[data-play-chapter]') as HTMLButtonElement;
     let chapterStart: Record<string, number> = {};
+    // The key points board follows the narration. While the learner explores
+    // another chapter it shows that chapter's points instead: the items the
+    // narration has shown by the end of that chapter, cloned so the player's
+    // own items stay untouched and come back with Return to narration.
+    let boardTracks: Record<string, { t: number; v: string }[]> = {};
+    let chapterOrder: { lab: string; t: number }[] = [];
     if (audio) {
       fetch(new URL('tracks.json', document.baseURI))
         .then(response => (response.ok ? response.json() : Promise.reject(new Error(`tracks.json returned ${response.status}`))))
-        .then((tracks: { tracks?: { scene?: { t: number; v: string }[] } }) => {
+        .then((tracks: { tracks?: Record<string, { t: number; v: string }[]> }) => {
           chapterStart = Object.fromEntries((tracks.tracks?.scene ?? []).map(entry => [entry.v, entry.t]));
           playButton.hidden = !Object.keys(chapterStart).length;
+          boardTracks = Object.fromEntries(Object.entries(tracks.tracks ?? {}).filter(([key]) => /^board\.[^.]+$/.test(key)).map(([key, cues]) => [key.slice('board.'.length), cues]));
+          chapterOrder = Object.entries(chapterStart).map(([lab, t]) => ({ lab, t })).sort((a, b) => a.t - b.t);
+          syncBoard();
         })
         .catch(() => undefined);
+    }
+    const boardStateAt = (time: number) => Object.fromEntries(Object.entries(boardTracks).map(([id, cues]) => [id, cues.filter(cue => cue.t <= time).at(-1)?.v ?? 'hidden']));
+    let boardShown = '';
+    function syncBoard() {
+      const inner = player?.querySelector<HTMLElement>('.xv-board-inner:not(.xv-board-explore)');
+      if (!inner) return;
+      const lab = exploration && current && current !== narratedState.scene ? current : '';
+      const i = chapterOrder.findIndex(chapter => chapter.lab === lab);
+      const key = i === -1 ? '' : lab;
+      if (key === boardShown) return;
+      boardShown = key;
+      player!.querySelector('.xv-board-explore')?.remove();
+      inner.hidden = key !== '';
+      if (!key) return;
+      const end = i + 1 < chapterOrder.length ? chapterOrder[i + 1].t - 0.001 : Number.POSITIVE_INFINITY;
+      const states = boardStateAt(end);
+      const block = document.createElement('div');
+      block.className = 'xv-board-inner xv-board-explore';
+      for (const item of inner.querySelectorAll<HTMLElement>('.xv-board-item[data-id]')) {
+        const state = states[item.dataset.id!];
+        if (state !== 'shown' && state !== 'dimmed') continue;
+        const clone = item.cloneNode(true) as HTMLElement;
+        clone.className = `xv-board-item xv-${state}`;
+        block.append(clone);
+      }
+      inner.after(block);
     }
     const defaults: PlainState = Object.fromEntries(Object.entries(schema).map(([key, spec]) => [key, spec.default]));
     let narratedState: Readonly<PlainState> = defaults;
@@ -481,6 +516,7 @@ export const scene: SceneModule = {
         if (!cell) codeSlot.replaceChildren();
         (root.querySelector('.lab-scroll') as HTMLElement).scrollTop = 0;
       }
+      syncBoard();
       const key = JSON.stringify(state);
       if (key === last) return;
       last = key;
@@ -512,6 +548,9 @@ export const scene: SceneModule = {
       dispose() {
         cellHandle?.dispose(); disposeTheme(); navigation.dispose();
         observer?.disconnect(); window.removeEventListener('resize', onResize); player?.style.removeProperty('--captions-h');
+        player?.querySelector('.xv-board-explore')?.remove();
+        const boardInner = player?.querySelector<HTMLElement>('.xv-board-inner');
+        if (boardInner) boardInner.hidden = false;
         root.removeEventListener('input', onInput); root.removeEventListener('click', onClick); root.removeEventListener('toggle', onToggle, true);
         root.remove(); style.remove();
       },
