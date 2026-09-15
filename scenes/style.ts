@@ -95,6 +95,9 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 .ml-player:has(.xv-captions:empty) .ml-lesson {bottom:var(--chrome-h)}
 .ml-player:has(.xv-captions:empty) .xv-board {bottom:var(--chrome-h)}
 .ml-lesson * {box-sizing:border-box}
+/* The player disables selection for its canvas; the lesson's prose, code and notes are text to copy. */
+.ml-lesson,.ml-player .xv-board {-webkit-user-select:text;user-select:text}
+.ml-lesson button,.ml-lesson summary,.ml-lesson input[type=range],.ml-lesson svg,.ml-lesson .stepper,.ml-lesson .seg {-webkit-user-select:none;user-select:none}
 .ml-lesson h1,.ml-lesson h2,.ml-lesson h3,.ml-lesson p {margin:0}
 .ml-lesson .ml-header {display:flex;align-items:center;justify-content:space-between;gap:12px;height:var(--header-h);padding:0 22px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;position:relative;z-index:4}
 .ml-lesson .brand {display:flex;align-items:center;gap:10px;font-size:17px;font-weight:700;letter-spacing:-.01em;color:var(--ink);text-decoration:none;white-space:nowrap}
@@ -143,10 +146,11 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 .ml-lesson .eyebrow {display:block;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
 .ml-lesson .lab-title h1 {font-size:clamp(24px,2.6vw,34px);font-weight:600;line-height:1.12;letter-spacing:-.02em;outline:none}
 .ml-lesson .question {margin-top:6px;color:var(--ink-soft);font-size:16px}
-.ml-lesson .reset {flex-shrink:0}
-.ml-lesson .lab-body {display:grid;grid-template-columns:minmax(0,1.6fr) minmax(250px,1fr);grid-template-areas:"charts controls" "charts metrics" "charts note" "extra extra";grid-template-rows:auto auto 1fr auto;gap:14px 16px;align-items:start}
+.ml-lesson .lab-actions {display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;flex-shrink:0}
+.ml-lesson .lab-actions button[hidden] {display:none}
+.ml-lesson .lab-body {display:grid;grid-template-columns:minmax(0,2fr) minmax(240px,1fr);grid-template-areas:"charts controls" "charts metrics" "charts note" "extra extra";grid-template-rows:auto auto 1fr auto;gap:14px 16px;align-items:start}
 .ml-lesson .visual {display:contents}
-.ml-lesson .charts {grid-area:charts;display:grid;gap:14px;min-width:0}
+.ml-lesson .charts {grid-area:charts;display:grid;gap:14px;min-width:0;container-type:inline-size}
 .ml-lesson .lab-controls {grid-area:controls;display:grid;gap:14px;padding:16px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
 .ml-lesson .lab-controls::before {content:"Explore";font-size:14px;font-weight:650;color:var(--ink)}
 .ml-lesson .metrics {grid-area:metrics;display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px}
@@ -157,7 +161,9 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 .ml-lesson .extra {grid-area:extra;display:grid;gap:12px;min-width:0}
 .ml-lesson .extra p,.ml-lesson .extra li {font-size:14px;line-height:1.65;color:var(--ink-soft);max-width:80ch}
 .ml-lesson .formula {white-space:pre-line;padding:12px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);font:14px/1.9 var(--font-mono);color:var(--ink);overflow-x:auto}
-@container (max-width: 720px) {
+/* Below 800px of lesson width the two columns would shrink chart text under
+   11px, so the controls move above the charts instead. */
+@container (max-width: 800px) {
   .ml-lesson .lab-body {grid-template-columns:minmax(0,1fr);grid-template-areas:"controls" "charts" "metrics" "note" "extra";grid-template-rows:none}
 }
 .ml-lesson .control {display:grid;gap:4px;min-width:0;font-size:13px;font-weight:600;color:var(--ink-soft)}
@@ -185,10 +191,13 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 .ml-lesson .chart-card svg {display:block;width:100%;height:auto;overflow:visible;font-family:var(--font-sans)}
 .ml-lesson svg .grid {stroke:var(--grid);stroke-width:1}
 .ml-lesson svg .axis {stroke:var(--axis);stroke-width:1}
-.ml-lesson svg .tick {fill:var(--muted);font:11px var(--font-mono)}
-.ml-lesson svg .label {fill:var(--muted);font-size:12px}
-.ml-lesson svg .ann {fill:var(--ink);font-size:12.5px;font-weight:500}
-.ml-lesson svg .ann-soft {fill:var(--ink-soft);font-size:12px}
+/* Chart text is set in SVG units on a 600 unit wide drawing; browser-qa.mjs
+   measures the rendered size (font size times the SVG scale) at every tested
+   width and requires at least 11px for ticks. */
+.ml-lesson svg .tick {fill:var(--muted);font:13px var(--font-mono)}
+.ml-lesson svg .label {fill:var(--muted);font-size:13.5px}
+.ml-lesson svg .ann {fill:var(--ink);font-size:14px;font-weight:500}
+.ml-lesson svg .ann-soft {fill:var(--ink-soft);font-size:13px}
 .ml-lesson .k-a {color:var(--series-a)} .ml-lesson .k-b {color:var(--series-b)} .ml-lesson .k-ink {color:var(--ink)} .ml-lesson .k-muted {color:var(--faint)} .ml-lesson .k-accent {color:var(--accent)} .ml-lesson .k-warn {color:var(--warn)}
 .ml-lesson svg .k-a,.ml-lesson svg .k-b,.ml-lesson svg .k-ink,.ml-lesson svg .k-muted,.ml-lesson svg .k-accent,.ml-lesson svg .k-warn {stroke:currentColor;fill:currentColor}
 .ml-lesson svg .line {fill:none!important;stroke-width:2.25;stroke-linejoin:round;stroke-linecap:round}
@@ -214,6 +223,9 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 
 /* Text blocks, cases and questions */
 .ml-lesson pre {margin:0;overflow:auto;white-space:pre;font:13px/1.7 var(--font-mono);padding:14px 16px;background:var(--code-bg);color:var(--code-ink);border:1px solid var(--border-strong);border-radius:var(--radius-sm);tab-size:2}
+.ml-lesson .code-block {position:relative}
+.ml-lesson .code-block pre {padding-right:88px}
+.ml-lesson .code-block .copy {position:absolute;top:8px;right:8px;min-height:32px;padding:4px 10px;font-size:12px;background:var(--surface);color:var(--ink-soft)}
 .ml-lesson h3 {font-size:18px;line-height:1.4;font-weight:600}
 .ml-lesson details:not(.chapter-menu) {padding:4px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface)}
 .ml-lesson details:not(.chapter-menu) summary {color:var(--ink);font-weight:600;font-size:14px;padding:10px 0;cursor:pointer;min-height:44px;display:flex;align-items:center}
@@ -269,8 +281,9 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 .ml-lesson .checks li[data-status=warn] .check-state {color:var(--warn)}
 .ml-lesson .check-detail {font-size:12.5px;color:var(--muted)}
 .ml-lesson .chart-note {margin-top:6px;font-size:12.5px;color:var(--ink-soft)}
-/* A chart keeps a readable size on a narrow screen and scrolls inside its
-   card, instead of shrinking its labels below legibility. */
+/* A chart keeps a readable size in a narrow column and scrolls inside its
+   card, instead of shrinking its labels below legibility. The query resolves
+   against the chart column, or the lesson width for a fit result. */
 @container (max-width: 560px) {
   .ml-lesson .chart-card {overflow-x:auto}
   .ml-lesson .chart-card svg {min-width:520px}
@@ -283,7 +296,8 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
   .ml-lesson .brand-tag {display:none}
   .ml-lesson .theme-toggle .theme-label {display:none}
   .ml-lesson .chapter-menu>summary {padding:0 10px}
-  .ml-lesson .chapter-menu>summary .menu-text {display:none}
+  /* The label leaves the screen but not the accessible name. */
+  .ml-lesson .chapter-menu>summary .menu-text {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
   .ml-lesson .ml-chapter-nav>button {width:40px}
   .ml-lesson .lab-title {margin-bottom:10px}
   .ml-lesson .lab-title h1 {font-size:21px}

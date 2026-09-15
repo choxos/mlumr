@@ -55,13 +55,19 @@ if (mode === 'snapshot') {
 } else if (mode === 'write') {
   const used = { tangible: process.env.TANGIBLE_REVISION, mlumr: process.env.MLUMR_REF };
   const snapshot = JSON.parse(await readFile(SNAPSHOT, 'utf8'));
-  await writeFile(join(site, NAME), JSON.stringify({ pins: used, sources: snapshot, assets: await assets() }, null, 2) + '\n');
+  // The build id names the exact sources: the hash of their recorded hashes.
+  // A run record downloaded from the site carries it, so a record can be tied
+  // to a build without resolving a branch that has moved on.
+  const id = sha256(JSON.stringify(snapshot));
+  await writeFile(join(site, NAME), JSON.stringify({ id, pins: used, sources: snapshot, assets: await assets() }, null, 2) + '\n');
   console.log(`Wrote ${join(site, NAME)}`);
 } else {
   const problems = [];
   const manifest = JSON.parse(await readFile(join(site, NAME), 'utf8').catch(() => { throw new Error(`${siteArg}/${NAME} is missing; build with lesson.sh dist.`); }));
   const expected = await pins();
   for (const key of ['tangible', 'mlumr']) if (manifest.pins?.[key] !== expected[key]) problems.push(`pin ${key}: built with ${manifest.pins?.[key]}, lesson.sh names ${expected[key]}`);
+  // The id must be the hash of the recorded sources, or a run record would cite a build that never existed.
+  if (manifest.id !== sha256(JSON.stringify(manifest.sources ?? {}))) problems.push(`build id ${manifest.id} is not the hash of the recorded sources`);
   const compare = (label, recorded, now) => {
     for (const file of new Set([...Object.keys(recorded), ...Object.keys(now)])) {
       if (!(file in now)) problems.push(`${label} ${file} is gone`);

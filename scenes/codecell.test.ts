@@ -3,11 +3,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { webcrypto } from 'node:crypto';
 import type { Fit, Prepared, RunResult } from './runner.js';
 
-const runner = vi.hoisted(() => ({ runR: vi.fn(), prepareFit: vi.fn(), fitStan: vi.fn(), restartR: vi.fn(), rSession: vi.fn() }));
+const runner = vi.hoisted(() => ({ runR: vi.fn(), prepareFit: vi.fn(), fitStan: vi.fn(), restartR: vi.fn(), rSession: vi.fn(), WEBR_URL: 'https://webr.example/webr.mjs', R_PACKAGES: ['jsonlite'] }));
 vi.mock('./runner.js', () => runner);
-const { mountCell, resetSavedCells } = await import('./codecell.js');
+const { mountCell, resetSavedCells, savedRecord } = await import('./codecell.js');
 
-vi.stubGlobal('crypto', webcrypto);
+// The built site's manifests, which a run record cites.
+const manifests: Record<string, object> = {
+  'build-manifest.json': { id: 'build-id-1', pins: { mlumr: 'mlumr-pin', tangible: 'tangible-pin' } },
+  'stan/manifest.json': { tinystan: '0.3.3', models: { mlumr_binary_spfa: { stan_sha256: 'stan-1', wasm_sha256: 'wasm-1', stanc: '2.39.0' } } },
+};
+vi.stubGlobal('fetch', vi.fn(async (url: URL) => {
+  const body = manifests[url.pathname.replace(/^\//, '')];
+  return { ok: Boolean(body), status: body ? 200 : 404, json: async () => body };
+}));
+// SHA-256 as in the browser, except that a test can hold back chosen digests
+// to reproduce a fit that finishes hashing after it was cancelled.
+const digest = vi.fn((algorithm: string, data: Uint8Array<ArrayBuffer>) => webcrypto.subtle.digest(algorithm, data));
+vi.stubGlobal('crypto', { subtle: { digest } });
 
 const deferred = <T>() => {
   let resolve!: (value: T) => void, reject!: (error: unknown) => void;
@@ -38,7 +50,8 @@ async function runOk(slot: HTMLElement) {
 
 beforeEach(() => {
   resetSavedCells();
-  Object.values(runner).forEach(fn => fn.mockReset());
+  Object.values(runner).forEach(fn => { if (typeof fn === 'function') fn.mockReset(); });
+  digest.mockClear();
   document.body.innerHTML = '<div id="slot"></div>';
 });
 const slot = () => document.getElementById('slot')!;
@@ -248,6 +261,68 @@ describe('code cell lifecycle', () => {
     expect(slot().querySelector('.fit-out .stale')).toBeNull();
     await runOk(slot());
     expect($(slot(), '.fit-out .stale').textContent).toContain('revision 0');
+  });
+
+  it('records the code that ran, the build and the model, even when the code is edited during the fit', async () => {
+    mountCell(slot(), mlumrCell, 'workflow');
+    await runOk(slot());
+    const sampling = deferred<Fit>();
+    runner.prepareFit.mockResolvedValue(prepared);
+    runner.fitStan.mockReturnValue(sampling.promise);
+    click(slot(), '[data-act=fit]');
+    await flush();
+    const textarea = $<HTMLTextAreaElement>(slot(), 'textarea');
+    textarea.value = 'dat <- "edited while sampling"';
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    sampling.resolve(fit());
+    await fitShown();
+    const record = savedRecord('workflow')!;
+    expect(record.code).toBe('dat <- 1');
+    expect(record).toMatchObject({ run: 2, code_revision: 0, provenance: { lesson: { build: 'build-id-1', mlumr_commit: 'mlumr-pin' }, tinystan: '0.3.3' }, runtime: { webr: 'https://webr.example/webr.mjs' } });
+    expect($(slot(), '.fit-out .stale').textContent).toContain('revision 0');
+    expect($(slot(), '.record-contents').textContent).toContain('does not contain the posterior draws');
+  });
+
+  it('keeps the newer fit when an older cancelled fit finishes hashing late', async () => {
+    const held = deferred<ArrayBuffer>();
+    digest.mockReturnValueOnce(held.promise); // the code digest of fit 2 is held back
+    const handle = mountCell(slot(), mlumrCell, 'workflow');
+    await runOk(slot());
+    runner.prepareFit.mockResolvedValue(prepared);
+    runner.fitStan.mockResolvedValue(fit());
+    click(slot(), '[data-act=fit]');
+    await vi.waitFor(() => expect(digest).toHaveBeenCalled()); // fit 2 is hashing
+    handle.dispose();
+    mountCell(slot(), mlumrCell, 'workflow');
+    await runOk(slot());
+    click(slot(), '[data-act=fit]');
+    await fitShown();
+    expect($(slot(), '.run-label').textContent).toContain('Fit 4');
+    expect(savedRecord('workflow')!.run).toBe(4);
+    held.resolve(await webcrypto.subtle.digest('SHA-256', new Uint8Array([1])));
+    await flush(); await flush(); await flush();
+    expect($(slot(), '.run-label').textContent).toContain('Fit 4');
+    expect(savedRecord('workflow')!.run).toBe(4);
+    expect(slot().querySelector('.fit-out .feedback')).toBeNull();
+  });
+
+  it('commits nothing when a fit is cancelled while hashing', async () => {
+    const held = deferred<ArrayBuffer>();
+    digest.mockReturnValueOnce(held.promise);
+    mountCell(slot(), mlumrCell, 'workflow');
+    await runOk(slot());
+    runner.prepareFit.mockResolvedValue(prepared);
+    runner.fitStan.mockResolvedValue(fit());
+    click(slot(), '[data-act=fit]');
+    await vi.waitFor(() => expect(digest).toHaveBeenCalled());
+    expect($(slot(), '.fit-out').textContent).toContain('Finalizing fit 2');
+    click(slot(), '[data-act=cancel]');
+    held.resolve(await webcrypto.subtle.digest('SHA-256', new Uint8Array([1])));
+    await flush(); await flush(); await flush();
+    expect($(slot(), '.fit-out').textContent).toContain('Fit 2 was cancelled');
+    expect(slot().querySelector('.fit-out .chart-title')).toBeNull();
+    expect(savedRecord('workflow')).toBeUndefined();
+    expect($<HTMLButtonElement>(slot(), '[data-act=fit]').disabled).toBe(false);
   });
 
   it('reports editing, running and fitting as activity', async () => {

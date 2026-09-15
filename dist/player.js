@@ -17067,6 +17067,9 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 .ml-player:has(.xv-captions:empty) .ml-lesson {bottom:var(--chrome-h)}
 .ml-player:has(.xv-captions:empty) .xv-board {bottom:var(--chrome-h)}
 .ml-lesson * {box-sizing:border-box}
+/* The player disables selection for its canvas; the lesson's prose, code and notes are text to copy. */
+.ml-lesson,.ml-player .xv-board {-webkit-user-select:text;user-select:text}
+.ml-lesson button,.ml-lesson summary,.ml-lesson input[type=range],.ml-lesson svg,.ml-lesson .stepper,.ml-lesson .seg {-webkit-user-select:none;user-select:none}
 .ml-lesson h1,.ml-lesson h2,.ml-lesson h3,.ml-lesson p {margin:0}
 .ml-lesson .ml-header {display:flex;align-items:center;justify-content:space-between;gap:12px;height:var(--header-h);padding:0 22px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;position:relative;z-index:4}
 .ml-lesson .brand {display:flex;align-items:center;gap:10px;font-size:17px;font-weight:700;letter-spacing:-.01em;color:var(--ink);text-decoration:none;white-space:nowrap}
@@ -17115,10 +17118,11 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 .ml-lesson .eyebrow {display:block;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
 .ml-lesson .lab-title h1 {font-size:clamp(24px,2.6vw,34px);font-weight:600;line-height:1.12;letter-spacing:-.02em;outline:none}
 .ml-lesson .question {margin-top:6px;color:var(--ink-soft);font-size:16px}
-.ml-lesson .reset {flex-shrink:0}
-.ml-lesson .lab-body {display:grid;grid-template-columns:minmax(0,1.6fr) minmax(250px,1fr);grid-template-areas:"charts controls" "charts metrics" "charts note" "extra extra";grid-template-rows:auto auto 1fr auto;gap:14px 16px;align-items:start}
+.ml-lesson .lab-actions {display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;flex-shrink:0}
+.ml-lesson .lab-actions button[hidden] {display:none}
+.ml-lesson .lab-body {display:grid;grid-template-columns:minmax(0,2fr) minmax(240px,1fr);grid-template-areas:"charts controls" "charts metrics" "charts note" "extra extra";grid-template-rows:auto auto 1fr auto;gap:14px 16px;align-items:start}
 .ml-lesson .visual {display:contents}
-.ml-lesson .charts {grid-area:charts;display:grid;gap:14px;min-width:0}
+.ml-lesson .charts {grid-area:charts;display:grid;gap:14px;min-width:0;container-type:inline-size}
 .ml-lesson .lab-controls {grid-area:controls;display:grid;gap:14px;padding:16px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
 .ml-lesson .lab-controls::before {content:"Explore";font-size:14px;font-weight:650;color:var(--ink)}
 .ml-lesson .metrics {grid-area:metrics;display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px}
@@ -17129,7 +17133,9 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 .ml-lesson .extra {grid-area:extra;display:grid;gap:12px;min-width:0}
 .ml-lesson .extra p,.ml-lesson .extra li {font-size:14px;line-height:1.65;color:var(--ink-soft);max-width:80ch}
 .ml-lesson .formula {white-space:pre-line;padding:12px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);font:14px/1.9 var(--font-mono);color:var(--ink);overflow-x:auto}
-@container (max-width: 720px) {
+/* Below 800px of lesson width the two columns would shrink chart text under
+   11px, so the controls move above the charts instead. */
+@container (max-width: 800px) {
   .ml-lesson .lab-body {grid-template-columns:minmax(0,1fr);grid-template-areas:"controls" "charts" "metrics" "note" "extra";grid-template-rows:none}
 }
 .ml-lesson .control {display:grid;gap:4px;min-width:0;font-size:13px;font-weight:600;color:var(--ink-soft)}
@@ -17157,10 +17163,13 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 .ml-lesson .chart-card svg {display:block;width:100%;height:auto;overflow:visible;font-family:var(--font-sans)}
 .ml-lesson svg .grid {stroke:var(--grid);stroke-width:1}
 .ml-lesson svg .axis {stroke:var(--axis);stroke-width:1}
-.ml-lesson svg .tick {fill:var(--muted);font:11px var(--font-mono)}
-.ml-lesson svg .label {fill:var(--muted);font-size:12px}
-.ml-lesson svg .ann {fill:var(--ink);font-size:12.5px;font-weight:500}
-.ml-lesson svg .ann-soft {fill:var(--ink-soft);font-size:12px}
+/* Chart text is set in SVG units on a 600 unit wide drawing; browser-qa.mjs
+   measures the rendered size (font size times the SVG scale) at every tested
+   width and requires at least 11px for ticks. */
+.ml-lesson svg .tick {fill:var(--muted);font:13px var(--font-mono)}
+.ml-lesson svg .label {fill:var(--muted);font-size:13.5px}
+.ml-lesson svg .ann {fill:var(--ink);font-size:14px;font-weight:500}
+.ml-lesson svg .ann-soft {fill:var(--ink-soft);font-size:13px}
 .ml-lesson .k-a {color:var(--series-a)} .ml-lesson .k-b {color:var(--series-b)} .ml-lesson .k-ink {color:var(--ink)} .ml-lesson .k-muted {color:var(--faint)} .ml-lesson .k-accent {color:var(--accent)} .ml-lesson .k-warn {color:var(--warn)}
 .ml-lesson svg .k-a,.ml-lesson svg .k-b,.ml-lesson svg .k-ink,.ml-lesson svg .k-muted,.ml-lesson svg .k-accent,.ml-lesson svg .k-warn {stroke:currentColor;fill:currentColor}
 .ml-lesson svg .line {fill:none!important;stroke-width:2.25;stroke-linejoin:round;stroke-linecap:round}
@@ -17186,6 +17195,9 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 
 /* Text blocks, cases and questions */
 .ml-lesson pre {margin:0;overflow:auto;white-space:pre;font:13px/1.7 var(--font-mono);padding:14px 16px;background:var(--code-bg);color:var(--code-ink);border:1px solid var(--border-strong);border-radius:var(--radius-sm);tab-size:2}
+.ml-lesson .code-block {position:relative}
+.ml-lesson .code-block pre {padding-right:88px}
+.ml-lesson .code-block .copy {position:absolute;top:8px;right:8px;min-height:32px;padding:4px 10px;font-size:12px;background:var(--surface);color:var(--ink-soft)}
 .ml-lesson h3 {font-size:18px;line-height:1.4;font-weight:600}
 .ml-lesson details:not(.chapter-menu) {padding:4px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface)}
 .ml-lesson details:not(.chapter-menu) summary {color:var(--ink);font-weight:600;font-size:14px;padding:10px 0;cursor:pointer;min-height:44px;display:flex;align-items:center}
@@ -17241,8 +17253,9 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 .ml-lesson .checks li[data-status=warn] .check-state {color:var(--warn)}
 .ml-lesson .check-detail {font-size:12.5px;color:var(--muted)}
 .ml-lesson .chart-note {margin-top:6px;font-size:12.5px;color:var(--ink-soft)}
-/* A chart keeps a readable size on a narrow screen and scrolls inside its
-   card, instead of shrinking its labels below legibility. */
+/* A chart keeps a readable size in a narrow column and scrolls inside its
+   card, instead of shrinking its labels below legibility. The query resolves
+   against the chart column, or the lesson width for a fit result. */
 @container (max-width: 560px) {
   .ml-lesson .chart-card {overflow-x:auto}
   .ml-lesson .chart-card svg {min-width:520px}
@@ -17255,7 +17268,8 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
   .ml-lesson .brand-tag {display:none}
   .ml-lesson .theme-toggle .theme-label {display:none}
   .ml-lesson .chapter-menu>summary {padding:0 10px}
-  .ml-lesson .chapter-menu>summary .menu-text {display:none}
+  /* The label leaves the screen but not the accessible name. */
+  .ml-lesson .chapter-menu>summary .menu-text {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
   .ml-lesson .ml-chapter-nav>button {width:40px}
   .ml-lesson .lab-title {margin-bottom:10px}
   .ml-lesson .lab-title h1 {font-size:21px}
@@ -17404,7 +17418,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
   // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/charts.ts
   var W = 600;
   var H = 290;
-  var L = 52;
+  var L = 66;
   var R = 18;
   var T2 = 16;
   var B = 44;
@@ -17482,7 +17496,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       ticks = niceTicks(Math.min(range[0], ...values), Math.max(range[1], ...values));
       range = [ticks[0], ticks[ticks.length - 1]];
     }
-    const rowH = 44, top = 26, h2 = top + rows.length * rowH + 34, x0 = 170, x1 = W - 20;
+    const rowH = 44, top = 26, h2 = top + rows.length * rowH + 34, x0 = 190, x1 = W - 20;
     const X = (v2) => x0 + (x1 - x0) * (v2 - range[0]) / (range[1] - range[0]);
     let s2 = ticks.map((t2) => `<line class="grid" x1="${X(t2)}" x2="${X(t2)}" y1="${top - 6}" y2="${h2 - 30}"/><text class="tick" x="${X(t2)}" y="${h2 - 12}" text-anchor="middle">${fmt2(t2)}</text>`).join("");
     s2 += refs.filter((r2) => Number.isFinite(r2.x)).map((r2) => `<line class="axis dash" x1="${X(r2.x)}" x2="${X(r2.x)}" y1="${top - 12}" y2="${h2 - 30}"/><text class="ann-soft" x="${X(r2.x)}" y="${top - 14}" text-anchor="middle">${esc(r2.text)}</text>`).join("");
@@ -17499,7 +17513,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     const s2 = steps.map((st, i3) => {
       const x2 = i3 * (w2 + gap);
       const arrow = i3 < n - 1 ? `<path class="axis" d="M${x2 + w2 + 1} 46h${gap - 3}" stroke-width="2"/><path class="k-muted" d="M${x2 + w2 + gap - 1} 46l-5 -4v8z"/>` : "";
-      return `<g class="node${i3 === current ? " on" : ""}" data-step="${i3}"><title>Go to step ${i3 + 1}, ${esc(st.name)}</title><rect x="${x2}" y="10" width="${w2}" height="72" rx="9"/><text x="${x2 + w2 / 2}" y="36" text-anchor="middle" font-size="11" font-family="var(--font-mono)">${String(i3 + 1).padStart(2, "0")}</text><text x="${x2 + w2 / 2}" y="58" text-anchor="middle" font-size="13" font-weight="650">${esc(st.name)}</text><text class="label" x="${x2 + w2 / 2}" y="100" text-anchor="middle" font-size="10.5" font-family="var(--font-mono)">${esc(st.detail)}</text></g>${arrow}`;
+      return `<g class="node${i3 === current ? " on" : ""}" data-step="${i3}"><title>Go to step ${i3 + 1}, ${esc(st.name)}</title><rect x="${x2}" y="10" width="${w2}" height="72" rx="9"/><text x="${x2 + w2 / 2}" y="36" text-anchor="middle" font-size="12" font-family="var(--font-mono)">${String(i3 + 1).padStart(2, "0")}</text><text x="${x2 + w2 / 2}" y="58" text-anchor="middle" font-size="14" font-weight="650">${esc(st.name)}</text><text class="label" x="${x2 + w2 / 2}" y="100" text-anchor="middle" font-size="12" font-family="var(--font-mono)">${esc(st.detail)}</text></g>${arrow}`;
     }).join("");
     return card(title, `<svg viewBox="0 0 ${W} ${h2}" role="img" aria-label="${esc(`Analysis steps; step ${current + 1}, ${steps[current].name}, is highlighted`)}">${s2}</svg>`);
   }
@@ -18048,7 +18062,28 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     ${notes.length ? `<h3 class="checks-title">What mlumr() reported while preparing the data</h3><ul class="bench-notes">${notes.map((n) => `<li>${esc2(n)}</li>`).join("")}</ul>` : ""}
     <h3 class="checks-title">Benchmarks</h3><ul class="benchmarks">${benchmarkView("STC", "trial A's model averaged over trial B's population, compared with B's observed outcome, a point estimate on the log odds ratio scale", stc)}${benchmarkView("Naive", "the two trials compared as they are, in different populations, a point estimate on the log odds ratio scale", naive)}</ul>
     <p>${fit.chains} chains returned ${fit.samplesPerChain} kept draws each (${fit.draws} in total) after ${fit.warmup} warmup iterations, with seed 2026, adapt_delta 0.95 and maximum tree depth ${fit.diagnostics.maxTreedepth}, in ${fit.seconds.toFixed(1)} seconds${fit.stanVersion ? ` with Stan ${esc2(fit.stanVersion)}` : ""}. This browser demonstration requests two chains; the companion R script requests four, and a native summary reports the diagnostics of the chains a fit actually returned. This is a small teaching run: check a native fit before relying on any of these numbers.</p>
+    <details class="record-contents"><summary>What the run record contains</summary><p>A JSON file with: the lesson build, the mlumr and Tangible commits, the compiled Stan model and its SHA-256, the TinyStan and webR versions and R packages; the R code exactly as it ran and its SHA-256; the Stan data that mlumr() prepared and their SHA-256; the sampler settings; the posterior mean, interval, MCSE, R-hat and ESS of the four reported quantities; the sampling checks; the benchmarks with their warnings; and your browser's user agent string. It does not contain the posterior draws or any data other than the dat this code built.</p></details>
     <p><button type="button" data-act="record">Download the run record</button></p>`;
+  }
+  var provenanceReady;
+  function provenance() {
+    provenanceReady ??= (async () => {
+      const get = async (path2) => {
+        const response2 = await fetch(new URL(path2, document.baseURI));
+        if (!response2.ok) throw new Error(`${path2} returned ${response2.status}`);
+        return response2.json();
+      };
+      const [build, models] = await Promise.all([get("build-manifest.json"), get("stan/manifest.json")]);
+      return {
+        lesson: { build: build.id, mlumr_commit: build.pins?.mlumr, tangible_commit: build.pins?.tangible, source: "https://github.com/choxos/mlumr/tree/lesson" },
+        models: models.models ?? {},
+        tinystan: models.tinystan
+      };
+    })();
+    return provenanceReady.catch((error) => {
+      provenanceReady = void 0;
+      return { unavailable: error instanceof Error ? error.message : String(error) };
+    });
   }
   async function sha256(text2) {
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text2));
@@ -18155,10 +18190,12 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     async function fit() {
       if (busy || !fitButton || !fitOut || !fitReady()) return;
       onActivity();
-      const spec = { run: ++runs, model: state.model, revision: state.revision, data: state.preparedBy };
+      const spec = { run: ++runs, model: state.model, revision: state.revision, data: state.preparedBy, code: state.code, session: rSession() };
+      state.activeFit = spec.run;
       busy = "fit";
       job = new AbortController();
       const own = job;
+      const current = () => !own.signal.aborted && state.activeFit === spec.run;
       sync();
       announce(`Fit ${spec.run} started: ${MODEL[spec.model]}.`);
       fitOut.innerHTML = "<p>Preparing the Stan data with mlumr().</p>";
@@ -18178,19 +18215,25 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
           progress[chain2 - 1] = message.trim().split("\n").pop() ?? "";
           if (!signal.aborted) fitOut.innerHTML = `<pre class="console">${esc2(Array.from({ length: prepared.sampler.chains }, (_2, i3) => `Chain ${i3 + 1}: ${progress[i3] || "starting"}`).join("\n"))}</pre>`;
         }, own.signal);
-        state.fit = fitView(spec, prepared, result);
-        state.fitRevision = spec.revision;
-        state.fitData = spec.data;
-        state.record = {
+        if (!current()) throw new DOMException("The fit was cancelled.", "AbortError");
+        if (!signal.aborted) fitOut.innerHTML = `<p>Finalizing fit ${spec.run}: hashing the code and the Stan data, and writing the run record.</p>`;
+        const view2 = fitView(spec, prepared, result);
+        const [code_sha256, stan_data_sha256, identity] = await Promise.all([sha256(spec.code), sha256(prepared.stan), provenance()]);
+        const record = {
           lesson: "mlumr lesson, Run mlumr in your browser",
           created: (/* @__PURE__ */ new Date()).toISOString(),
           run: spec.run,
+          provenance: identity,
+          contents: "The R code as it ran, the Stan data mlumr() prepared, the sampler settings, summaries of the four reported quantities, the sampling checks and the benchmarks. No posterior draws.",
           model: spec.model,
           stan_model: prepared.model_name,
           code_revision: spec.revision,
-          code_sha256: await sha256(state.code),
-          stan_data_sha256: await sha256(prepared.stan),
+          r_session: spec.session,
+          code: spec.code,
+          code_sha256,
+          stan_data_sha256,
           stan_data: JSON.parse(prepared.stan),
+          runtime: { webr: WEBR_URL, r_packages: R_PACKAGES, stan_version: result.stanVersion },
           sampler: prepared.sampler,
           stan_version: result.stanVersion,
           draws: { chains: result.chains, per_chain: result.samplesPerChain, total: result.draws },
@@ -18201,10 +18244,16 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
           messages: prepared.messages,
           user_agent: navigator.userAgent
         };
+        if (!current()) throw new DOMException("The fit was cancelled.", "AbortError");
+        state.fit = view2;
+        state.fitRevision = spec.revision;
+        state.fitData = spec.data;
+        state.record = record;
         announce(`Fit ${spec.run} finished: ${MODEL[spec.model]}.`);
       } catch (error) {
         const cancelled = own.signal.aborted;
         const message = error instanceof Error ? error.message : String(error);
+        if (state.activeFit !== spec.run) return;
         if (cancelled && preparing) state.prepared = null;
         state.fit = cancelled ? `<p class="feedback">Fit ${spec.run} was cancelled${signal.aborted ? " because you left this chapter" : ""}. ${preparing ? "R was restarted to stop the preparation, so run the code again before fitting. " : ""}No result was kept.</p>` : `<p class="feedback" role="alert">Fit ${spec.run} failed. ${esc2(message)}</p>`;
         state.fitRevision = spec.revision;
@@ -18288,7 +18337,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
   var esc3 = (s2) => s2.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
   var metric = (label, value) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`;
   var block = (charts, metrics, note, extra = "") => `<div class="charts">${charts}</div>${metrics ? `<div class="metrics">${metrics}</div>` : ""}${note ? `<p class="interpretation">${note}</p>` : ""}${extra ? `<div class="extra">${extra}</div>` : ""}`;
-  var code = (s2) => `<pre><code>${esc3(s2)}</code></pre>`;
+  var code = (s2) => `<div class="code-block"><pre><code>${esc3(s2)}</code></pre><button type="button" class="copy" data-copy aria-label="Copy this code">Copy</button></div>`;
   var slider = (key, label, min, max, step) => `<label class="control" for="ml-${key}"><span>${label}<output data-value="${key}"></output></span><input id="ml-${key}" data-param="${key}" type="range" min="${min}" max="${max}" step="${step}"></label>`;
   var select = (key, label, options) => `<label class="control" for="ml-${key}"><span>${label}</span><select id="ml-${key}" data-param="${key}">${options.map(([v2, l2]) => `<option value="${v2}">${l2}</option>`).join("")}</select></label>`;
   var indexed = (key, label, names) => select(key, label, names.map((n, i3) => [String(i3), n]));
@@ -18355,7 +18404,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
         y: [-3, 3],
         xTicks: [0, 1],
         yTicks: [-3, -2, -1, 0, 1, 2, 3],
-        xFmt: (v2) => v2 ? "marker present" : "marker absent",
+        xFmt: (v2) => v2 ? "marker" : "no marker",
         xLabel: "Patient marker",
         yLabel: "Log odds of the event",
         lines: [{ points: [[0, -1.8], [1, 0.6]], key: "a" }, { points: [[0, -1.1], [1, -1.1 + beta]], key: "b" }],
@@ -18631,7 +18680,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       ], [-0.2, 0.05], [-0.2, -0.15, -0.1, -0.05, 0, 0.05], [{ x: -0.12408, text: "true value" }, { x: 0, text: "no difference" }]),
       "",
       "These are the companion script's real mlumr fits to made-up data, for a target population the script defines. Both intervals contain the true value. The separate slopes model is a little less certain, because trial B's slope has to be learned from three summaries.",
-      `<div class="case"><span class="eyebrow">Question ${qi + 1} of ${questions.length}</span><h3>${esc3(q.q)}</h3><div class="answers">${q.options.map((a2, i3) => `<button type="button" data-answer="${i3}">${esc3(a2)}</button>`).join("")}</div><p class="feedback" role="status" aria-live="polite"></p></div><details><summary>Checklist for your report</summary><ul class="read-list">${checklist.map((c2) => `<li>${esc3(c2)}</li>`).join("")}</ul></details><p><a href="sources.html" target="_blank" rel="noopener">Sources and scope</a> \xB7 <a href="workflow.R" download>Companion R script</a> \xB7 <a href="https://choxos.github.io/mlumr/" target="_blank" rel="noopener">mlumr documentation</a></p>`
+      `<div class="case"><span class="eyebrow">Question ${qi + 1} of ${questions.length}</span><h3>${esc3(q.q)}</h3><div class="answers">${q.options.map((a2, i3) => `<button type="button" data-answer="${i3}">${esc3(a2)}</button>`).join("")}</div><p class="feedback" role="status" aria-live="polite"></p></div><details><summary>Checklist for your report</summary><ul class="read-list">${checklist.map((c2) => `<li>${esc3(c2)}</li>`).join("")}</ul></details><p><a href="sources.html" target="_blank" rel="noopener">Sources and scope</a> \xB7 <a href="transcript.html" target="_blank" rel="noopener">Narration transcript</a> \xB7 <a href="workflow.R" download>Companion R script</a> \xB7 <a href="https://choxos.github.io/mlumr/" target="_blank" rel="noopener">mlumr documentation</a></p>`
     );
   }
   var moon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>';
@@ -18642,9 +18691,36 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       root.className = "ml-lesson";
       const style = document.createElement("style");
       style.textContent = css;
-      root.innerHTML = `<header class="ml-header"><a class="brand" href="https://choxos.github.io/mlumr/" target="_blank" rel="noopener">mlumr<span class="brand-tag">Lesson</span></a><div class="header-tools"><a href="sources.html" target="_blank" rel="noopener">Sources</a><button type="button" class="theme-toggle" aria-label="Dark theme" aria-pressed="false">${moon}<span class="theme-label">Light</span><span class="theme-track" aria-hidden="true"><span class="theme-thumb"></span></span></button></div></header><div class="lab-scroll"><div class="lab-title"><div><span class="eyebrow"></span><h1 tabindex="-1"></h1><p class="question"></p></div><button type="button" class="reset" data-reset aria-label="Reset experiment" title="Restore this chapter's starting values. The narration is not affected.">Reset</button></div><div class="lab-body"><div class="visual"></div><aside class="lab-controls" aria-label="Experiment controls"></aside></div><div class="code-slot"></div><footer>Teaching models with made-up numbers. The code cells run real R, and the cell in the Run mlumr chapter runs real mlumr code and its Stan model, all in your browser. mlumr development version 0.1.0.9000, working toward 0.2.0.</footer></div>`;
+      root.innerHTML = `<header class="ml-header"><a class="brand" href="https://choxos.github.io/mlumr/" target="_blank" rel="noopener">mlumr<span class="brand-tag">Lesson</span></a><div class="header-tools"><a href="transcript.html" target="_blank" rel="noopener">Transcript</a><a href="sources.html" target="_blank" rel="noopener">Sources</a><button type="button" class="theme-toggle" aria-label="Dark theme" aria-pressed="false">${moon}<span class="theme-label">Light</span><span class="theme-track" aria-hidden="true"><span class="theme-thumb"></span></span></button></div></header><div class="lab-scroll"><div class="lab-title"><div><span class="eyebrow"></span><h1 tabindex="-1"></h1><p class="question"></p></div><div class="lab-actions"><button type="button" class="play-here" data-play-chapter hidden title="Seek the narration to the start of this chapter and play it.">Play this chapter</button><button type="button" class="reset" data-reset title="Restore this chapter's starting control values. The narration and your code are not affected.">Reset controls</button></div></div><div class="lab-body"><div class="visual"></div><aside class="lab-controls" aria-label="Experiment controls"></aside></div><div class="code-slot"></div><footer>Teaching models with made-up numbers. The code cells run real R, and the cell in the Run mlumr chapter runs real mlumr code and its Stan model, all in your browser. mlumr development version 0.1.0.9000, working toward 0.2.0.</footer></div>`;
       ctx.overlay.append(style, root);
       const disposeTheme = themeToggle(root.querySelector(".theme-toggle"));
+      const player = ctx.overlay.parentElement;
+      const captions = player?.querySelector(".xv-captions");
+      let captionsHeight = 0;
+      const captionsResize = () => {
+        const height = captions?.offsetHeight ?? 0;
+        if (height > captionsHeight) {
+          captionsHeight = height;
+          player?.style.setProperty("--captions-h", `${height}px`);
+        }
+      };
+      const observer = captions && typeof ResizeObserver === "function" ? new ResizeObserver(captionsResize) : void 0;
+      observer?.observe(captions);
+      const onResize = () => {
+        captionsHeight = 0;
+        player?.style.removeProperty("--captions-h");
+        captionsResize();
+      };
+      window.addEventListener("resize", onResize);
+      const audio = player?.querySelector("audio") ?? null;
+      const playButton = root.querySelector("[data-play-chapter]");
+      let chapterStart = {};
+      if (audio) {
+        fetch(new URL("tracks.json", document.baseURI)).then((response2) => response2.ok ? response2.json() : Promise.reject(new Error(`tracks.json returned ${response2.status}`))).then((tracks) => {
+          chapterStart = Object.fromEntries((tracks.tracks?.scene ?? []).map((entry) => [entry.v, entry.t]));
+          playButton.hidden = !Object.keys(chapterStart).length;
+        }).catch(() => void 0);
+      }
       const defaults = Object.fromEntries(Object.entries(schema).map(([key, spec]) => [key, spec.default]));
       let narratedState = defaults;
       let exploration = null;
@@ -18668,6 +18744,10 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
           exploration = { ...narratedState };
           draw();
         }
+      };
+      const onToggle = (event) => {
+        const details = event.target;
+        if (details.open && details.closest(".lab-scroll") && !details.classList.contains("chapter-menu")) hold();
       };
       let cellHandle;
       const onInput = (event) => {
@@ -18695,7 +18775,25 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
           });
           if (current === "workflow") writeParameter("step", schema.step.default);
         }
+        if (button2.dataset.playChapter !== void 0 && audio && current && current in chapterStart) {
+          audio.currentTime = chapterStart[current];
+          narratedState = { ...narratedState, scene: current };
+          exploration = null;
+          void audio.play()?.catch(() => void 0);
+          draw();
+        }
+        if (button2.dataset.copy !== void 0) {
+          const text2 = button2.parentElement?.querySelector("code")?.textContent ?? "";
+          hold();
+          navigator.clipboard?.writeText(text2).then(() => {
+            button2.textContent = "Copied";
+            setTimeout(() => {
+              button2.textContent = "Copy";
+            }, 1500);
+          }, () => void 0);
+        }
         if (button2.dataset.answer !== void 0) {
+          hold();
           const q = questions[Math.round(Number(latest.question))];
           const right = Number(button2.dataset.answer) === q.correct;
           const feedback = visual.querySelector(".feedback");
@@ -18705,6 +18803,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       };
       root.addEventListener("input", onInput);
       root.addEventListener("click", onClick);
+      root.addEventListener("toggle", onToggle, true);
       function draw() {
         const state = exploration ?? narratedState;
         latest = state;
@@ -18758,8 +18857,12 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
           cellHandle?.dispose();
           disposeTheme();
           navigation.dispose();
+          observer?.disconnect();
+          window.removeEventListener("resize", onResize);
+          player?.style.removeProperty("--captions-h");
           root.removeEventListener("input", onInput);
           root.removeEventListener("click", onClick);
+          root.removeEventListener("toggle", onToggle, true);
           root.remove();
           style.remove();
         }

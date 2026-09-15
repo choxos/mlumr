@@ -36,7 +36,7 @@ bash lesson.sh adapter   # after a build: check the browser mlumr adapter native
 
 The build checks `runtime/models/manifest.json` against the Stan programs at `MLUMR_REF` and stops if they differ, and it writes `build-manifest.json` with the SHA-256 of every source and built file. `lesson.sh adapter` needs R with mlumr's dependencies; set `MLUMR_NATIVE` to an mlumr checkout at `MLUMR_REF` with a built DLL to compare the browser's Stan data, refusals and warnings with the package itself.
 
-`finish-site.mjs` makes two fixes after Tangible builds the site. It applies the saved theme before the page paints and restyles the loading screen. It lists the R files that the browser writes into webR.
+`finish-site.mjs` finishes the site after Tangible builds it. It applies the saved theme before the page paints and restyles the loading screen, lists the R files that the browser writes into webR, and writes `transcript.html`, the spoken text of `script.md` by chapter with each chapter's start time.
 
 ## Publish
 
@@ -50,7 +50,7 @@ Serve the built lesson, then run the browser checks with Chrome:
 TANGIBLE_DIR=/path/to/tangible node browser-qa.mjs http://127.0.0.1:4174
 ```
 
-The script plays the narration, visits every chapter, moves every control, answers every question, switches themes, runs the R cells and browser Stan fits of both models, and checks tablet, landscape phone, portrait phone and 200% zoom sizes. After `lesson.sh adapter`, it also checks that the browser's Stan data equal the native ones. It writes screenshots and a JSON record to `qa-artifacts/`. Add `--no-runtime` to skip the webR and Stan checks when offline.
+The script plays the narration, visits every chapter, moves every control, answers every question, opens an explanation while its chapter is narrated and crosses the next cue, plays a chapter from its Explore view, selects and copies a code example, switches themes, runs the R cells and browser Stan fits of both models, and checks laptop, desktop, tablet, landscape phone, portrait phone and 200% zoom sizes. At every size it measures the rendered chart tick text (at least 11 CSS pixels), reads the chapter menu's accessible name from Chromium's accessibility tree, and shows the longest caption to confirm it stays below the lesson. After `lesson.sh adapter`, it also checks that the browser's Stan data equal the native ones, and it checks that a downloaded run record names the build, the package commit and the compiled model. It writes screenshots and a JSON record to `qa-artifacts/`. Add `--no-runtime` to skip the webR and Stan checks when offline.
 
 `.github/workflows/deploy-lesson.yaml` runs the same checks on every pull request into `lesson` and before every deployment: `lesson.sh test`, `dist-manifest.mjs verify dist`, `verify-models.mjs` against the Stan programs of the pinned mlumr commit, and `browser-qa.mjs --no-runtime` on the committed `dist/` in Playwright's Chromium (`QA_BROWSER_CHANNEL=` chooses it instead of installed Chrome). The screenshots and JSON record are kept as the `browser-qa` workflow artifact. The webR and Stan runtime checks and `lesson.sh adapter` still run locally.
 
@@ -71,6 +71,10 @@ The script plays the narration, visits every chapter, moves every control, answe
 | When the prior matters | Tighten the prior, move the target | A narrow interval can come from assumptions instead of data. |
 | Read a fit before trusting it | Open seven problems | Sampling, integration, identification and transport are separate checks. |
 | Report it well | Answer five questions | What a defensible report contains. |
+
+## Listening and exploring
+
+The narration plays through the chapters on its own. Touching a control, opening an explanation, editing or running code, or opening a chapter from the menu holds that chapter on screen while the voice continues; **Return to narration** rejoins it. **Play this chapter** seeks the narration to the start of the chapter on screen and plays it. **Reset controls** restores the chapter's starting control values and touches neither the narration nor the code cell. The transcript link in the header opens the spoken text by chapter, and every native code example has a Copy button.
 
 ## Scope
 

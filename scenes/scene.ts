@@ -38,7 +38,7 @@ const esc = (s: string) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').re
 const metric = (label: string, value: string) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`;
 const block = (charts: string, metrics: string, note: string, extra = '') =>
   `<div class="charts">${charts}</div>${metrics ? `<div class="metrics">${metrics}</div>` : ''}${note ? `<p class="interpretation">${note}</p>` : ''}${extra ? `<div class="extra">${extra}</div>` : ''}`;
-const code = (s: string) => `<pre><code>${esc(s)}</code></pre>`;
+const code = (s: string) => `<div class="code-block"><pre><code>${esc(s)}</code></pre><button type="button" class="copy" data-copy aria-label="Copy this code">Copy</button></div>`;
 const slider = (key: string, label: string, min: number, max: number, step: number) => `<label class="control" for="ml-${key}"><span>${label}<output data-value="${key}"></output></span><input id="ml-${key}" data-param="${key}" type="range" min="${min}" max="${max}" step="${step}"></label>`;
 const select = (key: string, label: string, options: [string, string][]) => `<label class="control" for="ml-${key}"><span>${label}</span><select id="ml-${key}" data-param="${key}">${options.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>`;
 const indexed = (key: string, label: string, names: string[]) => select(key, label, names.map((n, i) => [String(i), n]));
@@ -93,7 +93,7 @@ function response(s: Readonly<PlainState>) {
   const beta = Number(s.betaB), shared = Math.abs(beta - 2.4) < .001, gap1 = 1.7 - beta;
   return block(lineChart({
     title: 'Log odds of the event, by marker', label: 'Two straight lines of log odds for treatments A and B, for patients without and with the marker',
-    x: [0, 1], y: [-3, 3], xTicks: [0, 1], yTicks: [-3, -2, -1, 0, 1, 2, 3], xFmt: v => v ? 'marker present' : 'marker absent',
+    x: [0, 1], y: [-3, 3], xTicks: [0, 1], yTicks: [-3, -2, -1, 0, 1, 2, 3], xFmt: v => v ? 'marker' : 'no marker',
     xLabel: 'Patient marker', yLabel: 'Log odds of the event',
     lines: [{ points: [[0, -1.8], [1, .6]], key: 'a' }, { points: [[0, -1.1], [1, -1.1 + beta]], key: 'b' }],
     dots: [{ at: [0, -1.8], key: 'a' }, { at: [1, .6], key: 'a' }, { at: [0, -1.1], key: 'b' }, { at: [1, -1.1 + beta], key: 'b' }],
@@ -289,7 +289,7 @@ export function view(lab: Lab, s: Readonly<PlainState>) {
     { name: 'Shared slopes (SPFA)', mean: -0.09132, lo: -0.16660, hi: -0.01359, key: 'a' },
     { name: 'Separate slopes (relaxed)', mean: -0.09105, lo: -0.17276, hi: -0.01359, key: 'b' }], [-.2, .05], [-.2, -.15, -.1, -.05, 0, .05], [{ x: -0.12408, text: 'true value' }, { x: 0, text: 'no difference' }]),
   '', 'These are the companion script\'s real mlumr fits to made-up data, for a target population the script defines. Both intervals contain the true value. The separate slopes model is a little less certain, because trial B\'s slope has to be learned from three summaries.',
-  `<div class="case"><span class="eyebrow">Question ${qi + 1} of ${questions.length}</span><h3>${esc(q.q)}</h3><div class="answers">${q.options.map((a, i) => `<button type="button" data-answer="${i}">${esc(a)}</button>`).join('')}</div><p class="feedback" role="status" aria-live="polite"></p></div><details><summary>Checklist for your report</summary><ul class="read-list">${checklist.map(c => `<li>${esc(c)}</li>`).join('')}</ul></details><p><a href="sources.html" target="_blank" rel="noopener">Sources and scope</a> · <a href="workflow.R" download>Companion R script</a> · <a href="https://choxos.github.io/mlumr/" target="_blank" rel="noopener">mlumr documentation</a></p>`);
+  `<div class="case"><span class="eyebrow">Question ${qi + 1} of ${questions.length}</span><h3>${esc(q.q)}</h3><div class="answers">${q.options.map((a, i) => `<button type="button" data-answer="${i}">${esc(a)}</button>`).join('')}</div><p class="feedback" role="status" aria-live="polite"></p></div><details><summary>Checklist for your report</summary><ul class="read-list">${checklist.map(c => `<li>${esc(c)}</li>`).join('')}</ul></details><p><a href="sources.html" target="_blank" rel="noopener">Sources and scope</a> · <a href="transcript.html" target="_blank" rel="noopener">Narration transcript</a> · <a href="workflow.R" download>Companion R script</a> · <a href="https://choxos.github.io/mlumr/" target="_blank" rel="noopener">mlumr documentation</a></p>`);
 }
 
 const moon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>';
@@ -301,9 +301,39 @@ export const scene: SceneModule = {
     root.className = 'ml-lesson';
     const style = document.createElement('style');
     style.textContent = css;
-    root.innerHTML = `<header class="ml-header"><a class="brand" href="https://choxos.github.io/mlumr/" target="_blank" rel="noopener">mlumr<span class="brand-tag">Lesson</span></a><div class="header-tools"><a href="sources.html" target="_blank" rel="noopener">Sources</a><button type="button" class="theme-toggle" aria-label="Dark theme" aria-pressed="false">${moon}<span class="theme-label">Light</span><span class="theme-track" aria-hidden="true"><span class="theme-thumb"></span></span></button></div></header><div class="lab-scroll"><div class="lab-title"><div><span class="eyebrow"></span><h1 tabindex="-1"></h1><p class="question"></p></div><button type="button" class="reset" data-reset aria-label="Reset experiment" title="Restore this chapter's starting values. The narration is not affected.">Reset</button></div><div class="lab-body"><div class="visual"></div><aside class="lab-controls" aria-label="Experiment controls"></aside></div><div class="code-slot"></div><footer>Teaching models with made-up numbers. The code cells run real R, and the cell in the Run mlumr chapter runs real mlumr code and its Stan model, all in your browser. mlumr development version 0.1.0.9000, working toward 0.2.0.</footer></div>`;
+    root.innerHTML = `<header class="ml-header"><a class="brand" href="https://choxos.github.io/mlumr/" target="_blank" rel="noopener">mlumr<span class="brand-tag">Lesson</span></a><div class="header-tools"><a href="transcript.html" target="_blank" rel="noopener">Transcript</a><a href="sources.html" target="_blank" rel="noopener">Sources</a><button type="button" class="theme-toggle" aria-label="Dark theme" aria-pressed="false">${moon}<span class="theme-label">Light</span><span class="theme-track" aria-hidden="true"><span class="theme-thumb"></span></span></button></div></header><div class="lab-scroll"><div class="lab-title"><div><span class="eyebrow"></span><h1 tabindex="-1"></h1><p class="question"></p></div><div class="lab-actions"><button type="button" class="play-here" data-play-chapter hidden title="Seek the narration to the start of this chapter and play it.">Play this chapter</button><button type="button" class="reset" data-reset title="Restore this chapter's starting control values. The narration and your code are not affected.">Reset controls</button></div></div><div class="lab-body"><div class="visual"></div><aside class="lab-controls" aria-label="Experiment controls"></aside></div><div class="code-slot"></div><footer>Teaching models with made-up numbers. The code cells run real R, and the cell in the Run mlumr chapter runs real mlumr code and its Stan model, all in your browser. mlumr development version 0.1.0.9000, working toward 0.2.0.</footer></div>`;
     ctx.overlay.append(style, root);
     const disposeTheme = themeToggle(root.querySelector('.theme-toggle') as HTMLButtonElement);
+    const player = ctx.overlay.parentElement;
+    // The captions bar sits over the bottom of the lesson. Its reserved height
+    // is a guess in CSS; a long cue wraps to two or three lines, so the
+    // measured height replaces the guess and only grows, until the window is
+    // resized. Captions that are switched off are handled by the :empty rules.
+    const captions = player?.querySelector<HTMLElement>('.xv-captions');
+    let captionsHeight = 0;
+    const captionsResize = () => {
+      const height = captions?.offsetHeight ?? 0;
+      if (height > captionsHeight) { captionsHeight = height; player?.style.setProperty('--captions-h', `${height}px`); }
+    };
+    const observer = captions && typeof ResizeObserver === 'function' ? new ResizeObserver(captionsResize) : undefined;
+    observer?.observe(captions!);
+    const onResize = () => { captionsHeight = 0; player?.style.removeProperty('--captions-h'); captionsResize(); };
+    window.addEventListener('resize', onResize);
+    // Play this chapter seeks the narration to the chapter's first cue. The
+    // times come from the compiled tracks, so the button appears only in a
+    // built lesson with narration.
+    const audio = player?.querySelector('audio') ?? null;
+    const playButton = root.querySelector('[data-play-chapter]') as HTMLButtonElement;
+    let chapterStart: Record<string, number> = {};
+    if (audio) {
+      fetch(new URL('tracks.json', document.baseURI))
+        .then(response => (response.ok ? response.json() : Promise.reject(new Error(`tracks.json returned ${response.status}`))))
+        .then((tracks: { tracks?: { scene?: { t: number; v: string }[] } }) => {
+          chapterStart = Object.fromEntries((tracks.tracks?.scene ?? []).map(entry => [entry.v, entry.t]));
+          playButton.hidden = !Object.keys(chapterStart).length;
+        })
+        .catch(() => undefined);
+    }
     const defaults: PlainState = Object.fromEntries(Object.entries(schema).map(([key, spec]) => [key, spec.default]));
     let narratedState: Readonly<PlainState> = defaults;
     let exploration: PlainState | null = null;
@@ -325,6 +355,13 @@ export const scene: SceneModule = {
       draw();
     };
     const hold = () => { if (!exploration) { exploration = { ...narratedState }; draw(); } };
+    // Opening an explanation is exploring too: the narration's next cue must
+    // not replace the panel the learner just opened. toggle does not bubble,
+    // so it is caught in the capture phase.
+    const onToggle = (event: Event) => {
+      const details = event.target as HTMLDetailsElement;
+      if (details.open && details.closest('.lab-scroll') && !details.classList.contains('chapter-menu')) hold();
+    };
     let cellHandle: { dispose(): void } | undefined;
     const onInput = (event: Event) => {
       const input = event.target as HTMLInputElement | HTMLSelectElement;
@@ -350,7 +387,23 @@ export const scene: SceneModule = {
         });
         if (current === 'workflow') writeParameter('step', schema.step.default);
       }
+      if (button.dataset.playChapter !== undefined && audio && current && current in chapterStart) {
+        audio.currentTime = chapterStart[current];
+        narratedState = { ...narratedState, scene: current };
+        exploration = null;
+        void audio.play()?.catch(() => undefined);
+        draw();
+      }
+      if (button.dataset.copy !== undefined) {
+        const text = button.parentElement?.querySelector('code')?.textContent ?? '';
+        hold();
+        navigator.clipboard?.writeText(text).then(() => {
+          button.textContent = 'Copied';
+          setTimeout(() => { button.textContent = 'Copy'; }, 1500);
+        }, () => undefined);
+      }
       if (button.dataset.answer !== undefined) {
+        hold();
         const q = questions[Math.round(Number(latest.question))];
         const right = Number(button.dataset.answer) === q.correct;
         const feedback = visual.querySelector('.feedback') as HTMLElement;
@@ -360,6 +413,7 @@ export const scene: SceneModule = {
     };
     root.addEventListener('input', onInput);
     root.addEventListener('click', onClick);
+    root.addEventListener('toggle', onToggle, true);
     function draw() {
       const state = exploration ?? narratedState;
       latest = state;
@@ -406,7 +460,12 @@ export const scene: SceneModule = {
     return {
       render(state: Readonly<PlainState>) { narratedState = state; draw(); },
       handles: () => [],
-      dispose() { cellHandle?.dispose(); disposeTheme(); navigation.dispose(); root.removeEventListener('input', onInput); root.removeEventListener('click', onClick); root.remove(); style.remove(); },
+      dispose() {
+        cellHandle?.dispose(); disposeTheme(); navigation.dispose();
+        observer?.disconnect(); window.removeEventListener('resize', onResize); player?.style.removeProperty('--captions-h');
+        root.removeEventListener('input', onInput); root.removeEventListener('click', onClick); root.removeEventListener('toggle', onToggle, true);
+        root.remove(); style.remove();
+      },
     };
   },
 };

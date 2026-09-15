@@ -1,6 +1,67 @@
 # Lesson execution record
 
-September 12 to 13, 2026. This records the checks run on the lesson in this branch. The first version was published at https://choxos.github.io/mlumr/lesson/ on September 13; the repairs described below were checked the same day.
+This records the checks run on the lesson in this branch. The first version was published at https://choxos.github.io/mlumr/lesson/ on September 13, 2026. The newest revision is described first; the September 12 to 13 record follows it unchanged.
+
+## Revision of September 15, 2026
+
+### What this revision repairs
+
+- **Fit finalization.** A fit fixes its model, code text, code revision, prepared data, R session and an active-fit token before anything awaits. Its view and run record are built off-state and committed together only if the fit is still the cell's active fit and was not cancelled; the catch path also writes nothing once a newer fit owns the cell. A fit cancelled while hashing commits nothing. The run record now carries the build id, the mlumr and Tangible commits, the compiled model's SHA-256 and stanc version, the TinyStan and webR versions, the R code as it ran, and a statement of what the record contains; a panel above the download button says the same.
+- **Chapter menu name.** At narrow and short sizes the menu label leaves the screen but stays in the accessibility tree, so the disclosure keeps the name Chapters.
+- **Chart text.** Ticks are 13 SVG units, labels 13.5 and annotations 14 on a 600 unit drawing; the chart column takes two thirds of the lesson width, becomes its own container, and the lesson drops to one column below 800 px of width. Readability target: tick text renders at 11 CSS pixels or more, measured as font size times the SVG screen scale, at every tested size.
+- **Captions.** The lesson measures the caption bar and reserves its real height, so a two or three line cue no longer covers the bottom of the lesson or the notes.
+- **Selection.** Prose, notes and code examples can be selected and copied; sliders, buttons, the stepper and the charts stay unselectable. Every native code example has a Copy button.
+- **Held explanations.** Opening an explanation, answering a question or copying code holds the chapter like touching a control does, so the narration's next cue does not replace an opened panel.
+- **Play this chapter, Reset controls, transcript.** Play this chapter seeks the narration to the chapter on screen and plays it. The reset button is named Reset controls and says that the narration and the code are untouched. `transcript.html` gives the spoken text by chapter.
+- **Publication gate.** `.github/workflows/deploy-lesson.yaml` runs the unit tests, the manifest check, the model check and the browser checks on every pull request into `lesson` and before every deployment (pull request #91).
+
+### Executed checks
+
+```sh
+bash lesson.sh test
+bash lesson.sh dist
+node browser-qa.mjs http://127.0.0.1:4174/
+```
+
+- `lesson.sh test`: strict TypeScript passed for the scene and the worker; **73 unit tests** passed in 6 files. The three new code cell tests fail against the previous controller: the record held the older fit's run number (2 instead of 4) after a cancelled fit finished hashing late, the record had no code text, and a fit cancelled while hashing still published its result.
+- `lesson.sh dist`: `check: no errors`; the model manifest matched; 29 sources and 92 built files recorded, and `dist-manifest.mjs verify dist` passed. The narration is unchanged (1646.10 seconds).
+- `browser-qa.mjs` in Chrome finished with **0 page errors, 0 console errors and 0 failed requests**, and every check of the earlier record passed again, including both browser Stan fits with the tables below the earlier record and Stan data equal to the native adapter check's within 3.3e-14 relative. New checks:
+  - **Held explanation.** With the narration paused at the start of the diagnostics chapter and no exploration active, the first explanation was opened; the chapter held, the narration was moved past the cue that changes the case, and the explanation stayed open with its case unchanged. Return to narration then showed the narrated case and ended the exploration.
+  - **Play this chapter.** From the survival chapter opened while another chapter was narrated, Play this chapter moved the narration to 1112.6 seconds, the chapter's first cue, started playback, and ended the exploration.
+  - **Selection and copy.** A pointer drag selected the step's code, a triple click selected a paragraph, and the Copy button wrote the code to the clipboard, which read back equal to the shown code including line breaks.
+  - **Run record.** Each downloaded record named the served build id, the pinned mlumr commit and the compiled model's SHA-256, its code hash equaled the SHA-256 of the code text it carries, and the panel describing the record's contents was present before download.
+  - **Sizes.** Fifteen sizes, with the survival chapter, the longest caption (225 characters) shown with captions on, and the chapter menu read closed and open through Chromium's accessibility tree, which returned the name Chapters at every size. None scrolls sideways, header controls do not overlap, and every slider is at least 44 pixels tall. The caption bar's top was never more than 0.4 px above the lesson's bottom edge (subpixel rounding), and the notes board ended above it.
+
+| Viewport | Tick text (px) | Tick box (px) | Caption lines |
+| --- | ---: | ---: | ---: |
+| 1024 × 768 | 14.6 | 19.0 | 4 |
+| 1100 × 768 | 15.8 | 20.0 | 3 |
+| 1152 × 800 | 16.2 | 21.0 | 3 |
+| 1280 × 800 | 11.7 | 15.0 | 3 |
+| 1366 × 768 | 12.6 | 16.0 | 3 |
+| 1440 × 900 | 13.4 | 18.0 | 3 |
+| 1600 × 900 | 15.6 | 20.0 | 3 |
+| 667 × 375 | 11.3 | 15.0 | 3 |
+| 844 × 390 | 12.3 | 16.0 | 3 |
+| 896 × 414 | 13.2 | 17.0 | 2 |
+| 320 × 640 | 11.3 | 15.0 | 6 |
+| 360 × 740 | 11.3 | 15.0 | 5 |
+| 390 × 844 | 11.3 | 15.0 | 5 |
+| 412 × 915 | 11.3 | 15.0 | 5 |
+| 720 × 450 | 11.3 | 15.0 | 3 |
+
+The tick text column is the metric the assertion uses (font size times SVG scale, threshold 11 px); the box column is the rendered bounding height the earlier record reported. Neither is a universal accessibility minimum; 11 px is this lesson's target. Sizes from 1024 to 1152 wide are single column, 1280 and up two columns, phones scroll the chart inside its card at 520 px. Fonts were IBM Plex from Google Fonts.
+
+### Not done in this revision
+
+- No human listened to the narration; it did not change.
+- No screen reader session and no real browser zoom were run; the accessibility tree was read through CDP and sizes were emulated, with 720 × 450 standing in for 1440 × 900 at 200% zoom.
+- Firefox and Safari were not run.
+- The WebAssembly models were not rebuilt, and log-density parity between the browser and native models was not measured; the check remains the Stan data equality and posterior agreement recorded below.
+
+## Record of September 12 to 13, 2026
+
+The first version was published on September 13; the repairs described below were checked the same day.
 
 ## Provenance
 

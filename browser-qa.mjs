@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
@@ -15,6 +16,17 @@ await mkdir(out, { recursive: true });
 const channel = process.env.QA_BROWSER_CHANNEL ?? 'chrome';
 const browser = await chromium.launch(channel ? { channel } : {});
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+// Copy buttons write to the clipboard; the check reads it back where the browser allows.
+await page.context().grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => undefined);
+// Accessible names come from Chromium's own accessibility tree, not from the DOM text.
+const cdp = await page.context().newCDPSession(page);
+await cdp.send('Accessibility.enable');
+async function accessibleName(selector) {
+  const { root } = await cdp.send('DOM.getDocument', { depth: 0 });
+  const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector });
+  const { nodes } = await cdp.send('Accessibility.getPartialAXTree', { nodeId, fetchRelatives: false });
+  return nodes[0]?.name?.value ?? '';
+}
 const failures = [];
 // Browser and native R build the same Stan data, but integration points can
 // differ in their last binary digits (WebAssembly against native floating
@@ -163,7 +175,7 @@ try {
   for (const [i, lab] of labs.entries()) {
     const priorPlayback = sceneOnly ? null : await page.locator('audio').evaluate(a => a.paused);
     await choose(page, lab.value);
-    await page.getByRole('button', {name:'Reset experiment', exact:true}).click();
+    await page.getByRole('button', {name:'Reset controls', exact:true}).click();
     await page.waitForTimeout(120);
     assert.equal(await page.locator('.ml-lesson').getAttribute('data-lab'), lab.value);
     if (!sceneOnly) assert.equal(await page.locator('audio').evaluate(a => a.paused), priorPlayback, 'Chapter browsing preserves playback state');
@@ -211,7 +223,7 @@ try {
         assert.equal(await input.inputValue(), value);
       }
     }
-    await page.getByRole('button', {name:'Reset experiment', exact:true}).click();
+    await page.getByRole('button', {name:'Reset controls', exact:true}).click();
     await page.waitForTimeout(100);
     if (!sceneOnly) assert(await page.locator('audio').evaluate(a => !a.paused), 'Parameter changes and reset must keep voice playing');
     if (lab.value === 'evidence') {
@@ -232,7 +244,7 @@ try {
       await previousStep.click();
       await atStep(2);
       if (!sceneOnly) assert.equal(await page.locator('audio').evaluate(a => a.paused), priorPlayback, 'Stepping must not change playback');
-      await page.getByRole('button', {name:'Reset experiment', exact:true}).click();
+      await page.getByRole('button', {name:'Reset controls', exact:true}).click();
       await atStep(1);
       evidence.push({ workflowStepper: true, clickableSteps: true });
     }
@@ -271,6 +283,60 @@ try {
     evidence.push({ lab: lab.value, controls: values, heading: await page.locator('.lab-title h1').innerText() });
   }
   if (!sceneOnly) await page.getByRole('button', {name:'Pause lesson',exact:true}).click();
+  if (!sceneOnly) {
+    // An explanation opened while its own chapter is narrated survives the
+    // narration's next cue, until the learner returns to the narration.
+    const tracks = await (await page.request.get(new URL('tracks.json', url).href)).json();
+    const chapterAt = key => tracks.tracks.scene.find(entry => entry.v === key).t;
+    const secondDiagnostic = tracks.tracks.diagnostic.find(entry => entry.v === 1);
+    await page.locator('audio').evaluate((a, t) => { a.pause(); a.currentTime = t; }, chapterAt('diagnostics') + .2);
+    await page.waitForFunction(() => document.querySelector('.ml-lesson').dataset.narratedLab === 'diagnostics');
+    const returnButton = page.getByRole('button', {name:'Return to narration', exact:true});
+    if (await returnButton.isVisible()) await returnButton.click();
+    await page.waitForFunction(() => document.querySelector('.ml-lesson').dataset.lab === 'diagnostics');
+    const firstSymptom = await page.locator('.case h3').innerText();
+    await page.locator('.case details > summary').click();
+    assert(await page.locator('.case details').evaluate(el => el.open));
+    // The toggle event is dispatched asynchronously, so the hold follows a tick later.
+    await returnButton.waitFor({ state: 'visible', timeout: 3000 }).catch(() => assert.fail('Opening an explanation holds the chapter'));
+    await page.locator('audio').evaluate((a, t) => { a.currentTime = t; }, secondDiagnostic.t + .3);
+    await page.waitForFunction(t => document.querySelector('audio').currentTime >= t, secondDiagnostic.t + .2);
+    await page.waitForTimeout(400);
+    assert(await page.locator('.case details').evaluate(el => el.open), 'The opened explanation must survive the next cue');
+    assert.equal(await page.locator('.case h3').innerText(), firstSymptom, 'The held explanation keeps its case');
+    await returnButton.click();
+    await page.waitForFunction(text => document.querySelector('.case h3')?.innerText !== text, firstSymptom);
+    assert(!(await returnButton.isVisible()), 'Return to narration ends the exploration');
+    evidence.push({ openedExplanationSurvivesCue: true, returnClearsExploration: true });
+    // Play this chapter seeks the narration to the chapter the learner is
+    // exploring and plays it; Explore never seeks.
+    await choose(page, 'survival');
+    assert(await returnButton.isVisible());
+    await page.getByRole('button', {name:'Play this chapter', exact:true}).click();
+    await page.waitForFunction(t => { const a = document.querySelector('audio'); const root = document.querySelector('.ml-lesson'); return !a.paused && a.currentTime >= t && a.currentTime < t + 4 && root.dataset.narratedLab === 'survival' && root.dataset.lab === 'survival'; }, chapterAt('survival'), { timeout: 15000 });
+    assert(!(await returnButton.isVisible()), 'Play this chapter rejoins the narration');
+    await page.getByRole('button', {name:'Pause lesson',exact:true}).click();
+    evidence.push({ playThisChapterSeeks: chapterAt('survival') });
+  }
+  // Native code examples and prose can be selected and copied.
+  await choose(page, 'workflow');
+  const codeBlock = page.locator('.extra .code-block').first();
+  const codeText = await codeBlock.locator('code').evaluate(el => el.textContent);
+  const box = await codeBlock.locator('pre').boundingBox();
+  await page.mouse.move(box.x + 4, box.y + 6);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 90, box.y + box.height - 6, { steps: 10 });
+  await page.mouse.up();
+  const dragged = await page.evaluate(() => getSelection().toString());
+  assert(dragged.length > 20 && codeText.includes(dragged.trim().split('\n')[0].trim()), `Code must be selectable by pointer: ${JSON.stringify(dragged.slice(0, 40))}`);
+  await page.locator('.extra p').first().click({ clickCount: 3 });
+  assert((await page.evaluate(() => getSelection().toString())).length > 20, 'Prose must be selectable');
+  await page.evaluate(() => getSelection().removeAllRanges());
+  await codeBlock.locator('.copy').click();
+  const copied = await page.waitForFunction(() => document.querySelector('.extra .code-block .copy')?.textContent === 'Copied', null, { timeout: 3000 }).then(() => true, () => false);
+  const clipboard = copied ? await page.evaluate(() => navigator.clipboard.readText()).catch(() => null) : null;
+  if (clipboard !== null) assert.equal(clipboard, codeText, 'The copied text is the shown code, line breaks included');
+  evidence.push({ codeSelectable: true, proseSelectable: true, copyButton: clipboard !== null ? 'clipboard matches the code' : copied ? 'copied, clipboard not readable here' : 'clipboard unavailable in this browser' });
   // Themes: the switch flips the color scheme, remembers the choice, and every chart restyles.
   const scheme = () => page.evaluate(() => getComputedStyle(document.documentElement).colorScheme);
   const themeButton = page.getByRole('button', { name: 'Dark theme', exact: true });
@@ -301,7 +367,7 @@ try {
   const hr = await page.locator('.visual .chart-card svg').nth(1).evaluate(svg => ({ dot: Number(svg.querySelector('circle.dot').getAttribute('cy')), one: Number([...svg.querySelectorAll('line.line')].find(l => !l.classList.contains('dash')).getAttribute('y1')) }));
   assert(hr.dot < hr.one, 'A population hazard ratio above one must be drawn above the HR = 1 line');
   assert.match(await page.locator('.visual .interpretation').innerText(), /still above B/);
-  await page.getByRole('button', {name:'Reset experiment', exact:true}).click();
+  await page.getByRole('button', {name:'Reset controls', exact:true}).click();
   evidence.push({ hazardRatioAboveOneDrawnAboveOne: hr });
   if (!process.argv.includes('--no-runtime')) {
     await choose(page, 'integration');
@@ -343,6 +409,14 @@ try {
       const record = JSON.parse(await readFile(await download.path(), 'utf8'));
       assert.equal(record.model, model);
       assert.equal(record.draws.total, 1000, 'The record counts the draws that came back');
+      // The record names its build, package commit and compiled model, and
+      // carries the code text its hash was taken from.
+      const buildManifest = await (await page.request.get(new URL('build-manifest.json', url).href)).json();
+      assert.equal(record.provenance?.lesson?.build, buildManifest.id, 'The record names the build it came from');
+      assert.equal(record.provenance?.lesson?.mlumr_commit, buildManifest.pins.mlumr);
+      assert.equal(record.code_sha256, createHash('sha256').update(record.code).digest('hex'), 'The code hash matches the code text in the record');
+      assert(record.provenance?.models?.[record.stan_model]?.wasm_sha256, 'The record names the compiled model');
+      assert((await page.locator('.record-contents').evaluate(el => el.textContent)).includes('does not contain the posterior draws'), 'The learner is told what the record contains before downloading');
       const reference = await readFile(resolve(dir, 'build/adapter', `stan-data-${model}.json`), 'utf8').catch(() => null);
       const parity = reference === null ? 'not checked, run lesson.sh adapter first' : stanDataDifference(record.stan_data, JSON.parse(reference));
       if (reference !== null) assert(parity.maxRelative <= 1e-12, `${model}: the browser Stan data must equal the native adapter check's: ${JSON.stringify(parity)}`);
@@ -370,17 +444,44 @@ try {
     await fitReady();
     evidence.push({ webRCell: true, priorCellComparesBothPriors: true, workflowRunsOnceAfterRevisits: true, fitIgnoresDatFromOtherCells: true, fitRefusedWithoutDat: true, cancelDuringPreparationRestartsR: true, stanFitsInBrowser: fits });
   }
-  // Tablet and landscape phones, portrait phones, and a 1440 by 900 window at 200% zoom.
-  for (const [width,height] of [[1024,768],[667,375],[844,390],[896,414],[320,640],[360,740],[390,844],[412,915],[720,450]]) {
+  // Laptops and desktops from 1024 to 1600 wide, tablet and landscape phones,
+  // portrait phones, and a 1440 by 900 window at 200% zoom.
+  const longestCue = sceneOnly ? null : (await (await page.request.get(new URL('captions.vtt', url).href)).text()).split(/\n\n/)
+    .map(block => block.split('\n').filter(l => l.trim())).filter(lines => lines.some(l => l.includes('-->')))
+    .map(lines => { const i = lines.findIndex(l => l.includes('-->')); const [h, m, sec] = lines[i].split('-->')[0].trim().split(':').map(Number); return { start: h * 3600 + m * 60 + sec, text: lines.slice(i + 1).join(' ') }; })
+    .reduce((a, b) => (b.text.length > a.text.length ? b : a));
+  for (const [width,height] of [[1024,768],[1100,768],[1152,800],[1280,800],[1366,768],[1440,900],[1600,900],[667,375],[844,390],[896,414],[320,640],[360,740],[390,844],[412,915],[720,450]]) {
     await page.setViewportSize({width,height});
     await choose(page, 'survival');
-    await page.getByRole('button', {name:'Reset experiment', exact:true}).click();
+    await page.getByRole('button', {name:'Reset controls', exact:true}).click();
     await page.waitForTimeout(100);
     if (!sceneOnly) assert(await page.locator('audio').evaluate(a => a.paused), 'Reset must preserve an explicitly paused state');
     const overflow = await page.locator('.ml-lesson').evaluate(el => el.scrollWidth > el.clientWidth + 1);
     assert(!overflow, `horizontal overflow at ${width}x${height}`);
-    const tick = await page.locator('.visual svg text.tick').first().evaluate(el => el.getBoundingClientRect().height);
-    assert(tick >= 10, `chart labels are ${tick.toFixed(1)}px tall at ${width}x${height}`);
+    // Readability target: chart tick text renders at 11 CSS pixels or more,
+    // measured as the SVG font size times the drawing's screen scale.
+    const tick = await page.locator('.visual svg text.tick').first().evaluate(el => ({ fontPx: parseFloat(getComputedStyle(el).fontSize) * el.ownerSVGElement.getScreenCTM().a, boxHeight: el.getBoundingClientRect().height }));
+    assert(tick.fontPx >= 11, `chart tick text renders at ${tick.fontPx.toFixed(1)}px at ${width}x${height}`);
+    // The chapter menu keeps its accessible name where its label leaves the screen.
+    assert.equal(await accessibleName('.chapter-menu > summary'), 'Chapters', `chapter menu name at ${width}x${height}`);
+    await page.locator('.chapter-menu > summary').click();
+    assert(await page.locator('.chapter-menu').evaluate(el => el.open));
+    assert.equal(await accessibleName('.chapter-menu > summary'), 'Chapters', `open chapter menu name at ${width}x${height}`);
+    await page.keyboard.press('Escape');
+    assert(!(await page.locator('.chapter-menu').evaluate(el => el.open)));
+    // The longest caption, which wraps to several lines, stays below the lesson content.
+    let captionGeometry = null;
+    if (longestCue) {
+      await page.locator('audio').evaluate((a, t) => { a.pause(); a.currentTime = t; }, longestCue.start + .3);
+      await page.waitForFunction(text => document.querySelector('.xv-captions')?.textContent === text, longestCue.text, { timeout: 10000 });
+      captionGeometry = await page.evaluate(() => {
+        const caption = document.querySelector('.xv-captions').getBoundingClientRect(), lesson = document.querySelector('.ml-lesson').getBoundingClientRect();
+        const board = document.querySelector('.xv-board'), boardBox = board && getComputedStyle(board).display !== 'none' ? board.getBoundingClientRect() : null;
+        return { captionTop: caption.top, captionHeight: caption.height, lessonBottom: lesson.bottom, boardBottom: boardBox?.bottom ?? null, lines: Math.round(caption.height / parseFloat(getComputedStyle(document.querySelector('.xv-captions')).lineHeight)) };
+      });
+      assert(captionGeometry.lessonBottom <= captionGeometry.captionTop + .5, `captions overlap the lesson at ${width}x${height}: ${JSON.stringify(captionGeometry)}`);
+      if (captionGeometry.boardBottom !== null) assert(captionGeometry.boardBottom <= captionGeometry.captionTop + .5, `captions overlap the notes at ${width}x${height}`);
+    }
     const header = await page.locator('.ml-header').evaluate(h => [...h.querySelectorAll('.brand, .ml-chapter-nav > *, .theme-toggle')].filter(el => el.getClientRects().length).map(el => el.getBoundingClientRect()));
     for (let i = 0; i < header.length; i++) for (let j = i + 1; j < header.length; j++) {
       const [a, b] = [header[i], header[j]];
@@ -396,7 +497,7 @@ try {
     }
     await page.locator('.lab-scroll').evaluate(el => el.scrollTop = 0);
     await page.screenshot({path:resolve(out, `survival-${width}x${height}.png`)});
-    evidence.push({viewport:[width,height], horizontalOverflow:false, keyboardControls:true, chartLabelPixels:tick, headerOverlap:false});
+    evidence.push({viewport:[width,height], horizontalOverflow:false, keyboardControls:true, chartTickFontPx:Number(tick.fontPx.toFixed(2)), chartTickBoxPx:Number(tick.boxHeight.toFixed(2)), chapterMenuName:'Chapters', captions:captionGeometry, headerOverlap:false});
   }
   if (!sceneOnly) {
     const touch = await browser.newPage({ viewport: {width:1024,height:768}, hasTouch:true });
@@ -417,7 +518,7 @@ try {
     assert(await touch.locator('audio').evaluate(a => !a.paused), 'Touch return must preserve playback');
     await touch.close();
     evidence.push({tabletTouch:true, controlsKeepVoicePlaying:true, touchReturnToNarration:true});
-    const resources = await Promise.all(['workflow.R','sources.html','captions.vtt','tracks.json'].map(async path => {
+    const resources = await Promise.all(['workflow.R','sources.html','transcript.html','captions.vtt','tracks.json','build-manifest.json'].map(async path => {
       const response = await page.request.get(new URL(path, url).href);
       assert(response.ok(), `${path} must be served`);
       return path;
