@@ -1664,7 +1664,10 @@
   object) on a model survival plot, colored by treatment and honoring
   delayed entry. Each curve carries the population its arm was measured
   in, so on a plot faceted by population it appears only in its own
-  panel.
+  panel. It draws a right-censored Kaplan-Meier curve, and refuses a
+  cohort with left- or interval-censored observations; only the cohorts
+  selected with `population` or `treatments` are examined, so such
+  observations in the cohort that is not drawn do not stop the plot.
 - **[`plot_prior_posterior()`](https://choxos.github.io/mlumr/reference/plot_prior_posterior.md)**
   (exported; the `multinma` name) overlays the posterior of named
   parameters on the prior the fit records for each of them, including

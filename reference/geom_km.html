@@ -97,15 +97,18 @@ predicted-versus-observed figure is just
 <dt id="arg-treatments">treatments<a class="anchor" aria-label="anchor" href="#arg-treatments"></a></dt>
 <dd><p>Optional character vector of treatment labels to draw. By
 default both observed arms are drawn. This cannot separate the arms when
-both carry the same label, which <code><a href="combine_data.html">combine_data()</a></code> permits; use <code>population</code>
-there.</p></dd>
+both carry the same label; use <code>population</code> there. A label that names no
+observed arm is refused rather than drawn as nothing.</p></dd>
 
 
 <dt id="arg-population">population<a class="anchor" aria-label="anchor" href="#arg-population"></a></dt>
 <dd><p>Optional cohort to draw, <code>"Index"</code> and/or <code>"Comparator"</code>.
 Selects the arm itself rather than its display name, so
 <code>population = "Comparator"</code> overlays only the comparator KM on a
-comparator-population prediction whatever the treatments are called.</p></dd>
+comparator-population prediction whatever the treatments are called. Only
+the selected cohorts are examined: a left- or interval-censored
+observation in a cohort that is not drawn does not stop the plot, and one
+in a cohort that is drawn refuses it.</p></dd>
 
 
 <dt id="arg-marks">marks<a class="anchor" aria-label="anchor" href="#arg-marks"></a></dt>

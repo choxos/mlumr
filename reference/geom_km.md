@@ -31,9 +31,8 @@ geom_km(
 
   Optional character vector of treatment labels to draw. By default both
   observed arms are drawn. This cannot separate the arms when both carry
-  the same label, which
-  [`combine_data()`](https://choxos.github.io/mlumr/reference/combine_data.md)
-  permits; use `population` there.
+  the same label; use `population` there. A label that names no observed
+  arm is refused rather than drawn as nothing.
 
 - population:
 
@@ -41,6 +40,9 @@ geom_km(
   arm itself rather than its display name, so
   `population = "Comparator"` overlays only the comparator KM on a
   comparator-population prediction whatever the treatments are called.
+  Only the selected cohorts are examined: a left- or interval-censored
+  observation in a cohort that is not drawn does not stop the plot, and
+  one in a cohort that is drawn refuses it.
 
 - marks:
 
