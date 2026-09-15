@@ -160,6 +160,13 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 .ml-lesson .interpretation {grid-area:note;padding:12px 14px;border-radius:var(--radius-sm);background:var(--tint);font-size:14px;line-height:1.6;color:var(--ink)}
 .ml-lesson .extra {grid-area:extra;display:grid;gap:12px;min-width:0}
 .ml-lesson .extra p,.ml-lesson .extra li {font-size:14px;line-height:1.65;color:var(--ink-soft);max-width:80ch}
+.ml-lesson .extra details h3 {font-size:15px;margin:12px 0 4px}
+.ml-lesson .extra details .fit-table td {white-space:normal;text-align:left;font-family:var(--font-sans);vertical-align:top}
+.ml-lesson .extra details .fit-table th {text-align:left}
+.ml-lesson .cards {display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:8px 0}
+.ml-lesson .card {padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2)}
+.ml-lesson .card h3 {margin:0 0 4px}
+.ml-lesson .extra details button {min-height:36px;padding:4px 10px;font-size:13px;margin:2px 2px 2px 0}
 .ml-lesson .formula {white-space:pre-line;padding:12px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);font:14px/1.9 var(--font-mono);color:var(--ink);overflow-x:auto}
 /* Below 800px of lesson width the two columns would shrink chart text under
    11px, so the controls move above the charts instead. */

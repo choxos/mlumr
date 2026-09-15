@@ -159,7 +159,7 @@ The package handles four kinds of outcome: binary, continuous, counts and surviv
 
 A binary outcome is yes or no. Trial A gives each patient's result, and trial B gives its number of events and number of patients. The logit link is the default, with probit and complementary log-log as alternatives. Risk differences, risk ratios and log odds ratios are all built from risks averaged over the population.
 @cue(family = 1)
-A continuous outcome uses a normal model. Trial B must report its mean outcome and the standard error of that mean, not the standard deviation of individual patients. The covariate standard deviations are a different thing: they describe how the covariates are spread. Even with a log link, give trial B's mean and its standard error on the original scale, not the log scale. If a paper reports the standard deviation of a simple average of independent patients, divide it by the square root of the number of patients. An adjusted, weighted or clustered estimate needs its own standard error.
+A continuous outcome uses a normal model. Trial B must report its mean outcome and the standard error of that mean. Do not confuse this with the standard deviation of individual outcomes. For a simple unweighted mean of independent patients, divide the standard deviation of individual outcomes by the square root of the number of patients. If the paper already gives the standard error, use it as it is, without dividing again. An adjusted, weighted, clustered or repeated-measure estimate needs the standard error that belongs to its analysis. The mean must also describe what the model predicts for that row. An adjusted mean standardized to another population is a different quantity from the row's own mean, and a correct standard error does not repair a mismatched mean. The covariate standard deviations are a different thing: they describe how the covariates are spread. Even with a log link, give trial B's mean and its standard error on the original scale, not the log scale.
 @cue(family = 2)
 Counts need exposure, such as years of follow-up. The effect is a rate ratio, where one means no difference. Keep the exposure units the same in both trials. And if follow-up time depends on the covariates, trial B's covariate summaries should weight each patient by follow-up time, which ordinary published averages usually do not.
 @cue(family = 3)
@@ -231,7 +231,7 @@ Look at how the results depend on trial B's slope priors, on the target populati
 @cue(diagnostic = 5)
 The package records how many posterior draws it could actually use. Keep that count in your report. A survival median that falls beyond the time grid is a separate issue, reported as the chance that the median was not reached. Never quietly drop an inconvenient check, or present an incomplete summary as complete.
 @cue(diagnostic = 6)
-Finally, a better predictive score, such as L O O, only says which model predicts these observations better. It cannot tell you whether a hidden difference between the trials exists.
+Finally, a better predictive score, such as L O O, only says which model predicts these observations better. Compare two models by the paired difference of their pointwise scores and its standard error, not by whether two separate intervals overlap. It cannot tell you whether a hidden difference between the trials exists.
 Choose each problem, guess the next step, then reveal the explanation.
 
 @chapter(Report it well)
@@ -246,5 +246,5 @@ The research on this method describes extensions to more than two treatments. Th
 
 Before you report an analysis, name the treatments, the outcome, the target population and the effect scale. Explain where the data came from, how well the covariates overlap, and that the subgroups do not overlap. Say which covariate distributions and priors you used, and whether slopes were shared or separate. Show the sampling checks, the integration checks and the sensitivity analyses. For survival, state every time and every horizon.
 
-The chart shows what a good report gives: an estimate, its interval, and the population it applies to. To go further, the package website has an article for each outcome type, and the package ships four example datasets, on psoriasis, multiple myeloma, shoulder surgery and tooth decay. Test yourself with the five questions. Then revisit any chapter, and try to predict what will change before you move a control.
-Answer the five questions. Then pick a chapter whose chart you can now explain in your own words.
+The chart shows what a good report gives: an estimate, its interval, and the population it applies to. It comes from the companion script's native fits, not from the browser cell. To go further, the package website has an article for each outcome type, and the package ships four example datasets, on psoriasis, multiple myeloma, shoulder surgery and tooth decay. Test yourself with the ten questions, and read the capstone below them. Then revisit any chapter, and try to predict what will change before you move a control.
+Answer the ten questions. Then pick a chapter whose chart you can now explain in your own words.

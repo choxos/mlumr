@@ -1,7 +1,7 @@
 import type { PlainState, Schema } from '@tangible/core';
 import type { SceneContext, SceneInstance, SceneModule } from '@tangible/player';
 import { binary, logistic, quadrature, dependence, identification, survival, grid, random } from './math.js';
-import { labs, workflowSteps, families, survivalChoices, diagnosticCases, questions, checklist, cells } from './content.js';
+import { labs, workflowSteps, families, survivalChoices, diagnosticCases, questions, checklist, cells, routes, stopMap, likelihoodPanel, uncertaintyPanel, capstonePanel } from './content.js';
 import type { Lab } from './content.js';
 import { css } from './style.js';
 import { chapterNavigation, themeToggle } from './navigation.js';
@@ -28,7 +28,7 @@ export const schema: Schema = {
   time: scalar('Months of follow-up and RMST horizon', [0, 36], 12),
   heterogeneity: scalar('Marker effect on the log hazard', [0, 2.5], 1.8),
   diagnostic: scalar('Diagnostic problem', [0, 6], 0),
-  question: scalar('Knowledge check', [0, 4], 0),
+  question: scalar('Knowledge check', [0, 9], 0),
 };
 
 const fmt = (x: number, digits = 3) => x.toFixed(digits);
@@ -70,8 +70,9 @@ function evidence(s: Readonly<PlainState>) {
       { name: 'B, in trial B', value: c, key: 'b', text: pct(c) },
       { name: 'A, in the target', value: t.a, key: 'a', text: pct(t.a) },
       { name: 'B, in the target', value: t.b, key: 'b', text: pct(t.b) }]),
-    metric('Crude difference', fmt(a - c)) + metric('Target difference', fmt(t.rd)),
-    'Both differences are A minus B. The event is harmful, so a negative difference favors A. The crude difference mixes up the treatments with who was studied. The target difference compares both treatments in the same population.');
+    metric('Crude difference', fmt(a - c)) + metric('Target difference', fmt(t.rd)) + metric('In the target, per 100 patients', `${Math.abs(100 * t.rd).toFixed(1)} fewer under ${t.rd <= 0 ? 'A' : 'B'}`),
+    `Both differences are A minus B. The event is harmful, so a negative difference favors A. The crude difference mixes up the treatments with who was studied. The target difference compares both treatments in the same population: ${pct(t.a)} under A against ${pct(t.b)} under B, that is ${Math.abs(100 * t.rd).toFixed(1)} percentage points ${t.rd <= 0 ? 'lower' : 'higher'} under A, and a risk ratio of ${fmt(t.a / t.b, 2)}. Percentage points and percent are different things, and neither is an odds ratio.`,
+    routes);
 }
 
 function assumptions(s: Readonly<PlainState>) {
@@ -86,7 +87,7 @@ function assumptions(s: Readonly<PlainState>) {
   }),
   metric('True difference', fmt(base.rd)) + metric('Difference we would report', fmt(shifted.rd)) + metric('Error from the hidden difference', fmt(shifted.rd - base.rd)),
   'The hidden difference belongs to trial B, not to treatment B. Trial B has one intercept, and it soaks up both. No covariate adjustment can pull them apart.',
-  `<h3>What an unanchored comparison has to assume</h3><ul class="read-list"><li>The treatments, the outcome definition, the time origin and the follow-up mean the same thing in both trials.</li><li>The baseline covariates, measured before treatment, are enough for outcome predictions to carry from one trial to the other. These are the prognostic factors and effect modifiers, not everything recorded: adjusting for something the treatment itself changes, or for how patients were selected, can add bias.</li><li>The trials' covariates cover the target population, or any extrapolation is stated.</li><li>The outcome model and the assumed joint covariate distribution are close enough to the truth.</li><li>For survival, censoring and late entry meet the assumptions the likelihood needs. Coding censoring correctly does not show that it is unrelated to the outcome.</li></ul><p>Good sampling and precise integration establish none of these.</p>`);
+  stopMap + `<h3>What an unanchored comparison has to assume</h3><ul class="read-list"><li>The treatments, the outcome definition, the time origin and the follow-up mean the same thing in both trials.</li><li>The baseline covariates, measured before treatment, are enough for outcome predictions to carry from one trial to the other. These are the prognostic factors and effect modifiers, not everything recorded: adjusting for something the treatment itself changes, or for how patients were selected, can add bias.</li><li>The trials' covariates cover the target population, or any extrapolation is stated.</li><li>The outcome model and the assumed joint covariate distribution are close enough to the truth.</li><li>For survival, censoring and late entry meet the assumptions the likelihood needs. Coding censoring correctly does not show that it is unrelated to the outcome.</li></ul><p>Good sampling and precise integration establish none of these.</p>`);
 }
 
 function response(s: Readonly<PlainState>) {
@@ -102,7 +103,7 @@ function response(s: Readonly<PlainState>) {
   }),
   metric('Conditional odds ratio, marker absent', fmt(Math.exp(-.7))) + metric('Conditional odds ratio, marker present', fmt(Math.exp(gap1))),
   shared ? 'Shared slopes: the lines are parallel, so the gap between the treatments on the log odds scale is the same with and without the marker. That gap is a conditional log odds ratio. It compares the model\'s predictions for patients who share a marker status; it does not mean anyone was seen under both treatments.' : 'Separate slopes: the lines are not parallel, so the conditional odds ratio depends on the marker. On this scale, the marker now changes the treatment effect.',
-  `<p class="formula">log odds for A = −1.8 + 2.4 × marker<br>log odds for B = −1.1 + slope × marker</p>`);
+  `<p class="formula">log odds for A = −1.8 + 2.4 × marker<br>log odds for B = −1.1 + slope × marker</p>` + likelihoodPanel);
 }
 
 function integration(s: Readonly<PlainState>) {
@@ -256,7 +257,9 @@ function diagnosticChart(i: number) {
   if (i === 5) return barChart('Posterior draws requested and used (illustration)', 'Bars showing 1000 draws requested, 700 used and 300 dropped', [
     { name: 'draws requested', value: 1000, key: 'muted', text: '1,000' }, { name: 'draws used', value: 700, key: 'a', text: '700' }, { name: 'draws dropped', value: 300, key: 'warn', text: '300' }], 1000);
   return intervalChart('Predictive scores with ±2 standard errors (illustration)', 'Two overlapping intervals for expected log predictive density', [
-    { name: 'shared slopes', mean: -512, lo: -530, hi: -494, key: 'a' }, { name: 'separate slopes', mean: -508, lo: -528, hi: -488, key: 'b' }], [-540, -480], [-540, -520, -500, -480], [], v => String(v));
+    { name: 'shared slopes', mean: -512, lo: -530, hi: -494, key: 'a' }, { name: 'separate slopes', mean: -508, lo: -528, hi: -488, key: 'b' }], [-540, -480], [-540, -520, -500, -480], [], v => String(v))
+    + intervalChart('Paired difference of the pointwise scores (illustration)', 'One interval for the paired difference in expected log predictive density, separate minus shared slopes, with the no-difference line', [
+      { name: 'separate minus shared, ±2 SE', mean: 4, lo: -6, hi: 14, key: 'ink' }], [-10, 20], [-10, 0, 10, 20], [{ x: 0, text: 'no difference' }], v => String(v));
 }
 
 export function view(lab: Lab, s: Readonly<PlainState>) {
@@ -277,19 +280,19 @@ export function view(lab: Lab, s: Readonly<PlainState>) {
   if (lab === 'families') {
     const i = Math.round(Number(s.family)), f = families[i];
     return block(familyChart(i), '', f.scale,
-      `<h3>${f.name} outcomes</h3><p class="formula">${esc(f.equation)}</p>${code(f.input)}<p>${esc(f.effects)}</p><p>${esc(f.boundary)}</p>${i === 3 ? `<details><summary>Survival distributions and shapes</summary><p>${esc(survivalChoices)}</p></details>` : ''}`);
+      `<h3>${f.name} outcomes</h3>${i ? '<p class="run-where"><strong>Preview.</strong> The worked example, the browser fit and the native sensitivity run in this lesson are binary. This route is described from the package\'s documentation at the pinned commit and was not fitted here.</p>' : ''}<p class="formula">${esc(f.equation)}</p>${code(f.input)}<p>${esc(f.effects)}</p><p>${esc(f.boundary)}</p>${i === 3 ? `<details><summary>Survival distributions and shapes</summary><p>${esc(survivalChoices)}</p></details>` : ''}`);
   }
   if (lab === 'diagnostics') {
     const c = diagnosticCases[Math.round(Number(s.diagnostic))];
     return block(diagnosticChart(Math.round(Number(s.diagnostic))), '', '',
-      `<div class="case"><span class="eyebrow">A fit arrives on your desk</span><h3>${esc(c.symptom)}</h3><details><summary>Reveal interpretation and next action</summary><p class="interpretation">${esc(c.answer)}</p>${code(c.tool)}</details></div><p>Sampling, numerical integration, identification, model fit and comparable trials are separate questions. Passing one check says nothing about the others.</p>`);
+      `<div class="case"><span class="eyebrow">A fit arrives on your desk</span><h3>${esc(c.symptom)}</h3><details><summary>Reveal interpretation and next action</summary><p class="interpretation">${esc(c.answer)}</p>${code(c.tool)}</details></div><p>Sampling, numerical integration, identification, model fit and comparable trials are separate questions. Passing one check says nothing about the others.</p>` + uncertaintyPanel);
   }
   const qi = Math.round(Number(s.question)), q = questions[qi];
-  return block(intervalChart('What a report shows: estimate, interval and target', 'Risk difference in a made-up target population from the companion script fits, with the true value marked', [
+  return block(intervalChart('What a report shows: estimate, interval and target (native companion fits)', 'Risk difference in a made-up target population from the companion script fits, with the true value marked', [
     { name: 'Shared slopes (SPFA)', mean: -0.09132, lo: -0.16660, hi: -0.01359, key: 'a' },
     { name: 'Separate slopes (relaxed)', mean: -0.09105, lo: -0.17276, hi: -0.01359, key: 'b' }], [-.2, .05], [-.2, -.15, -.1, -.05, 0, .05], [{ x: -0.12408, text: 'true value' }, { x: 0, text: 'no difference' }]),
-  '', 'These are the companion script\'s real mlumr fits to made-up data, for a target population the script defines. Both intervals contain the true value. The separate slopes model is a little less certain, because trial B\'s slope has to be learned from three summaries.',
-  `<div class="case"><span class="eyebrow">Question ${qi + 1} of ${questions.length}</span><h3>${esc(q.q)}</h3><div class="answers">${q.options.map((a, i) => `<button type="button" data-answer="${i}">${esc(a)}</button>`).join('')}</div><p class="feedback" role="status" aria-live="polite"></p></div><details><summary>Checklist for your report</summary><ul class="read-list">${checklist.map(c => `<li>${esc(c)}</li>`).join('')}</ul></details><p><a href="sources.html" target="_blank" rel="noopener">Sources and scope</a> · <a href="transcript.html" target="_blank" rel="noopener">Narration transcript</a> · <a href="workflow.R" download>Companion R script</a> · <a href="https://choxos.github.io/mlumr/" target="_blank" rel="noopener">mlumr documentation</a></p>`);
+  '', 'These are the companion script\'s real mlumr fits to made-up data (workflow.R with --fit: simulated comparator rows, 512 integration points, four chains of 1000 kept draws, seed 2026), for the 400-row target the script defines. They are not the browser cell\'s fit, whose comparator rows, integration points and draws differ. Both 95% posterior intervals contain the true value. The separate slopes model is a little less certain, because trial B\'s slope has to be learned from three summaries.',
+  `<div class="case"><span class="eyebrow">Question ${qi + 1} of ${questions.length}</span><h3>${esc(q.q)}</h3><div class="answers">${q.options.map((a, i) => `<button type="button" data-answer="${i}">${esc(a)}</button>`).join('')}</div><p class="feedback" role="status" aria-live="polite"></p></div><details><summary>Checklist for your report</summary><ul class="read-list">${checklist.map(c => `<li>${esc(c)}</li>`).join('')}</ul></details>${capstonePanel}<p><a href="sources.html" target="_blank" rel="noopener">Sources and scope</a> · <a href="transcript.html" target="_blank" rel="noopener">Narration transcript</a> · <a href="workflow.R" download>Companion R script</a> · <a href="https://choxos.github.io/mlumr/" target="_blank" rel="noopener">mlumr documentation</a></p>`);
 }
 
 const moon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>';
@@ -386,6 +389,12 @@ export const scene: SceneModule = {
           writeParameter(key, schema[key].default);
         });
         if (current === 'workflow') writeParameter('step', schema.step.default);
+      }
+      if (button.dataset.goto && button.dataset.goto in labs) {
+        exploration = button.dataset.goto === narratedState.scene ? null : { ...defaults, scene: button.dataset.goto };
+        draw();
+        (root.querySelector('h1') as HTMLElement).focus({ preventScroll: true });
+        return;
       }
       if (button.dataset.playChapter !== undefined && audio && current && current in chapterStart) {
         audio.currentTime = chapterStart[current];
