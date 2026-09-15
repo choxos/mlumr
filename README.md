@@ -52,6 +52,8 @@ TANGIBLE_DIR=/path/to/tangible node browser-qa.mjs http://127.0.0.1:4174
 
 The script plays the narration, visits every chapter, moves every control, answers every question, switches themes, runs the R cells and browser Stan fits of both models, and checks tablet, landscape phone, portrait phone and 200% zoom sizes. After `lesson.sh adapter`, it also checks that the browser's Stan data equal the native ones. It writes screenshots and a JSON record to `qa-artifacts/`. Add `--no-runtime` to skip the webR and Stan checks when offline.
 
+`.github/workflows/deploy-lesson.yaml` runs the same checks on every pull request into `lesson` and before every deployment: `lesson.sh test`, `dist-manifest.mjs verify dist`, `verify-models.mjs` against the Stan programs of the pinned mlumr commit, and `browser-qa.mjs --no-runtime` on the committed `dist/` in Playwright's Chromium (`QA_BROWSER_CHANNEL=` chooses it instead of installed Chrome). The screenshots and JSON record are kept as the `browser-qa` workflow artifact. The webR and Stan runtime checks and `lesson.sh adapter` still run locally.
+
 ## Chapters
 
 | Chapter | What you do | What you see |
