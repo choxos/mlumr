@@ -31,7 +31,7 @@ export function chapterNavigation(root: HTMLElement, overlay: HTMLElement, choos
   const nav = document.createElement('nav');
   nav.className = 'ml-chapter-nav';
   nav.setAttribute('aria-label', 'Lesson chapters');
-  nav.innerHTML = `<button type="button" data-direction="-1" aria-label="Previous chapter">‹</button><span class="chapter-count" aria-live="polite"></span><button type="button" data-direction="1" aria-label="Next chapter">›</button><details class="chapter-menu"><summary><i class="menu-icon" aria-hidden="true"></i><span class="menu-text">Chapters</span></summary><div class="chapter-list"><p>Open any chapter. The narration keeps playing where it is.</p>${entries.map(([key, [title]], i) => `<button type="button" data-chapter="${key}"><span>${String(i + 1).padStart(2, '0')}</span>${title}</button>`).join('')}</div></details>`;
+  nav.innerHTML = `<button type="button" data-direction="-1" aria-label="Previous chapter">‹</button><span class="chapter-count" aria-live="polite"></span><button type="button" data-direction="1" aria-label="Next chapter">›</button><details class="chapter-menu"><summary><i class="menu-icon" aria-hidden="true"></i><span class="menu-text">Chapters</span></summary><div class="chapter-list"><p>Open any chapter. The narration keeps playing where it is.</p>${entries.map(([key, [title]], i) => `<button type="button" data-chapter="${key}"><span>${String(i + 1).padStart(2, '0')}</span>${title}</button>`).join('')}<a class="menu-transcript" href="transcript.html" target="_blank" rel="noopener">Transcript of the narration</a></div></details>`;
   root.querySelector('.ml-header .brand')!.after(nav);
   const menu = nav.querySelector('details')!;
   const summary = menu.querySelector('summary')!;

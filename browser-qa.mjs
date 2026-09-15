@@ -332,6 +332,17 @@ try {
   }
   // Native code examples and prose can be selected and copied.
   await choose(page, 'workflow');
+  // The function names under the workflow steps must not run into each other.
+  {
+    const labels = await page.locator('.node text.label').evaluateAll(ts => ts.map(t => { const b = t.getBoundingClientRect(); return { text: t.textContent, left: b.left, right: b.right, top: b.top, bottom: b.bottom }; }));
+    assert.equal(labels.length, 6);
+    for (const a of labels) for (const b of labels) {
+      if (a === b) continue;
+      const apart = a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top;
+      assert(apart, `Step labels overlap: ${a.text} and ${b.text}`);
+    }
+    evidence.push({ stepLabels: labels.map(l => l.text) });
+  }
   const codeBlock = page.locator('.extra .code-block').first();
   const codeText = await codeBlock.locator('code').evaluate(el => el.textContent);
   const box = await codeBlock.locator('pre').boundingBox();
@@ -346,9 +357,10 @@ try {
   await page.evaluate(() => getSelection().removeAllRanges());
   await codeBlock.locator('.copy').click();
   const copied = await page.waitForFunction(() => document.querySelector('.extra .code-block .copy')?.textContent === 'Copied', null, { timeout: 3000 }).then(() => true, () => false);
-  const clipboard = copied ? await page.evaluate(() => navigator.clipboard.readText()).catch(() => null) : null;
+  assert(copied, 'The Copy button must complete the clipboard write');
+  const clipboard = await page.evaluate(() => navigator.clipboard.readText()).catch(() => null);
   if (clipboard !== null) assert.equal(clipboard, codeText, 'The copied text is the shown code, line breaks included');
-  evidence.push({ codeSelectable: true, proseSelectable: true, copyButton: clipboard !== null ? 'clipboard matches the code' : copied ? 'copied, clipboard not readable here' : 'clipboard unavailable in this browser' });
+  evidence.push({ codeSelectable: true, proseSelectable: true, copyButton: clipboard !== null ? 'clipboard matches the code' : 'copied, clipboard not readable here' });
   // Themes: the switch flips the color scheme, remembers the choice, and every chart restyles.
   const scheme = () => page.evaluate(() => getComputedStyle(document.documentElement).colorScheme);
   const themeButton = page.getByRole('button', { name: 'Dark theme', exact: true });
@@ -470,6 +482,10 @@ try {
     if (!sceneOnly) assert(await page.locator('audio').evaluate(a => a.paused), 'Reset must preserve an explicitly paused state');
     const overflow = await page.locator('.ml-lesson').evaluate(el => el.scrollWidth > el.clientWidth + 1);
     assert(!overflow, `horizontal overflow at ${width}x${height}`);
+    // The transcript stays reachable at every size: from the header above
+    // 640 px, and from the chapter menu everywhere.
+    const headerTranscript = await page.locator('.header-tools .transcript-link').isVisible();
+    assert.equal(headerTranscript, width > 640, `header Transcript link at ${width}x${height}`);
     // Readability target: chart tick text renders at 11 CSS pixels or more,
     // measured as the SVG font size times the drawing's screen scale.
     const tick = await page.locator('.visual svg text.tick').first().evaluate(el => ({ fontPx: parseFloat(getComputedStyle(el).fontSize) * el.ownerSVGElement.getScreenCTM().a, boxHeight: el.getBoundingClientRect().height }));
@@ -478,6 +494,7 @@ try {
     assert.equal(await accessibleName('.chapter-menu > summary'), 'Chapters', `chapter menu name at ${width}x${height}`);
     await page.locator('.chapter-menu > summary').click();
     assert(await page.locator('.chapter-menu').evaluate(el => el.open));
+    assert(await page.locator('.chapter-list .menu-transcript').isVisible(), `Transcript link missing from the open chapter menu at ${width}x${height}`);
     assert.equal(await accessibleName('.chapter-menu > summary'), 'Chapters', `open chapter menu name at ${width}x${height}`);
     await page.keyboard.press('Escape');
     assert(!(await page.locator('.chapter-menu').evaluate(el => el.open)));

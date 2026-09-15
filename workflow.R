@@ -125,14 +125,27 @@ record$benchmarks <- list(naive_lor = interval_of(naive_result), stc_lor = inter
 # Runnable check of the lesson's nonlinearity mechanism.
 stopifnot(abs(known_risks["A"] - plogis(-0.8 + 0.8 * mean(target$x))) > 0.001)
 
+# A fit that lost a chain keeps the surviving draws, so its summaries would
+# describe fewer chains than requested. Nothing incomplete is recorded.
+complete <- function(fit) {
+  d <- fit$diagnostics
+  if (!identical(as.integer(d$n_chains_returned), as.integer(d$n_chains_requested))) {
+    stop(sprintf("Only %d of %d chains returned; the fit is not recorded.", d$n_chains_returned, d$n_chains_requested))
+  }
+  if (is.null(fit$chain_ids) || length(fit$chain_ids) != nrow(fit$draws)) {
+    stop("The fit carries no per-draw chain labels matching its draws.")
+  }
+  fit
+}
+
 if ("--fit" %in% args) {
   for (model in c("spfa", "relaxed")) {
     cat("\nFitting", model, "with", engine, "\n")
-    fit <- mlumr(dat, model = model, link = "logit", engine = engine,
-                 prior_intercept = prior_normal(0, 2.5),
-                 prior_beta = prior_normal(0, 1),
-                 chains = 4, iter = 2000, warmup = 1000, seed = 2026,
-                 adapt_delta = 0.95, refresh = 0, verbose = FALSE)
+    fit <- complete(mlumr(dat, model = model, link = "logit", engine = engine,
+                          prior_intercept = prior_normal(0, 2.5),
+                          prior_beta = prior_normal(0, 1),
+                          chains = 4, iter = 2000, warmup = 1000, seed = 2026,
+                          adapt_delta = 0.95, refresh = 0, verbose = FALSE))
     # mlumr() checks the chains itself and warns; summary() prints those checks again.
     summary(fit)
     cat("\nAbsolute risks standardized to each built-in population:\n")
@@ -147,7 +160,7 @@ if ("--fit" %in% args) {
     print(target_effect)
     stopifnot(all(is.finite(target_effect$mean)))
     record$fit[[model]] <- list(
-      n_int = 512L, chains = 4L, kept_draws = 4000L, seed = 2026L,
+      n_int = 512L, chains = fit$diagnostics$n_chains_returned, kept_draws = nrow(fit$draws), seed = 2026L,
       divergences = fit$diagnostics$n_divergent, max_rhat = max(fit$summary$Rhat, na.rm = TRUE),
       target_rd = list(mean = target_effect$mean[1], lower = target_effect$q2.5[1], upper = target_effect$q97.5[1])
     )
@@ -167,19 +180,22 @@ if ("--sensitivity" %in% args) {
   if (!requireNamespace("posterior", quietly = TRUE)) stop("Install posterior for --sensitivity.")
   chains <- 4L
   fit_with <- function(data, model, comparator_scale = 1) {
-    mlumr(data, model = model, link = "logit", engine = engine,
-          prior_intercept = prior_normal(0, 2.5),
-          prior_beta = prior_normal(0, 1),
-          prior_beta_comparator = prior_normal(0, comparator_scale),
-          chains = chains, iter = 2000, warmup = 1000, seed = 2026,
-          adapt_delta = 0.95, refresh = 0, verbose = FALSE)
+    complete(mlumr(data, model = model, link = "logit", engine = engine,
+                   prior_intercept = prior_normal(0, 2.5),
+                   prior_beta = prior_normal(0, 1),
+                   prior_beta_comparator = prior_normal(0, comparator_scale),
+                   chains = chains, iter = 2000, warmup = 1000, seed = 2026,
+                   adapt_delta = 0.95, refresh = 0, verbose = FALSE))
   }
   # Posterior mean, its Monte Carlo standard error, and the 95% interval of
-  # the target risk difference. The draws come back chain after chain, so
-  # they are folded into an iterations by chains matrix for the MCSE.
+  # the target risk difference. One draw per row of the fit's draws, folded
+  # into an iterations by chains matrix by the fit's own chain labels.
   target_rd <- function(fit, newdata = target) {
     draws <- marginal_effects(fit, newdata = newdata, effect = "rd", summary = FALSE)$rd_target
-    m <- matrix(draws, ncol = chains)
+    stopifnot(length(draws) == length(fit$chain_ids))
+    parts <- split(draws, fit$chain_ids)
+    stopifnot(length(unique(lengths(parts))) == 1L)
+    m <- do.call(cbind, parts)
     c(mean = mean(draws), mcse = posterior::mcse_mean(m), ess_bulk = posterior::ess_bulk(m),
       lower = unname(stats::quantile(draws, 0.025)), upper = unname(stats::quantile(draws, 0.975)))
   }

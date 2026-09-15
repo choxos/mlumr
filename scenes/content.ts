@@ -46,7 +46,7 @@ export const workflowSteps = [
     text: 'mlumr() checks the chains when it finishes and warns about divergences, R-hat and effective sample size. summary(fit) shows them again. Good sampling does not show that the model is right or that the trials are comparable, so also compare each posterior with its prior and refit with other prior scales. prior_sensitivity() refits the model several times, so it takes a while.',
   },
   {
-    name: 'Report', detail: 'predict()', title: 'Step 6. Compare in one population',
+    name: 'Report', detail: 'marginal_effects()', title: 'Step 6. Compare in one population',
     code: 'marginal_effects(fit, population = "both", effect = "rd")\nmarginal_effects(fit, newdata = target, effect = "lor")\nconditional_effects(fit, newdata = profiles)\npredict(fit, type = "response")\nplot(marginal_effects(fit))\nstc(dat)\nnaive(dat)',
     text: 'marginal_effects() compares both treatments in one population: trial A\'s, trial B\'s, or a target you pass as newdata, where every row counts equally. effect = "lor" is a log odds ratio. For odds ratio summaries, ask for summary = FALSE and exponentiate each draw first. stc() and naive() are quick benchmarks that answer different questions.',
   },

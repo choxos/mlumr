@@ -16845,7 +16845,7 @@
     },
     {
       name: "Report",
-      detail: "predict()",
+      detail: "marginal_effects()",
       title: "Step 6. Compare in one population",
       code: 'marginal_effects(fit, population = "both", effect = "rd")\nmarginal_effects(fit, newdata = target, effect = "lor")\nconditional_effects(fit, newdata = profiles)\npredict(fit, type = "response")\nplot(marginal_effects(fit))\nstc(dat)\nnaive(dat)',
       text: `marginal_effects() compares both treatments in one population: trial A's, trial B's, or a target you pass as newdata, where every row counts equally. effect = "lor" is a log odds ratio. For odds ratio summaries, ask for summary = FALSE and exponentiate each draw first. stc() and naive() are quick benchmarks that answer different questions.`
@@ -17192,6 +17192,8 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 .ml-lesson .chapter-list button[aria-current=step] {background:var(--tint);color:var(--accent-strong);font-weight:650}
 .ml-lesson .chapter-list button[data-narrated=true]::after {content:"Narration here";margin-left:auto;font-size:11px;font-weight:650;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:2px 8px}
 .ml-lesson .chapter-list button:hover {background:var(--surface-3)}
+.ml-lesson .chapter-list .menu-transcript {display:flex;align-items:center;min-height:42px;margin-top:6px;padding:0 10px;border-top:1px solid var(--border);color:var(--accent-strong);font-size:14px;font-weight:600;text-decoration:none}
+.ml-lesson .chapter-list .menu-transcript:hover {background:var(--surface-3)}
 .ml-lesson .narration-return {display:flex;align-items:center;justify-content:space-between;gap:16px;margin-right:var(--board-w);padding:6px 22px;background:var(--tint);border-bottom:1px solid var(--border);flex-shrink:0}
 .ml-lesson .narration-return[hidden] {display:none}
 .ml-lesson .narration-return span {font-size:13px;color:var(--ink-soft);min-width:0}
@@ -17354,7 +17356,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 }
 .ml-lesson .sr-only {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 
-@media (max-width:1100px) { .ml-lesson .brand-tag,.ml-lesson .header-tools a {display:none} .ml-lesson .lab-scroll {padding:16px 18px 22px} .ml-lesson .ml-header {padding:0 14px} }
+@media (max-width:1100px) { .ml-lesson .brand-tag,.ml-lesson .header-tools a:not(.transcript-link) {display:none} .ml-lesson .lab-scroll {padding:16px 18px 22px} .ml-lesson .ml-header {padding:0 14px} }
 @media (max-width:900px), (max-height:500px) {
   :root {--header-h:52px;--chrome-h:48px;--captions-h:40px;--board-w:24%}
   .ml-lesson .brand-tag {display:none}
@@ -17383,6 +17385,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
   .ml-lesson .chapter-list {position:fixed;top:calc(var(--header-h) + 4px);left:16px;right:16px;width:auto;transform:none}
   .ml-lesson .theme-toggle {min-width:44px;padding:0 13px;justify-content:center}
   .ml-lesson .theme-toggle .theme-track {display:none}
+  .ml-lesson .header-tools .transcript-link {display:none}
   .ml-lesson .chapter-count {min-width:44px;font-size:12px}
 }
 @media (max-width:360px) {
@@ -17430,7 +17433,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     const nav = document.createElement("nav");
     nav.className = "ml-chapter-nav";
     nav.setAttribute("aria-label", "Lesson chapters");
-    nav.innerHTML = `<button type="button" data-direction="-1" aria-label="Previous chapter">\u2039</button><span class="chapter-count" aria-live="polite"></span><button type="button" data-direction="1" aria-label="Next chapter">\u203A</button><details class="chapter-menu"><summary><i class="menu-icon" aria-hidden="true"></i><span class="menu-text">Chapters</span></summary><div class="chapter-list"><p>Open any chapter. The narration keeps playing where it is.</p>${entries.map(([key, [title]], i3) => `<button type="button" data-chapter="${key}"><span>${String(i3 + 1).padStart(2, "0")}</span>${title}</button>`).join("")}</div></details>`;
+    nav.innerHTML = `<button type="button" data-direction="-1" aria-label="Previous chapter">\u2039</button><span class="chapter-count" aria-live="polite"></span><button type="button" data-direction="1" aria-label="Next chapter">\u203A</button><details class="chapter-menu"><summary><i class="menu-icon" aria-hidden="true"></i><span class="menu-text">Chapters</span></summary><div class="chapter-list"><p>Open any chapter. The narration keeps playing where it is.</p>${entries.map(([key, [title]], i3) => `<button type="button" data-chapter="${key}"><span>${String(i3 + 1).padStart(2, "0")}</span>${title}</button>`).join("")}<a class="menu-transcript" href="transcript.html" target="_blank" rel="noopener">Transcript of the narration</a></div></details>`;
     root.querySelector(".ml-header .brand").after(nav);
     const menu = nav.querySelector("details");
     const summary = menu.querySelector("summary");
@@ -17601,11 +17604,11 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     return card(title, `<svg viewBox="0 0 ${W} ${h2}" role="img" aria-label="${esc(label)}">${s2}</svg>${describe(summary)}`);
   }
   function flowChart(title, steps, current) {
-    const n = steps.length, gap = 12, w2 = (W - gap * (n - 1)) / n, h2 = 110;
+    const n = steps.length, gap = 12, w2 = (W - gap * (n - 1)) / n, h2 = 128;
     const s2 = steps.map((st, i3) => {
-      const x2 = i3 * (w2 + gap);
+      const x2 = i3 * (w2 + gap), labelY = 100 + i3 % 2 * 18;
       const arrow = i3 < n - 1 ? `<path class="axis" d="M${x2 + w2 + 1} 46h${gap - 3}" stroke-width="2"/><path class="k-muted" d="M${x2 + w2 + gap - 1} 46l-5 -4v8z"/>` : "";
-      return `<g class="node${i3 === current ? " on" : ""}" data-step="${i3}"><title>Go to step ${i3 + 1}, ${esc(st.name)}</title><rect x="${x2}" y="10" width="${w2}" height="72" rx="9"/><text x="${x2 + w2 / 2}" y="36" text-anchor="middle" font-size="12" font-family="var(--font-mono)">${String(i3 + 1).padStart(2, "0")}</text><text x="${x2 + w2 / 2}" y="58" text-anchor="middle" font-size="14" font-weight="650">${esc(st.name)}</text><text class="label" x="${x2 + w2 / 2}" y="100" text-anchor="middle" font-size="12" font-family="var(--font-mono)">${esc(st.detail)}</text></g>${arrow}`;
+      return `<g class="node${i3 === current ? " on" : ""}" data-step="${i3}"><title>Go to step ${i3 + 1}, ${esc(st.name)}</title><rect x="${x2}" y="10" width="${w2}" height="72" rx="9"/><text x="${x2 + w2 / 2}" y="36" text-anchor="middle" font-size="12" font-family="var(--font-mono)">${String(i3 + 1).padStart(2, "0")}</text><text x="${x2 + w2 / 2}" y="58" text-anchor="middle" font-size="14" font-weight="650">${esc(st.name)}</text><text class="label" x="${x2 + w2 / 2}" y="${labelY}" text-anchor="middle" font-size="12" font-family="var(--font-mono)">${esc(st.detail)}</text></g>${arrow}`;
     }).join("");
     return card(title, `<svg viewBox="0 0 ${W} ${h2}" role="img" aria-label="${esc(`Analysis steps; step ${current + 1}, ${steps[current].name}, is highlighted`)}">${s2}</svg>`);
   }
@@ -18669,8 +18672,8 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       commit: "4cfd3660f56e22668ae357bde3df4b30cacb23a5",
       dirty: false
     },
-    script_sha256: "e376f846a20a83ef8e4ac7746897f9223524444487ce8be985fcdef080d005d8",
-    run: "2026-09-15T09:52:02-0400"
+    script_sha256: "89a21ed9584c82852ab931bdcbf336d11d4dc6208a986e38a3a100bf71901207",
+    run: "2026-09-15T10:06:21-0400"
   };
 
   // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/scene.ts
@@ -19085,7 +19088,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       root.className = "ml-lesson";
       const style = document.createElement("style");
       style.textContent = css;
-      root.innerHTML = `<header class="ml-header"><a class="brand" href="https://choxos.github.io/mlumr/" target="_blank" rel="noopener">mlumr<span class="brand-tag">Lesson</span></a><div class="header-tools"><a href="transcript.html" target="_blank" rel="noopener">Transcript</a><a href="sources.html" target="_blank" rel="noopener">Sources</a><button type="button" class="theme-toggle" aria-label="Dark theme" aria-pressed="false">${moon}<span class="theme-label">Light</span><span class="theme-track" aria-hidden="true"><span class="theme-thumb"></span></span></button></div></header><div class="lab-scroll"><div class="lab-title"><div><span class="eyebrow"></span><h1 tabindex="-1"></h1><p class="question"></p></div><div class="lab-actions"><button type="button" class="play-here" data-play-chapter hidden title="Seek the narration to the start of this chapter and play it.">Play this chapter</button><button type="button" class="reset" data-reset title="Restore this chapter's starting control values. The narration and your code are not affected.">Reset controls</button></div></div><div class="lab-body"><div class="visual"></div><aside class="lab-controls" aria-label="Experiment controls"></aside></div><div class="code-slot"></div><footer>Teaching models with made-up numbers. The code cells run real R, and the cell in the Run mlumr chapter runs real mlumr code and its Stan model, all in your browser. mlumr development version 0.1.0.9000, working toward 0.2.0.</footer></div>`;
+      root.innerHTML = `<header class="ml-header"><a class="brand" href="https://choxos.github.io/mlumr/" target="_blank" rel="noopener">mlumr<span class="brand-tag">Lesson</span></a><div class="header-tools"><a class="transcript-link" href="transcript.html" target="_blank" rel="noopener">Transcript</a><a href="sources.html" target="_blank" rel="noopener">Sources</a><button type="button" class="theme-toggle" aria-label="Dark theme" aria-pressed="false">${moon}<span class="theme-label">Light</span><span class="theme-track" aria-hidden="true"><span class="theme-thumb"></span></span></button></div></header><div class="lab-scroll"><div class="lab-title"><div><span class="eyebrow"></span><h1 tabindex="-1"></h1><p class="question"></p></div><div class="lab-actions"><button type="button" class="play-here" data-play-chapter hidden title="Seek the narration to the start of this chapter and play it.">Play this chapter</button><button type="button" class="reset" data-reset title="Restore this chapter's starting control values. The narration and your code are not affected.">Reset controls</button></div></div><div class="lab-body"><div class="visual"></div><aside class="lab-controls" aria-label="Experiment controls"></aside></div><div class="code-slot"></div><footer>Teaching models with made-up numbers. The code cells run real R, and the cell in the Run mlumr chapter runs real mlumr code and its Stan model, all in your browser. mlumr development version 0.1.0.9000, working toward 0.2.0.</footer></div>`;
       ctx.overlay.append(style, root);
       const disposeTheme = themeToggle(root.querySelector(".theme-toggle"));
       const player = ctx.overlay.parentElement;
