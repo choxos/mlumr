@@ -3,7 +3,7 @@
 export type Key = 'a' | 'b' | 'ink' | 'muted' | 'accent' | 'warn';
 export type Point = [number, number];
 
-const W = 600, H = 290, L = 52, R = 18, T = 16, B = 44;
+const W = 600, H = 290, L = 66, R = 18, T = 16, B = 44;
 const esc = (s: string) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 const finite = (p: Point) => Number.isFinite(p[0]) && Number.isFinite(p[1]);
 const exact = (v: number) => (Number.isFinite(v) ? String(Number(v.toPrecision(4))) : 'not available');
@@ -114,7 +114,7 @@ export function intervalChart(title: string, label: string, rows: { name: string
     ticks = niceTicks(Math.min(range[0], ...values), Math.max(range[1], ...values));
     range = [ticks[0], ticks[ticks.length - 1]];
   }
-  const rowH = 44, top = 26, h = top + rows.length * rowH + 34, x0 = 170, x1 = W - 20;
+  const rowH = 44, top = 26, h = top + rows.length * rowH + 34, x0 = 190, x1 = W - 20;
   const X = (v: number) => x0 + (x1 - x0) * (v - range[0]) / (range[1] - range[0]);
   let s = ticks.map(t => `<line class="grid" x1="${X(t)}" x2="${X(t)}" y1="${top - 6}" y2="${h - 30}"/><text class="tick" x="${X(t)}" y="${h - 12}" text-anchor="middle">${fmt(t)}</text>`).join('');
   s += refs.filter(r => Number.isFinite(r.x)).map(r => `<line class="axis dash" x1="${X(r.x)}" x2="${X(r.x)}" y1="${top - 12}" y2="${h - 30}"/><text class="ann-soft" x="${X(r.x)}" y="${top - 14}" text-anchor="middle">${esc(r.text)}</text>`).join('');
@@ -133,7 +133,7 @@ export function flowChart(title: string, steps: { name: string; detail: string }
   const s = steps.map((st, i) => {
     const x = i * (w + gap);
     const arrow = i < n - 1 ? `<path class="axis" d="M${x + w + 1} 46h${gap - 3}" stroke-width="2"/><path class="k-muted" d="M${x + w + gap - 1} 46l-5 -4v8z"/>` : '';
-    return `<g class="node${i === current ? ' on' : ''}" data-step="${i}"><title>Go to step ${i + 1}, ${esc(st.name)}</title><rect x="${x}" y="10" width="${w}" height="72" rx="9"/><text x="${x + w / 2}" y="36" text-anchor="middle" font-size="11" font-family="var(--font-mono)">${String(i + 1).padStart(2, '0')}</text><text x="${x + w / 2}" y="58" text-anchor="middle" font-size="13" font-weight="650">${esc(st.name)}</text><text class="label" x="${x + w / 2}" y="100" text-anchor="middle" font-size="10.5" font-family="var(--font-mono)">${esc(st.detail)}</text></g>${arrow}`;
+    return `<g class="node${i === current ? ' on' : ''}" data-step="${i}"><title>Go to step ${i + 1}, ${esc(st.name)}</title><rect x="${x}" y="10" width="${w}" height="72" rx="9"/><text x="${x + w / 2}" y="36" text-anchor="middle" font-size="12" font-family="var(--font-mono)">${String(i + 1).padStart(2, '0')}</text><text x="${x + w / 2}" y="58" text-anchor="middle" font-size="14" font-weight="650">${esc(st.name)}</text><text class="label" x="${x + w / 2}" y="100" text-anchor="middle" font-size="12" font-family="var(--font-mono)">${esc(st.detail)}</text></g>${arrow}`;
   }).join('');
   return card(title, `<svg viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(`Analysis steps; step ${current + 1}, ${steps[current].name}, is highlighted`)}">${s}</svg>`);
 }

@@ -3,7 +3,7 @@
 import { mean, quantile } from './math.js';
 import { rhat, essBulk, essTail, mcseMean } from './diagnostics.js';
 
-const WEBR_URL = 'https://webr.r-wasm.org/v0.6.0/webr.mjs';
+export const WEBR_URL = 'https://webr.r-wasm.org/v0.6.0/webr.mjs';
 export const R_PACKAGES = ['randtoolbox', 'jsonlite', 'detectseparation'];
 const site = (path: string) => new URL(path, document.baseURI).href;
 

@@ -1,6 +1,6 @@
 // A runnable R cell. Plain cells run base R in webR; the mlumr cell also loads
 // the package's R code and can fit the real mlumr Stan model with TinyStan.
-import { runR, prepareFit, fitStan, restartR, rSession, type Line, type Fit, type Benchmark, type Prepared } from './runner.js';
+import { runR, prepareFit, fitStan, restartR, rSession, WEBR_URL, R_PACKAGES, type Line, type Fit, type Benchmark, type Prepared } from './runner.js';
 import { lineChart } from './charts.js';
 
 export interface Cell { intro: string; code: string; mlumr?: boolean }
@@ -21,8 +21,10 @@ const MODEL: Record<Model, string> = { spfa: 'shared slopes (SPFA)', relaxed: 's
  * coming back restores the draft, the console and the last fit. `revision`
  * counts edits; `prepared` is the revision whose Run created the `dat` that Fit samples, and
  * `preparedIn` the R session that holds it, `preparedBy` the Run that created it.
- * `fitData` is the Run whose `dat` the shown fit sampled. */
-interface Saved { code: string; revision: number; prepared: number | null; preparedIn?: number; preparedBy?: number; run: number; model: Model; console: string; fit: string; fitRevision: number; fitData?: number; record?: object }
+ * `fitData` is the Run whose `dat` the shown fit sampled. `activeFit` is the
+ * fit most recently started for this cell, in any mount: only that fit may
+ * write a result, so a cancelled older fit that finishes late changes nothing. */
+interface Saved { code: string; revision: number; prepared: number | null; preparedIn?: number; preparedBy?: number; run: number; model: Model; console: string; fit: string; fitRevision: number; fitData?: number; record?: object; activeFit?: number }
 const saved = new Map<string, Saved>();
 /** The refresh of the cell mounted for each key, so a Run or fit that outlives
  * the mount it started in still updates the one on screen. */
@@ -30,7 +32,8 @@ const mounted = new Map<string, () => void>();
 let runs = 0;
 
 /** For tests. */
-export const resetSavedCells = () => { saved.clear(); mounted.clear(); runs = 0; };
+export const resetSavedCells = () => { saved.clear(); mounted.clear(); runs = 0; provenanceReady = undefined; };
+export const savedRecord = (key: string) => saved.get(key)?.record as { run: number; code: string; provenance: unknown } | undefined;
 
 function render(lines: Line[]) {
   return lines.map(({ kind, text }) => {
@@ -99,7 +102,29 @@ function fitView(spec: { run: number; model: Model; revision: number }, prepared
     ${notes.length ? `<h3 class="checks-title">What mlumr() reported while preparing the data</h3><ul class="bench-notes">${notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
     <h3 class="checks-title">Benchmarks</h3><ul class="benchmarks">${benchmarkView('STC', 'trial A\'s model averaged over trial B\'s population, compared with B\'s observed outcome, a point estimate on the log odds ratio scale', stc)}${benchmarkView('Naive', 'the two trials compared as they are, in different populations, a point estimate on the log odds ratio scale', naive)}</ul>
     <p>${fit.chains} chains returned ${fit.samplesPerChain} kept draws each (${fit.draws} in total) after ${fit.warmup} warmup iterations, with seed 2026, adapt_delta 0.95 and maximum tree depth ${fit.diagnostics.maxTreedepth}, in ${fit.seconds.toFixed(1)} seconds${fit.stanVersion ? ` with Stan ${esc(fit.stanVersion)}` : ''}. This browser demonstration requests two chains; the companion R script requests four, and a native summary reports the diagnostics of the chains a fit actually returned. This is a small teaching run: check a native fit before relying on any of these numbers.</p>
+    <details class="record-contents"><summary>What the run record contains</summary><p>A JSON file with: the lesson build, the mlumr and Tangible commits, the compiled Stan model and its SHA-256, the TinyStan and webR versions and R packages; the R code exactly as it ran and its SHA-256; the Stan data that mlumr() prepared and their SHA-256; the sampler settings; the posterior mean, interval, MCSE, R-hat and ESS of the four reported quantities; the sampling checks; the benchmarks with their warnings; and your browser's user agent string. It does not contain the posterior draws or any data other than the dat this code built.</p></details>
     <p><button type="button" data-act="record">Download the run record</button></p>`;
+}
+
+/** The build, package and model identity a run record carries, read once from
+ * the built site. Unavailable when the cell runs outside a built site. */
+interface Provenance { lesson: object; models: Record<string, object>; tinystan?: string }
+let provenanceReady: Promise<Provenance> | undefined;
+function provenance(): Promise<Provenance | { unavailable: string }> {
+  provenanceReady ??= (async () => {
+    const get = async (path: string) => {
+      const response = await fetch(new URL(path, document.baseURI));
+      if (!response.ok) throw new Error(`${path} returned ${response.status}`);
+      return response.json();
+    };
+    const [build, models] = await Promise.all([get('build-manifest.json'), get('stan/manifest.json')]);
+    return {
+      lesson: { build: build.id, mlumr_commit: build.pins?.mlumr, tangible_commit: build.pins?.tangible, source: 'https://github.com/choxos/mlumr/tree/lesson' },
+      models: models.models ?? {},
+      tinystan: models.tinystan,
+    } as Provenance;
+  })();
+  return provenanceReady.catch(error => { provenanceReady = undefined; return { unavailable: error instanceof Error ? error.message : String(error) }; });
 }
 
 async function sha256(text: string) {
@@ -211,11 +236,16 @@ export function mountCell(slot: HTMLElement, cell: Cell, key: string, onActivity
     if (busy || !fitButton || !fitOut || !fitReady()) return;
     onActivity();
     // The analysis is fixed here, before anything awaits: later clicks on the
-    // model buttons or edits to the code cannot change what this run is.
-    const spec = { run: ++runs, model: state.model, revision: state.revision, data: state.preparedBy };
+    // model buttons or edits to the code cannot change what this run is, and
+    // the record hashes the code text captured here, not the code at the end.
+    const spec = { run: ++runs, model: state.model, revision: state.revision, data: state.preparedBy, code: state.code, session: rSession() };
+    state.activeFit = spec.run;
     busy = 'fit';
     job = new AbortController();
     const own = job;
+    // Only the fit most recently started for this cell may write its result,
+    // and never after it was cancelled.
+    const current = () => !own.signal.aborted && state.activeFit === spec.run;
     sync();
     announce(`Fit ${spec.run} started: ${MODEL[spec.model]}.`);
     fitOut.innerHTML = '<p>Preparing the Stan data with mlumr().</p>';
@@ -237,13 +267,18 @@ export function mountCell(slot: HTMLElement, cell: Cell, key: string, onActivity
         progress[chain - 1] = message.trim().split('\n').pop() ?? '';
         if (!signal.aborted) fitOut.innerHTML = `<pre class="console">${esc(Array.from({ length: prepared.sampler.chains }, (_, i) => `Chain ${i + 1}: ${progress[i] || 'starting'}`).join('\n'))}</pre>`;
       }, own.signal);
-      state.fit = fitView(spec, prepared, result);
-      state.fitRevision = spec.revision;
-      state.fitData = spec.data;
-      state.record = {
+      if (!current()) throw new DOMException('The fit was cancelled.', 'AbortError');
+      // Everything is built off-state, then committed in one step after a last
+      // check: a fit cancelled while hashing commits nothing.
+      if (!signal.aborted) fitOut.innerHTML = `<p>Finalizing fit ${spec.run}: hashing the code and the Stan data, and writing the run record.</p>`;
+      const view = fitView(spec, prepared, result);
+      const [code_sha256, stan_data_sha256, identity] = await Promise.all([sha256(spec.code), sha256(prepared.stan), provenance()]);
+      const record = {
         lesson: 'mlumr lesson, Run mlumr in your browser', created: new Date().toISOString(), run: spec.run,
-        model: spec.model, stan_model: prepared.model_name, code_revision: spec.revision,
-        code_sha256: await sha256(state.code), stan_data_sha256: await sha256(prepared.stan), stan_data: JSON.parse(prepared.stan),
+        provenance: identity, contents: 'The R code as it ran, the Stan data mlumr() prepared, the sampler settings, summaries of the four reported quantities, the sampling checks and the benchmarks. No posterior draws.',
+        model: spec.model, stan_model: prepared.model_name, code_revision: spec.revision, r_session: spec.session,
+        code: spec.code, code_sha256, stan_data_sha256, stan_data: JSON.parse(prepared.stan),
+        runtime: { webr: WEBR_URL, r_packages: R_PACKAGES, stan_version: result.stanVersion },
         sampler: prepared.sampler, stan_version: result.stanVersion,
         draws: { chains: result.chains, per_chain: result.samplesPerChain, total: result.draws },
         diagnostics: result.diagnostics,
@@ -251,10 +286,17 @@ export function mountCell(slot: HTMLElement, cell: Cell, key: string, onActivity
         benchmarks: prepared.benchmarks, warnings: prepared.warnings, messages: prepared.messages,
         user_agent: navigator.userAgent,
       };
+      if (!current()) throw new DOMException('The fit was cancelled.', 'AbortError');
+      state.fit = view;
+      state.fitRevision = spec.revision;
+      state.fitData = spec.data;
+      state.record = record;
       announce(`Fit ${spec.run} finished: ${MODEL[spec.model]}.`);
     } catch (error) {
       const cancelled = own.signal.aborted;
       const message = error instanceof Error ? error.message : String(error);
+      // A newer fit owns the cell's result now; this one reports nothing.
+      if (state.activeFit !== spec.run) return;
       if (cancelled && preparing) state.prepared = null;
       state.fit = cancelled
         ? `<p class="feedback">Fit ${spec.run} was cancelled${signal.aborted ? ' because you left this chapter' : ''}. ${preparing ? 'R was restarted to stop the preparation, so run the code again before fitting. ' : ''}No result was kept.</p>`
