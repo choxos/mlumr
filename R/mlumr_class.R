@@ -442,12 +442,17 @@ print.mlumr_stc <- function(x, ...) {
   } else if (family == "normal") {
     cat(sprintf("Marginalized E[Y|index trt, comp pop]: %.4f\n", x$y_hat_index))
     cat(sprintf("Observed E[Y|comp trt, comp pop]:      %.4f\n", x$y_comparator))
-    # .stc_normal() standardizes on the RESPONSE scale and returns
-    # y_hat_A - y_B for every link, with a delta-method SE for that difference.
-    # The link chooses the model that is fitted, not the scale of the contrast,
-    # so the label must not change with it: calling this a log mean ratio and
-    # exponentiating it reported exp(difference) as a ratio.
-    cat(sprintf("\nMean Difference: %.4f (SE: %.4f)\n", x$estimate, x$se))
+    # Under a log link .stc_normal() puts the log mean ratio in `estimate` and
+    # the response-scale mean difference in `md`, as the binomial branch above
+    # headlines the link-scale contrast and leaves the risk difference to the
+    # table. A result from before `md` was recorded (v0.1.0) holds the mean
+    # difference in `estimate` under every link, so the label follows the
+    # fields present, not the link alone.
+    if (identical(x$link, "log") && !is.null(x$md)) {
+      cat(sprintf("\nLog Mean Ratio: %.4f (SE: %.4f)\n", x$estimate, x$se))
+    } else {
+      cat(sprintf("\nMean Difference: %.4f (SE: %.4f)\n", x$estimate, x$se))
+    }
   } else if (family == "poisson") {
     cat(sprintf("Marginalized rate (index trt, comp pop): %.4f\n", x$rate_hat_index))
     cat(sprintf("Observed rate (comp trt, comp pop):      %.4f\n", x$rate_comparator))
@@ -620,11 +625,21 @@ summary.mlumr_stc <- function(object, ...) {
       add("Risk ratio", eexp(x$log_rr), NA_real_, eexp(x$log_rr_lower), eexp(x$log_rr_upper))
     }
   } else if (fam == "normal") {
-    # One row for every link: the estimand is the response-scale mean
-    # difference regardless of which link fitted the model. `x$md` was never
-    # populated, so the previous log-link branch also dropped the only true
-    # mean difference it claimed to report.
-    add("Mean difference", x$estimate, x$se, x$ci_lower, x$ci_upper)
+    if (is.null(x$md)) {
+      # naive() and a v0.1.0 stc() result hold the response-scale mean
+      # difference in `estimate` under every link, and carry no `md`.
+      add("Mean difference", x$estimate, x$se, x$ci_lower, x$ci_upper)
+    } else {
+      # stc() records the mean difference in `md`; under a log link `estimate`
+      # is the log mean ratio, so it gets its own rows and the mean difference
+      # is read from the fields that hold it. Exponentiating `estimate` under
+      # the identity link would report exp(difference) as a ratio.
+      if (identical(link, "log")) {
+        add("Log mean ratio", x$estimate, x$se, x$ci_lower, x$ci_upper)
+        add("Mean ratio", eexp(x$estimate), NA_real_, eexp(x$ci_lower), eexp(x$ci_upper))
+      }
+      add("Mean difference", x$md, x$md_se, x$md_lower, x$md_upper)
+    }
   } else if (fam == "poisson") {
     add("Log rate ratio", x$estimate, x$se, x$ci_lower, x$ci_upper)
     add("Rate ratio", eexp(x$estimate), NA_real_, eexp(x$ci_lower), eexp(x$ci_upper))

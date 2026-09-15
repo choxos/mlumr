@@ -192,11 +192,84 @@ test_that("survival STC reports each bootstrap quantity's own replicate count", 
                      paste(utils::capture.output(print(res_w)), collapse = "\n")))
 })
 
-test_that("a log-link normal STC reports the difference it computed", {
-  # .stc_normal() standardizes on the response scale and returns y_hat_A - y_B
-  # for every link. Labelling that a log mean ratio and exponentiating it turned
-  # a difference of 2 into a reported "mean ratio" of 7.39 when the true ratio
-  # was 1.2, so the label must not vary with the link.
+# Six index observations at two covariate values and a comparator at the
+# second one: the log-link normal model's group means are 10 and 20, so the
+# standardized index mean is 20 against a comparator mean of 10. Every
+# quantity below is closed form: log mean ratio log(2) with variance
+# 1/300 + 1/100 = 1/75 (dispersion 4 on four residual degrees of freedom),
+# mean difference 10 with variance 4/3 + 1 = 7/3.
+.normal_log_stc_data <- function(unit = 1) {
+  ip <- set_ipd(data.frame(trt = "A", x = c(0, 0, 0, 1, 1, 1),
+                           y = c(8, 10, 12, 18, 20, 22) * unit),
+                treatment = "trt", outcome = "y", covariates = "x",
+                family = "normal")
+  ag <- set_agd(data.frame(trt = "B", y = 10 * unit, se = unit, n = 40,
+                           x_mean = 1),
+                treatment = "trt", family = "normal", outcome_mean = "y",
+                outcome_se = "se", outcome_n = "n", cov_means = "x_mean",
+                cov_types = "binary")
+  add_integration(combine_data(ip, ag), n_int = 64, verbose = FALSE,
+                  x = distr(qbern, prob = x_mean))
+}
+
+test_that("a log-link normal STC is reported on the scale of each field", {
+  # Under a log link .stc_normal() puts the log mean ratio in `estimate` and
+  # the mean difference in `md`. The printer and the table labeled `estimate`
+  # a mean difference, so a difference of 10 was shown as 0.6931.
+  z <- stats::qnorm(0.975)
+  res <- stc(.normal_log_stc_data(), link = "log")
+  expect_equal(res$estimate, log(2), tolerance = 1e-6)
+  expect_equal(res$se, sqrt(1 / 75), tolerance = 1e-6)
+  expect_equal(res$md, 10, tolerance = 1e-6)
+  expect_equal(res$md_se, sqrt(7 / 3), tolerance = 1e-6)
+  df <- mlumr:::.effect_measures_df(res)
+  expect_identical(df$Measure, c("Log mean ratio", "Mean ratio", "Mean difference"))
+  row <- function(m) {
+    unlist(df[df$Measure == m, c("Estimate", "SE", "CI_lower", "CI_upper")],
+           use.names = FALSE)
+  }
+  # Every displayed number is the field that defines its estimand.
+  expect_equal(row("Log mean ratio"), c(res$estimate, res$se, res$ci_lower, res$ci_upper))
+  expect_equal(row("Mean difference"), c(res$md, res$md_se, res$md_lower, res$md_upper))
+  expect_equal(row("Mean ratio"), c(exp(res$estimate), NA, exp(res$ci_lower), exp(res$ci_upper)))
+  expect_equal(row("Mean difference"), c(10, sqrt(7 / 3), 10 - z * sqrt(7 / 3), 10 + z * sqrt(7 / 3)),
+               tolerance = 1e-6)
+  for (method in list(print, summary)) {
+    txt <- utils::capture.output(method(res))
+    expect_match(txt, "^Log Mean Ratio: 0\\.6931 \\(SE: 0\\.1155\\)$", all = FALSE)
+    expect_no_match(txt, "^Mean Difference:")
+    expect_match(txt, "Mean difference\\s+10\\.0000 \\(SE 1\\.5275\\)", all = FALSE)
+  }
+  # Multiplying the outcome by 100 leaves the log mean ratio alone and scales
+  # the mean difference: a unitless ratio and a quantity in outcome units.
+  big <- stc(.normal_log_stc_data(unit = 100), link = "log")
+  expect_equal(big$estimate, res$estimate, tolerance = 1e-8)
+  dfb <- mlumr:::.effect_measures_df(big)
+  expect_equal(dfb$Estimate[dfb$Measure == "Mean difference"], 1000, tolerance = 1e-6)
+  expect_equal(dfb$SE[dfb$Measure == "Mean difference"], 100 * sqrt(7 / 3), tolerance = 1e-6)
+})
+
+test_that("an identity-link STC and naive() keep the mean difference", {
+  d <- .normal_log_stc_data()
+  id <- stc(d, link = "identity")
+  expect_equal(id$estimate, 10, tolerance = 1e-6)
+  expect_equal(id$md, id$estimate)
+  df <- mlumr:::.effect_measures_df(id)
+  expect_identical(df$Measure, "Mean difference")
+  expect_equal(df$Estimate, 10, tolerance = 1e-6)
+  expect_match(utils::capture.output(print(id)), "^Mean Difference: 10\\.0000", all = FALSE)
+  nv <- naive(d)
+  expect_null(nv$md)
+  dfn <- mlumr:::.effect_measures_df(nv)
+  expect_identical(dfn$Measure, "Mean difference")
+  expect_equal(dfn$Estimate, nv$estimate)
+  expect_equal(nv$estimate, 5)
+})
+
+test_that("a v0.1.0 STC result keeps its mean difference under every link", {
+  # v0.1.0's .stc_normal() returned y_hat_A - y_B in `estimate` under every
+  # link and recorded no `md`, so an object of that shape is read as it was
+  # written: a difference of 2 is a difference of 2, not exp(2) = 7.39.
   mk <- function(link) {
     structure(list(family = "normal", link = link, estimate = 2, se = 0.5,
                    ci_lower = 1, ci_upper = 3, conf_level = 0.95,
@@ -207,9 +280,10 @@ test_that("a log-link normal STC reports the difference it computed", {
     df <- mlumr:::.effect_measures_df(mk(lk))
     expect_equal(df$Measure, "Mean difference", info = lk)
     expect_equal(df$Estimate, 2, info = lk)
-    # Nothing exponentiated: exp(2) = 7.389 must not appear anywhere.
     expect_false(any(abs(unlist(df[, -1]) - exp(2)) < 1e-6, na.rm = TRUE),
                  info = lk)
+    expect_match(utils::capture.output(print(mk(lk))), "^Mean Difference: 2\\.0000",
+                 all = FALSE, info = lk)
   }
 })
 

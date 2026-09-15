@@ -31,9 +31,11 @@ over columns that were not the fit's, and is refused: the omitted terms'
 covariance with the kept ones enters the variance penalty, so the score
 cannot be completed from its value. A count that agrees is consistent with
 a complete score rather than proof of one, since columns misnumbered within
-the right count leave no trace in a scalar. An object without \code{n_obs} or
-without its observations, from a version before either was recorded,
-cannot be checked and is compared as before, with the message that
-\code{\link[=.assert_same_observations]{.assert_same_observations()}} gives for a model carrying no data.
+the right count leave no trace in a scalar. An object without its
+observations, from a version before they were recorded, cannot be checked
+and is compared as before, with the message that
+\code{\link[=.assert_same_observations]{.assert_same_observations()}} gives for a model carrying no data; one that
+carries its observations but not \code{n_obs} is compared with a message of its
+own saying that the count is not recorded.
 }
 \keyword{internal}
