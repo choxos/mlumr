@@ -567,320 +567,338 @@ Risk differences, risk ratios and log odds ratios are all built from risks avera
 00:16:44.309 --> 00:16:47.548
 A continuous outcome uses a normal model.
 
-00:16:47.548 --> 00:16:56.372
-Trial B must report its mean outcome and the standard error of that mean, not the standard deviation of individual patients.
+00:16:47.548 --> 00:16:52.813
+Trial B must report its mean outcome and the standard error of that mean.
 
-00:16:56.372 --> 00:17:03.786
+00:16:52.813 --> 00:16:57.974
+Do not confuse this with the standard deviation of individual outcomes.
+
+00:16:57.974 --> 00:17:08.572
+For a simple unweighted mean of independent patients, divide the standard deviation of individual outcomes by the square root of the number of patients.
+
+00:17:08.572 --> 00:17:14.932
+If the paper already gives the standard error, use it as it is, without dividing again.
+
+00:17:14.932 --> 00:17:23.239
+An adjusted, weighted, clustered or repeated-measure estimate needs the standard error that belongs to its analysis.
+
+00:17:23.239 --> 00:17:27.684
+The mean must also describe what the model predicts for that row.
+
+00:17:27.684 --> 00:17:38.734
+An adjusted mean standardized to another population is a different quantity from the row's own mean, and a correct standard error does not repair a mismatched mean.
+
+00:17:38.734 --> 00:17:46.149
 The covariate standard deviations are a different thing: they describe how the covariates are spread.
 
-00:17:03.786 --> 00:17:11.041
+00:17:46.149 --> 00:17:53.404
 Even with a log link, give trial B's mean and its standard error on the original scale, not the log scale.
 
-00:17:11.041 --> 00:17:20.894
-If a paper reports the standard deviation of a simple average of independent patients, divide it by the square root of the number of patients.
-
-00:17:20.894 --> 00:17:26.354
-An adjusted, weighted or clustered estimate needs its own standard error.
-
-00:17:26.354 --> 00:17:30.053
+00:17:53.404 --> 00:17:57.103
 Counts need exposure, such as years of follow-up.
 
-00:17:30.053 --> 00:17:34.164
+00:17:57.103 --> 00:18:01.214
 The effect is a rate ratio, where one means no difference.
 
-00:17:34.164 --> 00:17:37.740
+00:18:01.214 --> 00:18:04.790
 Keep the exposure units the same in both trials.
 
-00:17:37.740 --> 00:17:49.742
+00:18:04.790 --> 00:18:16.792
 And if follow-up time depends on the covariates, trial B's covariate summaries should weight each patient by follow-up time, which ordinary published averages usually do not.
 
-00:17:49.742 --> 00:17:57.210
+00:18:16.792 --> 00:18:24.260
 Survival outcomes use event times, plus censored times for patients whose follow-up ended before an event.
 
-00:17:57.210 --> 00:18:05.846
+00:18:24.260 --> 00:18:32.896
 For trial B, you supply event times reconstructed from its published survival curve, together with covariate summaries.
 
-00:18:05.846 --> 00:18:14.074
+00:18:32.896 --> 00:18:41.125
 Reconstruction does not recover trial B's individual covariates, and its own uncertainty is not carried into the fit.
 
-00:18:14.074 --> 00:18:20.672
+00:18:41.125 --> 00:18:47.722
 The package offers several parametric and flexible baseline shapes, each with its own rules.
 
-00:18:20.672 --> 00:18:25.454
+00:18:47.722 --> 00:18:52.504
 Open the list of survival distributions in the panel to see them.
 
-00:18:25.454 --> 00:18:27.298
+00:18:52.504 --> 00:18:54.348
 Pick an outcome type.
 
-00:18:27.298 --> 00:18:32.489
+00:18:54.348 --> 00:18:59.539
 What must trial B report, and which value of the effect means no difference?
 
-00:18:32.489 --> 00:18:41.671
+00:18:59.539 --> 00:19:08.721
 This survival example has two risk groups: patients with the marker, whose hazard is higher, and patients without it.
 
-00:18:41.671 --> 00:18:51.421
+00:19:08.721 --> 00:19:18.471
 Survival in each group follows a simple exponential curve, and within each group, the hazard ratio of A versus B is zero point six five.
 
-00:18:51.421 --> 00:18:58.951
+00:19:18.471 --> 00:19:26.001
 This is a conditional hazard ratio: it compares the treatments for patients in the same risk group.
 
-00:18:58.951 --> 00:19:03.584
+00:19:26.001 --> 00:19:30.635
 The target population starts as an equal mix of the two groups.
 
-00:19:03.584 --> 00:19:06.265
+00:19:30.635 --> 00:19:33.315
 Now move forward through follow-up.
 
-00:19:06.265 --> 00:19:12.107
+00:19:33.315 --> 00:19:39.157
 High-risk patients have their events sooner, so they leave the group still at risk.
 
-00:19:12.107 --> 00:19:17.384
+00:19:39.157 --> 00:19:44.434
 The mix of survivors changes, and it changes faster under treatment B.
 
-00:19:17.384 --> 00:19:23.729
+00:19:44.434 --> 00:19:50.779
 The population hazard is an average over the survivors, not over everyone who started.
 
-00:19:23.729 --> 00:19:32.282
+00:19:50.779 --> 00:19:59.332
 That is why the population hazard ratio changes over time, even though the hazard ratio within each risk group stays constant.
 
-00:19:32.282 --> 00:19:35.814
+00:19:59.332 --> 00:20:02.864
 Now remove the difference between the risk groups.
 
-00:19:35.814 --> 00:19:44.897
+00:20:02.864 --> 00:20:11.947
 With identical risk groups, the survivors never change their mix, and the population hazard ratio stays at zero point six five.
 
-00:19:44.897 --> 00:19:53.853
+00:20:11.947 --> 00:20:20.903
 Restricted mean survival time, or R M S T, is the area under a survival curve up to a chosen time, called the horizon.
 
-00:19:53.853 --> 00:19:59.806
+00:20:20.903 --> 00:20:26.856
 In plain terms, it is the average time patients stay event free up to that horizon.
 
-00:19:59.806 --> 00:20:06.136
+00:20:26.856 --> 00:20:33.186
 The shaded area between the two curves is the R M S T difference, measured in months.
 
-00:20:06.136 --> 00:20:09.440
+00:20:33.186 --> 00:20:36.490
 Change the horizon, and you change the question.
 
-00:20:09.440 --> 00:20:20.259
+00:20:36.490 --> 00:20:47.309
 For the same outcome, time origin, treatments and target population, only compare R M S T results that use the same horizon and the same time units.
 
-00:20:20.259 --> 00:20:27.633
+00:20:47.309 --> 00:20:54.683
 In the package, each trial gets its own baseline shape by default, whenever the distribution has a shape.
 
-00:20:27.633 --> 00:20:37.691
+00:20:54.683 --> 00:21:04.741
 Sharing one shape is a stronger assumption, but separate shapes also assume that each shape travels with its treatment, so fit both and compare.
 
-00:20:37.691 --> 00:20:41.326
+00:21:04.741 --> 00:21:08.377
 A population hazard ratio always needs a time.
 
-00:20:41.326 --> 00:20:51.350
+00:21:08.377 --> 00:21:18.400
 Depending on the model, the package gives it at time zero, at a time you choose, rounded to its nearest prediction time, or as a whole curve over time.
 
-00:20:51.350 --> 00:21:00.143
+00:21:18.400 --> 00:21:27.193
 For accelerated failure time models, the population number is a time ratio only when the slopes and the shape are both shared.
 
-00:21:00.143 --> 00:21:06.339
+00:21:27.193 --> 00:21:33.389
 Otherwise, the package labels it differently, so it is not mistaken for a time ratio.
 
-00:21:06.339 --> 00:21:17.461
+00:21:33.389 --> 00:21:44.511
 Patients still event free when follow-up ends, events known only to fall within a time window, and patients who join follow-up late each need their own likelihood terms.
 
-00:21:17.461 --> 00:21:20.768
+00:21:44.511 --> 00:21:47.818
 A simple count of events cannot replace them.
 
-00:21:20.768 --> 00:21:26.742
+00:21:47.818 --> 00:21:53.792
 And coding censoring correctly does not show that censoring is unrelated to the outcome.
 
-00:21:26.742 --> 00:21:30.008
+00:21:53.792 --> 00:21:57.058
 Compare zero, twelve and twenty-four months.
 
-00:21:30.008 --> 00:21:33.301
+00:21:57.058 --> 00:22:00.351
 Then remove the risk difference between groups.
 
-00:21:33.301 --> 00:21:37.115
+00:22:00.351 --> 00:22:04.165
 What happens to the population hazard ratio, and why?
 
-00:21:37.115 --> 00:21:39.749
+00:22:04.165 --> 00:22:06.799
 Back to the straight-line example.
 
-00:21:39.749 --> 00:21:45.181
+00:22:06.799 --> 00:22:12.231
 With one row at zero, a target at one depends on a slope the data cannot see.
 
-00:21:45.181 --> 00:21:52.086
+00:22:12.231 --> 00:22:19.136
 The band shows the answer using normal priors centered at zero, on both the intercept and the slope.
 
-00:21:52.086 --> 00:21:54.017
+00:22:19.136 --> 00:22:21.067
 Make the prior tighter.
 
-00:21:54.017 --> 00:21:57.044
+00:22:21.067 --> 00:22:24.094
 The interval at the target shrinks a lot.
 
-00:21:57.044 --> 00:21:59.357
+00:22:24.094 --> 00:22:26.407
 No new patient was observed.
 
-00:21:59.357 --> 00:22:04.258
+00:22:26.407 --> 00:22:31.308
 The answer is narrower only because the assumption became stronger.
 
-00:22:04.258 --> 00:22:07.066
+00:22:31.308 --> 00:22:34.116
 Now move the target to where the row is.
 
-00:22:07.066 --> 00:22:12.572
+00:22:34.116 --> 00:22:39.622
 Here the data alone pin down the target, even though the slope is still unknown.
 
-00:22:12.572 --> 00:22:17.605
+00:22:39.622 --> 00:22:44.655
 Pinned down does not mean certain: the target still has an interval.
 
-00:22:17.605 --> 00:22:21.007
+00:22:44.655 --> 00:22:48.057
 And this argument needs the straight-line model.
 
-00:22:21.007 --> 00:22:25.126
+00:22:48.057 --> 00:22:52.176
 With a curved link, matching the row's averages is not enough.
 
-00:22:25.126 --> 00:22:31.241
+00:22:52.176 --> 00:22:58.291
 So a verdict about the coefficients is not automatically a verdict about your target.
 
-00:22:31.241 --> 00:22:45.840
+00:22:58.291 --> 00:23:12.890
 For a continuous outcome with a straight-line model, the package's identification check asks this question for trial A's population, once with the integration points the model uses, and once with the means trial B published.
 
-00:22:45.840 --> 00:22:50.419
+00:23:12.890 --> 00:23:17.469
 Check prior sensitivity for the target you will actually report.
 
-00:22:50.419 --> 00:22:59.436
+00:23:17.469 --> 00:23:26.486
 Results in trial B's population can look stable, while results in trial A's population, or in a new target, still depend on the prior.
 
-00:22:59.436 --> 00:23:06.293
+00:23:26.486 --> 00:23:33.343
 Try several reasonable priors, see how far the result moves under each, and report what you find.
 
-00:23:06.293 --> 00:23:10.888
+00:23:33.343 --> 00:23:37.938
 Never pick the prior that happens to give the narrowest interval.
 
-00:23:10.888 --> 00:23:14.566
+00:23:37.938 --> 00:23:41.616
 Change the prior with the target at zero, then at one.
 
-00:23:14.566 --> 00:23:17.003
+00:23:41.616 --> 00:23:44.053
 Repeat with two separated rows.
 
-00:23:17.003 --> 00:23:21.404
+00:23:44.053 --> 00:23:48.454
 Which narrowing comes from data, and which from assumptions?
 
-00:23:21.404 --> 00:23:25.091
+00:23:48.454 --> 00:23:52.141
 Suppose a model hands you a neat table of results.
 
-00:23:25.091 --> 00:23:28.409
+00:23:52.141 --> 00:23:55.459
 Before reading it, look at the sampling checks.
 
-00:23:28.409 --> 00:23:30.139
+00:23:55.459 --> 00:23:57.189
 Did every chain run?
 
-00:23:30.139 --> 00:23:36.481
+00:23:57.189 --> 00:24:03.531
 Were there divergent transitions, where the sampler could not explore part of the posterior?
 
-00:23:36.481 --> 00:23:44.682
+00:24:03.531 --> 00:24:11.733
 Then check R hat, the effective sample size, which says how many independent draws the chains are worth, and tree depth.
 
-00:23:44.682 --> 00:23:48.064
+00:24:11.733 --> 00:24:15.114
 A missing or infinite check is not good news.
 
-00:23:48.064 --> 00:23:54.836
+00:24:15.114 --> 00:24:21.887
 Raising a sampler setting can help, but it does not fix a badly shaped posterior by itself.
 
-00:23:54.836 --> 00:24:00.821
+00:24:21.887 --> 00:24:27.871
 R hat compares the chains with each other, and values close to one mean they agree.
 
-00:24:00.821 --> 00:24:04.823
+00:24:27.871 --> 00:24:31.873
 When chains settle in different places, R hat grows.
 
-00:24:04.823 --> 00:24:10.391
+00:24:31.873 --> 00:24:37.441
 A value of infinity usually means the chains got stuck, each at its own value.
 
-00:24:10.391 --> 00:24:15.575
+00:24:37.441 --> 00:24:42.625
 Next, keep what the data can tell you apart from how well the computer ran.
 
-00:24:15.575 --> 00:24:23.135
+00:24:42.625 --> 00:24:50.185
 When the subgroup check reports a missing flag for a binary outcome, it is holding back a verdict on purpose.
 
-00:24:23.135 --> 00:24:31.446
+00:24:50.185 --> 00:24:58.496
 With a curved link, subgroup means alone cannot show what the rows identify, because the spread inside each row matters too.
 
-00:24:31.446 --> 00:24:34.527
+00:24:58.496 --> 00:25:01.577
 Check the numerical integration on its own.
 
-00:24:34.527 --> 00:24:37.564
+00:25:01.577 --> 00:25:04.614
 More points reduce approximation error.
 
-00:24:37.564 --> 00:24:44.488
+00:25:04.614 --> 00:25:11.538
 But neither a stable grid nor good sampling shows that the covariate distributions you chose are right.
 
-00:24:44.488 --> 00:24:56.550
+00:25:11.538 --> 00:25:23.600
 Look at how the results depend on trial B's slope priors, on the target population, on covariate overlap, on the outcome model, and on plausible differences between the trials.
 
-00:24:56.550 --> 00:25:01.490
+00:25:23.600 --> 00:25:28.540
 The package records how many posterior draws it could actually use.
 
-00:25:01.490 --> 00:25:03.806
+00:25:28.540 --> 00:25:30.856
 Keep that count in your report.
 
-00:25:03.806 --> 00:25:12.471
+00:25:30.856 --> 00:25:39.521
 A survival median that falls beyond the time grid is a separate issue, reported as the chance that the median was not reached.
 
-00:25:12.471 --> 00:25:18.625
+00:25:39.521 --> 00:25:45.676
 Never quietly drop an inconvenient check, or present an incomplete summary as complete.
 
-00:25:18.625 --> 00:25:26.861
+00:25:45.676 --> 00:25:53.911
 Finally, a better predictive score, such as L O O, only says which model predicts these observations better.
 
-00:25:26.861 --> 00:25:31.818
+00:25:53.911 --> 00:26:03.996
+Compare two models by the paired difference of their pointwise scores and its standard error, not by whether two separate intervals overlap.
+
+00:26:03.996 --> 00:26:08.953
 It cannot tell you whether a hidden difference between the trials exists.
 
-00:25:31.818 --> 00:25:36.927
+00:26:08.953 --> 00:26:14.062
 Choose each problem, guess the next step, then reveal the explanation.
 
-00:25:36.927 --> 00:25:44.929
+00:26:14.062 --> 00:26:22.064
 The point of M L U M R is one explicit model that links individual patient data with published summaries.
 
-00:25:44.929 --> 00:25:53.351
+00:26:22.064 --> 00:26:30.487
 It lets you ask what both treatments would do in a population you specify, as long as the model and its assumptions hold.
 
-00:25:53.351 --> 00:25:58.776
+00:26:30.487 --> 00:26:35.911
 The research on this method describes extensions to more than two treatments.
 
-00:25:58.776 --> 00:26:04.123
+00:26:35.911 --> 00:26:41.258
 The package covered here compares one index treatment with one comparator.
 
-00:26:04.123 --> 00:26:09.316
+00:26:41.258 --> 00:26:46.451
 It does not fit networks of many treatments, or random study effects.
 
-00:26:09.316 --> 00:26:18.136
+00:26:46.451 --> 00:26:55.271
 Some function names look like those in the multi N M A package, but the models and the fitted objects are not interchangeable.
 
-00:26:18.136 --> 00:26:25.487
+00:26:55.271 --> 00:27:02.622
 Before you report an analysis, name the treatments, the outcome, the target population and the effect scale.
 
-00:26:25.487 --> 00:26:32.894
+00:27:02.622 --> 00:27:10.030
 Explain where the data came from, how well the covariates overlap, and that the subgroups do not overlap.
 
-00:26:32.894 --> 00:26:40.227
+00:27:10.030 --> 00:27:17.362
 Say which covariate distributions and priors you used, and whether slopes were shared or separate.
 
-00:26:40.227 --> 00:26:45.807
+00:27:17.362 --> 00:27:22.943
 Show the sampling checks, the integration checks and the sensitivity analyses.
 
-00:26:45.807 --> 00:26:49.735
+00:27:22.943 --> 00:27:26.870
 For survival, state every time and every horizon.
 
-00:26:49.735 --> 00:26:57.624
+00:27:26.870 --> 00:27:34.759
 The chart shows what a good report gives: an estimate, its interval, and the population it applies to.
 
-00:26:57.624 --> 00:27:10.352
+00:27:34.759 --> 00:27:40.096
+It comes from the companion script's native fits, not from the browser cell.
+
+00:27:40.096 --> 00:27:52.824
 To go further, the package website has an article for each outcome type, and the package ships four example datasets, on psoriasis, multiple myeloma, shoulder surgery and tooth decay.
 
-00:27:10.352 --> 00:27:12.982
-Test yourself with the five questions.
+00:27:52.824 --> 00:27:57.561
+Test yourself with the ten questions, and read the capstone below them.
 
-00:27:12.982 --> 00:27:19.203
+00:27:57.561 --> 00:28:03.782
 Then revisit any chapter, and try to predict what will change before you move a control.
 
-00:27:19.203 --> 00:27:21.258
-Answer the five questions.
+00:28:03.782 --> 00:28:05.758
+Answer the ten questions.
 
-00:27:21.258 --> 00:27:26.096
+00:28:05.758 --> 00:28:10.596
 Then pick a chapter whose chart you can now explain in your own words.

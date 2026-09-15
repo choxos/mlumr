@@ -65,7 +65,7 @@ export const families = [
     input: 'set_agd(data, treatment = "trt", family = "normal",\n        outcome_mean = "y_mean", outcome_se = "y_se",\n        outcome_n = "n", cov_means = ...)',
     effects: 'marginal_effects(effect = "md"). No difference means MD = 0.',
     scale: 'The link is identity by default, or log. Trial B supplies its mean outcome and the standard error of that mean, on the original scale, even with a log link.',
-    boundary: 'The standard error of the mean is not the standard deviation of individual outcomes. For a simple unweighted mean of independent patients, the SE is the SD divided by the square root of the number of patients. An adjusted, weighted or clustered estimate needs the standard error that belongs to that estimate. With more than one row, outcome_n is required so the rows can be weighted by size.',
+    boundary: 'The standard error of the mean is not the standard deviation of individual outcomes. For a simple unweighted mean of independent patients, the SE is the SD of individual outcomes divided by the square root of the number of patients: an SD of 10 from 100 patients gives an SE of 1. If the paper already reports the SE, use it without dividing again. An adjusted, weighted, clustered or repeated-measure estimate needs the standard error that belongs to its analysis. The mean must also describe what this row\'s model predicts: a raw group mean does, while an adjusted mean standardized to another population does not, and a correct SE cannot repair a mismatched mean. Rows that share patients or an adjustment model are not independent evidence. With more than one row, outcome_n is required so the rows can be weighted by size.',
   },
   {
     name: 'Counts', equation: 'patient events ~ Poisson(exposure × rate)\ntrial B events ~ Poisson(exposure × average rate)',
@@ -118,24 +118,29 @@ export const diagnosticCases = [
   },
   {
     name: 'Better LOO score', symptom: 'One model has a better LOO, WAIC or DIC score than the other.',
-    answer: 'A predictive score tells you how well a model predicts these observations. It says nothing about hidden differences between the trials. Compare models fitted to the same data, and check the PSIS diagnostics before trusting LOO.',
-    tool: 'calculate_loo(fit)\ncalculate_waic(fit)\ncompare_models(fit, fit_relaxed, criterion = "loo")',
+    answer: 'A predictive score tells you how well a model predicts these observations. Compare two models fitted to the same observations by the paired difference of their pointwise scores and the standard error of that difference, not by whether two separate intervals overlap: the paired standard error is usually much smaller. Say what a held-out unit is. An individual patient in trial A and an aggregate subgroup row in trial B are different units, and one row can carry as many patients as hundreds of rows of trial A. Check the PSIS diagnostics before trusting LOO. None of this tests whether hidden differences between the trials exist.',
+    tool: 'calculate_loo(fit)\ncalculate_loo(fit_relaxed)\ncompare_models(fit, fit_relaxed, criterion = "loo")   # paired elpd difference with its SE',
   },
 ];
 
-// The correct answers stay at positions 0, 1, 2, 1, 2 (browser-qa.mjs relies on them).
+// The correct answers stay at positions 0, 1, 2, 1, 2, 1, 0, 1, 2, 1 (browser-qa.mjs relies on them).
 export const questions = [
   { q: 'Under the shared-slopes logit model shown here, which statement is true?', options: ['The conditional odds ratio is the same at every covariate profile.', 'The population odds ratio is the same in every population.', 'Unmeasured differences between the trials are removed.'], correct: 0, why: 'The shared slopes cancel in the conditional log odds ratio, which compares the model\'s predictions for patients with the same covariates. Averaging probabilities over a population is curved, so the population odds ratio can still change. Neither calculation removes unmeasured differences between the trials.' },
   { q: 'What happens when you give newdata to marginal_effects()?', options: ['The model is refitted.', 'Both treatments are averaged over your target rows.', 'The rows become new outcome data.'], correct: 1, why: 'newdata only describes a target population, with every row counting equally. It adds no outcomes and does not refit the model, and the population argument is ignored.' },
   { q: 'In the normal identity-link model shown here, can one aggregate row identify a target mean without identifying the slope?', options: ['No, every coefficient must be identified first.', 'Yes, for every possible target population.', 'Yes, when the target has the same covariate means as that row.'], correct: 2, why: 'With an identity link, the target mean depends on the covariate means in a straight line. A row at the same means identifies that target even though the intercept and the slope cannot be separated. The target still has sampling uncertainty, and with a curved link, matching the means is not enough.' },
   { q: 'For the same outcome, time origin, treatments and target population, which time settings must match before two RMST differences can be compared?', options: ['None; both are RMST differences.', 'The restriction horizon and the time units.', 'Constant hazard ratios in both models.'], correct: 1, why: 'RMST is the area under a survival curve up to a chosen horizon, so a different horizon defines a different quantity. Constant hazard ratios are not needed. The outcome, time origin, treatments and target population must also match, which is why the question fixed them.' },
   { q: 'Can more integration points remove a hidden difference between the trials?', options: ['Yes, with enough points.', 'Only if R-hat is below 1.01.', 'No. Accurate arithmetic and comparable trials are separate questions.'], correct: 2, why: 'Integration points make the model\'s arithmetic more accurate. They cannot add covariates that nobody measured.' },
+  { q: 'Trial A compared A with C, and another trial compared B with C. Is a comparison of A with B unanchored?', options: ['Yes: no trial compared A with B directly.', 'No: C is a common comparator, so an anchored indirect comparison is possible when the trials are compatible.', 'Yes, unless both C arms had the same event rate.'], correct: 1, why: 'A shared randomized comparator anchors the comparison and keeps each trial\'s randomization. Unanchored means no usable common arm at all, which is the case this package is for. An anchor still needs compatible C arms, populations and outcome definitions.' },
+  { q: 'In the toy target, the risk is 39.4% under A and 51.8% under B, and the event is harmful. Which reading is right?', options: ['A lowers the risk by 12.4 percentage points, a relative reduction of about 24%.', 'A lowers the risk by 12.4%, so the odds ratio is 0.876.', 'A risk difference of -0.124 is a 124% reduction.'], correct: 0, why: 'A minus B is -0.124, which is 12.4 percentage points. The risk ratio is 0.394 divided by 0.518, about 0.76, a 24% relative reduction. Percentage points and percent are different quantities, and neither is an odds ratio.' },
+  { q: 'A target population is 90% low-risk and 10% high-risk profiles. You pass newdata with one low-risk row and one high-risk row. What does marginal_effects() average over?', options: ['A 90/10 mix, because rows carry their population shares.', 'A 50/50 mix, because every newdata row counts equally.', 'Nothing: newdata must contain outcomes.'], correct: 1, why: 'Rows in newdata are weighted equally, so two rows describe a 50/50 population. Build the target from rows in the intended proportions, or from a distribution the package supports. Both treatments are then averaged over the same rows.' },
+  { q: 'A paper reports a raw SD of 10 from 100 independent patients, and separately an adjusted mean standardized to x = 0. Your row\'s covariate mean is x = 1. What is wrong with entering SE = 0.1 and the adjusted mean?', options: ['Nothing: 10 divided by 100 is 0.1.', 'Only the SE: it is 10 divided by the square root of 100, which is 1.', 'Two things: the SE is 1, and the adjusted mean describes x = 0, not this row at x = 1.'], correct: 2, why: 'The standard error of a simple mean is the individual SD divided by the square root of n, so 1, not 0.1. Separately, the adjusted mean is standardized to another covariate value, so it is not this row\'s expected outcome. Fixing the SE does not fix the estimand. Ask for the raw mean, or model what the adjusted estimate represents.' },
+  { q: 'One paper reports outcomes by age group and, in another table, the same patients by sex. Can both tables be stacked as trial B\'s rows?', options: ['Yes: more rows mean more information.', 'No: each patient must belong to exactly one row. Use one partition, or stop.', 'Yes, if each row\'s sample size is halved.'], correct: 1, why: 'The likelihood treats every row as independent evidence, so overlapping tables count patients twice, and the summaries cannot reveal it. Choose one partition. Halving n does not make the rows independent. When no valid partition exists, stopping is the correct result.' },
 ];
 
 export const checklist = [
   'The two treatments, the outcome, the follow-up, the target population and the effect scale.',
   'Where each dataset came from, that subgroup rows do not overlap, and how well the covariates overlap.',
-  'For a continuous outcome, the standard error that belongs to the reported estimate. SD divided by the square root of n holds only for a simple mean of independent patients.',
+  'For a continuous outcome, the standard error that belongs to the reported estimate, and a mean that describes the row\'s own population. SD of individual outcomes divided by the square root of n holds only for a simple mean of independent patients.',
   'For survival, the censoring and late-entry assumptions, not only how censoring was coded.',
   'Shared or separate slopes, the priors, the covariate distributions and their correlation.',
   'Sampling checks for every chain, integration checks, and prior sensitivity.',
@@ -166,7 +171,101 @@ export const cells: Partial<Record<Lab, Cell>> = {
   },
   workflow: {
     mlumr: true,
-    intro: 'Real mlumr R code and the real mlumr Stan model, running in your browser on made-up data.',
+    intro: 'Real mlumr R code and the real mlumr Stan model, running in your browser on made-up data. This browser example uses the fixed comparator rows written in the code, 128 integration points, and two chains of 500 warmup and 500 kept draws. The companion script workflow.R simulates its comparator rows, uses 512 points and four chains, so its numbers differ; the report chart in the last chapter comes from that native run, not from this cell.',
     code: 'set.seed(2026)\n# Trial A: 300 patients with individual data\ntrial_a <- data.frame(trt = "A", study = "index", x = rnorm(300, -0.3, 1))\ntrial_a$event <- rbinom(300, 1, plogis(-0.8 + 0.8 * trial_a$x))\n\n# Trial B: only three published subgroup rows\ntrial_b <- data.frame(trt = "B", study = "comparator",\n  n = c(150, 180, 170), events = c(47, 90, 116),\n  x_mean = c(-0.7, 0.3, 1.3), x_sd = c(0.65, 0.65, 0.65))\n\nipd <- set_ipd(trial_a, treatment = "trt", outcome = "event",\n               covariates = "x", family = "binomial", study = "study")\nagd <- set_agd(trial_b, treatment = "trt", family = "binomial",\n               outcome_n = "n", outcome_r = "events",\n               cov_means = "x_mean", cov_sds = "x_sd",\n               cov_types = "continuous", study = "study")\ndat <- combine_data(ipd, agd)\ndat <- add_integration(dat, n_int = 128,\n  x = distr(qnorm, mean = x_mean, sd = x_sd))\ncheck_identification(dat, link = "logit")\nnaive(dat, link = "logit")\nstc(dat, link = "logit")',
   },
 };
+
+// Optional panels. None of this is narrated: the voice stays short, and a
+// learner who wants the routes, the stop map, the likelihood or the capstone
+// opens the panel.
+const li = (items: string[]) => `<ul class="read-list">${items.map(i => `<li>${i}</li>`).join('')}</ul>`;
+
+/** Who the lesson is for, with three routes through the same 13 chapters. */
+export const routes = `<details><summary>Who this lesson is for, and three ways through it</summary>
+<p>The chapters run in one order for the narration, but you can enter anywhere from the chapter menu. Pick the route that matches what you already know.</p>
+<h3>Foundations</h3><p><strong>For:</strong> researchers who can read a risk or a mean and have little regression or Bayesian experience. <strong>You will be able to:</strong> say why two trials can give an unfair crude comparison, name the target population, tell a risk from an odds ratio from a risk difference, say what an unmeasured difference between trials prevents, and read one posterior interval without treating it as a certificate. <strong>Do:</strong> chapters 1 to 6 and 13, the four cards below, and the questions in chapter 13.</p>
+<h3>Applied analyst</h3><p><strong>For:</strong> analysts who know regression and the Foundations outcomes, with or without Stan. <strong>You will be able to:</strong> decide whether the evidence supports an unanchored comparison, write the question and the target, prepare and check the data, fit and check the model, run target-specific sensitivity analyses, and report a defensible result or a reasoned stop. <strong>Do:</strong> every chapter, then the companion script with <code>--fit --sensitivity</code>, the capstone in chapter 13, and the stop or go map in chapter 2.</p>
+<h3>Technical depth</h3><p><strong>For:</strong> people with indirect comparison or Bayesian experience. <strong>You will be able to:</strong> reconstruct the joint likelihood and the standardization, separate coefficient identification from target identification and precision, and state which uncertainty a posterior interval leaves out. <strong>Do:</strong> the panels <em>The joint likelihood</em> in chapter 3, <em>What subgroup rows can tell you</em> in chapter 7, and <em>What the posterior interval includes</em> in chapter 12; enter them directly from the chapter menu.</p>
+<p>Jump: <button type="button" data-goto="workflow">Run mlumr (chapter 8)</button> <button type="button" data-goto="response">Joint likelihood (chapter 3)</button> <button type="button" data-goto="diagnostics">Uncertainty table (chapter 12)</button> <button type="button" data-goto="practice">Questions and capstone (chapter 13)</button></p>
+<h3>Terms used throughout</h3>${li([
+  '<strong>ITC</strong>, indirect treatment comparison: comparing treatments that were not compared in one trial. <strong>Anchored</strong> when both trials share a comparator arm; <strong>unanchored</strong> when they share nothing, which is this lesson\'s case.',
+  '<strong>IPD</strong>, individual patient data: one row per patient, here trial A. <strong>AgD</strong>, aggregate data: published totals and averages, here trial B.',
+  '<strong>PAIC</strong>, population-adjusted indirect comparison: any method that adjusts for differences in who was studied. ML-UMR is one; MAIC and STC are others.',
+  '<strong>SPFA</strong>, shared prognostic factor assumption: both treatments have the same covariate slopes on the link scale.',
+  '<strong>Prognostic factor</strong>: a covariate that changes the outcome. <strong>Effect modifier</strong>: a covariate that changes the treatment effect, on a named scale.',
+  '<strong>HEOR</strong>, health economics and outcomes research, where unanchored comparisons are common in submissions.',
+])}
+</details>
+<details><summary>Before you start: four ideas in numbers</summary>
+<div class="cards">
+<div class="card"><h3>Risk, odds, log odds</h3><p>A risk of 20% means 20 events per 100 patients. Its odds are 0.2 / 0.8 = 0.25, and its log odds are log(0.25) = −1.39. The lines in chapter 3 live on the log odds scale; the bars in chapter 1 are risks. An odds ratio of 0.61 is not a 39% lower risk.</p></div>
+<div class="card"><h3>A prediction is not an outcome</h3><p>The model in chapter 4 predicts a risk of 14.2% for a patient at x = 0. That patient either has the event or not. The prediction is the model\'s average over many such patients, and the aggregate rows of trial B are averages too.</p></div>
+<div class="card"><h3>SD, SE and an interval</h3><p>A standard deviation describes how much individual outcomes vary. A standard error describes how precise an average is. For a simple mean of 100 independent patients with SD 10, the SE is 10 / √100 = 1, and an interval of about ±1.96 SE runs from 2 below to 2 above the mean. A paper that already reports an SE is not divided again.</p></div>
+<div class="card"><h3>Conditional versus population</h3><p>A conditional comparison asks what the model predicts for people with the same covariates: in chapter 3 the odds ratio is 0.50 for patients with the marker and 0.50 without it. A population comparison averages each treatment over a mix of people first: with half the patients carrying the marker, the population odds ratio is 0.60. Same model, different question.</p></div>
+</div>
+</details>`;
+
+/** Chapter 2: is the comparison unanchored, and when to stop. */
+export const stopMap = `<details><summary>Anchored or unanchored? A stop or go map</summary>
+${li([
+  '<strong>Is there a randomized comparison shared by both trials?</strong> A trial of A against C and a trial of B against C share C. Then the comparison is <strong>anchored</strong>: use an anchored method (Bucher, network meta-analysis, ML-NMR, anchored MAIC or STC), which keeps each trial\'s randomization. mlumr does not fit anchored networks, and the absence of a direct A versus B trial does not by itself make the evidence unanchored.',
+  '<strong>No common arm at all?</strong> Then the comparison is <strong>unanchored</strong>, and the two trial intercepts must be assumed equal for equal patients. Every prognostic factor and effect modifier must be measured before treatment in both trials, the covariates must overlap, and outcome definitions, time origin and follow-up must match. Any unmeasured difference between the trials passes straight into the treatment effect.',
+  '<strong>Trial B\'s rows:</strong> each patient in exactly one row. Tables by age and again by sex from the same patients cannot be stacked.',
+  '<strong>Continuous outcomes:</strong> a mean that describes the row\'s own patients and the standard error of that mean, not an adjusted mean standardized to a population you cannot state, and not an SD.',
+  '<strong>Survival:</strong> reconstructed event times plus covariate summaries for the same arm, with censoring and late entry coded as the likelihood expects.',
+])}
+<p><strong>Stop states.</strong> Overlapping subgroup tables with no valid partition; an adjusted mean whose population is unknown; a covariate that does not overlap between the trials; a prognostic factor known to differ between the trials but measured in neither; reconstructed survival without covariate summaries. A stop is a valid result: report why the comparison is not supported instead of fitting a more flexible model. A separate-slopes fit does not repair any of these.</p>
+</details>`;
+
+/** Chapter 3: the joint likelihood and where each coefficient is learned. */
+export const likelihoodPanel = `<details><summary>Technical depth: the joint likelihood, and where each coefficient is learned</summary>
+<p class="formula">Trial A, one patient i with covariates x_i:  y_i ~ Bernoulli(p_i),  logit(p_i) = α_A + x_iᵀ β_A
+Trial B, one row s with n_s patients and r_s events:  r_s ~ Binomial(n_s, p̄_s)
+p̄_s = (1 / n_int) Σ_j logit⁻¹(α_B + x_sjᵀ β_B),  x_sj = the integration points of row s
+Shared slopes (SPFA):  β_A = β_B = β.  Separate slopes (relaxed):  β_B has its own prior.
+Priors:  α_k ~ Normal(0, 2.5²),  β ~ Normal(0, 1²), with autoscale dividing a slope\'s scale by that covariate\'s SD.
+Posterior ∝ likelihood of trial A × likelihood of every row of trial B × priors.</p>
+${li([
+  '<strong>α_A</strong> is learned from trial A\'s patients. <strong>β</strong> under SPFA is learned from trial A\'s patients and, weakly, from the differences between trial B\'s rows. <strong>α_B</strong> is learned only from trial B\'s rows. <strong>β_B</strong> under the relaxed model is learned only from the differences between trial B\'s rows and its prior; with one row it is the prior.',
+  '<strong>Centering</strong> (the default) subtracts the covariate means before fitting, so α_k describes a patient with average covariates and your intercept prior applies to that patient. Predictions are unchanged.',
+  '<strong>Standardization</strong>: in every posterior draw, θ_k(P) = E_P[logit⁻¹(α_k + Xᵀ β_k)] over the target population P, then Δ_RD(P) = θ_A(P) − θ_B(P), Δ_RR(P) = θ_A(P) / θ_B(P), and Δ_LOR(P) = logit(θ_A(P)) − logit(θ_B(P)). The log odds ratio of averaged risks is not the average of conditional log odds ratios.',
+  '<strong>Integration</strong>: p̄_s is a finite average over n_int Sobol points drawn from the covariate distribution you declare for row s. It approximates an integral; the points are not patients, and doubling n_int changes p̄_s by a numerical error you should check against the effect you report.',
+])}
+<p>Equation to function: <code>set_ipd()</code> and <code>set_agd()</code> supply the two likelihood terms; <code>add_integration()</code> supplies x_sj; <code>mlumr(model = )</code> chooses shared or separate β; <code>prior_intercept</code>, <code>prior_beta</code> and <code>prior_beta_comparator</code> are the priors; <code>marginal_effects()</code> computes the Δ over trial A\'s points, trial B\'s points, or your <code>newdata</code>; <code>conditional_effects()</code> compares logit⁻¹(α_A + xᵀβ_A) with logit⁻¹(α_B + xᵀβ_B) at one profile x. Other outcome types replace the Bernoulli and Binomial terms with a normal, Poisson or survival likelihood and keep the same structure; the identity-link rank argument of chapter 7 applies to the normal model only.</p>
+</details>`;
+
+/** Chapter 12: what a posterior interval includes and what it leaves out. */
+export const uncertaintyPanel = `<details><summary>What the posterior interval includes, and what it leaves out</summary>
+<div class="table-wrap"><table class="fit-table"><thead><tr><th>Source of uncertainty</th><th>In the 95% posterior interval?</th><th>How to see it</th></tr></thead><tbody>
+<tr><td>Parameter uncertainty given the model, the priors and the declared covariate distributions</td><td>Yes</td><td>The interval itself; the MCSE says how precisely its summaries were computed, which is a different thing</td></tr>
+<tr><td>Which prior was used for trial B\'s slopes</td><td>No</td><td>Refit at other prior scales and re-extract the same target (the companion script\'s <code>--sensitivity</code> run)</td></tr>
+<tr><td>The number of integration points</td><td>No</td><td>Refit at a larger grid and compare the target effect against its MCSE</td></tr>
+<tr><td>The covariate distribution and dependence declared for trial B</td><td>No</td><td>Declare other plausible distributions and correlations; with one covariate there is no dependence to vary</td></tr>
+<tr><td>The target population you supplied</td><td>No</td><td>Evaluate the same fit in other targets and report how far each sits from trial A\'s covariates</td></tr>
+<tr><td>Covariates nobody measured, and other differences between the trials</td><td>No</td><td>Cannot be estimated from these data; state them as assumptions</td></tr>
+<tr><td>Reconstruction of a survival curve, and the outcome model or link</td><td>No</td><td>Fit alternatives and compare; reconstruction error is not propagated</td></tr>
+</tbody></table></div>
+<p>A 95% posterior interval, also called a credible interval, holds 95% of the posterior draws under the model. A 95% confidence interval, which the naive and STC benchmarks report, is a frequentist construction about repeated sampling. Do not read either as the probability that the true effect lies inside it in a different model, and do not read a small Monte Carlo standard error as evidence that the comparison is unbiased.</p>
+</details>`;
+
+/** Chapter 13: the applied capstone, with a proposed rubric. */
+export const capstonePanel = `<details><summary>Capstone: an applied analysis you can submit</summary>
+<p>Use the companion script\'s synthetic binary data: trial A\'s patients, trial B\'s three-row partition, the covariate dictionary (one standardized prognostic covariate, x) and the 400-row target it defines. Run <code>Rscript workflow.R --fit --sensitivity</code> for the base fits, the integration refit, the comparator prior sweep and the transport scenarios; the package notes on the lesson branch record the outputs expected at the pinned commit, with Monte Carlo tolerances. Two invalid inputs are part of the exercise: question 10\'s overlapping subgroup tables, and question 9\'s adjusted mean at x = 0 supplied for a row at x = 1. Every value is synthetic. The brief does not tell you which prior or model gives the preferred conclusion.</p>
+<h3>Deliverables</h3>${li([
+  'One paragraph stating the estimand: treatments, outcome, target population, effect scale and anchor status, and a go or stop decision on the data, with reasons.',
+  'Reproducible preparation and a base fit, with the package commit, the model, the build, the seed and the data identities.',
+  'Effect estimates in the prespecified target, with scales, units, intervals, draw counts and sampling checks.',
+  'At least one integration refit and the comparator prior sweep, each re-extracting the same target, plus a transport scenario or a reason it cannot be quantified.',
+  'A one-page report with findings, sensitivity, limitations and a defensible next step. Concluding that the evidence is too assumption-dependent is a valid result.',
+])}
+<h3>Proposed rubric (not a validated certification instrument)</h3>
+<div class="table-wrap"><table class="fit-table"><thead><tr><th>Dimension</th><th>Weight</th><th>Evidence of competence</th></tr></thead><tbody>
+<tr><td>Estimand and evidence structure</td><td>20%</td><td>Correct treatments, outcome, target, scale and anchor status</td></tr>
+<tr><td>Data and assumption validation</td><td>20%</td><td>Correct summaries, weights, partition, overlap and transport concerns</td></tr>
+<tr><td>Reproducible implementation</td><td>20%</td><td>Runnable code, versions and data provenance, correct target extraction</td></tr>
+<tr><td>Diagnostics and sensitivity</td><td>25%</td><td>Sampling, numerical, identification and transport questions kept apart, actual refits interpreted</td></tr>
+<tr><td>Interpretation and reporting</td><td>15%</td><td>Correct units and uncertainty, stated limits, justified next action</td></tr>
+</tbody></table></div>
+<p>Double-counted patients, an SD used as an SE, a reversed treatment direction or a different target than the one stated need remediation whatever the total. The rubric has not been piloted with learners; passing it is not evidence of professional competence, and reaching the end of the narration or clicking every answer is not an assessment.</p>
+</details>`;

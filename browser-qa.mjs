@@ -268,8 +268,8 @@ try {
       }
     }
     if (lab.value === 'practice') {
-      const correct = [0,1,2,1,2];
-      for (let q = 0; q < 5; q++) {
+      const correct = [0,1,2,1,2,1,0,1,2,1];
+      for (let q = 0; q < correct.length; q++) {
         await page.locator('#ml-question').selectOption(String(q));
         await page.locator(`[data-answer="${(correct[q]+1)%3}"]`).click();
         assert.match(await page.locator('.feedback').innerText(), /^Try again/);
@@ -527,7 +527,7 @@ try {
   }
   assert.deepEqual(failures.filter(f => ![...downloads].some(u => f.startsWith('requestfailed ') && f.endsWith(`${u} net::ERR_ABORTED`))), []);
   await writeFile(resolve(out,'browser-results.json'), JSON.stringify({ url, sceneOnly, evidence, failures },null,2));
-  console.log(JSON.stringify({ labs:labs.length, knowledgeChecks:5, diagnostics:7, responsiveSizes:evidence.filter(e => e.viewport).length, browserErrors:failures.length, evidence:out }));
+  console.log(JSON.stringify({ labs:labs.length, knowledgeChecks:10, diagnostics:7, responsiveSizes:evidence.filter(e => e.viewport).length, browserErrors:failures.length, evidence:out }));
 } finally {
   await browser.close();
 }

@@ -70,7 +70,7 @@ The script plays the narration, visits every chapter, moves every control, answe
 | Survival after averaging | Change time, mix and risk difference | Population hazard ratios change over time; RMST needs a horizon. |
 | When the prior matters | Tighten the prior, move the target | A narrow interval can come from assumptions instead of data. |
 | Read a fit before trusting it | Open seven problems | Sampling, integration, identification and transport are separate checks. |
-| Report it well | Answer five questions | What a defensible report contains. |
+| Report it well | Answer ten questions, read the capstone | What a defensible report contains. |
 
 ## Listening and exploring
 
