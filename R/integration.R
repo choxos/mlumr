@@ -463,9 +463,9 @@ add_integration <- function(data, n_int = 64, cor = NULL,
 
 #' Generate correlated uniform quasi-Monte Carlo points
 #'
-#' Sobol points pushed through a Gaussian copula: the normal scores are
-#' correlated with the Cholesky factor of `copula_cor`, which is the inverse
-#' Rosenblatt transform of that copula.
+#' Sobol points pushed through a Gaussian copula: normal scores, multiplied by
+#' the Cholesky factor of `copula_cor`, mapped back to uniforms. The three
+#' steps together are the inverse Rosenblatt transform of that copula.
 #' @keywords internal
 .generate_copula_uniforms <- function(n_int, n_cov, copula_cor) {
   u <- as.matrix(randtoolbox::sobol(n = n_int, dim = n_cov))

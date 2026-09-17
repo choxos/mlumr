@@ -7,8 +7,8 @@
 .generate_copula_uniforms(n_int, n_cov, copula_cor)
 }
 \description{
-Sobol points pushed through a Gaussian copula: the normal scores are
-correlated with the Cholesky factor of \code{copula_cor}, which is the inverse
-Rosenblatt transform of that copula.
+Sobol points pushed through a Gaussian copula: normal scores, multiplied by
+the Cholesky factor of \code{copula_cor}, mapped back to uniforms. The three
+steps together are the inverse Rosenblatt transform of that copula.
 }
 \keyword{internal}

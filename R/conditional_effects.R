@@ -531,7 +531,9 @@ conditional_effects <- function(object,
 #' @param probs Quantiles for summary
 #'
 #' @return A data frame with predictions for each treatment at each profile.
-#'   For survival fits there is one row per profile, treatment, and time.
+#'   For survival fits the summary has one row per profile, treatment, and
+#'   time; with `summary = FALSE` the draws are rows and the prediction times
+#'   are `t_*` columns.
 #' @seealso [conditional_effects()] for covariate-conditional treatment
 #'   *effects*; [predict.mlumr_fit()] for population-level predictions.
 #' @export
