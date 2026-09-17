@@ -7,8 +7,8 @@
 check_link(family, link = NULL)
 }
 \arguments{
-\item{family}{Character: canonical (\code{"binomial"}, \code{"normal"}, \code{"poisson"})
-or alias (\code{"binary"}, \code{"count"}, \code{"rate"}, \code{"continuous"}).}
+\item{family}{Character: \code{"binomial"}, \code{"normal"}, \code{"poisson"} or
+\code{"survival"}.}
 
 \item{link}{Character or \code{NULL}. If \code{NULL}, uses default for family.}
 }
@@ -22,22 +22,18 @@ List with components:
 }
 \description{
 Checks that \code{link} is valid for \code{family} and returns the resolved link name
-plus an integer code for Stan. Accepts canonical family names (\code{"binomial"},
-\code{"normal"}, \code{"poisson"}) and data-type aliases (\code{"binary"}, \code{"count"},
-\code{"rate"}, \code{"continuous"}).
+plus an integer code for Stan. \code{family} is the canonical name that
+\code{\link[=set_ipd]{set_ipd()}} and \code{\link[=set_agd]{set_agd()}} record: \code{"binomial"}, \code{"normal"}, \code{"poisson"}
+or \code{"survival"}.
 }
 \details{
-The V1 likelihood/link matrix is:
+The likelihood/link matrix is:
 
-\tabular{llll}{
-\strong{Data type} \tab \strong{Family} \tab \strong{Likelihoods} \tab \strong{Link functions} \cr
-Binary  \tab binomial \tab bernoulli (IPD), binomial (AgD)  \tab logit, probit, cloglog \cr
-Count*  \tab binomial \tab bernoulli (IPD), binomial (AgD)  \tab logit, probit, cloglog \cr
-Rate    \tab poisson  \tab poisson                          \tab log                    \cr
-Continuous \tab normal \tab normal                           \tab identity, log          \cr
+\tabular{lll}{
+\strong{Family} \tab \strong{Likelihoods} \tab \strong{Link functions} \cr
+binomial \tab bernoulli (IPD), binomial (AgD) \tab logit, probit, cloglog \cr
+poisson  \tab poisson                         \tab log                    \cr
+normal   \tab normal                          \tab identity, log          \cr
 }
-
-*\code{"count"} refers to count/total (binomial denominator) data, not Poisson
-event counts. For Poisson rate or count outcomes, use \code{"poisson"} or \code{"rate"}.
 }
 \keyword{internal}

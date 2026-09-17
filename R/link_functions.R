@@ -1,25 +1,21 @@
 #' Validate and resolve link function for a given family
 #'
 #' Checks that `link` is valid for `family` and returns the resolved link name
-#' plus an integer code for Stan. Accepts canonical family names (`"binomial"`,
-#' `"normal"`, `"poisson"`) and data-type aliases (`"binary"`, `"count"`,
-#' `"rate"`, `"continuous"`).
+#' plus an integer code for Stan. `family` is the canonical name that
+#' [set_ipd()] and [set_agd()] record: `"binomial"`, `"normal"`, `"poisson"`
+#' or `"survival"`.
 #'
-#' The V1 likelihood/link matrix is:
+#' The likelihood/link matrix is:
 #'
-#' \tabular{llll}{
-#'   \strong{Data type} \tab \strong{Family} \tab \strong{Likelihoods} \tab \strong{Link functions} \cr
-#'   Binary  \tab binomial \tab bernoulli (IPD), binomial (AgD)  \tab logit, probit, cloglog \cr
-#'   Count*  \tab binomial \tab bernoulli (IPD), binomial (AgD)  \tab logit, probit, cloglog \cr
-#'   Rate    \tab poisson  \tab poisson                          \tab log                    \cr
-#'   Continuous \tab normal \tab normal                           \tab identity, log          \cr
+#' \tabular{lll}{
+#'   \strong{Family} \tab \strong{Likelihoods} \tab \strong{Link functions} \cr
+#'   binomial \tab bernoulli (IPD), binomial (AgD) \tab logit, probit, cloglog \cr
+#'   poisson  \tab poisson                         \tab log                    \cr
+#'   normal   \tab normal                          \tab identity, log          \cr
 #' }
 #'
-#' *`"count"` refers to count/total (binomial denominator) data, not Poisson
-#' event counts. For Poisson rate or count outcomes, use `"poisson"` or `"rate"`.
-#'
-#' @param family Character: canonical (`"binomial"`, `"normal"`, `"poisson"`)
-#'   or alias (`"binary"`, `"count"`, `"rate"`, `"continuous"`).
+#' @param family Character: `"binomial"`, `"normal"`, `"poisson"` or
+#'   `"survival"`.
 #' @param link Character or `NULL`. If `NULL`, uses default for family.
 #' @return List with components:
 #' \describe{
@@ -33,26 +29,9 @@ check_link <- function(family, link = NULL) {
   family <- .validate_link_string(family, "family")
   family <- tolower(family)
 
-  # Resolve data-type aliases to canonical family names (user-facing
-  # ergonomics; valid links / defaults come from family_config)
-  family_aliases <- c(
-    binary     = "binomial",
-    count      = "binomial",
-    rate       = "poisson",
-    continuous = "normal",
-    tte        = "survival",
-    surv       = "survival"
-  )
-  canonical <- unname(family_aliases[family])
-  if (!is.na(canonical)) {
-    family <- canonical
-  }
-
   if (!family %in% names(family_config)) {
     stop(sprintf("Unknown family '%s'. Valid: %s",
-                 family,
-                 paste(c(names(family_config), names(family_aliases)),
-                       collapse = ", ")),
+                 family, paste(names(family_config), collapse = ", ")),
          call. = FALSE)
   }
 
@@ -451,28 +430,6 @@ link_derivative_response <- function(p, link = c("logit", "probit", "cloglog")) 
     logit = 1 / (p * (1 - p)),
     probit = 1 / dnorm(qnorm(p)),
     cloglog = 1 / ((1 - p) * (-log1p(-p)))
-  )
-}
-
-#' Derivative of inverse link with respect to linear predictor
-#' @keywords internal
-inverse_link_derivative <- function(eta,
-                                    p = inverse_link(eta, link),
-                                    link = c("logit", "probit", "cloglog")) {
-  link <- match.arg(link)
-  .validate_numeric_vector(eta, "eta")
-  .validate_numeric_vector(p, "p")
-  p <- .bound_unit_interval(p)
-
-  switch(link,
-    logit = p * (1 - p),
-    probit = dnorm(eta),
-    cloglog = {
-      exp_eta <- exp(eta)
-      deriv <- exp_eta * exp(-exp_eta)
-      deriv[is.infinite(exp_eta) & exp_eta > 0] <- 0
-      deriv
-    }
   )
 }
 

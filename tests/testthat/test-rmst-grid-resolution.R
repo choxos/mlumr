@@ -1,3 +1,11 @@
+# Per-draw share of the total survival decay that lands in one grid interval,
+# as the production path computes it from .decay_parts(); kept here because
+# only these tests ask for it as one call.
+.rmst_max_interval_share <- function(s_mat) {
+  parts <- .decay_parts(s_mat)
+  .decay_share(parts$max, parts$total)
+}
+
 # The trapezoid rule is accurate only where the curve is resolved. When events
 # happen far earlier than the restriction time, nearly all of the decay falls
 # inside the FIRST interval, and a straight line from S(0) = 1 to S(t_1) is a

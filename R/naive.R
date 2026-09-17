@@ -325,10 +325,6 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
 #' collapsed to right-censoring.
 #' @keywords internal
 .naive_survival <- function(data, conf_level, z) {
-  if (!requireNamespace("survival", quietly = TRUE)) {
-    stop("Package 'survival' is required for the naive survival comparison.",
-         call. = FALSE)
-  }
   ipd <- data$ipd$data
   pseudo <- data$agd$pseudo_ipd
 

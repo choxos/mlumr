@@ -44,32 +44,8 @@ test_that("check_link returns correct defaults", {
 
 test_that("check_link returns canonical family name", {
   expect_equal(check_link("binomial")$family, "binomial")
-  expect_equal(check_link("binary")$family, "binomial")
-  expect_equal(check_link("count")$family, "binomial")
   expect_equal(check_link("normal")$family, "normal")
-  expect_equal(check_link("continuous")$family, "normal")
   expect_equal(check_link("poisson")$family, "poisson")
-  expect_equal(check_link("rate")$family, "poisson")
-})
-
-test_that("check_link resolves data-type aliases", {
-  # binary -> binomial
-
-  expect_equal(check_link("binary")$link, "logit")
-  expect_equal(check_link("binary", "probit")$code, 2L)
-  expect_equal(check_link("binary", "cloglog")$code, 3L)
-
-  # count -> binomial (from multinma convention: r/n aggregate counts)
-  expect_equal(check_link("count")$link, "logit")
-  expect_equal(check_link("count", "probit")$link, "probit")
-
-  # rate -> poisson
-  expect_equal(check_link("rate")$link, "log")
-  expect_equal(check_link("rate")$code, 1L)
-
-  # continuous -> normal
-  expect_equal(check_link("continuous")$link, "identity")
-  expect_equal(check_link("continuous", "log")$code, 2L)
 })
 
 test_that("check_link returns correct codes for all valid links", {
@@ -87,8 +63,8 @@ test_that("check_link is case-insensitive", {
   expect_equal(check_link("binomial", "Logit")$link, "logit")
   expect_equal(check_link("binomial", "PROBIT")$link, "probit")
   expect_equal(check_link("normal", "LOG")$link, "log")
-  expect_equal(check_link("Binary", "cloglog")$link, "cloglog")
-  expect_equal(check_link("CONTINUOUS")$link, "identity")
+  expect_equal(check_link("Binomial", "cloglog")$link, "cloglog")
+  expect_equal(check_link("NORMAL")$link, "identity")
 })
 
 test_that("check_link errors on invalid links", {
@@ -233,13 +209,7 @@ test_that("binomial link derivatives match existing formulas", {
   )
 })
 
-test_that("inverse link derivatives and binomial variances stay finite at boundaries", {
-  eta <- c(-1000, 0, 1000)
-
-  expect_equal(inverse_link_derivative(eta, link = "cloglog")[[1L]], 0)
-  expect_equal(inverse_link_derivative(eta, link = "cloglog")[[3L]], 0)
-  expect_true(all(is.finite(inverse_link_derivative(eta, link = "cloglog"))))
-
+test_that("binomial variances stay finite at boundaries", {
   vars <- binomial_link_variance(c(0, 0.5, 1), n = 100, link = "logit")
   expect_true(all(is.finite(vars)))
   expect_true(all(vars > 0))

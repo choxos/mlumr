@@ -972,8 +972,8 @@ calculate_waic <- function(object,
 compare_models <- function(..., criterion = c("dic", "loo", "waic"),
                            survival_unit = c("observation", "arm", "aggregate")) {
 
-  criterion <- .validate_diagnostic_choice(criterion, c("dic", "loo", "waic"),
-                                           "criterion")
+  criterion <- .validate_choice(criterion, c("dic", "loo", "waic"),
+                                "criterion")
   survival_unit <- match.arg(survival_unit)
   models <- list(...)
   .validate_model_count(models)
@@ -1113,28 +1113,6 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic"),
   loo::relative_eff(exp(stabilized), chain_id = chain_id)
 }
 
-
-#' Validate a diagnostics/model-comparison choice
-#' @keywords internal
-.validate_diagnostic_choice <- function(x, choices, name) {
-  if (identical(x, choices)) {
-    return(choices[[1L]])
-  }
-
-  valid <- is.character(x) &&
-    length(x) == 1L &&
-    !is.na(x) &&
-    nzchar(x) &&
-    x %in% choices
-
-  if (!valid) {
-    stop(sprintf("`%s` must be one of: %s.",
-                 name, paste(sprintf("'%s'", choices), collapse = ", ")),
-         call. = FALSE)
-  }
-
-  x
-}
 
 
 #' Validate that model comparison has at least two candidates

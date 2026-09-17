@@ -4,7 +4,7 @@
 \alias{.ensure_positive_definite_cor}
 \title{Ensure adjusted integration correlation is positive definite}
 \usage{
-.ensure_positive_definite_cor(copula_cor, n_cov)
+.ensure_positive_definite_cor(copula_cor)
 }
 \description{
 Ensure adjusted integration correlation is positive definite

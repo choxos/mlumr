@@ -115,10 +115,6 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
 #' @return A basis spec list with `internal`, `boundary`, `degree`, `n_scoef`.
 #' @keywords internal
 .build_mspline_basis <- function(knots, degree) {
-  if (!requireNamespace("splines2", quietly = TRUE)) {
-    stop("Package 'splines2' is required for flexible-baseline survival models.",
-         call. = FALSE)
-  }
   spec <- list(
     internal = knots$internal,
     boundary = knots$boundary,
@@ -233,13 +229,6 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
   sqrt(wts)
 }
 
-
-#' Softmax of a vector (numerically stable); used to map log-ratios to a simplex
-#' @keywords internal
-.softmax <- function(x) {
-  z <- x - max(x)
-  exp(z) / sum(exp(z))
-}
 
 
 #' Per-study M-spline bases of matching dimension
