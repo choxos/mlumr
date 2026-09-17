@@ -5,5 +5,5 @@ Ensure adjusted integration correlation is positive definite
 ## Usage
 
 ``` r
-.ensure_positive_definite_cor(copula_cor, n_cov)
+.ensure_positive_definite_cor(copula_cor)
 ```

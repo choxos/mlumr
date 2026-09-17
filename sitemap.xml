@@ -223,7 +223,6 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-risk_intervals.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-rmst_caption.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-rmst_from_surv_matrix.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-rmst_max_interval_share.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-rounding_allowance.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-row_keys.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-rstan_ess_tail.html</loc></url>
@@ -235,7 +234,6 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-set_ipd_survival.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-slope_escape_feasible.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-slope_region_pairs.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-softmax.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-sorted_keys.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-source_digests.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-source_row_keys.html</loc></url>
@@ -305,10 +303,10 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_agd_outcomes.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_agd_poisson_outcomes.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_agd_sample_size.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-validate_choice.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_complete_rows_remain.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_computed_integration_cor.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_conf_level.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-validate_diagnostic_choice.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_effect_choice.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_engine_name.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_flexsurv_fit.html</loc></url>
@@ -332,7 +330,6 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_non_empty_data.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_numeric_vector.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_positive_numeric.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-validate_predict_choice.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_prior_summary_digits.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_probs.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_required_covariates.html</loc></url>
@@ -375,7 +372,6 @@
 <url><loc>https://choxos.github.io/mlumr/reference/get_family_config.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/index.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/inverse_link.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/inverse_link_derivative.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/is_single_prior.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/link_derivative_response.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/link_fun.html</loc></url>

@@ -1,9 +1,13 @@
 # Validate and resolve link function for a given family
 
 Checks that `link` is valid for `family` and returns the resolved link
-name plus an integer code for Stan. Accepts canonical family names
-(`"binomial"`, `"normal"`, `"poisson"`) and data-type aliases
-(`"binary"`, `"count"`, `"rate"`, `"continuous"`).
+name plus an integer code for Stan. `family` is the canonical name the
+data setup records: `"binomial"`, `"normal"` or `"poisson"` from
+[`set_ipd()`](https://choxos.github.io/mlumr/reference/set_ipd.md) and
+[`set_agd()`](https://choxos.github.io/mlumr/reference/set_agd.md), or
+`"survival"` from
+[`set_ipd()`](https://choxos.github.io/mlumr/reference/set_ipd.md) with
+[`set_agd_surv()`](https://choxos.github.io/mlumr/reference/set_agd_surv.md).
 
 ## Usage
 
@@ -15,8 +19,7 @@ check_link(family, link = NULL)
 
 - family:
 
-  Character: canonical (`"binomial"`, `"normal"`, `"poisson"`) or alias
-  (`"binary"`, `"count"`, `"rate"`, `"continuous"`).
+  Character: `"binomial"`, `"normal"`, `"poisson"` or `"survival"`.
 
 - link:
 
@@ -40,16 +43,12 @@ List with components:
 
 ## Details
 
-The V1 likelihood/link matrix is:
+The likelihood/link matrix is:
 
-|  |  |  |  |
-|----|----|----|----|
-| **Data type** | **Family** | **Likelihoods** | **Link functions** |
-| Binary | binomial | bernoulli (IPD), binomial (AgD) | logit, probit, cloglog |
-| Count\* | binomial | bernoulli (IPD), binomial (AgD) | logit, probit, cloglog |
-| Rate | poisson | poisson | log |
-| Continuous | normal | normal | identity, log |
-
-\*`"count"` refers to count/total (binomial denominator) data, not
-Poisson event counts. For Poisson rate or count outcomes, use
-`"poisson"` or `"rate"`.
+|            |                                 |                        |
+|------------|---------------------------------|------------------------|
+| **Family** | **Likelihoods**                 | **Link functions**     |
+| binomial   | bernoulli (IPD), binomial (AgD) | logit, probit, cloglog |
+| poisson    | poisson                         | log                    |
+| normal     | normal                          | identity, log          |
+| survival   | parametric or M-spline hazard   | log (the only one)     |

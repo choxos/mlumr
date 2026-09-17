@@ -19,7 +19,7 @@ rather than merely blur it.
 - share:
 
   Per-draw shares, one vector per curve as
-  [`.rmst_max_interval_share()`](https://choxos.github.io/mlumr/reference/dot-rmst_max_interval_share.md)
+  [`.decay_share()`](https://choxos.github.io/mlumr/reference/dot-decay_share.md)
   or
   [`.standardize_target_survival_s()`](https://choxos.github.io/mlumr/reference/dot-standardize_target_survival_s.md)
   computes them; `NA` where there is no decay to apportion.

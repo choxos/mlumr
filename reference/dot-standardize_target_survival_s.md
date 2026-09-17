@@ -36,5 +36,5 @@ inside a different interval average to a curve that loses half its decay
 in each, under any threshold, while the trapezoid rule is linear and
 overstates the average RMST by exactly the mean of what it overstates
 for the two. With one profile the share is the one
-[`.rmst_max_interval_share()`](https://choxos.github.io/mlumr/reference/dot-rmst_max_interval_share.md)
+[`.decay_share()`](https://choxos.github.io/mlumr/reference/dot-decay_share.md)
 computes.
