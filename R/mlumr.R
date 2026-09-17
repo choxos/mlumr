@@ -5802,7 +5802,7 @@ mlumr <- function(data,
 #' by the AgD likelihood, which contributes one term per AgD row evaluated at
 #' that row's integration grid. The number of comparator parameters those terms
 #' can separate is therefore the rank of the per-row mean covariate profiles
-#' augmented with an intercept column, NOT the number of rows: rows that repeat
+#' augmented with an intercept column, not the number of rows: rows that repeat
 #' the same covariate summaries add likelihood terms but no new direction.
 #'
 #' Uses the declared aggregate covariate means, which define the identity-link
@@ -5820,7 +5820,7 @@ mlumr <- function(data,
 
 #' Numerical rank of the aggregate mean profiles
 #'
-#' The companion to [.agd_covariate_rank()] that answers the DIFFERENT question
+#' The companion to [.agd_covariate_rank()] that answers the different question
 #' of whether the directions exist at all, rather than whether they are spread
 #' widely enough to be informative in practice.
 #' @param data An `mlumr_data` object.

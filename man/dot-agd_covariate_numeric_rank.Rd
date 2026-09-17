@@ -13,7 +13,7 @@
 Integer rank including the intercept.
 }
 \description{
-The companion to \code{\link[=.agd_covariate_rank]{.agd_covariate_rank()}} that answers the DIFFERENT question
+The companion to \code{\link[=.agd_covariate_rank]{.agd_covariate_rank()}} that answers the different question
 of whether the directions exist at all, rather than whether they are spread
 widely enough to be informative in practice.
 }

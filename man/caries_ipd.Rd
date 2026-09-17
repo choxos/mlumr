@@ -56,11 +56,11 @@ fluoride, SDF) in a count-outcome ML-UMR example; pair with
 \code{\link{caries_agd}}. Not real patient data.
 }
 \details{
-The index and comparator arms come from the SAME trial, so both
+The index and comparator arms come from the same trial, so both
 carry the study label \code{"Ammar 2025"}. Splitting one randomized trial into a
 single-arm IPD source and a single-arm aggregate source is what makes this
 an unanchored example that still has a full-data comparison to be checked
-against: fitting the two arms together on the COMPLETE synthetic records
+against: fitting the two arms together on the complete synthetic records
 gives the quantity the unanchored methods are trying to recover once one
 arm has been reduced to summaries. That is a data-reduction benchmark. It
 is not a randomized reference and not a known population causal effect.
