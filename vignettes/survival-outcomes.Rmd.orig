@@ -47,37 +47,22 @@ the unanchored analogue of that analysis [@ChandlerIshak2026]. See
 `vignette("choosing-a-method")` to choose between methods.
 
 > **About these data.** `ndmm_ipd` / `ndmm_agd` / `ndmm_agd_covs` are copied
-> *verbatim* from `multinma`; they were not re-simulated for mlumr. multinma's
-> IPD is itself **simulated** to resemble the published trials, and its
-> aggregate arms are pseudo-IPD reconstructed from digitized Kaplan-Meier
-> curves [@Leahy2019]. mlumr bundles **one arm from each trial**: lenalidomide
-> from McCarthy2012 (IPD) and thalidomide from Morgan2012 (reconstructed
-> pseudo-IPD). Both trials also randomized patients to **placebo**, and those
-> arms are **deliberately omitted** here. Keeping them would connect the two
-> trials through a common comparator and make an *anchored* comparison
-> possible, which is not the problem this vignette is about. The unanchored
-> framing is a construction for illustration; the section *Checking against the
-> anchored comparison* below puts the omitted arms back to use.
->
-> The index arm is McCarthy2012 lenalidomide rather than the other candidate,
-> Palumbo2014: its patients are closer to the Morgan2012 population, which is
-> what an unanchored comparison depends on.
+> verbatim from `multinma`, whose IPD is simulated and whose aggregate arms are
+> pseudo-IPD reconstructed from digitized Kaplan-Meier curves [@Leahy2019].
+> mlumr bundles one arm from each trial, lenalidomide from McCarthy2012 (IPD)
+> and thalidomide from Morgan2012 (pseudo-IPD), and omits the placebo arms
+> both trials randomized, which would otherwise anchor the comparison. The
+> section *Checking against the anchored comparison* puts them back to use.
 
 ## The unanchored survival problem
 
-In an unanchored comparison of two single-arm studies we have individual patient
-data (IPD) for the *index* treatment and only published, aggregate evidence for
-the *comparator*. For survival endpoints that evidence is almost always a
-**Kaplan-Meier (KM) curve** plus a baseline-characteristics table.
-
-mlumr handles this exactly as for its other families: the comparator arm is
-represented by **reconstructed pseudo-IPD**, event/censoring times digitized
-from the published KM curve (e.g. with the Guyot algorithm), and the model
-integrates the individual-level survival likelihood over the comparator's
-covariate distribution, transporting the index-derived survival model to the
-comparator (or any) population. The *unanchored* setting removes the need for a
-common arm but **still relies on conditional constancy / the
-shared-prognostic-factor assumption** (SPFA).
+For a survival endpoint the comparator evidence is almost always a
+Kaplan-Meier (KM) curve plus a baseline table. mlumr represents the comparator
+arm as reconstructed pseudo-IPD, event and censoring times digitized from the
+published curve, and integrates the survival likelihood over the comparator's
+covariate distribution, as for its other families. The unanchored setting
+removes the need for a common arm but still relies on the
+shared-prognostic-factor assumption (SPFA).
 
 ## The ML-UMR survival model
 
@@ -110,17 +95,12 @@ plus two flexible baselines:
 | `"mspline"` | Flexible M-spline baseline (PH) | hazard ratio |
 | `"pexp"` | Piecewise-exponential baseline (PH) | hazard ratio |
 
-`marginal_effects()` reports these on the natural scale, null 1, as for the
-Poisson rate ratio. For AFT distributions a population time ratio requires both
-a shared baseline shape and a shared coefficient vector; under the default
-`aux_by = ".study"`, or under the relaxed model, `marginal_effects()` reports
-`EXP_DELTA_ETA` instead and an explicit request for `"tr"` is an error.
-`predict(type = "loghr")` gives the time-varying marginal log hazard ratio curve
-(null 0). The
-`"gengamma"` form is the generalized gamma restricted to positive Lawless shape
-`Q` (`Q = 1 / sqrt(aux2) > 0`); it nests the Weibull, gamma, and (as a limit)
-log-normal, but does not cover negative-`Q` shapes (use an `"mspline"` baseline
-for a hazard shape outside that family).
+`marginal_effects()` reports these on the natural scale, null 1. For AFT
+distributions a population time ratio needs a shared baseline shape and a
+shared coefficient vector; otherwise `marginal_effects()` reports
+`EXP_DELTA_ETA`. `predict(type = "loghr")` gives the time-varying marginal log
+hazard ratio curve. The `"gengamma"` form is restricted to a positive Lawless
+shape `Q`; use an `"mspline"` baseline for a hazard shape outside that family.
 
 The flexible baselines estimate the baseline-hazard shape from the data using a
 normalized M-spline (the piecewise exponential is the degree-0 case) with a
@@ -261,19 +241,13 @@ frequentist reference points for the Bayesian fit below (the two estimands, log
 HR and RMST difference, are on different scales, so each is compared like for
 like later).
 
-RMST is an integral to a restriction time, so two RMST differences computed to
-different horizons are different estimands and must not be placed side by side.
-The defaults do not agree by construction: a stratified flexible baseline
-defaults to the follow-up both studies observed, because each study's baseline
-is extrapolated as a constant hazard past its own last event, whereas a
-parametric fit and `stc()` default to the pooled maximum. We therefore fix one
-horizon here and pass it to every estimator below.
+RMST differences to different horizons are different estimands, and the
+defaults differ (a stratified flexible baseline uses the follow-up both
+studies observed, a parametric fit and `stc()` the pooled maximum), so one
+horizon is fixed here and passed to every estimator.
 
 ```{r horizon}
-# The follow-up both arms in THIS analysis actually observed, taken from the two
-# subsets that were combined above rather than from the full bundled datasets.
-# Every RMST estimate in this vignette is integrated to this time, so the forest
-# plot compares like with like.
+# The follow-up both arms in this analysis observed.
 tau_rmst <- min(max(ipd_one$eventtime), max(agd_one$eventtime))
 tau_rmst
 ```
@@ -288,44 +262,24 @@ res_stc
 
 ## Fitting the ML-UMR models
 
-Following multinma's NDMM survival example, the primary model uses a **cubic
-M-spline baseline hazard** (`distribution = "mspline"`, `mspline_degree = 3` by
-default) with seven internal knots placed at event-time quantiles, adjusting for
-all four prognostic factors. We fit the shared-effect (SPFA) model and, mirroring
-multinma's `~ (covariates) * .trt` interaction specification, a **relaxed** model
-that lets the prognostic effects differ by treatment (effect modification). A
-Weibull proportional-hazards model is fit alongside as a parametric comparison.
-The settings (64 integration points, 4 chains of 2000 iterations, cubic M-spline
-with 7 internal knots) match multinma's NDMM example.
-`prior_aux` (shape/scale) and `prior_smooth` (M-spline smoothing SD) supplement
-the usual priors; see `vignette("fitting-and-diagnostics")`.
+Following multinma's NDMM survival example, the primary model uses a cubic
+M-spline baseline hazard (`distribution = "mspline"`) with seven internal
+knots, 64 integration points and 4 chains of 2000 iterations. We fit the SPFA
+model, a relaxed model with treatment-specific prognostic effects (the
+unanchored analogue of multinma's `~ (covariates) * .trt`), and a Weibull
+proportional-hazards model as a parametric comparison. `prior_aux` and
+`prior_smooth` supplement the usual priors; see
+`vignette("fitting-and-diagnostics")`.
 
-The baseline hazard is estimated **separately for each study**
-(`aux_by = ".study"`, the default), as in multinma, where `.study` is always
-part of the stratification. Two single-arm trials rarely share a hazard shape,
-and forcing one on them would impose proportional hazards *across* studies,
-which nothing in an unanchored design supports; a shared shape is available as
-`aux_by = "none"` when the two Kaplan-Meier curves plainly agree. (As in
-multinma, `aux_by = NULL` also means a baseline per study, so `"none"` is a
-mlumr-specific spelling for a model multinma cannot fit.) Identification
-survives because each study gets its **own knots over its own observed
-support** (as in multinma's default `type = "quantile"`) and its spline
-coefficients are a simplex, which pins that study's cumulative hazard to 1 at a
-time the study actually observed. Both halves matter: a single pooled basis
-spanning the longer study would leave the shorter one with basis functions it
-never observes, and the likelihood would then be exactly flat along a direction
-that trades the spline scale against the study intercept.
-
-One consequence matters for reading everything below. The marginal hazard ratio
-is time-varying in *any* case, because it weights the covariate distribution by
-each arm's own survival and the two risk sets diverge; with two baseline shapes
-it additionally picks up the ratio of the baselines. So the scalar hazard ratio
-is only its value at one instant, and `marginal_effects()` records which one in
-an **`at_time`** column: the first prediction time here, since the prediction
-grid excludes zero. Changing `pred_times` moves that number, which is why it
-should never be read as "the" hazard ratio. `predict(type = "loghr")` gives the
-whole curve, and the **RMST difference is the estimand that does not depend on
-when you look**.
+The baseline hazard is estimated separately for each study
+(`aux_by = ".study"`, the default), as in multinma; a shared shape is
+available as `aux_by = "none"` when the two curves plainly agree. Each study
+gets its own knots over its own observed support and its spline coefficients
+form a simplex, which is what keeps the baseline and the study intercept
+separately identified. With two baseline shapes the marginal hazard ratio is
+time-varying, so the scalar `HR` is its value at one instant, recorded in the
+`at_time` column; `predict(type = "loghr")` gives the whole curve and the RMST
+difference does not depend on when you look.
 
 ```{r fit-mspline}
 # Primary: cubic M-spline baseline (the multinma NDMM survival model)
@@ -391,15 +345,8 @@ data.frame(
 ## Treatment effects
 
 `marginal_effects()` reports, in each population, the marginal hazard ratio
-(`HR`, natural scale, null 1), the RMST difference (`RMSTD`, in months of
-follow-up, null 0), and the RMST ratio (`RMSTR`, natural scale, null 1). For
-accelerated failure time distributions the scalar is a time ratio (`TR`) only
-when the two studies share one baseline shape and one coefficient vector;
-otherwise it is the exponentiated linear-predictor contrast
-(`EXP_DELTA_ETA`). The hazard ratio is exponentiated from the log hazard ratio,
-while `predict(type = "loghr")` remains on the log scale. Each RMST row carries
-the restriction horizon it was integrated to, since RMST at a different horizon
-is a different estimand:
+(`HR`), the RMST difference (`RMSTD`, in months) and the RMST ratio
+(`RMSTR`); each RMST row carries its restriction horizon:
 
 ```{r effects}
 knitr::kable(marginal_effects(fit_mspline, effect = "all"),
@@ -415,20 +362,14 @@ null line at 0:
 plot(predict(fit_mspline, type = "loghr"))
 ```
 
-A forest plot of the collapsible RMST difference. The Bayesian estimate is shown
-in the **index population**, which is the decision-relevant target for HTA: cost-
-effectiveness models are built for the population a reimbursement decision is
-about, and that is normally the index trial's, not the comparator's
-[@ChandlerIshakTransport]. The STC benchmark is a comparator-population estimand by
-construction, so ML-UMR is shown in both populations: the comparator row is the
-like-for-like comparison with STC, and the index row is the decision-relevant
-estimand. (The naive Cox estimate is a log hazard ratio, a different scale, so
-it is reported under *Frequentist benchmarks* above rather than on this axis.)
+A forest plot of the collapsible RMST difference, in both populations: the
+index population is the decision-relevant target for HTA
+[@ChandlerIshakTransport], and the comparator row is the like-for-like
+comparison with the STC benchmark. The naive Cox estimate is a log hazard
+ratio and stays under *Frequentist benchmarks*.
 
 ```{r forest, fig.height = 4.2}
-# Every ML-UMR fit, in both target populations, on the collapsible RMST scale.
-# Each row must be integrated to the SAME restriction time or the plot compares
-# different estimands, so check that before drawing rather than assuming it.
+# Every fit must be integrated to the same restriction time.
 rd <- function(fit) marginal_effects(fit, effect = "rmstd", population = "both")
 pop <- function(d, which) d[d$population == which, ]
 rd_ms  <- rd(fit_mspline)
@@ -462,15 +403,11 @@ mlumr_forest(forest_df, ref_line = 0,
 
 ## Absolute predictions
 
-Absolute predicted survival summaries (RMST and median) for each treatment, then
-the standardized survival and hazard curves. Median survival is obtained by
-linear interpolation on the fitted `pred_times` grid. If the true median falls
-before the first grid point there is still an exact known point to interpolate
-from, `S(0) = 1`, so the interpolation runs between `(0, 1)` and the first
-fitted time rather than returning that time as if it were the median. The
-estimate is still coarser there than a denser grid would give, so pass a
-`pred_times` with more resolution near zero when very early medians are
-expected.
+Absolute predicted survival summaries (RMST and median) for each treatment,
+then the standardized survival and hazard curves. Median survival is
+interpolated on the `pred_times` grid, from `S(0) = 1` when it falls before
+the first grid point, so pass a denser grid near zero when very early medians
+are expected.
 
 ```{r rmst-median}
 knitr::kable(predict(fit_mspline, type = "rmst"),    caption = "Restricted mean survival time")
@@ -528,22 +465,14 @@ knitr::kable(marginal_effects(fit_mspline_relaxed, effect = "rmstd"),
    caption = "Relaxed M-spline RMST difference (effect modification, collapsible summary)")
 ```
 
-Under the relaxed model the conditional hazard ratio depends on the covariates,
-so there is no single conditional HR. The scalar `HR` is then only the marginal
-hazard ratio at one instant, and the `at_time` column says which: the
-$t \rightarrow 0$ limit for an unstratified fit, and otherwise the first
-prediction time, which is positive and set by `pred_times`. Prefer
-`predict(type = "loghr")` for the time-varying contrast, or the collapsible
-RMST estimands (`effect = "rmstd"` / `"rmstr"`), whose horizon is reported
-beside them. **Caveat (unanchored two-study setting).**
-Unlike multinma's connected network, here the comparator coefficients are
-identified *only* through the single reconstructed comparator likelihood, so the
-index-population relaxed estimand extrapolates them over the IPD covariate
-distribution and is correspondingly wide. We regularize `beta_comparator` with a
-tighter autoscaled prior (set in the fit above), report both populations so the
-extra width of the index-population estimand is visible rather than hidden, and
-check `prior_sensitivity()`; see the *Relaxed-model identification* notes in
-`NEWS` and `?mlumr`.
+Under the relaxed model the conditional hazard ratio depends on the
+covariates, so the scalar `HR` is the marginal hazard ratio at the time in
+`at_time`; prefer `predict(type = "loghr")` or the RMST estimands. In this
+unanchored two-study setting the comparator coefficients are identified only
+through the single reconstructed comparator likelihood, so the
+index-population relaxed estimand extrapolates them over the IPD covariates
+and is correspondingly wide. We regularize `beta_comparator` with a tighter
+autoscaled prior, report both populations, and check `prior_sensitivity()`.
 
 ## Model comparison
 
@@ -571,12 +500,10 @@ plot(predict(fit_weibull, type = "survival")) +
 
 ## Checking against the anchored comparison
 
-The unanchored framing of this vignette is a construction. McCarthy2012 and
-Morgan2012 both randomized patients to **placebo**, and the analysis above
-discards those arms. Because they are still present in the source data, we can do
-something a genuine unanchored analysis never can: check the answer against the
-anchored one. `multinma` is a `Suggests` here, used only to reach the arms mlumr
-does not bundle.
+Both trials randomized patients to placebo, and the analysis above discards
+those arms, so the answer can be checked against the anchored one, which a
+genuine unanchored analysis never can. `multinma` (a `Suggests`) reaches the
+arms mlumr does not bundle.
 
 ```{r anchor-constancy}
 data("ndmm_ipd", package = "multinma")
@@ -589,10 +516,8 @@ mor_pbo <- ndmm_agd[ndmm_agd$studyf == "Morgan2012" & ndmm_agd$trtf == "Pbo", ]
 mor_cov <- ndmm_agd_covs[ndmm_agd_covs$studyf == "Morgan2012" &
                            ndmm_agd_covs$trtf == "Pbo", ]
 
-# Conditional constancy is the assumption ML-UMR cannot test from the unanchored
-# data alone. With the discarded arms it becomes testable: fit the survival model
-# in the arm both trials share, transport it to the other trial's population, and
-# compare against what that trial actually observed for the same arm.
+# Conditional constancy becomes testable with the shared arm: fit it in one
+# trial, transport it to the other, and compare with what that trial observed.
 set.seed(2026)
 m_pbo <- flexsurv::flexsurvreg(
   survival::Surv(eventtime, status) ~ age + iss_stage3 + response_cr_vgpr + male,
@@ -606,8 +531,6 @@ km_rmst <- function(d) unname(summary(
   survival::survfit(survival::Surv(eventtime, status) ~ 1, data = d),
   rmean = tau)$table["rmean"])
 
-# Name these so the prose below cites the same numbers the table prints,
-# rather than literals that drift the next time the vignette is re-knitted.
 rmst_own       <- km_rmst(mcc_pbo)
 rmst_transport <- mean(summary(m_pbo, newdata = nd, type = "rmst",
                                t = tau, ci = FALSE, tidy = TRUE)$est)
@@ -625,15 +548,11 @@ knitr::kable(data.frame(
 
 The transported placebo arm predicts about `r sprintf('%.1f', rmst_transport)`
 months of restricted mean survival for Morgan2012's placebo population, against
-the `r sprintf('%.1f', rmst_observed)` months Morgan2012 actually observed. That is close, and it is the reassurance an unanchored
-analysis normally cannot get: the transport machinery, run on an arm both trials
-share, roughly recovers what that arm did.
-
-It is not exact, and the residual gap is worth keeping in view. The covariate
-model is fitted in a population with mean age 57.9 years and 27% ISS stage 3 and
-asked to reach one with mean age 65.6 years and 32% ISS stage 3. That is a real
-extrapolation, and the remaining `r sprintf('%.1f', rmst_gap)`-month shortfall
-is what is left of it after adjusting for the four measured covariates.
+the `r sprintf('%.1f', rmst_observed)` months observed: the transport
+machinery, run on an arm both trials share, roughly recovers what that arm
+did. The remaining `r sprintf('%.1f', rmst_gap)`-month shortfall is what is
+left of a real extrapolation (mean age 57.9 to 65.6 years) after adjusting for
+the four measured covariates.
 
 Now the anchored answers. Both trials contain a placebo arm, so two anchored
 estimates are available. The first is a **Bucher** indirect comparison: take each
@@ -654,24 +573,14 @@ anchored <- unname(c(lhr_mcc["est"] - lhr_mor["est"],
 anchored_ci <- anchored[1] + c(-1.96, 1.96) * anchored[2]
 ```
 
-The second is a population-adjusted **ML-NMR** fitted with `multinma` on the same
-two trials, the anchored method ML-UMR is adapted from, with the same cubic
-M-spline baseline and the same four covariates.
-
-multinma's own NDMM example uses `regression = ~(age + iss_stage3 +
-response_cr_vgpr + male) * .trt`, i.e. every covariate is allowed to modify the
-treatment effect. That example has **five** studies to identify those
-interactions. Here there are two, and effect modification is not identifiable
-from two studies, so we fit the model both ways: prognostic factors only, and
-with the full `* .trt` interaction. Comparing them is the point, and the interval
-widths tell the story. Note also that once covariates interact with treatment the
-contrast becomes population-specific, so `multinma` returns one estimate per
-study; both are reported below, matching the index/comparator pair reported for
-ML-UMR.
+The second is a population-adjusted ML-NMR fitted with `multinma` on the same
+two trials, with the same M-spline baseline and covariates, both with
+prognostic factors only and with multinma's own `* .trt` interaction. With
+interactions the contrast is population-specific, so `multinma` returns one
+estimate per study, matching the index and comparator pair ML-UMR reports.
 
 ```{r anchor-mlnmr, message = FALSE}
-# Reload explicitly so this chunk stands on its own: `ndmm_ipd` is bundled with
-# mlumr as a single arm, and the anchored check needs multinma's full network.
+# Reload multinma's full network; mlumr bundles a single arm.
 data("ndmm_ipd", package = "multinma")
 data("ndmm_agd", package = "multinma")
 data("ndmm_agd_covs", package = "multinma")
@@ -738,14 +647,9 @@ nmr_em_c <- nmr_contrast(fit_nmr_em, study = "Morgan2012")
 lhr_row <- function(fit, var) fit$summary[fit$summary$variable == var, ]
 
 # `fit$summary` stores coefficients under Stan's positional names, `beta[1]`
-# and so on; only `print()` relabels them as `beta[age]`. Look them up by
-# position so the prose below cannot silently cite an empty result.
+# and so on, so look them up by position.
 beta_mean <- function(fit, cov) {
   k <- match(cov, fit$data$covariates)
-  # Fail loudly. An unmatched name gives `beta[NA]`, which matches nothing and
-  # renders as blank prose with no error, which is the failure this helper
-  # exists to avoid. A relaxed fit stores `beta_index[k]` and
-  # `beta_comparator[k]`, so `beta[k]` would be empty there too.
   stopifnot(length(k) == 1L, !is.na(k), fit$model == "spfa")
   out <- fit$summary$mean[fit$summary$variable == sprintf("beta[%d]", k)]
   stopifnot(length(out) == 1L)
@@ -768,8 +672,7 @@ knitr::kable(data.frame(
              "Anchored: ML-NMR, with * .trt (multinma's own model)",
              "Anchored: ML-NMR, with * .trt (multinma's own model)"),
   Anchored = c("no", "no", "no", "no", "no", "yes", "yes", "yes", "yes"),
-  # The naive Cox row is standardized to no population; it contrasts the two
-  # crude arms. `vignette("choosing-a-method")` uses the same label.
+  # The naive Cox row contrasts the two crude arms.
   Population = c("unstandardized", "index", "comparator", "index", "comparator",
                  "not population-specific", "not population-specific",
                  "index", "comparator"),
@@ -790,108 +693,52 @@ knitr::kable(data.frame(
   caption = "Unanchored estimates against the anchored references, in both target populations (log hazard ratio, Len vs Thal)")
 ```
 
-All three anchored estimates agree closely with one another, which is the first
-thing to check: the Bucher comparison, ML-NMR with prognostic factors, and
-ML-NMR with the full `* .trt` interaction all put lenalidomide ahead of
-thalidomide by a similar margin. The interaction model is estimable here, with
-no divergent transitions, and pays for the extra flexibility only in width.
+The three anchored estimates agree with one another and put lenalidomide
+ahead of thalidomide by a similar margin. In the comparator population the
+unanchored SPFA and relaxed fits agree almost exactly
+(`r sprintf('%.3f', lhr_c$mean)` and `r sprintf('%.3f', lhr_rel_c$mean)`) and
+point the same way as the anchored band, with much wider intervals. In the
+index population SPFA stays close to its comparator value
+(`r sprintf('%.3f', lhr_i$mean)`) while the relaxed model moves to
+`r sprintf('%.3f', lhr_rel_i$mean)`. That divergence is weak identification,
+not evidence of effect modification: `beta_comparator` is informed only by one
+reconstructed curve, which constrains `beta'X` but not the direction of
+`beta`, and the index-population estimand extrapolates that direction across
+the IPD covariates. `marginal_effects()` reports the marginal
+posterior-to-prior variance change for each comparator coefficient as a
+descriptive signal of this.
 
-The unanchored fits separate in an informative way. In the
-**comparator** population SPFA and relaxed agree almost exactly (`r sprintf('%.3f', lhr_c$mean)` and
-`r sprintf('%.3f', lhr_rel_c$mean)`), and both point the same way as the anchored band while sitting a
-little further from the null with much wider intervals. In the **index**
-population SPFA is close to its own comparator value (`r sprintf('%.3f', lhr_i$mean)`), but the relaxed
-model moves to `r sprintf('%.3f', lhr_rel_i$mean)`, roughly twice as far from the null, with an interval to
-match.
-
-This divergence should not be read as evidence of effect modification; it is
-attributable to weak identification. `beta_comparator` is informed only by the
-single reconstructed comparator curve, which constrains `beta'X` but not the
-direction of `beta`. The comparator-population estimand does not require that
-direction to be resolved, whereas the index-population estimand extrapolates it
-across the IPD covariate distribution. `marginal_effects()` reports the
-marginal posterior-to-prior variance change for each comparator coefficient for
-this reason. That quantity is descriptive: a small or negative value can signal
-sensitivity worth investigating, but it is not a fraction of information learned
-from the data and does not establish the source of the index-population result.
-
-Two aspects should be distinguished. The **direction and approximate magnitude**
-are recovered: an unanchored comparison of two single-arm trials, adjusted for
-four prognostic factors, agrees with three anchored analyses that had a common
-comparator. The **precision** is not, and should not be expected to be: the
-unanchored intervals are roughly three times wider, because no part of this
-design is protected by randomization and the comparator's baseline hazard and
-coefficients are identified from one reconstructed curve. That additional width
-reflects the design and should be reported.
-
-Note where SPFA and relaxed agree and where they do not. In the comparator
-population, freeing the comparator coefficients costs precision without moving
-the estimate, which says the shared-effect assumption is not straining the data
-it can actually see. In the index population they part company. Read that as a
-statement about what two single-arm trials can identify rather than as a
-finding about the treatments: the honest summary here is the
-comparator-population contrast and the collapsible RMST difference, with the
-index-population relaxed value reported alongside its width rather than in
-place of them.
-
-A note on estimands, since three log hazard ratios sit in one table. The naive
-figure is an unadjusted marginal Cox estimate; `multinma` reports a conditional
-contrast; and ML-UMR reports a population-standardized marginal effect. The two
-ML-UMR values above are close (`delta_index` `r sprintf('%.3f', lhr_i$mean)`, `delta_comparator` `r sprintf('%.3f', lhr_c$mean)`),
-which says the standardization population barely matters here, but they are not
-identical and neither is a conditional contrast. With a baseline hazard per study
-the marginal hazard ratio also varies with time, so these scalars are its value
-at the first prediction time. Compare the methods on the collapsible RMST
-difference, or on the `predict(type = "loghr")` curve, when the distinction
-matters.
-
-The prognostic coefficients above sit close to multinma's network estimates:
-age `r sprintf('%.2f', beta_mean(fit_mspline, 'age'))` per year against
-multinma's 0.08, ISS stage III
-`r sprintf('%.2f', beta_mean(fit_mspline, 'iss_stage3'))` against 0.35,
-and the response and sex coefficients near zero, where multinma also puts them.
-The constancy check misses by `r sprintf('%.1f', rmst_gap)` months.
-
-The adjusted estimates recover the direction and approximate magnitude of the
-anchored answer, but not its precision. Two conclusions follow. First, where a common comparator exists it should be used; ML-UMR does
-not substitute for randomization. Second, where none exists, both the SPFA and
-relaxed fits should be reported so that the contribution of the modeling
-assumptions is visible. The
-psoriasis example in `vignette("binary-outcomes")` has populations that overlap
-far better, and its unanchored and anchored answers do agree closely.
+So the direction and approximate magnitude of the anchored answer are
+recovered, and the precision is not: the unanchored intervals are roughly
+three times wider, because nothing here is protected by randomization and the
+comparator's baseline and coefficients come from one reconstructed curve. The
+three log hazard ratios in the table are also different estimands: the naive
+figure is an unadjusted marginal Cox estimate, `multinma` reports a
+conditional contrast, and ML-UMR a population-standardized marginal effect at
+the first prediction time. Compare methods on the collapsible RMST difference
+or the `predict(type = "loghr")` curve when the distinction matters. The
+prognostic coefficients sit close to multinma's network estimates (age
+`r sprintf('%.2f', beta_mean(fit_mspline, 'age'))` per year against 0.08, ISS
+stage III `r sprintf('%.2f', beta_mean(fit_mspline, 'iss_stage3'))` against
+0.35, response and sex near zero in both). Where a common comparator exists
+it should be used; where none exists, report both the SPFA and relaxed fits
+so the contribution of the modeling assumptions is visible.
 
 ## Interpretation
 
-* The **naive** Cox log hazard ratio ignores a real prognostic-factor imbalance
-  between McCarthy2012 (Len) and Morgan2012 (Thal): mean age 57.9 against 65.6
-  years, and 27% against 32% ISS stage 3. It is the most extreme estimate in
-  the comparison table, and adjusting moves every other method away from it.
-* The prognostic coefficients are the part to check first, because they are what
-  the adjustment is built from. Here they are close to what `multinma` estimates
-  from the full five-study network (age `r sprintf('%.2f', beta_mean(fit_mspline, 'age'))`
-  per year against 0.08, ISS stage III
-  `r sprintf('%.2f', beta_mean(fit_mspline, 'iss_stage3'))` against 0.35, response
-  and sex near zero in both).
-* **ML-UMR** adjusts for the imbalance and recovers the direction and rough
-  magnitude of the anchored answer (SPFA `r sprintf('%.3f', lhr_i$mean)` in the index population and
-  `r sprintf('%.3f', lhr_c$mean)` in the comparator, against -0.29 to -0.38 anchored), at roughly three
-  times the interval width. Read the SPFA and relaxed fits together: they agree
-  in the comparator population (`r sprintf('%.3f', lhr_rel_c$mean)`) but diverge in the index population
-  (`r sprintf('%.3f', lhr_rel_i$mean)`), which measures how much of the index-population answer rests on
-  comparator coefficients the aggregate curve cannot identify. ML-UMR adds what
-  the frequentist benchmarks cannot: full posterior uncertainty, and effects in
-  *both* populations.
-* Because the two studies have **their own baseline hazards** (`aux_by =
-  ".study"`, the default) the marginal hazard ratio genuinely varies with time,
-  and because the hazard ratio is also **non-collapsible** the marginal and
-  conditional contrasts differ under effect modification. Prefer the
-  time-varying log HR curve (`predict(type = "loghr")`) and the collapsible RMST
-  estimands for scalar summaries; the scalar marginal HR is only the contrast at
-  the first prediction time.
-* The **relaxed** model frees the shared-effect assumption but, with the
-  comparator coefficients identified from one reconstructed likelihood, pays for
-  it in precision. Reserve ML-UMR for genuinely unanchored evidence; when a common
-  comparator exists, prefer an anchored network meta-analysis.
+* The naive Cox log hazard ratio ignores a real prognostic imbalance (mean
+  age 57.9 against 65.6 years, 27% against 32% ISS stage 3) and is the most
+  extreme estimate in the table.
+* ML-UMR adjusts for it and recovers the direction and rough magnitude of the
+  anchored answer at roughly three times the interval width, with effects in
+  both populations. The SPFA and relaxed fits agree in the comparator
+  population and diverge in the index population, which measures how much of
+  the index-population answer rests on comparator coefficients one curve
+  cannot identify.
+* With a baseline hazard per study the marginal hazard ratio varies with
+  time; prefer `predict(type = "loghr")` and the collapsible RMST estimands.
+* Reserve ML-UMR for genuinely unanchored evidence; when a common comparator
+  exists, prefer an anchored network meta-analysis.
 
 > **Data provenance.** `ndmm_ipd` / `ndmm_agd` / `ndmm_agd_covs` are bundled with
 > mlumr, copied verbatim from the GPL-3 `multinma` package [@multinma], which

@@ -367,145 +367,73 @@ relaxed model</h1>
 <p>The relaxed model gives the index and comparator treatments separate
 covariate coefficients. The IPD identify <code>beta_index</code>; the
 comparator coefficients are informed only through the aggregate
-likelihood. Aggregate subgroup rows can add information, but a row count
-alone cannot establish that all comparator coefficients are
-identified.</p>
-<p>This vignette separates three questions:</p>
-<ol style="list-style-type: decimal">
-<li>Is the aggregate design structurally capable of separating the
-comparator intercept and coefficients?</li>
-<li>Does the nonlinear likelihood contain enough information at the
-fitted parameter values?</li>
-<li>Is the resulting target-population effect stable to the prior,
-integration approximation, and transport assumptions?</li>
-</ol>
-<p>Only the first question has a simple exact answer, and only for the
-normal identity-link model.</p>
+likelihood, so what they can be pinned down to depends on how many
+aggregate rows there are and how those rows are laid out. This vignette
+shows what <code>check_identification()</code> measures, how to read it,
+and what a simulation says about designs that pass the row count and
+still fail.</p>
 <div id="what-an-aggregate-row-contributes" class="section level2">
 <h2>What an aggregate row contributes</h2>
-<p>For the binomial, normal, and Poisson families, each mutually
-exclusive aggregate stratum contributes one scalar outcome summary. With
-<span class="math inline">\(K\)</span> covariates, the relaxed
-comparator model has <span class="math inline">\(K + 1\)</span>
-coefficients: an intercept and <span class="math inline">\(K\)</span>
-slopes. Therefore</p>
-<p><span class="math display">\[
-S \geq K + 1
-\]</span></p>
-<p>is a necessary counting condition. It is not sufficient.</p>
-<p>For a normal identity-link model, stratum <span class="math inline">\(s\)</span> has mean</p>
-<p><span class="math display">\[
-\bar y_s = \mu_c + m_s^\mathsf{T}\beta_c,
-\]</span></p>
-<p>where <span class="math inline">\(m_s\)</span> is the declared
-covariate-mean vector. The exact aggregate design matrix is <span class="math inline">\(D=[\mathbf{1},M]\)</span>. The comparator
-coefficients can be separated by the likelihood only when <span class="math inline">\(D\)</span> has full column rank <span class="math inline">\(K+1\)</span>. Equivalently, after centering the
-rows of <span class="math inline">\(M\)</span>, the covariate-mean
-matrix must have rank <span class="math inline">\(K\)</span>.</p>
-<p>For a nonlinear mean model, each row instead contributes</p>
-<p><span class="math display">\[
-\bar y_s =
-\mathbb{E}_{X\sim f_s}\left[g^{-1}(\mu_c+X^\mathsf{T}\beta_c)\right].
-\]</span></p>
-<p>Its local Jacobian depends on the full within-stratum distribution
-<span class="math inline">\(f_s\)</span>, the link, and the parameter
-values. Mean vectors alone do not determine that Jacobian. Differences
-in variances, binary probabilities, or dependence can add information
-that a mean-only rank calculation cannot see. Consequently,
-<code>check_identification()</code> treats the mean-profile spectrum as
-descriptive for binomial, Poisson, and normal-log models. When the row
-count is adequate, <code>flagged</code> is <code>NA</code>, not
-<code>FALSE</code>.</p>
-<p>These distinctions follow the aggregate marginalization used by
-ML-NMR and ML-UMR <span class="citation">(Phillippo et al. 2020; C.
-Chandler and Ishak 2026)</span>.</p>
-</div>
-<div id="rows-must-describe-one-population" class="section level2">
-<h2>Rows must describe one population</h2>
-<p>Multiple <code>set_agd()</code> rows are assumed to be mutually
-exclusive, collectively exhaustive strata of one comparator population.
-They are not separate, overlapping subgroup analyses. Population
-summaries are combined with <code>outcome_n</code> for binomial and
-normal outcomes and with person-time exposure for Poisson outcomes. For
-a normal comparator mean,</p>
-<p><span class="math display">\[
-\bar y_c=\sum_s w_s\bar y_s,\qquad
-\operatorname{Var}(\bar y_c)=\sum_s w_s^2 SE_s^2,
-\qquad w_s=\frac{n_s}{\sum_j n_j},
-\]</span></p>
-<p>assuming independent, mutually exclusive stratum summaries.
-Inverse-variance weights would describe a meta-analysis of estimates,
-not the mean of the comparator population.</p>
-<p>If Poisson exposure varies with covariates, reported covariate
-summaries must match the person-time distribution relevant to the rate.
-Ordinary participant means are justified only under a fixed-exposure or
-suitable independence assumption <span class="citation">(Remiro-Azocar
-et al. 2022)</span>.</p>
+<p>For the binomial, normal and Poisson families each mutually exclusive
+aggregate stratum contributes one scalar outcome summary. With <span class="math inline">\(K\)</span> covariates the relaxed comparator model
+has <span class="math inline">\(K + 1\)</span> coefficients, so <span class="math inline">\(S \geq K + 1\)</span> rows are necessary. They are
+not sufficient. For a normal identity-link model stratum <span class="math inline">\(s\)</span> has mean <span class="math inline">\(\bar y_s = \mu_c + m_s^\mathsf{T}\beta_c\)</span>,
+where <span class="math inline">\(m_s\)</span> is the declared
+covariate-mean vector, and the coefficients are separated only when the
+design <span class="math inline">\([\mathbf{1}, M]\)</span> has full
+column rank: after centering, the mean vectors must span all <span class="math inline">\(K\)</span> covariate directions. For a nonlinear
+mean model each row contributes <span class="math inline">\(\mathbb{E}_{X\sim
+f_s}[g^{-1}(\mu_c+X^\mathsf{T}\beta_c)]\)</span>, which depends on the
+whole within-stratum distribution <span class="math inline">\(f_s\)</span>, so the mean-profile geometry is
+descriptive there and <code>check_identification()</code> returns
+<code>flagged = NA</code> once the row count is adequate <span class="citation">(Phillippo et al. 2020; C. Chandler and Ishak
+2026)</span>.</p>
+<p>Multiple <code>set_agd()</code> rows are taken to be mutually
+exclusive, collectively exhaustive strata of one comparator population,
+combined with <code>outcome_n</code> or person-time weights; they are
+not overlapping subgroup analyses. If Poisson exposure varies with the
+covariates, the covariate summaries must match the person-time
+distribution <span class="citation">(Remiro-Azocar et al.
+2022)</span>.</p>
 </div>
 <div id="mean-profile-geometry" class="section level2">
 <h2>Mean-profile geometry</h2>
 <p><code>check_identification()</code> centers the declared subgroup
-mean vectors, scales each covariate by its IPD SD, and examines the
-singular values. Scaling prevents a covariate measured in large units
-from dominating a binary proportion merely because of units. The
-reported</p>
-<p><span class="math display">\[
-\texttt{cond\_inv}=\frac{d_{\min}}{d_{\max}}
-\]</span></p>
-<p>approaches zero as the mean profiles collapse onto a
-lower-dimensional set. For the identity-link model this summarizes the
-exact design matrix. For nonlinear models it describes only the spread
-of the declared means.</p>
+means, divides each covariate by its IPD SD, and takes the singular
+values. <code>cond_inv</code>, the smallest over the largest, goes to
+zero as the rows collapse onto a lower-dimensional set;
+<code>spread</code>, the RMS distance of the rows from their center
+along the dominant direction, says whether they move at all.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(mlumr)</span></code></pre></div>
-<p>Consider one continuous and two binary covariates. The following
-designs all contain several rows, but they span different covariate
-directions.</p>
+<p>One continuous and two binary covariates. The designs below all have
+several rows but span different directions.</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>ref_sd <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="at">age =</span> <span class="dv">1</span>, <span class="at">sex =</span> <span class="fl">0.5</span>, <span class="at">prior =</span> <span class="fl">0.49</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>by_age_only <span class="ot">&lt;-</span> <span class="fu">cbind</span>(</span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>  <span class="at">age =</span> <span class="fu">seq</span>(<span class="sc">-</span><span class="fl">1.5</span>, <span class="fl">1.5</span>, <span class="at">length.out =</span> <span class="dv">6</span>),</span>
-<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>  <span class="at">sex =</span> <span class="fl">0.5</span>,</span>
-<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>  <span class="at">prior =</span> <span class="fl">0.4</span></span>
-<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>)</span>
-<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a></span>
-<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>cross_tab <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
-<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>  <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>), <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>)</span>
-<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>)</span>
-<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a></span>
-<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>jointly_defined <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
-<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>  <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>), <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>),</span>
-<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>  <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>)</span>
-<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>)</span>
-<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a></span>
-<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a>geometry <span class="ot">&lt;-</span> <span class="cf">function</span>(M, ref_sd) {</span>
-<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>  M <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(M)</span>
-<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>  K <span class="ot">&lt;-</span> <span class="fu">ncol</span>(M)</span>
-<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a>  M <span class="ot">&lt;-</span> <span class="fu">scale</span>(M, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a>  M <span class="ot">&lt;-</span> <span class="fu">sweep</span>(M, <span class="dv">2</span>, ref_sd, <span class="st">&quot;/&quot;</span>)</span>
-<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a>  d <span class="ot">&lt;-</span> <span class="fu">svd</span>(M)<span class="sc">$</span>d</span>
-<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">length</span>(d) <span class="sc">&lt;</span> K) d <span class="ot">&lt;-</span> <span class="fu">c</span>(d, <span class="fu">rep</span>(<span class="dv">0</span>, K <span class="sc">-</span> <span class="fu">length</span>(d)))</span>
-<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">cond_inv =</span> <span class="fu">min</span>(d) <span class="sc">/</span> <span class="fu">max</span>(d),</span>
-<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a>    <span class="at">eff_dim =</span> <span class="fu">sum</span>(d<span class="sc">^</span><span class="dv">2</span>)<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> <span class="fu">sum</span>(d<span class="sc">^</span><span class="dv">4</span>))</span>
-<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>}</span>
-<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a></span>
-<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a><span class="fu">do.call</span>(rbind, <span class="fu">lapply</span>(</span>
-<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;by_age_only&quot;</span>, <span class="st">&quot;cross_tab&quot;</span>, <span class="st">&quot;jointly_defined&quot;</span>),</span>
-<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a>  <span class="cf">function</span>(nm) <span class="fu">c</span>(<span class="at">design =</span> nm, <span class="at">rows =</span> <span class="fu">nrow</span>(<span class="fu">get</span>(nm)),</span>
-<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a>                 <span class="fu">round</span>(<span class="fu">geometry</span>(<span class="fu">get</span>(nm), ref_sd), <span class="dv">3</span>))</span>
-<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a>))</span>
-<span id="cb2-34"><a href="#cb2-34" tabindex="-1"></a><span class="co">#&gt;      design            rows cond_inv eff_dim</span></span>
-<span id="cb2-35"><a href="#cb2-35" tabindex="-1"></a><span class="co">#&gt; [1,] &quot;by_age_only&quot;     &quot;6&quot;  &quot;0&quot;      &quot;1&quot;    </span></span>
-<span id="cb2-36"><a href="#cb2-36" tabindex="-1"></a><span class="co">#&gt; [2,] &quot;cross_tab&quot;       &quot;4&quot;  &quot;0&quot;      &quot;1.999&quot;</span></span>
-<span id="cb2-37"><a href="#cb2-37" tabindex="-1"></a><span class="co">#&gt; [3,] &quot;jointly_defined&quot; &quot;6&quot;  &quot;0.707&quot;  &quot;2.764&quot;</span></span></code></pre></div>
-<p>Age bands vary only in the age direction. The binary cross-tab varies
-in two directions but leaves age fixed. Only the jointly defined cells
-span all three covariates. More rows along an existing direction cannot
-replace a missing direction.</p>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>by_age_only <span class="ot">&lt;-</span> <span class="fu">cbind</span>(<span class="at">age =</span> <span class="fu">seq</span>(<span class="sc">-</span><span class="fl">1.5</span>, <span class="fl">1.5</span>, <span class="at">length.out =</span> <span class="dv">6</span>), <span class="at">sex =</span> <span class="fl">0.5</span>, <span class="at">prior =</span> <span class="fl">0.4</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>cross_tab <span class="ot">&lt;-</span> <span class="fu">rbind</span>(<span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">1</span>), <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>))</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>jointly_defined <span class="ot">&lt;-</span> <span class="fu">rbind</span>(<span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>), <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>),</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>                         <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>))</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>geometry <span class="ot">&lt;-</span> <span class="cf">function</span>(M) {</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>  M <span class="ot">&lt;-</span> <span class="fu">scale</span>(<span class="fu">as.matrix</span>(M), <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>  M <span class="ot">&lt;-</span> <span class="fu">sweep</span>(M, <span class="dv">2</span>, ref_sd, <span class="st">&quot;/&quot;</span>)</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>  d <span class="ot">&lt;-</span> <span class="fu">svd</span>(M)<span class="sc">$</span>d</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">rows =</span> <span class="fu">nrow</span>(M), <span class="at">cond_inv =</span> <span class="fu">round</span>(<span class="fu">min</span>(d) <span class="sc">/</span> <span class="fu">max</span>(d), <span class="dv">3</span>),</span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>    <span class="at">spread =</span> <span class="fu">round</span>(<span class="fu">max</span>(d) <span class="sc">/</span> <span class="fu">sqrt</span>(<span class="fu">nrow</span>(M)), <span class="dv">3</span>))</span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>}</span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a><span class="fu">rbind</span>(<span class="at">by_age_only =</span> <span class="fu">geometry</span>(by_age_only), <span class="at">cross_tab =</span> <span class="fu">geometry</span>(cross_tab),</span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>      <span class="at">jointly_defined =</span> <span class="fu">geometry</span>(jointly_defined))</span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a><span class="co">#&gt;                 rows cond_inv spread</span></span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a><span class="co">#&gt; by_age_only        6    0.000  1.025</span></span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a><span class="co">#&gt; cross_tab          4    0.000  1.020</span></span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a><span class="co">#&gt; jointly_defined    6    0.707  1.167</span></span></code></pre></div>
+<p>Age bands vary only in the age direction and the cross-tab holds age
+fixed; only the jointly defined cells span all three covariates. More
+rows along an existing direction cannot replace a missing one.</p>
 </div>
 <div id="using-check_identification" class="section level2">
 <h2>Using <code>check_identification()</code></h2>
-<p>The function uses declared AgD means, so the identity-link result
-does not depend on the realized QMC points and can be run before
+<p>The screen uses the declared AgD means, so it can be run before
 <code>add_integration()</code>.</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2026</span>)</span>
 <span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>n_ipd <span class="ot">&lt;-</span> <span class="dv">120</span></span>
@@ -559,166 +487,94 @@ does not depend on the realized QMC points and can be run before
 <span id="cb3-50"><a href="#cb3-50" tabindex="-1"></a>           nonlinear_joint<span class="sc">$</span>n_rows),</span>
 <span id="cb3-51"><a href="#cb3-51" tabindex="-1"></a>  <span class="at">cond_inv =</span> <span class="fu">c</span>(identity_age<span class="sc">$</span>cond_inv, identity_joint<span class="sc">$</span>cond_inv,</span>
 <span id="cb3-52"><a href="#cb3-52" tabindex="-1"></a>               nonlinear_joint<span class="sc">$</span>cond_inv),</span>
-<span id="cb3-53"><a href="#cb3-53" tabindex="-1"></a>  <span class="at">flagged =</span> <span class="fu">c</span>(identity_age<span class="sc">$</span>flagged, identity_joint<span class="sc">$</span>flagged,</span>
-<span id="cb3-54"><a href="#cb3-54" tabindex="-1"></a>              nonlinear_joint<span class="sc">$</span>flagged)</span>
-<span id="cb3-55"><a href="#cb3-55" tabindex="-1"></a>)</span>
-<span id="cb3-56"><a href="#cb3-56" tabindex="-1"></a><span class="co">#&gt;           design       scope rows     cond_inv flagged</span></span>
-<span id="cb3-57"><a href="#cb3-57" tabindex="-1"></a><span class="co">#&gt; 1       age only    identity    6 1.487234e-33    TRUE</span></span>
-<span id="cb3-58"><a href="#cb3-58" tabindex="-1"></a><span class="co">#&gt; 2 joint identity    identity    6 7.070856e-01   FALSE</span></span>
-<span id="cb3-59"><a href="#cb3-59" tabindex="-1"></a><span class="co">#&gt; 3      joint log descriptive    6 7.070856e-01      NA</span></span></code></pre></div>
-<p>The package threshold <code>cond_inv &lt; 0.2</code> is an
-exploratory warning rule for the identity-link design. It is not a
-validated universal cutoff. The statistic is relative: it cannot see
-subgroup sample sizes, outcome precision, overall between-stratum
-magnitude, nonlinear link curvature, or model misspecification. A value
-above 0.2 does not prove identification.</p>
+<span id="cb3-53"><a href="#cb3-53" tabindex="-1"></a>  <span class="at">spread =</span> <span class="fu">c</span>(identity_age<span class="sc">$</span>spread, identity_joint<span class="sc">$</span>spread,</span>
+<span id="cb3-54"><a href="#cb3-54" tabindex="-1"></a>             nonlinear_joint<span class="sc">$</span>spread),</span>
+<span id="cb3-55"><a href="#cb3-55" tabindex="-1"></a>  <span class="at">flagged =</span> <span class="fu">c</span>(identity_age<span class="sc">$</span>flagged, identity_joint<span class="sc">$</span>flagged,</span>
+<span id="cb3-56"><a href="#cb3-56" tabindex="-1"></a>              nonlinear_joint<span class="sc">$</span>flagged)</span>
+<span id="cb3-57"><a href="#cb3-57" tabindex="-1"></a>)</span>
+<span id="cb3-58"><a href="#cb3-58" tabindex="-1"></a><span class="co">#&gt;           design       scope rows     cond_inv   spread flagged</span></span>
+<span id="cb3-59"><a href="#cb3-59" tabindex="-1"></a><span class="co">#&gt; 1       age only    identity    6 1.487234e-33 1.075721    TRUE</span></span>
+<span id="cb3-60"><a href="#cb3-60" tabindex="-1"></a><span class="co">#&gt; 2 joint identity    identity    6 7.070856e-01 1.153110   FALSE</span></span>
+<span id="cb3-61"><a href="#cb3-61" tabindex="-1"></a><span class="co">#&gt; 3      joint log descriptive    6 7.070856e-01 1.153110      NA</span></span></code></pre></div>
+<p>The thresholds <code>cond_inv &lt; 0.2</code> and
+<code>spread &lt; 0.05</code> IPD SD are package heuristics for the
+identity-link design, not validated cutoffs. Neither statistic sees
+subgroup sample sizes, outcome precision or link curvature, so a value
+above the threshold does not prove identification.</p>
 </div>
 <div id="recommended-workflow" class="section level2">
 <h2>Recommended workflow</h2>
 <ol style="list-style-type: decimal">
-<li>Verify that rows are mutually exclusive and collectively exhaustive,
-and that their sample sizes or exposures represent the intended
-comparator population.</li>
-<li>Count the scalar outcome summaries. Fewer than <span class="math inline">\(K+1\)</span> rows cannot separate a relaxed
-comparator intercept and <span class="math inline">\(K\)</span> slopes
-for the non-survival families.</li>
-<li>For normal identity models, inspect design rank and
-<code>cond_inv</code>. Request jointly defined cells that vary across
-all covariates when the design is deficient.</li>
-<li>For nonlinear models, treat the mean spectrum as descriptive. Check
-the fitted coefficient posterior, sampler diagnostics, and
-<code>prior_sensitivity()</code>. A prior sweep measures sensitivity; it
-does not assign a fraction of information to the data or the prior.</li>
-<li>Check <code>check_integration()</code> separately. Numerical
-fidelity of the QMC grid and statistical identification are different
-questions.</li>
-<li>Examine overlap before transporting the comparator regression to the
-index or another target covariate distribution. A stable fit inside the
-comparator support does not validate extrapolation outside it <span class="citation">(Phillippo et al. 2016; Conor Chandler and Ishak
-2026)</span>.</li>
-<li>If the relaxed result is unstable, obtain more informative jointly
-defined strata, simplify the effect-modification structure, use SPFA
-with a clear assumption statement, and report prior and
-target-population sensitivity.</li>
+<li>Check that the rows are mutually exclusive, collectively exhaustive
+strata of the comparator population, with sample sizes or
+exposures.</li>
+<li>Count the rows against <span class="math inline">\(K +
+1\)</span>.</li>
+<li>For a normal identity-link model read <code>cond_inv</code> and
+<code>spread</code>; when the design is deficient, request jointly
+defined cells that vary across all covariates.</li>
+<li>For a nonlinear model treat the geometry as descriptive and read the
+fitted coefficient posterior, the sampler diagnostics and
+<code>prior_sensitivity()</code>.</li>
+<li>Run <code>check_integration()</code> separately; numerical fidelity
+of the grid and identification are different questions.</li>
+<li>Check overlap before transporting the comparator regression to
+another population <span class="citation">(Phillippo et al. 2016; Conor
+Chandler and Ishak 2026)</span>.</li>
 </ol>
-<p>The marginal posterior-to-prior variance change printed for relaxed
-coefficients is descriptive. It can be negative because of posterior
-correlation or changed marginal geometry, and neither its sign nor
-magnitude is an identification certificate.</p>
 </div>
 <div id="distribution-and-dependence-assumptions" class="section level2">
 <h2>Distribution and dependence assumptions</h2>
 <p>Each nonlinear aggregate likelihood integrates over a reconstructed
-within-stratum covariate distribution. Means, SDs, binary proportions,
-and a copula do not uniquely identify that distribution. The same
-supplied correlation matrix is used as a within-stratum dependence model
-across rows. A pooled comparator correlation also contains
-between-stratum covariance and is not generally the required
-within-stratum correlation. For non-Gaussian continuous margins, supply
-a defensible Spearman matrix with <code>cor_adjust = &quot;spearman&quot;</code>
-or a calibrated latent Gaussian-copula matrix with
-<code>cor_adjust = &quot;none&quot;</code>; an observed Pearson matrix is not
-automatically either.</p>
-<p>These are sensitivity assumptions, not details that subgroup row
-count can repair. Vary plausible dependence structures and marginal
-distributions when the estimand is sensitive to them.</p>
+within-stratum covariate distribution, which means, SDs and a copula do
+not uniquely determine, and the same correlation matrix is reused for
+every row. These are sensitivity assumptions, not something a row count
+repairs: vary plausible marginals and dependence structures when the
+estimand is sensitive to them.</p>
 </div>
 <div id="time-to-event-outcomes" class="section level2">
 <h2>Time-to-event outcomes</h2>
-<p>The counting argument does not apply to reconstructed survival data.
-A comparator curve supplied through <code>set_agd_surv()</code>
-contributes event and censoring likelihood terms across time, not one
-scalar summary. Depending on the survival family and covariate
-distribution, one marginal curve may identify some combinations of
-comparator coefficients while leaving other directions weak.
-<code>check_identification()</code> therefore refuses survival rather
-than returning a misleading row-count result.</p>
-<p>For a relaxed survival fit, inspect the comparator coefficient
-posterior and run <code>prior_sensitivity()</code> with
-<code>prior_beta_comparator_scales</code>. Also compare plausible
-baseline assumptions, including <code>aux_by = &quot;.study&quot;</code> and
-<code>aux_by = &quot;none&quot;</code> where scientifically defensible. RMST
-differences are collapsible within a specified population, but this does
-not make them automatically transportable to another population.</p>
+<p>A comparator curve from <code>set_agd_surv()</code> contributes event
+and censoring terms across time, not one scalar summary per row, so the
+counting argument does not apply and <code>check_identification()</code>
+refuses survival data. For a relaxed survival fit inspect the comparator
+coefficient posterior, run <code>prior_sensitivity()</code> with
+<code>prior_beta_comparator_scales</code>, and compare
+<code>aux_by = &quot;.study&quot;</code> with <code>aux_by = &quot;none&quot;</code> where
+that is defensible.</p>
 </div>
 <div id="simulation-evidence" class="section level2">
 <h2>Simulation evidence</h2>
-<p>The sections above argue from geometry. This section measures whether
-that geometry actually predicts anything. The script that produced it is
-a development file, kept in the package repository rather than installed
-with the package, and is read there: <a href="https://github.com/choxos/mlumr/blob/main/data-raw/simulate_subgroup_identification.R"><code>data-raw/simulate_subgroup_identification.R</code></a>.
-It writes a manifest beside its results recording the software that
-produced them. The numbers below were read from a results file with MD5
-4dc62e120a5b2ad21733c13d843ef9ec; a test compares that against the file
-in the repository, so a regenerated result set that has not been written
-back into this article fails the build rather than shipping quietly.</p>
 <p>Six aggregate designs are crossed with the three non-survival
-families and 300 replications each, 5400 fits in total.</p>
-<p><strong>Every design is a tabulation of the same people.</strong>
-Each replication draws one index study and one comparator cohort at the
-individual level, then reports that single cohort six ways: as age
-bands, as a cross-tab of the two binary covariates, and as several
-designs that cut across all three. Each aggregate row carries the
-realized means and standard deviations of the members that fall in it,
-as a real report would, rather than a stratum mean pushed through the
-link.</p>
-<p>That control is what makes the comparison mean anything, and holding
-the total sample size fixed is not enough on its own. Designs built
-around separate target profiles also differ in their pooled covariate
-distribution, in how far that distribution sits from the index
-population, and in their expected outcome level; a width difference
-could then come from any of those rather than from the geometry under
-study. Under a partition all of them are identical by construction, and
-the only thing that varies is where the cuts fall.</p>
-<p><strong>The designs are compared within a replication, not across
-replications.</strong> Because the six share one draw, the difference
-between two of them is a paired contrast: the replication-to-replication
-variation both designs see cancels, and what remains is the effect of
-the tabulation. The contrasts below are reported that way, with the
-Monte Carlo standard error computed from the paired differences, because
-that standard error describes the contrast rather than the two cell
-means separately. How much precision the pairing actually buys is
-reported with the contrasts, and it is not uniform.</p>
-<p><strong>Coverage is scored against the estimand the package
-reports.</strong> The Stan models define <code>delta_index</code> as an
-average over the realized index rows, so it is a property of the index
-sample in hand and moves from one replication to the next. The truth is
-therefore recomputed on each replication’s own covariates, which makes
-it exact for that replication rather than approximate: it evaluates the
-very same average the generated quantity estimates.</p>
-<p><strong>Non-convergence is an outcome, not an observation.</strong>
-Interval width and coverage are summarized over fits that met every
-retained diagnostic (split-Rhat at most 1.01, bulk and tail effective
+families and 300 replications each, 5400 fits in total, by the
+development script <a href="https://github.com/choxos/mlumr/blob/main/data-raw/simulate_subgroup_identification.R"><code>data-raw/simulate_subgroup_identification.R</code></a>.
+The numbers below come from a results file with MD5
+4dc62e120a5b2ad21733c13d843ef9ec, which a test compares against the file
+in the repository. Every design is a tabulation of the same people: each
+replication draws one comparator cohort and reports it six ways (age
+bands, a cross-tab of the two binary covariates, and designs that cut
+across all three), so designs are compared within a replication as
+paired contrasts. Width and coverage are summarized over fits that met
+every diagnostic (split-Rhat at most 1.01, bulk and tail effective
 sample size at least 400, no divergent transitions, no treedepth
-saturation, and every chain finished); the rest are counted in their own
-column. A posterior that has not converged is not a valid measurement of
-what a design can achieve, and pooling it into a width average measures
-the sampler as much as the design. The <code>Failed</code> column counts
-fits that errored outright, and the study records the condition class
-and message for each so a systematic failure can be told from a
-transient one.</p>
-<p>The comparator covariates are generated independently, and the
-integration is given that correlation structure rather than one
-estimated from the index sample. Left to itself the package estimates a
-matrix from the individual data and transports it to every aggregate
-row, which would add a second, replication-varying misspecification on
-top of the design being studied.</p>
+saturation, every chain finished); the rest are counted separately.
+Coverage is scored against the estimand the package reports, recomputed
+on each replication’s own covariates.</p>
 <table>
 <colgroup>
-<col width="7%" />
-<col width="9%" />
+<col width="8%" />
+<col width="10%" />
 <col width="4%" />
+<col width="7%" />
+<col width="8%" />
 <col width="6%" />
-<col width="7%" />
 <col width="5%" />
+<col width="8%" />
+<col width="10%" />
+<col width="8%" />
+<col width="8%" />
 <col width="6%" />
-<col width="5%" />
-<col width="7%" />
-<col width="9%" />
-<col width="7%" />
-<col width="7%" />
-<col width="5%" />
-<col width="7%" />
+<col width="8%" />
 </colgroup>
 <thead>
 <tr class="header">
@@ -728,7 +584,6 @@ top of the design being studied.</p>
 <th align="left">Row n</th>
 <th align="right">cond_inv</th>
 <th align="right">Fitted</th>
-<th align="right">eff_dim</th>
 <th align="right">Width</th>
 <th align="right">Width CV</th>
 <th align="right">MCSE width</th>
@@ -746,7 +601,6 @@ top of the design being studied.</p>
 <td align="left">39-115</td>
 <td align="right">0.78000</td>
 <td align="right">0.780</td>
-<td align="right">2.88</td>
 <td align="right">0.677</td>
 <td align="right">0.027</td>
 <td align="right">0.0010</td>
@@ -762,7 +616,6 @@ top of the design being studied.</p>
 <td align="left">39-190</td>
 <td align="right">0.75000</td>
 <td align="right">0.740</td>
-<td align="right">2.83</td>
 <td align="right">0.685</td>
 <td align="right">0.028</td>
 <td align="right">0.0011</td>
@@ -778,7 +631,6 @@ top of the design being studied.</p>
 <td align="left">87-190</td>
 <td align="right">0.56000</td>
 <td align="right">0.560</td>
-<td align="right">2.46</td>
 <td align="right">0.711</td>
 <td align="right">0.037</td>
 <td align="right">0.0015</td>
@@ -794,7 +646,6 @@ top of the design being studied.</p>
 <td align="left">87-210</td>
 <td align="right">0.00043</td>
 <td align="right">0.025</td>
-<td align="right">2.00</td>
 <td align="right">1.872</td>
 <td align="right">0.156</td>
 <td align="right">0.0237</td>
@@ -810,7 +661,6 @@ top of the design being studied.</p>
 <td align="left">100-100</td>
 <td align="right">0.00042</td>
 <td align="right">0.052</td>
-<td align="right">1.00</td>
 <td align="right">1.171</td>
 <td align="right">0.171</td>
 <td align="right">0.0115</td>
@@ -826,7 +676,6 @@ top of the design being studied.</p>
 <td align="left">200-200</td>
 <td align="right">0.00000</td>
 <td align="right">0.000</td>
-<td align="right">1.00</td>
 <td align="right">1.251</td>
 <td align="right">0.171</td>
 <td align="right">0.0124</td>
@@ -842,7 +691,6 @@ top of the design being studied.</p>
 <td align="left">42-113</td>
 <td align="right">0.78000</td>
 <td align="right">0.780</td>
-<td align="right">2.88</td>
 <td align="right">0.342</td>
 <td align="right">0.042</td>
 <td align="right">0.0008</td>
@@ -858,7 +706,6 @@ top of the design being studied.</p>
 <td align="left">42-187</td>
 <td align="right">0.75000</td>
 <td align="right">0.740</td>
-<td align="right">2.83</td>
 <td align="right">0.345</td>
 <td align="right">0.042</td>
 <td align="right">0.0008</td>
@@ -874,7 +721,6 @@ top of the design being studied.</p>
 <td align="left">90-188</td>
 <td align="right">0.56000</td>
 <td align="right">0.560</td>
-<td align="right">2.46</td>
 <td align="right">0.362</td>
 <td align="right">0.046</td>
 <td align="right">0.0010</td>
@@ -890,7 +736,6 @@ top of the design being studied.</p>
 <td align="left">90-218</td>
 <td align="right">0.00043</td>
 <td align="right">0.028</td>
-<td align="right">2.00</td>
 <td align="right">2.651</td>
 <td align="right">0.487</td>
 <td align="right">0.0745</td>
@@ -906,7 +751,6 @@ top of the design being studied.</p>
 <td align="left">100-100</td>
 <td align="right">0.00042</td>
 <td align="right">0.047</td>
-<td align="right">1.00</td>
 <td align="right">0.845</td>
 <td align="right">0.329</td>
 <td align="right">0.0160</td>
@@ -922,7 +766,6 @@ top of the design being studied.</p>
 <td align="left">200-200</td>
 <td align="right">0.00000</td>
 <td align="right">0.000</td>
-<td align="right">1.00</td>
 <td align="right">1.359</td>
 <td align="right">0.308</td>
 <td align="right">0.0242</td>
@@ -938,7 +781,6 @@ top of the design being studied.</p>
 <td align="left">41-114</td>
 <td align="right">0.78000</td>
 <td align="right">0.780</td>
-<td align="right">2.88</td>
 <td align="right">0.219</td>
 <td align="right">0.034</td>
 <td align="right">0.0004</td>
@@ -954,7 +796,6 @@ top of the design being studied.</p>
 <td align="left">41-188</td>
 <td align="right">0.75000</td>
 <td align="right">0.740</td>
-<td align="right">2.83</td>
 <td align="right">0.221</td>
 <td align="right">0.033</td>
 <td align="right">0.0004</td>
@@ -970,7 +811,6 @@ top of the design being studied.</p>
 <td align="left">93-189</td>
 <td align="right">0.56000</td>
 <td align="right">0.560</td>
-<td align="right">2.46</td>
 <td align="right">0.229</td>
 <td align="right">0.041</td>
 <td align="right">0.0005</td>
@@ -986,7 +826,6 @@ top of the design being studied.</p>
 <td align="left">93-220</td>
 <td align="right">0.00043</td>
 <td align="right">0.027</td>
-<td align="right">2.00</td>
 <td align="right">1.543</td>
 <td align="right">0.645</td>
 <td align="right">0.0710</td>
@@ -1002,7 +841,6 @@ top of the design being studied.</p>
 <td align="left">100-100</td>
 <td align="right">0.00042</td>
 <td align="right">0.050</td>
-<td align="right">1.00</td>
 <td align="right">0.513</td>
 <td align="right">0.352</td>
 <td align="right">0.0105</td>
@@ -1018,7 +856,6 @@ top of the design being studied.</p>
 <td align="left">200-200</td>
 <td align="right">0.00000</td>
 <td align="right">0.000</td>
-<td align="right">1.00</td>
 <td align="right">0.719</td>
 <td align="right">0.287</td>
 <td align="right">0.0119</td>
@@ -1029,74 +866,14 @@ top of the design being studied.</p>
 </tr>
 </tbody>
 </table>
-<p>The <code>cond_inv</code> column is the geometry of the design <em>as
-requested</em>: the same statistic evaluated at the population profiles.
-It separates the six designs into two groups three orders of magnitude
-apart. <code>ovat_age_3</code>, <code>ovat_age_6</code> and
-<code>crosstab_4</code> fall below 0.001, because their requested
-profiles span fewer than three directions; the other three sit above
-0.5. None of them is exactly zero, because that statistic is computed on
-a two-million-draw approximation of the population, so an exactly absent
-direction reads as the floor of the approximation rather than as 0.</p>
-<p>The <code>Fitted</code> column is the same quantity computed from the
-rows the likelihood actually received, and it is not that number. A
-stratum defined as holding sex at one half realizes a proportion near
-one half but not exactly one half, so its profile matrix is numerically
-full rank. Only <code>ovat_age_3</code> is exactly rank deficient
-whatever the draw, because three rows cannot span three directions after
-centering.</p>
-<p>What survives is a separation, not an exact zero. Across all 5,400
-fits the fitted conditioning of the three deficient designs never rises
-above 0.12, and that of the three identified designs never falls below
-0.47. The groups do not overlap, though the fitted gap is a factor of
-about 4, far narrower than the requested one: sampling noise does repay
-some of the missing direction. So “unidentified” below means a direction
-the design was never asked to supply and that noise repays only at a
-conditioning too small to be useful, not a matrix a computer would call
-singular.</p>
-<div id="row-count-does-not-order-the-designs-geometry-does" class="section level3">
-<h3>Row count does not order the designs; geometry does</h3>
-<table>
-<thead>
-<tr class="header">
-<th align="left">Predictor</th>
-<th align="right">binomial</th>
-<th align="right">normal</th>
-<th align="right">poisson</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td align="left">row count</td>
-<td align="right">-0.77</td>
-<td align="right">-0.77</td>
-<td align="right">-0.77</td>
-</tr>
-<tr class="even">
-<td align="left">cond_inv (requested)</td>
-<td align="right">-0.83</td>
-<td align="right">-0.83</td>
-<td align="right">-0.83</td>
-</tr>
-<tr class="odd">
-<td align="left">cond_inv (fitted)</td>
-<td align="right">-0.94</td>
-<td align="right">-0.94</td>
-<td align="right">-0.94</td>
-</tr>
-<tr class="even">
-<td align="left">eff_dim</td>
-<td align="right">-0.81</td>
-<td align="right">-0.81</td>
-<td align="right">-0.81</td>
-</tr>
-</tbody>
-</table>
-<p>Six designs per family is a coarse basis for a rank correlation, and
-ties are extensive, so read the table as a direction rather than a
-calibration. The paired contrasts below carry the weight, because they
-compare designs on the SAME draw and so are not limited by having only
-six of them.</p>
+<p><code>cond_inv</code> is the geometry of the design as requested,
+evaluated at the population profiles; <code>Fitted</code> is the same
+statistic on the rows the likelihood received. Three designs
+(<code>ovat_age_3</code>, <code>ovat_age_6</code> and
+<code>crosstab_4</code>) fall below 0.001 because their profiles span
+fewer than three directions; the other three sit above 0.5. Sampling
+noise repays part of the missing direction in the fitted rows, but the
+two groups never overlap.</p>
 <table>
 <thead>
 <tr class="header">
@@ -1232,162 +1009,38 @@ six of them.</p>
 </tbody>
 </table>
 <p>Each row is that design minus the four-row <code>minimal_4</code>,
-over the replications where both converged. A positive difference is a
-wider, worse interval.</p>
-<p>What the pairing buys splits along the same line as everything else.
-For the identified designs the paired standard error is 42% to 59%
-smaller than differencing two independently estimated cell means,
-because both designs respond to the shared draw in much the same way and
-that response cancels. For the deficient designs it is 0% to 5% smaller,
-which is to say nothing at all: their width moves with the unidentified
-direction, which the reference design does not share, so there is little
-common variation left to cancel. Pairing is still the right standard
-error to report, and for these designs it is not a cheaper one.</p>
-<p>Two things are worth separating here, because they carry different
-weight.</p>
-<p>Ranked against the mean width, <code>cond_inv</code> orders these
-designs better than the row count does, but the margin is modest and
-rests on six designs per family, which is a thin basis for a
-correlation. Read it as a direction, not as a calibration.</p>
-<p>The inversion is the part that does not depend on how many designs
-were tried. The six-row one-variable-at-a-time design has more rows than
-the four-row minimal design and yields a wider, less stable interval, in
-every family. A reader counting rows would prefer the worse design. That
-is the concrete content of the claim that more rows along an existing
-direction cannot replace a missing direction, and one counterexample is
-enough to establish it.</p>
-</div>
-<div id="the-two-failing-designs-lose-opposite-halves-of-the-space" class="section level3">
-<h3>The two failing designs lose opposite halves of the space</h3>
-<p>Both the one-variable-at-a-time bands and the bare cross-tab fall in
-the deficient group, and neither recovers a usable third direction from
-sampling noise, but they do not fail in the same way. The bands vary
-only age, leaving <code>eff_dim</code> at 1 whether they have three rows
-or six. The cross-tab varies both binaries and holds age fixed, giving
-<code>eff_dim</code> = 2. One keeps the continuous covariate and loses
-the binaries; the other keeps the binaries and loses the continuous
-covariate.</p>
-</div>
-<div id="an-unidentified-design-is-unpredictable-not-merely-imprecise" class="section level3">
-<h3>An unidentified design is unpredictable, not merely imprecise</h3>
-<p>The failing designs are not just wider. Their widths vary far more
-from one replication to the next than the identified designs do, so a
-single analysis cannot be read as representative of what that design
-would have produced. The coefficient of variation of the width separates
+over the replications where both converged; a positive difference is a
+wider interval.</p>
+<p>Three things follow.</p>
+<p><strong>Row count does not order the designs; geometry does.</strong>
+The six-row one-variable-at-a-time design has more rows than the
+four-row minimal design and gives a wider interval in every family. A
+reader counting rows would prefer the worse design.</p>
+<p><strong>An unidentified design is unpredictable, not merely
+imprecise.</strong> The coefficient of variation of the width separates
 the two groups completely: every identified cell is at or below 0.05 and
-every deficient one at or above 0.16, reaching 0.64 in the worst cell.
-The widths themselves are far more separated than that; it is the
-<em>stability</em> of the width, not its size, that this measures.</p>
-</div>
-<div id="the-sampler-notices-and-only-for-the-nonlinear-families" class="section level3">
-<h3>The sampler notices, and only for the nonlinear families</h3>
-<p>Non-convergence tracks identification exactly in this study, across
-every diagnostic recorded. No fit in an identified design failed any of
-them, and all 258 fits that failed at least one belong to the deficient
-group.</p>
-<p>The diagnostics disagree sharply about how many fits are affected:
-130 exceed the split-Rhat threshold, 115 fall below the bulk effective
-sample size one, 14 below the tail one, 94 report a divergent
-transition, 0 saturate the treedepth, and 0 lost a chain. A study
-reporting Rhat alone would have understated the problem, which is why
-the table above filters on all six rather than on the one that is
-easiest to extract. So a rank-deficient aggregate design does not merely
-widen the interval, it also makes the posterior harder to sample, and
-the diagnostics one would run anyway will often say so.</p>
-<p>The counts here come from the summaries the script retains rather
-than from what the sampler printed, because it suppresses fitting
-warnings; the two describe the same runs.</p>
-<p>They do not always say so. Every fit failing a diagnostic here is
-binomial or Poisson; the normal family sampled cleanly in the
-unidentified designs too. A plausible reading is that with an identity
-link the unidentified direction is a flat ridge, which the sampler
-traverses without difficulty, while a logit or log link curves it. That
-is an explanation for the pattern rather than something this study
-tested, and the practical point does not depend on it: a clean set of
-convergence diagnostics is not evidence that the design is
-identified.</p>
-<p>Coverage does not reveal any of this. The unidentified designs cover
-at or near the nominal rate, because a wide enough interval covers
-almost anything. An interval can be correct and useless at the same
-time, which is why the width and its variability, not the coverage, are
-what these designs should be judged on.</p>
-</div>
-<div id="the-shipped-screen-is-exact-where-it-speaks-and-silent-where-it-matters-most" class="section level3">
-<h3>The shipped screen is exact where it speaks, and silent where it
-matters most</h3>
-<p><code>check_identification()</code> ran on every design in every
-replication and its verdict was kept, so the study also measures the
-diagnostic this article recommends.</p>
-<p>Under the identity link it is exact. Across the 1800 normal fits it
-flagged 900 and cleared 900, and that split is the deficient and
-identified split above, fit for fit: no identified design was flagged
-and no deficient one was missed.</p>
-<p>Under the logit and log links it mostly declines. For 3000 of the
-3600 binomial and Poisson fits it returns no verdict at all, which is
-the refusal documented in <code>?check_identification</code>: a
-subgroup-mean screen is an exact statement about the design matrix only
-when the link is the identity. The refusal is preserved here rather than
-collapsed into “not flagged”, because reporting it as a clearance would
-publish a verdict the package deliberately withholds.</p>
-<p>What it still flags there is <code>ovat_age_3</code>, and on a
-different ground: three rows is fewer than the <span class="math inline">\(K+1\)</span> = 4 that three covariates need, and a
-row count is structural rather than link-dependent. So under a nonlinear
-link the screen catches the design that is short of rows, and says
-nothing about <code>crosstab_4</code> or <code>ovat_age_6</code>, which
-have rows enough and the wrong geometry.</p>
-<p>The sampler does not reliably cover that gap. Of the 1200 deficient
-binomial and Poisson fits where the screen abstains, 943 met every
-diagnostic, which is 79% of them. The trouble is concentrated in
-<code>crosstab_4</code>; <code>ovat_age_6</code> samples cleanly in 99%
-of its nonlinear fits while producing the third-widest intervals of the six
-designs in its own family. A clean set of diagnostics is not evidence that the design is
-identified, and here it is not even good evidence.</p>
-<p>That is the practical conclusion, and it is a negative one about the
-two signals that arrive <em>after</em> fitting. Under a nonlinear link
-the screen withholds a verdict, and the sampler mostly reports success,
-for a design whose intervals are among the worst here. What separates
-the designs in every family is the geometry, <code>cond_inv</code> and
-<code>eff_dim</code>, and that is computable from the aggregate table
-before anything is fitted. Compute it first; do not wait for the fit to
-object.</p>
-</div>
+every deficient one at or above 0.16. Coverage shows none of this,
+because a wide enough interval covers almost anything.</p>
+<p><strong>The screen is exact under the identity link and silent
+elsewhere.</strong> Across the 1800 normal fits
+<code>check_identification()</code> flagged exactly the deficient
+designs. Under the logit and log links it withholds a verdict for the
+deficient designs that have rows enough, and the sampler does not
+reliably cover that gap: of the 1200 such fits, 943 met every
+diagnostic. All 258 fits that failed a diagnostic belong to the
+deficient group, and every one of them is binomial or Poisson. A clean
+set of diagnostics is not evidence that the design is identified;
+compute the geometry from the aggregate table before fitting.</p>
 </div>
 <div id="what-this-vignette-does-not-claim" class="section level2">
 <h2>What this vignette does not claim</h2>
-<p>There is no universal minimum number of rows beyond the necessary
-<span class="math inline">\(K+1\)</span> count, no source-validated
-<code>cond_inv</code> cutoff, and no guarantee that a non-flagged design
-produces a practically precise target effect.</p>
-<p>The simulation above is deliberately narrow. It uses synthetic strata
-rather than a real trial’s reported subgroups, six designs rather than a
-systematic sweep of the design space, three covariates, one effect size,
-one comparator size, and no survival family. Its correlations rest on
-six designs per family, which is a thin basis; read the ranking as a
-direction, not as a calibration. What it does establish is the
-inversion, and one counterexample is enough for that: a design with more
-rows can be strictly worse than a design with fewer.</p>
-<p>The generator draws each cohort at the individual level and each
-aggregate row reports the realized moments of its own members, so a
-row’s members are exactly the people its summary describes. What the row
-does not carry is the SHAPE of that membership: a design that bands on
-age reports a mean and a standard deviation for a within-band age
-distribution that is truncated, while the fit integrates a normal with
-those two moments, and only <code>crosstab_4</code> leaves the age
-margin approximately Gaussian. This is a real misspecification, and it
-falls unevenly across the designs, so it is worth bounding rather than
-asserting away. Comparing each row’s true mean response against the one
-the model integrates puts the discrepancy at most 4.2% of that row’s own
-sampling standard error across every design and both nonlinear families,
-and the age-banded designs sit lower than that, below the sampling noise
-of the comparison itself. The width differences the table reports run to
-factors of two and three, so the shape of the within-row age
-distribution is not what produces them.</p>
-<p>A study that justified a <code>cond_inv</code> threshold for a
-specific application would need the actual within-stratum distributions
-of that application, its own effect size and sample sizes, a design
-sweep wide enough to place a cutoff, and the outcome family in use. The
-guidance here remains structural and diagnostic, not a numerical
-calibration.</p>
+<p>There is no universal minimum number of rows beyond <span class="math inline">\(K + 1\)</span>, no validated <code>cond_inv</code>
+cutoff, and no guarantee that an unflagged design gives a precise target
+effect. The simulation uses synthetic strata, six designs, three
+covariates, one effect size and no survival family; what it establishes
+is the inversion, for which one counterexample is enough. A threshold
+for a specific application would need that application’s within-stratum
+distributions, effect size, sample sizes and outcome family.</p>
 </div>
 <div id="references" class="section level2 unnumbered">
 <h2 class="unnumbered">References</h2>

@@ -17,154 +17,76 @@ options(width = 100, rmarkdown.html_vignette.check_title = FALSE)
 
 The relaxed model gives the index and comparator treatments separate
 covariate coefficients. The IPD identify `beta_index`; the comparator
-coefficients are informed only through the aggregate likelihood. Aggregate
-subgroup rows can add information, but a row count alone cannot establish that
-all comparator coefficients are identified.
-
-This vignette separates three questions:
-
-1. Is the aggregate design structurally capable of separating the comparator
-   intercept and coefficients?
-2. Does the nonlinear likelihood contain enough information at the fitted
-   parameter values?
-3. Is the resulting target-population effect stable to the prior, integration
-   approximation, and transport assumptions?
-
-Only the first question has a simple exact answer, and only for the normal
-identity-link model.
+coefficients are informed only through the aggregate likelihood, so what they
+can be pinned down to depends on how many aggregate rows there are and how
+those rows are laid out. This vignette shows what `check_identification()`
+measures, how to read it, and what a simulation says about designs that pass
+the row count and still fail.
 
 ## What an aggregate row contributes
 
-For the binomial, normal, and Poisson families, each mutually exclusive
-aggregate stratum contributes one scalar outcome summary. With $K$ covariates,
-the relaxed comparator model has $K + 1$ coefficients: an intercept and $K$
-slopes. Therefore
+For the binomial, normal and Poisson families each mutually exclusive
+aggregate stratum contributes one scalar outcome summary. With $K$ covariates
+the relaxed comparator model has $K + 1$ coefficients, so $S \geq K + 1$ rows
+are necessary. They are not sufficient. For a normal identity-link model
+stratum $s$ has mean $\bar y_s = \mu_c + m_s^\mathsf{T}\beta_c$, where $m_s$
+is the declared covariate-mean vector, and the coefficients are separated only
+when the design $[\mathbf{1}, M]$ has full column rank: after centering, the
+mean vectors must span all $K$ covariate directions. For a nonlinear mean
+model each row contributes
+$\mathbb{E}_{X\sim f_s}[g^{-1}(\mu_c+X^\mathsf{T}\beta_c)]$, which depends on
+the whole within-stratum distribution $f_s$, so the mean-profile geometry is
+descriptive there and `check_identification()` returns `flagged = NA` once
+the row count is adequate [@Phillippo2020; @ChandlerIshakMLUMR].
 
-$$
-S \geq K + 1
-$$
-
-is a necessary counting condition. It is not sufficient.
-
-For a normal identity-link model, stratum $s$ has mean
-
-$$
-\bar y_s = \mu_c + m_s^\mathsf{T}\beta_c,
-$$
-
-where $m_s$ is the declared covariate-mean vector. The exact aggregate design
-matrix is $D=[\mathbf{1},M]$. The comparator coefficients can be separated by
-the likelihood only when $D$ has full column rank $K+1$. Equivalently, after
-centering the rows of $M$, the covariate-mean matrix must have rank $K$.
-
-For a nonlinear mean model, each row instead contributes
-
-$$
-\bar y_s =
-\mathbb{E}_{X\sim f_s}\left[g^{-1}(\mu_c+X^\mathsf{T}\beta_c)\right].
-$$
-
-Its local Jacobian depends on the full within-stratum distribution $f_s$, the
-link, and the parameter values. Mean vectors alone do not determine that
-Jacobian. Differences in variances, binary probabilities, or dependence can
-add information that a mean-only rank calculation cannot see. Consequently,
-`check_identification()` treats the mean-profile spectrum as descriptive for
-binomial, Poisson, and normal-log models. When the row count is adequate,
-`flagged` is `NA`, not `FALSE`.
-
-These distinctions follow the aggregate marginalization used by ML-NMR and
-ML-UMR [@Phillippo2020; @ChandlerIshakMLUMR].
-
-## Rows must describe one population
-
-Multiple `set_agd()` rows are assumed to be mutually exclusive, collectively
-exhaustive strata of one comparator population. They are not separate,
-overlapping subgroup analyses. Population summaries are combined with
-`outcome_n` for binomial and normal outcomes and with person-time exposure for
-Poisson outcomes. For a normal comparator mean,
-
-$$
-\bar y_c=\sum_s w_s\bar y_s,\qquad
-\operatorname{Var}(\bar y_c)=\sum_s w_s^2 SE_s^2,
-\qquad w_s=\frac{n_s}{\sum_j n_j},
-$$
-
-assuming independent, mutually exclusive stratum summaries. Inverse-variance
-weights would describe a meta-analysis of estimates, not the mean of the
-comparator population.
-
-If Poisson exposure varies with covariates, reported covariate summaries must
-match the person-time distribution relevant to the rate. Ordinary participant
-means are justified only under a fixed-exposure or suitable independence
-assumption [@RemiroAzocar2022].
+Multiple `set_agd()` rows are taken to be mutually exclusive, collectively
+exhaustive strata of one comparator population, combined with `outcome_n` or
+person-time weights; they are not overlapping subgroup analyses. If Poisson
+exposure varies with the covariates, the covariate summaries must match the
+person-time distribution [@RemiroAzocar2022].
 
 ## Mean-profile geometry
 
-`check_identification()` centers the declared subgroup mean vectors, scales
-each covariate by its IPD SD, and examines the singular values. Scaling prevents
-a covariate measured in large units from dominating a binary proportion merely
-because of units. The reported
-
-$$
-\texttt{cond\_inv}=\frac{d_{\min}}{d_{\max}}
-$$
-
-approaches zero as the mean profiles collapse onto a lower-dimensional set.
-For the identity-link model this summarizes the exact design matrix. For
-nonlinear models it describes only the spread of the declared means.
+`check_identification()` centers the declared subgroup means, divides each
+covariate by its IPD SD, and takes the singular values. `cond_inv`, the
+smallest over the largest, goes to zero as the rows collapse onto a
+lower-dimensional set; `spread`, the RMS distance of the rows from their
+center along the dominant direction, says whether they move at all.
 
 ```{r packages}
 library(mlumr)
 ```
 
-Consider one continuous and two binary covariates. The following designs all
-contain several rows, but they span different covariate directions.
+One continuous and two binary covariates. The designs below all have several
+rows but span different directions.
 
 ```{r geometry-demo}
 ref_sd <- c(age = 1, sex = 0.5, prior = 0.49)
 
-by_age_only <- cbind(
-  age = seq(-1.5, 1.5, length.out = 6),
-  sex = 0.5,
-  prior = 0.4
-)
+by_age_only <- cbind(age = seq(-1.5, 1.5, length.out = 6), sex = 0.5, prior = 0.4)
+cross_tab <- rbind(c(0, 0, 0), c(0, 1, 0), c(0, 0, 1), c(0, 1, 1))
+jointly_defined <- rbind(c(-1, 0, 0), c(-1, 1, 0), c(-1, 0, 1), c(-1, 1, 1),
+                         c(1, 0, 0), c(1, 1, 1))
 
-cross_tab <- rbind(
-  c(0, 0, 0), c(0, 1, 0), c(0, 0, 1), c(0, 1, 1)
-)
-
-jointly_defined <- rbind(
-  c(-1, 0, 0), c(-1, 1, 0), c(-1, 0, 1), c(-1, 1, 1),
-  c(1, 0, 0), c(1, 1, 1)
-)
-
-geometry <- function(M, ref_sd) {
-  M <- as.matrix(M)
-  K <- ncol(M)
-  M <- scale(M, center = TRUE, scale = FALSE)
+geometry <- function(M) {
+  M <- scale(as.matrix(M), center = TRUE, scale = FALSE)
   M <- sweep(M, 2, ref_sd, "/")
   d <- svd(M)$d
-  if (length(d) < K) d <- c(d, rep(0, K - length(d)))
-  c(cond_inv = min(d) / max(d),
-    eff_dim = sum(d^2)^2 / sum(d^4))
+  c(rows = nrow(M), cond_inv = round(min(d) / max(d), 3),
+    spread = round(max(d) / sqrt(nrow(M)), 3))
 }
-
-do.call(rbind, lapply(
-  c("by_age_only", "cross_tab", "jointly_defined"),
-  function(nm) c(design = nm, rows = nrow(get(nm)),
-                 round(geometry(get(nm), ref_sd), 3))
-))
+rbind(by_age_only = geometry(by_age_only), cross_tab = geometry(cross_tab),
+      jointly_defined = geometry(jointly_defined))
 ```
 
-Age bands vary only in the age direction. The binary cross-tab varies in two
-directions but leaves age fixed. Only the jointly defined cells span all three
-covariates. More rows along an existing direction cannot replace a missing
-direction.
+Age bands vary only in the age direction and the cross-tab holds age fixed;
+only the jointly defined cells span all three covariates. More rows along an
+existing direction cannot replace a missing one.
 
 ## Using `check_identification()`
 
-The function uses declared AgD means, so the identity-link result does not
-depend on the realized QMC points and can be run before `add_integration()`.
+The screen uses the declared AgD means, so it can be run before
+`add_integration()`.
 
 ```{r build-example}
 set.seed(2026)
@@ -219,78 +141,51 @@ data.frame(
            nonlinear_joint$n_rows),
   cond_inv = c(identity_age$cond_inv, identity_joint$cond_inv,
                nonlinear_joint$cond_inv),
+  spread = c(identity_age$spread, identity_joint$spread,
+             nonlinear_joint$spread),
   flagged = c(identity_age$flagged, identity_joint$flagged,
               nonlinear_joint$flagged)
 )
 ```
 
-The package threshold `cond_inv < 0.2` is an exploratory warning rule for the
-identity-link design. It is not a validated universal cutoff. The statistic is
-relative: it cannot see subgroup sample sizes, outcome precision, overall
-between-stratum magnitude, nonlinear link curvature, or model misspecification.
-A value above 0.2 does not prove identification.
+The thresholds `cond_inv < 0.2` and `spread < 0.05` IPD SD are package
+heuristics for the identity-link design, not validated cutoffs. Neither
+statistic sees subgroup sample sizes, outcome precision or link curvature, so
+a value above the threshold does not prove identification.
 
 ## Recommended workflow
 
-1. Verify that rows are mutually exclusive and collectively exhaustive, and
-   that their sample sizes or exposures represent the intended comparator
-   population.
-2. Count the scalar outcome summaries. Fewer than $K+1$ rows cannot separate a
-   relaxed comparator intercept and $K$ slopes for the non-survival families.
-3. For normal identity models, inspect design rank and `cond_inv`. Request
-   jointly defined cells that vary across all covariates when the design is
-   deficient.
-4. For nonlinear models, treat the mean spectrum as descriptive. Check the
-   fitted coefficient posterior, sampler diagnostics, and
-   `prior_sensitivity()`. A prior sweep measures sensitivity; it does not assign
-   a fraction of information to the data or the prior.
-5. Check `check_integration()` separately. Numerical fidelity of the QMC grid
-   and statistical identification are different questions.
-6. Examine overlap before transporting the comparator regression to the index
-   or another target covariate distribution. A stable fit inside the comparator
-   support does not validate extrapolation outside it [@TSD18;
-   @ChandlerIshakTransport].
-7. If the relaxed result is unstable, obtain more informative jointly defined
-   strata, simplify the effect-modification structure, use SPFA with a clear
-   assumption statement, and report prior and target-population sensitivity.
-
-The marginal posterior-to-prior variance change printed for relaxed
-coefficients is descriptive. It can be negative because of posterior
-correlation or changed marginal geometry, and neither its sign nor magnitude is
-an identification certificate.
+1. Check that the rows are mutually exclusive, collectively exhaustive strata
+   of the comparator population, with sample sizes or exposures.
+2. Count the rows against $K + 1$.
+3. For a normal identity-link model read `cond_inv` and `spread`; when the
+   design is deficient, request jointly defined cells that vary across all
+   covariates.
+4. For a nonlinear model treat the geometry as descriptive and read the
+   fitted coefficient posterior, the sampler diagnostics and
+   `prior_sensitivity()`.
+5. Run `check_integration()` separately; numerical fidelity of the grid and
+   identification are different questions.
+6. Check overlap before transporting the comparator regression to another
+   population [@TSD18; @ChandlerIshakTransport].
 
 ## Distribution and dependence assumptions
 
 Each nonlinear aggregate likelihood integrates over a reconstructed
-within-stratum covariate distribution. Means, SDs, binary proportions, and a
-copula do not uniquely identify that distribution. The same supplied
-correlation matrix is used as a within-stratum dependence model across rows.
-A pooled comparator correlation also contains between-stratum covariance and
-is not generally the required within-stratum correlation. For non-Gaussian
-continuous margins, supply a defensible Spearman matrix with
-`cor_adjust = "spearman"` or a calibrated latent Gaussian-copula matrix with
-`cor_adjust = "none"`; an observed Pearson matrix is not automatically either.
-
-These are sensitivity assumptions, not details that subgroup row count can
-repair. Vary plausible dependence structures and marginal distributions when
-the estimand is sensitive to them.
+within-stratum covariate distribution, which means, SDs and a copula do not
+uniquely determine, and the same correlation matrix is reused for every row.
+These are sensitivity assumptions, not something a row count repairs: vary
+plausible marginals and dependence structures when the estimand is sensitive
+to them.
 
 ## Time-to-event outcomes
 
-The counting argument does not apply to reconstructed survival data. A
-comparator curve supplied through `set_agd_surv()` contributes event and
-censoring likelihood terms across time, not one scalar summary. Depending on
-the survival family and covariate distribution, one marginal curve may identify
-some combinations of comparator coefficients while leaving other directions
-weak. `check_identification()` therefore refuses survival rather than returning
-a misleading row-count result.
-
-For a relaxed survival fit, inspect the comparator coefficient posterior and
-run `prior_sensitivity()` with `prior_beta_comparator_scales`. Also compare
-plausible baseline assumptions, including `aux_by = ".study"` and
-`aux_by = "none"` where scientifically defensible. RMST differences are
-collapsible within a specified population, but this does not make them
-automatically transportable to another population.
+A comparator curve from `set_agd_surv()` contributes event and censoring
+terms across time, not one scalar summary per row, so the counting argument
+does not apply and `check_identification()` refuses survival data. For a
+relaxed survival fit inspect the comparator coefficient posterior, run
+`prior_sensitivity()` with `prior_beta_comparator_scales`, and compare
+`aux_by = ".study"` with `aux_by = "none"` where that is defensible.
 
 ## Simulation evidence
 
@@ -299,113 +194,13 @@ sim_csv <- "../data-raw/subgroup_identification_results.csv"
 sim <- read.csv(sim_csv)
 n_rep  <- max(sim$rep)
 n_fits <- nrow(sim)
-# The digest of the results file this article was built from. It is printed
-# below and checked by a test against the file on disk, so regenerating the
-# results without re-knitting the article stops the build rather than shipping
-# numbers that no longer match their source.
+# Printed below and checked by a test against the file on disk.
 sim_md5 <- unname(tools::md5sum(sim_csv))
-# The requested geometry splits the six designs into two groups three orders of
-# magnitude apart, below 1e-3 against above 0.5, so the threshold is anywhere in
-# that gap rather than at a meaningful value of its own. It cannot be an
-# equality against zero: `cond_inv` is evaluated on a two-million-draw
-# approximation of the population profiles, so a direction that is exactly
-# absent still reads as the noise floor of that approximation rather than as 0.
+# The requested geometry splits the designs into two groups three orders of
+# magnitude apart, so the cut can sit anywhere in the gap.
 deficient_cut <- 1e-3
 sim$deficient <- sim$cond_inv < deficient_cut
-# The same fact per design, for lookups by name.
 DESIGN_DEFICIENT <- vapply(split(sim$deficient, sim$design), all, logical(1))
-```
-
-The sections above argue from geometry. This section measures whether that
-geometry actually predicts anything. The script that produced it is a
-development file, kept in the package repository rather than installed with the
-package, and is read there:
-[`data-raw/simulate_subgroup_identification.R`](https://github.com/choxos/mlumr/blob/main/data-raw/simulate_subgroup_identification.R).
-It writes a manifest beside its results recording the software that produced
-them. The numbers below were read from a results file with MD5
-`r sim_md5`; a test compares that against the file in the repository, so a
-regenerated result set that has not been written back into this article fails
-the build rather than shipping quietly.
-
-Six aggregate designs are crossed with the three non-survival families and
-`r n_rep` replications each, `r n_fits` fits in total.
-
-**Every design is a tabulation of the same people.** Each replication draws one
-index study and one comparator cohort at the individual level, then reports that
-single cohort six ways: as age bands, as a cross-tab of the two binary
-covariates, and as several designs that cut across all three. Each aggregate row
-carries the realized means and standard deviations of the members that fall in
-it, as a real report would, rather than a stratum mean pushed through the link.
-
-That control is what makes the comparison mean anything, and holding the total
-sample size fixed is not enough on its own. Designs built around separate target
-profiles also differ in their pooled covariate distribution, in how far that
-distribution sits from the index population, and in their expected outcome
-level; a width difference could then come from any of those rather than from the
-geometry under study. Under a partition all of them are identical by
-construction, and the only thing that varies is where the cuts fall.
-
-**The designs are compared within a replication, not across replications.**
-Because the six share one draw, the difference between two of them is a paired
-contrast: the replication-to-replication variation both designs see cancels, and
-what remains is the effect of the tabulation. The contrasts below are reported
-that way, with the Monte Carlo standard error computed from the paired
-differences, because that standard error describes the contrast rather than the
-two cell means separately. How much precision the pairing actually buys is
-reported with the contrasts, and it is not uniform.
-
-**Coverage is scored against the estimand the package reports.** The Stan models
-define `delta_index` as an average over the realized index rows, so it is a
-property of the index sample in hand and moves from one replication to the next.
-The truth is therefore recomputed on each replication's own covariates, which
-makes it exact for that replication rather than approximate: it evaluates the
-very same average the generated quantity estimates.
-
-**Non-convergence is an outcome, not an observation.** Interval width and
-coverage are summarized over fits that met every retained diagnostic (split-Rhat
-at most 1.01, bulk and tail effective sample size at least 400, no divergent
-transitions, no treedepth saturation, and every chain finished); the rest are
-counted in their own column. A posterior
-that has not converged is not a valid measurement of what a design can achieve,
-and pooling it into a width average measures the sampler as much as the design.
-The `Failed` column counts fits that errored outright, and the study records the
-condition class and message for each so a systematic failure can be told from a
-transient one.
-
-The comparator covariates are generated independently, and the integration is
-given that correlation structure rather than one estimated from the index
-sample. Left to itself the package estimates a matrix from the individual data
-and transports it to every aggregate row, which would add a second,
-replication-varying misspecification on top of the design being studied.
-
-```{r sim-table, echo = FALSE}
-# ---- sim-table chunk -------------------------------------------------------
-# A fit that has not converged is not a measurement of what a design can
-# achieve, so width and coverage are summarized over fits that met EVERY
-# diagnostic the study retained, and the rest are counted in their own column.
-# Pooling them would measure the sampler as much as the design, and
-# non-convergence is far more common in the deficient designs, so it would
-# flatter exactly the comparison under test.
-# Every diagnostic the package's own contract names, not a convenient subset.
-# Bulk ESS alone would pass a fit whose tails are unusable, and the interval
-# endpoints reported here ARE tail quantities, so tail ESS is the relevant one
-# for the very quantity under study.
-# A missing diagnostic is not a passing one. Tolerating NA here would let a fit
-# whose divergences were never recorded count as clean, which is the opposite of
-# what "met every retained diagnostic" says, and it would do so silently.
-# What this catches is a diagnostic that was wholly unavailable, which is the
-# form the study's own recorder can produce: it reduces each fit's selected
-# parameters to a maximum or a minimum over the values that were reported, so a
-# fit in which ONE parameter's Rhat was missing while the others were reported
-# still arrives here as a finite number and passes. No fit in this study did
-# arrive with a missing aggregate, and none of the selected parameters (mu,
-# beta, sigma, and the contrasts) is constant across draws, which is what makes
-# a per-parameter diagnostic unavailable. Recording each fit's missing count
-# alongside the aggregate would close the gap, and it changes what the
-# checkpoints mean, so it belongs to the next run of the study rather than to a
-# reassembly of this one.
-# `n_chains_ok` is the number of chains whose draws came back, compared against
-# the number this fit asked for.
 sim$converged <- sim$ok &
   !is.na(sim$max_rhat) & sim$max_rhat <= 1.01 &
   !is.na(sim$min_ess) & sim$min_ess >= 400 &
@@ -413,22 +208,34 @@ sim$converged <- sim$ok &
   !is.na(sim$divergent) & sim$divergent == 0 &
   !is.na(sim$max_treedepth) & sim$max_treedepth == 0 &
   !is.na(sim$n_chains_ok) & sim$n_chains_ok == sim$n_chains_requested
+```
 
+Six aggregate designs are crossed with the three non-survival families and
+`r n_rep` replications each, `r n_fits` fits in total, by the development
+script
+[`data-raw/simulate_subgroup_identification.R`](https://github.com/choxos/mlumr/blob/main/data-raw/simulate_subgroup_identification.R).
+The numbers below come from a results file with MD5 `r sim_md5`, which a test
+compares against the file in the repository. Every design is a tabulation of
+the same people: each replication draws one comparator cohort and reports it
+six ways (age bands, a cross-tab of the two binary covariates, and designs
+that cut across all three), so designs are compared within a replication as
+paired contrasts. Width and coverage are summarized over fits that met every
+diagnostic (split-Rhat at most 1.01, bulk and tail effective sample size at
+least 400, no divergent transitions, no treedepth saturation, every chain
+finished); the rest are counted separately. Coverage is scored against the
+estimand the package reports, recomputed on each replication's own
+covariates.
+
+```{r sim-table, echo = FALSE}
 cells <- split(sim, list(sim$family, sim$design), drop = TRUE)
 tab <- do.call(rbind, lapply(cells, function(d) {
   g <- d[d$converged, ]
   p_cov <- mean(g$covered)
   data.frame(
     Family = d$family[1], Design = d$design[1], Rows = d$n_rows[1],
-    # Partitions of one cohort do not have equal rows, so report the range.
     `Row n` = sprintf("%d-%d", min(d$n_min_row), max(d$n_max_row)),
-    # The geometry of the design as REQUESTED, from partitioning a cohort large
-    # enough that the realized profiles are the population ones ...
     cond_inv = signif(d$cond_inv[1], 2),
-    # ... and the same quantity from the rows this replication actually
-    # produced, which is what the likelihood received.
     Fitted = signif(stats::median(d$pkg_cond_inv), 2),
-    eff_dim = round(d$eff_dim[1], 2),
     Width = round(mean(g$width), 3),
     `Width CV` = round(stats::sd(g$width) / mean(g$width), 3),
     `MCSE width` = round(stats::sd(g$width) / sqrt(nrow(g)), 4),
@@ -440,198 +247,46 @@ tab <- do.call(rbind, lapply(cells, function(d) {
 }))
 tab <- tab[order(tab$Family, -tab$cond_inv, tab$Rows), ]
 rownames(tab) <- NULL
-
-# The width-stability separation the text below quotes, computed here rather
-# than recalled, and next to the table it is read from. `Width CV` is the
-# per-cell coefficient of variation; `deficient` is a property of the design, so
-# one lookup per cell suffices.
 tab$deficient <- DESIGN_DEFICIENT[tab$Design]
-n_abstain <- sum(sim$scope == "descriptive" & sim$deficient &
-                   is.na(sim$flagged))
-n_abstain_clean <- sum(sim$scope == "descriptive" & sim$deficient &
-                         is.na(sim$flagged) & sim$converged)
 max_cv_identified <- max(tab$`Width CV`[!tab$deficient])
 min_cv_deficient <- min(tab$`Width CV`[tab$deficient])
-max_cv_deficient <- max(tab$`Width CV`[tab$deficient])
-
-knitr::kable(tab[setdiff(names(tab), "deficient")], align = "llrlrrrrrrrrrr")
+knitr::kable(tab[setdiff(names(tab), "deficient")], align = "llrlrrrrrrrrr")
 ```
 
-The `cond_inv` column is the geometry of the design *as requested*: the same
-statistic evaluated at the population profiles. It separates the six designs
-into two groups three orders of magnitude apart. `ovat_age_3`, `ovat_age_6` and
-`crosstab_4` fall below `r format(deficient_cut)`, because their requested
-profiles span fewer than three directions; the other three sit above 0.5. None
-of them is exactly zero, because that statistic is computed on a
-two-million-draw approximation of the population, so an exactly absent direction
-reads as the floor of the approximation rather than as 0.
-
-The `Fitted` column is the same quantity computed from the rows the likelihood
-actually received, and it is not that number. A stratum defined as holding sex
-at one half realizes a proportion near one half but not exactly one half, so its
-profile matrix is numerically full rank. Only `ovat_age_3` is exactly rank
-deficient whatever the draw, because three rows cannot span three directions
-after centering.
-
-What survives is a separation, not an exact zero. Across all
-`r format(nrow(sim), big.mark = ",")` fits the fitted conditioning of the three
-deficient designs never rises above `r signif(max(sim$pkg_cond_inv[sim$deficient]), 2)`,
-and that of the three identified designs never falls below
-`r signif(min(sim$pkg_cond_inv[!sim$deficient]), 2)`. The groups do not overlap,
-though the fitted gap is a factor of about
-`r signif(min(sim$pkg_cond_inv[!sim$deficient]) / max(sim$pkg_cond_inv[sim$deficient]), 2)`,
-far narrower than the requested one: sampling noise does repay some of the
-missing direction. So "unidentified" below means a direction the design was
-never asked to supply and that noise repays only at a conditioning too small to
-be useful, not a matrix a computer would call singular.
-
-### Row count does not order the designs; geometry does
-
-```{r sim-width, echo = FALSE}
-# ---- sim-width chunk -------------------------------------------------------
-# Per family, NOT pooled. Averaging three rank correlations arithmetically is
-# not a calibrated summary of anything, and six designs give a coarse enough
-# statistic on their own that hiding the spread between families would overstate
-# what this measures. Reported to two decimals for the same reason.
-fams <- sort(unique(tab$Family))
-rho <- function(v, f) {
-  d <- tab[tab$Family == f, ]
-  suppressWarnings(stats::cor(d[[v]], d$Width, method = "spearman"))
-}
-knitr::kable(
-  data.frame(
-    Predictor = c("row count", "cond_inv (requested)",
-                  "cond_inv (fitted)", "eff_dim"),
-    setNames(as.data.frame(lapply(fams, function(f) {
-      round(vapply(c("Rows", "cond_inv", "Fitted", "eff_dim"), rho, numeric(1),
-                   f = f), 2)
-    })), fams),
-    check.names = FALSE, row.names = NULL),
-  align = "lrrr")
-```
-
-Six designs per family is a coarse basis for a rank correlation, and ties are
-extensive, so read the table as a direction rather than a calibration. The
-paired contrasts below carry the weight, because they compare designs on the
-SAME draw and so are not limited by having only six of them.
+`cond_inv` is the geometry of the design as requested, evaluated at the
+population profiles; `Fitted` is the same statistic on the rows the likelihood
+received. Three designs (`ovat_age_3`, `ovat_age_6` and `crosstab_4`) fall
+below `r format(deficient_cut)` because their profiles span fewer than three
+directions; the other three sit above 0.5. Sampling noise repays part of the
+missing direction in the fitted rows, but the two groups never overlap.
 
 ```{r sim-contrast, echo = FALSE}
-# ---- sim-contrast chunk ----------------------------------------------------
-# The comparison the study is actually for. Because the six designs share one
-# replication, the difference between two of them is paired: the draw-to-draw
-# variation they both see cancels, and what remains is the tabulation. The
-# Monte Carlo standard error is computed from the paired differences, so it
-# describes the contrast rather than the two cell means separately.
+# Paired within a replication, so the draw-to-draw variation cancels.
+fams <- sort(unique(tab$Family))
 ref <- "minimal_4"
 contrasts <- do.call(rbind, lapply(fams, function(f) {
   do.call(rbind, lapply(setdiff(sort(unique(sim$design)), ref), function(g) {
-    a <- sim[sim$family == f & sim$design == g & sim$converged,
-             c("rep", "width")]
-    b <- sim[sim$family == f & sim$design == ref & sim$converged,
-             c("rep", "width")]
+    a <- sim[sim$family == f & sim$design == g & sim$converged, c("rep", "width")]
+    b <- sim[sim$family == f & sim$design == ref & sim$converged, c("rep", "width")]
     m <- merge(a, b, by = "rep", suffixes = c("_g", "_ref"))
     dd <- m$width_g - m$width_ref
-    data.frame(
-      Family = f, Design = g, Pairs = nrow(m),
-      `Width difference` = round(mean(dd), 3),
-      MCSE = round(stats::sd(dd) / sqrt(length(dd)), 4),
-      `Wider in` = sprintf("%.0f%%", 100 * mean(dd > 0)),
-      check.names = FALSE, stringsAsFactors = FALSE)
+    data.frame(Family = f, Design = g, Pairs = nrow(m),
+               `Width difference` = round(mean(dd), 3),
+               MCSE = round(stats::sd(dd) / sqrt(length(dd)), 4),
+               `Wider in` = sprintf("%.0f%%", 100 * mean(dd > 0)),
+               check.names = FALSE, stringsAsFactors = FALSE)
   }))
 }))
 rownames(contrasts) <- NULL
-
-# What the pairing is worth, per contrast: the paired standard error against
-# the one that differencing two independent cell means would have given, on the
-# SAME retained pairs so the comparison is not confounded by which fits each
-# filter kept.
-pair_gain <- do.call(rbind, lapply(fams, function(f) {
-  do.call(rbind, lapply(setdiff(sort(unique(sim$design)), ref), function(gd) {
-    a <- sim[sim$family == f & sim$design == gd & sim$converged,
-             c("rep", "width")]
-    b <- sim[sim$family == f & sim$design == ref & sim$converged,
-             c("rep", "width")]
-    m <- merge(a, b, by = "rep", suffixes = c("_g", "_ref"))
-    n <- nrow(m)
-    data.frame(
-      family = f, design = gd,
-      deficient = DESIGN_DEFICIENT[[gd]],
-      ratio = (stats::sd(m$width_g - m$width_ref) / sqrt(n)) /
-        sqrt(stats::var(m$width_g) / n + stats::var(m$width_ref) / n))
-  }))
-}))
-
 knitr::kable(contrasts, align = "llrrrr")
 ```
 
 Each row is that design minus the four-row `minimal_4`, over the replications
-where both converged. A positive difference is a wider, worse interval.
-
-What the pairing buys splits along the same line as everything else. For the
-identified designs the paired standard error is
-`r sprintf("%.0f%% to %.0f%%", 100 * (1 - max(pair_gain$ratio[!pair_gain$deficient])), 100 * (1 - min(pair_gain$ratio[!pair_gain$deficient])))`
-smaller than differencing two independently estimated cell means, because both
-designs respond to the shared draw in much the same way and that response
-cancels. For the deficient designs it is
-`r sprintf("%.0f%% to %.0f%%", 100 * max(0, 1 - max(pair_gain$ratio[pair_gain$deficient])), 100 * max(0, 1 - min(pair_gain$ratio[pair_gain$deficient])))`
-smaller, which is to say nothing at all: their width moves with the
-unidentified direction, which the reference design does not share, so there is
-little common variation left to cancel. Pairing is still the right standard
-error to report, and for these designs it is not a cheaper one.
-
-Two things are worth separating here, because they carry different weight.
-
-Ranked against the mean width, `cond_inv` orders these designs better than the
-row count does, but the margin is modest and rests on six designs per family,
-which is a thin basis for a correlation. Read it as a direction, not as a
-calibration.
-
-The inversion is the part that does not depend on how many designs were tried.
-The six-row one-variable-at-a-time design has more rows than the four-row
-minimal design and yields a wider, less stable interval, in every family. A
-reader counting rows would prefer the worse design. That is the concrete
-content of the claim that more rows along an existing direction cannot replace
-a missing direction, and one counterexample is enough to establish it.
-
-### The two failing designs lose opposite halves of the space
-
-Both the one-variable-at-a-time bands and the bare cross-tab fall in the
-deficient group, and neither recovers a usable third direction from sampling
-noise, but they do not fail in the same way.
-The bands vary only age, leaving `eff_dim` at 1 whether they have three rows or
-six. The cross-tab varies both binaries and holds age fixed, giving
-`eff_dim` = 2. One keeps the continuous covariate and loses the binaries; the
-other keeps the binaries and loses the continuous covariate.
-
-### An unidentified design is unpredictable, not merely imprecise
-
-The failing designs are not just wider. Their widths vary far more from one
-replication to the next than the identified designs do, so a single analysis
-cannot be read as representative of what that design would have produced. The
-coefficient of variation of the width separates the two groups completely:
-every identified cell is at or below `r round(max_cv_identified, 2)` and every
-deficient one at or above `r round(min_cv_deficient, 2)`, reaching
-`r round(max_cv_deficient, 2)` in the worst cell. The widths themselves are far
-more separated than that; it is the *stability* of the width, not its size,
-that this measures.
-
-### The sampler notices, and only for the nonlinear families
+where both converged; a positive difference is a wider interval.
 
 ```{r sim-claims, include = FALSE}
-# ---- sim-claims chunk ------------------------------------------------------
-# The paragraphs below make qualitative claims about the results. They hold for
-# the file in the repository, and a regenerated study could make any of them
-# false while every other check stayed green, because nothing else reads a
-# sentence. Checking them here means the article stops building rather than
-# shipping a claim its own data no longer supports.
-# The inversion is this article's headline claim, so it is the one that most
-# needs checking rather than remembering: a six-row design that varies one
-# covariate is worse than a four-row design that varies three, in every family.
-#
-# Check the PAIRED contrast, which is the quantity the article reports. Two
-# separately filtered means can order one way while the paired difference orders
-# the other, because the two filters need not keep the same replications, and
-# then a guard on the means passes for a claim the table contradicts.
+# The claims below are checked against the results file, so a regenerated
+# study cannot leave the text asserting something its data no longer support.
 inversion <- vapply(split(sim[sim$converged, ], sim$family[sim$converged]),
                     function(d) {
                       a <- d[d$design == "ovat_age_6", c("rep", "width")]
@@ -639,158 +294,59 @@ inversion <- vapply(split(sim[sim$converged, ], sim$family[sim$converged]),
                       m <- merge(a, b, by = "rep", suffixes = c("_g", "_ref"))
                       nrow(m) > 0L && mean(m$width_g - m$width_ref) > 0
                     }, logical(1))
-
-# The whole flag pattern, not one corner of it. Asserting only that the two
-# rows-enough designs come back NA is satisfied by a screen that returns NA for
-# everything, which would contradict the `ovat_age_3` claim in the same
-# paragraph.
 flag_pattern <- function(scope, design) {
   sim$flagged[sim$scope == scope & sim$design %in% design]
 }
 deficient_designs <- c("ovat_age_3", "ovat_age_6", "crosstab_4")
-
+n_abstain <- sum(sim$scope == "descriptive" & sim$deficient & is.na(sim$flagged))
+n_abstain_clean <- sum(sim$scope == "descriptive" & sim$deficient &
+                         is.na(sim$flagged) & sim$converged)
 stopifnot(
-  # The screen is exact under the identity link: its verdict is the geometry.
   identical(sim$flagged[sim$scope == "identity"],
             sim$deficient[sim$scope == "identity"]),
-  # Under a nonlinear link it withholds a verdict for the deficient designs
-  # that have rows enough, which is the limitation the text reports rather than
-  # a result to celebrate ...
   all(is.na(flag_pattern("descriptive", c("crosstab_4", "ovat_age_6")))),
-  # ... still flags the one that is short of rows ...
   all(flag_pattern("descriptive", "ovat_age_3")),
-  # ... and says nothing about the designs that are fine.
-  all(is.na(flag_pattern("descriptive", setdiff(unique(sim$design),
-                                                deficient_designs)))),
-  # More rows along one direction lose to fewer rows across three.
+  all(is.na(flag_pattern("descriptive",
+                         setdiff(unique(sim$design), deficient_designs)))),
   all(inversion),
-  # The two groups do not overlap on width stability.
   max_cv_identified < min_cv_deficient,
-  # Every diagnostic failure sits in a design the geometry marked deficient.
   all(sim$deficient[sim$ok & !sim$converged]),
-  # The normal family sampled cleanly, including in the deficient designs.
-  !any(sim$family == "normal" & sim$ok & !sim$converged),
-  # Rhat alone sees less than the full diagnostic set does.
-  sum(sim$ok & !sim$converged) > sum(sim$ok & sim$max_rhat > 1.01, na.rm = TRUE)
+  !any(sim$family == "normal" & sim$ok & !sim$converged)
 )
 ```
 
-Non-convergence tracks identification exactly in this study, across every
-diagnostic recorded. No fit in an identified design failed any of them, and all
-`r sum(sim$ok & !sim$converged)` fits that failed at least one belong to the
-deficient group.
+Three things follow.
 
-The diagnostics disagree sharply about how many fits are affected:
-`r sum(sim$ok & sim$max_rhat > 1.01, na.rm = TRUE)` exceed the split-Rhat threshold,
-`r sum(sim$ok & sim$min_ess < 400, na.rm = TRUE)` fall below the bulk effective sample size
-one, `r sum(sim$ok & sim$min_ess_tail < 400, na.rm = TRUE)` below the tail one,
-`r sum(sim$ok & sim$divergent > 0, na.rm = TRUE)` report a divergent transition,
-`r sum(sim$ok & sim$max_treedepth > 0, na.rm = TRUE)` saturate the treedepth,
-and `r sum(sim$ok & sim$n_chains_ok != sim$n_chains_requested, na.rm = TRUE)` lost a chain.
-A study reporting Rhat alone would have understated the problem, which is why
-the table above filters on all six rather than on the one that is easiest to
-extract. So a rank-deficient aggregate design does not merely widen the
-interval, it also makes the posterior harder to sample, and the diagnostics one
-would run anyway will often say so.
+**Row count does not order the designs; geometry does.** The six-row
+one-variable-at-a-time design has more rows than the four-row minimal design
+and gives a wider interval in every family. A reader counting rows would
+prefer the worse design.
 
-The counts here come from the summaries the script retains rather than from what
-the sampler printed, because it suppresses fitting warnings; the two describe
-the same runs.
+**An unidentified design is unpredictable, not merely imprecise.** The
+coefficient of variation of the width separates the two groups completely:
+every identified cell is at or below `r round(max_cv_identified, 2)` and every
+deficient one at or above `r round(min_cv_deficient, 2)`. Coverage shows none
+of this, because a wide enough interval covers almost anything.
 
-They do not always say so. Every fit failing a diagnostic here is binomial or
-Poisson; the normal family sampled cleanly in the unidentified designs too. A
-plausible reading is that with an identity link the unidentified direction is
-a flat ridge, which the sampler traverses without difficulty, while a logit or
-log link curves it. That is an explanation for the pattern rather than something this
-study tested, and the practical point does not depend on it: a clean set of
-convergence diagnostics is not evidence that the design is identified.
-
-Coverage does not reveal any of this. The unidentified designs cover at or near
-the nominal rate, because a wide enough interval covers almost anything. An
-interval can be correct and useless at the same time, which is why the width and
-its variability, not the coverage, are what these designs should be judged on.
-
-### The shipped screen is exact where it speaks, and silent where it matters most
-
-`check_identification()` ran on every design in every replication and its
-verdict was kept, so the study also measures the diagnostic this article
-recommends.
-
-Under the identity link it is exact. Across the
-`r sum(sim$scope == "identity")` normal fits it flagged
-`r sum(sim$scope == "identity" & sim$flagged)` and cleared
-`r sum(sim$scope == "identity" & !sim$flagged)`, and that split is the
-deficient and identified split above, fit for fit: no identified design was
-flagged and no deficient one was missed.
-
-Under the logit and log links it mostly declines. For
-`r sum(sim$scope == "descriptive" & is.na(sim$flagged))` of the
-`r sum(sim$scope == "descriptive")` binomial and Poisson fits it returns no
-verdict at all, which is the refusal documented in `?check_identification`: a
-subgroup-mean screen is an exact statement about the design matrix only when
-the link is the identity. The refusal is preserved here rather than collapsed
-into "not flagged", because reporting it as a clearance would publish a verdict
-the package deliberately withholds.
-
-What it still flags there is `ovat_age_3`, and on a different ground: three
-rows is fewer than the $K+1$ = 4 that three covariates need, and a row count is
-structural rather than link-dependent. So under a nonlinear link the screen
-catches the design that is short of rows, and says nothing about `crosstab_4`
-or `ovat_age_6`, which have rows enough and the wrong geometry.
-
-The sampler does not reliably cover that gap. Of the
-`r n_abstain` deficient binomial and Poisson fits where the screen abstains,
-`r n_abstain_clean` met every diagnostic, which is
-`r sprintf("%.0f%%", 100 * n_abstain_clean / n_abstain)` of them. The trouble is
-concentrated in `crosstab_4`; `ovat_age_6` samples cleanly in
-`r sprintf("%.0f%%", 100 * mean(sim$converged[sim$scope == "descriptive" & sim$design == "ovat_age_6"]))`
-of its nonlinear fits while producing the third-widest intervals of the six
-designs in its own family.
-A clean set of diagnostics is not evidence that the design is identified, and
-here it is not even good evidence.
-
-That is the practical conclusion, and it is a negative one about the two signals
-that arrive *after* fitting. Under a nonlinear link the screen withholds a
-verdict, and the sampler mostly reports success, for a design whose intervals
-are among the worst here. What separates the designs in every family is the
-geometry, `cond_inv` and `eff_dim`, and that is computable from the aggregate
-table before anything is fitted. Compute it first; do not wait for the fit to
-object.
+**The screen is exact under the identity link and silent elsewhere.** Across
+the `r sum(sim$scope == "identity")` normal fits `check_identification()`
+flagged exactly the deficient designs. Under the logit and log links it
+withholds a verdict for the deficient designs that have rows enough, and the
+sampler does not reliably cover that gap: of the `r n_abstain` such fits,
+`r n_abstain_clean` met every diagnostic. All `r sum(sim$ok & !sim$converged)`
+fits that failed a diagnostic belong to the deficient group, and every one of
+them is binomial or Poisson. A clean set of diagnostics is not evidence that
+the design is identified; compute the geometry from the aggregate table
+before fitting.
 
 ## What this vignette does not claim
 
-There is no universal minimum number of rows beyond the necessary $K+1$ count,
-no source-validated `cond_inv` cutoff, and no guarantee that a non-flagged
-design produces a practically precise target effect.
-
-The simulation above is deliberately narrow. It uses synthetic strata rather
-than a real trial's reported subgroups, six designs rather than a systematic
-sweep of the design space, three covariates, one effect size, one comparator
-size, and no survival family. Its correlations rest on six designs per family,
-which is a thin basis; read the ranking as a direction, not as a calibration.
-What it does establish is the inversion, and one counterexample is enough for
-that: a design with more rows can be strictly worse than a design with fewer.
-
-The generator draws each cohort at the individual level and each aggregate row
-reports the realized moments of its own members, so a row's members are exactly
-the people its summary describes. What the row does not carry is the SHAPE of
-that membership: a design that bands on age reports a mean and a standard
-deviation for a within-band age distribution that is truncated, while the fit
-integrates a normal with those two moments, and only `crosstab_4` leaves the
-age margin approximately Gaussian. This is a real misspecification, and it
-falls unevenly across the designs, so it is worth bounding rather than
-asserting away. Comparing each row's true mean response against the one the
-model integrates puts the discrepancy at most 4.2% of that row's own sampling
-standard error across every design and both nonlinear families, and the
-age-banded designs sit lower than that, below the sampling noise of the
-comparison itself. The width differences the table reports run to factors of
-two and three, so the shape of the within-row age distribution is not what
-produces them.
-
-A study that justified a `cond_inv` threshold for a specific application would
-need the actual within-stratum distributions of that application, its own
-effect size and sample sizes, a design sweep wide enough to place a cutoff,
-and the outcome family in use. The guidance here remains structural and
-diagnostic, not a numerical calibration.
+There is no universal minimum number of rows beyond $K + 1$, no validated
+`cond_inv` cutoff, and no guarantee that an unflagged design gives a precise
+target effect. The simulation uses synthetic strata, six designs, three
+covariates, one effect size and no survival family; what it establishes is
+the inversion, for which one counterexample is enough. A threshold for a
+specific application would need that application's within-stratum
+distributions, effect size, sample sizes and outcome family.
 
 ## References
