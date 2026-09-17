@@ -81,12 +81,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Two platforms per pull request; each job compiles every Stan model.
+        # R devel and oldrel-1 join only on workflow_dispatch, before a CRAN
+        # submission.
         config:
           - {os: ubuntu-latest, r: 'release'}
-          - {os: macos-latest, r: 'release'}
           - {os: windows-latest, r: 'release'}
-          - {os: ubuntu-latest, r: 'devel', http-user-agent: 'release'}
-          - {os: ubuntu-latest, r: 'oldrel-1'}
+        include: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '[{"config":{"os":"ubuntu-latest","r":"devel","http-user-agent":"release"}},{"config":{"os":"ubuntu-latest","r":"oldrel-1"}}]' || '[]') }}
 
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
