@@ -37,9 +37,10 @@ default \code{normal(0, 2.5)} is a generic starting value on the link scale per
 unit of covariate, not a calibrated choice; use \code{autoscale = TRUE} for
 predictors on different scales and calibrate with prior predictive checks
 (Gelman et al., 2008; the Stan prior-choice wiki). \code{prior_sigma} is a
-half-normal through the Stan \verb{<lower=0>} constraint; scale it to the
-outcome. Run \code{\link[=prior_sensitivity]{prior_sensitivity()}} for the relaxed model, whose
-\code{beta_comparator} is identified only by the aggregate likelihood.
+normal truncated at zero through the Stan \verb{<lower=0>} constraint, a
+half-normal at the default mean of 0; scale it to the outcome. Run
+\code{\link[=prior_sensitivity]{prior_sensitivity()}} for the relaxed model, whose \code{beta_comparator} is
+identified only by the aggregate likelihood.
 }
 
 \examples{

@@ -11,9 +11,10 @@
 #' unit of covariate, not a calibrated choice; use `autoscale = TRUE` for
 #' predictors on different scales and calibrate with prior predictive checks
 #' (Gelman et al., 2008; the Stan prior-choice wiki). `prior_sigma` is a
-#' half-normal through the Stan `<lower=0>` constraint; scale it to the
-#' outcome. Run [prior_sensitivity()] for the relaxed model, whose
-#' `beta_comparator` is identified only by the aggregate likelihood.
+#' normal truncated at zero through the Stan `<lower=0>` constraint, a
+#' half-normal at the default mean of 0; scale it to the outcome. Run
+#' [prior_sensitivity()] for the relaxed model, whose `beta_comparator` is
+#' identified only by the aggregate likelihood.
 #'
 #' @param mean Prior mean (default 0).
 #' @param sd Prior standard deviation (default 10). The default matches

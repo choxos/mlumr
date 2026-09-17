@@ -537,7 +537,7 @@ print.mlumr_agd_surv <- function(x, ...) {
 #' `delta_*` is a marginal log hazard ratio under proportional hazards (at
 #' `t -> 0` when the shapes are shared, otherwise at the first prediction
 #' time), a log time ratio for a shared-shape SPFA AFT fit, and otherwise a
-#' location contrast that is no time ratio: with different shapes there is no
+#' location contrast that is not a time ratio: with different shapes there is no
 #' constant acceleration factor, and in a relaxed fit the covariate term does
 #' not cancel. [marginal_effects()] and [prior_sensitivity()] both read this.
 #'
