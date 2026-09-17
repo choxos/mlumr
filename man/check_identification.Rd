@@ -17,8 +17,8 @@ family default. A fitted object always uses its stored link.}
 \value{
 Invisibly, a list with \code{n_rows}, \code{n_distinct} (rows that do not
 repeat another's integration grid), \code{n_cov}, \code{n_rows_needed} (\code{K + 1}),
-\code{cond_inv}, \code{spread}, \code{singular_values}, \code{means} (the scaled, centered
-subgroup mean matrix), \code{diagnostic_scope} (\code{"identity"} or
+\code{cond_inv}, \code{eff_dim}, \code{spread}, \code{singular_values}, \code{means} (the scaled,
+centered subgroup mean matrix), \code{diagnostic_scope} (\code{"identity"} or
 \code{"descriptive"}) and \code{flagged}.
 }
 \description{
@@ -32,7 +32,9 @@ covariate direction.
 The subgroup mean profiles are centered, divided by the IPD covariate SDs
 and decomposed. \code{cond_inv} is the ratio of the smallest to the largest
 singular value and goes to 0 as the rows collapse onto a lower-dimensional
-set. \code{spread} is the RMS distance of the rows from their center along the
+set. \code{eff_dim} is the participation ratio of the squared singular values,
+the number of directions the rows effectively spread along, from 1 to
+\code{K}. \code{spread} is the RMS distance of the rows from their center along the
 dominant direction, in IPD SDs; it supplies the absolute scale \code{cond_inv}
 lacks. For a normal identity-link model the subgroup means are the
 aggregate design and the screen flags \code{cond_inv < 0.2} or \code{spread < 0.05},

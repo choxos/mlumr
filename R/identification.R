@@ -9,7 +9,9 @@
 #' The subgroup mean profiles are centered, divided by the IPD covariate SDs
 #' and decomposed. `cond_inv` is the ratio of the smallest to the largest
 #' singular value and goes to 0 as the rows collapse onto a lower-dimensional
-#' set. `spread` is the RMS distance of the rows from their center along the
+#' set. `eff_dim` is the participation ratio of the squared singular values,
+#' the number of directions the rows effectively spread along, from 1 to
+#' `K`. `spread` is the RMS distance of the rows from their center along the
 #' dominant direction, in IPD SDs; it supplies the absolute scale `cond_inv`
 #' lacks. For a normal identity-link model the subgroup means are the
 #' aggregate design and the screen flags `cond_inv < 0.2` or `spread < 0.05`,
@@ -29,8 +31,8 @@
 #'
 #' @return Invisibly, a list with `n_rows`, `n_distinct` (rows that do not
 #'   repeat another's integration grid), `n_cov`, `n_rows_needed` (`K + 1`),
-#'   `cond_inv`, `spread`, `singular_values`, `means` (the scaled, centered
-#'   subgroup mean matrix), `diagnostic_scope` (`"identity"` or
+#'   `cond_inv`, `eff_dim`, `spread`, `singular_values`, `means` (the scaled,
+#'   centered subgroup mean matrix), `diagnostic_scope` (`"identity"` or
 #'   `"descriptive"`) and `flagged`.
 #'
 #' @seealso [mlumr()] for `model = "relaxed"`; [prior_sensitivity()].
@@ -148,9 +150,10 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #'
 #' Rows are centered and divided by the IPD SDs, so a covariate measured in
 #' large units cannot dominate by units alone. Returns `cond_inv` (smallest
-#' over largest singular value), `spread` (RMS distance of the rows from their
-#' center along the dominant direction, in IPD SDs), `singular_values` and the
-#' scaled `means`. A design that cannot be decomposed reports zero geometry,
+#' over largest singular value), `eff_dim` (participation ratio of the squared
+#' singular values, the number of directions effectively spanned), `spread`
+#' (RMS distance of the rows from their center along the dominant direction,
+#' in IPD SDs), `singular_values` and the scaled `means`. A design that cannot be decomposed reports zero geometry,
 #' as `.profile_rank()` does.
 #' @noRd
 .subgroup_geometry <- function(means, ref_sd) {
@@ -159,15 +162,19 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   ref_sd <- as.numeric(ref_sd)
   ref_sd[!is.finite(ref_sd) | ref_sd <= 0] <- 1
   M <- sweep(M, 2, ref_sd, "/")
-  degenerate <- list(cond_inv = 0, spread = 0, singular_values = rep(0, k),
-                     means = M)
+  degenerate <- list(cond_inv = 0, eff_dim = 0, spread = 0,
+                     singular_values = rep(0, k), means = M)
   if (nrow(M) < 2L || !all(is.finite(M))) return(degenerate)
   d <- tryCatch(svd(M)$d, error = function(e) NULL)
   if (is.null(d)) return(degenerate)
   d <- d[is.finite(d)]
   if (!length(d) || max(d) <= 0) return(degenerate)
   if (length(d) < k) d <- c(d, rep(0, k - length(d)))
+  # The participation ratio is scale-free, but its fourth powers overflow for
+  # huge singular values, so normalize first.
+  dn <- d / max(d)
   list(cond_inv = min(d) / max(d),
+       eff_dim = sum(dn^2)^2 / sum(dn^4),
        spread = max(d) / sqrt(nrow(M)),
        singular_values = d,
        means = M)
@@ -260,6 +267,7 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
   cat(sprintf("Covariates:          %d (%s)\n", x$n_cov,
               paste(covs, collapse = ", ")))
   cat(sprintf("Rows needed (K + 1): %d\n", x$n_rows_needed))
+  cat(sprintf("Spectral dimension:  %.2f of %d (eff_dim)\n", x$eff_dim, x$n_cov))
   cat(sprintf("Balance (cond_inv):  %.4f\n", x$cond_inv))
   cat(sprintf("Spread (IPD SDs):    %.4g\n\n", x$spread))
   verdict <- if (x$n_distinct < x$n_rows_needed) {
