@@ -6,17 +6,8 @@
 \usage{
 .reject_unused_dots(...)
 }
-\arguments{
-\item{...}{Arguments the caller supplied and the function does not use.}
-}
-\value{
-\code{NULL}, invisibly; called for the error.
-}
 \description{
-A wrapper that delegates to \code{stats} gets this for free: an unknown name
-reaches the callee and errors there. One that computes its own answer
-silently discards whatever \code{...} collected, so a misspelled argument reads
-as a default. Name what was passed, since the point is to make the typo
-visible.
+A function that computes its own answer would otherwise discard whatever
+\code{...} collected, so a misspelled argument would read as a default.
 }
 \keyword{internal}

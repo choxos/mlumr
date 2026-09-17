@@ -11,15 +11,8 @@
 
 #' Merge a caller's rstan `control` with the settings mlumr names itself
 #'
-#' Tested by name rather than by value. A caller who writes `control = NULL`
-#' leaves an element that is present and NULL, so `is.null(dots$control)` is
-#' true while the name is still in `dots`, and forwarding it would hand
-#' `rstan::sampling()` two `control` arguments: the collision this merge
-#' exists to prevent. `$` also matches partially, so an exact test on the
-#' names is the one that means what it says.
-#'
-#' @param adapt_delta,max_treedepth The settings mlumr exposes as arguments.
-#' @param dots The caller's `...`, as a list.
+#' Tested by name, since `control = NULL` is present in `dots` and would
+#' still reach `rstan::sampling()` as a second `control`.
 #' @return A list with the merged `control` and `dots` with `control` removed.
 #' @keywords internal
 .merge_sampler_control <- function(adapt_delta, max_treedepth, dots) {
@@ -30,26 +23,16 @@
       if (!is.list(supplied)) {
         stop("`control` must be a list of sampler settings.", call. = FALSE)
       }
-      # The caller's entries win: naming one in `control` is a more specific
-      # request than the argument mlumr() offers for the same setting.
+      # The caller's entries win.
       control <- utils::modifyList(control, supplied)
-      # `modifyList()` deletes an entry whose replacement is NULL, which is
-      # right for a setting rstan defaults on its own but not for these two.
-      # mlumr always supplies them, reports the treedepth count against one and
-      # records both on the fit, so dropping them counted every transition
-      # against NULL, which is no transitions at all, and recorded a value that
-      # never ran. A NULL from a caller therefore leaves mlumr's own in place.
+      # A NULL from the caller leaves mlumr's own value in place.
       for (nm in c("adapt_delta", "max_treedepth")) {
         if (is.null(control[[nm]])) {
           control[[nm]] <- if (identical(nm, "adapt_delta")) adapt_delta else
             max_treedepth
         }
       }
-      # Through the same validators the arguments get. mlumr() checks these two
-      # when they arrive as arguments, and `control` reached the sampler
-      # without passing anything, so `adapt_delta = NA` or 5 went to rstan and
-      # into the recorded metadata unchallenged. A setting should not depend on
-      # which of two doors it came through.
+      # Same validators as the arguments.
       .validate_mlumr_adapt_delta(control$adapt_delta)
       .validate_mlumr_integer(control$max_treedepth, "max_treedepth",
                               lower = 1L)
@@ -65,14 +48,7 @@ fit_rstan <- function(model_name, stan_data, chains, iter, warmup,
                       seed, adapt_delta, max_treedepth, refresh, ...) {
 
   dots <- list(...)
-  # A caller's `control` has to be merged rather than forwarded beside this
-  # one. Passing both made `rstan::sampling()`, which has `control` as a
-  # formal, stop with "formal argument \"control\" matched by multiple actual
-  # arguments" before sampling began, so the documented way to reach the
-  # sampler's other settings could not be used at all. The two named here are
-  # the ones mlumr() exposes as its own arguments, so a caller who names them
-  # in `control` is asking for something mlumr() already asked for; theirs is
-  # kept, since it is the more specific request.
+  # A caller's `control` is merged with mlumr's rather than passed beside it.
   merged <- .merge_sampler_control(adapt_delta, max_treedepth, dots)
   control <- merged$control
   dots <- merged$dots
@@ -93,9 +69,7 @@ fit_rstan <- function(model_name, stan_data, chains, iter, warmup,
 
   draws <- as.data.frame(fit)
 
-  # rstan's as.data.frame(fit) returns post-warmup draws in chain-major order;
-  # derive the real chain ids from the fitted object's saved chain count (not the
-  # requested `chains`) so diagnostics use true chain labels.
+  # Draws are chain-major; label them from the fitted chain count.
   n_chains_fit <- tryCatch(as.integer(fit@sim$chains),
                            error = function(e) NA_integer_)
   chain_ids <- if (!is.na(n_chains_fit) && n_chains_fit >= 1L &&
@@ -109,21 +83,14 @@ fit_rstan <- function(model_name, stan_data, chains, iter, warmup,
   summary_df <- as.data.frame(summary_stats)
   summary_df$variable <- rownames(summary_stats)
   summary_df <- summary_df[, c("variable", setdiff(names(summary_df), "variable"))]
-  # rstan's classic summary reports bulk n_eff only. check_diagnostics() also
-  # tests tail ESS, which is what speaks for the 2.5%/97.5% quantiles the
-  # package reports; without this column that check quietly did nothing on the
-  # default backend. Match on variable name so the two orderings cannot drift.
+  # rstan reports bulk n_eff only; add tail ESS, matched on variable name.
   summary_df$ess_tail <- unname(
     .rstan_ess_tail(draws, chain_ids)[summary_df$variable]
   )
 
   sp <- rstan::get_sampler_params(fit, inc_warmup = FALSE)
   n_divergent <- sum(vapply(sp, function(x) sum(x[, "divergent__"]), numeric(1)))
-  # The limit the sampler actually ran under, which is the merged one. A
-  # caller who raised `max_treedepth` through `control` got the higher limit
-  # from `rstan::sampling()` while this count still used the argument, so
-  # transitions that stopped below the argument were reported as hitting a
-  # maximum they never reached, and an override the other way hid real ones.
+  # Count against the limit the sampler ran under, which is the merged one.
   n_max_td <- .count_treedepth_hits(sp, control$max_treedepth)
 
   list(
@@ -133,15 +100,10 @@ fit_rstan <- function(model_name, stan_data, chains, iter, warmup,
     summary_df = summary_df,
     n_divergent = n_divergent,
     n_max_td = n_max_td,
-    # What the sampler ran under, which is not the argument when a caller
-    # overrode either through `control`. The diagnostics quote these when
-    # advising a change, so that the advice names the limit in force.
+    # What the sampler ran under, quoted by the diagnostics.
     adapt_delta_used = control$adapt_delta,
     max_treedepth_used = control$max_treedepth,
-    # The whole merged list, not only the two named above. A caller can set
-    # anything rstan accepts here, `adapt_engaged` and `stepsize` among them,
-    # and a refit that replays only two of them is not a refit of the same
-    # sampler configuration.
+    # The whole merged list, so a refit can replay it.
     control_used = control,
     n_chains_requested = as.integer(chains),
     n_chains_returned = .n_chains_returned(chain_ids, chains)
@@ -163,8 +125,7 @@ fit_rstan <- function(model_name, stan_data, chains, iter, warmup,
         !requireNamespace("posterior", quietly = TRUE)) {
     return(out)
   }
-  # Treating unlabeled draws as one long chain would report a tail ESS computed
-  # from a layout that is not the fit's, which is worse than reporting nothing.
+  # Unlabeled draws are not one long chain.
   if (is.null(chain_ids) || length(chain_ids) != nrow(draws)) {
     return(out)
   }

@@ -66,12 +66,7 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
   .print_beta_prior_block("Regression coefficients (beta):",
                           priors$beta_resolved, priors$beta, digits)
 
-  # The relaxed model's comparator coefficients can carry a fully separate
-  # prior, and regularizing them is the whole point of that argument: they are
-  # identified only through the aggregate likelihood, and the index-population
-  # estimand averages them over the IPD covariate distribution. The resolved
-  # struct was stored on the fit and never printed, so the advertised
-  # introspection API could not confirm which prior the sampler actually used.
+  # The relaxed model's comparator coefficients can carry their own prior.
   if (!is.null(priors$beta_comparator_resolved)) {
     .print_beta_prior_block(
       "Comparator regression coefficients (beta_comparator):",
@@ -91,11 +86,8 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
     cat("\n")
   }
 
-  # Survival baseline (survival family only). These were stored on the fit but
-  # never shown, so a user who set them had no way to confirm through the
-  # advertised prior-introspection API which prior the model actually used.
-  # `aux` is the parametric shape/scale; `smooth` is the random-walk SD of a
-  # flexible baseline. A fit carries whichever its distribution has.
+  # Survival baseline: `aux` is the parametric shape or scale, `smooth` the
+  # random-walk SD of a flexible baseline.
   if (!is.null(priors$aux)) {
     aux_label <- .constrained_prior_label(priors$aux)
     label <- if (is.null(priors$aux2)) {
@@ -108,8 +100,7 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
     .print_default_tag(priors$aux)
     cat("\n")
   }
-  # Generalized gamma only. Shown separately because the two auxiliaries govern
-  # different features of the hazard and can now carry different priors.
+  # Generalized gamma only.
   if (!is.null(priors$aux2)) {
     cat("Survival auxiliary 2 (gengamma k = 1 / Q^2, where Q is the Lawless\n")
     cat("  shape; ", .constrained_prior_label(priors$aux2), "):\n",
@@ -315,16 +306,10 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
 }
 
 
-# Name the constrained prior precisely instead of calling every
-# positive-constrained prior a "half-distribution". Two of those labels were
-# wrong: an exponential is already supported on the positive half-line, so
-# `<lower=0>` truncates nothing, and a normal or t with a nonzero location
-# truncated at zero is not a half-normal or half-t, which are the zero-location
-# cases. Reporting a prior less precisely than the model parameterizes it
-# defeats the point of prior introspection.
-
 #' Describe how a positive-constrained prior is constrained
 #'
+#' An exponential is already positive, and only a zero-location normal or t
+#' truncated at zero is a half-normal or half-t.
 #' @param prior A prior specification list.
 #' @return A one-line character label for the constrained form.
 #' @keywords internal

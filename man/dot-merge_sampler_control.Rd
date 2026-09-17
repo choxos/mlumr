@@ -6,20 +6,11 @@
 \usage{
 .merge_sampler_control(adapt_delta, max_treedepth, dots)
 }
-\arguments{
-\item{adapt_delta, max_treedepth}{The settings mlumr exposes as arguments.}
-
-\item{dots}{The caller's \code{...}, as a list.}
-}
 \value{
 A list with the merged \code{control} and \code{dots} with \code{control} removed.
 }
 \description{
-Tested by name rather than by value. A caller who writes \code{control = NULL}
-leaves an element that is present and NULL, so \code{is.null(dots$control)} is
-true while the name is still in \code{dots}, and forwarding it would hand
-\code{rstan::sampling()} two \code{control} arguments: the collision this merge
-exists to prevent. \code{$} also matches partially, so an exact test on the
-names is the one that means what it says.
+Tested by name, since \code{control = NULL} is present in \code{dots} and would
+still reach \code{rstan::sampling()} as a second \code{control}.
 }
 \keyword{internal}

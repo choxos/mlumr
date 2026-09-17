@@ -20,15 +20,10 @@ prior_sensitivity(
 Default \code{c(0.5, 1, 2.5, 5, 10)}.}
 
 \item{prior_beta_comparator_scales}{(Relaxed fits only.) Numeric vector of
-scales for \code{prior_beta_comparator}, same length as \code{prior_beta_scales} and
-paired with it elementwise. If \code{NULL} (default), the comparator prior is
-swept in parallel using \code{prior_beta_scales}. This matters because the
-relaxed index-population estimand is driven by the comparator coefficients,
-so a faithful sensitivity sweep must vary their prior. Whichever scale is
-used is reported in the \code{scale_comparator} column, so a refit that paired,
-say, an index scale of 0.5 with a comparator scale of 2.5 is not labeled
-as though only the index prior had been set. Ignored, with a warning, for
-SPFA fits, which have no comparator-specific coefficients.}
+scales for \code{prior_beta_comparator}, paired elementwise with
+\code{prior_beta_scales}. \code{NULL} (default) sweeps the comparator prior in
+parallel with \code{prior_beta_scales}; the scale used is reported in the
+\code{scale_comparator} column. Ignored, with a warning, for SPFA fits.}
 
 \item{probs}{Quantiles for summarizing each posterior
 (default \code{c(0.025, 0.5, 0.975)}).}
@@ -67,30 +62,14 @@ reverting to the defaults. A fit made with \code{center = FALSE} or \code{qr = T
 a different parameterization, and replaying the defaults would vary the model
 as well as the prior.
 
-Only the scale of the \code{prior_beta} family is varied; its distribution
-(normal / student_t) and mean are preserved so comparisons are apples to
-apples. \code{prior_intercept} and \code{prior_sigma} are carried through
-unchanged from the original fit. Each value in \code{prior_beta_scales} is
-used as the \strong{absolute} scale for every coefficient at that refit --- if
-the original fit used per-coefficient priors, all coefficients are set
-to the same scale (the sweep is deliberately homogeneous so the grid
-reflects a single level of prior informativeness per refit, not a
-rescaling of existing relative differences). If the original
-\code{prior_beta} used an exponential family, it is swapped for a
-\code{prior_normal(0, scale)} at each grid point since exponential has no
-scale parameter to vary.
-
-For a relaxed fit the comparator prior is swept alongside the index prior.
-By default the two move together, which is a single-factor sweep of overall
-prior informativeness; supplying \code{prior_beta_comparator_scales} pairs a
-different comparator scale with each index scale, so the two are then
-separate factors moved in lockstep rather than one. Sweeping the comparator
-prior is what makes the result meaningful: the relaxed index-population
-estimand is driven by the comparator coefficients, so holding their prior
-fixed would report a flat, reassuring curve for exactly the quantity most
-exposed to the prior. Both scales are recorded per row (\code{scale} and
-\code{scale_comparator}), so a row is never labeled by only half of the prior it
-was fitted under.
+Only the scale of \code{prior_beta} is varied; its family and mean, and every
+other prior and setting, come from the original fit. Each scale is applied
+to every coefficient, so the sweep reflects one level of prior
+informativeness per refit; an exponential \code{prior_beta} is swapped for
+\code{prior_normal(0, scale)}. For a relaxed fit the comparator prior is swept
+alongside, because the index-population estimand is driven by the
+comparator coefficients; holding their prior fixed would report a flat curve
+for exactly the quantity most exposed to the prior.
 }
 \examples{
 \dontrun{

@@ -5,51 +5,16 @@
 #' Stan models.
 #'
 #' @section Choosing a scale:
-#'
-#' The Stan community's prior-choice wiki (Vehtari et al., 2025) describes
-#' five broad categories, from least to most informative:
-#'
-#' \enumerate{
-#'   \item Flat prior (not recommended).
-#'   \item Super-vague proper prior, e.g., `normal(0, 1e6)` (not
-#'     recommended).
-#'   \item Weakly informative, **very weak**, e.g., `normal(0, 10)`.
-#'   \item Generic weakly informative, e.g., `normal(0, 1)`.
-#'   \item Specific informative, e.g., `normal(0.4, 0.2)`.
-#' }
-#'
-#' Those scales assume parameters are on roughly unit scale. In ML-UMR
-#' models the natural scales are:
-#'
-#' \describe{
-#'   \item{Treatment intercepts}{On the linear-predictor (link) scale. For
-#'     a binary outcome with logit link, the intercept is a baseline log
-#'     odds; `normal(0, 10)` spans +/-20 log-odds at 95 percent and is
-#'     "very weak". It is the default because the data usually constrain
-#'     the intercept strongly. Tightening to `normal(0, 5)` is reasonable
-#'     when the expected event rate is far from the extremes.}
-#'   \item{Regression coefficients (`beta`)}{On the link scale, per unit
-#'     of covariate. `normal(0, 2.5)` is the package's generic starting value,
-#'     not a universally calibrated default. Gelman et al. (2008) motivate a
-#'     weakly informative Cauchy scale for logistic coefficients after a
-#'     particular predictor scaling; that recommendation does not by itself
-#'     justify this normal prior for every family or covariate scale. Use prior
-#'     predictive checks and subject-matter knowledge to calibrate the scale.
-#'     If predictors are on different scales, `autoscale = TRUE` transforms
-#'     both the prior location and scale to preserve the intended prior on the
-#'     contribution of each original-scale covariate.}
-#'   \item{Residual SD (`sigma`, normal family only)}{`prior_sigma` is
-#'     interpreted as a half-normal via the Stan `<lower=0>` constraint.
-#'     The default `normal(0, 2.5)` (i.e., `half-normal(0, 2.5)`) is
-#'     weakly informative for residual SDs on the scale of the outcome.
-#'     Scale to the outcome if it is far from unit scale, or use
-#'     [prior_exponential()].}
-#' }
-#'
-#' Prior sensitivity is especially important for the relaxed model,
-#' where `beta_comparator` is identified only by the AgD likelihood.
-#' Run [prior_sensitivity()] to quantify how much conclusions move under
-#' alternative scales; see `vignette("fitting-and-diagnostics")`.
+#' The default intercept prior `normal(0, 10)` is very weak on the link scale,
+#' and the data usually constrain the intercept strongly. The coefficient
+#' default `normal(0, 2.5)` is a generic starting value on the link scale per
+#' unit of covariate, not a calibrated choice; use `autoscale = TRUE` for
+#' predictors on different scales and calibrate with prior predictive checks
+#' (Gelman et al., 2008; the Stan prior-choice wiki). `prior_sigma` is a
+#' normal truncated at zero through the Stan `<lower=0>` constraint, a
+#' half-normal at the default mean of 0; scale it to the outcome. Run
+#' [prior_sensitivity()] for the relaxed model, whose `beta_comparator` is
+#' identified only by the aggregate likelihood.
 #'
 #' @param mean Prior mean (default 0).
 #' @param sd Prior standard deviation (default 10). The default matches
@@ -131,12 +96,9 @@ prior_student_t <- function(df = 5, mean = 0, sd = 2.5, autoscale = FALSE) {
 
 #' Specify a Cauchy prior
 #'
-#' Cauchy is Student-t with `df = 1`; this constructor is a convenience
-#' wrapper around [prior_student_t()]. It has very heavy tails and should
-#' be used with care; modern recommendations generally prefer
-#' `prior_student_t(df in 3:7, ...)` over Cauchy for regression
-#' coefficients to keep sampling well-behaved (see Piironen & Vehtari on
-#' the horseshoe; Ghosh et al. 2015).
+#' Cauchy is Student-t with `df = 1`, a wrapper around [prior_student_t()].
+#' Its very heavy tails can slow sampling; a Student-t with 3 to 7 degrees of
+#' freedom is usually preferred for regression coefficients.
 #'
 #' @param mean Prior location (default 0).
 #' @param sd Prior scale (default 2.5).
@@ -432,11 +394,7 @@ stan_prior_fields_beta <- function(prior, n_cov, sd_x = NULL,
     if (length(sd_x) != n_cov) {
       stop("`sd_x` must have length n_cov", call. = FALSE)
     }
-    # Protect against a covariate with no usable empirical scale: zero SD for a
-    # constant covariate, or a non-finite SD when a single row makes it
-    # undefined. Both fall back to unscaled and warn, so the user knows the
-    # autoscale contract has been broken for those columns. Naming the
-    # offending covariates makes the warning actionable.
+    # A covariate with no usable SD keeps the unscaled prior, with a warning.
     no_scale <- !is.finite(sd_x) | sd_x <= 0
     zero_var <- autos & no_scale
     if (any(zero_var)) {
@@ -448,10 +406,7 @@ stan_prior_fields_beta <- function(prior, n_cov, sd_x = NULL,
       warning(sprintf(
         paste0("`autoscale = TRUE` is requested for covariate(s) with no ",
                "usable empirical SD in the IPD (zero or undefined): %s. ",
-               "The prior on these coefficients ",
-               "falls back to the un-autoscaled scale (sd as supplied). ",
-               "Consider removing the constant covariate or turning ",
-               "autoscale off for it."),
+               "Their prior scale is used as supplied."),
         paste(bad, collapse = ", ")
       ), call. = FALSE)
     }

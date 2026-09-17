@@ -28,38 +28,24 @@ canonical default.}
 \item{conf_level}{Confidence level for the interval (default 0.95)}
 
 \item{distribution}{For \code{family = "survival"}: the parametric distribution
-used for the package-specific survival G-computation (default
-\code{"weibull"}). Requires the \code{flexsurv}
-package. The STC estimand is the restricted-mean-survival-time difference.
-The flexible baselines \code{"mspline"} and \code{"pexp"} have no parametric
-\code{flexsurv} analogue: requesting either fits a Weibull G-computation as an
-approximate benchmark, emits a warning, and records
-\code{distribution_fit = "weibull"} and \code{approximated = TRUE} in the result
-(\verb{$distribution} keeps the requested value). Survival STC currently
-supports right-censored data without delayed entry; use \code{\link[=mlumr]{mlumr()}} for
-left-censored, interval-censored, or delayed-entry survival data.}
+of the survival G-computation (default \code{"weibull"}), fitted with
+\pkg{flexsurv}; the estimand is the restricted mean survival time
+difference. \code{"mspline"} and \code{"pexp"} have no parametric analogue and fall
+back to a Weibull fit with a warning, recorded as \code{approximated = TRUE}.
+Survival STC supports right-censored data without delayed entry.}
 
-\item{n_boot}{For \code{family = "survival"} only: number of nonparametric
-bootstrap resamples used for the RMST-difference standard error (default
-\code{200}). Set \code{n_boot = 0} for a fast point estimate with no interval
-(\code{se}/CI returned as \code{NA}). Must be 0 or at least 2, since a single
-resample has no standard error; several hundred are needed before the
-interval is usable, so treat anything below the default as exploratory.
-Ignored for other families, which use the delta method.}
+\item{n_boot}{For \code{family = "survival"} only: number of bootstrap resamples
+for the RMST-difference standard error (default \code{200}; 0 gives a point
+estimate with no interval). Other families use the delta method.}
 
 \item{seed}{For \code{family = "survival"} only: optional integer seed for the
 bootstrap, making the standard error reproducible. The global random
 number stream is restored on exit. Ignored for other families.}
 
-\item{rmst_horizon}{For \code{family = "survival"} only: the restriction time the
-RMST difference is integrated to. Defaults to the largest observed time
-across both arms. RMST at a different horizon is a different estimand, so
-set this explicitly whenever the result is to be compared with an
-\code{\link[=mlumr]{mlumr()}} fit, whose own default can be the follow-up both studies
-observed rather than the pooled maximum; read that fit's horizon from the
-\code{horizon} column of \code{predict(type = "rmst")}. A value beyond the observed
-range extrapolates the fitted parametric survival function and warns.
-Ignored for other families.}
+\item{rmst_horizon}{For \code{family = "survival"} only: the restriction time of
+the RMST difference. Defaults to the largest observed time across both
+arms; set it explicitly to match an \code{\link[=mlumr]{mlumr()}} fit, whose default can
+differ. A horizon beyond the observed range extrapolates and warns.}
 }
 \value{
 An object of class \code{mlumr_stc}. Its \code{separation} component records
@@ -79,21 +65,14 @@ outcome in the same population. It does not standardize either treatment to
 the index population.
 }
 \details{
-For binomial outcomes, returns the treatment effect on the link scale plus
-event probabilities, risk difference, and log risk ratio with SEs and CIs
-in the comparator population. The observed comparator proportion gets the
-exact Clopper-Pearson interval, as in \code{\link[=naive]{naive()}}. The standardized index
-probability is a model prediction, and its interval is the delta-method
-Wald interval bounded to \verb{[0, 1]}: an asymptotic approximation whose
-calibration has not been studied here, as are the intervals of the
-contrasts. When the observed comparator arm has zero or all events,
-transformed effect measures use the boundary-only pseudo-count
-\code{(r + 0.5) / (n + 1)}; model predictions are never corrected. For Poisson
-outcomes, the comparator log rate uses a 0.5 continuity correction when the
-observed event count is zero, and \verb{$rd} is a RATE difference on the
-per-unit-exposure scale, the standardized index rate minus the observed
-comparator rate, rather than the risk difference the binomial \verb{$rd} is.
-\verb{$estimate} stays the log rate ratio.
+For binomial outcomes the result carries the link-scale effect, the
+standardized and observed event probabilities, the risk difference and the
+log risk ratio, with delta-method Wald intervals; the observed comparator
+proportion gets the exact Clopper-Pearson interval, as in \code{\link[=naive]{naive()}}. An
+observed comparator arm with zero or all events uses the pseudo-count
+\code{(r + 0.5) / (n + 1)} in transformed measures. For Poisson outcomes \verb{$rd}
+is a rate difference per unit exposure and \verb{$estimate} the log rate ratio,
+with a 0.5 continuity correction for a zero comparator count.
 
 Scale note: \verb{$estimate} (and the binomial \verb{$log_rr}) is on the link / log
 scale, where the null is 0. To compare against the natural-scale risk ratio
@@ -108,44 +87,19 @@ row has weight one. The observed comparator-mean variance combines
 independent, mutually exclusive strata as \code{sum(w^2 * se^2)} using normalized
 population weights.
 
-The STC procedure is:
-\enumerate{
-\item Fit a GLM on IPD (binomial/gaussian/poisson as appropriate).
-\item Predict on comparator-population covariates (from integration points or
-AgD covariate means for the identity-link normal special case).
-\item Marginalize predictions over the comparator population.
-\item Contrast with the reported comparator outcome in that population.
-\item Compute first-order, fixed-integration-grid delta-method standard errors.
-}
-
-The response-scale standardization predicts each target profile, averages
-the natural-scale outcomes, then transforms the average, as in Ren et al.'s
-unanchored STC. Only the index-treatment outcome model is fitted, since
-comparator IPD are unavailable; Remiro-Azocar et al. describe the two-arm
-G-computation that a different data design allows.
-
-The non-survival standard error is conditional on the integration grid and
-the reported comparator summaries: it propagates coefficient and
-comparator-outcome uncertainty, not uncertainty in reconstructing the
-comparator covariate distribution. The estimator relies on a correctly
-specified index outcome model that applies across the comparator covariate
-distribution, adequate overlap and no unmeasured confounding; it does not
-need the two treatments to share covariate effects.
-
-The estimand is \code{E_B[m_A(X)] - E_B[Y_B]} on the response scale, which is
-\verb{$rd} for a binomial outcome and \verb{$md} for a normal one. \verb{$estimate} is the
-same mean difference under the normal identity link and otherwise the
-link-scale contrast of the two standardized quantities: a marginal log odds
-ratio under a binomial logit, a log rate ratio under Poisson, a log mean
-ratio under a log link.
-
-Survival STC contrasts the index RMST standardized to the comparator
-covariates with the RMST of an intercept-only \code{\link[flexsurv:flexsurvreg]{flexsurv::flexsurvreg()}} fit
-to the reconstructed pseudo-IPD.
-
-The effect is defined in the comparator population and is not transported
-to the index population; \code{mlumr(..., model = "relaxed")} is what estimates
-comparator-specific covariate effects for any other target.
+A GLM is fitted to the IPD, its predictions are averaged over the
+comparator covariate distribution (the integration points, or the AgD means
+for the identity-link normal case) on the response scale, and the average
+is contrasted with the reported comparator outcome, as in Ren et al.'s
+unanchored STC. Standard errors are first-order delta-method values,
+conditional on the integration grid and the reported comparator summaries.
+The estimand is \code{E_B[m_A(X)] - E_B[Y_B]} in the comparator population
+(\verb{$rd} for binomial, \verb{$md} for normal); \verb{$estimate} is the link-scale
+contrast of the two standardized quantities. Survival STC contrasts the
+index RMST standardized to the comparator covariates with the RMST of an
+intercept-only \code{\link[flexsurv:flexsurvreg]{flexsurv::flexsurvreg()}} fit to the pseudo-IPD. The effect
+is not transported to the index population; \code{mlumr(model = "relaxed")}
+estimates comparator-specific covariate effects for any other target.
 }
 \examples{
 \dontrun{

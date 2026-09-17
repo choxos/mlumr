@@ -1,35 +1,15 @@
 #' Check that a CmdStan run left draws behind before reading them
 #'
-#' `cmdstanr`'s own filter for the chains worth reading is
-#' `is_finished() | is_queued()`. A QUEUED chain is one whose process never
-#' started, so it has written no CSV, yet its intended path comes back as if
-#' it were readable. `fit$draws()` then hands that path to
-#' `read_cmdstan_csv()`, which aborts on a `checkmate` assertion naming a
-#' file under `tempdir()` and nothing a caller can act on. That is what the
-#' Stan-enabled suite hit on a single-chain gengamma smoke fit.
-#'
-#' A chain that ran and failed is a different case and is not an error here:
-#' `cmdstanr` drops it and the run continues on the chains that finished,
-#' which is the behavior a partly failing multi-chain fit already relies on.
-#' Only files that are claimed and absent, or no files at all, are refused.
-#'
-#' What this reports is the OBSERVATION and whatever evidence came with it.
-#' An absent file says a chain left nothing behind; it does not say why, and
-#' a model or data failure, an initialization failure, a killed process and
-#' an external deletion all look identical from a list of paths. Naming one
-#' of them, as this used to by calling it a failure of the run rather than
-#' of the model, states a cause nothing here established. CmdStan's own
-#' return codes and captured output are the evidence that does bear on it,
-#' so they are attached where they are available.
+#' cmdstanr reports a queued chain's intended CSV path as readable although
+#' the chain never ran, and `fit$draws()` then aborts inside `checkmate` on a
+#' path under `tempdir()`. A chain that ran and failed is dropped by cmdstanr
+#' and is not an error here.
 #'
 #' @param files The output paths the fit reports as readable.
 #' @param chains The number of chains requested.
 #' @param retrieval_error The message from asking the fit for its output
-#'   paths, when that itself failed, or `NULL`. Discarding it, as this used
-#'   to, threw away the only account of the failure before reporting a
-#'   generic one.
-#' @param return_codes CmdStan's per-chain return codes, or `NULL` when the
-#'   installed `cmdstanr` does not report them.
+#'   paths, when that itself failed, or `NULL`.
+#' @param return_codes CmdStan's per-chain return codes, or `NULL`.
 #' @return `TRUE` invisibly. Stops when there is nothing to read.
 #' @keywords internal
 .assert_cmdstan_output <- function(files, chains, retrieval_error = NULL,
@@ -61,12 +41,8 @@
     " Nothing further was reported about it."
   }
   stop(sprintf(paste0(
-    "The Stan run left no draws to read: %s.%s The cause is not determined ",
-    "here: a chain whose process never started, one that exited before ",
-    "writing its CSV, a model or data failure, and a file removed from ",
-    "outside all look the same from the output paths alone. Re-run with ",
-    "`verbose = TRUE` to see CmdStan's own messages, and set `output_dir` ",
-    "to keep them."
+    "The Stan run left no draws to read: %s.%s Re-run with `verbose = TRUE` ",
+    "to see CmdStan's own messages, and set `output_dir` to keep them."
   ), detail, evidence), call. = FALSE)
 }
 
@@ -77,7 +53,7 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
                          verbose = TRUE, ...) {
 
   if (!requireNamespace("cmdstanr", quietly = TRUE)) {
-    stop("cmdstanr is required but not installed. Run mlumr_engine('cmdstanr') to set up.",
+    stop("cmdstanr is required for engine = 'cmdstanr' but is not installed; see ?mlumr_engine.",
          call. = FALSE)
   }
 
@@ -91,30 +67,19 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
     stop(sprintf("Cannot find Stan model file: %s.stan", model_name), call. = FALSE)
   }
 
-  # Keep CmdStan executables out of inst/stan. cmdstanr's default executable
-  # path is next to the .stan file, which pollutes the source tree in
-  # development and installed package directories in some workflows.
+  # Keep CmdStan executables out of inst/stan.
   compile_dir <- .cmdstanr_compile_dir(model_name, stan_file)
   mod <- cmdstanr::cmdstan_model(stan_file, dir = compile_dir)
 
-  # Sample (note arg name differences from rstan).
-  # Default parallel_chains to mirror rstan's behavior (which uses mc.cores).
-  # cmdstanr defaults parallel_chains = 1, so chains run serially unless we
-  # set it explicitly. Cap at `chains` so we never request more workers than
-  # chains. Honor any user override passed through `...`.
+  # Mirror rstan's mc.cores default for parallel_chains unless overridden.
   dots <- list(...)
   if (!"parallel_chains" %in% names(dots)) {
     dots$parallel_chains <- min(chains,
                                 max(1L, as.integer(getOption("mc.cores", 1L))))
   }
-  # cmdstanr writes its "Running MCMC with N chains / Chain k finished in ..."
-  # banner to STDOUT, not through the condition system, so `refresh = 0` does
-  # not stop it and neither does suppressMessages(). That is fifteen lines per
-  # fit, which buries anything real in a loop of a few hundred fits. `verbose`
-  # is the argument a caller already reaches for, so honor it here too, while
-  # leaving an explicit `show_messages` / `show_exceptions` in `...` to win.
-  # `show_exceptions` was added to cmdstanr later than `show_messages`, so ask
-  # the method what it accepts rather than assuming a version.
+  # cmdstanr's chain banner goes to stdout, so `verbose` controls it here;
+  # `show_exceptions` is newer than `show_messages`, so ask what the method
+  # accepts.
   sample_formals <- names(formals(mod$sample))
   for (nm in intersect(c("show_messages", "show_exceptions"), sample_formals)) {
     if (!nm %in% names(dots)) dots[[nm]] <- isTRUE(verbose)
@@ -134,11 +99,7 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
     dots
   )
   fit <- do.call(mod$sample, sample_args)
-  # The retrieval error is the only account of what went wrong when asking
-  # for the paths is what failed, so it is kept rather than flattened to an
-  # empty vector. `return_codes()` postdates some `cmdstanr` versions and can
-  # itself throw on a run that never started, so it is asked for defensively
-  # and the report goes out without it when it is not there.
+  # `return_codes()` is missing from older cmdstanr and can throw itself.
   retrieval <- NULL
   produced <- tryCatch(fit$output_files(include_failed = FALSE),
                        error = function(e) {
@@ -151,9 +112,7 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
     return_codes = tryCatch(fit$return_codes(), error = function(e) NULL)
   )
 
-  # Extract draws as plain data.frame (drop metadata columns). Keep the real
-  # per-draw chain id before dropping it, so diagnostics (loo r_eff) use the
-  # actual chain labels rather than reconstructing them from row ordering.
+  # Keep the per-draw chain id before dropping the metadata columns.
   draws_df <- as.data.frame(fit$draws(format = "df"))
   chain_ids <- if (".chain" %in% names(draws_df)) {
     as.integer(draws_df$.chain)
@@ -163,15 +122,8 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
   meta_cols <- c(".chain", ".iteration", ".draw")
   draws_df <- draws_df[, !names(draws_df) %in% meta_cols, drop = FALSE]
 
-  # Build summary matching rstan column names:
-  # variable, mean, se_mean, sd, 2.5%, 25%, 50%, 75%, 97.5%, n_eff, Rhat
-  #
-  # Note: `n_eff` and `se_mean` are necessarily engine-defined. Here n_eff is
-  # posterior::ess_bulk and se_mean = sd / sqrt(ess_bulk); rstan reports its own
-  # classic n_eff and Monte Carlo se_mean. The two are close but not identical,
-  # so head-to-head ESS / se_mean tables across engines are not exactly
-  # comparable. All downstream estimates/CIs are recomputed from raw draws and
-  # are unaffected.
+  # Summary with rstan's column names. `n_eff` is posterior::ess_bulk here and
+  # rstan's classic n_eff there, so the two engines' ESS columns differ slightly.
   if (requireNamespace("posterior", quietly = TRUE)) {
     cmdstan_summ <- fit$summary(
       variables = NULL,
@@ -184,24 +136,13 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
       `75%` = function(.x) stats::quantile(.x, 0.75),
       `97.5%` = function(.x) stats::quantile(.x, 0.975),
       n_eff = posterior::ess_bulk,
-      # Bulk ESS does not speak for the tails, and the reported 2.5% / 97.5%
-      # quantiles are tail quantities. check_diagnostics() tests this column;
-      # without it that check was dead for every fit the package produced.
       ess_tail = posterior::ess_tail,
       Rhat = posterior::rhat
     )
     summary_df <- as.data.frame(cmdstan_summ)
   } else {
-    # Fallback when posterior is not installed: basic summary with NA for
-    # ESS and Rhat. We deliberately do not impute n_eff with the total
-    # draw count (or any other plug-in) because that would silently report
-    # wildly optimistic sample sizes and mask autocorrelation. Installing
-    # 'posterior' is required for valid convergence diagnostics.
-    warning(
-      "posterior package not installed. ESS (n_eff) and Rhat will be NA. ",
-      "Install with: install.packages('posterior') for valid diagnostics.",
-      call. = FALSE
-    )
+    warning("posterior package not installed. n_eff, ess_tail, and Rhat will be NA.",
+            call. = FALSE)
     var_names <- colnames(draws_df)
     summary_df <- data.frame(
       variable = var_names,
@@ -238,24 +179,12 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
 }
 
 
-#' Number of chains actually present in the returned draws
+#' Number of chains present in the returned draws
 #'
-#' A chain can terminate abnormally (for example a numerically fragile
-#' likelihood whose gradient fails to evaluate). Both backends then return a fit
-#' assembled from the surviving chains only, so the posterior silently
-#' represents fewer chains than were requested. Counting the distinct chain ids
-#' in the draws is the one check that catches this on either engine.
-#'
-#' @param chain_ids Per-draw chain labels, or `NULL` when unavailable.
-#' @param chains Number of chains requested.
-#' @return Integer count of chains present.
+#' Both backends return a fit assembled from the surviving chains when one
+#' terminates abnormally. `NA` when the draws could not be labeled by chain.
 #' @keywords internal
 .n_chains_returned <- function(chain_ids, chains) {
-  # `NULL` means the backend could not label the draws by chain, which happens
-  # exactly when the draw count does not divide by the fitted chain count: the
-  # abnormal layout this diagnostic exists to notice. Returning the REQUESTED
-  # count there asserts that every chain came back, which is the one thing not
-  # known. Report it as unknown and let the caller say so.
   if (is.null(chain_ids) || !length(chain_ids)) {
     return(NA_integer_)
   }
@@ -317,23 +246,9 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
 
 #' Cache key covering every Stan source the model is built from
 #'
-#' The key used to be `substr(paste0(md5s), 1, 32)`. An MD5 digest is already
-#' 32 characters, so that expression returns the FIRST digest and discards
-#' every other one: the key was the main model's hash alone, and editing an
-#' include left it unchanged. A user upgrading to a version whose only change
-#' was inside an include, with the main file untouched and no newer than the
-#' cached executable, could keep running a binary compiled from the old
-#' likelihood.
-#'
-#' The key is now a digest of a canonical payload naming every source and its
-#' content, plus the CmdStan version, its installation path, and the content
-#' of that installation's `make/local`, since the same sources built against a
-#' different CmdStan, or the same CmdStan with different build flags (threads,
-#' say), are a different executable. A compiler upgrade with everything else
-#' unchanged is not recorded: the cached executable still runs, and the key
-#' does not claim otherwise. Hashing goes through a temp file so this needs no
-#' dependency beyond base R.
-#'
+#' A digest of every source file's content plus the CmdStan version, its
+#' path and its `make/local`, so an edited include or a different build is a
+#' different executable.
 #' @param source_files Character vector of `.stan` paths; the main model first,
 #'   then its includes in a stable order.
 #' @return A 32-character key.
@@ -360,8 +275,7 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
   writeLines(payload, tmp)
   key <- unname(tools::md5sum(tmp))
   if (is.na(key)) {
-    # Never fall back to a key that ignores the includes; a distinct random
-    # directory recompiles, which is slow but correct.
+    # A distinct directory recompiles, which is slow but correct.
     key <- paste0("nokey-", as.integer(Sys.time()), "-", Sys.getpid())
   }
   key

@@ -7,11 +7,7 @@
 .pars_logitnorm(m, s)
 }
 \description{
-The feasibility check is not decoration. A variable supported on \verb{(0, 1)}
-has \code{Var(X) <= mean * (1 - mean)}, with equality only for a two-point
-distribution on the boundaries, which no logit-normal can represent. Given an
-impossible pair the optimizer still returns something, so without this the
-caller would silently integrate over a distribution that has neither the
-requested mean nor the requested SD.
+A variable on \verb{(0, 1)} has \code{Var(X) < mean * (1 - mean)}, so an impossible
+pair is refused before the optimizer is asked.
 }
 \keyword{internal}
