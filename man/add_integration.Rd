@@ -41,56 +41,20 @@ Generate quasi-Monte Carlo integration points using Sobol sequences and a
 Gaussian copula to account for correlations between covariates in the AgD.
 }
 \details{
-\strong{The correlation structure is assumed to transport.} Published aggregate
-data report marginal covariate summaries (means, SDs, proportions) but never
-the joint distribution, so comparator within-row dependence cannot be
-estimated from the AgD. With \code{cor = NULL} this function estimates one matrix
-from the \strong{index (IPD)} population and applies it as a common within-row
-copula to every comparator subgroup. It is not generally the pooled
-comparator correlation because between-subgroup means also contribute to
-pooled covariance. That assumption is untestable from the data
-at hand and is inherited from ML-NMR (Phillippo et al. 2020); it is
-additional to the shared-prognostic-factor and no-unmeasured-effect-modifier
-assumptions of the unanchored comparison itself, and it should be stated in
-any submission that uses these results.
+\strong{The correlation structure is assumed to transport.} Aggregate data
+report marginal summaries only, so with \code{cor = NULL} the within-row
+correlation is estimated from the IPD and applied to every comparator
+row, as in ML-NMR (Phillippo et al. 2020). The assumption is untestable
+from the data; supply \code{cor} from an external source to vary it, and use
+\code{\link[=check_integration]{check_integration()}} to confirm the realized moments and correlations.
 
-The levers are: supply \code{cor} directly when an external source (a registry, a
-similar trial, a publication reporting a correlation matrix) gives a better
-estimate for the comparator population; vary it to check sensitivity; and use
-\code{\link[=check_integration]{check_integration()}} to confirm the realized integration points reproduce
-the AgD moments and pairwise correlations you intended. Only the marginal
-moments are pinned by \code{set_agd()}; the dependence structure is your choice.
-
-\code{cor_adjust} controls how the covariate-scale correlation is mapped onto the
-Gaussian copula. The Spearman map is exact for continuous monotone margins;
-the Pearson map is accepted only for Gaussian continuous margins. The
-binary-binary and continuous-binary corrections are prevalence-independent
-heuristics, while the true
-latent-Gaussian correlation for a discrete margin depends on its thresholds.
-Treat the realized association as close to, not equal to, the target, and
-check it with \code{\link[=check_integration]{check_integration()}}, passing the same \code{cor} matrix so the
-realized-versus-target deviation is reported. \code{"none"} passes an explicitly
-supplied latent Gaussian-copula matrix through unchanged and can be used
-with any margins.
-
-Both corrections branch on continuous versus \strong{binary}, and there is no
-branch for a nonbinary discrete margin (a count such as Poisson or negative
-binomial, or an ordered category). Such a covariate is mapped as if it were
-continuous, so the realized association need not match the target: a
-discrete margin beside a continuous one is attenuated, while one beside a
-binary margin goes through the continuous-binary heuristic, which can
-overshoot. The calibration such a margin needs is threshold-aware: within
-the Gaussian copula with the margin's thresholds fixed, the observed
-Pearson correlation is a strictly increasing function of the latent one,
-so a feasible target has a unique latent value (the inversion \pkg{GenOrd}
-implements for ordinal margins with finite support), and what this package
-lacks is that numerical inversion, not the existence of a value to invert
-to. Not every target is feasible, and a matrix inverted pairwise need not
-stay positive definite. \code{add_integration()} warns when it detects such a
-margin. A finite Sobol
-grid approximates both marginal moments and dependence. Verify with
-\code{\link[=check_integration]{check_integration()}}, which reports the realized correlation and names the
-scale (\code{cor_method}) it was measured on.
+\code{cor_adjust} maps the covariate-scale correlation onto the Gaussian copula:
+the Spearman map is exact for continuous margins, the Pearson map holds for
+Gaussian margins, and pairs involving a binary margin use
+prevalence-independent heuristics. A nonbinary discrete margin (a count or
+an ordered category) is treated as continuous and its realized association
+need not match the target; \code{add_integration()} warns when it sees one.
+\code{"none"} passes a latent Gaussian-copula matrix through unchanged.
 }
 \examples{
 \dontrun{

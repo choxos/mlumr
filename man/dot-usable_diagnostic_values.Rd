@@ -9,30 +9,14 @@
 \arguments{
 \item{x}{A summary column, possibly \code{NULL}.}
 
-\item{n_expected}{How many parameters should have had a diagnostic. Defaults
-to the length of \code{x}, which is right whenever the column is present.}
+\item{n_expected}{How many parameters should have had a diagnostic.}
 }
 \value{
-A list with \code{values} (every number, infinities included) and
-\code{n_missing} / \code{n_total} counts.
+A list with \code{values}, \code{n_missing}, \code{n_total} and \code{missing_idx}.
 }
 \description{
-Unlike \code{\link[=.finite_numeric_values]{.finite_numeric_values()}} this KEEPS an infinite value. The two
-cases it separates are not the same thing: \code{Inf} is a diagnostic that was
-computed and came out as bad as it can be, while \code{NA} or \code{NaN} is a
-parameter that has no diagnostic at all, which happens legitimately for a
-quantity that is constant across every draw. Filtering both away left a
-worst-case statistic that could not report the worst case, and reported a
-benign number in its place.
-}
-\details{
-A column that is absent, or present but not numeric, is not zero
-diagnostics either. \code{c(NA, NA)} is a LOGICAL vector in R, so a backend that
-wrote missing values into a column it never filled produced two unavailable
-diagnostics, and this reported none: \code{n_total} came back 0, the reporter
-below says nothing when the total is 0, and the summary printed no line at
-all. \code{n_expected} is what the caller knows the count should be, normally the
-number of rows in the summary, so an absent column is reported as entirely
-missing rather than as an empty population of parameters.
+Keeps an infinite value, which is a diagnostic that came out as bad as it
+can, and counts a missing one rather than dropping it. An absent or
+non-numeric column counts as \code{n_expected} missing diagnostics.
 }
 \keyword{internal}

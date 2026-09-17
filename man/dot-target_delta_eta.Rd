@@ -7,16 +7,8 @@
 .target_delta_eta(object, newdata)
 }
 \description{
-The AFT linear predictor is a log-time location, so the contrast standardized
-to a target population is the difference of the ARITHMETIC mean linear
-predictors over its rows, \code{mean(eta_index) - mean(eta_comparator)}. Its
-exponential is a ratio of geometric-mean survival times. This is the
-log-scale counterpart of \code{\link[=.target_loghr_origin]{.target_loghr_origin()}}, which averages on the
-hazard scale and therefore uses log-sum-exp; here the \code{1/M} does not cancel
-and is applied.
-}
-\details{
-With shared coefficients the covariate term drops out draw by draw, so the
-result equals the built-in \code{delta_eta} for every target.
+\code{mean(eta_index) - mean(eta_comparator)} over the target rows; its
+exponential is a ratio of geometric-mean survival times. With shared
+coefficients it equals the built-in \code{delta_eta} for every target.
 }
 \keyword{internal}

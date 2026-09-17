@@ -13,15 +13,7 @@
 A non-negative integer, or \code{NA_integer_} when unknown.
 }
 \description{
-\code{\link[=.diagnostic_count]{.diagnostic_count()}} maps anything unusable to 0 and its callers guard that
-separately. Divergence and treedepth counts have no such guard, and 0 is the
-answer that says the sampler behaved, so an unreported count has to stay
-unknown instead.
-}
-\details{
-A count is a whole number, and \code{as.integer()} truncates rather than
-refusing: 0.5 became 0, which is exactly the value that says the sampler
-behaved, and a count past the integer range became \code{NA} with a coercion
-warning. Neither is a count, so both are reported as unknown.
+Zero is the count that says the sampler behaved, so an unreported,
+fractional or out-of-range value is \code{NA} rather than 0.
 }
 \keyword{internal}

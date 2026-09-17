@@ -7,11 +7,7 @@
 .target_loghr_origin(object, newdata)
 }
 \description{
-With a shared baseline shape the shape cancels from the ratio of marginal
-hazards as \code{t -> 0}, leaving
-\verb{log E[exp(eta_index)] - log E[exp(eta_comparator)]} over the target rows.
-This is the same closed form the Stan models use for \verb{delta_*}, so a target
-equal to the IPD covariates reproduces \code{population = "index"} exactly. The
-equal row counts cancel, so no \code{1/n} appears.
+\verb{log E[exp(eta_index)] - log E[exp(eta_comparator)]} over the target rows,
+the closed form the Stan models use for \verb{delta_*}.
 }
 \keyword{internal}

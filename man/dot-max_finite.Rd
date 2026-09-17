@@ -7,8 +7,6 @@
 .max_finite(x)
 }
 \description{
-\code{max(x, na.rm = TRUE)} returns \code{-Inf} for an all-missing vector, which then
-passes every "is it small enough" threshold. Return \code{NA_real_} instead so a
-comparison that never happened cannot be reported as agreement.
+\code{max(x, na.rm = TRUE)} returns \code{-Inf} for an all-missing vector.
 }
 \keyword{internal}

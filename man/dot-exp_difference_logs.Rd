@@ -7,11 +7,8 @@
 .exp_difference_logs(log_x, log_y)
 }
 \description{
-Evaluates the difference from the logarithms so that cancellation happens
-before the return to the natural scale. Equal logarithms return exactly \code{0},
-including \code{-Inf - -Inf}, where both quantities are zero. Two \code{+Inf} logs are
-the exception: both quantities are unbounded, their difference has no value,
-and \code{NaN} is returned rather than a null effect. Arguments are recycled to a
-common length; \code{NA} propagates.
+Cancellation happens before the return to the natural scale. Equal logs
+return exactly \code{0}, two \code{+Inf} logs return \code{NaN}, arguments recycle and
+\code{NA} propagates.
 }
 \keyword{internal}

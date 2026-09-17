@@ -27,22 +27,13 @@
 distr <- function(qfun, ...) {
   qfun_resolved <- match.fun(qfun)
   qfun_name <- tryCatch(deparse(substitute(qfun)), error = function(e) "user_function")
-  # Strip any namespace qualifier so the recorded name is the bare function
-  # name. get_distribution_type() matches this against "qpois", "qbern" and the
-  # rest, and a qualified call such as distr(stats::qpois, ...) would otherwise
-  # miss every lookup and fall through to the support-grid heuristic. A count
-  # margin with a small mean evaluates to {0, 1} on that grid and was then
-  # classified "binary", which silently selects the wrong copula correction and
-  # suppresses the non-binary discrete-margin warning in add_integration().
+  # The bare name, so `distr(stats::qpois, ...)` still classifies as a count
+  # margin in get_distribution_type().
   qfun_name <- sub("^.*:::?", "", qfun_name)
 
   # Capture arguments as unevaluated expressions
   args <- as.list(match.call(expand.dots = FALSE))[["..."]]
-  # ... and NAME any that were supplied positionally. Evaluation below iterates
-  # over `names(args)`, so a fully positional spec such as `distr(qnorm, 10, 2)`
-  # had no names to iterate, passed nothing to the quantile function, and
-  # silently generated a standard normal: it evaluated to 0 at the median
-  # instead of 10, with no error and no warning.
+  # Name positional arguments now: everything downstream reads them by name.
   args <- .name_distr_args(args, qfun_resolved, qfun_name)
 
   if (!"p" %in% names(formals(qfun_resolved))) {
@@ -53,12 +44,8 @@ distr <- function(qfun, ...) {
   d <- list(
     qfun = qfun_resolved,
     args = args,
-    # The environment the specification was WRITTEN in. Arguments are stored
-    # unevaluated so they can see a row of aggregate data at evaluation time,
-    # but they must also be able to see the variables that were in scope where
-    # the user wrote them. Falling back to `parent.frame()` at evaluation time
-    # landed inside this package instead, so a specification built in a
-    # function, or returned by one, could not resolve its own local variables.
+    # Where the specification was written, so its arguments can see the
+    # variables in scope there as well as the aggregate row.
     envir = parent.frame(),
     qfun_name = qfun_name
   )
@@ -75,10 +62,7 @@ distr <- function(qfun, ...) {
 #' @return Numeric vector of quantiles
 #' @keywords internal
 eval_distr <- function(d, p, data = list()) {
-  # Build the call: d$qfun(p = p, arg1 = val1, arg2 = val2, ...)
-  # Iterate by POSITION, not by name. Arguments that could not be matched to a
-  # formal stay unnamed and are passed through in order, which is what R does
-  # with them; walking `names()` dropped them entirely.
+  # By position: unnamed arguments are passed through in order.
   nms <- names(d$args)
   if (is.null(nms)) {
     nms <- rep("", length(d$args))
@@ -118,12 +102,8 @@ eval_distr <- function(d, p, data = list()) {
   if (warn) {
     .warn_dropped_draws(x)
   }
-  # The quantiles carry the package's own names, not R's. R names a quantile
-  # with `format()`, which prints to the display precision, while every
-  # lookup elsewhere builds the name from the probability itself. The two
-  # agree for a round probability and not otherwise: `1 / 3` is `33.33333%`
-  # to R and `q33.3333333333333` here, so asking for it returned a column of
-  # NA out of entirely finite draws.
+  # Package names for the quantiles: R's `format()` names differ from the
+  # names the lookups build for a non-round probability.
   c(mean = mean(x, na.rm = TRUE),
     sd   = stats::sd(x, na.rm = TRUE),
     stats::setNames(
@@ -274,13 +254,9 @@ eval_distr <- function(d, p, data = list()) {
 # -----------------------------------------------------------------------------
 # Bernoulli wrappers (qbern / pbern / dbern)
 #
-# These three one-line wrappers around stats::qbinom/pbinom/dbinom with
-# size = 1 are identical to the corresponding functions in the multinma
-# package (Phillippo et al., GPL-3,
-# <https://github.com/dmphillippo/multinma>, R/integration.R). They
-# are reproduced here as part of mlumr's adaptation of the ML-NMR
-# workflow so that mlumr users can pass `qbern` to `distr()` without
-# having multinma attached. Both packages are GPL-3-licensed.
+# One-line wrappers around stats::qbinom/pbinom/dbinom with size = 1, as in
+# multinma (Phillippo et al., GPL-3, R/integration.R), so `qbern` works in
+# `distr()` without multinma attached.
 # -----------------------------------------------------------------------------
 
 #' Bernoulli quantile function
@@ -333,11 +309,8 @@ get_distribution_type <- function(..., data = list()) {
   out <- vector("character", length = length(ds))
   names(out) <- dnames
 
-  # qlogitnorm belongs here for the same reason as the rest, and its absence
-  # was not harmless: the fallback below classifies by evaluating the quantile
-  # function on 99 points, and a concentrated logit-normal returns values that
-  # are all 1 to machine precision, so it was labeled binary and given the
-  # binary copula correlation adjustment.
+  # A concentrated logit-normal evaluates to 1 on the probe grid below, so it
+  # has to be listed rather than probed.
   known_continuous <- c("qbeta", "qcauchy", "qchisq", "qexp", "qf", "qgamma",
                         "qlnorm", "qlogitnorm", "qnorm", "qt", "qunif",
                         "qweibull")
@@ -353,10 +326,7 @@ get_distribution_type <- function(..., data = list()) {
     } else if (di$qfun_name %in% known_binary) {
       out[i] <- "binary"
     } else if (di$qfun_name == "qbinom") {
-      # Through the specification's own scope, like every other argument: a
-      # `size` naming a local variable of the function that built the spec
-      # evaluated fine in eval_distr() and failed here with "object not
-      # found", because this path still fell back to the package's frame.
+      # Evaluated in the specification's own scope, like every other argument.
       size_val <- eval_distr_arg(di$args$size, data, di$envir)
       out[i] <- if (all(size_val == 1)) "binary" else "discrete"
     } else {
@@ -460,18 +430,9 @@ cor_adjust_pearson <- function(X, types) {
 
 #' Give distribution arguments the names R would match them to
 #'
-#' `distr()` stores its arguments unevaluated, and everything downstream reads
-#' them BY NAME: evaluation walks `names(args)`, and the margin classification
-#' reads `args$size`. Anything supplied positionally therefore had no name, was
-#' never iterated, and never reached the quantile function: `distr(qnorm, 10, 2)`
-#' produced a standard normal rather than a normal with mean 10 and SD 2, with
-#' nothing reported. An abbreviated name was a quieter version of the same
-#' fault: `distr(qbinom, si = 5, prob = .5)` evaluated with size 5, because R
-#' completes `si` at call time, but the classification looked up `args$size`,
-#' found nothing, and `all(NULL == 1)` is `TRUE`, so a five-trial binomial was
-#' labeled binary and given the binary copula correction. This applies R's own
-#' matching once, at construction, so every stored argument carries the full
-#' name of the formal it binds.
+#' `distr()` stores its arguments unevaluated and everything downstream reads
+#' them by name, so positional and abbreviated arguments are matched to their
+#' formals once here, the way R would match them at call time.
 #'
 #' @param args The captured `...`, possibly partly named or abbreviated.
 #' @param qfun The resolved quantile function.
@@ -486,27 +447,16 @@ cor_adjust_pearson <- function(X, types) {
   if (is.null(nms)) {
     nms <- rep("", length(args))
   }
-  # `p` is supplied by the evaluator, so it is never one of these. R matches
-  # unnamed and abbreviated arguments only against formals that come BEFORE
-  # `...`; anything after it can be reached by its exact name alone, and an
-  # unnamed value goes into the dots. Dropping `...` from this list rather than
-  # truncating at it would make `distr(qfun, 999)` bind 999 to a later formal
-  # for a function declared `function(p, ..., scale = 2)`, silently replacing a
-  # default and generating entirely different integration points.
+  # `p` is supplied by the evaluator. R matches unnamed and abbreviated
+  # arguments only against the formals before `...`.
   formal_names <- names(formals(qfun))
   dots <- match("...", formal_names)
   if (!is.na(dots)) {
     formal_names <- formal_names[seq_len(dots - 1L)]
   }
   formal_names <- setdiff(formal_names, "p")
-  # A supplied name claims the formal R's matcher would give it, in R's order:
-  # every exact name first, then each remaining name against the formals no
-  # exact name took, by unique partial match. Removing only exact names left
-  # `distr(qnorm, m = 10, 2)` assigning the unnamed 2 to `mean` as well, and
-  # the quantile function then received both `m` and `mean` and failed with
-  # "matched by multiple actual arguments". Matching partials against the
-  # full list was wrong too: with formals `mean` and `method`, `m = 10` beside
-  # `mean = 20` must reach `method`, not compete for a `mean` already taken.
+  # R's order: exact names first, then unique partial matches against the
+  # formals no exact name took.
   named_idx <- which(nzchar(nms))
   exact <- intersect(nms[named_idx], formal_names)
   remaining <- setdiff(formal_names, exact)
@@ -517,29 +467,20 @@ cor_adjust_pearson <- function(X, types) {
       next
     }
     hits <- remaining[startsWith(remaining, nm)]
-    # R refuses an abbreviation that fits more than one formal, and it does so
-    # BEFORE binding anything positional. Letting the positional value take one
-    # of the candidates would leave the abbreviation a unique match for the
-    # other at evaluation time, and a call R rejects would evaluate here with
-    # both arguments bound to parameters the caller never named.
+    # R refuses an ambiguous abbreviation before binding anything positional.
     if (length(hits) > 1L) {
       stop(sprintf(paste0("`distr()` received argument `%s`, which matches more ",
                           "than one parameter of `%s` (%s). Name it in full."),
                    nm, qfun_name, paste(hits, collapse = ", ")), call. = FALSE)
     }
     if (length(hits) == 1L) {
-      # R also refuses two abbreviations of the same formal, "matched by
-      # multiple actual arguments". Taking the formal for the first and
-      # letting the second fall through to `...` evaluated `m = 1, me = 2`
-      # with mean 1 and nothing said, for a call R rejects.
+      # R also refuses two abbreviations of the same formal.
       if (hits %in% names(claimed)) {
         stop(sprintf(paste0("`distr()` received arguments `%s` and `%s`, which ",
                             "both abbreviate parameter `%s` of `%s`."),
                      claimed[[hits]], nm, hits, qfun_name), call. = FALSE)
       }
       claimed[[hits]] <- nm
-      # Store the full name, so that everything reading the arguments by name
-      # sees what the quantile function will see.
       nms[i] <- hits
     }
   }
@@ -551,9 +492,7 @@ cor_adjust_pearson <- function(X, types) {
     if (n_match) {
       nms[unnamed[seq_len(n_match)]] <- available[seq_len(n_match)]
     }
-    # Anything left over belongs in `...`, if the function has one. If it does
-    # not, there is nowhere for the value to go and saying so now beats a
-    # confusing error from the quantile function later.
+    # Anything left over belongs in `...`, if the function has one.
     leftover <- length(unnamed) - n_match
     if (leftover > 0L && !("..." %in% names(formals(qfun)))) {
       fmt <- paste0("`distr()` received %d unnamed argument(s) for `%s`, which ",
@@ -568,12 +507,8 @@ cor_adjust_pearson <- function(X, types) {
 
 #' Coerce a validated count to integer without truncating
 #'
-#' `as.integer()` truncates toward zero, while the count validators accept any
-#' value within `sqrt(.Machine$double.eps)` of a whole number. Those two rules
-#' disagree: `0.999999999` is accepted as the count 1 and then coerced to 0, so
-#' the package silently changed an event count it had just approved. Rounding
-#' first maps an accepted value onto the integer it was accepted FOR, and is a
-#' no-op for values that were already exact.
+#' The count validators accept values within `sqrt(.Machine$double.eps)` of a
+#' whole number, and `as.integer()` truncates, so round first.
 #'
 #' @param x A numeric vector that has passed a whole-number count check.
 #' @return An integer vector.

@@ -7,10 +7,8 @@
 .int_stats(X_int, cov_names, n_agd)
 }
 \description{
-The SD is the population one, with the point count in the denominator:
-the grid is a deterministic representation of a distribution, not a
-sample from it, and its moments are compared with the distribution's. A
-sample SD carried a factor of \code{sqrt(m / (m - 1))} that no target shares,
-0.8\% at 64 points, most of the 1\% heuristic.
+The SD is the population one: the grid represents a distribution rather
+than sampling it, and a sample SD carries a \code{sqrt(m / (m - 1))} factor no
+target shares.
 }
 \keyword{internal}

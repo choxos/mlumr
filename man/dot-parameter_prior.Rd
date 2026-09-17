@@ -16,10 +16,7 @@ A list with \code{prior} (a prior specification) and \code{lower} (the support
 bound), or \code{NULL} when the fit records no prior for that parameter.
 }
 \description{
-\code{plot_prior_posterior()} drew \code{prior_intercept} over every parameter, so
-\code{pars = "sigma"} was overlaid with a symmetric normal that puts mass on
-impossible negative values. Each parameter is mapped to the prior the fit
-records for it, with the Stan \verb{<lower=0>} constraint carried along so a
-constrained parameter gets the truncated density rather than the full one.
+Each parameter is mapped to the prior the fit records for it, with the
+Stan \verb{<lower=0>} constraint carried along for the truncated density.
 }
 \keyword{internal}

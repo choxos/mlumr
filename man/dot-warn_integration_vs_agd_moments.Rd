@@ -7,11 +7,8 @@
 .warn_integration_vs_agd_moments(X_int_array, agd_data, cov_names)
 }
 \description{
-\code{distr()} specifies the \emph{shape} of the comparator covariate distribution; the
-\code{set_agd()} mean/SD summaries describe the target population. In the standard
-workflow each \code{distr()} references the AgD columns so they agree by
-construction, but a hand-written distribution (e.g. \code{distr(qnorm, mean = 0, sd = 1)} while the AgD declares mean 10) integrates the wrong population
-silently. Flag only gross contradictions so ordinary QMC scatter never
-false-warns; suppress with \code{options(mlumr.quiet_integration_moments = TRUE)}.
+A hand-written \code{distr()} that ignores the AgD columns integrates the wrong
+population silently. Only gross contradictions are flagged; suppress with
+\code{options(mlumr.quiet_integration_moments = TRUE)}.
 }
 \keyword{internal}

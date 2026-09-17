@@ -1,33 +1,13 @@
-#' Refuse a pointwise log-likelihood that is not one column per observation
+#' Refuse a pointwise log-likelihood collapsed over tied aggregate rows
 #'
-#' Every route into LOO, WAIC, and DIC treats one column of `log_lik_agd` as one
-#' held-out data point, and the arm / aggregate routes additionally align those
-#' columns with `stan_data$agd_arm`. Tie aggregation breaks both assumptions in
-#' the same way: it keeps one row per distinct likelihood key and carries the
-#' multiplicity in `stan_data$agd_count`, so `log_lik_agd` holds one UNWEIGHTED
-#' value per UNIQUE row and `agd_arm` is the collapsed arm map. Both objects
-#' still agree in length, so nothing downstream errors, and the diagnostics come
-#' back quietly understating every tied observation.
-#'
-#' Fail closed instead. The multiplicities must be expanded back to the original
-#' observation sequence (repeat unique column `k` its `agd_count[k]` times, and
-#' expand the arm map with it) before any diagnostic reads them.
-#'
-#' No shipped code path sets `agd_count`, so this guard is inert today: it is a
-#' precondition on the pointwise likelihood that tie aggregation would violate,
-#' placed before that feature rather than after the first wrong LOO value.
-#' Deleting it as unused would remove the check at exactly the moment the
-#' feature that needs it arrives.
+#' Tie aggregation (not shipped yet) would keep one `log_lik_agd` column per
+#' distinct row with the multiplicity in `stan_data$agd_count`. LOO, WAIC and
+#' DIC need one column per observation, so that shape is refused here.
 #' @keywords internal
 .assert_agd_loglik_per_observation <- function(object) {
   cnt <- object$stan_data$agd_count
   if (is.null(cnt) || !length(cnt)) return(invisible(TRUE))
-  # A multiplicity is a count of observations, so validate it before drawing any
-  # conclusion from `sum(cnt)`. Non-integer counts passed the expanded-shape test
-  # below while `.agd_center_weights()` truncated them with `as.integer()`, so
-  # `agd_count = c(1.5, 1.5)` with three likelihood columns was accepted here and
-  # produced a two-element arm map there. `all(cnt <= 1)` also used to return
-  # early, which waved through fractional and zero counts.
+  # Validate the multiplicities before summing them.
   if (!is.numeric(cnt) || anyNA(cnt) || !all(is.finite(cnt)) || any(cnt < 1) ||
         any(cnt != trunc(cnt))) {
     stop("`stan_data$agd_count` must hold finite whole-number multiplicities of ",
@@ -38,10 +18,7 @@
   draws <- object$draws
   if (is.null(draws) || is.null(colnames(draws))) return(invisible(TRUE))
   n_cols <- length(.ordered_log_lik_columns(draws, "agd"))
-  # Only ONE column count means the multiplicities were expanded: one column per
-  # observation, `sum(cnt)`. Treating every count that merely differs from
-  # `length(cnt)` as expanded passed any other shape too, which is the state
-  # this guard exists to catch rather than wave through.
+  # Expanded means exactly one column per observation.
   if (n_cols == sum(cnt)) return(invisible(TRUE))
   if (n_cols != length(cnt)) {
     stop("`log_lik_agd` has ", n_cols, " column(s), which is neither one per ",
@@ -174,9 +151,7 @@ calculate_dic <- function(object) {
   log_lik_total <- rowSums(log_lik)
   D <- -2 * log_lik_total
   D_bar <- mean(D)
-  # Effective number of parameters (Gelman et al. 2004, variance-based):
-  # pD = 0.5 * Var(D). More stable than the plug-in alternative (D_bar - D_hat)
-  # when the posterior is multimodal.
+  # Variance-based pD (Gelman et al. 2004), stable for multimodal posteriors.
   pD <- 0.5 * var(D)
   DIC <- D_bar + pD
 
@@ -220,23 +195,16 @@ print.mlumr_dic <- function(x, ...) {
 #' model rather than a log-likelihood matrix, so `moment_match` is refused.
 #'
 #' @note
-#' **AgD rows are treated as independent observations.** Each AgD row
-#' contributes one column to the pointwise `log_lik` matrix. If two or
-#' more AgD rows come from the same study (e.g. subgroup summaries
-#' within a single trial) the PSIS-LOO approximation does not account
-#' for the within-study clustering; effective sample sizes are
-#' inflated and Pareto-k warnings are understated. For clustered AgD,
-#' corroborate with [prior_sensitivity()] or refit omitting suspect
-#' rows to check the influence on the posterior.
+#' **AgD rows are treated as independent observations.** Subgroup rows from
+#' one study share no clustering term, so their effective sample sizes are
+#' inflated and Pareto-k warnings understated; corroborate with
+#' [prior_sensitivity()] or by refitting without suspect rows.
 #'
-#' **Survival fits.** The comparator AgD enters as reconstructed pseudo-IPD, so
-#' each AgD pointwise unit is a single reconstructed pseudo-individual, not an
-#' aggregate row or the comparator trial. Survival LOO/WAIC therefore measure
-#' pseudo-individual-level predictive fit and are optimistic relative to
-#' leaving out the comparator arm/trial; treat them as a rough check, not a
-#' decisive model-selection criterion. Set `survival_unit = "arm"` or
-#' `"aggregate"` to instead hold out whole comparator arms / the external
-#' evidence as single units.
+#' **Survival fits.** The comparator enters as reconstructed pseudo-IPD, so
+#' the default pointwise unit is one pseudo-individual and the criteria are
+#' optimistic relative to leaving out the comparator arm. Set
+#' `survival_unit = "arm"` or `"aggregate"` to hold out whole comparator
+#' arms or all of the external evidence instead.
 #'
 #' @param object An `mlumr_fit` object.
 #' @param survival_unit For survival fits, the LOO/WAIC pointwise unit:
@@ -276,10 +244,7 @@ calculate_loo <- function(object,
 
 #' Warn that survival LOO/WAIC pointwise units are reconstructed pseudo-IPD
 #'
-#' For survival fits `log_lik_agd` is per reconstructed pseudo-individual, so
-#' LOO/WAIC operate at that level rather than per aggregate row or per trial.
-#' Emitted once per session (suppress with
-#' `options(mlumr.quiet_survival_loo = TRUE)`).
+#' Once per session; suppress with `options(mlumr.quiet_survival_loo = TRUE)`.
 #' @keywords internal
 .warn_survival_loo_unit <- function(object) {
   if (!identical(object$family, "survival")) return(invisible())
@@ -287,11 +252,9 @@ calculate_loo <- function(object,
   if (isTRUE(getOption("mlumr.survival_loo_warned", FALSE))) return(invisible())
   warning(
     "Survival LOO/WAIC: the comparator AgD enters as reconstructed pseudo-IPD, ",
-    "so each AgD pointwise unit is one pseudo-individual (not an aggregate row ",
-    "or the comparator trial). These criteria measure pseudo-individual-level ",
-    "fit and are optimistic relative to leaving out the comparator arm; use ",
-    "them as a rough check, not a decisive model-selection criterion. Suppress ",
-    "with `options(mlumr.quiet_survival_loo = TRUE)`.",
+    "so each AgD pointwise unit is one pseudo-individual and the criteria are ",
+    "optimistic relative to leaving out the comparator arm. Treat them as a ",
+    "rough check. Suppress with `options(mlumr.quiet_survival_loo = TRUE)`.",
     call. = FALSE
   )
   options(mlumr.survival_loo_warned = TRUE)
@@ -301,16 +264,10 @@ calculate_loo <- function(object,
 
 #' Pointwise log-likelihood for LOO/WAIC, optionally grouped for survival
 #'
-#' At the default `survival_unit = "observation"` this is `extract_log_lik()`
-#' (per-observation; per reconstructed pseudo-individual for survival AgD) and
-#' emits the pseudo-IPD-level warning. For survival fits, `"arm"` collapses the
-#' comparator pseudo-IPD log-likelihood by comparator arm (summing within arm,
-#' exact under conditional independence given the parameters) and `"aggregate"`
-#' collapses all comparator pseudo-IPD into one external-evidence unit; the index
-#' IPD stays per-individual. Leaving out a grouped unit then corresponds to
-#' leaving out that whole external arm / the whole external evidence, which is
-#' the question grouped LOO/WAIC answer (and is not optimistic at the
-#' pseudo-individual level). Non-survival families ignore the option.
+#' `"observation"` is `extract_log_lik()`. For survival fits `"arm"` sums the
+#' comparator pseudo-IPD columns within each arm and `"aggregate"` sums them
+#' all, so leaving out a unit leaves out that arm or all external evidence.
+#' The index IPD stays per individual.
 #' @keywords internal
 .survival_log_lik_by_unit <- function(object, survival_unit = "observation") {
   .assert_agd_loglik_per_observation(object)
@@ -345,9 +302,7 @@ calculate_loo <- function(object,
     as.integer(g)
   }
 
-  # Sum each group's pseudo-individual log-likelihoods into one column: under
-  # conditional independence given the parameters this is the log predictive
-  # density of the whole arm / external-evidence unit.
+  # One column per group: the log predictive density of the whole unit.
   grouped <- vapply(sort(unique(groups)), function(gg) {
     rowSums(agd_mat[, groups == gg, drop = FALSE])
   }, numeric(nrow(agd_mat)))
@@ -456,10 +411,7 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic"),
     model_names <- vapply(dics, function(d) d$model, character(1))
     dic_vals <- vapply(dics, function(d) d$DIC, numeric(1))
     pD_vals <- vapply(dics, function(d) d$pD, numeric(1))
-    # DIC is only comparable across fits of the same observation set. Unlike the
-    # LOO/WAIC path (where loo::loo_compare checks pointwise compatibility),
-    # nothing here would otherwise catch ranking models built from different
-    # numbers of observations.
+    # DIC is only comparable across fits of one observation set.
     n_obs_vals <- vapply(dics, function(d) d$n_obs %||% NA_integer_, integer(1))
     if (length(unique(stats::na.omit(n_obs_vals))) > 1L) {
       msg <- paste0(
@@ -501,9 +453,6 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic"),
   }
 
   calc_fn <- if (criterion == "loo") calculate_loo else calculate_waic
-  # Forward the survival LOO/WAIC pointwise unit so survival model selection is
-  # not silently hardwired to the optimistic per-pseudo-individual default.
-  # Ignored by the calculators for non-survival families.
   ic_list <- lapply(models, function(m) calc_fn(m, survival_unit = survival_unit))
   names(ic_list) <- .comparison_names(
     models,
@@ -520,13 +469,8 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic"),
 }
 
 
-# Helper: recover chain ids for each draw.
-# Prefer the real per-draw chain labels stored by the backend (`object$chain_ids`,
-# cmdstanr's actual `.chain` column or rstan's chain-major layout). Only when
-# those are unavailable do we reconstruct from row ordering: both backends store
-# draws in chain-major order (post-warmup iterations per chain contiguous). If
-# even the chain count is unavailable we fall back to all-one (a single chain,
-# which inflates r_eff but does not produce incorrect elpd).
+# Chain ids per draw: the backend's labels when stored, else reconstructed
+# from the chain-major layout, else a single chain (which inflates r_eff).
 .chain_id <- function(object) {
   n_draws <- nrow(object$draws)
   if (!is.numeric(n_draws) || length(n_draws) != 1L || n_draws < 1L) {
@@ -594,8 +538,7 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic"),
     use_user_name <- nzchar(user_names)
     out[use_user_name] <- user_names[use_user_name]
   }
-  # Two unnamed fits of the same model type would otherwise both be labeled e.g.
-  # "SPFA", making the comparison rows unattributable. Disambiguate duplicates.
+  # Two unnamed fits of one model type would otherwise share a label.
   make.unique(out, sep = " #")
 }
 
@@ -609,18 +552,11 @@ check_diagnostics <- function(fit) {
   diag <- fit$diagnostics %||% list()
   sampling_args <- fit$sampling_args %||% list()
 
-  # A chain that terminates abnormally is dropped by both backends, which then
-  # assemble the fit from the survivors. Everything downstream (posterior
-  # summaries, Rhat, effect estimates) is then computed from fewer chains than
-  # were requested, with no other signal that it happened. Report it first,
-  # because it invalidates the convergence checks below rather than adding to
-  # them.
+  # A chain that terminated abnormally is dropped by both backends, so the
+  # fit may rest on fewer chains than requested. Report that first.
   n_req <- .diagnostic_count(diag$n_chains_requested)
   n_got <- .diagnostic_count(diag$n_chains_returned)
-  # `.diagnostic_count()` maps an unusable value to 0, so an unknown layout and
-  # a known-good one both leave `n_got` outside the comparison below. Separate
-  # them: the backend reports `NA` when it could not label the draws by chain,
-  # and that is a finding, not a pass.
+  # `NA` from the backend means the draws could not be labeled by chain.
   if (n_req > 0 && !isTRUE(n_got > 0) &&
         (is.null(diag$n_chains_returned) ||
            any(is.na(diag$n_chains_returned)))) {
@@ -642,9 +578,7 @@ check_diagnostics <- function(fit) {
     ), call. = FALSE)
   }
 
-  # A count the backend did not supply is not a count of zero. Reading it as
-  # one turned "this fit's sampler behavior is unknown" into "this fit had no
-  # divergences", which is the reassuring half of the two.
+  # A count the backend did not supply is unknown, not zero.
   n_divergent <- .transition_count(diag$n_divergent)
   if (is.na(n_divergent)) {
     warning("The number of divergent transitions is not available for this ",
@@ -669,12 +603,8 @@ check_diagnostics <- function(fit) {
     ), call. = FALSE)
   }
 
-  # An Rhat of Inf is a parameter whose chains did not mix at all, which is the
-  # single worst outcome this check exists to report, and dropping it left a
-  # column holding 1.001 and Inf with a reported maximum of 1.001 and no
-  # warning. Keep every value that is a number; a missing one is a parameter
-  # without an Rhat, which is counted and reported rather than silently
-  # excluded from a statistic that calls itself the maximum.
+  # Keep an infinite Rhat (chains that did not mix); count a missing one
+  # rather than dropping it from the maximum.
   n_par <- nrow(fit$summary)
   rhat <- .usable_diagnostic_values(fit$summary$Rhat, n_par)
   .report_missing_diagnostics(rhat, "Rhat", "convergence",
@@ -707,20 +637,8 @@ check_diagnostics <- function(fit) {
     }
   }
 
-  # Tail ESS (Vehtari et al. 2021): reliable tail quantiles (the q2.5/q97.5
-  # reported by predict()/marginal_effects()) need ESS-tail >= 400 too, which the
-  # bulk n_eff above does not capture. Both backends supply the column when the
-  # `posterior` package is installed; rstan's classic summary does not report it,
-  # so the rstan backend computes it from the draws. Report an absent or
-  # all-missing column instead of passing silently, which is indistinguishable
-  # from a clean check.
-  #
-  # `posterior::ess_tail()` returns NA for several distinct reasons: a chain
-  # layout it cannot use, any non-finite draw, and a parameter that is constant
-  # across every chain. The backend does not record which, so name the outcome
-  # and not a cause, and count the parameters that lack a value instead of
-  # dropping them: a partly-missing column would otherwise be checked on its
-  # finite entries alone and read as clean.
+  # Tail ESS (Vehtari et al. 2021) guards the reported tail quantiles. An
+  # absent or partly missing column is reported, not passed.
   tail_all <- if ("ess_tail" %in% names(fit$summary)) {
     fit$summary$ess_tail
   } else {
@@ -789,28 +707,13 @@ check_diagnostics <- function(fit) {
 
 #' Split a diagnostic column into usable values and missing ones
 #'
-#' Unlike [.finite_numeric_values()] this KEEPS an infinite value. The two
-#' cases it separates are not the same thing: `Inf` is a diagnostic that was
-#' computed and came out as bad as it can be, while `NA` or `NaN` is a
-#' parameter that has no diagnostic at all, which happens legitimately for a
-#' quantity that is constant across every draw. Filtering both away left a
-#' worst-case statistic that could not report the worst case, and reported a
-#' benign number in its place.
-#'
-#' A column that is absent, or present but not numeric, is not zero
-#' diagnostics either. `c(NA, NA)` is a LOGICAL vector in R, so a backend that
-#' wrote missing values into a column it never filled produced two unavailable
-#' diagnostics, and this reported none: `n_total` came back 0, the reporter
-#' below says nothing when the total is 0, and the summary printed no line at
-#' all. `n_expected` is what the caller knows the count should be, normally the
-#' number of rows in the summary, so an absent column is reported as entirely
-#' missing rather than as an empty population of parameters.
+#' Keeps an infinite value, which is a diagnostic that came out as bad as it
+#' can, and counts a missing one rather than dropping it. An absent or
+#' non-numeric column counts as `n_expected` missing diagnostics.
 #'
 #' @param x A summary column, possibly `NULL`.
-#' @param n_expected How many parameters should have had a diagnostic. Defaults
-#'   to the length of `x`, which is right whenever the column is present.
-#' @return A list with `values` (every number, infinities included) and
-#'   `n_missing` / `n_total` counts.
+#' @param n_expected How many parameters should have had a diagnostic.
+#' @return A list with `values`, `n_missing`, `n_total` and `missing_idx`.
 #' @keywords internal
 .usable_diagnostic_values <- function(x, n_expected = length(x)) {
   if (!is.numeric(x)) {
@@ -828,17 +731,8 @@ check_diagnostics <- function(fit) {
 
 #' Say how many parameters had no diagnostic, rather than dropping them
 #'
-#' A partly-missing column checked on its present entries alone reads exactly
-#' like a clean one. This follows the tail-ESS block below, which already
-#' counts and reports what it could not check.
-#'
-#' The message names the OUTCOME and not a cause. A missing diagnostic has
-#' several, and nothing here has looked at the draws to tell them apart: a
-#' quantity that is constant by construction has no Rhat, and neither does one
-#' whose chains are each stuck at a different constant, or whose draws are not
-#' finite. Calling the benign one "the usual reason" turned an unchecked
-#' parameter into a reassurance. Which parameters they were is something this
-#' does know, so it says that instead.
+#' Names the outcome, not a cause: a missing diagnostic is as consistent with
+#' a constant quantity as with stuck chains or non-finite draws.
 #'
 #' @param d A [.usable_diagnostic_values()] result.
 #' @param label Diagnostic name for the message.
@@ -865,10 +759,9 @@ check_diagnostics <- function(fit) {
     message(sprintf(
       paste0("%s is unavailable for %d of %d parameter(s), which were not ",
              "checked for %s; the remaining %d were.%s A diagnostic that ",
-             "could not be computed is not one that came out well: it is ",
-             "legitimately absent for a quantity that is constant across ",
-             "every draw, and equally absent when the chains are stuck or the ",
-             "draws are not finite."),
+             "could not be computed is legitimately absent for a quantity ",
+             "that is constant across every draw, and equally absent when ",
+             "the chains are stuck or the draws are not finite."),
       label, d$n_missing, d$n_total, what, d$n_total - d$n_missing, named
     ))
   }
@@ -878,9 +771,7 @@ check_diagnostics <- function(fit) {
 
 #' Format a diagnostic for a message without turning Inf into a number
 #'
-#' `sprintf("%.3f", Inf)` prints "Inf", which is right, but the same format
-#' applied to a very large finite value prints a wall of digits. Handle the
-#' non-finite case by name.
+#' Four significant digits, with a non-finite value printed by name.
 #'
 #' @param x A single numeric value.
 #' @return A single string.
@@ -922,15 +813,8 @@ check_diagnostics <- function(fit) {
 
 #' Read a transition count that the backend may not have supplied
 #'
-#' [.diagnostic_count()] maps anything unusable to 0 and its callers guard that
-#' separately. Divergence and treedepth counts have no such guard, and 0 is the
-#' answer that says the sampler behaved, so an unreported count has to stay
-#' unknown instead.
-#'
-#' A count is a whole number, and `as.integer()` truncates rather than
-#' refusing: 0.5 became 0, which is exactly the value that says the sampler
-#' behaved, and a count past the integer range became `NA` with a coercion
-#' warning. Neither is a count, so both are reported as unknown.
+#' Zero is the count that says the sampler behaved, so an unreported,
+#' fractional or out-of-range value is `NA` rather than 0.
 #'
 #' @param x The recorded count.
 #' @return A non-negative integer, or `NA_integer_` when unknown.
@@ -946,16 +830,8 @@ check_diagnostics <- function(fit) {
 
 #' The interpretation paragraph the LOO/WAIC comparison prints
 #'
-#' Kept callable so a test can assert what users actually see rather than
-#' matching source text, which is brittle and, worse, matches comments about
-#' the wording as readily as the wording itself.
-#'
-#' The standard error of a difference measures UNCERTAINTY about that
-#' difference, not support for it. An earlier version of this paragraph
-#' presented a large `se_diff` as the threshold for a meaningful difference,
-#' under which an `elpd_diff` of 0.1 alongside an `se_diff` of 3 would have
-#' qualified as persuasive. It is the difference read against its own
-#' uncertainty that carries information, and even that is a heuristic.
+#' Callable so a test can assert what users see. The standard error of a
+#' difference measures uncertainty about it, not support for it.
 #'
 #' @return A character vector, one element per printed line.
 #' @keywords internal

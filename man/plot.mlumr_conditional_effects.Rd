@@ -13,8 +13,7 @@
 per facet from the effect label: 1 for the natural-ratio measures (RR, HR,
 TR, and the exponentiated contrast reported when the study baselines
 differ) and 0 for the additive ones (RD, MD, LINK_EFFECT). Pass a single
-value to override for all panels. A fixed 0 was previously drawn for every
-effect, which put the null line off-scale on every ratio panel.}
+value to override for all panels.}
 
 \item{...}{Unused.}
 }

@@ -40,23 +40,16 @@ sensitivity. Moment matching (\code{\link[loo:loo_moment_match]{loo::loo_moment_
 model rather than a log-likelihood matrix, so \code{moment_match} is refused.
 }
 \note{
-\strong{AgD rows are treated as independent observations.} Each AgD row
-contributes one column to the pointwise \code{log_lik} matrix. If two or
-more AgD rows come from the same study (e.g. subgroup summaries
-within a single trial) the PSIS-LOO approximation does not account
-for the within-study clustering; effective sample sizes are
-inflated and Pareto-k warnings are understated. For clustered AgD,
-corroborate with \code{\link[=prior_sensitivity]{prior_sensitivity()}} or refit omitting suspect
-rows to check the influence on the posterior.
+\strong{AgD rows are treated as independent observations.} Subgroup rows from
+one study share no clustering term, so their effective sample sizes are
+inflated and Pareto-k warnings understated; corroborate with
+\code{\link[=prior_sensitivity]{prior_sensitivity()}} or by refitting without suspect rows.
 
-\strong{Survival fits.} The comparator AgD enters as reconstructed pseudo-IPD, so
-each AgD pointwise unit is a single reconstructed pseudo-individual, not an
-aggregate row or the comparator trial. Survival LOO/WAIC therefore measure
-pseudo-individual-level predictive fit and are optimistic relative to
-leaving out the comparator arm/trial; treat them as a rough check, not a
-decisive model-selection criterion. Set \code{survival_unit = "arm"} or
-\code{"aggregate"} to instead hold out whole comparator arms / the external
-evidence as single units.
+\strong{Survival fits.} The comparator enters as reconstructed pseudo-IPD, so
+the default pointwise unit is one pseudo-individual and the criteria are
+optimistic relative to leaving out the comparator arm. Set
+\code{survival_unit = "arm"} or \code{"aggregate"} to hold out whole comparator
+arms or all of the external evidence instead.
 }
 \examples{
 \dontrun{

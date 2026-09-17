@@ -2,29 +2,13 @@
 % Please edit documentation in R/diagnostics.R
 \name{.assert_agd_loglik_per_observation}
 \alias{.assert_agd_loglik_per_observation}
-\title{Refuse a pointwise log-likelihood that is not one column per observation}
+\title{Refuse a pointwise log-likelihood collapsed over tied aggregate rows}
 \usage{
 .assert_agd_loglik_per_observation(object)
 }
 \description{
-Every route into LOO, WAIC, and DIC treats one column of \code{log_lik_agd} as one
-held-out data point, and the arm / aggregate routes additionally align those
-columns with \code{stan_data$agd_arm}. Tie aggregation breaks both assumptions in
-the same way: it keeps one row per distinct likelihood key and carries the
-multiplicity in \code{stan_data$agd_count}, so \code{log_lik_agd} holds one UNWEIGHTED
-value per UNIQUE row and \code{agd_arm} is the collapsed arm map. Both objects
-still agree in length, so nothing downstream errors, and the diagnostics come
-back quietly understating every tied observation.
-}
-\details{
-Fail closed instead. The multiplicities must be expanded back to the original
-observation sequence (repeat unique column \code{k} its \code{agd_count[k]} times, and
-expand the arm map with it) before any diagnostic reads them.
-
-No shipped code path sets \code{agd_count}, so this guard is inert today: it is a
-precondition on the pointwise likelihood that tie aggregation would violate,
-placed before that feature rather than after the first wrong LOO value.
-Deleting it as unused would remove the check at exactly the moment the
-feature that needs it arrives.
+Tie aggregation (not shipped yet) would keep one \code{log_lik_agd} column per
+distinct row with the multiplicity in \code{stan_data$agd_count}. LOO, WAIC and
+DIC need one column per observation, so that shape is refused here.
 }
 \keyword{internal}

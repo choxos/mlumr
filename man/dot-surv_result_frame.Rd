@@ -17,12 +17,8 @@
 )
 }
 \description{
-Both prediction routes reduce to the same thing: one draw matrix per
-displayed cell. Everything after that is layout, and layout written twice
-drifts, so it is written once here. \code{values} is a list of draw matrices, one
-per row of \code{cells}, with a single column for scalar types (\code{rmst}, \code{median})
-and one column per selected time for curves. \code{cells} carries the display
-labels, \code{treatment} (absent for \code{loghr}, which is a within-population
-contrast) followed by \code{population}.
+Both prediction routes reduce to one draw matrix per displayed cell, so
+the layout is written once. \code{values} has one matrix per row of \code{cells},
+with one column for scalar types and one per selected time for curves.
 }
 \keyword{internal}

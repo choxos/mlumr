@@ -14,11 +14,8 @@
 shape/scale parameters differ.
 }
 \description{
-\code{exp(eta_index - eta_comparator)} is a conditional hazard ratio only when the
-two studies share a baseline hazard, and a time ratio only when the AFT
-shape/scale parameters are shared. The test is whether the auxiliary
-shape/scale draws actually differ, not whether \code{aux_by} asked for strata: an
-exponential has no shape to stratify, so \code{aux_by = ".study"} leaves its
-baseline shared and the exact \code{hr} label stands.
+\code{exp(eta_index - eta_comparator)} is a hazard ratio or time ratio only
+when the two studies' shape parameters agree. An exponential has no shape
+to stratify, so \code{aux_by = ".study"} leaves its label exact.
 }
 \keyword{internal}

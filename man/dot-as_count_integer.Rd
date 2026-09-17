@@ -13,11 +13,7 @@
 An integer vector.
 }
 \description{
-\code{as.integer()} truncates toward zero, while the count validators accept any
-value within \code{sqrt(.Machine$double.eps)} of a whole number. Those two rules
-disagree: \code{0.999999999} is accepted as the count 1 and then coerced to 0, so
-the package silently changed an event count it had just approved. Rounding
-first maps an accepted value onto the integer it was accepted FOR, and is a
-no-op for values that were already exact.
+The count validators accept values within \code{sqrt(.Machine$double.eps)} of a
+whole number, and \code{as.integer()} truncates, so round first.
 }
 \keyword{internal}

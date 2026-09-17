@@ -33,37 +33,18 @@ dependence structure does not (rare in practice for QMC with sensible
 \item{verbose}{Logical; if \code{FALSE}, suppresses printed diagnostic messages.}
 }
 \value{
-A list with components \code{marginals} (the original data frame
-returned by previous versions) and, if \code{check_joint = TRUE},
-\code{correlations}, a data frame of pairwise covariate correlations at
-the current and doubled \code{n_int} for each AgD row. Its \code{covariate_1}
-and \code{covariate_2} columns name the two margins; \code{pair} is a label
-built from them for reading. Printed with a pass/warn verdict.
-
-The \code{verdict} component reports \code{"stable"} / \code{"close"} when a comparison
-was made and met the heuristic, \code{"review"} when it did not, and
-\code{"unavailable"} when there was nothing finite to compare. A declared
-target the AgD does not supply, or a latent Gaussian-copula correlation
-(\code{cor_adjust = "none"}), gives \code{"unavailable"} rather than a pass. The
-correlation verdicts (\code{target_correlation}, \code{resolution_correlation})
-are \code{"partial"} when the measured pairs pass but some pair with a
-correlation to realize could not be measured, since a maximum over the
-measured pairs says nothing about the rest; a measured pair that misses
-the heuristic is \code{"review"} regardless. \code{correlation_pairs} counts the
-pairs expected and the pairs measured: \code{measured} is the number with a
-finite correlation on the doubled grid, the correlation the target
-comparison uses when there is a target to compare it with, and
-\code{measured_resolution} the number with a finite correlation on both
-grids. Neither count says whether a target comparison was made; with
-\code{cor_adjust = "none"} none is. It names the omitted pairs with a
-reason, and lists separately the pairs in which a margin is declared
-with no variance, which have no correlation to realize and are outside
-the count.
-
-For a binary margin the declared-target SD is the distribution's,
-\code{sqrt(p * (1 - p))} from the declared mean, whatever \verb{_sd} column the
-AgD carries: a sample SD of the source data has a size correction no
-grid can reproduce. Grid SDs are population SDs for the same reason.
+A list with \code{marginals}, a data frame of grid means and SDs at the
+current and doubled \code{n_int} against the declared targets, and \code{verdict},
+whose entries are \code{"stable"} or \code{"close"} when a comparison met the
+heuristic, \code{"review"} when it did not, \code{"partial"} when the measured
+correlation pairs passed but some pair could not be measured, and
+\code{"unavailable"} when there was nothing finite to compare (a latent
+matrix under \code{cor_adjust = "none"} is never compared). With
+\code{check_joint = TRUE} and two or more covariates it also holds
+\code{correlations}, the pairwise correlations per AgD row on both grids, and
+\code{correlation_pairs}, which counts the pairs measured and names the rest.
+A binary margin's target SD is \code{sqrt(p * (1 - p))} from the declared
+mean, and grid SDs are population SDs.
 }
 \description{
 Compare integration results at the current \code{n_int} against a doubled
