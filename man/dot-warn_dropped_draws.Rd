@@ -13,15 +13,8 @@
 \code{TRUE} if a warning was issued, \code{FALSE} otherwise, invisibly.
 }
 \description{
-The \code{na.rm = TRUE} in \code{.summarize_draw_vector()} is deliberate: one bad
-draw should not erase an otherwise usable summary. It removes those draws
-without a trace, though, so a mean taken over a third of the chain reads
-exactly like a mean taken over all of it. Say what was dropped and leave the
-judgment to the reader. The warning is for the session; the \code{n_draws} and
-\code{n_draws_used} columns on every summary are what travels with the result.
-}
-\details{
-Only NA and NaN are counted, because only those are what \code{na.rm} removes.
-An infinite draw propagates into the mean and is visible on its own.
+\code{.summarize_draw_vector()} drops NA and NaN draws with \code{na.rm = TRUE}, so a
+summary built on part of the chain would otherwise read like one built on
+all of it. An infinite draw propagates into the mean and is not counted.
 }
 \keyword{internal}

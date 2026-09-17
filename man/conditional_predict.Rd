@@ -30,9 +30,7 @@ fitted prediction time.}
 }
 \value{
 A data frame with predictions for each treatment at each profile.
-For survival fits there is one row per profile, treatment, and time. With
-\code{summary = TRUE} each row carries \code{n_draws} and \code{n_draws_used}, the draw
-accounting behind its summary.
+For survival fits there is one row per profile, treatment, and time.
 }
 \description{
 Generate absolute predictions at specific covariate values for both

@@ -280,8 +280,12 @@ geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
   # selector in that case.
   selected <- if (is.null(population)) {
     c("Index", "Comparator")
+  } else if (is.character(population) && length(population) &&
+               all(population %in% c("Index", "Comparator"))) {
+    unique(population)
   } else {
-    .validate_km_population(population)
+    stop("`population` must be \"Index\", \"Comparator\", or both.",
+         call. = FALSE)
   }
   if (!is.null(treatments)) {
     labels <- c(Index = data$index_treatment,
@@ -346,18 +350,6 @@ geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
     )
   }
   invisible(TRUE)
-}
-
-#' Validate a `geom_km()` population selector
-#' @keywords internal
-.validate_km_population <- function(population) {
-  valid <- c("Index", "Comparator")
-  if (!is.character(population) || !length(population) ||
-        !all(population %in% valid)) {
-    stop("`population` must be \"Index\", \"Comparator\", or both.",
-         call. = FALSE)
-  }
-  unique(population)
 }
 
 #' Observed Kaplan-Meier step + censoring data for a survival mlumr_data

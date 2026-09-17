@@ -144,9 +144,6 @@
   and could not measure (`correlation_pairs`, with `"partial"` and `"review"`
   verdicts), withholds the comparison under `cor_adjust = "none"`, and reports
   a comparison it could not make as `"unavailable"` instead of `"close"`.
-* Improvement: Setup functions record an internal `.source_key` per row so
-  `compare_models()` can tell two fits were built from one source reordered
-  between them. `.source_key` is now a reserved column name.
 
 ## Priors and sensitivity
 
@@ -231,19 +228,13 @@
 * Fix: `check_diagnostics()` and the fit summary no longer drop an infinite
   Rhat before taking the maximum, report missing or non-numeric diagnostics
   as unknown rather than as zero, and compute tail ESS.
-* Improvement: Posterior summaries from `predict()`, `marginal_effects()`,
-  `conditional_effects()` and `conditional_predict()` carry `n_draws` and
-  `n_draws_used`, with one warning per call when draws were dropped.
+* Improvement: `predict()`, `marginal_effects()`, `conditional_effects()` and
+  `conditional_predict()` warn once per call when `NA` or `NaN` draws were
+  dropped from a summary.
 * Fix: `conditional_predict()` names quantile columns from the requested
   probabilities, so non-round `probs` no longer return `NA`.
-* Fix: `calculate_dic()`, `calculate_loo()`, `calculate_waic()` and
-  `compare_models()` refuse a saved log-likelihood that does not cover every
-  observation the fit was built from, and a cached `mlumr_dic` is checked the
-  same way. `compare_models()` refuses fits built on different observations
-  and warns when row order cannot be verified. See `?compare_models`.
 * Fix: `calculate_loo()` refuses `moment_match = TRUE`, which `loo` ignores
-  for a matrix, and both it and `calculate_waic()` refuse arguments the
-  installed `loo` does not read.
+  for a matrix.
 * Improvement: The `compare_models()` printout no longer presents
   `se_diff > 2` as a decision rule.
 
@@ -271,6 +262,8 @@
   to Imports (`>= 3.4.0`).
 * `flexsurv`, `detectseparation`, `multinma`, `ggsurvfit` and `R.rsp` added
   to Suggests.
+* `copula` is no longer imported: the Gaussian-copula integration points are
+  built from the Cholesky factor in base R.
 * `Additional_repositories` is pinned to `https://mc-stan.org/r-packages`
   so that `rstan` and `StanHeaders` resolve from one source. cmdstanr itself
   comes from `https://stan-dev.r-universe.dev`; `mlumr_engine("cmdstanr")`

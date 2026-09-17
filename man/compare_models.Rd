@@ -12,12 +12,7 @@ compare_models(
 }
 \arguments{
 \item{...}{Two or more \code{mlumr_fit} objects. For DIC, \code{mlumr_dic}
-objects are also accepted. One whose \code{n_obs} does not cover the
-observations it carries, as an object computed by an earlier version over
-part of a fit's saved likelihood does, is refused rather than ranked; one
-from before those were recorded, or one recording its observations but
-not the count, is compared as before, with a message that it could not be
-checked.}
+objects are also accepted.}
 
 \item{criterion}{One of \code{"dic"} (default), \code{"loo"}, or \code{"waic"}.
 LOO and WAIC require the optional \code{loo} package.}

@@ -107,9 +107,7 @@
 #' and therefore return `E[g^{-1}(eta)]`, not `g^{-1}(E[eta])`.
 #'
 #' @return A data frame. If `summary = TRUE`, contains columns `profile`,
-#'   `effect`, `mean`, `sd`, quantile columns, and the draw accounting
-#'   `n_draws` and `n_draws_used` (they differ when `NA` or `NaN` draws were
-#'   dropped from that row's summary). If `summary = FALSE`,
+#'   `effect`, `mean`, `sd` and quantile columns. If `summary = FALSE`,
 #'   returns a single combined data frame of full posterior draws with a
 #'   `profile` column indicating which covariate profile each draw belongs
 #'   to.
@@ -138,7 +136,7 @@ conditional_effects <- function(object,
 
   .validate_mlumr_fit_object(object)
   effect <- .validate_effect_choice(effect)
-  summary <- .validate_summary_flag(summary)
+  summary <- .validate_flag(summary, "summary")
   .validate_probs(probs)
 
   family <- object$family %||% "binomial"
@@ -319,23 +317,17 @@ conditional_effects <- function(object,
     return(do.call(rbind, out))
   }
 
-  # Once per profile, so it tallies like the other two loops rather than
-  # warning on each pass.
-  tally <- .draw_tally()
-  summary_list <- lapply(seq_along(results), function(i) {
-    d <- results[[i]][, keep_cols, drop = FALSE]
-    tally$add(d)
-    summary_df <- .summarize_draw_matrix(d, probs, warn = FALSE)
+  kept <- lapply(results, function(r) r[, keep_cols, drop = FALSE])
+  .warn_dropped_draws(do.call(cbind, kept))
+  summary_list <- lapply(seq_along(kept), function(i) {
+    summary_df <- .summarize_draw_matrix(kept[[i]], probs, warn = FALSE)
     summary_df$profile <- i
     summary_df$effect <- toupper(rownames(summary_df))
     summary_df
   })
 
-  tally$report("conditional effect profiles")
-
   out <- do.call(rbind, summary_list)
-  out <- out[, c("profile", "effect", "mean", "sd",
-                 .quantile_names(probs), "n_draws", "n_draws_used"),
+  out <- out[, c("profile", "effect", "mean", "sd", .quantile_names(probs)),
              drop = FALSE]
   # Survival effects are on the natural scale (null 1): the effect label is
   # already HR (PH) or TR (AFT) from the hr / tr column name set above.
@@ -539,9 +531,7 @@ conditional_effects <- function(object,
 #' @param probs Quantiles for summary
 #'
 #' @return A data frame with predictions for each treatment at each profile.
-#'   For survival fits there is one row per profile, treatment, and time. With
-#'   `summary = TRUE` each row carries `n_draws` and `n_draws_used`, the draw
-#'   accounting behind its summary.
+#'   For survival fits there is one row per profile, treatment, and time.
 #' @seealso [conditional_effects()] for covariate-conditional treatment
 #'   *effects*; [predict.mlumr_fit()] for population-level predictions.
 #' @export
@@ -558,7 +548,7 @@ conditional_predict <- function(object,
                                 probs = c(0.025, 0.5, 0.975)) {
 
   .validate_mlumr_fit_object(object)
-  summary <- .validate_summary_flag(summary)
+  summary <- .validate_flag(summary, "summary")
   .validate_probs(probs)
 
   family <- object$family %||% "binomial"
@@ -574,14 +564,8 @@ conditional_predict <- function(object,
   params <- .conditional_parameters(object, profiles$covariates)
   lnk <- object$link %||% get_family_config(family)$link_default
 
-  # Summarizing inside the loop would report each profile separately, so count
-  # here and report once for the whole set below.
-  tally <- .draw_tally()
-  summarize_col <- function(x) {
-    tally$add(x)
-    .summarize_draw_vector(x, probs, warn = FALSE)
-  }
-
+  # Dropped draws are reported once for the whole set, after the loop.
+  drawn <- list()
   results <- vector("list", n_profiles)
 
   for (i in seq_len(n_profiles)) {
@@ -604,8 +588,9 @@ conditional_predict <- function(object,
         comparator = val_cmp
       )
     } else {
-      s_idx <- summarize_col(val_idx)
-      s_cmp <- summarize_col(val_cmp)
+      drawn[[length(drawn) + 1L]] <- cbind(val_idx, val_cmp)
+      s_idx <- .summarize_draw_vector(val_idx, probs, warn = FALSE)
+      s_cmp <- .summarize_draw_vector(val_cmp, probs, warn = FALSE)
       qcols <- .quantile_names(probs)
 
       results[[i]] <- data.frame(
@@ -621,13 +606,9 @@ conditional_predict <- function(object,
         qname <- qcols[j]
         results[[i]][[qname]] <- c(s_idx[[qname]], s_cmp[[qname]])
       }
-      results[[i]]$n_draws <- c(s_idx[["n_draws"]], s_cmp[["n_draws"]])
-      results[[i]]$n_draws_used <- c(s_idx[["n_draws_used"]],
-                                     s_cmp[["n_draws_used"]])
     }
   }
-
-  tally$report("conditional profiles")
+  if (summary) .warn_dropped_draws(do.call(cbind, drawn))
 
   out <- do.call(rbind, results)
   rownames(out) <- NULL
@@ -652,11 +633,7 @@ conditional_predict <- function(object,
   idx_trt <- object$data$index_treatment
   cmp_trt <- object$data$comparator_treatment
 
-  # Same reason as the non-survival path above: the helper is called once per
-  # profile and treatment, so letting each one report would give a single bad
-  # draw dozens of identical warnings that name no profile between them.
-  tally <- .draw_tally()
-
+  drawn <- list()
   rows <- list()
   for (i in seq_len(n_profiles)) {
     eta <- .conditional_eta(params, X[i, , drop = FALSE])
@@ -673,7 +650,7 @@ conditional_predict <- function(object,
         df$treatment <- cell$trt
         rows[[length(rows) + 1L]] <- df
       } else {
-        tally$add(cell$mat)
+        drawn[[length(drawn) + 1L]] <- cell$mat
         sm <- .summarize_draw_matrix(cell$mat, probs, warn = FALSE)
         rows[[length(rows) + 1L]] <- data.frame(
           profile = i, treatment = cell$trt, time = pred_times, sm,
@@ -682,7 +659,7 @@ conditional_predict <- function(object,
       }
     }
   }
-  tally$report("conditional survival profiles")
+  if (summary) .warn_dropped_draws(do.call(cbind, drawn))
 
   out <- do.call(rbind, rows)
   rownames(out) <- NULL

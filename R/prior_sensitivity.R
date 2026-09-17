@@ -78,9 +78,7 @@ prior_sensitivity <- function(fit,
          call. = FALSE)
   }
   .validate_probs(probs)
-  if (!is.logical(verbose) || length(verbose) != 1L || is.na(verbose)) {
-    stop("`verbose` must be TRUE or FALSE.", call. = FALSE)
-  }
+  .validate_flag(verbose, "verbose")
 
   if (!is.null(prior_beta_comparator_scales)) {
     if (!is_relaxed) {

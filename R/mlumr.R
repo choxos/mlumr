@@ -257,15 +257,9 @@ mlumr <- function(data,
 
   model <- match.arg(model)
 
-  if (!is.logical(verbose) || length(verbose) != 1L || is.na(verbose)) {
-    stop("`verbose` must be TRUE or FALSE.", call. = FALSE)
-  }
-  if (!is.logical(center) || length(center) != 1L || is.na(center)) {
-    stop("`center` must be TRUE or FALSE.", call. = FALSE)
-  }
-  if (!is.logical(qr) || length(qr) != 1L || is.na(qr)) {
-    stop("`qr` must be TRUE or FALSE.", call. = FALSE)
-  }
+  .validate_flag(verbose, "verbose")
+  .validate_flag(center, "center")
+  .validate_flag(qr, "qr")
   .validate_mlumr_sampling_args(
     chains = chains,
     iter = iter,
