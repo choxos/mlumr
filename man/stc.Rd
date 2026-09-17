@@ -63,21 +63,12 @@ Ignored for other families.}
 }
 \value{
 An object of class \code{mlumr_stc}. Its \code{separation} component records
-the outcome of the binomial separation check, and only that: \code{status} is
-\code{"not_separated"} when the exact check ran on a binomial outcome model
-and found no separation, \code{"unknown"} when it could not run (only the
-fitted-value screen was applied, which cannot see quasi-complete
-separation), and \code{"not_applicable"} when the outcome model is not a
-binomial GLM, so this particular test has nothing to say. A Poisson
-outcome model has a boundary of its own kind: with no events, or with a
-subgroup without events that a direction of the coefficients can send
-to a rate of zero while every other row's rate stays fixed, the
-likelihood increases toward a supremum it never attains and the
-maximum likelihood estimate is not finite, although the fitting
-reports convergence with finite numbers. Such a fit is refused, as is one where the question could not
-be decided, so a returned Poisson result has a finite maximum and its
-\code{reason} says so. A separated fit is refused rather than returned, so
-\code{"separated"} never appears here.
+the outcome of the binomial separation check: \code{status} is
+\code{"not_separated"} when the exact check ran and found none, \code{"unknown"}
+when only the fitted-value screen ran (it cannot see quasi-complete
+separation), and \code{"not_applicable"} for other outcome models. A
+separated fit, and a Poisson fit with no events, are refused rather than
+returned.
 }
 \description{
 Perform an unanchored simulated treatment comparison (STC) with marginal
@@ -127,78 +118,34 @@ AgD covariate means for the identity-link normal special case).
 \item Compute first-order, fixed-integration-grid delta-method standard errors.
 }
 
-The response-scale standardization follows the marginalization order used by
-Ren et al.'s unanchored STC and by parametric G-computation: predict each
-target profile, average the natural-scale outcomes, then transform that
-average. This is a one-arm standardization benchmark: only the index-treatment
-outcome model is fitted because comparator IPD are unavailable. Remiro-Azocar
-et al. implement two-arm G-computation, where both potential outcomes are
-predicted from an IPD study; that is a different data design even though the
-response-scale marginalization step is shared.
+The response-scale standardization predicts each target profile, averages
+the natural-scale outcomes, then transforms the average, as in Ren et al.'s
+unanchored STC. Only the index-treatment outcome model is fitted, since
+comparator IPD are unavailable; Remiro-Azocar et al. describe the two-arm
+G-computation that a different data design allows.
 
-The non-survival standard error is conditional on the supplied integration
-grid and reported comparator covariate summaries. It propagates fitted
-regression-coefficient uncertainty and observed comparator-outcome
-uncertainty, but not uncertainty from reconstructing the comparator
-covariate distribution. Ren et al. instead resample the IPD, reconstruct the
-target distribution, and use a nonparametric bootstrap. Use the present
-delta-method result as a fast benchmark and use sensitivity analyses when
-reconstruction uncertainty may matter.
+The non-survival standard error is conditional on the integration grid and
+the reported comparator summaries: it propagates coefficient and
+comparator-outcome uncertainty, not uncertainty in reconstructing the
+comparator covariate distribution. The estimator relies on a correctly
+specified index outcome model that applies across the comparator covariate
+distribution, adequate overlap and no unmeasured confounding; it does not
+need the two treatments to share covariate effects.
 
-The estimator relies on correct specification of the index-treatment outcome
-model and its applicability to the comparator population. It does not model
-posterior uncertainty in population covariate distributions.
+The estimand is \code{E_B[m_A(X)] - E_B[Y_B]} on the response scale, which is
+\verb{$rd} for a binomial outcome and \verb{$md} for a normal one. \verb{$estimate} is the
+same mean difference under the normal identity link and otherwise the
+link-scale contrast of the two standardized quantities: a marginal log odds
+ratio under a binomial logit, a log rate ratio under Poisson, a log mean
+ratio under a log link.
 
-It does not require the two treatments to share covariate effects. On the
-response scale the estimand is \code{E_B[m_A(X)] - E_B[Y_B]}: the index
-response surface standardized to the comparator covariate distribution,
-contrasted with the comparator outcome as it was observed. That
-difference is what \verb{$rd} reports for a binomial outcome and \verb{$md} for a
-normal one. Whether it is also \verb{$estimate} depends on the link. Under the
-normal identity link it is: \verb{$estimate} is that same mean difference.
-Under a nonlinear link it is not, and \verb{$estimate} is instead the
-link-scale contrast of the two standardized quantities, a marginal log
-odds ratio under a binomial logit, a log rate ratio under Poisson and a
-log mean ratio under a log link, as the scale note above says. \code{print()}
-headlines \verb{$estimate} under the name of its scale, and the effect-measures
-table it ends with lists the mean difference from \verb{$md}, and under a log
-link the log mean ratio and the mean ratio as well.
+Survival STC contrasts the index RMST standardized to the comparator
+covariates with the RMST of an intercept-only \code{\link[flexsurv:flexsurvreg]{flexsurv::flexsurvreg()}} fit
+to the reconstructed pseudo-IPD.
 
-For the GLM families no comparator response model is fitted and none is
-transported, so \code{beta_A = beta_B} is not among the assumptions and effect
-modification by itself is not a reason to set STC aside. With a binary
-covariate at comparator prevalence 0.75 and index
-risks 0.2 and 0.8 against comparator risks 0.4 and 0.5, the slopes differ
-on both the risk and logit scales and the comparator-population risk
-difference is still 0.65 - 0.475 = 0.175. What the estimand does need is
-an index outcome model that is correctly specified and applicable across
-the comparator covariate distribution, adequate overlap, and the
-unanchored no-unmeasured-confounding assumption; those, not shared slopes,
-are where comparator-target STC is weak.
-
-Survival STC reaches its estimand by a different route. The comparator
-side is summarized by an intercept-only \code{\link[flexsurv:flexsurvreg]{flexsurv::flexsurvreg()}} fit to
-the reconstructed pseudo-IPD, and its fitted RMST is contrasted with the
-index RMST standardized to the comparator covariates. So a comparator
-model \emph{is} fitted on that path. It carries no covariates, so nothing is
-transported into it and the conclusion above about \code{beta_A = beta_B}
-holds there too, but by a different argument: not that no comparator
-model exists, but that the one fitted has no slopes to share.
-
-Choose between this and \code{mlumr(..., model = "relaxed")} by the target,
-the evidence and the identification, not by the plausibility of effect
-modification. Relaxed ML-UMR is what estimates comparator-specific
-covariate effects, and so is what an index or other decision population, a
-conditional effect, or a joint model of both arms requires. \code{stc()}
-answers one question, in the comparator population, and answers it without
-needing those coefficients to be identified at all.
-
-The returned effect is defined in the comparator population. Applying that
-same effect to the index or another decision population is a separate
-effect-equality assumption. \code{stc()} does not standardize to, perform, or
-validate transport to the index population. This differs from two-arm
-parametric G-computation, which fits treatment-specific outcome regressions
-and can standardize both potential outcomes to a chosen target population.
+The effect is defined in the comparator population and is not transported
+to the index population; \code{mlumr(..., model = "relaxed")} is what estimates
+comparator-specific covariate effects for any other target.
 }
 \examples{
 \dontrun{

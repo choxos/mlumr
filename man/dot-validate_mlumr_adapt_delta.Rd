@@ -13,8 +13,6 @@
 \code{NULL}, invisibly; called for the error.
 }
 \description{
-Shared by the argument validator and the rstan control merge, so a setting
-is checked the same way whether it came in as an argument or inside
-\code{control}. It reached the sampler unchecked through the second door.
+Shared by the argument validator and the rstan control merge.
 }
 \keyword{internal}

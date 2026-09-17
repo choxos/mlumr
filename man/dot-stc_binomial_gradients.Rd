@@ -26,23 +26,12 @@ and \code{link}, one entry per coefficient.
 }
 \description{
 With \verb{log p_i} and \verb{log q_i} the event and non-event log probabilities at
-each grid point (from \code{\link[=.binary_log_probs]{.binary_log_probs()}}), the standardized log
-probability is \verb{log(sum(w_i p_i) / sum(w_i))} and its gradient is
-\verb{sum(c_i (d log p_i / d eta) X_i)} with \verb{c_i = w_i p_i / sum(w p)}, the
-share of the standardized probability each point carries. The per-point
-derivative of the log probability is \code{q_i} under the logit, the inverse
-Mills ratio \code{phi(eta) / Phi(eta)} under the probit, and
-\code{exp(eta - exp(eta)) / p_i} under the complementary log-log; each is
-formed from the log probabilities so a point deep in either tail
-contributes its share rather than a rounded zero. The same for the
-non-event side, with \code{-p_i}, \code{-phi(eta) / Phi(-eta)} and \code{-exp(eta)}.
-}
-\details{
-The link-scale functional is then the chain rule on the two log means:
-the difference of the two gradients for the logit; for the probit,
-\verb{d p / phi(z)} at the link value \code{z}, taken from whichever tail is the
-smaller one, as \code{\link[=.binary_link_from_logs]{.binary_link_from_logs()}} does; for the complementary
-log-log, \verb{d log q / log q}, or the log-probability gradient once
-\verb{log q} has rounded to zero and the link is \verb{log p} to double precision.
+each grid point, the standardized log probability is
+\verb{log(sum(w_i p_i) / sum(w_i))} and its gradient is
+\verb{sum(c_i (d log p_i / d eta) X_i)} with \verb{c_i = w_i p_i / sum(w p)}. The
+per-point derivatives are \code{q_i} (logit), \code{phi(eta) / Phi(eta)} (probit)
+and \code{exp(eta - exp(eta)) / p_i} (cloglog), formed from the log
+probabilities so tail points keep their share. The link-scale functional
+follows by the chain rule on the two log means.
 }
 \keyword{internal}

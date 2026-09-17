@@ -11,31 +11,12 @@
 }
 \value{
 A list with \code{status}, one of \code{"separated"}, \code{"not_separated"} or
-\code{"unknown"}, and \code{reason}, a string explaining an unknown. A warning is
-muffled and the outcome used, since a separated refit is the case that
-warns.
+\code{"unknown"}, and \code{reason}, a string explaining an unknown.
 }
 \description{
-Whether a binomial likelihood has a finite maximum is a linear-programming
-question, not a threshold one: the fit is separated exactly when some linear
-combination of the covariates perfectly orders the outcome, and a fit that
-is merely strong can look identical in the coefficients and the fitted
-values. \pkg{detectseparation} solves that program. It is in Suggests, so
-when it is absent this returns the \code{"unknown"} status with the reason, and
-the caller keeps the fitted-value test as its only screen; that is a weaker
-guarantee, not a wrong one.
-}
-\details{
-An error here is reported as "unknown" rather than as "separated": a refit
-can fail for reasons that have nothing to do with separation, and turning
-those into a refusal would reject estimable models. A warning is not an
-error, and must not be read as one here, because the fit this check exists
-to catch is the one that warns.
-
-The result is a STATUS and not a logical, because \code{NA} was being read as
-permission to continue. The caller stopped on \code{isTRUE()}, so every way of
-not knowing, an absent dependency most of all, took the same path as a fit
-that had been checked and cleared. Those are different states and the caller
-now says which one it is in.
+Separation is a linear-programming question, which \pkg{detectseparation}
+solves. Without it, or when the refit errors, the status is \code{"unknown"}
+with the reason; a warning from the refit is muffled, since a separated
+fit is the case that warns.
 }
 \keyword{internal}
