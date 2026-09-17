@@ -16,6 +16,22 @@ test_that("setting engine to invalid value errors", {
                "`engine` must be 'rstan' or 'cmdstanr'")
 })
 
+test_that("cmdstanr is not selected when it cannot be installed here", {
+  withr::local_options(list(mlumr.stan_engine = "rstan"))
+  local_mocked_bindings(.cmdstan_available = function() FALSE)
+  expect_message(out <- mlumr_engine("cmdstanr"), "Engine unchanged \\(rstan\\)")
+  expect_identical(out, "rstan")
+  expect_identical(getOption("mlumr.stan_engine"), "rstan")
+})
+
+test_that("cmdstanr is selected once cmdstanr and CmdStan are available", {
+  withr::local_options(list(mlumr.stan_engine = "rstan"))
+  local_mocked_bindings(.cmdstan_available = function() TRUE)
+  skip_if_not_installed("cmdstanr")
+  expect_message(mlumr_engine("cmdstanr"), "set to: cmdstanr")
+  expect_identical(mlumr_engine(), "cmdstanr")
+})
+
 test_that("get_engine returns option value", {
   withr::local_options(list(mlumr.stan_engine = "cmdstanr"))
   expect_equal(mlumr:::get_engine(), "cmdstanr")

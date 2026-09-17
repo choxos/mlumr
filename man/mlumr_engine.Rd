@@ -17,12 +17,10 @@ The current engine, invisibly when setting.
 mlumr fits its models through rstan by default. \code{mlumr_engine("cmdstanr")}
 switches to cmdstanr for the session; the choice is stored in
 \code{options(mlumr.stan_engine)}, so a permanent default belongs in
-\code{.Rprofile}. cmdstanr and CmdStan are installed separately:
-}
-\details{
-\if{html}{\out{<div class="sourceCode">}}\preformatted{install.packages("cmdstanr", repos = c("https://stan-dev.r-universe.dev", getOption("repos")))
-cmdstanr::install_cmdstan()
-}\if{html}{\out{</div>}}
+\code{.Rprofile}. When cmdstanr or CmdStan is missing, an interactive session is
+offered their installation (cmdstanr from stan-dev's maintained
+repository); otherwise the install commands are printed and the engine is
+left unchanged.
 }
 \examples{
 mlumr_engine()
