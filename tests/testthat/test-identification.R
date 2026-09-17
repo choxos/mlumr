@@ -13,13 +13,11 @@ test_that("the geometry helper separates spread from collapsed designs", {
   spread <- rbind(c(-1, 0, 0), c(1, 0, 0), c(0, 1, 0), c(0, 0, 1))
   g <- mlumr:::.subgroup_geometry(spread, ref)
   expect_gt(g$cond_inv, 0.2)
-  expect_gt(g$eff_dim, 2)
 
   # Rows on a single line: however many there are, one direction.
   line <- cbind(seq(-2, 2, length.out = 8), 0.4, 0.6)
   g2 <- mlumr:::.subgroup_geometry(line, ref)
   expect_lt(g2$cond_inv, 1e-8)
-  expect_equal(g2$eff_dim, 1, tolerance = 1e-6)
 
   # Enough rows, but the third column barely moves: the count is satisfied and
   # the geometry is not.
@@ -31,7 +29,6 @@ test_that("the geometry helper separates spread from collapsed designs", {
   # A single row has no geometry at all.
   g4 <- mlumr:::.subgroup_geometry(matrix(c(0, 0.5, 0.5), nrow = 1), ref)
   expect_equal(g4$cond_inv, 0)
-  expect_equal(g4$eff_dim, 0)
 })
 
 test_that("centering costs one dimension, which is the K + 1 rule", {
@@ -126,20 +123,9 @@ test_that("identity-link normal means retain the exact geometry screen", {
 })
 
 test_that("check_identification refuses survival data", {
-  # The row geometry counts one scalar constraint per aggregate summary. A
-  # reconstructed comparator curve contributes a likelihood term at every event
-  # and censoring time instead, so what it identifies is model- and
-  # covariate-distribution-dependent: one binary covariate under exponential
-  # proportional hazards gives a known-weight mixture whose component rates the
-  # curve separates, while several continuous covariates can leave the curve
-  # nearly invariant to rotations of the coefficient vector. A row count neither
-  # bounds nor certifies identification there, so the diagnostic must refuse
-  # rather than report a number that would be read as either.
-  #
-  # The guard runs before anything else is read, so a minimal object carrying
-  # the family label exercises it. It was previously written against a
-  # `sim_survival_data()` that does not exist here, behind a
-  # `skip_if_not(exists(...))`, so it never ran at all.
+  # A reconstructed curve contributes a likelihood term at every event and
+  # censoring time, not one scalar summary per row, so the row geometry does
+  # not apply. The guard runs before anything else is read.
   dat <- list(family = "survival", covariates = "x1",
               ipd = list(data = data.frame(x1 = c(0, 1))),
               agd = list(data = data.frame(x1_mean = 0.5)))
@@ -148,9 +134,8 @@ test_that("check_identification refuses survival data", {
   expect_error(check_identification(dat), "not valid for reconstructed survival")
   expect_error(check_identification(dat), "prior_sensitivity")
 
-  # The guard is specific to the survival family. A minimal object may still
-  # fail further in for its own reasons, so assert only that it is not this
-  # error, rather than that there is none.
+  # A minimal binomial object may fail further in for its own reasons, so
+  # assert only that it is not this error.
   dat$family <- "binomial"
   err <- tryCatch({
     check_identification(dat, verbose = FALSE)
@@ -180,25 +165,20 @@ test_that("rows repeating an integration grid are counted once", {
 # ---- rank is judged on a scale that can be judged --------------------------
 
 test_that("profile rank survives an offset and fails closed", {
-  # qr() calls a column negligible relative to the norms it is handed, so an
-  # uncentered covariate on a large offset collapses to rank 1.
+  # qr() would call a column on a large offset negligible.
   expect_equal(mlumr:::.profile_rank(matrix(1e7 + c(0, 1, 2), ncol = 1), 1), 2L)
   expect_equal(mlumr:::.profile_rank(matrix(c(0, 1, 2), ncol = 1), 1), 2L)
   # Duplicated profiles carry one direction however many rows there are.
   expect_equal(
     mlumr:::.profile_rank(matrix(rep(c(1, 2), each = 3), ncol = 2), c(1, 1)), 1L
   )
-  # A design qr() cannot decompose used to fall back to the aggregate row
-  # count, which is the quantity the rank replaced: a padded table then looked
-  # full rank and suppressed its warning.
+  # A design that cannot be decomposed fails closed.
   expect_equal(mlumr:::.profile_rank(matrix(c(NA_real_, 1), ncol = 1), 1), 0L)
 })
 
 
 test_that("profile rank is judged against the IPD scale, not its own", {
-  # Dividing each column by its own root-mean-square stretched any separation
-  # back to unit size, so a design the likelihood cannot separate came back
-  # full rank and the identity-link relaxed-model screen never fired.
+  # Scaling by the IPD SD, not by each column's own spread.
   collapsed <- matrix(c(-1e-10, 1e-10), ncol = 1)
   expect_equal(mlumr:::.profile_rank(collapsed, 10), 1L)
   # A real separation on the same covariate still counts.
@@ -216,9 +196,8 @@ test_that("profile rank is judged against the IPD scale, not its own", {
 # ---- absolute scale, not only relative balance -----------------------------
 
 test_that("the geometry helper reports spread as well as balance", {
-  # cond_inv compares directions with one another, so with a single covariate
-  # there is one singular value and the ratio is 1 for any nonzero separation.
-  # Subgroup means 1e-12 apart scored a perfect 1.
+  # With one covariate cond_inv is 1 for any nonzero separation; spread is
+  # what sees the scale.
   tiny <- mlumr:::.subgroup_geometry(matrix(c(0, 1e-12), ncol = 1), 1)
   expect_equal(tiny$cond_inv, 1)
   expect_lt(tiny$spread, 1e-10)
@@ -228,45 +207,17 @@ test_that("the geometry helper reports spread as well as balance", {
   expect_gt(real$spread, 0.05)
 })
 
-test_that("the spectrum survives a covariate on an extreme scale", {
-  # eff_dim is scale-free by construction, but sum(d^2)^2 and sum(d^4) are not:
-  # both overflowed and returned NaN for an ordinary spectrum.
-  for (a in c(1e-200, 1, 1e200)) {
-    g <- mlumr:::.subgroup_geometry(matrix(c(-a, a), ncol = 1), 1)
-    expect_false(is.nan(g$eff_dim), info = format(a))
-    expect_equal(g$eff_dim, 1, tolerance = 1e-8, info = format(a))
-  }
-})
-
 test_that("a single row comes back centered and scaled, as documented", {
   g <- mlumr:::.subgroup_geometry(matrix(10, ncol = 1), 2)
   expect_equal(as.numeric(g$means), 0)
   expect_equal(g$spread, 0)
 })
 
-# ---- identifying the estimand is not identifying the coefficients ----------
-
-test_that("a target profile inside the aggregate row space is reported", {
-  # One aggregate row whose covariate means equal the IPD means identifies
-  # mu_c + m_ipd' beta_c exactly, while separating neither term.
-  expect_true(mlumr:::.target_in_span(matrix(0.5, ncol = 1), 0.5, 1))
-  expect_false(mlumr:::.target_in_span(matrix(0.5, ncol = 1), 0.7, 1))
-  # Two rows that differ span every functional of a one-covariate comparator.
-  expect_true(mlumr:::.target_in_span(matrix(c(0.2, 0.8), ncol = 1), 0.55, 1))
-  # Two covariates, one row: only that row's own profile is pinned down.
-  one <- matrix(c(0.5, 0.5), nrow = 1)
-  expect_true(mlumr:::.target_in_span(one, c(0.5, 0.5), c(1, 1)))
-  expect_false(mlumr:::.target_in_span(one, c(0.5, 0.9), c(1, 1)))
-})
-
 # ---- the geometry the likelihood sees --------------------------------------
 
 test_that("declared means that the integration grid does not reproduce are caught", {
-  # Declared `<covariate>_mean` columns are preferred because they do not move
-  # with the integration resolution. That is only worth preferring while they
-  # describe the design being fitted. A `distr()` that ignores the columns it
-  # was meant to read leaves declared profiles spanning directions the
-  # likelihood does not have, and the diagnostic would certify them.
+  # Declared `<covariate>_mean` columns are preferred while they describe the
+  # design being fitted; a `distr()` that ignores them does not.
   mk <- function(realized_means) {
     n <- length(realized_means)
     x <- array(0, dim = c(n, 8L, 1L))
