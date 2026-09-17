@@ -22,9 +22,9 @@ List with components:
 }
 \description{
 Checks that \code{link} is valid for \code{family} and returns the resolved link name
-plus an integer code for Stan. \code{family} is the canonical name that
-\code{\link[=set_ipd]{set_ipd()}} and \code{\link[=set_agd]{set_agd()}} record: \code{"binomial"}, \code{"normal"}, \code{"poisson"}
-or \code{"survival"}.
+plus an integer code for Stan. \code{family} is the canonical name the data
+setup records: \code{"binomial"}, \code{"normal"} or \code{"poisson"} from \code{\link[=set_ipd]{set_ipd()}} and
+\code{\link[=set_agd]{set_agd()}}, or \code{"survival"} from \code{\link[=set_ipd]{set_ipd()}} with \code{\link[=set_agd_surv]{set_agd_surv()}}.
 }
 \details{
 The likelihood/link matrix is:
@@ -34,6 +34,7 @@ The likelihood/link matrix is:
 binomial \tab bernoulli (IPD), binomial (AgD) \tab logit, probit, cloglog \cr
 poisson  \tab poisson                         \tab log                    \cr
 normal   \tab normal                          \tab identity, log          \cr
+survival \tab parametric or M-spline hazard   \tab log (the only one)     \cr
 }
 }
 \keyword{internal}

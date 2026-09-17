@@ -1,9 +1,9 @@
 #' Validate and resolve link function for a given family
 #'
 #' Checks that `link` is valid for `family` and returns the resolved link name
-#' plus an integer code for Stan. `family` is the canonical name that
-#' [set_ipd()] and [set_agd()] record: `"binomial"`, `"normal"`, `"poisson"`
-#' or `"survival"`.
+#' plus an integer code for Stan. `family` is the canonical name the data
+#' setup records: `"binomial"`, `"normal"` or `"poisson"` from [set_ipd()] and
+#' [set_agd()], or `"survival"` from [set_ipd()] with [set_agd_surv()].
 #'
 #' The likelihood/link matrix is:
 #'
@@ -12,6 +12,7 @@
 #'   binomial \tab bernoulli (IPD), binomial (AgD) \tab logit, probit, cloglog \cr
 #'   poisson  \tab poisson                         \tab log                    \cr
 #'   normal   \tab normal                          \tab identity, log          \cr
+#'   survival \tab parametric or M-spline hazard   \tab log (the only one)     \cr
 #' }
 #'
 #' @param family Character: `"binomial"`, `"normal"`, `"poisson"` or
