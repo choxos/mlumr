@@ -272,8 +272,9 @@
 * `flexsurv`, `detectseparation`, `multinma`, `ggsurvfit` and `R.rsp` added
   to Suggests.
 * `Additional_repositories` is pinned to `https://mc-stan.org/r-packages`
-  so that `rstan` and `StanHeaders` resolve from one source. Install cmdstanr
-  itself from `https://stan-dev.r-universe.dev`.
+  so that `rstan` and `StanHeaders` resolve from one source. cmdstanr itself
+  comes from `https://stan-dev.r-universe.dev`; `mlumr_engine("cmdstanr")`
+  offers to install it from there.
 
 # mlumr 0.1.0
 

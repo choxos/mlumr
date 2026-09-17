@@ -233,7 +233,7 @@ The default backend is rstan. Users who prefer cmdstanr can switch after
 installation:
 
 ```r
-mlumr_engine("cmdstanr")   # cmdstanr and CmdStan must be installed
+mlumr_engine("cmdstanr")   # offers to install cmdstanr and CmdStan if missing
 mlumr_engine("rstan")      # switch back
 mlumr_engine()             # check current engine
 ```
