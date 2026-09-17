@@ -15,11 +15,7 @@
 \code{df} with its \code{variable} column relabeled where possible.
 }
 \description{
-Rewrites \code{beta[1]} to \code{beta[age]} (and the relaxed model's
-\code{beta_index[1]} / \code{beta_comparator[1]} likewise) so printed coefficient
-tables name the covariate instead of its position, matching the
-\code{beta[age]} idiom used by \code{multinma}. Display only: the underlying
-\code{variable} strings in \code{fit$summary} are unchanged, so code that indexes
-on \code{beta[1]} keeps working.
+Rewrites \code{beta[1]} to \code{beta[age]} (and \code{beta_index[1]},
+\code{beta_comparator[1]} likewise) in the printed copy, as multinma does.
 }
 \keyword{internal}

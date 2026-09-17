@@ -6,20 +6,8 @@
 \usage{
 .reject_factor_time(x, nm)
 }
-\arguments{
-\item{x}{The column.}
-
-\item{nm}{Its name, for the message.}
-}
-\value{
-A numeric vector.
-}
 \description{
-\code{as.numeric()} on a factor returns its internal level codes, not the printed
-numbers, and the small positive integers that produces look like plausible
-times: they pass every later check. The column route guarded its own times
-this way; the \code{Surv} route coerced \code{entry_time} directly, so a factor entry
-column became left-truncation times of 1, 2, 3 and the likelihood was
-conditioned on the wrong risk sets.
+\code{as.numeric()} on a factor returns its level codes, which look like
+plausible times and pass every later check.
 }
 \keyword{internal}

@@ -7,21 +7,14 @@
 #' outcome in the same population. It does not standardize either treatment to
 #' the index population.
 #'
-#' For binomial outcomes, returns the treatment effect on the link scale plus
-#' event probabilities, risk difference, and log risk ratio with SEs and CIs
-#' in the comparator population. The observed comparator proportion gets the
-#' exact Clopper-Pearson interval, as in [naive()]. The standardized index
-#' probability is a model prediction, and its interval is the delta-method
-#' Wald interval bounded to `[0, 1]`: an asymptotic approximation whose
-#' calibration has not been studied here, as are the intervals of the
-#' contrasts. When the observed comparator arm has zero or all events,
-#' transformed effect measures use the boundary-only pseudo-count
-#' `(r + 0.5) / (n + 1)`; model predictions are never corrected. For Poisson
-#' outcomes, the comparator log rate uses a 0.5 continuity correction when the
-#' observed event count is zero, and `$rd` is a RATE difference on the
-#' per-unit-exposure scale, the standardized index rate minus the observed
-#' comparator rate, rather than the risk difference the binomial `$rd` is.
-#' `$estimate` stays the log rate ratio.
+#' For binomial outcomes the result carries the link-scale effect, the
+#' standardized and observed event probabilities, the risk difference and the
+#' log risk ratio, with delta-method Wald intervals; the observed comparator
+#' proportion gets the exact Clopper-Pearson interval, as in [naive()]. An
+#' observed comparator arm with zero or all events uses the pseudo-count
+#' `(r + 0.5) / (n + 1)` in transformed measures. For Poisson outcomes `$rd`
+#' is a rate difference per unit exposure and `$estimate` the log rate ratio,
+#' with a 0.5 continuity correction for a zero comparator count.
 #'
 #' Scale note: `$estimate` (and the binomial `$log_rr`) is on the link / log
 #' scale, where the null is 0. To compare against the natural-scale risk ratio
@@ -46,35 +39,21 @@
 #'   canonical default.
 #' @param conf_level Confidence level for the interval (default 0.95)
 #' @param distribution For `family = "survival"`: the parametric distribution
-#'   used for the package-specific survival G-computation (default
-#'   `"weibull"`). Requires the `flexsurv`
-#'   package. The STC estimand is the restricted-mean-survival-time difference.
-#'   The flexible baselines `"mspline"` and `"pexp"` have no parametric
-#'   `flexsurv` analogue: requesting either fits a Weibull G-computation as an
-#'   approximate benchmark, emits a warning, and records
-#'   `distribution_fit = "weibull"` and `approximated = TRUE` in the result
-#'   (`$distribution` keeps the requested value). Survival STC currently
-#'   supports right-censored data without delayed entry; use [mlumr()] for
-#'   left-censored, interval-censored, or delayed-entry survival data.
-#' @param n_boot For `family = "survival"` only: number of nonparametric
-#'   bootstrap resamples used for the RMST-difference standard error (default
-#'   `200`). Set `n_boot = 0` for a fast point estimate with no interval
-#'   (`se`/CI returned as `NA`). Must be 0 or at least 2, since a single
-#'   resample has no standard error; several hundred are needed before the
-#'   interval is usable, so treat anything below the default as exploratory.
-#'   Ignored for other families, which use the delta method.
+#'   of the survival G-computation (default `"weibull"`), fitted with
+#'   \pkg{flexsurv}; the estimand is the restricted mean survival time
+#'   difference. `"mspline"` and `"pexp"` have no parametric analogue and fall
+#'   back to a Weibull fit with a warning, recorded as `approximated = TRUE`.
+#'   Survival STC supports right-censored data without delayed entry.
+#' @param n_boot For `family = "survival"` only: number of bootstrap resamples
+#'   for the RMST-difference standard error (default `200`; 0 gives a point
+#'   estimate with no interval). Other families use the delta method.
 #' @param seed For `family = "survival"` only: optional integer seed for the
 #'   bootstrap, making the standard error reproducible. The global random
 #'   number stream is restored on exit. Ignored for other families.
-#' @param rmst_horizon For `family = "survival"` only: the restriction time the
-#'   RMST difference is integrated to. Defaults to the largest observed time
-#'   across both arms. RMST at a different horizon is a different estimand, so
-#'   set this explicitly whenever the result is to be compared with an
-#'   [mlumr()] fit, whose own default can be the follow-up both studies
-#'   observed rather than the pooled maximum; read that fit's horizon from the
-#'   `horizon` column of `predict(type = "rmst")`. A value beyond the observed
-#'   range extrapolates the fitted parametric survival function and warns.
-#'   Ignored for other families.
+#' @param rmst_horizon For `family = "survival"` only: the restriction time of
+#'   the RMST difference. Defaults to the largest observed time across both
+#'   arms; set it explicitly to match an [mlumr()] fit, whose default can
+#'   differ. A horizon beyond the observed range extrapolates and warns.
 #'
 #' @return An object of class `mlumr_stc`. Its `separation` component records
 #'   the outcome of the binomial separation check: `status` is
@@ -87,42 +66,19 @@
 #' @export
 #'
 #' @details
-#' The STC procedure is:
-#' 1. Fit a GLM on IPD (binomial/gaussian/poisson as appropriate).
-#' 2. Predict on comparator-population covariates (from integration points or
-#'    AgD covariate means for the identity-link normal special case).
-#' 3. Marginalize predictions over the comparator population.
-#' 4. Contrast with the reported comparator outcome in that population.
-#' 5. Compute first-order, fixed-integration-grid delta-method standard errors.
-#'
-#' The response-scale standardization predicts each target profile, averages
-#' the natural-scale outcomes, then transforms the average, as in Ren et al.'s
-#' unanchored STC. Only the index-treatment outcome model is fitted, since
-#' comparator IPD are unavailable; Remiro-Azocar et al. describe the two-arm
-#' G-computation that a different data design allows.
-#'
-#' The non-survival standard error is conditional on the integration grid and
-#' the reported comparator summaries: it propagates coefficient and
-#' comparator-outcome uncertainty, not uncertainty in reconstructing the
-#' comparator covariate distribution. The estimator relies on a correctly
-#' specified index outcome model that applies across the comparator covariate
-#' distribution, adequate overlap and no unmeasured confounding; it does not
-#' need the two treatments to share covariate effects.
-#'
-#' The estimand is `E_B[m_A(X)] - E_B[Y_B]` on the response scale, which is
-#' `$rd` for a binomial outcome and `$md` for a normal one. `$estimate` is the
-#' same mean difference under the normal identity link and otherwise the
-#' link-scale contrast of the two standardized quantities: a marginal log odds
-#' ratio under a binomial logit, a log rate ratio under Poisson, a log mean
-#' ratio under a log link.
-#'
-#' Survival STC contrasts the index RMST standardized to the comparator
-#' covariates with the RMST of an intercept-only [flexsurv::flexsurvreg()] fit
-#' to the reconstructed pseudo-IPD.
-#'
-#' The effect is defined in the comparator population and is not transported
-#' to the index population; `mlumr(..., model = "relaxed")` is what estimates
-#' comparator-specific covariate effects for any other target.
+#' A GLM is fitted to the IPD, its predictions are averaged over the
+#' comparator covariate distribution (the integration points, or the AgD means
+#' for the identity-link normal case) on the response scale, and the average
+#' is contrasted with the reported comparator outcome, as in Ren et al.'s
+#' unanchored STC. Standard errors are first-order delta-method values,
+#' conditional on the integration grid and the reported comparator summaries.
+#' The estimand is `E_B[m_A(X)] - E_B[Y_B]` in the comparator population
+#' (`$rd` for binomial, `$md` for normal); `$estimate` is the link-scale
+#' contrast of the two standardized quantities. Survival STC contrasts the
+#' index RMST standardized to the comparator covariates with the RMST of an
+#' intercept-only [flexsurv::flexsurvreg()] fit to the pseudo-IPD. The effect
+#' is not transported to the index population; `mlumr(model = "relaxed")`
+#' estimates comparator-specific covariate effects for any other target.
 #'
 #' @references
 #' Ren S, Ren S, Welton NJ, Strong M (2024). Advancing unanchored simulated
@@ -156,14 +112,9 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
            call. = FALSE)
     }
     .validate_mlumr_integer(n_boot, "n_boot", lower = 0L)
-    # A single resample gives sd() = NA, which is indistinguishable downstream
-    # from "every resample failed" and was reported as such. Either the
-    # bootstrap is off (0) or it has enough replicates to have a variance.
     if (n_boot == 1L) {
       stop("`n_boot` must be 0 (no bootstrap) or at least 2: the standard ",
-           "error of a single resample is undefined. Several hundred ",
-           "resamples are needed for a usable interval; the default is 200.",
-           call. = FALSE)
+           "error of a single resample is undefined.", call. = FALSE)
     }
     if (!is.null(seed)) {
       .validate_mlumr_integer(seed, "seed", lower = 0L)
@@ -171,9 +122,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     out <- .stc_survival(data, conf_level, z, distribution,
                          n_boot = as.integer(n_boot), seed = seed,
                          rmst_horizon = rmst_horizon)
-    # Survival STC fits a parametric survival model, not a binomial GLM, so the
-    # separation question does not arise. Say so rather than leave the field
-    # absent, so a caller can read it without knowing the family first.
+    # No binomial GLM, so the separation field says so instead of being absent.
     out$separation <- list(
       status = "not_applicable",
       reason = paste("survival STC fits no binomial GLM, so the separation",
@@ -305,16 +254,11 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 
 #' Refuse a separated binomial fit
 #'
-#' A separated binomial GLM reports convergence with finite coefficients,
-#' because iterative reweighting stops when the deviance stops changing. The
-#' fitted values show complete separation (every probability at 0 or 1);
-#' quasi-complete separation needs the linear program in
-#' [.stc_separation_status()], which runs when \pkg{detectseparation} is
-#' installed.
-#' @param fit A fitted `glm`.
-#' @return The separation status, invisibly: a list with `status`, one of
-#'   `"not_separated"`, `"unknown"` or `"not_applicable"`, and `reason` for
-#'   the latter two. A separated fit throws instead.
+#' A separated GLM reports convergence with finite coefficients. Complete
+#' separation shows in the fitted values; quasi-complete separation needs the
+#' linear program in [.stc_separation_status()].
+#' @return The separation status, invisibly (`status` and `reason`). A
+#'   separated fit throws instead.
 #' @keywords internal
 .stc_refuse_separation <- function(fit) {
   fam <- tryCatch(stats::family(fit)$family, error = function(e) NA_character_)
@@ -845,9 +789,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   ipd <- data$ipd$data
   pseudo <- data$agd$pseudo_ipd
   cov_names <- data$covariates
-  # Flexible baselines have no flexsurv analogue: fit a Weibull, warn, and
-  # record both the requested and the fitted distribution. Validate the name
-  # first so a typo does not fall through to a Weibull.
+  # Flexible baselines have no flexsurv analogue: fit a Weibull and say so.
   valid_distributions <- c("exponential", "weibull", "gompertz",
                            "exponential-aft", "weibull-aft", "lognormal",
                            "loglogistic", "gamma", "gengamma",
@@ -860,19 +802,10 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   approximated <- distribution %in% c("mspline", "pexp")
   dist_fit <- if (approximated) "weibull" else distribution
   if (approximated) {
-    warning(
-      sprintf(
-        paste0(
-          "Survival STC has no parametric analogue for a '%s' baseline; ",
-          "fitting a Weibull G-computation as an approximate RMST benchmark ",
-          "(the result reports distribution_fit = \"weibull\"). Request ",
-          "distribution = \"weibull\" to silence this, or use mlumr() for ",
-          "the flexible-baseline Bayesian fit."
-        ),
-        distribution
-      ),
-      call. = FALSE
-    )
+    warning(sprintf(paste0("Survival STC has no parametric analogue for a ",
+                           "'%s' baseline; a Weibull G-computation is fitted ",
+                           "instead (distribution_fit = \"weibull\")."),
+                    distribution), call. = FALSE)
   }
   dist_fs <- .stc_flexsurv_dist(dist_fit)
   # RMST at another horizon is another estimand, so the horizon is settable.
@@ -900,8 +833,8 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 
   point <- .stc_survival_point(ipd, pseudo, cov_names, comp_cov, dist_fs, horizon)
 
-  # See .stc_survival_point(): a negative fitted shape / Q is outside the
-  # parameter space of the Bayesian model carrying the same name.
+  # A negative fitted shape or Q is outside the parameter space of the
+  # Bayesian model of the same name, so the two are different families there.
   out_of_family <- NULL
   if (!is.null(point$family_par_name) && any(point$family_par < 0)) {
     out_of_family <- point$family_par_name
@@ -910,12 +843,9 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
                         point$family_par_name)
     warning(sprintf(
       paste0("The STC '%s' fit has %s = %s, outside the parameter space of ",
-             "mlumr()'s '%s' model, which constrains %s > 0. flexsurv admits ",
-             "the negative branch, so this benchmark and the Bayesian fit of ",
-             "the same name are different distributional families here: a ",
-             "difference between them need not be a Bayesian-versus-",
-             "frequentist difference. Compare the collapsible RMST estimands, ",
-             "or choose a distribution whose parameter spaces agree."),
+             "mlumr()'s '%s' model (%s > 0), so the two fits are different ",
+             "families here. Compare the RMST estimands, or choose a ",
+             "distribution whose parameter spaces agree."),
       distribution, point$family_par_name,
       paste(sprintf("%.4g", point$family_par), collapse = " / "),
       distribution, point$family_par_name
@@ -959,14 +889,11 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     # the RMST difference is finite.
     n_boot_ok <- sum(!is.na(boot[1, ]))
     n_boot_ok_chr <- sum(!is.na(boot[2, ]))
-    n_boot_failed <- n_boot - n_boot_ok
-    n_boot_failed_chr <- n_boot - n_boot_ok_chr
-    if (n_boot_failed > 0L || n_boot_failed_chr > 0L) {
+    if (n_boot_ok < n_boot || n_boot_ok_chr < n_boot) {
       warning(sprintf(
         paste0("Bootstrap successes: RMST difference %d/%d; log cumulative-",
-               "hazard ratio %d/%d. Each standard error is based only on its ",
-               "own successful resamples. A high failure rate gives an ",
-               "over-narrow SE; consider a different `distribution` or a ",
+               "hazard ratio %d/%d. Each standard error uses its own ",
+               "successful resamples; consider another `distribution` or a ",
                "larger `n_boot`."),
         n_boot_ok, n_boot, n_boot_ok_chr, n_boot
       ), call. = FALSE)
@@ -981,15 +908,12 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     if (!is.na(n_boot_out_of_family) && n_boot_out_of_family > 0L) {
       warning(sprintf(
         paste0("%d of %d bootstrap resample(s) fitted %s < 0, outside the ",
-               "parameter space of mlumr()'s '%s' model, and those refits are ",
-               "included in the standard error. The interval is therefore a ",
-               "broader-family flexsurv benchmark rather than a like-for-like ",
-               "comparison with the Bayesian fit of the same name."),
+               "parameter space of mlumr()'s '%s' model, and are included ",
+               "in the standard error."),
         n_boot_out_of_family, n_boot, point$family_par_name, distribution
       ), call. = FALSE)
     }
-    # Fewer than two successes leaves sd() undefined; make that explicit rather
-    # than letting an NA propagate as though the bootstrap had simply failed.
+    # Fewer than two successes leaves sd() undefined.
     if (n_boot_ok < 2L) se <- NA_real_
     if (n_boot_ok_chr < 2L) log_chr_se <- NA_real_
   } else {
@@ -1052,10 +976,8 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   n_cmp <- sum(pseudo$.status == 1L)
   if (n_idx == 0L || n_cmp == 0L) {
     stop("Survival STC needs at least one event in each arm: observed ",
-         n_idx, " in the index arm and ", n_cmp, " in the comparator arm. ",
-         "With an event-free arm the parametric survival fit has no finite ",
-         "interior estimate, so the RMST difference it produces is an ",
-         "artifact of where the optimizer stopped.", call. = FALSE)
+         n_idx, " in the index arm and ", n_cmp, " in the comparator arm.",
+         call. = FALSE)
   }
   invisible(TRUE)
 }
@@ -1088,8 +1010,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   conv <- fit$opt$convergence
   if (!is.null(conv) && !identical(as.integer(conv), 0L)) {
     stop("The survival STC fit for the ", arm, " arm did not converge ",
-         "(optimizer code ", as.integer(conv), "), so its restricted mean is ",
-         "an artifact of where the optimizer stopped.", call. = FALSE)
+         "(optimizer code ", as.integer(conv), ").", call. = FALSE)
   }
   est <- tryCatch(fit$res[, "est"], error = function(e) NULL)
   if (is.null(est) || anyNA(est) || any(!is.finite(est))) {
@@ -1111,9 +1032,8 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     )
     if (any(v <= 0) || anyNA(ev) || min(ev) <= 0) {
       stop("The survival STC fit for the ", arm, " arm returned a covariance ",
-           "matrix that is not positive definite, so the optimizer stopped at ",
-           "a saddle or boundary point rather than a maximum and its ",
-           "uncertainty is not usable.", call. = FALSE)
+           "matrix that is not positive definite, so the optimizer did not ",
+           "stop at a maximum.", call. = FALSE)
     }
   }
   invisible(TRUE)

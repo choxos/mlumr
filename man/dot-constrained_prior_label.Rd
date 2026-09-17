@@ -13,6 +13,7 @@
 A one-line character label for the constrained form.
 }
 \description{
-Describe how a positive-constrained prior is constrained
+An exponential is already positive, and only a zero-location normal or t
+truncated at zero is a half-normal or half-t.
 }
 \keyword{internal}

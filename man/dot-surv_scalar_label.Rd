@@ -17,27 +17,11 @@ A list with \code{label} and \code{at_time} (\code{NA} when the measure has no
 evaluation time).
 }
 \description{
-\verb{delta_*} means three different things depending on the fit, and every
-user-facing surface that reports it must say which. Deriving that in one
-place is the point: \code{\link[=marginal_effects]{marginal_effects()}} and \code{\link[=prior_sensitivity]{prior_sensitivity()}} previously
-decided independently, which is exactly how one of them came to print a
-generic "log hazard ratio / log time ratio" for a quantity that was neither.
-}
-\details{
-\itemize{
-\item \strong{Proportional hazards.} A marginal log hazard ratio. Marginal hazard
-ratios are non-collapsible, so it always carries a time: the \code{t -> 0} limit
-when the baseline shapes are shared, otherwise the first prediction time.
-\item \strong{AFT, shared shapes, SPFA.} A genuine log time ratio. Both arms share
-coefficients, so the covariate term cancels from
-\code{mean(eta_index) - mean(eta_comparator)} and the contrast is constant in
-both time and covariates.
-\item \strong{AFT otherwise.} Not a time ratio. If the shapes differ there is no
-constant acceleration factor at all. If the model is \code{relaxed}, the
-coefficients differ by treatment, so the covariate term does NOT cancel and
-the contrast is the average of covariate-specific log time ratios over the
-population (a geometric mean once exponentiated), not one population-level
-acceleration factor. Either way the honest name is the location contrast.
-}
+\verb{delta_*} is a marginal log hazard ratio under proportional hazards (at
+\code{t -> 0} when the shapes are shared, otherwise at the first prediction
+time), a log time ratio for a shared-shape SPFA AFT fit, and otherwise a
+location contrast that is no time ratio: with different shapes there is no
+constant acceleration factor, and in a relaxed fit the covariate term does
+not cancel. \code{\link[=marginal_effects]{marginal_effects()}} and \code{\link[=prior_sensitivity]{prior_sensitivity()}} both read this.
 }
 \keyword{internal}

@@ -416,12 +416,8 @@ test_that("a chain that wrote no CSV is reported, not asserted about", {
   gone <- file.path(tempdir(), "mlumr_survival_spfa-000000000000-01-000000.csv")
   expect_error(g(c(real, gone), 2L), "1 of 2 chain\\(s\\) reported output")
   expect_error(g(gone, 1L), "not on disk")
-  # What it must NOT do is name a cause. An absent file says a chain left
-  # nothing behind; a model or data failure, an initialization failure, a
-  # killed process and an external deletion all look identical from a list
-  # of paths, and calling it a failure of the run rather than of the model
-  # asserted a distinction nothing here established.
-  expect_error(g(gone, 1L), "cause is not determined here")
+  # An absent file says a chain left nothing behind, not why.
+  expect_error(g(gone, 1L), "left no draws to read")
   msg <- tryCatch(g(gone, 1L), error = conditionMessage)
   expect_false(grepl("rather than of the model", msg, fixed = TRUE))
   expect_match(msg, "Nothing further was reported about it")

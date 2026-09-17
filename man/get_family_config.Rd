@@ -6,15 +6,7 @@
 \usage{
 get_family_config(family)
 }
-\arguments{
-\item{family}{A single family string.}
-}
-\value{
-The corresponding entry from \link{family_config}.
-}
 \description{
-Fails fast with an informative message when a caller requests an
-unregistered family, rather than returning \code{NULL} and letting a
-downstream \code{$} chain produce a cryptic error.
+Lookup helper for the family registry
 }
 \keyword{internal}

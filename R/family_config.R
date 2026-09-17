@@ -1,11 +1,8 @@
 #' Family metadata registry
 #'
-#' Internal single-source-of-truth for family-specific Stan model names,
-#' AgD weighting, prediction-variable prefixes, and supported links and
-#' effect measures. Every R-side call site that hard-coded a per-family
-#' branch now looks up the relevant field here. This file is deliberately
-#' pure-R and makes no Stan calls; keeping it a data registry makes
-#' rstantools regeneration of `R/stanmodels.R` independent.
+#' Family-specific Stan model names, AgD weighting, prediction-variable
+#' prefixes, and supported links and effect measures, looked up by every
+#' family branch in the R code.
 #'
 #' Fields:
 #' \describe{
@@ -18,27 +15,15 @@
 #'   \item{`links`}{Vector of supported links. Should match the branches
 #'     in [check_link()].}
 #'   \item{`effect_measures`}{Supported values of the `effect` argument in
-#'     [marginal_effects()] (excluding `"all"`). Family-level, and for
-#'     `"survival"` NOT the whole accepted set: the scalar contrast is
-#'     distribution-specific, so a fit accepts exactly one of `"hr"`, `"tr"` or
-#'     `"exp_delta_eta"` and the choice is made per fit by
-#'     `.surv_scalar_effect_name()`, which cannot be expressed here because this
-#'     registry is keyed by family alone. The entry lists `"hr"` as the
-#'     representative scalar; treat the survival row as the RMST measures plus
-#'     one fit-specific scalar.}
+#'     [marginal_effects()] (excluding `"all"`). For `"survival"` the scalar
+#'     contrast is chosen per fit by `.surv_scalar_effect_name()`; `"hr"`
+#'     stands for it here.}
 #'   \item{`marginal_effect_vars`}{Generated-quantity column names for each
 #'     effect measure, per population. Expanded in [marginal_effects()].}
-#'   \item{`comp_weight_field`}{Name of the Stan-data field used to
-#'     weight the comparator-population marginal predictions. Must name
-#'     the same field the family's Stan `generated quantities` block
-#'     weights by, otherwise the R-side link-scale path in
-#'     [predict.mlumr_fit()] would average over a different target
-#'     population than the Stan-side response-scale predictions and
-#'     `marginal_effects()`. Currently `n_agd` (binomial), `E_agd`
-#'     (poisson), `agd_weight` (normal; required sample sizes for multiple rows,
-#'     or one for a single row without `outcome_n`), and `NULL` for survival, whose
-#'     comparator population is the pooled pseudo-IPD rather than a
-#'     weighted mixture of aggregate rows.}
+#'   \item{`comp_weight_field`}{The Stan-data field the comparator-population
+#'     marginal predictions are weighted by, which must match the field the
+#'     family's `generated quantities` block uses: `n_agd` (binomial), `E_agd`
+#'     (poisson), `agd_weight` (normal) and `NULL` for survival.}
 #' }
 #'
 #' @keywords internal
@@ -93,19 +78,10 @@ family_config <- list(
     predict_prefix       = "surv",
     link_default         = "log",
     links                = c("log"),
-    # The raw Stan `delta_*` are log HR (PH) or log time ratios (AFT), but
-    # marginal_effects() exponentiates them to natural-scale `hr` / `tr`
-    # (null 1); the PH-vs-AFT label is resolved per-distribution in the
-    # predict/summary layer. `rmstr` is the natural-scale RMST ratio
-    # (RMST_index / RMST_comparator, null 1), derived from rmst_* draws in
-    # .marginal_effects_survival(); the time-varying marginal log HR (null 0) is
-    # exposed via predict(type = "loghr").
+    # `delta_*` is a log HR or log time ratio, exponentiated by
+    # marginal_effects(); `rmstr` is formed there from the rmst_* draws.
     effect_measures      = c("hr", "rmstd", "rmstr"),
-    # Deliberately shorter than `effect_measures`, and this is the one family
-    # where the two are not parallel. `rmstr` is a ratio of two draw columns
-    # rather than a column of its own, so it has no entry here and is formed in
-    # the survival branch of marginal_effects(), which dispatches before this
-    # mapping is read. Adding an entry would name columns that do not exist.
+    # `rmstr` has no draw column of its own, so it has no entry here.
     marginal_effect_vars = list(
       hr    = c("delta_index", "delta_comparator"),
       rmstd = c("rmst_diff_index", "rmst_diff_comparator")
@@ -115,13 +91,6 @@ family_config <- list(
 )
 
 #' Lookup helper for the family registry
-#'
-#' Fails fast with an informative message when a caller requests an
-#' unregistered family, rather than returning `NULL` and letting a
-#' downstream `$` chain produce a cryptic error.
-#'
-#' @param family A single family string.
-#' @return The corresponding entry from [family_config].
 #' @keywords internal
 get_family_config <- function(family) {
   if (!is.character(family) || length(family) != 1L) {

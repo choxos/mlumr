@@ -6,17 +6,8 @@
 \usage{
 .reject_gamma_dots(...)
 }
-\arguments{
-\item{...}{Must be empty.}
-}
 \description{
-\code{mean} and \code{sd} sit behind \code{...} so that they cannot take part in partial
-matching. Without that, adding an \code{sd} formal made \code{s} ambiguous between
-\code{scale} and \code{sd}, and \code{qgamma(p, shape = 2, s = 4)}, which \pkg{stats}
-accepts as \code{scale}, failed with "argument 3 matches multiple formal
-arguments". Only formals declared before \code{...} are matched partially, so
-moving the pair behind it restores the abbreviation and costs only this
-check, which keeps \code{...} from silently swallowing a typo the way
-\pkg{stats} would not.
+\code{mean} and \code{sd} sit behind \code{...} so they cannot take part in partial
+matching; this check keeps \code{...} from swallowing a typo.
 }
 \keyword{internal}

@@ -1,15 +1,7 @@
 #' Convert a time column, refusing a factor
 #'
-#' `as.numeric()` on a factor returns its internal level codes, not the printed
-#' numbers, and the small positive integers that produces look like plausible
-#' times: they pass every later check. The column route guarded its own times
-#' this way; the `Surv` route coerced `entry_time` directly, so a factor entry
-#' column became left-truncation times of 1, 2, 3 and the likelihood was
-#' conditioned on the wrong risk sets.
-#'
-#' @param x The column.
-#' @param nm Its name, for the message.
-#' @return A numeric vector.
+#' `as.numeric()` on a factor returns its level codes, which look like
+#' plausible times and pass every later check.
 #' @keywords internal
 .reject_factor_time <- function(x, nm) {
   if (is.factor(x)) {
@@ -38,29 +30,18 @@
 .get_surv_data <- function(data, Surv = NULL, time = NULL, status = NULL,
                            entry_time = NULL) {
   if (!is.null(Surv)) {
-    # survival::is.Surv() rather than inherits(). The package declares survival
-    # in Imports, and asking its own predicate is what makes that declaration
-    # true: with only an inherits() check nothing in the package ever reached
-    # into the namespace, which R CMD check reports as an unused import.
+    # survival::is.Surv() is the one use that justifies the survival import.
     if (!survival::is.Surv(Surv)) {
       stop("`Surv` must be a survival::Surv() object", call. = FALSE)
     }
     sm <- unclass(Surv)
     type <- attr(Surv, "type")
     n <- nrow(sm)
-    # The Surv object and `data` are combined column-wise downstream (cbind for
-    # IPD, data.frame() for AgD pseudo-IPD). Base R would recycle a shorter Surv
-    # across the data rows, silently fabricating and misassigning patient
-    # outcomes. Require an exact row match so recycling can never happen. (A
-    # NULL `data` means the parser was called without a frame to recycle
-    # against, e.g. in isolation, so there is nothing to check.)
+    # A shorter Surv would be recycled across the data rows downstream.
     if (!is.null(data) && n != nrow(data)) {
-      msg <- paste0(
-        "`Surv` object has %d row(s) but `data` has %d row(s). They must match ",
-        "exactly; a mismatched `Surv` would recycle survival times and statuses ",
-        "across patients."
-      )
-      stop(sprintf(msg, n, nrow(data)), call. = FALSE)
+      stop(sprintf(paste0("`Surv` object has %d row(s) but `data` has %d ",
+                          "row(s); they must match exactly."),
+                   n, nrow(data)), call. = FALSE)
     }
     out <- data.frame(
       .time = rep(NA_real_, n), .start_time = rep(0, n),
@@ -86,11 +67,8 @@
     } else {
       stop(sprintf("Unsupported Surv type: '%s'", type), call. = FALSE)
     }
-    # Delayed entry supplied alongside a Surv object. The counting-type Surv
-    # already carries the entry time in its `start` column, so a separate
-    # `entry_time` would be a contradictory double specification; reject it.
-    # For right/left/interval Surv, combine `entry_time` into `.delay_time`
-    # rather than silently discarding it (the previous behavior).
+    # A counting-type Surv already carries the entry time; for the other types
+    # `entry_time` supplies `.delay_time`.
     if (!is.null(entry_time)) {
       if (type == "counting") {
         stop("Delayed entry is already encoded in the counting-type Surv() ",
@@ -111,11 +89,8 @@
   }
   time_vals <- .reject_factor_time(data[[time]], time)
   status_raw <- data[[status]]
-  # A factor status must be refused outright, not left to the 0/1 check below.
-  # as.numeric() returns level codes, and for a factor with the single level
-  # "0" those codes are all 1: the check sees 1s, passes them, and every
-  # censored record is stored as an event. An arm in which nobody had the event
-  # became an arm in which everybody did, with no warning anywhere.
+  # A factor with the single level "0" has level codes of 1, which the 0/1
+  # check below would accept as events.
   if (is.factor(status_raw)) {
     stop("`", status, "` is a factor; as.numeric() would use its level codes ",
          "rather than the values shown, and a single-level factor would map ",
@@ -127,9 +102,7 @@
   } else {
     as.numeric(status_raw)
   }
-  # The column route only supports right-censoring (0 = censored, 1 = event).
-  # Reject anything else so 2/3 censoring codes are not silently swept to
-  # right-censored; direct users to Surv() for left/interval.
+  # The column route supports right-censoring only.
   non_na <- status_num[!is.na(status_num)]
   if (length(non_na) > 0L && !all(non_na %in% c(0, 1))) {
     stop("`status` must be 0/1 (or logical) for the column route. For left- or ",
@@ -179,15 +152,9 @@
     stop(sprintf("%s interval lower bounds must be earlier than upper bounds",
                  label), call. = FALSE)
   }
-  # Left-censored (status 2) with delayed entry is treated as interval-censored on
-  # (delay, time]: the Stan likelihood uses the S(delay) - S(time) numerator (then
-  # conditions on T > delay), so the combination is fit correctly and needs no
-  # recoding or rejection.
-  #
-  # Interval-censored (status 3) with delayed entry: the interval lower bound must
-  # not precede the entry time (a subject known alive at `delay` cannot have an
-  # event interval opening before it). Enforce start_time >= delay_time so the
-  # Stan log_diff_exp(S(start), S(time)) conditions on the correct lower bound.
+  # Left-censoring with delayed entry is handled by the likelihood as interval
+  # censoring on (delay, time]. An interval-censored lower bound cannot precede
+  # the entry time.
   if (any(interval & start_time < delay_time)) {
     msg <- paste0(
       "%s has interval-censored observations (status 3) whose interval lower ",
@@ -230,10 +197,7 @@
   for (cov in covariates) ipd_data[[cov]] <- data[[cov]]
   ipd_data$.source_key <- .source_row_keys(data)
 
-  # Drop incomplete rows on all setup columns (treatment, study, the four
-  # survival columns, and covariates), mirroring the non-survival path's
-  # .drop_missing_rows() so missing treatment / entry rows are dropped with a
-  # warning rather than erroring downstream.
+  # Drop incomplete rows with a warning, as the non-survival path does.
   keep <- stats::complete.cases(ipd_data[, c(".study", ".trt", ".time",
                                              ".start_time", ".delay_time",
                                              ".status", covariates)])
@@ -275,24 +239,12 @@
 #' covariate distribution implied by those moments.
 #'
 #' @section Reconstruction uncertainty is not propagated:
-#' The pseudo-individual records enter the likelihood as if they were observed
-#' data. The posterior therefore carries outcome-model and parameter
-#' uncertainty *conditional on this one reconstruction*, and none of the
-#' uncertainty in the reconstruction itself: reading points off the published
-#' figure, rounding in the numbers at risk, the choice of reconstruction
-#' algorithm, and the fact that many pseudo-IPD sets are compatible with the
-#' same published curve. Credible intervals from a survival fit are for that
-#' reason narrower than the evidence supports, most visibly for flexible
-#' baselines, late-tail RMST and medians, and weakly identified relaxed
-#' comparator coefficients.
-#'
-#' There is no automatic correction for this. Treat the reconstruction as an
-#' analysis choice and vary it: digitize the curve more than once, or perturb
-#' the digitized points and the numbers at risk within their reading error,
-#' refit on each resulting pseudo-IPD set, and report the spread across refits
-#' alongside the within-fit interval. If that spread is comparable to the
-#' credible interval, the interval is describing the reconstruction as much as
-#' the data.
+#' The pseudo-individual records enter the likelihood as observed data, so
+#' credible intervals are conditional on this one reconstruction and narrower
+#' than the evidence supports. Treat the reconstruction as an analysis choice:
+#' digitize the curve more than once or perturb the points within their
+#' reading error, refit, and report the spread across refits beside the
+#' within-fit interval.
 #'
 #' @param data Data frame of reconstructed pseudo-IPD (one row per
 #'   pseudo-individual).
@@ -315,57 +267,16 @@
 #'   weighting estimand is implemented. Defaults to a single arm.
 #'
 #' @details
-#' **Which population the covariate moments must describe under delayed
-#' entry.** For individual data the covariates are known, so dividing each
-#' person's contribution by their own survival to entry is unambiguous. Here
-#' the covariates are not observed: they are integrated out against the
-#' distribution [add_integration()] builds, and the order of the two
-#' operations matters. This model conditions first and averages second, so each
-#' integration point contributes its own delayed-entry likelihood and the row
-#' likelihood is their average. That is the right quantity when the
-#' distribution integrated over describes the population **as observed at
-#' entry**, meaning those who survived to their entry time and are therefore
-#' in the risk set. The whole distribution has to, not only `cov_means` and
-#' `cov_sds`: the delayed-entry contribution is nonlinear in the covariates,
-#' so the marginal shape each `distr()` assumes and the dependence its `cor`
-#' imposes change the average as surely as the moments do, and two populations
-#' can share every moment while differing in either.
-#'
-#' It is not the right quantity when the moments describe a baseline,
-#' pre-selection population, because surviving to entry is itself selective:
-#' whichever covariate values carry lower hazard are over-represented at entry
-#' relative to baseline. Averaging first and conditioning second is the form
-#' that matches baseline moments, and the two differ in general, by more when
-#' entry times are late or the covariate effects are strong.
-#'
-#' Varying entry times need one assumption more, because then there is no
-#' single population observed at entry: each pseudo-individual should be
-#' integrated against the covariate distribution among those observed at ITS
-#' entry time, the people who entered then and had survived to it. That
-#' distribution can differ from one entry time to the next for two reasons:
-#' later entrants are a more selected group than earlier ones, and who enters
-#' when may itself be related to the covariates, since cohorts enrolled at
-#' different times can differ even when survival does not depend on the
-#' covariates at all. The model has one covariate distribution per arm and
-#' reuses it for every pseudo-individual. Pooled moments over everyone
-#' enrolled describe no single risk set: they mix the populations observed at
-#' every entry time, so in general they do not meet the contract above even
-#' though everyone in them was observed at entry, and using them can give the
-#' wrong likelihood. They are right only under a common entry time, or when
-#' the covariate distribution among those observed at entry is the same at
-#' every entry time. That holds, for instance, when survival to entry selects
-#' the same way at every entry time and entry time is unrelated to the
-#' covariates; it is the sameness that matters, not how it comes about.
-#' Neither condition is checkable from the summaries supplied.
-#'
-#' Published summaries are ordinarily reported for the enrolled population.
-#' Under a common entry time that is the population observed at entry, so they
-#' are the right moments; under varying entry times they are the right moments
-#' only when the covariate distribution among those observed at entry is the
-#' same at every entry time, as above. State which population they came from,
-#' and treat a delayed-entry comparator whose moments are known to be
-#' pre-selection as a misspecification that no diagnostic here can detect.
-#' Delayed entry in the individual arm is unaffected by any of this.
+#' Under delayed entry the comparator likelihood conditions each integration
+#' point on survival to its entry time and then averages, so `cov_means`,
+#' `cov_sds` and the distributions [add_integration()] builds must describe
+#' the population observed at entry (those in the risk set), not a baseline
+#' population before selection. With varying entry times that population can
+#' differ by entry time while the model has one distribution per arm; pooled
+#' summaries are right only under a common entry time or when the covariate
+#' distribution among those observed at entry is the same at every entry
+#' time. Neither condition is checkable from the summaries supplied. Delayed
+#' entry in the individual arm is unaffected.
 #'
 #' @return An object of class `mlumr_agd_surv` (also inheriting `mlumr_agd`).
 #'   Its `$pseudo_ipd` carries a `.source_key` column as [set_ipd()] describes:
@@ -374,11 +285,8 @@
 #'   [compare_models()] can recognize one source reordered between two fits.
 #'   The internal names, `.source_key` among them, cannot be used as column
 #'   names in `data`.
-#' @seealso [set_agd()] for non-survival aggregate data.
-#'   `multinma::set_agd_surv()` is the ML-NMR equivalent; the name is given as
-#'   code rather than as a link because multinma is not a dependency here, and
-#'   an anchored link into a package the check environment need not have is
-#'   reported as an unresolved cross-reference.
+#' @seealso [set_agd()] for non-survival aggregate data;
+#'   `multinma::set_agd_surv()` is the ML-NMR equivalent.
 #' @export
 #'
 #' @examples
@@ -452,17 +360,10 @@ set_agd_surv <- function(data, treatment, Surv = NULL,
   )
 
   arms <- unique(arm_vec)
-  # An arm is one reconstructed curve from one study. Keying only on the arm
-  # label merged rows that shared it across studies: study c("S1", "S2") with
-  # arm c("control", "control") passed the single-arm check below, was
-  # summarized as "S1", and kept both studies in the pseudo-IPD, so two
-  # reconstructed curves became one comparator without a word. A single
-  # treatment is already required across the whole frame above.
+  # An arm is one reconstructed curve from one study, and only one comparator
+  # arm is supported: the generated quantities would otherwise average an
+  # undefined equal-arm mixture.
   .require_single_identity(study_vec, arm_vec, "study")
-  # Only a single comparator arm is supported. With more than one arm the
-  # comparator-population predictions/marginal effects would be an undefined
-  # equal-arm mixture (the generated quantities average integration points
-  # equally across arms), so reject it rather than return a silent mixture.
   if (length(arms) > 1L) {
     stop("Multi-arm reconstructed survival comparators are not yet supported. ",
          "Supply a single comparator arm (one reconstructed Kaplan-Meier curve).",
@@ -491,21 +392,13 @@ set_agd_surv <- function(data, treatment, Surv = NULL,
 
 #' Refuse a missing grouping identifier
 #'
-#' `unique()` keeps `NA` and `which(NA == NA)` selects nothing, so an arm
-#' column of `NA` passed the single-arm check and then matched no rows: the
-#' summary came back with `.study`, `.trt`, and every covariate mean `NA`,
-#' from data that carried a treatment and a mean. The object was structurally
-#' valid, so nothing downstream objected to integrating over `NA`.
-#'
-#' @param x The column.
-#' @param nm Its name, for the message.
+#' A missing identifier matches no rows, so the arm summary would be all NA.
 #' @param as_char Return `as.character(x)` rather than `x`.
 #' @keywords internal
 .require_identity <- function(x, nm, as_char = TRUE) {
   if (anyNA(x)) {
     stop("`", nm, "` must not contain missing values: it identifies which ",
-         "rows belong together, and a missing identifier matches no rows, ",
-         "leaving an arm summary of NA.", call. = FALSE)
+         "rows belong together.", call. = FALSE)
   }
   if (as_char) as.character(x) else x
 }
@@ -620,26 +513,15 @@ print.mlumr_agd_surv <- function(x, ...) {
 }
 
 
-#' Does the baseline shape actually differ between strata?
+#' Does the baseline shape differ between strata?
 #'
-#' `n_strata > 1` alone is not the question. `aux_by = ".study"` allocates one
-#' auxiliary column per study, but a distribution with no shape parameter has
-#' nothing to allocate: for the exponential (PH) and exponential-AFT the hazard
-#' is `exp(eta)` and the baseline is carried entirely by the study intercept,
-#' which is study-specific in every unanchored fit. Stratifying an exponential
-#' therefore changes nothing, and the closed-form contrasts stay exact.
-#'
-#' This mirrors the Stan gate exactly. `mlumr_survival_{spfa,relaxed}.stan`
-#' swaps `delta_*` for the time-varying `loghr_*[1]` under
-#' `n_strata > 1 && nonexp && dist <= 3`, where `nonexp` excludes precisely the
-#' two exponential codes; the flexible models use `n_strata > 1` unconditionally
-#' because their per-stratum spline simplex IS the baseline. Reading the gate
-#' from one helper is what stops the R layer attaching a prediction time to a
-#' number Stan computed as the `t -> 0` limit.
+#' `n_strata > 1` alone is not the question: the exponential has no shape
+#' parameter to stratify, so `aux_by = ".study"` changes nothing there. This
+#' mirrors the Stan gate `n_strata > 1 && nonexp && dist <= 3`; the flexible
+#' models stratify their whole baseline.
 #'
 #' @param object An `mlumr_fit` (survival family).
-#' @return `TRUE` when the two studies genuinely have different baseline
-#'   shapes, `FALSE` otherwise.
+#' @return `TRUE` when the two studies have different baseline shapes.
 #' @keywords internal
 .aux_shapes_differ <- function(object) {
   n_strata <- object$stan_data$n_strata %||% 1L
@@ -652,25 +534,12 @@ print.mlumr_agd_surv <- function(x, ...) {
 
 #' Label and evaluation time for the scalar survival treatment effect
 #'
-#' `delta_*` means three different things depending on the fit, and every
-#' user-facing surface that reports it must say which. Deriving that in one
-#' place is the point: [marginal_effects()] and [prior_sensitivity()] previously
-#' decided independently, which is exactly how one of them came to print a
-#' generic "log hazard ratio / log time ratio" for a quantity that was neither.
-#'
-#' * **Proportional hazards.** A marginal log hazard ratio. Marginal hazard
-#'   ratios are non-collapsible, so it always carries a time: the `t -> 0` limit
-#'   when the baseline shapes are shared, otherwise the first prediction time.
-#' * **AFT, shared shapes, SPFA.** A genuine log time ratio. Both arms share
-#'   coefficients, so the covariate term cancels from
-#'   `mean(eta_index) - mean(eta_comparator)` and the contrast is constant in
-#'   both time and covariates.
-#' * **AFT otherwise.** Not a time ratio. If the shapes differ there is no
-#'   constant acceleration factor at all. If the model is `relaxed`, the
-#'   coefficients differ by treatment, so the covariate term does NOT cancel and
-#'   the contrast is the average of covariate-specific log time ratios over the
-#'   population (a geometric mean once exponentiated), not one population-level
-#'   acceleration factor. Either way the honest name is the location contrast.
+#' `delta_*` is a marginal log hazard ratio under proportional hazards (at
+#' `t -> 0` when the shapes are shared, otherwise at the first prediction
+#' time), a log time ratio for a shared-shape SPFA AFT fit, and otherwise a
+#' location contrast that is no time ratio: with different shapes there is no
+#' constant acceleration factor, and in a relaxed fit the covariate term does
+#' not cancel. [marginal_effects()] and [prior_sensitivity()] both read this.
 #'
 #' @param object An `mlumr_fit` (survival family).
 #' @param log_scale `TRUE` for the log-scale name (as stored in `delta_*`),
@@ -693,13 +562,8 @@ print.mlumr_agd_surv <- function(x, ...) {
   }
 }
 
-#' The one scalar `effect` name a survival fit can legitimately supply
+#' The one scalar `effect` name a survival fit can supply
 #'
-#' Turns the natural-scale label into the `effect` selector that names it. Every
-#' fit has exactly one: a proportional-hazards fit supplies a hazard ratio, a
-#' shared-shape SPFA AFT fit supplies a time ratio, and anything else supplies
-#' only the exponentiated location contrast. Keeping this derivation in one
-#' place is what stops the selector and the label from disagreeing.
 #' @param label The `label` from [.surv_scalar_label()] (natural scale).
 #' @return One of `"hr"`, `"tr"`, `"exp_delta_eta"`.
 #' @keywords internal
@@ -710,15 +574,12 @@ print.mlumr_agd_surv <- function(x, ...) {
 
 #' Message for an `effect` this survival fit cannot supply
 #'
-#' Says which estimand the fit does have and why the requested one does not
-#' exist for it, rather than only listing the accepted strings: asking for an
-#' HR from an AFT fit is a modeling misunderstanding, and "must be one of" does
-#' not correct it.
+#' Says which scalar estimand the fit does have and why the requested one does
+#' not exist for it.
 #' @param effect The requested selector.
 #' @param label,scalar_effect The fit's natural-scale label and its selector.
 #' @param stratified `TRUE` when the baseline shapes differ by study.
 #' @param valid_effects The accepted selectors for this fit.
-#' @return A character message for [stop()].
 #' @keywords internal
 .surv_effect_scale_error <- function(effect, label, scalar_effect, stratified,
                                      valid_effects) {
@@ -727,40 +588,25 @@ print.mlumr_agd_surv <- function(x, ...) {
     return(sprintf("For survival family, `effect` must be one of: %s",
                    paste(valid_effects, collapse = ", ")))
   }
-  # Asking for the location contrast on a fit that has a real HR or TR is the
-  # mirror image of the other errors, and what the caller needs to hear is when
-  # `exp_delta_eta` does apply, not a restatement of what this fit is.
   if (identical(effect, "exp_delta_eta")) {
-    return(paste0("`effect = \"exp_delta_eta\"` applies to an AFT distribution ",
-                  "whose shapes differ by study (`aux_by = \".study\"`) or to ",
-                  "any relaxed AFT fit, whose treatment-specific coefficients ",
-                  "leave the covariate term in the contrast. This fit reports ",
-                  label, "; request `effect = \"", scalar_effect, "\"`."))
+    return(paste0("`effect = \"exp_delta_eta\"` applies to an AFT fit whose ",
+                  "shapes differ by study or to a relaxed AFT fit. This fit ",
+                  "reports ", label, "; request `effect = \"", scalar_effect,
+                  "\"`."))
   }
   why <- switch(
     label,
-    HR = paste0("this fit uses a proportional-hazards distribution, whose ",
-                "scalar contrast is a marginal hazard ratio, not a time ratio ",
-                "or a bare location contrast"),
-    TR = paste0("this is a shared-shape SPFA accelerated-failure-time fit. Its ",
-                "scalar contrast is a time ratio: the covariate term cancels ",
-                "from mean(eta_index) - mean(eta_comparator), and the hazard ",
-                "ratio is not constant in time, so there is no scalar HR"),
+    HR = "a proportional-hazards fit has a marginal hazard ratio, not a time ratio",
+    TR = paste0("a shared-shape SPFA AFT fit has a time ratio, and its hazard ",
+                "ratio is not constant in time"),
     EXP_DELTA_ETA = if (stratified) {
-      paste0("each study has its own AFT shape (`aux_by = \".study\"`), so there ",
-             "is no constant acceleration factor at all (the Weibull quantile ",
-             "ratio picks up [-log S]^(1/a_i - 1/a_c), the log-normal ",
-             "exp(z_p (sigma_i - sigma_c)), and so on)")
+      "each study has its own AFT shape, so there is no constant acceleration factor"
     } else {
-      paste0("this is a relaxed fit, so the two treatments have different ",
-             "coefficients and the covariate term does not cancel from ",
-             "mean(eta_index) - mean(eta_comparator). The time ratio varies by ",
-             "covariate profile, and exp(delta) is the geometric mean of those ",
-             "profile-specific ratios, not one population acceleration factor")
+      paste0("this is a relaxed fit, so the covariate term does not cancel and ",
+             "the time ratio varies by covariate profile")
     }
   )
   paste0("`effect = \"", effect, "\"` is not available for this fit: ", why,
-         ". Request `effect = \"", scalar_effect, "\"` for the scalar contrast ",
-         "this fit does supply, the collapsible `effect = \"rmstd\"` / ",
-         "\"rmstr\", or conditional_effects() for profile-specific effects.")
+         ". Request `effect = \"", scalar_effect, "\"`, `effect = \"rmstd\"` ",
+         "or \"rmstr\", or conditional_effects() for profile-specific effects.")
 }

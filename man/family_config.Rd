@@ -4,12 +4,9 @@
 \alias{family_config}
 \title{Family metadata registry}
 \description{
-Internal single-source-of-truth for family-specific Stan model names,
-AgD weighting, prediction-variable prefixes, and supported links and
-effect measures. Every R-side call site that hard-coded a per-family
-branch now looks up the relevant field here. This file is deliberately
-pure-R and makes no Stan calls; keeping it a data registry makes
-rstantools regeneration of \code{R/stanmodels.R} independent.
+Family-specific Stan model names, AgD weighting, prediction-variable
+prefixes, and supported links and effect measures, looked up by every
+family branch in the R code.
 }
 \details{
 Fields:
@@ -23,27 +20,15 @@ in \code{\link[=predict.mlumr_fit]{predict.mlumr_fit()}} (e.g. \code{"p"}, \code
 \item{\code{links}}{Vector of supported links. Should match the branches
 in \code{\link[=check_link]{check_link()}}.}
 \item{\code{effect_measures}}{Supported values of the \code{effect} argument in
-\code{\link[=marginal_effects]{marginal_effects()}} (excluding \code{"all"}). Family-level, and for
-\code{"survival"} NOT the whole accepted set: the scalar contrast is
-distribution-specific, so a fit accepts exactly one of \code{"hr"}, \code{"tr"} or
-\code{"exp_delta_eta"} and the choice is made per fit by
-\code{.surv_scalar_effect_name()}, which cannot be expressed here because this
-registry is keyed by family alone. The entry lists \code{"hr"} as the
-representative scalar; treat the survival row as the RMST measures plus
-one fit-specific scalar.}
+\code{\link[=marginal_effects]{marginal_effects()}} (excluding \code{"all"}). For \code{"survival"} the scalar
+contrast is chosen per fit by \code{.surv_scalar_effect_name()}; \code{"hr"}
+stands for it here.}
 \item{\code{marginal_effect_vars}}{Generated-quantity column names for each
 effect measure, per population. Expanded in \code{\link[=marginal_effects]{marginal_effects()}}.}
-\item{\code{comp_weight_field}}{Name of the Stan-data field used to
-weight the comparator-population marginal predictions. Must name
-the same field the family's Stan \verb{generated quantities} block
-weights by, otherwise the R-side link-scale path in
-\code{\link[=predict.mlumr_fit]{predict.mlumr_fit()}} would average over a different target
-population than the Stan-side response-scale predictions and
-\code{marginal_effects()}. Currently \code{n_agd} (binomial), \code{E_agd}
-(poisson), \code{agd_weight} (normal; required sample sizes for multiple rows,
-or one for a single row without \code{outcome_n}), and \code{NULL} for survival, whose
-comparator population is the pooled pseudo-IPD rather than a
-weighted mixture of aggregate rows.}
+\item{\code{comp_weight_field}}{The Stan-data field the comparator-population
+marginal predictions are weighted by, which must match the field the
+family's \verb{generated quantities} block uses: \code{n_agd} (binomial), \code{E_agd}
+(poisson), \code{agd_weight} (normal) and \code{NULL} for survival.}
 }
 }
 \keyword{internal}

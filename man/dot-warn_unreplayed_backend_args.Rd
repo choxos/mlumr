@@ -11,14 +11,7 @@
 
 \item{supplied}{Names the caller has re-supplied for these refits.}
 }
-\value{
-\code{NULL}, invisibly; called for the warning.
-}
 \description{
-\code{mlumr()} stores the NAMES of arguments it forwarded to the sampler but did
-not otherwise record. A refit cannot reproduce their values, so it says so,
-but only for the ones this call has not been given: the message asks the
-caller to pass them again, and repeating it after they have would make the
-advice impossible to act on.
+Name the backend settings a refit is not reproducing
 }
 \keyword{internal}
