@@ -24,10 +24,11 @@
 # R CMD check output
 /*.Rcheck/
 
-# Local package build helpers (track the hand-written extra.css source; the
-# favicon/ is auto-regenerated from the logo at build time, so stays ignored)
+# Local package build helpers: track the hand-written extra.css and the
+# favicons built from the logo (pkgdown never builds them on CI).
 pkgdown/*
 !pkgdown/extra.css
+!pkgdown/favicon/
 
 # Vignette build output.
 # introduction + data-preparation are plain knitr .Rmd (rebuilt at build time),
