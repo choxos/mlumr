@@ -324,7 +324,7 @@ add_integration <- function(data, n_int = 64, cor = NULL,
     }
     .warn_discrete_copula(dtypes, cov_names, cor_adjust)
     copula_cor <- .adjust_integration_cor(cor, cor_adjust, dtypes)
-    copula_cor <- .ensure_positive_definite_cor(copula_cor, n_cov)
+    copula_cor <- .ensure_positive_definite_cor(copula_cor)
 
     list(cor = cor, copula_cor = copula_cor, cor_adjust = cor_adjust)
   }
@@ -439,32 +439,21 @@ add_integration <- function(data, n_int = 64, cor = NULL,
 
 #' Ensure adjusted integration correlation is positive definite
 #' @keywords internal
-.ensure_positive_definite_cor <- function(copula_cor, n_cov) {
+.ensure_positive_definite_cor <- function(copula_cor) {
   eigen_tol <- .Machine$double.eps * max(dim(copula_cor)) * 100
   if (all(eigen(copula_cor, symmetric = TRUE)$values > eigen_tol)) {
     return(copula_cor)
   }
   warning("Adjusted correlation matrix not positive definite; applying nearPD correction.",
           call. = FALSE)
-  result <- if (requireNamespace("Matrix", quietly = TRUE)) {
-    as.matrix(Matrix::nearPD(copula_cor, corr = TRUE)$mat)
-  } else {
-    # Fallback (Matrix is normally available via copula's dependencies):
-    # eigenvalue-flooring projection to the nearest positive-definite
-    # correlation matrix. Clamp negative eigenvalues to a small positive
-    # value, reconstruct, then rescale to a unit diagonal.
-    ev <- eigen(copula_cor, symmetric = TRUE)
-    vals <- pmax(ev$values, eigen_tol)
-    m <- ev$vectors %*% diag(vals, nrow = length(vals)) %*% t(ev$vectors)
-    d <- sqrt(diag(m))
-    m <- m / tcrossprod(d)
-    diag(m) <- 1
-    m
+  if (!requireNamespace("Matrix", quietly = TRUE)) {
+    stop("Package 'Matrix' is required to repair a correlation matrix that ",
+         "is not positive definite.", call. = FALSE)
   }
-  # Re-check: both nearPD and the rescaled eigenvalue-flooring can leave the
-  # smallest eigenvalue marginally negative (floating point), and rescaling to a
-  # unit diagonal can reintroduce a tiny negative eigenvalue. Fail loudly rather
-  # than hand a non-positive-definite correlation to the copula sampler.
+  result <- as.matrix(Matrix::nearPD(copula_cor, corr = TRUE)$mat)
+  # Re-check: nearPD can leave the smallest eigenvalue marginally negative
+  # (floating point). Fail loudly rather than hand a non-positive-definite
+  # correlation to the copula sampler.
   if (!all(eigen(result, symmetric = TRUE)$values > eigen_tol)) {
     stop("Could not produce a positive-definite integration correlation matrix ",
          "after nearPD correction. Supply a valid positive-definite `cor` or ",

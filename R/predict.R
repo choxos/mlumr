@@ -118,8 +118,8 @@ predict.mlumr_fit <- function(object,
     return(.predict_target(object, newdata, type, summary, probs, times))
   }
 
-  population <- .validate_predict_choice(population, c("both", "index", "comparator"),
-                                         "population")
+  population <- .validate_choice(population, c("both", "index", "comparator"),
+                                 "population")
 
   if (family == "survival") {
     ptype <- type %||% "survival"
@@ -133,7 +133,7 @@ predict.mlumr_fit <- function(object,
     return(out)
   }
 
-  type <- .validate_predict_choice(type %||% "response", c("response", "link"), "type")
+  type <- .validate_choice(type %||% "response", c("response", "link"), "type")
 
   cfg <- get_family_config(family)
   prefix <- cfg$predict_prefix
@@ -986,9 +986,9 @@ marginal_effects <- function(object,
 
   # Only the built-in route reads `population`, and it is documented as ignored
   # above, so it is validated here rather than ahead of the dispatch.
-  population <- .validate_predict_choice(population,
-                                         c("both", "index", "comparator"),
-                                         "population")
+  population <- .validate_choice(population,
+                                 c("both", "index", "comparator"),
+                                 "population")
 
   # Relaxed-model index-population: beta_comparator is identified only by the
   # AgD likelihood, so averaging it over the IPD covariate distribution
@@ -1160,8 +1160,8 @@ marginal_effects <- function(object,
                                     summary, probs, times))
   }
 
-  type <- .validate_predict_choice(type %||% "response",
-                                   c("response", "link"), "type")
+  type <- .validate_choice(type %||% "response",
+                           c("response", "link"), "type")
   lnk <- object$link %||% get_family_config(family)$link_default
   std <- .standardize_target_response(object, newdata)
   if (type == "link") {
@@ -1204,10 +1204,10 @@ marginal_effects <- function(object,
 #' @keywords internal
 .predict_target_survival <- function(object, newdata, type, summary, probs,
                                      times = NULL) {
-  type <- .validate_predict_choice(type,
-                                   c("survival", "hazard", "cumhaz", "rmst",
-                                     "median", "loghr"),
-                                   "type")
+  type <- .validate_choice(type,
+                           c("survival", "hazard", "cumhaz", "rmst",
+                             "median", "loghr"),
+                           "type")
   # Validate before any branch consults `times`, so an invalid value is refused
   # rather than reported as ignored, matching .predict_survival().
   if (!is.null(times)) times <- .validate_survival_prediction_times(times)
@@ -1574,7 +1574,7 @@ marginal_effects <- function(object,
 #' interval average to a curve that loses half its decay in each, under any
 #' threshold, while the trapezoid rule is linear and overstates the average
 #' RMST by exactly the mean of what it overstates for the two. With one
-#' profile the share is the one [.rmst_max_interval_share()] computes.
+#' profile the share is the one [.decay_share()] computes.
 #' @return A list with `index` and `comparator`, each an `[n_draws, length(times)]`
 #'   matrix of target-standardized survival probabilities, and `share`, a
 #'   list of two per-draw vectors named the same way.
@@ -1819,42 +1819,12 @@ marginal_effects <- function(object,
 #' times.
 #'
 #' @param share Per-draw shares, one vector per curve as
-#'   [.rmst_max_interval_share()] or [.standardize_target_survival_s()]
+#'   [.decay_share()] or [.standardize_target_survival_s()]
 #'   computes them; `NA` where there is no decay to apportion.
 #' @return `NULL`, invisibly; called for the warning.
 #' @keywords internal
 .warn_coarse_rmst_grid <- function(share) {
   .warn_interval_share(list(share))
-}
-
-#' Largest share of the total survival decay that lands in one grid interval
-#'
-#' One value per posterior draw: the biggest drop between two adjacent grid
-#' points, as a fraction of the drop from the first point to the horizon. A
-#' curve that loses more than half of its decay inside a single interval is
-#' being integrated across that interval by one straight line, wherever the
-#' interval is. Looking only at the first interval missed the same fault one
-#' step later: a curve that stays near 1 through the first interval and
-#' collapses inside the second, a delayed parametric hazard or a localized
-#' flexible baseline, had a first-interval share of zero and passed. Per draw,
-#' not on the posterior mean curve: averaging first can hide the problem,
-#' since a posterior in which two draws in five collapse inside one interval
-#' and the rest decay smoothly averages to a share below the threshold while
-#' two fifths of the RMST draws are integrated from a single straight line.
-#' `NA` for a draw with no decay to apportion. For a curve that is itself an
-#' average over target profiles, [.standardize_target_survival_s()] computes
-#' the share from the profiles instead, since their average can hide it.
-#'
-#' A two-point grid is the limiting case, not an exception to it: the only
-#' interval is the whole horizon, so the share is 1. Treating that grid as "no
-#' interior to compare against" and staying silent let `n_rmst_grid = 2`,
-#' which [mlumr()] accepts, integrate two exponential curves with rates 100
-#' and 200 to the same RMST of half the horizon, an RMST ratio of exactly 1,
-#' with nothing said.
-#' @keywords internal
-.rmst_max_interval_share <- function(s_mat) {
-  parts <- .decay_parts(s_mat)
-  .decay_share(parts$max, parts$total)
 }
 
 #' The two pieces of the resolution share, per draw
@@ -2565,9 +2535,9 @@ marginal_effects <- function(object,
 }
 
 
-#' Validate an exact scalar prediction argument
+#' Validate an exact scalar choice argument
 #' @keywords internal
-.validate_predict_choice <- function(x, choices, name) {
+.validate_choice <- function(x, choices, name) {
   if (identical(x, choices)) {
     return(choices[[1L]])
   }

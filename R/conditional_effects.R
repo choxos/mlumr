@@ -566,8 +566,8 @@ conditional_predict <- function(object,
     return(.conditional_predict_survival(object, newdata, summary, probs))
   }
 
-  type <- .validate_predict_choice(type %||% "response", c("response", "link"),
-                                   "type")
+  type <- .validate_choice(type %||% "response", c("response", "link"),
+                           "type")
   profiles <- .conditional_profiles(object, newdata)
   X <- profiles$X
   n_profiles <- nrow(X)

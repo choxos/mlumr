@@ -158,7 +158,7 @@ test_that("constant-hazard anchor centers on a flat baseline hazard", {
     expect_true(all(weights > 0))
 
     # softmax(append_row(0, anchor)) is the constant-hazard simplex
-    scoef <- mlumr:::.softmax(c(0, anchor))
+    scoef <- exp(c(0, anchor)) / sum(exp(c(0, anchor)))
     expect_equal(sum(scoef), 1)
 
     # baseline hazard h0(t) = M(t) %*% scoef is (numerically) constant in t

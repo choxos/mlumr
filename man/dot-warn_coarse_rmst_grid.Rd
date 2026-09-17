@@ -8,7 +8,7 @@
 }
 \arguments{
 \item{share}{Per-draw shares, one vector per curve as
-\code{\link[=.rmst_max_interval_share]{.rmst_max_interval_share()}} or \code{\link[=.standardize_target_survival_s]{.standardize_target_survival_s()}}
+\code{\link[=.decay_share]{.decay_share()}} or \code{\link[=.standardize_target_survival_s]{.standardize_target_survival_s()}}
 computes them; \code{NA} where there is no decay to apportion.}
 }
 \value{

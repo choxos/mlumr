@@ -5,13 +5,6 @@
 #   plot_prior_posterior(fit)          -> prior-vs-posterior overlay
 # Each returns a ggplot object so it composes with further ggplot2 layers.
 
-#' @keywords internal
-.need_ggplot2 <- function() {
-  if (!requireNamespace("ggplot2", quietly = TRUE)) {
-    stop("Plotting requires the 'ggplot2' package.", call. = FALSE)
-  }
-}
-
 # Lower/upper credible-interval column names for a summary data frame
 # (`.summarize_draw_matrix()` writes qNN columns, e.g. q2.5 / q97.5).
 #' @keywords internal
@@ -138,7 +131,6 @@
 #' plot(marginal_effects(fit, effect = "all"))
 #' }
 plot.mlumr_marginal_effects <- function(x, ref_line = NULL, ...) {
-  .need_ggplot2()
   df <- as.data.frame(x)
   ci <- .ci_cols(df)
   if (!all(c("mean", "effect", "population") %in% names(df))) {
@@ -277,7 +269,6 @@ plot.mlumr_marginal_effects <- function(x, ref_line = NULL, ...) {
 #' }
 geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
                     linewidth = 0.4, ...) {
-  .need_ggplot2()
   .validate_km_data(data)
   # The cohorts are chosen before anything is examined: an observation the
   # plot is not asked to draw has no say in whether it can be drawn, so an
@@ -379,9 +370,6 @@ geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
 #' @keywords internal
 .km_observed <- function(data, population = c("Index", "Comparator")) {
   .validate_km_data(data)
-  if (!requireNamespace("survival", quietly = TRUE)) {
-    stop("Package 'survival' is required for geom_km().", call. = FALSE)
-  }
   cohort <- function(df, treatment, label) {
     entry <- if (!is.null(df$.delay_time)) df$.delay_time else rep(0, nrow(df))
     data.frame(entry = entry, time = df$.time, status = df$.status,
@@ -518,7 +506,6 @@ geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
 #' plot(predict(fit, type = "loghr"))
 #' }
 plot.mlumr_prediction <- function(x, ref_line = NULL, ...) {
-  .need_ggplot2()
   .reject_ambiguous_series(x)
   df <- as.data.frame(x)
   ptype <- attr(x, "ptype") %||% "response"
@@ -656,7 +643,6 @@ plot.mlumr_prediction <- function(x, ref_line = NULL, ...) {
 #' @seealso [conditional_effects()]
 #' @export
 plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
-  .need_ggplot2()
   df <- as.data.frame(x)
   ci <- .ci_cols(df)
   yvar <- if ("profile" %in% names(df)) "profile" else names(df)[1]
@@ -868,7 +854,6 @@ plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
 #' }
 plot_prior_posterior <- function(object, pars = c("mu_index", "mu_comparator"),
                                  ...) {
-  .need_ggplot2()
   .validate_mlumr_fit_object(object)
   draws <- object$draws
   # `intersect()` silently dropped a misspelled or absent name and drew an
@@ -1000,7 +985,6 @@ plot_prior_posterior <- function(object, pars = c("mu_index", "mu_comparator"),
 mlumr_forest <- function(data, ref_line = NULL, log_x = FALSE,
                          x = NULL, title = NULL, subtitle = NULL,
                          color = "#3B6B9A", clip = TRUE, ...) {
-  .need_ggplot2()
   df <- as.data.frame(data)
   # One axis carries one scale. A frame holding both LOG_HR and HR would put
   # log(2) and 2 against a single reference, which reads as two very different

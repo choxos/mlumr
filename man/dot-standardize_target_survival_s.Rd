@@ -33,6 +33,6 @@ none of its parts is. Two profiles that each collapse inside a different
 interval average to a curve that loses half its decay in each, under any
 threshold, while the trapezoid rule is linear and overstates the average
 RMST by exactly the mean of what it overstates for the two. With one
-profile the share is the one \code{\link[=.rmst_max_interval_share]{.rmst_max_interval_share()}} computes.
+profile the share is the one \code{\link[=.decay_share]{.decay_share()}} computes.
 }
 \keyword{internal}
