@@ -4,7 +4,7 @@ The relaxed model's `mu_comparator` and `beta_comparator` are informed
 only by the AgD likelihood, which contributes one term per AgD row
 evaluated at that row's integration grid. The number of comparator
 parameters those terms can separate is therefore the rank of the per-row
-mean covariate profiles augmented with an intercept column, NOT the
+mean covariate profiles augmented with an intercept column, not the
 number of rows: rows that repeat the same covariate summaries add
 likelihood terms but no new direction.
 

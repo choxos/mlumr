@@ -2,7 +2,7 @@
 
 The companion to
 [`.agd_covariate_rank()`](https://choxos.github.io/mlumr/reference/dot-agd_covariate_rank.md)
-that answers the DIFFERENT question of whether the directions exist at
+that answers the different question of whether the directions exist at
 all, rather than whether they are spread widely enough to be informative
 in practice.
 
