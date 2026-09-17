@@ -19,31 +19,11 @@ it, with the same dimensions.}
 \code{TRUE} invisibly; stops otherwise.
 }
 \description{
-\code{mlumr()} centers the covariates by default, and every integration point
-has the pooled covariate mean subtracted in floating point. Two distinct
-doubles stay distinct under that subtraction unless the rounding unit of
-the result exceeds their difference, which takes a mean far larger than
-the spread of the points about it; at such an offset two declared nodes
-round to one centered value. The grid the sampler then receives has fewer
-nodes than \code{add_integration()} drew, with the weight of the lost node on
-its neighbor, and so represents a covariate distribution the caller did
-not declare. The guards that follow judge that grid, and the comparator
-check refuses when it and the declared grid give different verdicts, but a
-grid that lost nodes without changing any verdict reached the sampler as
-though it were the declared one. The check runs inside
-\code{\link[=.mlumr_build_stan_data]{.mlumr_build_stan_data()}}, between centering and the QR step, since a
-grid collapsed to one value makes the QR design rank deficient and that
-step would otherwise refuse it first, advising the wrong remedy.
-}
-\details{
-The check counts the distinct values of each covariate on each aggregate
-row, before and after centering, and refuses when the centered grid has
-fewer. The count is exact to compare, so this is not a tolerance, and an
-ordinary rounded subtraction that moves every node by its own rounding
-error is not refused: those nodes stay distinct. Whether such a move makes
-or breaks an exact match is the comparator check's question. What is not
-examined here is the rank of a multi-covariate grid, since a floating-point
-rank is not exact, and the IPD design, whose values the identification
-guards read in the model's own coordinates.
+Centering subtracts the pooled covariate mean from every integration point
+in floating point. When the populations sit far from the origin relative
+to the node spacing, two declared nodes can round to one, and the sampler
+would integrate over a distribution other than the one declared. The check
+counts the distinct values per covariate and row before and after
+centering.
 }
 \keyword{internal}

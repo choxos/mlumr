@@ -77,21 +77,12 @@
 #'   Ignored for other families.
 #'
 #' @return An object of class `mlumr_stc`. Its `separation` component records
-#'   the outcome of the binomial separation check, and only that: `status` is
-#'   `"not_separated"` when the exact check ran on a binomial outcome model
-#'   and found no separation, `"unknown"` when it could not run (only the
-#'   fitted-value screen was applied, which cannot see quasi-complete
-#'   separation), and `"not_applicable"` when the outcome model is not a
-#'   binomial GLM, so this particular test has nothing to say. A Poisson
-#'   outcome model has a boundary of its own kind: with no events, or with a
-#'   subgroup without events that a direction of the coefficients can send
-#'   to a rate of zero while every other row's rate stays fixed, the
-#'   likelihood increases toward a supremum it never attains and the
-#'   maximum likelihood estimate is not finite, although the fitting
-#'   reports convergence with finite numbers. Such a fit is refused, as is one where the question could not
-#'   be decided, so a returned Poisson result has a finite maximum and its
-#'   `reason` says so. A separated fit is refused rather than returned, so
-#'   `"separated"` never appears here.
+#'   the outcome of the binomial separation check: `status` is
+#'   `"not_separated"` when the exact check ran and found none, `"unknown"`
+#'   when only the fitted-value screen ran (it cannot see quasi-complete
+#'   separation), and `"not_applicable"` for other outcome models. A
+#'   separated fit, and a Poisson fit with no events, are refused rather than
+#'   returned.
 #' @importFrom stats gaussian poisson dnorm
 #' @export
 #'
@@ -104,78 +95,34 @@
 #' 4. Contrast with the reported comparator outcome in that population.
 #' 5. Compute first-order, fixed-integration-grid delta-method standard errors.
 #'
-#' The response-scale standardization follows the marginalization order used by
-#' Ren et al.'s unanchored STC and by parametric G-computation: predict each
-#' target profile, average the natural-scale outcomes, then transform that
-#' average. This is a one-arm standardization benchmark: only the index-treatment
-#' outcome model is fitted because comparator IPD are unavailable. Remiro-Azocar
-#' et al. implement two-arm G-computation, where both potential outcomes are
-#' predicted from an IPD study; that is a different data design even though the
-#' response-scale marginalization step is shared.
+#' The response-scale standardization predicts each target profile, averages
+#' the natural-scale outcomes, then transforms the average, as in Ren et al.'s
+#' unanchored STC. Only the index-treatment outcome model is fitted, since
+#' comparator IPD are unavailable; Remiro-Azocar et al. describe the two-arm
+#' G-computation that a different data design allows.
 #'
-#' The non-survival standard error is conditional on the supplied integration
-#' grid and reported comparator covariate summaries. It propagates fitted
-#' regression-coefficient uncertainty and observed comparator-outcome
-#' uncertainty, but not uncertainty from reconstructing the comparator
-#' covariate distribution. Ren et al. instead resample the IPD, reconstruct the
-#' target distribution, and use a nonparametric bootstrap. Use the present
-#' delta-method result as a fast benchmark and use sensitivity analyses when
-#' reconstruction uncertainty may matter.
+#' The non-survival standard error is conditional on the integration grid and
+#' the reported comparator summaries: it propagates coefficient and
+#' comparator-outcome uncertainty, not uncertainty in reconstructing the
+#' comparator covariate distribution. The estimator relies on a correctly
+#' specified index outcome model that applies across the comparator covariate
+#' distribution, adequate overlap and no unmeasured confounding; it does not
+#' need the two treatments to share covariate effects.
 #'
-#' The estimator relies on correct specification of the index-treatment outcome
-#' model and its applicability to the comparator population. It does not model
-#' posterior uncertainty in population covariate distributions.
+#' The estimand is `E_B[m_A(X)] - E_B[Y_B]` on the response scale, which is
+#' `$rd` for a binomial outcome and `$md` for a normal one. `$estimate` is the
+#' same mean difference under the normal identity link and otherwise the
+#' link-scale contrast of the two standardized quantities: a marginal log odds
+#' ratio under a binomial logit, a log rate ratio under Poisson, a log mean
+#' ratio under a log link.
 #'
-#' It does not require the two treatments to share covariate effects. On the
-#' response scale the estimand is `E_B[m_A(X)] - E_B[Y_B]`: the index
-#' response surface standardized to the comparator covariate distribution,
-#' contrasted with the comparator outcome as it was observed. That
-#' difference is what `$rd` reports for a binomial outcome and `$md` for a
-#' normal one. Whether it is also `$estimate` depends on the link. Under the
-#' normal identity link it is: `$estimate` is that same mean difference.
-#' Under a nonlinear link it is not, and `$estimate` is instead the
-#' link-scale contrast of the two standardized quantities, a marginal log
-#' odds ratio under a binomial logit, a log rate ratio under Poisson and a
-#' log mean ratio under a log link, as the scale note above says. `print()`
-#' headlines `$estimate` under the name of its scale, and the effect-measures
-#' table it ends with lists the mean difference from `$md`, and under a log
-#' link the log mean ratio and the mean ratio as well.
+#' Survival STC contrasts the index RMST standardized to the comparator
+#' covariates with the RMST of an intercept-only [flexsurv::flexsurvreg()] fit
+#' to the reconstructed pseudo-IPD.
 #'
-#' For the GLM families no comparator response model is fitted and none is
-#' transported, so `beta_A = beta_B` is not among the assumptions and effect
-#' modification by itself is not a reason to set STC aside. With a binary
-#' covariate at comparator prevalence 0.75 and index
-#' risks 0.2 and 0.8 against comparator risks 0.4 and 0.5, the slopes differ
-#' on both the risk and logit scales and the comparator-population risk
-#' difference is still 0.65 - 0.475 = 0.175. What the estimand does need is
-#' an index outcome model that is correctly specified and applicable across
-#' the comparator covariate distribution, adequate overlap, and the
-#' unanchored no-unmeasured-confounding assumption; those, not shared slopes,
-#' are where comparator-target STC is weak.
-#'
-#' Survival STC reaches its estimand by a different route. The comparator
-#' side is summarized by an intercept-only [flexsurv::flexsurvreg()] fit to
-#' the reconstructed pseudo-IPD, and its fitted RMST is contrasted with the
-#' index RMST standardized to the comparator covariates. So a comparator
-#' model *is* fitted on that path. It carries no covariates, so nothing is
-#' transported into it and the conclusion above about `beta_A = beta_B`
-#' holds there too, but by a different argument: not that no comparator
-#' model exists, but that the one fitted has no slopes to share.
-#'
-#' Choose between this and `mlumr(..., model = "relaxed")` by the target,
-#' the evidence and the identification, not by the plausibility of effect
-#' modification. Relaxed ML-UMR is what estimates comparator-specific
-#' covariate effects, and so is what an index or other decision population, a
-#' conditional effect, or a joint model of both arms requires. `stc()`
-#' answers one question, in the comparator population, and answers it without
-#' needing those coefficients to be identified at all.
-#'
-#' The returned effect is defined in the comparator population. Applying that
-#' same effect to the index or another decision population is a separate
-#' effect-equality assumption. `stc()` does not standardize to, perform, or
-#' validate transport to the index population. This differs from two-arm
-#' parametric G-computation, which fits treatment-specific outcome regressions
-#' and can standardize both potential outcomes to a chosen target population.
+#' The effect is defined in the comparator population and is not transported
+#' to the index population; `mlumr(..., model = "relaxed")` is what estimates
+#' comparator-specific covariate effects for any other target.
 #'
 #' @references
 #' Ren S, Ren S, Welton NJ, Strong M (2024). Advancing unanchored simulated
@@ -301,10 +248,8 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     stop("STC GLM did not converge; check the IPD model or use mlumr().",
          call. = FALSE)
   }
-  # Whether the likelihood has a finite maximum is decided before the
-  # coefficients and covariance are read: a fit with none can stop at
-  # finite numbers, and on a platform where it stops at non-finite ones
-  # the message should still name the cause rather than the symptom.
+  # Decided before the coefficients are read: a fit with no finite maximum
+  # can stop at finite numbers.
   fam <- tryCatch(stats::family(fit)$family, error = function(e) NA_character_)
   separation <- if (identical(fam, "poisson")) {
     .stc_refuse_poisson_recession(fit)
@@ -336,143 +281,40 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 }
 
 
-#' Refuse a Poisson fit whose likelihood has no finite maximum
+#' Refuse a Poisson fit with no events
 #'
-#' The Poisson log-likelihood is `sum(y_i eta_i - E_i exp(eta_i))` up to a
-#' constant. Along a direction `d` of the coefficients that leaves every
-#' positive-count row's predictor fixed, `X_i d = 0`, and raises none of
-#' the zero-count rows', `X_i d <= 0` with some strictly below, the linear
-#' term is constant and the exponential terms fall, so the likelihood
-#' increases all the way out toward a supremum it never attains. The
-#' likelihood is bounded: with no events it is `exp(-sum(E_i exp(eta_i)))`,
-#' at most 1 and approaching 1 as the intercept falls. What is missing is
-#' not an upper bound but a finite coefficient that attains one. Iterative
-#' reweighting stops
-#' anyway, when the deviance stops changing: 80 zero counts on a nonconstant
-#' covariate stop after 25 iterations at an intercept near -27.3 with a
-#' standard error near 57,500, and 40 zeros beside 40 positive counts on a
-#' binary covariate stop at a slope near 21.2. Every number there describes
-#' where the iteration stopped, not the data, and the fitted-value screen
-#' for the binomial case does not apply: a rate can legitimately be small.
-#'
-#' A zero total count is the plain case and is refused outright. Otherwise
-#' the question is the linear feasibility one [.zero_boundary()] decides,
-#' in its weak form: positive rows spanning the design leave no such
-#' direction, which is where ordinary data land; a direction found is a
-#' refusal; and a question it cannot decide (more than two free directions,
-#' or zero rows within rounding of the positive rows' span) is refused too,
-#' since a possibly infinite estimate is not one to report.
-#'
-#' Some functionals can remain estimable when the coefficients are not,
-#' but estimating them needs a method built for that boundary, and the
-#' ordinary Wald machinery here is not it.
-#'
+#' With no events the Poisson likelihood rises toward a supremum it never
+#' attains as the log rate falls, so no finite coefficient maximizes it, yet
+#' iterative reweighting stops and reports convergence.
 #' @param fit A fitted Poisson `glm`.
-#' @return The status list recorded on the result, invisibly: `status`
-#'   `"not_applicable"` for the binomial separation test, with a `reason`
-#'   that records the finite-maximum check ran and passed.
+#' @return The status list recorded on the result, invisibly.
 #' @keywords internal
 .stc_refuse_poisson_recession <- function(fit) {
-  y <- fit$y
-  X <- stats::model.matrix(fit)
-  if (all(y == 0)) {
-    stop(
-      paste(
-        "The STC outcome model has no events: the Poisson likelihood",
-        "increases toward a supremum it never attains as the log rate",
-        "falls, so the maximum likelihood estimate is not finite, and the",
-        "coefficients, the interval and the",
-        "standardized rate would describe where the fitting stopped rather",
-        "than the data. Use mlumr(), whose prior makes the posterior proper."
-      ),
-      call. = FALSE
-    )
-  }
-  pos <- y > 0
-  Xs <- .scale_design(X)
-  reach <- .zero_boundary(Xs[pos, , drop = FALSE], Xs[!pos, , drop = FALSE],
-                          X[pos, , drop = FALSE], X[!pos, , drop = FALSE],
-                          strict = FALSE)
-  if (identical(reach, "reachable")) {
-    stop(
-      paste(
-        "The STC outcome model has no finite maximum likelihood estimate: a",
-        "direction of the coefficients leaves the rate of every row with",
-        "events fixed while lowering the rate of rows without, so the",
-        "likelihood increases along it toward a supremum it never attains,",
-        "even though the fitting reported convergence and every returned",
-        "number is finite. A subgroup with no events is the usual cause.",
-        "Use mlumr(), whose",
-        "prior makes the posterior proper."
-      ),
-      call. = FALSE
-    )
-  }
-  if (!identical(reach, "unreachable")) {
-    stop(
-      paste(
-        "Whether the STC outcome model has a finite maximum likelihood",
-        "estimate could not be decided: the rows without events could",
-        "load on more than two free directions of the coefficients, lie",
-        "within rounding of the span of the rows with events, or point",
-        "opposite ways to within rounding, and this check does not attempt",
-        "those cases. A possibly infinite estimate is not reported as an",
-        "ordinary one. Use mlumr(), whose prior makes the posterior",
-        "proper."
-      ),
-      call. = FALSE
-    )
+  if (all(fit$y == 0)) {
+    stop("The STC outcome model has no events, so the Poisson likelihood ",
+         "has no finite maximum and the fit would describe where the ",
+         "iteration stopped. Use mlumr(), whose prior makes the posterior ",
+         "proper.", call. = FALSE)
   }
   invisible(list(
     status = "not_applicable",
     reason = paste("the outcome model is Poisson, so the binomial separation",
-                   "test does not apply; its likelihood was checked for a",
-                   "direction along which it increases toward a supremum it",
-                   "never attains and has none, so the maximum likelihood",
-                   "estimate is finite")
+                   "test does not apply")
   ))
 }
 
-#' Refuse a fit whose likelihood has no finite maximum
+#' Refuse a separated binomial fit
 #'
-#' The checks above look for a failure the fitting reports, and separation is
-#' not one. Iterative reweighting stops when the deviance stops changing, and a
-#' separated fit has no maximum for it to stop at: the deviance falls to about
-#' 6e-10 while the intercept is still drifting, so the criterion fires anyway
-#' and a binomial arm with no events comes back with `converged = TRUE`, finite
-#' coefficients and a finite covariance. 100 rows with the outcome always zero
-#' produce a coefficient of about -26.6 and a largest fitted probability of
-#' 3e-12, with a confidence interval to match. Raising `maxit` changes none of
-#' those numbers, which is what shows the iteration limit is not what stopped
-#' it. Every number there is a property of where the iteration stopped, not of
-#' the data, and reporting it as an estimate is worse than reporting nothing,
-#' because nothing about it looks wrong.
-#'
-#' The symptom is the one thing separation always leaves: every fitted
-#' probability pinned against 0 or 1, whether they all sit at one boundary
-#' (an arm with no events) or split between the two (a covariate that
-#' separates the outcome). A rate can legitimately be small, so the test is on
-#' the boundary rather than on smallness, and it applies only where a boundary
-#' exists.
-#'
-#' The fitted values cannot catch quasi-complete separation, where rows sit on
-#' the separating hyperplane: `y = c(0, 0, 1, 1)` on `x = c(-1, 0, 0, 1)` has
-#' no finite slope, yet the two tied rows keep fitted probabilities of exactly
-#' 0.5, so not every probability has reached a boundary. Telling that apart
-#' from a strong but identified fit takes more than the fitted values, since a
-#' legitimate signal here reaches a linear predictor of 20.1 while this case
-#' reaches 19.6. The exact test is a linear program, so it lives behind
-#' [.stc_separation_status()] and runs only when the optional
-#' \pkg{detectseparation} package is installed. The threshold test stays as
-#' the part that always runs.
+#' A separated binomial GLM reports convergence with finite coefficients,
+#' because iterative reweighting stops when the deviance stops changing. The
+#' fitted values show complete separation (every probability at 0 or 1);
+#' quasi-complete separation needs the linear program in
+#' [.stc_separation_status()], which runs when \pkg{detectseparation} is
+#' installed.
 #' @param fit A fitted `glm`.
 #' @return The separation status, invisibly: a list with `status`, one of
 #'   `"not_separated"`, `"unknown"` or `"not_applicable"`, and `reason` for
-#'   the latter two. `"separated"` is never returned, since it throws.
-#'   `"not_applicable"` means this binomial separation test does not apply to
-#'   the fitted family, not that the family has no finite-maximum problem of
-#'   its own. Callers record it on the result so a verified estimate can be
-#'   told apart from an unverified one after the warning has scrolled away.
+#'   the latter two. A separated fit throws instead.
 #' @keywords internal
 .stc_refuse_separation <- function(fit) {
   fam <- tryCatch(stats::family(fit)$family, error = function(e) NA_character_)
@@ -492,55 +334,26 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     )))
   }
   eps <- .Machine$double.eps^0.5
-  # Every fitted probability at *a* boundary, not all at the same one. A
-  # covariate that perfectly separates the outcome sends its two groups to
-  # opposite boundaries, which is the ordinary presentation of separation and
-  # the one an arm-level test misses: `y ~ x` with the two equal gives fitted
-  # probabilities of 2e-11 and 1, `converged = TRUE`, and a slope of 49.
+  # Every fitted probability at a boundary, not all at the same one: a
+  # perfectly separating covariate sends the two groups to opposite ends.
   if (all(mu < eps | mu > 1 - eps)) {
-    stop(
-      paste(
-        "The STC outcome model is separated: every fitted probability sits at",
-        "0 or 1, which happens when an arm has no events or no non-events.",
-        "The likelihood has no finite maximum there, so the coefficients and",
-        "the interval would describe where the fitting stopped rather than",
-        "the data. Use mlumr(), whose prior makes the posterior proper."
-      ),
-      call. = FALSE
-    )
+    stop("The STC outcome model is separated: every fitted probability sits ",
+         "at 0 or 1, so the maximum likelihood estimate is not finite. Use ",
+         "mlumr(), whose prior makes the posterior proper.", call. = FALSE)
   }
   exact <- .stc_separation_status(fit)
   if (identical(exact$status, "unknown")) {
-    # Not a refusal: the estimate is still returned. But an unchecked fit must
-    # not be handed back looking like a checked one, and the screen that DID
-    # run cannot see the quasi-complete case at all.
-    warning(
-      paste0(
-        "The exact separation check did not run for the STC outcome model, ",
-        "because ", exact$reason, ". Only the fitted-value screen was ",
-        "applied, and it cannot detect quasi-complete separation: rows on the ",
-        "separating hyperplane keep fitted probabilities away from 0 and 1, ",
-        "so a fit whose maximum likelihood estimate is infinite can pass it ",
-        "with converged = TRUE and finite coefficients. Treat this estimate ",
-        "and its interval as unverified. Install detectseparation to run the ",
-        "check, or use mlumr(), whose prior makes the posterior proper."
-      ),
-      call. = FALSE
-    )
+    warning("The exact separation check did not run for the STC outcome ",
+            "model, because ", exact$reason, ". The fitted-value screen ",
+            "cannot see quasi-complete separation, so treat the estimate as ",
+            "unverified; install detectseparation to run the check.",
+            call. = FALSE)
   }
   if (identical(exact$status, "separated")) {
-    stop(
-      paste(
-        "The STC outcome model is separated: a linear combination of the",
-        "covariates separates the outcome, so the maximum likelihood estimate",
-        "is infinite even though the fitting reported convergence and every",
-        "returned number is finite. This is the quasi-complete case, where",
-        "rows on the separating hyperplane keep fitted probabilities away",
-        "from 0 and 1, so it cannot be seen in the fitted values. Use",
-        "mlumr(), whose prior makes the posterior proper."
-      ),
-      call. = FALSE
-    )
+    stop("The STC outcome model is separated: a linear combination of the ",
+         "covariates separates the outcome, so the maximum likelihood ",
+         "estimate is not finite. Use mlumr(), whose prior makes the ",
+         "posterior proper.", call. = FALSE)
   }
   invisible(exact)
 }
@@ -548,32 +361,14 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 
 #' Exact separation test, when the optional dependency is present
 #'
-#' Whether a binomial likelihood has a finite maximum is a linear-programming
-#' question, not a threshold one: the fit is separated exactly when some linear
-#' combination of the covariates perfectly orders the outcome, and a fit that
-#' is merely strong can look identical in the coefficients and the fitted
-#' values. \pkg{detectseparation} solves that program. It is in Suggests, so
-#' when it is absent this returns the `"unknown"` status with the reason, and
-#' the caller keeps the fitted-value test as its only screen; that is a weaker
-#' guarantee, not a wrong one.
-#'
-#' An error here is reported as "unknown" rather than as "separated": a refit
-#' can fail for reasons that have nothing to do with separation, and turning
-#' those into a refusal would reject estimable models. A warning is not an
-#' error, and must not be read as one here, because the fit this check exists
-#' to catch is the one that warns.
-#'
-#' The result is a STATUS and not a logical, because `NA` was being read as
-#' permission to continue. The caller stopped on `isTRUE()`, so every way of
-#' not knowing, an absent dependency most of all, took the same path as a fit
-#' that had been checked and cleared. Those are different states and the caller
-#' now says which one it is in.
+#' Separation is a linear-programming question, which \pkg{detectseparation}
+#' solves. Without it, or when the refit errors, the status is `"unknown"`
+#' with the reason; a warning from the refit is muffled, since a separated
+#' fit is the case that warns.
 #'
 #' @param fit A fitted binomial `glm`.
 #' @return A list with `status`, one of `"separated"`, `"not_separated"` or
-#'   `"unknown"`, and `reason`, a string explaining an unknown. A warning is
-#'   muffled and the outcome used, since a separated refit is the case that
-#'   warns.
+#'   `"unknown"`, and `reason`, a string explaining an unknown.
 #' @keywords internal
 .stc_separation_status <- function(fit) {
   unknown <- function(reason) list(status = "unknown", reason = reason)
@@ -581,12 +376,8 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     return(unknown(paste("the optional detectseparation package is not",
                          "installed, so the linear program was not run")))
   }
-  # Rebuild the fit's own call rather than going through `update()`. That
-  # evaluates in its CALLER's frame, which here is this function, so the data
-  # argument is looked up from the package namespace outward: it resolves only
-  # when the data happens to sit in the global environment, and fails whenever
-  # the caller holds it in a local one. The fit already records where its own
-  # terms were built, and that is the environment the data was visible in.
+  # Rebuild the fit's own call in the environment its formula was built in;
+  # `update()` would evaluate in this frame and not find the data.
   cl <- stats::getCall(fit)
   if (is.null(cl)) {
     return(unknown("the fit records no call, so it could not be re-run"))
@@ -596,11 +387,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   if (!is.environment(env)) {
     env <- parent.frame()
   }
-  # Warnings are MUFFLED, not treated as failure. Fitting a separated model is
-  # the case that warns ("fitted probabilities numerically 0 or 1 occurred"),
-  # so folding warnings into "unknown" blinded this check exactly when the
-  # answer is TRUE, and did so only on the platforms that happen to emit one.
-  # An error is a different matter: then there is no outcome to read.
+  # Warnings are muffled: a separated refit is the case that warns.
   failure <- NULL
   outcome <- tryCatch(
     withCallingHandlers(eval(cl, env)$outcome,
@@ -647,11 +434,8 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   p_B_effect <- bound_probability(p_B, n_B)
   row_p <- agd$.r / agd$.n
   row_w <- .normalize_weights(agd$.n)
-  # Take the boundary correction from the POOLED n, as `.naive_binomial()`
-  # does. With each row's own n the answer depends on how one comparator arm
-  # was tabulated: 0/100 corrects to 0.5/101, while 0/50 + 0/50 corrects to
-  # 0.5/51 twice, so two descriptions of the same data give different standard
-  # errors. Interior rows are untouched either way.
+  # Boundary correction from the pooled n, as `.naive_binomial()` does, so
+  # the answer does not depend on how the arm was tabulated.
   row_p_effect <- bound_probability(row_p, n_B)
   var_p_B_effect <- sum(
     row_w^2 * row_p_effect * (1 - row_p_effect) / agd$.n
@@ -666,18 +450,11 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   se <- comp_delta$link_effect_se
   p_hat_A_comp_se <- .sqrt_variance(comp_delta$var_p_A,
                                     "comparator probability variance")
-  # Use the boundary-corrected variance on the absolute scale too. With raw
-  # `row_p` a zero-event or all-event comparator arm has p(1 - p) = 0 and
-  # contributes no uncertainty: 0/100 gave p_B_se = 0, a degenerate [0, 0]
-  # interval, and a risk difference whose SE ignored the comparator entirely,
-  # although 0/100 alone is consistent with p up to roughly 0.03. The
-  # link-scale effect and the log risk ratio already used the corrected
-  # variance; these did not. This mirrors `.naive_binomial()`.
+  # Boundary-corrected variance on the absolute scale too, so a zero-event
+  # comparator arm still contributes uncertainty.
   p_B_se <- .sqrt_variance(var_p_B_effect, "comparator probability variance")
-  # The standardized index probability is a model prediction, so its
-  # interval is the delta-method one, bounded to [0, 1]; it is asymptotic.
-  # The comparator arm is observed directly, and its interval is exact, as
-  # in `.naive_binomial()`.
+  # The standardized index probability is a prediction (delta-method
+  # interval); the observed comparator arm gets an exact interval.
   p_hat_A_comp_ci <- .bounded_wald_interval(p_hat_A_comp, p_hat_A_comp_se, z,
                                             lower = 0, upper = 1)
   p_B_ci <- .clopper_pearson_interval(sum(agd$.r), n_B, conf_level)
@@ -728,22 +505,9 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' Comparator-population delta-method terms for binomial STC
 #'
 #' The standardized event probability is `p = sum(w_i p_i) / sum(w_i)` over
-#' the comparator grid, and its uncertainty comes through the delta method
-#' from the coefficient covariance. The gradients are analytic:
-#' `d p / d beta = sum(w_i p_i'(eta_i) X_i) / sum(w_i)`, with `p_i'` the
-#' inverse link's derivative, and the link-scale and log-scale functionals
-#' follow by the chain rule. A central difference in the coefficient
-#' coordinates was used before, with a step proportional to `max(1, |beta|)`;
-#' that step is not a property of the model. Multiply a predictor by 1e6 and
-#' its coefficient shrinks by 1e6 while the step stays near 6e-6, so the
-#' perturbation moved the target linear predictor by about 6, not a local
-#' derivative at all, and a comparator probability of 0.75 on 40 subjects
-#' at the observed profile reported a standard error of 0.032 instead of the
-#' 0.068 the same data give in any other units. Analytic gradients transform
-#' with the design, so equivalent units give equivalent uncertainty.
-#'
-#' Everything is formed on the log scale so that a tail probability outside
-#' double precision keeps its digits: see [.stc_binomial_gradients()].
+#' the comparator grid; its gradient in the coefficients is analytic, so the
+#' uncertainty does not depend on the predictors' units. The gradients are
+#' formed from the log probabilities; see [.stc_binomial_gradients()].
 #' @keywords internal
 .stc_binomial_comparator_delta <- function(fit, newdata, weights,
                                            beta_hat, V, link_resolved,
@@ -780,23 +544,13 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' Analytic gradients of the standardized binomial functionals
 #'
 #' With `log p_i` and `log q_i` the event and non-event log probabilities at
-#' each grid point (from [.binary_log_probs()]), the standardized log
-#' probability is `log(sum(w_i p_i) / sum(w_i))` and its gradient is
-#' `sum(c_i (d log p_i / d eta) X_i)` with `c_i = w_i p_i / sum(w p)`, the
-#' share of the standardized probability each point carries. The per-point
-#' derivative of the log probability is `q_i` under the logit, the inverse
-#' Mills ratio `phi(eta) / Phi(eta)` under the probit, and
-#' `exp(eta - exp(eta)) / p_i` under the complementary log-log; each is
-#' formed from the log probabilities so a point deep in either tail
-#' contributes its share rather than a rounded zero. The same for the
-#' non-event side, with `-p_i`, `-phi(eta) / Phi(-eta)` and `-exp(eta)`.
-#'
-#' The link-scale functional is then the chain rule on the two log means:
-#' the difference of the two gradients for the logit; for the probit,
-#' `d p / phi(z)` at the link value `z`, taken from whichever tail is the
-#' smaller one, as [.binary_link_from_logs()] does; for the complementary
-#' log-log, `d log q / log q`, or the log-probability gradient once
-#' `log q` has rounded to zero and the link is `log p` to double precision.
+#' each grid point, the standardized log probability is
+#' `log(sum(w_i p_i) / sum(w_i))` and its gradient is
+#' `sum(c_i (d log p_i / d eta) X_i)` with `c_i = w_i p_i / sum(w p)`. The
+#' per-point derivatives are `q_i` (logit), `phi(eta) / Phi(eta)` (probit)
+#' and `exp(eta - exp(eta)) / p_i` (cloglog), formed from the log
+#' probabilities so tail points keep their share. The link-scale functional
+#' follows by the chain rule on the two log means.
 #'
 #' @param X Comparator design, one row per grid point.
 #' @param eta Linear predictor at each grid point.
@@ -829,35 +583,15 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     d_log_p <- exp(eta - exp(eta) - lp$event)
     d_log_q <- NULL
   }
-  # The log weights are normalized by a shifted log-sum-exp, not by
-  # log(sum(weights)): two weights of 1e308 are finite and their sum is not,
-  # which sent every log share to -Inf and the gradient of a point mass to 0.
-  # [.weighted_log_mean_exp()] normalizes its denominator the same way.
+  # Normalized by a shifted log-sum-exp, as [.weighted_log_mean_exp()] does.
   log_weights <- log(weights)
   m_w <- max(log_weights)
   log_w <- log_weights - (m_w + log(sum(exp(log_weights - m_w))))
   log_p_mean <- .weighted_log_mean_exp(lp$event, weights)
   log_q_mean <- .weighted_log_mean_exp(lp$nonevent, weights)
-  # The share `w_i p_i / sum(w p)`, normalized in the frame where the common
-  # term has already cancelled, and never against the scalar mean.
-  #
-  # Two orders fail here and they fail differently. Adding the weight before
-  # the mean is subtracted puts a weight of order 1 beside a log probability
-  # of order 1e17 (cloglog's non-event one is -exp(eta), -2.4e17 at eta 40),
-  # where the double's spacing is 32 and the weight is lost outright: 64
-  # copies of one profile gave a link gradient of 64, where standardizing a
-  # point mass cannot change its link and the answer is 1.
-  #
-  # Subtracting the mean first fixes that case and not the general one,
-  # because `log_p_mean` is itself the largest log probability plus a
-  # correction of order 1, and that sum is where the spacing swallows the
-  # correction. The reconstruction then hands the dominant point its own
-  # weight instead of the whole share: two equally weighted cloglog points
-  # at eta 40 and 40 + 1e-14 gave a link gradient of 0.5, and so did every
-  # other spacing, up to eta 40 beside eta 50 where the second point is not
-  # there at all. Cancelling the maximum before the shares are formed never
-  # writes the correction next to it, and the shares sum to 1 by
-  # construction rather than by cancellation.
+  # The share `w_i p_i / sum(w p)`, formed after cancelling the largest log
+  # probability so the shares sum to 1 by construction even when the log
+  # probabilities are of order 1e17.
   log_shares <- function(x) {
     m_x <- max(x)
     z <- (x - m_x) + log_w
@@ -870,14 +604,8 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   share_q <- exp(log_share_q)
   grad_log_p <- colSums(share_p * d_log_p * X)
   grad_log_q <- if (link == "cloglog") {
-    # The non-event derivative -exp(eta) overflows past eta = 709, where the
-    # point's share is 0, and 0 * -Inf is NaN. Formed as one exponent the
-    # product underflows to the 0 it is, and a saturated point beside an
-    # ordinary one leaves the gradient finite. When every point is
-    # saturated the non-event mean is 0 to double precision, the link
-    # `.binary_link_from_logs()` reports is +Inf, and the gradient is NaN
-    # with it; the finite-variance guard then refuses the fit, as it did
-    # before, rather than attach a finite SE to an infinite estimate.
+    # Formed as one exponent so a saturated point (share 0, derivative
+    # -Inf) underflows to 0 rather than NaN.
     colSums(-exp(log_share_q + eta) * X)
   } else {
     colSums(share_q * d_log_q * X)
@@ -894,14 +622,8 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
       -exp(log_q_mean - log_phi_z) * grad_log_q
     }
   } else if (log_q_mean == 0) {
-    # `d log q-bar / log q-bar` is the link's own derivative and is exact
-    # wherever it can be formed. The non-event log probability is built as
-    # -exp(eta) rather than as log(1 - p), so it stays representable until
-    # exp(eta) itself underflows below eta = -745; only there is the link
-    # log(-log q-bar) equal to log p-bar to double precision. Switching at
-    # log p-bar = -18 instead left the point-mass derivative at 1 - p-bar / 2
-    # rather than 1, a relative 1e-9 at eta = -20 where the exact form was
-    # available.
+    # Only where `log q` has rounded to zero is the link `log p` to double
+    # precision.
     grad_log_p
   } else {
     grad_log_q / log_q_mean
@@ -1030,10 +752,8 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   se <- .sqrt_variance(var_lrr_A + var_lrr_B,
                        "poisson STC contrast variance")
 
-  # Gradient of the standardized RATE itself, not of its logarithm:
-  # d/dbeta of sum_i w_norm_i * exp(eta_i) is sum_i w_norm_i * lambda_i * X_i.
-  # The log-rate gradient above normalizes by the exponentially weighted
-  # `contribution` instead, which is a different weighting, so both are needed.
+  # Gradient of the standardized rate itself, a different weighting from the
+  # log-rate gradient above.
   w_norm <- weights / sum(weights)
   lambda_comp <- exp(eta_comp)
   grad_rate <- colSums(w_norm * lambda_comp * X_comp_design)
@@ -1041,19 +761,9 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     as.numeric(t(grad_rate) %*% V %*% grad_rate),
     "poisson STC rate variance"
   )
-  # A fit with no events, or with a direction along which the likelihood
-  # climbs to an unattained supremum, never reaches here:
-  # .stc_refuse_poisson_recession()
-  # refused it, so the delta-method variance is that of an interior maximum.
-  # Rate difference on the natural per-unit-exposure scale: the standardized
-  # index rate minus the observed comparator rate. The standardized rate's
-  # variance is the delta-method one already computed for it, and the two arms
-  # are independent, so the variances add.
+  # Rate difference per unit exposure; the arms are independent, so the
+  # variances add, with the comparator count continuity corrected.
   rd <- rate_hat_A - rate_B
-  # The comparator variance uses the continuity-corrected count, so a
-  # zero-event comparator arm still contributes uncertainty rather than
-  # collapsing the interval; the log-rate contrast already corrects the same
-  # way.
   var_rd <- var_rate_A + events_B_adjusted / exposure_B^2
   se_rd <- .sqrt_variance(var_rd, "poisson STC rate-difference variance")
 
@@ -1135,14 +845,9 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   ipd <- data$ipd$data
   pseudo <- data$agd$pseudo_ipd
   cov_names <- data$covariates
-  # Flexible baselines ("mspline"/"pexp") have no parametric flexsurv analogue.
-  # Rather than silently report the requested distribution while actually
-  # fitting a Weibull, flag the approximation: warn, and record both the
-  # requested `distribution` and the `distribution_fit` actually used.
-  # switch() in .stc_flexsurv_dist() used to end in an unnamed default, so any
-  # unrecognized name (a typo such as "weibul") fell through to a Weibull fit
-  # while the returned object still reported the name the user typed and
-  # approximated = FALSE. Wrong model, wrong label, no warning. Validate first.
+  # Flexible baselines have no flexsurv analogue: fit a Weibull, warn, and
+  # record both the requested and the fitted distribution. Validate the name
+  # first so a typo does not fall through to a Weibull.
   valid_distributions <- c("exponential", "weibull", "gompertz",
                            "exponential-aft", "weibull-aft", "lognormal",
                            "loglogistic", "gamma", "gengamma",
@@ -1169,14 +874,8 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
       call. = FALSE
     )
   }
-  # Map the actually-fitted family (dist_fit) to its flexsurv name. dist_fit is
-  # the single normalized representation (Weibull for flexible-baseline requests),
-  # so the flexsurv lookup never depends on the mspline/pexp fallback entries.
   dist_fs <- .stc_flexsurv_dist(dist_fit)
-  # RMST is an integral to a restriction time, so an STC estimate is only
-  # comparable with a Bayesian one when both use the same horizon. mlumr() can
-  # narrow its default to the follow-up both studies observed, which differs
-  # from the pooled maximum used here, so the horizon has to be settable.
+  # RMST at another horizon is another estimand, so the horizon is settable.
   horizon <- if (is.null(rmst_horizon)) {
     max(c(ipd$.time, pseudo$.time))
   } else {
@@ -1237,17 +936,13 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
       }
       set.seed(seed)
     }
-    # Each replicate carries its own family parameter as well as the two
-    # estimates: the point-fit check above cannot see a resample that leaves
-    # mlumr()'s parameter space while the point estimate stays inside it, and
-    # those refits still enter the SE.
+    # Each replicate carries its family parameter too, since a resample can
+    # leave mlumr()'s parameter space while the point estimate stays inside.
     boot <- vapply(seq_len(n_boot), function(b) {
       ib <- ipd[sample(nrow(ipd), replace = TRUE), , drop = FALSE]
       pb <- pseudo[sample(nrow(pseudo), replace = TRUE), , drop = FALSE]
-      # A resample can lose every event in an arm. flexsurvreg() then returns
-      # optimizer-boundary parameters with a warning rather than an error, so
-      # the replicate would be counted as a success and its number would enter
-      # the standard error. Treat it as the failed fit it is.
+      # A resample with no events in an arm is a failed fit, whatever
+      # flexsurvreg() returns.
       if (sum(ib$.status == 1L) == 0L || sum(pb$.status == 1L) == 0L) {
         return(rep(NA_real_, 4L))
       }
@@ -1260,17 +955,12 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     }, numeric(4))
     se <- stats::sd(boot[1, ], na.rm = TRUE)
     log_chr_se <- stats::sd(boot[2, ], na.rm = TRUE)
-    # Count the two quantities separately: a resample can return a finite RMST
-    # difference while the cumulative-hazard ratio is undefined at the horizon
-    # (a boundary survival), and one shared count would hide that.
+    # Counted separately: the cumulative-hazard ratio can be undefined where
+    # the RMST difference is finite.
     n_boot_ok <- sum(!is.na(boot[1, ]))
     n_boot_ok_chr <- sum(!is.na(boot[2, ]))
     n_boot_failed <- n_boot - n_boot_ok
     n_boot_failed_chr <- n_boot - n_boot_ok_chr
-    # Warn on EITHER shortfall. Gating on the RMST count alone left a run in
-    # which every RMST difference was finite but several cumulative-hazard
-    # ratios were not silently reporting a log-CHR interval built from fewer
-    # replicates than the RMST one.
     if (n_boot_failed > 0L || n_boot_failed_chr > 0L) {
       warning(sprintf(
         paste0("Bootstrap successes: RMST difference %d/%d; log cumulative-",
@@ -1281,9 +971,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
         n_boot_ok, n_boot, n_boot_ok_chr, n_boot
       ), call. = FALSE)
     }
-    # How many resamples left the Bayesian model's parameter space. NA_integer_
-    # when the distribution has no such parameter, which is not the same as
-    # zero and must not print as though it had been checked.
+    # NA_integer_ when the distribution has no such parameter.
     n_boot_out_of_family <- if (is.null(point$family_par_name)) {
       NA_integer_
     } else {
@@ -1329,18 +1017,13 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     # space; names the parameter that did so.
     out_of_family = out_of_family,
     family_par = point$family_par,
-    # Name of the parameter whose sign decides family membership ("shape" for
-    # Gompertz, "Q" for the generalized gamma), NULL when the distribution has
-    # none. Reported separately from `out_of_family`, which is set only when the
-    # POINT fit left the space.
+    # The parameter whose sign decides family membership, NULL when none.
     family_par_name = point$family_par_name,
     horizon = horizon,
     rmst_index_comparator = point$rmst_index,
     rmst_index = point$rmst_index,
     rmst_comparator = point$rmst_comparator,
-    # Cumulative-hazard ratio at the horizon (ratio of cumulative hazards
-    # H(horizon) = -log S(horizon)), with a bootstrap SE/CI on the log scale.
-    # This is not a hazard ratio in general; see .stc_survival_point().
+    # Cumulative-hazard ratio at the horizon, not a hazard ratio in general.
     log_chr = point$log_chr,
     chr = exp(point$log_chr),
     log_chr_se = log_chr_se,
@@ -1352,9 +1035,6 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     n_boot_requested = as.integer(n_boot),
     n_boot_ok = n_boot_ok,
     n_boot_ok_log_chr = n_boot_ok_chr,
-    # Resamples whose fitted shape / Q left mlumr()'s parameter space but whose
-    # RMST still entered the SE. NA_integer_ when the distribution has no such
-    # parameter to leave.
     n_boot_out_of_family = n_boot_out_of_family,
     data = data
   )
@@ -1399,14 +1079,10 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   invisible(TRUE)
 }
 
-#' Require a flexsurv fit that actually converged
+#' Require a flexsurv fit that converged to a maximum
 #'
-#' A sparse or nearly separated sample can leave events in both arms and still
-#' send the optimizer to a boundary. `flexsurvreg()` warns in that case rather
-#' than failing, so the estimates were summarized as an ordinary RMST, and the
-#' bootstrap counted such refits among its successes because `tryCatch()` sees
-#' only errors. Raising an error here makes a non-converged replicate a failed
-#' one, which is what it is.
+#' `flexsurvreg()` warns rather than fails at an optimizer boundary, so this
+#' raises an error and the bootstrap counts such a replicate as failed.
 #' @keywords internal
 .validate_flexsurv_fit <- function(fit, arm) {
   conv <- fit$opt$convergence
@@ -1425,11 +1101,8 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
          "covariance matrix, so its uncertainty cannot be quantified.",
          call. = FALSE)
   }
-  # A finite covariance is not yet a usable one. The optimizer can report
-  # convergence while the Hessian is not positive definite, which is a saddle
-  # or boundary point rather than a maximum; flexsurv then returns finite
-  # variances that can be zero or negative. Checking only for NA / Inf accepts
-  # that fit, and the bootstrap counts it among its successes.
+  # A finite covariance that is not positive definite is a saddle or
+  # boundary point, not a maximum.
   if (!is.null(fit$cov) && length(fit$cov) > 0L) {
     v <- diag(as.matrix(fit$cov))
     ev <- tryCatch(
@@ -1452,11 +1125,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   ipd$.stc_event <- as.integer(ipd$.status == 1L)
   pseudo$.stc_event <- as.integer(pseudo$.status == 1L)
 
-  # Build the formula from symbols rather than pasting names into a string, as
-  # `.stc_formula()` already does for the other families. Backtick-quoting a
-  # name that itself contains a backtick produces a formula that does not parse,
-  # so a column this function has already accepted as a valid numeric covariate
-  # would fail here instead.
+  # Built from symbols, as `.stc_formula()` does, so any column name parses.
   rhs <- Reduce(function(left, right) call("+", left, right),
                 lapply(cov_names, as.name))
   form_a <- stats::as.formula(
@@ -1467,13 +1136,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   .validate_flexsurv_fit(fit_a, "index")
   rmst_a_rows <- summary(fit_a, newdata = comp_cov, type = "rmst",
                          t = horizon, ci = FALSE, tidy = TRUE)
-  # An equal-weight mean IS the comparator-population average here: survival
-  # AgD carries exactly one arm-summary row (set_agd_surv() rejects multi-arm
-  # comparators), so `comp_cov` is that single row's integration grid and the
-  # points are equally weighted by construction. The other families average
-  # over several AgD rows and must weight by `agd$.n` / `agd$.E`, which
-  # survival AgD does not carry. Weighting has to arrive with multi-row
-  # support, not before it.
+  # Survival AgD carries one arm, so the grid points are equally weighted.
   rmst_index <- mean(rmst_a_rows$est)
 
   fit_b <- flexsurv::flexsurvreg(survival::Surv(.time, .stc_event) ~ 1,
@@ -1482,13 +1145,9 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
   rmst_b <- summary(fit_b, type = "rmst", t = horizon, ci = FALSE,
                     tidy = TRUE)$est[1]
 
-  # Cumulative-hazard ratio at the horizon: the ratio of cumulative hazards
-  # H(t) = -log S(t) at t = horizon, for the G-computed index survival
-  # (standardized to the comparator covariates) versus the comparator. This is
-  # NOT in general a hazard ratio: only when the two separately-fitted survival
-  # models happen to be proportional with a common baseline shape does it equal
-  # the constant HR. NA if either survival is at a boundary (no events / certain
-  # survival), where the log ratio is undefined.
+  # Cumulative-hazard ratio at the horizon, H(t) = -log S(t), for the
+  # standardized index survival against the comparator. Not a hazard ratio
+  # in general; NA where either survival sits at a boundary.
   cumhaz_a_rows <- summary(fit_a, newdata = comp_cov, type = "cumhaz",
                            t = horizon, ci = FALSE, tidy = TRUE)$est
   log_surv_a <- .weighted_log_mean_exp(-cumhaz_a_rows)
@@ -1502,12 +1161,9 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     NA_real_
   }
 
-  # mlumr's Bayesian Gompertz constrains the shape to be positive, and its
-  # generalized gamma is the positive-Q (Lawless k > 0) subfamily. flexsurv
-  # admits the negative branch of both, so an STC benchmark can land outside the
-  # family its label denotes and would then not be a like-for-like comparison
-  # with the Bayesian fit of the same name. Report the parameter so stc() can
-  # say so rather than leaving the reader to assume the spaces match.
+  # flexsurv admits the negative Gompertz shape and negative Q, which the
+  # Bayesian models of the same name do not; report the parameter so stc()
+  # can say so.
   par_name <- switch(dist_fs, gompertz = "shape", gengamma = "Q", NULL)
   family_par <- NULL
   if (!is.null(par_name)) {
@@ -1531,9 +1187,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
     # Flexible baselines have no parametric STC analogue; approximate with
     # a Weibull G-computation.
     mspline = "weibull", pexp = "weibull",
-    # No unnamed default: an unrecognized name must not fall through to a
-    # Weibull fit that the result would then mislabel. stc() validates the name
-    # before this point, so reaching here at all is a bug.
+    # No unnamed default: stc() validates the name first.
     stop("Unsupported survival distribution: ", distribution, call. = FALSE)
   )
 }

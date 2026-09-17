@@ -56,13 +56,6 @@
   under, judged over the merged `[entry, exit]` intervals of each study, and
   refuses a shared baseline (`aux_by = "none"`) whose studies never overlap
   on a spline column. See `?mlumr`.
-* Fix: `mlumr()` checks the propriety of a survival posterior before
-  sampling. An index design that reproduces every event time exactly is
-  refused for the scale families (`"lognormal"`, `"gengamma"`) and warned
-  about for the shape families; a comparator curve with more tied event
-  rows than the integration grid can carry is refused or warned about the
-  same way. The rules, what they can and cannot decide, and the warnings for
-  saturated and nearly exact designs are in `?mlumr`.
 * Improvement: `predict(type = "rmst")` and `predict(type = "median")` warn
   when the prediction grid is too coarse to trust and point at a finer
   `n_rmst_grid` or `pred_times`.
@@ -188,8 +181,7 @@
 * Fix: `stc()` refuses a binomial outcome model with complete separation and,
   when `detectseparation` is installed, tests exactly for quasi-complete
   separation; the result records a `separation` status. A Poisson model with
-  no finite maximum likelihood estimate (no events, or a zero-event
-  subgroup beside a positive one) is refused the same way. See `?stc`.
+  no events is refused the same way. See `?stc`.
 * Fix: Directly observed arm proportions and rates in `naive()`, and the
   observed comparator proportion in a binomial `stc()`, use exact
   Clopper-Pearson and Garwood intervals instead of Wald intervals, which
@@ -214,10 +206,9 @@
 * Improvement: The binary, continuous and count IPD likelihoods use Stan's
   fused GLM densities on their canonical links; results agree with 0.1.0 to
   Monte Carlo error.
-* Fix: `mlumr()` refuses a normal fit whose covariates reproduce the outcome
-  exactly, where the posterior for the residual SD is improper, and warns when
-  the residual is nearly zero or the design is saturated. Existence is decided
-  on `log(y)` under `link = "log"`, with exact rank. See `?mlumr`.
+* Fix: `mlumr()` refuses a normal fit whose outcome is constant or reproduced
+  exactly by its covariates, where the posterior for the residual SD is
+  improper, and warns when the design is saturated.
 * Fix: Marginal probabilities, means, rates and their contrasts are formed on
   the log scale; the `safe_logit()` and `safe_divide()` clamps are gone, so
   ratios with a near-zero comparator are no longer understated and `lor_*`

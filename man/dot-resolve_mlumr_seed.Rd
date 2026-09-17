@@ -7,14 +7,7 @@
 .resolve_mlumr_seed(seed)
 }
 \description{
-An explicit \code{seed} argument wins; otherwise the fixed default 2026 is used
-and a warning says so. Returns \code{list(value, source)}.
-}
-\details{
-The seed is deliberately not derived from R's RNG state. R initializes
-\code{.Random.seed} on first use from the clock and the process id, so its
-presence does not establish that the user called set.seed(): drawing from it
-would make an unseeded fit silently irreproducible, and would advance the
-caller's RNG stream as a side effect.
+An explicit \code{seed} wins; otherwise the fixed default 2026 is used with a
+warning, rather than a draw from the session RNG that nothing records.
 }
 \keyword{internal}

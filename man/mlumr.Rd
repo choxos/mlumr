@@ -50,22 +50,17 @@ poisson and survival: \code{"log"} (default, only option). If \code{NULL}, uses 
 canonical default for the family.}
 
 \item{prior_intercept}{Prior for treatment intercepts. Default from
-\code{\link[=default_prior_intercept]{default_prior_intercept()}} (\code{prior_normal(0, 10)}). This is a generic
-starting value on the linear-predictor scale, not a calibrated choice for
-every family or outcome scale. See \code{\link[=prior_normal]{prior_normal()}} for guidance.}
+\code{\link[=default_prior_intercept]{default_prior_intercept()}} (\code{prior_normal(0, 10)}), on the
+linear-predictor scale. See \code{\link[=prior_normal]{prior_normal()}}.}
 
-\item{prior_beta}{Prior for regression coefficients. May be a single
-prior broadcast to all covariates, or a \code{list} of priors of length
-\code{n_cov} for per-coefficient specification. All per-coefficient priors
-must share the same family and (for Student-t) df. Default from
-\code{\link[=default_prior_beta]{default_prior_beta()}} (\code{prior_normal(0, 2.5)}). Gelman et al. (2008)
-motivate a Cauchy prior after a particular predictor scaling, not this
-normal prior as a universal default. Set \code{autoscale = TRUE} on the
-prior to divide the scale by each covariate's empirical SD: useful
-when predictors are on very different scales. For \code{model = "spfa"}
-the single coefficient vector \code{beta} uses this prior; for
-\code{model = "relaxed"} the index-arm coefficients \code{beta_index} use it
-while \code{beta_comparator} uses \code{prior_beta_comparator} (see below).}
+\item{prior_beta}{Prior for regression coefficients. A single prior
+broadcast to all covariates, or a \code{list} of priors of length \code{n_cov}
+sharing one family (and, for Student-t, one df). Default from
+\code{\link[=default_prior_beta]{default_prior_beta()}} (\code{prior_normal(0, 2.5)}). Set \code{autoscale = TRUE}
+on the prior to divide the scale by each covariate's empirical SD. For
+\code{model = "spfa"} this is the prior on the shared \code{beta}; for
+\code{model = "relaxed"} on \code{beta_index}, with \code{beta_comparator} taking
+\code{prior_beta_comparator}.}
 
 \item{prior_sigma}{Prior for residual SD (normal family only). Default
 from \code{\link[=default_prior_sigma]{default_prior_sigma()}} (\code{prior_normal(0, 2.5)}, half-normal via
@@ -73,41 +68,20 @@ the Stan \verb{<lower=0>} constraint). \code{\link[=prior_exponential]{prior_exp
 supported for sigma.}
 
 \item{distribution}{For \code{family = "survival"} only: the survival
-distribution. One of the parametric forms \code{"exponential"}, \code{"weibull"}
-(default), \code{"gompertz"} (proportional hazards), \code{"exponential-aft"},
-\code{"weibull-aft"}, \code{"lognormal"}, \code{"loglogistic"}, \code{"gamma"}, \code{"gengamma"}
-(accelerated failure time), or the flexible-baseline forms \code{"mspline"}
-and \code{"pexp"} (piecewise exponential). Must be \code{NULL} for other families.
-Note: \code{"gengamma"} is the generalized gamma restricted to positive Lawless
-shape \code{Q} (\code{Q = 1 / sqrt(aux2) > 0}), which nests the Weibull, gamma, and
-(as the limit) log-normal; it does not represent negative-\code{Q} shapes. Use a
-flexible \code{"mspline"} baseline if the data need a hazard shape outside the
-positive-\code{Q} family. \code{"gengamma"} is also the least numerically robust
-option: its likelihood uses Stan's regularized incomplete gamma function,
-whose gradient can fail to converge (\verb{grad_reg_lower_inc_gamma: n (internal counter) exceeded 100000 iterations}). Isolated messages of that
-kind are rejected proposals and are harmless, but frequent ones, divergent
-transitions, or a chain that fails outright mean the fit should not be
-trusted. Always inspect the MCMC diagnostics reported by \code{summary()} on a
-\code{gengamma} fit, and prefer \code{"weibull"}, \code{"gamma"}, \code{"lognormal"}, or
-\code{"mspline"} when they fit comparably.
-Note: \code{"gompertz"} has a positive shape only (the shape carries a
-\verb{<lower=0>} constraint, so the hazard \code{exp(eta + shape * t)} is
-monotonically increasing). Decreasing-hazard Gompertz (negative shape),
-available in some survival software, is not supported; use \code{"mspline"} /
-\code{"pexp"} for a decreasing or non-monotone baseline hazard.}
+distribution. Proportional hazards: \code{"exponential"}, \code{"weibull"}
+(default), \code{"gompertz"} (positive shape, so an increasing hazard).
+Accelerated failure time: \code{"exponential-aft"}, \code{"weibull-aft"},
+\code{"lognormal"}, \code{"loglogistic"}, \code{"gamma"}, \code{"gengamma"} (the positive
+Lawless \code{Q} subfamily). Flexible baseline hazard: \code{"mspline"} and
+\code{"pexp"} (piecewise exponential). \code{"gengamma"} is the least numerically
+robust option, so inspect its MCMC diagnostics. Must be \code{NULL} for other
+families.}
 
 \item{prior_aux}{For \code{family = "survival"} parametric distributions: prior
-for the shape/scale parameter(s) (half-normal/half-t/exponential via the
-\verb{<lower=0>} constraint). Default \code{\link[=default_prior_aux]{default_prior_aux()}}. One default is
-reused across distributions whose auxiliary parameters do not share a
-scale, so check it against your own time unit rather than assuming it is
-weakly informative. The Weibull and gamma shapes and the log-normal
-\code{sdlog} are dimensionless, but the Gompertz shape has units of 1 / time:
-the same trial expressed in days, months, or years gives that parameter
-values three orders of magnitude apart, and a half-normal(0, 2) is
-near-flat on one scale and strongly informative on another. Set it
-explicitly for a Gompertz baseline, and use \code{\link[=prior_sensitivity]{prior_sensitivity()}} or a
-prior-predictive check to see what hazard shapes it implies.}
+for the shape or scale parameter(s), half-normal, half-t or exponential
+through the \verb{<lower=0>} constraint. Default \code{\link[=default_prior_aux]{default_prior_aux()}}. The
+Gompertz shape has units of 1 / time, so set this explicitly for a
+Gompertz baseline and check it against the time unit.}
 
 \item{prior_smooth}{For \code{family = "survival"} flexible baselines
 (\code{"mspline"}/\code{"pexp"}): prior for the random-walk smoothing SD. Default
@@ -127,123 +101,44 @@ degree override (default derived from \code{distribution}: 3 for \code{"mspline"
 
 \item{aux_by}{For \code{family = "survival"}: how the baseline hazard is shared
 between the two studies, the unanchored analogue of \code{multinma::nma()}'s
-\code{aux_by}. \code{".study"} (the default) gives each study its \strong{own} baseline
-shape, so the M-spline coefficients (or the parametric shape parameters)
-are estimated separately for the index and comparator studies. This matches
-\code{multinma}, where \code{.study} is always part of the stratification, and it is
-the right default: two single-arm trials rarely share a hazard shape, and
-assuming they do imposes proportional hazards \emph{across studies}, which no
-randomization supports.
-
-\code{NULL} is accepted and means the same as \code{".study"}, matching multinma,
-where a \code{NULL} \code{aux_by} is resolved to \code{".study"} and \code{.study} is always
-part of the stratification.
-
-\code{"none"} gives both studies \strong{one} shared shape. multinma has no spelling
-for this because it cannot do it; in an unanchored comparison it is a
-stronger assumption that buys precision, so it is worth fitting as a
-sensitivity analysis when the two Kaplan-Meier curves plainly have the same
-shape, but it should be a deliberate choice rather than a default.
-
-\strong{What stratifying assumes, and what it cannot test.} The parity with
-\code{multinma} is a parity of spelling, not of meaning. In an anchored
-randomized network each study contributes several arms, so a study-specific
-baseline shape is a nuisance parameter and within-study randomization still
-identifies the treatment effect. Here each study contributes exactly \strong{one}
-arm, so a study-specific baseline shape and a treatment-specific baseline
-shape are perfectly aliased: nothing in the data can separate them. Under
-\code{".study"} the fitted shape therefore travels with the treatment when the
-effect is transported, which is an additional structural assumption the
-data cannot check, not merely the unanchored analogue of stratifying by
-study. \code{"none"} makes the opposite assumption, that the shape belongs to
-the disease rather than to the arm, and that one is at least testable
-against the two observed curves. Neither is assumption-free; fit both and
-report the difference.
-
-With the stratified default the marginal hazard ratio varies with time, so
-the scalar \verb{delta_*} reported by \code{\link[=marginal_effects]{marginal_effects()}} is its value at one
-time, not a constant; pass \code{at_time} to choose which. This applies only
-where the shapes genuinely differ: the exponential has no shape, so
-\code{aux_by} leaves its closed-form contrast exact. The collapsible RMST
-difference does not have this problem and is the better headline estimand.
-
-Identification differs by baseline. For \code{"mspline"} / \code{"pexp"} each stratum
-gets \strong{its own knots over its own observed support} (as in multinma's
-default \code{type = "quantile"}), and its coefficients are a simplex, which
-pins that study's cumulative hazard to 1 at a boundary the study actually
-observed. Both parts matter. A single pooled basis spanning the longest
-study would leave the shorter study with basis functions it never observes;
-scaling its observed coefficients by \code{c}, moving the surplus simplex mass
-into an unobserved column, and replacing its intercept by \code{mu - log(c)}
-would then leave the likelihood exactly unchanged, so the intercept would
-be set by the prior rather than by data. Per-study boundaries remove that
-flat direction. For parametric baselines there is no such normalization and
-none is needed, because shape and scale enter the hazard as different
-functions of time; but the comparator shape is then informed only by the
-reconstructed comparator curve, so stratifying spends information that a
-short or heavily censored aggregate curve may not have. The exponential has
-no shape at all, so \code{aux_by} does not change it.
-
-Reach for \code{"none"} only when the two arms' Kaplan-Meier curves plainly have
-the same shape, and report it as a sensitivity analysis rather than as the
-primary result: one shared shape is the stronger assumption and buys
-precision, but nothing in an unanchored design justifies it.
-
-\strong{An assumption worth naming.} When a stratified fit predicts the index
-treatment in the comparator population, it carries the \emph{index study's}
-baseline shape with it, and vice versa. That is coherent only if the
-residual time pattern is a property of the treatment that travels across
-populations. In an anchored \code{multinma} network a study-stratified baseline
-is a study nuisance, not something attached to a treatment; here each study
-contributes exactly one arm, so the data cannot separate a
-treatment-specific hazard shape from a study, design, or calendar-time
-shape. Stratifying is the safer default for the \emph{contrast}, but absolute
-predictions transported across populations rest on this extra assumption.
-Where it is doubtful, prefer the RMST estimands, compare against
-\code{aux_by = "none"}, and say which was used.}
+\code{aux_by}. \code{".study"} (the default, and what \code{NULL} means) gives each
+study its own baseline shape, with its own knots over its own observed
+support for a flexible baseline. \code{"none"} gives both studies one shared
+shape, a stronger assumption that buys precision; fit it as a
+sensitivity analysis when the two Kaplan-Meier curves plainly share a
+shape. Each study contributes one arm, so a study-specific and a
+treatment-specific baseline shape cannot be told apart, and a stratified
+fit carries each study's shape with its treatment when predictions are
+transported; where that is doubtful, prefer the RMST estimands and
+report both settings. With the stratified default the marginal hazard
+ratio varies with time, so \code{\link[=marginal_effects]{marginal_effects()}} reports it at one
+\code{at_time}.}
 
 \item{pred_times}{For \code{family = "survival"}: times at which survival,
 hazard and cumulative-hazard predictions are produced. If \code{NULL}, a grid
 up to the maximum observed time is used.}
 
 \item{rmst_horizon}{For \code{family = "survival"}: the upper time limit for the
-restricted mean survival time. If \code{NULL}, the maximum observed time, except
-for a flexible baseline (\code{"mspline"} / \code{"pexp"}) stratified by study, where
-it defaults to the COMMON follow-up
-\verb{min(max(index times), max(comparator times))}. Each study's flexible
-baseline is extrapolated as a constant hazard past its own last observed
-time, so a pooled-maximum default would make the headline RMST extrapolate
-the shorter study by construction. Pass a longer horizon explicitly to
-accept that extrapolation; doing so still warns.}
+restricted mean survival time. If \code{NULL}, the maximum observed time,
+except for a flexible baseline stratified by study, where it defaults to
+the follow-up both studies observed so the headline RMST does not
+extrapolate the shorter study. A longer horizon warns.}
 
 \item{n_rmst_grid}{For \code{family = "survival"}: number of equally spaced nodes
 (default \code{100}) on \verb{[0, rmst_horizon]} for the trapezoidal RMST integral.
-Increase for sharp early hazards, long horizons, or high-curvature
-flexible-baseline tails where 100 points may be too coarse; refit at a
-higher value and compare RMST to check convergence.}
+Increase for sharp early hazards or long horizons.}
 
 \item{center}{Logical (default \code{TRUE}). Center the covariates about the
 pooled IPD and population-weighted declared AgD means before fitting.
-The likelihood is unchanged after the intercept is transformed with the
-slopes, and centering often improves sampling geometry. Priors specified
-independently on the numerical intercept and slopes are not generally
-invariant to that transformation, so \code{center = TRUE} and \code{FALSE} can imply
-different joint priors even when their likelihoods represent the same
-regression model. Set \code{FALSE} to fit on the raw covariate scale.
-Centering is a floating-point subtraction: when the populations sit far
-from a common origin relative to the spread of the integration points,
-two points can round to one, and a fit whose centered grid has fewer
-distinct points than the declared one is refused rather than sampled on
-a distribution other than the one declared.}
+The likelihood is unchanged and sampling is usually easier, but
+\code{prior_intercept} then applies to the intercept at the pooled covariate
+mean. Set \code{FALSE} to fit on the raw covariate scale. A fit whose
+centering rounds two integration points onto one is refused.}
 
-\item{qr}{Logical (default \code{FALSE}). Apply a thin-QR
-reparameterization to the combined (intercepts + covariates) design matrix.
-This decorrelates the design columns for more efficient HMC. The Stan model
-maps the requested priors to the original regression coefficients before
-the QR transform, so this option is intended as a computational
-reparameterization. Useful with many correlated or ill-scaled covariates;
-for the common few-covariate case the default fused-GLM path (with
-\code{center = TRUE}) is usually faster.}
+\item{qr}{Logical (default \code{FALSE}). Apply a thin-QR reparameterization to
+the combined design matrix, which decorrelates its columns for HMC. The
+priors still apply to the original coefficients. Useful with many
+correlated or ill-scaled covariates.}
 
 \item{chains}{Number of MCMC chains (default 4)}
 
@@ -252,8 +147,8 @@ for the common few-covariate case the default fused-GLM path (with
 \item{warmup}{Number of warmup iterations (default 1000)}
 
 \item{seed}{Random seed for reproducibility. If \code{NULL} (default), the fixed
-seed 2026 is used and a warning says so, so an unseeded fit still
-reproduces. The seed actually used is reported in the fitting messages.}
+seed 2026 is used and a warning says so. The seed used is reported in the
+fitting messages.}
 
 \item{adapt_delta}{Target acceptance rate (default 0.95)}
 
@@ -267,44 +162,17 @@ uses the engine set by \code{\link[=mlumr_engine]{mlumr_engine()}}. See \code{\l
 \item{verbose}{Logical; if \code{FALSE}, suppresses mlumr progress messages.
 Stan sampler progress is still controlled by \code{refresh}.}
 
-\item{prior_beta_comparator}{(Relaxed model only.) Prior for the
-comparator-arm regression coefficients \code{beta_comparator}. Same
-specification rules as \code{prior_beta} (single prior or per-coefficient
-list, any supported family); a different family from \code{prior_beta} is
-allowed (for example a heavy-tailed Student-t). If \code{NULL} (the default)
-\code{prior_beta} is used (matching the default symmetric behavior). This is
-a secondary, targeted regularization tool: for reliable relaxed-model
-estimates first ensure adequate integration points
-(\code{\link[=add_integration]{add_integration()}} \code{n_int}) and post-warmup iterations. The
-AgD likelihood informs the comparator-population \emph{outcome} directly,
-but that does not by itself identify \code{beta_comparator} or the
-comparator-population treatment contrast: how well either is determined
-depends on the number and geometry of independent aggregate summaries,
-the link, the covariate distribution, the outcome precision, and this
-prior. A handful of aggregate rows can leave whole coefficient
-directions informed only by the prior while the posterior still looks
-narrow. \code{\link[=check_identification]{check_identification()}} reports the geometry of the aggregate
-rows, exactly for a normal identity-link model and descriptively for a
-nonlinear mean (it does not accept survival fits); \code{\link[=prior_sensitivity]{prior_sensitivity()}}
-shows how much the posterior moves with the prior scale. Neither is a
-sufficient test on its own. The index-population effect
-additionally averages \code{beta_comparator} over the IPD covariate
-distribution (an extrapolation, since \code{beta_comparator} is informed
-only by the AgD likelihood), so its residual width is
-identification-driven. Tightening this prior (for example a smaller
-\code{prior_normal(0, 1)}) regularizes that residual width. Ignored for
-\code{model = "spfa"} (which has a single shared \code{beta}).}
+\item{prior_beta_comparator}{Relaxed model only: prior for the
+comparator-arm coefficients \code{beta_comparator}, with the same
+specification rules as \code{prior_beta} and any supported family. \code{NULL}
+(the default) reuses \code{prior_beta}. \code{beta_comparator} is informed only by
+the aggregate likelihood, so a tighter prior here regularizes the
+index-population estimand; see \code{\link[=check_identification]{check_identification()}} and
+\code{\link[=prior_sensitivity]{prior_sensitivity()}}. Ignored for \code{model = "spfa"}.}
 
-\item{prior_aux2}{For \code{family = "survival"} with
-\code{distribution = "gengamma"}: prior for the SECOND generalized-gamma
-auxiliary parameter. \code{NULL} (the default) reuses \code{prior_aux}, which is the
-previous behavior. The two auxiliaries control different features of the
-hazard, so they can need different regularization; supply this when one of
-them is poorly identified. Every other distribution has at most one
-auxiliary parameter: supplying this for one of them warns and has no
-effect on the fit, and the value is discarded WITHOUT being validated, so
-a malformed prior in that position warns like any other ignored one rather
-than aborting the fit. Non-survival families behave the same way.}
+\item{prior_aux2}{For \code{distribution = "gengamma"} only: prior for the
+second auxiliary parameter. \code{NULL} (the default) reuses \code{prior_aux}.
+Supplying it for any other distribution warns and has no effect.}
 
 \item{...}{Additional arguments passed to the Stan sampling function
 (\code{\link[rstan:sampling]{rstan::sampling()}} or cmdstanr's \verb{$sample()} method)}
@@ -319,173 +187,38 @@ count, and time-to-event outcomes.
 }
 \details{
 The model assumes that all AgD rows come from the same comparator treatment
-and that, conditional on covariates, there is no between-study heterogeneity.
-If AgD rows come from multiple studies with different designs or unmeasured
-confounders, this assumption may not hold. No random effects for study-level
-heterogeneity are included.
+and that, conditional on covariates, there is no between-study
+heterogeneity. No random effects for study-level heterogeneity are
+included.
 
-\strong{AgD scale assumptions (family = \code{"normal"}).} The AgD likelihood is
+\strong{AgD scale (family = \code{"normal"}).} The AgD likelihood is
 \code{y_agd ~ normal(E[exp(eta)], se_agd)} under \code{link = "log"} and
-\code{y_agd ~ normal(E[eta], se_agd)} under \code{link = "identity"}. In both
-cases \code{set_agd()} expects \code{outcome_mean} and \code{outcome_se} on the
-\strong{arithmetic (original, untransformed) scale}, not log-scale or
-geometric. Passing log-scale summaries silently misspecifies the
-likelihood. See \code{\link[=set_agd]{set_agd()}} for details.
+\code{y_agd ~ normal(E[eta], se_agd)} under \code{link = "identity"}; in both cases
+\code{\link[=set_agd]{set_agd()}} expects \code{outcome_mean} and \code{outcome_se} on the arithmetic
+scale.
 
 \strong{The comparator population is the size-weighted mixture of its aggregate
-rows.} Integrated marginal predictions in the comparator population
-(\verb{*_comparator} generated quantities) weight each row by the population it
-represents:
-\itemize{
-\item \strong{binomial}: \code{n_agd[k]}, the AgD sample size.
-\item \strong{normal}: \code{agd_weight[k]}, from \code{outcome_n}. This is required for
-more than one aggregate row, and is \code{1} for a single row where the
-weighting is irrelevant.
-\item \strong{poisson}: \code{E_agd[k]}, the AgD exposure.
+rows.} Comparator-population predictions weight each row by the
+population it represents: \code{n_agd} for binomial, \code{outcome_n} for normal
+(required for more than one row) and \code{E_agd} for poisson. These are
+mixing weights, separate from the likelihood's precision weights, so
+splitting a comparator population into subgroup rows leaves the estimand
+unchanged.
+
+\strong{Identifying the relaxed model.} \code{beta_comparator} is informed only by
+the aggregate likelihood. Jointly defined subgroup rows, one \code{\link[=set_agd]{set_agd()}}
+row per stratum, are what can separate it from the comparator intercept;
+a single aggregate summary constrains one combination of them. Use
+\code{\link[=check_identification]{check_identification()}} before fitting and \code{\link[=prior_sensitivity]{prior_sensitivity()}} after;
+the subgroup-identification vignette works through the geometry.
+
+\strong{Normal outcomes.} A normal fit whose IPD covariates reproduce the
+outcome exactly has an improper posterior for the residual SD, so
+\code{mlumr()} refuses a constant outcome and a least-squares fit that is exact
+to numerical precision (residual sum of squares at most 1e-12 of the
+total) before sampling, and warns when the design is saturated. Everything
+else is left to the sampler and its diagnostics.
 }
-The weights say which population the estimand refers to, and are deliberately
-separate from the likelihood's own precision weighting, which says how much
-each row constrains the parameters. Because the parts of a split subgroup sum
-to the whole, the estimand does not change with how the aggregate evidence
-happens to be tabulated.
-
-The model assumes that all AgD rows come from the same comparator treatment
-and that, conditional on covariates, there is no between-study heterogeneity.
-If AgD rows come from multiple studies with different designs or unmeasured
-confounders, this assumption may not hold. No random effects for study-level
-heterogeneity are included.
-
-\strong{AgD scale assumptions (family = \code{"normal"}).} The AgD likelihood is
-\code{y_agd ~ normal(E[exp(eta)], se_agd)} under \code{link = "log"} and
-\code{y_agd ~ normal(E[eta], se_agd)} under \code{link = "identity"}. In both
-cases \code{set_agd()} expects \code{outcome_mean} and \code{outcome_se} on the
-\strong{arithmetic (original, untransformed) scale}, not log-scale or
-geometric. Passing log-scale summaries silently misspecifies the
-likelihood. See \code{\link[=set_agd]{set_agd()}} for details.
-
-\strong{Comparator-population weighting is family-dependent.} Integrated
-marginal predictions in the comparator population (\verb{*_comparator}
-generated quantities) are weighted by:
-\itemize{
-\item \strong{binomial}: \code{n_agd[k]} (AgD sample size), so larger
-AgD rows contribute more to the marginal mean.
-\item \strong{normal}: \code{outcome_n[k]} (AgD sample size), which is required for
-multiple rows; a single row has weight one when \code{outcome_n} is omitted.
-These are the estimand's
-mixing weights, not the likelihood's \code{1 / se^2} precision weights, so
-splitting one comparator population into subgroup rows does not change
-the target population.
-\item \strong{poisson}: \code{E_agd[k]} (AgD exposure), matching the
-rate-based likelihood.
-}
-Each weighting is natural for the corresponding likelihood; users
-comparing marginal effects across families should be aware they are
-not identically weighted.
-
-\strong{Weakly-identified coefficients in the relaxed model.}
-\code{beta_comparator} is identified only through AgD, so the relaxed
-model needs informative priors (or many AgD rows) to estimate
-effect modification reliably. \code{\link[=prior_sensitivity]{prior_sensitivity()}} is the
-recommended diagnostic.
-
-\strong{Identifying the relaxed model with subgroup AgD.} The strongest way to
-identify \code{beta_comparator} from data is to supply the comparator AgD as
-\strong{joint subgroups}: mutually exclusive, collectively exhaustive strata of
-the comparator population, one \code{\link[=set_agd]{set_agd()}} row per subgroup, each with its
-own covariate summaries and outcome. Each subgroup contributes a separate
-marginal likelihood term (\verb{L_AgD = prod_s L_\{AgD,s\}}), and the variation in
-covariate means across subgroups is what can separate the
-treatment-specific covariate effects \code{beta_comparator} from the comparator
-intercept (the primary relaxed-SPFA strategy of Chandler & Ishak,
-Section 2.2.1). A single aggregate outcome summary generally cannot
-separately identify all comparator coefficients and the comparator
-intercept. What its likelihood term constrains depends on the link. With
-an identity link it is one linear combination of them, the comparator
-intercept plus the coefficients weighted by that row's covariate means on
-the model's scale, which under \code{center = TRUE} are the declared means
-minus the pooled center; the directions the row does not constrain remain
-prior-driven, although their marginal posteriors can still move through
-the constrained combination. With a nonlinear link the constrained
-quantity is the marginalized outcome mean, probability or rate, which is
-a function of the whole assumed covariate distribution and not of its
-mean profile alone: a normal outcome under \code{link = "log"}, with the
-covariate normally distributed within the row, gives the aggregate mean
-\verb{g = exp(mu + beta m + beta^2 v / 2)}, so two rows with the same mean \code{m}
-and different variances \code{v} can constrain different things. Both
-qualifications are load-bearing. That expression is the covariate's
-moment generating function, so it is the covariate distribution that has
-to be normal, not the outcome family alone; a distribution with the same
-first two moments and a different shape gives a different aggregate mean.
-And the Jacobian of the two rows in \verb{(mu, beta)} has determinant
-\verb{g_1 g_2 beta (v_2 - v_1)}, so it is full rank only where the variances
-differ AND the slope is away from zero. At \code{beta = 0} the two rows
-constrain the same quantity however far apart their variances are, and
-the rank drops to one. Local rank there is not
-global identification and neither is precision; the three have to be
-assessed separately. For one covariate with an
-identity link, independent normal priors of variance \code{a^2} on the
-intercept and \code{b^2} on the coefficient, a centered mean \code{m} and an outcome
-SE \code{s}, the posterior variance of the coefficient is
-\code{1 / (1 / b^2 + m^2 / (a^2 + s^2))}: \code{b^2} when \code{m = 0}, which is a single
-row whose mean sits at the pooled center, and smaller the further the
-row's mean sits from it. Joint, nonoverlapping subgroup summaries each add
-a likelihood term; how many directions those terms identify depends on
-their number, their covariate-distribution geometry (under an identity
-link, rows with the same mean profile tighten one combination and add no
-direction; under a nonlinear link they can differ in spread or dependence
-and constrain different combinations), the outcome precision and the
-model. Remaining directions require explicit prior sensitivity analysis. (Marginal, overlapping
-subgroups would double-count patients and understate uncertainty; supply
-jointly-defined subgroups.)
-}
-\section{Normal outcomes with no residual variation}{
-
-A normal fit whose IPD covariates reproduce the outcome exactly has an
-improper posterior for the residual SD, so \code{mlumr()} refuses it before any
-sampling. Whether an exact fit exists is settled structurally where it can
-be: a constant outcome, or one where every replicate of a covariate profile
-agrees and there are only as many distinct profiles as the design has rank,
-is fitted exactly and refused; replicate profiles carrying different
-outcomes prove the residual positive and the posterior proper. Otherwise
-the residual sum of squares is compared with the rounding an exact fit can
-leave, which grows with the fitted coefficients. Above it the residual is
-real and the posterior proper; at or below it nothing at double precision
-tells an exact fit from one this close, and the model is refused as
-undecidable rather than passed. A proper posterior whose residual is at
-most \code{1e-6} of the outcome's total sum of squares is warned about, since
-the residual SD will concentrate near zero and the sampler has to work
-there; that is a screen on the input, and the sampler's own diagnostics say
-how the fit went. Under \code{link = "log"} existence of an exact fit is decided
-on \code{log(y)}, where it is a linear question, and the near-exact screen on
-the response scale the likelihood uses. Zeros are the boundary case there:
-an outcome identically zero is refused, and so is one whose positive rows
-are fitted exactly while a free direction of the coefficients can take the
-zero rows' predictors to \code{-Inf}, since along that ray the likelihood is
-unbounded and only the coefficient priors' tails decide whether a
-posterior exists. A zero row is pinned, and the ray blocked, only when it
-lies exactly in the span of the positive rows; a row merely within
-rounding of that span is refused as undecided.
-
-The check judges the design the model fits, with the model's own
-centering (\code{center = TRUE}) or none, and its rank is the design's exact
-rank, computed in exact arithmetic rather than by a factorization at
-machine precision. A covariate that differs from a combination of the
-others by less than rounding is still a column of the model, and an
-outcome can be reproduced exactly through it with enormous coefficients
-where a fit without it shows an ordinary residual. The structural rules
-see that with the exact rank, and refuse it as an exact fit when the
-distinct profiles are as few as the rank; otherwise such a design is
-refused as unresolved, since nothing at double precision decides the
-question, rather than passed on the strength of the reduced fit. With
-\code{center = FALSE} the rounding bound carries the cancellation of the raw
-predictor offsets, as the likelihood then does, so a residual below that
-rounding is refused as undecidable where the centered fit would only
-warn. A saturated design, with as many free columns as rows, is warned
-about rather than refused: its posterior is proper, but nothing in the
-data separates the residual SD from the coefficients, so what is reported
-for sigma is potentially strongly sensitive to the coefficient priors.
-}
-
 \examples{
 \dontrun{
 # Binary SPFA model
@@ -496,7 +229,6 @@ fit_relaxed <- mlumr(dat, model = "relaxed")
 }
 }
 \seealso{
-\code{\link[=prior_sensitivity]{prior_sensitivity()}} for sensitivity of the posterior
-to \code{prior_beta}; \code{\link[=set_agd]{set_agd()}} for AgD scale requirements;
-\code{\link[=prior_summary]{prior_summary()}} for introspection of the priors actually used.
+\code{\link[=prior_sensitivity]{prior_sensitivity()}}, \code{\link[=check_identification]{check_identification()}}, \code{\link[=set_agd]{set_agd()}},
+\code{\link[=prior_summary]{prior_summary()}}.
 }
