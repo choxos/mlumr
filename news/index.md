@@ -149,8 +149,8 @@
   [`check_identification()`](https://choxos.github.io/mlumr/reference/check_identification.md)
   reports, before fitting, whether the aggregate subgroup rows can
   identify `beta_comparator` in `model = "relaxed"`: the row count
-  against `K + 1`, `cond_inv` and `eff_dim` of the centered
-  subgroup-mean matrix, and a descriptive-only label for nonlinear
+  against `K + 1`, and the balance and spread of the centered
+  subgroup-mean matrix, with a descriptive-only label for nonlinear
   links.
 - Feature: `prior_beta_comparator` argument to
   [`mlumr()`](https://choxos.github.io/mlumr/reference/mlumr.md) sets a
@@ -282,9 +282,7 @@
   the observed comparator proportion in a binomial
   [`stc()`](https://choxos.github.io/mlumr/reference/stc.md), use exact
   Clopper-Pearson and Garwood intervals instead of Wald intervals, which
-  excluded the truth at zero counts. Contrasts remain Wald;
-  [`?naive`](https://choxos.github.io/mlumr/reference/naive.md) reports
-  their enumerated coverage.
+  excluded the truth at zero counts. Contrasts remain Wald.
 - Fix: [`naive()`](https://choxos.github.io/mlumr/reference/naive.md)
   combines several aggregate rows as strata; the comparator standard
   error is that of the size-weighted mean of the row proportions.
@@ -403,11 +401,10 @@
 - `flexsurv`, `detectseparation`, `multinma`, `ggsurvfit` and `R.rsp`
   added to Suggests.
 - `Additional_repositories` is pinned to
-  `https://mc-stan.org/r-packages` to keep `rstan` and `StanHeaders`
-  resolving from one source. That repository serves an old cmdstanr, so
-  on Windows install cmdstanr from `https://stan-dev.r-universe.dev`
-  instead; `mlumr_engine("cmdstanr")` says so. The default `rstan`
-  backend is unaffected.
+  `https://mc-stan.org/r-packages` so that `rstan` and `StanHeaders`
+  resolve from one source. cmdstanr itself comes from
+  `https://stan-dev.r-universe.dev`; `mlumr_engine("cmdstanr")` offers
+  to install it from there.
 
 ## mlumr 0.1.0
 

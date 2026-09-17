@@ -54,7 +54,7 @@ backend.
 - [`mlumr()`](https://choxos.github.io/mlumr/reference/mlumr.md) : Fit
   ML-UMR Model
 - [`mlumr_engine()`](https://choxos.github.io/mlumr/reference/mlumr_engine.md)
-  : Get or Set the Stan Engine
+  : Get or set the Stan engine
 
 ## Priors
 

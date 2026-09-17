@@ -45,7 +45,6 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-agd_covariate_numeric_rank.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-agd_covariate_rank.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-agd_covariate_spec.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-agd_declared_profiles.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-agd_distinct_profiles.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-agd_outcome_summary.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-agd_realized_profiles.html</loc></url>
@@ -77,8 +76,6 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-cmdstanr_cache_key.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-cmdstanr_cache_root.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-cmdstanr_compile_dir.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-cmdstanr_too_old_for_windows.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-cmdstanr_upgrade_advice.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-comparison_names.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-compute_marginal_link.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-conditional_effect_choices.html</loc></url>
@@ -105,6 +102,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-garwood_interval.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-generate_copula_uniforms.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-get_surv_data.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-install_cmdstanr.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-int_cor_pair_status.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-int_cor_stats.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-int_stats.html</loc></url>
@@ -132,7 +130,6 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-median_early_share.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-median_not_reached_note.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-merge_sampler_control.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-message_engine_unchanged.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-missing_suffix.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-mlumr_build_stan_data.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-mlumr_center_covariates.html</loc></url>
@@ -171,7 +168,6 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-profile_numeric_rank.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-profile_rank.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-quantile_names.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-r_can_compile.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-r_log_density.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-r_log_gamma_q_cf_factor.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-r_log_gamma_surv_from_log_x.html</loc></url>
@@ -257,9 +253,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-survival_distribution_info.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-survival_log_lik_by_unit.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-target_delta_eta.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-target_in_span.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-target_loghr_origin.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-target_span_gap.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-transform_integration_points.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-transition_count.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-transported_baseline_note.html</loc></url>

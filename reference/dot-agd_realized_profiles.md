@@ -1,7 +1,6 @@
-# Mean covariate profile actually realized by each row's integration points
+# Mean covariate profile realized by each row's integration points
 
-Mean covariate profile actually realized by each row's integration
-points
+Mean covariate profile realized by each row's integration points
 
 ## Usage
 

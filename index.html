@@ -442,7 +442,7 @@
 </h2>
 <p>The default backend is rstan. Users who prefer cmdstanr can switch after installation:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="reference/mlumr_engine.html">mlumr_engine</a></span><span class="op">(</span><span class="st">"cmdstanr"</span><span class="op">)</span>   <span class="co"># offers to install cmdstanr + CmdStan if needed</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="reference/mlumr_engine.html">mlumr_engine</a></span><span class="op">(</span><span class="st">"cmdstanr"</span><span class="op">)</span>   <span class="co"># offers to install cmdstanr and CmdStan if missing</span></span>
 <span><span class="fu"><a href="reference/mlumr_engine.html">mlumr_engine</a></span><span class="op">(</span><span class="st">"rstan"</span><span class="op">)</span>      <span class="co"># switch back</span></span>
 <span><span class="fu"><a href="reference/mlumr_engine.html">mlumr_engine</a></span><span class="op">(</span><span class="op">)</span>             <span class="co"># check current engine</span></span></code></pre></div>
 <p>The preference persists for the session. Set a permanent default in <code>.Rprofile</code> with <code>options(mlumr.stan_engine = "cmdstanr")</code>, or override per fit: <code>mlumr(dat, model = "spfa", engine = "cmdstanr")</code>.</p>

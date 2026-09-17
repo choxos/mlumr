@@ -1,26 +1,16 @@
-# Singular-value geometry of a set of subgroup mean vectors
+# Singular-value geometry of the subgroup mean profiles
 
-Singular-value geometry of a set of subgroup mean vectors
+Rows are centered and divided by the IPD SDs, so a covariate measured in
+large units cannot dominate by units alone. Returns `cond_inv` (smallest
+over largest singular value), `spread` (RMS distance of the rows from
+their center along the dominant direction, in IPD SDs),
+`singular_values` and the scaled `means`. A design that cannot be
+decomposed reports zero geometry, as
+[`.profile_rank()`](https://choxos.github.io/mlumr/reference/dot-profile_rank.md)
+does.
 
 ## Usage
 
 ``` r
 .subgroup_geometry(means, ref_sd)
 ```
-
-## Arguments
-
-- means:
-
-  Matrix of aggregate subgroup covariate means, rows by covariates.
-
-- ref_sd:
-
-  Reference SD per covariate (the IPD SDs), used to put the columns on a
-  common scale. Scaling by the spread of the MEANS instead would rescale
-  a covariate whose subgroup means barely move up to the same footing as
-  one that swings from 0 to 1, hiding the very collapse being measured.
-
-## Value
-
-A list with `cond_inv`, `eff_dim`, `spread`, `singular_values`, `means`.

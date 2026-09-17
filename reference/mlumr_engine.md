@@ -1,8 +1,12 @@
-# Get or Set the Stan Engine
+# Get or set the Stan engine
 
-Control which Stan backend mlumr uses for model fitting. The default
-engine is `"rstan"` (compiled C++ models via rstantools). Users who
-prefer cmdstanr can switch engines after installation.
+mlumr fits its models through rstan by default.
+`mlumr_engine("cmdstanr")` switches to cmdstanr for the session; the
+choice is stored in `options(mlumr.stan_engine)`, so a permanent default
+belongs in `.Rprofile`. When cmdstanr or CmdStan is missing, an
+interactive session is offered their installation (cmdstanr from
+stan-dev's maintained repository); otherwise the install commands are
+printed and the engine is left unchanged.
 
 ## Usage
 
@@ -14,36 +18,18 @@ mlumr_engine(engine = NULL)
 
 - engine:
 
-  Character string: `"rstan"` or `"cmdstanr"`. If `NULL` (default),
+  `"rstan"` or `"cmdstanr"`, matched exactly. `NULL` (the default)
   returns the current engine without changing it.
 
 ## Value
 
-The current engine (character), returned invisibly when setting.
-
-## Details
-
-When switching to `"cmdstanr"`, this function checks whether the
-cmdstanr package and CmdStan toolchain are installed. If either is
-missing, it offers to install them interactively.
-
-Engine names must be matched exactly. Partial strings such as `"c"` are
-not accepted.
-
-The engine preference is stored as `options(mlumr.stan_engine = ...)`
-and persists for the current R session. To set a permanent default, add
-to your `.Rprofile`:
-
-    options(mlumr.stan_engine = "cmdstanr")
+The current engine, invisibly when setting.
 
 ## Examples
 
 ``` r
-# Check current engine
 mlumr_engine()
 #> [1] "rstan"
-
-# Switch to cmdstanr (interactive)
 if (FALSE) { # \dontrun{
 mlumr_engine("cmdstanr")
 } # }

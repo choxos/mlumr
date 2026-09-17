@@ -235,7 +235,7 @@ installation:
 
 ``` r
 
-mlumr_engine("cmdstanr")   # offers to install cmdstanr + CmdStan if needed
+mlumr_engine("cmdstanr")   # offers to install cmdstanr and CmdStan if missing
 mlumr_engine("rstan")      # switch back
 mlumr_engine()             # check current engine
 ```

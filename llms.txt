@@ -235,7 +235,7 @@ installation:
 
 ``` r
 
-mlumr_engine("cmdstanr")   # offers to install cmdstanr + CmdStan if needed
+mlumr_engine("cmdstanr")   # offers to install cmdstanr and CmdStan if missing
 mlumr_engine("rstan")      # switch back
 mlumr_engine()             # check current engine
 ```
@@ -469,7 +469,7 @@ backend.
 - [`mlumr()`](https://choxos.github.io/mlumr/reference/mlumr.md) : Fit
   ML-UMR Model
 - [`mlumr_engine()`](https://choxos.github.io/mlumr/reference/mlumr_engine.md)
-  : Get or Set the Stan Engine
+  : Get or set the Stan engine
 
 ## Priors
 
