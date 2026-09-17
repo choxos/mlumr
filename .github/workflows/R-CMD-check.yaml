@@ -81,13 +81,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Two platforms per pull request; each job compiles every Stan model.
-        # R devel and oldrel-1 join only on workflow_dispatch, before a CRAN
+        # One job per platform on a pull request, each compiling every Stan
+        # model. A push to main reruns ubuntu only: the pull request already
+        # ran the rest on the same tree, and this run only guards the merge.
+        # R devel and oldrel-1 join on workflow_dispatch, before a CRAN
         # submission.
-        config:
-          - {os: ubuntu-latest, r: 'release'}
-          - {os: windows-latest, r: 'release'}
-        include: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '[{"config":{"os":"ubuntu-latest","r":"devel","http-user-agent":"release"}},{"config":{"os":"ubuntu-latest","r":"oldrel-1"}}]' || '[]') }}
+        config: ${{ fromJSON((github.event_name == 'push' && '[{"os":"ubuntu-latest","r":"release"}]') || (github.event_name == 'workflow_dispatch' && '[{"os":"ubuntu-latest","r":"release"},{"os":"windows-latest","r":"release"},{"os":"macos-latest","r":"release"},{"os":"ubuntu-latest","r":"devel","http-user-agent":"release"},{"os":"ubuntu-latest","r":"oldrel-1"}]') || '[{"os":"ubuntu-latest","r":"release"},{"os":"windows-latest","r":"release"},{"os":"macos-latest","r":"release"}]') }}
 
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
@@ -127,7 +126,9 @@ jobs:
     runs-on: ubuntu-latest
     # The matrix skips every skip_on_cran() test, so this job runs the whole
     # suite through cmdstanr and finishes with an rstan smoke test, rstan
-    # being the default engine.
+    # being the default engine. Pull requests and dispatches only: the hour
+    # it takes is not spent again on the push that merges them.
+    if: github.event_name != 'push'
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       NOT_CRAN: true
