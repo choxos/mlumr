@@ -2,42 +2,28 @@
 % Please edit documentation in R/engine.R
 \name{mlumr_engine}
 \alias{mlumr_engine}
-\title{Get or Set the Stan Engine}
+\title{Get or set the Stan engine}
 \usage{
 mlumr_engine(engine = NULL)
 }
 \arguments{
-\item{engine}{Character string: \code{"rstan"} or \code{"cmdstanr"}. If \code{NULL}
-(default), returns the current engine without changing it.}
+\item{engine}{\code{"rstan"} or \code{"cmdstanr"}, matched exactly. \code{NULL} (the
+default) returns the current engine without changing it.}
 }
 \value{
-The current engine (character), returned invisibly when setting.
+The current engine, invisibly when setting.
 }
 \description{
-Control which Stan backend mlumr uses for model fitting. The default engine
-is \code{"rstan"} (compiled C++ models via rstantools). Users who prefer cmdstanr
-can switch engines after installation.
-}
-\details{
-When switching to \code{"cmdstanr"}, this function checks whether the cmdstanr
-package and CmdStan toolchain are installed. If either is missing, it offers
-to install them interactively.
-
-Engine names must be matched exactly. Partial strings such as \code{"c"} are not
-accepted.
-
-The engine preference is stored as \code{options(mlumr.stan_engine = ...)} and
-persists for the current R session. To set a permanent default, add to your
-\code{.Rprofile}:
-
-\if{html}{\out{<div class="sourceCode">}}\preformatted{options(mlumr.stan_engine = "cmdstanr")
-}\if{html}{\out{</div>}}
+mlumr fits its models through rstan by default. \code{mlumr_engine("cmdstanr")}
+switches to cmdstanr for the session; the choice is stored in
+\code{options(mlumr.stan_engine)}, so a permanent default belongs in
+\code{.Rprofile}. When cmdstanr or CmdStan is missing, an interactive session is
+offered their installation (cmdstanr from stan-dev's maintained
+repository); otherwise the install commands are printed and the engine is
+left unchanged.
 }
 \examples{
-# Check current engine
 mlumr_engine()
-
-# Switch to cmdstanr (interactive)
 \dontrun{
 mlumr_engine("cmdstanr")
 }

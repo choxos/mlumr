@@ -2,23 +2,16 @@
 % Please edit documentation in R/identification.R
 \name{.subgroup_geometry}
 \alias{.subgroup_geometry}
-\title{Singular-value geometry of a set of subgroup mean vectors}
+\title{Singular-value geometry of the subgroup mean profiles}
 \usage{
 .subgroup_geometry(means, ref_sd)
 }
-\arguments{
-\item{means}{Matrix of aggregate subgroup covariate means, rows by covariates.}
-
-\item{ref_sd}{Reference SD per covariate (the IPD SDs), used to put the
-columns on a common scale. Scaling by the spread of the MEANS instead would
-rescale a covariate whose subgroup means barely move up to the same footing
-as one that swings from 0 to 1, hiding the very collapse being measured.}
-}
-\value{
-A list with \code{cond_inv}, \code{eff_dim}, \code{spread}, \code{singular_values},
-\code{means}.
-}
 \description{
-Singular-value geometry of a set of subgroup mean vectors
+Rows are centered and divided by the IPD SDs, so a covariate measured in
+large units cannot dominate by units alone. Returns \code{cond_inv} (smallest
+over largest singular value), \code{spread} (RMS distance of the rows from their
+center along the dominant direction, in IPD SDs), \code{singular_values} and the
+scaled \code{means}. A design that cannot be decomposed reports zero geometry,
+as \code{.profile_rank()} does.
 }
 \keyword{internal}
