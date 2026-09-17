@@ -13,296 +13,296 @@ namespace model_mlumr_survival_mspline_relaxed_namespace {
 using stan::model::model_base_crtp;
 using namespace stan::math;
 stan::math::profile_map profiles__;
-static constexpr std::array<const char*, 930> locations_array__ =
+static constexpr std::array<const char*, 926> locations_array__ =
   {" (found before start of program)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1251, column 2 to column 24)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1252, column 2 to column 41)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1253, column 2 to column 41)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1257, column 2 to column 60)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1258, column 2 to column 29)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1259, column 2 to column 34)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1260, column 2 to column 56)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1261, column 2 to column 69)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1262, column 2 to column 46)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1264, column 2 to column 39)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1265, column 2 to column 34)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1274, column 2 to column 44)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1275, column 2 to column 51)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1276, column 2 to column 26)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1326, column 2 to column 52)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1327, column 2 to column 19)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1328, column 2 to column 24)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1329, column 2 to column 58)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1330, column 2 to column 44)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1331, column 2 to column 49)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1332, column 2 to column 49)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1333, column 2 to column 54)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1334, column 2 to column 43)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1335, column 2 to column 48)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1336, column 2 to column 48)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1337, column 2 to column 53)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1338, column 2 to column 46)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1339, column 2 to column 51)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1340, column 2 to column 51)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1341, column 2 to column 56)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1344, column 2 to column 39)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1345, column 2 to column 44)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1346, column 2 to column 24)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1347, column 2 to column 29)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1348, column 2 to column 29)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1349, column 2 to column 34)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1350, column 2 to column 23)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1351, column 2 to column 28)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1352, column 2 to column 28)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1353, column 2 to column 28)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1267, column 4 to line 1268, column 66)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1269, column 4 to column 56)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1266, column 24 to line 1270, column 3)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1266, column 2 to line 1270, column 3)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1278, column 11 to column 16)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1278, column 4 to column 42)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1280, column 6 to column 80)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1281, column 6 to column 86)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1282, column 6 to column 80)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1283, column 6 to line 1284, column 66)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1279, column 23 to line 1285, column 5)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1279, column 4 to line 1285, column 5)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1277, column 2 to line 1286, column 3)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1355, column 11 to column 16)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1355, column 4 to column 61)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1356, column 11 to column 16)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1356, column 4 to column 71)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1357, column 11 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1357, column 4 to column 69)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1358, column 11 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1358, column 4 to column 79)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1359, column 4 to column 68)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1360, column 4 to column 73)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1366, column 6 to column 56)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1367, column 6 to column 55)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1368, column 6 to column 60)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1369, column 6 to column 59)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1370, column 6 to column 73)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1371, column 6 to column 73)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1372, column 6 to column 73)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1373, column 6 to column 73)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1374, column 6 to column 63)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1375, column 6 to column 63)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1376, column 6 to column 63)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1377, column 6 to column 63)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1378, column 6 to column 50)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1379, column 6 to column 50)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1380, column 6 to column 50)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1381, column 6 to column 50)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1382, column 6 to column 44)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1383, column 6 to column 44)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1384, column 6 to column 81)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1385, column 6 to column 81)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1386, column 6 to column 81)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1387, column 6 to column 81)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1361, column 30 to line 1388, column 5)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1361, column 4 to line 1388, column 5)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1404, column 6 to column 40)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1405, column 6 to column 45)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1403, column 22 to line 1406, column 5)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1403, column 4 to line 1406, column 5)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1407, column 4 to column 99)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1408, column 4 to column 103)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1409, column 4 to column 99)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1410, column 4 to column 103)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1411, column 4 to column 68)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1412, column 4 to column 78)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1413, column 23 to column 53)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1413, column 4 to column 53)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1416, column 8 to column 27)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1417, column 15 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1417, column 8 to column 51)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1418, column 8 to column 82)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1419, column 8 to column 88)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1420, column 8 to column 82)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1421, column 8 to column 52)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1422, column 15 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1422, column 8 to column 25)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1424, column 10 to line 1425, column 51)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1423, column 27 to line 1426, column 9)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1423, column 8 to line 1426, column 9)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1427, column 8 to column 54)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1415, column 25 to line 1428, column 7)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1415, column 6 to line 1428, column 7)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1414, column 4 to line 1429, column 5)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1354, column 2 to line 1430, column 3)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1289, column 2 to line 1290, column 71)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1291, column 2 to line 1292, column 71)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1293, column 2 to line 1294, column 61)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1295, column 2 to line 1297, column 55)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1298, column 2 to column 37)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1300, column 4 to line 1302, column 78)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1299, column 2 to line 1302, column 78)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1303, column 2 to column 27)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1307, column 11 to column 16)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1307, column 4 to column 25)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1309, column 6 to column 25)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1310, column 13 to column 18)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1310, column 6 to column 49)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1311, column 6 to column 80)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1312, column 6 to column 86)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1313, column 6 to column 80)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1314, column 6 to column 50)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1315, column 13 to column 18)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1315, column 6 to column 23)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1317, column 8 to line 1318, column 49)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1316, column 25 to line 1319, column 7)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1316, column 6 to line 1319, column 7)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1320, column 6 to column 47)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1308, column 23 to line 1321, column 5)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1308, column 4 to line 1321, column 5)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1322, column 4 to column 26)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1304, column 2 to line 1323, column 3)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1150, column 2 to column 21)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1151, column 2 to column 21)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1152, column 9 to column 14)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1152, column 16 to column 21)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1152, column 2 to column 29)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1153, column 2 to column 23)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1154, column 9 to column 14)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1154, column 16 to column 23)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1154, column 2 to column 31)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1155, column 9 to column 14)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1155, column 16 to column 23)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1155, column 2 to column 32)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1156, column 9 to column 14)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1156, column 16 to column 23)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1156, column 2 to column 38)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1157, column 9 to column 14)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1157, column 16 to column 23)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1157, column 2 to column 38)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1158, column 8 to column 13)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1158, column 2 to column 47)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1160, column 2 to column 21)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1161, column 2 to column 26)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1162, column 9 to column 14)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1162, column 16 to column 23)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1162, column 2 to column 31)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1163, column 9 to column 14)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1163, column 16 to column 23)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1163, column 2 to column 32)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1164, column 9 to column 14)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1164, column 16 to column 23)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1164, column 2 to column 38)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1165, column 9 to column 14)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1165, column 16 to column 23)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1165, column 2 to column 38)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1166, column 8 to column 13)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1166, column 2 to column 47)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1167, column 8 to column 13)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1167, column 2 to column 53)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1169, column 2 to column 21)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1170, column 8 to column 18)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1170, column 27 to column 32)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1170, column 34 to column 39)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1170, column 2 to column 47)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1172, column 2 to column 26)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1173, column 2 to column 18)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1174, column 9 to column 14)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1174, column 16 to column 18)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1174, column 2 to column 27)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1175, column 8 to column 18)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1175, column 27 to column 32)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1175, column 34 to column 36)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1175, column 2 to column 45)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1176, column 9 to column 11)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1176, column 13 to column 15)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1176, column 2 to column 23)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1177, column 2 to column 28)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1179, column 2 to column 28)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1180, column 18 to column 30)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1180, column 2 to column 43)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1181, column 9 to column 21)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1181, column 23 to column 30)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1181, column 2 to column 43)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1182, column 9 to column 21)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1182, column 23 to column 30)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1182, column 2 to column 44)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1183, column 2 to column 27)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1184, column 18 to column 29)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1184, column 2 to column 47)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1185, column 9 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1185, column 22 to column 29)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1185, column 2 to column 43)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1190, column 9 to column 21)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1190, column 23 to column 30)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1190, column 2 to column 47)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1191, column 9 to column 21)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1191, column 23 to column 30)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1191, column 2 to column 48)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1192, column 9 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1192, column 22 to column 29)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1192, column 2 to column 47)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1209, column 0 to column 26)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1210, column 0 to column 33)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1211, column 0 to column 42)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1212, column 0 to column 33)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1214, column 7 to column 12)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1214, column 0 to column 30)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1215, column 16 to column 21)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1215, column 0 to column 37)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1216, column 0 to column 37)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1217, column 0 to column 28)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1222, column 9 to column 14)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1222, column 2 to column 43)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1223, column 18 to column 23)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1223, column 2 to column 50)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1224, column 2 to column 50)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1225, column 2 to column 41)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1234, column 2 to column 32)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1235, column 9 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1235, column 22 to column 30)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1235, column 2 to column 50)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1236, column 18 to column 29)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1236, column 31 to column 39)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1236, column 2 to column 56)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1237, column 2 to column 35)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1236, column 2 to column 24)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1237, column 2 to column 41)",
   " (in 'mlumr_survival_mspline_relaxed', line 1238, column 2 to column 41)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1239, column 2 to column 47)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1240, column 2 to column 38)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1243, column 2 to column 37)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1244, column 9 to column 18)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1244, column 20 to column 25)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1244, column 2 to column 37)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1246, column 4 to column 60)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1245, column 2 to line 1246, column 60)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1251, column 9 to column 11)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1252, column 9 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1252, column 22 to column 30)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1253, column 18 to column 26)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1257, column 9 to column 11)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1260, column 9 to column 14)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1242, column 2 to column 60)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1243, column 2 to column 29)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1244, column 2 to column 34)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1245, column 2 to column 56)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1246, column 2 to column 69)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1247, column 2 to column 46)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1249, column 2 to column 39)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1250, column 2 to column 34)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1259, column 2 to column 44)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1260, column 2 to column 51)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1261, column 2 to column 26)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1311, column 2 to column 52)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1312, column 2 to column 19)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1313, column 2 to column 24)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1314, column 2 to column 58)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1315, column 2 to column 44)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1316, column 2 to column 49)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1317, column 2 to column 49)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1318, column 2 to column 54)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1319, column 2 to column 43)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1320, column 2 to column 48)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1321, column 2 to column 48)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1322, column 2 to column 53)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1323, column 2 to column 46)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1324, column 2 to column 51)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1325, column 2 to column 51)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1326, column 2 to column 56)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1329, column 2 to column 39)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1330, column 2 to column 44)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1331, column 2 to column 24)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1332, column 2 to column 29)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1333, column 2 to column 29)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1334, column 2 to column 34)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1335, column 2 to column 23)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1336, column 2 to column 28)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1337, column 2 to column 28)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1338, column 2 to column 28)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1252, column 4 to line 1253, column 66)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1254, column 4 to column 56)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1251, column 24 to line 1255, column 3)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1251, column 2 to line 1255, column 3)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1263, column 11 to column 16)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1263, column 4 to column 42)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1265, column 6 to column 80)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1266, column 6 to column 86)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1267, column 6 to column 80)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1268, column 6 to line 1269, column 66)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1264, column 23 to line 1270, column 5)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1264, column 4 to line 1270, column 5)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1262, column 2 to line 1271, column 3)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1340, column 11 to column 16)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1340, column 4 to column 61)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1341, column 11 to column 16)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1341, column 4 to column 71)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1342, column 11 to column 20)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1342, column 4 to column 69)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1343, column 11 to column 20)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1343, column 4 to column 79)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1344, column 4 to column 68)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1345, column 4 to column 73)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1351, column 6 to column 56)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1352, column 6 to column 55)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1353, column 6 to column 60)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1354, column 6 to column 59)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1355, column 6 to column 73)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1356, column 6 to column 73)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1357, column 6 to column 73)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1358, column 6 to column 73)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1359, column 6 to column 63)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1360, column 6 to column 63)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1361, column 6 to column 63)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1362, column 6 to column 63)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1363, column 6 to column 50)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1364, column 6 to column 50)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1365, column 6 to column 50)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1366, column 6 to column 50)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1367, column 6 to column 44)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1368, column 6 to column 44)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1369, column 6 to column 81)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1370, column 6 to column 81)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1371, column 6 to column 81)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1372, column 6 to column 81)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1346, column 30 to line 1373, column 5)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1346, column 4 to line 1373, column 5)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1389, column 6 to column 40)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1390, column 6 to column 45)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1388, column 22 to line 1391, column 5)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1388, column 4 to line 1391, column 5)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1392, column 4 to column 99)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1393, column 4 to column 103)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1394, column 4 to column 99)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1395, column 4 to column 103)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1396, column 4 to column 68)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1397, column 4 to column 78)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1398, column 23 to column 53)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1398, column 4 to column 53)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1401, column 8 to column 27)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1402, column 15 to column 20)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1402, column 8 to column 51)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1403, column 8 to column 82)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1404, column 8 to column 88)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1405, column 8 to column 82)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1406, column 8 to column 52)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1407, column 15 to column 20)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1407, column 8 to column 25)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1409, column 10 to line 1410, column 51)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1408, column 27 to line 1411, column 9)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1408, column 8 to line 1411, column 9)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1412, column 8 to column 54)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1400, column 25 to line 1413, column 7)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1400, column 6 to line 1413, column 7)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1399, column 4 to line 1414, column 5)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1339, column 2 to line 1415, column 3)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1274, column 2 to line 1275, column 71)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1276, column 2 to line 1277, column 71)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1278, column 2 to line 1279, column 61)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1280, column 2 to line 1282, column 55)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1283, column 2 to column 37)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1285, column 4 to line 1287, column 78)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1284, column 2 to line 1287, column 78)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1288, column 2 to column 27)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1292, column 11 to column 16)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1292, column 4 to column 25)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1294, column 6 to column 25)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1295, column 13 to column 18)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1295, column 6 to column 49)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1296, column 6 to column 80)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1297, column 6 to column 86)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1298, column 6 to column 80)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1299, column 6 to column 50)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1300, column 13 to column 18)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1300, column 6 to column 23)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1302, column 8 to line 1303, column 49)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1301, column 25 to line 1304, column 7)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1301, column 6 to line 1304, column 7)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1305, column 6 to column 47)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1293, column 23 to line 1306, column 5)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1293, column 4 to line 1306, column 5)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1307, column 4 to column 26)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1289, column 2 to line 1308, column 3)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1135, column 2 to column 21)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1136, column 2 to column 21)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1137, column 9 to column 14)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1137, column 16 to column 21)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1137, column 2 to column 29)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1138, column 2 to column 23)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1139, column 9 to column 14)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1139, column 16 to column 23)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1139, column 2 to column 31)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1140, column 9 to column 14)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1140, column 16 to column 23)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1140, column 2 to column 32)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1141, column 9 to column 14)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1141, column 16 to column 23)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1141, column 2 to column 38)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1142, column 9 to column 14)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1142, column 16 to column 23)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1142, column 2 to column 38)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1143, column 8 to column 13)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1143, column 2 to column 47)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1145, column 2 to column 21)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1146, column 2 to column 26)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1147, column 9 to column 14)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1147, column 16 to column 23)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1147, column 2 to column 31)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1148, column 9 to column 14)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1148, column 16 to column 23)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1148, column 2 to column 32)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1149, column 9 to column 14)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1149, column 16 to column 23)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1149, column 2 to column 38)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1150, column 9 to column 14)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1150, column 16 to column 23)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1150, column 2 to column 38)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1151, column 8 to column 13)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1151, column 2 to column 47)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1152, column 8 to column 13)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1152, column 2 to column 53)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1154, column 2 to column 21)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1155, column 8 to column 18)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1155, column 27 to column 32)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1155, column 34 to column 39)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1155, column 2 to column 47)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1157, column 2 to column 26)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1158, column 2 to column 18)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1159, column 9 to column 14)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1159, column 16 to column 18)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1159, column 2 to column 27)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1160, column 8 to column 18)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1160, column 27 to column 32)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1160, column 34 to column 36)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1160, column 2 to column 45)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1161, column 9 to column 11)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1161, column 13 to column 15)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1161, column 2 to column 23)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1162, column 2 to column 28)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1164, column 2 to column 28)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1165, column 18 to column 30)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1165, column 2 to column 43)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1166, column 9 to column 21)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1166, column 23 to column 30)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1166, column 2 to column 43)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1167, column 9 to column 21)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1167, column 23 to column 30)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1167, column 2 to column 44)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1168, column 2 to column 27)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1169, column 18 to column 29)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1169, column 2 to column 47)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1170, column 9 to column 20)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1170, column 22 to column 29)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1170, column 2 to column 43)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1175, column 9 to column 21)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1175, column 23 to column 30)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1175, column 2 to column 47)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1176, column 9 to column 21)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1176, column 23 to column 30)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1176, column 2 to column 48)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1177, column 9 to column 20)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1177, column 22 to column 29)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1177, column 2 to column 47)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1194, column 0 to column 26)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1195, column 0 to column 33)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1196, column 0 to column 42)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1197, column 0 to column 33)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1199, column 7 to column 12)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1199, column 0 to column 30)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1200, column 16 to column 21)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1200, column 0 to column 37)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1201, column 0 to column 37)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1202, column 0 to column 28)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1207, column 9 to column 14)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1207, column 2 to column 43)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1208, column 18 to column 23)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1208, column 2 to column 50)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1209, column 2 to column 50)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1210, column 2 to column 41)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1219, column 2 to column 32)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1220, column 9 to column 20)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1220, column 22 to column 30)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1220, column 2 to column 50)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1221, column 18 to column 29)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1221, column 31 to column 39)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1221, column 2 to column 56)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1222, column 2 to column 35)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1223, column 2 to column 41)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1224, column 2 to column 47)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1225, column 2 to column 38)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1228, column 2 to column 37)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1229, column 9 to column 18)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1229, column 20 to column 25)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1229, column 2 to column 37)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1231, column 4 to column 60)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1230, column 2 to line 1231, column 60)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1236, column 9 to column 11)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1237, column 9 to column 20)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1237, column 22 to column 30)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1238, column 18 to column 26)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1242, column 9 to column 11)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1245, column 9 to column 14)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1246, column 9 to column 14)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1247, column 9 to column 14)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1249, column 9 to column 20)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1249, column 22 to column 30)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1250, column 9 to column 16)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1250, column 18 to column 26)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1259, column 9 to column 16)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1260, column 9 to column 16)",
   " (in 'mlumr_survival_mspline_relaxed', line 1261, column 9 to column 14)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1262, column 9 to column 14)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1264, column 9 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1264, column 22 to column 30)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1265, column 9 to column 16)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1265, column 18 to column 26)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1274, column 9 to column 16)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1275, column 9 to column 16)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1276, column 9 to column 14)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1329, column 9 to column 14)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1314, column 9 to column 14)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1315, column 8 to column 20)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1316, column 8 to column 20)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1317, column 8 to column 20)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1318, column 8 to column 20)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1319, column 8 to column 20)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1320, column 8 to column 20)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1321, column 8 to column 20)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1322, column 8 to column 20)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1323, column 8 to column 20)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1324, column 8 to column 20)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1325, column 8 to column 20)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1326, column 8 to column 20)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1329, column 8 to column 20)",
   " (in 'mlumr_survival_mspline_relaxed', line 1330, column 8 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1331, column 8 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1332, column 8 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1333, column 8 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1334, column 8 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1335, column 8 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1336, column 8 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1337, column 8 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1338, column 8 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1339, column 8 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1340, column 8 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1341, column 8 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1344, column 8 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1345, column 8 to column 20)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1352, column 9 to column 14)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1353, column 9 to column 14)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1337, column 9 to column 14)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1338, column 9 to column 14)",
   " (in 'mlumr_survival_mspline_relaxed', line 29, column 7 to column 54)",
   " (in 'mlumr_survival_mspline_relaxed', line 28, column 17 to column 57)",
   " (in 'mlumr_survival_mspline_relaxed', line 28, column 2 to line 29, column 54)",
@@ -873,77 +873,73 @@ static constexpr std::array<const char*, 930> locations_array__ =
   " (in 'mlumr_survival_mspline_relaxed', line 1009, column 2 to line 1015, column 3)",
   " (in 'mlumr_survival_mspline_relaxed', line 1016, column 2 to column 51)",
   " (in 'mlumr_survival_mspline_relaxed', line 992, column 69 to line 1017, column 1)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1024, column 2 to column 52)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1023, column 65 to line 1025, column 1)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1030, column 2 to column 29)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1031, column 9 to column 10)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1031, column 2 to column 17)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1032, column 2 to column 16)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1033, column 17 to column 68)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1033, column 2 to column 68)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1034, column 17 to column 81)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1034, column 2 to column 81)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1035, column 2 to column 14)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1029, column 72 to line 1036, column 1)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1051, column 18 to column 27)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1051, column 2 to column 27)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1052, column 2 to column 31)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1050, column 42 to line 1053, column 1)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1061, column 2 to line 1063, column 54)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1064, column 19 to column 50)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1064, column 2 to column 50)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1066, column 4 to column 53)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1065, column 2 to line 1066, column 53)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1067, column 19 to column 63)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1067, column 2 to column 63)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1069, column 4 to line 1071, column 58)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1072, column 4 to line 1074, column 56)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1075, column 4 to column 75)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1068, column 2 to line 1076, column 3)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1060, column 77 to line 1077, column 1)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1082, column 2 to column 28)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1083, column 9 to column 10)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1083, column 2 to column 18)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1084, column 17 to column 59)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1084, column 2 to column 59)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1085, column 2 to column 42)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1081, column 47 to line 1086, column 1)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1093, column 2 to column 28)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1094, column 9 to column 10)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1094, column 2 to column 18)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1095, column 17 to column 59)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1095, column 2 to column 59)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1096, column 2 to column 37)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1092, column 51 to line 1097, column 1)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1109, column 2 to column 28)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1110, column 9 to column 10)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1110, column 2 to column 27)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1111, column 2 to column 26)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1112, column 18 to column 45)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1112, column 2 to column 45)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1114, column 4 to column 37)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1121, column 6 to column 68)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1122, column 6 to column 44)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1117, column 11 to line 1123, column 5)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1116, column 6 to column 28)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1115, column 37 to line 1117, column 5)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1115, column 4 to line 1123, column 5)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1113, column 17 to line 1124, column 3)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1113, column 2 to line 1124, column 3)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1125, column 2 to line 1127, column 39)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1108, column 62 to line 1128, column 1)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1134, column 2 to column 54)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1133, column 58 to line 1135, column 1)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1140, column 2 to column 35)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1141, column 9 to column 10)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1141, column 2 to column 17)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1142, column 2 to column 16)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1143, column 17 to column 82)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1143, column 2 to column 82)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1144, column 17 to column 93)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1144, column 2 to column 93)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1145, column 2 to column 14)",
-  " (in 'mlumr_survival_mspline_relaxed', line 1139, column 79 to line 1146, column 1)"};
+  " (in 'mlumr_survival_mspline_relaxed', line 1022, column 2 to column 29)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1023, column 9 to column 10)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1023, column 2 to column 17)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1024, column 2 to column 16)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1025, column 17 to column 68)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1025, column 2 to column 68)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1026, column 17 to column 81)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1026, column 2 to column 81)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1027, column 2 to column 14)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1021, column 72 to line 1028, column 1)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1043, column 18 to column 27)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1043, column 2 to column 27)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1044, column 2 to column 31)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1042, column 42 to line 1045, column 1)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1053, column 2 to line 1055, column 54)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1056, column 19 to column 50)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1056, column 2 to column 50)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1058, column 4 to column 53)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1057, column 2 to line 1058, column 53)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1059, column 19 to column 63)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1059, column 2 to column 63)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1061, column 4 to line 1063, column 58)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1064, column 4 to line 1066, column 56)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1067, column 4 to column 75)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1060, column 2 to line 1068, column 3)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1052, column 77 to line 1069, column 1)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1074, column 2 to column 28)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1075, column 9 to column 10)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1075, column 2 to column 18)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1076, column 17 to column 59)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1076, column 2 to column 59)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1077, column 2 to column 42)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1073, column 47 to line 1078, column 1)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1085, column 2 to column 28)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1086, column 9 to column 10)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1086, column 2 to column 18)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1087, column 17 to column 59)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1087, column 2 to column 59)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1088, column 2 to column 37)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1084, column 51 to line 1089, column 1)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1101, column 2 to column 28)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1102, column 9 to column 10)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1102, column 2 to column 27)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1103, column 2 to column 26)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1104, column 18 to column 45)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1104, column 2 to column 45)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1106, column 4 to column 37)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1113, column 6 to column 68)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1114, column 6 to column 44)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1109, column 11 to line 1115, column 5)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1108, column 6 to column 28)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1107, column 37 to line 1109, column 5)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1107, column 4 to line 1115, column 5)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1105, column 17 to line 1116, column 3)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1105, column 2 to line 1116, column 3)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1117, column 2 to line 1119, column 39)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1100, column 62 to line 1120, column 1)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1125, column 2 to column 35)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1126, column 9 to column 10)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1126, column 2 to column 17)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1127, column 2 to column 16)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1128, column 17 to column 82)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1128, column 2 to column 82)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1129, column 17 to column 93)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1129, column 2 to column 93)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1130, column 2 to column 14)",
+  " (in 'mlumr_survival_mspline_relaxed', line 1124, column 79 to line 1131, column 1)"};
 template <typename T0__, typename T1__, typename T2__, typename T3__,
           typename T4__,
           stan::require_all_t<stan::math::disjunction<stan::is_autodiff_scalar<T0__>,
@@ -1398,20 +1394,6 @@ log_mean_haz(const T0__& dist, const T1__& t, const T2__& eta_arg__,
 template <typename T0__, typename T1__, typename T2__, typename T3__,
           typename T4__,
           stan::require_all_t<stan::is_integral<T0__>,
-                              stan::math::disjunction<stan::is_autodiff_scalar<T1__>,
-                                stan::is_floating_point<T1__>>,
-                              stan::is_col_vector<T2__>,
-                              stan::is_vt_not_complex<T2__>,
-                              stan::math::disjunction<stan::is_autodiff_scalar<T3__>,
-                                stan::is_floating_point<T3__>>,
-                              stan::math::disjunction<stan::is_autodiff_scalar<T4__>,
-                                stan::is_floating_point<T4__>>>* = nullptr>
-stan::return_type_t<T1__, stan::base_type_t<T2__>, T3__, T4__>
-mean_haz(const T0__& dist, const T1__& t, const T2__& eta_arg__, const T3__&
-         aux, const T4__& aux2, std::ostream* pstream__);
-template <typename T0__, typename T1__, typename T2__, typename T3__,
-          typename T4__,
-          stan::require_all_t<stan::is_integral<T0__>,
                               stan::is_col_vector<T1__>,
                               stan::is_vt_not_complex<T1__>,
                               stan::is_col_vector<T2__>,
@@ -1474,16 +1456,6 @@ template <typename T0__, typename T1__, typename T2__,
 stan::return_type_t<T0__, T1__, stan::base_type_t<T2__>>
 mspline_log_mean_haz(const T0__& h0cum, const T1__& h0haz, const T2__&
                      eta_arg__, std::ostream* pstream__);
-template <typename T0__, typename T1__, typename T2__,
-          stan::require_all_t<stan::math::disjunction<stan::is_autodiff_scalar<T0__>,
-                                stan::is_floating_point<T0__>>,
-                              stan::math::disjunction<stan::is_autodiff_scalar<T1__>,
-                                stan::is_floating_point<T1__>>,
-                              stan::is_col_vector<T2__>,
-                              stan::is_vt_not_complex<T2__>>* = nullptr>
-stan::return_type_t<T0__, T1__, stan::base_type_t<T2__>>
-mspline_mean_haz(const T0__& h0cum, const T1__& h0haz, const T2__& eta_arg__,
-                 std::ostream* pstream__);
 template <typename T0__, typename T1__, typename T2__, typename T3__,
           stan::require_all_t<stan::is_eigen_matrix_dynamic<T0__>,
                               stan::is_vt_not_complex<T0__>,
@@ -4026,40 +3998,6 @@ log_mean_haz(const T0__& dist, const T1__& t, const T2__& eta_arg__,
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
   }
 }
-// real mean_haz(int, real, vector, real, real)
-template <typename T0__, typename T1__, typename T2__, typename T3__,
-          typename T4__,
-          stan::require_all_t<stan::is_integral<T0__>,
-                              stan::math::disjunction<stan::is_autodiff_scalar<T1__>,
-                                stan::is_floating_point<T1__>>,
-                              stan::is_col_vector<T2__>,
-                              stan::is_vt_not_complex<T2__>,
-                              stan::math::disjunction<stan::is_autodiff_scalar<T3__>,
-                                stan::is_floating_point<T3__>>,
-                              stan::math::disjunction<stan::is_autodiff_scalar<T4__>,
-                                stan::is_floating_point<T4__>>>*>
-stan::return_type_t<T1__, stan::base_type_t<T2__>, T3__, T4__>
-mean_haz(const T0__& dist, const T1__& t, const T2__& eta_arg__, const T3__&
-         aux, const T4__& aux2, std::ostream* pstream__) {
-  using local_scalar_t__ = stan::return_type_t<T1__, stan::base_type_t<T2__>,
-                             T3__, T4__>;
-  int current_statement__ = 0;
-  // suppress unused var warning
-  (void) current_statement__;
-  const auto& eta = stan::math::to_ref(eta_arg__);
-  static constexpr bool propto__ = true;
-  // suppress unused var warning
-  (void) propto__;
-  local_scalar_t__ DUMMY_VAR__(std::numeric_limits<double>::quiet_NaN());
-  // suppress unused var warning
-  (void) DUMMY_VAR__;
-  try {
-    current_statement__ = 859;
-    return stan::math::exp(log_mean_haz(dist, t, eta, aux, aux2, pstream__));
-  } catch (const std::exception& e) {
-    stan::lang::rethrow_located(e, locations_array__[current_statement__]);
-  }
-}
 // real rmst_param(int, vector, vector, real, real)
 template <typename T0__, typename T1__, typename T2__, typename T3__,
           typename T4__,
@@ -4091,34 +4029,34 @@ rmst_param(const T0__& dist, const T1__& grid_arg__, const T2__& eta_arg__,
   (void) DUMMY_VAR__;
   try {
     int g = std::numeric_limits<int>::min();
-    current_statement__ = 861;
+    current_statement__ = 859;
     g = stan::math::num_elements(grid);
-    current_statement__ = 862;
+    current_statement__ = 860;
     stan::math::validate_non_negative_index("sbar", "g", g);
     Eigen::Matrix<local_scalar_t__,-1,1> sbar =
       Eigen::Matrix<local_scalar_t__,-1,1>::Constant(g, DUMMY_VAR__);
     local_scalar_t__ area = DUMMY_VAR__;
-    current_statement__ = 864;
+    current_statement__ = 862;
     area = stan::math::promote_scalar<local_scalar_t__>(0);
-    current_statement__ = 866;
+    current_statement__ = 864;
     for (int p = 1; p <= g; ++p) {
-      current_statement__ = 865;
+      current_statement__ = 863;
       stan::model::assign(sbar,
         mean_surv(dist,
           stan::model::rvalue(grid, "grid", stan::model::index_uni(p)), eta,
           aux, aux2, pstream__), "assigning variable sbar",
         stan::model::index_uni(p));
     }
-    current_statement__ = 868;
+    current_statement__ = 866;
     for (int p = 2; p <= g; ++p) {
-      current_statement__ = 867;
+      current_statement__ = 865;
       area = (area + ((0.5 *
         (stan::model::rvalue(grid, "grid", stan::model::index_uni(p)) -
         stan::model::rvalue(grid, "grid", stan::model::index_uni((p - 1)))))
         * (stan::model::rvalue(sbar, "sbar", stan::model::index_uni(p)) +
         stan::model::rvalue(sbar, "sbar", stan::model::index_uni((p - 1))))));
     }
-    current_statement__ = 869;
+    current_statement__ = 867;
     return area;
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -4143,12 +4081,12 @@ mspline_cumhaz(const T0__& h0cum, const T1__& eta, std::ostream* pstream__) {
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 872;
+    current_statement__ = 870;
     if (stan::math::logical_eq(h0cum, 0)) {
-      current_statement__ = 871;
+      current_statement__ = 869;
       return stan::math::promote_scalar<local_scalar_t__>(0);
     }
-    current_statement__ = 873;
+    current_statement__ = 871;
     return stan::math::exp((stan::math::log(h0cum) + eta));
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -4184,42 +4122,42 @@ mspline_ll_status(const T0__& dH_entry_time, const T1__& dH_entry_start,
   (void) DUMMY_VAR__;
   try {
     local_scalar_t__ log_ch_entry_time = DUMMY_VAR__;
-    current_statement__ = 875;
+    current_statement__ = 873;
     log_ch_entry_time = (stan::math::logical_eq(dH_entry_time, 0) ? stan::math::promote_scalar<
                                                                     local_scalar_t__>(
                                                                     stan::math::negative_infinity(
                                                                     )) : (
       stan::math::log(dH_entry_time) + eta));
-    current_statement__ = 877;
+    current_statement__ = 875;
     if (stan::math::logical_eq(status, 0)) {
-      current_statement__ = 876;
+      current_statement__ = 874;
       return -(stan::math::exp(log_ch_entry_time));
     }
-    current_statement__ = 879;
+    current_statement__ = 877;
     if (stan::math::logical_eq(status, 1)) {
-      current_statement__ = 878;
+      current_statement__ = 876;
       return ((stan::math::log(h0haz) + eta) -
              stan::math::exp(log_ch_entry_time));
     }
-    current_statement__ = 881;
+    current_statement__ = 879;
     if (stan::math::logical_eq(status, 2)) {
-      current_statement__ = 880;
+      current_statement__ = 878;
       return log1m_exp_neg_exp(log_ch_entry_time, pstream__);
     }
     {
       local_scalar_t__ log_ch_entry_start = DUMMY_VAR__;
-      current_statement__ = 882;
+      current_statement__ = 880;
       log_ch_entry_start = (stan::math::logical_eq(dH_entry_start, 0) ? 
         stan::math::promote_scalar<local_scalar_t__>(
           stan::math::negative_infinity()) : (stan::math::log(dH_entry_start)
         + eta));
       local_scalar_t__ log_ch_start_time = DUMMY_VAR__;
-      current_statement__ = 883;
+      current_statement__ = 881;
       log_ch_start_time = (stan::math::logical_eq(dH_start_time, 0) ? 
         stan::math::promote_scalar<local_scalar_t__>(
           stan::math::negative_infinity()) : (stan::math::log(dH_start_time)
         + eta));
-      current_statement__ = 884;
+      current_statement__ = 882;
       return (-(stan::math::exp(log_ch_entry_start)) +
              log1m_exp_neg_exp(log_ch_start_time, pstream__));
     }
@@ -4249,22 +4187,22 @@ mspline_mean_surv(const T0__& h0cum, const T1__& eta_arg__, std::ostream*
   (void) DUMMY_VAR__;
   try {
     int n = std::numeric_limits<int>::min();
-    current_statement__ = 887;
+    current_statement__ = 885;
     n = stan::math::num_elements(eta);
-    current_statement__ = 888;
+    current_statement__ = 886;
     stan::math::validate_non_negative_index("log_s", "n", n);
     Eigen::Matrix<local_scalar_t__,-1,1> log_s =
       Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n, DUMMY_VAR__);
-    current_statement__ = 891;
+    current_statement__ = 889;
     for (int i = 1; i <= n; ++i) {
-      current_statement__ = 890;
+      current_statement__ = 888;
       stan::model::assign(log_s,
         -(mspline_cumhaz(h0cum,
             stan::model::rvalue(eta, "eta", stan::model::index_uni(i)),
             pstream__)), "assigning variable log_s",
         stan::model::index_uni(i));
     }
-    current_statement__ = 892;
+    current_statement__ = 890;
     return stan::math::exp((stan::math::log_sum_exp(log_s) -
              stan::math::log(n)));
   } catch (const std::exception& e) {
@@ -4293,22 +4231,22 @@ mspline_log_mean_surv(const T0__& h0cum, const T1__& eta_arg__, std::ostream*
   (void) DUMMY_VAR__;
   try {
     int n = std::numeric_limits<int>::min();
-    current_statement__ = 894;
+    current_statement__ = 892;
     n = stan::math::num_elements(eta);
-    current_statement__ = 895;
+    current_statement__ = 893;
     stan::math::validate_non_negative_index("log_s", "n", n);
     Eigen::Matrix<local_scalar_t__,-1,1> log_s =
       Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n, DUMMY_VAR__);
-    current_statement__ = 898;
+    current_statement__ = 896;
     for (int i = 1; i <= n; ++i) {
-      current_statement__ = 897;
+      current_statement__ = 895;
       stan::model::assign(log_s,
         -(mspline_cumhaz(h0cum,
             stan::model::rvalue(eta, "eta", stan::model::index_uni(i)),
             pstream__)), "assigning variable log_s",
         stan::model::index_uni(i));
     }
-    current_statement__ = 899;
+    current_statement__ = 897;
     return (stan::math::log_sum_exp(log_s) - stan::math::log(n));
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -4339,78 +4277,48 @@ mspline_log_mean_haz(const T0__& h0cum, const T1__& h0haz, const T2__&
   (void) DUMMY_VAR__;
   try {
     int n = std::numeric_limits<int>::min();
-    current_statement__ = 901;
+    current_statement__ = 899;
     n = stan::math::num_elements(eta);
-    current_statement__ = 902;
+    current_statement__ = 900;
     stan::math::validate_non_negative_index("log_s_relative", "n", n);
     Eigen::Matrix<local_scalar_t__,-1,1> log_s_relative =
       Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n, DUMMY_VAR__);
     local_scalar_t__ eta_min = DUMMY_VAR__;
-    current_statement__ = 904;
+    current_statement__ = 902;
     eta_min = stan::math::min(eta);
-    current_statement__ = 906;
+    current_statement__ = 904;
     if (stan::math::logical_eq(h0haz, 0)) {
-      current_statement__ = 905;
+      current_statement__ = 903;
       return stan::math::promote_scalar<local_scalar_t__>(
                stan::math::negative_infinity());
     }
-    current_statement__ = 915;
+    current_statement__ = 913;
     for (int i = 1; i <= n; ++i) {
       local_scalar_t__ eta_diff = DUMMY_VAR__;
-      current_statement__ = 907;
+      current_statement__ = 905;
       eta_diff = (stan::model::rvalue(eta, "eta", stan::model::index_uni(i))
         - eta_min);
-      current_statement__ = 913;
+      current_statement__ = 911;
       if ((stan::math::primitive_value(stan::math::logical_eq(h0cum, 0)) ||
           stan::math::primitive_value(stan::math::logical_eq(eta_diff, 0)))) {
-        current_statement__ = 911;
+        current_statement__ = 909;
         stan::model::assign(log_s_relative, 0,
           "assigning variable log_s_relative", stan::model::index_uni(i));
       } else {
         local_scalar_t__ log_ch_diff = DUMMY_VAR__;
-        current_statement__ = 908;
+        current_statement__ = 906;
         log_ch_diff = ((stan::math::log(h0cum) +
           stan::model::rvalue(eta, "eta", stan::model::index_uni(i))) +
           stan::math::log1m_exp(-(eta_diff)));
-        current_statement__ = 909;
+        current_statement__ = 907;
         stan::model::assign(log_s_relative, -(stan::math::exp(log_ch_diff)),
           "assigning variable log_s_relative", stan::model::index_uni(i));
       }
     }
-    current_statement__ = 916;
+    current_statement__ = 914;
     return ((stan::math::log(h0haz) +
            stan::math::log_sum_exp(stan::math::add(eta, log_s_relative))) -
            stan::math::log_sum_exp(log_s_relative));
-  } catch (const std::exception& e) {
-    stan::lang::rethrow_located(e, locations_array__[current_statement__]);
-  }
-}
-// real mspline_mean_haz(real, real, vector)
-template <typename T0__, typename T1__, typename T2__,
-          stan::require_all_t<stan::math::disjunction<stan::is_autodiff_scalar<T0__>,
-                                stan::is_floating_point<T0__>>,
-                              stan::math::disjunction<stan::is_autodiff_scalar<T1__>,
-                                stan::is_floating_point<T1__>>,
-                              stan::is_col_vector<T2__>,
-                              stan::is_vt_not_complex<T2__>>*>
-stan::return_type_t<T0__, T1__, stan::base_type_t<T2__>>
-mspline_mean_haz(const T0__& h0cum, const T1__& h0haz, const T2__& eta_arg__,
-                 std::ostream* pstream__) {
-  using local_scalar_t__ = stan::return_type_t<T0__, T1__,
-                             stan::base_type_t<T2__>>;
-  int current_statement__ = 0;
-  // suppress unused var warning
-  (void) current_statement__;
-  const auto& eta = stan::math::to_ref(eta_arg__);
-  static constexpr bool propto__ = true;
-  // suppress unused var warning
-  (void) propto__;
-  local_scalar_t__ DUMMY_VAR__(std::numeric_limits<double>::quiet_NaN());
-  // suppress unused var warning
-  (void) DUMMY_VAR__;
-  try {
-    current_statement__ = 918;
-    return stan::math::exp(mspline_log_mean_haz(h0cum, h0haz, eta, pstream__));
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
   }
@@ -4449,18 +4357,18 @@ mspline_rmst(const T0__& ib_grid_arg__, const T1__& grid_times_arg__,
   (void) DUMMY_VAR__;
   try {
     int g = std::numeric_limits<int>::min();
-    current_statement__ = 920;
+    current_statement__ = 916;
     g = stan::math::num_elements(grid_times);
-    current_statement__ = 921;
+    current_statement__ = 917;
     stan::math::validate_non_negative_index("sbar", "g", g);
     Eigen::Matrix<local_scalar_t__,-1,1> sbar =
       Eigen::Matrix<local_scalar_t__,-1,1>::Constant(g, DUMMY_VAR__);
     local_scalar_t__ area = DUMMY_VAR__;
-    current_statement__ = 923;
+    current_statement__ = 919;
     area = stan::math::promote_scalar<local_scalar_t__>(0);
-    current_statement__ = 925;
+    current_statement__ = 921;
     for (int p = 1; p <= g; ++p) {
-      current_statement__ = 924;
+      current_statement__ = 920;
       stan::model::assign(sbar,
         mspline_mean_surv(
           stan::math::dot_product(
@@ -4468,9 +4376,9 @@ mspline_rmst(const T0__& ib_grid_arg__, const T1__& grid_times_arg__,
             scoef), eta, pstream__), "assigning variable sbar",
         stan::model::index_uni(p));
     }
-    current_statement__ = 927;
+    current_statement__ = 923;
     for (int p = 2; p <= g; ++p) {
-      current_statement__ = 926;
+      current_statement__ = 922;
       area = (area + ((0.5 *
         (stan::model::rvalue(grid_times, "grid_times",
            stan::model::index_uni(p))
@@ -4480,7 +4388,7 @@ mspline_rmst(const T0__& ib_grid_arg__, const T1__& grid_times_arg__,
         * (stan::model::rvalue(sbar, "sbar", stan::model::index_uni(p)) +
         stan::model::rvalue(sbar, "sbar", stan::model::index_uni((p - 1))))));
     }
-    current_statement__ = 928;
+    current_statement__ = 924;
     return area;
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);

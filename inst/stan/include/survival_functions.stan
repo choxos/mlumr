@@ -956,14 +956,6 @@ real log_mean_haz(int dist, real t, vector eta, real aux, real aux2) {
   return log_sum_exp(log_num) - log_sum_exp(log_s);
 }
 
-// Population-standardized (marginal) hazard at time t:
-//   h-bar(t) = E_x[h(t|x) S(t|x)] / E_x[S(t|x)].
-// Note: intentionally retained as API surface; not called by any current model
-// (predictions use log_mean_haz in log space). Kept for downstream use.
-real mean_haz(int dist, real t, vector eta, real aux, real aux2) {
-  return exp(log_mean_haz(dist, t, eta, aux, aux2));
-}
-
 // Restricted mean survival time over [grid[1], grid[g]] by the trapezoidal
 // rule on the standardized survival curve. `grid` should start at 0.
 real rmst_param(int dist, vector grid, vector eta, real aux, real aux2) {
