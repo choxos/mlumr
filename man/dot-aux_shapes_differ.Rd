@@ -10,7 +10,7 @@
 \item{object}{An \code{mlumr_fit} (survival family).}
 }
 \value{
-\code{TRUE} when the two studies have different baseline shapes.
+\code{TRUE} when the strata have different baseline shapes.
 }
 \description{
 \code{n_strata > 1} alone is not the question: the exponential has no shape

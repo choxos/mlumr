@@ -8,7 +8,7 @@
 }
 \description{
 Starts from the delta-method approximation on the logit scale, restarts
-Nelder-Mead until a restart no longer improves the objective, and checks
+Nelder-Mead, at most eight attempts, until a restart no longer improves the objective, and checks
 that the recovered moments reproduce the target to within \code{tol} (relative).
 }
 \keyword{internal}

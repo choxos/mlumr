@@ -141,7 +141,7 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
     )
     summary_df <- as.data.frame(cmdstan_summ)
   } else {
-    warning("posterior package not installed. ESS (n_eff) and Rhat will be NA.",
+    warning("posterior package not installed. n_eff, ess_tail, and Rhat will be NA.",
             call. = FALSE)
     var_names <- colnames(draws_df)
     summary_df <- data.frame(

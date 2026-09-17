@@ -521,7 +521,7 @@ print.mlumr_agd_surv <- function(x, ...) {
 #' models stratify their whole baseline.
 #'
 #' @param object An `mlumr_fit` (survival family).
-#' @return `TRUE` when the two studies have different baseline shapes.
+#' @return `TRUE` when the strata have different baseline shapes.
 #' @keywords internal
 .aux_shapes_differ <- function(object) {
   n_strata <- object$stan_data$n_strata %||% 1L

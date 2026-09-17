@@ -259,7 +259,7 @@ qlogitnorm <- function(p, mu = 0, sigma = 1, ..., mean, sd) {
 #' Moments of a logit-normal, by numerical integration
 #'
 #' Integrates over the latent normal variable, splitting the range at
-#' `z0 = -mu / sigma` where the logistic transition sits, with `abs.tol = 0`
+#' `z0 = -mu / sigma`, clamped to [-8, 8], where the logistic transition sits, with `abs.tol = 0`
 #' because the variance of a concentrated margin is far below the default
 #' absolute tolerance. Returns `NULL` when the quadrature fails.
 #' @keywords internal
@@ -297,7 +297,7 @@ qlogitnorm <- function(p, mu = 0, sigma = 1, ..., mean, sd) {
 #' Solve for one logit-normal (mu, sigma) from a mean and SD
 #'
 #' Starts from the delta-method approximation on the logit scale, restarts
-#' Nelder-Mead until a restart no longer improves the objective, and checks
+#' Nelder-Mead, at most eight attempts, until a restart no longer improves the objective, and checks
 #' that the recovered moments reproduce the target to within `tol` (relative).
 #' @keywords internal
 .lnopt <- function(m, s, tol = 1e-4) {
