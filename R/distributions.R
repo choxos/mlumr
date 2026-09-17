@@ -85,7 +85,7 @@ dgamma <- function(x, shape, rate = 1, scale = 1 / rate, log = FALSE,
 #' @param no_mean,no_sd Whether the caller's `mean` / `sd` were missing.
 #' @param mean,sd The supplied moments, or `NULL`.
 #' @return A list with `shape` and `rate`, or `NULL`.
-#' @keywords internal
+#' @noRd
 .gamma_moment_pars <- function(no_mean, no_sd, mean, sd) {
   if (no_mean && no_sd) return(NULL)
   if (no_mean || no_sd) {
@@ -111,7 +111,7 @@ dgamma <- function(x, shape, rate = 1, scale = 1 / rate, log = FALSE,
 #'
 #' `mean` and `sd` sit behind `...` so they cannot take part in partial
 #' matching; this check keeps `...` from swallowing a typo.
-#' @keywords internal
+#' @noRd
 .reject_gamma_dots <- function(...) {
   nm <- names(list(...))
   if (length(nm) || ...length() > 0L) {
@@ -126,7 +126,7 @@ dgamma <- function(x, shape, rate = 1, scale = 1 / rate, log = FALSE,
 }
 
 #' Refuse a conflicting `rate` and `scale`, as \pkg{stats} does
-#' @keywords internal
+#' @noRd
 .reject_rate_and_scale <- function(no_rate, no_scale) {
   if (!no_rate && !no_scale) {
     stop("specify 'rate' or 'scale' but not both", call. = FALSE)
@@ -172,7 +172,7 @@ NULL
 #'
 #' A function that computes its own answer would otherwise discard whatever
 #' `...` collected, so a misspelled argument would read as a default.
-#' @keywords internal
+#' @noRd
 .reject_unused_dots <- function(...) {
   n <- ...length()
   if (n == 0L) {
@@ -262,7 +262,7 @@ qlogitnorm <- function(p, mu = 0, sigma = 1, ..., mean, sd) {
 #' `z0 = -mu / sigma`, clamped between -8 and 8, where the logistic transition sits, with `abs.tol = 0`
 #' because the variance of a concentrated margin is far below the default
 #' absolute tolerance. Returns `NULL` when the quadrature fails.
-#' @keywords internal
+#' @noRd
 .ln_moments <- function(mu, sigma) {
   if (!is.finite(mu) || !is.finite(sigma) || sigma <= 0) return(NULL)
   z0 <- max(-8, min(8, -mu / sigma))
@@ -287,7 +287,7 @@ qlogitnorm <- function(p, mu = 0, sigma = 1, ..., mean, sd) {
 #'
 #' `est` is `(mu, log sigma)`; the residuals are relative to their targets so
 #' a small margin is judged on its own scale.
-#' @keywords internal
+#' @noRd
 .lndiff <- function(est, m, s) {
   mom <- .ln_moments(est[[1L]], exp(est[[2L]]))
   if (is.null(mom)) return(.Machine$double.xmax^0.5)
@@ -299,7 +299,7 @@ qlogitnorm <- function(p, mu = 0, sigma = 1, ..., mean, sd) {
 #' Starts from the delta-method approximation on the logit scale, restarts
 #' Nelder-Mead, at most eight attempts, until a restart no longer improves the objective, and checks
 #' that the recovered moments reproduce the target to within `tol` (relative).
-#' @keywords internal
+#' @noRd
 .lnopt <- function(m, s, tol = 1e-4) {
   par <- c(stats::qlogis(m), log(s / (m * (1 - m))))
   prev <- Inf
@@ -333,7 +333,7 @@ qlogitnorm <- function(p, mu = 0, sigma = 1, ..., mean, sd) {
 #'
 #' A variable on `(0, 1)` has `Var(X) < mean * (1 - mean)`, so an impossible
 #' pair is refused before the optimizer is asked.
-#' @keywords internal
+#' @noRd
 .pars_logitnorm <- function(m, s) {
   if (length(m) != length(s) && length(m) > 1 && length(s) > 1) {
     stop("`mean` and `sd` must be the same length.", call. = FALSE)
@@ -368,7 +368,7 @@ qlogitnorm <- function(p, mu = 0, sigma = 1, ..., mean, sd) {
 }
 
 #' Resolve logit-normal parameters from either parameterization
-#' @keywords internal
+#' @noRd
 .logitnorm_pars <- function(mu, sigma, mean, sd, has_mean, has_sd) {
   if (has_mean && has_sd) return(.pars_logitnorm(mean, sd))
   if (has_mean || has_sd) {
@@ -380,7 +380,7 @@ qlogitnorm <- function(p, mu = 0, sigma = 1, ..., mean, sd) {
 }
 
 #' Validate native logit-normal `mu` / `sigma`
-#' @keywords internal
+#' @noRd
 .validate_logitnorm_native <- function(mu, sigma) {
   # Test missingness before type, since a bare NA is logical.
   if (anyNA(mu) || anyNA(sigma)) {

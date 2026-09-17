@@ -26,11 +26,7 @@
 #'     (poisson), `agd_weight` (normal) and `NULL` for survival.}
 #' }
 #'
-#' @keywords internal
-#' @name family_config
-NULL
-
-#' @keywords internal
+#' @noRd
 family_config <- list(
   binomial = list(
     stan_prefix          = "mlumr_binary",
@@ -91,7 +87,7 @@ family_config <- list(
 )
 
 #' Lookup helper for the family registry
-#' @keywords internal
+#' @noRd
 get_family_config <- function(family) {
   if (!is.character(family) || length(family) != 1L) {
     stop("`family` must be a single string", call. = FALSE)

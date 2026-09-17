@@ -2,7 +2,7 @@
 #'
 #' `as.numeric()` on a factor returns its level codes, which look like
 #' plausible times and pass every later check.
-#' @keywords internal
+#' @noRd
 .reject_factor_time <- function(x, nm) {
   if (is.factor(x)) {
     stop("`", nm, "` is a factor; as.numeric() would use its level codes ",
@@ -26,7 +26,7 @@
 #'   right-censoring (status `0`/`1`) and optional delayed entry are supported
 #'   via this route; use a `Surv` object for left/interval censoring.
 #' @return A data frame with `.time`, `.start_time`, `.delay_time`, `.status`.
-#' @keywords internal
+#' @noRd
 .get_surv_data <- function(data, Surv = NULL, time = NULL, status = NULL,
                            entry_time = NULL) {
   if (!is.null(Surv)) {
@@ -125,7 +125,7 @@
 
 
 #' Validate parsed survival times and status codes
-#' @keywords internal
+#' @noRd
 .validate_survival_times <- function(time, start_time, delay_time, status, label) {
   if (any(is.na(time)) || any(is.na(status))) {
     stop(sprintf("%s survival times/status must not contain NA", label),
@@ -168,7 +168,7 @@
 
 
 #' Set up survival IPD (internal; dispatched from [set_ipd()])
-#' @keywords internal
+#' @noRd
 .set_ipd_survival <- function(data, treatment, covariates, study,
                               Surv, time, status, entry_time) {
   .validate_non_empty_data(data, "IPD")
@@ -385,7 +385,7 @@ set_agd_surv <- function(data, treatment, Surv = NULL,
 #'
 #' A missing identifier matches no rows, so the arm summary would be all NA.
 #' @param as_char Return `as.character(x)` rather than `x`.
-#' @keywords internal
+#' @noRd
 .require_identity <- function(x, nm, as_char = TRUE) {
   if (anyNA(x)) {
     stop("`", nm, "` must not contain missing values: it identifies which ",
@@ -400,7 +400,7 @@ set_agd_surv <- function(data, treatment, Surv = NULL,
 #' @param values The identifier to check within each arm.
 #' @param arm_vec Arm labels.
 #' @param label Name of the identifier, for the message.
-#' @keywords internal
+#' @noRd
 .require_single_identity <- function(values, arm_vec, label) {
   for (a in unique(arm_vec)) {
     vals <- unique(values[arm_vec == a])
@@ -417,7 +417,7 @@ set_agd_surv <- function(data, treatment, Surv = NULL,
 
 
 #' Build the per-arm covariate-summary table for survival AgD
-#' @keywords internal
+#' @noRd
 .build_arm_summary <- function(data, arms, arm_vec, study_vec, trt_vec,
                                cov_means, cov_sds, cov_names) {
   rows <- lapply(arms, function(a) {
@@ -456,7 +456,7 @@ set_agd_surv <- function(data, treatment, Surv = NULL,
 #'   (`"parametric"`/`"flexible"`), integer `dist_code` (1-9 for parametric,
 #'   `NA` for flexible), `mspline_degree`, `is_ph` (proportional hazards flag),
 #'   `n_aux` (number of shape parameters), and the Stan model `stan_prefix`.
-#' @keywords internal
+#' @noRd
 .survival_distribution_info <- function(distribution = NULL) {
   distribution <- distribution %||% "weibull"
   valid <- c("exponential", "weibull", "gompertz", "exponential-aft",
@@ -513,7 +513,7 @@ print.mlumr_agd_surv <- function(x, ...) {
 #'
 #' @param object An `mlumr_fit` (survival family).
 #' @return `TRUE` when the strata have different baseline shapes.
-#' @keywords internal
+#' @noRd
 .aux_shapes_differ <- function(object) {
   n_strata <- object$stan_data$n_strata %||% 1L
   if (n_strata <= 1L) return(FALSE)
@@ -537,7 +537,7 @@ print.mlumr_agd_surv <- function(x, ...) {
 #'   `FALSE` for the natural-scale name [marginal_effects()] reports.
 #' @return A list with `label` and `at_time` (`NA` when the measure has no
 #'   evaluation time).
-#' @keywords internal
+#' @noRd
 .surv_scalar_label <- function(object, log_scale = FALSE) {
   is_ph <- isTRUE(object$surv_info$is_ph)
   differs <- .aux_shapes_differ(object)
@@ -557,7 +557,7 @@ print.mlumr_agd_surv <- function(x, ...) {
 #'
 #' @param label The `label` from [.surv_scalar_label()] (natural scale).
 #' @return One of `"hr"`, `"tr"`, `"exp_delta_eta"`.
-#' @keywords internal
+#' @noRd
 .surv_scalar_effect_name <- function(label) {
   switch(label, HR = "hr", TR = "tr", EXP_DELTA_ETA = "exp_delta_eta",
          stop("Unrecognized survival scalar label: ", label, call. = FALSE))
@@ -571,7 +571,7 @@ print.mlumr_agd_surv <- function(x, ...) {
 #' @param label,scalar_effect The fit's natural-scale label and its selector.
 #' @param stratified `TRUE` when the baseline shapes differ by study.
 #' @param valid_effects The accepted selectors for this fit.
-#' @keywords internal
+#' @noRd
 .surv_effect_scale_error <- function(effect, label, scalar_effect, stratified,
                                      valid_effects) {
   wrong_scalar <- effect %in% c("hr", "tr", "exp_delta_eta")

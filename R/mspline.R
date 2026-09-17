@@ -70,7 +70,7 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
 #' @param n_knots Number of internal knots.
 #' @param type `"quantile"` (event-time quantiles) or `"equal"` (equally spaced).
 #' @return A list with `internal`, `boundary`, and `n_knots`.
-#' @keywords internal
+#' @noRd
 .knots_from_times <- function(all_times, event_times, n_knots,
                               type = c("quantile", "equal")) {
   type <- match.arg(type)
@@ -105,7 +105,7 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
 #' @param knots A list from [make_knots()] (`internal`, `boundary`).
 #' @param degree Spline degree: 3 (cubic M-spline) or 0 (piecewise exponential).
 #' @return A basis spec list with `internal`, `boundary`, `degree`, `n_scoef`.
-#' @keywords internal
+#' @noRd
 .build_mspline_basis <- function(knots, degree) {
   spec <- list(
     internal = knots$internal,
@@ -134,7 +134,7 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
 #' @param integral If `TRUE`, return the integrated (I-spline) basis; otherwise
 #'   the M-spline basis.
 #' @return A numeric matrix with `length(times)` rows and `spec$n_scoef` columns.
-#' @keywords internal
+#' @noRd
 .eval_basis <- function(spec, times, integral = FALSE) {
   if (length(times) == 0L) {
     return(matrix(numeric(0), nrow = 0L, ncol = spec$n_scoef))
@@ -193,7 +193,7 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
 #' the constant-hazard simplex exactly. Uses the knot-spacing construction of
 #' Jackson (arXiv:2306.03957); reimplemented from `multinma`
 #' (GPL-3, `multinma:::mspline_constant_hazard`).
-#' @keywords internal
+#' @noRd
 .mspline_constant_hazard <- function(spec) {
   ord <- spec$degree + 1L
   n <- spec$n_scoef
@@ -208,7 +208,7 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
 #' Returns `sqrt` of the normalized knot gaps (length `n_scoef - 1`) so the RW1
 #' increments are scaled by interval width under unevenly spaced knots.
 #' Reimplemented from `multinma` (GPL-3, `multinma:::rw1_prior_weights`).
-#' @keywords internal
+#' @noRd
 .rw1_prior_weights <- function(spec) {
   ord <- spec$degree + 1L
   n <- spec$n_scoef
@@ -238,7 +238,7 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
 #' @param degree Spline degree (3 = cubic M-spline, 0 = piecewise exponential).
 #' @return A list with `index` and `comparator` basis specs of equal
 #'   `n_scoef`, and `n_knots` (the realized count actually used).
-#' @keywords internal
+#' @noRd
 .matched_per_study_bases <- function(ipd, pseudo, n_knots, degree) {
   build <- function(nk) {
     k_idx <- .knots_from_times(ipd$.time, ipd$.time[ipd$.status == 1], nk)
@@ -299,7 +299,7 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
 #' @return A logical vector with one entry per basis column. All `TRUE` when
 #'   there is no risk period to evaluate over, which is not this function's to
 #'   refuse.
-#' @keywords internal
+#' @noRd
 .live_basis_columns <- function(spec, observed_max, entry = NULL, exit = NULL,
                                 event = NULL) {
   # Evaluate at structural points (knots, inter-knot midpoints, boundaries),
@@ -345,7 +345,7 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
 #' @param studies A named list; each element a list with `observed_max`,
 #'   `entry`, `exit` and `event`.
 #' @return `TRUE`, invisibly.
-#' @keywords internal
+#' @noRd
 .assert_shared_basis_identified <- function(spec, studies) {
   inc <- vapply(studies, function(st) {
     .live_basis_columns(spec, st$observed_max, st$entry, st$exit, st$event)
@@ -394,7 +394,7 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
 #'   for data with no delayed entry.
 #' @param event The study's event times, or `NULL`.
 #' @return `TRUE`, invisibly.
-#' @keywords internal
+#' @noRd
 .assert_basis_support <- function(spec, observed_max, label,
                                   entry = NULL, exit = NULL, event = NULL) {
   risk <- .risk_intervals(entry, exit, observed_max)
@@ -450,7 +450,7 @@ make_knots <- function(data, n_knots = 7, type = c("quantile", "equal")) {
 #' @param exit Exit times, or `NULL`.
 #' @param observed_max Last observed time, used when `exit` is absent.
 #' @return A list of `c(lo, hi)` intervals, in increasing order.
-#' @keywords internal
+#' @noRd
 .risk_intervals <- function(entry, exit, observed_max) {
   whole <- list(c(lo = 0, hi = observed_max))
   if (is.null(entry) || !is.numeric(entry) || !length(entry)) {

@@ -115,7 +115,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 }
 
 #' Required source columns for IPD setup
-#' @keywords internal
+#' @noRd
 .ipd_required_columns <- function(treatment, outcome, covariates,
                                   exposure = NULL, study = NULL) {
   cols <- c(treatment, outcome, covariates)
@@ -125,7 +125,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 }
 
 #' Validate that required columns are present
-#' @keywords internal
+#' @noRd
 .check_required_columns <- function(data, required_cols) {
   missing_cols <- setdiff(required_cols, names(data))
   if (length(missing_cols) > 0L) {
@@ -136,7 +136,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 }
 
 #' Validate that input data contain at least one row
-#' @keywords internal
+#' @noRd
 .validate_non_empty_data <- function(data, label) {
   if (nrow(data) == 0L) {
     stop(sprintf("%s data must contain at least one row", label),
@@ -146,7 +146,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 }
 
 #' Validate covariate argument shape before column lookup
-#' @keywords internal
+#' @noRd
 .validate_required_covariates <- function(covariates, arg_name) {
   if (!is.character(covariates) || length(covariates) == 0L) {
     stop(sprintf("`%s` must be a non-empty character vector", arg_name),
@@ -165,7 +165,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 }
 
 #' Validate IPD outcome and exposure columns
-#' @keywords internal
+#' @noRd
 .validate_ipd_outcome <- function(data, outcome, family, exposure = NULL) {
   if (family == "binomial") {
     outcome_vals <- data[[outcome]]
@@ -202,7 +202,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 }
 
 #' Validate a data source contains only one treatment
-#' @keywords internal
+#' @noRd
 .validate_single_treatment <- function(data, treatment, label) {
   raw <- data[[treatment]]
   # Reject missing labels: an all-NA column collapses to a single unique value
@@ -224,7 +224,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 }
 
 #' Reject user names that would overwrite standardized internal columns
-#' @keywords internal
+#' @noRd
 .validate_reserved_internal_names <- function(user_names, reserved, label) {
   reserved_hit <- intersect(user_names, reserved)
   if (length(reserved_hit) > 0L) {
@@ -239,7 +239,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 }
 
 #' Validate IPD covariates
-#' @keywords internal
+#' @noRd
 .validate_ipd_covariates <- function(data, covariates) {
   for (cov in covariates) {
     if (!is.numeric(data[[cov]])) {
@@ -255,7 +255,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 }
 
 #' Validate finite IPD outcome and exposure values
-#' @keywords internal
+#' @noRd
 .validate_ipd_finite_columns <- function(data, outcome, exposure, family) {
   outcome_nona <- data[[outcome]][!is.na(data[[outcome]])]
   if (any(!is.finite(outcome_nona))) {
@@ -271,7 +271,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 }
 
 #' Drop rows with missing setup inputs
-#' @keywords internal
+#' @noRd
 .drop_missing_rows <- function(data, required_cols) {
   complete <- stats::complete.cases(data[, required_cols])
   if (!all(complete)) {
@@ -284,7 +284,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 }
 
 #' Validate that complete-case filtering left rows to analyze
-#' @keywords internal
+#' @noRd
 .validate_complete_rows_remain <- function(data, label) {
   if (nrow(data) == 0L) {
     stop(sprintf("No complete %s rows remain after excluding missing values",
@@ -294,7 +294,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 }
 
 #' Warn when IPD covariates have no empirical variation
-#' @keywords internal
+#' @noRd
 .warn_constant_ipd_covariates <- function(data, covariates) {
   constant <- vapply(covariates, function(cov) {
     length(unique(data[[cov]])) <= 1L
@@ -369,7 +369,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 }
 
 #' Standardize IPD to mlumr's internal column contract
-#' @keywords internal
+#' @noRd
 .standardize_ipd_data <- function(data, treatment, outcome, covariates,
                                   family, exposure = NULL, study = NULL) {
   ipd_data <- data.frame(
@@ -394,7 +394,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 }
 
 #' Summarize standardized IPD outcomes
-#' @keywords internal
+#' @noRd
 .ipd_outcome_summary <- function(ipd_data, family) {
   switch(family,
     binomial = list(n_events = sum(ipd_data$.outcome)),
@@ -576,7 +576,7 @@ set_agd <- function(data, treatment,
 }
 
 #' Validate AgD outcome column arguments
-#' @keywords internal
+#' @noRd
 .validate_agd_outcome_args <- function(family, outcome_n, outcome_r,
                                        outcome_mean, outcome_se, outcome_E) {
   if (family == "binomial" && (is.null(outcome_n) || is.null(outcome_r))) {
@@ -595,7 +595,7 @@ set_agd <- function(data, treatment,
 }
 
 #' Normalize AgD covariate specification
-#' @keywords internal
+#' @noRd
 .agd_covariate_spec <- function(cov_means, cov_sds = NULL, cov_types = NULL) {
   n_cov <- length(cov_means)
 
@@ -621,7 +621,7 @@ set_agd <- function(data, treatment,
 }
 
 #' AgD source columns required for setup
-#' @keywords internal
+#' @noRd
 .agd_required_columns <- function(treatment, cov_means, cov_sds,
                                   outcome_n = NULL, outcome_r = NULL,
                                   outcome_mean = NULL, outcome_se = NULL,
@@ -637,13 +637,13 @@ set_agd <- function(data, treatment,
 }
 
 #' Strip AgD covariate suffixes
-#' @keywords internal
+#' @noRd
 .strip_agd_cov_suffix <- function(cov_means) {
   sub("_prop$", "", sub("_mean$", "", cov_means))
 }
 
 #' Validate AgD covariate names after suffix stripping
-#' @keywords internal
+#' @noRd
 .validate_agd_covariate_names <- function(cov_means) {
   stripped <- .strip_agd_cov_suffix(cov_means)
   dup_stripped <- unique(stripped[duplicated(stripped)])
@@ -661,7 +661,7 @@ set_agd <- function(data, treatment,
 }
 
 #' Validate AgD outcome summaries
-#' @keywords internal
+#' @noRd
 .validate_agd_outcomes <- function(data, family, outcome_n, outcome_r,
                                    outcome_mean, outcome_se, outcome_E) {
   if (family == "binomial") {
@@ -682,7 +682,7 @@ set_agd <- function(data, treatment,
 }
 
 #' Validate binomial AgD outcomes
-#' @keywords internal
+#' @noRd
 .validate_agd_binomial_outcomes <- function(r_vals, n_vals) {
   if (any(is.na(r_vals)) || any(is.na(n_vals))) {
     stop("`outcome_r` and `outcome_n` must not contain NA values", call. = FALSE)
@@ -712,7 +712,7 @@ set_agd <- function(data, treatment,
 }
 
 #' Validate optional AgD sample sizes
-#' @keywords internal
+#' @noRd
 .validate_agd_sample_size <- function(n_vals) {
   if (any(is.na(n_vals))) {
     stop("`outcome_n` must not contain NA values", call. = FALSE)
@@ -733,7 +733,7 @@ set_agd <- function(data, treatment,
 }
 
 #' Validate normal AgD outcomes
-#' @keywords internal
+#' @noRd
 .validate_agd_normal_outcomes <- function(y_vals, se_vals) {
   if (any(is.na(y_vals)) || any(is.na(se_vals))) {
     stop("`outcome_mean` and `outcome_se` must not contain NA values",
@@ -753,7 +753,7 @@ set_agd <- function(data, treatment,
 }
 
 #' Validate Poisson AgD outcomes
-#' @keywords internal
+#' @noRd
 .validate_agd_poisson_outcomes <- function(r_vals, E_vals) {
   if (any(is.na(r_vals)) || any(is.na(E_vals))) {
     stop("`outcome_r` and `outcome_E` must not contain NA values", call. = FALSE)
@@ -778,7 +778,7 @@ set_agd <- function(data, treatment,
 }
 
 #' Check whether values are valid non-negative whole-number counts
-#' @keywords internal
+#' @noRd
 .is_whole_number_count <- function(x, allow_missing = FALSE) {
   if (!is.numeric(x)) {
     return(FALSE)
@@ -799,7 +799,7 @@ set_agd <- function(data, treatment,
 }
 
 #' Validate AgD covariate summaries
-#' @keywords internal
+#' @noRd
 .validate_agd_covariates <- function(data, cov_means, cov_sds) {
   for (cm in cov_means) {
     if (!is.numeric(data[[cm]])) {
@@ -830,7 +830,7 @@ set_agd <- function(data, treatment,
 }
 
 #' Validate AgD covariate type labels
-#' @keywords internal
+#' @noRd
 .validate_agd_cov_types <- function(cov_types) {
   valid_cov_types <- c("binary", "continuous")
   bad_types <- setdiff(unique(cov_types), valid_cov_types)
@@ -851,7 +851,7 @@ set_agd <- function(data, treatment,
 #'
 #' @param x Numeric vector as reported.
 #' @return Numeric vector of allowances, one per element.
-#' @keywords internal
+#' @noRd
 .rounding_allowance <- function(x) {
   # A double carries roughly 15 to 17 significant decimal digits; past that,
   # rounding is not a property of the number as written.
@@ -868,7 +868,7 @@ set_agd <- function(data, treatment,
 }
 
 #' Validate binary AgD covariate summaries
-#' @keywords internal
+#' @noRd
 .validate_agd_binary_covariates <- function(data, cov_means, cov_sds,
                                             cov_types) {
   for (i in seq_along(cov_types)) {
@@ -919,7 +919,7 @@ set_agd <- function(data, treatment,
 }
 
 #' Standardize AgD to mlumr's internal column contract
-#' @keywords internal
+#' @noRd
 .standardize_agd_data <- function(data, treatment, family, outcome_n,
                                   outcome_r, outcome_mean, outcome_se,
                                   outcome_E, cov_means, cov_sds,
@@ -953,7 +953,7 @@ set_agd <- function(data, treatment,
 }
 
 #' Build AgD covariate metadata
-#' @keywords internal
+#' @noRd
 .agd_cov_info <- function(cov_names, cov_sds, cov_types) {
   cov_info <- list()
   for (i in seq_along(cov_names)) {
@@ -968,7 +968,7 @@ set_agd <- function(data, treatment,
 }
 
 #' Summarize AgD outcomes
-#' @keywords internal
+#' @noRd
 .agd_outcome_summary <- function(data, family, outcome_n, outcome_r,
                                  outcome_mean, outcome_se, outcome_E) {
   switch(family,

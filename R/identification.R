@@ -133,7 +133,7 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 
 
 #' Mean covariate profile realized by each row's integration points
-#' @keywords internal
+#' @noRd
 .agd_realized_profiles <- function(data, covs) {
   x_int <- data$integration_points
   if (is.null(x_int)) return(NULL)
@@ -152,7 +152,7 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #' center along the dominant direction, in IPD SDs), `singular_values` and the
 #' scaled `means`. A design that cannot be decomposed reports zero geometry,
 #' as `.profile_rank()` does.
-#' @keywords internal
+#' @noRd
 .subgroup_geometry <- function(means, ref_sd) {
   M <- scale(as.matrix(means), center = TRUE, scale = FALSE)
   k <- ncol(M)
@@ -193,7 +193,7 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #' not used because it judges each column against its own norm: an offset of
 #' 1e7 collapses the rank and a separation of 1e-11 still counts. A design
 #' that cannot be decomposed returns 0.
-#' @keywords internal
+#' @noRd
 .profile_rank <- function(profiles, ref_sd, min_spread = 0.05) {
   M <- scale(as.matrix(profiles), center = TRUE, scale = FALSE)
   ref_sd <- as.numeric(ref_sd)
@@ -213,7 +213,7 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #' tolerance. Profiles at -0.01 and 0.01 have a spread below the screen and a
 #' numerical rank of 2, and precise aggregate outcomes can still pin the slope
 #' down there.
-#' @keywords internal
+#' @noRd
 .profile_numeric_rank <- function(profiles, ref_sd) {
   M <- scale(as.matrix(profiles), center = TRUE, scale = FALSE)
   ref_sd <- as.numeric(ref_sd)
@@ -234,7 +234,7 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #' grid is sorted into a canonical order before comparing, because the
 #' likelihood sees the multiset of points and not their order. Returns the row
 #' count when there are no integration points.
-#' @keywords internal
+#' @noRd
 .agd_distinct_profiles <- function(data) {
   x_int <- data$integration_points
   n_rows <- nrow(data$agd$data)
@@ -252,7 +252,7 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 
 
 #' Print the identification report
-#' @keywords internal
+#' @noRd
 .print_identification <- function(x, covs) {
   cat("\nComparator identification (relaxed model)\n\n")
   cat(sprintf("Aggregate rows:      %d (%d distinct)\n", x$n_rows,
@@ -304,7 +304,7 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #'   declared column's range.
 #' @param max_location_gap Largest per-row distance, in reference SDs, that
 #'   still counts as a match.
-#' @keywords internal
+#' @noRd
 .realized_matches_declared <- function(declared, realized, ref_sd = NULL,
                                        max_location_gap = 0.25) {
   if (is.null(realized)) return(TRUE)

@@ -121,7 +121,7 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
 }
 
 
-#' @keywords internal
+#' @noRd
 .format_prior <- function(prior, digits = 3) {
   if (is.null(prior$distribution)) {
     return("<missing prior>")
@@ -142,7 +142,7 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
   )
 }
 
-#' @keywords internal
+#' @noRd
 .format_prior_collection <- function(prior, digits = 3) {
   if (is_single_prior(prior) || is.null(prior)) {
     return(.format_prior(prior, digits = digits))
@@ -155,7 +155,7 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
   "<missing prior>"
 }
 
-#' @keywords internal
+#' @noRd
 .print_default_tag <- function(prior) {
   if (isTRUE(prior$default) && !is.null(prior$version)) {
     cat("  (package default, mlumr ", prior$version, ")\n", sep = "")
@@ -171,7 +171,7 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
 #' written once. `resolved` is the per-coefficient struct stored on the fit;
 #' `user_prior` is what the caller passed, used for the fallback on older fits
 #' that carry no resolved struct and for the package-default tag.
-#' @keywords internal
+#' @noRd
 .print_beta_prior_block <- function(heading, resolved, user_prior, digits) {
   cat(heading, "\n", sep = "")
   if (is.null(resolved)) {
@@ -216,7 +216,7 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
 
 
 #' Validate prior_summary digits
-#' @keywords internal
+#' @noRd
 .validate_prior_summary_digits <- function(digits) {
   valid <- is.numeric(digits) &&
     length(digits) == 1L &&
@@ -233,7 +233,7 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
 
 
 #' Validate resolved beta-prior metadata stored on a fit
-#' @keywords internal
+#' @noRd
 .validate_resolved_beta_prior <- function(br) {
   required <- c("mean", "sd", "dist", "df", "autoscale", "sd_x",
                 "covariate_names")
@@ -280,7 +280,7 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
 
 
 #' Label a resolved Stan prior family code
-#' @keywords internal
+#' @noRd
 .resolved_prior_family_label <- function(dist) {
   switch(as.character(dist),
     "0" = "normal",
@@ -291,7 +291,7 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
 
 
 #' Format a homogeneous resolved beta prior
-#' @keywords internal
+#' @noRd
 .resolved_prior_broadcast_label <- function(br, digits) {
   switch(as.character(br$dist),
     "0" = sprintf("normal(%s, %s)",
@@ -312,7 +312,7 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
 #' truncated at zero is a half-normal or half-t.
 #' @param prior A prior specification list.
 #' @return A one-line character label for the constrained form.
-#' @keywords internal
+#' @noRd
 .constrained_prior_label <- function(prior) {
   dist <- prior$distribution %||% ""
   loc <- suppressWarnings(as.numeric(prior$mean %||% NA_real_))

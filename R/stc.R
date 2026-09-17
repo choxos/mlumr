@@ -179,7 +179,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 }
 
 #' Build the STC GLM formula without assuming syntactic covariate names
-#' @keywords internal
+#' @noRd
 .stc_formula <- function(cov_names, family) {
   terms <- lapply(cov_names, as.name)
   if (family == "poisson") {
@@ -191,7 +191,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 }
 
 #' Validate fitted STC GLM parameters before delta-method calculations
-#' @keywords internal
+#' @noRd
 .stc_glm_parameters <- function(fit) {
   if (!isTRUE(fit$converged)) {
     stop("STC GLM did not converge; check the IPD model or use mlumr().",
@@ -237,7 +237,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' iterative reweighting stops and reports convergence.
 #' @param fit A fitted Poisson `glm`.
 #' @return The status list recorded on the result, invisibly.
-#' @keywords internal
+#' @noRd
 .stc_refuse_poisson_recession <- function(fit) {
   if (all(fit$y == 0)) {
     stop("The STC outcome model has no events, so the Poisson likelihood ",
@@ -259,7 +259,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' linear program in [.stc_separation_status()].
 #' @return The separation status, invisibly (`status` and `reason`). A
 #'   separated fit throws instead.
-#' @keywords internal
+#' @noRd
 .stc_refuse_separation <- function(fit) {
   fam <- tryCatch(stats::family(fit)$family, error = function(e) NA_character_)
   if (!identical(fam, "binomial")) {
@@ -313,7 +313,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' @param fit A fitted binomial `glm`.
 #' @return A list with `status`, one of `"separated"`, `"not_separated"` or
 #'   `"unknown"`, and `reason`, a string explaining an unknown.
-#' @keywords internal
+#' @noRd
 .stc_separation_status <- function(fit) {
   unknown <- function(reason) list(status = "unknown", reason = reason)
   if (!requireNamespace("detectseparation", quietly = TRUE)) {
@@ -351,7 +351,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 }
 
 #' Build a model matrix aligned with fitted GLM coefficients
-#' @keywords internal
+#' @noRd
 .stc_model_matrix <- function(fit, newdata) {
   X <- stats::model.matrix(stats::delete.response(stats::terms(fit)), newdata)
   beta_names <- names(coef(fit))
@@ -364,7 +364,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 }
 
 #' Binomial STC estimator
-#' @keywords internal
+#' @noRd
 .stc_binomial <- function(data, fit, ipd, agd, newdata, link_resolved,
                           conf_level, z, beta_hat, V, n_int) {
   weights <- if (data$has_integration) rep(agd$.n, each = n_int) else agd$.n
@@ -452,7 +452,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' the comparator grid; its gradient in the coefficients is analytic, so the
 #' uncertainty does not depend on the predictors' units. The gradients are
 #' formed from the log probabilities; see [.stc_binomial_gradients()].
-#' @keywords internal
+#' @noRd
 .stc_binomial_comparator_delta <- function(fit, newdata, weights,
                                            beta_hat, V, link_resolved,
                                            log_p_A, log_q_A, p_B,
@@ -502,7 +502,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' @param link The binomial link.
 #' @return List of gradient vectors `log_mean`, `log_nonevent_mean`, `mean`
 #'   and `link`, one entry per coefficient.
-#' @keywords internal
+#' @noRd
 .stc_binomial_gradients <- function(X, eta, weights,
                                     link = c("logit", "probit", "cloglog")) {
   link <- match.arg(link)
@@ -577,7 +577,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 }
 
 #' Stable Euclidean norm of two standard errors
-#' @keywords internal
+#' @noRd
 .stc_hypot <- function(x, y) {
   if (any(is.infinite(c(x, y)))) return(Inf)
   scale <- max(abs(c(x, y)))
@@ -586,7 +586,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 }
 
 #' Normal-outcome STC estimator
-#' @keywords internal
+#' @noRd
 .stc_normal <- function(data, fit, ipd, agd, newdata, link_resolved,
                         conf_level, z, beta_hat, V, n_int) {
   if (nrow(agd) > 1L && is.null(agd$.n)) {
@@ -669,7 +669,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 }
 
 #' Poisson-outcome STC estimator
-#' @keywords internal
+#' @noRd
 .stc_poisson <- function(data, fit, ipd, agd, newdata, link_resolved,
                          conf_level, z, beta_hat, V, n_int) {
   weights <- if (data$has_integration) rep(agd$.E, each = n_int) else agd$.E
@@ -737,7 +737,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 }
 
 #' Build comparator-population covariates for STC prediction
-#' @keywords internal
+#' @noRd
 .stc_comparator_data <- function(data, cov_names, family) {
   agd <- data$agd$data
   n_int <- NULL
@@ -779,7 +779,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' bootstrap. This survival extension is a package benchmark, not the
 #' established binary/continuous/count STC procedure. Requires the `flexsurv`
 #' package.
-#' @keywords internal
+#' @noRd
 .stc_survival <- function(data, conf_level, z, distribution, n_boot = 200L,
                           seed = NULL, rmst_horizon = NULL) {
   if (!requireNamespace("flexsurv", quietly = TRUE)) {
@@ -970,7 +970,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #' no finite interior maximum. `flexsurvreg()` returns optimizer-boundary
 #' parameters with a warning rather than failing, after which an RMST
 #' difference and its interval look ordinary.
-#' @keywords internal
+#' @noRd
 .validate_stc_survival_events <- function(ipd, pseudo) {
   n_idx <- sum(ipd$.status == 1L)
   n_cmp <- sum(pseudo$.status == 1L)
@@ -983,7 +983,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 }
 
 #' Validate survival STC input supported by flexsurv formula construction
-#' @keywords internal
+#' @noRd
 .validate_stc_survival_right_censored <- function(ipd, pseudo) {
   status <- c(ipd$.status, pseudo$.status)
   start_time <- c(ipd$.start_time, pseudo$.start_time)
@@ -1005,7 +1005,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #'
 #' `flexsurvreg()` warns rather than fails at an optimizer boundary, so this
 #' raises an error and the bootstrap counts such a replicate as failed.
-#' @keywords internal
+#' @noRd
 .validate_flexsurv_fit <- function(fit, arm) {
   conv <- fit$opt$convergence
   if (!is.null(conv) && !identical(as.integer(conv), 0L)) {
@@ -1040,7 +1040,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 }
 
 #' One STC survival point estimate (RMST_index, RMST_comparator, difference)
-#' @keywords internal
+#' @noRd
 .stc_survival_point <- function(ipd, pseudo, cov_names, comp_cov, dist_fs, horizon) {
   ipd$.stc_event <- as.integer(ipd$.status == 1L)
   pseudo$.stc_event <- as.integer(pseudo$.status == 1L)
@@ -1097,7 +1097,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 }
 
 #' Map an mlumr survival distribution to a flexsurv distribution name
-#' @keywords internal
+#' @noRd
 .stc_flexsurv_dist <- function(distribution) {
   switch(distribution,
     exponential = "exp", "exponential-aft" = "exp",
@@ -1113,7 +1113,7 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 }
 
 #' Build comparator-population covariates from AgD means
-#' @keywords internal
+#' @noRd
 .stc_agd_mean_newdata <- function(agd, cov_names) {
   newdata <- data.frame(row.names = seq_len(nrow(agd)))
   for (cov in cov_names) {

@@ -246,7 +246,7 @@ conditional_effects <- function(object,
 #' @param dist The fitted distribution.
 #' @param asked The measure the caller asked for, `"hr"` or `"tr"`.
 #' @return A single string to append to the error message.
-#' @keywords internal
+#' @noRd
 .dual_family_note <- function(dist, asked) {
   dual <- c("exponential", "weibull", "exponential-aft", "weibull-aft")
   if (dist %in% dual) {
@@ -290,7 +290,7 @@ conditional_effects <- function(object,
 }
 
 #' Build covariate profiles for conditional summaries
-#' @keywords internal
+#' @noRd
 .conditional_profiles <- function(object, newdata = NULL) {
   covariates <- object$data$covariates
 
@@ -340,7 +340,7 @@ conditional_effects <- function(object,
 }
 
 #' Extract posterior parameter draws for conditional summaries
-#' @keywords internal
+#' @noRd
 .conditional_parameters <- function(object, covariates) {
   draws <- object$draws
   n_cov <- length(covariates)
@@ -377,7 +377,7 @@ conditional_effects <- function(object,
 }
 
 #' Compute conditional linear predictors for one profile
-#' @keywords internal
+#' @noRd
 .conditional_eta <- function(params, x) {
   if (params$is_relaxed) {
     eta_idx <- params$mu_index + as.vector(params$beta_index %*% t(x))
@@ -392,7 +392,7 @@ conditional_effects <- function(object,
 }
 
 #' Conditional effect choices by family
-#' @keywords internal
+#' @noRd
 .conditional_effect_choices <- function(family) {
   if (family == "binomial") {
     c("all", "link_effect", "rd", "rr")
@@ -516,7 +516,7 @@ conditional_predict <- function(object,
 #' fitted prediction time. Conditional hazard and RMST are well-defined, but
 #' this helper currently returns survival only; use [predict.mlumr_fit()] for
 #' population-standardized hazard and RMST summaries.
-#' @keywords internal
+#' @noRd
 .conditional_predict_survival <- function(object, newdata, summary, probs) {
   profiles <- .conditional_profiles(object, newdata)
   X <- profiles$X
@@ -568,7 +568,7 @@ conditional_predict <- function(object,
 #' @param object An `mlumr_fit` (survival).
 #' @return `"hr"`, `"tr"`, or `"exp_eta_contrast"` when the two baselines'
 #'   shape/scale parameters differ.
-#' @keywords internal
+#' @noRd
 .surv_contrast_name <- function(object) {
   if (.aux_shapes_differ(object)) return("exp_eta_contrast")
   if (isTRUE(object$surv_info$is_ph)) "hr" else "tr"
@@ -584,7 +584,7 @@ conditional_predict <- function(object,
 #'   curve depends on which arm is being predicted.
 #' @return A matrix of survival probabilities, draws (rows) by fitted
 #'   prediction times (columns).
-#' @keywords internal
+#' @noRd
 .surv_eval_curve <- function(object, eta,
                              treatment = c("index", "comparator")) {
   treatment <- match.arg(treatment)
@@ -625,7 +625,7 @@ conditional_predict <- function(object,
 #' @param k Shape, recycled to the length of `log_x`.
 #' @param log_x Log of the incomplete-gamma argument.
 #' @return Log survival, the same length as `log_x`.
-#' @keywords internal
+#' @noRd
 .r_log_gamma_surv_from_log_x <- function(k, log_x) {
   k <- rep_len(k, length(log_x))
   out <- rep(NA_real_, length(log_x))
@@ -650,7 +650,7 @@ conditional_predict <- function(object,
 #' Vectorized over posterior draws (`eta`, `aux`, `aux2` are vectors). `t` is
 #' usually a scalar time, but a vector recycled against the draws is also
 #' supported, which is how the likelihood tests evaluate several times at once.
-#' @keywords internal
+#' @noRd
 .r_log_surv <- function(dist, t, eta, aux, aux2) {
   if (dist == 1L) return(-exp(log(t) + eta))
   if (dist == 2L) return(-exp(aux * log(t) + eta))
@@ -679,7 +679,7 @@ conditional_predict <- function(object,
 
 
 #' Log of the upper-incomplete-gamma continued-fraction factor
-#' @keywords internal
+#' @noRd
 .r_log_gamma_q_cf_factor <- function(k, x) {
   tiny <- 1e-300
   b <- x + 1 - k
@@ -703,7 +703,7 @@ conditional_predict <- function(object,
 
 
 #' Log hazard h(t | eta) in R, mirroring Stan log_haz_full()
-#' @keywords internal
+#' @noRd
 .r_log_haz <- function(dist, t, eta, aux, aux2) {
   log_t <- log(t)
   if (dist == 1L) return(eta)
@@ -775,7 +775,7 @@ conditional_predict <- function(object,
 
 
 #' Log density f(t | eta) in R, mirroring Stan log_density_scalar()
-#' @keywords internal
+#' @noRd
 .r_log_density <- function(dist, t, eta, aux, aux2) {
   log_t <- log(t)
   n <- length(eta)

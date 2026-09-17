@@ -24,7 +24,7 @@
 #'   \item{link}{Resolved link name (e.g. `"probit"`)}
 #'   \item{code}{Integer code for Stan data block}
 #' }
-#' @keywords internal
+#' @noRd
 check_link <- function(family, link = NULL) {
 
   family <- .validate_link_string(family, "family")
@@ -63,7 +63,7 @@ check_link <- function(family, link = NULL) {
 #' @param link Character: link function name
 #' @return Numeric vector on response scale
 #' @importFrom stats pnorm
-#' @keywords internal
+#' @noRd
 inverse_link <- function(x, link = c("identity", "log", "logit", "probit", "cloglog")) {
   link <- match.arg(link)
   .validate_numeric_vector(x, "x")
@@ -83,7 +83,7 @@ inverse_link <- function(x, link = c("identity", "log", "logit", "probit", "clog
 #' probability to zero or one. This is used when a marginal contrast remains
 #' finite even though its natural-scale probabilities are outside double
 #' precision.
-#' @keywords internal
+#' @noRd
 .binary_log_probs <- function(eta, link = c("logit", "probit", "cloglog")) {
   link <- match.arg(link)
   .validate_numeric_vector(eta, "eta")
@@ -116,7 +116,7 @@ inverse_link <- function(x, link = c("identity", "log", "logit", "probit", "clog
 
 
 #' Binary link of a marginal probability represented on both log tails
-#' @keywords internal
+#' @noRd
 .binary_link_from_logs <- function(log_event, log_nonevent,
                                    link = c("logit", "probit", "cloglog")) {
   link <- match.arg(link)
@@ -143,7 +143,7 @@ inverse_link <- function(x, link = c("identity", "log", "logit", "probit", "clog
 
 
 #' Elementwise log(exp(x) + exp(y))
-#' @keywords internal
+#' @noRd
 .logspace_add <- function(x, y) {
   out <- pmax(x, y)
   finite <- is.finite(out)
@@ -156,7 +156,7 @@ inverse_link <- function(x, link = c("identity", "log", "logit", "probit", "clog
 
 
 #' Weighted log mean of exponentiated values
-#' @keywords internal
+#' @noRd
 .weighted_log_mean_exp <- function(x, weights = rep(1, length(x))) {
   if (length(x) != length(weights) || any(!is.finite(weights)) ||
         any(weights < 0) || !any(weights > 0)) {
@@ -195,7 +195,7 @@ inverse_link <- function(x, link = c("identity", "log", "logit", "probit", "clog
 
 
 #' Normalize non-negative weights without overflowing their sum
-#' @keywords internal
+#' @noRd
 .normalize_weights <- function(weights) {
   if (!length(weights) || any(!is.finite(weights)) || any(weights < 0) ||
         !any(weights > 0)) {
@@ -212,7 +212,7 @@ inverse_link <- function(x, link = c("identity", "log", "logit", "probit", "clog
 #' Cancellation happens before the return to the natural scale. Equal logs
 #' return exactly `0`, two `+Inf` logs return `NaN`, arguments recycle and
 #' `NA` propagates.
-#' @keywords internal
+#' @noRd
 .exp_difference_logs <- function(log_x, log_y) {
   n <- max(length(log_x), length(log_y))
   if (length(log_x) != n) log_x <- rep_len(log_x, n)
@@ -239,7 +239,7 @@ inverse_link <- function(x, link = c("identity", "log", "logit", "probit", "clog
 #' @param x Numeric vector on response scale
 #' @param link Character: link function name
 #' @return Numeric vector on linear predictor scale
-#' @keywords internal
+#' @noRd
 link_fun <- function(x, link = c("identity", "log", "logit", "probit", "cloglog")) {
   link <- match.arg(link)
   .validate_numeric_vector(x, "x")
@@ -259,7 +259,7 @@ link_fun <- function(x, link = c("identity", "log", "logit", "probit", "cloglog"
 #' At zero or all events, uses the pseudo-count estimate
 #' `(r + min_count) / (n + 2 * min_count)`. Interior probabilities are
 #' unchanged.
-#' @keywords internal
+#' @noRd
 bound_probability <- function(p, n, min_count = 0.5) {
   .validate_numeric_vector(p, "p")
   .validate_positive_numeric(n, "n")
@@ -293,7 +293,7 @@ bound_probability <- function(p, n, min_count = 0.5) {
 #' @param n Number of trials, positive.
 #' @param conf_level Confidence level.
 #' @return List with `lower` and `upper`.
-#' @keywords internal
+#' @noRd
 .clopper_pearson_interval <- function(r, n, conf_level) {
   .validate_numeric_vector(r, "r")
   .validate_positive_numeric(n, "n")
@@ -324,7 +324,7 @@ bound_probability <- function(p, n, min_count = 0.5) {
 #' @param exposure Total exposure, positive.
 #' @param conf_level Confidence level.
 #' @return List with `lower` and `upper`.
-#' @keywords internal
+#' @noRd
 .garwood_interval <- function(x, exposure, conf_level) {
   .validate_numeric_vector(x, "x")
   .validate_positive_numeric(exposure, "exposure")
@@ -342,7 +342,7 @@ bound_probability <- function(p, n, min_count = 0.5) {
 }
 
 #' Derivative of a binomial link with respect to probability
-#' @keywords internal
+#' @noRd
 link_derivative_response <- function(p, link = c("logit", "probit", "cloglog")) {
   link <- match.arg(link)
   .validate_numeric_vector(p, "p")
@@ -356,7 +356,7 @@ link_derivative_response <- function(p, link = c("logit", "probit", "cloglog")) 
 }
 
 #' Delta-method variance for a transformed binomial proportion
-#' @keywords internal
+#' @noRd
 binomial_link_variance <- function(p, n, link = c("logit", "probit", "cloglog")) {
   .validate_numeric_vector(p, "p")
   .validate_positive_numeric(n, "n")
@@ -365,7 +365,7 @@ binomial_link_variance <- function(p, n, link = c("logit", "probit", "cloglog"))
 }
 
 #' Emit package progress messages when enabled
-#' @keywords internal
+#' @noRd
 mlumr_message <- function(..., verbose = TRUE) {
   .validate_flag(verbose, "verbose")
   if (isTRUE(verbose)) {
@@ -376,7 +376,7 @@ mlumr_message <- function(..., verbose = TRUE) {
 
 
 #' Validate a scalar link/family string
-#' @keywords internal
+#' @noRd
 .validate_link_string <- function(x, name) {
   if (!is.character(x) || length(x) != 1L || is.na(x) || !nzchar(x)) {
     stop(sprintf("`%s` must be a single non-missing string.", name),
@@ -387,7 +387,7 @@ mlumr_message <- function(..., verbose = TRUE) {
 
 
 #' Validate a numeric vector
-#' @keywords internal
+#' @noRd
 .validate_numeric_vector <- function(x, name) {
   if (!is.numeric(x)) {
     stop(sprintf("`%s` must be numeric.", name), call. = FALSE)
@@ -397,7 +397,7 @@ mlumr_message <- function(..., verbose = TRUE) {
 
 
 #' Validate positive finite numeric input
-#' @keywords internal
+#' @noRd
 .validate_positive_numeric <- function(x, name) {
   if (!is.numeric(x) || length(x) == 0L ||
         any(!is.finite(x)) || any(x <= 0)) {
@@ -409,7 +409,7 @@ mlumr_message <- function(..., verbose = TRUE) {
 
 
 #' Bound probabilities to the open unit interval
-#' @keywords internal
+#' @noRd
 .bound_unit_interval <- function(p) {
   eps <- .Machine$double.eps
   pmin(pmax(p, eps), 1 - eps)

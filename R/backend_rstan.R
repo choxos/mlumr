@@ -4,7 +4,7 @@
 #'   [rstan::get_sampler_params()].
 #' @param limit The `max_treedepth` the sampler actually ran under.
 #' @return A single count across all chains.
-#' @keywords internal
+#' @noRd
 .count_treedepth_hits <- function(sp, limit) {
   sum(vapply(sp, function(x) sum(x[, "treedepth__"] >= limit), numeric(1)))
 }
@@ -14,7 +14,7 @@
 #' Tested by name, since `control = NULL` is present in `dots` and would
 #' still reach `rstan::sampling()` as a second `control`.
 #' @return A list with the merged `control` and `dots` with `control` removed.
-#' @keywords internal
+#' @noRd
 .merge_sampler_control <- function(adapt_delta, max_treedepth, dots) {
   control <- list(adapt_delta = adapt_delta, max_treedepth = max_treedepth)
   if ("control" %in% names(dots)) {
@@ -43,7 +43,7 @@
 }
 
 #' Fit a Stan model using rstan
-#' @keywords internal
+#' @noRd
 fit_rstan <- function(model_name, stan_data, chains, iter, warmup,
                       seed, adapt_delta, max_treedepth, refresh, ...) {
 
@@ -117,7 +117,7 @@ fit_rstan <- function(model_name, stan_data, chains, iter, warmup,
 #' `posterior`. Returns a named numeric vector over the columns of `draws`, all
 #' `NA_real_` when `posterior` is unavailable or the draws cannot be laid out as
 #' equal-length chains.
-#' @keywords internal
+#' @noRd
 .rstan_ess_tail <- function(draws, chain_ids) {
   var_names <- colnames(draws)
   out <- stats::setNames(rep(NA_real_, length(var_names)), var_names)

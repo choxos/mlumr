@@ -7,7 +7,7 @@
 
 # Lower/upper credible-interval column names for a summary data frame
 # (`.summarize_draw_matrix()` writes qNN columns, e.g. q2.5 / q97.5).
-#' @keywords internal
+#' @noRd
 .ci_cols <- function(df) {
   qn <- grep("^q[0-9.]+$", names(df), value = TRUE)
   if (length(qn) < 2) {
@@ -19,18 +19,18 @@
 
 # Measures reported as natural ratios (null 1): the two exponentiated
 # survival contrasts are included so their reference line is not drawn at 0.
-#' @keywords internal
+#' @noRd
 .ratio_measures <- c("RR", "HR", "TR", "RMSTR",
                      "EXP_DELTA_ETA", "EXP_ETA_CONTRAST")
 
 # The additive counterparts (null 0). A label outside both lists is unknown,
 # not a difference.
-#' @keywords internal
+#' @noRd
 .difference_measures <- c("RMSTD", "RD", "MD", "LINK_EFFECT", "LOR",
                           "LOG_HR", "LOG_TR", "DELTA_ETA", "ETA_CONTRAST")
 
 #' Is this a label whose null the package can state?
-#' @keywords internal
+#' @noRd
 .known_measure <- function(effect) {
   toupper(effect) %in% c(.ratio_measures, .difference_measures)
 }
@@ -38,13 +38,13 @@
 # Null reference line implied by an effect label: 1 for ratio measures, 0 for
 # differences and log-scale contrasts. Shared by both forest plots so a measure
 # added to `.ratio_measures` is right in every figure at once.
-#' @keywords internal
+#' @noRd
 .null_ref_for <- function(effect) {
   ifelse(toupper(effect) %in% .ratio_measures, 1, 0)
 }
 
 # Coverage of the interval actually drawn, read off the quantile columns.
-#' @keywords internal
+#' @noRd
 .ci_label <- function(ci) {
   lo <- as.numeric(sub("^q", "", ci$lo))
   hi <- as.numeric(sub("^q", "", ci$hi))
@@ -54,7 +54,7 @@
 # Ratio measures belong on a log axis, where reciprocal effects sit at equal
 # distances from the null; ggplot2 applies one transform to the whole plot,
 # so it is used only when every panel shows a ratio measure.
-#' @keywords internal
+#' @noRd
 .all_ratio_measures <- function(effects, values = NULL) {
   e <- toupper(unique(effects))
   if (!length(e) || !all(e %in% .ratio_measures)) return(FALSE)
@@ -68,7 +68,7 @@
 
 # A marginal hazard ratio is an estimand only with its evaluation time, so
 # the time goes into the facet label and one panel cannot mix times.
-#' @keywords internal
+#' @noRd
 .effect_facet_labels <- function(df) {
   if (is.null(df$at_time)) return(df$effect)
   labs <- vapply(split(seq_len(nrow(df)), df$effect), function(idx) {
@@ -173,7 +173,7 @@ plot.mlumr_marginal_effects <- function(x, ref_line = NULL, ...) {
 #'   attribute for survival fits).
 #' @param effects The effect labels on the panel.
 #' @return A caption string, or `NULL` when no RMST measure is shown.
-#' @keywords internal
+#' @noRd
 .rmst_caption <- function(x, effects) {
   tau <- attr(x, "rmst_horizon")
   if (is.null(tau) || !is.finite(tau)) return(NULL)
@@ -189,7 +189,7 @@ plot.mlumr_marginal_effects <- function(x, ref_line = NULL, ...) {
 #' @param x The `mlumr_prediction` object.
 #' @param df Its data-frame form.
 #' @return A single finite restriction time, or `NULL` when none is recorded.
-#' @keywords internal
+#' @noRd
 .prediction_rmst_horizon <- function(x, df) {
   tau <- if ("horizon" %in% names(df)) df$horizon else attr(x, "rmst_horizon")
   tau <- unique(tau[is.finite(tau)])
@@ -308,7 +308,7 @@ geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
 }
 
 #' Refuse anything but a survival `mlumr_data` for `geom_km()`
-#' @keywords internal
+#' @noRd
 .validate_km_data <- function(data) {
   if (!inherits(data, "mlumr_data") || (data$family %||% "") != "survival") {
     stop("`geom_km()` requires a survival `mlumr_data` object from combine_data().",
@@ -325,7 +325,7 @@ geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
 #' the two cohorts stay apart when their treatment labels coincide.
 #' @param data A survival `mlumr_data`.
 #' @param population The cohorts to fit, `"Index"` and/or `"Comparator"`.
-#' @keywords internal
+#' @noRd
 .km_observed <- function(data, population = c("Index", "Comparator")) {
   .validate_km_data(data)
   cohort <- function(df, treatment, label) {
@@ -388,7 +388,7 @@ geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
 #'
 #' Colour and fill are keyed on `treatment`, so two arms with one label fall
 #' into one ggplot2 group and the line joins two different predictions.
-#' @keywords internal
+#' @noRd
 .reject_ambiguous_series <- function(x) {
   df <- as.data.frame(x)
   key <- intersect(c("treatment", "population", "time"), names(df))
@@ -615,7 +615,7 @@ plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
 #' @param par One draw column name.
 #' @return A list with `prior` (a prior specification) and `lower` (the support
 #'   bound), or `NULL` when the fit records no prior for that parameter.
-#' @keywords internal
+#' @noRd
 .parameter_prior <- function(object, par) {
   priors <- object$priors %||% list()
   base <- sub("\\[[0-9]+\\]$", "", par)
@@ -655,7 +655,7 @@ plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
 }
 
 #' Density function of a prior specification, truncated at `lower`
-#' @keywords internal
+#' @noRd
 .prior_density_fun <- function(pr, lower = -Inf) {
   if (is.null(pr)) return(NULL)
   dist <- pr$distribution %||% "normal"
@@ -690,7 +690,7 @@ plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
 #' when the parameter is constrained. `NA`-free and finite: a Cauchy has no
 #' variance but its quantiles exist, and an unrecognized prior returns an empty
 #' range so the caller keeps the posterior window.
-#' @keywords internal
+#' @noRd
 .prior_quantile_range <- function(pr, lower = -Inf) {
   if (is.null(pr)) return(c(Inf, -Inf))
   dist <- pr$distribution %||% "normal"
@@ -1012,7 +1012,7 @@ mlumr_forest <- function(data, ref_line = NULL, log_x = FALSE,
 # ratio axis). Returns c(lo, hi) to clip to when one or two intervals are far
 # wider than the rest, else NULL (no clipping). The range covers every point
 # estimate plus the bounds of the "typical" (non-outlier) intervals.
-#' @keywords internal
+#' @noRd
 .forest_clip_range <- function(est, lo, hi, clip = TRUE) {
   if (!isTRUE(clip)) {
     return(NULL)

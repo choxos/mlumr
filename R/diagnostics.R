@@ -3,7 +3,7 @@
 #' Tie aggregation (not shipped yet) would keep one `log_lik_agd` column per
 #' distinct row with the multiplicity in `stan_data$agd_count`. LOO, WAIC and
 #' DIC need one column per observation, so that shape is refused here.
-#' @keywords internal
+#' @noRd
 .assert_agd_loglik_per_observation <- function(object) {
   cnt <- object$stan_data$agd_count
   if (is.null(cnt) || !length(cnt)) return(invisible(TRUE))
@@ -51,7 +51,7 @@
 #'   **one column per reconstructed pseudo-individual** (not per aggregate row),
 #'   so survival LOO/WAIC operate at the pseudo-individual level. See the notes
 #'   on [calculate_loo()] / [calculate_waic()].
-#' @keywords internal
+#' @noRd
 extract_log_lik <- function(object) {
   .validate_mlumr_fit_object(object)
   .assert_agd_loglik_per_observation(object)
@@ -86,7 +86,7 @@ extract_log_lik <- function(object) {
 
 
 #' Ordered pointwise log-likelihood columns for one data source
-#' @keywords internal
+#' @noRd
 .ordered_log_lik_columns <- function(draws, source) {
   pattern <- sprintf("^log_lik_%s\\[[0-9]+\\]$", source)
   cols <- grep(pattern, colnames(draws), value = TRUE)
@@ -98,7 +98,7 @@ extract_log_lik <- function(object) {
 
 
 #' Extract integer indexes from Stan vector column names
-#' @keywords internal
+#' @noRd
 .log_lik_column_index <- function(cols, source) {
   pattern <- sprintf("^log_lik_%s\\[|\\]$", source)
   as.integer(gsub(pattern, "", cols))
@@ -106,7 +106,7 @@ extract_log_lik <- function(object) {
 
 
 #' Validate a pointwise log-likelihood matrix
-#' @keywords internal
+#' @noRd
 .validate_log_lik_matrix <- function(log_lik) {
   if (!is.matrix(log_lik) || !is.numeric(log_lik)) {
     stop("Pointwise log-likelihood must be a numeric matrix.", call. = FALSE)
@@ -245,7 +245,7 @@ calculate_loo <- function(object,
 #' Warn that survival LOO/WAIC pointwise units are reconstructed pseudo-IPD
 #'
 #' Once per session; suppress with `options(mlumr.quiet_survival_loo = TRUE)`.
-#' @keywords internal
+#' @noRd
 .warn_survival_loo_unit <- function(object) {
   if (!identical(object$family, "survival")) return(invisible())
   if (isTRUE(getOption("mlumr.quiet_survival_loo", FALSE))) return(invisible())
@@ -268,7 +268,7 @@ calculate_loo <- function(object,
 #' comparator pseudo-IPD columns within each arm and `"aggregate"` sums them
 #' all, so leaving out a unit leaves out that arm or all external evidence.
 #' The index IPD stays per individual.
-#' @keywords internal
+#' @noRd
 .survival_log_lik_by_unit <- function(object, survival_unit = "observation") {
   .assert_agd_loglik_per_observation(object)
   if (!identical(object$family, "survival") ||
@@ -499,7 +499,7 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic"),
 
 
 #' Compute stable relative effective sample sizes from log-likelihoods
-#' @keywords internal
+#' @noRd
 .relative_eff_from_log_lik <- function(log_lik, chain_id) {
   .validate_log_lik_matrix(log_lik)
   col_max <- apply(log_lik, 2L, max)
@@ -510,7 +510,7 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic"),
 
 
 #' Human-readable model label for an mlumr fit or DIC object
-#' @keywords internal
+#' @noRd
 .mlumr_model_label <- function(object) {
   if (inherits(object, "mlumr_dic") && !is.null(object$model)) {
     return(as.character(object$model)[[1L]])
@@ -530,7 +530,7 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic"),
 
 
 #' Use user-supplied comparison names when available
-#' @keywords internal
+#' @noRd
 .comparison_names <- function(models, fallback) {
   user_names <- names(models)
   out <- fallback
@@ -545,7 +545,7 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic"),
 
 #' Check MCMC diagnostics and warn if issues found
 #' @param fit An `mlumr_fit` object
-#' @keywords internal
+#' @noRd
 check_diagnostics <- function(fit) {
 
   .validate_mlumr_fit_object(fit)
@@ -676,7 +676,7 @@ check_diagnostics <- function(fit) {
 
 
 #' Read a non-negative scalar diagnostic count
-#' @keywords internal
+#' @noRd
 .diagnostic_count <- function(x) {
   if (!is.numeric(x) || length(x) != 1L || !is.finite(x) || x < 0) {
     return(0)
@@ -686,7 +686,7 @@ check_diagnostics <- function(fit) {
 
 
 #' Format a diagnostic setting for warning messages
-#' @keywords internal
+#' @noRd
 .diagnostic_value <- function(x) {
   if (is.null(x) || length(x) != 1L || is.na(x)) {
     return("unknown")
@@ -696,7 +696,7 @@ check_diagnostics <- function(fit) {
 
 
 #' Return finite numeric values from a summary column
-#' @keywords internal
+#' @noRd
 .finite_numeric_values <- function(x) {
   if (!is.numeric(x)) {
     return(numeric())
@@ -714,7 +714,7 @@ check_diagnostics <- function(fit) {
 #' @param x A summary column, possibly `NULL`.
 #' @param n_expected How many parameters should have had a diagnostic.
 #' @return A list with `values`, `n_missing`, `n_total` and `missing_idx`.
-#' @keywords internal
+#' @noRd
 .usable_diagnostic_values <- function(x, n_expected = length(x)) {
   if (!is.numeric(x)) {
     n <- as.integer(max(n_expected, length(x)))
@@ -739,7 +739,7 @@ check_diagnostics <- function(fit) {
 #' @param what What the diagnostic measures, for the message.
 #' @param variables Parameter names in the same order as the column, or `NULL`.
 #' @return `NULL`, invisibly.
-#' @keywords internal
+#' @noRd
 .report_missing_diagnostics <- function(d, label, what, variables = NULL) {
   if (d$n_missing > 0L && d$n_total > 0L) {
     named <- ""
@@ -775,7 +775,7 @@ check_diagnostics <- function(fit) {
 #'
 #' @param x A single numeric value.
 #' @return A single string.
-#' @keywords internal
+#' @noRd
 .format_diagnostic <- function(x) {
   if (!is.finite(x)) {
     return(as.character(x))
@@ -788,7 +788,7 @@ check_diagnostics <- function(fit) {
 #'
 #' @param n A count, possibly `NA`.
 #' @return A single string.
-#' @keywords internal
+#' @noRd
 .diagnostic_display <- function(n) {
   if (length(n) != 1L || is.na(n)) {
     return("unknown")
@@ -801,7 +801,7 @@ check_diagnostics <- function(fit) {
 #'
 #' @param d A [.usable_diagnostic_values()] result.
 #' @return A single string, empty when nothing was missing.
-#' @keywords internal
+#' @noRd
 .missing_suffix <- function(d) {
   if (d$n_missing > 0L && d$n_total > 0L) {
     return(sprintf("(over %d of %d parameters; %d unavailable)",
@@ -818,7 +818,7 @@ check_diagnostics <- function(fit) {
 #'
 #' @param x The recorded count.
 #' @return A non-negative integer, or `NA_integer_` when unknown.
-#' @keywords internal
+#' @noRd
 .transition_count <- function(x) {
   if (!is.numeric(x) || length(x) != 1L || !is.finite(x) || x < 0 ||
         x != trunc(x) || x > .Machine$integer.max) {
@@ -834,7 +834,7 @@ check_diagnostics <- function(fit) {
 #' difference measures uncertainty about it, not support for it.
 #'
 #' @return A character vector, one element per printed line.
-#' @keywords internal
+#' @noRd
 .model_comparison_interpretation <- function() {
   c("",
     "elpd_diff is the difference in expected log pointwise predictive",

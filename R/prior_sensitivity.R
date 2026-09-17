@@ -200,7 +200,7 @@ prior_sensitivity <- function(fit,
 #'
 #' @param recorded Names the original fit passed through `...`.
 #' @param supplied Names the caller has re-supplied for these refits.
-#' @keywords internal
+#' @noRd
 .warn_unreplayed_backend_args <- function(recorded, supplied) {
   if (!length(recorded)) {
     return(invisible(NULL))
@@ -221,7 +221,7 @@ prior_sensitivity <- function(fit,
 #'
 #' A caller's settings refine the recorded `control` rather than replace it,
 #' and the engine is resolved the way `mlumr()` resolves it.
-#' @keywords internal
+#' @noRd
 .prior_sensitivity_merge_dots <- function(call_args, dots) {
   if (!length(dots)) return(call_args)
   # A caller's scalar beats the recorded entry; their `control` beats their
@@ -271,7 +271,7 @@ prior_sensitivity <- function(fit,
 #' Everything except the prior being swept has to come from the original fit, or
 #' the sweep varies more than one factor. Split out from the refit loop so the
 #' replay can be checked without sampling.
-#' @keywords internal
+#' @noRd
 .prior_sensitivity_args <- function(fit, prior_beta_i, verbose,
                                     prior_beta_comparator_i = NULL) {
   sa <- fit$sampling_args %||% list()
@@ -336,7 +336,7 @@ prior_sensitivity <- function(fit,
 # ---- Helpers ---------------------------------------------------------------
 
 #' Rescale a prior_beta's scale, preserving family, mean and df
-#' @keywords internal
+#' @noRd
 .rescale_prior_beta <- function(prior, new_scale) {
   if (is_single_prior(prior)) {
     # Replace the scalar sd field. For exponential (not supported on beta
@@ -361,7 +361,7 @@ prior_sensitivity <- function(fit,
 }
 
 #' Summarize a sensitivity refit
-#' @keywords internal
+#' @noRd
 .summarize_sensitivity <- function(fit, scale, scale_comparator = NA_real_,
                                    probs) {
   draws <- fit$draws
@@ -415,7 +415,7 @@ prior_sensitivity <- function(fit,
 #' The interpretation paragraph `prior_sensitivity()` prints
 #'
 #' A function so the vignette can be checked against it.
-#' @keywords internal
+#' @noRd
 .prior_sensitivity_interpretation <- function() {
   c("",
     "Interpretation: approximately constant summaries show the posterior",

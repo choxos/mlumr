@@ -72,7 +72,7 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
 
 
 #' Naive comparison for binomial outcomes
-#' @keywords internal
+#' @noRd
 .naive_binomial <- function(data, ipd, agd, link, conf_level, z) {
   link_info <- check_link("binomial", link)
   link_resolved <- link_info$link
@@ -154,7 +154,7 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
 
 
 #' Naive comparison for normal outcomes
-#' @keywords internal
+#' @noRd
 .naive_normal <- function(data, ipd, agd, conf_level, z) {
   mean_index <- mean(ipd$.outcome)
   n_index <- nrow(ipd)
@@ -200,7 +200,7 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
 
 
 #' Naive comparison for Poisson outcomes
-#' @keywords internal
+#' @noRd
 .naive_poisson <- function(data, ipd, agd, conf_level, z) {
   n_index <- nrow(ipd)
   events_index <- sum(ipd$.outcome)
@@ -265,7 +265,7 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
 #' survival per arm. Because this benchmark is a right-censored Cox model, left-
 #' and interval-censored records (internal status 2/3) are rejected rather than
 #' collapsed to right-censoring.
-#' @keywords internal
+#' @noRd
 .naive_survival <- function(data, conf_level, z) {
   ipd <- data$ipd$data
   pseudo <- data$agd$pseudo_ipd
