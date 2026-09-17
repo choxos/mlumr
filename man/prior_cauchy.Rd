@@ -18,12 +18,9 @@ A list with components \code{distribution = "student_t"}, \code{df = 1},
 \code{mean}, \code{sd}, \code{autoscale}.
 }
 \description{
-Cauchy is Student-t with \code{df = 1}; this constructor is a convenience
-wrapper around \code{\link[=prior_student_t]{prior_student_t()}}. It has very heavy tails and should
-be used with care; modern recommendations generally prefer
-\verb{prior_student_t(df in 3:7, ...)} over Cauchy for regression
-coefficients to keep sampling well-behaved (see Piironen & Vehtari on
-the horseshoe; Ghosh et al. 2015).
+Cauchy is Student-t with \code{df = 1}, a wrapper around \code{\link[=prior_student_t]{prior_student_t()}}.
+Its very heavy tails can slow sampling; a Student-t with 3 to 7 degrees of
+freedom is usually preferred for regression coefficients.
 }
 \examples{
 prior_cauchy(mean = 0, sd = 2.5)

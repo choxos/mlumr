@@ -21,13 +21,8 @@
 
 \item{valid_effects}{The accepted selectors for this fit.}
 }
-\value{
-A character message for \code{\link[=stop]{stop()}}.
-}
 \description{
-Says which estimand the fit does have and why the requested one does not
-exist for it, rather than only listing the accepted strings: asking for an
-HR from an AFT fit is a modeling misunderstanding, and "must be one of" does
-not correct it.
+Says which scalar estimand the fit does have and why the requested one does
+not exist for it.
 }
 \keyword{internal}

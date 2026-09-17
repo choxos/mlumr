@@ -7,22 +7,8 @@
 .lnopt(m, s, tol = 1e-04)
 }
 \description{
-Starts from the delta-method approximation on the logit scale rather than
-from the target moments themselves, which live on a different scale and make
-a poor starting point, and verifies that the recovered moments actually
-reproduce the target before returning.
-}
-\details{
-Nelder-Mead reports convergence when its simplex has collapsed, which on
-this objective happens well short of the target: from a single pass, 27 of
-77 mean and SD pairs spanning the feasible region were still off by more
-than 1e-6, the worst by 6e-3. Restarting rebuilds the simplex around the
-current point, so the search is repeated until a restart no longer improves
-the objective. That leaves every one of the 77 within 2e-12, for a mean of
-under four passes.
-
-\code{tol} is relative to each target moment. It was absolute at 1e-3, which for
-\verb{mean = 0.0005, sd = 0.0004} is larger than either target, so the check
-accepted a solution with mean 0.00147 and SD 0.00139 in silence.
+Starts from the delta-method approximation on the logit scale, restarts
+Nelder-Mead until a restart no longer improves the objective, and checks
+that the recovered moments reproduce the target to within \code{tol} (relative).
 }
 \keyword{internal}

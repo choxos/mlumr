@@ -40,15 +40,10 @@ dgamma(x, shape, rate = 1, scale = 1/rate, log = FALSE, ..., mean, sd)
 
 \item{lower.tail, log.p, log}{See \link[stats:GammaDist]{stats::GammaDist}.}
 
-\item{...}{Must be empty. It exists only to hold \code{mean} and \code{sd} back from
-partial matching, and is checked so that a misspelled argument is refused
-rather than silently ignored.}
+\item{...}{Must be empty; it keeps \code{mean} and \code{sd} out of partial matching.}
 
 \item{mean, sd}{Mean and standard deviation, overriding \code{shape} and
-\code{rate} / \code{scale} when both are supplied. Both must be named in full:
-they sit behind \code{...} so that adding them cannot make \code{s} ambiguous
-between \code{scale} and \code{sd}, which would break the abbreviation
-\code{\link[stats:qgamma]{stats::qgamma()}} accepts.}
+\code{rate} / \code{scale} when both are supplied. Both must be named in full.}
 
 \item{x, q}{Vector of quantiles.}
 }

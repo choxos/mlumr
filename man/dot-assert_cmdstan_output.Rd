@@ -17,38 +17,17 @@
 \item{chains}{The number of chains requested.}
 
 \item{retrieval_error}{The message from asking the fit for its output
-paths, when that itself failed, or \code{NULL}. Discarding it, as this used
-to, threw away the only account of the failure before reporting a
-generic one.}
+paths, when that itself failed, or \code{NULL}.}
 
-\item{return_codes}{CmdStan's per-chain return codes, or \code{NULL} when the
-installed \code{cmdstanr} does not report them.}
+\item{return_codes}{CmdStan's per-chain return codes, or \code{NULL}.}
 }
 \value{
 \code{TRUE} invisibly. Stops when there is nothing to read.
 }
 \description{
-\code{cmdstanr}'s own filter for the chains worth reading is
-\code{is_finished() | is_queued()}. A QUEUED chain is one whose process never
-started, so it has written no CSV, yet its intended path comes back as if
-it were readable. \code{fit$draws()} then hands that path to
-\code{read_cmdstan_csv()}, which aborts on a \code{checkmate} assertion naming a
-file under \code{tempdir()} and nothing a caller can act on. That is what the
-Stan-enabled suite hit on a single-chain gengamma smoke fit.
-}
-\details{
-A chain that ran and failed is a different case and is not an error here:
-\code{cmdstanr} drops it and the run continues on the chains that finished,
-which is the behavior a partly failing multi-chain fit already relies on.
-Only files that are claimed and absent, or no files at all, are refused.
-
-What this reports is the OBSERVATION and whatever evidence came with it.
-An absent file says a chain left nothing behind; it does not say why, and
-a model or data failure, an initialization failure, a killed process and
-an external deletion all look identical from a list of paths. Naming one
-of them, as this used to by calling it a failure of the run rather than
-of the model, states a cause nothing here established. CmdStan's own
-return codes and captured output are the evidence that does bear on it,
-so they are attached where they are available.
+cmdstanr reports a queued chain's intended CSV path as readable although
+the chain never ran, and \code{fit$draws()} then aborts inside \code{checkmate} on a
+path under \code{tempdir()}. A chain that ran and failed is dropped by cmdstanr
+and is not an error here.
 }
 \keyword{internal}

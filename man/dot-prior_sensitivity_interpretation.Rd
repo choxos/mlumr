@@ -6,13 +6,7 @@
 \usage{
 .prior_sensitivity_interpretation()
 }
-\value{
-A character vector, one element per printed line.
-}
 \description{
-Kept as a function rather than inline \code{cat()} calls so the shipped vignette
-can be checked against it by CALLING it. The check used to locate these
-lines by matching the source text and skipped when the markers moved, which
-turned the one edit the gate exists to catch into a silent pass.
+A function so the vignette can be checked against it.
 }
 \keyword{internal}

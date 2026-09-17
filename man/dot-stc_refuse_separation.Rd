@@ -6,20 +6,13 @@
 \usage{
 .stc_refuse_separation(fit)
 }
-\arguments{
-\item{fit}{A fitted \code{glm}.}
-}
 \value{
-The separation status, invisibly: a list with \code{status}, one of
-\code{"not_separated"}, \code{"unknown"} or \code{"not_applicable"}, and \code{reason} for
-the latter two. A separated fit throws instead.
+The separation status, invisibly (\code{status} and \code{reason}). A
+separated fit throws instead.
 }
 \description{
-A separated binomial GLM reports convergence with finite coefficients,
-because iterative reweighting stops when the deviance stops changing. The
-fitted values show complete separation (every probability at 0 or 1);
-quasi-complete separation needs the linear program in
-\code{\link[=.stc_separation_status]{.stc_separation_status()}}, which runs when \pkg{detectseparation} is
-installed.
+A separated GLM reports convergence with finite coefficients. Complete
+separation shows in the fitted values; quasi-complete separation needs the
+linear program in \code{\link[=.stc_separation_status]{.stc_separation_status()}}.
 }
 \keyword{internal}

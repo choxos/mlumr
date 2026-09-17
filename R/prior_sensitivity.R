@@ -16,15 +16,10 @@
 #' @param prior_beta_scales Numeric vector of scales for `prior_beta`.
 #'   Default `c(0.5, 1, 2.5, 5, 10)`.
 #' @param prior_beta_comparator_scales (Relaxed fits only.) Numeric vector of
-#'   scales for `prior_beta_comparator`, same length as `prior_beta_scales` and
-#'   paired with it elementwise. If `NULL` (default), the comparator prior is
-#'   swept in parallel using `prior_beta_scales`. This matters because the
-#'   relaxed index-population estimand is driven by the comparator coefficients,
-#'   so a faithful sensitivity sweep must vary their prior. Whichever scale is
-#'   used is reported in the `scale_comparator` column, so a refit that paired,
-#'   say, an index scale of 0.5 with a comparator scale of 2.5 is not labeled
-#'   as though only the index prior had been set. Ignored, with a warning, for
-#'   SPFA fits, which have no comparator-specific coefficients.
+#'   scales for `prior_beta_comparator`, paired elementwise with
+#'   `prior_beta_scales`. `NULL` (default) sweeps the comparator prior in
+#'   parallel with `prior_beta_scales`; the scale used is reported in the
+#'   `scale_comparator` column. Ignored, with a warning, for SPFA fits.
 #' @param probs Quantiles for summarizing each posterior
 #'   (default `c(0.025, 0.5, 0.975)`).
 #' @param verbose Logical; if `FALSE`, suppresses progress messages and final
@@ -34,30 +29,14 @@
 #'   from the original fit.
 #'
 #' @details
-#' Only the scale of the `prior_beta` family is varied; its distribution
-#' (normal / student_t) and mean are preserved so comparisons are apples to
-#' apples. `prior_intercept` and `prior_sigma` are carried through
-#' unchanged from the original fit. Each value in `prior_beta_scales` is
-#' used as the **absolute** scale for every coefficient at that refit --- if
-#' the original fit used per-coefficient priors, all coefficients are set
-#' to the same scale (the sweep is deliberately homogeneous so the grid
-#' reflects a single level of prior informativeness per refit, not a
-#' rescaling of existing relative differences). If the original
-#' `prior_beta` used an exponential family, it is swapped for a
-#' `prior_normal(0, scale)` at each grid point since exponential has no
-#' scale parameter to vary.
-#'
-#' For a relaxed fit the comparator prior is swept alongside the index prior.
-#' By default the two move together, which is a single-factor sweep of overall
-#' prior informativeness; supplying `prior_beta_comparator_scales` pairs a
-#' different comparator scale with each index scale, so the two are then
-#' separate factors moved in lockstep rather than one. Sweeping the comparator
-#' prior is what makes the result meaningful: the relaxed index-population
-#' estimand is driven by the comparator coefficients, so holding their prior
-#' fixed would report a flat, reassuring curve for exactly the quantity most
-#' exposed to the prior. Both scales are recorded per row (`scale` and
-#' `scale_comparator`), so a row is never labeled by only half of the prior it
-#' was fitted under.
+#' Only the scale of `prior_beta` is varied; its family and mean, and every
+#' other prior and setting, come from the original fit. Each scale is applied
+#' to every coefficient, so the sweep reflects one level of prior
+#' informativeness per refit; an exponential `prior_beta` is swapped for
+#' `prior_normal(0, scale)`. For a relaxed fit the comparator prior is swept
+#' alongside, because the index-population estimand is driven by the
+#' comparator coefficients; holding their prior fixed would report a flat curve
+#' for exactly the quantity most exposed to the prior.
 #'
 #' @return A data frame with one row per (prior scale, summarized parameter)
 #'   pair, and columns `scale`, `scale_comparator` (dropped when the model has
@@ -89,8 +68,7 @@ prior_sensitivity <- function(fit,
     stop("`fit` must be an mlumr_fit object", call. = FALSE)
   }
   is_relaxed <- identical(fit$model, "relaxed")
-  # `length() < 1L` matters on its own: `any()` of an empty vector is FALSE, so
-  # an empty grid passed every other test and produced a sweep of nothing.
+  # `any()` of an empty vector is FALSE, so the length check is needed.
   invalid_prior_scales <- !is.numeric(prior_beta_scales) ||
     length(prior_beta_scales) < 1L ||
     any(!is.finite(prior_beta_scales)) ||
@@ -99,10 +77,6 @@ prior_sensitivity <- function(fit,
     stop("`prior_beta_scales` must be one or more positive finite numbers",
          call. = FALSE)
   }
-  # The shared validator, not a local copy of it. The copy omitted the
-  # duplicate check, so two equal probabilities produced two identically named
-  # `qNN` columns and the second silently overwrote the first: the caller asked
-  # for n quantiles and got fewer, with no error and no way to tell.
   .validate_probs(probs)
   if (!is.logical(verbose) || length(verbose) != 1L || is.na(verbose)) {
     stop("`verbose` must be TRUE or FALSE.", call. = FALSE)
@@ -110,9 +84,6 @@ prior_sensitivity <- function(fit,
 
   if (!is.null(prior_beta_comparator_scales)) {
     if (!is_relaxed) {
-      # Branch on the model before validating. Checking first turned an
-      # inapplicable argument into a hard error on a fit that has no comparator
-      # coefficients, and a well-formed value was dropped without a word.
       warning("`prior_beta_comparator_scales` is ignored for the ",
               fit$model, " model (which has a single shared `beta`); only the ",
               "relaxed model has a comparator-specific coefficient vector.",
@@ -139,19 +110,13 @@ prior_sensitivity <- function(fit,
          "Was the model fitted with an older version of mlumr?", call. = FALSE)
   }
 
-  # Inherit the original sampling args unless overridden by ...
-  # `...` is forwarded to each refit, so it must not carry anything that defines
-  # the model. Sampler and backend controls (chains, iter, adapt_delta, engine)
-  # are still allowed through.
+  # `...` reaches each refit, so it may carry sampler controls only.
   dots <- list(...)
   if (length(dots)) {
     if (is.null(names(dots)) || any(!nzchar(names(dots)))) {
       stop("All `...` arguments to prior_sensitivity() must be named.",
            call. = FALSE)
     }
-    # Everything that defines the model rather than the sampler. Overriding any
-    # of these would vary a second factor alongside the prior scale, so the
-    # movement in the output could no longer be attributed to the prior.
     protected <- c("data", "model", "link", "distribution", "prior_beta",
                    "prior_beta_comparator", "prior_intercept", "prior_sigma",
                    "prior_aux", "prior_aux2", "prior_smooth", "center", "qr",
@@ -159,22 +124,14 @@ prior_sensitivity <- function(fit,
                    "rmst_horizon", "n_rmst_grid", "aux_by")
     clash <- intersect(names(dots), protected)
     if (length(clash)) {
-      msg <- paste0(
-        "`...` cannot override the scenario-defining argument(s): %s. ",
-        "prior_sensitivity() sweeps `prior_beta` itself and reuses every other ",
-        "setting from the original fit so the sweep varies one factor only; ",
-        "pass only sampler or backend controls."
-      )
-      stop(sprintf(msg, paste(clash, collapse = ", ")), call. = FALSE)
+      stop(sprintf(paste0("`...` cannot override the scenario-defining ",
+                          "argument(s): %s. Pass sampler or backend controls ",
+                          "only."), paste(clash, collapse = ", ")),
+           call. = FALSE)
     }
   }
 
-  # The relaxed model's comparator coefficients carry their own prior, so a
-  # sweep that moved only `prior_beta` would leave the comparator regularizer
-  # fixed and report the sensitivity of a model nobody fitted. The comparator
-  # prior is swept from the fit's OWN comparator prior, paired one-to-one with
-  # the index scales, and `prior_beta_comparator_scales` decouples the two when
-  # the question is specifically how much the comparator prior is doing.
+  # The comparator prior is swept from the fit's own comparator prior.
   base_beta_cmp <- fit$priors$beta_comparator %||% base_beta
   cmp_scales <- if (is_relaxed) {
     prior_beta_comparator_scales %||% prior_beta_scales
@@ -182,14 +139,8 @@ prior_sensitivity <- function(fit,
     NULL
   }
 
-  # `mlumr()` forwards `...` to the backend, so the original fit can have run
-  # under settings its record never held: `thin` and `init` reach the sampler
-  # and nothing kept their values. Refitting silently under the defaults would
-  # put a second difference inside a comparison that is supposed to isolate the
-  # prior, so name them. Only the ones this call has not re-supplied, since the
-  # message asks the caller to pass them again and repeating it afterwards
-  # would make that advice impossible to act on. Once per call, not once per
-  # scale.
+  # Backend arguments the original fit forwarded were recorded by name only,
+  # so a refit cannot replay them; say so once per call.
   .warn_unreplayed_backend_args(
     (fit$sampling_args %||% list())$extra_backend_args, names(dots)
   )
@@ -218,12 +169,7 @@ prior_sensitivity <- function(fit,
     args <- .prior_sensitivity_args(fit, prior_beta_i, verbose,
                                     prior_beta_cmp_i)
 
-    # `...` is documented as the way to pass sampler and backend controls, and
-    # `protected` above already keeps it away from anything that defines the
-    # scenario. Merge rather than concatenate: `args` already names `chains`,
-    # `iter` and the rest, so appending a `...` value would match the same
-    # formal twice and R refuses the call. That made the one thing `...` is for
-    # the one thing it could not do.
+    # Merge rather than concatenate: `args` already names `chains` and the rest.
     call_args <- .prior_sensitivity_merge_dots(args, dots)
     fit_i <- do.call(mlumr, call_args)
 
@@ -234,15 +180,9 @@ prior_sensitivity <- function(fit,
 
   out <- do.call(rbind, results)
   rownames(out) <- NULL
-  # Only carry `at_time` when it says something. Every non-survival family, and
-  # survival fits whose scalar has no evaluation time, would otherwise gain an
-  # all-NA column and the printed table would get noisier for no information.
+  # Drop an all-NA `at_time` column.
   if (!is.null(out$at_time) && all(is.na(out$at_time))) out$at_time <- NULL
-  # `scale_comparator` is the scale actually applied to `prior_beta_comparator`
-  # on that row. It is retained for every relaxed fit, including the default
-  # case where it equals `scale`, so a reader never has to infer which prior a
-  # row varied; SPFA has no comparator coefficient prior, so the all-NA column
-  # is dropped there rather than printed as noise.
+  # SPFA has no comparator prior, so its all-NA `scale_comparator` is dropped.
   if (!is.null(out$scale_comparator) && all(is.na(out$scale_comparator))) {
     out$scale_comparator <- NULL
   }
@@ -251,12 +191,6 @@ prior_sensitivity <- function(fit,
     cat("\nPrior sensitivity: posterior of marginal treatment effects\n")
     cat("=========================================================\n\n")
     print(out, row.names = FALSE)
-    # What a scale sweep can support and no more. Constant summaries across a
-    # few scales of ONE prior family, at one location, on one model show
-    # insensitivity to those scales; they do not show that the data rather than
-    # the prior is driving the answer, which is the stronger claim this used to
-    # print. A weakly identified coefficient direction can be equally
-    # prior-determined at every scale tested.
     cat(.prior_sensitivity_interpretation(), sep = "\n")
     cat("\n")
   }
@@ -266,15 +200,8 @@ prior_sensitivity <- function(fit,
 
 #' Name the backend settings a refit is not reproducing
 #'
-#' `mlumr()` stores the NAMES of arguments it forwarded to the sampler but did
-#' not otherwise record. A refit cannot reproduce their values, so it says so,
-#' but only for the ones this call has not been given: the message asks the
-#' caller to pass them again, and repeating it after they have would make the
-#' advice impossible to act on.
-#'
 #' @param recorded Names the original fit passed through `...`.
 #' @param supplied Names the caller has re-supplied for these refits.
-#' @return `NULL`, invisibly; called for the warning.
 #' @keywords internal
 .warn_unreplayed_backend_args <- function(recorded, supplied) {
   if (!length(recorded)) {
@@ -285,37 +212,22 @@ prior_sensitivity <- function(fit,
     return(invisible(NULL))
   }
   warning("The original fit passed ", paste(sQuote(absent), collapse = ", "),
-          " through to the backend, and only their names were recorded. ",
-          "These refits run under the defaults for them, so any difference ",
-          "they make is inside this comparison as well as the priors. Pass ",
-          "them again through `...` to hold them fixed.", call. = FALSE)
+          " through to the backend, and only their names were recorded, so ",
+          "these refits use the defaults for them. Pass them again through ",
+          "`...` to hold them fixed.", call. = FALSE)
   invisible(NULL)
 }
 
 
 #' A caller's `...` merged into the arguments that replay a fit
 #'
-#' The recorded `control` describes the original fit, so a caller's settings
-#' refine it rather than replace it, and the engine that will actually run has
-#' to be resolved the way `mlumr()` resolves it rather than read off the call.
-#' Split out from the refit loop so the merge can be checked without sampling:
-#' written out at the call site it could only be tested by a copy, and a copy
-#' passes whatever the loop itself then does.
-#'
-#' @param call_args The replay arguments built from the original fit.
-#' @param dots The caller's `...`, as a list.
-#' @return `call_args`, with the caller's settings merged in.
+#' A caller's settings refine the recorded `control` rather than replace it,
+#' and the engine is resolved the way `mlumr()` resolves it.
 #' @keywords internal
 .prior_sensitivity_merge_dots <- function(call_args, dots) {
   if (!length(dots)) return(call_args)
-  # The recorded `control` describes the original fit, so a caller's
-  # settings refine it rather than replace it: assigning theirs wholesale
-  # dropped every recorded entry they did not happen to name, such as
-  # `adapt_engaged`. And a scalar they pass has to beat the recorded entry
-  # of the same name, because the merge downstream lets the control win and
-  # the recorded control would otherwise silently overrule this caller's
-  # own request. Their `control` still beats their scalar, which is the
-  # order `mlumr()` itself uses.
+  # A caller's scalar beats the recorded entry; their `control` beats their
+  # scalar.
   ctl <- call_args$control
   if (!is.null(ctl)) {
     for (nm in intersect(names(dots), c("adapt_delta", "max_treedepth"))) {
@@ -328,16 +240,8 @@ prior_sensitivity <- function(fit,
   }
   fit_engine <- call_args$engine
   call_args[names(dots)] <- dots
-  # `control` is rstan's argument. Restoring the recorded one after a
-  # caller has switched engines would forward it to cmdstanr's `$sample()`,
-  # which has no such argument, so every refit would fail before sampling.
-  #
-  # The engine that will actually run has to be resolved the way `mlumr()`
-  # resolves it, not read off the call. `engine = NULL` is a documented way
-  # to ask for the configured default, and assigning it removes the element
-  # entirely, so reading the call back gave NULL and the recorded controls
-  # were dropped even when the default is rstan and the refits therefore
-  # ran on the same backend with a different sampler configuration.
+  # `control` is rstan's argument, so it is kept only when the engine that
+  # will run is rstan; `engine = NULL` means the configured default.
   engine_used <- .validate_engine_name(
     (if ("engine" %in% names(dots)) dots$engine else fit_engine) %||%
       get_engine()
@@ -347,23 +251,14 @@ prior_sensitivity <- function(fit,
       call_args$control <- ctl
     }
   } else {
-    # An inherited control is this function's own doing, so dropping it is
-    # right: it describes the fit's backend and means nothing to another
-    # one. A control the caller passed is a request, and dropping a request
-    # silently is not an option; `$sample()` has no such argument, so it
-    # cannot be honored either. Say so instead.
-    # The value, not merely the name. A wrapper building arguments
-    # programmatically can pass `control = NULL` to mean "nothing", which
-    # is how `.merge_sampler_control()` reads it too, and refusing that
-    # would close the documented engine-switch path over a request nobody
-    # made.
+    # An inherited control is dropped; a control the caller passed is refused
+    # rather than silently dropped. `control = NULL` means nothing was asked.
     if (!is.null(dots$control)) {
       stop(
         sprintf(paste(
           "`control` is an rstan setting and these refits run on %s, which",
           "has no such argument. Pass `adapt_delta` and `max_treedepth`",
-          "directly, which both backends accept, or drop `engine` to sweep",
-          "on the engine the fit was made with."
+          "directly, or drop `engine`."
         ), engine_used),
         call. = FALSE
       )
@@ -382,16 +277,10 @@ prior_sensitivity <- function(fit,
 .prior_sensitivity_args <- function(fit, prior_beta_i, verbose,
                                     prior_beta_comparator_i = NULL) {
   sa <- fit$sampling_args %||% list()
-  # Design-matrix controls. A fit made with `center = FALSE` or `qr = TRUE` is a
-  # different parameterization, so replaying the defaults here would vary the
-  # model as well as the prior and the sweep would no longer isolate one factor.
-  # Fits from earlier versions do not record these; the defaults are what they used.
+  # Design-matrix controls; fits from earlier versions used the old defaults.
   mc <- fit$model_controls %||% list()
-  # Survival baseline controls needed to reproduce the original baseline; NULL
-  # or absent for the other families. `surv_controls` records a control that
-  # does not apply as NA rather than NULL (a Weibull fit stores
-  # mspline_degree = NA_integer_), and mlumr() rejects NA where it accepts NULL,
-  # so NA is normalized back to NULL before the refit.
+  # Survival controls; a control that does not apply is recorded as NA, which
+  # mlumr() rejects where it accepts NULL.
   sc <- fit$surv_controls %||% list()
   .na_to_null <- function(x) if (length(x) == 1L && is.na(x)) NULL else x
 
@@ -402,8 +291,6 @@ prior_sensitivity <- function(fit,
     prior_intercept = fit$priors$intercept,
     prior_beta = prior_beta_i,
     prior_sigma = fit$priors$sigma %||% default_prior_sigma(),
-    # A fit that predates these controls was fitted on the raw scale, so the
-    # historical behavior, not the current default, is what reproduces it.
     center       = mc$center       %||% FALSE,
     qr           = mc$qr           %||% FALSE,
     chains       = sa$chains       %||% 4,
@@ -417,34 +304,22 @@ prior_sensitivity <- function(fit,
     verbose = verbose
   )
 
-  # Every other sampler setting the original fit ran under. Recorded only by
-  # the rstan backend, which is the only one that takes a `control` list, so
-  # its absence is what keeps this off the cmdstanr path. `adapt_delta` and
-  # `max_treedepth` appear in both and agree by construction, since the stored
-  # scalars are taken from this same merged list.
+  # Recorded by the rstan backend only.
   if (!is.null(sa$control)) {
     args$control <- sa$control
   }
 
 
-  # The comparator prior for this refit, already rescaled by the caller. NULL
-  # for a non-relaxed fit, which has no comparator coefficients.
   if (!is.null(prior_beta_comparator_i)) {
     args$prior_beta_comparator <- prior_beta_comparator_i
   }
 
-  # The survival controls are only legal arguments for a survival fit, and
-  # mlumr() decides that with missing(), not by testing for NULL. Naming
-  # `aux_by` at all makes it non-missing, so listing these unconditionally
-  # would make prior_sensitivity() fail on every binomial, normal and Poisson
-  # fit. Omit the whole group rather than passing NULL into it.
+  # mlumr() tests these with missing(), so the whole group is omitted rather
+  # than passed as NULL for the other families.
   if (identical(fit$family, "survival")) {
     args <- c(args, list(
       distribution = fit$distribution,
       prior_aux    = fit$priors$aux,
-      # Present only for a generalized-gamma fit. NULL here means "reuse
-      # prior_aux", which is what every other distribution's refit needs, so
-      # this one is safe to pass unconditionally inside the survival branch.
       prior_aux2   = fit$priors$aux2,
       prior_smooth = fit$priors$smooth,
       n_knots      = sc$n_knots      %||% 7L,
@@ -498,24 +373,15 @@ prior_sensitivity <- function(fit,
   effect_cols <- switch(family,
     binomial = c("lor_index",   "lor_comparator"),
     normal   = c("delta_index", "delta_comparator"),
-    # No Stan model emits `lrr_*`; the poisson marginal effect is `delta_*`,
-    # as family_config records. Looking for the wrong name matched no columns
-    # at all, so a poisson sweep summarized nothing.
     poisson  = c("delta_index", "delta_comparator"),
-    # Log hazard ratio (PH) or log time ratio (AFT). Reported on the log scale,
-    # like every other family here, so the scales stay comparable across rows.
+    # Log scale, like every other family here.
     survival = c("delta_index", "delta_comparator")
   )
 
   effect_names <- intersect(effect_cols, colnames(draws))
   if (length(effect_names) == 0L) return(NULL)
 
-  # What the summarized quantity actually IS, per row. Without this the survival
-  # rows are printed as a generic "log hazard ratio / log time ratio", which is
-  # wrong in two of the three cases: a stratified PH delta is tied to a specific
-  # evaluation time, and a stratified or relaxed AFT delta is a location
-  # contrast rather than any time ratio. Derived from the same helper
-  # marginal_effects() uses, so the two surfaces cannot disagree.
+  # The label comes from the helper marginal_effects() uses.
   if (identical(family, "survival")) {
     lab <- .surv_scalar_label(fit, log_scale = TRUE)
     eff_label <- lab$label
@@ -525,13 +391,7 @@ prior_sensitivity <- function(fit,
     eff_at_time <- NA_real_
   }
 
-  # `round()` here both mislabeled the defaults (2.5 and 97.5 became `q2` and
-  # `q98`) and could collide: probs 0.024 and 0.025 both produced `q2`, and the
-  # assignment below then overwrote the first quantile with the second without a
-  # word. Name them the way the rest of the package does, so a caller can bind
-  # prior_sensitivity() output to marginal_effects() output by column name, and
-  # through the shared helper, whose names `.validate_probs()` has already
-  # checked for the collision that survives full precision.
+  # Quantile column names as marginal_effects() names them.
   qnames <- .quantile_names(probs)
 
   rows <- lapply(effect_names, function(nm) {
@@ -556,12 +416,7 @@ prior_sensitivity <- function(fit,
 
 #' The interpretation paragraph `prior_sensitivity()` prints
 #'
-#' Kept as a function rather than inline `cat()` calls so the shipped vignette
-#' can be checked against it by CALLING it. The check used to locate these
-#' lines by matching the source text and skipped when the markers moved, which
-#' turned the one edit the gate exists to catch into a silent pass.
-#'
-#' @return A character vector, one element per printed line.
+#' A function so the vignette can be checked against it.
 #' @keywords internal
 .prior_sensitivity_interpretation <- function() {
   c("",

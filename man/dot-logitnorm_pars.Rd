@@ -7,9 +7,6 @@
 .logitnorm_pars(mu, sigma, mean, sd, has_mean, has_sd)
 }
 \description{
-Supplying only one of \code{mean} / \code{sd} used to fall through to the \code{mu} / \code{sigma}
-defaults, so \code{distr(qlogitnorm, mean = bsa_mean)} silently integrated over a
-standard logit-normal instead of the requested distribution. Half a moment
-specification is a mistake, not a parameterization.
+Resolve logit-normal parameters from either parameterization
 }
 \keyword{internal}

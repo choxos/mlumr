@@ -2,7 +2,7 @@
 % Please edit documentation in R/survival.R
 \name{.surv_scalar_effect_name}
 \alias{.surv_scalar_effect_name}
-\title{The one scalar \code{effect} name a survival fit can legitimately supply}
+\title{The one scalar \code{effect} name a survival fit can supply}
 \usage{
 .surv_scalar_effect_name(label)
 }
@@ -13,10 +13,6 @@
 One of \code{"hr"}, \code{"tr"}, \code{"exp_delta_eta"}.
 }
 \description{
-Turns the natural-scale label into the \code{effect} selector that names it. Every
-fit has exactly one: a proportional-hazards fit supplies a hazard ratio, a
-shared-shape SPFA AFT fit supplies a time ratio, and anything else supplies
-only the exponentiated location contrast. Keeping this derivation in one
-place is what stops the selector and the label from disagreeing.
+The one scalar \code{effect} name a survival fit can supply
 }
 \keyword{internal}

@@ -1,15 +1,6 @@
-# Moment-parameterized marginal distributions for add_integration().
-#
-# Published baseline tables report a mean and a standard deviation, not a shape
-# and a rate. multinma solves this by shadowing the relevant stats:: quantile
-# functions with versions that also accept `mean` / `sd` and reparameterize
-# internally, so `distr(qgamma, mean = age_mean, sd = age_sd)` works directly
-# off the numbers in the paper. mlumr mirrors that, both because the public API
-# deliberately tracks multinma's and because the alternative is asking users to
-# convert moments by hand at every call site.
-#
-# When both `mean` and `sd` are supplied they override the native parameters.
-# Otherwise these forward to stats:: unchanged, so they are drop-in safe.
+# Moment-parameterized marginal distributions for add_integration(), as in
+# multinma: the stats:: functions are shadowed by versions that also accept
+# `mean` and `sd`, which override the native parameters when both are given.
 
 #' The Gamma distribution, parameterized by mean and standard deviation
 #'
@@ -25,13 +16,8 @@
 #' @param shape,rate,scale See [stats::GammaDist].
 #' @param lower.tail,log.p,log See [stats::GammaDist].
 #' @param mean,sd Mean and standard deviation, overriding `shape` and
-#'   `rate` / `scale` when both are supplied. Both must be named in full:
-#'   they sit behind `...` so that adding them cannot make `s` ambiguous
-#'   between `scale` and `sd`, which would break the abbreviation
-#'   [stats::qgamma()] accepts.
-#' @param ... Must be empty. It exists only to hold `mean` and `sd` back from
-#'   partial matching, and is checked so that a misspelled argument is refused
-#'   rather than silently ignored.
+#'   `rate` / `scale` when both are supplied. Both must be named in full.
+#' @param ... Must be empty; it keeps `mean` and `sd` out of partial matching.
 #'
 #' @return A numeric vector, as the corresponding \pkg{stats} function.
 #' @seealso [distr()], [add_integration()], [qbern()]
@@ -102,10 +88,6 @@ dgamma <- function(x, shape, rate = 1, scale = 1 / rate, log = FALSE,
 #' @keywords internal
 .gamma_moment_pars <- function(no_mean, no_sd, mean, sd) {
   if (no_mean && no_sd) return(NULL)
-  # Half a moment specification is a mistake, not a parameterization. Without
-  # this, `dgamma(x, shape = 2, mean = 5)` silently returned the shape-2
-  # distribution and ignored the mean, and `qgamma(p, mean = 5)` failed with
-  # R's "argument \"shape\" is missing" rather than saying what was wrong.
   if (no_mean || no_sd) {
     stop("The gamma moment parameterization needs both `mean` and `sd`. ",
          "Supply the other one, or give `shape` and `rate` / `scale`.",
@@ -117,30 +99,18 @@ dgamma <- function(x, shape, rate = 1, scale = 1 / rate, log = FALSE,
   if (any(!is.finite(mean) | mean <= 0)) {
     stop("Gamma `mean` must be finite and strictly positive.", call. = FALSE)
   }
-  # Both conversions square the SD, so a negative one used to pass silently:
-  # `sd = -2` returned exactly the `sd = 2` distribution.
   if (any(!is.finite(sd) | sd <= 0)) {
     stop("Gamma `sd` must be finite and strictly positive.", call. = FALSE)
   }
-  # `mean / sd^2` overflows as soon as `sd^2` does, which happens from
-  # sd = 1.4e154 even where the rate itself is perfectly representable:
-  # mean = sd = 1e200 gave rate 0 and a median of Inf instead of 6.93e199.
-  # Dividing twice keeps every intermediate on the scale of the answer.
+  # Dividing twice avoids overflow in sd^2.
   ratio <- mean / sd
   list(shape = ratio^2, rate = ratio / sd)
 }
 
 #' Refuse an argument these wrappers do not have
 #'
-#' `mean` and `sd` sit behind `...` so that they cannot take part in partial
-#' matching. Without that, adding an `sd` formal made `s` ambiguous between
-#' `scale` and `sd`, and `qgamma(p, shape = 2, s = 4)`, which \pkg{stats}
-#' accepts as `scale`, failed with "argument 3 matches multiple formal
-#' arguments". Only formals declared before `...` are matched partially, so
-#' moving the pair behind it restores the abbreviation and costs only this
-#' check, which keeps `...` from silently swallowing a typo the way
-#' \pkg{stats} would not.
-#' @param ... Must be empty.
+#' `mean` and `sd` sit behind `...` so they cannot take part in partial
+#' matching; this check keeps `...` from swallowing a typo.
 #' @keywords internal
 .reject_gamma_dots <- function(...) {
   nm <- names(list(...))
@@ -155,12 +125,7 @@ dgamma <- function(x, shape, rate = 1, scale = 1 / rate, log = FALSE,
   invisible(TRUE)
 }
 
-#' Refuse a conflicting `rate` and `scale`
-#'
-#' The `scale = 1 / rate` default makes both arguments look supplied to
-#' \pkg{stats}, which would otherwise reject the pair. Forwarding only `scale`
-#' silently resolved the conflict in its favor.
-#' @param no_rate,no_scale Whether the caller's `rate` / `scale` were missing.
+#' Refuse a conflicting `rate` and `scale`, as \pkg{stats} does
 #' @keywords internal
 .reject_rate_and_scale <- function(no_rate, no_scale) {
   if (!no_rate && !no_scale) {
@@ -205,14 +170,8 @@ NULL
 
 #' Refuse arguments a function has no use for
 #'
-#' A wrapper that delegates to `stats` gets this for free: an unknown name
-#' reaches the callee and errors there. One that computes its own answer
-#' silently discards whatever `...` collected, so a misspelled argument reads
-#' as a default. Name what was passed, since the point is to make the typo
-#' visible.
-#'
-#' @param ... Arguments the caller supplied and the function does not use.
-#' @return `NULL`, invisibly; called for the error.
+#' A function that computes its own answer would otherwise discard whatever
+#' `...` collected, so a misspelled argument would read as a default.
 #' @keywords internal
 .reject_unused_dots <- function(...) {
   n <- ...length()
@@ -237,27 +196,11 @@ dlogitnorm <- function(x, mu = 0, sigma = 1, log = FALSE, ..., mean, sd) {
   pars <- .logitnorm_pars(mu, sigma, if (missing(mean)) NULL else mean,
                           if (missing(sd)) NULL else sd,
                           !missing(mean), !missing(sd))
-  # `...` sits here so that `mean` and `sd` can only be matched by their full
-  # names, which is what keeps `sd` from swallowing a positional `sigma`. It is
-  # not a place to forward anything: this density is computed from `dnorm()`
-  # plus a Jacobian rather than delegated, so there is no callee to pass extra
-  # arguments to. Left unchecked they were absorbed in silence, and the one
-  # that matters is `log`: `dlogitnorm(0.5, lgo = TRUE)` returned the
-  # natural-scale density and looked like an answer. `plogitnorm()` and
-  # `qlogitnorm()` do delegate, so a typo there already reaches `pnorm()` and
-  # errors; this makes the density agree with them.
+  # Nothing is delegated here, so `...` must be empty.
   .reject_unused_dots(...)
-  # The Jacobian form dnorm(qlogis(x)) / (x (1 - x)) is 0/0 at the support
-  # boundaries, and on the log scale -Inf - (-Inf); both evaluate to NaN in
-  # floating point although the density there is simply zero. Outside [0, 1]
-  # qlogis() is NaN with a warning. Evaluate the formula only on the open
-  # interval and fill the rest in with the value the density actually takes.
-  #
-  # Recycle first. Subsetting `x` to the interior while leaving `mu` and
-  # `sigma` at full length silently paired each interior point with the wrong
-  # parameter: dlogitnorm(c(0, 0.5), mu = c(0, 10), sigma = 1) evaluated the
-  # single interior point against mu = 0 and returned 1.596 for a density of
-  # 3.08e-22.
+  # The Jacobian form is 0/0 at the support boundaries, so evaluate it on the
+  # open interval only and fill in the zero density elsewhere. Recycle before
+  # subsetting so each point keeps its own parameters.
   x <- as.numeric(x)
   mu_v <- as.numeric(pars[["mu"]])
   sigma_v <- as.numeric(pars[["sigma"]])
@@ -269,18 +212,14 @@ dlogitnorm <- function(x, mu = 0, sigma = 1, log = FALSE, ..., mean, sd) {
   mu_v <- rep_len(mu_v, n)
   sigma_v <- rep_len(sigma_v, n)
 
-  # `isTRUE()` quietly maps NA, `1`, and a length-two logical to FALSE, so
-  # `dlogitnorm(x, log = 1)` returned the natural-scale density where
-  # stats::dnorm(x, log = 1) returns the log. Coerce as the stats functions do
-  # and reject what cannot be one flag.
+  # Coerce `log` as the stats functions do.
   if (length(log) != 1L || is.na(as.logical(log))) {
     stop("`log` must be a single non-missing value coercible to TRUE or FALSE.",
          call. = FALSE)
   }
   is_log <- as.logical(log)
   out <- rep(if (is_log) -Inf else 0, n)
-  # An unusable parameter is not a point outside the support: the density is
-  # unknown there, not zero. dlogitnorm(0, mu = NA) used to return 0.
+  # An unusable parameter gives NA, not zero.
   bad <- !is.finite(mu_v) | !is.finite(sigma_v) | sigma_v < 0
   inside <- !is.na(x) & x > 0 & x < 1 & !bad
   if (any(inside)) {
@@ -300,11 +239,8 @@ plogitnorm <- function(q, mu = 0, sigma = 1, ..., mean, sd) {
   pars <- .logitnorm_pars(mu, sigma, if (missing(mean)) NULL else mean,
                           if (missing(sd)) NULL else sd,
                           !missing(mean), !missing(sd))
-  # qlogis() is NaN with a warning outside [0, 1], but the distribution function
-  # is defined everywhere: 0 below the support and 1 above it. Clamping to the
-  # boundary gives exactly that, because qlogis(0) / qlogis(1) are -Inf / Inf
-  # and pnorm() maps them to 0 / 1 under every `lower.tail` and `log.p`
-  # combination, so the `...` semantics are preserved rather than special-cased.
+  # Clamping to [0, 1] gives 0 below the support and 1 above it under every
+  # `lower.tail` and `log.p` combination.
   q <- as.numeric(q)
   finite <- !is.na(q)
   q[finite] <- pmin(pmax(q[finite], 0), 1)
@@ -322,28 +258,10 @@ qlogitnorm <- function(p, mu = 0, sigma = 1, ..., mean, sd) {
 
 #' Moments of a logit-normal, by numerical integration
 #'
-#' Integrates over the latent normal variable rather than over `x` on `(0, 1)`.
-#' On the `x` scale a concentrated margin is a narrow spike inside the unit
-#' interval and adaptive quadrature steps over it: across a sweep of
-#' `(mu, sigma)` the `x`-scale rule was wrong by up to 100 percent and failed
-#' outright on several, while for `mean = 0.01` and `sd = 0.0011` it reported an
-#' SD of 0.00110 where the true value is 0.00156. Because the objective below
-#' and its acceptance check both used that rule, the solver certified a
-#' distribution whose SD it had never matched, and [add_integration()] then drew
-#' points from it.
-#'
-#' Two details make the latent form exact rather than merely better. The
-#' integrand's only sharp feature is the logistic transition, so the range is
-#' split at `z0 = -mu / sigma`, which puts a panel boundary exactly on it; `z0`
-#' is clamped to the range where the normal weight has any mass, since beyond
-#' that the split would leave the mass in one huge panel. And `abs.tol` is set
-#' to zero: the variance integral is around 1e-11 for a concentrated margin,
-#' far under the default absolute tolerance of 1.2e-4, so the default rule
-#' returned its first crude estimate and declared success.
-#'
-#' Returns `NULL` rather than erroring when the quadrature fails, so the
-#' objective below can penalize an infeasible region instead of aborting the
-#' search.
+#' Integrates over the latent normal variable, splitting the range at
+#' `z0 = -mu / sigma` where the logistic transition sits, with `abs.tol = 0`
+#' because the variance of a concentrated margin is far below the default
+#' absolute tolerance. Returns `NULL` when the quadrature fails.
 #' @keywords internal
 .ln_moments <- function(mu, sigma) {
   if (!is.finite(mu) || !is.finite(sigma) || sigma <= 0) return(NULL)
@@ -367,14 +285,8 @@ qlogitnorm <- function(p, mu = 0, sigma = 1, ..., mean, sd) {
 
 #' Squared relative distance between a logit-normal's moments and a target
 #'
-#' `est` is `(mu, log sigma)`. Optimizing the log keeps `sigma` strictly
-#' positive without a constrained optimizer; an unconstrained search over
-#' `sigma` itself can step to a negative scale, where the density is `NaN` and
-#' the objective is meaningless.
-#'
-#' The residuals are divided by their targets. An absolute objective is
-#' meaningless for a small margin: at `mean = 0.0005` a solution three times
-#' too large scores 1e-6, which any convergence rule reads as a fit.
+#' `est` is `(mu, log sigma)`; the residuals are relative to their targets so
+#' a small margin is judged on its own scale.
 #' @keywords internal
 .lndiff <- function(est, m, s) {
   mom <- .ln_moments(est[[1L]], exp(est[[2L]]))
@@ -384,22 +296,9 @@ qlogitnorm <- function(p, mu = 0, sigma = 1, ..., mean, sd) {
 
 #' Solve for one logit-normal (mu, sigma) from a mean and SD
 #'
-#' Starts from the delta-method approximation on the logit scale rather than
-#' from the target moments themselves, which live on a different scale and make
-#' a poor starting point, and verifies that the recovered moments actually
-#' reproduce the target before returning.
-#'
-#' Nelder-Mead reports convergence when its simplex has collapsed, which on
-#' this objective happens well short of the target: from a single pass, 27 of
-#' 77 mean and SD pairs spanning the feasible region were still off by more
-#' than 1e-6, the worst by 6e-3. Restarting rebuilds the simplex around the
-#' current point, so the search is repeated until a restart no longer improves
-#' the objective. That leaves every one of the 77 within 2e-12, for a mean of
-#' under four passes.
-#'
-#' `tol` is relative to each target moment. It was absolute at 1e-3, which for
-#' `mean = 0.0005, sd = 0.0004` is larger than either target, so the check
-#' accepted a solution with mean 0.00147 and SD 0.00139 in silence.
+#' Starts from the delta-method approximation on the logit scale, restarts
+#' Nelder-Mead until a restart no longer improves the objective, and checks
+#' that the recovered moments reproduce the target to within `tol` (relative).
 #' @keywords internal
 .lnopt <- function(m, s, tol = 1e-4) {
   par <- c(stats::qlogis(m), log(s / (m * (1 - m))))
@@ -416,9 +315,7 @@ qlogitnorm <- function(p, mu = 0, sigma = 1, ..., mean, sd) {
   pars <- c(mu = par[[1L]], sigma = exp(par[[2L]]))
   if (!bad) {
     mom <- .ln_moments(pars[["mu"]], pars[["sigma"]])
-    # Convergence of the optimizer is not the same as having hit the target: a
-    # flat or penalized region can converge far from it. Check the moments the
-    # solution actually implies.
+    # Convergence is not the same as having hit the target.
     bad <- is.null(mom) ||
       abs(mom[["mean"]] - m) > tol * m ||
       abs(mom[["sd"]] - s) > tol * s
@@ -434,12 +331,8 @@ qlogitnorm <- function(p, mu = 0, sigma = 1, ..., mean, sd) {
 
 #' Estimate logit-normal mu / sigma from a mean and SD on (0, 1)
 #'
-#' The feasibility check is not decoration. A variable supported on `(0, 1)`
-#' has `Var(X) <= mean * (1 - mean)`, with equality only for a two-point
-#' distribution on the boundaries, which no logit-normal can represent. Given an
-#' impossible pair the optimizer still returns something, so without this the
-#' caller would silently integrate over a distribution that has neither the
-#' requested mean nor the requested SD.
+#' A variable on `(0, 1)` has `Var(X) < mean * (1 - mean)`, so an impossible
+#' pair is refused before the optimizer is asked.
 #' @keywords internal
 .pars_logitnorm <- function(m, s) {
   if (length(m) != length(s) && length(m) > 1 && length(s) > 1) {
@@ -451,12 +344,7 @@ qlogitnorm <- function(p, mu = 0, sigma = 1, ..., mean, sd) {
   }
   if (!length(m) || !length(s)) return(as.data.frame(list(mu = numeric(0),
                                                           sigma = numeric(0))))
-  # Recycle before validating rather than after. The feasibility test below
-  # compares s^2 against m * (1 - m) elementwise, which recycles a scalar `sd`
-  # on its own, and then reported the offending pair with the index that test
-  # produced: qlogitnorm(0.5, mean = c(0.5, 0.01), sd = 0.3) flagged pair 2 and
-  # died on s[[2]] with "subscript out of bounds" instead of saying which mean
-  # and SD were impossible together.
+  # Recycle before validating, so the offending pair can be named.
   n <- max(length(m), length(s))
   m <- rep_len(m, n)
   s <- rep_len(s, n)
@@ -473,22 +361,13 @@ qlogitnorm <- function(p, mu = 0, sigma = 1, ..., mean, sd) {
   if (any(infeasible)) {
     i <- which(infeasible)[[1L]]
     stop(sprintf(paste0("logit-normal `sd` = %g is impossible for `mean` = %g: ",
-                        "a variable on (0, 1) has variance below ",
-                        "mean * (1 - mean) = %g, so sd must be under %g. ",
-                        "Check whether the reported spread is a standard ",
-                        "deviation or a standard error."),
-                 s[[i]], m[[i]], m[[i]] * (1 - m[[i]]),
-                 sqrt(m[[i]] * (1 - m[[i]]))), call. = FALSE)
+                        "sd must be under sqrt(mean * (1 - mean)) = %g."),
+                 s[[i]], m[[i]], sqrt(m[[i]] * (1 - m[[i]]))), call. = FALSE)
   }
   as.data.frame(do.call(rbind, mapply(.lnopt, m, s, SIMPLIFY = FALSE)))
 }
 
 #' Resolve logit-normal parameters from either parameterization
-#'
-#' Supplying only one of `mean` / `sd` used to fall through to the `mu` / `sigma`
-#' defaults, so `distr(qlogitnorm, mean = bsa_mean)` silently integrated over a
-#' standard logit-normal instead of the requested distribution. Half a moment
-#' specification is a mistake, not a parameterization.
 #' @keywords internal
 .logitnorm_pars <- function(mu, sigma, mean, sd, has_mean, has_sd) {
   if (has_mean && has_sd) return(.pars_logitnorm(mean, sd))
@@ -501,21 +380,9 @@ qlogitnorm <- function(p, mu = 0, sigma = 1, ..., mean, sd) {
 }
 
 #' Validate native logit-normal `mu` / `sigma`
-#'
-#' The moment parameterization has always been checked; the native one was
-#' passed through untouched, so one invalid `sigma` produced three different
-#' answers depending on which function saw it. `sigma = 0` gave `Inf` from
-#' `dlogitnorm()`, `1` from `plogitnorm()` and `0.5` from `qlogitnorm()`, all
-#' finite and none flagged, while `sigma = -1` gave `NA` from the density and
-#' `NaN` with a base warning from the other two. A degenerate spike is not a
-#' distribution `add_integration()` can draw from, so this is an error in both
-#' parameterizations rather than a value that silently propagates.
-#' @param mu,sigma Logit-scale location and scale.
-#' @return A list with validated `mu` and `sigma`.
 #' @keywords internal
 .validate_logitnorm_native <- function(mu, sigma) {
-  # A bare `NA` is logical, so test missingness before type: "must be numeric"
-  # is a true but unhelpful answer to `sigma = NA`.
+  # Test missingness before type, since a bare NA is logical.
   if (anyNA(mu) || anyNA(sigma)) {
     stop("logit-normal `mu` and `sigma` must not be missing.", call. = FALSE)
   }
@@ -530,13 +397,9 @@ qlogitnorm <- function(p, mu = 0, sigma = 1, ..., mean, sd) {
     stop("logit-normal `sigma` must be finite.", call. = FALSE)
   }
   if (any(sigma <= 0)) {
-    stop("logit-normal `sigma` must be strictly positive: a negative scale is ",
-         "not a distribution at all, and `sigma = 0` is a point mass rather ",
-         "than one to integrate over.", call. = FALSE)
+    stop("logit-normal `sigma` must be strictly positive.", call. = FALSE)
   }
-  # Partial recycling silently pairs each value with the wrong parameter, which
-  # is the same failure `dlogitnorm()` was fixed for: say so instead. Equal
-  # lengths and scalar-against-vector both recycle unambiguously.
+  # Partial recycling pairs values with the wrong parameter.
   if (length(mu) != length(sigma) && length(mu) > 1L && length(sigma) > 1L) {
     stop("logit-normal `mu` and `sigma` must be the same length, or one of ",
          "them a single value.", call. = FALSE)

@@ -1,24 +1,14 @@
-
-
-#' @method print mlumr_fit
-#' Select summary columns that are actually there
+#' Select the summary columns that are present
 #'
-#' The printed summary reports "unavailable" for a diagnostic its column does
-#' not carry, and then the tables below it selected `"Rhat"` by name anyway, so
-#' a fit without that column announced the gap and died of it one line later
-#' with "undefined columns selected". Normal backend output always has the
-#' column; a legacy or hand-built fit is exactly the case the unavailable line
-#' exists for, so it has to survive the rest of the method too.
-#'
-#' @param df A summary data frame.
-#' @param cols Column names to take, in order.
-#' @return `df` with those of `cols` it has.
+#' A fit whose summary lacks a diagnostic column reports it as unavailable and
+#' must still print.
 #' @keywords internal
 .summary_columns <- function(df, cols) {
   df[, intersect(cols, names(df)), drop = FALSE]
 }
 
 
+#' @method print mlumr_fit
 #' @export
 print.mlumr_fit <- function(x, ...) {
   cat("ML-UMR Fit\n")
@@ -89,15 +79,9 @@ print.mlumr_fit <- function(x, ...) {
     keep_cols <- c("variable", "mean", "sd", "2.5%", "97.5%", "Rhat")
     sub_df <- .summary_columns(x$summary[idx, , drop = FALSE], keep_cols)
     print(sub_df, row.names = FALSE)
-    # `delta_conditional` is mu_index - mu_comparator, which is eta_index(x) -
-    # eta_comparator(x) evaluated at x = 0. Two separate conditions matter and
-    # were previously conflated. A SHARED baseline shape is what makes it a
-    # conditional log hazard / time ratio at all, and it is then that contrast
-    # at the reference profile, whether or not the coefficients are shared.
-    # SHARED coefficients are what make it constant across covariate profiles.
-    # With study-specific shapes neither holds: the baseline ratio does not
-    # cancel, and with per-study M-spline bases each intercept is additionally
-    # tied to its own basis normalization.
+    # `delta_conditional` is mu_index - mu_comparator. A shared baseline shape
+    # makes it a conditional log hazard or time ratio at the reference
+    # profile; shared coefficients make it constant across profiles.
     if ("delta_conditional" %in% x$summary$variable[idx]) {
       differs <- .aux_shapes_differ(x)
       relaxed <- identical(x$model %||% "spfa", "relaxed")
@@ -169,18 +153,12 @@ summary.mlumr_fit <- function(object, ...) {
     cat(sprintf("  Chains: %d requested, layout UNKNOWN (see warnings)\n",
                 n_req))
   }
-  # The same resolver the warning path uses, so a printed summary and a warning
-  # cannot disagree about the same fit. Both keep an infinite Rhat, which is
-  # the worst case this line exists to show, and both say when a value is
-  # missing rather than quietly computing the statistic without it.
+  # Same resolver as the warning path, so the two cannot disagree.
   cat("  Divergent transitions:",
       .diagnostic_display(.transition_count(object$diagnostics$n_divergent)), "\n")
   cat("  Max treedepth hits:",
       .diagnostic_display(.transition_count(object$diagnostics$n_max_treedepth)), "\n")
-  # Guarding on the column being present hid the case worth showing. A summary
-  # with no Rhat column at all printed no Rhat line, which reads as a fit that
-  # was not asked about rather than one that cannot answer. Ask for the count
-  # the summary should have and let the line say "unavailable".
+  # A summary without the column still prints the line, as unavailable.
   n_par <- nrow(object$summary)
   rhat <- .usable_diagnostic_values(object$summary$Rhat, n_par)
   cat("  Max Rhat:",
@@ -227,9 +205,7 @@ summary.mlumr_fit <- function(object, ...) {
     beta_idx <- grep("^beta_(index|comparator)\\[", object$summary$variable)
   }
   if (length(beta_idx) > 0) {
-    # Relabel beta[1] as beta[age] for readability. The underlying `variable`
-    # strings in object$summary are untouched, so code indexing by name keeps
-    # working; only this printed copy is relabeled.
+    # Relabel beta[1] as beta[age] in the printed copy only.
     beta_df <- .summary_columns(object$summary[beta_idx, , drop = FALSE],
                                 keep_cols)
     print(.label_beta_rows(beta_df, object$data$covariates), row.names = FALSE)
@@ -238,18 +214,14 @@ summary.mlumr_fit <- function(object, ...) {
 
   # Shape / smoothing parameters (survival)
   if (family == "survival") {
-    # Say which baseline structure produced these numbers: a stratified baseline
-    # makes the hazard ratio time-varying, which changes how delta_* reads.
+    # A stratified baseline makes the hazard ratio time-varying, which changes
+    # how delta_* reads.
     n_strata <- object$stan_data$n_strata %||% 1L
     differs <- .aux_shapes_differ(object)
     cat("\nBaseline hazard: ",
         if (!differs && n_strata > 1L) {
-          # aux_by = ".study" was requested but the exponential (and its AFT
-          # form) has no SHAPE parameter to stratify, so `aux_by` changes
-          # nothing and every closed-form contrast stays exact. Do not call the
-          # baselines "shared": each study still has its own hazard LEVEL
-          # through its own intercept. What coincides is the shape, trivially,
-          # because there is none.
+          # The exponential has no shape to stratify; each study keeps its own
+          # hazard level through its intercept.
           paste0("constant within study; the exponential has no shape ",
                  "parameter for `aux_by` to stratify, and each study's hazard ",
                  "level is carried by its own intercept")
@@ -301,10 +273,7 @@ summary.mlumr_fit <- function(object, ...) {
             row.names = FALSE)
     }
   } else if (family == "survival") {
-    # delta_* is a LOG hazard ratio (PH) or LOG time ratio (AFT), null 0, not a
-    # rate ratio. Print it under the name the fit's own label helper resolves,
-    # so the heading cannot claim an estimand the distribution does not give,
-    # and carry the evaluation time the scalar belongs to.
+    # Heading from the fit's own label helper, with its evaluation time.
     delta_idx <- grep("^delta_(index|comparator)$", object$summary$variable)
     if (length(delta_idx) > 0) {
       lab <- .surv_scalar_label(object, log_scale = TRUE)
@@ -328,9 +297,7 @@ summary.mlumr_fit <- function(object, ...) {
     }
     rmst_idx <- grep("^rmst_diff_(index|comparator)$", object$summary$variable)
     if (length(rmst_idx) > 0) {
-      # RMST is an integral to a restriction time, so the value without its
-      # horizon is not an estimand: two fits with different horizons produce
-      # numbers that must not be read side by side.
+      # An RMST without its horizon is not an estimand.
       g <- object$stan_data$rmst_grid_times
       tau <- if (is.null(g)) NA_real_ else max(g)
       cat("  RMST Differences",
@@ -422,8 +389,7 @@ print.mlumr_stc <- function(x, ...) {
       "effect-equality assumption; this calculation does not transport to ",
       "the index population.\n\n", sep = "")
 
-  # The warning at fit time has long scrolled away by the time anyone reads
-  # this, and an unverified estimate must not print like a verified one.
+  # An unverified estimate must not print like a verified one.
   if (identical((x$separation %||% list())$status, "unknown")) {
     cat("Separation: NOT VERIFIED (", x$separation$reason, "). Only the ",
         "fitted-value screen ran, which cannot see quasi-complete ",
@@ -442,12 +408,9 @@ print.mlumr_stc <- function(x, ...) {
   } else if (family == "normal") {
     cat(sprintf("Marginalized E[Y|index trt, comp pop]: %.4f\n", x$y_hat_index))
     cat(sprintf("Observed E[Y|comp trt, comp pop]:      %.4f\n", x$y_comparator))
-    # Under a log link .stc_normal() puts the log mean ratio in `estimate` and
-    # the response-scale mean difference in `md`, as the binomial branch above
-    # headlines the link-scale contrast and leaves the risk difference to the
-    # table. A result from before `md` was recorded (v0.1.0) holds the mean
-    # difference in `estimate` under every link, so the label follows the
-    # fields present, not the link alone.
+    # Under a log link `estimate` is the log mean ratio and `md` the mean
+    # difference; a v0.1.0 result has no `md` and holds the difference in
+    # `estimate`.
     if (identical(x$link, "log") && !is.null(x$md)) {
       cat(sprintf("\nLog Mean Ratio: %.4f (SE: %.4f)\n", x$estimate, x$se))
     } else {
@@ -460,9 +423,7 @@ print.mlumr_stc <- function(x, ...) {
   } else {
     cat("Method note: package-specific parametric survival extension.\n")
     if (!is.null(x$out_of_family)) {
-      # The fitted shape/Q left the parameter space of the Bayesian model with
-      # the same name, so naming only the distribution would imply a
-      # like-for-like comparison that does not hold.
+      # The fitted shape or Q left the Bayesian model's parameter space.
       cat(sprintf(paste0("Distribution: %s (%s = %s is outside mlumr()'s '%s' ",
                          "parameter space) | RMST horizon: %.3f\n"),
                   x$distribution_fit, x$out_of_family,
@@ -476,21 +437,14 @@ print.mlumr_stc <- function(x, ...) {
       cat(sprintf("Distribution: %s | RMST horizon: %.3f\n",
                   x$distribution, x$horizon))
     }
-    # Both numbers come from a parametric fit. The comparator's is an
-    # intercept-only flexsurvreg fit to the reconstructed pseudo-IPD, not a
-    # Kaplan-Meier area, so calling it "observed" would invite a reader to
-    # blame any discrepancy on the index standardization when it can just as
-    # easily come from the comparator's own distributional assumption.
+    # The comparator RMST is a parametric fit too, not a Kaplan-Meier area.
     cat(sprintf("Marginalized RMST (index trt, comp pop): %.4f\n", x$rmst_index))
     cat(sprintf("Fitted RMST (comp trt, comp pop):        %.4f\n",
                 x$rmst_comparator))
     req <- x$n_boot_requested %||% x$n_boot %||% 0L
     okn <- x$n_boot_ok %||% x$n_boot %||% 0L
     if (is.na(x$se)) {
-      # sd() returns NA both when every resample failed and when exactly one
-      # survived, and the two are not the same event. Branch on the success
-      # count, not on the NA, so a single surviving replicate is not reported
-      # as a total failure.
+      # Branch on the success count: one surviving resample is not a failure.
       if (req == 0L) {
         cat(sprintf(paste0("\nRMST Difference: %.4f (point estimate only; ",
                            "bootstrap disabled, n_boot = 0)\n"), x$estimate))
@@ -512,19 +466,15 @@ print.mlumr_stc <- function(x, ...) {
       cat(sprintf("\nRMST Difference: %.4f (bootstrap SE: %.4f, %d reps)\n",
                   x$estimate, x$se, okn))
     }
-    # The log cumulative-hazard-ratio interval printed below can rest on fewer
-    # replicates than the RMST one: a resample can give a finite RMST difference
-    # while H(horizon) is undefined for one arm. Say so beside the count that
-    # applies to it rather than letting the RMST count stand for both.
+    # The cumulative-hazard ratio can rest on fewer resamples than the RMST.
     okc <- x$n_boot_ok_log_chr
     if (req > 0L && !is.null(okc) &&
           !identical(as.integer(okc), as.integer(okn))) {
       cat(sprintf(paste0("Log cumulative-hazard-ratio SE based on %d of %d ",
                          "resample(s)\n"), as.integer(okc), req))
     }
-    # Family membership is decided per fit, so the point estimate can sit inside
-    # mlumr()'s parameter space while some resamples do not; those refits still
-    # enter the standard error.
+    # Resamples can leave the parameter space while the point estimate stays
+    # inside; they still enter the standard error.
     oof <- x$n_boot_out_of_family
     if (!is.null(oof) && !is.na(oof) && oof > 0L) {
       cat(sprintf(paste0("Bootstrap: %d of %d resample(s) fitted %s < 0, ",
@@ -553,9 +503,7 @@ print.mlumr_stc <- function(x, ...) {
 #' @export
 summary.mlumr_stc <- function(object, ...) {
   print.mlumr_stc(object, ...)
-  # A survival STC has no GLM behind it, so this footer printed "NULL" under a
-  # "Full GLM summary" heading. print.mlumr_stc already guards its own copy;
-  # the heading moves inside the guard so nothing is announced that is absent.
+  # A survival STC has no GLM behind it.
   if (!is.null(object$glm_fit)) {
     cat("\nFull GLM summary:\n")
     print(summary(object$glm_fit))
@@ -585,10 +533,8 @@ summary.mlumr_stc <- function(object, ...) {
 .effect_measures_df <- function(x) {
   fam <- x$family %||% "binomial"
   link <- x$link %||% "logit"
-  # A missing bound is NULL on some result objects and NA_real_ on others.
-  # exp(NULL) errors before `%||%` can rescue it, so normalize first: any value
-  # that is absent, non-numeric, NA, or NaN becomes NA_real_. Infinite values
-  # are retained because an exact natural-scale ratio can legitimately overflow.
+  # A missing bound is NULL on some results and NA on others; normalize to
+  # NA_real_ and keep Inf, which an exact ratio can reach.
   num <- function(v) {
     if (is.null(v) || length(v) != 1L || !is.numeric(v) || is.na(v) || is.nan(v)) {
       return(NA_real_)
@@ -610,8 +556,7 @@ summary.mlumr_stc <- function(object, ...) {
     )
     invisible()
   }
-  # exp() of an already-normalized bound, so a NULL/NA bound stays NA instead of
-  # raising "non-numeric argument to mathematical function".
+  # exp() of a normalized bound, so NULL stays NA.
   eexp <- function(v) exp(num(v))
   if (fam == "binomial") {
     lab <- switch(link, logit = "Log odds ratio", probit = "Probit difference",
@@ -630,10 +575,7 @@ summary.mlumr_stc <- function(object, ...) {
       # difference in `estimate` under every link, and carry no `md`.
       add("Mean difference", x$estimate, x$se, x$ci_lower, x$ci_upper)
     } else {
-      # stc() records the mean difference in `md`; under a log link `estimate`
-      # is the log mean ratio, so it gets its own rows and the mean difference
-      # is read from the fields that hold it. Exponentiating `estimate` under
-      # the identity link would report exp(difference) as a ratio.
+      # Under a log link `estimate` is the log mean ratio and gets its own rows.
       if (identical(link, "log")) {
         add("Log mean ratio", x$estimate, x$se, x$ci_lower, x$ci_upper)
         add("Mean ratio", eexp(x$estimate), NA_real_, eexp(x$ci_lower), eexp(x$ci_upper))
@@ -643,9 +585,7 @@ summary.mlumr_stc <- function(object, ...) {
   } else if (fam == "poisson") {
     add("Log rate ratio", x$estimate, x$se, x$ci_lower, x$ci_upper)
     add("Rate ratio", eexp(x$estimate), NA_real_, eexp(x$ci_lower), eexp(x$ci_upper))
-    # Rate difference on the natural (per-unit-exposure) scale. Both the naive
-    # and STC poisson estimators compute it; a result object from an older
-    # version that predates the field simply omits the row.
+    # Rate difference per unit exposure; an older result without it omits the row.
     add("Rate difference", x$rd, x$rd_se, x$rd_lower, x$rd_upper)
   } else {  # survival
     if (!is.null(x$rmst_diff)) {                       # STC: RMST + cumhaz ratio
@@ -668,12 +608,8 @@ summary.mlumr_stc <- function(object, ...) {
 
 #' Label indexed beta rows with covariate names for display
 #'
-#' Rewrites `beta[1]` to `beta[age]` (and the relaxed model's
-#' `beta_index[1]` / `beta_comparator[1]` likewise) so printed coefficient
-#' tables name the covariate instead of its position, matching the
-#' `beta[age]` idiom used by `multinma`. Display only: the underlying
-#' `variable` strings in `fit$summary` are unchanged, so code that indexes
-#' on `beta[1]` keeps working.
+#' Rewrites `beta[1]` to `beta[age]` (and `beta_index[1]`,
+#' `beta_comparator[1]` likewise) in the printed copy, as multinma does.
 #'
 #' @param df A slice of `fit$summary`.
 #' @param covariates Character vector of covariate names, in model order.
