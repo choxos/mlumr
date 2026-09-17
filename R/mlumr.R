@@ -3,7 +3,8 @@
 #' With an exact fit the marginal density of the residual SD behaves as
 #' `sigma^(rank - n)` near zero and does not integrate, and the sampler
 #' drifts toward zero with ordinary-looking diagnostics. A constant outcome
-#' and an exact least-squares fit are refused; a saturated design
+#' and a least-squares fit that is exact to numerical precision (residual
+#' sum of squares at most 1e-12 of the total) are refused; a saturated design
 #' (`n <= rank`) has a proper posterior whose residual SD is not separated
 #' from the coefficients, so it warns. Under `link = "log"` the question is
 #' asked on `log(y)` when every outcome is positive, and not otherwise.
@@ -204,9 +205,10 @@
 #'
 #' **Normal outcomes.** A normal fit whose IPD covariates reproduce the
 #' outcome exactly has an improper posterior for the residual SD, so
-#' `mlumr()` refuses a constant outcome and an exact least-squares fit before
-#' sampling, and warns when the design is saturated. Everything else is left
-#' to the sampler and its diagnostics.
+#' `mlumr()` refuses a constant outcome and a least-squares fit that is exact
+#' to numerical precision (residual sum of squares at most 1e-12 of the
+#' total) before sampling, and warns when the design is saturated. Everything
+#' else is left to the sampler and its diagnostics.
 #'
 #' @seealso [prior_sensitivity()], [check_identification()], [set_agd()],
 #'   [prior_summary()].
@@ -905,8 +907,9 @@ mlumr <- function(data,
 #' The intercept then sits at the average covariate, which removes the
 #' intercept and slope collinearity that forces deep NUTS trajectories on
 #' raw-scale covariates. The likelihood is unchanged; the intercept prior is
-#' not. `cov_center` is always stored (zeros when `center = FALSE`) so the
-#' prediction functions can map raw covariate values onto the model scale.
+#' not. `cov_center` is stored whenever both covariate matrices are present
+#' (zeros when `center = FALSE`) so the prediction functions can map raw
+#' covariate values onto the model scale.
 #' @keywords internal
 .mlumr_center_covariates <- function(stan_data, center = TRUE,
                                      family = "binomial", agd_means = NULL) {

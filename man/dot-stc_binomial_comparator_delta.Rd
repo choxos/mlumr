@@ -20,7 +20,7 @@
 \description{
 The standardized event probability is \verb{p = sum(w_i p_i) / sum(w_i)} over
 the comparator grid; its gradient in the coefficients is analytic, so the
-uncertainty does not depend on the predictors' units. Everything is formed
-on the log scale; see \code{\link[=.stc_binomial_gradients]{.stc_binomial_gradients()}}.
+uncertainty does not depend on the predictors' units. The gradients are
+formed from the log probabilities; see \code{\link[=.stc_binomial_gradients]{.stc_binomial_gradients()}}.
 }
 \keyword{internal}

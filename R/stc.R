@@ -506,8 +506,8 @@ stc <- function(data, link = NULL, conf_level = 0.95, distribution = "weibull",
 #'
 #' The standardized event probability is `p = sum(w_i p_i) / sum(w_i)` over
 #' the comparator grid; its gradient in the coefficients is analytic, so the
-#' uncertainty does not depend on the predictors' units. Everything is formed
-#' on the log scale; see [.stc_binomial_gradients()].
+#' uncertainty does not depend on the predictors' units. The gradients are
+#' formed from the log probabilities; see [.stc_binomial_gradients()].
 #' @keywords internal
 .stc_binomial_comparator_delta <- function(fit, newdata, weights,
                                            beta_hat, V, link_resolved,

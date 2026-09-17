@@ -214,9 +214,10 @@ the subgroup-identification vignette works through the geometry.
 
 \strong{Normal outcomes.} A normal fit whose IPD covariates reproduce the
 outcome exactly has an improper posterior for the residual SD, so
-\code{mlumr()} refuses a constant outcome and an exact least-squares fit before
-sampling, and warns when the design is saturated. Everything else is left
-to the sampler and its diagnostics.
+\code{mlumr()} refuses a constant outcome and a least-squares fit that is exact
+to numerical precision (residual sum of squares at most 1e-12 of the
+total) before sampling, and warns when the design is saturated. Everything
+else is left to the sampler and its diagnostics.
 }
 \examples{
 \dontrun{

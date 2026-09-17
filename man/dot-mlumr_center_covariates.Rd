@@ -15,7 +15,8 @@
 The intercept then sits at the average covariate, which removes the
 intercept and slope collinearity that forces deep NUTS trajectories on
 raw-scale covariates. The likelihood is unchanged; the intercept prior is
-not. \code{cov_center} is always stored (zeros when \code{center = FALSE}) so the
-prediction functions can map raw covariate values onto the model scale.
+not. \code{cov_center} is stored whenever both covariate matrices are present
+(zeros when \code{center = FALSE}) so the prediction functions can map raw
+covariate values onto the model scale.
 }
 \keyword{internal}

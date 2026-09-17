@@ -21,7 +21,8 @@ logical for the raw design.}
 With an exact fit the marginal density of the residual SD behaves as
 \code{sigma^(rank - n)} near zero and does not integrate, and the sampler
 drifts toward zero with ordinary-looking diagnostics. A constant outcome
-and an exact least-squares fit are refused; a saturated design
+and a least-squares fit that is exact to numerical precision (residual
+sum of squares at most 1e-12 of the total) are refused; a saturated design
 (\code{n <= rank}) has a proper posterior whose residual SD is not separated
 from the coefficients, so it warns. Under \code{link = "log"} the question is
 asked on \code{log(y)} when every outcome is positive, and not otherwise.
