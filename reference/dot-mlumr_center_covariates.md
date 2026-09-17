@@ -1,15 +1,11 @@
-# Center IPD + integration covariates about their pooled mean (all families)
+# Center IPD and integration covariates about their pooled mean
 
-Matches `center = TRUE` default. The intercept then represents the
-baseline at the average covariate rather than at covariate = 0, removing
-the intercept\<-\>slope collinearity that forces deep NUTS trajectories
-on real-scale covariates. The likelihood is invariant because `X_ipd`
-and the integration grid are shifted by the same `xbar` and the
-intercept absorbs the shift. A fixed numerical intercept prior is placed
-on the centered intercept, however, so centering need not leave the
-posterior unchanged. `cov_center` is always stored (zeros when
-`center = FALSE`) so predict()/conditional_effects() can map raw-scale
-covariate values onto the (possibly centered) model scale.
+The intercept then sits at the average covariate, which removes the
+intercept and slope collinearity that forces deep NUTS trajectories on
+raw-scale covariates. The likelihood is unchanged; the intercept prior
+is not. `cov_center` is stored whenever both covariate matrices are
+present (zeros when `center = FALSE`) so the prediction functions can
+map raw covariate values onto the model scale.
 
 ## Usage
 

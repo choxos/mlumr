@@ -1,12 +1,8 @@
-# Require a flexsurv fit that actually converged
+# Require a flexsurv fit that converged to a maximum
 
-A sparse or nearly separated sample can leave events in both arms and
-still send the optimizer to a boundary. `flexsurvreg()` warns in that
-case rather than failing, so the estimates were summarized as an
-ordinary RMST, and the bootstrap counted such refits among its successes
-because [`tryCatch()`](https://rdrr.io/r/base/conditions.html) sees only
-errors. Raising an error here makes a non-converged replicate a failed
-one, which is what it is.
+`flexsurvreg()` warns rather than fails at an optimizer boundary, so
+this raises an error and the bootstrap counts such a replicate as
+failed.
 
 ## Usage
 

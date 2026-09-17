@@ -1,18 +1,11 @@
-# Refuse a fit whose likelihood has no finite maximum
+# Refuse a separated binomial fit
 
-The checks above look for a failure the fitting reports, and separation
-is not one. Iterative reweighting stops when the deviance stops
-changing, and a separated fit has no maximum for it to stop at: the
-deviance falls to about 6e-10 while the intercept is still drifting, so
-the criterion fires anyway and a binomial arm with no events comes back
-with `converged = TRUE`, finite coefficients and a finite covariance.
-100 rows with the outcome always zero produce a coefficient of about
--26.6 and a largest fitted probability of 3e-12, with a confidence
-interval to match. Raising `maxit` changes none of those numbers, which
-is what shows the iteration limit is not what stopped it. Every number
-there is a property of where the iteration stopped, not of the data, and
-reporting it as an estimate is worse than reporting nothing, because
-nothing about it looks wrong.
+A separated binomial GLM reports convergence with finite coefficients,
+because iterative reweighting stops when the deviance stops changing.
+The fitted values show complete separation (every probability at 0 or
+1); quasi-complete separation needs the linear program in
+[`.stc_separation_status()`](https://choxos.github.io/mlumr/reference/dot-stc_separation_status.md),
+which runs when detectseparation is installed.
 
 ## Usage
 
@@ -30,29 +23,4 @@ nothing about it looks wrong.
 
 The separation status, invisibly: a list with `status`, one of
 `"not_separated"`, `"unknown"` or `"not_applicable"`, and `reason` for
-the latter two. `"separated"` is never returned, since it throws.
-`"not_applicable"` means this binomial separation test does not apply to
-the fitted family, not that the family has no finite-maximum problem of
-its own. Callers record it on the result so a verified estimate can be
-told apart from an unverified one after the warning has scrolled away.
-
-## Details
-
-The symptom is the one thing separation always leaves: every fitted
-probability pinned against 0 or 1, whether they all sit at one boundary
-(an arm with no events) or split between the two (a covariate that
-separates the outcome). A rate can legitimately be small, so the test is
-on the boundary rather than on smallness, and it applies only where a
-boundary exists.
-
-The fitted values cannot catch quasi-complete separation, where rows sit
-on the separating hyperplane: `y = c(0, 0, 1, 1)` on
-`x = c(-1, 0, 0, 1)` has no finite slope, yet the two tied rows keep
-fitted probabilities of exactly 0.5, so not every probability has
-reached a boundary. Telling that apart from a strong but identified fit
-takes more than the fitted values, since a legitimate signal here
-reaches a linear predictor of 20.1 while this case reaches 19.6. The
-exact test is a linear program, so it lives behind
-[`.stc_separation_status()`](https://choxos.github.io/mlumr/reference/dot-stc_separation_status.md)
-and runs only when the optional detectseparation package is installed.
-The threshold test stays as the part that always runs.
+the latter two. A separated fit throws instead.
