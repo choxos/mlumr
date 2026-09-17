@@ -2,11 +2,11 @@
 % Please edit documentation in R/identification.R
 \name{.agd_realized_profiles}
 \alias{.agd_realized_profiles}
-\title{Mean covariate profile actually realized by each row's integration points}
+\title{Mean covariate profile realized by each row's integration points}
 \usage{
 .agd_realized_profiles(data, covs)
 }
 \description{
-Mean covariate profile actually realized by each row's integration points
+Mean covariate profile realized by each row's integration points
 }
 \keyword{internal}

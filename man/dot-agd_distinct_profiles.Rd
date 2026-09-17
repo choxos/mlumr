@@ -6,26 +6,11 @@
 \usage{
 .agd_distinct_profiles(data)
 }
-\arguments{
-\item{data}{An \code{mlumr_data} object.}
-}
-\value{
-Integer count of distinct integration grids, or the row count when
-there are no integration points to compare.
-}
 \description{
-Mean-profile rank is the right count only where the mean profile is the
-design, which is the identity link. Under any other link the integrated
-response depends on a row's whole covariate distribution, so two rows with
-equal means but different spreads do contribute different constraints, and
-collapsing them on their means would understate the evidence.
-}
-\details{
-Two rows built from an identical integration grid are a different matter:
-they are the identical function of the comparator parameters whatever the
-link, so the second repeats the first's likelihood term and adds no
-constraint. Counting distinct grids is therefore a valid upper bound where
-the raw row count is not, and it is what makes a duplicated \code{set_agd()} row
-stop suppressing the warning for the nonlinear families too.
+Two rows built from the same integration grid contribute the same
+likelihood term whatever the link, so the second adds no constraint. Each
+grid is sorted into a canonical order before comparing, because the
+likelihood sees the multiset of points and not their order. Returns the row
+count when there are no integration points.
 }
 \keyword{internal}

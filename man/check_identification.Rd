@@ -7,7 +7,7 @@
 check_identification(x, verbose = TRUE, link = NULL)
 }
 \arguments{
-\item{x}{An \code{mlumr_data} object or a fitted \code{mlumr_fit}.}
+\item{x}{An \code{mlumr_data} object or a fitted relaxed \code{mlumr_fit}.}
 
 \item{verbose}{Print a readable report (default \code{TRUE}).}
 
@@ -15,84 +15,35 @@ check_identification(x, verbose = TRUE, link = NULL)
 family default. A fitted object always uses its stored link.}
 }
 \value{
-Invisibly, a list with \code{n_rows} (aggregate rows), \code{n_distinct}
-(those that do not repeat another's integration grid), \code{n_cov},
-\code{n_rows_needed} (\code{n_cov + 1}), \code{cond_inv}, \code{eff_dim} (the participation
-ratio of the squared singular-value spectrum, which summarizes how evenly
-the spectral variation is spread across directions; it is not a count of
-identified coefficients), \code{spread}, \code{singular_values}, \code{means} (the scaled, centered
-subgroup mean matrix), \code{diagnostic_scope}, \code{target_in_span},
-\code{target_span_gap}, \code{target_in_declared_span} (the same exact statement
-about the declared \verb{<covariate>_mean} rows, which says whether a gap is
-the integration grid's or the design's), and \code{flagged}: \code{TRUE} for too
-few rows, otherwise the identity-link screen result, or \code{NA} when nonlinear
-mean-profile geometry is descriptive only.
+Invisibly, a list with \code{n_rows}, \code{n_distinct} (rows that do not
+repeat another's integration grid), \code{n_cov}, \code{n_rows_needed} (\code{K + 1}),
+\code{cond_inv}, \code{spread}, \code{singular_values}, \code{means} (the scaled, centered
+subgroup mean matrix), \code{diagnostic_scope} (\code{"identity"} or
+\code{"descriptive"}) and \code{flagged}.
 }
 \description{
 In the relaxed model the comparator coefficients \code{beta_comparator} are
-informed only by the aggregate likelihood. This function describes how the
-aggregate subgroup mean profiles span the covariate space.
+informed only by the aggregate rows. With \code{K} covariates there are \code{K + 1}
+comparator parameters, so at least \code{K + 1} distinct aggregate rows are
+needed, and under an identity link the rows must also differ in every
+covariate direction.
 }
 \details{
-For a normal identity-link model, the subgroup means are the exact design
-matrix for the aggregate mean and the reported screen is an identification
-diagnostic. For nonlinear mean models, the integrated response also depends
-on each row's full covariate distribution. The mean-profile spectrum is then
-descriptive only: \code{flagged} is \code{TRUE} when there are fewer than \code{K + 1}
-scalar outcome summaries and \code{NA} otherwise. Reconstructed survival curves
-are refused because they contribute repeated event and censoring likelihood
-terms rather than one scalar outcome summary per row.
-
-With \code{K} covariates there are \code{K + 1} comparator parameters (the intercept
-and \code{K} coefficients), so at least \code{K + 1} scalar aggregate outcome summaries
-are necessary. For the identity-link mean, the rows must also differ in every
-covariate direction.
-
-The function summarizes the spread of the subgroup mean vectors. They are
-centered, divided by each covariate's SD in the IPD (so a covariate measured
-in large units cannot dominate a proportion by units alone), and decomposed.
-\code{cond_inv}, the ratio of the smallest to the largest singular value, goes to
-0 as the rows collapse onto a lower-dimensional set. Centering costs one
-dimension, which is the same \code{K + 1} fact seen from the other side.
-
-The identity-link screen uses \code{cond_inv < 0.2} and \code{spread < 0.05} as package
-heuristics, not validated universal cutoffs. \code{cond_inv} compares directions
-with one another, so it cannot see whether any of them carries information:
-with a single covariate there is one singular value and the ratio is 1 for
-every nonzero separation, including subgroup means that differ by 1e-12.
-\code{spread} supplies the absolute scale it lacks, as the RMS distance of the
-profiles from their center along the dominant direction, in IPD standard
-deviations. Neither sees subgroup sample sizes or outcome precision, and a
-result above both cutoffs does not establish identification. Confirm
-conclusions with \code{\link[=prior_sensitivity]{prior_sensitivity()}}.
-
-Identifying every comparator coefficient is sufficient for identifying the
-index-population estimand, not necessary. Under an identity link that
-estimand is \verb{mu_c + m_ipd' beta_c}, one linear functional of the comparator
-parameters, and the aggregate rows pin down every functional in their row
-space. A single row whose covariate means equal the IPD means identifies it
-exactly while separating neither the intercept nor the slope.
-\code{target_in_span} reports that case, so a coefficient verdict is not read as
-one about the estimand. It is an exact statement about the integration
-profiles the likelihood actually uses, not about the declared
-\verb{<covariate>_mean} columns: a realized grid can sit a fifth of an SD from
-its declared mean and still pass the declared-versus-realized check, and
-the declared row would then certify a target the fitted row's span does
-not contain. Being exact, it says nothing about how well the estimand is
-pinned down. \code{target_span_gap} carries the practical complement: the
-distance, in IPD standard deviations, from the target to the affine span of
-the directions along which the rows spread by at least 0.05 SD. Zero means
-the estimand rests on directions the rows genuinely move along; a small
-positive value with \code{target_in_span} FALSE means the estimand contains that
-much of a coefficient the rows do not pin down, which a finite integration
-grid can produce on its own; a large value with \code{target_in_span} TRUE means
-the estimand is identified only through directions the rows barely move
-along, where precision depends on the outcome standard errors and row
-sizes.
-
-This diagnostic concerns \code{model = "relaxed"} only. Under SPFA both treatments
-share one coefficient vector, which the IPD identifies, so a single aggregate
-row is not a problem.
+The subgroup mean profiles are centered, divided by the IPD covariate SDs
+and decomposed. \code{cond_inv} is the ratio of the smallest to the largest
+singular value and goes to 0 as the rows collapse onto a lower-dimensional
+set. \code{spread} is the RMS distance of the rows from their center along the
+dominant direction, in IPD SDs; it supplies the absolute scale \code{cond_inv}
+lacks. For a normal identity-link model the subgroup means are the
+aggregate design and the screen flags \code{cond_inv < 0.2} or \code{spread < 0.05},
+which are package heuristics. For other links the integrated response also
+depends on each row's covariate distribution, so the geometry is
+descriptive only and \code{flagged} is \code{NA} unless there are too few rows.
+Reconstructed survival curves are refused, since a curve is not one scalar
+summary per row. Neither measure sees subgroup sizes or outcome precision,
+so confirm any verdict with the coefficient posterior and
+\code{\link[=prior_sensitivity]{prior_sensitivity()}}. The subgroup-identification vignette works through
+the cases.
 }
 \examples{
 \dontrun{
@@ -101,7 +52,5 @@ check_identification(dat)
 }
 }
 \seealso{
-\code{\link[=mlumr]{mlumr()}} for \code{model = "relaxed"}; \code{\link[=check_integration]{check_integration()}} for the
-numerical-integration diagnostic; \code{\link[=prior_sensitivity]{prior_sensitivity()}} to confirm how far
-an estimate moves with the prior.
+\code{\link[=mlumr]{mlumr()}} for \code{model = "relaxed"}; \code{\link[=prior_sensitivity]{prior_sensitivity()}}.
 }

@@ -100,9 +100,9 @@
 
 * Feature: `check_identification()` reports, before fitting, whether the
   aggregate subgroup rows can identify `beta_comparator` in
-  `model = "relaxed"`: the row count against `K + 1`, `cond_inv` and
-  `eff_dim` of the centered subgroup-mean matrix, and a descriptive-only
-  label for nonlinear links.
+  `model = "relaxed"`: the row count against `K + 1`, and the balance and
+  spread of the centered subgroup-mean matrix, with a descriptive-only label
+  for nonlinear links.
 * Feature: `prior_beta_comparator` argument to `mlumr()` sets a separate
   prior on `beta_comparator`, including a different family. Defaults to
   `prior_beta`; ignored for `model = "spfa"`; reported by `prior_summary()`
@@ -185,8 +185,7 @@
 * Fix: Directly observed arm proportions and rates in `naive()`, and the
   observed comparator proportion in a binomial `stc()`, use exact
   Clopper-Pearson and Garwood intervals instead of Wald intervals, which
-  excluded the truth at zero counts. Contrasts remain Wald; `?naive`
-  reports their enumerated coverage.
+  excluded the truth at zero counts. Contrasts remain Wald.
 * Fix: `naive()` combines several aggregate rows as strata; the comparator
   standard error is that of the size-weighted mean of the row proportions.
 * Fix: `naive()` and `stc()` apply a continuity correction only to an
@@ -273,10 +272,8 @@
 * `flexsurv`, `detectseparation`, `multinma`, `ggsurvfit` and `R.rsp` added
   to Suggests.
 * `Additional_repositories` is pinned to `https://mc-stan.org/r-packages`
-  to keep `rstan` and `StanHeaders` resolving from one source. That repository
-  serves an old cmdstanr, so on Windows install cmdstanr from
-  `https://stan-dev.r-universe.dev` instead; `mlumr_engine("cmdstanr")` says
-  so. The default `rstan` backend is unaffected.
+  so that `rstan` and `StanHeaders` resolve from one source. Install cmdstanr
+  itself from `https://stan-dev.r-universe.dev`.
 
 # mlumr 0.1.0
 
