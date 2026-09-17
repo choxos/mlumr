@@ -3,11 +3,12 @@ name: R-CMD-check
 on:
   # push runs only on main; pull_request covers every branch with an open PR,
   # so listing both would run the matrix twice per commit. The pull_request
-  # filter names the branches a PR can target.
+  # filter names the branches a PR can target, including the refactor
+  # branches that stacked pull requests target.
   push:
     branches: [main]
   pull_request:
-    branches: [main, 'pre-release/**']
+    branches: [main, 'pre-release/**', 'refactor/**']
   workflow_dispatch:
 
 permissions:
