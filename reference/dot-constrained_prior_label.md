@@ -1,6 +1,7 @@
 # Describe how a positive-constrained prior is constrained
 
-Describe how a positive-constrained prior is constrained
+An exponential is already positive, and only a zero-location normal or t
+truncated at zero is a half-normal or half-t.
 
 ## Usage
 

@@ -120,17 +120,12 @@ baseline table. The moment parameterization uses
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>Must be empty. It exists only to hold <code>mean</code> and <code>sd</code> back from
-partial matching, and is checked so that a misspelled argument is refused
-rather than silently ignored.</p></dd>
+<dd><p>Must be empty; it keeps <code>mean</code> and <code>sd</code> out of partial matching.</p></dd>
 
 
 <dt id="arg-mean-sd">mean, sd<a class="anchor" aria-label="anchor" href="#arg-mean-sd"></a></dt>
 <dd><p>Mean and standard deviation, overriding <code>shape</code> and
-<code>rate</code> / <code>scale</code> when both are supplied. Both must be named in full:
-they sit behind <code>...</code> so that adding them cannot make <code>s</code> ambiguous
-between <code>scale</code> and <code>sd</code>, which would break the abbreviation
-<code><a href="https://rdrr.io/r/stats/GammaDist.html" class="external-link">stats::qgamma()</a></code> accepts.</p></dd>
+<code>rate</code> / <code>scale</code> when both are supplied. Both must be named in full.</p></dd>
 
 
 <dt id="arg-x-q">x, q<a class="anchor" aria-label="anchor" href="#arg-x-q"></a></dt>

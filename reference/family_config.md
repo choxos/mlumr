@@ -1,11 +1,8 @@
 # Family metadata registry
 
-Internal single-source-of-truth for family-specific Stan model names,
-AgD weighting, prediction-variable prefixes, and supported links and
-effect measures. Every R-side call site that hard-coded a per-family
-branch now looks up the relevant field here. This file is deliberately
-pure-R and makes no Stan calls; keeping it a data registry makes
-rstantools regeneration of `R/stanmodels.R` independent.
+Family-specific Stan model names, AgD weighting, prediction-variable
+prefixes, and supported links and effect measures, looked up by every
+family branch in the R code.
 
 ## Details
 
@@ -35,15 +32,10 @@ Fields:
 
   Supported values of the `effect` argument in
   [`marginal_effects()`](https://choxos.github.io/mlumr/reference/marginal_effects.md)
-  (excluding `"all"`). Family-level, and for `"survival"` NOT the whole
-  accepted set: the scalar contrast is distribution-specific, so a fit
-  accepts exactly one of `"hr"`, `"tr"` or `"exp_delta_eta"` and the
-  choice is made per fit by
-  [`.surv_scalar_effect_name()`](https://choxos.github.io/mlumr/reference/dot-surv_scalar_effect_name.md),
-  which cannot be expressed here because this registry is keyed by
-  family alone. The entry lists `"hr"` as the representative scalar;
-  treat the survival row as the RMST measures plus one fit-specific
-  scalar.
+  (excluding `"all"`). For `"survival"` the scalar contrast is chosen
+  per fit by
+  [`.surv_scalar_effect_name()`](https://choxos.github.io/mlumr/reference/dot-surv_scalar_effect_name.md);
+  `"hr"` stands for it here.
 
 - `marginal_effect_vars`:
 
@@ -53,16 +45,7 @@ Fields:
 
 - `comp_weight_field`:
 
-  Name of the Stan-data field used to weight the comparator-population
-  marginal predictions. Must name the same field the family's Stan
-  `generated quantities` block weights by, otherwise the R-side
-  link-scale path in
-  [`predict.mlumr_fit()`](https://choxos.github.io/mlumr/reference/predict.mlumr_fit.md)
-  would average over a different target population than the Stan-side
-  response-scale predictions and
-  [`marginal_effects()`](https://choxos.github.io/mlumr/reference/marginal_effects.md).
-  Currently `n_agd` (binomial), `E_agd` (poisson), `agd_weight` (normal;
-  required sample sizes for multiple rows, or one for a single row
-  without `outcome_n`), and `NULL` for survival, whose comparator
-  population is the pooled pseudo-IPD rather than a weighted mixture of
-  aggregate rows.
+  The Stan-data field the comparator-population marginal predictions are
+  weighted by, which must match the field the family's
+  `generated quantities` block uses: `n_agd` (binomial), `E_agd`
+  (poisson), `agd_weight` (normal) and `NULL` for survival.

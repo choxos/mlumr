@@ -55,17 +55,12 @@ dgamma(x, shape, rate = 1, scale = 1/rate, log = FALSE, ..., mean, sd)
 
 - ...:
 
-  Must be empty. It exists only to hold `mean` and `sd` back from
-  partial matching, and is checked so that a misspelled argument is
-  refused rather than silently ignored.
+  Must be empty; it keeps `mean` and `sd` out of partial matching.
 
 - mean, sd:
 
   Mean and standard deviation, overriding `shape` and `rate` / `scale`
-  when both are supplied. Both must be named in full: they sit behind
-  `...` so that adding them cannot make `s` ambiguous between `scale`
-  and `sd`, which would break the abbreviation
-  [`stats::qgamma()`](https://rdrr.io/r/stats/GammaDist.html) accepts.
+  when both are supplied. Both must be named in full.
 
 - x, q:
 

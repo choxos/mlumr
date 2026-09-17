@@ -111,26 +111,17 @@ canonical default.</p></dd>
 
 <dt id="arg-distribution">distribution<a class="anchor" aria-label="anchor" href="#arg-distribution"></a></dt>
 <dd><p>For <code>family = "survival"</code>: the parametric distribution
-used for the package-specific survival G-computation (default
-<code>"weibull"</code>). Requires the <code>flexsurv</code>
-package. The STC estimand is the restricted-mean-survival-time difference.
-The flexible baselines <code>"mspline"</code> and <code>"pexp"</code> have no parametric
-<code>flexsurv</code> analogue: requesting either fits a Weibull G-computation as an
-approximate benchmark, emits a warning, and records
-<code>distribution_fit = "weibull"</code> and <code>approximated = TRUE</code> in the result
-(<code>$distribution</code> keeps the requested value). Survival STC currently
-supports right-censored data without delayed entry; use <code><a href="mlumr.html">mlumr()</a></code> for
-left-censored, interval-censored, or delayed-entry survival data.</p></dd>
+of the survival G-computation (default <code>"weibull"</code>), fitted with
+<span class="pkg">flexsurv</span>; the estimand is the restricted mean survival time
+difference. <code>"mspline"</code> and <code>"pexp"</code> have no parametric analogue and fall
+back to a Weibull fit with a warning, recorded as <code>approximated = TRUE</code>.
+Survival STC supports right-censored data without delayed entry.</p></dd>
 
 
 <dt id="arg-n-boot">n_boot<a class="anchor" aria-label="anchor" href="#arg-n-boot"></a></dt>
-<dd><p>For <code>family = "survival"</code> only: number of nonparametric
-bootstrap resamples used for the RMST-difference standard error (default
-<code>200</code>). Set <code>n_boot = 0</code> for a fast point estimate with no interval
-(<code>se</code>/CI returned as <code>NA</code>). Must be 0 or at least 2, since a single
-resample has no standard error; several hundred are needed before the
-interval is usable, so treat anything below the default as exploratory.
-Ignored for other families, which use the delta method.</p></dd>
+<dd><p>For <code>family = "survival"</code> only: number of bootstrap resamples
+for the RMST-difference standard error (default <code>200</code>; 0 gives a point
+estimate with no interval). Other families use the delta method.</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
@@ -140,15 +131,10 @@ number stream is restored on exit. Ignored for other families.</p></dd>
 
 
 <dt id="arg-rmst-horizon">rmst_horizon<a class="anchor" aria-label="anchor" href="#arg-rmst-horizon"></a></dt>
-<dd><p>For <code>family = "survival"</code> only: the restriction time the
-RMST difference is integrated to. Defaults to the largest observed time
-across both arms. RMST at a different horizon is a different estimand, so
-set this explicitly whenever the result is to be compared with an
-<code><a href="mlumr.html">mlumr()</a></code> fit, whose own default can be the follow-up both studies
-observed rather than the pooled maximum; read that fit's horizon from the
-<code>horizon</code> column of <code>predict(type = "rmst")</code>. A value beyond the observed
-range extrapolates the fitted parametric survival function and warns.
-Ignored for other families.</p></dd>
+<dd><p>For <code>family = "survival"</code> only: the restriction time of
+the RMST difference. Defaults to the largest observed time across both
+arms; set it explicitly to match an <code><a href="mlumr.html">mlumr()</a></code> fit, whose default can
+differ. A horizon beyond the observed range extrapolates and warns.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -163,21 +149,14 @@ returned.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>For binomial outcomes, returns the treatment effect on the link scale plus
-event probabilities, risk difference, and log risk ratio with SEs and CIs
-in the comparator population. The observed comparator proportion gets the
-exact Clopper-Pearson interval, as in <code><a href="naive.html">naive()</a></code>. The standardized index
-probability is a model prediction, and its interval is the delta-method
-Wald interval bounded to <code>[0, 1]</code>: an asymptotic approximation whose
-calibration has not been studied here, as are the intervals of the
-contrasts. When the observed comparator arm has zero or all events,
-transformed effect measures use the boundary-only pseudo-count
-<code>(r + 0.5) / (n + 1)</code>; model predictions are never corrected. For Poisson
-outcomes, the comparator log rate uses a 0.5 continuity correction when the
-observed event count is zero, and <code>$rd</code> is a RATE difference on the
-per-unit-exposure scale, the standardized index rate minus the observed
-comparator rate, rather than the risk difference the binomial <code>$rd</code> is.
-<code>$estimate</code> stays the log rate ratio.</p>
+    <p>For binomial outcomes the result carries the link-scale effect, the
+standardized and observed event probabilities, the risk difference and the
+log risk ratio, with delta-method Wald intervals; the observed comparator
+proportion gets the exact Clopper-Pearson interval, as in <code><a href="naive.html">naive()</a></code>. An
+observed comparator arm with zero or all events uses the pseudo-count
+<code>(r + 0.5) / (n + 1)</code> in transformed measures. For Poisson outcomes <code>$rd</code>
+is a rate difference per unit exposure and <code>$estimate</code> the log rate ratio,
+with a 0.5 continuity correction for a zero comparator count.</p>
 <p>Scale note: <code>$estimate</code> (and the binomial <code>$log_rr</code>) is on the link / log
 scale, where the null is 0. To compare against the natural-scale risk ratio
 or rate ratio from <code><a href="marginal_effects.html">marginal_effects()</a></code> (where the null is 1), exponentiate
@@ -189,36 +168,19 @@ estimand. <code>outcome_n</code> is required when there is more than one row; a 
 row has weight one. The observed comparator-mean variance combines
 independent, mutually exclusive strata as <code>sum(w^2 * se^2)</code> using normalized
 population weights.</p>
-<p>The STC procedure is:</p><ol><li><p>Fit a GLM on IPD (binomial/gaussian/poisson as appropriate).</p></li>
-<li><p>Predict on comparator-population covariates (from integration points or
-AgD covariate means for the identity-link normal special case).</p></li>
-<li><p>Marginalize predictions over the comparator population.</p></li>
-<li><p>Contrast with the reported comparator outcome in that population.</p></li>
-<li><p>Compute first-order, fixed-integration-grid delta-method standard errors.</p></li>
-</ol><p>The response-scale standardization predicts each target profile, averages
-the natural-scale outcomes, then transforms the average, as in Ren et al.'s
-unanchored STC. Only the index-treatment outcome model is fitted, since
-comparator IPD are unavailable; Remiro-Azocar et al. describe the two-arm
-G-computation that a different data design allows.</p>
-<p>The non-survival standard error is conditional on the integration grid and
-the reported comparator summaries: it propagates coefficient and
-comparator-outcome uncertainty, not uncertainty in reconstructing the
-comparator covariate distribution. The estimator relies on a correctly
-specified index outcome model that applies across the comparator covariate
-distribution, adequate overlap and no unmeasured confounding; it does not
-need the two treatments to share covariate effects.</p>
-<p>The estimand is <code>E_B[m_A(X)] - E_B[Y_B]</code> on the response scale, which is
-<code>$rd</code> for a binomial outcome and <code>$md</code> for a normal one. <code>$estimate</code> is the
-same mean difference under the normal identity link and otherwise the
-link-scale contrast of the two standardized quantities: a marginal log odds
-ratio under a binomial logit, a log rate ratio under Poisson, a log mean
-ratio under a log link.</p>
-<p>Survival STC contrasts the index RMST standardized to the comparator
-covariates with the RMST of an intercept-only <code><a href="http://chjackson.github.io/flexsurv-dev/reference/flexsurvreg.html" class="external-link">flexsurv::flexsurvreg()</a></code> fit
-to the reconstructed pseudo-IPD.</p>
-<p>The effect is defined in the comparator population and is not transported
-to the index population; <code>mlumr(..., model = "relaxed")</code> is what estimates
-comparator-specific covariate effects for any other target.</p>
+<p>A GLM is fitted to the IPD, its predictions are averaged over the
+comparator covariate distribution (the integration points, or the AgD means
+for the identity-link normal case) on the response scale, and the average
+is contrasted with the reported comparator outcome, as in Ren et al.'s
+unanchored STC. Standard errors are first-order delta-method values,
+conditional on the integration grid and the reported comparator summaries.
+The estimand is <code>E_B[m_A(X)] - E_B[Y_B]</code> in the comparator population
+(<code>$rd</code> for binomial, <code>$md</code> for normal); <code>$estimate</code> is the link-scale
+contrast of the two standardized quantities. Survival STC contrasts the
+index RMST standardized to the comparator covariates with the RMST of an
+intercept-only <code><a href="http://chjackson.github.io/flexsurv-dev/reference/flexsurvreg.html" class="external-link">flexsurv::flexsurvreg()</a></code> fit to the pseudo-IPD. The effect
+is not transported to the index population; <code>mlumr(model = "relaxed")</code>
+estimates comparator-specific covariate effects for any other target.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

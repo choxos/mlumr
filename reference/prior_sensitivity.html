@@ -98,15 +98,10 @@ Default <code>c(0.5, 1, 2.5, 5, 10)</code>.</p></dd>
 
 <dt id="arg-prior-beta-comparator-scales">prior_beta_comparator_scales<a class="anchor" aria-label="anchor" href="#arg-prior-beta-comparator-scales"></a></dt>
 <dd><p>(Relaxed fits only.) Numeric vector of
-scales for <code>prior_beta_comparator</code>, same length as <code>prior_beta_scales</code> and
-paired with it elementwise. If <code>NULL</code> (default), the comparator prior is
-swept in parallel using <code>prior_beta_scales</code>. This matters because the
-relaxed index-population estimand is driven by the comparator coefficients,
-so a faithful sensitivity sweep must vary their prior. Whichever scale is
-used is reported in the <code>scale_comparator</code> column, so a refit that paired,
-say, an index scale of 0.5 with a comparator scale of 2.5 is not labeled
-as though only the index prior had been set. Ignored, with a warning, for
-SPFA fits, which have no comparator-specific coefficients.</p></dd>
+scales for <code>prior_beta_comparator</code>, paired elementwise with
+<code>prior_beta_scales</code>. <code>NULL</code> (default) sweeps the comparator prior in
+parallel with <code>prior_beta_scales</code>; the scale used is reported in the
+<code>scale_comparator</code> column. Ignored, with a warning, for SPFA fits.</p></dd>
 
 
 <dt id="arg-probs">probs<a class="anchor" aria-label="anchor" href="#arg-probs"></a></dt>
@@ -146,29 +141,14 @@ and replayed, so a refit reproduces the original parameterization instead of
 reverting to the defaults. A fit made with <code>center = FALSE</code> or <code>qr = TRUE</code> is
 a different parameterization, and replaying the defaults would vary the model
 as well as the prior.</p>
-<p>Only the scale of the <code>prior_beta</code> family is varied; its distribution
-(normal / student_t) and mean are preserved so comparisons are apples to
-apples. <code>prior_intercept</code> and <code>prior_sigma</code> are carried through
-unchanged from the original fit. Each value in <code>prior_beta_scales</code> is
-used as the <strong>absolute</strong> scale for every coefficient at that refit — if
-the original fit used per-coefficient priors, all coefficients are set
-to the same scale (the sweep is deliberately homogeneous so the grid
-reflects a single level of prior informativeness per refit, not a
-rescaling of existing relative differences). If the original
-<code>prior_beta</code> used an exponential family, it is swapped for a
-<code>prior_normal(0, scale)</code> at each grid point since exponential has no
-scale parameter to vary.</p>
-<p>For a relaxed fit the comparator prior is swept alongside the index prior.
-By default the two move together, which is a single-factor sweep of overall
-prior informativeness; supplying <code>prior_beta_comparator_scales</code> pairs a
-different comparator scale with each index scale, so the two are then
-separate factors moved in lockstep rather than one. Sweeping the comparator
-prior is what makes the result meaningful: the relaxed index-population
-estimand is driven by the comparator coefficients, so holding their prior
-fixed would report a flat, reassuring curve for exactly the quantity most
-exposed to the prior. Both scales are recorded per row (<code>scale</code> and
-<code>scale_comparator</code>), so a row is never labeled by only half of the prior it
-was fitted under.</p>
+<p>Only the scale of <code>prior_beta</code> is varied; its family and mean, and every
+other prior and setting, come from the original fit. Each scale is applied
+to every coefficient, so the sweep reflects one level of prior
+informativeness per refit; an exponential <code>prior_beta</code> is swapped for
+<code>prior_normal(0, scale)</code>. For a relaxed fit the comparator prior is swept
+alongside, because the index-population estimand is driven by the
+comparator coefficients; holding their prior fixed would report a flat curve
+for exactly the quantity most exposed to the prior.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

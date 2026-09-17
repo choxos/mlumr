@@ -34,16 +34,10 @@ prior_sensitivity(
 - prior_beta_comparator_scales:
 
   (Relaxed fits only.) Numeric vector of scales for
-  `prior_beta_comparator`, same length as `prior_beta_scales` and paired
-  with it elementwise. If `NULL` (default), the comparator prior is
-  swept in parallel using `prior_beta_scales`. This matters because the
-  relaxed index-population estimand is driven by the comparator
-  coefficients, so a faithful sensitivity sweep must vary their prior.
-  Whichever scale is used is reported in the `scale_comparator` column,
-  so a refit that paired, say, an index scale of 0.5 with a comparator
-  scale of 2.5 is not labeled as though only the index prior had been
-  set. Ignored, with a warning, for SPFA fits, which have no
-  comparator-specific coefficients.
+  `prior_beta_comparator`, paired elementwise with `prior_beta_scales`.
+  `NULL` (default) sweeps the comparator prior in parallel with
+  `prior_beta_scales`; the scale used is reported in the
+  `scale_comparator` column. Ignored, with a warning, for SPFA fits.
 
 - probs:
 
@@ -85,31 +79,14 @@ instead of reverting to the defaults. A fit made with `center = FALSE`
 or `qr = TRUE` is a different parameterization, and replaying the
 defaults would vary the model as well as the prior.
 
-Only the scale of the `prior_beta` family is varied; its distribution
-(normal / student_t) and mean are preserved so comparisons are apples to
-apples. `prior_intercept` and `prior_sigma` are carried through
-unchanged from the original fit. Each value in `prior_beta_scales` is
-used as the **absolute** scale for every coefficient at that refit — if
-the original fit used per-coefficient priors, all coefficients are set
-to the same scale (the sweep is deliberately homogeneous so the grid
-reflects a single level of prior informativeness per refit, not a
-rescaling of existing relative differences). If the original
-`prior_beta` used an exponential family, it is swapped for a
-`prior_normal(0, scale)` at each grid point since exponential has no
-scale parameter to vary.
-
-For a relaxed fit the comparator prior is swept alongside the index
-prior. By default the two move together, which is a single-factor sweep
-of overall prior informativeness; supplying
-`prior_beta_comparator_scales` pairs a different comparator scale with
-each index scale, so the two are then separate factors moved in lockstep
-rather than one. Sweeping the comparator prior is what makes the result
-meaningful: the relaxed index-population estimand is driven by the
-comparator coefficients, so holding their prior fixed would report a
-flat, reassuring curve for exactly the quantity most exposed to the
-prior. Both scales are recorded per row (`scale` and
-`scale_comparator`), so a row is never labeled by only half of the prior
-it was fitted under.
+Only the scale of `prior_beta` is varied; its family and mean, and every
+other prior and setting, come from the original fit. Each scale is
+applied to every coefficient, so the sweep reflects one level of prior
+informativeness per refit; an exponential `prior_beta` is swapped for
+`prior_normal(0, scale)`. For a relaxed fit the comparator prior is
+swept alongside, because the index-population estimand is driven by the
+comparator coefficients; holding their prior fixed would report a flat
+curve for exactly the quantity most exposed to the prior.
 
 ## See also
 

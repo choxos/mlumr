@@ -1,12 +1,9 @@
 # Specify a Cauchy prior
 
-Cauchy is Student-t with `df = 1`; this constructor is a convenience
-wrapper around
+Cauchy is Student-t with `df = 1`, a wrapper around
 [`prior_student_t()`](https://choxos.github.io/mlumr/reference/prior_student_t.md).
-It has very heavy tails and should be used with care; modern
-recommendations generally prefer `prior_student_t(df in 3:7, ...)` over
-Cauchy for regression coefficients to keep sampling well-behaved (see
-Piironen & Vehtari on the horseshoe; Ghosh et al. 2015).
+Its very heavy tails can slow sampling; a Student-t with 3 to 7 degrees
+of freedom is usually preferred for regression coefficients.
 
 ## Usage
 

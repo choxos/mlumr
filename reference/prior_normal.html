@@ -102,50 +102,16 @@ explicitly when passing unstandardized predictors. Ignored for
     <h2 id="choosing-a-scale">Choosing a scale<a class="anchor" aria-label="anchor" href="#choosing-a-scale"></a></h2>
 
 
-
-<p>The Stan community's prior-choice wiki (Vehtari et al., 2025) describes
-five broad categories, from least to most informative:</p>
-<ol><li><p>Flat prior (not recommended).</p></li>
-<li><p>Super-vague proper prior, e.g., <code>normal(0, 1e6)</code> (not
-recommended).</p></li>
-<li><p>Weakly informative, <strong>very weak</strong>, e.g., <code>normal(0, 10)</code>.</p></li>
-<li><p>Generic weakly informative, e.g., <code>normal(0, 1)</code>.</p></li>
-<li><p>Specific informative, e.g., <code>normal(0.4, 0.2)</code>.</p></li>
-</ol><p>Those scales assume parameters are on roughly unit scale. In ML-UMR
-models the natural scales are:</p>
-<dl><dt>Treatment intercepts</dt>
-<dd><p>On the linear-predictor (link) scale. For
-a binary outcome with logit link, the intercept is a baseline log
-odds; <code>normal(0, 10)</code> spans +/-20 log-odds at 95 percent and is
-"very weak". It is the default because the data usually constrain
-the intercept strongly. Tightening to <code>normal(0, 5)</code> is reasonable
-when the expected event rate is far from the extremes.</p></dd>
-
-<dt>Regression coefficients (<code>beta</code>)</dt>
-<dd><p>On the link scale, per unit
-of covariate. <code>normal(0, 2.5)</code> is the package's generic starting value,
-not a universally calibrated default. Gelman et al. (2008) motivate a
-weakly informative Cauchy scale for logistic coefficients after a
-particular predictor scaling; that recommendation does not by itself
-justify this normal prior for every family or covariate scale. Use prior
-predictive checks and subject-matter knowledge to calibrate the scale.
-If predictors are on different scales, <code>autoscale = TRUE</code> transforms
-both the prior location and scale to preserve the intended prior on the
-contribution of each original-scale covariate.</p></dd>
-
-<dt>Residual SD (<code>sigma</code>, normal family only)</dt>
-<dd><p><code>prior_sigma</code> is
-interpreted as a half-normal via the Stan <code>&lt;lower=0&gt;</code> constraint.
-The default <code>normal(0, 2.5)</code> (i.e., <code>half-normal(0, 2.5)</code>) is
-weakly informative for residual SDs on the scale of the outcome.
-Scale to the outcome if it is far from unit scale, or use
-<code><a href="prior_exponential.html">prior_exponential()</a></code>.</p></dd>
-
-
-</dl><p>Prior sensitivity is especially important for the relaxed model,
-where <code>beta_comparator</code> is identified only by the AgD likelihood.
-Run <code><a href="prior_sensitivity.html">prior_sensitivity()</a></code> to quantify how much conclusions move under
-alternative scales; see <code><a href="../articles/fitting-and-diagnostics.html">vignette("fitting-and-diagnostics")</a></code>.</p>
+<p>The default intercept prior <code>normal(0, 10)</code> is very weak on the link scale,
+and the data usually constrain the intercept strongly. The coefficient
+default <code>normal(0, 2.5)</code> is a generic starting value on the link scale per
+unit of covariate, not a calibrated choice; use <code>autoscale = TRUE</code> for
+predictors on different scales and calibrate with prior predictive checks
+(Gelman et al., 2008; the Stan prior-choice wiki). <code>prior_sigma</code> is a
+normal truncated at zero through the Stan <code>&lt;lower=0&gt;</code> constraint, a
+half-normal at the default mean of 0; scale it to the outcome. Run
+<code><a href="prior_sensitivity.html">prior_sensitivity()</a></code> for the relaxed model, whose <code>beta_comparator</code> is
+identified only by the aggregate likelihood.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
