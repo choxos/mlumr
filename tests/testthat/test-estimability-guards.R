@@ -88,7 +88,7 @@ test_that("quasi-complete separation is reported as separated, and refused", {
 
   status <- mlumr:::.stc_separation_status(g)
   expect_identical(status$status, "separated")
-  expect_error(mlumr:::.stc_refuse_separation(g), "quasi-complete")
+  expect_error(mlumr:::.stc_refuse_separation(g), "linear combination")
 })
 
 test_that("a strong but identified fit is reported as not separated", {

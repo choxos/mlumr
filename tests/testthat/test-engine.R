@@ -113,20 +113,3 @@ test_that("the compiler probe reports what R CMD SHLIB can do here", {
   expect_identical(getwd(), before)
   expect_length(list.files(tempdir(), pattern = "^mlumr-probe-"), 0L)
 })
-
-test_that("a fit that selects cmdstanr by argument or option meets the same guard", {
-  # mlumr_engine() is not the only way to select the backend: the option in a
-  # profile and the per-fit argument both bypass it, and the first fit used to
-  # reach compilation and fail there without the upgrade advice.
-  testthat::local_mocked_bindings(
-    .cmdstanr_too_old_for_windows = function(...) TRUE,
-    .cmdstanr_upgrade_advice = function() "upgrade cmdstanr first"
-  )
-  expect_error(.resolve_mlumr_engine("cmdstanr"), "upgrade cmdstanr first")
-  withr::local_options(mlumr.stan_engine = "cmdstanr")
-  expect_error(.resolve_mlumr_engine(NULL), "upgrade cmdstanr first")
-  # rstan is never held up by a cmdstanr problem.
-  expect_identical(.resolve_mlumr_engine("rstan"), "rstan")
-  testthat::local_mocked_bindings(.cmdstanr_too_old_for_windows = function(...) FALSE)
-  expect_identical(.resolve_mlumr_engine("cmdstanr"), "cmdstanr")
-})

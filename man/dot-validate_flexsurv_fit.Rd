@@ -2,16 +2,12 @@
 % Please edit documentation in R/stc.R
 \name{.validate_flexsurv_fit}
 \alias{.validate_flexsurv_fit}
-\title{Require a flexsurv fit that actually converged}
+\title{Require a flexsurv fit that converged to a maximum}
 \usage{
 .validate_flexsurv_fit(fit, arm)
 }
 \description{
-A sparse or nearly separated sample can leave events in both arms and still
-send the optimizer to a boundary. \code{flexsurvreg()} warns in that case rather
-than failing, so the estimates were summarized as an ordinary RMST, and the
-bootstrap counted such refits among its successes because \code{tryCatch()} sees
-only errors. Raising an error here makes a non-converged replicate a failed
-one, which is what it is.
+\code{flexsurvreg()} warns rather than fails at an optimizer boundary, so this
+raises an error and the bootstrap counts such a replicate as failed.
 }
 \keyword{internal}
