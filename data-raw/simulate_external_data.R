@@ -5,16 +5,18 @@
 #
 # The SHIPPED datasets are FULLY SYNTHETIC (mlumr's own work, GPL-3, like the rest
 # of the package). synthpop and syntheticdata are DEV-ONLY tools used here; they
-# are NOT package dependencies. The raw CC BY files live in data-raw/ (the
-# generation basis) and are not part of the build. Source trials are cited only
-# as the modeling basis (the same approach multinma uses for its data).
+# are NOT package dependencies. Source trials are cited only as the modeling
+# basis (the same approach multinma uses for its data).
 #
-# Sources (basis only):
-#   * FIMPACT 10-year follow-up (shoulder, continuous): BMJ 2025;391:e086201.
-#     Dataset CC BY 4.0, University of Helsinki / Finnish Ministry of Education
-#     open-data portal (DOI 10.23729/fd-d323a34b-f698-3bc6-b38d-9c93aeadbe74).
-#   * Dental caries RCT, SDF vs NSF (count): Ammar et al., BMC Oral Health
-#     2025;25:945 (article CC BY 4.0); data on Synapse syn43185346 (CC BY).
+# The source files are not tracked in this repository. Download them into
+# data-raw/ before running (both are CC BY 4.0):
+#   * data-raw/fimpact_10y.xlsx: FIMPACT 10-year follow-up (shoulder,
+#     continuous), BMJ 2025;391:e086201; dataset from the University of
+#     Helsinki / Finnish Ministry of Education open-data portal
+#     (DOI 10.23729/fd-d323a34b-f698-3bc6-b38d-9c93aeadbe74), the
+#     "FIMPACT 10 year outcome all timepoints" workbook.
+#   * data-raw/dental_caries_rct.xlsx: dental caries RCT, SDF vs NSF (count),
+#     Ammar et al., BMC Oral Health 2025;25:945; data on Synapse syn43185346.
 #
 # Methods: synthpop (Nowok, Raab & Dibben 2016, <doi:10.18637/jss.v074.i11>).
 #
@@ -73,18 +75,18 @@ report_validation("shoulder", real_s, synth_s,
 asd <- synth_s[synth_s$treatment == "ASD", ]
 et  <- synth_s[synth_s$treatment == "ET", ]
 shoulder_ipd <- data.frame(
-  patient = seq_len(nrow(asd)), treatment = "ASD",
+  study = "FIMPACT", treatment = "ASD", subject = seq_len(nrow(asd)),
   age = round(asd$age, 1), sex = as.integer(asd$sex == "male"),
   baseline_vas = round(asd$baseline_vas, 1),
   pain_vas_activity = round(asd$pain_vas_activity, 1),
   stringsAsFactors = FALSE
 )
 shoulder_agd <- data.frame(
-  treatment = "ET", n = nrow(et),
+  study = "FIMPACT", treatment = "ET", n = nrow(et),
   y_mean = mean(et$pain_vas_activity),
   y_se   = stats::sd(et$pain_vas_activity) / sqrt(nrow(et)),
   age_mean = mean(et$age), age_sd = stats::sd(et$age),
-  sex_mean = mean(et$sex == "male"),
+  sex_prop = mean(et$sex == "male"),
   baseline_vas_mean = mean(et$baseline_vas),
   baseline_vas_sd   = stats::sd(et$baseline_vas),
   stringsAsFactors = FALSE
@@ -123,16 +125,16 @@ synth_c$dmft[sdf_rows] <- stats::rbinom(sum(sdf_rows), synth_c$dmft[sdf_rows], 0
 sdf <- synth_c[synth_c$treatment == "SDF", ]
 nsf <- synth_c[synth_c$treatment == "NSF", ]
 caries_ipd <- data.frame(
-  child = seq_len(nrow(sdf)), treatment = "SDF",
+  study = "Ammar 2025", treatment = "SDF", subject = seq_len(nrow(sdf)),
   age = round(sdf$age, 1), gender = as.integer(as.character(sdf$gender)),
   log_cfu = sdf$log_cfu, dmft = as.integer(sdf$dmft), exposure = 1L,
   stringsAsFactors = FALSE
 )
 caries_agd <- data.frame(
-  treatment = "NSF", n = nrow(nsf),
+  study = "Ammar 2025", treatment = "NSF", n = nrow(nsf),
   r = sum(nsf$dmft), E = nrow(nsf),
   age_mean = mean(nsf$age), age_sd = stats::sd(nsf$age),
-  gender_mean = mean(as.integer(as.character(nsf$gender))),
+  gender_prop = mean(as.integer(as.character(nsf$gender))),
   log_cfu_mean = mean(nsf$log_cfu), log_cfu_sd = stats::sd(nsf$log_cfu),
   stringsAsFactors = FALSE
 )
@@ -141,10 +143,10 @@ caries_agd <- data.frame(
 # Save (xz) + fidelity summary (real vs synthetic)
 # ===========================================================================
 dir.create("data", showWarnings = FALSE)
-save(shoulder_ipd, file = "data/shoulder_ipd.rda", compress = "xz")
-save(shoulder_agd, file = "data/shoulder_agd.rda", compress = "xz")
-save(caries_ipd,   file = "data/caries_ipd.rda",   compress = "xz")
-save(caries_agd,   file = "data/caries_agd.rda",   compress = "xz")
+save(shoulder_ipd, file = "data/shoulder_ipd.rda", compress = "xz", version = 2)
+save(shoulder_agd, file = "data/shoulder_agd.rda", compress = "xz", version = 2)
+save(caries_ipd,   file = "data/caries_ipd.rda",   compress = "xz", version = 2)
+save(caries_agd,   file = "data/caries_agd.rda",   compress = "xz", version = 2)
 
 cat("\n=== SHOULDER mean Pain VAS on activity (real -> synthetic) ===\n")
 cat(sprintf("  ASD: %.1f -> %.1f   ET: %.1f -> %.1f\n",
