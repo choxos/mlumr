@@ -12,7 +12,6 @@
 # study's basis spans only its own observed support, so no column is unsupported
 # and H0_s is pinned at a time the study actually observed.
 
-skip_if_not_installed("splines2")
 
 # Markedly unequal follow-up: index runs to ~100 with a heavy late tail, the
 # comparator stops at ~20, so pooled quantile knots land above the comparator's

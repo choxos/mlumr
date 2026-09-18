@@ -6,33 +6,39 @@
 # single branch returning a value no fit can use. Only calling the compiled
 # helper finds it, so that is what these do.
 
-expose_survival_likelihood <- function() {
-  stan_dir <- system.file("stan", package = "mlumr")
-  skip_if(stan_dir == "", "installed Stan includes not found")
-  code <- paste(
-    "functions {",
-    "#include include/priors_functions.stan",
-    "#include include/survival_functions.stan",
-    "}",
-    sep = "\n"
-  )
-  env <- new.env()
-  suppressWarnings(
-    rstan::expose_stan_functions(
-      rstan::stanc(model_code = code, isystem = stan_dir,
-                   allow_undefined = TRUE),
-      env = env
+# One compilation per file: the environment is built on the first call and
+# reused by every test after it.
+expose_survival_likelihood <- local({
+  cached <- NULL
+  function() {
+    if (!is.null(cached)) return(cached)
+    stan_dir <- system.file("stan", package = "mlumr")
+    skip_if(stan_dir == "", "installed Stan includes not found")
+    code <- paste(
+      "functions {",
+      "#include include/priors_functions.stan",
+      "#include include/survival_functions.stan",
+      "}",
+      sep = "\n"
     )
-  )
-  env
-}
+    env <- new.env()
+    suppressWarnings(
+      rstan::expose_stan_functions(
+        rstan::stanc(model_code = code, isystem = stan_dir,
+                     allow_undefined = TRUE),
+        env = env
+      )
+    )
+    cached <<- env
+    env
+  }
+})
 
 # log(e^a - e^b) for a > b, kept in logs so the tail references stay exact.
 .log_diff <- function(a, b) a + log1p(-exp(b - a))
 
 test_that("a delayed-entry interval keeps its probability in the lower tail", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_likelihood()
 
   shape <- 10
@@ -62,7 +68,6 @@ test_that("a delayed-entry interval keeps its probability in the lower tail", {
 
 test_that("a delayed-entry interval survives an underflowing hazard", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_likelihood()
 
   # Exponential PH with eta = -1000: the rate is exp(-1000), which underflows
@@ -78,7 +83,6 @@ test_that("a delayed-entry interval survives an underflowing hazard", {
 
 test_that("an interval too narrow to separate two CDFs still has a probability", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_likelihood()
 
   # The mirror of the failure above. Exponential rate 1, entry 0.05, event
@@ -99,7 +103,6 @@ test_that("an interval too narrow to separate two CDFs still has a probability",
 
 test_that("a tiny but real CDF gap is not thrown away with the equal ones", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_likelihood()
 
   # At shape 10 with entry 0.025, the interval (0.05, 0.050000000000003555]
@@ -138,7 +141,6 @@ test_that("a tiny but real CDF gap is not thrown away with the equal ones", {
 
 test_that("an interval too narrow for both differences keeps its probability", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_likelihood()
 
   # One ULP wide, which is narrower than the case above. Here the CDF route
@@ -189,7 +191,6 @@ test_that("an interval too narrow for both differences keeps its probability", {
 
 test_that("the right tail keeps the accuracy the conditional form gave it", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_likelihood()
 
   # The reason the conditional-increment form was adopted. Forming the
@@ -214,7 +215,6 @@ test_that("the right tail keeps the accuracy the conditional form gave it", {
 
 test_that("the log-logistic interval is exact whatever its width or shape", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_likelihood()
 
   # Shape 1e-20 spreads the distribution so thin that (1, 100] holds 1e-20 of
@@ -242,7 +242,6 @@ test_that("the log-logistic interval is exact whatever its width or shape", {
 
 test_that("a few-ULP interval is resolved to rounding on every route", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   skip_if_not_installed("flexsurv")
   env <- expose_survival_likelihood()
 
@@ -309,7 +308,6 @@ test_that("a few-ULP interval is resolved to rounding on every route", {
 
 test_that("a wide interval with a small mass is integrated, not approximated", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_likelihood()
 
   # Small mass on a wide interval, where the density is anything but constant
@@ -337,7 +335,6 @@ test_that("a wide interval with a small mass is integrated, not approximated", {
 
 test_that("a deep right tail keeps the increment route", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_likelihood()
 
   # A log-normal with sigma 1e-4 has log S near -5e9 by t = 1e4. The
@@ -366,7 +363,6 @@ test_that("a deep right tail keeps the increment route", {
 
 test_that("a lower bound at the bottom of the double range does not overflow the ratio", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_likelihood()
 
   # log(u / l) was taken as log1p((u - l) / l), exact for close bounds and
@@ -399,7 +395,6 @@ test_that("a lower bound at the bottom of the double range does not overflow the
 
 test_that("an increment formed in a tail branch resolves its interval whatever its size", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_likelihood()
   nextafter <- function(t) t + 2^(floor(log2(abs(t))) - 52)
 
@@ -429,7 +424,6 @@ test_that("an increment formed in a tail branch resolves its interval whatever i
 
 test_that("the log-logistic conditional form does not cancel in a far tail", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_likelihood()
 
   # Entry and lower bound at 1, upper at e, eta -1e16: the unconditional log
@@ -481,7 +475,6 @@ test_that("the log-logistic conditional form does not cancel in a far tail", {
 
 test_that("a differenced increment of -Inf beside a finite log S(l) resolves too", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_likelihood()
   nextafter <- function(t) t + 2^(floor(log2(abs(t))) - 52)
 
@@ -498,7 +491,6 @@ test_that("a differenced increment of -Inf beside a finite log S(l) resolves too
 
 test_that("a Weibull cumulative-hazard difference is written from the upper bound", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_likelihood()
   nextafter <- function(t) t + 2^(floor(log2(abs(t))) - 52)
 
@@ -547,7 +539,6 @@ test_that("a Weibull cumulative-hazard difference is written from the upper boun
 
 test_that("a shape near the bottom of the double range keeps a tiny increment", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_likelihood()
   nextafter <- function(t) t + 2^(floor(log2(abs(t))) - 52)
 
@@ -573,7 +564,6 @@ test_that("a shape near the bottom of the double range keeps a tiny increment", 
 
 test_that("a differenced CDF is trusted by its cancellation error, not its finiteness", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_likelihood()
   previous <- function(t) t - 2^(floor(log2(abs(t))) - 52)
 
@@ -615,7 +605,6 @@ test_that("a differenced CDF is trusted by its cancellation error, not its finit
 
 test_that("quadrature nodes keep offsets below an ULP of the log time", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   skip_if_not_installed("flexsurv")
   env <- expose_survival_likelihood()
   nextafter <- function(t) t + 2^(floor(log2(abs(t))) - 52)
@@ -683,7 +672,6 @@ test_that("quadrature nodes keep offsets below an ULP of the log time", {
 
 test_that("an overflowing incomplete-gamma increment is an interval holding the rest", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   skip_if_not_installed("flexsurv")
   env <- expose_survival_likelihood()
 
@@ -706,7 +694,6 @@ test_that("an overflowing incomplete-gamma increment is an interval holding the 
 
 test_that("the quadrature resolves a layer next to either endpoint", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_likelihood()
 
   # Called directly, since the routes above keep these intervals off the
@@ -736,7 +723,6 @@ test_that("the quadrature resolves a layer next to either endpoint", {
 
 test_that("two log-logistic scores that straddle the center are taken directly", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_likelihood()
 
   # Entry and lower bound at equal rounded distances on opposite sides of
@@ -760,7 +746,6 @@ test_that("two log-logistic scores that straddle the center are taken directly",
 
 test_that("an overflowing cumulative-hazard endpoint does not lose a finite increment", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_likelihood()
 
   # A Gamma of shape 1 is an exponential: at eta = -710 its rate is

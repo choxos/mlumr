@@ -44,6 +44,10 @@ test_that("an unknown transition count stays unknown", {
   expect_identical(mlumr:::.transition_count(NA), NA_integer_)
   expect_identical(mlumr:::.transition_count(Inf), NA_integer_)
   expect_identical(mlumr:::.transition_count(-1), NA_integer_)
+  # as.integer() truncates, and 0 is the value that says the sampler behaved,
+  # so a fractional or out-of-range count is unknown rather than a clean bill.
+  expect_identical(mlumr:::.transition_count(0.5), NA_integer_)
+  expect_identical(mlumr:::.transition_count(2^31), NA_integer_)
   # the old reader mapped every one of those to zero, which reads as "clean"
   expect_identical(mlumr:::.diagnostic_count(NULL), 0)
   expect_identical(mlumr:::.diagnostic_count(NA), 0)
@@ -106,16 +110,6 @@ test_that("the missing-diagnostic message names outcomes, not a cause", {
   # reason among several and was being reported as "the usual" one.
   expect_false(any(grepl("usual reason", msg, fixed = TRUE)))
   expect_match(msg, "chains are stuck", fixed = TRUE, all = FALSE)
-})
-
-test_that("a fractional transition count is unknown, not zero", {
-  # as.integer() truncates, and 0 is precisely the value that says the sampler
-  # behaved, so the coercion turned an invalid count into a clean bill.
-  expect_true(is.na(.transition_count(0.5)))
-  expect_true(is.na(.transition_count(2^31)))
-  expect_equal(.transition_count(3), 3L)
-  expect_equal(.transition_count(0), 0L)
-  expect_true(is.na(.transition_count(-1)))
 })
 
 test_that("a summary with no Rhat column still prints all the way through", {

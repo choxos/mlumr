@@ -34,6 +34,7 @@
 ^mlumr_[0-9.]+\.tar\.gz$
 ^\.positai$
 ^tools$
+^tests/repo$
 ^reporting$
 ^app$
 ^data-raw$

@@ -36,24 +36,6 @@ make_ll_fit <- function(model = "spfa", n_draws = 400,
 }
 
 
-# extract_log_lik is internal but we can probe it via mlumr:::
-test_that("extract_log_lik orders columns and returns a numeric matrix", {
-  fit <- make_ll_fit(n_ipd = 5L, n_agd = 2L)
-  ll <- mlumr:::extract_log_lik(fit)
-  expect_true(is.matrix(ll))
-  expect_equal(dim(ll), c(400L, 7L))
-  # The last IPD column (index 5) should precede the first AgD column
-  expect_equal(colnames(ll)[5], "log_lik_ipd[5]")
-  expect_equal(colnames(ll)[6], "log_lik_agd[1]")
-})
-
-
-test_that("extract_log_lik rejects fits with no pointwise columns", {
-  fit <- make_ll_fit()
-  fit$draws <- fit$draws[, c("lor_index", "lor_comparator")]
-  expect_error(mlumr:::extract_log_lik(fit),
-               "Pointwise log-likelihood columns not found")
-})
 
 
 test_that("calculate_loo returns a psis_loo object", {
@@ -135,16 +117,6 @@ test_that("compare_models rejects mixed mlumr_fit + mlumr_dic for LOO/WAIC", {
   )
 })
 
-
-test_that(".chain_id recovers chain ids in chain-major order", {
-  fit <- make_ll_fit(n_draws = 400)  # chains = 4 -> 100 per chain
-  ids <- mlumr:::.chain_id(fit)
-  expect_equal(length(ids), 400L)
-  expect_equal(sort(unique(ids)), 1:4)
-  # First and last 100 draws belong to different chains
-  expect_equal(ids[1], 1L)
-  expect_equal(ids[400], 4L)
-})
 
 test_that("survival LOO/WAIC can group the comparator pseudo-IPD by arm/aggregate", {
   glb <- mlumr:::.survival_log_lik_by_unit

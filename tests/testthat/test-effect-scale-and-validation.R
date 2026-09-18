@@ -76,7 +76,6 @@ test_that("the native logit-normal parameterization rejects unusable sigma", {
 # ---- the second generalized-gamma auxiliary prior ---------------------------
 
 test_that("prior_aux2 reaches Stan and defaults to prior_aux", {
-  skip_if_not_installed("splines2")
   dat <- sim_survival_data(n_ipd = 40, n_agd = 50, n_int = 8)
   info <- mlumr:::.survival_distribution_info("gengamma")
   horizon <- min(max(dat$ipd$data$.time), max(dat$agd$pseudo_ipd$.time))
@@ -143,9 +142,7 @@ test_that("prediction times moved onto the fitted grid are reported", {
 
   # A time asked for twice is a duplicate request, not a grid approximation.
   # It no longer changes the row count either, so there is nothing to report.
-  msg_of <- function(times) {
-    capture.output(sel(times, grid), type = "message")
-  }
+  msg_of <- function(times) testthat::capture_messages(sel(times, grid))
   expect_length(msg_of(c(2, 2)), 0L)
   # Two DISTINCT times landing on one point does lose information, so that case
   # keeps the refit advice.
@@ -195,7 +192,6 @@ test_that("quantile columns are named by percentage and cannot collide", {
 
 test_that("prior_aux2 warns when the distribution has no second auxiliary", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   # Every survival fit defaulted and validated `prior_aux2`, but only the
   # generalized gamma has a parameter for it to reach. A Weibull fit accepted a
   # supplied value, applied it to nothing, and left no trace in prior_summary().
@@ -222,7 +218,6 @@ test_that("prior_aux2 warns when the distribution has no second auxiliary", {
 
 test_that("an ignored prior_aux2 is not validated", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   # An argument documented as ignored has to be ignored. A well-formed value in
   # a position it does not apply to was dropped quietly while a MALFORMED one in
   # the same position aborted the fit, so the same argument carried two
@@ -290,7 +285,6 @@ test_that("the agd_count guard only passes a genuinely expanded likelihood", {
 
 test_that("prior_aux2 reaches Stan through the public mlumr() call", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   # The builder test above calls `.build_stan_data_survival()` directly, which
   # cannot catch a break in the threading between mlumr(), the stan-data
   # assembler and the survival branch. This exercises the public path, which is

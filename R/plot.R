@@ -628,10 +628,9 @@ plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
   if (base %in% c("aux_val", "aux_val_cmp")) {
     return(list(prior = priors$aux, lower = 0))
   }
-  # The second generalized-gamma shape has its own prior; fall back only for
-  # fits stored before `aux2` existed.
+  # The second generalized-gamma shape has its own prior.
   if (base %in% c("aux2_val", "aux2_val_cmp")) {
-    return(list(prior = priors$aux2 %||% priors$aux, lower = 0))
+    return(list(prior = priors$aux2, lower = 0))
   }
   if (base == "sigma_smooth") return(list(prior = priors$smooth, lower = 0))
   res <- if (base %in% c("beta", "beta_index")) {

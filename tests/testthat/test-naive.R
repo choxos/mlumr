@@ -284,7 +284,6 @@ test_that("a zero-event poisson arm keeps its uncertainty", {
 })
 
 test_that("naive() rejects left/interval-censored survival data", {
-  skip_if_not_installed("survival")
   dat <- sim_survival_data(seed = 2026, n_ipd = 40, n_agd = 40, n_int = 8)
   res <- naive(dat)
   expect_s3_class(res, "mlumr_naive")

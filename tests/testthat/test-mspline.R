@@ -29,7 +29,6 @@ test_that("make_knots requires a survival mlumr_data object", {
 })
 
 test_that("M-spline basis has the expected number of coefficients", {
-  skip_if_not_installed("splines2")
   dat <- make_survival_data()
   kn <- make_knots(dat, n_knots = 5)
   spec3 <- mlumr:::.build_mspline_basis(kn, degree = 3)
@@ -39,7 +38,6 @@ test_that("M-spline basis has the expected number of coefficients", {
 })
 
 test_that("basis support is invariant to the time unit", {
-  skip_if_not_installed("splines2")
   # M-spline hazards scale as inverse time. On this scale every live column is
   # below 1e-12, but changing units cannot turn supported coefficients into an
   # identification failure.
@@ -52,33 +50,38 @@ test_that("basis support is invariant to the time unit", {
   }
 })
 
-expose_mspline_functions <- function() {
-  stan_dir <- system.file("stan", package = "mlumr")
-  skip_if(stan_dir == "" ||
-            !file.exists(file.path(stan_dir, "include",
-                                  "survival_mspline_functions.stan")),
-          "installed Stan include not found")
-  code <- paste(
-    "functions {",
-    "#include include/survival_functions.stan",
-    "#include include/survival_mspline_functions.stan",
-    "}",
-    sep = "\n"
-  )
-  env <- new.env()
-  suppressWarnings(
-    rstan::expose_stan_functions(
-      rstan::stanc(model_code = code, isystem = stan_dir,
-                   allow_undefined = TRUE),
-      env = env
+# One compilation per file: the environment is built on the first call and
+# reused by every test after it.
+expose_mspline_functions <- local({
+  cached <- NULL
+  function() {
+    if (!is.null(cached)) return(cached)
+    stan_dir <- system.file("stan", package = "mlumr")
+    include <- file.path(stan_dir, "include", "survival_mspline_functions.stan")
+    skip_if(stan_dir == "" || !file.exists(include),
+            "installed Stan include not found")
+    code <- paste(
+      "functions {",
+      "#include include/survival_functions.stan",
+      "#include include/survival_mspline_functions.stan",
+      "}",
+      sep = "\n"
     )
-  )
-  env
-}
+    env <- new.env()
+    suppressWarnings(
+      rstan::expose_stan_functions(
+        rstan::stanc(model_code = code, isystem = stan_dir,
+                     allow_undefined = TRUE),
+        env = env
+      )
+    )
+    cached <<- env
+    env
+  }
+})
 
 test_that("M-spline cumulative hazards combine on the log scale", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_mspline_functions()
 
   tiny <- exp(-720)
@@ -95,7 +98,6 @@ test_that("M-spline cumulative hazards combine on the log scale", {
 
 test_that("M-spline marginal log hazard retains the surviving profile scale", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_mspline_functions()
 
   # At this cumulative hazard the eta = 700 profile dominates survival. The
@@ -108,7 +110,6 @@ test_that("M-spline marginal log hazard retains the surviving profile scale", {
 })
 
 test_that("integrated basis is zero at the lower boundary and monotone", {
-  skip_if_not_installed("splines2")
   dat <- make_survival_data()
   kn <- make_knots(dat, n_knots = 5)
   spec <- mlumr:::.build_mspline_basis(kn, degree = 3)
@@ -125,7 +126,6 @@ test_that("integrated basis is zero at the lower boundary and monotone", {
 })
 
 test_that("M-spline basis evaluation handles empty and extrapolated times", {
-  skip_if_not_installed("splines2")
   dat <- make_survival_data()
   kn <- make_knots(dat, n_knots = 4)
   spec <- mlumr:::.build_mspline_basis(kn, degree = 3)
@@ -146,7 +146,6 @@ test_that("M-spline basis evaluation handles empty and extrapolated times", {
 })
 
 test_that("constant-hazard anchor centers on a flat baseline hazard", {
-  skip_if_not_installed("splines2")
   # Deliberately uneven knots, where equal simplex weights would NOT be flat.
   kn <- list(internal = c(0.5, 1.0, 1.8, 3.2, 5.5), boundary = c(0, 10))
   for (deg in c(3, 0)) {
@@ -169,7 +168,6 @@ test_that("constant-hazard anchor centers on a flat baseline hazard", {
 })
 
 test_that("RW1 weights are knot-spacing-aware (not all equal under uneven knots)", {
-  skip_if_not_installed("splines2")
   kn <- list(internal = c(0.5, 1.0, 1.8, 3.2, 5.5), boundary = c(0, 10))
   spec <- mlumr:::.build_mspline_basis(kn, degree = 3)
   weights <- mlumr:::.rw1_prior_weights(spec)
@@ -177,7 +175,6 @@ test_that("RW1 weights are knot-spacing-aware (not all equal under uneven knots)
 })
 
 test_that("M-spline build warns when prediction times extrapolate past boundary", {
-  skip_if_not_installed("splines2")
   dat <- make_survival_data()
   surv_info <- mlumr:::.survival_distribution_info("mspline")
   max_time <- max(c(dat$ipd$data$.time, dat$agd$pseudo_ipd$.time))

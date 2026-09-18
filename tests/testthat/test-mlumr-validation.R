@@ -209,7 +209,6 @@ test_that("multiple normal aggregate strata require outcome_n", {
 })
 
 test_that("flexible survival builders accept shared and per-study knots", {
-  skip_if_not_installed("splines2")
   dat <- sim_survival_data(n_ipd = 50, n_agd = 60, n_int = 8)
   info <- mlumr:::.survival_distribution_info("mspline")
   ipd <- dat$ipd$data

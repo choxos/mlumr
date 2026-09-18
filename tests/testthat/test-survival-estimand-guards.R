@@ -1,6 +1,5 @@
 # Regression tests for the survival estimand and identification guards.
 
-skip_if_not_installed("splines2")
 
 # ---- Pooled-basis fallback removed (no silent return to the ridge) ----------
 
@@ -264,7 +263,6 @@ test_that("the scalar label covers all three survival cases", {
 
 test_that("at_time rejects times that cannot be evaluated", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   dat <- sim_survival_data(seed = 2026, n_ipd = 30, n_agd = 30, n_int = 8)
   fit <- suppressWarnings(suppressMessages(
     fit_survival_test(dat, chains = 1, iter = 100, warmup = 50)))

@@ -17,25 +17,31 @@
 # The R mirror (.r_log_surv) is not a substitute: it goes through
 # pgamma(log.p = TRUE), which is a different numerical path from Stan's.
 
-expose_survival_functions <- function() {
-  stan_dir <- system.file("stan", package = "mlumr")
-  skip_if(stan_dir == "" ||
-            !file.exists(file.path(stan_dir, "include", "survival_functions.stan")),
-          "installed Stan include not found")
-  code <- "functions {\n#include include/survival_functions.stan\n}\n"
-  env <- new.env()
-  suppressWarnings(
-    rstan::expose_stan_functions(
-      rstan::stanc(model_code = code, isystem = stan_dir, allow_undefined = TRUE),
-      env = env
+# One compilation per file: the environment is built on the first call and
+# reused by every test after it.
+expose_survival_functions <- local({
+  cached <- NULL
+  function() {
+    if (!is.null(cached)) return(cached)
+    stan_dir <- system.file("stan", package = "mlumr")
+    skip_if(stan_dir == "" ||
+              !file.exists(file.path(stan_dir, "include", "survival_functions.stan")),
+            "installed Stan include not found")
+    code <- "functions {\n#include include/survival_functions.stan\n}\n"
+    env <- new.env()
+    suppressWarnings(
+      rstan::expose_stan_functions(
+        rstan::stanc(model_code = code, isystem = stan_dir, allow_undefined = TRUE),
+        env = env
+      )
     )
-  )
-  env
-}
+    cached <<- env
+    env
+  }
+})
 
 test_that("generalized-gamma log survival is finite far into the upper tail", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_functions()
 
   # aux2 = k = 1, aux = sigma = 1, eta = mu = 0  =>  unit-rate exponential.
@@ -53,7 +59,6 @@ test_that("generalized-gamma log survival is finite far into the upper tail", {
 
 test_that("generalized-gamma likelihood contributions stay finite in the tail", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_functions()
 
   # Right-censored at t = 1000: log S(1000) = -1000, not -Inf.
@@ -81,7 +86,6 @@ test_that("generalized-gamma likelihood contributions stay finite in the tail", 
 
 test_that("the log-scale upper incomplete gamma matches pgamma(log.p = TRUE)", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_functions()
 
   grid <- expand.grid(
@@ -101,7 +105,6 @@ test_that("the log-scale upper incomplete gamma matches pgamma(log.p = TRUE)", {
 
 test_that("generalized-gamma survival is continuous across the evaluation switch", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_functions()
 
   # Boost's gamma_q() is used at w <= k + max(1, sqrt(k)) and the continued
@@ -147,7 +150,6 @@ test_that("analytic log survival formulas stay finite under cancelling extremes"
 
 test_that("Stan analytic log survival formulas match their finite limits", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_functions()
 
   exp_tail <- env$log_surv_scalar(1L, exp(700), -1000, 1, 1)
@@ -180,7 +182,6 @@ test_that("Stan analytic log survival formulas match their finite limits", {
 
 test_that("parametric log hazards remain finite after tail cancellation", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_functions()
 
   expect_equal(env$log_haz_full(8L, exp(400), 0, 2, 1), 0,
@@ -212,7 +213,6 @@ test_that("parametric log hazards remain finite after tail cancellation", {
 
 test_that("generalized-gamma density combines its exponential term", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_functions()
 
   k <- 1e-6
@@ -227,7 +227,6 @@ test_that("generalized-gamma density combines its exponential term", {
 
 test_that("tail censoring probabilities use direct stable formulas", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_survival_functions()
 
   expect_equal(env$surv_ll_status(1L, 1, 0, 0, 2L, -800, 1, 1),

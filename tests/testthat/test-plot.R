@@ -14,7 +14,6 @@ test_that("classed result objects are still data.frames", {
 })
 
 test_that("plot.mlumr_marginal_effects returns a ggplot", {
-  skip_if_not_installed("ggplot2")
   me <- mlumr:::.mlumr_result(
     data.frame(variable = c("lor_index", "lor_comparator", "rr_index", "rr_comparator"),
                effect = c("LOR", "LOR", "RR", "RR"),
@@ -29,7 +28,6 @@ test_that("plot.mlumr_marginal_effects returns a ggplot", {
 })
 
 test_that("plot.mlumr_prediction handles curve and scalar types", {
-  skip_if_not_installed("ggplot2")
   surv <- mlumr:::.mlumr_result(
     data.frame(treatment = rep(c("A", "B"), each = 3), population = "Comparator",
                time = rep(1:3, 2), mean = c(.9, .7, .5, .95, .8, .6), sd = 0.05,
@@ -56,7 +54,6 @@ test_that("plot.mlumr_prediction handles curve and scalar types", {
 })
 
 test_that("plot.mlumr_conditional_effects renders, not just constructs", {
-  skip_if_not_installed("ggplot2")
   ce <- mlumr:::.mlumr_result(
     data.frame(profile = 1:3, effect = "HR", mean = c(.2, .4, .3), sd = .1,
                q2.5 = c(0, .2, .1), q50 = c(.2, .4, .3), q97.5 = c(.4, .6, .5)),
@@ -70,13 +67,10 @@ test_that("plot.mlumr_conditional_effects renders, not just constructs", {
 })
 
 test_that("plot_prior_posterior is exported and validates its input", {
-  expect_true(is.function(plot_prior_posterior))
   expect_error(plot_prior_posterior(list()), regexp = "mlumr_fit|combine_data|fit")
 })
 
 test_that("geom_km() rejects left/interval-censored data (right-censored only)", {
-  skip_if_not_installed("ggplot2")
-  skip_if_not_installed("survival")
   dat <- sim_survival_data(seed = 2026, n_ipd = 40, n_agd = 40, n_int = 8)
   expect_s3_class(geom_km(dat)[[1]], "ggproto")
   dat_left <- dat
@@ -110,8 +104,6 @@ test_that("geom_km() rejects left/interval-censored data (right-censored only)",
 }
 
 test_that("geom_km() examines only the cohorts it is asked to draw", {
-  skip_if_not_installed("ggplot2")
-  skip_if_not_installed("survival")
   # The censoring check ran on both cohorts before the selection was applied,
   # so an interval-censored index refused a comparator-only overlay although
   # the comparator was entirely eligible.
@@ -157,8 +149,6 @@ test_that("geom_km() examines only the cohorts it is asked to draw", {
 })
 
 test_that("a single selected cohort with a shared label keeps its own curve", {
-  skip_if_not_installed("ggplot2")
-  skip_if_not_installed("survival")
   # A single cohort is a single survfit curve, which carries no `strata`; the
   # labels have to come from the cohort itself. With the labels edited to
   # coincide, the index's interval event must still not stop the comparator.
@@ -179,7 +169,6 @@ test_that("a single selected cohort with a shared label keeps its own curve", {
 })
 
 test_that("mlumr_forest() returns a ggplot and validates its columns", {
-  skip_if_not_installed("ggplot2")
   forest_df <- data.frame(
     label = c("Naive", "STC", "ML-UMR"),
     est = c(0.20, 0.30, 0.25),
@@ -195,7 +184,6 @@ test_that("mlumr_forest() returns a ggplot and validates its columns", {
 })
 
 test_that("RMST prediction plots name the restriction time", {
-  skip_if_not_installed("ggplot2")
   # RMST(tau) = integral of S(t) over [0, tau]. A figure that omits tau reads as
   # though the quantity were horizon-independent, and two forests drawn to
   # different horizons look comparable when they are different estimands.
@@ -230,7 +218,6 @@ test_that("RMST prediction plots name the restriction time", {
 
 
 test_that("the conditional-effects forest reads its null line from the effect", {
-  skip_if_not_installed("ggplot2")
   mk <- function(effect) {
     mlumr:::.mlumr_result(
       data.frame(profile = 1:2, effect = effect, mean = c(1.2, 1.1),
@@ -255,7 +242,6 @@ test_that("the conditional-effects forest reads its null line from the effect", 
 })
 
 test_that("the marginal forest puts EXP_DELTA_ETA on a ratio axis", {
-  skip_if_not_installed("ggplot2")
   me <- mlumr:::.mlumr_result(
     data.frame(variable = c("tr_index", "rmst_diff_index"),
                effect = c("EXP_DELTA_ETA", "RMSTD"),
@@ -268,7 +254,6 @@ test_that("the marginal forest puts EXP_DELTA_ETA on a ratio axis", {
 })
 
 test_that("the interval label reports the coverage actually plotted", {
-  skip_if_not_installed("ggplot2")
   me <- function(lo, hi) {
     d <- data.frame(variable = "lor_index", effect = "LOR", population = "Index",
                     mean = 0.3, sd = 0.1)
@@ -282,7 +267,6 @@ test_that("the interval label reports the coverage actually plotted", {
 })
 
 test_that("an all-ratio forest is drawn on a log axis", {
-  skip_if_not_installed("ggplot2")
   mk <- function(effects) {
     mlumr:::.mlumr_result(
       data.frame(variable = paste0("v", seq_along(effects)), effect = effects,
@@ -302,7 +286,6 @@ test_that("an all-ratio forest is drawn on a log axis", {
 })
 
 test_that("a time-specific hazard ratio carries its evaluation time", {
-  skip_if_not_installed("ggplot2")
   mk <- function(at) {
     mlumr:::.mlumr_result(
       data.frame(variable = "hr_index", effect = "HR", population = "Index",
@@ -325,7 +308,6 @@ test_that("a time-specific hazard ratio carries its evaluation time", {
 })
 
 test_that("mlumr_forest keeps its null line on a log axis and in view", {
-  skip_if_not_installed("ggplot2")
   d <- data.frame(label = c("A", "B"), est = c(0.5, 2),
                   lo = c(0.25, 1), hi = c(1, 4))
   # ref_line defaulted to 0, which log10() sends to -Inf, so no null was drawn.
@@ -345,7 +327,6 @@ test_that("mlumr_forest keeps its null line on a log axis and in view", {
 })
 
 test_that("mlumr_forest refuses to put two effect scales on one axis", {
-  skip_if_not_installed("ggplot2")
   d <- data.frame(label = c("A", "B"), effect = c("LOG_HR", "HR"),
                   est = c(log(2), 2), lo = c(log(1.2), 1.2),
                   hi = c(log(3), 3))
@@ -353,7 +334,6 @@ test_that("mlumr_forest refuses to put two effect scales on one axis", {
 })
 
 test_that("plot_prior_posterior uses each parameter's own prior", {
-  skip_if_not_installed("ggplot2")
   fit <- structure(
     list(
       family = "normal", model = "spfa", link = "identity",
@@ -379,8 +359,6 @@ test_that("plot_prior_posterior uses each parameter's own prior", {
 })
 
 test_that("the observed KM curves stay in the population they were measured in", {
-  skip_if_not_installed("ggplot2")
-  skip_if_not_installed("survival")
   dat <- sim_survival_data(seed = 2026, n_ipd = 60, n_agd = 60, n_int = 8)
   layers <- geom_km(dat)
   km <- layers[[1]]$data
@@ -394,7 +372,6 @@ test_that("the observed KM curves stay in the population they were measured in",
 })
 
 test_that("beta_comparator falls back to the beta prior when the fit shares it", {
-  skip_if_not_installed("ggplot2")
   # The relaxed models apply the resolved `beta` prior to both coefficient
   # vectors unless the fit records a comparator-specific one, so refusing to
   # draw `beta_comparator[1]` would withhold a prior that is in fact known.
@@ -419,7 +396,6 @@ test_that("beta_comparator falls back to the beta prior when the fit shares it",
 })
 
 test_that("an all-ratio conditional forest is drawn on a log axis too", {
-  skip_if_not_installed("ggplot2")
   mk <- function(effect) {
     mlumr:::.mlumr_result(
       data.frame(profile = 1:2, effect = effect, mean = c(1.2, 1.1),
@@ -435,8 +411,6 @@ test_that("an all-ratio conditional forest is drawn on a log axis too", {
 })
 
 test_that("each observed KM curve starts at the origin", {
-  skip_if_not_installed("ggplot2")
-  skip_if_not_installed("survival")
   dat <- sim_survival_data(seed = 2026, n_ipd = 60, n_agd = 60, n_int = 8)
   km <- geom_km(dat)[[1]]$data
   # S(0) = 1 exactly, per arm. Previously supplied by survival::survfit0(),
@@ -452,8 +426,6 @@ test_that("each observed KM curve starts at the origin", {
 })
 
 test_that("shared treatment labels still give two observed curves", {
-  skip_if_not_installed("ggplot2")
-  skip_if_not_installed("survival")
   # combine_data() permits the IPD and AgD arms to carry the same treatment
   # name. Stratifying the KM on that label merged the two cohorts into one
   # curve and left a facet empty; the population is what identifies them.
@@ -467,7 +439,6 @@ test_that("shared treatment labels still give two observed curves", {
 })
 
 test_that("plot_prior_posterior refuses a parameter it cannot find", {
-  skip_if_not_installed("ggplot2")
   fit <- structure(
     list(
       family = "binomial", model = "spfa", link = "logit",
@@ -485,8 +456,6 @@ test_that("plot_prior_posterior refuses a parameter it cannot find", {
 })
 
 test_that("population selects the cohort when the labels cannot", {
-  skip_if_not_installed("ggplot2")
-  skip_if_not_installed("survival")
   dat <- sim_survival_data(seed = 2026, n_ipd = 60, n_agd = 60, n_int = 8)
   dat$comparator_treatment <- dat$index_treatment
 
@@ -503,7 +472,6 @@ test_that("population selects the cohort when the labels cannot", {
 })
 
 test_that("a prediction whose two series share a label is refused", {
-  skip_if_not_installed("ggplot2")
   # Colour and fill key on `treatment`, so identical labels put both arms of a
   # population in one ggplot2 group and the line connects alternating rows of
   # two different predictions.
@@ -516,7 +484,6 @@ test_that("a prediction whose two series share a label is refused", {
 })
 
 test_that("the prior/posterior window shows the prior, not just the posterior", {
-  skip_if_not_installed("ggplot2")
   # A posterior far narrower than its prior defined a window that omitted
   # almost all the prior mass, drawing it as an almost flat line.
   fit <- structure(
@@ -534,7 +501,6 @@ test_that("the prior/posterior window shows the prior, not just the posterior", 
 })
 
 test_that("a single-quantile summary plots as points", {
-  skip_if_not_installed("ggplot2")
   # marginal_effects(probs = 0.5) is a valid summary with no interval. The
   # other plot methods already degraded to points; this one errored.
   me <- mlumr:::.mlumr_result(
@@ -548,7 +514,6 @@ test_that("a single-quantile summary plots as points", {
 })
 
 test_that("a constrained prior below its bound still widens the window", {
-  skip_if_not_installed("ggplot2")
   # Clamping the unconditional quantiles reversed the range when both fell
   # below the bound, so the grid never widened to show the prior.
   r <- mlumr:::.prior_quantile_range(prior_normal(-5, 1), lower = 0)
@@ -562,8 +527,6 @@ test_that("a constrained prior below its bound still widens the window", {
 })
 
 test_that("the KM layer stays two curves without a population facet", {
-  skip_if_not_installed("ggplot2")
-  skip_if_not_installed("survival")
   dat <- sim_survival_data(seed = 2026, n_ipd = 60, n_agd = 60, n_int = 8)
   dat$comparator_treatment <- dat$index_treatment
   # Colour is the treatment label, so with one label both fitted curves fell

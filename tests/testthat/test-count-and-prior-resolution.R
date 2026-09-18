@@ -55,9 +55,10 @@ test_that("the second auxiliary resolves to its own prior", {
   expect_identical(.parameter_prior(obj, "aux2_val")$prior, second)
   expect_identical(.parameter_prior(obj, "aux2_val_cmp")$prior, second)
 
-  # A fit stored before `aux2` existed has only `aux`, and must still resolve.
-  legacy <- list(priors = list(aux = first))
-  expect_identical(.parameter_prior(legacy, "aux2_val")$prior, first)
+  # With no recorded second prior there is nothing to draw against; the
+  # first prior is not a stand-in for it.
+  no_second <- list(priors = list(aux = first))
+  expect_null(.parameter_prior(no_second, "aux2_val")$prior)
 
   # All four are positive-constrained.
   for (nm in c("aux_val", "aux_val_cmp", "aux2_val", "aux2_val_cmp")) {

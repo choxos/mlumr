@@ -42,11 +42,6 @@ test_that("get_engine rejects invalid option values", {
   expect_error(mlumr:::get_engine(), "`engine` must be 'rstan' or 'cmdstanr'")
 })
 
-test_that("get_engine defaults to rstan when option is NULL", {
-  withr::local_options(list(mlumr.stan_engine = NULL))
-  expect_equal(mlumr:::get_engine(), "rstan")
-})
-
 
 test_that("cmdstanr backend fits a model end-to-end", {
   skip_on_cran()

@@ -3,7 +3,6 @@
 
 test_that("mlumr fits SPFA model", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   set.seed(2026)
   n <- 100
@@ -59,7 +58,6 @@ test_that("mlumr fits SPFA model", {
 
 test_that("mlumr fits Relaxed model", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   set.seed(2026)
   n <- 100
@@ -125,7 +123,6 @@ test_that("mlumr rejects data without integration points", {
 
 test_that("mlumr fits Normal SPFA model", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   set.seed(2026)
   n <- 100
@@ -177,7 +174,6 @@ test_that("mlumr fits Normal SPFA model", {
 
 test_that("mlumr fits Normal Relaxed model", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   set.seed(2026)
   n <- 100
@@ -216,7 +212,6 @@ test_that("mlumr fits Normal Relaxed model", {
 
 test_that("mlumr fits Poisson SPFA model", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   set.seed(2026)
   n <- 100
@@ -268,7 +263,6 @@ test_that("mlumr fits Poisson SPFA model", {
 
 test_that("mlumr fits Poisson Relaxed model", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   set.seed(2026)
   n <- 100

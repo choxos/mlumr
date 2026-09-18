@@ -78,6 +78,8 @@ test_that("extract_log_lik orders shuffled double-digit columns", {
 
   ll <- mlumr:::extract_log_lik(fit)
 
+  expect_true(is.matrix(ll))
+  expect_equal(dim(ll), c(100L, 14L))
   expect_equal(colnames(ll)[1], "log_lik_ipd[1]")
   expect_equal(colnames(ll)[10], "log_lik_ipd[10]")
   expect_equal(colnames(ll)[13], "log_lik_agd[1]")

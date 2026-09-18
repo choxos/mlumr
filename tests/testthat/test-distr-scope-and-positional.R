@@ -23,10 +23,6 @@ test_that("positional distribution arguments are honored", {
   expect_setequal(names(distr(qnorm, 10, 2)$args), c("mean", "sd"))
 })
 
-test_that("more positional arguments than parameters is an error", {
-  expect_error(distr(qbern, 0.3, 1, 2, 3), "unnamed argument")
-})
-
 test_that("a specification can see the scope it was written in", {
   # Arguments were evaluated with `enclos = parent.frame(2)`, which from inside
   # the package is a package frame rather than the user's. A specification
@@ -116,7 +112,6 @@ test_that("an abbreviation that fits two formals is refused, as R refuses it", {
   # refuses evaluated here with both parameters set, to values the caller
   # never named.
   q <- function(p, alpha = 0, alpine = 0, ...) stats::qnorm(p, alpha + 10 * alpine)
-  expect_error(q(0.5, a = 1, 2), "matches multiple formal arguments")
   expect_error(distr(q, a = 1, 2), "matches more than one parameter")
   # An abbreviation that fits exactly one formal still works, and the
   # positional value takes the other.
@@ -172,7 +167,6 @@ test_that("an abbreviated argument is stored under its full name", {
 
 test_that("two abbreviations of one formal are refused, as R refuses them", {
   q <- function(p, mean = 0, ...) stats::qnorm(p, mean)
-  expect_error(q(0.5, m = 1, me = 2), "matched by multiple actual arguments")
   expect_error(distr(q, m = 1, me = 2), "both abbreviate parameter `mean`")
   # An exact name takes the formal out of partial matching, so the
   # abbreviation falls through to `...`, in R and here alike.

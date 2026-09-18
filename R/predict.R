@@ -1185,8 +1185,7 @@ marginal_effects <- function(object,
 #'
 #' `scoef` is a `[n_scoef, n_strata]` matrix in Stan, so the draws are named
 #' `scoef[j,s]`. Stratum 1 is the index study and stratum `n_strata` is the
-#' comparator, which coincide when the baseline is shared. Older fits stored a
-#' plain vector named `scoef[j]`; those are still readable.
+#' comparator, which coincide when the baseline is shared.
 #' @noRd
 .surv_scoef_draws <- function(object, treatment = c("index", "comparator")) {
   treatment <- match.arg(treatment)
@@ -1194,15 +1193,13 @@ marginal_effects <- function(object,
   n_scoef <- object$stan_data$n_scoef
   n_strata <- object$stan_data$n_strata %||% 1L
   j <- seq_len(n_scoef)
-  # Three layouts, newest first:
+  # Two layouts, newest first:
   #   scoef_idx[j] / scoef_cmp[j]  the named per-treatment views (always emitted)
   #   scoef[j,s]                   the underlying matrix
-  #   scoef[j]                     fits made before aux_by existed
   view <- if (identical(treatment, "index")) "scoef_idx" else "scoef_cmp"
   s <- if (identical(treatment, "index")) 1L else n_strata
   for (nm in list(paste0(view, "[", j, "]"),
-                  paste0("scoef[", j, ",", s, "]"),
-                  paste0("scoef[", j, "]"))) {
+                  paste0("scoef[", j, ",", s, "]"))) {
     if (all(nm %in% names(draws))) return(as.matrix(draws[, nm, drop = FALSE]))
   }
   stop("Could not find spline coefficient draws for the ", treatment,

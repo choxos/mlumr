@@ -2,7 +2,6 @@
 
 test_that("mlumr fits a Weibull PH survival SPFA model", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   dat <- sim_survival_data(seed = 2026)
   fit <- fit_survival_test(dat, model = "spfa", distribution = "weibull")
@@ -19,7 +18,6 @@ test_that("mlumr fits a Weibull PH survival SPFA model", {
 
 test_that("survival SPFA recovers the known log hazard ratio at its stated time", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   dat <- sim_survival_data(seed = 2026, loghr = -0.5, n_ipd = 250, n_agd = 300)
   # `aux_by = "none"` is load-bearing, not tidiness. Under the default
@@ -47,7 +45,6 @@ test_that("survival SPFA recovers the known log hazard ratio at its stated time"
 
 test_that("survival relaxed model and exponential/gengamma run", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   dat <- sim_survival_data(seed = 2026)
   fit_rel <- fit_survival_test(dat, model = "relaxed", distribution = "weibull")
@@ -67,8 +64,6 @@ test_that("survival relaxed model and exponential/gengamma run", {
 
 test_that("M-spline and piecewise-exponential survival models fit", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
-  skip_if_not_installed("splines2")
 
   dat <- sim_survival_data(seed = 2026)
   fit_ms <- fit_survival_test(dat, distribution = "mspline", n_knots = 4)
@@ -85,7 +80,6 @@ test_that("M-spline and piecewise-exponential survival models fit", {
 
 test_that("survival LOO consumes the pointwise log-likelihood", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   skip_if_not_installed("loo")
 
   dat <- sim_survival_data(seed = 2026)
@@ -97,7 +91,6 @@ test_that("survival LOO consumes the pointwise log-likelihood", {
 
 test_that("a transported baseline shape is disclosed for loghr as well", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   # conditional_effects(effect = "hr") refuses under study-specific shapes and
   # sends the reader to predict(type = "loghr"). That made loghr the one output

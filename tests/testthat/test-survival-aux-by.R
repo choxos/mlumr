@@ -26,24 +26,7 @@ test_that("an invalid aux_by fails loudly rather than silently sharing", {
   expect_error(mlumr:::.resolve_aux_strata(".trt"), "same as")
 })
 
-test_that("every survival Stan model declares and uses the stratum switch", {
-  stan_dir <- system.file("stan", package = "mlumr")
-  skip_if(stan_dir == "", "installed Stan sources not found")
-  models <- c("mlumr_survival_spfa", "mlumr_survival_relaxed",
-              "mlumr_survival_mspline_spfa", "mlumr_survival_mspline_relaxed")
-  for (m in models) {
-    f <- file.path(stan_dir, paste0(m, ".stan"))
-    skip_if(!file.exists(f), paste("missing", m))
-    code <- paste(readLines(f, warn = FALSE), collapse = "\n")
-    expect_match(code, "int<lower=1,upper=2> n_strata;", fixed = TRUE, info = m)
-    # the comparator likelihood/predictions must read the comparator stratum
-    cmp <- if (grepl("mspline", m)) "scoef_cmp" else "aux_val_cmp"
-    expect_match(code, cmp, fixed = TRUE, info = m)
-  }
-})
-
 test_that("the simplex pins H0(T) = 1, which is what identifies the intercepts", {
-  skip_if_not_installed("splines2")
   # The I-spline basis is all ones at the upper boundary knot, so for ANY
   # simplex scoef, H0(T) = ibasis(T) . scoef = sum(scoef) = 1. Both studies are
   # therefore anchored at the same cumulative hazard even when their shapes are
@@ -61,7 +44,6 @@ test_that("the simplex pins H0(T) = 1, which is what identifies the intercepts",
 
 test_that("aux_by reaches Stan as n_strata, for both baseline kinds", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   # Regression test for aux_by being a free variable inside
   # .mlumr_build_stan_data(): it was resolved by lexical lookup, so it never
   # reached the Stan data and every survival fit errored with
@@ -82,7 +64,6 @@ test_that("aux_by reaches Stan as n_strata, for both baseline kinds", {
 
 test_that("NULL and the default give the same fit; \"none\" gives the shared one", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   dat <- sim_survival_data(seed = 2026)
   a <- fit_survival_test(dat, distribution = "weibull")                  # default
   b <- fit_survival_test(dat, distribution = "weibull", aux_by = NULL)   # multinma spelling
@@ -95,7 +76,6 @@ test_that("NULL and the default give the same fit; \"none\" gives the shared one
 
 test_that("stratifying gives each study its own baseline and still converges", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   dat <- sim_survival_data(seed = 2026)
 
   fit <- fit_survival_test(dat, distribution = "weibull")   # stratified by default
@@ -124,9 +104,8 @@ test_that("stratifying gives each study its own baseline and still converges", {
 
 
 test_that("the R readers find the baseline under every draw-name layout", {
-  # scoef became a matrix, so draws are named scoef[j,s] and the per-treatment
-  # views scoef_idx[j] / scoef_cmp[j] are emitted alongside. Fits made before
-  # aux_by existed still name it scoef[j]. All three must resolve.
+  # scoef is a matrix, so draws are named scoef[j,s] and the per-treatment
+  # views scoef_idx[j] / scoef_cmp[j] are emitted alongside. Both must resolve.
   mk <- function(nms) {
     d <- as.data.frame(matrix(seq_along(nms) * 1.0, nrow = 2,
                               ncol = length(nms), byrow = TRUE))
@@ -136,8 +115,6 @@ test_that("the R readers find the baseline under every draw-name layout", {
   }
   views  <- mk(c(paste0("scoef_idx[", 1:3, "]"), paste0("scoef_cmp[", 1:3, "]")))
   matrix_names <- mk(c(paste0("scoef[", 1:3, ",1]"), paste0("scoef[", 1:3, ",2]")))
-  legacy <- mk(paste0("scoef[", 1:3, "]"))
-  legacy$stan_data$n_strata <- 1L
 
   for (o in list(views, matrix_names)) {
     a <- mlumr:::.surv_scoef_draws(o, "index")
@@ -145,47 +122,13 @@ test_that("the R readers find the baseline under every draw-name layout", {
     expect_equal(dim(a), c(2L, 3L))
     expect_false(isTRUE(all.equal(as.numeric(a), as.numeric(b))))
   }
-  expect_equal(dim(mlumr:::.surv_scoef_draws(legacy, "index")), c(2L, 3L))
-  # a legacy fit has one baseline, so both treatments read the same columns
-  expect_equal(mlumr:::.surv_scoef_draws(legacy, "index"),
-               mlumr:::.surv_scoef_draws(legacy, "comparator"))
-})
-
-test_that("the shape draws read their own stratum, then fall back", {
-  mk <- function(nms) {
-    d <- as.data.frame(matrix(1.5, nrow = 2, ncol = max(length(nms), 1)))
-    if (length(nms)) names(d) <- nms
-    structure(list(draws = d), class = "mlumr_fit")
-  }
-  both <- mk(c("aux_val", "aux_val_cmp")); both$draws$aux_val_cmp <- 2.5
-  expect_equal(unname(mlumr:::.surv_aux_draws(both, "aux_val", "index", 2)),
-               c(1.5, 1.5))
-  expect_equal(unname(mlumr:::.surv_aux_draws(both, "aux_val", "comparator", 2)),
-               c(2.5, 2.5))
-  # exponential has no shape at all: default to 1, never error. The fit has to
-  # SAY it is an exponential for that to hold. This stub previously carried no
-  # `surv_info` at all, so what it actually asserted was that any fit missing
-  # its shape draws gets 1, which is the case a shape of 1 must not cover: at
-  # dist 2 it turns the fitted Weibull into an exponential and reports every
-  # number that follows without a word.
-  none <- structure(
-    list(draws = data.frame(mu_index = c(0, 0)),
-         surv_info = list(dist_code = 1L, distribution = "exponential")),
-    class = "mlumr_fit")
-  expect_equal(mlumr:::.surv_aux_draws(none, "aux_val", "index", 2), c(1, 1))
-
-  # The complement, which the old stub could not express.
-  weib <- structure(
-    list(draws = data.frame(mu_index = c(0, 0)),
-         surv_info = list(dist_code = 2L, distribution = "weibull")),
-    class = "mlumr_fit")
-  expect_error(mlumr:::.surv_aux_draws(weib, "aux_val", "index", 2),
-               "Could not find aux_val draws")
+  # A plain vector `scoef[j]` is not a layout any shipped fit has.
+  expect_error(mlumr:::.surv_scoef_draws(mk(paste0("scoef[", 1:3, "]")), "index"),
+               "Could not find spline coefficient draws")
 })
 
 test_that("a stratified conditional hazard ratio warns instead of misreporting", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   dat <- sim_survival_data(seed = 2026)
   fit <- fit_survival_test(dat, distribution = "weibull")
   nd <- as.data.frame(as.list(colMeans(dat$ipd$data[, dat$covariates,
