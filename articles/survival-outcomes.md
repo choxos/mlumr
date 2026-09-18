@@ -143,9 +143,6 @@ and sex.
 
 ``` r
 
-library(mlumr)
-library(ggplot2)
-
 data("ndmm_ipd")        # bundled with mlumr (copied from multinma, GPL-3)
 data("ndmm_agd")        # reconstructed pseudo-IPD (KM)
 data("ndmm_agd_covs")   # covariate moments for the AgD arm

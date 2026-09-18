@@ -185,10 +185,7 @@ family in mlumr precisely because no aggregation bias arises from a
 nonlinear link (contrast the log odds ratio in
 <code><a href="../articles/binary-outcomes.html">vignette("binary-outcomes")</a></code>).</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/choxos/mlumr" class="external-link">mlumr</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"shoulder_ipd"</span><span class="op">)</span>     <span class="co"># index IPD (ASD), bundled with mlumr</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"shoulder_ipd"</span><span class="op">)</span>     <span class="co"># index IPD (ASD), bundled with mlumr</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"shoulder_agd"</span><span class="op">)</span>     <span class="co"># comparator AgD (ET)</span></span>
 <span></span>
 <span><span class="va">covariates</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age"</span>, <span class="st">"baseline_vas"</span><span class="op">)</span>   <span class="co"># baseline pain is the key prognostic</span></span></code></pre></div>

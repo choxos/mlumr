@@ -82,9 +82,6 @@ The population-standardized contrast is the **rate ratio**
 
 ``` r
 
-library(mlumr)
-library(ggplot2)
-
 data("caries_ipd")     # index IPD (SDF), bundled with mlumr
 data("caries_agd")     # comparator AgD (NSF)
 

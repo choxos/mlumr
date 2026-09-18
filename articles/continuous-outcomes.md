@@ -89,9 +89,6 @@ ratio in
 
 ``` r
 
-library(mlumr)
-library(ggplot2)
-
 data("shoulder_ipd")     # index IPD (ASD), bundled with mlumr
 data("shoulder_agd")     # comparator AgD (ET)
 

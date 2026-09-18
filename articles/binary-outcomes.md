@@ -108,9 +108,6 @@ regresses on the IPD alone.)
 
 ``` r
 
-library(mlumr)
-library(ggplot2)
-
 # IPD + AgD bundled with mlumr (copied from multinma's plaque_psoriasis, GPL-3).
 data("psoriasis_ipd")
 data("psoriasis_agd")

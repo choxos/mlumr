@@ -179,10 +179,7 @@ term).</li>
 ratio</strong> <span class="math inline">\mathrm{RR}=\bar\lambda_{\text{index}}/\bar\lambda_{\text{comparator}}</span>
 (null = 1), reported in both populations.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/choxos/mlumr" class="external-link">mlumr</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"caries_ipd"</span><span class="op">)</span>     <span class="co"># index IPD (SDF), bundled with mlumr</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"caries_ipd"</span><span class="op">)</span>     <span class="co"># index IPD (SDF), bundled with mlumr</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"caries_agd"</span><span class="op">)</span>     <span class="co"># comparator AgD (NSF)</span></span>
 <span></span>
 <span><span class="va">covariates</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age"</span>, <span class="st">"log_cfu"</span><span class="op">)</span>   <span class="co"># age carries the prognostic signal here</span></span>

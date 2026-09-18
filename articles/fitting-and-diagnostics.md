@@ -35,7 +35,6 @@ preparation is covered in
 
 ``` r
 
-library(mlumr)
 data("psoriasis_ipd")   # bundled with mlumr (from multinma, GPL-3)
 data("psoriasis_agd")
 
