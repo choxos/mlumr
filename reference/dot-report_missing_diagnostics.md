@@ -1,8 +1,7 @@
 # Say how many parameters had no diagnostic, rather than dropping them
 
-A partly-missing column checked on its present entries alone reads
-exactly like a clean one. This follows the tail-ESS block below, which
-already counts and reports what it could not check.
+Names the outcome, not a cause: a missing diagnostic is as consistent
+with a constant quantity as with stuck chains or non-finite draws.
 
 ## Usage
 
@@ -33,13 +32,3 @@ already counts and reports what it could not check.
 ## Value
 
 `NULL`, invisibly.
-
-## Details
-
-The message names the OUTCOME and not a cause. A missing diagnostic has
-several, and nothing here has looked at the draws to tell them apart: a
-quantity that is constant by construction has no Rhat, and neither does
-one whose chains are each stuck at a different constant, or whose draws
-are not finite. Calling the benign one "the usual reason" turned an
-unchecked parameter into a reassurance. Which parameters they were is
-something this does know, so it says that instead.

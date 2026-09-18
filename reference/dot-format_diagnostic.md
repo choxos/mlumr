@@ -1,8 +1,6 @@
 # Format a diagnostic for a message without turning Inf into a number
 
-`sprintf("%.3f", Inf)` prints "Inf", which is right, but the same format
-applied to a very large finite value prints a wall of digits. Handle the
-non-finite case by name.
+Four significant digits, with a non-finite value printed by name.
 
 ## Usage
 

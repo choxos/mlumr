@@ -111,22 +111,15 @@ model rather than a log-likelihood matrix, so <code>moment_match</code> is refus
     </div>
     <div class="section level2">
     <h2 id="note">Note<a class="anchor" aria-label="anchor" href="#note"></a></h2>
-    <p><strong>AgD rows are treated as independent observations.</strong> Each AgD row
-contributes one column to the pointwise <code>log_lik</code> matrix. If two or
-more AgD rows come from the same study (e.g. subgroup summaries
-within a single trial) the PSIS-LOO approximation does not account
-for the within-study clustering; effective sample sizes are
-inflated and Pareto-k warnings are understated. For clustered AgD,
-corroborate with <code><a href="prior_sensitivity.html">prior_sensitivity()</a></code> or refit omitting suspect
-rows to check the influence on the posterior.</p>
-<p><strong>Survival fits.</strong> The comparator AgD enters as reconstructed pseudo-IPD, so
-each AgD pointwise unit is a single reconstructed pseudo-individual, not an
-aggregate row or the comparator trial. Survival LOO/WAIC therefore measure
-pseudo-individual-level predictive fit and are optimistic relative to
-leaving out the comparator arm/trial; treat them as a rough check, not a
-decisive model-selection criterion. Set <code>survival_unit = "arm"</code> or
-<code>"aggregate"</code> to instead hold out whole comparator arms / the external
-evidence as single units.</p>
+    <p><strong>AgD rows are treated as independent observations.</strong> Subgroup rows from
+one study share no clustering term, so their effective sample sizes are
+inflated and Pareto-k warnings understated; corroborate with
+<code><a href="prior_sensitivity.html">prior_sensitivity()</a></code> or by refitting without suspect rows.</p>
+<p><strong>Survival fits.</strong> The comparator enters as reconstructed pseudo-IPD, so
+the default pointwise unit is one pseudo-individual and the criteria are
+optimistic relative to leaving out the comparator arm. Set
+<code>survival_unit = "arm"</code> or <code>"aggregate"</code> to hold out whole comparator
+arms or all of the external evidence instead.</p>
     </div>
 
     <div class="section level2">

@@ -1,14 +1,12 @@
 # Knot placement from a single set of survival times
 
-The computational core of
+The core of
 [`make_knots()`](https://choxos.github.io/mlumr/reference/make_knots.md),
-factored out so the same rule can be applied either to the pooled times
-(one shared baseline) or to each study's own times (`aux_by = ".study"`,
-one baseline per study). Per-study boundary knots are what multinma's
-default `type = "quantile"` does, and they are what keeps a stratified
-baseline identified: a basis function with no support over a study's
-observed period leaves that study's spline scale free to trade off
-against its intercept.
+applied either to the pooled times (one shared baseline) or to each
+study's own times (`aux_by = ".study"`). Per-study boundary knots keep a
+stratified baseline identified: a basis function with no support over a
+study's observed period leaves its spline scale free to trade off
+against the intercept.
 
 ## Usage
 

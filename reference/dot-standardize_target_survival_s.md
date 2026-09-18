@@ -26,15 +26,7 @@ list of two per-draw vectors named the same way.
 
 ## Details
 
-The `share` element judges how well `times` resolves the curves that
-were averaged, one value per draw and treatment: the decay that the
-profiles lose inside their own steepest grid interval, summed over
-profiles, as a fraction of the decay they lose in total. It is measured
-on each profile's curve before the averaging, because the average can
-look resolved when none of its parts is. Two profiles that each collapse
-inside a different interval average to a curve that loses half its decay
-in each, under any threshold, while the trapezoid rule is linear and
-overstates the average RMST by exactly the mean of what it overstates
-for the two. With one profile the share is the one
+The `share` element is the resolution share of
 [`.decay_share()`](https://choxos.github.io/mlumr/reference/dot-decay_share.md)
-computes.
+computed from the decay pieces summed over the profiles, not from the
+averaged curve: the average can look resolved when none of its parts is.

@@ -69,11 +69,7 @@
 
 
 <dl><dt id="arg-diff">diff<a class="anchor" aria-label="anchor" href="#arg-diff"></a></dt>
-<dd><p>The pair table from <code><a href="dot-int_cor_stats.html">.int_cor_stats()</a></code>. Its members are read
-from the <code>covariate_1</code> and <code>covariate_2</code> columns, never from the <code>pair</code>
-label, which is presentation and does not identify them: a covariate
-named <code>a~b</code> makes the label <code>a~b~c</code>, and a name that is a substring of
-another would match the wrong margin besides.</p></dd>
+<dd><p>The pair table from <code><a href="dot-int_cor_stats.html">.int_cor_stats()</a></code>.</p></dd>
 
 
 <dt id="arg-stats">stats<a class="anchor" aria-label="anchor" href="#arg-stats"></a></dt>
@@ -86,21 +82,12 @@ another would match the wrong margin besides.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>List with <code>expected</code>, the number of pairs that have a correlation
-to realize; <code>measured</code>, how many of those had a finite correlation on
-the doubled grid, which is what the target comparison reads;
-<code>measured_resolution</code>, how many had one on both grids, which is what
-the current-versus-doubled comparison reads; <code>omitted</code>, a data frame
-naming the expected pairs that fell short of either, with a <code>reason</code>,
-<code>"constant_on_grid"</code> when the doubled grid did not vary a margin and
-<code>"constant_on_current_grid"</code> when only the current one did not, both
-resolution failures a larger grid may or may not repair; and
-<code>not_applicable</code>, the pairs in which a margin is declared with no
-variance and so has no correlation to realize at any resolution.
-Those are outside <code>expected</code>, so a subgroup row with an all-male
-membership does not keep every verdict at <code>partial</code> forever; and
-<code>applicable</code>, the logical over the rows of <code>diff</code> that the maxima are
-taken over.</p>
+    <p>List with <code>expected</code> (pairs that have a correlation to realize),
+<code>measured</code> and <code>measured_resolution</code> (how many had a finite correlation on
+the doubled grid, and on both grids), <code>omitted</code> (the expected pairs that
+fell short, with a reason), <code>not_applicable</code> (pairs in which a margin is
+declared with no variance) and <code>applicable</code>, the logical vector the
+maxima are taken over.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

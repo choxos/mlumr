@@ -90,99 +90,25 @@ internal column names cannot be used as column names in `data`.
 
 ## Details
 
-**Rows must partition the aggregate sample, not overlap it.** Every row
-contributes its own factor to the aggregate likelihood, which multiplies
-them as if they came from disjoint sets of patients. That is correct
-when the rows are one arm, or a set of mutually exclusive, jointly
-defined subgroup cells (for example the four cells of sex crossed with
-prior therapy). It is wrong when a publication reports several
-*overlapping* subgroup tables over the same participants, as when age
-bands, sex, and disease severity are each tabulated separately.
-Supplying those together counts every patient once per table, and the
-posterior becomes correspondingly overconfident: the intervals shrink
-because the model believes it has seen several independent studies.
-Nothing in the data identifies the overlap, so `set_agd()` cannot detect
-this and does not try. Choose one partition of the comparator sample and
-use only its rows. See
+**Rows must partition the aggregate sample.** Each row contributes its
+own likelihood factor, as if the rows were disjoint sets of patients.
+One arm, or one set of mutually exclusive subgroup cells, is right;
+several overlapping subgroup tables of the same participants count every
+patient once per table and overstate the precision. Nothing in the data
+reveals the overlap, so it is not checked. See
 [`vignette("subgroup-identification", "mlumr")`](https://choxos.github.io/mlumr/articles/subgroup-identification.md)
-for how many such rows the relaxed model needs.
+for how many rows the relaxed model needs.
 
-**Scale assumptions for `family = "normal"`.** The AgD likelihood is
-`y_agd ~ normal(E[exp(eta)], se_agd)` under `link = "log"` and
-`y_agd ~ normal(E[eta], se_agd)` under `link = "identity"`. In both
-cases `outcome_mean` and `outcome_se` must be on the **arithmetic
-(original, untransformed) scale**.
-
-A geometric mean is ALREADY on the original measurement scale, and it is
-a different quantity from the arithmetic mean: exponentiating a
-log-scale mean returns the geometric mean, not the arithmetic one. For a
-lognormal outcome with log-scale mean 0 and log-scale SD 1 the geometric
-mean is 1 while the arithmetic mean is `exp(0.5) = 1.65`, so
-substituting one for the other is a 39% error in the reported level. No
-amount of standard-error propagation repairs that: the delta method
-rescales uncertainty about a transformation, it does not convert one
-estimand into another.
-
-So do not "back-transform and apply the delta method". Ask for, or
-compute from the individual data, the arithmetic mean and its standard
-error. If you have only log-scale summaries and are willing to assume
-the outcome is lognormal, the arithmetic mean is `exp(m + s^2 / 2)`
-where `m` is the log-scale mean and `s` is the log-scale **SD** of the
-outcome, not the standard error of `m`; propagate uncertainty in `m` and
-`s` jointly through that expression. A change score on a transformed
-scale generally cannot be reversed from a published mean alone at all.
-Passing log-scale or geometric summaries silently misspecifies the
-likelihood and biases the posterior.
-
-**Scale assumptions for `family = "poisson"`.** `outcome_r` is the total
-count in each AgD row and `outcome_E` is the total person-time (or other
-exposure). The Stan likelihood uses `log(E_agd)` as an offset, so rates
-are modeled on the log scale regardless of how `outcome_r` is tabulated.
-
-**What the aggregate Poisson row assumes about exposure.** The
-likelihood for a row is the total exposure multiplied by the rate
-averaged over the covariate distribution you supply, while the quantity
-it stands in for is the sum over people of each person's own exposure
-times that person's rate. The two agree exactly when the supplied
-distribution is the one **weighted by exposure**, whatever the
-dependence between exposure and the covariates: two people with rates 1
-and 3 and exposures 9 and 1 contribute `9 * 1 + 1 * 3 = 12` expected
-events, and `10 * (0.9 * 1 + 0.1 * 3)` is 12 as well. With the
-person-level distribution instead, the same row gives a total exposure
-of 10 times the mean rate of 2, which is 20. Person-level moments
-reproduce the sum only when exposure carries no information about the
-covariate-specific rate within the row.
-
-The assumption is therefore about person-time, not about people, and it
-is about the whole distribution the rate is averaged over, not only the
-moments: the marginal shape that each
-[`distr()`](https://choxos.github.io/mlumr/reference/distr.md) in
-[`add_integration()`](https://choxos.github.io/mlumr/reference/add_integration.md)
-assumes around `cov_means` and `cov_sds`, and with two or more
-covariates the correlation it combines them with, whose default is
-estimated from the index sample. All of it has to describe the
-covariates weighted by exposure. Exposure can leave every mean and
-standard deviation where it was and still change a covariate's skewness
-or tails, or how the covariates go together when it varies with their
-combination rather than with each on its own, and the averaged rate
-moves with any of these. Person-level summaries stand in for
-exposure-weighted ones when exposure carries no information about the
-covariate-specific rate within the row. Mean exposure that does not vary
-with the covariates is a sufficient condition that does not depend on
-the model, because it makes the two distributions coincide, shape and
-dependence included, and equal individual exposure is its simplest case.
-Published subgroup tables almost always report person-level moments, and
-those do not identify the person-time distribution. Where follow-up
-varies with a prognostic covariate, prefer rows defined so that exposure
-is close to constant inside each one, and say which reading the reported
-moments support. Weighting across rows does not repair a dependence
-inside a row, and nothing in the supplied summaries reveals it, so this
-is not checked.
-
-**Scale assumptions for `family = "binomial"`.** `outcome_r` /
-`outcome_n` are counts of events and trials. The log-odds (or probit /
-cloglog under alternative links) are formed from
-`outcome_r / outcome_n`, so no scale conversion is required.
+**Scales.** For `family = "normal"`, `outcome_mean` and `outcome_se` are
+on the arithmetic scale under both links; a geometric mean or a
+log-scale summary is a different quantity and cannot be converted by the
+delta method. For `family = "poisson"`, `outcome_r` is the total count
+and `outcome_E` the total person-time, and the covariate distribution
+the rate is averaged over has to describe the covariates weighted by
+exposure; person-level moments stand in for that only when exposure
+carries no information about the rate within the row. For
+`family = "binomial"`, `outcome_r` and `outcome_n` are counts of events
+and trials.
 
 ## Examples
 

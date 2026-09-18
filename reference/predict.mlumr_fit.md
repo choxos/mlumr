@@ -61,20 +61,12 @@ predict(
   curve predictions; each is matched to the nearest fitted `pred_times`
   grid point. If `NULL`, all fitted times are returned.
 
-  When supplied, the result has one row per requested time, **in the
-  order requested and including repeats**, and carries a
-  `requested_time` column beside `time` so the mapping from what was
-  asked for to what was evaluated is machine-readable rather than
-  something to parse out of a message. Two distinct requested times can
-  still share a grid point; both are answered, by the same fitted time,
-  and that is reported. Refit with `pred_times` containing the exact
-  times to remove the approximation.
-
-  With `summary = FALSE` the layout is one COLUMN per requested time, so
-  the mapping cannot be a column. It is carried as the `requested_time`
-  and `used_time` attributes instead, each a named vector with one entry
-  per time column, so two requests that snapped to the same grid point
-  are still distinguishable by name.
+  When supplied, the result has one row per requested time for each
+  treatment and population cell, in the order requested and including
+  repeats, with a `requested_time` column beside `time`. With
+  `summary = FALSE` the mapping is carried as the `requested_time` and
+  `used_time` attributes instead, one entry per time column. Refit with
+  `pred_times` containing the exact times to avoid the approximation.
 
 - newdata:
 
@@ -85,12 +77,8 @@ predict(
   draw), and `population` is ignored. Supports
   `type = "response"`/`"link"` (binomial/normal/poisson) and
   `type = "survival"`/`"hazard"`/`"cumhaz"`/`"rmst"`/`"median"`/`"loghr"`
-  (survival). Survival hazards use the target-specific survival-weighted
-  definition, so `"loghr"` is population-specific and time-varying. Rows
-  outside the covariate support used to fit a treatment model are
-  accepted as model-based extrapolation; the function does not certify
-  overlap or transportability, so users must assess support and run
-  sensitivity analyses.
+  (survival). Rows outside the fitted covariate support are model-based
+  extrapolation; overlap is not checked.
 
 - ...:
 
@@ -98,16 +86,9 @@ predict(
 
 ## Value
 
-A data frame with predictions. When `type = "link"`, values are the
-fitted link applied to each draw's population-standardized response
-mean. `type = "rmst"` adds a `horizon` column: RMST is an integral to a
-restriction time, so values computed to different horizons are different
-estimands and must not be compared. The horizon reported is the one
-actually integrated to. That is the `rmst_horizon` given to
-[`mlumr()`](https://choxos.github.io/mlumr/reference/mlumr.md) when one
-was supplied; when it was left `NULL` it is the default, which for a
-study-stratified flexible baseline is the follow-up both studies
-observed rather than the pooled maximum. The plot methods require
+A data frame with predictions. `type = "rmst"` adds a `horizon` column
+with the restriction time actually integrated to, since RMST at
+different horizons is a different estimand. The plot methods require
 `summary = TRUE`; with `summary = FALSE` the raw posterior draws are
 returned as a plain data frame. For `type = "median"` the summary is
 conditional on the median being reached, and `p_not_reached` gives the
@@ -116,19 +97,11 @@ posterior probability that it is not.
 ## Details
 
 **Marginalization on non-identity links.** For `type = "response"` the
-reported values are `E[g^{-1}(eta)]`, the posterior expectation of the
-inverse-link-transformed linear predictor, *not* `g^{-1}(E[eta])`. The
-two differ whenever `g` is non-linear (logit, probit, cloglog, log) by
-Jensen's inequality. In the index population the expectation is taken
-over IPD individuals; in the comparator population it is taken over the
-integration points constructed by
-[`add_integration()`](https://choxos.github.io/mlumr/reference/add_integration.md)
-from the AgD moments. This is the population-average prediction for an
-individual randomly drawn from that population, and it matches what the
-Stan `generated quantities` block computes. `type = "link"` applies the
-fitted link only after that marginalization. It coincides with `E[eta]`
-for an identity link but not generally for logit, probit, cloglog, or
-log links.
+reported values are `E[g^{-1}(eta)]`, the population-average prediction
+for an individual drawn from that population, not `g^{-1}(E[eta])`; the
+expectation runs over the IPD individuals for the index population and
+over the integration points for the comparator one. `type = "link"`
+applies the fitted link after that marginalization.
 
 ## See also
 

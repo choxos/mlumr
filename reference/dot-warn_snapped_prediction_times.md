@@ -1,12 +1,6 @@
 # Say when requested prediction times were moved onto the fitted grid
 
-The returned frame carries the time it was evaluated at, but nothing
-said that it was not the time asked for. A policy horizon of 12 months
-reported at 11.8 looks like an answer to the question, and two requested
-times that land on one grid point silently become one row, so the output
-can have fewer rows than the request had times. Refit with `pred_times`
-containing the exact times to remove the approximation rather than only
-be told about it.
+A move, or two distinct requests landing on one grid point, is reported.
 
 ## Usage
 

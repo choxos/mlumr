@@ -1,12 +1,10 @@
 # Which basis columns carry likelihood over one study's observed risk set
 
-Split out of
+Shared by
 [`.assert_basis_support()`](https://choxos.github.io/mlumr/reference/dot-assert_basis_support.md)
-so that
-[`.assert_shared_basis_identified()`](https://choxos.github.io/mlumr/reference/dot-assert_shared_basis_identified.md)
-can ask the same question one study at a time. Every judgement about
-what counts as support lives here, so the two callers cannot drift
-apart.
+and
+[`.assert_shared_basis_identified()`](https://choxos.github.io/mlumr/reference/dot-assert_shared_basis_identified.md),
+so what counts as support is decided once.
 
 ## Usage
 

@@ -119,18 +119,12 @@ the mean conditional linear predictor <code>E[eta]</code>.</p></dd>
 <dd><p>For survival fits, an optional vector of times at which to
 report curve predictions; each is matched to the nearest fitted
 <code>pred_times</code> grid point. If <code>NULL</code>, all fitted times are returned.</p>
-<p>When supplied, the result has one row per requested time, <strong>in the order
-requested and including repeats</strong>, and carries a <code>requested_time</code> column
-beside <code>time</code> so the mapping from what was asked for to what was evaluated
-is machine-readable rather than something to parse out of a message. Two
-distinct requested times can still share a grid point; both are answered,
-by the same fitted time, and that is reported. Refit with <code>pred_times</code>
-containing the exact times to remove the approximation.</p>
-<p>With <code>summary = FALSE</code> the layout is one COLUMN per requested time, so the
-mapping cannot be a column. It is carried as the <code>requested_time</code> and
-<code>used_time</code> attributes instead, each a named vector with one entry per
-time column, so two requests that snapped to the same grid point are still
-distinguishable by name.</p></dd>
+<p>When supplied, the result has one row per requested time for each
+treatment and population cell, in the order requested and including
+repeats, with a <code>requested_time</code> column beside <code>time</code>. With <code>summary = FALSE</code> the mapping is carried as the
+<code>requested_time</code> and <code>used_time</code> attributes instead, one entry per time
+column. Refit with <code>pred_times</code> containing the exact times to avoid the
+approximation.</p></dd>
 
 
 <dt id="arg-newdata">newdata<a class="anchor" aria-label="anchor" href="#arg-newdata"></a></dt>
@@ -140,11 +134,8 @@ standardized to this population by g-computation (averaging model-based
 predictions over the rows at each posterior draw), and <code>population</code> is
 ignored. Supports <code>type = "response"</code>/<code>"link"</code> (binomial/normal/poisson) and
 <code>type = "survival"</code>/<code>"hazard"</code>/<code>"cumhaz"</code>/<code>"rmst"</code>/<code>"median"</code>/<code>"loghr"</code>
-(survival). Survival hazards use the target-specific survival-weighted
-definition, so <code>"loghr"</code> is population-specific and time-varying. Rows
-outside the covariate support used to fit a treatment model are accepted as
-model-based extrapolation; the function does not certify overlap or
-transportability, so users must assess support and run sensitivity analyses.</p></dd>
+(survival). Rows outside the fitted covariate support are model-based
+extrapolation; overlap is not checked.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -153,34 +144,22 @@ transportability, so users must assess support and run sensitivity analyses.</p>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A data frame with predictions. When <code>type = "link"</code>, values are the
-fitted link applied to each draw's population-standardized response mean.
-<code>type = "rmst"</code> adds a <code>horizon</code> column: RMST is
-an integral to a restriction time, so values computed to different horizons
-are different estimands and must not be compared. The horizon reported is
-the one actually integrated to. That is the <code>rmst_horizon</code> given to
-<code><a href="mlumr.html">mlumr()</a></code> when one was supplied; when it was left <code>NULL</code> it is the default,
-which for a study-stratified flexible baseline is the follow-up both
-studies observed rather than the pooled maximum.
-The plot methods require <code>summary = TRUE</code>; with <code>summary = FALSE</code> the raw
-posterior draws are returned as a plain data frame. For <code>type = "median"</code>
-the summary is conditional on the median being reached, and
-<code>p_not_reached</code> gives the posterior probability that it is not.</p>
+    <p>A data frame with predictions. <code>type = "rmst"</code> adds a <code>horizon</code>
+column with the restriction time actually integrated to, since RMST at
+different horizons is a different estimand. The plot methods require
+<code>summary = TRUE</code>; with <code>summary = FALSE</code> the raw posterior draws are
+returned as a plain data frame. For <code>type = "median"</code> the summary is
+conditional on the median being reached, and <code>p_not_reached</code> gives the
+posterior probability that it is not.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p><strong>Marginalization on non-identity links.</strong> For <code>type = "response"</code> the
-reported values are <code>E[g^{-1}(eta)]</code>, the posterior expectation of the
-inverse-link-transformed linear predictor, <em>not</em> <code>g^{-1}(E[eta])</code>. The
-two differ whenever <code>g</code> is non-linear (logit, probit, cloglog, log) by
-Jensen's inequality. In the index population the expectation is taken
-over IPD individuals; in the comparator population it is taken over the
-integration points constructed by <code><a href="add_integration.html">add_integration()</a></code> from the AgD
-moments. This is the population-average prediction for an individual
-randomly drawn from that population, and it matches what the Stan
-<code>generated quantities</code> block computes. <code>type = "link"</code> applies the fitted
-link only after that marginalization. It coincides with <code>E[eta]</code> for an
-identity link but not generally for logit, probit, cloglog, or log links.</p>
+reported values are <code>E[g^{-1}(eta)]</code>, the population-average prediction
+for an individual drawn from that population, not <code>g^{-1}(E[eta])</code>; the
+expectation runs over the IPD individuals for the index population and
+over the integration points for the comparator one. <code>type = "link"</code>
+applies the fitted link after that marginalization.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
