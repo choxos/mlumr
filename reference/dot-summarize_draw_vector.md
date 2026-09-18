@@ -32,9 +32,4 @@ to happen in one place.
 
 ## Value
 
-Named numeric vector:
-`c(mean, sd, <named quantiles>, n_draws, n_draws_used)`. The last two
-are the draw accounting: how many draws the summary was offered and how
-many it used, so a summary built on a third of its chain says so
-wherever it ends up. They differ exactly when NA or NaN draws were
-dropped.
+Named numeric vector: `c(mean, sd, <named quantiles>)`.

@@ -144,12 +144,8 @@ each covariate. If <code>NULL</code>, inferred from presence of SD.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>An object of class <code>mlumr_agd</code>. As for <code><a href="set_ipd.html">set_ipd()</a></code>, its <code>$data</code>
-carries a <code>.source_key</code> column, a digest of the whole of <code>data</code> with the
-row's rank within a canonical ordering of it, holding nothing of the
-content; it lets <code><a href="compare_models.html">compare_models()</a></code> recognize one source reordered
-between two fits. The internal names, <code>.source_key</code> among them, cannot be
-used as column names in <code>data</code>.</p>
+    <p>An object of class <code>mlumr_agd</code>. As for <code><a href="set_ipd.html">set_ipd()</a></code>, the internal
+column names cannot be used as column names in <code>data</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

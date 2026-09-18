@@ -221,11 +221,6 @@
   verdicts), withholds the comparison under `cor_adjust = "none"`, and
   reports a comparison it could not make as `"unavailable"` instead of
   `"close"`.
-- Improvement: Setup functions record an internal `.source_key` per row
-  so
-  [`compare_models()`](https://choxos.github.io/mlumr/reference/compare_models.md)
-  can tell two fits were built from one source reordered between them.
-  `.source_key` is now a reserved column name.
 
 ### Priors and sensitivity
 
@@ -339,37 +334,20 @@
   and the fit summary no longer drop an infinite Rhat before taking the
   maximum, report missing or non-numeric diagnostics as unknown rather
   than as zero, and compute tail ESS.
-- Improvement: Posterior summaries from
-  [`predict()`](https://rdrr.io/r/stats/predict.html),
+- Improvement: [`predict()`](https://rdrr.io/r/stats/predict.html),
   [`marginal_effects()`](https://choxos.github.io/mlumr/reference/marginal_effects.md),
   [`conditional_effects()`](https://choxos.github.io/mlumr/reference/conditional_effects.md)
   and
   [`conditional_predict()`](https://choxos.github.io/mlumr/reference/conditional_predict.md)
-  carry `n_draws` and `n_draws_used`, with one warning per call when
-  draws were dropped.
+  warn once per call when `NA` or `NaN` draws were dropped from a
+  summary.
 - Fix:
   [`conditional_predict()`](https://choxos.github.io/mlumr/reference/conditional_predict.md)
   names quantile columns from the requested probabilities, so non-round
   `probs` no longer return `NA`.
 - Fix:
-  [`calculate_dic()`](https://choxos.github.io/mlumr/reference/calculate_dic.md),
-  [`calculate_loo()`](https://choxos.github.io/mlumr/reference/calculate_loo.md),
-  [`calculate_waic()`](https://choxos.github.io/mlumr/reference/calculate_waic.md)
-  and
-  [`compare_models()`](https://choxos.github.io/mlumr/reference/compare_models.md)
-  refuse a saved log-likelihood that does not cover every observation
-  the fit was built from, and a cached `mlumr_dic` is checked the same
-  way.
-  [`compare_models()`](https://choxos.github.io/mlumr/reference/compare_models.md)
-  refuses fits built on different observations and warns when row order
-  cannot be verified. See
-  [`?compare_models`](https://choxos.github.io/mlumr/reference/compare_models.md).
-- Fix:
   [`calculate_loo()`](https://choxos.github.io/mlumr/reference/calculate_loo.md)
-  refuses `moment_match = TRUE`, which `loo` ignores for a matrix, and
-  both it and
-  [`calculate_waic()`](https://choxos.github.io/mlumr/reference/calculate_waic.md)
-  refuse arguments the installed `loo` does not read.
+  refuses `moment_match = TRUE`, which `loo` ignores for a matrix.
 - Improvement: The
   [`compare_models()`](https://choxos.github.io/mlumr/reference/compare_models.md)
   printout no longer presents `se_diff > 2` as a decision rule.
@@ -400,6 +378,8 @@
   Suggests to Imports (`>= 3.4.0`).
 - `flexsurv`, `detectseparation`, `multinma`, `ggsurvfit` and `R.rsp`
   added to Suggests.
+- `copula` is no longer imported: the Gaussian-copula integration points
+  are built from the Cholesky factor in base R.
 - `Additional_repositories` is pinned to
   `https://mc-stan.org/r-packages` so that `rstan` and `StanHeaders`
   resolve from one source. cmdstanr itself comes from

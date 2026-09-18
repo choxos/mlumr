@@ -144,12 +144,7 @@ weighting estimand is implemented. Defaults to a single arm.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>An object of class <code>mlumr_agd_surv</code> (also inheriting <code>mlumr_agd</code>).
-Its <code>$pseudo_ipd</code> carries a <code>.source_key</code> column as <code><a href="set_ipd.html">set_ipd()</a></code> describes:
-a digest of the whole of <code>data</code> with the row's rank within a canonical
-ordering of it, holding nothing of the content, so that
-<code><a href="compare_models.html">compare_models()</a></code> can recognize one source reordered between two fits.
-The internal names, <code>.source_key</code> among them, cannot be used as column
-names in <code>data</code>.</p>
+The internal column names cannot be used as column names in <code>data</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

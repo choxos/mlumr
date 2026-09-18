@@ -53,9 +53,6 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_agd_loglik_per_observation.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_basis_support.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_cmdstan_output.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-assert_dic_covers_observations.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-assert_log_lik_complete.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-assert_same_observations.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-assert_shared_basis_identified.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-attach_integration_points.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-aux_shapes_differ.html</loc></url>
@@ -90,7 +87,6 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-diagnostic_count.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-diagnostic_display.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-diagnostic_value.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-draw_tally.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-drop_missing_rows.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-dual_family_note.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-ensure_positive_definite_cor.html</loc></url>
@@ -109,7 +105,6 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-ipd_outcome_summary.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-ipd_required_columns.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-is_whole_number_count.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-kept_different_rows_of_one_source.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-km_observed.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-knots_from_times.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-known_measure.html</loc></url>
@@ -121,7 +116,6 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-log_lik_column_index.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-logitnorm_pars.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-logspace_add.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-loo_matrix_reads.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-marginal_effects_survival.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-marginal_effects_target.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-marginal_effects_target_survival.html</loc></url>
@@ -149,8 +143,6 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-name_distr_args.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-nonnegative_variance.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-normalize_weights.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-observation_columns.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-observation_frames.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-ordered_log_lik_columns.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-parameter_prior.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-pars_logitnorm.html</loc></url>
@@ -174,7 +166,6 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-r_log_haz.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-r_log_surv.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-realized_matches_declared.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-refuse_ignored_loo_arguments.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-reject_ambiguous_series.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-reject_factor_time.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-reject_gamma_dots.html</loc></url>
@@ -200,12 +191,7 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-rounding_allowance.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-rstan_ess_tail.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-rw1_prior_weights.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-same_grouped_rows.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-same_observations.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-set_ipd_survival.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-sorted_keys.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-source_digests.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-source_row_keys.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-sqrt_variance.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-standardize_agd_data.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-standardize_ipd_data.html</loc></url>
@@ -272,9 +258,9 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_choice.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_complete_rows_remain.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_computed_integration_cor.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-validate_conf_level.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_effect_choice.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_engine_name.html</loc></url>
+<url><loc>https://choxos.github.io/mlumr/reference/dot-validate_flag.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_flexsurv_fit.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_integration_args.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_integration_cor.html</loc></url>
@@ -283,7 +269,6 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_ipd_finite_columns.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_ipd_outcome.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_km_data.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-validate_km_population.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_link_string.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_log_lik_matrix.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_logitnorm_native.html</loc></url>
@@ -292,7 +277,6 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_mlumr_fit_object.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_mlumr_integer.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_mlumr_sampling_args.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-validate_model_count.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_non_empty_data.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_numeric_vector.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_positive_numeric.html</loc></url>
@@ -304,7 +288,6 @@
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_single_treatment.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_stc_survival_events.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_stc_survival_right_censored.html</loc></url>
-<url><loc>https://choxos.github.io/mlumr/reference/dot-validate_summary_flag.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_survival_controls.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_survival_prediction_times.html</loc></url>
 <url><loc>https://choxos.github.io/mlumr/reference/dot-validate_survival_studies.html</loc></url>

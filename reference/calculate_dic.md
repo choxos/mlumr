@@ -20,11 +20,7 @@ calculate_dic(object)
 ## Value
 
 A list of class `mlumr_dic` with components `DIC`, `pD`, `D_bar`,
-`n_obs`, `model`, and `observations`, the fit's observation frames as
-kept for
-[`compare_models()`](https://choxos.github.io/mlumr/reference/compare_models.md),
-so a DIC object can still be checked against the fits it is compared
-with, and its `n_obs` against the observations it carries.
+`n_obs` and `model`.
 
 ## Details
 
@@ -34,14 +30,6 @@ principled Bayesian model comparison, prefer
 or
 [`calculate_waic()`](https://choxos.github.io/mlumr/reference/calculate_waic.md)
 (Vehtari, Gelman, Gabry 2017).
-
-The saved pointwise log-likelihood has to cover every observation the
-model was fitted to. A fit missing any of those columns, as rstan's
-`pars` with `include = FALSE` can leave one, is refused rather than
-scored on part of its data, and the same holds for
-[`calculate_loo()`](https://choxos.github.io/mlumr/reference/calculate_loo.md)
-and
-[`calculate_waic()`](https://choxos.github.io/mlumr/reference/calculate_waic.md).
 
 ## Examples
 

@@ -31,12 +31,9 @@ calculate_loo(
 
 - ...:
 
-  Further arguments for the matrix method of
-  [`loo::loo()`](https://mc-stan.org/loo/reference/loo.html), as the
-  installed `loo` defines it: `save_psis`, `cores`, and `is_method` in
-  current releases. Anything else is refused rather than dropped,
-  `moment_match` included (see Details); `r_eff` is computed from the
-  fit's chains.
+  Further arguments passed to
+  [`loo::loo()`](https://mc-stan.org/loo/reference/loo.html); `r_eff` is
+  computed from the fit's chains.
 
 ## Value
 
@@ -51,10 +48,8 @@ Typical remedies are running more iterations or, for highly influential
 AgD rows, refitting without the offending observation to check
 sensitivity. Moment matching
 ([`loo::loo_moment_match()`](https://mc-stan.org/loo/reference/loo_moment_match.html))
-is not available here: it needs the fitted model rather than the saved
-pointwise log-likelihood, and `loo` ignores `moment_match` for a matrix,
-so `calculate_loo()` refuses the argument instead of returning the
-unchanged estimate.
+needs the fitted model rather than a log-likelihood matrix, so
+`moment_match` is refused.
 
 ## Note
 

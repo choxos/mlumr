@@ -85,13 +85,8 @@ set_agd(
 ## Value
 
 An object of class `mlumr_agd`. As for
-[`set_ipd()`](https://choxos.github.io/mlumr/reference/set_ipd.md), its
-`$data` carries a `.source_key` column, a digest of the whole of `data`
-with the row's rank within a canonical ordering of it, holding nothing
-of the content; it lets
-[`compare_models()`](https://choxos.github.io/mlumr/reference/compare_models.md)
-recognize one source reordered between two fits. The internal names,
-`.source_key` among them, cannot be used as column names in `data`.
+[`set_ipd()`](https://choxos.github.io/mlumr/reference/set_ipd.md), the
+internal column names cannot be used as column names in `data`.
 
 ## Details
 

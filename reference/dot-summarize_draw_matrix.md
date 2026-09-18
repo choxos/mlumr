@@ -29,5 +29,5 @@ across columns of `draws` and renames the quantile columns to `qNN` form
 
 ## Value
 
-Data frame with columns `mean`, `sd`, one `qNN` column per element of
-`probs`, and the draw accounting `n_draws` and `n_draws_used`.
+Data frame with columns `mean`, `sd` and one `qNN` column per element of
+`probs`.

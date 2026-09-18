@@ -77,14 +77,8 @@ set_agd_surv(
 
 ## Value
 
-An object of class `mlumr_agd_surv` (also inheriting `mlumr_agd`). Its
-`$pseudo_ipd` carries a `.source_key` column as
-[`set_ipd()`](https://choxos.github.io/mlumr/reference/set_ipd.md)
-describes: a digest of the whole of `data` with the row's rank within a
-canonical ordering of it, holding nothing of the content, so that
-[`compare_models()`](https://choxos.github.io/mlumr/reference/compare_models.md)
-can recognize one source reordered between two fits. The internal names,
-`.source_key` among them, cannot be used as column names in `data`.
+An object of class `mlumr_agd_surv` (also inheriting `mlumr_agd`). The
+internal column names cannot be used as column names in `data`.
 
 ## Details
 

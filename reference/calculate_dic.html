@@ -81,20 +81,13 @@ This is more stable than the plug-in alternative for multimodal posteriors.</p>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list of class <code>mlumr_dic</code> with components <code>DIC</code>, <code>pD</code>, <code>D_bar</code>,
-<code>n_obs</code>, <code>model</code>, and <code>observations</code>, the fit's observation frames as
-kept for <code><a href="compare_models.html">compare_models()</a></code>, so a DIC object can still be checked against
-the fits it is compared with, and its <code>n_obs</code> against the observations it
-carries.</p>
+<code>n_obs</code> and <code>model</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>DIC is retained for backward compatibility and rough comparison. For
 principled Bayesian model comparison, prefer <code><a href="calculate_loo.html">calculate_loo()</a></code> or
 <code><a href="calculate_waic.html">calculate_waic()</a></code> (Vehtari, Gelman, Gabry 2017).</p>
-<p>The saved pointwise log-likelihood has to cover every observation the model
-was fitted to. A fit missing any of those columns, as rstan's <code>pars</code> with
-<code>include = FALSE</code> can leave one, is refused rather than scored on part of
-its data, and the same holds for <code><a href="calculate_loo.html">calculate_loo()</a></code> and <code><a href="calculate_waic.html">calculate_waic()</a></code>.</p>
     </div>
 
     <div class="section level2">
