@@ -18,8 +18,8 @@ List with \code{expected} (pairs that have a correlation to realize),
 \code{measured} and \code{measured_resolution} (how many had a finite correlation on
 the doubled grid, and on both grids), \code{omitted} (the expected pairs that
 fell short, with a reason), \code{not_applicable} (pairs in which a margin is
-declared with no variance) and \code{applicable}, the logical the maxima are
-taken over.
+declared with no variance) and \code{applicable}, the logical vector the
+maxima are taken over.
 }
 \description{
 Which correlation pairs were measured, and why the others were not

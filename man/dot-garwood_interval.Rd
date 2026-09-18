@@ -18,7 +18,7 @@ List with \code{lower} and \code{upper}.
 }
 \description{
 Garwood's interval, as \code{stats::poisson.test()} reports it: gamma quantiles
-over the exposure, with the lower bound at 0 when the count is. Coverage
+over the exposure, with the lower bound at 0 when the count is 0. Coverage
 is at least nominal for every true rate.
 }
 \keyword{internal}

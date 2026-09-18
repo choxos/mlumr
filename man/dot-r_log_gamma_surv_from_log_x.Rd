@@ -15,9 +15,10 @@
 Log survival, the same length as \code{log_x}.
 }
 \description{
-Mirrors Stan's \code{log_gamma_surv_from_log_x()}. Below a \code{log_x} of -700 the
-leading series term \code{w^k / gamma(k + 1)} is exact, where \code{exp(log_x)}
-would underflow and \code{pgamma(0, k)} report survival 1. Every R site needing
+Mirrors Stan's \code{log_gamma_surv_from_log_x()}. Below a \code{log_x} of -700,
+where \code{exp(log_x)} would underflow and \code{pgamma(0, k)} report survival 1,
+the lower tail is the exact leading series term \code{w^k / gamma(k + 1)} and
+the return is its log complement, \code{log(1 - w^k / gamma(k + 1))}. Every R site needing
 this quantity calls here, as every Stan site does.
 }
 \keyword{internal}

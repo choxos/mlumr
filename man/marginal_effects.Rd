@@ -46,8 +46,9 @@ without \code{newdata}.}
 \item{at_time}{Evaluation time for the scalar marginal hazard ratio of a
 proportional-hazards fit whose two studies have different baseline
 shapes. Snapped to the nearest fitted prediction time, with a message.
-\code{NULL} uses the first prediction time. An error under a shared baseline
-(where the scalar is the \code{t -> 0} limit) and for AFT fits.}
+\code{NULL} uses the first prediction time. Under a shared baseline the
+scalar is the \code{t -> 0} limit, so only \code{at_time = 0} is accepted; an
+error for AFT fits.}
 }
 \value{
 A data frame. With \code{summary = FALSE} the raw posterior draws are
@@ -74,7 +75,7 @@ time-varying log hazard ratio curve (null 0) use \code{predict(type = "loghr")}.
 For survival proportional-hazards fits the scalar \code{"hr"} is always a
 marginal hazard ratio at one time, recorded in the \code{at_time} column: the
 \code{t -> 0} limit under a shared baseline shape (where an SPFA fit's value
-coincides with the conditional log hazard ratio, since the shared
+coincides with the conditional hazard ratio, since the shared
 coefficients cancel), and the value at the first prediction time, or at
 \code{at_time}, under study-specific shapes. Hazard ratios are non-collapsible,
 so the marginal ratio is time-varying; \code{predict(type = "loghr")} gives

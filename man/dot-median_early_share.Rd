@@ -8,6 +8,7 @@
 }
 \description{
 There the median is interpolated between \code{S(0) = 1} and the first grid
-value, which can be off by a large factor. Per draw, like the RMST check.
+value, which can be off by a large factor. The share is computed per
+draw, as in the RMST check.
 }
 \keyword{internal}

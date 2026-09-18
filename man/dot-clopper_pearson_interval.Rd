@@ -18,8 +18,10 @@ List with \code{lower} and \code{upper}.
 }
 \description{
 Clopper and Pearson's interval, as \code{stats::binom.test()} reports it but
-without the integer check: beta quantiles with the bound at 0 or 1 when
-the count is. Its coverage is at least nominal for every true
-probability, which the bounded Wald interval it replaced lacked.
+without the integer check: beta quantiles, with the lower bound at 0 when
+the count is 0 and the upper bound at 1 when the count equals \code{n}. For
+integer counts its coverage is at least nominal for every true
+probability, which the bounded Wald interval it replaced lacked; a
+fractional count has no such guarantee.
 }
 \keyword{internal}

@@ -24,8 +24,8 @@ target population (Chandler & Ishak Eq 14): for each treatment,
 \verb{S_bar_k(t) = (1/M) sum_m S_k(t | x_m)} over the \code{M} rows of \code{newdata}.
 }
 \details{
-The \code{share} element is the resolution share of \code{\link[=.decay_share]{.decay_share()}}, measured
-on each profile's curve before averaging and summed over profiles: the
-average can look resolved when none of its parts is.
+The \code{share} element is the resolution share of \code{\link[=.decay_share]{.decay_share()}} computed
+from the decay pieces summed over the profiles, not from the averaged
+curve: the average can look resolved when none of its parts is.
 }
 \keyword{internal}

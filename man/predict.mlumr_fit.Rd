@@ -44,9 +44,9 @@ the mean conditional linear predictor \code{E[eta]}.}
 report curve predictions; each is matched to the nearest fitted
 \code{pred_times} grid point. If \code{NULL}, all fitted times are returned.
 
-When supplied, the result has one row per requested time, in the order
-requested and including repeats, with a \code{requested_time} column beside
-\code{time}. With \code{summary = FALSE} the mapping is carried as the
+When supplied, the result has one row per requested time for each
+treatment and population cell, in the order requested and including
+repeats, with a \code{requested_time} column beside \code{time}. With \code{summary = FALSE} the mapping is carried as the
 \code{requested_time} and \code{used_time} attributes instead, one entry per time
 column. Refit with \code{pred_times} containing the exact times to avoid the
 approximation.}

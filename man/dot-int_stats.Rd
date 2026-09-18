@@ -8,7 +8,7 @@
 }
 \description{
 The SD is the population one: the grid represents a distribution rather
-than sampling it, and a sample SD carries a \code{sqrt(m / (m - 1))} factor no
-target shares.
+than sampling it, and a sample SD carries a \code{sqrt(m / (m - 1))} factor
+that no target shares.
 }
 \keyword{internal}

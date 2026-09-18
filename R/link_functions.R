@@ -283,9 +283,11 @@ bound_probability <- function(p, n, min_count = 0.5) {
 #' Exact interval for a directly observed binomial proportion
 #'
 #' Clopper and Pearson's interval, as `stats::binom.test()` reports it but
-#' without the integer check: beta quantiles with the bound at 0 or 1 when
-#' the count is. Its coverage is at least nominal for every true
-#' probability, which the bounded Wald interval it replaced lacked.
+#' without the integer check: beta quantiles, with the lower bound at 0 when
+#' the count is 0 and the upper bound at 1 when the count equals `n`. For
+#' integer counts its coverage is at least nominal for every true
+#' probability, which the bounded Wald interval it replaced lacked; a
+#' fractional count has no such guarantee.
 #'
 #' @param r Event count, in `[0, n]`.
 #' @param n Number of trials, positive.
@@ -315,7 +317,7 @@ bound_probability <- function(p, n, min_count = 0.5) {
 #' Exact interval for a directly observed Poisson rate
 #'
 #' Garwood's interval, as `stats::poisson.test()` reports it: gamma quantiles
-#' over the exposure, with the lower bound at 0 when the count is. Coverage
+#' over the exposure, with the lower bound at 0 when the count is 0. Coverage
 #' is at least nominal for every true rate.
 #'
 #' @param x Event count, non-negative.

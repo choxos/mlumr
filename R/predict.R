@@ -26,9 +26,9 @@
 #'   report curve predictions; each is matched to the nearest fitted
 #'   `pred_times` grid point. If `NULL`, all fitted times are returned.
 #'
-#'   When supplied, the result has one row per requested time, in the order
-#'   requested and including repeats, with a `requested_time` column beside
-#'   `time`. With `summary = FALSE` the mapping is carried as the
+#'   When supplied, the result has one row per requested time for each
+#'   treatment and population cell, in the order requested and including
+#'   repeats, with a `requested_time` column beside `time`. With `summary = FALSE` the mapping is carried as the
 #'   `requested_time` and `used_time` attributes instead, one entry per time
 #'   column. Refit with `pred_times` containing the exact times to avoid the
 #'   approximation.
@@ -571,7 +571,8 @@ predict.mlumr_fit <- function(object,
 #' Share of draws whose median falls before the first fitted prediction time
 #'
 #' There the median is interpolated between `S(0) = 1` and the first grid
-#' value, which can be off by a large factor. Per draw, like the RMST check.
+#' value, which can be off by a large factor. The share is computed per
+#' draw, as in the RMST check.
 #' @keywords internal
 .median_early_share <- function(surv_mat) {
   s <- as.matrix(surv_mat)
@@ -633,7 +634,7 @@ predict.mlumr_fit <- function(object,
 #' For survival proportional-hazards fits the scalar `"hr"` is always a
 #' marginal hazard ratio at one time, recorded in the `at_time` column: the
 #' `t -> 0` limit under a shared baseline shape (where an SPFA fit's value
-#' coincides with the conditional log hazard ratio, since the shared
+#' coincides with the conditional hazard ratio, since the shared
 #' coefficients cancel), and the value at the first prediction time, or at
 #' `at_time`, under study-specific shapes. Hazard ratios are non-collapsible,
 #' so the marginal ratio is time-varying; `predict(type = "loghr")` gives
@@ -676,8 +677,9 @@ predict.mlumr_fit <- function(object,
 #' @param at_time Evaluation time for the scalar marginal hazard ratio of a
 #'   proportional-hazards fit whose two studies have different baseline
 #'   shapes. Snapped to the nearest fitted prediction time, with a message.
-#'   `NULL` uses the first prediction time. An error under a shared baseline
-#'   (where the scalar is the `t -> 0` limit) and for AFT fits.
+#'   `NULL` uses the first prediction time. Under a shared baseline the
+#'   scalar is the `t -> 0` limit, so only `at_time = 0` is accepted; an
+#'   error for AFT fits.
 #' @param summary Return summary (`TRUE`) or full draws (`FALSE`)
 #' @param probs Quantiles for summary
 #' @param newdata Optional data frame of covariate profiles defining a target
@@ -1273,9 +1275,9 @@ marginal_effects <- function(object,
 #' target population (Chandler & Ishak Eq 14): for each treatment,
 #' `S_bar_k(t) = (1/M) sum_m S_k(t | x_m)` over the `M` rows of `newdata`.
 #'
-#' The `share` element is the resolution share of [.decay_share()], measured
-#' on each profile's curve before averaging and summed over profiles: the
-#' average can look resolved when none of its parts is.
+#' The `share` element is the resolution share of [.decay_share()] computed
+#' from the decay pieces summed over the profiles, not from the averaged
+#' curve: the average can look resolved when none of its parts is.
 #' @return A list with `index` and `comparator`, each an `[n_draws, length(times)]`
 #'   matrix of target-standardized survival probabilities, and `share`, a
 #'   list of two per-draw vectors named the same way.

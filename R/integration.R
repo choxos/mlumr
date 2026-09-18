@@ -811,8 +811,8 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
 #'   `measured` and `measured_resolution` (how many had a finite correlation on
 #'   the doubled grid, and on both grids), `omitted` (the expected pairs that
 #'   fell short, with a reason), `not_applicable` (pairs in which a margin is
-#'   declared with no variance) and `applicable`, the logical the maxima are
-#'   taken over.
+#'   declared with no variance) and `applicable`, the logical vector the
+#'   maxima are taken over.
 #' @keywords internal
 .int_cor_pair_status <- function(diff, stats, target_sd) {
   degenerate <- vapply(seq_len(nrow(diff)), function(i) {
@@ -839,8 +839,8 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
 #' Compute summary statistics for integration points
 #'
 #' The SD is the population one: the grid represents a distribution rather
-#' than sampling it, and a sample SD carries a `sqrt(m / (m - 1))` factor no
-#' target shares.
+#' than sampling it, and a sample SD carries a `sqrt(m / (m - 1))` factor
+#' that no target shares.
 #' @keywords internal
 .int_stats <- function(X_int, cov_names, n_agd) {
   rows <- vector("list", n_agd * length(cov_names))
