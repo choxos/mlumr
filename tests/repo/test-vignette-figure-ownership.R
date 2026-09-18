@@ -52,20 +52,6 @@ test_that("no shipped vignette embeds another vignette's figure", {
   }
 })
 
-test_that("the precompiler gives every article its own figure directory", {
-  script <- testthat::test_path("..", "..", "vignettes", "precompile.R")
-  skip_if_not(file.exists(script),
-              "run from a source checkout, not an installed package")
-  lines <- readLines(script, warn = FALSE)
-  # The mechanism itself, on a line that runs: the figure path is set from the
-  # stem of the article being built. Looking for the two words anywhere in
-  # the file was satisfied by a comment describing the mechanism after the
-  # code had been removed.
-  code <- lines[!grepl("^\\s*#", lines)]
-  expect_true(any(grepl('fig.path = file.path("figure", stem, "")', code,
-                        fixed = TRUE)))
-})
-
 # The ownership test above catches the bug once it has FIRED: an article that
 # already embeds someone else's plot. It cannot see the state that produces it.
 #

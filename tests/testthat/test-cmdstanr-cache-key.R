@@ -56,12 +56,6 @@ test_that("two different include sets do not share a key", {
   i2 <- file.path(dir, "i2.stan")
   writeLines("// two", i2)
 
-  old_style <- function(fs) {
-    substr(paste(unname(tools::md5sum(fs)), collapse = ""), 1L, 32L)
-  }
-  # The old expression really did collide.
-  expect_identical(old_style(c(main, i1)), old_style(c(main, i2)))
-  # The new one does not.
   expect_false(identical(.cmdstanr_cache_key(c(main, i1)),
                          .cmdstanr_cache_key(c(main, i2))))
 })

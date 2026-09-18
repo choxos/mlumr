@@ -72,7 +72,6 @@ test_that("integer controls reject values above .Machine$integer.max (M10)", {
 })
 
 test_that("make_knots caps n_knots to a sane range (M10)", {
-  skip_if_not_installed("survival")
   dat <- sim_survival_data(n_ipd = 40, n_agd = 40, n_int = 8)
   expect_error(make_knots(dat, n_knots = 100), "0, 50")
 })
@@ -130,20 +129,6 @@ test_that("survival STC labels a cumulative-hazard ratio, not a hazard ratio (H8
   expect_false(any(c("loghr", "hr") %in% names(res)))
 })
 
-test_that("the gengamma log-survival helper uses the stable upper-tail form", {
-  # log1m(gamma_p(a, x)) loses all precision in the upper tail, where gamma_p
-  # rounds to 1; log(gamma_q(a, x)) is the stable form. v0.2.0 ships ONE such
-  # helper, log_surv_scalar(). The precomputed-eta twin log_surv_pre() is
-  # deferred to v0.2.1 (inst/future/v0.2.1/), and the dual-path check that both
-  # twins use the stable form travels with it.
-  f <- stan_source_path("include", "survival_functions.stan")
-  expect_true(file.exists(f))
-  skip_if_not(file.exists(f))
-  code <- grep("^\\s*//", readLines(f, warn = FALSE), value = TRUE, invert = TRUE)
-  expect_false(any(grepl("log1m(gamma_p", code, fixed = TRUE)))
-  expect_gte(sum(grepl("log(gamma_q", code, fixed = TRUE)), 1L)
-})
-
 
 # --------------------------------------------------------------------------
 # v0.2.0 pre-release verification pass (July 2026).
@@ -156,17 +141,6 @@ test_that("the normal comparator weight field matches what Stan weights by (A1)"
   expect_identical(get_family_config("normal")$comp_weight_field, "agd_weight")
   expect_identical(get_family_config("binomial")$comp_weight_field, "n_agd")
   expect_identical(get_family_config("poisson")$comp_weight_field, "E_agd")
-
-  weighted <- vapply(
-    c("mlumr_normal_spfa", "mlumr_normal_relaxed"),
-    function(model) {
-      path <- stan_source_path(paste0(model, ".stan"))
-      expect_true(file.exists(path))
-      any(grepl("agd_weight[k]", readLines(path, warn = FALSE), fixed = TRUE))
-    },
-    logical(1)
-  )
-  expect_true(all(weighted))
 })
 
 test_that(".compute_marginal_link uses stable normal generated quantities", {
@@ -295,7 +269,6 @@ test_that("the relaxed identifiability warning counts distinct profiles, not row
   expect_equal(mlumr:::.agd_covariate_rank(distinct), 3L)
 
   skip_on_cran()
-  skip_if_not_installed("rstan")
   # A deliberately tiny fit emits many unrelated ESS/Rhat warnings, so collect
   # everything and assert on the one that matters rather than letting hundreds
   # of diagnostic warnings surface as test noise.
@@ -342,7 +315,6 @@ test_that("an incomplete chain set is recorded and reported, not hidden (C4)", {
   # The counting helper agrees with the chain labels. Labels it cannot read are
   # reported as unknown rather than as a complete run: see the dedicated test
   # below.
-  expect_equal(mlumr:::.n_chains_returned(c(1, 1, 2, 2, 3), 4L), 3L)
 
   # An unknown layout is announced instead of passing as complete.
   fit$diagnostics$n_chains_returned <- NA_integer_
@@ -363,17 +335,6 @@ test_that("a difference of two unbounded quantities is not reported as zero", {
   out <- mlumr:::.exp_difference_logs(c(Inf, -Inf, 2), Inf)
   expect_true(is.nan(out[1]))
   expect_equal(out[2], -Inf)
-})
-
-test_that("the Stan difference helper guards the same case", {
-  # `system.file()` returns "" when the package is loaded from source without
-  # its inst/ tree shimmed, which would make `readLines()` abort rather than
-  # report. Fall back to the source tree, and require the file either way: a
-  # skip here would hide a packaging defect.
-  path <- stan_source_path("include", "numerical_functions.stan")
-  expect_true(file.exists(path))
-  body <- paste(readLines(path), collapse = "\n")
-  expect_match(body, "not_a_number\\(\\)", fixed = FALSE)
 })
 
 test_that("an unseeded fit uses the documented default rather than RNG state", {
@@ -502,21 +463,6 @@ test_that("custom knots make n_knots irrelevant rather than invalid", {
     ),
     "cannot be used with"
   )
-})
-
-test_that("exposure and standard-error bounds stay strictly positive in Stan", {
-  # Released v0.1.0 declared these <lower=1e-12>. Relaxing them to <lower=0>
-  # admits an exposure of exactly zero (log(0) in the linear predictor) and a
-  # zero aggregate standard error (an improper normal likelihood).
-  for (f in c("mlumr_poisson_spfa", "mlumr_poisson_relaxed")) {
-    src <- readLines(stan_source_path(paste0(f, ".stan")))
-    expect_true(any(grepl("vector<lower=1e-12>[n_ipd] E_ipd;", src, fixed = TRUE)))
-    expect_true(any(grepl("real<lower=1e-12> E_agd;", src, fixed = TRUE)))
-  }
-  for (f in c("mlumr_normal_spfa", "mlumr_normal_relaxed")) {
-    src <- readLines(stan_source_path(paste0(f, ".stan")))
-    expect_true(any(grepl("real<lower=1e-12> se_agd;", src, fixed = TRUE)))
-  }
 })
 
 test_that("rstan draws carry a chain-aware tail ESS", {

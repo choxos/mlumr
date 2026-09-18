@@ -3,7 +3,6 @@
 # does not, the weights and the intercepts trade off exactly.
 
 .degree0_spec <- function() {
-  skip_if_not_installed("splines2")
   .build_mspline_basis(list(internal = 1, boundary = c(0, 3)), 0L)
 }
 
@@ -17,27 +16,6 @@
                       exit = c(2.4, 2.8, 3), event = c(2.4, 2.8))
   )
 }
-
-test_that("the disjoint layout really is an exact likelihood ridge", {
-  # Not a property of the guard: a property of the model the guard is about.
-  # M1 = 1 on [0, 1), M2 = 1/2 on [1, 3], so with the index only ever on the
-  # first column and the comparator only on the second, the likelihood sees
-  # exp(mu_index) * w and exp(mu_comparator) * (1 - w) and nothing else.
-  loglik <- function(w, mu_index, mu_comparator) {
-    h_index <- exp(mu_index) * w
-    h_comparator <- exp(mu_comparator) * (1 - w) * 0.5
-    sum(log(h_index) - h_index * c(0.4, 0.7)) - h_index * 1 +
-      sum(log(h_comparator) - h_comparator * (c(2.4, 2.8) - 2)) -
-      h_comparator * (3 - 2)
-  }
-  # Rescaling the weights and absorbing it into the intercepts.
-  expect_equal(loglik(0.50, 0, 0),
-               loglik(0.25, log(2), log(2 / 3)),
-               tolerance = 1e-14)
-  # while the conditional hazard ratio moves from 1 to 3.
-  expect_equal(exp(0 - 0), 1)
-  expect_equal(exp(log(2) - log(2 / 3)), 3, tolerance = 1e-12)
-})
 
 test_that("pooled support alone accepts that ridge, which is why it is not enough", {
   spec <- .degree0_spec()
@@ -104,7 +82,6 @@ test_that("mlumr() refuses the shared baseline before it fits anything", {
   # through the public entry point: a unit test of the helper would still pass
   # if nothing called it. Nothing is compiled or sampled here, because the
   # refusal happens while the basis is being built.
-  skip_if_not_installed("splines2")
   set.seed(2026)
   n <- 30
   ipd <- data.frame(trt = "A", time = runif(n, 0.2, 1), status = 1L,

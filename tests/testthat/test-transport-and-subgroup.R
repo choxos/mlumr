@@ -18,7 +18,6 @@ expect_summary_equal <- function(target, reference, info = NULL) {
 
 test_that("transport to newdata = index covariates reproduces the index population", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   set.seed(2026)
   n <- 200
@@ -75,7 +74,6 @@ test_that("transport to newdata = index covariates reproduces the index populati
 
 test_that("survival transport (RMST) to newdata = index covariates matches index", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   dat <- sim_survival_data(seed = 2026, n_ipd = 120, n_agd = 120, n_int = 32)
   fit <- fit_survival_test(dat, distribution = "weibull")
@@ -111,7 +109,6 @@ test_that("survival transport (RMST) to newdata = index covariates matches index
 
 test_that("shared baseline shapes: the target HR is the same estimand as index", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   # `aux_by = "none"` is essential here, not incidental. With the default
   # ".study" both routes evaluate the marginal hazard ratio at pred_times[1] and
@@ -171,7 +168,6 @@ test_that("shared baseline shapes: the target HR is the same estimand as index",
 
 test_that("transported frames have the same shape as their built-in twins", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   dat <- sim_survival_data(seed = 2026, n_ipd = 120, n_agd = 120, n_int = 32)
   fit <- fit_survival_test(dat, distribution = "weibull")
@@ -246,7 +242,6 @@ test_that("transported frames have the same shape as their built-in twins", {
 
 test_that("relaxed model: joint subgroup AgD identifies beta_comparator from data", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   # Comparator population split into 3 joint subgroups with a strong covariate
   # gradient in the event rate (logit increasing in age): this identifies
@@ -280,7 +275,6 @@ test_that("relaxed model: joint subgroup AgD identifies beta_comparator from dat
 })
 
 test_that("a numeric treatment label survives the synthetic origin row", {
-  skip_if_not_installed("ggplot2")
   # The origin row overwrote every numeric column with the origin value, so a
   # numerically-labelled treatment became "1" on its own t = 0 row.
   values <- list(matrix(c(0.9, 0.8), nrow = 1), matrix(c(0.7, 0.6), nrow = 1))
@@ -296,7 +290,6 @@ test_that("a numeric treatment label survives the synthetic origin row", {
 
 test_that("survival predictions survive a numeric treatment label", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   # set_ipd()/set_agd() accept numeric and factor treatment identifiers. The
   # shared-frame refactor built the label column with vapply(character(1)),
   # which rejects those before any prediction is assembled.

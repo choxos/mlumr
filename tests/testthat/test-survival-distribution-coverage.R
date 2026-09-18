@@ -36,7 +36,6 @@ surv_draw_names <- function(fit, prefix) {
 
 test_that("every parametric survival distribution samples and reports finite effects", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   dat <- sim_survival_data(seed = 2026, n_ipd = 40, n_agd = 40, n_int = 8)
 
@@ -70,8 +69,6 @@ test_that("every parametric survival distribution samples and reports finite eff
 
 test_that("the relaxed M-spline model samples end to end", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
-  skip_if_not_installed("splines2")
 
   # mlumr_survival_mspline_relaxed.stan: previously covered only by static
   # source-string matching, never actually run.
@@ -99,8 +96,6 @@ test_that("the relaxed M-spline model samples end to end", {
 
 test_that("the relaxed piecewise-exponential model samples end to end", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
-  skip_if_not_installed("splines2")
 
   dat <- sim_survival_data(seed = 2026, n_ipd = 40, n_agd = 40, n_int = 8)
   fit <- fit_tiny(dat, model = "relaxed", distribution = "pexp", n_knots = 3)
@@ -111,8 +106,6 @@ test_that("the relaxed piecewise-exponential model samples end to end", {
 
 test_that("left censoring and delayed entry sample through the likelihood", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
-  skip_if_not_installed("survival")
 
   # These branches were validated at parsing level but never sampled, so a
   # mistake in the Stan status dispatch would not have surfaced. Built standalone

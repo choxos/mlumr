@@ -2,7 +2,6 @@
 
 test_that("survival predict() returns valid curves, RMST, and median", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   dat <- sim_survival_data(seed = 2026)
   fit <- fit_survival_test(dat, distribution = "weibull")
@@ -75,7 +74,6 @@ test_that("survival predict() returns valid curves, RMST, and median", {
 
 test_that("survival predict() honors population and times arguments", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   dat <- sim_survival_data(seed = 2026)
   fit <- fit_survival_test(dat, distribution = "weibull")
@@ -90,7 +88,6 @@ test_that("survival predict() honors population and times arguments", {
 
 test_that("survival marginal and conditional effects are labeled correctly", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   dat <- sim_survival_data(seed = 2026)
   fit_ph <- fit_survival_test(dat, distribution = "weibull")
@@ -195,7 +192,6 @@ test_that("survival marginal and conditional effects are labeled correctly", {
 
 test_that("relaxed-PH marginal HR is flagged and matches loghr at its stated time", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   skip_if_not_installed("withr")
   # Reset the one-per-session note so the message is emitted in this test.
   withr::local_options(list(mlumr.marginal_hr_note = NULL))
@@ -268,7 +264,6 @@ test_that("relaxed-PH marginal HR is flagged and matches loghr at its stated tim
 
 test_that("survival reports natural-scale RMST ratio and time-varying log HR (poster estimands)", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   dat <- sim_survival_data(seed = 2026)
   fit <- fit_survival_test(dat, distribution = "weibull")
@@ -302,7 +297,6 @@ test_that("survival reports natural-scale RMST ratio and time-varying log HR (po
 
 test_that("survival print and summary methods render", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   dat <- sim_survival_data(seed = 2026)
   fit <- fit_survival_test(dat, distribution = "weibull")
@@ -324,7 +318,6 @@ test_that("M-spline and piecewise-exponential loghr stay finite in the extreme t
   # unconverged fit exercises exactly the same arithmetic, so the guard now runs
   # wherever Stan is available.
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   dat <- sim_survival_data(seed = 2026, n_ipd = 40, n_agd = 40, n_int = 8)
   max_t <- max(c(dat$ipd$data$.time, dat$agd$pseudo_ipd$.time))

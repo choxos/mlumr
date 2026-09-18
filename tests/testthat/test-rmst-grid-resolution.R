@@ -40,19 +40,6 @@ test_that("an adequately resolved curve is not reported", {
   expect_silent(rmst_of(surv_rows(0.5, 1, 50), t2))
 })
 
-test_that("the numbers behind the warning are what it claims", {
-  # The reason this matters: the ratio, not just the level, is destroyed.
-  rmst <- function(rate, n) {
-    t <- seq(0, 10, length.out = n)
-    s <- exp(-rate * t)
-    sum(diff(t) * (utils::head(s, -1) + utils::tail(s, -1)) / 2)
-  }
-  coarse <- rmst(100, 100) / rmst(200, 100)
-  fine <- rmst(100, 100000) / rmst(200, 100000)
-  expect_lt(abs(coarse - 1), 0.01)   # the effect has vanished
-  expect_lt(abs(fine - 2), 0.01)     # and returns with resolution
-})
-
 test_that("a minority of badly resolved draws is not averaged away", {
   # Two draws in five collapse inside the first interval and three decay
   # later. The posterior mean curve puts 40 percent of its decay in the first

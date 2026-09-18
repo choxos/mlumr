@@ -2,7 +2,6 @@
 # put a reference line at 0 on a risk ratio or hazard ratio drawn on a linear
 # axis, which is not a value those measures can take.
 
-skip_if_not_installed("ggplot2")
 
 ref_of <- function(p) {
   vl <- Filter(function(l) inherits(l$geom, "GeomVline"), p$layers)

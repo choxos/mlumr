@@ -2,6 +2,8 @@
 
 test_that("bound_probability corrects only exact boundaries", {
   expect_equal(bound_probability(0.02, 40), 0.02)
+  # An interior value below the old clip boundary is left alone too.
+  expect_equal(bound_probability(0.01, n = 10), 0.01)
   expect_equal(bound_probability(0, 40), 0.5 / 41)
   expect_equal(bound_probability(1, 40), 40.5 / 41)
   # Out of range is an upstream construction error, not a boundary arm.
@@ -263,19 +265,6 @@ test_that(".exp_difference_logs recycles and handles equal logarithms", {
   # Cancellation is done before returning to the natural scale.
   expect_equal(ed(log(1), log1p(-1e-15)), 1e-15, tolerance = 1e-6)
   expect_true(is.nan(ed(NA_real_, 0)))
-})
-
-test_that("bound_probability corrects only the boundaries", {
-  # It used to clamp every input into [min_count/n, 1 - min_count/n]. It now
-  # leaves interior probabilities alone and replaces an observed 0 or 1 with the
-  # pseudo-count estimate (r + c) / (n + 2c), which for c = 0.5 and r = 0 is
-  # 0.5 / (n + 1), not 0.5 / n.
-  expect_equal(bound_probability(c(0, 0.2, 1), n = 10),
-               c(0.5 / 11, 0.2, 10.5 / 11))
-  # An interior value below the old clip boundary is no longer moved.
-  expect_equal(bound_probability(0.01, n = 10), 0.01)
-  expect_true(all(bound_probability(c(0, 1), n = 10) > 0))
-  expect_true(all(bound_probability(c(0, 1), n = 10) < 1))
 })
 
 test_that("a log mean close to zero keeps the correction that is its content", {

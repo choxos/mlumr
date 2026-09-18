@@ -98,7 +98,6 @@ test_that("conditional link effects use eta differences directly", {
 
 test_that("conditional_effects works with default and custom newdata", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   set.seed(2026)
   n <- 80
@@ -140,7 +139,6 @@ test_that("conditional_effects works with default and custom newdata", {
 
 test_that("conditional_predict works with response and link types", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   set.seed(2026)
   n <- 80

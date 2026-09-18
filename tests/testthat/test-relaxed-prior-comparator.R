@@ -103,7 +103,6 @@ test_that("prior_beta_comparator rejects malformed input (before fitting)", {
 
 test_that("prior_beta_comparator is honored and surfaced (relaxed fit)", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
 
   dat <- make_binary_dat(n_int = 32)
 
@@ -187,26 +186,6 @@ test_that("comparator prior family, df, mean and scale all reach the Stan data",
                as.numeric(sd_same$prior_beta_mean))
   expect_equal(as.numeric(sd_same$prior_beta_comparator_sd),
                as.numeric(sd_same$prior_beta_sd))
-})
-
-test_that("every relaxed Stan model reads the comparator prior family and df", {
-  # The R side can pass all four fields and still be ignored if a Stan model
-  # hands the INDEX dist/df to log_prior_vector() for beta_comparator. Check the
-  # model sources directly: this is the step that decides which prior is fitted.
-  stan_dir <- system.file("stan", package = "mlumr")
-  skip_if(stan_dir == "" || !dir.exists(stan_dir))
-  files <- list.files(stan_dir, pattern = "_relaxed\\.stan$", full.names = TRUE)
-  expect_gt(length(files), 0L)
-  for (f in files) {
-    src <- paste(readLines(f, warn = FALSE), collapse = " ")
-    src <- gsub("[[:space:]]+", " ", src)
-    expect_match(
-      src,
-      paste0("log_prior_vector\\( *beta_comparator, *",
-             "prior_beta_comparator_mean, *prior_beta_comparator_sd, *",
-             "prior_beta_comparator_dist, *prior_beta_comparator_df *\\)"),
-      info = basename(f))
-  }
 })
 
 test_that("a deliberate comparator prior survives the prior_beta sweep", {

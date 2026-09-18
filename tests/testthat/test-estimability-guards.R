@@ -20,7 +20,6 @@
 }
 
 test_that("naive() refuses a monotone Cox partial likelihood", {
-  skip_if_not_installed("survival")
   # Events in BOTH arms, so the arm guard passes, every index event before
   # every comparator event, and nothing censored, so no index subject is at
   # risk when the comparator fails. The partial likelihood is monotone.
@@ -29,7 +28,6 @@ test_that("naive() refuses a monotone Cox partial likelihood", {
 })
 
 test_that("ordered event times alone do not make naive() refuse", {
-  skip_if_not_installed("survival")
   # The same ordering, with censoring. Every index event still precedes every
   # comparator event, but the censored index subject is at risk when the
   # comparator fails, and that one risk-set comparison gives the partial
@@ -42,7 +40,6 @@ test_that("ordered event times alone do not make naive() refuse", {
 })
 
 test_that("naive() refuses a Cox fit that stopped without converging", {
-  skip_if_not_installed("survival")
   # coxph() documents several termination conditions and says its own
   # detection of an infinite coefficient is not always successful, so the
   # absence of the monotone warning is not a certificate that a finite maximum
@@ -61,7 +58,6 @@ test_that("naive() refuses a Cox fit that stopped without converging", {
 })
 
 test_that("an unrelated coxph warning is passed on, not turned into a refusal", {
-  skip_if_not_installed("survival")
   real_coxph <- survival::coxph
   local_mocked_bindings(
     coxph = function(...) {
@@ -138,7 +134,6 @@ test_that("basis support is judged over the at-risk period, not from zero", {
   # no likelihood term at all: it multiplies no event hazard and no exposure
   # increment, and its coefficient is moved by the prior alone. Judged from
   # zero it looks supported, because it is positive somewhere in [0, max].
-  skip_if_not_installed("splines2")
   spec <- mlumr:::.build_mspline_basis(
     list(internal = c(1, 5), boundary = c(0, 10)), degree = 0L
   )
@@ -157,7 +152,6 @@ test_that("basis support is judged over the at-risk period, not from zero", {
 })
 
 test_that("a gap with an empty risk set is not treated as observed", {
-  skip_if_not_installed("splines2")
   # Subjects seen on [1, 2] and [8, 9]: nobody is under observation in (2, 8),
   # so a degree-0 column living only there enters no likelihood term. Reducing
   # the history to one span from the first entry to the last exit would call it
@@ -214,7 +208,6 @@ test_that("risk intervals are merged, and degrade safely", {
 test_that("delayed entry is reported, as extrapolation and not as prior alone", {
   # Everything supported, so no error; the point is that the caller is told
   # which stretch of the curve no observation reaches, and on what terms.
-  skip_if_not_installed("splines2")
   spec <- mlumr:::.build_mspline_basis(
     list(internal = c(3, 5), boundary = c(0, 8)), degree = 3L
   )
@@ -267,7 +260,6 @@ test_that("risk intervals never come back inverted", {
 })
 
 test_that("a column alive only at an event time is supported", {
-  skip_if_not_installed("splines2")
   # The mirror of the gap test above. The cumulative hazard integrates over the
   # risk intervals, so a degree-0 column on [2, 8) that is positive only at
   # t = 2 adds no exposure. The EVENT term does not integrate: it evaluates the

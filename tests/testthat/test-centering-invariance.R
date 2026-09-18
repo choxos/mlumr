@@ -37,20 +37,6 @@ test_that("centering is invariant to splitting one AgD row into equivalent rows"
   expect_equal(center_of(whole), center_of(uneven), tolerance = 1e-12)
 })
 
-test_that("row-count weighting would NOT have been invariant", {
-  # Documents the defect this replaces: with a per-row weight of 1 the center moves
-  # from ~0.099 to ~0.909 purely by re-tabulating the same evidence.
-  row_weighted <- function(n_ipd, ipd_mean, agd_means) {
-    (n_ipd * ipd_mean + sum(agd_means)) / (n_ipd + length(agd_means))
-  }
-  expect_equal(round(row_weighted(100, 0, 10), 3), 0.099)
-  expect_equal(round(row_weighted(100, 0, rep(10, 10)), 3), 0.909)
-  # The shipped weighting gives the same answer for both tabulations.
-  whole <- center_of(make_sd(100, 0, 10, 200))
-  split <- center_of(make_sd(100, 0, rep(10, 10), rep(20, 10)))
-  expect_equal(whole, split, tolerance = 1e-12)
-})
-
 test_that("weights fall back to equal when no usable field is present", {
   sd <- make_sd(100, 0, agd_means = c(10, 10), agd_weights = c(NA, NA))
   w <- mlumr:::.agd_center_weights(sd, "binomial", 2L)

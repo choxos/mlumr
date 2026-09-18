@@ -1,7 +1,6 @@
 # Frequentist survival benchmark tests (naive Cox, STC via flexsurv).
 
 test_that("naive survival gives a Cox log hazard ratio", {
-  skip_if_not_installed("survival")
 
   dat <- sim_survival_data(seed = 2026)
   res <- naive(dat)

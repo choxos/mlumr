@@ -26,7 +26,6 @@
 }
 
 test_that("a row with no interval is drawn as its estimate alone", {
-  skip_if_not_installed("ggplot2")
   p <- mlumr_forest(.clipping_frame())
 
   segments <- .drawn(p, 2)
@@ -40,7 +39,6 @@ test_that("a row with no interval is drawn as its estimate alone", {
 })
 
 test_that("an infinite bound is still clipped and still gets an arrow", {
-  skip_if_not_installed("ggplot2")
   p <- mlumr_forest(.clipping_frame())
   arrows <- unlist(lapply(seq(3, length(p$layers)), function(i) .drawn(p, i)))
   # Infinity genuinely runs past the viewport; that is what the arrow says.
@@ -49,7 +47,6 @@ test_that("an infinite bound is still clipped and still gets an arrow", {
 })
 
 test_that("the point estimate of an interval-less row is still plotted", {
-  skip_if_not_installed("ggplot2")
   p <- mlumr_forest(.clipping_frame())
   # The point layer takes every row, so the estimate is not lost with the
   # interval.
@@ -63,7 +60,6 @@ test_that("the point estimate of an interval-less row is still plotted", {
 })
 
 test_that("an interval-less row inside the window does not widen it", {
-  skip_if_not_installed("ggplot2")
   # Only for an estimate the window already covers. A row with no interval DOES
   # enter the range, and has to: otherwise its point is clipped out of the panel
   # and the row renders empty, which is the case below. This fixture's estimate
@@ -77,7 +73,6 @@ test_that("an interval-less row inside the window does not widen it", {
 })
 
 test_that("a half-missing interval gets neither a segment nor a lone arrow", {
-  skip_if_not_installed("ggplot2")
   frame <- .clipping_frame()
   # One bound supplied and genuinely infinite, the other never reported. The
   # upper flag alone was true, so the row was given an arrow hanging off no
@@ -91,7 +86,6 @@ test_that("a half-missing interval gets neither a segment nor a lone arrow", {
 })
 
 test_that("a point estimate outside the typical range keeps the panel", {
-  skip_if_not_installed("ggplot2")
   # The fixture above puts its interval-less estimate at 1.05, inside the
   # window the other rows set, so it cannot tell whether the window was built
   # from that estimate or merely happens to contain it. Move it out to 10.

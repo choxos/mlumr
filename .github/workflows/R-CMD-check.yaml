@@ -193,6 +193,25 @@ jobs:
           }
         shell: Rscript {0}
 
+      # Checks on the source tree rather than the package: what ships in the
+      # tarball, which namespaces the tests declare, and whether the precompiled
+      # articles are current. They live outside tests/testthat so R CMD check
+      # does not carry them, and they need a source checkout.
+      - name: Repository checks
+        run: |
+          pkgload::load_all(".")
+          res <- testthat::test_dir("tests/repo", package = "mlumr",
+                                    reporter = "summary", stop_on_failure = FALSE)
+          df <- as.data.frame(res)
+          cat("pass", sum(df$passed), "fail", sum(df$failed),
+              "skip", sum(df$skipped), "\n")
+          if (sum(df$failed) > 0 || any(df$error)) {
+            stop(sprintf(
+              "Repository checks failed: %d failed expectation(s), %d test error(s).",
+              sum(df$failed), sum(df$error)))
+          }
+        shell: Rscript {0}
+
       # Nothing else samples through rstan, so fit the models most likely to
       # break with it: parametric SPFA, flexible baseline and relaxed.
       - name: rstan survival sampling smoke test

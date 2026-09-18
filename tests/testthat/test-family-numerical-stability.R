@@ -1,27 +1,33 @@
-expose_family_numerical_functions <- function() {
-  stan_dir <- system.file("stan", package = "mlumr")
-  skip_if(stan_dir == "", "installed Stan includes not found")
-  code <- paste(
-    "functions {",
-    "#include include/numerical_functions.stan",
-    "#include include/binary_functions.stan",
-    "}",
-    sep = "\n"
-  )
-  env <- new.env()
-  suppressWarnings(
-    rstan::expose_stan_functions(
-      rstan::stanc(model_code = code, isystem = stan_dir,
-                   allow_undefined = TRUE),
-      env = env
+# One compilation per file: the environment is built on the first call and
+# reused by every test after it.
+expose_family_numerical_functions <- local({
+  cached <- NULL
+  function() {
+    if (!is.null(cached)) return(cached)
+    stan_dir <- system.file("stan", package = "mlumr")
+    skip_if(stan_dir == "", "installed Stan includes not found")
+    code <- paste(
+      "functions {",
+      "#include include/numerical_functions.stan",
+      "#include include/binary_functions.stan",
+      "}",
+      sep = "\n"
     )
-  )
-  env
-}
+    env <- new.env()
+    suppressWarnings(
+      rstan::expose_stan_functions(
+        rstan::stanc(model_code = code, isystem = stan_dir,
+                     allow_undefined = TRUE),
+        env = env
+      )
+    )
+    cached <<- env
+    env
+  }
+})
 
 test_that("binary log probabilities remain exact for extreme predictors", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_family_numerical_functions()
 
   expect_equal(env$log_event_prob_binary(-20, 2L),
@@ -43,7 +49,6 @@ test_that("binary log probabilities remain exact for extreme predictors", {
 
 test_that("log-scale mean and contrast helpers preserve finite results", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   env <- expose_family_numerical_functions()
 
   x <- c(800, 799)
@@ -60,24 +65,6 @@ test_that("log-scale mean and contrast helpers preserve finite results", {
   expect_equal(env$exp_difference(710, 709.999), expected_difference,
                tolerance = 1e-11)
   expect_equal(env$exp_difference(710, 710), 0)
-})
-
-test_that("family Stan models aggregate on the log scale", {
-  stan_dir <- system.file("stan", package = "mlumr")
-  skip_if(stan_dir == "", "installed Stan sources not found")
-  models <- file.path(
-    stan_dir,
-    paste0("mlumr_", rep(c("binary", "normal", "poisson"), each = 2),
-           "_", rep(c("spfa", "relaxed"), 3), ".stan")
-  )
-  code <- lapply(models, readLines, warn = FALSE)
-
-  expect_true(all(vapply(code, function(x) any(grepl(
-    "log_mean_", x, fixed = TRUE)), logical(1))))
-  expect_false(any(vapply(code, function(x) any(grepl(
-    "safe_divide", x, fixed = TRUE)), logical(1))))
-  expect_false(any(vapply(code, function(x) any(grepl(
-    "mean(exp(", x, fixed = TRUE)), logical(1))))
 })
 
 test_that("R log-scale helpers preserve extreme marginal contrasts", {

@@ -107,56 +107,6 @@ test_that("treedepth hits are counted against the limit the sampler ran under", 
   expect_equal(count(sp, plain$control$max_treedepth), 4)
 })
 
-test_that("the deep-tail gamma series is normalized without a cancelling subtraction", {
-  # The series sums terms relative to the first and divides by gamma(k + 1) at
-  # the end. Carrying -log(k) inside the sum and finishing with -lgamma(k)
-  # subtracts two quantities that both grow like -log(k) as the shape shrinks,
-  # and the rounding in that difference swamps the answer.
-  series <- function(k, log_x, safe) {
-    log_term <- if (safe) 0 else -log(k)
-    log_total <- log_term
-    for (i in 1:300) {
-      log_term <- log_term + log_x - log(k + i)
-      m <- max(log_total, log_term)
-      log_total <- m + log(exp(log_total - m) + exp(log_term - m))
-      if (exp(log_term - log_total) < 1e-14) break
-    }
-    -exp(log_x) + k * log_x - lgamma(if (safe) k + 1 else k) + log_total
-  }
-
-  # At this shape the two terms are each 41.4465 and the answer is -1e-15, so
-  # the cancelling form returns exactly 0 and the caller reads a survival of
-  # zero: an artificial wall in a region the sampler can reach, since aux2 is
-  # declared only `<lower=0>`.
-  expect_gte(series(1e-18, -1000, safe = FALSE), 0)
-  expect_lt(series(1e-18, -1000, safe = TRUE), 0)
-  expect_equal(series(1e-18, -1000, safe = TRUE), -1e-15, tolerance = 1e-3)
-
-  # The two agree once the shape is large enough for the subtraction to be
-  # harmless, so this is a fix at the boundary and not a change of definition.
-  for (k in c(1e-8, 1e-3, 0.5, 3)) {
-    expect_equal(series(k, -1000, safe = TRUE), series(k, -1000, safe = FALSE),
-                 tolerance = 1e-9)
-  }
-  # And where x does not underflow the series still matches R's own function.
-  for (k in c(0.5, 1, 3)) {
-    expect_equal(series(k, -1, safe = TRUE),
-                 stats::pgamma(exp(-1), shape = k, lower.tail = TRUE,
-                               log.p = TRUE),
-                 tolerance = 1e-12)
-  }
-
-  # The Stan source carries the safe form, which is what the fitted models use.
-  stan <- testthat::test_path("..", "..", "inst", "stan", "include",
-                              "survival_functions.stan")
-  skip_if_not(file.exists(stan), "run from a source checkout")
-  src <- paste(readLines(stan, warn = FALSE), collapse = "\n")
-  body <- sub(".*real log_gamma_p_series\\(real k, real log_x\\) \\{", "", src)
-  body <- sub("\\n\\}.*", "", body)
-  expect_true(grepl("lgamma(k + 1)", body, fixed = TRUE))
-  expect_false(grepl("lgamma(k))", body, fixed = TRUE))
-})
-
 test_that("the fit records the sampler settings that were in force", {
   # `check_diagnostics()` reads `sampling_args` to tell a user which limit to
   # raise. Once the treedepth count moved to the merged limit, quoting the

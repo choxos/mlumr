@@ -212,7 +212,6 @@ test_that(".summarize_sensitivity records the comparator prior scale it was fitt
 
 test_that("prior_sensitivity replays a parametric survival baseline", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   # surv_controls records mspline_degree as NULL for a parametric baseline, so
   # every reader gets "not applicable" right rather than only the one that
   # normalizes NA. It was NA once, and because mlumr() rejects NA where it
@@ -237,7 +236,6 @@ test_that("prior_sensitivity replays a parametric survival baseline", {
 
 test_that("prior_sensitivity does not forward aux_by to non-survival refits", {
   skip_on_cran()
-  skip_if_not_installed("rstan")
   # The refit goes through do.call(mlumr, base_args). mlumr() guards `aux_by`
   # with !missing(), which is TRUE even when the value passed is NULL, so a
   # survival-only argument cannot be neutralized by setting it to NULL: it has
