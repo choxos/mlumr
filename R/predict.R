@@ -76,12 +76,9 @@
 #'   which for a study-stratified flexible baseline is the follow-up both
 #'   studies observed rather than the pooled maximum.
 #'   The plot methods require `summary = TRUE`; with `summary = FALSE` the raw
-#'   posterior draws are returned as a plain data frame. Every summary row
-#'   carries `n_draws` and `n_draws_used`: how many draws it was offered and
-#'   how many it used, which differ when `NA` or `NaN` draws were dropped. For
-#'   `type = "median"` the summary is conditional on the median being reached,
-#'   so `n_draws_used` counts the draws that reached it and `p_not_reached`
-#'   gives the posterior probability that one does not.
+#'   posterior draws are returned as a plain data frame. For `type = "median"`
+#'   the summary is conditional on the median being reached, and
+#'   `p_not_reached` gives the posterior probability that it is not.
 #' @seealso [marginal_effects()] for treatment-effect summaries;
 #'   [conditional_predict()] and [conditional_effects()] for predictions
 #'   at specific covariate profiles.
@@ -104,7 +101,7 @@ predict.mlumr_fit <- function(object,
                               ...) {
 
   .validate_mlumr_fit_object(object)
-  summary <- .validate_summary_flag(summary)
+  summary <- .validate_flag(summary, "summary")
   .validate_probs(probs)
 
   family <- object$family %||% "binomial"
@@ -305,9 +302,9 @@ predict.mlumr_fit <- function(object,
                                horizon = NULL, requested_times = NULL) {
   label_names <- intersect(c("treatment", "population"), names(cells))
 
-  # One cell per treatment and population, so up to four passes for
-  # `population = "both"`. Tally and report once, as the conditional paths do.
-  tally <- .draw_tally()
+  # A missing median is an expected outcome with its own diagnostic
+  # (`p_not_reached`), not a dropped draw.
+  if (summary && type != "median") .warn_dropped_draws(do.call(cbind, values))
 
   rows <- lapply(seq_along(values), function(i) {
     m <- values[[i]]
@@ -317,14 +314,6 @@ predict.mlumr_fit <- function(object,
       if (!summary) {
         return(data.frame(lab, value = m[, 1], row.names = NULL,
                           check.names = FALSE))
-      }
-      # A missing median is an expected finite-grid outcome, not a lost draw:
-      # `p_not_reached` below and `.median_not_reached_note()` already report
-      # it, with a documented way to silence them. The generic dropped-draw
-      # warning would say the same thing once per cell, ignore that switch, and
-      # under `options(warn = 2)` turn an ordinary result into an error.
-      if (type != "median") {
-        tally$add(m)
       }
       s <- .summarize_draw_matrix(m, probs, warn = FALSE)
       # For median survival, draws whose fitted survival never reaches 0.5 over
@@ -351,7 +340,6 @@ predict.mlumr_fit <- function(object,
       }
       return(df)
     }
-    tally$add(m)
     s <- .summarize_draw_matrix(m, probs, warn = FALSE)
     # When the caller named the times, report BOTH what was asked for and what
     # was evaluated, in the order asked. A row saying only `time = 11.8` for a
@@ -376,20 +364,14 @@ predict.mlumr_fit <- function(object,
       # answers no request, so it was set to NA just above. Leaving it in here
       # overwrote that NA with the origin value, and a survival origin row then
       # claimed someone had asked for time 1.
-      # The draw accounting is not a summarized quantity either. Every draw
-      # contributes the exact origin value (S(0) = 1, H(0) = 0), so the origin
-      # row uses all of them, whatever the first fitted time dropped.
       num_cols <- setdiff(names(o)[vapply(o, is.numeric, logical(1))],
-                          c("time", "requested_time", "n_draws",
-                            "n_draws_used", label_names))
+                          c("time", "requested_time", label_names))
       o[num_cols] <- origin
       if ("sd" %in% names(o)) o$sd <- 0
-      if ("n_draws_used" %in% names(o)) o$n_draws_used <- o$n_draws
       df <- rbind(o, df)
     }
     df
   })
-  tally$report("survival result cells")
 
   out <- do.call(rbind, rows)
   rownames(out) <- NULL
@@ -913,8 +895,6 @@ predict.mlumr_fit <- function(object,
 #'   column names the measure; with `summary = FALSE` the scale is carried by
 #'   the draw column names themselves (`lor_*`, `rr_*`, `delta_*`, `hr_*` /
 #'   `tr_*` / `exp_delta_eta_*` by what the fit's scalar is, `rmst*`).
-#'   Each summary row also carries `n_draws` and `n_draws_used`, which differ
-#'   when `NA` or `NaN` draws were dropped from it.
 #'   For survival, RMST-based rows also carry a `horizon` column (the raw-draw
 #'   frame, a `horizon` attribute) giving the restriction time the integral runs
 #'   to. RMST at different horizons is a different estimand, so results are only
@@ -953,7 +933,7 @@ marginal_effects <- function(object,
 
   .validate_mlumr_fit_object(object)
   effect <- .validate_effect_choice(effect)
-  summary <- .validate_summary_flag(summary)
+  summary <- .validate_flag(summary, "summary")
   .validate_probs(probs)
 
   # `at_time` selects the evaluation time of the scalar marginal hazard ratio.
@@ -2555,17 +2535,6 @@ marginal_effects <- function(object,
   }
 
   x
-}
-
-
-#' Validate a scalar summary flag
-#' @keywords internal
-.validate_summary_flag <- function(summary) {
-  valid <- is.logical(summary) && length(summary) == 1L && !is.na(summary)
-  if (!valid) {
-    stop("`summary` must be TRUE or FALSE.", call. = FALSE)
-  }
-  summary
 }
 
 

@@ -38,7 +38,6 @@ Imports:
     rstan (>= 2.26.0),
     rstantools (>= 2.3.0),
     randtoolbox,
-    copula,
     survival (>= 3.1-0),
     splines2 (>= 0.4.1),
     ggplot2 (>= 3.4.0)

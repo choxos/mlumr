@@ -179,8 +179,7 @@
   .check_required_columns(data, required_cols)
   .validate_reserved_internal_names(
     c(covariates, treatment, study, time, status, entry_time),
-    c(".study", ".trt", ".time", ".start_time", ".delay_time", ".status",
-      ".source_key"),
+    c(".study", ".trt", ".time", ".start_time", ".delay_time", ".status"),
     "Column name(s)"
   )
   .validate_ipd_covariates(data, covariates)
@@ -195,7 +194,6 @@
   )
   ipd_data <- cbind(ipd_data, surv_df)
   for (cov in covariates) ipd_data[[cov]] <- data[[cov]]
-  ipd_data$.source_key <- .source_row_keys(data)
 
   # Drop incomplete rows with a warning, as the non-survival path does.
   keep <- stats::complete.cases(ipd_data[, c(".study", ".trt", ".time",
@@ -279,12 +277,7 @@
 #' entry in the individual arm is unaffected.
 #'
 #' @return An object of class `mlumr_agd_surv` (also inheriting `mlumr_agd`).
-#'   Its `$pseudo_ipd` carries a `.source_key` column as [set_ipd()] describes:
-#'   a digest of the whole of `data` with the row's rank within a canonical
-#'   ordering of it, holding nothing of the content, so that
-#'   [compare_models()] can recognize one source reordered between two fits.
-#'   The internal names, `.source_key` among them, cannot be used as column
-#'   names in `data`.
+#'   The internal column names cannot be used as column names in `data`.
 #' @seealso [set_agd()] for non-survival aggregate data;
 #'   `multinma::set_agd_surv()` is the ML-NMR equivalent.
 #' @export
@@ -323,8 +316,7 @@ set_agd_surv <- function(data, treatment, Surv = NULL,
   .validate_reserved_internal_names(
     c(cov_means, cov_sds[!is.na(cov_sds)], treatment, study, arm,
       time, status, entry_time),
-    c(".study", ".trt", ".arm", ".time", ".start_time", ".delay_time", ".status",
-      ".source_key"),
+    c(".study", ".trt", ".arm", ".time", ".start_time", ".delay_time", ".status"),
     "Column name(s)"
   )
   .validate_agd_covariate_names(cov_means)
@@ -355,7 +347,6 @@ set_agd_surv <- function(data, treatment, Surv = NULL,
     .study = study_vec, .trt = trt_vec, .arm = arm_vec,
     .time = surv_df$.time, .start_time = surv_df$.start_time,
     .delay_time = surv_df$.delay_time, .status = surv_df$.status,
-    .source_key = .source_row_keys(data),
     stringsAsFactors = FALSE
   )
 

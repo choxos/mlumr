@@ -138,9 +138,7 @@ add_integration <- function(data, n_int = 64, cor = NULL,
   if (!inherits(data, "mlumr_data")) {
     stop("`data` must be created with combine_data()", call. = FALSE)
   }
-  if (!is.logical(verbose) || length(verbose) != 1L || is.na(verbose)) {
-    stop("`verbose` must be TRUE or FALSE.", call. = FALSE)
-  }
+  .validate_flag(verbose, "verbose")
   valid_cor_adjust <- c("spearman", "pearson", "none")
   invalid_cor_adjust <- !is.null(cor_adjust) &&
     (!is.character(cor_adjust) ||
@@ -464,25 +462,15 @@ add_integration <- function(data, n_int = 64, cor = NULL,
 
 
 #' Generate correlated uniform quasi-Monte Carlo points
+#'
+#' Sobol points pushed through a Gaussian copula: normal scores, multiplied by
+#' the Cholesky factor of `copula_cor`, mapped back to uniforms. The three
+#' steps together are the inverse Rosenblatt transform of that copula.
 #' @keywords internal
 .generate_copula_uniforms <- function(n_int, n_cov, copula_cor) {
-  u <- randtoolbox::sobol(n = n_int, dim = n_cov)
-  if (n_cov == 1L) {
-    as.matrix(u)
-  } else {
-    u_cor <- tryCatch({
-      cop <- copula::normalCopula(copula::P2p(copula_cor), dim = n_cov,
-                                  dispstr = "un")
-      copula::cCopula(u, copula = cop, inverse = TRUE)
-    }, error = function(e) {
-      stop(paste0(
-        "Gaussian copula construction failed: ", e$message, "\n",
-        "Try using `cor_adjust = \"none\"` or check covariate distributions."
-      ), call. = FALSE)
-    })
-
-    as.matrix(u_cor)
-  }
+  u <- as.matrix(randtoolbox::sobol(n = n_int, dim = n_cov))
+  if (n_cov == 1L) return(u)
+  stats::pnorm(stats::qnorm(u) %*% chol(copula_cor))
 }
 
 
@@ -624,13 +612,8 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
   if (!inherits(data, "mlumr_data")) {
     stop("`data` must be an mlumr_data object", call. = FALSE)
   }
-  if (!is.logical(verbose) || length(verbose) != 1L || is.na(verbose)) {
-    stop("`verbose` must be TRUE or FALSE.", call. = FALSE)
-  }
-  if (!is.logical(check_joint) || length(check_joint) != 1L ||
-        is.na(check_joint)) {
-    stop("`check_joint` must be TRUE or FALSE.", call. = FALSE)
-  }
+  .validate_flag(verbose, "verbose")
+  .validate_flag(check_joint, "check_joint")
   if (!data$has_integration) {
     stop("No integration points found. Use add_integration() first.", call. = FALSE)
   }

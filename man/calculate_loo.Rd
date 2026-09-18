@@ -20,11 +20,8 @@ each external arm is one held-out unit), or \code{"aggregate"} (all comparator
 pseudo-IPD as a single external-evidence unit). The index IPD always stays
 per-individual. Ignored for non-survival families.}
 
-\item{...}{Further arguments for the matrix method of \code{\link[loo:loo]{loo::loo()}}, as the
-installed \code{loo} defines it: \code{save_psis}, \code{cores}, and \code{is_method} in
-current releases. Anything else is refused rather than dropped,
-\code{moment_match} included (see Details); \code{r_eff} is computed from the fit's
-chains.}
+\item{...}{Further arguments passed to \code{\link[loo:loo]{loo::loo()}}; \code{r_eff} is computed
+from the fit's chains.}
 }
 \value{
 An object of class \code{psis_loo} (see \code{\link[loo:loo]{loo::loo()}}).
@@ -39,11 +36,8 @@ Pareto-k diagnostics: values > 0.7 indicate observations for which the
 PSIS approximation is unreliable; the printed output flags these.
 Typical remedies are running more iterations or, for highly influential
 AgD rows, refitting without the offending observation to check
-sensitivity. Moment matching (\code{\link[loo:loo_moment_match]{loo::loo_moment_match()}}) is not available
-here: it needs the fitted model rather than the saved pointwise
-log-likelihood, and \code{loo} ignores \code{moment_match} for a matrix, so
-\code{calculate_loo()} refuses the argument instead of returning the unchanged
-estimate.
+sensitivity. Moment matching (\code{\link[loo:loo_moment_match]{loo::loo_moment_match()}}) needs the fitted
+model rather than a log-likelihood matrix, so \code{moment_match} is refused.
 }
 \note{
 \strong{AgD rows are treated as independent observations.} Each AgD row

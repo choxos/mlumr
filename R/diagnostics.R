@@ -59,103 +59,6 @@
 }
 
 
-#' Refuse a pointwise log-likelihood that does not cover the fitted data
-#'
-#' LOO, WAIC, and DIC score whatever `log_lik_ipd` and `log_lik_agd` columns
-#' the saved draws hold, and extracting them used to stop only when both were
-#' absent. rstan's `pars` with `include = FALSE`, passed through the `...` of
-#' [mlumr()], saves a fit without either block, and a fit object edited
-#' afterwards can lose single columns. The criteria were then computed over
-#' part of the data the model was fitted to, with only the column count to
-#' show for it, and two fits missing the same block were compared without
-#' complaint although that part can rank them differently than all of it.
-#'
-#' The columns that belong are fixed by the Stan models: `log_lik_ipd` holds
-#' one per index observation, `1:n_ipd`, and `log_lik_agd` one per aggregate
-#' row, `1:n_agd_rows`, except under survival, where the comparator enters as
-#' reconstructed pseudo-individuals and there is one per pseudo-individual,
-#' `1:n_agd`. Outside survival `n_agd` is each row's sample size, not a column
-#' count. Where tied rows were collapsed, the expanded count `sum(agd_count)`
-#' is what has to be there, and [.assert_agd_loglik_per_observation()] has
-#' already refused the collapsed shape. The indexes are compared as a set, so
-#' a missing column, a repeated one, and a misnumbered one that keeps the
-#' count are all refused, and so is a column named as a pointwise value whose
-#' index cannot be read.
-#' @param object An `mlumr_fit` object.
-#' @return `TRUE` invisibly; stops otherwise.
-#' @keywords internal
-.assert_log_lik_complete <- function(object) {
-  draws <- object$draws
-  if (is.null(draws) || is.null(colnames(draws))) return(invisible(TRUE))
-  sd <- object$stan_data
-  survival <- identical(object$family, "survival")
-  cnt <- sd$agd_count
-  agd_field <- if (survival) "n_agd" else "n_agd_rows"
-  expected <- list(ipd = sd$n_ipd,
-                   agd = if (length(cnt)) sum(cnt) else sd[[agd_field]])
-  counted <- vapply(expected, function(n) {
-    is.numeric(n) && length(n) == 1L && is.finite(n) && n >= 0 && n == trunc(n)
-  }, logical(1L))
-  if (!all(counted)) {
-    stop("This fit does not record how many observations its pointwise ",
-         "log-likelihood covers (`stan_data$n_ipd` and `stan_data$",
-         agd_field, "`), so whether every one was saved cannot be checked ",
-         "and LOO, WAIC, and DIC are not computed from it. A fit from an ",
-         "older version of mlumr has to be refitted with the current one.",
-         call. = FALSE)
-  }
-  unit <- list(ipd = "index observation",
-               agd = if (survival) {
-                 "reconstructed comparator pseudo-individual"
-               } else {
-                 "aggregate row"
-               })
-  listed <- function(v) {
-    v <- sort(unique(v))
-    if (length(v) <= 5L) return(paste(v, collapse = ", "))
-    paste0(paste(v[1:5], collapse = ", "), " and ", length(v) - 5L, " more")
-  }
-  for (source in c("ipd", "agd")) {
-    stem <- paste0("log_lik_", source)
-    named <- grep(paste0("^", stem, "\\["), colnames(draws), value = TRUE)
-    readable <- grepl(paste0("^", stem, "\\[[0-9]+\\]$"), named)
-    idx <- suppressWarnings(.log_lik_column_index(named[readable], source))
-    n <- as.integer(expected[[source]])
-    if (all(readable) && !anyNA(idx) && identical(sort(idx), seq_len(n))) next
-    known <- idx[!is.na(idx)]
-    outside <- known[known < 1L | known > n]
-    unreadable <- c(named[!readable], named[readable][is.na(idx)])
-    problems <- c(
-      if (length(setdiff(seq_len(n), known))) {
-        paste("missing", listed(setdiff(seq_len(n), known)))
-      },
-      if (length(outside)) paste("outside that range", listed(outside)),
-      if (anyDuplicated(known)) paste("repeated", listed(known[duplicated(known)])),
-      if (length(unreadable)) {
-        paste0("unreadable ", paste0("`", unreadable, "`", collapse = ", "))
-      }
-    )
-    want <- if (n == 1L) {
-      paste0("one column for the one ", unit[[source]],
-             " the model was fitted to, numbered 1")
-    } else {
-      paste0("one column for each of the ", n, " ", unit[[source]],
-             "s the model was fitted to, numbered 1 to ", n)
-    }
-    stop("`", stem, "` should hold ", want, ", but the saved draws have ",
-         length(named), " (",
-         paste(problems, collapse = "; "), "). LOO, WAIC, and DIC computed ",
-         "from them would score only part of that data, and fits missing the ",
-         "same columns can rank differently than on all of it. Columns go ",
-         "unsaved when the sampler is told not to keep them, for example ",
-         "with rstan's `pars` and `include = FALSE` passed through `mlumr()`; ",
-         "refit saving every `log_lik_ipd` and `log_lik_agd` element.",
-         call. = FALSE)
-  }
-  invisible(TRUE)
-}
-
-
 #' Extract the full pointwise log-likelihood matrix from an mlumr_fit
 #'
 #' Combines the IPD and AgD per-observation log-likelihood draws into a
@@ -193,8 +96,6 @@ extract_log_lik <- function(object) {
       call. = FALSE
     )
   }
-  .assert_log_lik_complete(object)
-
   selected <- draws[, c(ipd_cols, agd_cols), drop = FALSE]
   numeric_cols <- vapply(selected, is.numeric, logical(1))
   if (!all(numeric_cols)) {
@@ -204,294 +105,6 @@ extract_log_lik <- function(object) {
   log_lik <- as.matrix(selected)
   .validate_log_lik_matrix(log_lik)
   log_lik
-}
-
-
-#' The observations a fit's pointwise likelihood is over
-#'
-#' Every comparison here is paired: `loo_compare()` differences pointwise
-#' values column by column, and DIC ranks totals over one data set. An equal
-#' number of columns is all `loo` itself can check, and it is not enough:
-#' two fits of different data with the same number of rows, or of the same
-#' data in a different row order, produce a matrix of the right shape and a
-#' comparison that means nothing. The fit carries the data it was built from,
-#' so the identity can be checked rather than assumed.
-#'
-#' The frames returned hold, in stored row order, the internal columns that
-#' define an observation (`.study`, `.trt`, the outcome, exposure, and for
-#' survival the times and status; named explicitly, since only the internal
-#' names are reserved and a covariate may itself begin with a dot) together
-#' with the covariates the fit used. For survival comparators the aggregate
-#' rows carry the covariate summaries and the reconstructed pseudo-individuals
-#' carry the times and status, and the pointwise units are the latter; both
-#' frames are kept, since a change to either changes the likelihood.
-#'
-#' The values define an observation, not their representation. A factor and
-#' the character vector it codes, with or without unused levels, or an integer
-#' count and the double that was read from a file, describe the same
-#' observations, so each column is reduced to its plain values. Study,
-#' treatment and arm are labels: a study numbered 1 is the same study whether
-#' the number was stored as a factor, an integer or a double, so those are
-#' compared as the strings that name them. Counts are accepted within
-#' rounding tolerance and rounded before Stan sees them, and are rounded the
-#' same way here.
-#'
-#' @param fit An `mlumr_fit`.
-#' @return A list with elements `ipd`, `agd` and `pseudo` (the last `NULL`
-#'   outside survival), or `NULL` when the fit carries no data.
-#' @keywords internal
-.observation_frames <- function(fit) {
-  data <- fit$data
-  if (is.null(data) || is.null(data$ipd$data)) return(NULL)
-  plain <- function(df) {
-    if (is.null(df)) return(NULL)
-    df <- as.data.frame(df)
-    rownames(df) <- NULL
-    df[] <- lapply(df, function(x) {
-      if (is.factor(x)) as.character(x) else if (is.numeric(x)) as.numeric(x) else as.vector(x)
-    })
-    for (nm in intersect(c(".study", ".trt", ".arm"), names(df))) {
-      df[[nm]] <- as.character(df[[nm]])
-    }
-    for (nm in intersect(c(".n", ".r"), names(df))) {
-      df[[nm]] <- as.numeric(.as_count_integer(df[[nm]]))
-    }
-    df
-  }
-  list(ipd = plain(data$ipd$data), agd = plain(data$agd$data),
-       pseudo = plain(data$agd$pseudo_ipd))
-}
-
-#' The internal columns that define an observation, across the families
-#' @keywords internal
-.observation_columns <- c(".study", ".trt", ".arm", ".outcome", ".exposure",
-                          ".n", ".r", ".y", ".se", ".E",
-                          ".time", ".start_time", ".delay_time", ".status")
-
-#' Were two fits built on the same observations, row for row?
-#'
-#' The observation columns must agree exactly, and so must every covariate
-#' column the two fits share. Covariates only one of them uses are left out on
-#' purpose: models of the same outcomes with different covariate sets are
-#' exactly what gets compared. Two rows that differ only in such a covariate
-#' are exchangeable for the model that does not use it, since its pointwise
-#' likelihood is the same for both, so either pairing gives that model the
-#' same comparison. A row swap that changes a shared covariate is a different
-#' pairing for both models and is a mismatch.
-#'
-#' The stored columns can only show what both fits kept. When the fits share
-#' no covariate, a swap of two rows that agree on the outcome columns moves
-#' both models' pointwise likelihoods and leaves nothing in those columns to
-#' see. The setup functions therefore record, for every row, a key made of a
-#' fingerprint of the whole source and the row's rank within it
-#' ([.source_row_keys()]). Two fits holding the same set of keys in a
-#' different order were built from one source reordered between them, and
-#' that is a mismatch whatever the columns say. Different sets mean the source
-#' itself changed between the fits, in columns the models did not use; the
-#' keys then cannot say whether the rows are in the same order, and neither
-#' can the columns, so the answer is `NA`: not a mismatch, and not verified
-#' either. A frame with one row cannot be reordered and needs no key.
-#' @param a,b Results of [.observation_frames()].
-#' @return `TRUE`, `FALSE`, or `NA` when the observations agree but the row
-#'   order could not be verified.
-#' @keywords internal
-.same_observations <- function(a, b, pseudo_grouped = FALSE,
-                               unordered = FALSE) {
-  same_frame <- function(x, y, grouped = FALSE) {
-    if (is.null(x) && is.null(y)) return(TRUE)
-    if (is.null(x) || is.null(y)) return(FALSE)
-    shared <- setdiff(intersect(names(x), names(y)), ".source_key")
-    obs <- intersect(.observation_columns, union(names(x), names(y)))
-    if (!all(obs %in% shared)) return(FALSE)
-    kx <- x$.source_key
-    ky <- y$.source_key
-    if (unordered || grouped) {
-      # These two allow a reordering, so they cannot ask the keys about order.
-      # They still have to ask whether the rows are the same rows: a criterion
-      # that does not depend on the order still depends on the observations.
-      rows <- .same_grouped_rows(x, y, shared, group = grouped && !unordered)
-      if (!isTRUE(rows)) return(rows)
-      if (nrow(x) < 2L) return(TRUE)
-      return(!.kept_different_rows_of_one_source(kx, ky))
-    }
-    if (!identical(x[shared], y[shared])) return(FALSE)
-    if (nrow(x) < 2L) return(TRUE)
-    if (is.null(kx) || is.null(ky)) return(NA)
-    if (identical(kx, ky)) return(TRUE)
-    if (identical(.sorted_keys(kx), .sorted_keys(ky))) return(FALSE)
-    # A key is a source digest and a rank within that source. Equal digests
-    # with different ranks are one source that two fits filtered differently,
-    # which is what happens when the models use covariates that are missing on
-    # different rows: the complete-case drop keeps different patients, the row
-    # counts can still match, and the shared columns can still agree. That
-    # pairs one patient's likelihood with another's, so it is a mismatch and
-    # not something the keys are unable to see. Only a different source leaves
-    # the order genuinely unverifiable.
-    if (.kept_different_rows_of_one_source(kx, ky)) return(FALSE)
-    NA
-  }
-  same_frame(a$ipd, b$ipd) && same_frame(a$agd, b$agd) &&
-    same_frame(a$pseudo, b$pseudo, grouped = pseudo_grouped)
-}
-
-#' The source digests a set of row keys was built from
-#'
-#' A key is `<digest>:<rank>`; the digest names the source and the rank names
-#' the row within it. Sorted and deduplicated so that two frames drawing on
-#' the same sources compare equal whatever order their rows arrived in.
-#' @param keys A `.source_key` column.
-#' @return The distinct digests, sorted.
-#' @keywords internal
-.source_digests <- function(keys) {
-  .sorted_keys(unique(sub(":.*$", "", keys)))
-}
-
-#' Sort key strings in byte order
-#'
-#' The keys are compared by sorting both sides and testing the results for
-#' equality, so the order has to be a total order on the strings themselves.
-#' The default collation follows `LC_COLLATE`, which can rank two distinct
-#' strings as equal, and two equal multisets then sort into two different
-#' vectors and read as a mismatch. Byte order is total and the same everywhere,
-#' which is what [.source_row_keys()] builds the keys in.
-#' @param keys A character vector of keys or digests.
-#' @return The same values in byte order.
-#' @keywords internal
-.sorted_keys <- function(keys) {
-  sort(keys, method = "radix")
-}
-
-#' Did two frames keep different rows of one source?
-#'
-#' Equal digests with unequal ranks are one source that two fits filtered
-#' differently, which is what happens when the models use covariates that are
-#' missing on different rows. That is a mismatch under every ordering
-#' semantics: it is not a reordering, so allowing one does not allow it. Every
-#' path through [.same_observations()] therefore asks this, and the paths that
-#' permit a reordering ask only this.
-#'
-#' Absent keys and different digests are left alone here. They say the rows
-#' could not be placed, which the ordered path reports as `NA` and the paths
-#' that do not depend on order have no reason to raise.
-#' @param kx,ky Two `.source_key` columns.
-#' @return `TRUE` when the keys show one source filtered two ways.
-#' @keywords internal
-.kept_different_rows_of_one_source <- function(kx, ky) {
-  !is.null(kx) && !is.null(ky) &&
-    !identical(.sorted_keys(kx), .sorted_keys(ky)) &&
-    identical(.source_digests(kx), .source_digests(ky))
-}
-
-#' Do two frames hold the same rows within each arm, in any order?
-#'
-#' The grouped survival units sum their pointwise columns inside a group
-#' before anything is compared, so the order of the rows inside a group is
-#' not part of the comparison and requiring it rejects work that is valid.
-#' What still has to hold is that each group is made of the same rows: the
-#' groups themselves must match, and within each one the rows must agree as a
-#' multiset, so a row moved from one arm to another, or replaced, is still a
-#' different comparator.
-#'
-#' Each group's rows are put in one canonical order and then compared as the
-#' values they are. Rendering them as text would have been simpler and wrong:
-#' `format()` prints to the display precision, so two survival times that
-#' differ below `getOption("digits")` would render alike and two different
-#' comparators would be approved. Ordering is exact on doubles, so nothing is
-#' rounded on the way in, and rows that tie on every shared column are
-#' interchangeable by construction. The source keys take no part in the order,
-#' which is the very thing being allowed; [.same_observations()] still asks
-#' them, after this, whether the two frames kept different rows of one source.
-#' @param group Split the rows by `.arm` before comparing, which is what a
-#'   per-arm unit needs. `FALSE` compares the whole frame as one multiset,
-#'   for a criterion whose value does not depend on the order at all.
-#' @keywords internal
-.same_grouped_rows <- function(x, y, shared, group = TRUE) {
-  if (nrow(x) != nrow(y)) return(FALSE)
-  if (!nrow(x)) return(TRUE)
-  # A non-empty label on purpose: `split()` keeps `""` as a name and
-  # `list[[""]]` matches nothing, so every group would have come back empty
-  # and every comparison would have passed.
-  arm <- function(df) {
-    if (group && ".arm" %in% names(df)) {
-      paste0("arm:", as.character(df$.arm))
-    } else {
-      rep("all", nrow(df))
-    }
-  }
-  gx <- split(seq_len(nrow(x)), arm(x))
-  gy <- split(seq_len(nrow(y)), arm(y))
-  if (!identical(sort(names(gx)), sort(names(gy)))) return(FALSE)
-  # Byte order, so the canonical order does not depend on the locale.
-  canonical <- function(df, idx) {
-    sub <- df[idx, shared, drop = FALSE]
-    ord <- do.call(order, c(unname(as.list(sub)), list(method = "radix")))
-    sub <- sub[ord, , drop = FALSE]
-    rownames(sub) <- NULL
-    sub
-  }
-  for (g in names(gx)) {
-    if (length(gx[[g]]) != length(gy[[g]])) return(FALSE)
-    if (!identical(canonical(x, gx[[g]]), canonical(y, gy[[g]]))) return(FALSE)
-  }
-  TRUE
-}
-
-#' Refuse to compare fits that were not built on the same observations
-#' @keywords internal
-.assert_same_observations <- function(models, survival_unit = "observation",
-                                      unordered = FALSE) {
-  # The grouped survival units sum a group's pointwise columns before the
-  # comparison, so the comparator's rows have to be the same rows in the same
-  # groups but not in the same order. The index rows stay positional under
-  # every unit.
-  pseudo_grouped <- !identical(survival_unit, "observation")
-  frames <- lapply(models, function(m) {
-    if (inherits(m, "mlumr_fit")) {
-      .observation_frames(m)
-    } else if (inherits(m, "mlumr_dic")) {
-      m$observations
-    } else {
-      NULL
-    }
-  })
-  known <- Filter(Negate(is.null), frames)
-  # Every pair, not each against the first: the relation is not transitive,
-  # since two fits may share a covariate that a third does not carry.
-  unverified <- FALSE
-  for (i in seq_along(known)) {
-    for (j in seq_len(i - 1L)) {
-      same <- .same_observations(known[[j]], known[[i]],
-                                 pseudo_grouped, unordered)
-      if (isFALSE(same)) {
-        stop("The compared fits were not built on the same observations in ",
-             "the same order: their stored data differ in the columns that ",
-             "define an observation or in a covariate they share, or hold the ",
-             "rows of one source in a different order, or kept different rows ",
-             "of one source. Pointwise criteria are ",
-             "paired, column by column, so a comparison across different data, ",
-             "or the same data in a different order, is not a comparison of ",
-             "the models. Refit on one common data set.", call. = FALSE)
-      }
-      if (is.na(same)) unverified <- TRUE
-    }
-  }
-  if (unverified) {
-    warning("The compared fits agree on every observation column and every ",
-            "covariate they share, but whether their rows are in the same ",
-            "order could not be verified: they were built from sources that ",
-            "differ in columns the models did not use, or one of them predates ",
-            "the row keys. Pointwise criteria pair rows by position, so the ",
-            "comparison assumes the order is the same. Build both fits from ",
-            "one data frame to have it checked.", call. = FALSE)
-  }
-  unknown <- length(frames) - length(known)
-  if (unknown > 0L) {
-    message("Could not verify that the compared models share the same ",
-            "observations: ", unknown, " of them carr",
-            if (unknown == 1L) "ies" else "y",
-            " no data to check. The comparison assumes they do.")
-  }
-  invisible(length(known))
 }
 
 
@@ -531,65 +144,6 @@ extract_log_lik <- function(object) {
 }
 
 
-#' Refuse a cached DIC that does not cover the observations it carries
-#'
-#' [compare_models()] accepts `mlumr_dic` objects beside fits and uses their
-#' numbers as they are, so [.assert_log_lik_complete()] never sees the draws
-#' they were computed from. [calculate_dic()] used to score whatever
-#' `log_lik_ipd` and `log_lik_agd` columns a fit held, and an object it made
-#' then records in `n_obs` how many columns that was, beside the frames of the
-#' observations the fit was built from. A saved object outlives the fix, since
-#' loading it is not recomputing it, and the check between objects that their
-#' `n_obs` agree does not see two that are partial alike.
-#'
-#' The pointwise units are fixed by the data the object carries: one per index
-#' row, and one per aggregate row, or per reconstructed comparator
-#' pseudo-individual under survival, where the `pseudo` frame is present. An
-#' `n_obs` that differs from that count was computed over part of the data, or
-#' over columns that were not the fit's, and is refused: the omitted terms'
-#' covariance with the kept ones enters the variance penalty, so the score
-#' cannot be completed from its value. A count that agrees is consistent with
-#' a complete score rather than proof of one, since columns misnumbered within
-#' the right count leave no trace in a scalar. An object without its
-#' observations, from a version before they were recorded, cannot be checked
-#' and is compared as before, with the message that
-#' [.assert_same_observations()] gives for a model carrying no data; one that
-#' carries its observations but not `n_obs` is compared with a message of its
-#' own saying that the count is not recorded.
-#' @param dic An `mlumr_dic` object.
-#' @return `TRUE` invisibly; stops otherwise.
-#' @keywords internal
-.assert_dic_covers_observations <- function(dic) {
-  obs <- dic$observations
-  n_obs <- dic$n_obs
-  # No observations: .assert_same_observations() has already said that this
-  # object carries no data to check.
-  if (is.null(obs)) return(invisible(TRUE))
-  if (is.null(n_obs)) {
-    message("The DIC for `", dic$model %||% "this model", "` does not record ",
-            "how many pointwise values it was computed over, so whether it ",
-            "covers the observations it carries cannot be checked. The ",
-            "comparison assumes it does.")
-    return(invisible(TRUE))
-  }
-  rows <- function(df) if (is.null(df)) 0L else nrow(df)
-  survival <- !is.null(obs$pseudo)
-  n_ipd <- rows(obs$ipd)
-  n_agd <- if (survival) rows(obs$pseudo) else rows(obs$agd)
-  if (isTRUE(n_obs == n_ipd + n_agd)) return(invisible(TRUE))
-  plural <- function(n, one) paste0(n, " ", one, if (n == 1) "" else "s")
-  unit <- if (survival) "reconstructed comparator pseudo-individual" else "aggregate row"
-  stop("The DIC for `", dic$model %||% "this model", "` was computed over ",
-       plural(n_obs, "pointwise value"), ", but the data it carries has ",
-       n_ipd + n_agd, " observations (", plural(n_ipd, "index observation"),
-       " and ", plural(n_agd, unit), "). It was scored over part of that data, ",
-       "as `calculate_dic()` did when a fit had not saved every `log_lik_ipd` ",
-       "and `log_lik_agd` element, and a DIC cannot be completed from its ",
-       "value. Recompute it with `calculate_dic()` from a fit that saved them all.",
-       call. = FALSE)
-}
-
-
 #' Calculate DIC for model comparison
 #'
 #' Computes the Deviance Information Criterion using the variance-based
@@ -600,18 +154,10 @@ extract_log_lik <- function(object) {
 #' principled Bayesian model comparison, prefer [calculate_loo()] or
 #' [calculate_waic()] (Vehtari, Gelman, Gabry 2017).
 #'
-#' The saved pointwise log-likelihood has to cover every observation the model
-#' was fitted to. A fit missing any of those columns, as rstan's `pars` with
-#' `include = FALSE` can leave one, is refused rather than scored on part of
-#' its data, and the same holds for [calculate_loo()] and [calculate_waic()].
-#'
 #' @param object An `mlumr_fit` object
 #'
 #' @return A list of class `mlumr_dic` with components `DIC`, `pD`, `D_bar`,
-#'   `n_obs`, `model`, and `observations`, the fit's observation frames as
-#'   kept for [compare_models()], so a DIC object can still be checked against
-#'   the fits it is compared with, and its `n_obs` against the observations it
-#'   carries.
+#'   `n_obs` and `model`.
 #' @export
 #'
 #' @examples
@@ -639,8 +185,7 @@ calculate_dic <- function(object) {
     pD = pD,
     D_bar = D_bar,
     n_obs = ncol(log_lik),
-    model = .mlumr_model_label(object),
-    observations = .observation_frames(object)
+    model = .mlumr_model_label(object)
   )
 
   class(out) <- "mlumr_dic"
@@ -671,11 +216,8 @@ print.mlumr_dic <- function(x, ...) {
 #' PSIS approximation is unreliable; the printed output flags these.
 #' Typical remedies are running more iterations or, for highly influential
 #' AgD rows, refitting without the offending observation to check
-#' sensitivity. Moment matching ([loo::loo_moment_match()]) is not available
-#' here: it needs the fitted model rather than the saved pointwise
-#' log-likelihood, and `loo` ignores `moment_match` for a matrix, so
-#' `calculate_loo()` refuses the argument instead of returning the unchanged
-#' estimate.
+#' sensitivity. Moment matching ([loo::loo_moment_match()]) needs the fitted
+#' model rather than a log-likelihood matrix, so `moment_match` is refused.
 #'
 #' @note
 #' **AgD rows are treated as independent observations.** Each AgD row
@@ -703,11 +245,8 @@ print.mlumr_dic <- function(x, ...) {
 #'   each external arm is one held-out unit), or `"aggregate"` (all comparator
 #'   pseudo-IPD as a single external-evidence unit). The index IPD always stays
 #'   per-individual. Ignored for non-survival families.
-#' @param ... Further arguments for the matrix method of [loo::loo()], as the
-#'   installed `loo` defines it: `save_psis`, `cores`, and `is_method` in
-#'   current releases. Anything else is refused rather than dropped,
-#'   `moment_match` included (see Details); `r_eff` is computed from the fit's
-#'   chains.
+#' @param ... Further arguments passed to [loo::loo()]; `r_eff` is computed
+#'   from the fit's chains.
 #'
 #' @return An object of class `psis_loo` (see [loo::loo()]).
 #' @export
@@ -723,82 +262,15 @@ calculate_loo <- function(object,
     stop("The 'loo' package is required for calculate_loo(). ",
          "Install with install.packages('loo').", call. = FALSE)
   }
-  .refuse_ignored_loo_arguments(list(...), .loo_matrix_reads("loo"),
-                                "calculate_loo")
+  if ("moment_match" %in% names(list(...))) {
+    stop("`moment_match` is not available: `loo` ignores it for a ",
+         "log-likelihood matrix, and moment matching needs the fitted model.",
+         call. = FALSE)
+  }
   survival_unit <- match.arg(survival_unit)
   log_lik <- .survival_log_lik_by_unit(object, survival_unit)
   r_eff <- .relative_eff_from_log_lik(log_lik, .chain_id(object))
   loo::loo(log_lik, r_eff = r_eff, ...)
-}
-
-
-#' The further arguments the installed loo reads for a log-likelihood matrix
-#'
-#' Read off the formals of `loo.matrix` or `waic.matrix` in the installed
-#' `loo`, less `x` and `r_eff`, which mlumr supplies. A fixed list would
-#' accept an argument that some `loo` release may not define, `is_method` for
-#' one, and that release would drop it through `...` without notice, which is
-#' the failure the refusal exists to prevent.
-#' @param generic `"loo"` or `"waic"`.
-#' @return A character vector of argument names; empty if the method is not
-#'   found.
-#' @keywords internal
-.loo_matrix_reads <- function(generic) {
-  method <- get0(paste0(generic, ".matrix"), envir = asNamespace("loo"),
-                 mode = "function", inherits = FALSE)
-  if (is.null(method)) return(character())
-  setdiff(names(formals(method)), c("x", "...", "r_eff"))
-}
-
-
-#' Refuse arguments that loo's matrix methods would drop
-#'
-#' [calculate_loo()] and [calculate_waic()] hand `loo` a log-likelihood
-#' matrix, and the matrix methods read only their own formals: any other
-#' argument is accepted through `...` and dropped, so the estimate comes back
-#' as though it had never been asked for. `moment_match = TRUE` was the
-#' documented case. Moment matching re-evaluates the posterior and each
-#' observation's likelihood at transformed draws, which needs the fitted
-#' model, and a matrix does not carry it.
-#'
-#' @param args The caller's `...`, as a list.
-#' @param accepted The further arguments the matrix method does read, from
-#'   [.loo_matrix_reads()].
-#' @param fun The caller's name, for the message.
-#' @return `TRUE` invisibly; stops otherwise.
-#' @keywords internal
-.refuse_ignored_loo_arguments <- function(args, accepted, fun) {
-  if (!length(args)) return(invisible(TRUE))
-  given <- names(args)
-  if (is.null(given) || any(!nzchar(given))) {
-    stop("Every further argument to `", fun, "()` has to be named, so that ",
-         "it can be checked against the ones `loo` reads.", call. = FALSE)
-  }
-  if ("moment_match" %in% given) {
-    stop("`moment_match` is not available through `", fun, "()`. Moment ",
-         "matching re-evaluates the posterior and each observation's ",
-         "likelihood at transformed draws, which needs the fitted model, and ",
-         "`loo` ignores the request for the log-likelihood matrix this ",
-         "function passes, so the estimate would come back unchanged. For ",
-         "observations with high Pareto k, run more iterations, or refit ",
-         "without the influential observation to check its influence.",
-         call. = FALSE)
-  }
-  ignored <- setdiff(given, accepted)
-  if (length(ignored)) {
-    stop("`", fun, "()` does not use ",
-         paste0("`", ignored, "`", collapse = ", "), ". ",
-         if (length(accepted)) {
-           paste0("For a log-likelihood matrix `loo` reads only ",
-                  paste0("`", accepted, "`", collapse = ", "))
-         } else {
-           "For a log-likelihood matrix `loo` reads no further arguments"
-         },
-         ", and anything else would be dropped without notice.",
-         if ("r_eff" %in% ignored) " `r_eff` is computed from the fit's chains.",
-         call. = FALSE)
-  }
-  invisible(TRUE)
 }
 
 
@@ -859,8 +331,6 @@ calculate_loo <- function(object,
     stop("Grouped survival LOO/WAIC needs AgD pointwise log-likelihood ",
          "columns (`log_lik_agd`).", call. = FALSE)
   }
-  # Grouping sums columns, so a missing one would vanish into its group.
-  .assert_log_lik_complete(object)
   agd_mat <- as.matrix(draws[, agd_cols, drop = FALSE])
 
   groups <- if (identical(survival_unit, "aggregate")) {
@@ -912,9 +382,7 @@ calculate_loo <- function(object,
 #' @param survival_unit For survival fits, the WAIC pointwise unit:
 #'   `"observation"` (default), `"arm"`, or `"aggregate"` (see [calculate_loo()]
 #'   for details). Ignored for non-survival families.
-#' @param ... Further arguments for the matrix method of [loo::waic()], as the
-#'   installed `loo` defines it. Current releases read none, so any given here
-#'   is refused rather than dropped.
+#' @param ... Further arguments passed to [loo::waic()].
 #'
 #' @return An object of class `waic` (see [loo::waic()]).
 #' @export
@@ -929,8 +397,6 @@ calculate_waic <- function(object,
     stop("The 'loo' package is required for calculate_waic(). ",
          "Install with install.packages('loo').", call. = FALSE)
   }
-  .refuse_ignored_loo_arguments(list(...), .loo_matrix_reads("waic"),
-                                "calculate_waic")
   survival_unit <- match.arg(survival_unit)
   log_lik <- .survival_log_lik_by_unit(object, survival_unit)
   loo::waic(log_lik, ...)
@@ -950,12 +416,7 @@ calculate_waic <- function(object,
 #' requires the optional `loo` package.
 #'
 #' @param ... Two or more `mlumr_fit` objects. For DIC, `mlumr_dic`
-#'   objects are also accepted. One whose `n_obs` does not cover the
-#'   observations it carries, as an object computed by an earlier version over
-#'   part of a fit's saved likelihood does, is refused rather than ranked; one
-#'   from before those were recorded, or one recording its observations but
-#'   not the count, is compared as before, with a message that it could not be
-#'   checked.
+#'   objects are also accepted.
 #' @param criterion One of `"dic"` (default), `"loo"`, or `"waic"`.
 #'   LOO and WAIC require the optional `loo` package.
 #' @param survival_unit For survival fits compared by `"loo"`/`"waic"`, the
@@ -976,26 +437,15 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic"),
                                 "criterion")
   survival_unit <- match.arg(survival_unit)
   models <- list(...)
-  .validate_model_count(models)
-  # DIC sums each model's pointwise log-likelihood over observations before
-  # taking its mean and variance, so its value does not change under any
-  # permutation of them and there is nothing paired to line up. Only the LOO
-  # and WAIC standard error of the difference is formed column by column, so
-  # only it needs the rows in one order.
-  .assert_same_observations(
-    models,
-    if (criterion == "dic") "observation" else survival_unit,
-    unordered = identical(criterion, "dic")
-  )
+  if (length(models) < 2L) {
+    stop("compare_models() requires at least two models.", call. = FALSE)
+  }
 
   if (criterion == "dic") {
     dics <- lapply(models, function(m) {
       if (inherits(m, "mlumr_fit")) {
         calculate_dic(m)
       } else if (inherits(m, "mlumr_dic")) {
-        # A supplied score is used as it is, so the check that the draws
-        # covered the data has to be asked of the object itself.
-        .assert_dic_covers_observations(m)
         m
       } else {
         stop("For criterion = 'dic', arguments must be mlumr_fit or mlumr_dic objects",
@@ -1113,16 +563,6 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic"),
   loo::relative_eff(exp(stabilized), chain_id = chain_id)
 }
 
-
-
-#' Validate that model comparison has at least two candidates
-#' @keywords internal
-.validate_model_count <- function(models) {
-  if (length(models) < 2L) {
-    stop("compare_models() requires at least two models.", call. = FALSE)
-  }
-  invisible(TRUE)
-}
 
 
 #' Human-readable model label for an mlumr fit or DIC object

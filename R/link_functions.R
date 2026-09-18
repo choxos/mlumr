@@ -446,9 +446,7 @@ binomial_link_variance <- function(p, n, link = c("logit", "probit", "cloglog"))
 #' Emit package progress messages when enabled
 #' @keywords internal
 mlumr_message <- function(..., verbose = TRUE) {
-  if (!is.logical(verbose) || length(verbose) != 1L || is.na(verbose)) {
-    stop("`verbose` must be TRUE or FALSE.", call. = FALSE)
-  }
+  .validate_flag(verbose, "verbose")
   if (isTRUE(verbose)) {
     message(...)
   }

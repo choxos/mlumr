@@ -11,10 +11,7 @@ calculate_dic(object)
 }
 \value{
 A list of class \code{mlumr_dic} with components \code{DIC}, \code{pD}, \code{D_bar},
-\code{n_obs}, \code{model}, and \code{observations}, the fit's observation frames as
-kept for \code{\link[=compare_models]{compare_models()}}, so a DIC object can still be checked against
-the fits it is compared with, and its \code{n_obs} against the observations it
-carries.
+\code{n_obs} and \code{model}.
 }
 \description{
 Computes the Deviance Information Criterion using the variance-based
@@ -25,11 +22,6 @@ This is more stable than the plug-in alternative for multimodal posteriors.
 DIC is retained for backward compatibility and rough comparison. For
 principled Bayesian model comparison, prefer \code{\link[=calculate_loo]{calculate_loo()}} or
 \code{\link[=calculate_waic]{calculate_waic()}} (Vehtari, Gelman, Gabry 2017).
-
-The saved pointwise log-likelihood has to cover every observation the model
-was fitted to. A fit missing any of those columns, as rstan's \code{pars} with
-\code{include = FALSE} can leave one, is refused rather than scored on part of
-its data, and the same holds for \code{\link[=calculate_loo]{calculate_loo()}} and \code{\link[=calculate_waic]{calculate_waic()}}.
 }
 \examples{
 \dontrun{
