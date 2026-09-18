@@ -1,0 +1,6 @@
+# The pages under man/ are generated from the roxygen comments in R/, which
+# are reviewed at their source; listing the generated pages only adds to the
+# changed-file count that decides whether a review runs at all.
+reviews:
+  path_filters:
+    - "!man/**"
