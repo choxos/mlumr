@@ -165,6 +165,41 @@ test_that("the expected columns follow the family's pointwise unit", {
   expect_identical(calculate_dic(shuffled)$DIC, calculate_dic(fit)$DIC)
 })
 
+test_that("a score with likelihood terms not saved is refused", {
+  # A fit saved with `pars = "log_lik_agd", include = FALSE` still used that
+  # evidence in the posterior; scoring the columns left would report a subset.
+  fit <- make_ll_fit(n_ipd = 3L, n_agd = 2L)
+  fit$draws[c("log_lik_agd[1]", "log_lik_agd[2]")] <- NULL
+  expect_error(calculate_dic(fit), "Refit with the generated quantities")
+  surv <- make_ll_fit(n_ipd = 3L, n_agd = 4L)
+  surv$family <- "survival"
+  surv$stan_data <- list(n_ipd = 3L, n_agd = 4L, agd_arm = c(1L, 1L, 2L, 2L))
+  surv$draws[grep("^log_lik_ipd", names(surv$draws))] <- NULL
+  expect_error(mlumr:::.survival_log_lik_by_unit(surv, "arm"),
+               "Refit with the generated quantities")
+})
+
+test_that("LOO/WAIC comparison pairs the same observations", {
+  skip_if_not_installed("loo")
+  a <- make_ll_fit(n_ipd = 6L, n_agd = 2L, seed = 1)
+  b <- make_ll_fit(n_ipd = 6L, n_agd = 2L, seed = 2)
+  a$stan_data$y_ipd <- b$stan_data$y_ipd <- c(0L, 1L, 1L, 0L, 1L, 0L)
+  a$stan_data$r_agd <- b$stan_data$r_agd <- c(3L, 5L)
+  out <- capture.output(
+    cmp <- suppressWarnings(compare_models(a, b, criterion = "waic"))
+  )
+  expect_s3_class(cmp, "compare.loo")
+  # The same data stored in another row order is not the same pairing.
+  b$stan_data$y_ipd <- rev(b$stan_data$y_ipd)
+  expect_error(capture.output(compare_models(a, b, criterion = "waic")),
+               "same row order")
+  expect_warning(
+    loo::loo_compare(suppressWarnings(calculate_waic(a)),
+                     suppressWarnings(calculate_waic(b))),
+    "yhash"
+  )
+})
+
 test_that("calculate_loo refuses moment matching it cannot perform", {
   skip_if_not_installed("loo")
   fit <- make_ll_fit()

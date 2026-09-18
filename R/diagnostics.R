@@ -36,6 +36,51 @@
 }
 
 
+#' Refuse a pointwise log-likelihood with terms not saved
+#'
+#' A fit saved with `pars = "log_lik_agd", include = FALSE` (or the IPD
+#' counterpart) still used that evidence in the posterior, so scoring the
+#' columns that remain would report a subset score as the full-data one. The
+#' expected counts come from `stan_data`; a side without one is not checked.
+#' @noRd
+.assert_log_lik_complete <- function(object, ipd_cols, agd_cols) {
+  sd <- object$stan_data
+  expected_agd <- if (!is.null(sd$agd_count)) {
+    sum(sd$agd_count)
+  } else if (identical(object$family, "survival")) {
+    sd$n_agd
+  } else {
+    sd$n_agd_rows
+  }
+  sides <- list(list("log_lik_ipd", sd$n_ipd, length(ipd_cols)),
+                list("log_lik_agd", expected_agd, length(agd_cols)))
+  for (s in sides) {
+    if (is.null(s[[2]]) || s[[2]] == s[[3]]) next
+    stop("`", s[[1]], "` has ", s[[3]], " column(s) but the fit has ", s[[2]],
+         " such observation(s), so the columns saved are not the full ",
+         "likelihood. Refit with the generated quantities `log_lik_ipd` and ",
+         "`log_lik_agd` saved before requesting LOO, WAIC or DIC.",
+         call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+
+#' The per-observation likelihood inputs, in the order the scores are stored
+#'
+#' Two fits can be paired pointwise only when these agree. Covariates and
+#' priors are left out on purpose: compared models legitimately differ in them.
+#' @noRd
+.scoring_identity <- function(object) {
+  keep <- c("y_ipd", "E_ipd", "r_agd", "n_agd", "y_agd", "se_agd", "E_agd",
+            "ipd_time", "ipd_start_time", "ipd_delay_time", "ipd_status",
+            "agd_time", "agd_start_time", "agd_delay_time", "agd_status",
+            "agd_arm")
+  sd <- object$stan_data
+  sd[intersect(keep, names(sd))]
+}
+
+
 #' Extract the full pointwise log-likelihood matrix from an mlumr_fit
 #'
 #' Combines the IPD and AgD per-observation log-likelihood draws into a
@@ -73,6 +118,7 @@ extract_log_lik <- function(object) {
       call. = FALSE
     )
   }
+  .assert_log_lik_complete(object, ipd_cols, agd_cols)
   selected <- draws[, c(ipd_cols, agd_cols), drop = FALSE]
   numeric_cols <- vapply(selected, is.numeric, logical(1))
   if (!all(numeric_cols)) {
@@ -238,7 +284,10 @@ calculate_loo <- function(object,
   survival_unit <- match.arg(survival_unit)
   log_lik <- .survival_log_lik_by_unit(object, survival_unit)
   r_eff <- .relative_eff_from_log_lik(log_lik, .chain_id(object))
-  loo::loo(log_lik, r_eff = r_eff, ...)
+  out <- loo::loo(log_lik, r_eff = r_eff, ...)
+  # `loo::loo_compare()` warns when these differ between the objects.
+  attr(out, "yhash") <- .scoring_identity(object)
+  out
 }
 
 
@@ -288,6 +337,7 @@ calculate_loo <- function(object,
     stop("Grouped survival LOO/WAIC needs AgD pointwise log-likelihood ",
          "columns (`log_lik_agd`).", call. = FALSE)
   }
+  .assert_log_lik_complete(object, ipd_cols, agd_cols)
   agd_mat <- as.matrix(draws[, agd_cols, drop = FALSE])
 
   groups <- if (identical(survival_unit, "aggregate")) {
@@ -354,7 +404,9 @@ calculate_waic <- function(object,
   }
   survival_unit <- match.arg(survival_unit)
   log_lik <- .survival_log_lik_by_unit(object, survival_unit)
-  loo::waic(log_lik, ...)
+  out <- loo::waic(log_lik, ...)
+  attr(out, "yhash") <- .scoring_identity(object)
+  out
 }
 
 
@@ -362,8 +414,10 @@ calculate_waic <- function(object,
 #'
 #' Compare two or more `mlumr_fit` objects by DIC (default), LOO, or WAIC.
 #' For LOO/WAIC, [loo::loo_compare()] is used under the hood; the output
-#' is the standard `loo_compare` table. For DIC the return is a data
-#' frame ordered by DIC.
+#' is the standard `loo_compare` table. The pointwise scores are paired
+#' observation by observation, so the fits must be of the same data in the
+#' same row order; fits whose stored outcomes differ are refused. For DIC the
+#' return is a data frame ordered by DIC.
 #'
 #' DIC is the default for backward compatibility and because it has no
 #' additional package dependencies. For principled Bayesian model
@@ -452,12 +506,24 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic"),
          call. = FALSE)
   }
 
-  calc_fn <- if (criterion == "loo") calculate_loo else calculate_waic
-  ic_list <- lapply(models, function(m) calc_fn(m, survival_unit = survival_unit))
-  names(ic_list) <- .comparison_names(
+  model_names <- .comparison_names(
     models,
     vapply(models, .mlumr_model_label, character(1))
   )
+  # `loo_compare()` subtracts pointwise scores by position: a fit of the same
+  # data in another row order would give a wrong `se_diff` without notice.
+  ids <- lapply(models, .scoring_identity)
+  same <- vapply(ids, function(id) isTRUE(all.equal(id, ids[[1L]])), logical(1))
+  if (any(lengths(ids) > 0L) && !all(same)) {
+    stop("LOO and WAIC pair the models observation by observation, so the ",
+         "fits must be of the same data in the same row order. The outcomes ",
+         "stored by ", paste(model_names[!same], collapse = ", "), " differ ",
+         "from those of ", model_names[[1L]], ".", call. = FALSE)
+  }
+
+  calc_fn <- if (criterion == "loo") calculate_loo else calculate_waic
+  ic_list <- lapply(models, function(m) calc_fn(m, survival_unit = survival_unit))
+  names(ic_list) <- model_names
 
   cat(sprintf("\nModel Comparison (%s)\n", toupper(criterion)))
   cat(strrep("=", 22), "\n\n", sep = "")

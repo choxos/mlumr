@@ -32,8 +32,10 @@ columns \code{Model}, \code{DIC}, \code{pD}, \code{Delta_DIC}.
 \description{
 Compare two or more \code{mlumr_fit} objects by DIC (default), LOO, or WAIC.
 For LOO/WAIC, \code{\link[loo:loo_compare]{loo::loo_compare()}} is used under the hood; the output
-is the standard \code{loo_compare} table. For DIC the return is a data
-frame ordered by DIC.
+is the standard \code{loo_compare} table. The pointwise scores are paired
+observation by observation, so the fits must be of the same data in the
+same row order; fits whose stored outcomes differ are refused. For DIC the
+return is a data frame ordered by DIC.
 }
 \details{
 DIC is the default for backward compatibility and because it has no

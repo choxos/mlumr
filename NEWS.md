@@ -235,6 +235,11 @@
   probabilities, so non-round `probs` no longer return `NA`.
 * Fix: `calculate_loo()` refuses `moment_match = TRUE`, which `loo` ignores
   for a matrix.
+* Fix: `compare_models()` with `"loo"` or `"waic"` refuses fits whose stored
+  outcomes differ. `loo_compare()` pairs the pointwise scores by position, so
+  the same data fitted in another row order gave a wrong `se_diff`. The
+  `calculate_loo()` and `calculate_waic()` results carry the outcomes as
+  `loo`'s `yhash`, so `loo::loo_compare()` warns on the same mismatch.
 * Improvement: The `compare_models()` printout no longer presents
   `se_diff > 2` as a decision rule.
 
