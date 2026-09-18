@@ -31,8 +31,8 @@ check_identification(x, verbose = TRUE, link = NULL)
 
 Invisibly, a list with `n_rows`, `n_distinct` (rows that do not repeat
 another's integration grid), `n_cov`, `n_rows_needed` (`K + 1`),
-`cond_inv`, `spread`, `singular_values`, `means` (the scaled, centered
-subgroup mean matrix), `diagnostic_scope` (`"identity"` or
+`cond_inv`, `eff_dim`, `spread`, `singular_values`, `means` (the scaled,
+centered subgroup mean matrix), `diagnostic_scope` (`"identity"` or
 `"descriptive"`) and `flagged`.
 
 ## Details
@@ -40,8 +40,11 @@ subgroup mean matrix), `diagnostic_scope` (`"identity"` or
 The subgroup mean profiles are centered, divided by the IPD covariate
 SDs and decomposed. `cond_inv` is the ratio of the smallest to the
 largest singular value and goes to 0 as the rows collapse onto a
-lower-dimensional set. `spread` is the RMS distance of the rows from
-their center along the dominant direction, in IPD SDs; it supplies the
+lower-dimensional set. `eff_dim` is the participation ratio of the
+squared singular values, the number of directions the rows effectively
+spread along, from 1 to `K`; it is 0 when the rows do not vary or cannot
+be decomposed. `spread` is the RMS distance of the rows from their
+center along the dominant direction, in IPD SDs; it supplies the
 absolute scale `cond_inv` lacks. For a normal identity-link model the
 subgroup means are the aggregate design and the screen flags
 `cond_inv < 0.2` or `spread < 0.05`, which are package heuristics. For

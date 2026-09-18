@@ -97,8 +97,8 @@ family default. A fitted object always uses its stored link.</p></dd>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>Invisibly, a list with <code>n_rows</code>, <code>n_distinct</code> (rows that do not
 repeat another's integration grid), <code>n_cov</code>, <code>n_rows_needed</code> (<code>K + 1</code>),
-<code>cond_inv</code>, <code>spread</code>, <code>singular_values</code>, <code>means</code> (the scaled, centered
-subgroup mean matrix), <code>diagnostic_scope</code> (<code>"identity"</code> or
+<code>cond_inv</code>, <code>eff_dim</code>, <code>spread</code>, <code>singular_values</code>, <code>means</code> (the scaled,
+centered subgroup mean matrix), <code>diagnostic_scope</code> (<code>"identity"</code> or
 <code>"descriptive"</code>) and <code>flagged</code>.</p>
     </div>
     <div class="section level2">
@@ -106,7 +106,10 @@ subgroup mean matrix), <code>diagnostic_scope</code> (<code>"identity"</code> or
     <p>The subgroup mean profiles are centered, divided by the IPD covariate SDs
 and decomposed. <code>cond_inv</code> is the ratio of the smallest to the largest
 singular value and goes to 0 as the rows collapse onto a lower-dimensional
-set. <code>spread</code> is the RMS distance of the rows from their center along the
+set. <code>eff_dim</code> is the participation ratio of the squared singular values,
+the number of directions the rows effectively spread along, from 1 to
+<code>K</code>; it is 0 when the rows do not vary or cannot be decomposed. <code>spread</code>
+is the RMS distance of the rows from their center along the
 dominant direction, in IPD SDs; it supplies the absolute scale <code>cond_inv</code>
 lacks. For a normal identity-link model the subgroup means are the
 aggregate design and the screen flags <code>cond_inv &lt; 0.2</code> or <code>spread &lt; 0.05</code>,

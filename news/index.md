@@ -149,9 +149,9 @@
   [`check_identification()`](https://choxos.github.io/mlumr/reference/check_identification.md)
   reports, before fitting, whether the aggregate subgroup rows can
   identify `beta_comparator` in `model = "relaxed"`: the row count
-  against `K + 1`, and the balance and spread of the centered
-  subgroup-mean matrix, with a descriptive-only label for nonlinear
-  links.
+  against `K + 1`, and the balance, effective dimension and spread of
+  the centered subgroup-mean matrix, with a descriptive-only label for
+  nonlinear links.
 - Feature: `prior_beta_comparator` argument to
   [`mlumr()`](https://choxos.github.io/mlumr/reference/mlumr.md) sets a
   separate prior on `beta_comparator`, including a different family.
