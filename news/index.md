@@ -348,6 +348,17 @@
 - Fix:
   [`calculate_loo()`](https://choxos.github.io/mlumr/reference/calculate_loo.md)
   refuses `moment_match = TRUE`, which `loo` ignores for a matrix.
+- Fix:
+  [`compare_models()`](https://choxos.github.io/mlumr/reference/compare_models.md)
+  with `"loo"` or `"waic"` refuses fits whose stored outcomes differ.
+  `loo_compare()` pairs the pointwise scores by position, so the same
+  data fitted in another row order gave a wrong `se_diff`. The
+  [`calculate_loo()`](https://choxos.github.io/mlumr/reference/calculate_loo.md)
+  and
+  [`calculate_waic()`](https://choxos.github.io/mlumr/reference/calculate_waic.md)
+  results carry the outcomes as `loo`’s `yhash`, so
+  [`loo::loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html)
+  warns on the same mismatch.
 - Improvement: The
   [`compare_models()`](https://choxos.github.io/mlumr/reference/compare_models.md)
   printout no longer presents `se_diff > 2` as a decision rule.

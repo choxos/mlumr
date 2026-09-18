@@ -4,7 +4,10 @@ Compare two or more `mlumr_fit` objects by DIC (default), LOO, or WAIC.
 For LOO/WAIC,
 [`loo::loo_compare()`](https://mc-stan.org/loo/reference/loo_compare.html)
 is used under the hood; the output is the standard `loo_compare` table.
-For DIC the return is a data frame ordered by DIC.
+The pointwise scores are paired observation by observation, so the fits
+must be of the same data in the same row order; fits whose stored
+outcomes differ are refused. For DIC the return is a data frame ordered
+by DIC.
 
 ## Usage
 
