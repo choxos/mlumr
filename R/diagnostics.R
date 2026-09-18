@@ -543,9 +543,19 @@ compare_models <- function(..., criterion = c("dic", "loo", "waic"),
 }
 
 
-#' Check MCMC diagnostics and warn if issues found
-#' @param fit An `mlumr_fit` object
-#' @noRd
+#' Check the sampler diagnostics of a fit
+#'
+#' Warns about divergent transitions, iterations that hit the maximum tree
+#' depth, chains that did not come back, split-Rhat above 1.01 or 1.05, and
+#' bulk or tail effective sample sizes below 400. A diagnostic the backend did
+#' not supply is reported as unavailable rather than read as clean.
+#' [mlumr()] runs this check after sampling; call it again on a stored fit to
+#' see the same verdict.
+#'
+#' @param fit An `mlumr_fit` object.
+#' @return `NULL`, invisibly; called for its warnings and messages.
+#' @seealso [mlumr()], [prior_sensitivity()].
+#' @export
 check_diagnostics <- function(fit) {
 
   .validate_mlumr_fit_object(fit)
