@@ -34,7 +34,8 @@ and decomposed. \code{cond_inv} is the ratio of the smallest to the largest
 singular value and goes to 0 as the rows collapse onto a lower-dimensional
 set. \code{eff_dim} is the participation ratio of the squared singular values,
 the number of directions the rows effectively spread along, from 1 to
-\code{K}. \code{spread} is the RMS distance of the rows from their center along the
+\code{K}; it is 0 when the rows do not vary or cannot be decomposed. \code{spread}
+is the RMS distance of the rows from their center along the
 dominant direction, in IPD SDs; it supplies the absolute scale \code{cond_inv}
 lacks. For a normal identity-link model the subgroup means are the
 aggregate design and the screen flags \code{cond_inv < 0.2} or \code{spread < 0.05},

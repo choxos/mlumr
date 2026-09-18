@@ -11,7 +11,8 @@
 #' singular value and goes to 0 as the rows collapse onto a lower-dimensional
 #' set. `eff_dim` is the participation ratio of the squared singular values,
 #' the number of directions the rows effectively spread along, from 1 to
-#' `K`. `spread` is the RMS distance of the rows from their center along the
+#' `K`; it is 0 when the rows do not vary or cannot be decomposed. `spread`
+#' is the RMS distance of the rows from their center along the
 #' dominant direction, in IPD SDs; it supplies the absolute scale `cond_inv`
 #' lacks. For a normal identity-link model the subgroup means are the
 #' aggregate design and the screen flags `cond_inv < 0.2` or `spread < 0.05`,
@@ -153,8 +154,9 @@ check_identification <- function(x, verbose = TRUE, link = NULL) {
 #' over largest singular value), `eff_dim` (participation ratio of the squared
 #' singular values, the number of directions effectively spanned), `spread`
 #' (RMS distance of the rows from their center along the dominant direction,
-#' in IPD SDs), `singular_values` and the scaled `means`. A design that cannot be decomposed reports zero geometry,
-#' as `.profile_rank()` does.
+#' in IPD SDs), `singular_values` and the scaled `means`. A design whose rows
+#' do not vary or cannot be decomposed reports zero geometry, `eff_dim`
+#' included, as `.profile_rank()` does.
 #' @noRd
 .subgroup_geometry <- function(means, ref_sd) {
   M <- scale(as.matrix(means), center = TRUE, scale = FALSE)
