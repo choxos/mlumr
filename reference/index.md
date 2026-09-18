@@ -116,6 +116,8 @@ estimators.
 
 Compare SPFA against relaxed, and the information criteria behind it.
 
+- [`check_diagnostics()`](https://choxos.github.io/mlumr/reference/check_diagnostics.md)
+  : Check the sampler diagnostics of a fit
 - [`compare_models()`](https://choxos.github.io/mlumr/reference/compare_models.md)
   : Compare fitted ML-UMR models
 - [`calculate_dic()`](https://choxos.github.io/mlumr/reference/calculate_dic.md)
