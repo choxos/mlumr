@@ -77,9 +77,6 @@ $\mathrm{RR}=\bar\lambda_{\text{index}}/\bar\lambda_{\text{comparator}}$
 
 
 ``` r
-library(mlumr)
-library(ggplot2)
-
 data("caries_ipd")     # index IPD (SDF), bundled with mlumr
 data("caries_agd")     # comparator AgD (NSF)
 
