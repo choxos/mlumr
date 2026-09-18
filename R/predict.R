@@ -159,7 +159,7 @@ predict.mlumr_fit <- function(object,
 
 
 #' Validate user-supplied survival prediction `times`
-#' @keywords internal
+#' @noRd
 .validate_survival_prediction_times <- function(times) {
   if (!is.numeric(times) || length(times) < 1L || any(!is.finite(times)) ||
         any(times <= 0)) {
@@ -174,7 +174,7 @@ predict.mlumr_fit <- function(object,
 #' arbitrary `times` is snapped to its nearest fitted neighbor. Shared by the
 #' built-in and `newdata` routes so that both validate before they select, and
 #' select the same way.
-#' @keywords internal
+#' @noRd
 .surv_time_selection <- function(times, pred_times) {
   if (is.null(times)) return(seq_along(pred_times))
   .validate_survival_prediction_times(times)
@@ -190,7 +190,7 @@ predict.mlumr_fit <- function(object,
 #' @param requested The user's `times`, in the order given.
 #' @param used The fitted grid times actually selected, aligned to `requested`.
 #' @return `NULL`, invisibly; called for the message.
-#' @keywords internal
+#' @noRd
 .warn_snapped_prediction_times <- function(requested, used) {
   # Relative, because a 0.2 gap means something different at t = 1 and t = 500.
   moved <- abs(used - requested) > 1e-8 * pmax(1, abs(requested))
@@ -235,7 +235,7 @@ predict.mlumr_fit <- function(object,
 #' Survival is 1 and cumulative hazard is 0 at t = 0, so those curves start
 #' at the origin, as a Kaplan-Meier curve does. Hazard has no universal value
 #' there. Added only for the full default curve when 0 is not a fitted time.
-#' @keywords internal
+#' @noRd
 .surv_origin <- function(type, times, pred_times) {
   origin <- switch(type, survival = 1, cumhaz = 0, NA_real_)
   if (is.na(origin) || !is.null(times)) return(NA_real_)
@@ -248,7 +248,7 @@ predict.mlumr_fit <- function(object,
 #' Both prediction routes reduce to one draw matrix per displayed cell, so
 #' the layout is written once. `values` has one matrix per row of `cells`,
 #' with one column for scalar types and one per selected time for curves.
-#' @keywords internal
+#' @noRd
 .surv_result_frame <- function(values, cells, type, summary, probs,
                                times_out = NULL, origin = NA_real_,
                                horizon = NULL, requested_times = NULL) {
@@ -347,7 +347,7 @@ predict.mlumr_fit <- function(object,
 #'
 #' Reads the population-standardized survival generated quantities and returns
 #' a tidy summary by treatment, population, and (for curves) time.
-#' @keywords internal
+#' @noRd
 .predict_survival <- function(object, population, type, summary, probs,
                               times = NULL) {
   valid_types <- c("survival", "hazard", "cumhaz", "rmst", "median", "loghr")
@@ -470,7 +470,7 @@ predict.mlumr_fit <- function(object,
 #' @param object An `mlumr_fit` from `model = "relaxed"`.
 #' @return A data frame with one row per covariate (`covariate`, `prior_sd`,
 #'   `posterior_sd`, `contraction`), or `NULL` if unavailable.
-#' @keywords internal
+#' @noRd
 .relaxed_contraction <- function(object) {
   if (!identical(object$model, "relaxed")) return(NULL)
   prior_scale <- object$stan_data$prior_beta_comparator_sd
@@ -508,7 +508,7 @@ predict.mlumr_fit <- function(object,
 #'
 #' Emitted from [marginal_effects()] (and the survival dispatch). Once per
 #' call; suppress with `options(mlumr.quiet_relaxed_index = TRUE)`.
-#' @keywords internal
+#' @noRd
 .relaxed_index_note <- function(object, population) {
   if (!identical(object$model, "relaxed")) return(invisible())
   if (!population %in% c("both", "index")) return(invisible())
@@ -549,7 +549,7 @@ predict.mlumr_fit <- function(object,
 #' Emitted from [predict.mlumr_fit()] (survival, `type = "median"`) when a
 #' positive fraction of posterior draws have an unreached median. Suppress with
 #' `options(mlumr.quiet_median_not_reached = TRUE)`.
-#' @keywords internal
+#' @noRd
 .median_not_reached_note <- function(max_p) {
   if (isTRUE(getOption("mlumr.quiet_median_not_reached", FALSE))) {
     return(invisible())
@@ -573,7 +573,7 @@ predict.mlumr_fit <- function(object,
 #' There the median is interpolated between `S(0) = 1` and the first grid
 #' value, which can be off by a large factor. The share is computed per
 #' draw, as in the RMST check.
-#' @keywords internal
+#' @noRd
 .median_early_share <- function(surv_mat) {
   s <- as.matrix(surv_mat)
   if (!nrow(s) || !ncol(s)) return(NA_real_)
@@ -582,7 +582,7 @@ predict.mlumr_fit <- function(object,
 
 #' Warn when the median is being read off the first grid interval
 #' @param shares Per-curve values of [.median_early_share()].
-#' @keywords internal
+#' @noRd
 .warn_early_median <- function(shares) {
   shares <- unlist(shares)
   shares <- shares[is.finite(shares)]
@@ -600,7 +600,7 @@ predict.mlumr_fit <- function(object,
 }
 
 #' Median survival time from posterior survival-curve draws (linear interp)
-#' @keywords internal
+#' @noRd
 .surv_median_from_draws <- function(surv_mat, times) {
   apply(surv_mat, 1, function(s) {
     if (all(s > 0.5)) return(NA_real_)   # median beyond observed follow-up
@@ -819,7 +819,7 @@ marginal_effects <- function(object,
 #' @param newdata Data frame of target-population covariate profiles.
 #' @return A list with `index` and `comparator`, each a length-`n_draws` vector
 #'   of target-standardized marginal response means.
-#' @keywords internal
+#' @noRd
 .standardize_target_response <- function(object, newdata) {
   family <- object$family %||% "binomial"
   lnk <- object$link %||% get_family_config(family)$link_default
@@ -902,7 +902,7 @@ marginal_effects <- function(object,
 #' Internal dispatch for [predict.mlumr_fit()] when `newdata` is supplied.
 #' g-computation of per-treatment absolute outcomes over the target covariate
 #' distribution.
-#' @keywords internal
+#' @noRd
 .predict_target <- function(object, newdata, type, summary, probs, times) {
   family <- object$family %||% "binomial"
   idx_trt <- object$data$index_treatment
@@ -950,7 +950,7 @@ marginal_effects <- function(object,
 
 
 #' Absolute survival predictions standardized to a target population
-#' @keywords internal
+#' @noRd
 .predict_target_survival <- function(object, newdata, type, summary, probs,
                                      times = NULL) {
   type <- .validate_choice(type,
@@ -1067,7 +1067,7 @@ marginal_effects <- function(object,
 #' g-computation (Chandler & Ishak Eq 9-10). Effect-measure conventions match the
 #' built-in populations: binomial `LOR` is the logit-based marginal odds ratio,
 #' `RD`/`RR` are natural; normal `MD`; poisson `RR` natural.
-#' @keywords internal
+#' @noRd
 .marginal_effects_target <- function(object, newdata, effect, summary, probs,
                                      at_time = NULL) {
   family <- object$family %||% "binomial"
@@ -1145,7 +1145,7 @@ marginal_effects <- function(object,
 #' The basis matrices carry one row per fitted time, so a time and its row are
 #' chosen together. `NULL` for a parametric fit, which evaluates analytically
 #' and has no basis.
-#' @keywords internal
+#' @noRd
 .basis_rows <- function(basis, idx) {
   if (is.null(basis)) return(NULL)
   basis[idx, , drop = FALSE]
@@ -1156,7 +1156,7 @@ marginal_effects <- function(object,
 #' Generalizes [.surv_eval_curve()] to an arbitrary `times` grid with matching
 #' I-spline integral basis `ibasis` (used for the M-spline/piecewise baseline;
 #' ignored for parametric distributions, which evaluate `S` analytically).
-#' @keywords internal
+#' @noRd
 .surv_s_at_times <- function(object, eta, times, ibasis,
                              treatment = c("index", "comparator"),
                              log_scale = FALSE) {
@@ -1187,7 +1187,7 @@ marginal_effects <- function(object,
 #' `scoef[j,s]`. Stratum 1 is the index study and stratum `n_strata` is the
 #' comparator, which coincide when the baseline is shared. Older fits stored a
 #' plain vector named `scoef[j]`; those are still readable.
-#' @keywords internal
+#' @noRd
 .surv_scoef_draws <- function(object, treatment = c("index", "comparator")) {
   treatment <- match.arg(treatment)
   draws <- object$draws
@@ -1222,7 +1222,7 @@ marginal_effects <- function(object,
 #' @param treatment `"index"` or `"comparator"`.
 #' @param n Number of draws, for the fixed-at-one case.
 #' @return Numeric vector of `n` draws.
-#' @keywords internal
+#' @noRd
 .surv_aux_draws <- function(object, base, treatment, n) {
   draws <- object$draws
   cmp <- paste0(base, "_cmp")
@@ -1281,7 +1281,7 @@ marginal_effects <- function(object,
 #' @return A list with `index` and `comparator`, each an `[n_draws, length(times)]`
 #'   matrix of target-standardized survival probabilities, and `share`, a
 #'   list of two per-draw vectors named the same way.
-#' @keywords internal
+#' @noRd
 .standardize_target_survival_s <- function(object, newdata, times, ibasis,
                                            ibasis_cmp = NULL,
                                            log_scale = FALSE) {
@@ -1332,7 +1332,7 @@ marginal_effects <- function(object,
 
 
 #' Conditional log hazard at arbitrary times for one predictor draw vector
-#' @keywords internal
+#' @noRd
 .surv_log_h_at_times <- function(object, eta, times, mbasis = NULL,
                                  treatment = c("index", "comparator")) {
   treatment <- match.arg(treatment)
@@ -1355,7 +1355,7 @@ marginal_effects <- function(object,
 
 
 #' Conditional log density at arbitrary times for one predictor draw vector
-#' @keywords internal
+#' @noRd
 .surv_log_f_at_times <- function(object, eta, times, ibasis = NULL,
                                  mbasis = NULL,
                                  treatment = c("index", "comparator")) {
@@ -1385,7 +1385,7 @@ marginal_effects <- function(object,
 #'
 #' Uses the equivalent definition `E(f) / E(S)`, accumulating log density and log
 #' survival separately so opposite infinities are never added.
-#' @keywords internal
+#' @noRd
 .standardize_target_survival_log_h <- function(object, newdata, times,
                                                ibasis = NULL,
                                                ibasis_cmp = NULL,
@@ -1488,7 +1488,7 @@ marginal_effects <- function(object,
 #'   the `share` element [.standardize_target_survival_s()] returns. It is
 #'   not derived from `s_mat` here on purpose: the average of the profiles can
 #'   pass the check when every profile fails it.
-#' @keywords internal
+#' @noRd
 .rmst_from_surv_matrix <- function(s_mat, times, share) {
   dt <- diff(times)
   # trapezoid: sum_j (S[,j] + S[,j+1]) / 2 * (t[j+1] - t[j])
@@ -1511,7 +1511,7 @@ marginal_effects <- function(object,
 #' @param share Per-draw shares, one vector per curve, from [.decay_share()]
 #'   or [.standardize_target_survival_s()]; `NA` where there is no decay.
 #' @return `NULL`, invisibly; called for the warning.
-#' @keywords internal
+#' @noRd
 .warn_coarse_rmst_grid <- function(share) {
   .warn_interval_share(list(share))
 }
@@ -1522,7 +1522,7 @@ marginal_effects <- function(object,
 #' drop from the first point to the last. Kept apart so that the pieces of
 #' several profiles can be summed before the ratio is taken. `NA` when the
 #' grid has fewer than two points.
-#' @keywords internal
+#' @noRd
 .decay_parts <- function(s_mat) {
   s_mat <- as.matrix(s_mat)
   if (ncol(s_mat) < 2L) {
@@ -1535,7 +1535,7 @@ marginal_effects <- function(object,
 }
 
 #' The resolution share from its pieces, `NA` where there is no decay
-#' @keywords internal
+#' @noRd
 .decay_share <- function(max_drop, total_drop) {
   share <- max_drop / total_drop
   share[!is.finite(share) | !is.finite(total_drop) | total_drop <= 0] <- NA_real_
@@ -1553,7 +1553,7 @@ marginal_effects <- function(object,
 #' @param pops The populations whose RMST is being returned; only their
 #'   curves are judged.
 #' @return `NULL`, invisibly; called for the warning.
-#' @keywords internal
+#' @noRd
 .warn_coarse_rmst_grid_builtin <- function(object,
                                            pops = c("index", "comparator")) {
   tt <- object$stan_data$rmst_grid_times
@@ -1598,7 +1598,7 @@ marginal_effects <- function(object,
 #' A curve is badly resolved in a draw when more than half of its decay falls
 #' inside one grid interval; the criterion is the fraction of such draws on
 #' the worst curve, ignored below one in twenty.
-#' @keywords internal
+#' @noRd
 .warn_interval_share <- function(shares) {
   worst <- 0
   worst_share <- NA_real_
@@ -1631,7 +1631,7 @@ marginal_effects <- function(object,
 #' hazard ratio obtained from the survival-weighted hazards in that same target.
 #' RMST differences are directly collapsible, but no effect measure is assumed
 #' to be invariant across populations merely because it is collapsible.
-#' @keywords internal
+#' @noRd
 .marginal_effects_target_survival <- function(object, newdata, effect, summary,
                                               probs, at_time = NULL) {
   is_ph <- isTRUE(object$surv_info$is_ph)
@@ -1742,7 +1742,7 @@ marginal_effects <- function(object,
 #' `mean(eta_index) - mean(eta_comparator)` over the target rows; its
 #' exponential is a ratio of geometric-mean survival times. With shared
 #' coefficients it equals the built-in `delta_eta` for every target.
-#' @keywords internal
+#' @noRd
 .target_delta_eta <- function(object, newdata) {
   profiles <- .conditional_profiles(object, newdata)
   params <- .conditional_parameters(object, profiles$covariates)
@@ -1761,7 +1761,7 @@ marginal_effects <- function(object,
 #'
 #' `log E[exp(eta_index)] - log E[exp(eta_comparator)]` over the target rows,
 #' the closed form the Stan models use for `delta_*`.
-#' @keywords internal
+#' @noRd
 .target_loghr_origin <- function(object, newdata) {
   profiles <- .conditional_profiles(object, newdata)
   params <- .conditional_parameters(object, profiles$covariates)
@@ -1784,7 +1784,7 @@ marginal_effects <- function(object,
 #' ratio (null 1), in the index and/or comparator populations, matching the
 #' estimands of Chandler & Ishak (ML-UMR survival). The Stan `delta_*` are log
 #' HR / log time ratios and are exponentiated here.
-#' @keywords internal
+#' @noRd
 .marginal_effects_survival <- function(object, population, effect, summary,
                                        probs, at_time = NULL) {
   draws <- object$draws
@@ -1948,7 +1948,7 @@ marginal_effects <- function(object,
 #' `spec` has one entry per effect column with `variable`, `effect`,
 #' `population`, `at_time`, `horizon` and `draws`; both routes reduce to it,
 #' so the layout is written once.
-#' @keywords internal
+#' @noRd
 .surv_effect_frame <- function(spec, summary, probs, rmst_horizon) {
   mat <- do.call(cbind, lapply(spec, function(s) s$draws))
   colnames(mat) <- vapply(spec, function(s) s$variable, character(1))
@@ -1989,7 +1989,7 @@ marginal_effects <- function(object,
 #' Once per session, like the marginal-HR note.
 #' @param object A fitted `mlumr_fit`.
 #' @return `TRUE` invisibly if the note was emitted.
-#' @keywords internal
+#' @noRd
 .transported_baseline_note <- function(object) {
   if (!identical(object$family %||% "", "survival")) return(invisible(FALSE))
   if (!.aux_shapes_differ(object)) return(invisible(FALSE))
@@ -2018,7 +2018,7 @@ marginal_effects <- function(object,
 #' @param pred_cols Character vector of response-scale prediction column names.
 #' @return Data frame with the same column names as `pred_cols`, on the
 #'   marginal link scale.
-#' @keywords internal
+#' @noRd
 .compute_marginal_link <- function(object, pred_cols) {
   draws <- object$draws
   family <- object$family %||% "binomial"
@@ -2077,7 +2077,7 @@ marginal_effects <- function(object,
 
 
 #' Validate an mlumr fit object
-#' @keywords internal
+#' @noRd
 .validate_mlumr_fit_object <- function(object) {
   if (!inherits(object, "mlumr_fit")) {
     stop("`object` must be an mlumr_fit object.", call. = FALSE)
@@ -2087,7 +2087,7 @@ marginal_effects <- function(object,
 
 
 #' Validate an exact scalar choice argument
-#' @keywords internal
+#' @noRd
 .validate_choice <- function(x, choices, name) {
   if (identical(x, choices)) {
     return(choices[[1L]])
@@ -2113,7 +2113,7 @@ marginal_effects <- function(object,
 #'
 #' Two probabilities that differ only beyond the printed percentage would
 #' share a summary column, so they are refused too.
-#' @keywords internal
+#' @noRd
 .validate_probs <- function(probs) {
   valid <- is.numeric(probs) &&
     length(probs) > 0L &&
@@ -2141,12 +2141,12 @@ marginal_effects <- function(object,
 
 #' The column name a quantile probability is reported under
 #'
-#' @keywords internal
+#' @noRd
 .quantile_names <- function(probs) paste0("q", probs * 100)
 
 
 #' Validate a scalar marginal-effect choice
-#' @keywords internal
+#' @noRd
 .validate_effect_choice <- function(effect) {
   valid <- is.character(effect) &&
     length(effect) == 1L &&
@@ -2162,7 +2162,7 @@ marginal_effects <- function(object,
 
 
 #' Require posterior draw columns
-#' @keywords internal
+#' @noRd
 .require_draw_columns <- function(draws, columns, context) {
   missing <- setdiff(columns, names(draws))
   if (length(missing) > 0L) {

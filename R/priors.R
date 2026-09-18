@@ -198,7 +198,7 @@ default_prior_smooth <- function() {
   .tag_default(prior_normal(mean = 0, sd = 1))
 }
 
-#' @keywords internal
+#' @noRd
 .tag_default <- function(prior) {
   prior$default <- TRUE
   prior$version <- as.character(utils::packageVersion("mlumr"))
@@ -211,7 +211,7 @@ default_prior_smooth <- function() {
 #' Validate prior specification
 #' @param prior Prior specification list
 #' @param param_name Parameter name for error messages
-#' @keywords internal
+#' @noRd
 validate_prior <- function(prior, param_name = "parameter") {
   if (!is.list(prior)) {
     stop(sprintf("Prior for %s must be a list", param_name), call. = FALSE)
@@ -280,7 +280,7 @@ validate_prior <- function(prior, param_name = "parameter") {
 }
 
 #' Is this object a single prior (vs a list of priors)?
-#' @keywords internal
+#' @noRd
 is_single_prior <- function(x) {
   is.list(x) && !is.null(x$distribution)
 }
@@ -297,7 +297,7 @@ is_single_prior <- function(x) {
 #'
 #' @param prior A prior list.
 #' @return A list with `mean`, `sd`, `dist`, `df`.
-#' @keywords internal
+#' @noRd
 stan_prior_fields <- function(prior) {
   validate_prior(prior)
   dist_code <- switch(prior$distribution,
@@ -340,7 +340,7 @@ stan_prior_fields <- function(prior) {
 #' @return A list with numeric vectors `mean` and `sd` (length `n_cov`)
 #'   and scalars `dist`, `df`, and a logical vector `autoscale` recording
 #'   which elements were autoscaled (for `prior_summary()`).
-#' @keywords internal
+#' @noRd
 stan_prior_fields_beta <- function(prior, n_cov, sd_x = NULL,
                                    covariate_names = NULL) {
 

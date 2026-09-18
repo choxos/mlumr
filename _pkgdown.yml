@@ -135,6 +135,7 @@ reference:
 - title: Model comparison and diagnostics
   desc: Compare SPFA against relaxed, and the information criteria behind it.
   contents:
+  - check_diagnostics
   - compare_models
   - calculate_dic
   - calculate_loo

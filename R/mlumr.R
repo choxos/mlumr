@@ -14,7 +14,7 @@
 #' @param center The centers the model subtracts from the covariates, or a
 #'   logical for the raw design.
 #' @return `TRUE` invisibly if the data were warned about.
-#' @keywords internal
+#' @noRd
 .check_normal_residual_variation <- function(data, link = "identity",
                                              center = TRUE) {
   ipd <- data$ipd$data
@@ -669,7 +669,7 @@ mlumr <- function(data,
 }
 
 #' Build the Stan data list for mlumr()
-#' @keywords internal
+#' @noRd
 .mlumr_build_stan_data <- function(data, family, link_info, prior_intercept,
                                    prior_beta, prior_beta_comparator = NULL,
                                    prior_sigma,
@@ -810,7 +810,7 @@ mlumr <- function(data,
 #' @param family Outcome family name.
 #' @param n_agd_rows Number of aggregate rows.
 #' @return Numeric vector of length `n_agd_rows`.
-#' @keywords internal
+#' @noRd
 .agd_center_weights <- function(stan_data, family, n_agd_rows) {
   fallback <- rep(1, n_agd_rows)
   cfg <- tryCatch(get_family_config(family), error = function(e) NULL)
@@ -869,7 +869,7 @@ mlumr <- function(data,
 #'   it, with the same dimensions.
 #' @param covariates The covariate names, in the grid's order.
 #' @return `TRUE` invisibly; stops otherwise.
-#' @keywords internal
+#' @noRd
 .check_grid_nodes_kept <- function(declared, fitted, covariates = NULL) {
   if (is.null(declared) || is.null(fitted)) return(invisible(TRUE))
   d <- dim(fitted)
@@ -904,7 +904,7 @@ mlumr <- function(data,
 #' not. `cov_center` is stored whenever both covariate matrices are present
 #' (zeros when `center = FALSE`) so the prediction functions can map raw
 #' covariate values onto the model scale.
-#' @keywords internal
+#' @noRd
 .mlumr_center_covariates <- function(stan_data, center = TRUE,
                                      family = "binomial", agd_means = NULL) {
   if (is.null(stan_data$X_ipd) || is.null(stan_data$X_int)) {
@@ -951,7 +951,7 @@ mlumr <- function(data,
 #' `qr = FALSE`, `Xq_*` is the raw design `D` and `R_inv` is the identity, so
 #' `allbeta = beta_tilde` and the linear predictor is unchanged. The original
 #' (centered) `X_ipd` / `X_int` are kept for the generated-quantities block.
-#' @keywords internal
+#' @noRd
 .mlumr_qr_design <- function(stan_data, model = "spfa", qr = FALSE) {
   if (is.null(stan_data$X_ipd) || is.null(stan_data$X_int)) {
     return(stan_data)
@@ -1038,7 +1038,7 @@ mlumr <- function(data,
 #'
 #' @param data An `mlumr_data` object with integration points.
 #' @return Integer rank, at least 1.
-#' @keywords internal
+#' @noRd
 .agd_covariate_rank <- function(data) {
   covs <- data$covariates
   ipd_cov <- data$ipd$data[, covs, drop = FALSE]
@@ -1053,7 +1053,7 @@ mlumr <- function(data,
 #' widely enough to be informative in practice.
 #' @param data An `mlumr_data` object.
 #' @return Integer rank including the intercept.
-#' @keywords internal
+#' @noRd
 .agd_covariate_numeric_rank <- function(data) {
   covs <- data$covariates
   ipd_cov <- data$ipd$data[, covs, drop = FALSE]
@@ -1068,7 +1068,7 @@ mlumr <- function(data,
 #' contributes one arm, so it would be the same stratification.
 #' @param aux_by `NULL`, `".study"`, or `"none"`.
 #' @return Integer number of baseline strata (1 or 2).
-#' @keywords internal
+#' @noRd
 .resolve_aux_strata <- function(aux_by) {
   if (is.null(aux_by)) return(2L)
   if (!is.character(aux_by) || length(aux_by) != 1L) {
@@ -1089,7 +1089,7 @@ mlumr <- function(data,
 
 
 #' Validate the two-source study contract of the survival Stan models
-#' @keywords internal
+#' @noRd
 .validate_survival_studies <- function(data, aux_by) {
   if (identical(aux_by, "none")) return(invisible(TRUE))
   ipd_studies <- unique(as.character(data$ipd$data$.study))
@@ -1123,7 +1123,7 @@ mlumr <- function(data,
 #' @param prior_smooth Prior on the flexible-baseline smoothing SD.
 #' @param n_strata Number of baseline strata (1 or 2), from `.resolve_aux_strata()`.
 #' @return `stan_data` with the survival arrays, bases and grids added.
-#' @keywords internal
+#' @noRd
 .build_stan_data_survival <- function(stan_data, data, surv_info, pred_times,
                                       n_knots, knots = NULL, rmst_horizon,
                                       n_rmst_grid = 100L,
@@ -1313,7 +1313,7 @@ mlumr <- function(data,
 
 
 #' Validate user-supplied flexible-baseline knots
-#' @keywords internal
+#' @noRd
 .validate_user_knots <- function(knots, max_time, label) {
   if (!is.list(knots) ||
       !all(c("internal", "boundary") %in% names(knots))) {
@@ -1341,7 +1341,7 @@ mlumr <- function(data,
 #' Shared by the argument validator and the rstan control merge.
 #' @param adapt_delta The value to check.
 #' @return `NULL`, invisibly; called for the error.
-#' @keywords internal
+#' @noRd
 .validate_mlumr_adapt_delta <- function(adapt_delta) {
   if (!is.numeric(adapt_delta) || length(adapt_delta) != 1L ||
         !is.finite(adapt_delta) || adapt_delta <= 0 || adapt_delta >= 1) {
@@ -1352,7 +1352,7 @@ mlumr <- function(data,
 }
 
 #' Validate mlumr() sampler controls before backend dispatch
-#' @keywords internal
+#' @noRd
 .validate_mlumr_sampling_args <- function(chains, iter, warmup, seed,
                                           adapt_delta, max_treedepth,
                                           refresh) {
@@ -1374,7 +1374,7 @@ mlumr <- function(data,
 
 
 #' Validate an integer-like mlumr() argument
-#' @keywords internal
+#' @noRd
 .validate_mlumr_integer <- function(x, name, lower) {
   valid <- is.numeric(x) &&
     length(x) == 1L &&
@@ -1394,7 +1394,7 @@ mlumr <- function(data,
 
 
 #' Validate survival-specific prediction grids and spline controls
-#' @keywords internal
+#' @noRd
 .validate_survival_controls <- function(pred_times, rmst_horizon,
                                         mspline_degree, n_knots,
                                         n_rmst_grid = 100L,
@@ -1456,7 +1456,7 @@ mlumr <- function(data,
 }
 
 #' Resolve and validate mlumr() backend engine
-#' @keywords internal
+#' @noRd
 .resolve_mlumr_engine <- function(engine) {
   .validate_engine_name(engine %||% get_engine())
 }
@@ -1465,7 +1465,7 @@ mlumr <- function(data,
 #'
 #' An explicit `seed` wins; otherwise the fixed default 2026 is used with a
 #' warning, rather than a draw from the session RNG that nothing records.
-#' @keywords internal
+#' @noRd
 .resolve_mlumr_seed <- function(seed) {
   if (!is.null(seed)) {
     return(list(value = as.integer(seed), source = "user"))
@@ -1476,7 +1476,7 @@ mlumr <- function(data,
 }
 
 #' Log mlumr() fit metadata
-#' @keywords internal
+#' @noRd
 .mlumr_log_fit_start <- function(model_name, family, link, stan_data,
                                  engine, seed_info, verbose) {
   mlumr_message(sprintf("Fitting ML-UMR (%s, %s, link=%s)...",
@@ -1512,7 +1512,7 @@ mlumr <- function(data,
 }
 
 #' Dispatch mlumr() sampling to the selected backend
-#' @keywords internal
+#' @noRd
 .mlumr_fit_backend <- function(engine, model_name, stan_data, chains, iter,
                                warmup, seed, adapt_delta, max_treedepth,
                                refresh, verbose = TRUE, ...) {
@@ -1527,7 +1527,7 @@ mlumr <- function(data,
 }
 
 #' Store user priors plus the resolved Stan-scale beta prior
-#' @keywords internal
+#' @noRd
 .mlumr_prior_metadata <- function(data, family, model = "spfa",
                                   prior_intercept, prior_beta,
                                   prior_beta_comparator = NULL,

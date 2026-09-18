@@ -37,7 +37,7 @@ mlumr_engine <- function(engine = NULL) {
 #' `Additional_repositories`, which serves a cmdstanr too old to build CmdStan
 #' on Windows with current R.
 #' @return `TRUE` when cmdstanr and CmdStan are available afterwards.
-#' @keywords internal
+#' @noRd
 .install_cmdstanr <- function() {
   repos <- c("https://stan-dev.r-universe.dev", getOption("repos"))
   if (!requireNamespace("cmdstanr", quietly = TRUE)) {
@@ -65,14 +65,14 @@ mlumr_engine <- function(engine = NULL) {
 
 
 #' Get the current Stan engine (internal)
-#' @keywords internal
+#' @noRd
 get_engine <- function() {
   .validate_engine_name(getOption("mlumr.stan_engine", "rstan"))
 }
 
 
 #' Validate a Stan engine name
-#' @keywords internal
+#' @noRd
 .validate_engine_name <- function(engine) {
   valid <- is.character(engine) &&
     length(engine) == 1L &&
@@ -88,14 +88,14 @@ get_engine <- function() {
 
 
 #' Supported Stan engines
-#' @keywords internal
+#' @noRd
 .supported_engines <- function() {
   c("rstan", "cmdstanr")
 }
 
 
 #' Check whether CmdStan is configured for cmdstanr
-#' @keywords internal
+#' @noRd
 .cmdstan_available <- function() {
   if (!requireNamespace("cmdstanr", quietly = TRUE)) {
     return(FALSE)

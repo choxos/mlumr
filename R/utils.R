@@ -60,7 +60,7 @@ distr <- function(qfun, ...) {
 #' @param p Vector of probabilities
 #' @param data A named list or data frame to evaluate expressions in
 #' @return Numeric vector of quantiles
-#' @keywords internal
+#' @noRd
 eval_distr <- function(d, p, data = list()) {
   # By position: unnamed arguments are passed through in order.
   nms <- names(d$args)
@@ -97,7 +97,7 @@ eval_distr <- function(d, p, data = list()) {
 #' @param warn Whether to report dropped draws. Callers that summarize many
 #'   vectors set this to `FALSE` and report once over the whole set instead.
 #' @return Named numeric vector: `c(mean, sd, <named quantiles>)`.
-#' @keywords internal
+#' @noRd
 .summarize_draw_vector <- function(x, probs, warn = TRUE) {
   if (warn) {
     .warn_dropped_draws(x)
@@ -124,7 +124,7 @@ eval_distr <- function(d, p, data = list()) {
 #'   draw is an expected outcome with a diagnostic of its own.
 #' @return Data frame with columns `mean`, `sd` and one `qNN` column per
 #'   element of `probs`.
-#' @keywords internal
+#' @noRd
 .summarize_draw_matrix <- function(draws, probs, warn = TRUE) {
   if (warn) {
     .warn_dropped_draws(draws)
@@ -145,7 +145,7 @@ eval_distr <- function(d, p, data = list()) {
 #'
 #' @param draws Numeric vector, matrix or data frame of posterior draws.
 #' @return `TRUE` if a warning was issued, `FALSE` otherwise, invisibly.
-#' @keywords internal
+#' @noRd
 .warn_dropped_draws <- function(draws) {
   m <- if (is.matrix(draws)) draws else as.matrix(draws)
   if (nrow(m) == 0L || ncol(m) == 0L) {
@@ -173,7 +173,7 @@ eval_distr <- function(d, p, data = list()) {
 }
 
 #' Validate an mlumr_data object
-#' @keywords internal
+#' @noRd
 .validate_mlumr_data_object <- function(data) {
   if (!inherits(data, "mlumr_data")) {
     stop("`data` must be created with combine_data().", call. = FALSE)
@@ -183,7 +183,7 @@ eval_distr <- function(d, p, data = list()) {
 
 
 #' Validate a single TRUE or FALSE
-#' @keywords internal
+#' @noRd
 .validate_flag <- function(x, name) {
   if (!is.logical(x) || length(x) != 1L || is.na(x)) {
     stop(sprintf("`%s` must be TRUE or FALSE.", name), call. = FALSE)
@@ -193,7 +193,7 @@ eval_distr <- function(d, p, data = list()) {
 
 
 #' Convert a confidence level to a two-sided normal critical value
-#' @keywords internal
+#' @noRd
 .z_from_conf_level <- function(conf_level) {
   if (!is.numeric(conf_level) || length(conf_level) != 1L ||
         !is.finite(conf_level) || conf_level <= 0 || conf_level >= 1) {
@@ -205,7 +205,7 @@ eval_distr <- function(d, p, data = list()) {
 
 
 #' Bound a Wald interval to a valid numerical range
-#' @keywords internal
+#' @noRd
 .bounded_wald_interval <- function(center, se, z,
                                    lower = -Inf, upper = Inf) {
   .validate_numeric_vector(center, "center")
@@ -231,7 +231,7 @@ eval_distr <- function(d, p, data = list()) {
 
 
 #' Truncate tiny negative variance estimates caused by numerical noise
-#' @keywords internal
+#' @noRd
 .nonnegative_variance <- function(x, name = "variance", tol = 1e-10) {
   .validate_numeric_vector(x, name)
   if (any(!is.finite(x))) {
@@ -245,7 +245,7 @@ eval_distr <- function(d, p, data = list()) {
 
 
 #' Square root of a variance estimate with numerical guarding
-#' @keywords internal
+#' @noRd
 .sqrt_variance <- function(x, name = "variance", tol = 1e-10) {
   sqrt(.nonnegative_variance(x, name, tol))
 }
@@ -301,7 +301,7 @@ dbern <- function(x, prob, log = FALSE) {
 #' @param ... distr() objects
 #' @param data Sample data for evaluation
 #' @return Named character vector
-#' @keywords internal
+#' @noRd
 get_distribution_type <- function(..., data = list()) {
   ds <- list(...)
   dnames <- names(ds)
@@ -352,7 +352,7 @@ get_distribution_type <- function(..., data = list()) {
 #' @param enclos The environment the specification was written in, from
 #'   `distr()`; anything else falls back to the caller's frame, as before.
 #' @return Evaluated value
-#' @keywords internal
+#' @noRd
 eval_distr_arg <- function(expr, data, enclos = NULL) {
   if (!is.environment(enclos)) enclos <- parent.frame(2)
   eval(expr, envir = data, enclos = enclos)
@@ -371,7 +371,7 @@ eval_distr_arg <- function(expr, data, enclos = NULL) {
 #' @param X Correlation matrix (Spearman)
 #' @param types Character vector of distribution types
 #' @return Adjusted correlation matrix for Gaussian copula
-#' @keywords internal
+#' @noRd
 cor_adjust_spearman <- function(X, types) {
   if (length(types) != nrow(X)) {
     stop("`types` length must match correlation matrix dimensions", call. = FALSE)
@@ -392,7 +392,7 @@ cor_adjust_spearman <- function(X, types) {
 }
 
 #' Clamp correlation entries to a valid open interval
-#' @keywords internal
+#' @noRd
 .clamp_cor <- function(x) {
   pmin(pmax(x, -0.999), 0.999)
 }
@@ -409,7 +409,7 @@ cor_adjust_spearman <- function(X, types) {
 #' @param X Correlation matrix (Pearson)
 #' @param types Character vector of distribution types
 #' @return Adjusted correlation matrix for Gaussian copula
-#' @keywords internal
+#' @noRd
 cor_adjust_pearson <- function(X, types) {
   if (length(types) != nrow(X)) {
     stop("`types` length must match correlation matrix dimensions", call. = FALSE)
@@ -438,7 +438,7 @@ cor_adjust_pearson <- function(X, types) {
 #' @param qfun The resolved quantile function.
 #' @param qfun_name Its name, for error messages.
 #' @return `args` with every element named in full.
-#' @keywords internal
+#' @noRd
 .name_distr_args <- function(args, qfun, qfun_name = "qfun") {
   if (!length(args)) {
     return(args)
@@ -512,7 +512,7 @@ cor_adjust_pearson <- function(X, types) {
 #'
 #' @param x A numeric vector that has passed a whole-number count check.
 #' @return An integer vector.
-#' @keywords internal
+#' @noRd
 .as_count_integer <- function(x) {
   as.integer(round(x))
 }

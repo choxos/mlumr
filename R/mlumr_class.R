@@ -2,7 +2,7 @@
 #'
 #' A fit whose summary lacks a diagnostic column reports it as unavailable and
 #' must still print.
-#' @keywords internal
+#' @noRd
 .summary_columns <- function(df, cols) {
   df[, intersect(cols, names(df)), drop = FALSE]
 }
@@ -516,7 +516,7 @@ summary.mlumr_stc <- function(object, ...) {
 # so existing data-frame behavior (indexing, knitr::kable, the reporting engine,
 # tests using inherits()) is unchanged. S3 print dispatch falls through to
 # print.data.frame, so these print as ordinary tables.
-#' @keywords internal
+#' @noRd
 .mlumr_result <- function(df, subclass, ...) {
   df <- as.data.frame(df)
   attrs <- list(...)
@@ -614,7 +614,7 @@ summary.mlumr_stc <- function(object, ...) {
 #' @param df A slice of `fit$summary`.
 #' @param covariates Character vector of covariate names, in model order.
 #' @return `df` with its `variable` column relabeled where possible.
-#' @keywords internal
+#' @noRd
 .label_beta_rows <- function(df, covariates) {
   if (!length(covariates) || !nrow(df)) return(df)
   m <- regmatches(df$variable,

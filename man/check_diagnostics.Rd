@@ -2,14 +2,24 @@
 % Please edit documentation in R/diagnostics.R
 \name{check_diagnostics}
 \alias{check_diagnostics}
-\title{Check MCMC diagnostics and warn if issues found}
+\title{Check the sampler diagnostics of a fit}
 \usage{
 check_diagnostics(fit)
 }
 \arguments{
-\item{fit}{An \code{mlumr_fit} object}
+\item{fit}{An \code{mlumr_fit} object.}
+}
+\value{
+\code{NULL}, invisibly; called for its warnings and messages.
 }
 \description{
-Check MCMC diagnostics and warn if issues found
+Warns about divergent transitions, iterations that hit the maximum tree
+depth, chains that did not come back, split-Rhat above 1.01 or 1.05, and
+bulk or tail effective sample sizes below 400. A diagnostic the backend did
+not supply is reported as unavailable rather than read as clean.
+\code{\link[=mlumr]{mlumr()}} runs this check after sampling; call it again on a stored fit to
+see the same verdict.
 }
-\keyword{internal}
+\seealso{
+\code{\link[=mlumr]{mlumr()}}, \code{\link[=prior_sensitivity]{prior_sensitivity()}}.
+}

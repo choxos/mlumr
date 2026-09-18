@@ -97,7 +97,7 @@ add_integration <- function(data, n_int = 64, cor = NULL,
 
 
 #' Validate top-level integration arguments
-#' @keywords internal
+#' @noRd
 .validate_integration_args <- function(data, n_int, cor_adjust, verbose, ds) {
   if (!inherits(data, "mlumr_data")) {
     stop("`data` must be created with combine_data()", call. = FALSE)
@@ -138,7 +138,7 @@ add_integration <- function(data, n_int = 64, cor = NULL,
 
 
 #' Validate integration distributions against the combined data
-#' @keywords internal
+#' @noRd
 .validate_integration_distributions <- function(ds, data) {
   cov_names <- names(ds)
   if (anyDuplicated(cov_names) > 0L) {
@@ -167,7 +167,7 @@ add_integration <- function(data, n_int = 64, cor = NULL,
 #' A hand-written `distr()` that ignores the AgD columns integrates the wrong
 #' population silently. Only gross contradictions are flagged; suppress with
 #' `options(mlumr.quiet_integration_moments = TRUE)`.
-#' @keywords internal
+#' @noRd
 .warn_integration_vs_agd_moments <- function(X_int_array, agd_data, cov_names) {
   if (isTRUE(getOption("mlumr.quiet_integration_moments", FALSE))) {
     return(invisible())
@@ -219,7 +219,7 @@ add_integration <- function(data, n_int = 64, cor = NULL,
 
 
 #' Warn when integration resolution is low for the covariate dimension
-#' @keywords internal
+#' @noRd
 .warn_integration_size <- function(n_int, n_cov) {
   min_recommended <- 2^(n_cov + 4)
   if (n_int < min_recommended) {
@@ -235,7 +235,7 @@ add_integration <- function(data, n_int = 64, cor = NULL,
 
 
 #' Resolve raw and copula correlation matrices for integration
-#' @keywords internal
+#' @noRd
 .resolve_integration_cor <- function(data, cov_names, n_cov, cor, cor_adjust,
                                      ds, verbose) {
   if (n_cov == 1L) {
@@ -297,7 +297,7 @@ add_integration <- function(data, n_int = 64, cor = NULL,
 #' @param cov_names Covariate names, same order as `dtypes`.
 #' @param cor_adjust The adjustment method in force.
 #' @return `TRUE` invisibly if a warning was issued, `FALSE` otherwise.
-#' @keywords internal
+#' @noRd
 .warn_discrete_copula <- function(dtypes, cov_names, cor_adjust) {
   if (identical(cor_adjust, "none")) return(invisible(FALSE))
   hit <- which(dtypes == "discrete")
@@ -316,7 +316,7 @@ add_integration <- function(data, n_int = 64, cor = NULL,
 
 
 #' Validate a user-supplied integration correlation matrix
-#' @keywords internal
+#' @noRd
 .validate_integration_cor <- function(cor, n_cov, cov_names = NULL) {
   cor <- as.matrix(cor)
   if (!is.numeric(cor) || nrow(cor) != n_cov || ncol(cor) != n_cov) {
@@ -352,7 +352,7 @@ add_integration <- function(data, n_int = 64, cor = NULL,
 
 
 #' Validate an IPD-derived correlation matrix before copula adjustment
-#' @keywords internal
+#' @noRd
 .validate_computed_integration_cor <- function(cor) {
   if (any(!is.finite(cor))) {
     stop("Computed IPD correlation matrix contains non-finite values. ",
@@ -369,7 +369,7 @@ add_integration <- function(data, n_int = 64, cor = NULL,
 
 
 #' Adjust correlations to Gaussian-copula scale
-#' @keywords internal
+#' @noRd
 .adjust_integration_cor <- function(cor, cor_adjust, dtypes) {
   if (cor_adjust == "spearman") {
     cor_adjust_spearman(cor, types = dtypes)
@@ -382,7 +382,7 @@ add_integration <- function(data, n_int = 64, cor = NULL,
 
 
 #' Ensure adjusted integration correlation is positive definite
-#' @keywords internal
+#' @noRd
 .ensure_positive_definite_cor <- function(copula_cor) {
   eigen_tol <- .Machine$double.eps * max(dim(copula_cor)) * 100
   if (all(eigen(copula_cor, symmetric = TRUE)$values > eigen_tol)) {
@@ -410,7 +410,7 @@ add_integration <- function(data, n_int = 64, cor = NULL,
 #' Sobol points pushed through a Gaussian copula: normal scores, multiplied by
 #' the Cholesky factor of `copula_cor`, mapped back to uniforms. The three
 #' steps together are the inverse Rosenblatt transform of that copula.
-#' @keywords internal
+#' @noRd
 .generate_copula_uniforms <- function(n_int, n_cov, copula_cor) {
   u <- as.matrix(randtoolbox::sobol(n = n_int, dim = n_cov))
   if (n_cov == 1L) return(u)
@@ -419,7 +419,7 @@ add_integration <- function(data, n_int = 64, cor = NULL,
 
 
 #' Transform uniform integration points to covariate scales
-#' @keywords internal
+#' @noRd
 .transform_integration_points <- function(u_cor, data, ds, cov_names, n_int,
                                           n_cov) {
   agd_data <- data$agd$data
@@ -446,7 +446,7 @@ add_integration <- function(data, n_int = 64, cor = NULL,
 
 
 #' Attach generated integration points to an mlumr_data object
-#' @keywords internal
+#' @noRd
 .attach_integration_points <- function(data, X_int_array, n_int, cor, copula_cor,
                                        cor_adjust) {
   data$integration_points <- X_int_array
@@ -758,7 +758,7 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
 
 
 #' Pairwise-correlation diagnostics for integration points
-#' @keywords internal
+#' @noRd
 .int_cor_stats <- function(X_orig, X_double, cov_names, n_agd, cor_target = NULL,
                            cor_method = "pearson") {
   K <- length(cov_names)
@@ -813,7 +813,7 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
 #'   fell short, with a reason), `not_applicable` (pairs in which a margin is
 #'   declared with no variance) and `applicable`, the logical vector the
 #'   maxima are taken over.
-#' @keywords internal
+#' @noRd
 .int_cor_pair_status <- function(diff, stats, target_sd) {
   degenerate <- vapply(seq_len(nrow(diff)), function(i) {
     members <- c(diff$covariate_1[i], diff$covariate_2[i])
@@ -841,7 +841,7 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
 #' The SD is the population one: the grid represents a distribution rather
 #' than sampling it, and a sample SD carries a `sqrt(m / (m - 1))` factor
 #' that no target shares.
-#' @keywords internal
+#' @noRd
 .int_stats <- function(X_int, cov_names, n_agd) {
   rows <- vector("list", n_agd * length(cov_names))
   idx <- 1
@@ -863,7 +863,7 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
 #' Largest finite value, or NA when there is none
 #'
 #' `max(x, na.rm = TRUE)` returns `-Inf` for an all-missing vector.
-#' @keywords internal
+#' @noRd
 .max_finite <- function(x) {
   x <- x[is.finite(x)]
   if (length(x) == 0L) NA_real_ else max(x)
@@ -871,7 +871,7 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
 
 
 #' Turn a difference into a verdict, keeping "not measured" distinct from "close"
-#' @keywords internal
+#' @noRd
 .moment_verdict <- function(value, threshold, pass) {
   if (is.na(value)) {
     "unavailable"

@@ -11,7 +11,7 @@
 #'   paths, when that itself failed, or `NULL`.
 #' @param return_codes CmdStan's per-chain return codes, or `NULL`.
 #' @return `TRUE` invisibly. Stops when there is nothing to read.
-#' @keywords internal
+#' @noRd
 .assert_cmdstan_output <- function(files, chains, retrieval_error = NULL,
                                    return_codes = NULL) {
   files <- as.character(files)
@@ -47,7 +47,7 @@
 }
 
 #' Fit a Stan model using cmdstanr
-#' @keywords internal
+#' @noRd
 fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
                          seed, adapt_delta, max_treedepth, refresh,
                          verbose = TRUE, ...) {
@@ -183,7 +183,7 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
 #'
 #' Both backends return a fit assembled from the surviving chains when one
 #' terminates abnormally. `NA` when the draws could not be labeled by chain.
-#' @keywords internal
+#' @noRd
 .n_chains_returned <- function(chain_ids, chains) {
   if (is.null(chain_ids) || !length(chain_ids)) {
     return(NA_integer_)
@@ -193,7 +193,7 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
 
 
 #' Cache directory for cmdstanr-compiled model executables
-#' @keywords internal
+#' @noRd
 .cmdstanr_compile_dir <- function(model_name, stan_file) {
   stan_dir <- dirname(stan_file)
   include_dir <- file.path(stan_dir, "include")
@@ -218,7 +218,7 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
 
 
 #' Resolve a writable cmdstanr cache root
-#' @keywords internal
+#' @noRd
 .cmdstanr_cache_root <- function() {
   candidates <- c(
     file.path(tools::R_user_dir("mlumr", "cache"), "cmdstanr"),
@@ -252,7 +252,7 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
 #' @param source_files Character vector of `.stan` paths; the main model first,
 #'   then its includes in a stable order.
 #' @return A 32-character key.
-#' @keywords internal
+#' @noRd
 .cmdstanr_cache_key <- function(source_files) {
   digests <- unname(tools::md5sum(source_files))
   # A missing file must not silently collapse to a shared key.
