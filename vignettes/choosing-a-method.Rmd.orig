@@ -69,7 +69,6 @@ the plaque-psoriasis PASI 75 endpoint (UNCOVER-2 ixekizumab vs FIXTURE
 secukinumab) with three prognostic covariates:
 
 ```{r data}
-library(mlumr)
 data("psoriasis_ipd")   # bundled with mlumr (from multinma, GPL-3)
 data("psoriasis_agd")
 

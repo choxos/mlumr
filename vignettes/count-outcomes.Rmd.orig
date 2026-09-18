@@ -98,9 +98,6 @@ $\mathrm{RR}=\bar\lambda_{\text{index}}/\bar\lambda_{\text{comparator}}$
 (null = 1), reported in both populations.
 
 ```{r data}
-library(mlumr)
-library(ggplot2)
-
 data("caries_ipd")     # index IPD (SDF), bundled with mlumr
 data("caries_agd")     # comparator AgD (NSF)
 
