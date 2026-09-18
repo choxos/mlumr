@@ -73,7 +73,9 @@
 #' @noRd
 .scoring_identity <- function(object) {
   keep <- c("y_ipd", "E_ipd", "r_agd", "n_agd", "y_agd", "se_agd", "E_agd",
-            "ipd_time", "ipd_status", "agd_time", "agd_status", "agd_arm")
+            "ipd_time", "ipd_start_time", "ipd_delay_time", "ipd_status",
+            "agd_time", "agd_start_time", "agd_delay_time", "agd_status",
+            "agd_arm")
   sd <- object$stan_data
   sd[intersect(keep, names(sd))]
 }
