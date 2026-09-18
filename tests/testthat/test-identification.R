@@ -13,11 +13,13 @@ test_that("the geometry helper separates spread from collapsed designs", {
   spread <- rbind(c(-1, 0, 0), c(1, 0, 0), c(0, 1, 0), c(0, 0, 1))
   g <- mlumr:::.subgroup_geometry(spread, ref)
   expect_gt(g$cond_inv, 0.2)
+  expect_gt(g$eff_dim, 2.5)
 
   # Rows on a single line: however many there are, one direction.
   line <- cbind(seq(-2, 2, length.out = 8), 0.4, 0.6)
   g2 <- mlumr:::.subgroup_geometry(line, ref)
   expect_lt(g2$cond_inv, 1e-8)
+  expect_equal(g2$eff_dim, 1)
 
   # Enough rows, but the third column barely moves: the count is satisfied and
   # the geometry is not.
@@ -25,10 +27,12 @@ test_that("the geometry helper separates spread from collapsed designs", {
                  c(0, 1, 0.50), c(0, -1, 0.5001))
   g3 <- mlumr:::.subgroup_geometry(flat3, ref)
   expect_lt(g3$cond_inv, 0.01)
+  expect_lt(g3$eff_dim, 2)
 
   # A single row has no geometry at all.
   g4 <- mlumr:::.subgroup_geometry(matrix(c(0, 0.5, 0.5), nrow = 1), ref)
   expect_equal(g4$cond_inv, 0)
+  expect_equal(g4$eff_dim, 0)
 })
 
 test_that("centering costs one dimension, which is the K + 1 rule", {
@@ -120,6 +124,7 @@ test_that("identity-link normal means retain the exact geometry screen", {
   out <- check_identification(dat, verbose = FALSE)
   expect_equal(out$diagnostic_scope, "identity")
   expect_false(out$flagged)
+  expect_equal(out$eff_dim, 1)
 })
 
 test_that("check_identification refuses survival data", {

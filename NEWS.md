@@ -100,9 +100,9 @@
 
 * Feature: `check_identification()` reports, before fitting, whether the
   aggregate subgroup rows can identify `beta_comparator` in
-  `model = "relaxed"`: the row count against `K + 1`, and the balance and
-  spread of the centered subgroup-mean matrix, with a descriptive-only label
-  for nonlinear links.
+  `model = "relaxed"`: the row count against `K + 1`, and the balance,
+  effective dimension and spread of the centered subgroup-mean matrix, with a
+  descriptive-only label for nonlinear links.
 * Feature: `prior_beta_comparator` argument to `mlumr()` sets a separate
   prior on `beta_comparator`, including a different family. Defaults to
   `prior_beta`; ignored for `model = "spfa"`; reported by `prior_summary()`
