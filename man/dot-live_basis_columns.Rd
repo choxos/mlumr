@@ -25,9 +25,8 @@ there is no risk period to evaluate over, which is not this function's to
 refuse.
 }
 \description{
-Split out of \code{\link[=.assert_basis_support]{.assert_basis_support()}} so that
-\code{\link[=.assert_shared_basis_identified]{.assert_shared_basis_identified()}} can ask the same question one study at a
-time. Every judgement about what counts as support lives here, so the two
-callers cannot drift apart.
+Shared by \code{\link[=.assert_basis_support]{.assert_basis_support()}} and
+\code{\link[=.assert_shared_basis_identified]{.assert_shared_basis_identified()}}, so what counts as support is decided
+once.
 }
 \keyword{internal}

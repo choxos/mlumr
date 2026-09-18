@@ -87,29 +87,14 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
   estimate <- link_fun(p_index_effect, link_resolved) -
     link_fun(p_comparator_effect, link_resolved)
 
-  # Same boundary correction as the comparator below: with the raw proportion,
-  # p(1 - p) is 0 for an all-events or no-events IPD arm, so the index arm would
-  # contribute no uncertainty and its interval would collapse to a point.
+  # Boundary-corrected, so an all-events or no-events arm keeps its variance.
   p_index_se <- sqrt(p_index_effect * (1 - p_index_effect) / n_index)
-  # Several aggregate rows are strata of one comparator population, not one
-  # binomial sample of size sum(n). The variance of their size-weighted average
-  # proportion is sum(w_k^2 p_k (1 - p_k) / n_k), propagated to the link scale
-  # by the delta method. Both reduce to the previous single-sample formulas when
-  # there is one row.
+  # Several aggregate rows are strata: the variance of their size-weighted
+  # proportion is sum(w_k^2 p_k (1 - p_k) / n_k).
   row_p <- agd$.r / agd$.n
   row_w <- .normalize_weights(agd$.n)
-  # Keep the row-level variance, which is what the declared size-weighted
-  # stratified mean actually has, but take the boundary correction from the
-  # POOLED n. bound_probability() moves a boundary row to
-  # min_count / (n + 2 min_count); with each row's own n that made the answer
-  # depend on how one aggregate arm had been tabulated, since 0/100 corrects to
-  # 0.5/101 while 0/50 + 0/50 corrects to 0.5/51 twice. Correcting against the
-  # total leaves interior rows untouched, so heterogeneous strata keep their own
-  # p_k(1 - p_k), and equivalent splits of one arm now agree exactly.
-  #
-  # Collapsing to a single pooled binomial instead would be wrong here: two
-  # equal strata at 0.1 and 0.9 have variance 0.09 / N, while the pooled form
-  # gives 0.25 / N and inflates every interval it feeds.
+  # The boundary correction uses the pooled n, so equivalent tabulations of
+  # one arm agree; the row-level variance keeps heterogeneous strata apart.
   row_p_effect <- bound_probability(row_p, n_comparator)
   var_p_comparator_effect <- sum(
     row_w^2 * row_p_effect * (1 - row_p_effect) / agd$.n
@@ -121,18 +106,9 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
     p_comparator_effect, link_resolved
   )^2 * var_p_comparator_effect
   se <- sqrt(var_link_index + var_link_comparator)
-  # Use the boundary-corrected variance on the absolute scale too. With raw
-  # `row_p`, a zero-event or all-event arm has p(1 - p) = 0 and contributes no
-  # uncertainty at all: 0/100 gave p_comparator_se = 0, a degenerate [0, 0]
-  # interval, and a risk difference whose SE ignored the comparator entirely,
-  # although 0/100 alone is consistent with p up to roughly 0.03. The link-scale
-  # effect and log_rr_se already use the corrected variance; these did not.
+  # Boundary-corrected on the absolute scale too.
   p_comparator_se <- sqrt(var_p_comparator_effect)
-  # The arms are observed directly, so their intervals are exact. A bounded
-  # Wald interval around a boundary-corrected SE ended at 0.0138 for 0 of
-  # 100 and covered a true probability of 0.014 only 75.5% of the time. The
-  # size-weighted mean of the comparator strata is the pooled proportion,
-  # and the exact interval on the pooled count is conservative for it.
+  # The arms are observed directly, so their intervals are exact.
   p_index_ci <- .clopper_pearson_interval(sum(ipd$.outcome), n_index,
                                           conf_level)
   p_comparator_ci <- .clopper_pearson_interval(sum(agd$.r), n_comparator,
@@ -242,24 +218,13 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
 
   estimate <- log_rate_index - log_rate_comparator
   se <- sqrt(1 / events_index_adjusted + 1 / events_comparator_adjusted)
-  # Use the continuity-corrected counts on the absolute scale too. With the raw
-  # rate, a zero-event arm has variance rate / exposure = 0 and contributes no
-  # uncertainty at all, so its interval collapses to a point and the rate
-  # difference below ignores that arm entirely, although 0 events alone is
-  # consistent with a clearly positive rate. The log-rate contrast already used
-  # the corrected counts; these did not.
+  # Continuity-corrected on the absolute scale too.
   rate_index_se <- sqrt(events_index_adjusted) / exposure_index
   rate_comparator_se <- sqrt(events_comparator_adjusted) / exposure_comparator
-  # Rate difference on the natural per-unit-exposure scale, the additive
-  # counterpart of the rate ratio. The two arms are independent, so the variance
-  # of the difference is the sum of the two rate variances already computed.
+  # Rate difference per unit exposure; the arms are independent.
   rd <- rate_index - rate_comparator
   rd_se <- sqrt(rate_index_se^2 + rate_comparator_se^2)
   # The arms are observed directly, so their intervals are exact (Garwood).
-  # A bounded Wald interval around the corrected SE ended at 0.0139 for 0
-  # events over an exposure of 100 and covered a true rate of 0.02 about
-  # 86% of the time; the exact interval's lower bound is 0 at 0 events, so
-  # the rate it is printed beside is inside it.
   rate_index_ci <- .garwood_interval(events_index, exposure_index, conf_level)
   rate_comparator_ci <- .garwood_interval(events_comparator,
                                           exposure_comparator, conf_level)
@@ -305,20 +270,13 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
   ipd <- data$ipd$data
   pseudo <- data$agd$pseudo_ipd
 
-  # The naive benchmark is a right-censored Cox model. Internal `.status` encodes
-  # 0 = right-censored, 1 = event, 2 = left-censored, 3 = interval-censored. The
-  # Bayesian model (`mlumr()`) handles 2/3, but collapsing them to right-censored
-  # non-events (status != 1) would misrepresent the data (a left-censored record
-  # is known to have failed by its time; an interval-censored record failed within
-  # an interval). Reject them here, matching `stc()` and `geom_km()`, rather than
-  # silently produce an invalid Cox estimate.
+  # A right-censored Cox model: left- and interval-censored records (status
+  # 2 and 3) are refused rather than collapsed, as stc() and geom_km() do.
   if (any(c(ipd$.status, pseudo$.status) %in% c(2L, 3L))) {
     stop("`naive()` fits a right-censored Cox benchmark and does not support ",
-         "left- or interval-censored survival data (internal status 2 or 3). ",
-         "These are supported by the Bayesian model `mlumr()`, but the naive ",
-         "comparison would have to collapse them to right-censored non-events, ",
-         "which misrepresents the data. Restrict the naive comparison to ",
-         "right-censored / event data (status 0/1, optional delayed entry).",
+         "left- or interval-censored survival data (internal status 2 or 3), ",
+         "which `mlumr()` does. Restrict the naive comparison to right-censored ",
+         "and event data (status 0/1, optional delayed entry).",
          call. = FALSE)
   }
 
@@ -337,12 +295,7 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
     survival::Surv(pooled$time, pooled$event)
   }
 
-  # The partial likelihood needs events in both arms to identify the treatment
-  # coefficient. With none at all, or with every event in one arm, coxph()
-  # returns NA or a coefficient running off to infinity and warns rather than
-  # failing, and the result was packaged as an ordinary hazard ratio with a
-  # confidence interval. Refuse instead: the comparison is not estimable, and a
-  # number that looks like a log hazard ratio is worse than no number.
+  # The partial likelihood needs events in both arms.
   events_by_arm <- tapply(pooled$event, pooled$arm, sum)
   events_by_arm[is.na(events_by_arm)] <- 0L
   if (sum(pooled$event) == 0L || any(events_by_arm == 0L)) {
@@ -354,25 +307,10 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
          "by the partial likelihood.", call. = FALSE)
   }
 
-  # Events in both arms is necessary for an interior maximum and not
-  # sufficient. The partial likelihood can be monotone in the treatment
-  # coefficient, in which case it has no maximum but coxph() stops on its
-  # convergence criterion and returns FINITE numbers: six uncensored subjects
-  # with the three index events all before the three comparator ones give a
-  # coefficient of 21.9 with a standard error of 24795, which clears the check
-  # below and was packaged as an ordinary hazard ratio with an interval of
-  # roughly [-48576, 48620].
-  #
-  # What makes it monotone is the RISK SETS, not the order of the event times.
-  # Ordered events are enough only when nobody from the earlier arm is still at
-  # risk when the later arm fails, which is why the six-subject example above
-  # is uncensored. Add censoring and the same ordering is perfectly estimable:
-  # A failing at 1 and censored at 4, B failing at 2 and censored at 3 puts
-  # every A event before every B event, yet an A subject is still at risk at
-  # B's event, the partial likelihood is r/(2r + 2) * 1/(r + 2), and its
-  # maximum is at r = sqrt(2), a log hazard ratio of 0.347. So the arrangement
-  # is not what is tested here: coxph() reports the monotone case in a warning,
-  # which nothing read, and that warning is what is read.
+  # Events in both arms is necessary and not sufficient: the partial
+  # likelihood can be monotone in the coefficient, in which case coxph()
+  # stops on its convergence criterion with finite numbers and a warning.
+  # That warning is what is read; the arrangement of event times is not.
   cox_warnings <- character(0)
   cox <- withCallingHandlers(
     survival::coxph(surv_obj ~ arm, data = pooled),
@@ -382,13 +320,7 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
     }
   )
   monotone <- grepl("may be infinite", cox_warnings, fixed = TRUE)
-  # Failing to converge is not an ordinary warning either. coxph() documents
-  # several termination conditions and says its detection of an infinite
-  # coefficient is not always successful, so the absence of the message above
-  # is not a certificate that a finite maximum exists. Reissuing "Ran out of
-  # iterations and did not converge" and then returning the coefficient and a
-  # Wald interval built from it presents the state the iteration stopped in as
-  # an estimate.
+  # A fit that ran out of iterations is not an estimate either.
   unconverged <- !monotone &
     (grepl("did not converge", cox_warnings, fixed = TRUE) |
        grepl("Ran out of iterations", cox_warnings, fixed = TRUE))
@@ -401,28 +333,18 @@ naive <- function(data, link = NULL, conf_level = 0.95) {
     stop("The naive Cox comparison has no interior maximum: the partial ",
          "likelihood is monotone in the treatment coefficient, which happens ",
          "when no risk set ever compares the two arms in both directions. ",
-         "Event times ordered by arm are the usual way to reach that, and ",
-         "only when censoring leaves nobody from the earlier arm at risk when ",
-         "the later one fails. coxph() stopped on its convergence criterion ",
-         "and returned a ",
-         "coefficient of ", format(estimate, digits = 4), " with a standard ",
-         "error of ", format(se, digits = 4), "; both describe where the ",
-         "iteration stopped rather than the data, and the interval built from ",
-         "them spans essentially the whole real line. Events in both arms are ",
-         "necessary for this comparison and are not sufficient. Use mlumr(), ",
-         "whose prior makes the posterior proper.", call. = FALSE)
+         "coxph() returned a coefficient of ", format(estimate, digits = 4),
+         " with a standard error of ", format(se, digits = 4),
+         ", which describe where the iteration stopped rather than the data. ",
+         "Use mlumr(), whose prior makes the posterior proper.", call. = FALSE)
   }
   if (any(unconverged)) {
     stop("The naive Cox comparison did not converge: coxph() reported ",
          paste(sQuote(cox_warnings[unconverged]), collapse = "; "),
-         ". It returned a coefficient of ", format(estimate, digits = 4),
+         ". Its coefficient of ", format(estimate, digits = 4),
          " with a standard error of ", format(se, digits = 4),
-         ", but those describe the state the iteration stopped in, so the ",
-         "Wald interval built from them does not have its nominal coverage. ",
-         "coxph() also documents that its own detection of an infinite ",
-         "coefficient is not always successful, so a fit that stops this way ",
-         "is not evidence that a finite maximum exists. Use mlumr(), whose ",
-         "prior makes the posterior proper.", call. = FALSE)
+         " describes the state the iteration stopped in, not an estimate. ",
+         "Use mlumr(), whose prior makes the posterior proper.", call. = FALSE)
   }
   if (!is.finite(estimate) || !is.finite(se) || se <= 0) {
     stop("The naive Cox comparison did not produce an estimable treatment ",

@@ -21,56 +21,20 @@
 #' @export
 #'
 #' @details
-#' **The correlation structure is assumed to transport.** Published aggregate
-#' data report marginal covariate summaries (means, SDs, proportions) but never
-#' the joint distribution, so comparator within-row dependence cannot be
-#' estimated from the AgD. With `cor = NULL` this function estimates one matrix
-#' from the **index (IPD)** population and applies it as a common within-row
-#' copula to every comparator subgroup. It is not generally the pooled
-#' comparator correlation because between-subgroup means also contribute to
-#' pooled covariance. That assumption is untestable from the data
-#' at hand and is inherited from ML-NMR (Phillippo et al. 2020); it is
-#' additional to the shared-prognostic-factor and no-unmeasured-effect-modifier
-#' assumptions of the unanchored comparison itself, and it should be stated in
-#' any submission that uses these results.
+#' **The correlation structure is assumed to transport.** Aggregate data
+#' report marginal summaries only, so with `cor = NULL` the within-row
+#' correlation is estimated from the IPD and applied to every comparator
+#' row, as in ML-NMR (Phillippo et al. 2020). The assumption is untestable
+#' from the data; supply `cor` from an external source to vary it, and use
+#' [check_integration()] to confirm the realized moments and correlations.
 #'
-#' The levers are: supply `cor` directly when an external source (a registry, a
-#' similar trial, a publication reporting a correlation matrix) gives a better
-#' estimate for the comparator population; vary it to check sensitivity; and use
-#' [check_integration()] to confirm the realized integration points reproduce
-#' the AgD moments and pairwise correlations you intended. Only the marginal
-#' moments are pinned by `set_agd()`; the dependence structure is your choice.
-#'
-#' `cor_adjust` controls how the covariate-scale correlation is mapped onto the
-#' Gaussian copula. The Spearman map is exact for continuous monotone margins;
-#' the Pearson map is accepted only for Gaussian continuous margins. The
-#' binary-binary and continuous-binary corrections are prevalence-independent
-#' heuristics, while the true
-#' latent-Gaussian correlation for a discrete margin depends on its thresholds.
-#' Treat the realized association as close to, not equal to, the target, and
-#' check it with [check_integration()], passing the same `cor` matrix so the
-#' realized-versus-target deviation is reported. `"none"` passes an explicitly
-#' supplied latent Gaussian-copula matrix through unchanged and can be used
-#' with any margins.
-#'
-#' Both corrections branch on continuous versus **binary**, and there is no
-#' branch for a nonbinary discrete margin (a count such as Poisson or negative
-#' binomial, or an ordered category). Such a covariate is mapped as if it were
-#' continuous, so the realized association need not match the target: a
-#' discrete margin beside a continuous one is attenuated, while one beside a
-#' binary margin goes through the continuous-binary heuristic, which can
-#' overshoot. The calibration such a margin needs is threshold-aware: within
-#' the Gaussian copula with the margin's thresholds fixed, the observed
-#' Pearson correlation is a strictly increasing function of the latent one,
-#' so a feasible target has a unique latent value (the inversion \pkg{GenOrd}
-#' implements for ordinal margins with finite support), and what this package
-#' lacks is that numerical inversion, not the existence of a value to invert
-#' to. Not every target is feasible, and a matrix inverted pairwise need not
-#' stay positive definite. `add_integration()` warns when it detects such a
-#' margin. A finite Sobol
-#' grid approximates both marginal moments and dependence. Verify with
-#' [check_integration()], which reports the realized correlation and names the
-#' scale (`cor_method`) it was measured on.
+#' `cor_adjust` maps the covariate-scale correlation onto the Gaussian copula:
+#' the Spearman map is exact for continuous margins, the Pearson map holds for
+#' Gaussian margins, and pairs involving a binary margin use
+#' prevalence-independent heuristics. A nonbinary discrete margin (a count or
+#' an ordered category) is treated as continuous and its realized association
+#' need not match the target; `add_integration()` warns when it sees one.
+#' `"none"` passes a latent Gaussian-copula matrix through unchanged.
 #'
 #' @examples
 #' \dontrun{
@@ -200,13 +164,9 @@ add_integration <- function(data, n_int = 64, cor = NULL,
 
 #' Warn when the generated grid contradicts the declared AgD moments
 #'
-#' `distr()` specifies the *shape* of the comparator covariate distribution; the
-#' `set_agd()` mean/SD summaries describe the target population. In the standard
-#' workflow each `distr()` references the AgD columns so they agree by
-#' construction, but a hand-written distribution (e.g. `distr(qnorm, mean = 0,
-#' sd = 1)` while the AgD declares mean 10) integrates the wrong population
-#' silently. Flag only gross contradictions so ordinary QMC scatter never
-#' false-warns; suppress with `options(mlumr.quiet_integration_moments = TRUE)`.
+#' A hand-written `distr()` that ignores the AgD columns integrates the wrong
+#' population silently. Only gross contradictions are flagged; suppress with
+#' `options(mlumr.quiet_integration_moments = TRUE)`.
 #' @keywords internal
 .warn_integration_vs_agd_moments <- function(X_int_array, agd_data, cov_names) {
   if (isTRUE(getOption("mlumr.quiet_integration_moments", FALSE))) {
@@ -249,9 +209,7 @@ add_integration <- function(data, n_int = 64, cor = NULL,
   if (length(issues)) {
     msg <- paste0(
       "The integration grid contradicts the declared AgD moments for:\n  %s\n",
-      "The distr() distribution(s) do not reproduce the set_agd() summaries, so ",
-      "the comparator population being integrated is not the one the aggregate ",
-      "data describe. Check that each distr() references the AgD mean/SD columns. ",
+      "Check that each distr() references the AgD mean/SD columns. ",
       "Suppress with options(mlumr.quiet_integration_moments = TRUE)."
     )
     warning(sprintf(msg, paste(issues, collapse = "\n  ")), call. = FALSE)
@@ -331,18 +289,9 @@ add_integration <- function(data, n_int = 64, cor = NULL,
 
 #' Warn that the copula correction does not cover nonbinary discrete margins
 #'
-#' The Spearman and Pearson corrections handle two cases: continuous-continuous
-#' (exact) and anything paired with a BINARY margin (prevalence-independent
-#' heuristics). A count or ordinal margin (Poisson, negative binomial, an
-#' ordered category) is neither. It goes through the continuous branch, where
-#' the map is exact only for a continuous margin, so the realized association
-#' need not match the target: attenuated beside a continuous margin, and
-#' possibly overshooting beside a binary one, whose heuristic inflates the
-#' latent correlation. The correction it needs depends on its thresholds:
-#' with those fixed, the observed correlation rises strictly with the latent
-#' one, so a feasible target has one latent value, and the package does not
-#' implement the numerical inversion that finds it. Say so rather than let
-#' the realized association quietly miss the target.
+#' The Spearman and Pearson corrections cover continuous margins exactly and
+#' binary margins heuristically. A count or ordinal margin goes through the
+#' continuous branch, so its realized association need not match the target.
 #'
 #' @param dtypes Distribution types from [get_distribution_type()].
 #' @param cov_names Covariate names, same order as `dtypes`.
@@ -357,12 +306,9 @@ add_integration <- function(data, n_int = 64, cor = NULL,
   msg <- paste0(
     "Covariate(s) %s have a nonbinary discrete marginal (a count or ordered ",
     "category). The `cor_adjust = \"%s\"` copula correction covers ",
-    "continuous margins exactly and binary margins heuristically, but has no ",
-    "branch for these: they are mapped as if continuous, so the realized ",
-    "pairwise association need not match the target. The threshold-aware ",
-    "calibration a discrete margin needs is not implemented here. Check the ",
-    "realized values with check_integration(), passing the same `cor`, and ",
-    "treat the target as approximate."
+    "continuous margins exactly and binary margins heuristically, so the ",
+    "realized association for these need not match the target. Check it with ",
+    "check_integration(), passing the same `cor`."
   )
   warning(sprintf(msg, paste(nms, collapse = ", "), cor_adjust), call. = FALSE)
   invisible(TRUE)
@@ -449,9 +395,7 @@ add_integration <- function(data, n_int = 64, cor = NULL,
          "is not positive definite.", call. = FALSE)
   }
   result <- as.matrix(Matrix::nearPD(copula_cor, corr = TRUE)$mat)
-  # Re-check: nearPD can leave the smallest eigenvalue marginally negative
-  # (floating point). Fail loudly rather than hand a non-positive-definite
-  # correlation to the copula sampler.
+  # nearPD can leave the smallest eigenvalue marginally negative.
   if (!all(eigen(result, symmetric = TRUE)$values > eigen_tol)) {
     stop("Could not produce a positive-definite integration correlation matrix ",
          "after nearPD correction. Supply a valid positive-definite `cor` or ",
@@ -573,37 +517,18 @@ unnest_integration <- function(data) {
 #'   dependence structure does not (rare in practice for QMC with sensible
 #'   `cor_adjust` but worth flagging when `n_int` is small).
 #'
-#' @return A list with components `marginals` (the original data frame
-#'   returned by previous versions) and, if `check_joint = TRUE`,
-#'   `correlations`, a data frame of pairwise covariate correlations at
-#'   the current and doubled `n_int` for each AgD row. Its `covariate_1`
-#'   and `covariate_2` columns name the two margins; `pair` is a label
-#'   built from them for reading. Printed with a pass/warn verdict.
-#'
-#'   The `verdict` component reports `"stable"` / `"close"` when a comparison
-#'   was made and met the heuristic, `"review"` when it did not, and
-#'   `"unavailable"` when there was nothing finite to compare. A declared
-#'   target the AgD does not supply, or a latent Gaussian-copula correlation
-#'   (`cor_adjust = "none"`), gives `"unavailable"` rather than a pass. The
-#'   correlation verdicts (`target_correlation`, `resolution_correlation`)
-#'   are `"partial"` when the measured pairs pass but some pair with a
-#'   correlation to realize could not be measured, since a maximum over the
-#'   measured pairs says nothing about the rest; a measured pair that misses
-#'   the heuristic is `"review"` regardless. `correlation_pairs` counts the
-#'   pairs expected and the pairs measured: `measured` is the number with a
-#'   finite correlation on the doubled grid, the correlation the target
-#'   comparison uses when there is a target to compare it with, and
-#'   `measured_resolution` the number with a finite correlation on both
-#'   grids. Neither count says whether a target comparison was made; with
-#'   `cor_adjust = "none"` none is. It names the omitted pairs with a
-#'   reason, and lists separately the pairs in which a margin is declared
-#'   with no variance, which have no correlation to realize and are outside
-#'   the count.
-#'
-#'   For a binary margin the declared-target SD is the distribution's,
-#'   `sqrt(p * (1 - p))` from the declared mean, whatever `_sd` column the
-#'   AgD carries: a sample SD of the source data has a size correction no
-#'   grid can reproduce. Grid SDs are population SDs for the same reason.
+#' @return A list with `marginals`, a data frame of grid means and SDs at the
+#'   current and doubled `n_int` against the declared targets, and `verdict`,
+#'   whose entries are `"stable"` or `"close"` when a comparison met the
+#'   heuristic, `"review"` when it did not, `"partial"` when the measured
+#'   correlation pairs passed but some pair could not be measured, and
+#'   `"unavailable"` when there was nothing finite to compare (a latent
+#'   matrix under `cor_adjust = "none"` is never compared). With
+#'   `check_joint = TRUE` and two or more covariates it also holds
+#'   `correlations`, the pairwise correlations per AgD row on both grids, and
+#'   `correlation_pairs`, which counts the pairs measured and names the rest.
+#'   A binary margin's target SD is `sqrt(p * (1 - p))` from the declared
+#'   mean, and grid SDs are population SDs.
 #' @param verbose Logical; if `FALSE`, suppresses printed diagnostic messages.
 #' @export
 check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
@@ -631,12 +556,7 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
   # Re-run at doubled resolution (temporarily)
   data_copy <- data
   data_copy$has_integration <- FALSE
-  # Reuse the same correlation the original integration used unless the caller
-  # explicitly overrides it. `data$int_cor` is the resolved input correlation
-  # (a user-supplied matrix, or the IPD-computed one); without this `%||%` a
-  # custom `cor` from add_integration() would be silently dropped here and the
-  # doubled grid regenerated under a recomputed IPD correlation, making the
-  # diagnostic compare two different integration setups.
+  # Reuse the correlation the original integration used unless overridden.
   data_doubled <- suppressMessages(suppressWarnings(
     add_integration(data_copy, n_int = n_int_double, cor = cor %||% data$int_cor,
                     cor_adjust = cor_adjust %||% data$int_cor_adjust,
@@ -645,31 +565,17 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
   X_double <- data_doubled$integration_points
   stats_double <- .int_stats(X_double, cov_names, n_agd)
 
-  # Compare. The mean denominator includes the covariate's own SD so that a
-  # near-zero target mean (e.g. a centered/standardized covariate) does not
-  # produce a spuriously huge relative difference and a false "increase n_int"
-  # warning; the SD provides a natural, non-degenerate scale.
+  # The mean denominator includes the SD so a near-zero target mean does not
+  # inflate the relative difference.
   rel_diff_mean <- abs(stats_orig$mean - stats_double$mean) /
     (abs(stats_double$mean) + abs(stats_double$sd) + 1e-8)
   rel_diff_sd <- abs(stats_orig$sd - stats_double$sd) /
     (abs(stats_double$sd) + 1e-8)
 
   agd <- data$agd$data
-  # sqrt(m * (1 - m)) is the SD of a Bernoulli margin and of nothing else. It
-  # was applied to any covariate whose declared mean happened to land in [0, 1],
-  # so a continuous covariate with mean 0.4 and no declared SD was compared
-  # against a fabricated target and could be reported as off by a wide margin.
-  # Ask the declared distributions what the margin is instead of guessing from
-  # the mean.
-  #
-  # For a binary margin the target is the DISTRIBUTION's SD, whatever the
-  # AgD declares: a supplied `_sd` column there is a sample summary of the
-  # source data, and a sample of two zeros and two ones has SD sqrt(1/3),
-  # which no Bernoulli(0.5) grid can reproduce, since its largest possible
-  # sample SD is sqrt(m / (m - 1)) / 2 and it converges to 0.5. Comparing the
-  # grid with the summary said the grid was off by 13% at every resolution.
-  # Whether the summary is consistent with the declared mean is a question
-  # about the input, not about the grid, and set_agd() owns it.
+  # The target SD comes from the declared distribution: sqrt(m * (1 - m)) for
+  # a binary margin, whatever `_sd` column the AgD carries, and the declared
+  # SD column otherwise.
   dtypes <- do.call(
     get_distribution_type,
     c(list(...), list(data = utils::head(agd)))
@@ -748,9 +654,7 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
     }
   }
 
-  # A verdict of "close" must mean something was compared. `max(x, na.rm = TRUE)`
-  # on an all-NA vector returns -Inf, which passed every threshold below and
-  # certified agreement computed from no data at all.
+  # A verdict needs a comparison: an all-NA maximum is "unavailable".
   out <- list(
     marginals = result,
     verdict = list(
@@ -760,28 +664,16 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
   )
 
   if (isTRUE(check_joint) && length(cov_names) >= 2L) {
-    # Compare like with like. When `cor` came from the IPD the default target is
-    # a SPEARMAN matrix (`cor_adjust = "spearman"`), so measuring the realized
-    # integration points with Pearson would compare two different estimands and
-    # could warn (or reassure) for no reason. Carry the method that defined the
-    # target into the diagnostic.
-    # `data$int_cor` was already put in covariate order when add_integration()
-    # validated it, but a matrix passed straight to check_integration() was not.
-    # .int_cor_stats() indexes it positionally against `cov_names`, so a
-    # caller-supplied matrix whose dimnames run in a different order was read
-    # transposed and produced a verdict about the wrong pairs.
+    # Measure the realized correlation on the method that defined the target,
+    # and put a caller-supplied matrix in covariate order first.
     cor_target <- if (is.null(cor)) {
       data$int_cor
     } else {
       .validate_integration_cor(cor, length(cov_names), cov_names = cov_names)
     }
     target_method <- cor_adjust %||% data$int_cor_adjust %||% "pearson"
-    # `cor_adjust = "none"` means the supplied matrix IS the latent
-    # Gaussian-copula correlation. The integration points realize the margins,
-    # so measuring them gives an observed correlation on the covariate scale,
-    # which is a different quantity: the two agree only for Gaussian margins.
-    # Report the resolution comparison, which is like for like, and withhold
-    # the target comparison rather than scoring one estimand against the other.
+    # A latent matrix under `cor_adjust = "none"` is not what the realized
+    # covariate-scale correlation estimates, so it is not compared.
     latent_target <- identical(target_method, "none")
     if (latent_target) {
       target_method <- "pearson"
@@ -790,16 +682,8 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
     cor_result <- .int_cor_stats(X_orig, X_double, cov_names, n_agd,
                                  cor_target = cor_target,
                                  cor_method = target_method)
-    # A maximum over the pairs that could be measured is a maximum over
-    # those pairs only. A variable constant on the grid has no correlation
-    # with anything, so its pairs are NA and drop out of the maximum, and
-    # one measured pair out of three used to be reported as `close`. Count
-    # what was compared, name what was not, and say why: a declared margin
-    # with no variance has no correlation to realize, while a rare variable
-    # the finite grid never varied is a resolution failure a larger grid may
-    # or may not repair. The maxima run over the pairs with a correlation
-    # to realize: a margin declared without variance but supplied a varying
-    # distribution has a realized correlation that decides nothing.
+    # The maxima run over the pairs with a correlation to realize; the rest
+    # are counted and named.
     pairs <- .int_cor_pair_status(cor_result$diff, stats_orig, target_sd)
     applicable <- cor_result$diff[pairs$applicable, , drop = FALSE]
     max_cor_diff <- .max_finite(applicable$abs_diff)
@@ -847,11 +731,7 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
                           collapse = "; ")))
       }
     }
-    # `partial` is a qualified pass: the measured pairs met the heuristic
-    # and some pair that has a correlation to realize was not measured. A
-    # measured pair that misses the heuristic is `review` whatever else
-    # is missing, so a caller reading only for `review` is not passed a
-    # failure under another name.
+    # `partial`: the measured pairs passed and some pair was not measured.
     qualify <- function(verdict, pass, measured) {
       if (identical(verdict, pass) && measured < pairs$expected) {
         "partial"
@@ -860,9 +740,6 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
       }
     }
     out$verdict$target_correlation <- if (is.null(cor_target)) {
-      # Withheld on purpose under `cor_adjust = "none"`, where the supplied
-      # matrix is the latent copula correlation. Leaving the field unset made
-      # a deliberate abstention indistinguishable from a missing field.
       "unavailable"
     } else {
       qualify(.moment_verdict(max_target_cor_diff, 0.05, "close"), "close",
@@ -895,9 +772,7 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
     dim(Xd) <- dim(X_double)[2:3]
     colnames(Xo) <- cov_names
     colnames(Xd) <- cov_names
-    # `cor_method` matches however `cor_target` was measured; a binary margin
-    # realized on the integration grid has a Spearman correlation that is not
-    # its Pearson correlation, so the choice is not cosmetic.
+    # Measured on the method the target was measured on.
     cor_o <- suppressWarnings(stats::cor(Xo, method = cor_method))
     cor_d <- suppressWarnings(stats::cor(Xd, method = cor_method))
     for (ij in pairs) {
@@ -908,11 +783,7 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
       rho_t <- if (!is.null(cor_target)) cor_target[i, j] else NA_real_
       rows[[idx]] <- data.frame(
         agd_row = k,
-        # The two members are carried as their own fields. `pair` is a label
-        # built from them for reading, and a label is not an encoding: a
-        # covariate may be named `a~b`, which `set_ipd()` and `set_agd()`
-        # both accept, and splitting `a~b~c` on the tilde gives `a`, `b` and
-        # `c`, none of which is either member.
+        # `pair` is a label; `covariate_1` and `covariate_2` identify the members.
         covariate_1 = cov_names[i],
         covariate_2 = cov_names[j],
         pair = sprintf("%s~%s", cov_names[i], cov_names[j]),
@@ -933,28 +804,15 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
 
 #' Which correlation pairs were measured, and why the others were not
 #'
-#' @param diff The pair table from [.int_cor_stats()]. Its members are read
-#'   from the `covariate_1` and `covariate_2` columns, never from the `pair`
-#'   label, which is presentation and does not identify them: a covariate
-#'   named `a~b` makes the label `a~b~c`, and a name that is a substring of
-#'   another would match the wrong margin besides.
+#' @param diff The pair table from [.int_cor_stats()].
 #' @param stats The marginal statistics of the current grid.
 #' @param target_sd Declared target SDs, one per row of `stats`.
-#' @return List with `expected`, the number of pairs that have a correlation
-#'   to realize; `measured`, how many of those had a finite correlation on
-#'   the doubled grid, which is what the target comparison reads;
-#'   `measured_resolution`, how many had one on both grids, which is what
-#'   the current-versus-doubled comparison reads; `omitted`, a data frame
-#'   naming the expected pairs that fell short of either, with a `reason`,
-#'   `"constant_on_grid"` when the doubled grid did not vary a margin and
-#'   `"constant_on_current_grid"` when only the current one did not, both
-#'   resolution failures a larger grid may or may not repair; and
-#'   `not_applicable`, the pairs in which a margin is declared with no
-#'   variance and so has no correlation to realize at any resolution.
-#'   Those are outside `expected`, so a subgroup row with an all-male
-#'   membership does not keep every verdict at `partial` forever; and
-#'   `applicable`, the logical over the rows of `diff` that the maxima are
-#'   taken over.
+#' @return List with `expected` (pairs that have a correlation to realize),
+#'   `measured` and `measured_resolution` (how many had a finite correlation on
+#'   the doubled grid, and on both grids), `omitted` (the expected pairs that
+#'   fell short, with a reason), `not_applicable` (pairs in which a margin is
+#'   declared with no variance) and `applicable`, the logical vector the
+#'   maxima are taken over.
 #' @keywords internal
 .int_cor_pair_status <- function(diff, stats, target_sd) {
   degenerate <- vapply(seq_len(nrow(diff)), function(i) {
@@ -980,11 +838,9 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
 
 #' Compute summary statistics for integration points
 #'
-#' The SD is the population one, with the point count in the denominator:
-#' the grid is a deterministic representation of a distribution, not a
-#' sample from it, and its moments are compared with the distribution's. A
-#' sample SD carried a factor of `sqrt(m / (m - 1))` that no target shares,
-#' 0.8% at 64 points, most of the 1% heuristic.
+#' The SD is the population one: the grid represents a distribution rather
+#' than sampling it, and a sample SD carries a `sqrt(m / (m - 1))` factor
+#' that no target shares.
 #' @keywords internal
 .int_stats <- function(X_int, cov_names, n_agd) {
   rows <- vector("list", n_agd * length(cov_names))
@@ -1006,9 +862,7 @@ check_integration <- function(data, ..., cor = NULL, cor_adjust = NULL,
 
 #' Largest finite value, or NA when there is none
 #'
-#' `max(x, na.rm = TRUE)` returns `-Inf` for an all-missing vector, which then
-#' passes every "is it small enough" threshold. Return `NA_real_` instead so a
-#' comparison that never happened cannot be reported as agreement.
+#' `max(x, na.rm = TRUE)` returns `-Inf` for an all-missing vector.
 #' @keywords internal
 .max_finite <- function(x) {
   x <- x[is.finite(x)]

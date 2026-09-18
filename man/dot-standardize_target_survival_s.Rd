@@ -24,15 +24,8 @@ target population (Chandler & Ishak Eq 14): for each treatment,
 \verb{S_bar_k(t) = (1/M) sum_m S_k(t | x_m)} over the \code{M} rows of \code{newdata}.
 }
 \details{
-The \code{share} element judges how well \code{times} resolves the curves that were
-averaged, one value per draw and treatment: the decay that the profiles
-lose inside their own steepest grid interval, summed over profiles, as a
-fraction of the decay they lose in total. It is measured on each profile's
-curve before the averaging, because the average can look resolved when
-none of its parts is. Two profiles that each collapse inside a different
-interval average to a curve that loses half its decay in each, under any
-threshold, while the trapezoid rule is linear and overstates the average
-RMST by exactly the mean of what it overstates for the two. With one
-profile the share is the one \code{\link[=.decay_share]{.decay_share()}} computes.
+The \code{share} element is the resolution share of \code{\link[=.decay_share]{.decay_share()}} computed
+from the decay pieces summed over the profiles, not from the averaged
+curve: the average can look resolved when none of its parts is.
 }
 \keyword{internal}

@@ -7,11 +7,8 @@
 .surv_effect_frame(spec, summary, probs, rmst_horizon)
 }
 \description{
-\code{spec} is a list with one entry per effect column, each carrying \code{variable}
-(the raw-draw column name), \code{effect} (the display label), \code{population},
-\code{at_time}, \code{horizon} and the \code{draws} vector. Both the built-in and the
-transported route reduce to that list, so the layout below is written once:
-writing it twice is how the two came to disagree about column names and
-about which of \code{at_time} / \code{horizon} appear at all.
+\code{spec} has one entry per effect column with \code{variable}, \code{effect},
+\code{population}, \code{at_time}, \code{horizon} and \code{draws}; both routes reduce to it,
+so the layout is written once.
 }
 \keyword{internal}

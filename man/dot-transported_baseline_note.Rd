@@ -13,18 +13,9 @@
 \code{TRUE} invisibly if the note was emitted.
 }
 \description{
-Each study contributes exactly one arm, so a study-specific baseline shape
-and a treatment-specific baseline shape are perfectly aliased: no part of the
-data can say whether a difference in shape belongs to the treatment or to the
-study's eligibility, ascertainment, follow-up, calendar time, supportive
-care, or unmeasured prognosis. Predicting one treatment in the other
-population therefore carries that study's shape across, which is a structural
-assumption on top of the covariate adjustment, not a consequence of it. The
-contrast estimands are less exposed than the absolute curves, and the RMST
-estimands are collapsible, so say this where the absolute numbers are
-produced, and also for the time-varying log hazard ratio: with one arm per
-study the two hazards in that ratio carry two study-specific shapes, so the
-ratio's time profile is the aliased quantity itself. Once per session, like
-the marginal-HR note.
+With one arm per study a study-specific shape and a treatment-specific
+shape are aliased, so predicting a treatment in the other population
+carries its study's shape across: an assumption the data cannot check.
+Once per session, like the marginal-HR note.
 }
 \keyword{internal}

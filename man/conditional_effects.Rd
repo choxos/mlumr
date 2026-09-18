@@ -25,62 +25,19 @@ from the IPD as a single reference profile.}
 or \code{"rr"}. The legacy value \code{"lor"} is accepted as an alias for
 \code{"link_effect"} when the fitted link is logit.
 
-For \strong{survival}, what is available depends on whether the two studies
-share a baseline, because \code{exp(eta_index - eta_comparator)} is a
-conditional hazard ratio only when the baseline factor cancels:
-\itemize{
-\item \strong{Shared baseline shape} (\code{aux_by = "none"}, or any exponential
-fit, which has no shape to stratify): \code{"hr"} returns the exact
-conditional hazard ratio, labeled \code{"HR"}, for a proportional-hazards
-distribution, and \code{"tr"} the exact time ratio (\code{"TR"}) for an
-accelerated failure time one. They are different measures and
-\code{"tr"} is \strong{not} an alias for \code{"hr"}, so \code{"tr"} on a
-proportional-hazards fit and \code{"hr"} on an accelerated failure time fit
-are both errors rather than the other measure returned under the label
-it does have. That is a restriction on the label this function
-answers to, not a claim that the other measure cannot exist: an
-exponential and a Weibull are BOTH proportional hazards and
-accelerated failure time, so with a shared shape each has a constant
-hazard ratio and a constant time ratio, related by
-\code{TR = HR^(-1/shape)} (\code{1/HR} for an exponential). For the Weibull,
-apply that conversion to PAIRED posterior draws, each effect draw with
-the shape draw it came with; transforming a posterior mean, or the
-endpoints of a reported interval with one shape estimate, does not in
-general give the posterior of the other measure. Refitting in the
-other parameterization is then an equivalent analysis only when the
-priors are transformed to match: \code{log(HR) ~ Normal(0, s^2)} induces
-\code{log(TR) | k ~ Normal(0, s^2 / k^2)}, not the same fixed-variance
-normal, and the intercept and coefficient priors have to move with it.
-None of that applies to the exponential, which has no shape parameter:
-its conversion is a reciprocal applied draw by draw, and a normal
-prior on \code{log(HR)} is the same normal prior on \code{log(TR)} with the sign
-reversed.
-For the log-normal, log-logistic, gamma and generalized gamma the
-conditional hazard ratio generally varies with time, and there the
-absence of a scalar is a property of the model. Generally, not always:
-the gamma family contains the exponential at shape 1, the implemented
-generalized gamma contains a Weibull subfamily, and a null comparison
-has a hazard ratio of 1 at every time.
-\item \strong{Study-specific shape-bearing baseline} (\code{aux_by = ".study"},
-the default, with a distribution that has a shape parameter or either
-flexible baseline): an explicit \code{"hr"} / \code{"tr"} request is an
-\strong{error}. The conditional hazard ratio is
-\code{h0_index(t) / h0_comparator(t) * exp(eta_index - eta_comparator)} and
-the baseline ratio does not cancel, so no scalar hazard ratio exists to
-return. Returning the bare exponent under the name \code{hr} would report a
-different estimand than the one requested.
-\item \code{"all"} still works in that case and returns the exponentiated
-linear-predictor contrast under the honest label
-\code{"EXP_ETA_CONTRAST"}, with a warning explaining what it is not. The
-warning is emitted whenever the baseline shapes differ, for
-accelerated failure time models as well as proportional-hazards ones.
-\item The collapsible RMST effects from \code{\link[=marginal_effects]{marginal_effects()}} are
-unaffected and are the recommended alternative.
-\code{predict(type = "loghr")} gives the time-varying hazard ratio
-standardized over a \strong{population}, so it is a marginal quantity and
-not the conditional effect at a supplied covariate profile; it answers
-a different question rather than substituting for this one.
-}}
+For \strong{survival}, \code{exp(eta_index - eta_comparator)} is a conditional
+hazard ratio (\code{"hr"}, proportional-hazards distributions) or time ratio
+(\code{"tr"}, accelerated failure time distributions) only when the two
+studies share a baseline shape (\code{aux_by = "none"}, or any exponential
+fit). The two are different measures: \code{"tr"} on a proportional-hazards
+fit and \code{"hr"} on an AFT fit are errors, whose message gives the
+conversion where one exists (\code{TR = HR^(-1/shape)} for a Weibull, applied
+draw by draw; \code{TR = 1/HR} for an exponential). Under the default
+study-specific shapes an explicit \code{"hr"} or \code{"tr"} is an error, since
+the baseline ratio does not cancel; \code{"all"} returns the contrast under
+the label \code{"EXP_ETA_CONTRAST"} with a warning. The RMST effects from
+\code{\link[=marginal_effects]{marginal_effects()}} are the recommended alternative, and
+\code{predict(type = "loghr")} gives the population-standardized curve.}
 
 \item{summary}{Return summary statistics (\code{TRUE}) or full posterior draws
 (\code{FALSE})}
@@ -109,27 +66,12 @@ probability levels. For relaxed models, all conditional effects vary with
 covariate values because the index and comparator treatments have different
 regression coefficients.
 
-For binomial / normal / Poisson the conditional link-scale effect is computed
-directly as \code{eta_index - eta_comparator}. This avoids numerical distortion
-from transforming extreme response-scale probabilities back through the link
-function. For \strong{survival} the contrast is reported on the natural scale,
-exponentiated from \code{eta_index - eta_comparator} (null 1, like the rate
-ratio). That exponent is the conditional hazard ratio (or AFT time ratio)
-only when the two studies share a baseline shape; under the stratified
-default it is labeled \code{"EXP_ETA_CONTRAST"} instead, because the baseline
-ratio \code{h0_index(t) / h0_comparator(t)} does not cancel, and for an
-accelerated failure time model because differing shapes add
-quantile-dependent factors. \code{predict(type = "loghr")} gives the time-varying
-log hazard ratio standardized over a population, which is a marginal
-quantity rather than a profile-specific conditional one.
-
-\strong{Conditional vs marginal on non-identity links.} Conditional effects are
-evaluated at a single covariate profile, so there is no averaging over a
-population and no Jensen's-inequality gap between the conditional and
-marginal response. Compare with \code{\link[=marginal_effects]{marginal_effects()}} and
-\code{\link[=predict.mlumr_fit]{predict.mlumr_fit()}}, which average over either the IPD individuals
-(index population) or the AgD integration points (comparator population)
-and therefore return \code{E[g^{-1}(eta)]}, not \code{g^{-1}(E[eta])}.
+For binomial, normal and Poisson the conditional link-scale effect is
+\code{eta_index - eta_comparator}; for survival the contrast is exponentiated
+(null 1) and labeled \code{"EXP_ETA_CONTRAST"} when the baseline shapes
+differ. A conditional effect is evaluated at one profile, so unlike
+\code{\link[=marginal_effects]{marginal_effects()}} and \code{\link[=predict.mlumr_fit]{predict.mlumr_fit()}} there is no averaging over
+a population and no gap between \code{E[g^{-1}(eta)]} and \code{g^{-1}(E[eta])}.
 }
 \examples{
 \dontrun{

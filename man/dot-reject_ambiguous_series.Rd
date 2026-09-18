@@ -7,11 +7,7 @@
 .reject_ambiguous_series(x)
 }
 \description{
-Colour and fill are keyed on \code{treatment}, so when both arms carry the same
-label (which \code{\link[=combine_data]{combine_data()}} permits, with a warning) the index and
-comparator series of a population fall into ONE ggplot2 group. The line and
-ribbon then connect alternating rows of two different predictions instead of
-drawing two curves, which is a wrong figure rather than an ugly one. Nothing
-in the frame can separate them, so refuse rather than guess.
+Colour and fill are keyed on \code{treatment}, so two arms with one label fall
+into one ggplot2 group and the line joins two different predictions.
 }
 \keyword{internal}

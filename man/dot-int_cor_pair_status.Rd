@@ -7,32 +7,19 @@
 .int_cor_pair_status(diff, stats, target_sd)
 }
 \arguments{
-\item{diff}{The pair table from \code{\link[=.int_cor_stats]{.int_cor_stats()}}. Its members are read
-from the \code{covariate_1} and \code{covariate_2} columns, never from the \code{pair}
-label, which is presentation and does not identify them: a covariate
-named \code{a~b} makes the label \code{a~b~c}, and a name that is a substring of
-another would match the wrong margin besides.}
+\item{diff}{The pair table from \code{\link[=.int_cor_stats]{.int_cor_stats()}}.}
 
 \item{stats}{The marginal statistics of the current grid.}
 
 \item{target_sd}{Declared target SDs, one per row of \code{stats}.}
 }
 \value{
-List with \code{expected}, the number of pairs that have a correlation
-to realize; \code{measured}, how many of those had a finite correlation on
-the doubled grid, which is what the target comparison reads;
-\code{measured_resolution}, how many had one on both grids, which is what
-the current-versus-doubled comparison reads; \code{omitted}, a data frame
-naming the expected pairs that fell short of either, with a \code{reason},
-\code{"constant_on_grid"} when the doubled grid did not vary a margin and
-\code{"constant_on_current_grid"} when only the current one did not, both
-resolution failures a larger grid may or may not repair; and
-\code{not_applicable}, the pairs in which a margin is declared with no
-variance and so has no correlation to realize at any resolution.
-Those are outside \code{expected}, so a subgroup row with an all-male
-membership does not keep every verdict at \code{partial} forever; and
-\code{applicable}, the logical over the rows of \code{diff} that the maxima are
-taken over.
+List with \code{expected} (pairs that have a correlation to realize),
+\code{measured} and \code{measured_resolution} (how many had a finite correlation on
+the doubled grid, and on both grids), \code{omitted} (the expected pairs that
+fell short, with a reason), \code{not_applicable} (pairs in which a margin is
+declared with no variance) and \code{applicable}, the logical vector the
+maxima are taken over.
 }
 \description{
 Which correlation pairs were measured, and why the others were not

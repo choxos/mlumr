@@ -17,20 +17,11 @@
 List with \code{lower} and \code{upper}.
 }
 \description{
-Clopper and Pearson's interval, the one \code{stats::binom.test()} reports:
-the lower bound is the \code{alpha / 2} quantile of \code{Beta(r, n - r + 1)} and
-the upper the \code{1 - alpha / 2} quantile of \code{Beta(r + 1, n - r)}, with the
-bound at 0 or 1 when the count is. Its coverage is at least the nominal
-level for every true probability, which the bounded Wald interval it
-replaces did not have: at 0 events of 100 that interval ended at 0.0138,
-and enumerating every count at a true probability of 0.014 put its
-coverage at 75.5\%, since the zero-count outcome alone has probability
-0.24 and excludes the truth. The exact interval is conservative rather
-than shortest; it is used for arms that are observed directly, not for
-model predictions or contrasts.
-}
-\details{
-Formed from the same beta quantiles \code{binom.test()} uses, without its
-integer check, so a count is taken as given.
+Clopper and Pearson's interval, as \code{stats::binom.test()} reports it but
+without the integer check: beta quantiles, with the lower bound at 0 when
+the count is 0 and the upper bound at 1 when the count equals \code{n}. For
+integer counts its coverage is at least nominal for every true
+probability, which the bounded Wald interval it replaced lacked; a
+fractional count has no such guarantee.
 }
 \keyword{internal}

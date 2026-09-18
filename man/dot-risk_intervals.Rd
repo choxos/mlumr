@@ -17,12 +17,8 @@
 A list of \code{c(lo, hi)} intervals, in increasing order.
 }
 \description{
-The union of each subject's \verb{[entry, exit]}, merged. Reducing this to a
-single span from the earliest entry to the last exit would treat a gap with
-an empty risk set as observed: subjects seen on \verb{[1, 2]} and \verb{[8, 9]} leave
-\verb{(2, 8)} contributing no event hazard and no cumulative-hazard exposure, and
-a basis column living only there is as unidentified as one before the first
-entry. Without entry times this is a single interval from zero, which is
-what keeps the check unchanged for ordinary data.
+The union of each subject's \verb{[entry, exit]}, merged, so a gap with an
+empty risk set is not treated as observed. Without entry times this is
+one interval from zero.
 }
 \keyword{internal}

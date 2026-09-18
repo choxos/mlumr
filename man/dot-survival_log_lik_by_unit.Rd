@@ -7,15 +7,9 @@
 .survival_log_lik_by_unit(object, survival_unit = "observation")
 }
 \description{
-At the default \code{survival_unit = "observation"} this is \code{extract_log_lik()}
-(per-observation; per reconstructed pseudo-individual for survival AgD) and
-emits the pseudo-IPD-level warning. For survival fits, \code{"arm"} collapses the
-comparator pseudo-IPD log-likelihood by comparator arm (summing within arm,
-exact under conditional independence given the parameters) and \code{"aggregate"}
-collapses all comparator pseudo-IPD into one external-evidence unit; the index
-IPD stays per-individual. Leaving out a grouped unit then corresponds to
-leaving out that whole external arm / the whole external evidence, which is
-the question grouped LOO/WAIC answer (and is not optimistic at the
-pseudo-individual level). Non-survival families ignore the option.
+\code{"observation"} is \code{extract_log_lik()}. For survival fits \code{"arm"} sums the
+comparator pseudo-IPD columns within each arm and \code{"aggregate"} sums them
+all, so leaving out a unit leaves out that arm or all external evidence.
+The index IPD stays per individual.
 }
 \keyword{internal}

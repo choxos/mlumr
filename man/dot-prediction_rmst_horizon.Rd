@@ -15,10 +15,7 @@
 A single finite restriction time, or \code{NULL} when none is recorded.
 }
 \description{
-\code{predict(type = "rmst")} returns a \code{horizon} column (and survival fits also
-record an \code{rmst_horizon} attribute). An RMST value is only defined together
-with that time, so the plotting method has to be able to recover it.
-Predictions integrated to different horizons are different estimands and are
-refused rather than drawn on one axis.
+Predictions integrated to different horizons are different estimands and
+are refused rather than drawn on one axis.
 }
 \keyword{internal}

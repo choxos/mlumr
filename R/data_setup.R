@@ -191,9 +191,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
            call. = FALSE)
     }
     exposure_vals <- data[[exposure]]
-    # The Stan models declare the exposures `<lower=1e-12>`, so anything
-    # smaller is rejected at initialization with a message that names a Stan
-    # variable rather than the column it came from. Reject it here instead.
+    # The Stan models declare the exposures `<lower=1e-12>`.
     if (!is.numeric(exposure_vals) ||
           any(exposure_vals < .mlumr_min_positive, na.rm = TRUE)) {
       stop("`exposure` must be positive numeric values of at least 1e-12",
@@ -317,13 +315,9 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
   invisible(TRUE)
 }
 
-# Warn when IPD covariates are (near-)linearly dependent. Constant covariates are
-# handled separately by .warn_constant_ipd_covariates(); this catches collinearity
-# among two or more varying covariates, which the constant check cannot see. The
-# threshold is deliberately conservative (condition number of the covariate
-# correlation matrix > 1000, i.e. |pairwise correlation| above ~0.998 for a pair),
-# so it fires only on near-redundant covariates that genuinely weaken
-# identification, not on merely-correlated ones that Stan samples without trouble.
+# Warn when two or more varying IPD covariates are near-linearly dependent
+# (condition number of their correlation matrix above 1000). Constant
+# covariates are handled by .warn_constant_ipd_covariates().
 .warn_collinear_ipd_covariates <- function(data, covariates) {
   if (length(covariates) < 2L) {
     return(invisible(TRUE))
@@ -337,10 +331,7 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
     return(invisible(TRUE))
   }
   if (nrow(x) < ncol(x) + 1L) {
-    # Fewer complete rows than intercept plus covariates. The design is rank
-    # deficient, so the correlation matrix cannot tell the covariates apart and
-    # the condition number below would be meaningless. Returning quietly here
-    # hid the very case the check exists to catch.
+    # Fewer complete rows than intercept plus covariates: rank deficient.
     warning(
       paste0(
         "Only ", nrow(x), " complete IPD row(s) for ", ncol(x),
@@ -444,92 +435,24 @@ set_ipd <- function(data, treatment, outcome = NULL, covariates,
 #' @param study Column name for study identifier (optional)
 #'
 #' @details
-#' **Rows must partition the aggregate sample, not overlap it.** Every row
-#' contributes its own factor to the aggregate likelihood, which multiplies
-#' them as if they came from disjoint sets of patients. That is correct when the
-#' rows are one arm, or a set of mutually exclusive, jointly defined subgroup
-#' cells (for example the four cells of sex crossed with prior therapy). It is
-#' wrong when a publication reports several *overlapping* subgroup tables over
-#' the same participants, as when age bands, sex, and disease severity are each
-#' tabulated separately. Supplying those together counts every patient once per
-#' table, and the posterior becomes correspondingly overconfident: the intervals
-#' shrink because the model believes it has seen several independent studies.
-#' Nothing in the data identifies the overlap, so `set_agd()` cannot detect this
-#' and does not try. Choose one partition of the comparator sample and use only
-#' its rows. See `vignette("subgroup-identification", "mlumr")` for how many
-#' such rows the relaxed model needs.
+#' **Rows must partition the aggregate sample.** Each row contributes its own
+#' likelihood factor, as if the rows were disjoint sets of patients. One arm,
+#' or one set of mutually exclusive subgroup cells, is right; several
+#' overlapping subgroup tables of the same participants count every patient
+#' once per table and overstate the precision. Nothing in the data reveals
+#' the overlap, so it is not checked. See
+#' `vignette("subgroup-identification", "mlumr")` for how many rows the
+#' relaxed model needs.
 #'
-#' **Scale assumptions for `family = "normal"`.** The AgD likelihood is
-#' `y_agd ~ normal(E[exp(eta)], se_agd)` under `link = "log"` and
-#' `y_agd ~ normal(E[eta], se_agd)` under `link = "identity"`. In both
-#' cases `outcome_mean` and `outcome_se` must be on the **arithmetic
-#' (original, untransformed) scale**.
-#'
-#' A geometric mean is ALREADY on the original measurement scale, and it is a
-#' different quantity from the arithmetic mean: exponentiating a log-scale mean
-#' returns the geometric mean, not the arithmetic one. For a lognormal outcome
-#' with log-scale mean 0 and log-scale SD 1 the geometric mean is 1 while the
-#' arithmetic mean is `exp(0.5) = 1.65`, so substituting one for the other is a
-#' 39% error in the reported level. No amount of standard-error propagation
-#' repairs that: the delta method rescales uncertainty about a transformation,
-#' it does not convert one estimand into another.
-#'
-#' So do not "back-transform and apply the delta method". Ask for, or compute
-#' from the individual data, the arithmetic mean and its standard error. If you
-#' have only log-scale summaries and are willing to assume the outcome is
-#' lognormal, the arithmetic mean is `exp(m + s^2 / 2)` where `m` is the
-#' log-scale mean and `s` is the log-scale **SD** of the outcome, not the
-#' standard error of `m`; propagate uncertainty in `m` and `s` jointly through
-#' that expression. A change score on a transformed scale generally cannot be
-#' reversed from a published mean alone at all. Passing log-scale or geometric
-#' summaries silently misspecifies the likelihood and biases the posterior.
-#'
-#' **Scale assumptions for `family = "poisson"`.** `outcome_r` is the
-#' total count in each AgD row and `outcome_E` is the total
-#' person-time (or other exposure). The Stan likelihood uses
-#' `log(E_agd)` as an offset, so rates are modeled on the log scale
-#' regardless of how `outcome_r` is tabulated.
-#'
-#' **What the aggregate Poisson row assumes about exposure.** The likelihood
-#' for a row is the total exposure multiplied by the rate averaged over the
-#' covariate distribution you supply, while the quantity it stands in for is
-#' the sum over people of each person's own exposure times that person's rate.
-#' The two agree exactly when the supplied distribution is the one **weighted
-#' by exposure**, whatever the dependence between exposure and the covariates:
-#' two people with rates 1 and 3 and exposures 9 and 1 contribute
-#' `9 * 1 + 1 * 3 = 12` expected events, and `10 * (0.9 * 1 + 0.1 * 3)` is 12 as
-#' well. With the person-level distribution instead, the same row gives a total
-#' exposure of 10 times the mean rate of 2, which is 20. Person-level moments
-#' reproduce the sum only when exposure carries no information about the
-#' covariate-specific rate within the row.
-#'
-#' The assumption is therefore about person-time, not about people, and it
-#' is about the whole distribution the rate is averaged over, not only the
-#' moments: the marginal shape that each `distr()` in [add_integration()]
-#' assumes around `cov_means` and `cov_sds`, and with two or more covariates
-#' the correlation it combines them with, whose default is estimated from the
-#' index sample. All of it has to describe the covariates weighted by
-#' exposure. Exposure can leave every mean and standard deviation where it
-#' was and still change a covariate's skewness or tails, or how the
-#' covariates go together when it varies with their combination rather than
-#' with each on its own, and the averaged rate moves with any of these.
-#' Person-level summaries stand in for exposure-weighted ones when exposure
-#' carries no information about the covariate-specific rate within the row.
-#' Mean exposure that does not vary with the covariates is a sufficient
-#' condition that does not depend on the model, because it makes the two
-#' distributions coincide, shape and dependence included, and equal
-#' individual exposure is its simplest case.
-#' Published subgroup tables almost always report person-level moments, and
-#' those do not identify the person-time distribution. Where follow-up varies
-#' with a prognostic covariate, prefer rows defined so that exposure is close
-#' to constant inside each one, and say which reading the reported moments
-#' support. Weighting across rows does not repair a dependence inside a row,
-#' and nothing in the supplied summaries reveals it, so this is not checked.
-#'
-#' **Scale assumptions for `family = "binomial"`.** `outcome_r` /
-#' `outcome_n` are counts of events and trials. The log-odds (or
-#' probit / cloglog under alternative links) are formed from
-#' `outcome_r / outcome_n`, so no scale conversion is required.
+#' **Scales.** For `family = "normal"`, `outcome_mean` and `outcome_se` are on
+#' the arithmetic scale under both links; a geometric mean or a log-scale
+#' summary is a different quantity and cannot be converted by the delta
+#' method. For `family = "poisson"`, `outcome_r` is the total count and
+#' `outcome_E` the total person-time, and the covariate distribution the rate
+#' is averaged over has to describe the covariates weighted by exposure;
+#' person-level moments stand in for that only when exposure carries no
+#' information about the rate within the row. For `family = "binomial"`,
+#' `outcome_r` and `outcome_n` are counts of events and trials.
 #'
 #' @return An object of class `mlumr_agd`. As for [set_ipd()], the internal
 #'   column names cannot be used as column names in `data`.
@@ -920,31 +843,11 @@ set_agd <- function(data, treatment,
 
 #' Half a unit in the coarsest decimal place a value lands on exactly
 #'
-#' A published table gives 0.53, not 0.5270463. Comparing the rounded figure
-#' against an exact bound rejects the row for the rounding rather than for the
-#' data, so the bound needs an allowance for it. This is that allowance.
-#'
-#' It is NOT the precision the figure was reported to, and does not claim to
-#' be. `0.1`, `0.10` and `0.100000` are one double in R, and nothing can be
-#' scanned out of that value to say which was printed. What this measures is
-#' how coarse a decimal grid the stored number already sits on: 0.53 lands on
-#' the hundredths, so it is given 0.005; 0.5 lands on the tenths, so it is
-#' given 0.05, whether it was written `0.5` or `0.50000`.
-#'
-#' That makes the allowance a deliberately LENIENT validation policy, and the
-#' leniency runs one way. A decimally simple value gets a wider allowance than
-#' its report may deserve, so the check can accept a mean and SD pair that a
-#' two-decimal report would have ruled out. It will not reject a valid summary
-#' for having been rounded, which is the failure that matters for a validator
-#' reading published tables. A value that is not decimally simple earns
-#' essentially nothing, so this is not blanket slack.
-#'
-#' Callers that know the reporting precision should not infer it here. The
-#' scan runs to the precision a double can distinguish, since stopping at eight
-#' decimals reported anything finer as exact and therefore as deserving no
-#' allowance at all: five zeros and five ones give a sample SD of
-#' 0.5270462766947299, and quoting that to nine places put it 2e-10 above its
-#' own ceiling.
+#' A published 0.53 is compared against an exact bound with an allowance of
+#' 0.005, a published 0.5 with 0.05. The scan runs to the precision a double
+#' can distinguish, so a value quoted to nine places gets an allowance too.
+#' The allowance is lenient on purpose: it never rejects a valid summary for
+#' having been rounded.
 #'
 #' @param x Numeric vector as reported.
 #' @return Numeric vector of allowances, one per element.
@@ -985,28 +888,10 @@ set_agd <- function(data, treatment,
 
     if (!is.na(cov_sds[[i]])) {
       sd_vals <- data[[cov_sds[[i]]]]
-      # sqrt(p(1-p)) is the POPULATION standard deviation. A sample standard
-      # deviation of a binary column uses the n-1 denominator, so it equals
-      # sqrt(n/(n-1) * p(1-p)) exactly and is ALWAYS above that bound: five
-      # zeros and five ones report mean 0.5 and sd 0.5270, and the old ceiling
-      # of 0.5 called that impossible. Use the finite-sample maximum instead.
-      # n = 2 gives the loosest factor any sample can have, so
-      # sqrt(2 * p(1-p)) cannot reject a valid row while still refusing
-      # genuinely inconsistent ones (sd = 0.9 at p = 0.5). Tightening it with
-      # the OUTCOME sample size was wrong: nothing makes a covariate's
-      # denominator equal the outcome's, a covariate with its own missingness
-      # was summarized over fewer rows, and fewer rows make the true bound
-      # LOOSER. Two observed values give p = 0.5 and sd = 0.7071, which an
-      # outcome count of 10 called impossible at 0.5270. It also made
-      # `set_agd()` and `set_agd_surv()` disagree about the same row, since
-      # only the first had a count to tighten with.
-      #
-      # The proportion is reported to a precision too, and the ceiling has to
-      # be the largest one consistent with it. Computing p(1-p) from the
-      # displayed figure alone rejects valid rows: 493 ones out of 500 give
-      # p = 0.986 and a sample SD of 0.1176, and a table printing 0.99 and 0.12
-      # produced a ceiling near 0.0996. Take the variance at the point of the
-      # reported interval closest to 0.5, which is where p(1-p) is largest.
+      # The largest sample SD of a binary column is sqrt(2 * p * (1 - p)), at
+      # n = 2; the population bound sqrt(p * (1 - p)) rejects valid rows.
+      # The proportion is rounded too, so take p(1-p) at the point of its
+      # reported interval closest to 0.5.
       p_tol <- .rounding_allowance(mean_vals)
       p_lo <- pmax(0, mean_vals - p_tol)
       p_hi <- pmin(1, mean_vals + p_tol)
@@ -1128,12 +1013,8 @@ combine_data <- function(ipd, agd) {
 
   shared_trt <- intersect(ipd$treatment, agd$treatment)
   if (length(shared_trt) > 0) {
-    # An unanchored comparison contrasts two *different* treatments across two
-    # single-arm sources. A shared label makes the two model intercepts describe
-    # the same treatment, so the reported "effect" is a study/population baseline
-    # difference reported as a treatment effect. This cannot be made valid by a
-    # warning; reject it. (When `study` is not supplied the two sides still carry
-    # distinct treatment labels, so this only fires on genuine overlap.)
+    # A shared label would make the two intercepts describe one treatment and
+    # report a baseline difference as a treatment effect.
     msg <- paste0(
       "IPD and AgD share treatment label(s): %s. An unanchored comparison ",
       "requires two distinct treatments (one per source); a shared label would ",
@@ -1144,10 +1025,7 @@ combine_data <- function(ipd, agd) {
     stop(sprintf(msg, paste(shared_trt, collapse = ", ")), call. = FALSE)
   }
 
-  # In an unanchored comparison IPD and AgD come from different studies; a shared
-  # study label is unusual and likely a data-entry error. (When `study` is not
-  # supplied the two sides default to distinct labels, so this only fires on
-  # explicit overlap.)
+  # A shared study label is likely a data-entry error.
   shared_studies <- intersect(unique(ipd$data$.study), unique(agd$data$.study))
   if (length(shared_studies) > 0) {
     msg <- paste0(
@@ -1197,10 +1075,6 @@ print.mlumr_data <- function(x, ...) {
     cat(sprintf("  Mean outcome = %.3f (SD = %.3f)\n\n",
                 x$ipd$mean_outcome, x$ipd$sd_outcome))
   } else if (family == "survival") {
-    # Survival was given a family label and then left to fall through to the
-    # Poisson branch, which reads fields it does not have. x$ipd$total_events
-    # is NULL, and sprintf("%d", NULL) is character(0), so the event line
-    # printed nothing at all.
     cat(sprintf("  Events = %d (%.1f%%), censored = %d\n\n",
                 x$ipd$n_events, 100 * x$ipd$n_events / x$ipd$n,
                 x$ipd$n - x$ipd$n_events))
@@ -1220,8 +1094,6 @@ print.mlumr_data <- function(x, ...) {
                 paste(round(x$agd$y, 3), collapse = ", "),
                 paste(round(x$agd$se, 3), collapse = ", ")))
   } else if (family == "survival") {
-    # And here sum(NULL) is 0, so the comparator arm reported a fabricated
-    # "Total exposure = 0.0" that no reconstructed curve ever had.
     cat(sprintf("  Reconstructed pseudo-IPD: %d row(s)\n", x$agd$n_pseudo))
     cat(sprintf("  Events = %d (%.1f%%), censored = %d\n\n",
                 x$agd$n_events, 100 * x$agd$n_events / x$agd$n_pseudo,

@@ -25,15 +25,10 @@ estimate from \code{est} / \code{estimate} / \code{mean}; the interval bounds fr
 \code{lower}/\code{upper}.}
 
 \item{ref_line}{Null-effect reference line. By default it is read from the
-\code{effect} column when \code{data} has one and the label is one the package
-produces, so a ratio measure (\code{HR}, \code{TR}, \code{RR}, \code{RMSTR}) gets \code{1} and a
-difference (\code{RMSTD}, \code{MD}, \code{LOR}, a log-scale contrast) gets \code{0},
-whichever axis it is drawn on. A label the package does not recognize is
-an unknown rather than a difference, and with no \code{effect} column there is
-nothing to read at all; in both cases the axis is the only hint left, so
-the default is \code{1} when \code{log_x = TRUE} and \code{0} otherwise. Pass \code{ref_line}
-explicitly for a measure this does not name. Kept inside the clipping
-window, so a forest whose estimates sit far from the null still shows it.}
+\code{effect} column when the label is one the package produces (\code{1} for a
+ratio measure, \code{0} for a difference); otherwise \code{1} when \code{log_x = TRUE}
+and \code{0} otherwise. Pass it explicitly for a measure this does not name.
+Kept inside the clipping window.}
 
 \item{log_x}{Draw the x axis on a log10 scale (for ratio measures).}
 

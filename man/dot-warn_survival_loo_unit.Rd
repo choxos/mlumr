@@ -7,9 +7,6 @@
 .warn_survival_loo_unit(object)
 }
 \description{
-For survival fits \code{log_lik_agd} is per reconstructed pseudo-individual, so
-LOO/WAIC operate at that level rather than per aggregate row or per trial.
-Emitted once per session (suppress with
-\code{options(mlumr.quiet_survival_loo = TRUE)}).
+Once per session; suppress with \code{options(mlumr.quiet_survival_loo = TRUE)}.
 }
 \keyword{internal}

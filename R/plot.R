@@ -17,27 +17,14 @@
   list(lo = qn[which.min(num)], hi = qn[which.max(num)])
 }
 
-# Measures reported as natural ratios (null = 1) rather than differences/logs:
-# poisson rate ratio (RR), the survival hazard ratio (HR) / time ratio (TR) /
-# RMST ratio (RMSTR), and the two exponentiated survival contrasts that are
-# reported when the study baselines differ and so cannot be called HR or TR:
-# EXP_DELTA_ETA (marginal, from marginal_effects()) and EXP_ETA_CONTRAST
-# (conditional, from conditional_effects()). Both are exp() of a difference and
-# therefore have null 1; omitting them drew a reference line at 0 on a ratio
-# axis. The RMST difference (RMSTD), risk difference (RD), mean difference (MD)
-# and link-scale contrast (LINK_EFFECT) are additive (null 0).
+# Measures reported as natural ratios (null 1): the two exponentiated
+# survival contrasts are included so their reference line is not drawn at 0.
 #' @keywords internal
 .ratio_measures <- c("RR", "HR", "TR", "RMSTR",
                      "EXP_DELTA_ETA", "EXP_ETA_CONTRAST")
 
-# The additive counterparts. Together with `.ratio_measures` these are the
-# labels the package itself produces, and therefore the ones whose null it can
-# state. `mlumr_forest()` also accepts a hand-built frame, where `effect` is
-# whatever the caller wrote: `.null_ref_for()` answers 0 for anything it does
-# not recognize, which is right for a difference and wrong for a ratio it has
-# never heard of, so a frame labeled "OR" would be given a null of 0 and, on a
-# log axis, refused outright. An unrecognized label is not a difference; it is
-# an unknown, and the axis is the only thing left to read.
+# The additive counterparts (null 0). A label outside both lists is unknown,
+# not a difference.
 #' @keywords internal
 .difference_measures <- c("RMSTD", "RD", "MD", "LINK_EFFECT", "LOR",
                           "LOG_HR", "LOG_TR", "DELTA_ETA", "ETA_CONTRAST")
@@ -56,9 +43,7 @@
   ifelse(toupper(effect) %in% .ratio_measures, 1, 0)
 }
 
-# Coverage of the interval actually being drawn, read off the quantile columns.
-# It was hard-coded to 95%, so `probs = c(0.10, 0.90)` drew an 80% interval
-# under an axis labelled "95% credible interval".
+# Coverage of the interval actually drawn, read off the quantile columns.
 #' @keywords internal
 .ci_label <- function(ci) {
   lo <- as.numeric(sub("^q", "", ci$lo))
@@ -66,13 +51,9 @@
   sprintf("%g%% credible interval", hi - lo)
 }
 
-# Ratio measures are multiplicative: 0.5 and 2 are the same effect in opposite
-# directions and belong at equal distances from the null. On an identity axis
-# they are not, which misreads a forest. A log axis fixes that, but ggplot2
-# applies one transform to the whole plot, and an additive measure cannot go on
-# a log axis at all (its values can be zero or negative). So the transform is
-# applied only when every panel shown is a ratio measure; a mixed panel set
-# keeps identity axes.
+# Ratio measures belong on a log axis, where reciprocal effects sit at equal
+# distances from the null; ggplot2 applies one transform to the whole plot,
+# so it is used only when every panel shows a ratio measure.
 #' @keywords internal
 .all_ratio_measures <- function(effects, values = NULL) {
   e <- toupper(unique(effects))
@@ -85,10 +66,8 @@
   length(v) > 0L && all(v > 0)
 }
 
-# Marginal hazard ratios are non-collapsible and therefore time-varying, so the
-# scalar is only an estimand together with its evaluation time. Two forests from
-# `at_time = 12` and `at_time = 36` were labelled identically. Fold the time into
-# the facet label, and refuse to draw one panel that mixes evaluation times.
+# A marginal hazard ratio is an estimand only with its evaluation time, so
+# the time goes into the facet label and one panel cannot mix times.
 #' @keywords internal
 .effect_facet_labels <- function(df) {
   if (is.null(df$at_time)) return(df$effect)
@@ -204,11 +183,8 @@ plot.mlumr_marginal_effects <- function(x, ref_line = NULL, ...) {
 
 #' Restriction time behind an RMST prediction, if it carries one
 #'
-#' `predict(type = "rmst")` returns a `horizon` column (and survival fits also
-#' record an `rmst_horizon` attribute). An RMST value is only defined together
-#' with that time, so the plotting method has to be able to recover it.
-#' Predictions integrated to different horizons are different estimands and are
-#' refused rather than drawn on one axis.
+#' Predictions integrated to different horizons are different estimands and
+#' are refused rather than drawn on one axis.
 #'
 #' @param x The `mlumr_prediction` object.
 #' @param df Its data-frame form.
@@ -270,14 +246,8 @@ plot.mlumr_marginal_effects <- function(x, ref_line = NULL, ...) {
 geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
                     linewidth = 0.4, ...) {
   .validate_km_data(data)
-  # The cohorts are chosen before anything is examined: an observation the
-  # plot is not asked to draw has no say in whether it can be drawn, so an
-  # interval-censored index does not stop a comparator-only overlay, whether
-  # the comparator was selected by population or by label.
-  # Selecting by treatment label cannot separate the arms when both carry the
-  # same name: the documented comparator-only overlay then drew the index
-  # cohort too. `population` selects the cohort itself and is the reliable
-  # selector in that case.
+  # The cohorts are chosen before anything is examined. `population` selects
+  # the cohort itself, which `treatments` cannot when both arms share a label.
   selected <- if (is.null(population)) {
     c("Index", "Comparator")
   } else if (is.character(population) && length(population) &&
@@ -314,12 +284,8 @@ geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
     }
   }
   km <- .km_observed(data, selected)
-  # Group on the population, not on the colour. Colour is the treatment label,
-  # and when both arms share one label ggplot2 puts the two separately fitted
-  # curves in a single group and `geom_step()` joins their interleaved points
-  # into one invalid curve. Faceting by population happens to hide that, so the
-  # layer would be right or wrong depending on the host plot; grouping here
-  # makes it right on its own.
+  # Group on the population: two arms with one label would otherwise be one
+  # ggplot2 group and geom_step() would join their points into one curve.
   layers <- list(
     ggplot2::geom_step(
       data = km$steps,
@@ -372,11 +338,7 @@ geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
     Comparator = cohort(data$agd$pseudo_ipd, data$comparator_treatment,
                         "Comparator")
   )[population]
-  # geom_km() draws a right-censored Kaplan-Meier curve. Internal `.status`
-  # encodes 0 = right-censored, 1 = event, 2 = left-censored, 3 = interval-
-  # censored. The survival model handles 2/3, but a plain right-censored KM step
-  # function cannot represent them, so reject rather than silently mislabel them
-  # as right-censored. Only the cohorts being drawn are examined.
+  # A right-censored Kaplan-Meier curve cannot represent status 2 or 3.
   unsupported <- names(frames)[vapply(frames, function(o) {
     any(o$status %in% c(2L, 3L))
   }, logical(1L))]
@@ -385,21 +347,12 @@ geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
          "represent left- or interval-censored observations (internal status ",
          "2 or 3), which the ", paste(unsupported, collapse = " and "),
          " cohort", if (length(unsupported) > 1L) "s have" else " has",
-         ". These are supported by the survival model but not by this KM ",
-         "helper; restrict the plot to right-censored/event data, select a ",
-         "cohort without them with `population`, or use an interval-censored ",
-         "estimator.", call. = FALSE)
+         ". Select a cohort without them with `population`, or use an ",
+         "interval-censored estimator.", call. = FALSE)
   }
-  # Honor delayed entry (left truncation): with any positive entry time, use the
-  # counting-process Surv(entry, time, status) so the risk set is counted from
-  # each subject's entry, matching naive()/stc() and the survival model. With all
-  # entries 0 this reduces exactly to the standard right-censored KM.
-  # One fit per POPULATION, not per treatment label. Each study contributes one
-  # arm, so the population identifies the cohort, while the two labels can
-  # coincide on an edited object; fitting on the label there would merge the
-  # two observed cohorts into one curve and leave a facet empty. `plot()`
-  # facets the predictions by population, and a layer with no `population`
-  # column is drawn into EVERY facet, so the column is kept on every row.
+  # Counting-process Surv() under delayed entry. One fit per population, not
+  # per treatment label, and the population column is kept on every row so a
+  # faceted plot draws each curve in its own panel.
   fit_one <- function(o) {
     sf <- if (any(o$entry > 0)) {
       survival::survfit(survival::Surv(entry, time, status) ~ 1, data = o)
@@ -421,12 +374,7 @@ geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
   steps <- do.call(rbind, lapply(fits, `[[`, "steps"))
   cens <- do.call(rbind, lapply(fits, `[[`, "censor"))
   rownames(cens) <- NULL
-  # Start each curve at (0, 1). S(0) = 1 exactly, by definition, so the step
-  # function begins at the top-left corner rather than at the first event time,
-  # matching the convention the model curves already follow. This is what
-  # survival::survfit0() does; doing it here keeps `geom_km()` working on every
-  # `survival` release the package declares rather than only those that export
-  # that helper.
+  # Start each curve at (0, 1), as survival::survfit0() would.
   origin <- unique(steps[, c("treatment", "population"), drop = FALSE])
   origin$time <- 0
   origin$surv <- 1
@@ -438,32 +386,17 @@ geom_km <- function(data, treatments = NULL, population = NULL, marks = TRUE,
 
 #' Refuse a prediction frame whose two arms cannot be told apart
 #'
-#' Colour and fill are keyed on `treatment`, so when both arms carry the same
-#' label (which [combine_data()] permits, with a warning) the index and
-#' comparator series of a population fall into ONE ggplot2 group. The line and
-#' ribbon then connect alternating rows of two different predictions instead of
-#' drawing two curves, which is a wrong figure rather than an ugly one. Nothing
-#' in the frame can separate them, so refuse rather than guess.
+#' Colour and fill are keyed on `treatment`, so two arms with one label fall
+#' into one ggplot2 group and the line joins two different predictions.
 #' @keywords internal
 .reject_ambiguous_series <- function(x) {
   df <- as.data.frame(x)
   key <- intersect(c("treatment", "population", "time"), names(df))
   if (!all(c("treatment", "population") %in% key)) return(invisible())
-  # A survival `times` keeps the caller's order and multiplicity, so one point
-  # asked for twice is two rows, and two times that snap to the same fitted
-  # neighbor are two rows as well. Neither is an ambiguity: they draw the same
-  # point twice. `requested_time` is what the caller asked for rather than what
-  # is drawn, so it is dropped before the rows are collapsed, or
-  # `times = c(2, 2.0001)` would survive as two rows and be refused.
-  #
-  # What remains after collapsing is one row per point that gets drawn, so a
-  # key that still repeats is two different values under one label, which is
-  # the thing that cannot be drawn.
+  # Repeated requests draw the same point twice and are not an ambiguity;
+  # a key that still repeats after collapsing is two values under one label.
   drawn <- unique(df[, setdiff(names(df), "requested_time"), drop = FALSE])
-  # `anyDuplicated()` gives the row where the key first repeats, which is the
-  # arm the message has to name. The first row of the frame is a different arm
-  # whenever the conflict is anywhere but the front, and renaming that one
-  # would not fix anything.
+  # `anyDuplicated()` gives the row where the key first repeats.
   clash <- anyDuplicated(drawn[, key, drop = FALSE])
   if (clash) {
     stop("This prediction has two series per population that share the ",
@@ -533,12 +466,9 @@ plot.mlumr_prediction <- function(x, ref_line = NULL, ...) {
     }
     p <- p + ggplot2::geom_line(linewidth = 0.7)
     if (ptype == "survival") {
-      # Survival probability lives on [0, 1]; predictions already start at the
-      # (t = 0, S = 1) origin (see predict()), so the curve fills the corner.
       p <- p + ggplot2::coord_cartesian(ylim = c(0, 1))
     }
-    # Null reference line(s): default 0 for the log hazard ratio, otherwise honor
-    # whatever the caller passed (the multinma plot(..., ref_line = ) idiom).
+    # Default 0 for the log hazard ratio, else whatever the caller passed.
     rl <- if (is.null(ref_line) && ptype == "loghr") 0 else ref_line
     if (!is.null(rl)) {
       p <- p + ggplot2::geom_hline(
@@ -553,9 +483,7 @@ plot.mlumr_prediction <- function(x, ref_line = NULL, ...) {
     return(p)
   }
 
-  # Scalar predictions: point-interval by treatment. With both populations,
-  # draw them in one panel, distinguished by color and dodged, rather than
-  # faceting (a single readable plot).
+  # Scalar predictions: point-interval by treatment, populations dodged.
   yvar <- if (has_trt) "treatment" else names(df)[1]
   xlab <- switch(ptype,
     response = "Predicted response",
@@ -563,9 +491,7 @@ plot.mlumr_prediction <- function(x, ref_line = NULL, ...) {
     median = "Median survival",
     ptype
   )
-  # An RMST figure without its restriction time reads as though the quantity
-  # were horizon-independent, which is exactly the misreading that puts two
-  # incomparable numbers side by side in a report. Name tau on the plot itself.
+  # Name tau on the plot itself.
   cap <- NULL
   if (identical(ptype, "rmst")) {
     tau <- .prediction_rmst_horizon(x, df)
@@ -574,10 +500,7 @@ plot.mlumr_prediction <- function(x, ref_line = NULL, ...) {
       xlab <- sprintf("Restricted mean survival time (tau = %.4g)", tau)
     }
   }
-  # A median summary drops the draws whose fitted survival never reaches 0.5 on
-  # the prediction grid, so it is conditional on the median being reached. Drawn
-  # as a plain point-interval with that fraction unmentioned, a summary of the
-  # 10% of draws that did reach it reads as an ordinary posterior median.
+  # A median summary is conditional on the median being reached; say so.
   if (identical(ptype, "median") && !is.null(df$p_not_reached) &&
         any(df$p_not_reached > 0, na.rm = TRUE)) {
     worst <- max(df$p_not_reached, na.rm = TRUE)
@@ -628,8 +551,7 @@ plot.mlumr_prediction <- function(x, ref_line = NULL, ...) {
 #'   per facet from the effect label: 1 for the natural-ratio measures (RR, HR,
 #'   TR, and the exponentiated contrast reported when the study baselines
 #'   differ) and 0 for the additive ones (RD, MD, LINK_EFFECT). Pass a single
-#'   value to override for all panels. A fixed 0 was previously drawn for every
-#'   effect, which put the null line off-scale on every ratio panel.
+#'   value to override for all panels.
 #' @param ... Unused.
 #' @return A `ggplot` object.
 #' @seealso [conditional_effects()]
@@ -639,8 +561,7 @@ plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
   ci <- .ci_cols(df)
   yvar <- if ("profile" %in% names(df)) "profile" else names(df)[1]
   df[[yvar]] <- factor(df[[yvar]], levels = unique(df[[yvar]]))
-  # Per-facet null line, so a panel of risk ratios and a panel of risk
-  # differences each get the reference their own scale implies.
+  # Per-facet null line.
   has_effect <- "effect" %in% names(df)
   ref_df <- if (has_effect) {
     data.frame(effect = unique(df$effect), stringsAsFactors = FALSE)
@@ -663,9 +584,7 @@ plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
                         color = "gray55")
   }
   if (!is.null(ci)) {
-    # Map the interval directly to the quantile columns. Assigning helper `.lo`
-    # / `.hi` columns here would not reach the layer: ggplot() above has already
-    # captured `df`, so a later geom only sees the columns present at that point.
+    # Mapped to the quantile columns directly: ggplot() has captured `df`.
     p <- p + ggplot2::geom_errorbar(
       ggplot2::aes(xmin = .data[[ci$lo]], xmax = .data[[ci$hi]]),
       orientation = "y", width = 0.16, color = "#3B6B9A"
@@ -679,8 +598,7 @@ plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
                               if (is.null(ci)) "point estimate" else .ci_label(ci)),
                   y = "Covariate profile") +
     ggplot2::theme_minimal(base_size = 11)
-  # Same rule as the marginal forest: reciprocal ratio effects belong at equal
-  # distances from the null, which an identity axis does not give them.
+  # Same log-axis rule as the marginal forest.
   ci_vals <- if (is.null(ci)) NULL else c(df[[ci$lo]], df[[ci$hi]])
   if (has_effect && .all_ratio_measures(df$effect, c(df$mean, ci_vals))) {
     p <- p + ggplot2::scale_x_log10()
@@ -690,11 +608,8 @@ plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
 
 #' Prior a fitted parameter was actually given
 #'
-#' `plot_prior_posterior()` drew `prior_intercept` over every parameter, so
-#' `pars = "sigma"` was overlaid with a symmetric normal that puts mass on
-#' impossible negative values. Each parameter is mapped to the prior the fit
-#' records for it, with the Stan `<lower=0>` constraint carried along so a
-#' constrained parameter gets the truncated density rather than the full one.
+#' Each parameter is mapped to the prior the fit records for it, with the
+#' Stan `<lower=0>` constraint carried along for the truncated density.
 #'
 #' @param object An `mlumr_fit`.
 #' @param par One draw column name.
@@ -713,11 +628,8 @@ plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
   if (base %in% c("aux_val", "aux_val_cmp")) {
     return(list(prior = priors$aux, lower = 0))
   }
-  # The second generalized-gamma auxiliary has its own prior, and the two
-  # govern different features of the hazard, so they can be deliberately
-  # different. Resolving both to `priors$aux` drew the FIRST prior against the
-  # SECOND posterior, which is precisely the comparison a prior-sensitivity
-  # plot exists to make. Fall back only for fits stored before `aux2` existed.
+  # The second generalized-gamma shape has its own prior; fall back only for
+  # fits stored before `aux2` existed.
   if (base %in% c("aux2_val", "aux2_val_cmp")) {
     return(list(prior = priors$aux2 %||% priors$aux, lower = 0))
   }
@@ -725,17 +637,14 @@ plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
   res <- if (base %in% c("beta", "beta_index")) {
     priors$beta_resolved
   } else if (base == "beta_comparator") {
-    # A fit that records a comparator-specific resolved prior uses it; otherwise
-    # the comparator coefficients carry the same prior as `beta`, which is what
-    # the relaxed models apply, so fall back to that rather than refusing to
-    # draw a parameter whose prior is in fact known.
+    # The relaxed models give the comparator coefficients `beta`'s prior
+    # unless a comparator-specific one was resolved.
     priors$beta_comparator_resolved %||% priors$beta_resolved
   } else {
     NULL
   }
   if (!is.null(res) && !is.na(idx) && idx >= 1L && idx <= length(res$mean)) {
-    # The resolved struct is post-autoscaling, which is the prior the sampler
-    # saw and therefore the one to draw against these draws.
+    # Post-autoscaling: the prior the sampler saw.
     return(list(
       prior = list(distribution = if (isTRUE(res$dist == 1L)) "student_t" else "normal",
                    mean = res$mean[idx], sd = res$sd[idx], df = res$df),
@@ -763,9 +672,7 @@ plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
   )
   if (is.null(base)) return(NULL)
   if (!is.finite(lower) || identical(dist, "exponential")) return(base)
-  # A <lower=0> declaration truncates the prior and Stan renormalizes it, so the
-  # curve drawn here has to be renormalized the same way rather than showing the
-  # untruncated density at half the height.
+  # A <lower=0> declaration truncates and renormalizes the prior.
   mass <- switch(
     dist,
     normal = stats::pnorm(lower, mean = m, sd = sd, lower.tail = FALSE),
@@ -810,10 +717,7 @@ plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
   if (is.null(qfun) || is.null(pfun)) return(c(Inf, -Inf))
   p <- c(0.005, 0.995)
   if (is.finite(lower)) {
-    # Quantiles of the TRUNCATED prior, which is the density actually drawn.
-    # Clamping the unconditional quantiles instead reverses the range whenever
-    # both of them fall below the bound, as for normal(-5, 1) constrained to
-    # be positive, and the grid then never widened to show the prior at all.
+    # Quantiles of the truncated prior, which is the density drawn.
     f_lo <- pfun(lower)
     if (!is.finite(f_lo) || f_lo >= 1) return(c(lower, lower))
     p <- f_lo + p * (1 - f_lo)
@@ -848,9 +752,7 @@ plot_prior_posterior <- function(object, pars = c("mu_index", "mu_comparator"),
                                  ...) {
   .validate_mlumr_fit_object(object)
   draws <- object$draws
-  # `intersect()` silently dropped a misspelled or absent name and drew an
-  # incomplete figure; the error below only fired when EVERY name was missing,
-  # so asking for one real and one wrong parameter looked like success.
+  # Every name has to be in the draws.
   missing_pars <- setdiff(pars, colnames(draws))
   if (length(missing_pars)) {
     stop("Not in the fit's posterior draws: ",
@@ -861,9 +763,7 @@ plot_prior_posterior <- function(object, pars = c("mu_index", "mu_comparator"),
   if (!length(pars)) {
     stop("None of `pars` are in the fit's posterior draws.", call. = FALSE)
   }
-  # Each parameter gets the prior the fit records for IT. Drawing
-  # `prior_intercept` over everything put a symmetric normal, with mass on
-  # negative values, over a parameter Stan declares `<lower=0>`.
+  # Each parameter gets the prior the fit records for it.
   resolved <- lapply(pars, function(p) .parameter_prior(object, p))
   names(resolved) <- pars
   unknown <- pars[vapply(resolved, function(r) is.null(r) || is.null(r$prior),
@@ -882,8 +782,7 @@ plot_prior_posterior <- function(object, pars = c("mu_index", "mu_comparator"),
       stringsAsFactors = FALSE
     )
   }))
-  # ggplot2 applies one stat_function to every facet, so the prior curves are
-  # evaluated here, per parameter, over that parameter's own posterior range.
+  # The prior curves are evaluated per parameter over its own range.
   prior_df <- do.call(rbind, lapply(pars, function(p) {
     v <- as.numeric(draws[[p]])
     r <- resolved[[p]]
@@ -895,10 +794,7 @@ plot_prior_posterior <- function(object, pars = c("mu_index", "mu_comparator"),
     lo <- min(v)
     hi <- max(v)
     pad <- 0.15 * (hi - lo)
-    # A posterior much narrower than its prior would otherwise define a window
-    # that omits nearly all the prior mass, drawing it as an almost flat line
-    # and hiding the very comparison the plot exists to make. Widen the grid to
-    # cover the prior's central mass as well.
+    # Widen the grid to cover the prior's central mass as well.
     pq <- .prior_quantile_range(r$prior, r$lower)
     lo <- min(lo - pad, pq[1])
     hi <- max(hi + pad, pq[2])
@@ -943,15 +839,10 @@ plot_prior_posterior <- function(object, pars = c("mu_index", "mu_comparator"),
 #'   `lo`/`hi`, `q2.5`/`q97.5`, `ci_lower`/`ci_upper`, `conf.low`/`conf.high`, or
 #'   `lower`/`upper`.
 #' @param ref_line Null-effect reference line. By default it is read from the
-#'   `effect` column when `data` has one and the label is one the package
-#'   produces, so a ratio measure (`HR`, `TR`, `RR`, `RMSTR`) gets `1` and a
-#'   difference (`RMSTD`, `MD`, `LOR`, a log-scale contrast) gets `0`,
-#'   whichever axis it is drawn on. A label the package does not recognize is
-#'   an unknown rather than a difference, and with no `effect` column there is
-#'   nothing to read at all; in both cases the axis is the only hint left, so
-#'   the default is `1` when `log_x = TRUE` and `0` otherwise. Pass `ref_line`
-#'   explicitly for a measure this does not name. Kept inside the clipping
-#'   window, so a forest whose estimates sit far from the null still shows it.
+#'   `effect` column when the label is one the package produces (`1` for a
+#'   ratio measure, `0` for a difference); otherwise `1` when `log_x = TRUE`
+#'   and `0` otherwise. Pass it explicitly for a measure this does not name.
+#'   Kept inside the clipping window.
 #' @param log_x Draw the x axis on a log10 scale (for ratio measures).
 #' @param x,title,subtitle Axis label and titles (passed to [ggplot2::labs()]).
 #' @param color Point and interval color.
@@ -978,15 +869,8 @@ mlumr_forest <- function(data, ref_line = NULL, log_x = FALSE,
                          x = NULL, title = NULL, subtitle = NULL,
                          color = "#3B6B9A", clip = TRUE, ...) {
   df <- as.data.frame(data)
-  # One axis carries one scale. A frame holding both LOG_HR and HR would put
-  # log(2) and 2 against a single reference, which reads as two very different
-  # effects when they are the same one written twice.
-  #
-  # Compare the labels the way `.null_ref_for()` reads them, which is case
-  # insensitively. Comparing them raw made "HR" and "hr" a mixture of two
-  # scales and refused the frame, while the resolver just below would have
-  # given both the same null. The message still shows the labels as written,
-  # since those are what the caller has to go and fix.
+  # One axis carries one scale; labels are compared case-insensitively, as
+  # `.null_ref_for()` reads them.
   effect_key <- if ("effect" %in% names(df)) {
     toupper(as.character(df$effect))
   } else {
@@ -999,14 +883,7 @@ mlumr_forest <- function(data, ref_line = NULL, log_x = FALSE,
          ". Split it, or drop the `effect` column if the rows really are ",
          "comparable.", call. = FALSE)
   }
-  # The null belongs to the MEASURE, not to the axis it is drawn on. Choosing
-  # it from `log_x` was right whenever the two agreed and wrong whenever they
-  # did not: a risk ratio or a hazard ratio drawn on a linear axis is still a
-  # ratio, and it was given a reference line at 0, which is not a value the
-  # measure can take. `.null_ref_for()` is the same resolver the package's own
-  # forest method uses, so a frame carrying an `effect` column now gets the
-  # same line here as it would there. Without that column there is nothing to
-  # read, and the axis remains the only available hint.
+  # The null belongs to the measure; the axis is only a hint without a label.
   if (is.null(ref_line)) {
     known <- "effect" %in% names(df) && length(df$effect) &&
       .known_measure(df$effect[[1]])
@@ -1049,17 +926,12 @@ mlumr_forest <- function(data, ref_line = NULL, log_x = FALSE,
     .hi = pick(c("hi", "q97.5", "ci_upper", "conf.high", "upper"), "upper-bound")
   )
 
-  # Clip an over-wide interval (e.g. a weakly identified relaxed-model effect)
-  # to the bulk of the estimates and mark its clipped end(s) with an arrow, so
-  # one very uncertain estimate does not squeeze every other into a sliver. Work
-  # on the plotted scale (log10 for a ratio axis).
+  # Clip an over-wide interval to the bulk of the estimates, with an arrow at
+  # the clipped end, on the plotted scale.
   fwd <- if (isTRUE(log_x)) function(z) log10(z) else function(z) z
   inv <- if (isTRUE(log_x)) function(z) 10^z else function(z) z
   lim <- .forest_clip_range(fwd(pdat$.est), fwd(pdat$.lo), fwd(pdat$.hi), clip)
-  # Clipping is about keeping one very wide interval from squeezing the rest,
-  # not about hiding the null. With estimates far from it the computed viewport
-  # can exclude the reference entirely, leaving a forest with no null line at
-  # all, so widen the window to keep it in view.
+  # Keep the null line inside the clipped window.
   if (!is.null(lim)) {
     ref_f <- fwd(ref_line[is.finite(ref_line)])
     ref_f <- ref_f[is.finite(ref_f)]
@@ -1078,18 +950,8 @@ mlumr_forest <- function(data, ref_line = NULL, log_x = FALSE,
   if (!is.null(lim)) {
     flo <- fwd(pdat$.lo)
     fhi <- fwd(pdat$.hi)
-    # Non-finite covered two different things. An INFINITE bound is an interval
-    # that genuinely runs past the viewport, and clipping it to the limit with
-    # an arrow is exactly right. A MISSING one means no interval was supplied
-    # or estimated, and giving it the same treatment drew a row whose CI spans
-    # the whole plot with arrows at both ends: an uncertainty nobody reported,
-    # rendered as the widest one on the figure. Missing bounds stay missing and
-    # the row is drawn as its point estimate alone.
-    # An arrow needs BOTH bounds, not just its own. With `lo = NA` and
-    # `hi = Inf` the upper flag alone was true, so the row got a lone arrow
-    # hanging off no segment, which is the same invented uncertainty in a
-    # smaller shape. A row is drawn as an interval or as a point, never as
-    # half of one.
+    # An infinite bound is clipped with an arrow; a missing one leaves the row
+    # drawn as its point estimate alone, never as half an interval.
     have_both <- !is.na(pdat$.lo) & !is.na(pdat$.hi)
     pdat$.clo <- have_both & (!is.finite(flo) | flo < lim[1])
     pdat$.chi <- have_both & (!is.finite(fhi) | fhi > lim[2])
@@ -1113,8 +975,7 @@ mlumr_forest <- function(data, ref_line = NULL, log_x = FALSE,
       xintercept = ref_line, linetype = "dashed", color = "gray55"
     ) +
     ggplot2::geom_segment(
-      # A row with no interval contributes no segment, rather than one drawn
-      # from NA that ggplot2 then drops with a warning about missing values.
+      # A row with no interval contributes no segment.
       data = pdat[!is.na(pdat$.dlo) & !is.na(pdat$.dhi), , drop = FALSE],
       ggplot2::aes(x = .data$.dlo, xend = .data$.dhi,
                    y = .data$.label, yend = .data$.label),
@@ -1171,11 +1032,7 @@ mlumr_forest <- function(data, ref_line = NULL, log_x = FALSE,
   }
   keep <- ok
   keep[which(ok)[outlier]] <- FALSE
-  # Every finite point estimate, not just the ones `ok` kept: a row whose
-  # interval is missing is absent from `ok`, and leaving its estimate out of
-  # the range lets coord_cartesian() clip the point itself out of the panel, so
-  # the row renders empty. Rows with an outlier interval already contribute
-  # their estimate this way; a row with no interval is the same case.
+  # Every finite point estimate, so a row without an interval stays in view.
   rng <- range(c(est[is.finite(est)], lo[keep], hi[keep]), na.rm = TRUE)
   if (!all(is.finite(rng)) || isTRUE(rng[1] == rng[2])) {
     return(NULL)

@@ -15,62 +15,19 @@
 #'   or `"rr"`. The legacy value `"lor"` is accepted as an alias for
 #'   `"link_effect"` when the fitted link is logit.
 #'
-#'   For **survival**, what is available depends on whether the two studies
-#'   share a baseline, because `exp(eta_index - eta_comparator)` is a
-#'   conditional hazard ratio only when the baseline factor cancels:
-#'   \itemize{
-#'     \item **Shared baseline shape** (`aux_by = "none"`, or any exponential
-#'       fit, which has no shape to stratify): `"hr"` returns the exact
-#'       conditional hazard ratio, labeled `"HR"`, for a proportional-hazards
-#'       distribution, and `"tr"` the exact time ratio (`"TR"`) for an
-#'       accelerated failure time one. They are different measures and
-#'       `"tr"` is **not** an alias for `"hr"`, so `"tr"` on a
-#'       proportional-hazards fit and `"hr"` on an accelerated failure time fit
-#'       are both errors rather than the other measure returned under the label
-#'       it does have. That is a restriction on the label this function
-#'       answers to, not a claim that the other measure cannot exist: an
-#'       exponential and a Weibull are BOTH proportional hazards and
-#'       accelerated failure time, so with a shared shape each has a constant
-#'       hazard ratio and a constant time ratio, related by
-#'       `TR = HR^(-1/shape)` (`1/HR` for an exponential). For the Weibull,
-#'       apply that conversion to PAIRED posterior draws, each effect draw with
-#'       the shape draw it came with; transforming a posterior mean, or the
-#'       endpoints of a reported interval with one shape estimate, does not in
-#'       general give the posterior of the other measure. Refitting in the
-#'       other parameterization is then an equivalent analysis only when the
-#'       priors are transformed to match: `log(HR) ~ Normal(0, s^2)` induces
-#'       `log(TR) | k ~ Normal(0, s^2 / k^2)`, not the same fixed-variance
-#'       normal, and the intercept and coefficient priors have to move with it.
-#'       None of that applies to the exponential, which has no shape parameter:
-#'       its conversion is a reciprocal applied draw by draw, and a normal
-#'       prior on `log(HR)` is the same normal prior on `log(TR)` with the sign
-#'       reversed.
-#'       For the log-normal, log-logistic, gamma and generalized gamma the
-#'       conditional hazard ratio generally varies with time, and there the
-#'       absence of a scalar is a property of the model. Generally, not always:
-#'       the gamma family contains the exponential at shape 1, the implemented
-#'       generalized gamma contains a Weibull subfamily, and a null comparison
-#'       has a hazard ratio of 1 at every time.
-#'     \item **Study-specific shape-bearing baseline** (`aux_by = ".study"`,
-#'       the default, with a distribution that has a shape parameter or either
-#'       flexible baseline): an explicit `"hr"` / `"tr"` request is an
-#'       **error**. The conditional hazard ratio is
-#'       `h0_index(t) / h0_comparator(t) * exp(eta_index - eta_comparator)` and
-#'       the baseline ratio does not cancel, so no scalar hazard ratio exists to
-#'       return. Returning the bare exponent under the name `hr` would report a
-#'       different estimand than the one requested.
-#'     \item `"all"` still works in that case and returns the exponentiated
-#'       linear-predictor contrast under the honest label
-#'       `"EXP_ETA_CONTRAST"`, with a warning explaining what it is not. The
-#'       warning is emitted whenever the baseline shapes differ, for
-#'       accelerated failure time models as well as proportional-hazards ones.
-#'     \item The collapsible RMST effects from [marginal_effects()] are
-#'       unaffected and are the recommended alternative.
-#'       `predict(type = "loghr")` gives the time-varying hazard ratio
-#'       standardized over a **population**, so it is a marginal quantity and
-#'       not the conditional effect at a supplied covariate profile; it answers
-#'       a different question rather than substituting for this one.
-#'   }
+#'   For **survival**, `exp(eta_index - eta_comparator)` is a conditional
+#'   hazard ratio (`"hr"`, proportional-hazards distributions) or time ratio
+#'   (`"tr"`, accelerated failure time distributions) only when the two
+#'   studies share a baseline shape (`aux_by = "none"`, or any exponential
+#'   fit). The two are different measures: `"tr"` on a proportional-hazards
+#'   fit and `"hr"` on an AFT fit are errors, whose message gives the
+#'   conversion where one exists (`TR = HR^(-1/shape)` for a Weibull, applied
+#'   draw by draw; `TR = 1/HR` for an exponential). Under the default
+#'   study-specific shapes an explicit `"hr"` or `"tr"` is an error, since
+#'   the baseline ratio does not cancel; `"all"` returns the contrast under
+#'   the label `"EXP_ETA_CONTRAST"` with a warning. The RMST effects from
+#'   [marginal_effects()] are the recommended alternative, and
+#'   `predict(type = "loghr")` gives the population-standardized curve.
 #' @param summary Return summary statistics (`TRUE`) or full posterior draws
 #'   (`FALSE`)
 #' @param probs Quantiles for summary (default `c(0.025, 0.5, 0.975)`)
@@ -84,27 +41,12 @@
 #' covariate values because the index and comparator treatments have different
 #' regression coefficients.
 #'
-#' For binomial / normal / Poisson the conditional link-scale effect is computed
-#' directly as `eta_index - eta_comparator`. This avoids numerical distortion
-#' from transforming extreme response-scale probabilities back through the link
-#' function. For **survival** the contrast is reported on the natural scale,
-#' exponentiated from `eta_index - eta_comparator` (null 1, like the rate
-#' ratio). That exponent is the conditional hazard ratio (or AFT time ratio)
-#' only when the two studies share a baseline shape; under the stratified
-#' default it is labeled `"EXP_ETA_CONTRAST"` instead, because the baseline
-#' ratio `h0_index(t) / h0_comparator(t)` does not cancel, and for an
-#' accelerated failure time model because differing shapes add
-#' quantile-dependent factors. `predict(type = "loghr")` gives the time-varying
-#' log hazard ratio standardized over a population, which is a marginal
-#' quantity rather than a profile-specific conditional one.
-#'
-#' **Conditional vs marginal on non-identity links.** Conditional effects are
-#' evaluated at a single covariate profile, so there is no averaging over a
-#' population and no Jensen's-inequality gap between the conditional and
-#' marginal response. Compare with [marginal_effects()] and
-#' [predict.mlumr_fit()], which average over either the IPD individuals
-#' (index population) or the AgD integration points (comparator population)
-#' and therefore return `E[g^{-1}(eta)]`, not `g^{-1}(E[eta])`.
+#' For binomial, normal and Poisson the conditional link-scale effect is
+#' `eta_index - eta_comparator`; for survival the contrast is exponentiated
+#' (null 1) and labeled `"EXP_ETA_CONTRAST"` when the baseline shapes
+#' differ. A conditional effect is evaluated at one profile, so unlike
+#' [marginal_effects()] and [predict.mlumr_fit()] there is no averaging over
+#' a population and no gap between `E[g^{-1}(eta)]` and `g^{-1}(E[eta])`.
 #'
 #' @return A data frame. If `summary = TRUE`, contains columns `profile`,
 #'   `effect`, `mean`, `sd` and quantile columns. If `summary = FALSE`,
@@ -159,26 +101,11 @@ conditional_effects <- function(object,
     stop(sprintf("For %s family, `effect` must be one of: %s",
                  family, paste(valid_effects, collapse = ", ")), call. = FALSE)
   }
-  # A hazard ratio and a time ratio are different estimands, and only one of
-  # them exists as a scalar for any given fit. `tr` was previously aliased to
-  # `hr` and the answer labeled from the fitted distribution, which meant a
-  # request for one could be answered with the other. Validate instead: an
-  # explicit request either returns what was asked for or errors.
+  # Only one of `hr` and `tr` exists as a scalar for a given fit.
   if (identical(family, "survival") && effect %in% c("hr", "tr")) {
     is_ph <- isTRUE(object$surv_info$is_ph)
     dist <- object$distribution %||% "survival"
-    # Order matters here. The parameterization errors below explain the
-    # refusal by naming the measure this fit estimates, and for a dual family
-    # they give the conversion to the other one. That conversion reads "the
-    # shape", which presumes one: with `aux_by = ".study"` a Weibull has two
-    # and no constant time ratio to recover. The stratified case has its own
-    # accurate error, so let it answer first.
-    # Under differing baseline shapes exp(eta_index - eta_comparator) is
-    # neither a hazard ratio (the h0 ratio does not cancel) nor a time ratio
-    # (differing shapes add quantile-dependent factors). Returning it under the
-    # requested name would be the relabeling this guard exists to prevent, so
-    # an EXPLICIT `hr` / `tr` request is an error. The default `effect = "all"`
-    # still returns the contrast under its own name, with the warning below.
+    # The stratified case answers first: its refusal does not presume one shape.
     if (.aux_shapes_differ(object)) {
       stop("`effect = \"", effect, "\"` is not available: each study has its own ",
            "baseline ", if (is_ph) "hazard" else "shape",
@@ -213,9 +140,7 @@ conditional_effects <- function(object,
   params <- .conditional_parameters(object, profiles$covariates)
   results <- vector("list", n_profiles)
 
-  # The contrast type depends only on the fit, not on the covariate profile, so
-  # resolve it once. Inside the loop this emitted the same long warning for
-  # every row of `newdata`.
+  # Resolved once: the contrast type does not depend on the profile.
   if (.aux_shapes_differ(object)) {
     why <- if (isTRUE(object$surv_info$is_ph)) {
       paste0("the conditional hazard ratio varies with time and the ",
@@ -231,13 +156,10 @@ conditional_effects <- function(object,
     warning("Each study has its own baseline ",
             if (isTRUE(object$surv_info$is_ph)) "hazard" else "shape",
             " (`aux_by = \".study\"`, the default), so ", why,
-            ". Target-standardized RMST effects from marginal_effects() ",
-            "remain available, and `aux_by = \"none\"` gives a single shared ",
-            "baseline under which this contrast is exact. Note that ",
-            "predict(type = \"loghr\") is a population-standardized ",
-            "MARGINAL curve, not the conditional effect at this covariate ",
-            "profile, so it answers a different question rather than ",
-            "replacing this one.",
+            ". RMST effects from marginal_effects() remain available, and ",
+            "`aux_by = \"none\"` makes this contrast exact. predict(type = ",
+            "\"loghr\") is a population-standardized MARGINAL curve, not the ",
+            "conditional effect at this profile.",
             call. = FALSE)
   }
 
@@ -269,27 +191,8 @@ conditional_effects <- function(object,
         rr = exp(eta_idx - eta_cmp)
       )
     } else {
-      # survival: conditional hazard ratio (PH) / time ratio (AFT) on the natural
-      # scale (exponentiated, null 1), matching the poisson rate ratio above. The
-      # column is named hr (PH) or tr (AFT) so summary = FALSE output is
-      # self-describing.
-      #
-      # exp(eta_index - eta_comparator) is the conditional hazard ratio ONLY when
-      # the two studies share a baseline. That is no longer the default: with
-      # aux_by = ".study" the true
-      # conditional HR is h0_index(t)/h0_comparator(t) * exp(eta_i - eta_c), and
-      # the baseline ratio does not cancel. Reporting the bare exponent would be
-      # the same error the marginal delta_* used to make, so say so rather than
-      # print a number that means something else.
-      # The EXP_ETA_CONTRAST label is applied whenever the shapes differ, PH or
-      # AFT alike, so the warning has to cover both. Gating it on `is_ph` left a
-      # stratified AFT fit relabeling its estimand silently while the
-      # documentation promised a warning.
-      # Under a stratified baseline the exponentiated contrast is neither a
-      # hazard ratio (PH: the h0 ratio does not cancel) nor a time ratio (AFT:
-      # differing shape/scale add quantile-dependent factors). Name it for what
-      # it is, so the returned column cannot be read as HR/TR. The warning above
-      # explains why; the name is what stops it being published as an HR.
+      # Survival: natural scale, null 1, named hr or tr only when the shapes
+      # are shared and exp_eta_contrast otherwise.
       profile_draws <- data.frame(value = exp(eta_idx - eta_cmp))
       names(profile_draws) <- .surv_contrast_name(object)
     }
@@ -329,24 +232,16 @@ conditional_effects <- function(object,
   out <- do.call(rbind, summary_list)
   out <- out[, c("profile", "effect", "mean", "sd", .quantile_names(probs)),
              drop = FALSE]
-  # Survival effects are on the natural scale (null 1): the effect label is
-  # already HR (PH) or TR (AFT) from the hr / tr column name set above.
   rownames(out) <- NULL
   .mlumr_result(out, "mlumr_conditional_effects", family = family)
 }
 
 #' Say whether the unrequested measure exists as a scalar for this family
 #'
-#' The refusal is about the parameterization the fit estimates, not about what
-#' the model can express, and the two are easy to conflate. The exponential and
-#' the Weibull are BOTH proportional hazards and accelerated failure time, so
-#' with a baseline shape shared across arms each has a constant hazard ratio
-#' AND a constant time ratio, related deterministically. Telling a Weibull user
-#' that "a proportional-hazards model has no constant time ratio" taught them
-#' something false in order to explain an interface limit. The log-normal, the
-#' log-logistic, the gamma and the generalized gamma have a genuinely
-#' time-varying hazard ratio, and only there is the absence of a scalar a
-#' property of the model rather than of this function.
+#' The exponential and the Weibull are both proportional hazards and AFT, so
+#' with a shared shape the other measure is a deterministic transform; the
+#' log-normal, log-logistic, gamma and generalized gamma have a time-varying
+#' hazard ratio, where no scalar exists.
 #'
 #' @param dist The fitted distribution.
 #' @param asked The measure the caller asked for, `"hr"` or `"tr"`.
@@ -434,11 +329,7 @@ conditional_effects <- function(object,
     stop("`newdata` covariates must be finite.", call. = FALSE)
   }
 
-  # Shift user-supplied (raw-scale) covariate values onto the centered scale
-  # used at fit time, so they are consistent with the fitted (centered)
-  # intercept and coefficients. `cov_center` is set for all families when
-  # center = TRUE (the mlumr default); a vector of zeros (center = FALSE) makes
-  # this a no-op.
+  # Onto the centered scale used at fit time (zeros when center = FALSE).
   cov_center <- object$stan_data$cov_center %||% rep(0, length(covariates))
   X <- sweep(X, 2, cov_center)
 
@@ -671,22 +562,14 @@ conditional_predict <- function(object,
 
 #' Name for the conditional survival contrast
 #'
-#' `exp(eta_index - eta_comparator)` is a conditional hazard ratio only when the
-#' two studies share a baseline hazard, and a time ratio only when the AFT
-#' shape/scale parameters are shared. The test is whether the auxiliary
-#' shape/scale draws actually differ, not whether `aux_by` asked for strata: an
-#' exponential has no shape to stratify, so `aux_by = ".study"` leaves its
-#' baseline shared and the exact `hr` label stands.
+#' `exp(eta_index - eta_comparator)` is a hazard ratio or time ratio only
+#' when the two studies' shape parameters agree. An exponential has no shape
+#' to stratify, so `aux_by = ".study"` leaves its label exact.
 #' @param object An `mlumr_fit` (survival).
 #' @return `"hr"`, `"tr"`, or `"exp_eta_contrast"` when the two baselines'
 #'   shape/scale parameters differ.
 #' @keywords internal
 .surv_contrast_name <- function(object) {
-  # `n_strata > 1` is not the question: an exponential has no shape to
-  # stratify, so its baseline hazard is exp(eta) with the study intercept
-  # already inside eta, and exp(eta_index - eta_comparator) is an exact
-  # conditional hazard ratio however `aux_by` is set. `.aux_shapes_differ()`
-  # asks whether the baselines actually differ.
   if (.aux_shapes_differ(object)) return("exp_eta_contrast")
   if (isTRUE(object$surv_info$is_ph)) "hr" else "tr"
 }
@@ -707,27 +590,19 @@ conditional_predict <- function(object,
   treatment <- match.arg(treatment)
   pred_times <- object$pred_times
 
-  # The baseline belongs to the study and each study contributes one arm, so it
-  # travels with the treatment. Reading it through the shared helpers keeps this
-  # path working for a stratified baseline AND for the matrix draw names that
-  # every fit now uses, stratified or not.
+  # The baseline belongs to the study, so it travels with the treatment.
   if (object$surv_info$kind == "parametric") {
     dist <- object$surv_info$dist_code
     aux  <- .surv_aux_draws(object, "aux_val", treatment, length(eta))
     aux2 <- .surv_aux_draws(object, "aux2_val", treatment, length(eta))
-    # vapply keeps the dimensions when there are several draws, but collapses
-    # to a bare vector when the posterior holds exactly one, and the caller
-    # then applies over a non-existent second margin. Shape it explicitly, as
-    # .surv_s_at_times() already does on the same quantity.
+    # Shaped explicitly: vapply collapses to a vector for a single draw.
     matrix(vapply(pred_times,
                   function(t) exp(.r_log_surv(dist, t, eta, aux, aux2)),
                   numeric(length(eta))),
            nrow = length(eta), ncol = length(pred_times))
   } else {
     scoef <- .surv_scoef_draws(object, treatment)
-    # Each study has its own basis under `aux_by = ".study"`; the comparator arm
-    # must not be evaluated on the index study's spline. Older fits have no
-    # `_cmp` matrix, so fall back to the shared basis.
+    # Each study has its own basis under `aux_by = ".study"`.
     pred_ib <- if (identical(treatment, "comparator")) {
       object$stan_data$pred_ibasis_cmp %||% object$stan_data$pred_ibasis
     } else {
@@ -741,24 +616,11 @@ conditional_predict <- function(object,
 
 #' Log upper regularized gamma from the log of its argument, in R
 #'
-#' Mirrors Stan's `log_gamma_surv_from_log_x()`. `exp(log_x)` underflows to
-#' zero below about -745 and `pgamma(0, k)` then reports survival 1, which is
-#' badly wrong for a small shape: the survival depends on `w^k`, which is
-#' `exp(k * log_x)` and stays of order one however far the log has gone. At
-#' `k = 1e-6` and `log_x = -1013.8` the true value is 0.0010127 and the
-#' underflowed one is exactly 1.
-#'
-#' Below the threshold the leading term of the series for the lower regularized
-#' gamma, `w^k / gamma(k + 1)`, is exact to double precision, because the next
-#' term is smaller by a factor of `w`. A `log_x` of negative infinity, which is
-#' time zero, still gives survival 1.
-#'
-#' Every R site needing this quantity calls here, so the survival and the
-#' hazard cannot disagree with each other or with Stan. They did: the
-#' correction was at first applied only to the generalized-gamma survival,
-#' which left the gamma survival reporting 1, the gamma hazard too small by a
-#' factor of 1000, and the generalized-gamma hazard by 987. Stan routes all
-#' four through one function, so R does too.
+#' Mirrors Stan's `log_gamma_surv_from_log_x()`. Below a `log_x` of -700,
+#' where `exp(log_x)` would underflow and `pgamma(0, k)` report survival 1,
+#' the lower tail is the exact leading series term `w^k / gamma(k + 1)` and
+#' the return is its log complement, `log(1 - w^k / gamma(k + 1))`. Every R site needing
+#' this quantity calls here, as every Stan site does.
 #'
 #' @param k Shape, recycled to the length of `log_x`.
 #' @param log_x Log of the incomplete-gamma argument.
@@ -809,10 +671,7 @@ conditional_predict <- function(object,
   if (dist == 8L) {
     return(.r_log_gamma_surv_from_log_x(aux, log(t) - eta))
   }
-  # Generalized gamma (dist 9). Form the incomplete-gamma argument in log
-  # space and let R's upper-tail pgamma implementation choose its stable
-  # central or tail algorithm. The continued fraction used for deep tails is
-  # not reliable just above a very large shape parameter.
+  # Generalized gamma (dist 9): form the argument in log space.
   q <- 1 / sqrt(aux2)
   log_w <- q * (log(t) - eta) / aux + log(aux2)
   .r_log_gamma_surv_from_log_x(aux2, log_w)

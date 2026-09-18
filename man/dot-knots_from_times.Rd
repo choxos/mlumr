@@ -24,12 +24,10 @@
 A list with \code{internal}, \code{boundary}, and \code{n_knots}.
 }
 \description{
-The computational core of \code{\link[=make_knots]{make_knots()}}, factored out so the same rule can
-be applied either to the pooled times (one shared baseline) or to each
-study's own times (\code{aux_by = ".study"}, one baseline per study). Per-study
-boundary knots are what multinma's default \code{type = "quantile"} does, and they
-are what keeps a stratified baseline identified: a basis function with no
-support over a study's observed period leaves that study's spline scale free
-to trade off against its intercept.
+The core of \code{\link[=make_knots]{make_knots()}}, applied either to the pooled times (one shared
+baseline) or to each study's own times (\code{aux_by = ".study"}). Per-study
+boundary knots keep a stratified baseline identified: a basis function with
+no support over a study's observed period leaves its spline scale free to
+trade off against the intercept.
 }
 \keyword{internal}
