@@ -32,7 +32,7 @@ bash lesson.sh dist      # build, then copy the site to dist/ for publishing
 bash lesson.sh adapter   # after a build: check the browser mlumr adapter natively with R
 ```
 
-`TANGIBLE_DIR` can point to an existing Tangible checkout at revision `6a07bbcd5dbc548aa809b253aed503fc0a8c3251`. `build` and `dist` refuse a checkout with local changes to its tracked files or packages, and rebuild its compiled packages from source first. The build copies mlumr's R sources from a local checkout of the package, set with `MLUMR_DIR` (default `../mlumr`) at the commit `MLUMR_REF` (default `4cfd3660f56e22668ae357bde3df4b30cacb23a5`). Use a static HTTP server; opening `index.html` from disk does not work.
+`TANGIBLE_DIR` can point to an existing Tangible checkout at revision `6a07bbcd5dbc548aa809b253aed503fc0a8c3251`. `build` and `dist` refuse a checkout with local changes to its tracked files or packages, and rebuild its compiled packages from source first. The build copies mlumr's R sources from a local checkout of the package, set with `MLUMR_DIR` (default `../mlumr`) at the commit `MLUMR_REF` (default `965dfc5c2605c07afee47270c2a5da9a69df368f`). Use a static HTTP server; opening `index.html` from disk does not work.
 
 The build checks `runtime/models/manifest.json` against the Stan programs at `MLUMR_REF` and stops if they differ, and it writes `build-manifest.json` with the SHA-256 of every source and built file. `lesson.sh adapter` needs R with mlumr's dependencies; set `MLUMR_NATIVE` to an mlumr checkout at `MLUMR_REF` with a built DLL to compare the browser's Stan data, refusals and warnings with the package itself.
 
@@ -41,7 +41,7 @@ The build checks `runtime/models/manifest.json` against the Stan programs at `ML
 ## Native companion run
 
 ```sh
-Rscript workflow.R --source=/path/to/mlumr-at-4cfd366 --fit --sensitivity --record=scenes/native-record.json --engine=cmdstanr
+Rscript workflow.R --source=/path/to/mlumr-at-965dfc5 --fit --sensitivity --record=scenes/native-record.json --engine=cmdstanr
 ```
 
 `--fit` fits the shared and separate slopes models and prints their checks and effects. `--sensitivity` runs the analyst loop on the prespecified 400-row target: an integration refit at 2048 points, the relaxed model under comparator slope prior scales 0.25 to 5 with the index prior held fixed, and the same fits evaluated in a shifted and an extrapolating target, re-extracting the target effect from every refit. `--record` writes the results as JSON with the package version, the checkout's commit and clean or dirty state, the hash of its compiled code and whether that code was current, the engine, the CmdStan version and the script's SHA-256, so the lesson can show fitted numbers without anyone typing them; the manifest check refuses a build whose record names another commit than the pin or was written by another revision of the script. The run takes a few minutes with cmdstanr; `package-notes.md` records the output.
