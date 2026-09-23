@@ -24,7 +24,9 @@ A prior list (see \code{\link[=prior_normal]{prior_normal()}}).
 }
 \description{
 These accessors return the current default priors used by \code{\link[=mlumr]{mlumr()}},
-tagged with \verb{$default = TRUE} and the package version. \code{\link[=prior_summary]{prior_summary()}}
+tagged with \verb{$default = TRUE} and the package version. For
+\code{family = "normal"} their scales are multiples of the IPD outcome SD
+wherever the parameter is in outcome units; see \code{\link[=prior_normal]{prior_normal()}}. \code{\link[=prior_summary]{prior_summary()}}
 prints the version so cross-release reproducibility is diagnosable: if a
 later release changes a default, fits produced with an older version
 will still carry the correct \verb{$version} tag.

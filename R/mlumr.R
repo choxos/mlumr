@@ -76,12 +76,16 @@
 #'   canonical default for the family.
 #' @param prior_intercept Prior for treatment intercepts. Default from
 #'   [default_prior_intercept()] (`prior_normal(0, 10)`), on the
-#'   linear-predictor scale. See [prior_normal()].
+#'   linear-predictor scale; for `family = "normal"` with the identity link,
+#'   where the intercepts are in outcome units, `normal(0, 10 * sd(y))` with
+#'   `sd(y)` the IPD outcome SD. See [prior_normal()].
 #' @param prior_beta Prior for regression coefficients. A single prior
 #'   broadcast to all covariates, or a `list` of priors of length `n_cov`
 #'   sharing one family (and, for Student-t, one df). Default from
-#'   [default_prior_beta()] (`prior_normal(0, 2.5)`). Set `autoscale = TRUE`
-#'   on the prior to divide the scale by each covariate's empirical SD. For
+#'   [default_prior_beta()] (`prior_normal(0, 2.5)`, times `sd(y)` for
+#'   `family = "normal"` with the identity link). Set `autoscale = TRUE`
+#'   on the prior to divide the scale by each covariate's empirical SD (and,
+#'   for the normal identity link, multiply it by `sd(y)`). For
 #'   `model = "spfa"` this is the prior on the shared `beta`; for
 #'   `model = "relaxed"` on `beta_index`, with `beta_comparator` taking
 #'   `prior_beta_comparator`.
@@ -93,8 +97,9 @@
 #'   index-population estimand; see [check_identification()] and
 #'   [prior_sensitivity()]. Ignored for `model = "spfa"`.
 #' @param prior_sigma Prior for residual SD (normal family only). Default
-#'   from [default_prior_sigma()] (`prior_normal(0, 2.5)`, half-normal via
-#'   the Stan `<lower=0>` constraint). [prior_exponential()] is also
+#'   from [default_prior_sigma()], a half-normal (through the Stan
+#'   `<lower=0>` constraint) with scale `2.5 * sd(y)`, the residual SD being
+#'   in outcome units under either link. [prior_exponential()] is also
 #'   supported for sigma.
 #' @param distribution For `family = "survival"` only: the survival
 #'   distribution. Proportional hazards: `"exponential"`, `"weibull"`
@@ -586,7 +591,10 @@ mlumr <- function(data,
     surv_info = surv_info,
     beta_fields = prepared$beta_fields,
     beta_comparator_fields = prepared$beta_comparator_fields,
-    sd_x = prepared$sd_x
+    sd_x = prepared$sd_x,
+    intercept_resolved = prepared$prior_intercept,
+    sigma_resolved = prepared$prior_sigma,
+    sd_y = prepared$sd_y
   )
 
   out <- list(
@@ -684,6 +692,14 @@ mlumr <- function(data,
   agd_data <- data$agd$data
   X_ipd <- as.matrix(ipd_data[, data$covariates])
 
+  # The normal family's intercepts and coefficients (identity link) and its
+  # residual SD (either link) are in the outcome's units, so the package
+  # defaults are read in units of the IPD outcome SD there.
+  sd_y <- if (family == "normal") .outcome_sd(ipd_data$.outcome) else 1
+  sd_y_eta <- if (identical(link_info$link, "identity")) sd_y else 1
+  prior_intercept <- .outcome_scaled_prior(prior_intercept, sd_y_eta)
+  prior_sigma <- .outcome_scaled_prior(prior_sigma, sd_y)
+
   # Both coefficient blocks use the IPD SD as the autoscaling reference. A
   # single IPD row leaves sd() undefined; treat it as no empirical scale.
   sd_x <- apply(X_ipd, 2, stats::sd)
@@ -693,7 +709,8 @@ mlumr <- function(data,
     prior_beta,
     data$n_covariates,
     sd_x = sd_x,
-    covariate_names = data$covariates
+    covariate_names = data$covariates,
+    sd_y = sd_y_eta
   )
   # The comparator prior carries its own family and df into Stan; NULL
   # reuses prior_beta.
@@ -704,7 +721,8 @@ mlumr <- function(data,
       prior_beta_comparator,
       data$n_covariates,
       sd_x = sd_x,
-      covariate_names = data$covariates
+      covariate_names = data$covariates,
+      sd_y = sd_y_eta
     )
   }
 
@@ -794,7 +812,11 @@ mlumr <- function(data,
   list(stan_data = stan_data,
        beta_fields = beta_fields,
        beta_comparator_fields = beta_comparator_fields,
-       sd_x = sd_x)
+       sd_x = sd_x,
+       # The intercept and sigma priors as the model used them.
+       prior_intercept = prior_intercept,
+       prior_sigma = prior_sigma,
+       sd_y = sd_y)
 }
 
 #' Population weights for the AgD rows used in covariate centering
@@ -1537,9 +1559,15 @@ mlumr <- function(data,
                                   sd_x,
                                   prior_aux = NULL, prior_aux2 = NULL,
                                   prior_smooth = NULL,
-                                  surv_info = NULL) {
+                                  surv_info = NULL,
+                                  intercept_resolved = NULL,
+                                  sigma_resolved = NULL,
+                                  sd_y = 1) {
+  # `intercept` and `sigma` are what the user passed, which a refit replays;
+  # the `_resolved` entries are what the model used.
   priors <- list(
     intercept = prior_intercept,
+    intercept_resolved = intercept_resolved %||% prior_intercept,
     beta = prior_beta,
     beta_resolved = list(
       covariate_names = data$covariates,
@@ -1548,7 +1576,8 @@ mlumr <- function(data,
       dist = beta_fields$dist,
       df = beta_fields$df,
       autoscale = beta_fields$autoscale,
-      sd_x = sd_x
+      sd_x = sd_x,
+      sd_y = beta_fields$sd_y
     )
   )
 
@@ -1565,6 +1594,7 @@ mlumr <- function(data,
         df = beta_comparator_fields$df,
         autoscale = beta_comparator_fields$autoscale,
         sd_x = sd_x,
+        sd_y = beta_comparator_fields$sd_y,
         user_specified = !is.null(prior_beta_comparator)
       )
     }
@@ -1572,6 +1602,8 @@ mlumr <- function(data,
 
   if (family == "normal") {
     priors$sigma <- prior_sigma
+    priors$sigma_resolved <- sigma_resolved %||% prior_sigma
+    priors$outcome_sd <- sd_y
   }
 
   if (family == "survival") {

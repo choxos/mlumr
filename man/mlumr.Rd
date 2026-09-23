@@ -51,20 +51,25 @@ canonical default for the family.}
 
 \item{prior_intercept}{Prior for treatment intercepts. Default from
 \code{\link[=default_prior_intercept]{default_prior_intercept()}} (\code{prior_normal(0, 10)}), on the
-linear-predictor scale. See \code{\link[=prior_normal]{prior_normal()}}.}
+linear-predictor scale; for \code{family = "normal"} with the identity link,
+where the intercepts are in outcome units, \code{normal(0, 10 * sd(y))} with
+\code{sd(y)} the IPD outcome SD. See \code{\link[=prior_normal]{prior_normal()}}.}
 
 \item{prior_beta}{Prior for regression coefficients. A single prior
 broadcast to all covariates, or a \code{list} of priors of length \code{n_cov}
 sharing one family (and, for Student-t, one df). Default from
-\code{\link[=default_prior_beta]{default_prior_beta()}} (\code{prior_normal(0, 2.5)}). Set \code{autoscale = TRUE}
-on the prior to divide the scale by each covariate's empirical SD. For
+\code{\link[=default_prior_beta]{default_prior_beta()}} (\code{prior_normal(0, 2.5)}, times \code{sd(y)} for
+\code{family = "normal"} with the identity link). Set \code{autoscale = TRUE}
+on the prior to divide the scale by each covariate's empirical SD (and,
+for the normal identity link, multiply it by \code{sd(y)}). For
 \code{model = "spfa"} this is the prior on the shared \code{beta}; for
 \code{model = "relaxed"} on \code{beta_index}, with \code{beta_comparator} taking
 \code{prior_beta_comparator}.}
 
 \item{prior_sigma}{Prior for residual SD (normal family only). Default
-from \code{\link[=default_prior_sigma]{default_prior_sigma()}} (\code{prior_normal(0, 2.5)}, half-normal via
-the Stan \verb{<lower=0>} constraint). \code{\link[=prior_exponential]{prior_exponential()}} is also
+from \code{\link[=default_prior_sigma]{default_prior_sigma()}}, a half-normal (through the Stan
+\verb{<lower=0>} constraint) with scale \code{2.5 * sd(y)}, the residual SD being
+in outcome units under either link. \code{\link[=prior_exponential]{prior_exponential()}} is also
 supported for sigma.}
 
 \item{distribution}{For \code{family = "survival"} only: the survival

@@ -12,7 +12,17 @@
 #' predictors on different scales and calibrate with prior predictive checks
 #' (Gelman et al., 2008; the Stan prior-choice wiki). `prior_sigma` is a
 #' normal truncated at zero through the Stan `<lower=0>` constraint, a
-#' half-normal at the default mean of 0; scale it to the outcome. Run
+#' half-normal at the default mean of 0.
+#'
+#' For `family = "normal"` the identity link is not unit-free: the intercepts
+#' and coefficients are in the outcome's units, and so is the residual SD
+#' under either link. There the package defaults are read in units of the IPD
+#' outcome SD, `sd(y)`: `normal(0, 10 * sd(y))` for the intercepts,
+#' `normal(0, 2.5 * sd(y))` for the coefficients (identity link) and a
+#' half-normal with scale `2.5 * sd(y)` for the residual SD (either link), and
+#' `autoscale = TRUE` gives a coefficient scale of `sd * sd(y) / sd(x)`. A
+#' prior written out by the user is used as given. [prior_summary()] prints
+#' the scales the model used. Run
 #' [prior_sensitivity()] for the relaxed model, whose `beta_comparator` is
 #' identified only by the aggregate likelihood.
 #'
@@ -22,7 +32,9 @@
 #'   recommended for regression coefficients (see Details).
 #' @param autoscale If `TRUE` and this prior is passed as `prior_beta`,
 #'   the scale is divided by each covariate's empirical SD so the prior
-#'   is weakly-informative regardless of predictor scaling. Default
+#'   is weakly-informative regardless of predictor scaling, and for
+#'   `family = "normal"` with the identity link also multiplied by the IPD
+#'   outcome SD, since the coefficients are then in outcome units. Default
 #'   `FALSE` to preserve backward-compatible behavior; set to `TRUE`
 #'   explicitly when passing unstandardized predictors. Ignored for
 #'   `prior_intercept` and `prior_sigma`.
@@ -148,7 +160,9 @@ prior_exponential <- function(rate = 1) {
 #' Default priors used by [mlumr()]
 #'
 #' These accessors return the current default priors used by [mlumr()],
-#' tagged with `$default = TRUE` and the package version. [prior_summary()]
+#' tagged with `$default = TRUE` and the package version. For
+#' `family = "normal"` their scales are multiples of the IPD outcome SD
+#' wherever the parameter is in outcome units; see [prior_normal()]. [prior_summary()]
 #' prints the version so cross-release reproducibility is diagnosable: if a
 #' later release changes a default, fits produced with an older version
 #' will still carry the correct `$version` tag.
@@ -288,6 +302,48 @@ is_single_prior <- function(x) {
 
 # ---- Stan-data translation -------------------------------------------------
 
+#' IPD outcome SD, the unit of the normal family's default priors
+#'
+#' Falls back to 1, no rescaling, when the IPD outcome has no SD, as with a
+#' single row or a constant outcome; `mlumr()` warns about the first and
+#' refuses the second.
+#' @param y The IPD outcome.
+#' @return A positive finite number.
+#' @noRd
+.outcome_sd <- function(y) {
+  s <- stats::sd(as.numeric(y))
+  if (is.finite(s) && s > 0) s else 1
+}
+
+#' Is this prior's scale a multiple of the outcome SD?
+#'
+#' A package default is, and so is a prior derived from one by
+#' [prior_sensitivity()], which marks it `outcome_scale`.
+#' @noRd
+.on_outcome_scale <- function(prior) {
+  isTRUE(prior$default) || isTRUE(prior$outcome_scale)
+}
+
+#' Put a default prior in units of the outcome SD
+#'
+#' The normal family's intercepts and coefficients (identity link) and its
+#' residual SD (either link) are in the outcome's units, so a default there
+#' is `sd_y` times its nominal scale. A prior the user wrote is returned
+#' unchanged, and so is every prior when `sd_y` is 1.
+#' @param prior A single prior list.
+#' @param sd_y The outcome SD, or 1 where the parameter is unit-free.
+#' @return The prior as the model uses it.
+#' @noRd
+.outcome_scaled_prior <- function(prior, sd_y = 1) {
+  if (sd_y == 1 || !.on_outcome_scale(prior)) return(prior)
+  prior$mean <- prior$mean * sd_y
+  prior$sd <- prior$sd * sd_y
+  if (identical(prior$distribution, "exponential")) {
+    prior$rate <- prior$rate / sd_y
+  }
+  prior
+}
+
 #' Translate a scalar prior spec to the Stan data fields
 #'
 #' Stan scalar-prior fields: `prior_*_mean`, `prior_*_sd`,
@@ -337,12 +393,16 @@ stan_prior_fields <- function(prior) {
 #' @param covariate_names Optional character vector of covariate names
 #'   (length `n_cov`). Used only to produce informative warnings when
 #'   `autoscale = TRUE` meets a zero-SD covariate.
+#' @param sd_y The IPD outcome SD for a normal identity-link fit, whose
+#'   coefficients are in outcome units, else 1. Multiplies the scale of each
+#'   default or autoscaled element.
 #' @return A list with numeric vectors `mean` and `sd` (length `n_cov`)
-#'   and scalars `dist`, `df`, and a logical vector `autoscale` recording
-#'   which elements were autoscaled (for `prior_summary()`).
+#'   and scalars `dist`, `df`, a logical vector `autoscale` recording
+#'   which elements were autoscaled, and `sd_y`, the outcome-SD factor each
+#'   element carries (for `prior_summary()`).
 #' @noRd
 stan_prior_fields_beta <- function(prior, n_cov, sd_x = NULL,
-                                   covariate_names = NULL) {
+                                   covariate_names = NULL, sd_y = 1) {
 
   # Expand to a list of n_cov single-priors
   if (is_single_prior(prior)) {
@@ -386,6 +446,13 @@ stan_prior_fields_beta <- function(prior, n_cov, sd_x = NULL,
   sds   <- vapply(prior_list, function(p) as.numeric(p$sd)[[1L]],   numeric(1))
   autos <- vapply(prior_list, function(p) isTRUE(p$autoscale),      logical(1))
 
+  # Under the normal identity link a coefficient is in outcome units per
+  # covariate unit, so a default or autoscaled prior carries the outcome SD.
+  on_y <- vapply(prior_list, .on_outcome_scale, logical(1)) | autos
+  y_scale <- ifelse(on_y, sd_y, 1)
+  means <- means * y_scale
+  sds <- sds * y_scale
+
   if (any(autos)) {
     if (is.null(sd_x)) {
       stop("`autoscale = TRUE` requires covariate SDs; did you call ",
@@ -423,6 +490,7 @@ stan_prior_fields_beta <- function(prior, n_cov, sd_x = NULL,
     sd = sds,
     dist = dist_code,
     df = df_value,
-    autoscale = autos
+    autoscale = autos,
+    sd_y = y_scale
   )
 }

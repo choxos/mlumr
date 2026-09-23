@@ -14,7 +14,11 @@
 #'
 #' @param fit A fitted `mlumr_fit` object to re-fit under alternative priors.
 #' @param prior_beta_scales Numeric vector of scales for `prior_beta`.
-#'   Default `c(0.5, 1, 2.5, 5, 10)`.
+#'   Default `c(0.5, 1, 2.5, 5, 10)`. For a normal identity-link fit whose
+#'   `prior_beta` is the package default or autoscaled, each scale is in
+#'   units of the IPD outcome SD, as the fit's own prior is (see
+#'   [prior_normal()]). The intercept and `sigma` priors are held at the
+#'   fit's own.
 #' @param prior_beta_comparator_scales (Relaxed fits only.) Numeric vector of
 #'   scales for `prior_beta_comparator`, paired elementwise with
 #'   `prior_beta_scales`. `NULL` (default) sweeps the comparator prior in
@@ -344,6 +348,9 @@ prior_sensitivity <- function(fit,
     if (prior$distribution == "exponential") {
       return(prior_normal(mean = 0, sd = new_scale))
     }
+    # A default's scale is in outcome SDs for a normal fit; the swept scales
+    # stay in the same units, so the row at the original scale reproduces it.
+    prior$outcome_scale <- .on_outcome_scale(prior)
     prior$sd <- new_scale
     # Strip default/version tags since this is a user-generated variant.
     prior$default <- NULL
@@ -353,6 +360,7 @@ prior_sensitivity <- function(fit,
   # Per-coefficient list: rescale each element to new_scale (absolute, not
   # ratio; we want a homogeneous sensitivity sweep).
   lapply(prior, function(p) {
+    p$outcome_scale <- .on_outcome_scale(p)
     p$sd <- new_scale
     p$default <- NULL
     p$version <- NULL

@@ -208,7 +208,10 @@ For the normal family the canonical link is `identity`, so coefficients are on
 the outcome scale. We fit both the shared-prognostic-factor model (**SPFA**) and
 the **relaxed** model (treatment-specific prognostic effects). A weakly
 informative, **autoscaled** coefficient prior keeps the prior comparable across
-covariates of different magnitudes (age in years vs VAS in points); the relaxed
+covariates of different magnitudes (age in years vs VAS in points): each scale
+is divided by the covariate's SD and, because the identity-link coefficients
+are in outcome units, multiplied by the outcome's SD, so `prior_normal(0, 1,
+autoscale = TRUE)` allows about one outcome SD per covariate SD. The relaxed
 model uses a slightly tighter prior and a higher `adapt_delta` because its
 comparator-specific coefficients lean on one aggregate row.
 
@@ -225,19 +228,23 @@ summary(fit_spfa)
 
 ### Priors
 
-These fits use $\mu_k\sim\mathrm{N}(0,10^2)$ for the intercepts, autoscaled
-$\beta\sim\mathrm{N}(0,1^2)$ for the coefficients, and a half-normal prior on
-the residual standard deviation $\sigma$ (a `normal()` prior truncated at zero
-by the `<lower=0>` constraint). These are starting choices whose suitability
-depends on the outcome and covariate scales. `prior_summary()` shows exactly
-what was passed to Stan, including the autoscaled coefficient scales:
+The intercepts and the residual SD of a normal model are in the outcome's
+units too, so the package defaults are read in units of the IPD outcome SD
+$s_y$: these fits use $\mu_k\sim\mathrm{N}(0,(10\,s_y)^2)$ for the
+intercepts, the autoscaled $\beta_j\sim\mathrm{N}(0,(s_y/s_{x_j})^2)$ for the
+coefficients, and a half-normal prior with scale $2.5\,s_y$ on the residual
+standard deviation $\sigma$ (a `normal()` prior truncated at zero by the
+`<lower=0>` constraint). A fixed $\mathrm{N}(0,10^2)$ on an intercept near 25
+VAS points would pull it toward zero, and the comparator intercept, which rests
+on one aggregate mean, the most. `prior_summary()` shows exactly what was
+passed to Stan, including the autoscaled coefficient scales:
 
 ```{r priors}
 prior_summary(fit_spfa)
 ```
 
 The data are substantially more informative than the priors, the posterior intercepts are
-much tighter than the $\mathrm{N}(0,10)$ prior:
+much tighter than their $\mathrm{N}(0,(10\,s_y)^2)$ prior:
 
 ```{r prior-post, fig.height = 2.6}
 plot_prior_posterior(fit_spfa, pars = c("mu_index", "mu_comparator"))
