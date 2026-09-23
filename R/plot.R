@@ -620,11 +620,16 @@ plot.mlumr_conditional_effects <- function(x, ref_line = NULL, ...) {
   priors <- object$priors %||% list()
   base <- sub("\\[[0-9]+\\]$", "", par)
   idx <- suppressWarnings(as.integer(sub("^.*\\[([0-9]+)\\]$", "\\1", par)))
+  # The priors the model used, which for a normal fit can be a default
+  # rescaled to the outcome.
   if (base %in% c("mu_index", "mu_comparator")) {
-    return(list(prior = priors$intercept, lower = -Inf))
+    return(list(prior = priors$intercept_resolved %||% priors$intercept,
+                lower = -Inf))
   }
   # Stan declares these <lower=0>, which truncates rather than folds.
-  if (base == "sigma") return(list(prior = priors$sigma, lower = 0))
+  if (base == "sigma") {
+    return(list(prior = priors$sigma_resolved %||% priors$sigma, lower = 0))
+  }
   if (base %in% c("aux_val", "aux_val_cmp")) {
     return(list(prior = priors$aux, lower = 0))
   }

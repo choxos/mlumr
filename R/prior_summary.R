@@ -60,6 +60,8 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
   cat("Intercepts (mu_index, mu_comparator):\n")
   cat("  ", .format_prior(priors$intercept, digits = digits), "\n", sep = "")
   .print_default_tag(priors$intercept)
+  .print_outcome_scaled(priors$intercept, priors$intercept_resolved,
+                        priors$outcome_sd, digits)
   cat("\n")
 
   # Beta (regression coefficients)
@@ -83,6 +85,8 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
         "):\n", sep = "")
     cat("  ", .format_prior(priors$sigma, digits = digits), "\n", sep = "")
     .print_default_tag(priors$sigma)
+    .print_outcome_scaled(priors$sigma, priors$sigma_resolved,
+                          priors$outcome_sd, digits)
     cat("\n")
   }
 
@@ -155,6 +159,23 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
   "<missing prior>"
 }
 
+#' Show a default prior as the model used it, in outcome units
+#'
+#' Prints nothing when the model used the prior as written.
+#' @param user,resolved The prior as passed and as used.
+#' @param sd_y The IPD outcome SD the default was multiplied by.
+#' @noRd
+.print_outcome_scaled <- function(user, resolved, sd_y, digits) {
+  if (is.null(resolved) || is.null(sd_y) ||
+        isTRUE(all.equal(resolved$sd, user$sd))) {
+    return(invisible())
+  }
+  cat("  used as ", .format_prior(resolved, digits = digits),
+      ", the default times the IPD outcome SD (",
+      format(sd_y, digits = digits), ")\n", sep = "")
+  invisible()
+}
+
 #' @noRd
 .print_default_tag <- function(prior) {
   if (isTRUE(prior$default) && !is.null(prior$version)) {
@@ -184,6 +205,9 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
     means_eq <- length(unique(round(resolved$mean, 12))) == 1L
     sds_eq   <- length(unique(round(resolved$sd,   12))) == 1L
     autos_any <- any(resolved$autoscale)
+    # The outcome-SD factor of a normal identity-link fit; absent on older fits.
+    y_scaled <- !is.null(resolved$sd_y) & resolved$sd_y != 1
+    sd_y <- if (any(y_scaled)) resolved$sd_y[y_scaled][[1L]] else NULL
 
     family_label <- .resolved_prior_family_label(resolved$dist)
     broadcast_label <- .resolved_prior_broadcast_label(resolved, digits)
@@ -206,8 +230,17 @@ prior_summary.mlumr_fit <- function(object, digits = 3, ...) {
                   if (resolved$dist == 1L) sprintf(" (df = %g)", resolved$df) else ""))
       print(tbl, row.names = FALSE)
       if (autos_any) {
-        cat("  (scale = user_scale / sd_x for autoscaled rows)\n")
+        cat(if (is.null(sd_y)) {
+          "  (scale = user_scale / sd_x for autoscaled rows)\n"
+        } else {
+          "  (scale = user_scale * sd_y / sd_x for autoscaled rows)\n"
+        })
       }
+    }
+    if (!is.null(sd_y)) {
+      cat(sprintf(paste0("  (sd_y = %s is the IPD outcome SD; the identity ",
+                         "link puts\n   the coefficients in outcome units)\n"),
+                  format(sd_y, digits = digits)))
     }
   }
   .print_default_tag(user_prior)

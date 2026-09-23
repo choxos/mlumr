@@ -17,7 +17,11 @@ prior_sensitivity(
 \item{fit}{A fitted \code{mlumr_fit} object to re-fit under alternative priors.}
 
 \item{prior_beta_scales}{Numeric vector of scales for \code{prior_beta}.
-Default \code{c(0.5, 1, 2.5, 5, 10)}.}
+Default \code{c(0.5, 1, 2.5, 5, 10)}. For a normal identity-link fit whose
+\code{prior_beta} is the package default or autoscaled, each scale is in
+units of the IPD outcome SD, as the fit's own prior is (see
+\code{\link[=prior_normal]{prior_normal()}}). The intercept and \code{sigma} priors are held at the
+fit's own.}
 
 \item{prior_beta_comparator_scales}{(Relaxed fits only.) Numeric vector of
 scales for \code{prior_beta_comparator}, paired elementwise with

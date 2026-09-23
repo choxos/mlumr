@@ -15,7 +15,9 @@ recommended for regression coefficients (see Details).}
 
 \item{autoscale}{If \code{TRUE} and this prior is passed as \code{prior_beta},
 the scale is divided by each covariate's empirical SD so the prior
-is weakly-informative regardless of predictor scaling. Default
+is weakly-informative regardless of predictor scaling, and for
+\code{family = "normal"} with the identity link also multiplied by the IPD
+outcome SD, since the coefficients are then in outcome units. Default
 \code{FALSE} to preserve backward-compatible behavior; set to \code{TRUE}
 explicitly when passing unstandardized predictors. Ignored for
 \code{prior_intercept} and \code{prior_sigma}.}
@@ -38,7 +40,17 @@ unit of covariate, not a calibrated choice; use \code{autoscale = TRUE} for
 predictors on different scales and calibrate with prior predictive checks
 (Gelman et al., 2008; the Stan prior-choice wiki). \code{prior_sigma} is a
 normal truncated at zero through the Stan \verb{<lower=0>} constraint, a
-half-normal at the default mean of 0; scale it to the outcome. Run
+half-normal at the default mean of 0.
+
+For \code{family = "normal"} the identity link is not unit-free: the intercepts
+and coefficients are in the outcome's units, and so is the residual SD
+under either link. There the package defaults are read in units of the IPD
+outcome SD, \code{sd(y)}: \code{normal(0, 10 * sd(y))} for the intercepts,
+\code{normal(0, 2.5 * sd(y))} for the coefficients (identity link) and a
+half-normal with scale \code{2.5 * sd(y)} for the residual SD (either link), and
+\code{autoscale = TRUE} gives a coefficient scale of \code{sd * sd(y) / sd(x)}. A
+prior written out by the user is used as given. \code{\link[=prior_summary]{prior_summary()}} prints
+the scales the model used. Run
 \code{\link[=prior_sensitivity]{prior_sensitivity()}} for the relaxed model, whose \code{beta_comparator} is
 identified only by the aggregate likelihood.
 }

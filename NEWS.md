@@ -147,6 +147,23 @@
 
 ## Priors and sensitivity
 
+* Breaking: for `family = "normal"` the default priors are on the outcome's
+  scale. Under the identity link the intercepts and coefficients are in the
+  outcome's units, and the residual SD is under either link, so the fixed
+  `normal(0, 10)` intercept and half-normal(0, 2.5) residual-SD defaults were
+  informative for an outcome such as a 0 to 100 score or a blood pressure in
+  mmHg. They pulled each intercept toward zero, the comparator's (resting on
+  one aggregate mean) the most, which moved the mean difference, and they
+  understated the residual SD, which narrowed the intervals. With `sd(y)` the
+  IPD outcome SD, the defaults are now `normal(0, 10 * sd(y))` for the
+  intercepts and `normal(0, 2.5 * sd(y))` for the coefficients (identity
+  link), and a half-normal with scale `2.5 * sd(y)` for the residual SD
+  (either link); `autoscale = TRUE` multiplies a coefficient's scale by
+  `sd(y)` as well as dividing it by `sd(x)` under the identity link. Priors
+  written out in full are used as given. `prior_summary()` prints the scales
+  the model used, and `prior_sensitivity()` sweeps a default or autoscaled
+  `prior_beta` in the same outcome-SD units. Refit normal-family analyses
+  that relied on the defaults or on `autoscale`.
 * Fix: `prior_normal(autoscale = TRUE)` rescales the prior location as well
   as the scale, so a nonzero prior mean is on the covariate's own scale.
 * Improvement: `prior_sensitivity()` varies the prior and nothing else: every
