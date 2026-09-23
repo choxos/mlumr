@@ -324,6 +324,12 @@
 - Improvement: The binary, continuous and count IPD likelihoods use
   Stan’s fused GLM densities on their canonical links; results agree
   with 0.1.0 to Monte Carlo error.
+- Fix: With the cmdstanr engine, `fit$summary$se_mean` is the Monte
+  Carlo standard error of the posterior mean from
+  [`posterior::mcse_mean()`](https://mc-stan.org/posterior/reference/mcse_mean.html).
+  It was the posterior SD over the square root of the bulk ESS, which is
+  computed on rank-normalized draws and misstates the error for skewed
+  quantities such as a ratio.
 - Fix: [`mlumr()`](https://choxos.github.io/mlumr/reference/mlumr.md)
   refuses a normal fit whose outcome is constant or reproduced exactly
   by its covariates, where the posterior for the residual SD is
