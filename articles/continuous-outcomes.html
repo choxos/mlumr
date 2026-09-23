@@ -402,9 +402,9 @@ covariates are correlated or <code>n_int</code> is small:</p>
 <span>  baseline_vas <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qnorm</span>, mean <span class="op">=</span> <span class="va">baseline_vas_mean</span>, sd <span class="op">=</span> <span class="va">baseline_vas_sd</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt; Integration check: n_int = 64 vs 128</span></span>
-<span><span class="co">#&gt; Resolution heuristic, max relative difference: 0.0311</span></span>
+<span><span class="co">#&gt; Resolution heuristic, max relative difference: 0.0350</span></span>
 <span><span class="co">#&gt; Caution: 1-5% marginal relative difference. Consider increasing n_int.</span></span>
-<span><span class="co">#&gt; Declared-target fidelity, max relative difference: 0.0611</span></span>
+<span><span class="co">#&gt; Declared-target fidelity, max relative difference: 0.0685</span></span>
 <span><span class="co">#&gt; Warning: grid moments differ from declared AgD moments by &gt;5%.</span></span>
 <span><span class="co">#&gt; Joint: max |cor(current) - cor(doubled)|: 0.0161</span></span>
 <span><span class="co">#&gt; Joint resolution stable within the package's 0.05 heuristic.</span></span>
@@ -470,35 +470,39 @@ shared-prognostic-factor model (<strong>SPFA</strong>) and the
 <strong>relaxed</strong> model (treatment-specific prognostic effects).
 A weakly informative, <strong>autoscaled</strong> coefficient prior
 keeps the prior comparable across covariates of different magnitudes
-(age in years vs VAS in points); the relaxed model uses a slightly
-tighter prior and a higher <code>adapt_delta</code> because its
+(age in years vs VAS in points): each scale is divided by the
+covariate’s SD and, because the identity-link coefficients are in
+outcome units, multiplied by the outcome’s SD, so
+<code>prior_normal(0, 1, autoscale = TRUE)</code> allows about one
+outcome SD per covariate SD. The relaxed model uses a slightly tighter
+prior and a higher <code>adapt_delta</code> because its
 comparator-specific coefficients lean on one aggregate row.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_spfa</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mlumr.html">mlumr</a></span><span class="op">(</span><span class="va">dat</span>, model <span class="op">=</span> <span class="st">"spfa"</span>, link <span class="op">=</span> <span class="st">"identity"</span>,</span>
 <span>                  prior_beta <span class="op">=</span> <span class="fu"><a href="../reference/prior_normal.html">prior_normal</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span>, autoscale <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
 <span>                  chains <span class="op">=</span> <span class="fl">4</span>, iter <span class="op">=</span> <span class="fl">2000</span>, warmup <span class="op">=</span> <span class="fl">1000</span>, seed <span class="op">=</span> <span class="fl">2026</span>, refresh <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
-<span><span class="co">#&gt; Chain 1 finished in 0.3 seconds.</span></span>
-<span><span class="co">#&gt; Chain 2 finished in 0.4 seconds.</span></span>
-<span><span class="co">#&gt; Chain 3 finished in 0.4 seconds.</span></span>
-<span><span class="co">#&gt; Chain 4 finished in 0.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 1 finished in 0.7 seconds.</span></span>
+<span><span class="co">#&gt; Chain 3 finished in 0.6 seconds.</span></span>
+<span><span class="co">#&gt; Chain 2 finished in 0.8 seconds.</span></span>
+<span><span class="co">#&gt; Chain 4 finished in 0.6 seconds.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span><span class="co">#&gt; Mean chain execution time: 0.4 seconds.</span></span>
-<span><span class="co">#&gt; Total execution time: 0.6 seconds.</span></span>
+<span><span class="co">#&gt; Mean chain execution time: 0.7 seconds.</span></span>
+<span><span class="co">#&gt; Total execution time: 1.1 seconds.</span></span>
 <span><span class="va">fit_relaxed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mlumr.html">mlumr</a></span><span class="op">(</span><span class="va">dat</span>, model <span class="op">=</span> <span class="st">"relaxed"</span>, link <span class="op">=</span> <span class="st">"identity"</span>,</span>
 <span>                     prior_beta <span class="op">=</span> <span class="fu"><a href="../reference/prior_normal.html">prior_normal</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0.75</span>, autoscale <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
 <span>                     chains <span class="op">=</span> <span class="fl">4</span>, iter <span class="op">=</span> <span class="fl">2000</span>, warmup <span class="op">=</span> <span class="fl">1000</span>,</span>
 <span>                     adapt_delta <span class="op">=</span> <span class="fl">0.95</span>, seed <span class="op">=</span> <span class="fl">2026</span>, refresh <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
-<span><span class="co">#&gt; Chain 2 finished in 0.4 seconds.</span></span>
-<span><span class="co">#&gt; Chain 3 finished in 0.4 seconds.</span></span>
-<span><span class="co">#&gt; Chain 1 finished in 0.5 seconds.</span></span>
-<span><span class="co">#&gt; Chain 4 finished in 0.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 3 finished in 1.2 seconds.</span></span>
+<span><span class="co">#&gt; Chain 1 finished in 1.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 2 finished in 1.3 seconds.</span></span>
+<span><span class="co">#&gt; Chain 4 finished in 1.3 seconds.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span><span class="co">#&gt; Mean chain execution time: 0.4 seconds.</span></span>
-<span><span class="co">#&gt; Total execution time: 0.6 seconds.</span></span>
+<span><span class="co">#&gt; Mean chain execution time: 1.3 seconds.</span></span>
+<span><span class="co">#&gt; Total execution time: 1.7 seconds.</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_spfa</span><span class="op">)</span></span>
 <span><span class="co">#&gt; ML-UMR Model Summary</span></span>
 <span><span class="co">#&gt; ====================</span></span>
@@ -512,39 +516,44 @@ comparator-specific coefficients lean on one aggregate row.</p>
 <span><span class="co">#&gt; MCMC Diagnostics:</span></span>
 <span><span class="co">#&gt;   Divergent transitions: 0 </span></span>
 <span><span class="co">#&gt;   Max treedepth hits: 0 </span></span>
-<span><span class="co">#&gt;   Max Rhat: 1.003 </span></span>
-<span><span class="co">#&gt;   Min ESS: 1784 </span></span>
+<span><span class="co">#&gt;   Max Rhat: 1.003  </span></span>
+<span><span class="co">#&gt;   Min ESS: 1735  </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Intercepts (identity scale):</span></span>
-<span><span class="co">#&gt;       variable     mean       sd     2.5%    97.5%      Rhat</span></span>
-<span><span class="co">#&gt;       mu_index 16.39765 1.554853 13.39949 19.46955 0.9996826</span></span>
-<span><span class="co">#&gt;  mu_comparator 23.73745 2.326425 19.14315 28.25807 1.0015131</span></span>
+<span><span class="co">#&gt;       variable     mean       sd     2.5%    97.5%     Rhat</span></span>
+<span><span class="co">#&gt;       mu_index 17.08156 1.910640 13.38241 20.85864 1.000279</span></span>
+<span><span class="co">#&gt;  mu_comparator 24.74822 2.410496 20.01878 29.47966 1.000891</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Residual SD:</span></span>
-<span><span class="co">#&gt;  variable     mean        sd     2.5%    97.5%    Rhat</span></span>
-<span><span class="co">#&gt;     sigma 19.31608 0.8400657 17.77657 21.01361 1.00044</span></span>
+<span><span class="co">#&gt;  variable     mean       sd     2.5%    97.5%      Rhat</span></span>
+<span><span class="co">#&gt;     sigma 22.94555 1.391024 20.44056 25.91793 0.9995409</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Regression Coefficients:</span></span>
-<span><span class="co">#&gt;            variable        mean         sd        2.5%      97.5%     Rhat</span></span>
-<span><span class="co">#&gt;           beta[age] -0.10683877 0.12288363 -0.34473485 0.13307642 1.003099</span></span>
-<span><span class="co">#&gt;  beta[baseline_vas]  0.03353613 0.03278562 -0.03157499 0.09890869 1.000255</span></span>
+<span><span class="co">#&gt;            variable       mean         sd        2.5%     97.5%     Rhat</span></span>
+<span><span class="co">#&gt;           beta[age] -0.4060405 0.27235117 -0.94963883 0.1154502 1.003141</span></span>
+<span><span class="co">#&gt;  beta[baseline_vas]  0.1252321 0.07557988 -0.02718079 0.2698394 1.000122</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Marginal Treatment Effects:</span></span>
 <span><span class="co">#&gt;   Mean Differences:</span></span>
 <span><span class="co">#&gt;          variable      mean       sd      2.5%     97.5%</span></span>
-<span><span class="co">#&gt;       delta_index -7.339791 2.812236 -12.87713 -1.918224</span></span>
-<span><span class="co">#&gt;  delta_comparator -7.339791 2.812236 -12.87713 -1.918224</span></span></code></pre></div>
+<span><span class="co">#&gt;       delta_index -7.666666 3.086996 -13.82362 -1.513449</span></span>
+<span><span class="co">#&gt;  delta_comparator -7.666666 3.086996 -13.82362 -1.513449</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="priors">Priors<a class="anchor" aria-label="anchor" href="#priors"></a>
 </h3>
-<p>These fits use <span class="math inline">\mu_k\sim\mathrm{N}(0,10^2)</span> for the
-intercepts, autoscaled <span class="math inline">\beta\sim\mathrm{N}(0,1^2)</span> for the
-coefficients, and a half-normal prior on the residual standard deviation
+<p>The intercepts and the residual SD of a normal model are in the
+outcome’s units too, so the package defaults are read in units of the
+IPD outcome SD <span class="math inline">s_y</span>: these fits use
+<span class="math inline">\mu_k\sim\mathrm{N}(0,(10\,s_y)^2)</span> for
+the intercepts, the autoscaled <span class="math inline">\beta_j\sim\mathrm{N}(0,(s_y/s_{x_j})^2)</span> for
+the coefficients, and a half-normal prior with scale <span class="math inline">2.5\,s_y</span> on the residual standard deviation
 <span class="math inline">\sigma</span> (a <code><a href="https://dmphillippo.github.io/multinma/reference/priors.html" class="external-link">normal()</a></code> prior
-truncated at zero by the <code>&lt;lower=0&gt;</code> constraint). These
-are starting choices whose suitability depends on the outcome and
-covariate scales. <code><a href="../reference/prior_summary.html">prior_summary()</a></code> shows exactly what was
-passed to Stan, including the autoscaled coefficient scales:</p>
+truncated at zero by the <code>&lt;lower=0&gt;</code> constraint). A
+fixed <span class="math inline">\mathrm{N}(0,10^2)</span> on an
+intercept near 25 VAS points would pull it toward zero, and the
+comparator intercept, which rests on one aggregate mean, the most.
+<code><a href="../reference/prior_summary.html">prior_summary()</a></code> shows exactly what was passed to Stan,
+including the autoscaled coefficient scales:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/prior_summary.html">prior_summary</a></span><span class="op">(</span><span class="va">fit_spfa</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Priors for ML-UMR Fit</span></span>
@@ -553,19 +562,23 @@ passed to Stan, including the autoscaled coefficient scales:</p>
 <span><span class="co">#&gt; Intercepts (mu_index, mu_comparator):</span></span>
 <span><span class="co">#&gt;   normal(0, 10)</span></span>
 <span><span class="co">#&gt;   (package default, mlumr 0.1.0.9000)</span></span>
+<span><span class="co">#&gt;   used as normal(0, 230), the default times the IPD outcome SD (23)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Regression coefficients (beta):</span></span>
 <span><span class="co">#&gt;   Family: normal</span></span>
 <span><span class="co">#&gt;   coefficient mean scale autoscaled   sd_x</span></span>
-<span><span class="co">#&gt;           age    0 0.143       TRUE  7.012</span></span>
-<span><span class="co">#&gt;  baseline_vas    0 0.039       TRUE 25.524</span></span>
-<span><span class="co">#&gt;   (scale = user_scale / sd_x for autoscaled rows)</span></span>
+<span><span class="co">#&gt;           age    0 3.276       TRUE  7.012</span></span>
+<span><span class="co">#&gt;  baseline_vas    0 0.900       TRUE 25.524</span></span>
+<span><span class="co">#&gt;   (scale = user_scale * sd_y / sd_x for autoscaled rows)</span></span>
+<span><span class="co">#&gt;   (sd_y = 23 is the IPD outcome SD; the identity link puts</span></span>
+<span><span class="co">#&gt;    the coefficients in outcome units)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Residual SD (sigma, half-distribution via &lt;lower=0&gt;):</span></span>
+<span><span class="co">#&gt; Residual SD (sigma, half-normal via &lt;lower=0&gt;):</span></span>
 <span><span class="co">#&gt;   normal(0, 2.5)</span></span>
-<span><span class="co">#&gt;   (package default, mlumr 0.1.0.9000)</span></span></code></pre></div>
+<span><span class="co">#&gt;   (package default, mlumr 0.1.0.9000)</span></span>
+<span><span class="co">#&gt;   used as normal(0, 57.4), the default times the IPD outcome SD (23)</span></span></code></pre></div>
 <p>The data are substantially more informative than the priors, the
-posterior intercepts are much tighter than the <span class="math inline">\mathrm{N}(0,10)</span> prior:</p>
+posterior intercepts are much tighter than their <span class="math inline">\mathrm{N}(0,(10\,s_y)^2)</span> prior:</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_prior_posterior.html">plot_prior_posterior</a></span><span class="op">(</span><span class="va">fit_spfa</span>, pars <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"mu_index"</span>, <span class="st">"mu_comparator"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <div class="figure" style="text-align: center">
@@ -617,7 +630,7 @@ effective sample size. They are clean here:</p>
 <span>  min_ESS      <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">fit_spfa</span><span class="op">$</span><span class="va">summary</span><span class="op">$</span><span class="va">n_eff</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;   n_divergent max_treedepth max_Rhat min_ESS</span></span>
-<span><span class="co">#&gt; 1           0             0    1.003    1784</span></span></code></pre></div>
+<span><span class="co">#&gt; 1           0             0    1.003    1735</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -659,21 +672,21 @@ draw for draw, not merely close:</p>
 <td align="left">delta_index</td>
 <td align="left">MD</td>
 <td align="left">Index</td>
-<td align="right">-7.339791</td>
-<td align="right">2.812236</td>
-<td align="right">-12.87713</td>
-<td align="right">-7.315141</td>
-<td align="right">-1.918224</td>
+<td align="right">-7.666666</td>
+<td align="right">3.086996</td>
+<td align="right">-13.82362</td>
+<td align="right">-7.684885</td>
+<td align="right">-1.513449</td>
 </tr>
 <tr class="even">
 <td align="left">delta_comparator</td>
 <td align="left">MD</td>
 <td align="left">Comparator</td>
-<td align="right">-7.339791</td>
-<td align="right">2.812236</td>
-<td align="right">-12.87713</td>
-<td align="right">-7.315141</td>
-<td align="right">-1.918224</td>
+<td align="right">-7.666666</td>
+<td align="right">3.086996</td>
+<td align="right">-13.82362</td>
+<td align="right">-7.684885</td>
+<td align="right">-1.513449</td>
 </tr>
 </tbody>
 </table>
@@ -754,44 +767,44 @@ populations</caption>
 <td align="left">delta_index</td>
 <td align="left">MD</td>
 <td align="left">Index</td>
-<td align="right">-7.339791</td>
-<td align="right">2.812236</td>
-<td align="right">-12.87713</td>
-<td align="right">-7.315141</td>
-<td align="right">-1.918224</td>
+<td align="right">-7.666666</td>
+<td align="right">3.086996</td>
+<td align="right">-13.82362</td>
+<td align="right">-7.684885</td>
+<td align="right">-1.513449</td>
 </tr>
 <tr class="even">
 <td align="left">SPFA</td>
 <td align="left">delta_comparator</td>
 <td align="left">MD</td>
 <td align="left">Comparator</td>
-<td align="right">-7.339791</td>
-<td align="right">2.812236</td>
-<td align="right">-12.87713</td>
-<td align="right">-7.315141</td>
-<td align="right">-1.918224</td>
+<td align="right">-7.666666</td>
+<td align="right">3.086996</td>
+<td align="right">-13.82362</td>
+<td align="right">-7.684885</td>
+<td align="right">-1.513449</td>
 </tr>
 <tr class="odd">
 <td align="left">Relaxed</td>
 <td align="left">delta_index</td>
 <td align="left">MD</td>
 <td align="left">Index</td>
-<td align="right">-7.628174</td>
-<td align="right">2.809615</td>
-<td align="right">-12.92160</td>
-<td align="right">-7.636032</td>
-<td align="right">-1.984512</td>
+<td align="right">-8.630222</td>
+<td align="right">5.967409</td>
+<td align="right">-20.22569</td>
+<td align="right">-8.543969</td>
+<td align="right">2.941152</td>
 </tr>
 <tr class="even">
 <td align="left">Relaxed</td>
 <td align="left">delta_comparator</td>
 <td align="left">MD</td>
 <td align="left">Comparator</td>
-<td align="right">-7.495459</td>
-<td align="right">2.808160</td>
-<td align="right">-12.93281</td>
-<td align="right">-7.525174</td>
-<td align="right">-1.878736</td>
+<td align="right">-7.757583</td>
+<td align="right">3.181784</td>
+<td align="right">-13.90544</td>
+<td align="right">-7.767480</td>
+<td align="right">-1.480989</td>
 </tr>
 </tbody>
 </table>
@@ -839,38 +852,38 @@ by color):</p>
 <tr class="odd">
 <td align="left">ASD</td>
 <td align="left">Index</td>
-<td align="right">16.28816</td>
-<td align="right">1.549135</td>
-<td align="right">13.25747</td>
-<td align="right">16.29186</td>
-<td align="right">19.30458</td>
+<td align="right">16.67409</td>
+<td align="right">1.888378</td>
+<td align="right">12.98256</td>
+<td align="right">16.64092</td>
+<td align="right">20.46974</td>
 </tr>
 <tr class="even">
 <td align="left">ET</td>
 <td align="left">Index</td>
-<td align="right">23.62795</td>
-<td align="right">2.337895</td>
-<td align="right">19.02009</td>
-<td align="right">23.61606</td>
-<td align="right">28.15978</td>
+<td align="right">24.34076</td>
+<td align="right">2.463021</td>
+<td align="right">19.40438</td>
+<td align="right">24.37147</td>
+<td align="right">29.15898</td>
 </tr>
 <tr class="odd">
 <td align="left">ASD</td>
 <td align="left">Comparator</td>
-<td align="right">16.52086</td>
-<td align="right">1.569065</td>
-<td align="right">13.48628</td>
-<td align="right">16.52336</td>
-<td align="right">19.58286</td>
+<td align="right">17.54181</td>
+<td align="right">1.969939</td>
+<td align="right">13.81189</td>
+<td align="right">17.51676</td>
+<td align="right">21.38808</td>
 </tr>
 <tr class="even">
 <td align="left">ET</td>
 <td align="left">Comparator</td>
-<td align="right">23.86065</td>
-<td align="right">2.322947</td>
-<td align="right">19.27713</td>
-<td align="right">23.85931</td>
-<td align="right">28.36018</td>
+<td align="right">25.20847</td>
+<td align="right">2.392553</td>
+<td align="right">20.48849</td>
+<td align="right">25.24238</td>
+<td align="right">29.85741</td>
 </tr>
 </tbody>
 </table>
@@ -909,29 +922,29 @@ profiles</caption>
 <tr class="odd">
 <td align="right">1</td>
 <td align="left">MD</td>
-<td align="right">-7.339791</td>
-<td align="right">2.812236</td>
-<td align="right">-12.87713</td>
-<td align="right">-7.315141</td>
-<td align="right">-1.918224</td>
+<td align="right">-7.666666</td>
+<td align="right">3.086996</td>
+<td align="right">-13.82362</td>
+<td align="right">-7.684886</td>
+<td align="right">-1.513448</td>
 </tr>
 <tr class="even">
 <td align="right">2</td>
 <td align="left">MD</td>
-<td align="right">-7.339791</td>
-<td align="right">2.812236</td>
-<td align="right">-12.87713</td>
-<td align="right">-7.315141</td>
-<td align="right">-1.918224</td>
+<td align="right">-7.666666</td>
+<td align="right">3.086996</td>
+<td align="right">-13.82362</td>
+<td align="right">-7.684886</td>
+<td align="right">-1.513448</td>
 </tr>
 <tr class="odd">
 <td align="right">3</td>
 <td align="left">MD</td>
-<td align="right">-7.339791</td>
-<td align="right">2.812236</td>
-<td align="right">-12.87713</td>
-<td align="right">-7.315141</td>
-<td align="right">-1.918224</td>
+<td align="right">-7.666666</td>
+<td align="right">3.086996</td>
+<td align="right">-13.82362</td>
+<td align="right">-7.684886</td>
+<td align="right">-1.513448</td>
 </tr>
 </tbody>
 </table>
@@ -952,9 +965,8 @@ and check <code><a href="../reference/prior_sensitivity.html">prior_sensitivity(
 <span><span class="co">#&gt; ======================</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;    model elpd_diff se_diff p_worse       diag_diff      diag_elpd</span></span>
-<span><span class="co">#&gt;     SPFA       0.0     0.0      NA                 1 k_psis &gt; 0.7</span></span>
-<span><span class="co">#&gt;  Relaxed      -1.0     0.7    0.90 |elpd_diff| &lt; 4 1 k_psis &gt; 0.7</span></span>
-<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;  Relaxed       0.0     0.0      NA                 1 k_psis &gt; 0.7</span></span>
+<span><span class="co">#&gt;     SPFA       0.0     0.2    0.57 |elpd_diff| &lt; 4 1 k_psis &gt; 0.7</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; elpd_diff is the difference in expected log pointwise predictive</span></span>
 <span><span class="co">#&gt; density vs the best model, and se_diff is its standard error: the</span></span>
@@ -969,9 +981,9 @@ and check <code><a href="../reference/prior_sensitivity.html">prior_sensitivity(
 <span><span class="co">#&gt; Model Comparison (DIC)</span></span>
 <span><span class="co">#&gt; ======================</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;    Model     DIC    pD Delta_DIC</span></span>
-<span><span class="co">#&gt;     SPFA 1367.72 16.28      0.00</span></span>
-<span><span class="co">#&gt;  Relaxed 1369.13 16.88      1.41</span></span>
+<span><span class="co">#&gt;    Model     DIC   pD Delta_DIC</span></span>
+<span><span class="co">#&gt;  Relaxed 1346.50 5.13      0.00</span></span>
+<span><span class="co">#&gt;     SPFA 1346.77 5.20      0.27</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Lower DIC = better fit. Delta_DIC &gt; 5 is a rough heuristic for</span></span>
 <span><span class="co">#&gt; meaningful difference, not a formally calibrated threshold.</span></span>

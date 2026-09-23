@@ -64,7 +64,10 @@ mlumr(
 
   Prior for treatment intercepts. Default from
   [`default_prior_intercept()`](https://choxos.github.io/mlumr/reference/default_priors.md)
-  (`prior_normal(0, 10)`), on the linear-predictor scale. See
+  (`prior_normal(0, 10)`), on the linear-predictor scale; for
+  `family = "normal"` with the identity link, where the intercepts are
+  in outcome units, `normal(0, 10 * sd(y))` with `sd(y)` the IPD outcome
+  SD. See
   [`prior_normal()`](https://choxos.github.io/mlumr/reference/prior_normal.md).
 
 - prior_beta:
@@ -73,18 +76,20 @@ mlumr(
   covariates, or a `list` of priors of length `n_cov` sharing one family
   (and, for Student-t, one df). Default from
   [`default_prior_beta()`](https://choxos.github.io/mlumr/reference/default_priors.md)
-  (`prior_normal(0, 2.5)`). Set `autoscale = TRUE` on the prior to
-  divide the scale by each covariate's empirical SD. For
-  `model = "spfa"` this is the prior on the shared `beta`; for
-  `model = "relaxed"` on `beta_index`, with `beta_comparator` taking
-  `prior_beta_comparator`.
+  (`prior_normal(0, 2.5)`, times `sd(y)` for `family = "normal"` with
+  the identity link). Set `autoscale = TRUE` on the prior to divide the
+  scale by each covariate's empirical SD (and, for the normal identity
+  link, multiply it by `sd(y)`). For `model = "spfa"` this is the prior
+  on the shared `beta`; for `model = "relaxed"` on `beta_index`, with
+  `beta_comparator` taking `prior_beta_comparator`.
 
 - prior_sigma:
 
   Prior for residual SD (normal family only). Default from
-  [`default_prior_sigma()`](https://choxos.github.io/mlumr/reference/default_priors.md)
-  (`prior_normal(0, 2.5)`, half-normal via the Stan `<lower=0>`
-  constraint).
+  [`default_prior_sigma()`](https://choxos.github.io/mlumr/reference/default_priors.md),
+  a half-normal (through the Stan `<lower=0>` constraint) with scale
+  `2.5 * sd(y)`, the residual SD being in outcome units under either
+  link.
   [`prior_exponential()`](https://choxos.github.io/mlumr/reference/prior_exponential.md)
   is also supported for sigma.
 

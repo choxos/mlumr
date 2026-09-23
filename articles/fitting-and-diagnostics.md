@@ -116,8 +116,13 @@ The defaults, `prior_normal(0, 10)` for intercepts and
 values rather than calibrated choices for every family and outcome
 scale. **Autoscaling** divides a coefficient prior’s location and scale
 by each covariate’s SD so its intended contribution is preserved when
-predictors use different units. Inspect the priors actually passed to
-Stan, including autoscaled scales, with
+predictors use different units. For `family = "normal"` the intercepts,
+the identity-link coefficients and the residual SD are in the outcome’s
+own units, so there the defaults and autoscaled scales are also
+multiplied by the IPD outcome SD (see
+[`vignette("continuous-outcomes")`](https://choxos.github.io/mlumr/articles/continuous-outcomes.md)).
+Inspect the priors actually passed to Stan, including autoscaled scales,
+with
 [`prior_summary()`](https://choxos.github.io/mlumr/reference/prior_summary.md):
 
 ``` r

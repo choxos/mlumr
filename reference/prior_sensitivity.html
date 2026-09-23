@@ -93,7 +93,11 @@ judging how much of the posterior is driven by the data versus the prior.</p>
 
 <dt id="arg-prior-beta-scales">prior_beta_scales<a class="anchor" aria-label="anchor" href="#arg-prior-beta-scales"></a></dt>
 <dd><p>Numeric vector of scales for <code>prior_beta</code>.
-Default <code>c(0.5, 1, 2.5, 5, 10)</code>.</p></dd>
+Default <code>c(0.5, 1, 2.5, 5, 10)</code>. For a normal identity-link fit whose
+<code>prior_beta</code> is the package default or autoscaled, each scale is in
+units of the IPD outcome SD, as the fit's own prior is (see
+<code><a href="prior_normal.html">prior_normal()</a></code>). The intercept and <code>sigma</code> priors are held at the
+fit's own.</p></dd>
 
 
 <dt id="arg-prior-beta-comparator-scales">prior_beta_comparator_scales<a class="anchor" aria-label="anchor" href="#arg-prior-beta-comparator-scales"></a></dt>

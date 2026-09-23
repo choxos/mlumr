@@ -2,7 +2,10 @@
 
 These accessors return the current default priors used by
 [`mlumr()`](https://choxos.github.io/mlumr/reference/mlumr.md), tagged
-with `$default = TRUE` and the package version.
+with `$default = TRUE` and the package version. For `family = "normal"`
+their scales are multiples of the IPD outcome SD wherever the parameter
+is in outcome units; see
+[`prior_normal()`](https://choxos.github.io/mlumr/reference/prior_normal.md).
 [`prior_summary()`](https://choxos.github.io/mlumr/reference/prior_summary.md)
 prints the version so cross-release reproducibility is diagnosable: if a
 later release changes a default, fits produced with an older version

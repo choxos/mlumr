@@ -125,15 +125,19 @@ canonical default for the family.</p></dd>
 <dt id="arg-prior-intercept">prior_intercept<a class="anchor" aria-label="anchor" href="#arg-prior-intercept"></a></dt>
 <dd><p>Prior for treatment intercepts. Default from
 <code><a href="default_priors.html">default_prior_intercept()</a></code> (<code>prior_normal(0, 10)</code>), on the
-linear-predictor scale. See <code><a href="prior_normal.html">prior_normal()</a></code>.</p></dd>
+linear-predictor scale; for <code>family = "normal"</code> with the identity link,
+where the intercepts are in outcome units, <code>normal(0, 10 * sd(y))</code> with
+<code>sd(y)</code> the IPD outcome SD. See <code><a href="prior_normal.html">prior_normal()</a></code>.</p></dd>
 
 
 <dt id="arg-prior-beta">prior_beta<a class="anchor" aria-label="anchor" href="#arg-prior-beta"></a></dt>
 <dd><p>Prior for regression coefficients. A single prior
 broadcast to all covariates, or a <code>list</code> of priors of length <code>n_cov</code>
 sharing one family (and, for Student-t, one df). Default from
-<code><a href="default_priors.html">default_prior_beta()</a></code> (<code>prior_normal(0, 2.5)</code>). Set <code>autoscale = TRUE</code>
-on the prior to divide the scale by each covariate's empirical SD. For
+<code><a href="default_priors.html">default_prior_beta()</a></code> (<code>prior_normal(0, 2.5)</code>, times <code>sd(y)</code> for
+<code>family = "normal"</code> with the identity link). Set <code>autoscale = TRUE</code>
+on the prior to divide the scale by each covariate's empirical SD (and,
+for the normal identity link, multiply it by <code>sd(y)</code>). For
 <code>model = "spfa"</code> this is the prior on the shared <code>beta</code>; for
 <code>model = "relaxed"</code> on <code>beta_index</code>, with <code>beta_comparator</code> taking
 <code>prior_beta_comparator</code>.</p></dd>
@@ -141,8 +145,9 @@ on the prior to divide the scale by each covariate's empirical SD. For
 
 <dt id="arg-prior-sigma">prior_sigma<a class="anchor" aria-label="anchor" href="#arg-prior-sigma"></a></dt>
 <dd><p>Prior for residual SD (normal family only). Default
-from <code><a href="default_priors.html">default_prior_sigma()</a></code> (<code>prior_normal(0, 2.5)</code>, half-normal via
-the Stan <code>&lt;lower=0&gt;</code> constraint). <code><a href="prior_exponential.html">prior_exponential()</a></code> is also
+from <code><a href="default_priors.html">default_prior_sigma()</a></code>, a half-normal (through the Stan
+<code>&lt;lower=0&gt;</code> constraint) with scale <code>2.5 * sd(y)</code>, the residual SD being
+in outcome units under either link. <code><a href="prior_exponential.html">prior_exponential()</a></code> is also
 supported for sigma.</p></dd>
 
 

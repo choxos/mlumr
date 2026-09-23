@@ -230,9 +230,9 @@ check_integration(
   baseline_vas = distr(qnorm, mean = baseline_vas_mean, sd = baseline_vas_sd)
 )
 #> Integration check: n_int = 64 vs 128
-#> Resolution heuristic, max relative difference: 0.0311
+#> Resolution heuristic, max relative difference: 0.0350
 #> Caution: 1-5% marginal relative difference. Consider increasing n_int.
-#> Declared-target fidelity, max relative difference: 0.0611
+#> Declared-target fidelity, max relative difference: 0.0685
 #> Warning: grid moments differ from declared AgD moments by >5%.
 #> Joint: max |cor(current) - cor(doubled)|: 0.0161
 #> Joint resolution stable within the package's 0.05 heuristic.
@@ -299,9 +299,13 @@ are on the outcome scale. We fit both the shared-prognostic-factor model
 (**SPFA**) and the **relaxed** model (treatment-specific prognostic
 effects). A weakly informative, **autoscaled** coefficient prior keeps
 the prior comparable across covariates of different magnitudes (age in
-years vs VAS in points); the relaxed model uses a slightly tighter prior
-and a higher `adapt_delta` because its comparator-specific coefficients
-lean on one aggregate row.
+years vs VAS in points): each scale is divided by the covariate’s SD
+and, because the identity-link coefficients are in outcome units,
+multiplied by the outcome’s SD, so
+`prior_normal(0, 1, autoscale = TRUE)` allows about one outcome SD per
+covariate SD. The relaxed model uses a slightly tighter prior and a
+higher `adapt_delta` because its comparator-specific coefficients lean
+on one aggregate row.
 
 ``` r
 
@@ -309,27 +313,27 @@ fit_spfa <- mlumr(dat, model = "spfa", link = "identity",
                   prior_beta = prior_normal(0, 1, autoscale = TRUE),
                   chains = 4, iter = 2000, warmup = 1000, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
-#> Chain 1 finished in 0.3 seconds.
-#> Chain 2 finished in 0.4 seconds.
-#> Chain 3 finished in 0.4 seconds.
-#> Chain 4 finished in 0.4 seconds.
+#> Chain 1 finished in 0.7 seconds.
+#> Chain 3 finished in 0.6 seconds.
+#> Chain 2 finished in 0.8 seconds.
+#> Chain 4 finished in 0.6 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 0.4 seconds.
-#> Total execution time: 0.6 seconds.
+#> Mean chain execution time: 0.7 seconds.
+#> Total execution time: 1.1 seconds.
 fit_relaxed <- mlumr(dat, model = "relaxed", link = "identity",
                      prior_beta = prior_normal(0, 0.75, autoscale = TRUE),
                      chains = 4, iter = 2000, warmup = 1000,
                      adapt_delta = 0.95, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
-#> Chain 2 finished in 0.4 seconds.
-#> Chain 3 finished in 0.4 seconds.
-#> Chain 1 finished in 0.5 seconds.
-#> Chain 4 finished in 0.4 seconds.
+#> Chain 3 finished in 1.2 seconds.
+#> Chain 1 finished in 1.4 seconds.
+#> Chain 2 finished in 1.3 seconds.
+#> Chain 4 finished in 1.3 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 0.4 seconds.
-#> Total execution time: 0.6 seconds.
+#> Mean chain execution time: 1.3 seconds.
+#> Total execution time: 1.7 seconds.
 summary(fit_spfa)
 #> ML-UMR Model Summary
 #> ====================
@@ -343,39 +347,44 @@ summary(fit_spfa)
 #> MCMC Diagnostics:
 #>   Divergent transitions: 0 
 #>   Max treedepth hits: 0 
-#>   Max Rhat: 1.003 
-#>   Min ESS: 1784 
+#>   Max Rhat: 1.003  
+#>   Min ESS: 1735  
 #> 
 #> Intercepts (identity scale):
-#>       variable     mean       sd     2.5%    97.5%      Rhat
-#>       mu_index 16.39765 1.554853 13.39949 19.46955 0.9996826
-#>  mu_comparator 23.73745 2.326425 19.14315 28.25807 1.0015131
+#>       variable     mean       sd     2.5%    97.5%     Rhat
+#>       mu_index 17.08156 1.910640 13.38241 20.85864 1.000279
+#>  mu_comparator 24.74822 2.410496 20.01878 29.47966 1.000891
 #> 
 #> Residual SD:
-#>  variable     mean        sd     2.5%    97.5%    Rhat
-#>     sigma 19.31608 0.8400657 17.77657 21.01361 1.00044
+#>  variable     mean       sd     2.5%    97.5%      Rhat
+#>     sigma 22.94555 1.391024 20.44056 25.91793 0.9995409
 #> 
 #> Regression Coefficients:
-#>            variable        mean         sd        2.5%      97.5%     Rhat
-#>           beta[age] -0.10683877 0.12288363 -0.34473485 0.13307642 1.003099
-#>  beta[baseline_vas]  0.03353613 0.03278562 -0.03157499 0.09890869 1.000255
+#>            variable       mean         sd        2.5%     97.5%     Rhat
+#>           beta[age] -0.4060405 0.27235117 -0.94963883 0.1154502 1.003141
+#>  beta[baseline_vas]  0.1252321 0.07557988 -0.02718079 0.2698394 1.000122
 #> 
 #> Marginal Treatment Effects:
 #>   Mean Differences:
 #>          variable      mean       sd      2.5%     97.5%
-#>       delta_index -7.339791 2.812236 -12.87713 -1.918224
-#>  delta_comparator -7.339791 2.812236 -12.87713 -1.918224
+#>       delta_index -7.666666 3.086996 -13.82362 -1.513449
+#>  delta_comparator -7.666666 3.086996 -13.82362 -1.513449
 ```
 
 ### Priors
 
-These fits use \mu_k\sim\mathrm{N}(0,10^2) for the intercepts,
-autoscaled \beta\sim\mathrm{N}(0,1^2) for the coefficients, and a
-half-normal prior on the residual standard deviation \sigma (a
+The intercepts and the residual SD of a normal model are in the
+outcome’s units too, so the package defaults are read in units of the
+IPD outcome SD s_y: these fits use \mu_k\sim\mathrm{N}(0,(10\\s_y)^2)
+for the intercepts, the autoscaled
+\beta_j\sim\mathrm{N}(0,(s_y/s\_{x_j})^2) for the coefficients, and a
+half-normal prior with scale 2.5\\s_y on the residual standard deviation
+\sigma (a
 [`normal()`](https://dmphillippo.github.io/multinma/reference/priors.html)
-prior truncated at zero by the `<lower=0>` constraint). These are
-starting choices whose suitability depends on the outcome and covariate
-scales.
+prior truncated at zero by the `<lower=0>` constraint). A fixed
+\mathrm{N}(0,10^2) on an intercept near 25 VAS points would pull it
+toward zero, and the comparator intercept, which rests on one aggregate
+mean, the most.
 [`prior_summary()`](https://choxos.github.io/mlumr/reference/prior_summary.md)
 shows exactly what was passed to Stan, including the autoscaled
 coefficient scales:
@@ -389,21 +398,26 @@ prior_summary(fit_spfa)
 #> Intercepts (mu_index, mu_comparator):
 #>   normal(0, 10)
 #>   (package default, mlumr 0.1.0.9000)
+#>   used as normal(0, 230), the default times the IPD outcome SD (23)
 #> 
 #> Regression coefficients (beta):
 #>   Family: normal
 #>   coefficient mean scale autoscaled   sd_x
-#>           age    0 0.143       TRUE  7.012
-#>  baseline_vas    0 0.039       TRUE 25.524
-#>   (scale = user_scale / sd_x for autoscaled rows)
+#>           age    0 3.276       TRUE  7.012
+#>  baseline_vas    0 0.900       TRUE 25.524
+#>   (scale = user_scale * sd_y / sd_x for autoscaled rows)
+#>   (sd_y = 23 is the IPD outcome SD; the identity link puts
+#>    the coefficients in outcome units)
 #> 
-#> Residual SD (sigma, half-distribution via <lower=0>):
+#> Residual SD (sigma, half-normal via <lower=0>):
 #>   normal(0, 2.5)
 #>   (package default, mlumr 0.1.0.9000)
+#>   used as normal(0, 57.4), the default times the IPD outcome SD (23)
 ```
 
 The data are substantially more informative than the priors, the
-posterior intercepts are much tighter than the \mathrm{N}(0,10) prior:
+posterior intercepts are much tighter than their
+\mathrm{N}(0,(10\\s_y)^2) prior:
 
 ``` r
 
@@ -454,7 +468,7 @@ data.frame(
   min_ESS      = round(min(fit_spfa$summary$n_eff, na.rm = TRUE))
 )
 #>   n_divergent max_treedepth max_Rhat min_ESS
-#> 1           0             0    1.003    1784
+#> 1           0             0    1.003    1735
 ```
 
 ## Treatment effects
@@ -474,8 +488,8 @@ knitr::kable(marginal_effects(fit_spfa), caption = "SPFA standardized mean diffe
 
 | variable | effect | population | mean | sd | q2.5 | q50 | q97.5 |
 |:---|:---|:---|---:|---:|---:|---:|---:|
-| delta_index | MD | Index | -7.339791 | 2.812236 | -12.87713 | -7.315141 | -1.918224 |
-| delta_comparator | MD | Comparator | -7.339791 | 2.812236 | -12.87713 | -7.315141 | -1.918224 |
+| delta_index | MD | Index | -7.666666 | 3.086996 | -13.82362 | -7.684885 | -1.513449 |
+| delta_comparator | MD | Comparator | -7.666666 | 3.086996 | -13.82362 | -7.684885 | -1.513449 |
 
 SPFA standardized mean difference (ASD vs ET) {.table}
 
@@ -534,10 +548,10 @@ knitr::kable(rbind(cbind(Model = "SPFA", md_spfa),
 
 | Model | variable | effect | population | mean | sd | q2.5 | q50 | q97.5 |
 |:---|:---|:---|:---|---:|---:|---:|---:|---:|
-| SPFA | delta_index | MD | Index | -7.339791 | 2.812236 | -12.87713 | -7.315141 | -1.918224 |
-| SPFA | delta_comparator | MD | Comparator | -7.339791 | 2.812236 | -12.87713 | -7.315141 | -1.918224 |
-| Relaxed | delta_index | MD | Index | -7.628174 | 2.809615 | -12.92160 | -7.636032 | -1.984512 |
-| Relaxed | delta_comparator | MD | Comparator | -7.495459 | 2.808160 | -12.93281 | -7.525174 | -1.878736 |
+| SPFA | delta_index | MD | Index | -7.666666 | 3.086996 | -13.82362 | -7.684885 | -1.513449 |
+| SPFA | delta_comparator | MD | Comparator | -7.666666 | 3.086996 | -13.82362 | -7.684885 | -1.513449 |
+| Relaxed | delta_index | MD | Index | -8.630222 | 5.967409 | -20.22569 | -8.543969 | 2.941152 |
+| Relaxed | delta_comparator | MD | Comparator | -7.757583 | 3.181784 | -13.90544 | -7.767480 | -1.480989 |
 
 Standardized mean difference (ASD vs ET), both models and both
 populations {.table}
@@ -571,10 +585,10 @@ knitr::kable(predict(fit_spfa, population = "both", type = "response"),
 
 | treatment | population |     mean |       sd |     q2.5 |      q50 |    q97.5 |
 |:----------|:-----------|---------:|---------:|---------:|---------:|---------:|
-| ASD       | Index      | 16.28816 | 1.549135 | 13.25747 | 16.29186 | 19.30458 |
-| ET        | Index      | 23.62795 | 2.337895 | 19.02009 | 23.61606 | 28.15978 |
-| ASD       | Comparator | 16.52086 | 1.569065 | 13.48628 | 16.52336 | 19.58286 |
-| ET        | Comparator | 23.86065 | 2.322947 | 19.27713 | 23.85931 | 28.36018 |
+| ASD       | Index      | 16.67409 | 1.888378 | 12.98256 | 16.64092 | 20.46974 |
+| ET        | Index      | 24.34076 | 2.463021 | 19.40438 | 24.37147 | 29.15898 |
+| ASD       | Comparator | 17.54181 | 1.969939 | 13.81189 | 17.51676 | 21.38808 |
+| ET        | Comparator | 25.20847 | 2.392553 | 20.48849 | 25.24238 | 29.85741 |
 
 Standardized mean pain VAS by treatment {.table style="width:100%;"}
 
@@ -604,9 +618,9 @@ knitr::kable(conditional_effects(fit_spfa, newdata = profiles),
 
 | profile | effect |      mean |       sd |      q2.5 |       q50 |     q97.5 |
 |--------:|:-------|----------:|---------:|----------:|----------:|----------:|
-|       1 | MD     | -7.339791 | 2.812236 | -12.87713 | -7.315141 | -1.918224 |
-|       2 | MD     | -7.339791 | 2.812236 | -12.87713 | -7.315141 | -1.918224 |
-|       3 | MD     | -7.339791 | 2.812236 | -12.87713 | -7.315141 | -1.918224 |
+|       1 | MD     | -7.666666 | 3.086996 | -13.82362 | -7.684886 | -1.513448 |
+|       2 | MD     | -7.666666 | 3.086996 | -13.82362 | -7.684886 | -1.513448 |
+|       3 | MD     | -7.666666 | 3.086996 | -13.82362 | -7.684886 | -1.513448 |
 
 Conditional mean differences at three covariate profiles {.table}
 
@@ -628,9 +642,8 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "loo")
 #> ======================
 #> 
 #>    model elpd_diff se_diff p_worse       diag_diff      diag_elpd
-#>     SPFA       0.0     0.0      NA                 1 k_psis > 0.7
-#>  Relaxed      -1.0     0.7    0.90 |elpd_diff| < 4 1 k_psis > 0.7
-#> 
+#>  Relaxed       0.0     0.0      NA                 1 k_psis > 0.7
+#>     SPFA       0.0     0.2    0.57 |elpd_diff| < 4 1 k_psis > 0.7
 #> 
 #> elpd_diff is the difference in expected log pointwise predictive
 #> density vs the best model, and se_diff is its standard error: the
@@ -645,9 +658,9 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "dic")
 #> Model Comparison (DIC)
 #> ======================
 #> 
-#>    Model     DIC    pD Delta_DIC
-#>     SPFA 1367.72 16.28      0.00
-#>  Relaxed 1369.13 16.88      1.41
+#>    Model     DIC   pD Delta_DIC
+#>  Relaxed 1346.50 5.13      0.00
+#>     SPFA 1346.77 5.20      0.27
 #> 
 #> Lower DIC = better fit. Delta_DIC > 5 is a rough heuristic for
 #> meaningful difference, not a formally calibrated threshold.

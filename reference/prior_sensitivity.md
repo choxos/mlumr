@@ -29,7 +29,11 @@ prior_sensitivity(
 - prior_beta_scales:
 
   Numeric vector of scales for `prior_beta`. Default
-  `c(0.5, 1, 2.5, 5, 10)`.
+  `c(0.5, 1, 2.5, 5, 10)`. For a normal identity-link fit whose
+  `prior_beta` is the package default or autoscaled, each scale is in
+  units of the IPD outcome SD, as the fit's own prior is (see
+  [`prior_normal()`](https://choxos.github.io/mlumr/reference/prior_normal.md)).
+  The intercept and `sigma` priors are held at the fit's own.
 
 - prior_beta_comparator_scales:
 
