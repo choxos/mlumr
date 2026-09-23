@@ -128,7 +128,9 @@ fit_cmdstanr <- function(model_name, stan_data, chains, iter, warmup,
     cmdstan_summ <- fit$summary(
       variables = NULL,
       mean = mean,
-      se_mean = function(.x) stats::sd(.x) / sqrt(posterior::ess_bulk(.x)),
+      # The Monte Carlo SE of the mean needs the ESS of the draws themselves;
+      # bulk ESS is computed on rank-normalized draws, a different quantity.
+      se_mean = posterior::mcse_mean,
       sd = stats::sd,
       `2.5%` = function(.x) stats::quantile(.x, 0.025),
       `25%` = function(.x) stats::quantile(.x, 0.25),

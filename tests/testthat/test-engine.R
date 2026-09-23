@@ -75,4 +75,14 @@ test_that("cmdstanr backend fits a model end-to-end", {
   expect_true(is.numeric(fit$diagnostics$n_divergent))
   expect_true(is.numeric(fit$diagnostics$n_max_treedepth))
   expect_false(file.exists(file.path("inst", "stan", "mlumr_binary_spfa")))
+
+  # se_mean is the Monte Carlo SE of the mean of the draws, chain by chain;
+  # a risk ratio is skewed, where a rank-normalized ESS would misstate it.
+  vars <- c("mu_index", "rr_index")
+  arr <- fit$stanfit$draws(variables = vars)
+  expected <- vapply(vars, function(v) {
+    posterior::mcse_mean(posterior::extract_variable_matrix(arr, v))
+  }, numeric(1))
+  got <- fit$summary$se_mean[match(vars, fit$summary$variable)]
+  expect_equal(got, unname(expected))
 })
