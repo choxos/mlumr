@@ -16885,7 +16885,7 @@
       boundary: "Reconstruction does not recover trial B's covariates, and its uncertainty is not carried into the fit. Only one comparator arm is supported. Right, left and interval censoring and delayed entry each need their own likelihood terms."
     }
   ];
-  var survivalChoices = `Proportional hazards: exponential, Weibull, Gompertz (positive shape only), and the flexible mspline and pexp baselines. Accelerated failure time: exponential-aft, weibull-aft, lognormal, loglogistic, gamma, and gengamma (positive Q only). By default, aux_by = ".study" gives each trial its own shape; aux_by = "none" shares it. A time ratio from marginal_effects() needs shared slopes and a shared shape; otherwise the label is EXP_DELTA_ETA. Before sampling, mlumr does not screen the reconstructed event times, so read the sampler's checks, as for any fit.`;
+  var survivalChoices = `Proportional hazards: exponential, Weibull, Gompertz (positive shape only), and the flexible mspline and pexp baselines. Accelerated failure time: exponential-aft, weibull-aft, lognormal, loglogistic, gamma, and gengamma (positive Q only). By default, aux_by = ".study" gives each trial its own shape; aux_by = "none" shares it. A time ratio from marginal_effects() needs shared slopes and a shared shape; otherwise the label is EXP_DELTA_ETA. mlumr checks that the reconstructed times are valid, but it does not screen them for ties before sampling, so read the sampler's checks, as for any fit.`;
   var diagnosticCases = [
     {
       name: "Divergences",

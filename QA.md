@@ -13,10 +13,11 @@ This records the checks run on the lesson in this branch. The first version was 
 ### Executed checks
 
 ```sh
+MLUMR_CHECKOUT="/path/to/mlumr-at-965dfc5"   # a clean checkout of mlumr at 965dfc5 with its DLL built
 bash lesson.sh test
-Rscript workflow.R --source=<mlumr checkout at 965dfc5> --fit --sensitivity --record=scenes/native-record.json --engine=cmdstanr
+Rscript workflow.R --source="$MLUMR_CHECKOUT" --fit --sensitivity --record=scenes/native-record.json --engine=cmdstanr
 bash lesson.sh dist
-MLUMR_NATIVE=<mlumr checkout at 965dfc5> bash lesson.sh adapter
+MLUMR_NATIVE="$MLUMR_CHECKOUT" bash lesson.sh adapter
 node browser-qa.mjs http://127.0.0.1:4199/
 ```
 
@@ -26,6 +27,7 @@ node browser-qa.mjs http://127.0.0.1:4199/
 - `lesson.sh dist`: `check: no errors`; the model manifest matched the Stan programs at `965dfc5`; 30 sources and 92 built files recorded, and `dist-manifest.mjs verify dist` passed. The captions differ from the previous build only in the three changed lines; the narration lasts **1686.81 seconds** (it was 1690.60).
 - `lesson.sh adapter` against a native checkout at `965dfc5`: all 22 checks passed, including Stan data equal to the native package's `mlumr()` for both models and the same refusals, messages and warnings.
 - `browser-qa.mjs` in Chrome, with the R and Stan runtimes, on the new build: **0 page errors, 0 console errors, 0 failed requests**; thirteen chapters, ten questions answered wrong and right, fifteen sizes; webR loaded mlumr's R code from `965dfc5`, the workflow cell ran without errors, and both browser Stan fits completed with Stan data equal to the native adapter check's within 1e-12 relative.
+- After the review of pull request #117, the survival distributions panel says that mlumr checks the reconstructed times but no longer screens them for ties (`set_agd_surv()` validates the times), and the commands above use a quoted path variable. The rebuild changed only `player.js` and the manifest; the captions and the audio are byte-identical. `browser-qa.mjs --no-runtime` in Playwright's bundled Chromium, the browser the check job uses, passed with 0 errors. Two runs in installed Chrome, with the machine's load average near 350, each failed one different narration timing assertion (the position after browsing, then playback during keyboard adjustments); the full run with runtimes in Chrome passed on the build before this one-line change.
 - Before this revision, the published build from `d70be29` passed the same full browser check, runtimes included, against https://choxos.github.io/mlumr/lesson/ on September 23, so webR 0.6.0 and its package repository still serve what the cell needs.
 
 ### Not done in this revision

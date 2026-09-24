@@ -1,5 +1,5 @@
 {
-  "id": "dccf7b308b32bd5e514658facefd91960c70682bf8a8b09439b6d8f28b2851a1",
+  "id": "171c1899706a42145b202a7c676aa4209265808c22c839463c2be2852cea52d7",
   "pins": {
     "tangible": "6a07bbcd5dbc548aa809b253aed503fc0a8c3251",
     "mlumr": "965dfc5c2605c07afee47270c2a5da9a69df368f"
@@ -22,7 +22,7 @@
     "runtime/tsconfig.json": "197b7eaa1333dfdfcf90b3ae81ffd7da4d9e6895b9c7be8e440adf1320b4f252",
     "scenes/charts.ts": "83b6176a328bda8300c15da7eeb23e37eec27406e9de53348cb8f172b0ce9dde",
     "scenes/codecell.ts": "7cab811c9d8718a9ed2e2d826b4815924802778239748aed3533a837f51f92d1",
-    "scenes/content.ts": "a406aa016173ca9810dd85055fd91fcd2d570865d7e9fef6e717610a14032ab4",
+    "scenes/content.ts": "dd235419bea604d2d01e8e11006c66b19147d878ab7e6ddf918d9e1e20766ab7",
     "scenes/diagnostics.ts": "b760ed1169686fd47d51853bbcd315dac0e559d79d03b724b249c689055692df",
     "scenes/math.ts": "dfb64e35711c3ffc82f50a3e345846ecf31c343d688bd814f3fa473b96616600",
     "scenes/native-record.json": "9dc99262d8ade1421f9ee3344e5a88ba3e608eacd3c8194e7af5eb7ee74261e7",
@@ -102,7 +102,7 @@
     "fonts/KaTeX_Typewriter-Regular.woff2": "71d517d67827787cfabdf186914cc3358eda539e37931941f2b2fd4a21f68c0b",
     "index.html": "db6efd2715d01cce576cb17d7cc1141656968fe1baf1f9988e7f6d69e1fd8013",
     "katex.css": "0289a02cf451a44dd73add683a09644252363871ac11713a647b732cee8b1ee3",
-    "player.js": "44943786184caa859323988ceb25e554f2c3ef62bbc1b2130a9451a367392cc5",
+    "player.js": "e36dd4351c38de1b38d4aed17e10c77fe067d8561e08f6c51423fb380c1512eb",
     "r/DESCRIPTION": "6034e5af95fa68b806adff90db68b479ea225d2008486950f25f0162fc9abc19",
     "r/NAMESPACE": "827fc9a6d85f4c0eb674ef8a46edf5e4bb12526499e4267e35356eb31ec724a9",
     "r/R/mlumr.R": "c956afd8d5052a7f0028c224d3a7b65f937ffa2fe24d135cb33bb5c260da7671",
