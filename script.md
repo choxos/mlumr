@@ -208,7 +208,7 @@ The interval at the target shrinks a lot. No new patient was observed. The answe
 
 Now move the target to where the row is.
 @cue(targetX -> 0, over: 3s)
-Here the data alone pin down the target, even though the slope is still unknown. Pinned down does not mean certain: the target still has an interval. And this argument needs the straight-line model. With a curved link, matching the row's averages is not enough. So a verdict about the coefficients is not automatically a verdict about your target. For a continuous outcome with a straight-line model, the package's identification check asks this question for trial A's population, once with the integration points the model uses, and once with the means trial B published.
+Here the data alone pin down the target, even though the slope is still unknown. Pinned down does not mean certain: the target still has an interval. And this argument needs the straight-line model. With a curved link, matching the row's averages is not enough. So a verdict about the coefficients is not automatically a verdict about your target. The package's identification check screens the coefficients, not your target, so ask this question about the target you will report.
 
 Check prior sensitivity for the target you will actually report. Results in trial B's population can look stable, while results in trial A's population, or in a new target, still depend on the prior. Try several reasonable priors, see how far the result moves under each, and report what you find. Never pick the prior that happens to give the narrowest interval.
 Change the prior with the target at zero, then at one. Repeat with two separated rows. Which narrowing comes from data, and which from assumptions?
@@ -229,7 +229,7 @@ Check the numerical integration on its own. More points reduce approximation err
 @cue(diagnostic = 4)
 Look at how the results depend on trial B's slope priors, on the target population, on covariate overlap, on the outcome model, and on plausible differences between the trials.
 @cue(diagnostic = 5)
-The package records how many posterior draws it could actually use. Keep that count in your report. A survival median that falls beyond the time grid is a separate issue, reported as the chance that the median was not reached. Never quietly drop an inconvenient check, or present an incomplete summary as complete.
+When some posterior draws give no usable value, the package leaves them out of the summary and warns. Keep that warning in your report. A survival median that falls beyond the time grid is a separate issue, reported as the chance that the median was not reached. Never quietly drop an inconvenient check, or present an incomplete summary as complete.
 @cue(diagnostic = 6)
 Finally, a better predictive score, such as L O O, only says which model predicts these observations better. Compare two models by the paired difference of their pointwise scores and its standard error, not by whether two separate intervals overlap. It cannot tell you whether a hidden difference between the trials exists.
 Choose each problem, guess the next step, then reveal the explanation.

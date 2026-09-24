@@ -83,7 +83,7 @@ export const families = [
   },
 ];
 
-export const survivalChoices = 'Proportional hazards: exponential, Weibull, Gompertz (positive shape only), and the flexible mspline and pexp baselines. Accelerated failure time: exponential-aft, weibull-aft, lognormal, loglogistic, gamma, and gengamma (positive Q only). By default, aux_by = ".study" gives each trial its own shape; aux_by = "none" shares it. A time ratio from marginal_effects() needs shared slopes and a shared shape; otherwise the label is EXP_DELTA_ETA. Many tied reconstructed event times can make mlumr refuse a lognormal or gengamma fit, and warn for weibull-aft, loglogistic and gamma fits.';
+export const survivalChoices = 'Proportional hazards: exponential, Weibull, Gompertz (positive shape only), and the flexible mspline and pexp baselines. Accelerated failure time: exponential-aft, weibull-aft, lognormal, loglogistic, gamma, and gengamma (positive Q only). By default, aux_by = ".study" gives each trial its own shape; aux_by = "none" shares it. A time ratio from marginal_effects() needs shared slopes and a shared shape; otherwise the label is EXP_DELTA_ETA. mlumr checks that the reconstructed times are valid, but it does not screen them for ties before sampling, so read the sampler\'s checks, as for any fit.';
 
 export const diagnosticCases = [
   {
@@ -112,8 +112,8 @@ export const diagnosticCases = [
     tool: 'prior_summary(fit_relaxed)\nplot_prior_posterior(fit_relaxed, pars = "beta_comparator[1]")\nprior_sensitivity(fit_relaxed)',
   },
   {
-    name: 'Incomplete summary', symptom: 'A summary used 700 of 1,000 draws, and a survival median was not reached.',
-    answer: 'Report n_draws and n_draws_used, and find out why draws were dropped. A median beyond the prediction grid is a different issue: check p_not_reached and extend pred_times. Never present either one as complete.',
+    name: 'Incomplete summary', symptom: 'marginal_effects() warns that it left out draws with no usable value, and a survival median was not reached.',
+    answer: 'Report the warning and find out why those draws had no usable value. A median beyond the prediction grid is a different issue: check p_not_reached and extend pred_times. Never present either one as complete.',
     tool: 'predict(fit, type = "median")\nmarginal_effects(fit)',
   },
   {
@@ -144,7 +144,7 @@ export const checklist = [
   'For survival, the censoring and late-entry assumptions, not only how censoring was coded.',
   'Shared or separate slopes, the priors, the covariate distributions and their correlation.',
   'Sampling checks for every chain, integration checks, and prior sensitivity.',
-  'Posterior intervals and the draw counts. For survival, the time of each hazard ratio and each RMST horizon.',
+  'Posterior intervals, and any warning about draws left out of a summary. For survival, the time of each hazard ratio and each RMST horizon.',
   'The naive and STC benchmarks, labeled with the populations they describe.',
 ];
 
@@ -255,7 +255,7 @@ export const capstonePanel = `<details><summary>Capstone: an applied analysis yo
 <h3>Deliverables</h3>${li([
   'One paragraph stating the estimand: treatments, outcome, target population, effect scale and anchor status, and a go or stop decision on the data, with reasons.',
   'Reproducible preparation and a base fit, with the package commit, the model, the build, the seed and the data identities.',
-  'Effect estimates in the prespecified target, with scales, units, intervals, draw counts and sampling checks.',
+  'Effect estimates in the prespecified target, with scales, units, intervals, the number of draws and sampling checks.',
   'At least one integration refit and the comparator prior sweep, each re-extracting the same target, plus a transport scenario or a reason it cannot be quantified.',
   'A one-page report with findings, sensitivity, limitations and a defensible next step. Concluding that the evidence is too assumption-dependent is a valid result.',
 ])}

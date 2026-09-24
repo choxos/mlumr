@@ -1,6 +1,40 @@
 # Lesson execution record
 
-This records the checks run on the lesson in this branch. The first version was published at https://choxos.github.io/mlumr/lesson/ on September 13, 2026. The newest revision is described first; the September 12 to 13 record follows it unchanged.
+This records the checks run on the lesson in this branch. The first version was published at https://choxos.github.io/mlumr/lesson/ on September 13, 2026. The newest revision is described first; the earlier records follow unchanged.
+
+## Revision of September 23, 2026
+
+### What this revision changes
+
+- **Pin.** The browser R code, the native record and every package reference now follow mlumr `main` at `965dfc5` (September 23) instead of `4cfd366` (September 12). Four things the lesson taught changed in the 33 commits between them: the identification check no longer reports `target_in_span`, `target_in_declared_span` or `target_span_gap` (#101); `predict()`, `marginal_effects()` and the conditional summaries no longer carry `n_draws` and `n_draws_used`, and instead warn once when they leave out `NA` or `NaN` draws (#104); the checks on tied reconstructed event times that refused or warned before sampling are gone, so the sampler's diagnostics are the signal (#100); and for a normal outcome with an identity link, `autoscale = TRUE` and the package's default priors carry the IPD outcome SD (#115).
+- **Text.** Chapter 11's narration no longer describes a target check on two grids; it says the identification check screens the coefficients, not your target. Chapter 12's narration and the Incomplete summary card say that the package leaves out draws with no usable value and warns, and ask for that warning in the report; the report checklist and the capstone ask for the same. The survival distributions panel drops the tied-event refusal. The priors panel and the package notes add the outcome-SD scaling for a normal identity-link outcome. The survival panel and the notes now say that any `at_time` other than 0 is refused under a shared baseline, which was already the behavior at `4cfd366`. `sources.html` adds the published ISPOR Europe 2025 abstract next to the preprint, as the package README does.
+- **Companion script.** `workflow.R` passes `prior_beta_comparator` to the relaxed model only. The SPFA refits of the sensitivity loop used to receive it, and the package ignored it with a warning printed twice at the end of the run. No number changed, since SPFA never used it.
+
+### Executed checks
+
+```sh
+MLUMR_CHECKOUT="/path/to/mlumr-at-965dfc5"   # a clean checkout of mlumr at 965dfc5 with its DLL built
+bash lesson.sh test
+Rscript workflow.R --source="$MLUMR_CHECKOUT" --fit --sensitivity --record=scenes/native-record.json --engine=cmdstanr
+bash lesson.sh dist
+MLUMR_NATIVE="$MLUMR_CHECKOUT" bash lesson.sh adapter
+node browser-qa.mjs http://127.0.0.1:4199/
+```
+
+- **Package surface.** Every function and named argument in the lesson's narration, scene text, code cells, notes and companion script was checked against the exports and formals of mlumr at `965dfc5`: all exist, and the arguments not in a function's formals (`x` for `add_integration()`, `mean` and `sd` for `distr()`) go through `...` as documented. Every package file that `sources.html` and the notes link to exists at `965dfc5`.
+- `lesson.sh test`: strict TypeScript passed for the scene and the worker; **74 unit tests** passed in 6 files. With the machine's load average near 900, the survival chart test (1,100 renders through jsdom) took 28 seconds of its 30 second budget and timed out once; run alone it passed.
+- `workflow.R --fit --sensitivity --record`: exit code 0 with R 4.6.0, cmdstanr 0.9.0, CmdStan 2.39.0 and mlumr 0.1.0.9000 at `965dfc5`, a clean tree with current compiled code, no warnings. Every fitted number in the record equals the September 15 record to its last recorded digit; only the commit, the hash of the compiled code, the script hash and the run time differ. The binomial Stan programs and the Stan data the lesson's code builds are identical at `4cfd366` and `965dfc5` (compared field by field), and the seeds did not change, so this is the expected result.
+- `lesson.sh dist`: `check: no errors`; the model manifest matched the Stan programs at `965dfc5`; 30 sources and 92 built files recorded, and `dist-manifest.mjs verify dist` passed. The captions differ from the previous build only in the three changed lines; the narration lasts **1686.81 seconds** (it was 1690.60).
+- `lesson.sh adapter` against a native checkout at `965dfc5`: all 22 checks passed, including Stan data equal to the native package's `mlumr()` for both models and the same refusals, messages and warnings.
+- `browser-qa.mjs` in Chrome, with the R and Stan runtimes, on the new build: **0 page errors, 0 console errors, 0 failed requests**; thirteen chapters, ten questions answered wrong and right, fifteen sizes; webR loaded mlumr's R code from `965dfc5`, the workflow cell ran without errors, and both browser Stan fits completed with Stan data equal to the native adapter check's within 1e-12 relative.
+- After the review of pull request #117, the survival distributions panel says that mlumr checks the reconstructed times but no longer screens them for ties (`set_agd_surv()` validates the times), and the commands above use a quoted path variable. The rebuild changed only `player.js` and the manifest; the captions and the audio are byte-identical. `browser-qa.mjs --no-runtime` in Playwright's bundled Chromium, the browser the check job uses, passed with 0 errors. Two runs in installed Chrome, with the machine's load average near 350, each failed one different narration timing assertion (the position after browsing, then playback during keyboard adjustments); the full run with runtimes in Chrome passed on the build before this one-line change.
+- Before this revision, the published build from `d70be29` passed the same full browser check, runtimes included, against https://choxos.github.io/mlumr/lesson/ on September 23, so webR 0.6.0 and its package repository still serve what the cell needs.
+
+### Not done in this revision
+
+- No human listened to the two new sentences; they were checked by their caption text and by decoding the audio.
+- Firefox and Safari were not run, and no screen reader session was run.
+- The WebAssembly models were not rebuilt: their Stan programs are identical at `965dfc5`, and the build's model check confirmed it.
 
 ## Revision of September 15, 2026
 

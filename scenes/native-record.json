@@ -276,11 +276,11 @@
     "r": "R version 4.6.0 (2026-04-24)",
     "cmdstan": "2.39.0",
     "loaded_from": "source",
-    "commit": "4cfd3660f56e22668ae357bde3df4b30cacb23a5",
+    "commit": "965dfc5c2605c07afee47270c2a5da9a69df368f",
     "dirty": false,
-    "dll_sha256": "d3a6a02d32319d6e700f86dee058965d94ef1e5671e50849a4d408f44d3fa664",
+    "dll_sha256": "6f1749ea91dc44173816059b4a1cf0fa0e2649d0aed1eb7ebff2de08bb65f9fe",
     "dll_current": true
   },
-  "script_sha256": "637e2c6498c773f56e0ef7ee51368485b4b2fe101e74763d81ceb703920a26ac",
-  "run": "2026-09-15T11:59:25-0400"
+  "script_sha256": "9d1ac8344575f693c2e1e2150893a1dc01997d6844133679e1fb1e3da129be87",
+  "run": "2026-09-23T12:23:05-0400"
 }

@@ -5,7 +5,7 @@ tangible_revision=6a07bbcd5dbc548aa809b253aed503fc0a8c3251
 tangible_dir="${TANGIBLE_DIR:-$lesson_dir/.cache/tangible}"
 # The mlumr checkout and commit whose R sources the in-browser R cell loads.
 mlumr_dir="${MLUMR_DIR:-$lesson_dir/../mlumr}"
-mlumr_ref="${MLUMR_REF:-4cfd3660f56e22668ae357bde3df4b30cacb23a5}"
+mlumr_ref="${MLUMR_REF:-965dfc5c2605c07afee47270c2a5da9a69df368f}"
 command="${1:-serve}"
 case "$command" in
   help|--help|-h)
