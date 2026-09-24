@@ -750,155 +750,155 @@ With a curved link, matching the row's averages is not enough.
 00:22:52.176 --> 00:22:58.291
 So a verdict about the coefficients is not automatically a verdict about your target.
 
-00:22:58.291 --> 00:23:12.890
-For a continuous outcome with a straight-line model, the package's identification check asks this question for trial A's population, once with the integration points the model uses, and once with the means trial B published.
+00:22:58.291 --> 00:23:06.913
+The package's identification check screens the coefficients, not your target, so ask this question about the target you will report.
 
-00:23:12.890 --> 00:23:17.469
+00:23:06.913 --> 00:23:11.492
 Check prior sensitivity for the target you will actually report.
 
-00:23:17.469 --> 00:23:26.486
+00:23:11.492 --> 00:23:20.509
 Results in trial B's population can look stable, while results in trial A's population, or in a new target, still depend on the prior.
 
-00:23:26.486 --> 00:23:33.343
+00:23:20.509 --> 00:23:27.366
 Try several reasonable priors, see how far the result moves under each, and report what you find.
 
-00:23:33.343 --> 00:23:37.938
+00:23:27.366 --> 00:23:31.961
 Never pick the prior that happens to give the narrowest interval.
 
-00:23:37.938 --> 00:23:41.616
+00:23:31.961 --> 00:23:35.639
 Change the prior with the target at zero, then at one.
 
-00:23:41.616 --> 00:23:44.053
+00:23:35.639 --> 00:23:38.076
 Repeat with two separated rows.
 
-00:23:44.053 --> 00:23:48.454
+00:23:38.076 --> 00:23:42.477
 Which narrowing comes from data, and which from assumptions?
 
-00:23:48.454 --> 00:23:52.141
+00:23:42.477 --> 00:23:46.164
 Suppose a model hands you a neat table of results.
 
-00:23:52.141 --> 00:23:55.459
+00:23:46.164 --> 00:23:49.482
 Before reading it, look at the sampling checks.
 
-00:23:55.459 --> 00:23:57.189
+00:23:49.482 --> 00:23:51.212
 Did every chain run?
 
-00:23:57.189 --> 00:24:03.531
+00:23:51.212 --> 00:23:57.554
 Were there divergent transitions, where the sampler could not explore part of the posterior?
 
-00:24:03.531 --> 00:24:11.733
+00:23:57.554 --> 00:24:05.756
 Then check R hat, the effective sample size, which says how many independent draws the chains are worth, and tree depth.
 
-00:24:11.733 --> 00:24:15.114
+00:24:05.756 --> 00:24:09.137
 A missing or infinite check is not good news.
 
-00:24:15.114 --> 00:24:21.887
+00:24:09.137 --> 00:24:15.910
 Raising a sampler setting can help, but it does not fix a badly shaped posterior by itself.
 
-00:24:21.887 --> 00:24:27.871
+00:24:15.910 --> 00:24:21.894
 R hat compares the chains with each other, and values close to one mean they agree.
 
-00:24:27.871 --> 00:24:31.873
+00:24:21.894 --> 00:24:25.896
 When chains settle in different places, R hat grows.
 
-00:24:31.873 --> 00:24:37.441
+00:24:25.896 --> 00:24:31.464
 A value of infinity usually means the chains got stuck, each at its own value.
 
-00:24:37.441 --> 00:24:42.625
+00:24:31.464 --> 00:24:36.648
 Next, keep what the data can tell you apart from how well the computer ran.
 
-00:24:42.625 --> 00:24:50.185
+00:24:36.648 --> 00:24:44.208
 When the subgroup check reports a missing flag for a binary outcome, it is holding back a verdict on purpose.
 
-00:24:50.185 --> 00:24:58.496
+00:24:44.208 --> 00:24:52.519
 With a curved link, subgroup means alone cannot show what the rows identify, because the spread inside each row matters too.
 
-00:24:58.496 --> 00:25:01.577
+00:24:52.519 --> 00:24:55.600
 Check the numerical integration on its own.
 
-00:25:01.577 --> 00:25:04.614
+00:24:55.600 --> 00:24:58.637
 More points reduce approximation error.
 
-00:25:04.614 --> 00:25:11.538
+00:24:58.637 --> 00:25:05.561
 But neither a stable grid nor good sampling shows that the covariate distributions you chose are right.
 
-00:25:11.538 --> 00:25:23.600
+00:25:05.561 --> 00:25:17.623
 Look at how the results depend on trial B's slope priors, on the target population, on covariate overlap, on the outcome model, and on plausible differences between the trials.
 
-00:25:23.600 --> 00:25:28.540
-The package records how many posterior draws it could actually use.
+00:25:17.623 --> 00:25:24.667
+When some posterior draws give no usable value, the package leaves them out of the summary and warns.
 
-00:25:28.540 --> 00:25:30.856
-Keep that count in your report.
+00:25:24.667 --> 00:25:27.071
+Keep that warning in your report.
 
-00:25:30.856 --> 00:25:39.521
+00:25:27.071 --> 00:25:35.736
 A survival median that falls beyond the time grid is a separate issue, reported as the chance that the median was not reached.
 
-00:25:39.521 --> 00:25:45.676
+00:25:35.736 --> 00:25:41.890
 Never quietly drop an inconvenient check, or present an incomplete summary as complete.
 
-00:25:45.676 --> 00:25:53.911
+00:25:41.890 --> 00:25:50.126
 Finally, a better predictive score, such as L O O, only says which model predicts these observations better.
 
-00:25:53.911 --> 00:26:03.996
+00:25:50.126 --> 00:26:00.211
 Compare two models by the paired difference of their pointwise scores and its standard error, not by whether two separate intervals overlap.
 
-00:26:03.996 --> 00:26:08.953
+00:26:00.211 --> 00:26:05.168
 It cannot tell you whether a hidden difference between the trials exists.
 
-00:26:08.953 --> 00:26:14.062
+00:26:05.168 --> 00:26:10.277
 Choose each problem, guess the next step, then reveal the explanation.
 
-00:26:14.062 --> 00:26:22.064
+00:26:10.277 --> 00:26:18.279
 The point of M L U M R is one explicit model that links individual patient data with published summaries.
 
-00:26:22.064 --> 00:26:30.487
+00:26:18.279 --> 00:26:26.701
 It lets you ask what both treatments would do in a population you specify, as long as the model and its assumptions hold.
 
-00:26:30.487 --> 00:26:35.911
+00:26:26.701 --> 00:26:32.126
 The research on this method describes extensions to more than two treatments.
 
-00:26:35.911 --> 00:26:41.258
+00:26:32.126 --> 00:26:37.473
 The package covered here compares one index treatment with one comparator.
 
-00:26:41.258 --> 00:26:46.451
+00:26:37.473 --> 00:26:42.666
 It does not fit networks of many treatments, or random study effects.
 
-00:26:46.451 --> 00:26:55.271
+00:26:42.666 --> 00:26:51.486
 Some function names look like those in the multi N M A package, but the models and the fitted objects are not interchangeable.
 
-00:26:55.271 --> 00:27:02.622
+00:26:51.486 --> 00:26:58.837
 Before you report an analysis, name the treatments, the outcome, the target population and the effect scale.
 
-00:27:02.622 --> 00:27:10.030
+00:26:58.837 --> 00:27:06.244
 Explain where the data came from, how well the covariates overlap, and that the subgroups do not overlap.
 
-00:27:10.030 --> 00:27:17.362
+00:27:06.244 --> 00:27:13.576
 Say which covariate distributions and priors you used, and whether slopes were shared or separate.
 
-00:27:17.362 --> 00:27:22.943
+00:27:13.576 --> 00:27:19.157
 Show the sampling checks, the integration checks and the sensitivity analyses.
 
-00:27:22.943 --> 00:27:26.870
+00:27:19.157 --> 00:27:23.085
 For survival, state every time and every horizon.
 
-00:27:26.870 --> 00:27:34.759
+00:27:23.085 --> 00:27:30.974
 The chart shows what a good report gives: an estimate, its interval, and the population it applies to.
 
-00:27:34.759 --> 00:27:40.096
+00:27:30.974 --> 00:27:36.311
 It comes from the companion script's native fits, not from the browser cell.
 
-00:27:40.096 --> 00:27:52.824
+00:27:36.311 --> 00:27:49.039
 To go further, the package website has an article for each outcome type, and the package ships four example datasets, on psoriasis, multiple myeloma, shoulder surgery and tooth decay.
 
-00:27:52.824 --> 00:27:57.561
+00:27:49.039 --> 00:27:53.776
 Test yourself with the ten questions, and read the capstone below them.
 
-00:27:57.561 --> 00:28:03.782
+00:27:53.776 --> 00:27:59.997
 Then revisit any chapter, and try to predict what will change before you move a control.
 
-00:28:03.782 --> 00:28:05.758
+00:27:59.997 --> 00:28:01.973
 Answer the ten questions.
 
-00:28:05.758 --> 00:28:10.596
+00:28:01.973 --> 00:28:06.810
 Then pick a chapter whose chart you can now explain in your own words.

@@ -90,13 +90,6 @@ real mspline_log_mean_haz(real h0cum, real h0haz, vector eta) {
          - log_sum_exp(log_s_relative);
 }
 
-// Population-standardized hazard h-bar(t) = E_x[h(t|x) S(t|x)] / E_x[S(t|x)],
-// computed via the log-space form above for tail stability (identical to
-// mean(hs)/mean(s) in ordinary ranges).
-real mspline_mean_haz(real h0cum, real h0haz, vector eta) {
-  return exp(mspline_log_mean_haz(h0cum, h0haz, eta));
-}
-
 // RMST by the trapezoidal rule on the standardized survival curve, using the
 // integrated-basis matrix `ib_grid` (rows = grid times) and spline weights.
 real mspline_rmst(matrix ib_grid, vector grid_times, vector scoef, vector eta) {

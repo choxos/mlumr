@@ -211,7 +211,9 @@ if ("--sensitivity" %in% args) {
     complete(mlumr(data, model = model, link = "logit", engine = engine,
                    prior_intercept = prior_normal(0, 2.5),
                    prior_beta = prior_normal(0, 1),
-                   prior_beta_comparator = prior_normal(0, comparator_scale),
+                   # Only the relaxed model has comparator slopes; the SPFA model would
+                   # ignore this prior and warn.
+                   prior_beta_comparator = if (model == "relaxed") prior_normal(0, comparator_scale),
                    chains = chains, iter = 2000, warmup = 1000, seed = seed,
                    adapt_delta = 0.95, refresh = 0, verbose = FALSE))
   }

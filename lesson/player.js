@@ -16720,7 +16720,7 @@
 }
 `;
 
-  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/math.ts
+  // ../../scenes/math.ts
   var logistic = (x2) => 1 / (1 + Math.exp(-x2));
   var logit = (p2) => Math.log(p2 / (1 - p2));
   var mean = (xs) => xs.reduce((a2, b2) => a2 + b2, 0) / xs.length;
@@ -16791,7 +16791,7 @@
     return sorted[lo] + (sorted[Math.min(lo + 1, sorted.length - 1)] - sorted[lo]) * (h2 - lo);
   }
 
-  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/content.ts
+  // ../../scenes/content.ts
   var labs = {
     evidence: ["Two trials, no common arm", "How do you compare treatments that never met in one trial?", "The problem"],
     assumptions: ["What adjustment has to assume", "Can a hidden difference between trials look like a treatment effect?", "Assumptions"],
@@ -16885,7 +16885,7 @@
       boundary: "Reconstruction does not recover trial B's covariates, and its uncertainty is not carried into the fit. Only one comparator arm is supported. Right, left and interval censoring and delayed entry each need their own likelihood terms."
     }
   ];
-  var survivalChoices = 'Proportional hazards: exponential, Weibull, Gompertz (positive shape only), and the flexible mspline and pexp baselines. Accelerated failure time: exponential-aft, weibull-aft, lognormal, loglogistic, gamma, and gengamma (positive Q only). By default, aux_by = ".study" gives each trial its own shape; aux_by = "none" shares it. A time ratio from marginal_effects() needs shared slopes and a shared shape; otherwise the label is EXP_DELTA_ETA. Many tied reconstructed event times can make mlumr refuse a lognormal or gengamma fit, and warn for weibull-aft, loglogistic and gamma fits.';
+  var survivalChoices = `Proportional hazards: exponential, Weibull, Gompertz (positive shape only), and the flexible mspline and pexp baselines. Accelerated failure time: exponential-aft, weibull-aft, lognormal, loglogistic, gamma, and gengamma (positive Q only). By default, aux_by = ".study" gives each trial its own shape; aux_by = "none" shares it. A time ratio from marginal_effects() needs shared slopes and a shared shape; otherwise the label is EXP_DELTA_ETA. mlumr checks that the reconstructed times are valid, but it does not screen them for ties before sampling, so read the sampler's checks, as for any fit.`;
   var diagnosticCases = [
     {
       name: "Divergences",
@@ -16919,8 +16919,8 @@
     },
     {
       name: "Incomplete summary",
-      symptom: "A summary used 700 of 1,000 draws, and a survival median was not reached.",
-      answer: "Report n_draws and n_draws_used, and find out why draws were dropped. A median beyond the prediction grid is a different issue: check p_not_reached and extend pred_times. Never present either one as complete.",
+      symptom: "marginal_effects() warns that it left out draws with no usable value, and a survival median was not reached.",
+      answer: "Report the warning and find out why those draws had no usable value. A median beyond the prediction grid is a different issue: check p_not_reached and extend pred_times. Never present either one as complete.",
       tool: 'predict(fit, type = "median")\nmarginal_effects(fit)'
     },
     {
@@ -16949,7 +16949,7 @@
     "For survival, the censoring and late-entry assumptions, not only how censoring was coded.",
     "Shared or separate slopes, the priors, the covariate distributions and their correlation.",
     "Sampling checks for every chain, integration checks, and prior sensitivity.",
-    "Posterior intervals and the draw counts. For survival, the time of each hazard ratio and each RMST horizon.",
+    "Posterior intervals, and any warning about draws left out of a summary. For survival, the time of each hazard ratio and each RMST horizon.",
     "The naive and STC benchmarks, labeled with the populations they describe."
   ];
   var cells = {
@@ -17045,7 +17045,7 @@ ${li([
 <h3>Deliverables</h3>${li([
     "One paragraph stating the estimand: treatments, outcome, target population, effect scale and anchor status, and a go or stop decision on the data, with reasons.",
     "Reproducible preparation and a base fit, with the package commit, the model, the build, the seed and the data identities.",
-    "Effect estimates in the prespecified target, with scales, units, intervals, draw counts and sampling checks.",
+    "Effect estimates in the prespecified target, with scales, units, intervals, the number of draws and sampling checks.",
     "At least one integration refit and the comparator prior sweep, each re-extracting the same target, plus a transport scenario or a reason it cannot be quantified.",
     "A one-page report with findings, sensitivity, limitations and a defensible next step. Concluding that the evidence is too assumption-dependent is a valid result."
   ])}
@@ -17060,7 +17060,7 @@ ${li([
 <p>Double-counted patients, an SD used as an SE, a reversed treatment direction or a different target than the one stated need remediation whatever the total. The rubric has not been piloted with learners; passing it is not evidence of professional competence, and reaching the end of the narration or clicking every answer is not an assessment.</p>
 </details>`;
 
-  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/style.ts
+  // ../../scenes/style.ts
   var lightTokens = `
   --bg:#eef1f2; --bg-soft:#e6ebec; --surface:#ffffff; --surface-2:#f7f9f9; --surface-3:#f0f4f4;
   --ink:#10242c; --ink-soft:#41555d; --muted:#596a70; --faint:#7f8f95;
@@ -17399,7 +17399,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
 @media (prefers-reduced-motion:reduce) { .ml-player * {scroll-behavior:auto;transition:none!important} }
 `;
 
-  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/navigation.ts
+  // ../../scenes/navigation.ts
   var THEME_KEY = "mlumr-lesson-theme";
   function themeToggle(button2) {
     const media = matchMedia("(prefers-color-scheme: dark)");
@@ -17511,7 +17511,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     };
   }
 
-  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/charts.ts
+  // ../../scenes/charts.ts
   var W = 600;
   var H = 290;
   var L = 66;
@@ -17622,7 +17622,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     return card(title, `<svg viewBox="0 0 ${W} 126" role="img" aria-label="${esc(`${title}: ${groups.map((g) => `${g.name} ${(100 * g.share).toFixed(0)} percent`).join(", ")}`)}">${s2}</svg>`);
   }
 
-  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/diagnostics.ts
+  // ../../scenes/diagnostics.ts
   var sum = (xs) => xs.reduce((a2, b2) => a2 + b2, 0);
   var mean2 = (xs) => {
     const m2 = sum(xs) / xs.length;
@@ -17761,7 +17761,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
   var essTail = (chains) => Math.min(essQuantile(chains, 0.05), essQuantile(chains, 0.95));
   var mcseMean = (chains) => Math.sqrt(variance(chains.flat())) / Math.sqrt(ess(split(chains)));
 
-  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/runner.ts
+  // ../../scenes/runner.ts
   var WEBR_URL = "https://webr.r-wasm.org/v0.6.0/webr.mjs";
   var R_PACKAGES = ["randtoolbox", "jsonlite", "detectseparation"];
   var site = (path2) => new URL(path2, document.baseURI).href;
@@ -18082,7 +18082,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     };
   }
 
-  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/codecell.ts
+  // ../../scenes/codecell.ts
   var esc2 = (s2) => s2.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
   var PARAMS = ["lor_comparator", "rd_comparator", "lor_index", "rd_index"];
   var MEANING = {
@@ -18417,7 +18417,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     return { dispose: () => lifetime.abort() };
   }
 
-  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/native-record.json
+  // ../../scenes/native-record.json
   var native_record_default = {
     truth: {
       target_rd: -0.12407955087911,
@@ -18696,16 +18696,16 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       r: "R version 4.6.0 (2026-04-24)",
       cmdstan: "2.39.0",
       loaded_from: "source",
-      commit: "4cfd3660f56e22668ae357bde3df4b30cacb23a5",
+      commit: "965dfc5c2605c07afee47270c2a5da9a69df368f",
       dirty: false,
-      dll_sha256: "d3a6a02d32319d6e700f86dee058965d94ef1e5671e50849a4d408f44d3fa664",
+      dll_sha256: "6f1749ea91dc44173816059b4a1cf0fa0e2649d0aed1eb7ebff2de08bb65f9fe",
       dll_current: true
     },
-    script_sha256: "637e2c6498c773f56e0ef7ee51368485b4b2fe101e74763d81ceb703920a26ac",
-    run: "2026-09-15T11:59:25-0400"
+    script_sha256: "9d1ac8344575f693c2e1e2150893a1dc01997d6844133679e1fb1e3da129be87",
+    run: "2026-09-23T12:23:05-0400"
   };
 
-  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/scenes/scene.ts
+  // ../../scenes/scene.ts
   var native = native_record_default;
   var scalar = (label, range, value) => ({ type: { kind: "scalar", range }, default: value, interpolate: "lerp", ownership: "shared", label });
   var schema = {
@@ -18956,7 +18956,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       ),
       v2.metrics,
       "A tighter prior narrows the interval even though no new data arrived. Near the observed rows the data do the work; far from them, the prior does.",
-      "<p>In mlumr, prior_summary() lists the priors, plot_prior_posterior() draws each posterior over its prior, and prior_sensitivity() refits the model over several prior scales. prior_normal(autoscale = TRUE) divides a slope prior's scale by each covariate's standard deviation.</p>" + sensitivityPanel()
+      "<p>In mlumr, prior_summary() lists the priors, plot_prior_posterior() draws each posterior over its prior, and prior_sensitivity() refits the model over several prior scales. prior_normal(autoscale = TRUE) divides a slope prior's scale by each covariate's standard deviation. For a continuous outcome with an identity link the slopes are in outcome units, so autoscale also multiplies that scale by the outcome's standard deviation, and the package's default priors are set in outcome standard deviations too.</p>" + sensitivityPanel()
     );
   }
   function sensitivityPanel() {
@@ -19028,7 +19028,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
       }),
       metric("Conditional HR, each risk group", "0.650") + metric(`Population HR, ${month}`, fmt(r2.hr)) + metric(`RMST difference to ${month}`, `${fmt(r2.rmstd, 2)} months`),
       note,
-      '<p>In mlumr, a population hazard ratio needs an evaluation time, and how you get one depends on the fit. With one baseline shape shared by both trials, the hazard ratio from marginal_effects() is its limit at time zero, and at_time is refused. With a separate shape for each trial (aux_by = ".study", the default for distributions that have a shape) or a flexible baseline, at_time picks the time and is rounded to the nearest fitted prediction time; the at_time column records the time actually used. Targets passed as newdata have their own time handling, described on the help page. For the whole curve, use predict(type = "loghr"), which is on the log scale.</p><p>An accelerated failure time fit reports a time ratio, "tr", only with shared slopes and one shared shape. Otherwise its scalar is "exp_delta_eta", which is not generally a time ratio. An RMST always carries its horizon (rmst_horizon in mlumr()) and its time units. Coding censoring correctly does not show that censoring is unrelated to the outcome.</p>'
+      '<p>In mlumr, a population hazard ratio needs an evaluation time, and how you get one depends on the fit. With one baseline shape shared by both trials, the hazard ratio from marginal_effects() is its limit at time zero, and any at_time other than 0 is refused. With a separate shape for each trial (aux_by = ".study", the default for distributions that have a shape) or a flexible baseline, at_time picks the time and is rounded to the nearest fitted prediction time; the at_time column records the time actually used. Targets passed as newdata have their own time handling, described on the help page. For the whole curve, use predict(type = "loghr"), which is on the log scale.</p><p>An accelerated failure time fit reports a time ratio, "tr", only with shared slopes and one shared shape. Otherwise its scalar is "exp_delta_eta", which is not generally a time ratio. An RMST always carries its horizon (rmst_horizon in mlumr()) and its time units. Coding censoring correctly does not show that censoring is unrelated to the outcome.</p>'
     );
   }
   function diagnosticChart(i3) {
@@ -19337,7 +19337,7 @@ body:has(.ml-player) {background:var(--bg);color:var(--ink)}
     }
   };
 
-  // ../../../Users/choxos/Documents/GitHub/mlumr-lesson/entry.ts
+  // ../../entry.ts
   var HAS_ASSISTANT = false;
   var ASSISTANT_START_OPEN = false;
   var INTRODUCTION = { "title": "ML-UMR: compare treatments, understand populations" };
