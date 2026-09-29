@@ -33,6 +33,15 @@ for how to choose between methods see
 > not the problem this vignette is about. The unanchored framing is a
 > construction for illustration; the section *Checking against the
 > anchored comparison* below puts the omitted arms back to use.
+>
+> **Hypothetical single-arm trials.** UNCOVER-2 and FIXTURE are
+> randomized trials. Dropping their common reference arms (placebo and
+> etanercept) turns them into hypothetical single-arm trials and leaves
+> fully disconnected evidence; we do this only to illustrate ML-UMR. In
+> practice, randomized trials should never be analyzed this way: ML-NMR
+> (for example with `multinma`) or another appropriate method should be
+> used for them. ML-UMR should only be used for fully unanchored,
+> single-arm comparisons.
 
 ## The clinical question
 
@@ -1005,6 +1014,7 @@ Meta-Regression*. ISPOR Europe, Glasgow, UK; abstract MSR28.
 Chandler, Conor, and K. Jack Ishak. 2026. *Reframing Population-Adjusted
 Indirect Comparisons as a Transportability Problem: An Estimand-Based
 Perspective and Implications for Health Technology Assessment*.
+Preprint. <https://doi.org/10.48550/arXiv.2602.17041>.
 
 Gelman, Andrew, Aleks Jakulin, Maria Grazia Pittau, and Yu-Sung Su.
 2008. “A Weakly Informative Default Prior Distribution for Logistic and

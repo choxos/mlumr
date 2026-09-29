@@ -40,6 +40,16 @@ to choose between methods.
 > The index arm is McCarthy2012 lenalidomide rather than the other
 > candidate, Palumbo2014: its patients are closer to the Morgan2012
 > population, which is what an unanchored comparison depends on.
+>
+> **Hypothetical single-arm trials.** McCarthy2012 and Morgan2012 are
+> randomized trials. Dropping their common reference arm (placebo) turns
+> them into hypothetical single-arm trials and leaves fully disconnected
+> evidence; we do this only to illustrate ML-UMR. In practice,
+> randomized trials should never be analyzed this way: ML-NMR (for
+> example with `multinma`, as in the section *Checking against the
+> anchored comparison*) or another appropriate method should be used for
+> them. ML-UMR should only be used for fully unanchored, single-arm
+> comparisons.
 
 ## The unanchored survival problem
 
@@ -1256,6 +1266,7 @@ MSR131; Value in Health.
 Chandler, Conor, and K. Jack Ishak. 2026. *Reframing Population-Adjusted
 Indirect Comparisons as a Transportability Problem: An Estimand-Based
 Perspective and Implications for Health Technology Assessment*.
+Preprint. <https://doi.org/10.48550/arXiv.2602.17041>.
 
 Leahy, Joy, and Cathal Walsh. 2019. “Assessing the Impact of a
 Matching-Adjusted Indirect Comparison in a Bayesian Network

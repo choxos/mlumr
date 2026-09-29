@@ -625,6 +625,7 @@ Meta-Regression (ML-UMR)*. Preprint.
 Chandler, Conor, and K. Jack Ishak. 2026. *Reframing Population-Adjusted
 Indirect Comparisons as a Transportability Problem: An Estimand-Based
 Perspective and Implications for Health Technology Assessment*.
+Preprint. <https://doi.org/10.48550/arXiv.2602.17041>.
 
 Phillippo, D. M., A. E. Ades, S. Dias, S. Palmer, K. R. Abrams, and N.
 J. Welton. 2016. *NICE DSU Technical Support Document 18: Methods for

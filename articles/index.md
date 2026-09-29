@@ -22,7 +22,8 @@
 
 - [Fitting, priors, and
   diagnostics](https://choxos.github.io/mlumr/articles/fitting-and-diagnostics.md):
-- [Choosing a method: ML-UMR, STC, and
+- [Choosing a method for single-arm indirect comparisons: ML-UMR, STC,
+  and
   naive](https://choxos.github.io/mlumr/articles/choosing-a-method.md):
 - [Aggregate subgroup information for the relaxed
   model](https://choxos.github.io/mlumr/articles/subgroup-identification.md):

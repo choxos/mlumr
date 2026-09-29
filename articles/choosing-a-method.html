@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Choosing a method: ML-UMR, STC, and naive • mlumr</title>
+<title>Choosing a method for single-arm indirect comparisons: ML-UMR, STC, and naive • mlumr</title>
 <!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="../favicon-96x96.png">
 <link rel="icon" type="”image/svg+xml”" href="../favicon.svg">
 <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
@@ -19,7 +19,7 @@
 <link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet">
-<meta property="og:title" content="Choosing a method: ML-UMR, STC, and naive">
+<meta property="og:title" content="Choosing a method for single-arm indirect comparisons: ML-UMR, STC, and naive">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -54,7 +54,7 @@
     <li><a class="dropdown-item" href="../articles/survival-outcomes.html">Survival (time-to-event) outcomes</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>Methods</h6></li>
     <li><a class="dropdown-item" href="../articles/fitting-and-diagnostics.html">Fitting, priors, and diagnostics</a></li>
-    <li><a class="dropdown-item" href="../articles/choosing-a-method.html">Choosing a method: ML-UMR, STC, and naive</a></li>
+    <li><a class="dropdown-item" href="../articles/choosing-a-method.html">Choosing a method for single-arm indirect comparisons</a></li>
     <li><a class="dropdown-item" href="../articles/subgroup-identification.html">Aggregate subgroup information for the relaxed model</a></li>
   </ul>
 </li>
@@ -85,7 +85,7 @@
 
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
-      <img src="../logo.svg" class="logo" alt=""><h1>Choosing a method: ML-UMR, STC, and naive</h1>
+      <img src="../logo.svg" class="logo" alt=""><h1>Choosing a method for single-arm indirect comparisons: ML-UMR, STC, and naive</h1>
             
       
       <small class="dont-index">Source: <a href="https://github.com/choxos/mlumr/blob/main/vignettes/choosing-a-method.Rmd" class="external-link"><code>vignettes/choosing-a-method.Rmd</code></a></small>
@@ -98,11 +98,16 @@
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/choxos/mlumr" class="external-link">mlumr</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>mc.cores <span class="op">=</span> <span class="fu">parallel</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/parallel/detectCores.html" class="external-link">detectCores</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p>Unanchored indirect comparisons rest on strong, partly untestable
+<p>Every method in this vignette is a method for <strong>single-arm
+indirect comparisons</strong>: fully unanchored comparisons of fully
+disconnected evidence, where IPD for one treatment and AgD for the other
+share no common reference arm. If the evidence is connected through a
+common arm, none of them is the right tool; see the decision guide
+below. Single-arm indirect comparisons rest on strong, partly untestable
 assumptions, so running several methods and comparing them is itself a
-sensitivity analysis. mlumr offers four estimators behind one data
-interface; this vignette explains what each assumes, how to compare
-them, and which to report. For the mechanics of fitting see
+sensitivity analysis. mlumr offers four estimators for this setting
+behind one data interface; this vignette explains what each assumes, how
+to compare them, and which to report. For the mechanics of fitting see
 <code><a href="../articles/fitting-and-diagnostics.html">vignette("fitting-and-diagnostics")</a></code>; for family-specific
 worked examples see the per-outcome vignettes. We illustrate with the
 real plaque-psoriasis binary endpoint (PASI 75; UNCOVER-2 ixekizumab vs
@@ -132,7 +137,7 @@ FIXTURE secukinumab) <span class="citation">(<a href="#ref-Griffiths2015">Griffi
 </tr>
 <tr class="even">
 <td>STC</td>
-<td>one-arm outcome regression (G-computation)</td>
+<td>unanchored outcome regression (G-computation)</td>
 <td>frequentist</td>
 <td>correct, applicable IPD outcome model</td>
 <td>comparator</td>
@@ -168,7 +173,18 @@ and the stated cross-treatment assumptions.</p>
 </h2>
 <p>All four estimators run from the same <code>mlumr_data</code> object,
 so we build it once, the plaque-psoriasis PASI 75 endpoint (UNCOVER-2
-ixekizumab vs FIXTURE secukinumab) with three prognostic covariates:</p>
+ixekizumab vs FIXTURE secukinumab) with three prognostic covariates.</p>
+<blockquote>
+<p><strong>Hypothetical single-arm trials.</strong> UNCOVER-2 and
+FIXTURE are randomized trials. Dropping their common reference arms
+(placebo and etanercept) turns them into hypothetical single-arm trials
+and leaves fully disconnected evidence; we do this only to illustrate
+ML-UMR. In practice, randomized trials should never be analyzed this
+way: ML-NMR (for example with <code>multinma</code>) or another
+appropriate method should be used for them. ML-UMR should only be used
+for fully unanchored, single-arm comparisons.</p>
+</blockquote>
+<p>The single-arm IPD and AgD for this comparison:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"psoriasis_ipd"</span><span class="op">)</span>   <span class="co"># bundled with mlumr (from multinma, GPL-3)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"psoriasis_agd"</span><span class="op">)</span></span>
@@ -209,8 +225,8 @@ of the outcome; a difference in the distribution of a variable unrelated
 to the outcome does not by itself induce bias. <strong>STC</strong> fits
 an outcome regression on the IPD and predicts outcomes under the index
 treatment in the comparator population by G-computation. The
-response-scale averaging follows Ren et al.’s one-arm unanchored STC and
-the marginalization order used by Remiro-Azocar et al. <span class="citation">(<a href="#ref-Ren2024">Ren et al. 2024</a>; <a href="#ref-RemiroAzocar2022">Remiro-Azocar et al. 2022</a>)</span>. The
+response-scale averaging follows Ren et al.’s unanchored single-arm STC
+and the marginalization order used by Remiro-Azocar et al. <span class="citation">(<a href="#ref-Ren2024">Ren et al. 2024</a>; <a href="#ref-RemiroAzocar2022">Remiro-Azocar et al. 2022</a>)</span>. The
 non-survival delta-method SE is conditional on the supplied integration
 grid and reported covariate summaries; it does not reproduce Ren et
 al.’s bootstrap of both the IPD fit and reconstructed target
@@ -301,9 +317,9 @@ modification):</p>
 <div class="section level2">
 <h2 id="a-comparison-table">A comparison table<a class="anchor" aria-label="anchor" href="#a-comparison-table"></a>
 </h2>
-<p>All four methods, on the <strong>log odds ratio</strong>. ML-UMR is
-reported in <strong>both</strong> target populations. STC has a
-comparator-population estimand by construction; naive has no single
+<p>All four single-arm methods, on the <strong>log odds ratio</strong>.
+ML-UMR is reported in <strong>both</strong> target populations. STC has
+a comparator-population estimand by construction; naive has no single
 standardized target and is labeled accordingly. Neither has an
 index-population row to show. Which of them is decision-relevant is a
 question about the application, not a property of the method: a
@@ -511,8 +527,10 @@ when the AgD is clustered.</p>
 <strong>Is there a common comparator arm?</strong> If the two trials
 share an arm, run an <em>anchored</em> analysis instead: a network
 meta-analysis, or ML-NMR via <code>multinma</code> when the populations
-differ. Randomization is doing work there that nothing below replaces.
-Reserve ML-UMR for evidence that is genuinely unanchored.
+differ. Randomization is doing work there that nothing below replaces,
+so trials connected through a common arm should never be broken into
+single-arm evidence. Reserve ML-UMR, and every method in this vignette,
+for single-arm indirect comparisons of fully disconnected evidence.
 <code><a href="../articles/binary-outcomes.html">vignette("binary-outcomes")</a></code> and
 <code><a href="../articles/survival-outcomes.html">vignette("survival-outcomes")</a></code> each end by restoring the
 common arm their example discards and checking the unanchored answer
@@ -556,7 +574,7 @@ diagnostics (divergences, Rhat, ESS) alongside the estimates.</p>
 Chandler, Conor, and K. Jack Ishak. 2026. <em>Reframing
 Population-Adjusted Indirect Comparisons as a Transportability Problem:
 An Estimand-Based Perspective and Implications for Health Technology
-Assessment</em>.
+Assessment</em>. Preprint. <a href="https://doi.org/10.48550/arXiv.2602.17041" class="external-link">https://doi.org/10.48550/arXiv.2602.17041</a>.
 </div>
 <div id="ref-Griffiths2015" class="csl-entry">
 Griffiths, C. E. M., K. Reich, M. Lebwohl, et al. 2015.

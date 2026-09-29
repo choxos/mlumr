@@ -30,7 +30,7 @@
     <li><a class="dropdown-item" href="../articles/survival-outcomes.html">Survival (time-to-event) outcomes</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>Methods</h6></li>
     <li><a class="dropdown-item" href="../articles/fitting-and-diagnostics.html">Fitting, priors, and diagnostics</a></li>
-    <li><a class="dropdown-item" href="../articles/choosing-a-method.html">Choosing a method: ML-UMR, STC, and naive</a></li>
+    <li><a class="dropdown-item" href="../articles/choosing-a-method.html">Choosing a method for single-arm indirect comparisons</a></li>
     <li><a class="dropdown-item" href="../articles/subgroup-identification.html">Aggregate subgroup information for the relaxed model</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -147,6 +147,7 @@
 <ul><li>Feature: Bundled datasets derived from published trials replace the invented data of 0.1.0: <code>psoriasis_ipd</code>/<code>psoriasis_agd</code> (binary), <code>shoulder_ipd</code>/<code>shoulder_agd</code> (continuous), <code>caries_ipd</code>/<code>caries_agd</code> (count) and <code>ndmm_ipd</code>/<code>ndmm_agd</code>/<code>ndmm_agd_covs</code> (survival). Provenance and known quirks are on each help page; <code>data-raw/prepare_multinma_subsets.R</code> rebuilds them.</li>
 <li>Improvement: Nine outcome-focused vignettes (<code>introduction</code>, <code>data-preparation</code>, <code>binary-outcomes</code>, <code>continuous-outcomes</code>, <code>count-outcomes</code>, <code>survival-outcomes</code>, <code>subgroup-identification</code>, <code>fitting-and-diagnostics</code>, <code>choosing-a-method</code>), precompiled through <code>R.rsp</code> so no Stan model runs at check time.</li>
 <li>Improvement: <code><a href="../reference/set_agd.html">?set_agd</a></code> states what an aggregate Poisson row assumes about exposure, and the <code>shoulder</code> and <code>caries</code> help pages describe their reference comparison as an estimate rather than a known truth.</li>
+<li>Improvement: The README and vignettes state that ML-UMR is for single-arm indirect comparisons of fully disconnected evidence, and that each worked example builds hypothetical single-arm trials from randomized trials only to illustrate the method; randomized trials connected through a common arm call for ML-NMR or another appropriate method. <code><a href="../articles/count-outcomes.html">vignette("count-outcomes")</a></code> explains why its SPFA rate ratio is the same in both populations and at every covariate profile (a directly transportable effect), and the README states that the marginal hazard ratio varies over time even when both studies share one baseline shape.</li>
 <li>Feature: New hex-sticker logo with a broken-anchor motif.</li>
 </ul></div>
 <div class="section level3">

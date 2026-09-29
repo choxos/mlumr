@@ -31,7 +31,16 @@ code with the defaults prints rstan’s equivalents instead.
 We reuse the plaque-psoriasis binary example, a compact ML-UMR fit that
 the rest of this vignette inspects, tunes, and diagnoses (the data
 preparation is covered in
-[`vignette("binary-outcomes")`](https://choxos.github.io/mlumr/articles/binary-outcomes.md)):
+[`vignette("binary-outcomes")`](https://choxos.github.io/mlumr/articles/binary-outcomes.md)).
+
+> **Hypothetical single-arm trials.** UNCOVER-2 and FIXTURE are
+> randomized trials. Dropping their common reference arms (placebo and
+> etanercept) turns them into hypothetical single-arm trials and leaves
+> fully disconnected evidence; we do this only to illustrate ML-UMR. In
+> practice, randomized trials should never be analyzed this way: ML-NMR
+> (for example with `multinma`) or another appropriate method should be
+> used for them. ML-UMR should only be used for fully unanchored,
+> single-arm comparisons.
 
 ``` r
 

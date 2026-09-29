@@ -3,12 +3,12 @@
 ## What mlumr does
 
 **mlumr** implements **multilevel unanchored meta-regression (ML-UMR)**
-for population-adjusted indirect treatment comparisons. It is for the
-situation where two treatments have never been compared in the same
-trial and there is **no common comparator arm** to anchor the comparison
-(a *disconnected* or *single-arm* evidence base), you hold individual
-patient data (IPD) for one treatment and only published aggregate data
-(AgD) for the other.
+for population-adjusted single-arm indirect treatment comparisons. It is
+for the situation where two treatments have never been compared in the
+same trial and there is **no common comparator arm** to anchor the
+comparison (single-arm trials, i.e., *fully disconnected* evidence), you
+hold individual patient data (IPD) for one treatment and only published
+aggregate data (AgD) for the other.
 
 ML-UMR fits an outcome model to the IPD and **integrates it over the
 comparator study’s covariate distribution**, transporting the comparison
@@ -23,6 +23,16 @@ developed by Chandler and Ishak for binary ([Chandler and Ishak
 The current package is two-treatment: one index treatment (IPD) versus
 one comparator (AgD). Multi-treatment unanchored networks are out of
 scope.
+
+ML-UMR should only be used for fully unanchored, single-arm comparisons.
+The worked examples in these vignettes use data from randomized trials,
+and to illustrate the method they create hypothetical single-arm trials
+by dropping a common reference arm (or by treating a trial’s randomized
+arms as separate sources), which leaves fully disconnected evidence. In
+practice, randomized trials should never be analyzed this way: ML-NMR
+([Phillippo et al. 2020](#ref-Phillippo2020)) (for example with the
+`multinma` package) or another appropriate method should be used for
+them.
 
 ## Supported outcome families
 

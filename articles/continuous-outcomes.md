@@ -29,6 +29,16 @@ and for how to choose between methods see
 > data. The two trial arms are treated as separate single-arm sources to
 > illustrate an unanchored comparison; in a real ML-UMR application the
 > comparator would come from a different study.
+>
+> **Hypothetical single-arm trials.** FIMPACT is a randomized trial.
+> Treating its ASD and exercise therapy arms as two separate sources
+> turns them into hypothetical single-arm trials and leaves fully
+> disconnected evidence; we do this only to illustrate ML-UMR. In
+> practice, randomized trials should never be analyzed this way: the
+> randomized comparison, or ML-NMR or another appropriate method when
+> trials are connected through a common arm, should be used for them.
+> ML-UMR should only be used for fully unanchored, single-arm
+> comparisons.
 
 ## The clinical question
 
@@ -696,6 +706,7 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "dic")
 Chandler, Conor, and K. Jack Ishak. 2026. *Reframing Population-Adjusted
 Indirect Comparisons as a Transportability Problem: An Estimand-Based
 Perspective and Implications for Health Technology Assessment*.
+Preprint. <https://doi.org/10.48550/arXiv.2602.17041>.
 
 Kanto, Kari et al. 2025. “Arthroscopic Subacromial Decompression Versus
 Diagnostic Arthroscopy and Exercise Therapy for Shoulder Impingement: 10

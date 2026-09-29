@@ -57,7 +57,7 @@
     <li><a class="dropdown-item" href="articles/survival-outcomes.html">Survival (time-to-event) outcomes</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>Methods</h6></li>
     <li><a class="dropdown-item" href="articles/fitting-and-diagnostics.html">Fitting, priors, and diagnostics</a></li>
-    <li><a class="dropdown-item" href="articles/choosing-a-method.html">Choosing a method: ML-UMR, STC, and naive</a></li>
+    <li><a class="dropdown-item" href="articles/choosing-a-method.html">Choosing a method for single-arm indirect comparisons</a></li>
     <li><a class="dropdown-item" href="articles/subgroup-identification.html">Aggregate subgroup information for the relaxed model</a></li>
   </ul>
 </li>
@@ -90,15 +90,15 @@
 </div>
 <!-- badges: start -->
 
-<p><strong><em>mlumr</em></strong> implements Multilevel Unanchored Meta-Regression (ML-UMR), a population-adjusted indirect treatment comparison for <em>disconnected</em> evidence networks: individual patient data (IPD) for one treatment, aggregate data (AgD) for the comparator, and no common reference arm (e.g., comparing single-arm studies). It estimates treatment effects while adjusting for cross-trial differences in prognostic factors, extending Multilevel Network Meta-Regression (ML-NMR; Phillippo et al., 2020) to the unanchored setting.</p>
+<p><strong><em>mlumr</em></strong> implements Multilevel Unanchored Meta-Regression (ML-UMR), a population-adjusted single-arm indirect treatment comparison for treatments from <em>fully disconnected</em> evidence: individual patient data (IPD) for one treatment, aggregate data (AgD) for the comparator, and no common reference arm (e.g., comparing single-arm studies). It estimates treatment effects while adjusting for cross-trial differences in prognostic factors, extending Multilevel Network Meta-Regression (ML-NMR; Phillippo et al., 2020) to the single-arm, fully unanchored setting.</p>
 <p>It provides four estimators behind one data interface, two of them ML-UMR variants:</p>
 <ul>
 <li>
 <strong>ML-UMR</strong> (Bayesian): the shared prognostic factor assumption (SPFA) model and the relaxed SPFA model, fitted via Stan with quasi-Monte Carlo integration and a Gaussian copula for population adjustment</li>
 <li>
-<strong>STC</strong> (frequentist): one-arm simulated treatment comparison via comparator-population G-computation, with delta-method standard errors for binary, continuous, and count outcomes and a nonparametric bootstrap for time-to-event</li>
+<strong>STC</strong> (frequentist): unanchored simulated treatment comparison via comparator-population G-computation, with delta-method standard errors for binary, continuous, and count outcomes and a nonparametric bootstrap for time-to-event</li>
 <li>
-<strong>Naive</strong> (benchmark): unadjusted comparison of crude outcome summaries</li>
+<strong>Naive</strong> (benchmark): unadjusted comparison of outcomes across studies</li>
 </ul>
 <p>Binary, continuous, count, and time-to-event outcomes are supported.</p>
 <div class="section level2">
@@ -208,7 +208,7 @@
 </table>
 <p>For survival outcomes the comparator arm is reconstructed pseudo-IPD (event/censoring times digitized from a published Kaplan-Meier curve) supplied via <code><a href="reference/set_agd_surv.html">set_agd_surv()</a></code>. The <code>distribution</code> argument selects one of nine parametric forms (exponential, Weibull, Gompertz, and accelerated failure time variants) or a flexible <code>"mspline"</code> / <code>"pexp"</code> baseline. <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> returns survival, hazard, RMST, and median curves plus the time-varying marginal log hazard ratio (<code>type = "loghr"</code>). <code><a href="reference/marginal_effects.html">marginal_effects()</a></code> reports the hazard ratio for proportional-hazards distributions on the natural scale (null 1, as for the rate ratio). For accelerated failure time distributions it reports a time ratio only when the two studies share one baseline shape and one coefficient vector; under the default <code>aux_by = ".study"</code>, or under the relaxed model, it reports the exponentiated linear-predictor contrast (<code>EXP_DELTA_ETA</code>) instead. Both are accompanied by the RMST difference and ratio, each reported with the restriction horizon it was integrated to.</p>
 <p>The baseline hazard is estimated <strong>separately for each study</strong> (<code>aux_by = ".study"</code>, the default, as in multinma). The spelling matches multinma; the meaning does not. In an anchored network a study-specific shape is a nuisance parameter and within-study randomization still identifies the treatment effect. Here each study contributes exactly one arm, so a study-specific shape and a treatment-specific shape are perfectly aliased: nothing in the data separates them. <code>aux_by = "none"</code> instead assumes one shared shape, which for proportional-hazards distributions imposes proportional hazards across studies and for accelerated failure time distributions imposes a common distributional shape; that assumption is at least testable against the two observed Kaplan-Meier curves. Neither choice is assumption-free, so fit both and report which was used.</p>
-<p>After marginalization the hazard ratio is generally time-varying in the SPFA and relaxed models alike, because each arm weights the covariate distribution by its own survival and the two risk sets diverge; study-specific shapes add the ratio of the baselines on top of that. The scalar marginal hazard ratio is therefore its value at one time, chosen with <code>at_time</code>, and the primary reported estimand should be the <code>loghr</code> curve or the collapsible RMST effects. See <code><a href="articles/survival-outcomes.html">vignette("survival-outcomes")</a></code>.</p>
+<p>After marginalization the hazard ratio is generally time-varying in the SPFA and relaxed models alike, and this holds even when both studies share one baseline shape (<code>aux_by = "none"</code>). A shared shape makes the <em>conditional</em> hazard ratio constant over time, but each arm’s marginal hazard averages over the patients still at risk, and the two arms lose their high-risk patients at different rates, so the covariate mix of the two risk sets diverges: the hazard ratio is not collapsible. With a common Weibull shape of 1.5, one standard normal prognostic covariate with a log hazard ratio of 0.8 and a conditional hazard ratio of 0.50, for example, the marginal hazard ratio rises from 0.50 at the start of follow-up to 0.66 later on. It stays constant only when no covariate is prognostic or the treatments do not differ. Study-specific shapes add the ratio of the baselines on top of that. The scalar marginal hazard ratio is therefore its value at one time. With study-specific shapes that is the first prediction time or the time chosen with <code>at_time</code>; with a shared shape it is the <code>t -&gt; 0</code> limit, the only <code>at_time</code> accepted is 0, and for an SPFA fit it equals the conditional hazard ratio. The primary reported estimand should be the <code>loghr</code> curve (<code>predict(type = "loghr")</code>) or the collapsible RMST effects. See <code><a href="articles/survival-outcomes.html">vignette("survival-outcomes")</a></code>.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Index IPD with a Surv outcome; comparator from a digitized KM curve</span></span>
 <span><span class="va">ipd</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/set_ipd.html">set_ipd</a></span><span class="op">(</span><span class="va">ipd_df</span>, treatment <span class="op">=</span> <span class="st">"trt"</span>, covariates <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age"</span>, <span class="st">"sex"</span><span class="op">)</span>,</span>
@@ -306,7 +306,7 @@
 <tr>
 <td>MAIC</td>
 <td align="center">IPD + AgD</td>
-<td align="center">Anchored or unanchored</td>
+<td align="center">Anchored or fully unanchored (single-arm)</td>
 <td align="center">Yes</td>
 <td align="center">Marginal</td>
 <td align="center">Comparator</td>
@@ -314,7 +314,7 @@
 <tr>
 <td>STC</td>
 <td align="center">IPD + AgD</td>
-<td align="center">Unanchored</td>
+<td align="center">Anchored or fully unanchored (single-arm)</td>
 <td align="center">Yes</td>
 <td align="center">Marginal</td>
 <td align="center">Comparator</td>
@@ -330,7 +330,7 @@
 <tr>
 <td><strong>ML-UMR</strong></td>
 <td align="center">IPD + AgD</td>
-<td align="center">Unanchored</td>
+<td align="center">Fully unanchored (single-arm)</td>
 <td align="center">Yes</td>
 <td align="center">Marginal or conditional</td>
 <td align="center">Any pre-specified target</td>
@@ -341,10 +341,11 @@
 <p>ML-UMR is most appropriate when:</p>
 <ol style="list-style-type: decimal">
 <li>You have IPD for one treatment and AgD for the comparator</li>
-<li>No common reference arm connects the evidence (unanchored)</li>
+<li>Indirectly comparing treatments from single-arm trials (i.e., fully disconnected evidence where no common reference arm connects the evidence)</li>
 <li>Binary, continuous, count, or time-to-event outcomes are of interest</li>
 <li>Covariate distributions differ between trial populations</li>
 </ol>
+<p>ML-UMR should only be used for fully unanchored, single-arm comparisons. Randomized trials that share a common arm, or are otherwise connected, should never be broken into single-arm evidence to fit it: connected evidence calls for ML-NMR (for example with multinma) or another appropriate method. The vignettes’ worked examples do exactly that, creating hypothetical single-arm trials from randomized trials by dropping a common reference arm or by treating a trial’s arms as separate sources, only to illustrate the method.</p>
 </div>
 <div class="section level2">
 <h2 id="key-functions">Key functions<a class="anchor" aria-label="anchor" href="#key-functions"></a>
@@ -457,12 +458,12 @@
 </h2>
 <p>Some exported functions intentionally use names familiar from multinma counterparts (<code><a href="reference/set_ipd.html">set_ipd()</a></code>, <code><a href="reference/set_agd.html">set_agd()</a></code>, <code><a href="reference/add_integration.html">add_integration()</a></code>, <code><a href="reference/unnest_integration.html">unnest_integration()</a></code>, <code><a href="reference/distr.html">distr()</a></code>, <code><a href="reference/marginal_effects.html">marginal_effects()</a></code>, <code><a href="reference/make_knots.html">make_knots()</a></code>, <code><a href="reference/geom_km.html">geom_km()</a></code>, <code>qbern()/pbern()/dbern()</code>, <code>qgamma()/pgamma()/dgamma()</code>, <code>qlogitnorm()/plogitnorm()/dlogitnorm()</code>).</p>
 <p>Shared names signal related concepts, not drop-in compatibility. The data objects, argument sets, supported evidence structures, and fitted models differ, so translate a multinma specification explicitly and check each mlumr help page. One difference is worth stating outright, because both packages spell it <code>"link"</code>: <code>multinma::predict(type = "link")</code> returns the average linear predictor <code>E[eta]</code>, and its marginal link-scale contrast is <code>marginal_effects(mtype = "link")</code>. mlumr’s <code>predict(type = "link")</code> is the marginal one, the fitted link applied to the population-standardized response mean, because every effect mlumr reports is standardized over a population and there is no conditional estimand here for <code>E[eta]</code> to pair with. For survival, <code>aux_by = NULL</code> resolves to <code>".study"</code>; the mlumr-specific <code>aux_by = "none"</code> shares one baseline shape across both studies.</p>
-<p>The cleanest practice is still to <strong>use one package per session</strong>, matched to the network type (anchored connected → multinma; unanchored disconnected → mlumr). When both must be attached, disambiguate with the namespace prefix:</p>
+<p>The cleanest practice is still to <strong>use one package per session</strong>, matched to the evidence (anchored, connected network → multinma; single-arm, fully disconnected evidence → mlumr). When both must be attached, disambiguate with the namespace prefix:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dmphillippo.github.io/multinma/" class="external-link">multinma</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/choxos/mlumr" class="external-link">mlumr</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># mlumr fits ML-UMR (disconnected, two-trial)</span></span>
+<span><span class="co"># mlumr fits ML-UMR (single-arm, fully disconnected evidence)</span></span>
 <span><span class="va">fit_umr</span> <span class="op">&lt;-</span> <span class="fu">mlumr</span><span class="fu">::</span><span class="fu"><a href="reference/mlumr.html">mlumr</a></span><span class="op">(</span><span class="va">dat</span>, model <span class="op">=</span> <span class="st">"spfa"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># multinma fits ML-NMR (connected network)</span></span>
@@ -496,7 +497,7 @@
 <li>
 <code><a href="articles/fitting-and-diagnostics.html">vignette("fitting-and-diagnostics")</a></code>: sampler control, backends, priors, and MCMC diagnostics</li>
 <li>
-<code><a href="articles/choosing-a-method.html">vignette("choosing-a-method")</a></code>: assumptions, model comparison, and a decision guide for ML-UMR vs STC vs naive</li>
+<code><a href="articles/choosing-a-method.html">vignette("choosing-a-method")</a></code>: assumptions, model comparison, and a decision guide for ML-UMR vs STC vs naive in single-arm indirect comparisons</li>
 <li>
 <code><a href="articles/subgroup-identification.html">vignette("subgroup-identification")</a></code>: how many jointly defined aggregate subgroup rows the relaxed model needs, the geometry those rows must have, and how to read <code><a href="reference/check_identification.html">check_identification()</a></code>
 </li>
@@ -515,7 +516,7 @@
 <blockquote>
 <p>Chandler, C. &amp; Ishak, J. (2026). “Surviving Unanchored Indirect Comparisons: An Extension of Multilevel Unanchored Meta-Regression (ML-UMR) for Survival Analyses.” ISPOR 2026, MSR131. <em>Value in Health</em>, 29(S6). <a href="https://www.ispor.org/heor-resources/presentations-database/presentation-cti/ispor-2026/poster-session-3-3/surviving-unanchored-indirect-comparisons-an-extension-of-multilevel-unanchored-meta-regression-ml-umr-for-survival-analyses" class="external-link uri">https://www.ispor.org/heor-resources/presentations-database/presentation-cti/ispor-2026/poster-session-3-3/surviving-unanchored-indirect-comparisons-an-extension-of-multilevel-unanchored-meta-regression-ml-umr-for-survival-analyses</a></p>
 </blockquote>
-<p>ML-UMR is an adaptation of multilevel network meta-regression (ML-NMR) to the unanchored case, where no common comparator arm links the two studies:</p>
+<p>ML-UMR is an adaptation of multilevel network meta-regression (ML-NMR) to the single-arm, fully unanchored case, where no common comparator arm links the two studies:</p>
 <blockquote>
 <p>Phillippo, D. M., Dias, S., Ades, A. E., Belger, M., Brnabic, A., Schacht, A., Saure, D., Kadziola, Z., &amp; Welton, N. J. (2020). “Multilevel Network Meta-Regression for population-adjusted treatment comparisons.” <em>Journal of the Royal Statistical Society: Series A</em>, 183(3), 1189–1210. <a href="https://doi.org/10.1111/rssa.12579" class="external-link">doi:10.1111/rssa.12579</a></p>
 </blockquote>

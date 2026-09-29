@@ -54,7 +54,7 @@
     <li><a class="dropdown-item" href="../articles/survival-outcomes.html">Survival (time-to-event) outcomes</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>Methods</h6></li>
     <li><a class="dropdown-item" href="../articles/fitting-and-diagnostics.html">Fitting, priors, and diagnostics</a></li>
-    <li><a class="dropdown-item" href="../articles/choosing-a-method.html">Choosing a method: ML-UMR, STC, and naive</a></li>
+    <li><a class="dropdown-item" href="../articles/choosing-a-method.html">Choosing a method for single-arm indirect comparisons</a></li>
     <li><a class="dropdown-item" href="../articles/subgroup-identification.html">Aggregate subgroup information for the relaxed model</a></li>
   </ul>
 </li>
@@ -130,6 +130,15 @@ arms back to use.</p>
 <p>The index arm is McCarthy2012 lenalidomide rather than the other
 candidate, Palumbo2014: its patients are closer to the Morgan2012
 population, which is what an unanchored comparison depends on.</p>
+<p><strong>Hypothetical single-arm trials.</strong> McCarthy2012 and
+Morgan2012 are randomized trials. Dropping their common reference arm
+(placebo) turns them into hypothetical single-arm trials and leaves
+fully disconnected evidence; we do this only to illustrate ML-UMR. In
+practice, randomized trials should never be analyzed this way: ML-NMR
+(for example with <code>multinma</code>, as in the section <em>Checking
+against the anchored comparison</em>) or another appropriate method
+should be used for them. ML-UMR should only be used for fully
+unanchored, single-arm comparisons.</p>
 </blockquote>
 <div class="section level2">
 <h2 id="the-unanchored-survival-problem">The unanchored survival problem<a class="anchor" aria-label="anchor" href="#the-unanchored-survival-problem"></a>
@@ -1761,7 +1770,7 @@ PA, USA; abstract MSR131; Value in Health. <a href="https://www.ispor.org/heor-r
 Chandler, Conor, and K. Jack Ishak. 2026. <em>Reframing
 Population-Adjusted Indirect Comparisons as a Transportability Problem:
 An Estimand-Based Perspective and Implications for Health Technology
-Assessment</em>.
+Assessment</em>. Preprint. <a href="https://doi.org/10.48550/arXiv.2602.17041" class="external-link">https://doi.org/10.48550/arXiv.2602.17041</a>.
 </div>
 <div id="ref-Leahy2019" class="csl-entry">
 Leahy, Joy, and Cathal Walsh. 2019. <span>“Assessing the Impact of a

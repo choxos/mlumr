@@ -1,4 +1,4 @@
-# Choosing a method: ML-UMR, STC, and naive
+# Choosing a method for single-arm indirect comparisons: ML-UMR, STC, and naive
 
 ``` r
 
@@ -7,9 +7,14 @@ library(ggplot2)
 options(mc.cores = parallel::detectCores())
 ```
 
-Unanchored indirect comparisons rest on strong, partly untestable
-assumptions, so running several methods and comparing them is itself a
-sensitivity analysis. mlumr offers four estimators behind one data
+Every method in this vignette is a method for **single-arm indirect
+comparisons**: fully unanchored comparisons of fully disconnected
+evidence, where IPD for one treatment and AgD for the other share no
+common reference arm. If the evidence is connected through a common arm,
+none of them is the right tool; see the decision guide below. Single-arm
+indirect comparisons rest on strong, partly untestable assumptions, so
+running several methods and comparing them is itself a sensitivity
+analysis. mlumr offers four estimators for this setting behind one data
 interface; this vignette explains what each assumes, how to compare
 them, and which to report. For the mechanics of fitting see
 [`vignette("fitting-and-diagnostics")`](https://choxos.github.io/mlumr/articles/fitting-and-diagnostics.md);
@@ -21,7 +26,7 @@ UNCOVER-2 ixekizumab vs FIXTURE secukinumab) ([Griffiths et al.
 | Method | Adjustment | Framework | Key assumption | Target population |
 |----|----|----|----|----|
 | Naive | none | frequentist | populations exchangeable | none (unstandardized contrast) |
-| STC | one-arm outcome regression (G-computation) | frequentist | correct, applicable IPD outcome model | comparator |
+| STC | unanchored outcome regression (G-computation) | frequentist | correct, applicable IPD outcome model | comparator |
 | ML-UMR SPFA | joint Bayesian model | Bayesian | shared prognostic effects (SPFA) | index *and* comparator |
 | ML-UMR relaxed | joint Bayesian model | Bayesian | correct + identified treatment-specific effects | index *and* comparator |
 
@@ -43,7 +48,18 @@ assumptions.
 
 All four estimators run from the same `mlumr_data` object, so we build
 it once, the plaque-psoriasis PASI 75 endpoint (UNCOVER-2 ixekizumab vs
-FIXTURE secukinumab) with three prognostic covariates:
+FIXTURE secukinumab) with three prognostic covariates.
+
+> **Hypothetical single-arm trials.** UNCOVER-2 and FIXTURE are
+> randomized trials. Dropping their common reference arms (placebo and
+> etanercept) turns them into hypothetical single-arm trials and leaves
+> fully disconnected evidence; we do this only to illustrate ML-UMR. In
+> practice, randomized trials should never be analyzed this way: ML-NMR
+> (for example with `multinma`) or another appropriate method should be
+> used for them. ML-UMR should only be used for fully unanchored,
+> single-arm comparisons.
+
+The single-arm IPD and AgD for this comparison:
 
 ``` r
 
@@ -86,7 +102,7 @@ outcome; a difference in the distribution of a variable unrelated to the
 outcome does not by itself induce bias. **STC** fits an outcome
 regression on the IPD and predicts outcomes under the index treatment in
 the comparator population by G-computation. The response-scale averaging
-follows Ren et al.’s one-arm unanchored STC and the marginalization
+follows Ren et al.’s unanchored single-arm STC and the marginalization
 order used by Remiro-Azocar et al. ([Ren et al. 2024](#ref-Ren2024);
 [Remiro-Azocar et al. 2022](#ref-RemiroAzocar2022)). The non-survival
 delta-method SE is conditional on the supplied integration grid and
@@ -182,14 +198,14 @@ fit_relaxed <- mlumr(dat, model = "relaxed",
 
 ## A comparison table
 
-All four methods, on the **log odds ratio**. ML-UMR is reported in
-**both** target populations. STC has a comparator-population estimand by
-construction; naive has no single standardized target and is labeled
-accordingly. Neither has an index-population row to show. Which of them
-is decision-relevant is a question about the application, not a property
-of the method: a cost-effectiveness model is built for the population
-the reimbursement decision covers, and that population has to be stated.
-It is often close to the index trial’s ([Chandler and Ishak
+All four single-arm methods, on the **log odds ratio**. ML-UMR is
+reported in **both** target populations. STC has a comparator-population
+estimand by construction; naive has no single standardized target and is
+labeled accordingly. Neither has an index-population row to show. Which
+of them is decision-relevant is a question about the application, not a
+property of the method: a cost-effectiveness model is built for the
+population the reimbursement decision covers, and that population has to
+be stated. It is often close to the index trial’s ([Chandler and Ishak
 2026](#ref-ChandlerIshakTransport)), which is why the index row usually
 carries the decision, but it is not automatically either trial’s. When
 the decision population is a third one, standardize to it directly by
@@ -351,8 +367,10 @@ and can be optimistic when the AgD is clustered.
 1.  **Is there a common comparator arm?** If the two trials share an
     arm, run an *anchored* analysis instead: a network meta-analysis, or
     ML-NMR via `multinma` when the populations differ. Randomization is
-    doing work there that nothing below replaces. Reserve ML-UMR for
-    evidence that is genuinely unanchored.
+    doing work there that nothing below replaces, so trials connected
+    through a common arm should never be broken into single-arm
+    evidence. Reserve ML-UMR, and every method in this vignette, for
+    single-arm indirect comparisons of fully disconnected evidence.
     [`vignette("binary-outcomes")`](https://choxos.github.io/mlumr/articles/binary-outcomes.md)
     and
     [`vignette("survival-outcomes")`](https://choxos.github.io/mlumr/articles/survival-outcomes.md)
@@ -393,6 +411,7 @@ diagnostics (divergences, Rhat, ESS) alongside the estimates.
 Chandler, Conor, and K. Jack Ishak. 2026. *Reframing Population-Adjusted
 Indirect Comparisons as a Transportability Problem: An Estimand-Based
 Perspective and Implications for Health Technology Assessment*.
+Preprint. <https://doi.org/10.48550/arXiv.2602.17041>.
 
 Griffiths, C. E. M., K. Reich, M. Lebwohl, et al. 2015. “Comparison of
 Ixekizumab with Etanercept or Placebo in Moderate-to-Severe Psoriasis

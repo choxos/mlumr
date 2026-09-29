@@ -54,7 +54,7 @@
     <li><a class="dropdown-item" href="../articles/survival-outcomes.html">Survival (time-to-event) outcomes</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>Methods</h6></li>
     <li><a class="dropdown-item" href="../articles/fitting-and-diagnostics.html">Fitting, priors, and diagnostics</a></li>
-    <li><a class="dropdown-item" href="../articles/choosing-a-method.html">Choosing a method: ML-UMR, STC, and naive</a></li>
+    <li><a class="dropdown-item" href="../articles/choosing-a-method.html">Choosing a method for single-arm indirect comparisons</a></li>
     <li><a class="dropdown-item" href="../articles/subgroup-identification.html">Aggregate subgroup information for the relaxed model</a></li>
   </ul>
 </li>
@@ -121,6 +121,15 @@ the <code>syntheticdata</code> package), much as <code>multinma</code>
 builds its own example data. The two trial arms are treated as separate
 single-arm sources to illustrate an unanchored comparison; in a real
 ML-UMR application the comparator would come from a different study.</p>
+<p><strong>Hypothetical single-arm trials.</strong> FIMPACT is a
+randomized trial. Treating its ASD and exercise therapy arms as two
+separate sources turns them into hypothetical single-arm trials and
+leaves fully disconnected evidence; we do this only to illustrate
+ML-UMR. In practice, randomized trials should never be analyzed this
+way: the randomized comparison, or ML-NMR or another appropriate method
+when trials are connected through a common arm, should be used for them.
+ML-UMR should only be used for fully unanchored, single-arm
+comparisons.</p>
 </blockquote>
 <div class="section level2">
 <h2 id="the-clinical-question">The clinical question<a class="anchor" aria-label="anchor" href="#the-clinical-question"></a>
@@ -1028,7 +1037,7 @@ covariate-outcome relationships; they are not real patient data. See
 Chandler, Conor, and K. Jack Ishak. 2026. <em>Reframing
 Population-Adjusted Indirect Comparisons as a Transportability Problem:
 An Estimand-Based Perspective and Implications for Health Technology
-Assessment</em>.
+Assessment</em>. Preprint. <a href="https://doi.org/10.48550/arXiv.2602.17041" class="external-link">https://doi.org/10.48550/arXiv.2602.17041</a>.
 </div>
 <div id="ref-Fimpact2025" class="csl-entry">
 <span class="nocase">Kanto, Kari et al.</span> 2025. <span>“Arthroscopic
