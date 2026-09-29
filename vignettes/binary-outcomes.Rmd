@@ -35,6 +35,14 @@ package [@multinma]). It is the unanchored, two-study analogue of multinma's
 > possible, which is not the problem this vignette is about. The unanchored
 > framing is a construction for illustration; the section *Checking against the
 > anchored comparison* below puts the omitted arms back to use.
+>
+> **Hypothetical single-arm trials.** UNCOVER-2 and FIXTURE are randomized
+> trials. Dropping their common reference arms (placebo and etanercept) turns
+> them into hypothetical single-arm trials and leaves fully disconnected
+> evidence; we do this only to illustrate ML-UMR. In practice, randomized
+> trials should never be analyzed this way: ML-NMR (for example with
+> `multinma`) or another appropriate method should be used for them. ML-UMR
+> should only be used for fully unanchored, single-arm comparisons.
 
 ## The clinical question
 

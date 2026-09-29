@@ -40,6 +40,15 @@ the unanchored analogue of that analysis [@ChandlerIshak2026]. See
 > The index arm is McCarthy2012 lenalidomide rather than the other candidate,
 > Palumbo2014: its patients are closer to the Morgan2012 population, which is
 > what an unanchored comparison depends on.
+>
+> **Hypothetical single-arm trials.** McCarthy2012 and Morgan2012 are
+> randomized trials. Dropping their common reference arm (placebo) turns them
+> into hypothetical single-arm trials and leaves fully disconnected evidence; we
+> do this only to illustrate ML-UMR. In practice, randomized trials should never
+> be analyzed this way: ML-NMR (for example with `multinma`, as in the section
+> *Checking against the anchored comparison*) or another appropriate method
+> should be used for them. ML-UMR should only be used for fully unanchored,
+> single-arm comparisons.
 
 ## The unanchored survival problem
 

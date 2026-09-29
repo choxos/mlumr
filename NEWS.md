@@ -281,6 +281,14 @@
 * Improvement: `?set_agd` states what an aggregate Poisson row assumes about
   exposure, and the `shoulder` and `caries` help pages describe their
   reference comparison as an estimate rather than a known truth.
+* Improvement: The README and vignettes state that ML-UMR is for single-arm
+  indirect comparisons of fully disconnected evidence, and that each worked
+  example builds hypothetical single-arm trials from randomized trials only to
+  illustrate the method; randomized trials call for ML-NMR or another
+  appropriate method. `vignette("count-outcomes")` explains why its SPFA rate
+  ratio is the same in both populations and at every covariate profile (a
+  directly transportable effect), and the README states that the marginal
+  hazard ratio varies over time even when both studies share one baseline shape.
 * Feature: New hex-sticker logo with a broken-anchor motif.
 
 ## Dependencies
