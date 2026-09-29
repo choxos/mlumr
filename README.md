@@ -153,9 +153,12 @@ hazard ratio of 0.50, for example, the marginal hazard ratio rises from 0.50 at
 the start of follow-up to 0.66 later on. It stays constant only when no
 covariate is prognostic or the treatments do not differ. Study-specific shapes
 add the ratio of the baselines on top of that. The scalar marginal hazard ratio
-is therefore its value at one time, chosen with `at_time`, and the primary
-reported estimand should be the `loghr` curve or the collapsible RMST effects.
-See `vignette("survival-outcomes")`.
+is therefore its value at one time. With study-specific shapes that is the first
+prediction time or the time chosen with `at_time`; with a shared shape it is the
+`t -> 0` limit, the only `at_time` accepted is 0, and for an SPFA fit it equals
+the conditional hazard ratio. The primary reported estimand should be the
+`loghr` curve (`predict(type = "loghr")`) or the collapsible RMST effects. See
+`vignette("survival-outcomes")`.
 
 ```r
 # Index IPD with a Surv outcome; comparator from a digitized KM curve
