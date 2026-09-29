@@ -284,8 +284,8 @@
 * Improvement: The README and vignettes state that ML-UMR is for single-arm
   indirect comparisons of fully disconnected evidence, and that each worked
   example builds hypothetical single-arm trials from randomized trials only to
-  illustrate the method; randomized trials call for ML-NMR or another
-  appropriate method. `vignette("count-outcomes")` explains why its SPFA rate
+  illustrate the method; randomized trials connected through a common arm call
+  for ML-NMR or another appropriate method. `vignette("count-outcomes")` explains why its SPFA rate
   ratio is the same in both populations and at every covariate profile (a
   directly transportable effect), and the README states that the marginal
   hazard ratio varies over time even when both studies share one baseline shape.

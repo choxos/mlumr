@@ -784,9 +784,9 @@ when the AgD is clustered.</p>
 share an arm, run an <em>anchored</em> analysis instead: a network
 meta-analysis, or ML-NMR via <code>multinma</code> when the populations
 differ. Randomization is doing work there that nothing below replaces,
-so randomized trials should never be analyzed as single-arm evidence.
-Reserve ML-UMR, and every method in this vignette, for single-arm
-indirect comparisons of fully disconnected evidence.
+so trials connected through a common arm should never be broken into
+single-arm evidence. Reserve ML-UMR, and every method in this vignette,
+for single-arm indirect comparisons of fully disconnected evidence.
 <code>vignette(&quot;binary-outcomes&quot;)</code> and
 <code>vignette(&quot;survival-outcomes&quot;)</code> each end by restoring the
 common arm their example discards and checking the unanchored answer

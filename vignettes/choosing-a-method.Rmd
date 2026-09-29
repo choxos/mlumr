@@ -358,9 +358,10 @@ the comparator evidence and can be optimistic when the AgD is clustered.
 1. **Is there a common comparator arm?** If the two trials share an arm, run an
    *anchored* analysis instead: a network meta-analysis, or ML-NMR via
    `multinma` when the populations differ. Randomization is doing work there
-   that nothing below replaces, so randomized trials should never be analyzed as
-   single-arm evidence. Reserve ML-UMR, and every method in this vignette, for
-   single-arm indirect comparisons of fully disconnected evidence. `vignette("binary-outcomes")` and `vignette("survival-outcomes")`
+   that nothing below replaces, so trials connected through a common arm should
+   never be broken into single-arm evidence. Reserve ML-UMR, and every method in
+   this vignette, for single-arm indirect comparisons of fully disconnected
+   evidence. `vignette("binary-outcomes")` and `vignette("survival-outcomes")`
    each end by restoring the common arm their example discards and checking the
    unanchored answer against two anchored ones, a Bucher indirect comparison and
    an ML-NMR fitted with `multinma`, each in both a prognostic-only and a

@@ -215,11 +215,12 @@ ML-UMR is most appropriate when:
 4. Covariate distributions differ between trial populations
 
 ML-UMR should only be used for fully unanchored, single-arm comparisons.
-Randomized trials should never be analyzed this way: evidence connected through
-a common arm calls for ML-NMR (for example with multinma) or another appropriate
-method. The vignettes' worked examples create hypothetical single-arm trials
-from randomized trials, by dropping a common reference arm or by treating a
-trial's arms as separate sources, only to illustrate the method.
+Randomized trials that share a common arm, or are otherwise connected, should
+never be broken into single-arm evidence to fit it: connected evidence calls for
+ML-NMR (for example with multinma) or another appropriate method. The vignettes'
+worked examples do exactly that, creating hypothetical single-arm trials from
+randomized trials by dropping a common reference arm or by treating a trial's
+arms as separate sources, only to illustrate the method.
 
 ## Key functions
 
