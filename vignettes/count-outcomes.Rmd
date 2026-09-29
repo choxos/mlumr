@@ -32,6 +32,14 @@ comparison for a **count** endpoint, using mlumr's bundled `caries_ipd` and
 > imposed so the worked example has a meaningful treatment contrast. The two arms
 > are treated as separate single-arm sources to illustrate an unanchored
 > comparison.
+>
+> **Hypothetical single-arm trials.** The source trial is randomized. Treating
+> its SDF and NSF arms as two separate sources turns them into hypothetical
+> single-arm trials and leaves fully disconnected evidence; we do this only to
+> illustrate ML-UMR. In practice, randomized trials should never be analyzed
+> this way: the randomized comparison, or ML-NMR or another appropriate method
+> when trials are connected through a common arm, should be used for them.
+> ML-UMR should only be used for fully unanchored, single-arm comparisons.
 
 ## The clinical question
 
@@ -464,16 +472,35 @@ populations. The **index** population is normally the decision-relevant one for
 HTA, since cost-effectiveness models are built for the population a
 reimbursement decision is about, which is usually the index trial's
 [@ChandlerIshakTransport]. STC is standardized to the comparator population;
-the naive contrast is not standardized to either population. The log link is
-nonlinear, but the marginal
-rate still factorizes as
+the naive contrast is not standardized to either population.
+
+The SPFA rate ratio above is the same in the index and comparator populations,
+and the conditional rate ratios under *Conditional effects* below equal it too.
+At first glance that seems to contradict the point just made, that the index
+population is the one that matters for the decision. It does not: this is a
+special case. Under SPFA with a Poisson log link the rate ratio is **directly
+transportable** in the sense of @ChandlerIshakTransport, meaning the treatment
+effect is the same in every population. The log link is nonlinear, but the
+marginal rate still factorizes as
 $\mathbb{E}[\exp(\mu_k+x^\top\beta)]=\exp(\mu_k)\,\mathbb{E}[\exp(x^\top\beta)]$,
-and under SPFA the shared second factor **cancels in the ratio**. So the two
-SPFA rows coincide exactly, just as the mean difference does; only the relaxed
-model, which gives each treatment its own $\beta$, separates the populations.
-This is a property of the multiplicative model, not of collapsibility in
-general: the log odds ratio in `vignette("binary-outcomes")` has no such
-factorization and genuinely differs between populations under SPFA.
+and under SPFA the shared second factor **cancels in the ratio**. What remains,
+$\exp(\mu_{\text{index}}-\mu_{\text{comparator}})$, is also the conditional
+rate ratio at every covariate profile, so the target population cannot move
+the SPFA rate ratio, just as it cannot move the SPFA mean difference in
+`vignette("continuous-outcomes")`. mlumr standardizes rates per unit exposure,
+so a difference in follow-up between the populations does not enter the ratio
+either (here each child contributes one unit of exposure).
+
+The target population still matters in this example in three ways. The
+absolute predictions under *Absolute predictions* below, the expected dmft for
+each treatment, depend on it. The relaxed model gives each treatment its own
+$\beta$, which puts the covariate distribution back into the contrast, so its
+two rows differ. And effect measures that are not collapsible, such as the odds
+ratio in `vignette("binary-outcomes")` and the hazard ratio in
+`vignette("survival-outcomes")`, differ between populations even under SPFA,
+because they have no such factorization. So lead with the population relevant
+to the decision as usual; for this model and this measure the index and
+comparator answers simply coincide.
 
 
 ``` r
@@ -581,7 +608,9 @@ plot(predict(fit_spfa, population = "both", type = "response"))
 Conditional effects evaluate the contrast at specific covariate profiles rather
 than averaging over a population, useful for checking whether the rate ratio is
 plausibly constant across the prognostic range (the SPFA assumption) or varies
-with baseline bacterial load:
+with baseline bacterial load. Under SPFA every profile gives the same rate
+ratio, equal to the marginal one in both populations, for the reason given
+under *Treatment effects*:
 
 
 ``` r

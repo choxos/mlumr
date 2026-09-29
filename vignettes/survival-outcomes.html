@@ -398,6 +398,15 @@ arms back to use.</p>
 <p>The index arm is McCarthy2012 lenalidomide rather than the other
 candidate, Palumbo2014: its patients are closer to the Morgan2012
 population, which is what an unanchored comparison depends on.</p>
+<p><strong>Hypothetical single-arm trials.</strong> McCarthy2012 and
+Morgan2012 are randomized trials. Dropping their common reference arm
+(placebo) turns them into hypothetical single-arm trials and leaves
+fully disconnected evidence; we do this only to illustrate ML-UMR. In
+practice, randomized trials should never be analyzed this way: ML-NMR
+(for example with <code>multinma</code>, as in the section <em>Checking
+against the anchored comparison</em>) or another appropriate method
+should be used for them. ML-UMR should only be used for fully
+unanchored, single-arm comparisons.</p>
 </blockquote>
 <div id="the-unanchored-survival-problem" class="section level2">
 <h2>The unanchored survival problem</h2>
@@ -530,27 +539,24 @@ from the Morgan2012 study.</li>
 </ul>
 <p>We adjust for age, ISS stage III, complete/very-good-partial
 response, and sex.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">library</span>(mlumr)</span>
-<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
-<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a></span>
-<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;ndmm_ipd&quot;</span>)        <span class="co"># bundled with mlumr (copied from multinma, GPL-3)</span></span>
-<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;ndmm_agd&quot;</span>)        <span class="co"># reconstructed pseudo-IPD (KM)</span></span>
-<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;ndmm_agd_covs&quot;</span>)   <span class="co"># covariate moments for the AgD arm</span></span>
-<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a></span>
-<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a>covs <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;age&quot;</span>, <span class="st">&quot;iss_stage3&quot;</span>, <span class="st">&quot;response_cr_vgpr&quot;</span>, <span class="st">&quot;male&quot;</span>)</span>
-<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a></span>
-<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a><span class="co"># Index IPD: McCarthy2012, lenalidomide. Age stays in years, as in multinma&#39;s</span></span>
-<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="co"># own NDMM example, so the coefficient reads as a per-year log hazard ratio.</span></span>
-<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a>ipd_one <span class="ot">&lt;-</span> ndmm_ipd[ndmm_ipd<span class="sc">$</span>study <span class="sc">==</span> <span class="st">&quot;McCarthy2012&quot;</span> <span class="sc">&amp;</span> ndmm_ipd<span class="sc">$</span>treatment <span class="sc">==</span> <span class="st">&quot;Len&quot;</span>, ]</span>
-<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a></span>
-<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a><span class="co"># Comparator AgD: Morgan2012, thalidomide (pseudo-IPD + covariate moments).</span></span>
-<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a>agd_one <span class="ot">&lt;-</span> ndmm_agd[ndmm_agd<span class="sc">$</span>study <span class="sc">==</span> <span class="st">&quot;Morgan2012&quot;</span> <span class="sc">&amp;</span> ndmm_agd<span class="sc">$</span>treatment <span class="sc">==</span> <span class="st">&quot;Thal&quot;</span>, ]</span>
-<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a>cv <span class="ot">&lt;-</span> ndmm_agd_covs[ndmm_agd_covs<span class="sc">$</span>study <span class="sc">==</span> <span class="st">&quot;Morgan2012&quot;</span> <span class="sc">&amp;</span> ndmm_agd_covs<span class="sc">$</span>treatment <span class="sc">==</span> <span class="st">&quot;Thal&quot;</span>, ]</span>
-<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a>agd_one<span class="sc">$</span>age_mean         <span class="ot">&lt;-</span> cv<span class="sc">$</span>age_mean</span>
-<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a>agd_one<span class="sc">$</span>age_sd           <span class="ot">&lt;-</span> cv<span class="sc">$</span>age_sd</span>
-<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a>agd_one<span class="sc">$</span>iss_stage3_prop       <span class="ot">&lt;-</span> cv<span class="sc">$</span>iss_stage3_prop        <span class="co"># proportions (binary covariates)</span></span>
-<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a>agd_one<span class="sc">$</span>response_cr_vgpr_prop <span class="ot">&lt;-</span> cv<span class="sc">$</span>response_cr_vgpr_prop</span>
-<span id="cb3-21"><a href="#cb3-21" tabindex="-1"></a>agd_one<span class="sc">$</span>male_prop             <span class="ot">&lt;-</span> cv<span class="sc">$</span>male_prop</span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;ndmm_ipd&quot;</span>)        <span class="co"># bundled with mlumr (copied from multinma, GPL-3)</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;ndmm_agd&quot;</span>)        <span class="co"># reconstructed pseudo-IPD (KM)</span></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;ndmm_agd_covs&quot;</span>)   <span class="co"># covariate moments for the AgD arm</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>covs <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;age&quot;</span>, <span class="st">&quot;iss_stage3&quot;</span>, <span class="st">&quot;response_cr_vgpr&quot;</span>, <span class="st">&quot;male&quot;</span>)</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="co"># Index IPD: McCarthy2012, lenalidomide. Age stays in years, as in multinma&#39;s</span></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co"># own NDMM example, so the coefficient reads as a per-year log hazard ratio.</span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>ipd_one <span class="ot">&lt;-</span> ndmm_ipd[ndmm_ipd<span class="sc">$</span>study <span class="sc">==</span> <span class="st">&quot;McCarthy2012&quot;</span> <span class="sc">&amp;</span> ndmm_ipd<span class="sc">$</span>treatment <span class="sc">==</span> <span class="st">&quot;Len&quot;</span>, ]</span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a></span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="co"># Comparator AgD: Morgan2012, thalidomide (pseudo-IPD + covariate moments).</span></span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a>agd_one <span class="ot">&lt;-</span> ndmm_agd[ndmm_agd<span class="sc">$</span>study <span class="sc">==</span> <span class="st">&quot;Morgan2012&quot;</span> <span class="sc">&amp;</span> ndmm_agd<span class="sc">$</span>treatment <span class="sc">==</span> <span class="st">&quot;Thal&quot;</span>, ]</span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a>cv <span class="ot">&lt;-</span> ndmm_agd_covs[ndmm_agd_covs<span class="sc">$</span>study <span class="sc">==</span> <span class="st">&quot;Morgan2012&quot;</span> <span class="sc">&amp;</span> ndmm_agd_covs<span class="sc">$</span>treatment <span class="sc">==</span> <span class="st">&quot;Thal&quot;</span>, ]</span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a>agd_one<span class="sc">$</span>age_mean         <span class="ot">&lt;-</span> cv<span class="sc">$</span>age_mean</span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a>agd_one<span class="sc">$</span>age_sd           <span class="ot">&lt;-</span> cv<span class="sc">$</span>age_sd</span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a>agd_one<span class="sc">$</span>iss_stage3_prop       <span class="ot">&lt;-</span> cv<span class="sc">$</span>iss_stage3_prop        <span class="co"># proportions (binary covariates)</span></span>
+<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a>agd_one<span class="sc">$</span>response_cr_vgpr_prop <span class="ot">&lt;-</span> cv<span class="sc">$</span>response_cr_vgpr_prop</span>
+<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a>agd_one<span class="sc">$</span>male_prop             <span class="ot">&lt;-</span> cv<span class="sc">$</span>male_prop</span></code></pre></div>
 </div>
 <div id="covariate-balance" class="section level2">
 <h2>Covariate balance</h2>
@@ -2006,7 +2012,7 @@ PA, USA; abstract MSR131; Value in Health. <a href="https://www.ispor.org/heor-r
 Chandler, Conor, and K. Jack Ishak. 2026. <em>Reframing
 Population-Adjusted Indirect Comparisons as a Transportability Problem:
 An Estimand-Based Perspective and Implications for Health Technology
-Assessment</em>.
+Assessment</em>. Preprint. <a href="https://doi.org/10.48550/arXiv.2602.17041">https://doi.org/10.48550/arXiv.2602.17041</a>.
 </div>
 <div id="ref-Leahy2019" class="csl-entry">
 Leahy, Joy, and Cathal Walsh. 2019. <span>“Assessing the Impact of a

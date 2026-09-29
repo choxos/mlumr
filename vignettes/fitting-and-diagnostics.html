@@ -364,7 +364,17 @@ with the defaults prints rstan’s equivalents instead.</p>
 <h2>A model to work with</h2>
 <p>We reuse the plaque-psoriasis binary example, a compact ML-UMR fit
 that the rest of this vignette inspects, tunes, and diagnoses (the data
-preparation is covered in <code>vignette(&quot;binary-outcomes&quot;)</code>):</p>
+preparation is covered in <code>vignette(&quot;binary-outcomes&quot;)</code>).</p>
+<blockquote>
+<p><strong>Hypothetical single-arm trials.</strong> UNCOVER-2 and
+FIXTURE are randomized trials. Dropping their common reference arms
+(placebo and etanercept) turns them into hypothetical single-arm trials
+and leaves fully disconnected evidence; we do this only to illustrate
+ML-UMR. In practice, randomized trials should never be analyzed this
+way: ML-NMR (for example with <code>multinma</code>) or another
+appropriate method should be used for them. ML-UMR should only be used
+for fully unanchored, single-arm comparisons.</p>
+</blockquote>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;psoriasis_ipd&quot;</span>)   <span class="co"># bundled with mlumr (from multinma, GPL-3)</span></span>
 <span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;psoriasis_agd&quot;</span>)</span>
 <span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a></span>

@@ -396,6 +396,14 @@ a common comparator and make an <em>anchored</em> comparison possible,
 which is not the problem this vignette is about. The unanchored framing
 is a construction for illustration; the section <em>Checking against the
 anchored comparison</em> below puts the omitted arms back to use.</p>
+<p><strong>Hypothetical single-arm trials.</strong> UNCOVER-2 and
+FIXTURE are randomized trials. Dropping their common reference arms
+(placebo and etanercept) turns them into hypothetical single-arm trials
+and leaves fully disconnected evidence; we do this only to illustrate
+ML-UMR. In practice, randomized trials should never be analyzed this
+way: ML-NMR (for example with <code>multinma</code>) or another
+appropriate method should be used for them. ML-UMR should only be used
+for fully unanchored, single-arm comparisons.</p>
 </blockquote>
 <div id="the-clinical-question" class="section level2">
 <h2>The clinical question</h2>
@@ -467,26 +475,23 @@ population, the SPFA estimand has the same standardization target as
 unanchored STC. The estimators still differ: ML-UMR fits a joint
 likelihood in which the aggregate outcome informs the comparator
 intercept, whereas STC regresses on the IPD alone.)</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">library</span>(mlumr)</span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
-<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a></span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co"># IPD + AgD bundled with mlumr (copied from multinma&#39;s plaque_psoriasis, GPL-3).</span></span>
-<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;psoriasis_ipd&quot;</span>)</span>
-<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;psoriasis_agd&quot;</span>)</span>
-<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a></span>
-<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>covs <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;age&quot;</span>, <span class="st">&quot;bsa&quot;</span>, <span class="st">&quot;weight&quot;</span>, <span class="st">&quot;prevsys&quot;</span>)   <span class="co"># adjustment set for this example</span></span>
-<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a></span>
-<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a><span class="co"># --- Index IPD: UNCOVER-2, ixekizumab Q4W -----------------------------------</span></span>
-<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>ipd <span class="ot">&lt;-</span> psoriasis_ipd</span>
-<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>ipd<span class="sc">$</span>bsa     <span class="ot">&lt;-</span> ipd<span class="sc">$</span>bsa <span class="sc">/</span> <span class="dv">100</span>      <span class="co"># body-surface area: % -&gt; proportion</span></span>
-<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>ipd <span class="ot">&lt;-</span> ipd[ipd<span class="sc">$</span>study <span class="sc">==</span> <span class="st">&quot;UNCOVER-2&quot;</span> <span class="sc">&amp;</span> ipd<span class="sc">$</span>treatment <span class="sc">==</span> <span class="st">&quot;IXE_Q4W&quot;</span>, ]</span>
-<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>ipd <span class="ot">&lt;-</span> ipd[stats<span class="sc">::</span><span class="fu">complete.cases</span>(ipd[, <span class="fu">c</span>(<span class="st">&quot;pasi75&quot;</span>, covs)]), ]</span>
-<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a></span>
-<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a><span class="co"># --- Comparator AgD: FIXTURE, secukinumab 300 mg ----------------------------</span></span>
-<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>agd <span class="ot">&lt;-</span> psoriasis_agd</span>
-<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a>agd<span class="sc">$</span>bsa_mean    <span class="ot">&lt;-</span> agd<span class="sc">$</span>bsa_mean <span class="sc">/</span> <span class="dv">100</span></span>
-<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>agd<span class="sc">$</span>bsa_sd      <span class="ot">&lt;-</span> agd<span class="sc">$</span>bsa_sd <span class="sc">/</span> <span class="dv">100</span></span>
-<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>agd <span class="ot">&lt;-</span> agd[agd<span class="sc">$</span>study <span class="sc">==</span> <span class="st">&quot;FIXTURE&quot;</span> <span class="sc">&amp;</span> agd<span class="sc">$</span>treatment <span class="sc">==</span> <span class="st">&quot;SEC_300&quot;</span>, ]</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># IPD + AgD bundled with mlumr (copied from multinma&#39;s plaque_psoriasis, GPL-3).</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;psoriasis_ipd&quot;</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;psoriasis_agd&quot;</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>covs <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;age&quot;</span>, <span class="st">&quot;bsa&quot;</span>, <span class="st">&quot;weight&quot;</span>, <span class="st">&quot;prevsys&quot;</span>)   <span class="co"># adjustment set for this example</span></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="co"># --- Index IPD: UNCOVER-2, ixekizumab Q4W -----------------------------------</span></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>ipd <span class="ot">&lt;-</span> psoriasis_ipd</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>ipd<span class="sc">$</span>bsa     <span class="ot">&lt;-</span> ipd<span class="sc">$</span>bsa <span class="sc">/</span> <span class="dv">100</span>      <span class="co"># body-surface area: % -&gt; proportion</span></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>ipd <span class="ot">&lt;-</span> ipd[ipd<span class="sc">$</span>study <span class="sc">==</span> <span class="st">&quot;UNCOVER-2&quot;</span> <span class="sc">&amp;</span> ipd<span class="sc">$</span>treatment <span class="sc">==</span> <span class="st">&quot;IXE_Q4W&quot;</span>, ]</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>ipd <span class="ot">&lt;-</span> ipd[stats<span class="sc">::</span><span class="fu">complete.cases</span>(ipd[, <span class="fu">c</span>(<span class="st">&quot;pasi75&quot;</span>, covs)]), ]</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="co"># --- Comparator AgD: FIXTURE, secukinumab 300 mg ----------------------------</span></span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>agd <span class="ot">&lt;-</span> psoriasis_agd</span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>agd<span class="sc">$</span>bsa_mean    <span class="ot">&lt;-</span> agd<span class="sc">$</span>bsa_mean <span class="sc">/</span> <span class="dv">100</span></span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>agd<span class="sc">$</span>bsa_sd      <span class="ot">&lt;-</span> agd<span class="sc">$</span>bsa_sd <span class="sc">/</span> <span class="dv">100</span></span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>agd <span class="ot">&lt;-</span> agd[agd<span class="sc">$</span>study <span class="sc">==</span> <span class="st">&quot;FIXTURE&quot;</span> <span class="sc">&amp;</span> agd<span class="sc">$</span>treatment <span class="sc">==</span> <span class="st">&quot;SEC_300&quot;</span>, ]</span></code></pre></div>
 <p>A glimpse of the individual patient data (one row per patient) and
 the single aggregate comparator row:</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">head</span>(ipd[, <span class="fu">c</span>(<span class="st">&quot;study&quot;</span>, <span class="st">&quot;treatment&quot;</span>, <span class="st">&quot;pasi75&quot;</span>, covs)]),</span>
@@ -1793,7 +1798,7 @@ Meta-Regression</em>. ISPOR Europe, Glasgow, UK; abstract MSR28. <a href="https:
 Chandler, Conor, and K. Jack Ishak. 2026. <em>Reframing
 Population-Adjusted Indirect Comparisons as a Transportability Problem:
 An Estimand-Based Perspective and Implications for Health Technology
-Assessment</em>.
+Assessment</em>. Preprint. <a href="https://doi.org/10.48550/arXiv.2602.17041">https://doi.org/10.48550/arXiv.2602.17041</a>.
 </div>
 <div id="ref-Gelman2008" class="csl-entry">
 Gelman, Andrew, Aleks Jakulin, Maria Grazia Pittau, and Yu-Sung Su.

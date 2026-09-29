@@ -52,7 +52,7 @@ navbar:
       - text: Methods
       - text: Fitting, priors, and diagnostics
         href: articles/fitting-and-diagnostics.html
-      - text: "Choosing a method: ML-UMR, STC, and naive"
+      - text: "Choosing a method for single-arm indirect comparisons"
         href: articles/choosing-a-method.html
       - text: Aggregate subgroup information for the relaxed model
         href: articles/subgroup-identification.html

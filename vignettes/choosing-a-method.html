@@ -12,7 +12,7 @@
 
 
 
-<title>Choosing a method: ML-UMR, STC, and naive</title>
+<title>Choosing a method for single-arm indirect comparisons: ML-UMR, STC, and naive</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -359,19 +359,24 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 
 
-<h1 class="title toc-ignore">Choosing a method: ML-UMR, STC, and
-naive</h1>
+<h1 class="title toc-ignore">Choosing a method for single-arm indirect
+comparisons: ML-UMR, STC, and naive</h1>
 
 
 
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(mlumr)</span>
 <span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
 <span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="fu">options</span>(<span class="at">mc.cores =</span> parallel<span class="sc">::</span><span class="fu">detectCores</span>())</span></code></pre></div>
-<p>Unanchored indirect comparisons rest on strong, partly untestable
+<p>Every method in this vignette is a method for <strong>single-arm
+indirect comparisons</strong>: fully unanchored comparisons of fully
+disconnected evidence, where IPD for one treatment and AgD for the other
+share no common reference arm. If the evidence is connected through a
+common arm, none of them is the right tool; see the decision guide
+below. Single-arm indirect comparisons rest on strong, partly untestable
 assumptions, so running several methods and comparing them is itself a
-sensitivity analysis. mlumr offers four estimators behind one data
-interface; this vignette explains what each assumes, how to compare
-them, and which to report. For the mechanics of fitting see
+sensitivity analysis. mlumr offers four estimators for this setting
+behind one data interface; this vignette explains what each assumes, how
+to compare them, and which to report. For the mechanics of fitting see
 <code>vignette(&quot;fitting-and-diagnostics&quot;)</code>; for family-specific
 worked examples see the per-outcome vignettes. We illustrate with the
 real plaque-psoriasis binary endpoint (PASI 75; UNCOVER-2 ixekizumab vs
@@ -403,7 +408,7 @@ FIXTURE secukinumab) <span class="citation">(<a href="#ref-Griffiths2015">Griffi
 </tr>
 <tr class="even">
 <td>STC</td>
-<td>one-arm outcome regression (G-computation)</td>
+<td>unanchored outcome regression (G-computation)</td>
 <td>frequentist</td>
 <td>correct, applicable IPD outcome model</td>
 <td>comparator</td>
@@ -438,36 +443,46 @@ and the stated cross-treatment assumptions.</p>
 <h2>A shared dataset</h2>
 <p>All four estimators run from the same <code>mlumr_data</code> object,
 so we build it once, the plaque-psoriasis PASI 75 endpoint (UNCOVER-2
-ixekizumab vs FIXTURE secukinumab) with three prognostic covariates:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">library</span>(mlumr)</span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;psoriasis_ipd&quot;</span>)   <span class="co"># bundled with mlumr (from multinma, GPL-3)</span></span>
-<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;psoriasis_agd&quot;</span>)</span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a></span>
-<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>covs <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;age&quot;</span>, <span class="st">&quot;bsa&quot;</span>, <span class="st">&quot;weight&quot;</span>)</span>
-<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>ipd <span class="ot">&lt;-</span> psoriasis_ipd</span>
-<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>ipd<span class="sc">$</span>bsa <span class="ot">&lt;-</span> ipd<span class="sc">$</span>bsa <span class="sc">/</span> <span class="dv">100</span>; ipd<span class="sc">$</span>weight <span class="ot">&lt;-</span> ipd<span class="sc">$</span>weight <span class="sc">/</span> <span class="dv">10</span></span>
-<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>ipd <span class="ot">&lt;-</span> ipd[ipd<span class="sc">$</span>study <span class="sc">==</span> <span class="st">&quot;UNCOVER-2&quot;</span> <span class="sc">&amp;</span> ipd<span class="sc">$</span>treatment <span class="sc">==</span> <span class="st">&quot;IXE_Q4W&quot;</span>, ]</span>
-<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>ipd <span class="ot">&lt;-</span> ipd[stats<span class="sc">::</span><span class="fu">complete.cases</span>(ipd[, <span class="fu">c</span>(<span class="st">&quot;pasi75&quot;</span>, covs)]), ]</span>
-<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a></span>
-<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>agd <span class="ot">&lt;-</span> psoriasis_agd</span>
-<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>agd<span class="sc">$</span>bsa_mean <span class="ot">&lt;-</span> agd<span class="sc">$</span>bsa_mean <span class="sc">/</span> <span class="dv">100</span>; agd<span class="sc">$</span>bsa_sd <span class="ot">&lt;-</span> agd<span class="sc">$</span>bsa_sd <span class="sc">/</span> <span class="dv">100</span></span>
-<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>agd<span class="sc">$</span>weight_mean <span class="ot">&lt;-</span> agd<span class="sc">$</span>weight_mean <span class="sc">/</span> <span class="dv">10</span>; agd<span class="sc">$</span>weight_sd <span class="ot">&lt;-</span> agd<span class="sc">$</span>weight_sd <span class="sc">/</span> <span class="dv">10</span></span>
-<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>agd <span class="ot">&lt;-</span> agd[agd<span class="sc">$</span>study <span class="sc">==</span> <span class="st">&quot;FIXTURE&quot;</span> <span class="sc">&amp;</span> agd<span class="sc">$</span>treatment <span class="sc">==</span> <span class="st">&quot;SEC_300&quot;</span>, ]</span>
-<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a></span>
-<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">combine_data</span>(</span>
-<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>  <span class="fu">set_ipd</span>(ipd, <span class="at">treatment =</span> <span class="st">&quot;treatment&quot;</span>, <span class="at">outcome =</span> <span class="st">&quot;pasi75&quot;</span>, <span class="at">covariates =</span> covs),</span>
-<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a>  <span class="fu">set_agd</span>(agd, <span class="at">treatment =</span> <span class="st">&quot;treatment&quot;</span>, <span class="at">outcome_n =</span> <span class="st">&quot;pasi75_n&quot;</span>, <span class="at">outcome_r =</span> <span class="st">&quot;pasi75_r&quot;</span>,</span>
-<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>          <span class="at">cov_means =</span> <span class="fu">c</span>(<span class="st">&quot;age_mean&quot;</span>, <span class="st">&quot;bsa_mean&quot;</span>, <span class="st">&quot;weight_mean&quot;</span>),</span>
-<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>          <span class="at">cov_sds   =</span> <span class="fu">c</span>(<span class="st">&quot;age_sd&quot;</span>, <span class="st">&quot;bsa_sd&quot;</span>, <span class="st">&quot;weight_sd&quot;</span>),</span>
-<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a>          <span class="at">cov_types =</span> <span class="fu">c</span>(<span class="st">&quot;continuous&quot;</span>, <span class="st">&quot;continuous&quot;</span>, <span class="st">&quot;continuous&quot;</span>)))</span>
-<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a><span class="co"># `bsa` was rescaled to a proportion above, so its marginal has to respect</span></span>
-<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a><span class="co"># (0, 1). A normal marginal puts integration points outside that range;</span></span>
-<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a><span class="co"># `vignette(&quot;binary-outcomes&quot;)` uses the logit-normal for the same reason.</span></span>
-<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">add_integration</span>(dat, <span class="at">n_int =</span> <span class="dv">64</span>,</span>
-<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a>  <span class="at">age    =</span> <span class="fu">distr</span>(qnorm,      <span class="at">mean =</span> age_mean, <span class="at">sd =</span> age_sd),</span>
-<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>  <span class="at">bsa    =</span> <span class="fu">distr</span>(qlogitnorm, <span class="at">mean =</span> bsa_mean, <span class="at">sd =</span> bsa_sd),</span>
-<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a>  <span class="at">weight =</span> <span class="fu">distr</span>(qgamma, <span class="at">shape =</span> weight_mean<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> weight_sd<span class="sc">^</span><span class="dv">2</span>,</span>
-<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a>                 <span class="at">rate =</span> weight_mean <span class="sc">/</span> weight_sd<span class="sc">^</span><span class="dv">2</span>))</span></code></pre></div>
+ixekizumab vs FIXTURE secukinumab) with three prognostic covariates.</p>
+<blockquote>
+<p><strong>Hypothetical single-arm trials.</strong> UNCOVER-2 and
+FIXTURE are randomized trials. Dropping their common reference arms
+(placebo and etanercept) turns them into hypothetical single-arm trials
+and leaves fully disconnected evidence; we do this only to illustrate
+ML-UMR. In practice, randomized trials should never be analyzed this
+way: ML-NMR (for example with <code>multinma</code>) or another
+appropriate method should be used for them. ML-UMR should only be used
+for fully unanchored, single-arm comparisons.</p>
+</blockquote>
+<p>The single-arm IPD and AgD for this comparison:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;psoriasis_ipd&quot;</span>)   <span class="co"># bundled with mlumr (from multinma, GPL-3)</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;psoriasis_agd&quot;</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>covs <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;age&quot;</span>, <span class="st">&quot;bsa&quot;</span>, <span class="st">&quot;weight&quot;</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>ipd <span class="ot">&lt;-</span> psoriasis_ipd</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>ipd<span class="sc">$</span>bsa <span class="ot">&lt;-</span> ipd<span class="sc">$</span>bsa <span class="sc">/</span> <span class="dv">100</span>; ipd<span class="sc">$</span>weight <span class="ot">&lt;-</span> ipd<span class="sc">$</span>weight <span class="sc">/</span> <span class="dv">10</span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>ipd <span class="ot">&lt;-</span> ipd[ipd<span class="sc">$</span>study <span class="sc">==</span> <span class="st">&quot;UNCOVER-2&quot;</span> <span class="sc">&amp;</span> ipd<span class="sc">$</span>treatment <span class="sc">==</span> <span class="st">&quot;IXE_Q4W&quot;</span>, ]</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>ipd <span class="ot">&lt;-</span> ipd[stats<span class="sc">::</span><span class="fu">complete.cases</span>(ipd[, <span class="fu">c</span>(<span class="st">&quot;pasi75&quot;</span>, covs)]), ]</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>agd <span class="ot">&lt;-</span> psoriasis_agd</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>agd<span class="sc">$</span>bsa_mean <span class="ot">&lt;-</span> agd<span class="sc">$</span>bsa_mean <span class="sc">/</span> <span class="dv">100</span>; agd<span class="sc">$</span>bsa_sd <span class="ot">&lt;-</span> agd<span class="sc">$</span>bsa_sd <span class="sc">/</span> <span class="dv">100</span></span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>agd<span class="sc">$</span>weight_mean <span class="ot">&lt;-</span> agd<span class="sc">$</span>weight_mean <span class="sc">/</span> <span class="dv">10</span>; agd<span class="sc">$</span>weight_sd <span class="ot">&lt;-</span> agd<span class="sc">$</span>weight_sd <span class="sc">/</span> <span class="dv">10</span></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>agd <span class="ot">&lt;-</span> agd[agd<span class="sc">$</span>study <span class="sc">==</span> <span class="st">&quot;FIXTURE&quot;</span> <span class="sc">&amp;</span> agd<span class="sc">$</span>treatment <span class="sc">==</span> <span class="st">&quot;SEC_300&quot;</span>, ]</span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a></span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">combine_data</span>(</span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>  <span class="fu">set_ipd</span>(ipd, <span class="at">treatment =</span> <span class="st">&quot;treatment&quot;</span>, <span class="at">outcome =</span> <span class="st">&quot;pasi75&quot;</span>, <span class="at">covariates =</span> covs),</span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>  <span class="fu">set_agd</span>(agd, <span class="at">treatment =</span> <span class="st">&quot;treatment&quot;</span>, <span class="at">outcome_n =</span> <span class="st">&quot;pasi75_n&quot;</span>, <span class="at">outcome_r =</span> <span class="st">&quot;pasi75_r&quot;</span>,</span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a>          <span class="at">cov_means =</span> <span class="fu">c</span>(<span class="st">&quot;age_mean&quot;</span>, <span class="st">&quot;bsa_mean&quot;</span>, <span class="st">&quot;weight_mean&quot;</span>),</span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>          <span class="at">cov_sds   =</span> <span class="fu">c</span>(<span class="st">&quot;age_sd&quot;</span>, <span class="st">&quot;bsa_sd&quot;</span>, <span class="st">&quot;weight_sd&quot;</span>),</span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>          <span class="at">cov_types =</span> <span class="fu">c</span>(<span class="st">&quot;continuous&quot;</span>, <span class="st">&quot;continuous&quot;</span>, <span class="st">&quot;continuous&quot;</span>)))</span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a><span class="co"># `bsa` was rescaled to a proportion above, so its marginal has to respect</span></span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a><span class="co"># (0, 1). A normal marginal puts integration points outside that range;</span></span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a><span class="co"># `vignette(&quot;binary-outcomes&quot;)` uses the logit-normal for the same reason.</span></span>
+<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">add_integration</span>(dat, <span class="at">n_int =</span> <span class="dv">64</span>,</span>
+<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a>  <span class="at">age    =</span> <span class="fu">distr</span>(qnorm,      <span class="at">mean =</span> age_mean, <span class="at">sd =</span> age_sd),</span>
+<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a>  <span class="at">bsa    =</span> <span class="fu">distr</span>(qlogitnorm, <span class="at">mean =</span> bsa_mean, <span class="at">sd =</span> bsa_sd),</span>
+<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>  <span class="at">weight =</span> <span class="fu">distr</span>(qgamma, <span class="at">shape =</span> weight_mean<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> weight_sd<span class="sc">^</span><span class="dv">2</span>,</span>
+<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a>                 <span class="at">rate =</span> weight_mean <span class="sc">/</span> weight_sd<span class="sc">^</span><span class="dv">2</span>))</span></code></pre></div>
 </div>
 <div id="naive-and-stc" class="section level2">
 <h2>Naive and STC</h2>
@@ -478,8 +493,8 @@ of the outcome; a difference in the distribution of a variable unrelated
 to the outcome does not by itself induce bias. <strong>STC</strong> fits
 an outcome regression on the IPD and predicts outcomes under the index
 treatment in the comparator population by G-computation. The
-response-scale averaging follows Ren et al.’s one-arm unanchored STC and
-the marginalization order used by Remiro-Azocar et al. <span class="citation">(<a href="#ref-Ren2024">Ren et al. 2024</a>; <a href="#ref-RemiroAzocar2022">Remiro-Azocar et al. 2022</a>)</span>. The
+response-scale averaging follows Ren et al.’s unanchored single-arm STC
+and the marginalization order used by Remiro-Azocar et al. <span class="citation">(<a href="#ref-Ren2024">Ren et al. 2024</a>; <a href="#ref-RemiroAzocar2022">Remiro-Azocar et al. 2022</a>)</span>. The
 non-survival delta-method SE is conditional on the supplied integration
 grid and reported covariate summaries; it does not reproduce Ren et
 al.’s bootstrap of both the IPD fit and reconstructed target
@@ -566,9 +581,9 @@ modification):</p>
 </div>
 <div id="a-comparison-table" class="section level2">
 <h2>A comparison table</h2>
-<p>All four methods, on the <strong>log odds ratio</strong>. ML-UMR is
-reported in <strong>both</strong> target populations. STC has a
-comparator-population estimand by construction; naive has no single
+<p>All four single-arm methods, on the <strong>log odds ratio</strong>.
+ML-UMR is reported in <strong>both</strong> target populations. STC has
+a comparator-population estimand by construction; naive has no single
 standardized target and is labeled accordingly. Neither has an
 index-population row to show. Which of them is decision-relevant is a
 question about the application, not a property of the method: a
@@ -768,8 +783,10 @@ when the AgD is clustered.</p>
 <li><strong>Is there a common comparator arm?</strong> If the two trials
 share an arm, run an <em>anchored</em> analysis instead: a network
 meta-analysis, or ML-NMR via <code>multinma</code> when the populations
-differ. Randomization is doing work there that nothing below replaces.
-Reserve ML-UMR for evidence that is genuinely unanchored.
+differ. Randomization is doing work there that nothing below replaces,
+so trials connected through a common arm should never be broken into
+single-arm evidence. Reserve ML-UMR, and every method in this vignette,
+for single-arm indirect comparisons of fully disconnected evidence.
 <code>vignette(&quot;binary-outcomes&quot;)</code> and
 <code>vignette(&quot;survival-outcomes&quot;)</code> each end by restoring the
 common arm their example discards and checking the unanchored answer
@@ -809,7 +826,7 @@ diagnostics (divergences, Rhat, ESS) alongside the estimates.</p>
 Chandler, Conor, and K. Jack Ishak. 2026. <em>Reframing
 Population-Adjusted Indirect Comparisons as a Transportability Problem:
 An Estimand-Based Perspective and Implications for Health Technology
-Assessment</em>.
+Assessment</em>. Preprint. <a href="https://doi.org/10.48550/arXiv.2602.17041">https://doi.org/10.48550/arXiv.2602.17041</a>.
 </div>
 <div id="ref-Griffiths2015" class="csl-entry">
 Griffiths, C. E. M., K. Reich, M. Lebwohl, et al. 2015.
