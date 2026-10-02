@@ -1,5 +1,5 @@
-# Builds the mlumr browser Vite single-page app from this app-only branch and
-# publishes it at https://choxos.github.io/mlumr/app .
+# Builds mlumr Playground (an R IDE that runs in the browser) from this
+# app-only branch and publishes it at https://choxos.github.io/mlumr/app .
 #
 # How this coexists with the pkgdown site (which owns the gh-pages root):
 #   * pkgdown.yaml deploys docs/ to gh-pages with `clean: true` and a
@@ -7,8 +7,7 @@
 #     website and never deletes the /app subtree.
 #   * This workflow deploys ONLY into the gh-pages app/ subfolder
 #     (target-folder: app) with `clean: true`, which is scoped to app/: it
-#     purges stale hashed Vite bundles inside app/ but never touches pkgdown's
-#     root files.
+#     purges stale files inside app/ but never touches pkgdown's root files.
 #   * Both deployments push with `force: false`. The two workflows live on
 #     different branches, so a shared concurrency group cannot serialize them,
 #     and the action force-pushes by default: a push from either side that
@@ -20,6 +19,12 @@
 # `force: false` lines; do not drop the exclusion or switch pkgdown to
 # pkgdown::deploy_to_branch() (which defaults to clean = TRUE with no
 # exclusion) or the next docs build would wipe /app.
+#
+# The Stan models are committed under models/ (build-models.sh compiles them
+# with emscripten and verify/ checks them against native CmdStan); build.sh
+# downloads webR, the WebAssembly R packages and the vignette sources, and
+# bundles the site. GitHub Pages cannot send the COOP/COEP headers the
+# Playground needs; coi-sw.js, a service worker in the site, adds them.
 name: deploy-app.yaml
 
 on:
@@ -41,35 +46,35 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      # build.sh indexes the package repository and extracts the vignette code.
+      - name: Install knitr and jsonlite
+        run: Rscript -e 'install.packages(c("knitr", "jsonlite"))'
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: package-lock.json
+          node-version: 22
 
-      - name: Install dependencies
-        run: npm ci
-
-      # base is set in vite.config.ts for `command === "build"`; --base is a
-      # redundant guard. Note: `build` runs `tsc && vite build`, so a type error
-      # fails the build before Vite runs.
-      - name: Build (Vite base = /mlumr/app/)
-        run: npm run build -- --base=/mlumr/app/
+      - name: Build the Playground
+        run: bash build.sh
 
       # Defense-in-depth: a root .nojekyll already exists (pkgdown re-emits it)
       # and covers /app, but carry one in the app build too.
-      - name: Add .nojekyll to the app build
-        run: touch dist/.nojekyll
+      - name: Add .nojekyll to the build
+        run: touch site/.nojekyll
 
       - name: Deploy to gh-pages/app
         uses: JamesIves/github-pages-deploy-action@d92aa235d04922e8f08b40ce78cc5442fcfbfa2f # v4.8.0
         with:
           branch: gh-pages
-          folder: dist
+          folder: site
           target-folder: app           # confines deploy + clean to /app
-          clean: true                  # purge stale bundles, scoped to /app only
+          clean: true                  # purge stale files, scoped to /app only
           # The docs workflow pushes the same branch. A forced push from here
           # that raced it would replace its commit; without force the action
           # rebases this deployment onto whatever is there and retries.
           force: false
-          commit-message: "Deploy mlumr app to /app [skip ci]"
+          commit-message: "Deploy mlumr Playground to /app [skip ci]"

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="mlumr Playground: an R IDE in your browser for the mlumr package. webR runs R, and mlumr's Stan models sample in WebAssembly workers.">
+  <title>mlumr Playground</title>
+  <link rel="icon" type="image/svg+xml" href="assets/mlumr-logo.svg">
+  <script>
+    // Cross-origin isolation where the server cannot send the headers (GitHub
+    // Pages): coi-sw.js adds them, and the page reloads once to use it.
+    if (!window.crossOriginIsolated && window.isSecureContext && navigator.serviceWorker) {
+      navigator.serviceWorker.register('coi-sw.js').then((reg) => {
+        const reloadOnce = () => {
+          try { if (sessionStorage.getItem('coi-reloaded')) return; sessionStorage.setItem('coi-reloaded', '1'); } catch {}
+          location.reload();
+        };
+        if (reg.active && !navigator.serviceWorker.controller) reloadOnce();
+        else navigator.serviceWorker.addEventListener('controllerchange', reloadOnce);
+      }).catch(() => {});
+    }
+  </script>
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    // Apply the remembered theme before the first paint.
+    try { const t = localStorage.getItem('mlumr-playground.theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="assets/mlumr-logo.svg" alt="" width="26" height="30">
+      <span class="wordmark"><b>mlumr</b> <span>Playground</span></span>
+    </div>
+    <div class="tb-group">
+      <button class="tb-btn" data-cmd="new-file" title="New R script (Ctrl+Alt+Shift+N)"></button>
+      <button class="tb-btn" data-cmd="open-file" title="Open a file from your computer"></button>
+      <button class="tb-btn" data-cmd="save" title="Save the current file (Ctrl+S)"></button>
+      <button class="tb-btn" data-cmd="save-all" title="Save all open files"></button>
+      <div class="split-btn">
+        <button class="tb-text" data-cmd="examples-menu" title="Open the code of a vignette or a quick-start script"><span class="ico-slot" data-ico="book"></span>Examples<span class="ico-slot" data-ico="caret"></span></button>
+        <div class="menu menu-left" id="examples-menu" role="menu" hidden></div>
+      </div>
+    </div>
+    <div class="goto">
+      <span class="goto-ico"></span>
+      <input id="goto" type="search" placeholder="Go to file/function" autocomplete="off" spellcheck="false" aria-label="Go to file or function">
+      <div class="goto-list" id="goto-list" role="listbox" hidden></div>
+    </div>
+    <div class="tb-spacer"></div>
+    <div class="tb-group">
+      <button class="tb-btn" data-cmd="shortcuts" title="Keyboard shortcuts"></button>
+      <button class="theme-toggle" id="theme-toggle" aria-pressed="true" title="Switch between light and dark">
+        <span class="tt-sun"></span><span class="theme-track"><span class="theme-thumb"></span></span><span class="tt-moon"></span>
+      </button>
+      <div class="project">
+        <button class="project-btn" id="project-btn" aria-haspopup="menu">
+          <span class="project-ico"></span><span id="project-label">mlumr</span><span class="caret"></span>
+        </button>
+        <div class="menu" id="project-menu" role="menu" hidden>
+          <div class="menu-head" id="project-info">mlumr</div>
+          <button role="menuitem" data-cmd="reset-examples">Reset examples</button>
+          <button role="menuitem" data-cmd="clear-console">Clear console</button>
+          <button role="menuitem" data-cmd="clear-workspace">Clear workspace</button>
+          <button role="menuitem" data-cmd="restart">Restart R (reload)</button>
+          <div class="menu-sep"></div>
+          <button role="menuitem" data-cmd="engine-tinystan">Sampler: TinyStan workers</button>
+          <button role="menuitem" data-cmd="engine-rstan">Sampler: rstan in the R worker</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="workbench" id="workbench">
+    <div class="column" id="col-left">
+    <!-- Source, top left -->
+    <section class="pane" id="pane-source" data-col="left" data-pos="top">
+      <div class="pane-tabs">
+        <div class="tabstrip" id="doc-tabs" role="tablist" aria-label="Open files"></div>
+        <div class="pane-ctl"></div>
+      </div>
+      <div class="pane-toolbar">
+        <button class="ib" data-cmd="doc-back" title="Previous tab"></button>
+        <button class="ib" data-cmd="doc-forward" title="Next tab"></button>
+        <span class="sep"></span>
+        <button class="ib" data-cmd="save" title="Save (Ctrl+S)"></button>
+        <label class="chk"><input type="checkbox" id="source-on-save"> Source on Save</label>
+        <span class="sep"></span>
+        <button class="ib" data-cmd="find" title="Find and replace (Ctrl+F)"></button>
+        <button class="ib" data-cmd="assign" title="Insert assignment (Alt+-)"></button>
+        <div class="grow"></div>
+        <button class="tb-text" data-cmd="run" title="Run the current line or selection (Ctrl+Enter)"><span class="ico-slot" data-ico="run"></span>Run</button>
+        <span class="sep"></span>
+        <button class="ib" data-cmd="section-up" title="Go to the previous section"></button>
+        <button class="ib" data-cmd="section-down" title="Go to the next section"></button>
+        <span class="sep"></span>
+        <div class="split-btn">
+          <button class="tb-text" data-cmd="source" title="Source the file with echo (Ctrl+Shift+Enter)"><span class="ico-slot" data-ico="source"></span>Source</button>
+          <button class="ib caret-btn" data-cmd="source-menu" title="Source options"></button>
+          <div class="menu" id="source-menu" role="menu" hidden>
+            <button role="menuitem" data-cmd="source-echo">Source with Echo <kbd>Ctrl+Shift+Enter</kbd></button>
+            <button role="menuitem" data-cmd="source-quiet">Source <kbd>Ctrl+Shift+S</kbd></button>
+          </div>
+        </div>
+      </div>
+      <div class="pane-body editor-host" id="editor-host">
+        <div class="empty-note" id="no-docs">No open files. Create one with the New file button.</div>
+      </div>
+      <div class="pane-status">
+        <span id="cursor-pos">1:1</span>
+        <span class="scope">(Top Level)</span>
+        <div class="grow"></div>
+        <span id="doc-type">R Script</span>
+      </div>
+    </section>
+
+    <div class="splitter row" data-split="left"></div>
+
+    <!-- Environment, bottom left -->
+    <section class="pane" id="pane-env" data-col="left" data-pos="bottom">
+      <div class="pane-tabs">
+        <div class="tabstrip" role="tablist">
+          <button class="ptab active" data-tab="env" role="tab">Environment</button>
+          <button class="ptab" data-tab="history" role="tab">History</button>
+        </div>
+        <div class="pane-ctl"></div>
+      </div>
+      <div class="tabpage active" data-page="env">
+        <div class="pane-toolbar">
+          <button class="tb-text" data-cmd="import-data" title="Import a CSV file as a data frame"><span class="ico-slot" data-ico="import"></span>Import Dataset</button>
+          <span class="sep"></span>
+          <span class="mem" id="mem-use" title="Memory used by the R process"><span class="ico-slot" data-ico="gauge"></span><span id="mem-text">0 MiB</span></span>
+          <span class="sep"></span>
+          <button class="ib" data-cmd="clear-workspace" title="Remove all objects from the global environment"></button>
+          <div class="grow"></div>
+          <div class="seg" role="group" aria-label="View">
+            <button class="seg-btn active" data-envview="list" title="List view"></button>
+            <button class="seg-btn" data-envview="grid" title="Grid view"></button>
+          </div>
+          <button class="ib" data-cmd="env-refresh" title="Refresh"></button>
+        </div>
+        <div class="scope-row">
+          <span class="scope-chip">R</span>
+          <span class="scope-chip env-chip"><span class="ico-slot" data-ico="r"></span>Global Environment</span>
+          <div class="grow"></div>
+          <input type="search" id="env-filter" placeholder="Search" aria-label="Filter objects">
+        </div>
+        <div class="pane-body scroll" id="env-body"></div>
+      </div>
+      <div class="tabpage" data-page="history">
+        <div class="pane-toolbar">
+          <button class="tb-text" data-cmd="history-to-console" title="Send the selected command to the console">To Console</button>
+          <button class="tb-text" data-cmd="history-to-source" title="Insert the selected command into the editor">To Source</button>
+          <div class="grow"></div>
+          <button class="ib" data-cmd="history-clear" title="Clear history"></button>
+        </div>
+        <div class="pane-body scroll" id="history-body"></div>
+      </div>
+    </section>
+
+    </div>
+
+    <div class="splitter col" data-split="cols"></div>
+
+    <div class="column" id="col-right">
+    <!-- Console, top right -->
+    <section class="pane" id="pane-console" data-col="right" data-pos="top">
+      <div class="pane-tabs">
+        <div class="tabstrip" role="tablist">
+          <button class="ptab active" data-tab="console" role="tab">Console</button>
+          <button class="ptab" data-tab="terminal" role="tab">Terminal</button>
+          <button class="ptab" data-tab="jobs" role="tab">Background Jobs <span class="badge" id="jobs-badge" hidden></span></button>
+        </div>
+        <div class="pane-ctl"></div>
+      </div>
+      <div class="tabpage active" data-page="console">
+        <div class="pane-toolbar console-head">
+          <span class="ico-slot r-ico" data-ico="r"></span>
+          <span id="r-version">R</span><span class="dim">&middot;</span><span class="dim">~/</span>
+          <div class="grow"></div>
+          <button class="tb-text stop-btn" data-cmd="interrupt" id="stop-btn" title="Interrupt R (Esc or Ctrl+C in the console)" hidden><span class="ico-slot" data-ico="stop"></span>Stop</button>
+          <button class="ib" data-cmd="clear-console" title="Clear console (Ctrl+L)"></button>
+        </div>
+        <div class="pane-body console" id="console">
+          <div class="console-out" id="console-out" aria-live="polite"></div>
+          <div class="console-in">
+            <span class="prompt" id="prompt">&gt;</span>
+            <textarea id="console-input" rows="1" spellcheck="false" autocomplete="off" aria-label="R console input"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="tabpage" data-page="terminal">
+        <div class="pane-body center-note">
+          <p><b>No system terminal in the browser.</b></p>
+          <p>R runs inside this page as WebAssembly, without an operating system shell. Use the Console for R, and <code>list.files()</code>, <code>readLines()</code> or the Files tab for the virtual file system.</p>
+        </div>
+      </div>
+      <div class="tabpage" data-page="jobs">
+        <div class="pane-body scroll" id="jobs-body"><div class="center-note"><p>No background jobs yet. Stan fits run here: one Web Worker per chain.</p></div></div>
+      </div>
+    </section>
+
+    <div class="splitter row" data-split="right"></div>
+
+    <!-- Files, Plots, Packages, Help, Viewer: bottom right -->
+    <section class="pane" id="pane-output" data-col="right" data-pos="bottom">
+      <div class="pane-tabs">
+        <div class="tabstrip" role="tablist">
+          <button class="ptab" data-tab="files" role="tab">Files</button>
+          <button class="ptab active" data-tab="plots" role="tab">Plots</button>
+          <button class="ptab" data-tab="packages" role="tab">Packages</button>
+          <button class="ptab" data-tab="help" role="tab">Help</button>
+          <button class="ptab" data-tab="viewer" role="tab">Viewer</button>
+        </div>
+        <div class="pane-ctl"></div>
+      </div>
+      <div class="tabpage" data-page="files">
+        <div class="pane-toolbar">
+          <button class="tb-text" data-cmd="files-upload" title="Upload files into the current folder"><span class="ico-slot" data-ico="upload"></span>Upload</button>
+          <button class="tb-text" data-cmd="new-file" title="New R script"><span class="ico-slot" data-ico="newFile"></span>New File</button>
+          <button class="tb-text" data-cmd="files-download" title="Download the selected file"><span class="ico-slot" data-ico="download"></span>Download</button>
+          <button class="tb-text" data-cmd="files-delete" title="Delete the selected file"><span class="ico-slot" data-ico="trash"></span>Delete</button>
+          <div class="grow"></div>
+          <button class="ib" data-cmd="files-refresh" title="Refresh"></button>
+        </div>
+        <div class="crumbs" id="files-crumbs"></div>
+        <div class="pane-body scroll" id="files-body"></div>
+      </div>
+      <div class="tabpage active" data-page="plots">
+        <div class="pane-toolbar">
+          <button class="ib" data-cmd="plot-prev" title="Previous plot"></button>
+          <button class="ib" data-cmd="plot-next" title="Next plot"></button>
+          <span class="sep"></span>
+          <button class="tb-text" data-cmd="plot-zoom" title="Show the plot in a large window"><span class="ico-slot" data-ico="zoom"></span>Zoom</button>
+          <div class="split-btn">
+            <button class="tb-text" data-cmd="plot-export-menu" title="Export the plot"><span class="ico-slot" data-ico="export"></span>Export<span class="ico-slot" data-ico="caret"></span></button>
+            <div class="menu" id="export-menu" role="menu" hidden>
+              <button role="menuitem" data-cmd="plot-png">Save as PNG</button>
+              <button role="menuitem" data-cmd="plot-svg">Save as SVG</button>
+            </div>
+          </div>
+          <span class="sep"></span>
+          <button class="ib" data-cmd="plot-delete" title="Remove this plot"></button>
+          <button class="ib" data-cmd="plot-clear" title="Clear all plots"></button>
+          <div class="grow"></div>
+          <span class="dim" id="plot-count"></span>
+          <button class="ib" data-cmd="plot-redraw" title="Redraw at the pane size"></button>
+        </div>
+        <div class="pane-body plot-host" id="plot-host"><div class="center-note" id="no-plots"><p>Plots appear here.</p></div></div>
+      </div>
+      <div class="tabpage" data-page="packages">
+        <div class="pane-toolbar">
+          <button class="tb-text" data-cmd="pkg-install" title="Install a package from the WebAssembly repositories"><span class="ico-slot" data-ico="pkg"></span>Install</button>
+          <div class="grow"></div>
+          <input type="search" id="pkg-filter" placeholder="Search" aria-label="Filter packages">
+          <button class="ib" data-cmd="pkg-refresh" title="Refresh"></button>
+        </div>
+        <div class="pane-body scroll" id="pkg-body"></div>
+      </div>
+      <div class="tabpage" data-page="help">
+        <div class="pane-toolbar">
+          <button class="ib" data-cmd="help-back" title="Back"></button>
+          <button class="ib" data-cmd="help-forward" title="Forward"></button>
+          <button class="ib" data-cmd="help-home" title="mlumr help index"></button>
+          <div class="grow"></div>
+          <input type="search" id="help-search" placeholder="Help topic" aria-label="Help topic">
+        </div>
+        <div class="pane-body scroll help-body" id="help-body"></div>
+      </div>
+      <div class="tabpage" data-page="viewer">
+        <div class="pane-toolbar">
+          <span class="dim" id="viewer-title">Viewer</span>
+          <div class="grow"></div>
+          <button class="ib" data-cmd="viewer-clear" title="Clear the viewer"></button>
+        </div>
+        <div class="pane-body viewer-host" id="viewer-host"><div class="center-note"><p>HTML output and vignettes open here.</p></div></div>
+      </div>
+    </section>
+    </div>
+  </main>
+
+  <footer class="statusbar">
+    <span class="st-item"><span class="dot" id="st-dot"></span><span id="st-state">Starting R</span></span>
+    <span class="st-item" id="st-commit"></span>
+    <span class="st-item" id="st-engine"></span>
+    <div class="grow"></div>
+    <span class="st-item st-job" id="st-job" hidden></span>
+    <span class="st-item" id="st-timer"></span>
+  </footer>
+
+  <div class="overlay" id="overlay" hidden></div>
+  <input type="file" id="file-input" hidden multiple>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
