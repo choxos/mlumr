@@ -1,0 +1,15 @@
+binary_relaxed                   mlumr_binary_relaxed               744 values  max rel diff 1.91e-14  MATCH
+binary_spfa                      mlumr_binary_spfa                  728 values  max rel diff 8.98e-14  MATCH
+normal_relaxed                   mlumr_normal_relaxed               327 values  max rel diff 6.13e-15  MATCH
+normal_spfa                      mlumr_normal_spfa                  319 values  max rel diff 4.44e-15  MATCH
+poisson_relaxed                  mlumr_poisson_relaxed              238 values  max rel diff 4.48e-15  MATCH
+poisson_spfa                     mlumr_poisson_spfa                 230 values  max rel diff 2.84e-15  MATCH
+survival_gengamma_spfa           mlumr_survival_spfa               1606 values  max rel diff 4.77e-15  MATCH
+survival_interval_gengamma_spfa  mlumr_survival_spfa               1606 values  max rel diff 4.42e-15  MATCH
+survival_interval_weibull_spfa   mlumr_survival_spfa               1604 values  max rel diff 4.94e-15  MATCH
+survival_mspline_relaxed         mlumr_survival_mspline_relaxed    1931 values  max rel diff 5.69e-15  MATCH
+survival_mspline_spfa            mlumr_survival_mspline_spfa       1915 values  max rel diff 5.01e-15  MATCH
+survival_weibull_delayed_spfa    mlumr_survival_spfa               1604 values  max rel diff 4.59e-15  MATCH
+survival_weibull_relaxed         mlumr_survival_relaxed            1620 values  max rel diff 4.81e-15  MATCH
+survival_weibull_spfa            mlumr_survival_spfa               1604 values  max rel diff 1.44e-14  MATCH
+worst 8.98e-14; 0 case(s) not matching
