@@ -1,0 +1,64 @@
+{
+  "commit": "95c5bbd669481381e31da39e14d3983fe749b7ae",
+  "groups": [
+    {
+      "name": "Vignettes",
+      "files": [
+        {
+          "path": "vignettes/binary-outcomes.R",
+          "title": "Binary outcomes: an unanchored PASI 75 comparison"
+        },
+        {
+          "path": "vignettes/continuous-outcomes.R",
+          "title": "Continuous outcomes: an unanchored mean-difference comparison"
+        },
+        {
+          "path": "vignettes/count-outcomes.R",
+          "title": "Count outcomes: an unanchored rate-ratio comparison"
+        },
+        {
+          "path": "vignettes/survival-outcomes.R",
+          "title": "Survival (time-to-event) outcomes"
+        },
+        {
+          "path": "vignettes/data-preparation.R",
+          "title": "Preparing data and integration points"
+        },
+        {
+          "path": "vignettes/fitting-and-diagnostics.R",
+          "title": "Fitting, priors, and diagnostics"
+        },
+        {
+          "path": "vignettes/choosing-a-method.R",
+          "title": "Choosing a method for single-arm indirect comparisons: ML-UMR, STC, and naive"
+        },
+        {
+          "path": "vignettes/subgroup-identification.R",
+          "title": "Aggregate subgroup information for the relaxed model"
+        }
+      ]
+    },
+    {
+      "name": "Quick start",
+      "files": [
+        {
+          "path": "quick-start/psoriasis.R",
+          "title": "Binary outcome in a minute (psoriasis)"
+        },
+        {
+          "path": "quick-start/ndmm-survival.R",
+          "title": "Survival outcome, shorter run (NDMM)"
+        }
+      ]
+    }
+  ],
+  "data": [
+    {
+      "path": "data-raw/subgroup_identification_results.csv",
+      "vfs": "/home/data-raw/subgroup_identification_results.csv"
+    }
+  ],
+  "open": [
+    "vignettes/binary-outcomes.R"
+  ]
+}
