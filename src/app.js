@@ -601,11 +601,17 @@ const r = {
       if (/surv/i.test(bare)) pkgs.push('flexsurv');
     }
     if (!pkgs.length) return;
-    const missing = JSON.parse(await this.str(`.ide$missing(${rVec(pkgs)})`));
-    if (!missing.length) return;
-    write(`Installing ${missing.join(', ')} (with their dependencies) for this script, from the Playground's repository.\n`, 'note');
-    status.set(`Installing ${missing.join(', ')}`, 'loading');
-    await this.void(`webr::install(${rVec(missing)}, quiet = TRUE)`);
+    // A failed install must not swallow the code: it runs anyway, and R
+    // reports any package that is still missing in the usual way.
+    try {
+      const missing = JSON.parse(await this.str(`.ide$missing(${rVec(pkgs)})`));
+      if (!missing.length) return;
+      write(`Installing ${missing.join(', ')} (with their dependencies) for this script, from the Playground's repository.\n`, 'note');
+      status.set(`Installing ${missing.join(', ')}`, 'loading');
+      await this.void(`webr::install(${rVec(missing)}, quiet = TRUE)`);
+    } catch (e) {
+      write(`Could not install packages before running: ${e.message || e}\n`, 'msg');
+    }
     status.set('R ready', 'ready');
   },
   // Feeds code line by line at R's prompts and echoes it like a console.
