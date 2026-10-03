@@ -43,15 +43,19 @@ const theme = EditorView.theme({
 
 // Scans R code line by line, tracking strings, comments and brackets, so a
 // statement that spans several lines can be found from any of its lines.
+// Each open bracket remembers whether it holds the condition or arguments of
+// if, for, while or function (or \(x)): a line that ends by closing one has
+// its body still to come, like a line that ends in else or repeat.
 function scanLines(doc) {
   const info = [];
-  let depth = 0;
+  const open = [];
   let quote = null;
   for (let n = 1; n <= doc.lines; n++) {
     const text = doc.line(n).text;
-    const startDepth = depth;
+    const startDepth = open.length;
     const startQuote = quote;
     let code = '';
+    let headEnd = -1;
     for (let i = 0; i < text.length; i++) {
       const ch = text[i];
       if (quote) {
@@ -61,13 +65,16 @@ function scanLines(doc) {
       }
       if (ch === '#') break;
       if (ch === '"' || ch === "'" || ch === '`') { quote = ch; code += 'x'; continue; }
-      if ('([{'.includes(ch)) depth++;
-      else if (')]}'.includes(ch)) depth = Math.max(0, depth - 1);
+      if ('([{'.includes(ch)) open.push(ch === '(' && /(?:\b(?:if|for|while|function)|\\)\s*$/.test(code) ? 'head' : ch);
+      else if (')]}'.includes(ch) && open.pop() === 'head') headEnd = code.length + 1;
       code += ch;
     }
     const tail = code.trimEnd();
-    // A line ending in an operator or a comma continues on the next line.
-    const cont = !quote && /(\+|-|\*|\/|\^|,|\||&|=|<|>|~|\$|@|!|:|%[^%\s]*%|\|>)$/.test(tail);
+    // A line ending in an operator or a comma continues on the next line, and
+    // so does one whose control flow or function still needs its body.
+    const cont = !quote && (/(\+|-|\*|\/|\^|,|\||&|=|<|>|~|\$|@|!|:|%[^%\s]*%|\|>)$/.test(tail) ||
+      headEnd === tail.length || /\b(?:else|repeat)$/.test(tail));
+    const depth = open.length;
     info.push({ startDepth, startQuote, endDepth: depth, endQuote: quote, cont, blank: !tail.trim(), text });
   }
   return info;
