@@ -147,11 +147,21 @@ writeLines(pkgs, "site/repo/packages.txt")
 utils::untar(file.path(out, paste0("mlumr_", ap["mlumr", "Version"], ".tgz")),
                      files = "mlumr/DESCRIPTION", exdir = tempdir())
 d <- read.dcf(file.path(tempdir(), "mlumr", "DESCRIPTION"))
+# The Stan programs this mlumr carries, for the check against the models below.
+unlink(".build/mlumr-stan", recursive = TRUE)
+utils::untar(file.path(out, paste0("mlumr_", ap["mlumr", "Version"], ".tgz")), files = "mlumr/stan",
+             exdir = ".build/mlumr-stan")
 writeLines(c(paste("version", d[1, "Version"]), paste("commit", d[1, "RemoteSha"]),
              paste("built", d[1, "Built"])), "site/repo/mlumr.txt")
 cat(sprintf("repo: %d packages, %.1f MB\n", length(pkgs),
             sum(file.size(list.files(out, "[.]tgz$", full.names = TRUE))) / 2^20))
 EOF
+
+# The WebAssembly models must have been compiled from exactly the Stan
+# programs of the mlumr just packaged (mlumr comes from r-universe's build of
+# GitHub main, which moves); otherwise new R code would hand old models data
+# they do not declare. Stops and names the models to rebuild.
+node scripts/stan-hash.mjs check models/manifest.json .build/mlumr-stan/mlumr/stan models
 
 # 6. Example scripts: each vignette's code, from the vignette sources at the
 #    very commit the mlumr binary above was built from (scripts/vignette-code.R).

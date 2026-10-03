@@ -87,6 +87,10 @@ if [ ! -d "$SRC" ]; then
   git -C "$REPO" archive "$COMMIT" inst/stan | tar -x -C "$SRC"
 fi
 
+# A selective rebuild may keep models from an earlier commit only if their
+# Stan programs are unchanged at this one; check before compiling anything.
+node scripts/stan-hash.mjs kept "$COMMIT" "$SRC/inst/stan" "${MODELS[@]}"
+
 mkdir -p models
 for m in "${MODELS[@]}"; do
   out="$WORK/models-$COMMIT/$m"
@@ -103,29 +107,15 @@ for m in "${MODELS[@]}"; do
   cp "$out/main.js" "$out/main.wasm" "models/$m/"
 done
 
-# Manifest: which commit, which sources, which binaries.
-node - "$COMMIT" "$SRC/inst/stan" "${MODELS[@]}" <<'EOF'
-const { createHash } = require('node:crypto');
-const fs = require('node:fs');
-const path = require('node:path');
-const [commit, stanDir, ...models] = process.argv.slice(2);
-const sha = (b) => createHash('sha256').update(b).digest('hex');
-const expand = (file) => fs.readFileSync(file, 'utf8').split('\n').map((line) => {
-  const m = line.match(/^\s*#include\s+(\S+)/);
-  return m ? expand(path.join(stanDir, m[1])) : line;
-}).join('\n');
-const file = 'models/manifest.json';
-const manifest = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : { models: {} };
-manifest.about = 'mlumr Stan programs compiled to WebAssembly with TinyStan; stan_sha256 hashes each program with its includes expanded.';
-manifest.mlumr_commit = commit;
-manifest.toolchain = { emscripten: '6.0.9', tinystan: 'e78bb624b363b751e697c0ff2501a9d5fa4b9b49', stan: '2.40.0', onetbb: '2021.13.0' };
-for (const m of models) {
-  manifest.models[m] = {
-    stan_sha256: sha(expand(path.join(stanDir, `${m}.stan`))),
-    wasm_sha256: sha(fs.readFileSync(`models/${m}/main.wasm`)),
-    wasm_bytes: fs.statSync(`models/${m}/main.wasm`).size,
-  };
-}
-fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + '\n');
-console.log('wrote', file);
-EOF
+# The dimensions of every data variable, from stanc --info: the page writes
+# the Stan data with them, so a length-one vector stays an array.
+INFO="$WORK/models-$COMMIT/info"
+mkdir -p "$INFO"
+for m in "${MODELS[@]}"; do
+  (cd "$SRC/inst/stan" && "$STANC_BIN" --info --include-paths=. "$m.stan") > "$INFO/$m.json" 2>/dev/null
+done
+
+# Manifest: which commit, which sources, which binaries, per model. A model
+# kept from an earlier build stays only if its Stan program is unchanged at
+# this commit (scripts/stan-hash.mjs, which build.sh also uses to check them).
+node scripts/stan-hash.mjs write "$COMMIT" "$SRC/inst/stan" "$INFO" "${MODELS[@]}"
