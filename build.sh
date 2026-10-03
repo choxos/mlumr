@@ -124,8 +124,8 @@ while (length(todo)) {
 }
 ap <- do.call(rbind, lapply(pkgs, pick))
 rownames(ap) <- pkgs
-# webR 0.6.0 is R 4.6.0; base packages come with it.
-have <- function(p) if (p == "R") paste0(r_minor, ".0") else if (p %in% pkgs) ap[p, "Version"] else NA
+# webR 0.6.0 is R 4.6.0; its base packages come with it, at R's version.
+have <- function(p) if (p == "R" || p %in% base) paste0(r_minor, ".0") else if (p %in% pkgs) ap[p, "Version"] else NA
 unmet <- Filter(function(n) {
   v <- have(n[["pkg"]])
   !is.na(v) && !do.call(n[["op"]], list(package_version(v), package_version(n[["ver"]])))

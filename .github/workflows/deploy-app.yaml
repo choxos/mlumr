@@ -51,7 +51,11 @@ jobs:
   deploy-app:
     runs-on: ubuntu-latest
     steps:
+      # A pull request's build runs code from its branch; it gets no stored
+      # credential to push with.
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: ${{ github.event_name != 'pull_request' }}
 
       - uses: r-lib/actions/setup-r@v2
         with:
