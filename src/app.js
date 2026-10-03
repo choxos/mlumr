@@ -1052,7 +1052,8 @@ const bridge = createStanBridge({
     renderJobsLater();
   },
   onLog(m) { if (/error|exception|reject/i.test(m.message)) write(`Chain ${m.chain}: ${m.message}\n`, 'msg'); },
-  onEnd({ state, seconds }) {
+  onEnd({ state, error, seconds }) {
+    if (error) write(`${error}\n`, 'err');
     const job = jobs.current;
     if (job) { job.state = state === 1 ? 'done' : state === 2 ? 'failed' : 'stopped'; job.seconds = seconds; }
     clearInterval(jobs.tick);
@@ -1266,6 +1267,8 @@ try {
   await r.init();
   r.ready = true;
   const crossOrigin = crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined';
+  // The Stan bridge also needs a SharedArrayBuffer that can grow to hold the draws.
+  const tinystanOk = crossOrigin && typeof SharedArrayBuffer.prototype.grow === 'function';
   // This site's repository first; packages it lacks come from webR's own
   // repository, whose builds match this webR release.
   const repos = [abs('./repo/'), 'https://repo.r-wasm.org'];
@@ -1289,9 +1292,12 @@ try {
   // A package a script loads, or reaches with pkg::, installs on first use
   // (from this site's repository first).
   await r.webR.evalRVoid('webr::global_prompt_install()', { withHandlers: false });
-  const manifest = await (await fetch('stan/manifest.json')).json();
+  const manifestText = await (await fetch('stan/manifest.json')).text();
+  const manifest = JSON.parse(manifestText);
+  // ide.R writes each fit's Stan data with the dimensions recorded here.
+  await r.webR.FS.writeFile('/tmp/.ide/manifest.json', new TextEncoder().encode(manifestText));
   let engine = 'rstan';
-  if (crossOrigin) { await r.webR.evalRVoid('.ide$enable_tinystan()'); engine = 'tinystan'; }
+  if (tinystanOk) { await r.webR.evalRVoid('.ide$enable_tinystan()'); engine = 'tinystan'; }
   updateEngine(engine);
   // default.profraw: an empty profiling file one of the package binaries leaves behind.
   await r.webR.evalRVoid('webr::shim_install(); webr::viewer_install(); webr::pager_install(); options(help_type = "text", width = 90); unlink("~/default.profraw")');
@@ -1309,7 +1315,7 @@ try {
   for (const d of docs.list) if (d.view) await writeVfs(d.path, d.saved ?? d.view.state.doc.toString());
   write(`mlumr ${info.version} (GitHub main ${short}) is loaded. ${engine === 'tinystan'
     ? `Stan fits run as ${navigator.hardwareConcurrency || 4}-core parallel TinyStan workers; mlumr_engine("rstan") switches to rstan in the R worker.`
-    : 'This page is not cross-origin isolated, so Stan fits use rstan inside the R worker (serve with serve.py for parallel TinyStan workers).'}\n`, 'note');
+    : 'Stan fits use rstan inside the R worker: parallel TinyStan workers need a cross-origin isolated page with a growable SharedArrayBuffer (serve with serve.py).'}\n`, 'note');
   write(`Started in ${((performance.now() - t0) / 1000).toFixed(1)} s. The Examples menu has every vignette's code; press Source (Ctrl+Shift+Enter) or step through with Run (Ctrl+Enter).\n\n`, 'note');
   r.booted = true;
   boot.classList.add('gone');
