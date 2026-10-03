@@ -1096,7 +1096,10 @@ const help = {
     const doc = new DOMParser().parseFromString(html, 'text/html');
     // Help goes into the page itself, so it keeps only markup: no scripts,
     // embedded documents, forms or event handlers, and no javascript: links.
-    doc.querySelectorAll('link, script, style, iframe, frame, object, embed, form, base, meta, svg, math').forEach((n) => n.remove());
+    // noscript goes too: DOMParser reads its content as elements, the page
+    // (with scripting on) reads it as text, so markup hidden in it would come
+    // back to life after this cleanup.
+    doc.querySelectorAll('link, script, noscript, noembed, noframes, style, iframe, frame, object, embed, form, base, meta, svg, math').forEach((n) => n.remove());
     for (const el of doc.body.querySelectorAll('*')) {
       for (const { name, value } of [...el.attributes]) {
         if (/^on/i.test(name) || (/^(href|src|action|formaction|xlink:href|srcset)$/i.test(name) && /^\s*(javascript|data|vbscript):/i.test(value))) el.removeAttribute(name);
@@ -1185,16 +1188,21 @@ const viewer = {
         let id = href.slice(1);
         try { id = decodeURIComponent(id); } catch { /* keep it as written */ }
         a.dataset.frag = id;
+        // A link without an href leaves the tab order; keep it in.
+        a.setAttribute('tabindex', '0');
+        a.setAttribute('role', 'link');
       } else a.setAttribute('title', href);
     }
     const jump = doc.createElement('script');
-    jump.textContent = `document.addEventListener('click', (e) => {
+    jump.textContent = `const go = (e) => {
   const a = e.target.closest('[data-frag]');
   if (!a) return;
   e.preventDefault();
   const id = a.dataset.frag;
   (id ? document.getElementById(id) || document.getElementsByName(id)[0] : document.body)?.scrollIntoView();
-});`;
+};
+document.addEventListener('click', go);
+document.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(e); });`;
     doc.body.appendChild(jump);
     const pointer = doc.createElement('style');
     pointer.textContent = '[data-frag] { cursor: pointer; }';
