@@ -4,7 +4,10 @@ An R IDE in your browser for the [mlumr](https://github.com/choxos/mlumr)
 package, laid out like RStudio. R 4.6.0 runs in the page through
 [webR](https://webr.r-wasm.org/) 0.6.0, mlumr is the build of GitHub main, and
 mlumr's ten Stan models are compiled to WebAssembly and sample in one browser
-worker per chain. Nothing is installed and nothing leaves the browser.
+worker per chain. Nothing is installed, and all computation happens in the
+browser: no server runs your code or sees your data. The page does download
+webR, the R packages and the models, and R code you run can reach the network
+as it can on a desktop; the Viewer pane loads nothing from the network.
 
 This branch is app-only: the R package lives on `main`, and this branch deploys
 the Playground to `https://choxos.github.io/mlumr/app/`.

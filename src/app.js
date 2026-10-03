@@ -1000,7 +1000,14 @@ const help = {
     const html = await r.str(`.ide$help_html(${JSON.stringify(topic)}${pkg ? `, ${JSON.stringify(pkg)}` : ''})`);
     if (!html) { this.body.innerHTML = `<div class="help-doc"><p>No documentation for <code>${esc(topic)}</code>.</p></div>`; return; }
     const doc = new DOMParser().parseFromString(html, 'text/html');
-    doc.querySelectorAll('link, script, style').forEach((n) => n.remove());
+    // Help goes into the page itself, so it keeps only markup: no scripts,
+    // embedded documents, forms or event handlers, and no javascript: links.
+    doc.querySelectorAll('link, script, style, iframe, frame, object, embed, form, base, meta, svg, math').forEach((n) => n.remove());
+    for (const el of doc.body.querySelectorAll('*')) {
+      for (const { name, value } of [...el.attributes]) {
+        if (/^on/i.test(name) || (/^(href|src|action|formaction|xlink:href|srcset)$/i.test(name) && /^\s*(javascript|data|vbscript):/i.test(value))) el.removeAttribute(name);
+      }
+    }
     const head = doc.querySelector('table'); // Rd2HTML's header table (topic, package)
     if (head && head.textContent.includes('R Documentation')) head.outerHTML = `<div class="help-head"><span>${esc(topic)}</span><span>${esc(pkg || '')} R Documentation</span></div>`;
     this.body.innerHTML = `<div class="help-doc">${doc.body.innerHTML}</div>`;
@@ -1069,10 +1076,16 @@ const viewer = {
         doc.body.appendChild(sc);
       }
     }
+    // The frame may run the document's own scripts (htmlwidgets, KaTeX) but
+    // load nothing from the network: everything it shows is inline or data.
+    const csp = doc.createElement('meta');
+    csp.setAttribute('http-equiv', 'Content-Security-Policy');
+    csp.setAttribute('content', "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:");
+    doc.head.prepend(csp);
     html = `<!DOCTYPE html>${doc.documentElement.outerHTML}`;
     this.host.innerHTML = '';
     const f = document.createElement('iframe');
-    f.setAttribute('sandbox', 'allow-scripts allow-popups');
+    f.setAttribute('sandbox', 'allow-scripts');
     f.srcdoc = html;
     this.host.appendChild(f);
     $('#viewer-title').textContent = title || 'Viewer';
