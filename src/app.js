@@ -3,6 +3,7 @@
 import { icon } from './icons.js';
 import { createEditor, openSearchPanel, selectionOrLine } from './editor.js';
 import { createStanBridge } from './bridge.js';
+import { fromWebRView } from './view-data.js';
 
 const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
@@ -537,18 +538,22 @@ const r = {
   async readLoop() {
     for (;;) {
       const m = await this.webR.read();
-      switch (m.type) {
-        case 'stdout': write(`${m.data}\n`); break;
-        case 'stderr': write(`${m.data}\n`, /^(Error|Fehler)/.test(m.data) ? 'err' : 'msg'); break;
-        case 'prompt': this.onPrompt(m.data); break;
-        case 'canvas': plots.onCanvas(m.data); break;
-        case 'pager': help.pager(m.data); break;
-        case 'view': docs.openData(m.data.title || 'Data', fromWebRView(m.data.data)); break;
-        case 'browse': viewer.open(m.data.url); break;
-        case 'mlumr': onRMessage(m.data); break;
-        case 'closed': status.set('R stopped', ''); return;
-        default: break;
-      }
+      if (m.type === 'closed') { status.set('R stopped', ''); return; }
+      // One message the page cannot handle must not end the loop: it carries
+      // the console, the prompts and the Stan requests.
+      try {
+        switch (m.type) {
+          case 'stdout': write(`${m.data}\n`); break;
+          case 'stderr': write(`${m.data}\n`, /^(Error|Fehler)/.test(m.data) ? 'err' : 'msg'); break;
+          case 'prompt': this.onPrompt(m.data); break;
+          case 'canvas': plots.onCanvas(m.data); break;
+          case 'pager': help.pager(m.data).catch(report(m.type)); break;
+          case 'view': docs.openData(m.data.title || 'Data', fromWebRView(m.data.data)); break;
+          case 'browse': viewer.open(m.data.url).catch(report(m.type)); break;
+          case 'mlumr': onRMessage(m.data); break;
+          default: break;
+        }
+      } catch (e) { report(m.type)(e); }
     }
   },
   onPrompt(p) {
@@ -639,11 +644,8 @@ const r = {
   async num(code) { await this.whenIdle(); return this.webR.evalRNumber(code); },
   async void(code) { await this.whenIdle(); return this.webR.evalRVoid(code); },
 };
-function fromWebRView(data) {
-  const names = data.names || Object.keys(data);
-  const cols = (data.values || names.map((n) => data[n])).map((c) => (c.values || c).map((v) => (v === null ? 'NA' : String(v))));
-  return { names, classes: cols.map(() => ''), nrow: cols[0]?.length ?? 0, ncol: names.length, cols };
-}
+
+const report = (what) => (e) => { console.error(e); write(`The IDE could not show R's ${what} output: ${e?.message ?? e}\n`, 'err'); };
 
 // R's output width follows the console pane, as in RStudio.
 let rWidth = 0;

@@ -72,6 +72,7 @@ export NODE_PATH="$PWD/.build/node_modules"
 "$esbuild" scripts/statement-test.mjs --bundle --format=esm --platform=node \
   --outfile=.build/statement-test.mjs --log-level=warning
 node .build/statement-test.mjs
+node scripts/view-test.mjs
 # coi-sw.js: GitHub Pages cannot send COOP/COEP headers; this service worker
 # adds them, which makes the page cross-origin isolated after one reload.
 cp src/index.html src/styles.css src/ide.R src/coi-sw.js shim/fortran-commons.so site/
