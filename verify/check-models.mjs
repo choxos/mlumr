@@ -2,7 +2,7 @@
 // compares lp__ and every transformed parameter and generated quantity.
 // Usage: node check-models.mjs <models dir> <cases dir> [case ...]
 // Needs the tinystan package on the module path (the Playground build installs it).
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
@@ -24,13 +24,20 @@ const bracket = (n) => n.replace(/^([^.]+)\.(.+)$/, (_, b, i) => `${b}[${i.split
 const loaded = new Map();
 let worst = 0;
 let failed = 0;
+let checked = 0;
+// Anything not checked counts as a failure: a missing case, model or input,
+// a case with nothing to compare, an expected value the model did not return.
+const fail = (msg) => { failed++; console.log(msg); };
 
-for (const name of readdirSync(casesDir).filter((c) => !only.length || only.includes(c)).sort()) {
+const all = readdirSync(casesDir).filter((c) => statSync(join(casesDir, c)).isDirectory()).sort();
+for (const c of only.filter((c) => !all.includes(c))) fail(`${c}: no such case in ${casesDir}`);
+for (const name of all.filter((c) => !only.length || only.includes(c))) {
   const dir = join(casesDir, name);
-  if (!existsSync(join(dir, 'expected.json'))) continue;
+  const absent = ['expected.json', 'data.json', 'init.json'].filter((f) => !existsSync(join(dir, f)));
+  if (absent.length) { fail(`${name}: missing ${absent.join(', ')}`); continue; }
   const expected = JSON.parse(readFileSync(join(dir, 'expected.json'), 'utf8'));
   const modelJs = join(resolve(modelsDir), expected.model, 'main.js');
-  if (!existsSync(modelJs)) { console.log(`${name}: no ${expected.model} in ${modelsDir}`); continue; }
+  if (!existsSync(modelJs)) { fail(`${name}: no ${expected.model} in ${modelsDir}`); continue; }
   if (!loaded.has(expected.model)) {
     const create = (await import(pathToFileURL(modelJs))).default;
     loaded.set(expected.model, await StanModel.load(create, () => {}, () => {}));
@@ -53,6 +60,8 @@ for (const name of readdirSync(casesDir).filter((c) => !only.length || only.incl
   let where = '';
   let compared = 0;
   let missing = 0;
+  const returned = new Set(r.paramNames.map(bracket));
+  const notReturned = Object.keys(expected.values).filter((k) => !returned.has(k)).length;
   r.paramNames.forEach((n, i) => {
     if (SAMPLER.has(n)) return;
     const want = expected.values[bracket(n)];
@@ -64,9 +73,11 @@ for (const name of readdirSync(casesDir).filter((c) => !only.length || only.incl
     if (!(rel <= maxRel)) { maxRel = Number.isNaN(rel) ? Infinity : rel; where = `${bracket(n)} ${got} vs ${want}`; }
   });
   worst = Math.max(worst, maxRel);
-  const ok = maxRel < 1e-8 && missing === 0;
+  const ok = maxRel < 1e-8 && missing === 0 && notReturned === 0 && compared > 0;
   if (!ok) failed++;
-  console.log(`${name.padEnd(32)} ${expected.model.padEnd(32)} ${String(compared).padStart(5)} values  max rel diff ${maxRel.toExponential(2)}  ${ok ? 'MATCH' : 'DIFFERS'}${missing ? `  (${missing} unmatched names)` : ''}${ok ? '' : `  worst: ${where}`}`);
+  checked++;
+  console.log(`${name.padEnd(32)} ${expected.model.padEnd(32)} ${String(compared).padStart(5)} values  max rel diff ${maxRel.toExponential(2)}  ${ok ? 'MATCH' : 'DIFFERS'}${missing ? `  (${missing} unmatched names)` : ''}${notReturned ? `  (${notReturned} expected values not returned)` : ''}${ok ? '' : `  worst: ${where}`}`);
 }
-console.log(`worst ${worst.toExponential(2)}; ${failed} case(s) not matching`);
+if (!checked) fail('no case was checked');
+console.log(`worst ${worst.toExponential(2)}; ${checked} case(s) checked; ${failed} not matching`);
 process.exit(failed ? 1 : 0);
