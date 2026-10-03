@@ -12,10 +12,11 @@
 //     (build-models.sh, before compiling) the same check of the kept models.
 //   node scripts/stan-hash.mjs check <manifest> <stan dir> <models dir>
 //     (build.sh) checks that the mlumr being published carries exactly the
-//     Stan programs the binaries were compiled from, and that each binary is
-//     the one the manifest names. Stops and names every model that differs.
+//     Stan programs the binaries were compiled from, no more and no fewer, and
+//     that each binary is the one the manifest names. Stops and names every
+//     model that differs.
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -76,6 +77,12 @@ function write(commit, stanDir, infoDir, models) {
 function check(manifestFile, stanDir, modelsDir) {
   const manifest = JSON.parse(readFileSync(manifestFile, 'utf8'));
   const bad = [];
+  // Every model the mlumr carries needs its WebAssembly build: the programs
+  // are the top-level .stan files (the includes live in include/).
+  for (const f of readdirSync(stanDir).filter((f) => f.endsWith('.stan')).sort()) {
+    const m = f.slice(0, -'.stan'.length);
+    if (!manifest.models[m]) bad.push(`${m}: in the mlumr being published, but no WebAssembly model was compiled from it`);
+  }
   for (const [m, entry] of Object.entries(manifest.models)) {
     if (!existsSync(join(stanDir, `${m}.stan`))) { bad.push(`${m}: not in the mlumr being published`); continue; }
     if (stanHash(stanDir, m) !== entry.stan_sha256) bad.push(`${m}: its Stan program differs from the one compiled`);
