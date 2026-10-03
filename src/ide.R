@@ -72,9 +72,12 @@ local({
     cols <- lapply(shown, function(col) {
       if (is.numeric(col)) as.character(signif(col, 6)) else as.character(col)
     })
-    jsonlite::toJSON(list(names = names(shown), classes = vapply(shown, function(c) class(c)[1], ""),
-                          nrow = nrow(df), ncol = ncol(df), cols = unname(cols)),
-                     auto_unbox = TRUE, digits = NA)
+    # Names, classes and every column stay arrays even for one column or one
+    # row (docs.openData() maps over them); only the counts are scalars.
+    jsonlite::toJSON(list(names = names(shown), classes = unname(vapply(shown, function(c) class(c)[1], "")),
+                          nrow = jsonlite::unbox(nrow(df)), ncol = jsonlite::unbox(ncol(df)),
+                          cols = unname(cols)),
+                     auto_unbox = FALSE, digits = NA)
   }
   # Packages a script names (library(), pkg::, package = "pkg") that are not
   # installed yet but are in this site's repository.
@@ -214,34 +217,132 @@ local({
   dotted_to_brackets <- function(x) {
     sub("^([^.]+)\\.(.*)$", "\\1[\\2]", x) |> (\(s) ifelse(grepl("\\[", s), gsub("\\.", ",", s), s))()
   }
-  fit_tinystan <- function(model_name, stan_data, chains, iter, warmup, seed,
-                           adapt_delta, max_treedepth, refresh, verbose = TRUE, ...) {
-    dots <- list(...)
-    dir.create("/tmp/.mlumr-stan", showWarnings = FALSE)
-    unlink(c("/tmp/.mlumr-stan/header.txt", "/tmp/.mlumr-stan/draws.bin"))
-    # As cmdstanr::write_stan_json(): logicals and factors as integers.
-    sd <- lapply(stan_data, function(x) {
-      if (is.logical(x)) storage.mode(x) <- "integer"
+  # The Stan data as JSON, each variable with the number of dimensions its
+  # model declares (`dims`, from stanc --info, in stan/manifest.json), so a
+  # vector of length one stays an array and only true scalars are unboxed.
+  # Logicals and factors become integers, as in cmdstanr::write_stan_json().
+  # Initial values go through here too, with the parameters' dimensions.
+  ide$stan_data_json <- function(stan_data, dims = list(), what = "Stan data") {
+    sd <- lapply(stats::setNames(nm = names(stan_data)), function(nm) {
+      x <- stan_data[[nm]]
       if (is.factor(x)) x <- as.integer(x)
+      if (is.logical(x)) storage.mode(x) <- "integer"
+      d <- dims[[nm]]
+      if (!is.null(d) && d >= 1 && is.null(dim(x))) {
+        if (d == 1 || length(x) == 0) {
+          x <- array(x, dim = c(length(x), rep(0L, d - 1)))
+        } else {
+          stop(sprintf("%s `%s` must be an array with %d dimensions, but it is a vector of length %d.",
+                       what, nm, d, length(x)), call. = FALSE)
+        }
+      }
       x
     })
-    jsonlite::write_json(sd, "/tmp/.mlumr-stan/data.json", auto_unbox = TRUE,
-                         factor = "integer", digits = NA)
-    req <- list(model = model_name, chains = as.integer(chains),
-                num_warmup = as.integer(warmup), num_samples = as.integer(iter - warmup),
-                seed = as.numeric(seed), delta = adapt_delta, max_depth = as.integer(max_treedepth),
-                init_radius = as.numeric(dots$init_r %||% 2))
-    status <- webr::eval_js(sprintf(bridge_js, jsonlite::toJSON(req, auto_unbox = TRUE, digits = NA)))
+    jsonlite::toJSON(sd, auto_unbox = TRUE, factor = "integer", digits = NA)
+  }
+  # The sampler settings TinyStan runs with, from mlumr()'s arguments and
+  # `...` taken the way the rstan backend takes them: `control` merged with
+  # adapt_delta and max_treedepth by mlumr's own rule, `init` and `init_r`
+  # as rstan reads them, `thin` applied to the draws afterwards (TinyStan has
+  # none). Anything else stops with its name instead of being dropped.
+  ide$tinystan_request <- function(model_name, chains, iter, warmup, seed, adapt_delta, max_treedepth,
+                                   dots = list(), param_dims = list()) {
+    ns <- asNamespace("mlumr")
+    merged <- if (exists(".merge_sampler_control", envir = ns, inherits = FALSE)) {
+      get(".merge_sampler_control", envir = ns)(adapt_delta, max_treedepth, dots)
+    } else {
+      control <- utils::modifyList(list(adapt_delta = adapt_delta, max_treedepth = max_treedepth),
+                                   dots$control %||% list())
+      dots$control <- NULL
+      list(control = control, dots = dots)
+    }
+    control <- merged$control
+    dots <- merged$dots
+    as_count <- function(x, what) {
+      if (!is.numeric(x) || length(x) != 1 || !is.finite(x) || x < 1 || x != round(x)) {
+        stop(sprintf("`%s` must be a single whole number of at least 1.", what), call. = FALSE)
+      }
+      as.integer(x)
+    }
+    names_map <- c(stepsize = "stepsize", stepsize_jitter = "stepsize_jitter", adapt_gamma = "gamma",
+                   adapt_kappa = "kappa", adapt_t0 = "t0", adapt_init_buffer = "init_buffer",
+                   adapt_term_buffer = "term_buffer", adapt_window = "window")
+    unknown <- setdiff(names(control), c("adapt_delta", "max_treedepth", "metric", "adapt_engaged", names(names_map)))
+    if (length(unknown)) {
+      stop(sprintf("The TinyStan engine does not support control setting%s %s; mlumr_engine(\"rstan\") does.",
+                   if (length(unknown) > 1) "s" else "", paste0("`", unknown, "`", collapse = ", ")), call. = FALSE)
+    }
+    metrics <- c(unit_e = 0L, dense_e = 1L, diag_e = 2L)
+    metric <- control$metric %||% "diag_e"
+    if (!is.character(metric) || length(metric) != 1 || !metric %in% names(metrics)) {
+      stop("`control$metric` must be one of \"diag_e\", \"dense_e\" or \"unit_e\".", call. = FALSE)
+    }
+    # rstan's and cmdstanr's presentation and parallelism arguments change
+    # nothing here: every chain already runs in its own worker.
+    ignored <- c("cores", "parallel_chains", "open_progress", "show_messages", "show_exceptions")
+    unknown <- setdiff(names(dots), c(ignored, "thin", "init", "init_r"))
+    if (length(unknown)) {
+      stop(sprintf("The TinyStan engine does not support %s; mlumr_engine(\"rstan\") does.",
+                   paste0("`", unknown, "`", collapse = ", ")), call. = FALSE)
+    }
+    thin <- if (is.null(dots$thin)) 1L else as_count(dots$thin, "thin")
+    init_radius <- if (is.null(dots$init_r)) 2 else as.numeric(dots$init_r)
+    inits <- NULL
+    init <- dots$init
+    if (!is.null(init)) {
+      if (is.numeric(init) && length(init) == 1) {
+        init_radius <- as.numeric(init)          # 0 starts every chain at zero, as in rstan and cmdstanr
+      } else if (identical(init, "0")) {
+        init_radius <- 0
+      } else if (identical(init, "random")) {
+        # the default
+      } else if (is.function(init)) {
+        inits <- lapply(seq_len(chains), function(k) if ("chain_id" %in% names(formals(init))) init(chain_id = k) else init())
+      } else if (is.list(init) && length(init) == chains && all(vapply(init, is.list, TRUE))) {
+        inits <- init
+      } else {
+        stop("`init` must be \"random\", 0, a number, a function, or a list with one list per chain.", call. = FALSE)
+      }
+    }
+    sampler <- list(delta = control$adapt_delta, max_depth = as.integer(control$max_treedepth),
+                    metric = metrics[[metric]], init_radius = init_radius)
+    for (nm in intersect(names(names_map), names(control))) sampler[[names_map[[nm]]]] <- control[[nm]]
+    if (!is.null(control$adapt_engaged)) sampler$adapt <- isTRUE(control$adapt_engaged)
+    list(req = list(model = model_name, chains = as.integer(chains), num_warmup = as.integer(warmup),
+                    num_samples = as.integer(iter - warmup), seed = as.numeric(seed), sampler = sampler,
+                    inits = if (is.null(inits)) NULL else
+                      lapply(inits, function(x) as.character(ide$stan_data_json(x, param_dims, "Initial value")))),
+         control = control, thin = thin, metric = metric)
+  }
+  fit_tinystan <- function(model_name, stan_data, chains, iter, warmup, seed,
+                           adapt_delta, max_treedepth, refresh, verbose = TRUE, ...) {
+    entry <- tryCatch(jsonlite::read_json("/tmp/.ide/manifest.json")$models[[model_name]], error = function(e) NULL)
+    if (is.null(entry$data) || is.null(entry$params)) {
+      stop("This site's stan/manifest.json gives no data or parameter dimensions for ", model_name, ".", call. = FALSE)
+    }
+    run <- ide$tinystan_request(model_name, chains, iter, warmup, seed, adapt_delta, max_treedepth, list(...),
+                                param_dims = entry$params)
+    dir.create("/tmp/.mlumr-stan", showWarnings = FALSE)
+    unlink(c("/tmp/.mlumr-stan/header.txt", "/tmp/.mlumr-stan/draws.bin"))
+    writeLines(ide$stan_data_json(stan_data, entry$data), "/tmp/.mlumr-stan/data.json")
+    req <- run$req
+    status <- webr::eval_js(sprintf(bridge_js, jsonlite::toJSON(req, auto_unbox = TRUE, null = "null", digits = NA)))
     header <- readLines("/tmp/.mlumr-stan/header.txt", warn = FALSE)
     if (status == "error") stop(paste(header, collapse = "\n"), call. = FALSE)
     if (status != "ok") stop("Sampling was stopped before it finished.", call. = FALSE)
-    dims <- as.integer(strsplit(header[1], " ")[[1]])  # chains, draws per chain, params
-    n_chain <- dims[1]; n_per <- dims[2]; n_par <- dims[3]
+    shape <- as.integer(strsplit(header[1], " ")[[1]])  # chains, draws per chain, params
+    n_chain <- shape[1]; n_per <- shape[2]; n_par <- shape[3]
     names_raw <- header[1 + seq_len(n_par)]
     elapsed <- as.numeric(strsplit(header[2 + n_par], " ")[[1]])
     vals <- readBin("/tmp/.mlumr-stan/draws.bin", "double", n = n_chain * n_per * n_par)
     m <- matrix(vals, nrow = n_chain * n_per, ncol = n_par)
     colnames(m) <- dotted_to_brackets(names_raw)
+    # thin, as rstan applies it: every thin-th post-warmup draw of each chain.
+    if (run$thin > 1) {
+      kept <- (seq_len(n_per) - 1) %% run$thin == 0
+      m <- m[rep(kept, n_chain), , drop = FALSE]   # rows are chain by chain
+      n_per <- sum(kept)
+    }
     sampler <- c("accept_stat__", "stepsize__", "treedepth__", "n_leapfrog__", "divergent__", "energy__")
     draws <- as.data.frame(m[, !colnames(m) %in% sampler, drop = FALSE], check.names = FALSE)
     chain_ids <- rep(seq_len(n_chain), each = n_per)
@@ -266,14 +367,16 @@ local({
     )
     list(
       native_fit = list(sampler = "TinyStan (WebAssembly, browser workers)", model = model_name,
-                        elapsed = elapsed, seed = seed),
+                        elapsed = elapsed, seed = seed, metric = run$metric, thin = run$thin),
       draws = draws,
       chain_ids = chain_ids,
       summary_df = as.data.frame(summ),
       n_divergent = sum(m[, "divergent__"]),
-      n_max_td = sum(m[, "treedepth__"] >= max_treedepth),
-      adapt_delta_used = adapt_delta,
-      max_treedepth_used = max_treedepth,
+      n_max_td = sum(m[, "treedepth__"] >= run$control$max_treedepth),
+      # What the sampler ran under: the merged control, as the rstan backend reports it.
+      adapt_delta_used = run$control$adapt_delta,
+      max_treedepth_used = run$control$max_treedepth,
+      control_used = run$control,
       n_chains_requested = as.integer(chains),
       n_chains_returned = n_chain
     )

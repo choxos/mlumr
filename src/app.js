@@ -3,11 +3,19 @@
 import { icon } from './icons.js';
 import { createEditor, openSearchPanel, selectionOrLine } from './editor.js';
 import { createStanBridge } from './bridge.js';
+import { fromWebRView } from './view-data.js';
 
 const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const abs = (p) => new URL(p, location.href).href;
+// R code from page values: a JSON string is a valid R string literal, and a
+// name that is not syntactic goes in backticks.
+const rStr = (s) => JSON.stringify(String(s));
+const R_RESERVED = new Set(['if', 'else', 'repeat', 'while', 'function', 'for', 'next', 'break', 'in', 'TRUE', 'FALSE',
+  'NULL', 'Inf', 'NaN', 'NA', 'NA_integer_', 'NA_real_', 'NA_character_', 'NA_complex_']);
+const rName = (s) => (/^((([A-Za-z]|[.][._A-Za-z])[._A-Za-z0-9]*)|[.])$/.test(s) && !R_RESERVED.has(s)
+  ? s : `\`${String(s).replace(/\\/g, '\\\\').replace(/`/g, '\\`')}\``);
 const HOME = '/home/web_user';
 const store = {
   get(k, d) { try { const v = localStorage.getItem('mlumr-playground.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
@@ -64,7 +72,34 @@ const applyLayout = () => {
   colR.style.setProperty('--top', `${layout.top}%`);
 };
 applyLayout();
+// The splitters also move with the arrow keys (Shift for bigger steps).
 for (const sp of $$('.splitter')) {
+  const cols = sp.dataset.split === 'cols';
+  sp.tabIndex = 0;
+  sp.setAttribute('role', 'separator');
+  sp.setAttribute('aria-orientation', cols ? 'vertical' : 'horizontal');
+  sp.setAttribute('aria-label', cols ? 'Resize the left and right columns' : 'Resize the top and bottom panes');
+  sp.setAttribute('aria-valuemin', '0');
+  sp.setAttribute('aria-valuemax', '100');
+  const sync = () => sp.setAttribute('aria-valuenow', String(Math.round(cols ? layout.left : layout.top)));
+  sync();
+  sp.addEventListener('keydown', (e) => {
+    const keys = cols ? { ArrowLeft: -1, ArrowRight: 1 } : { ArrowUp: -1, ArrowDown: 1 };
+    if (!(e.key in keys)) return;
+    e.preventDefault();
+    const step = keys[e.key] * (e.shiftKey ? 10 : 2);
+    if (cols) layout.left = Math.min(85, Math.max(15, layout.left + step));
+    else {
+      layout.top = Math.min(92, Math.max(8, layout.top + step));
+      colL.classList.remove('max-top', 'max-bottom');
+      colR.classList.remove('max-top', 'max-bottom');
+    }
+    applyLayout();
+    for (const s of $$('.splitter')) s.setAttribute('aria-valuenow', String(Math.round(s.dataset.split === 'cols' ? layout.left : layout.top)));
+    store.set('layout', layout);
+    plots.fitLater();
+  });
+  sp.addEventListener('pointerup', sync);
   sp.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     const kind = sp.dataset.split;
@@ -142,31 +177,62 @@ function toggleMenu(menu, anchorBtn) {
 }
 $('#project-btn').onclick = (e) => toggleMenu($('#project-menu'), e.currentTarget);
 
-// Dialogs
+// Dialogs. Every way out (a button, Escape, a click on the backdrop) goes
+// through one close, which runs once and tells the caller it was dismissed,
+// so a question that is waved away never leaves its caller waiting. Tab stays
+// inside the dialog, and focus goes back where it was.
 const overlay = $('#overlay');
-function dialog(html, { wide = false } = {}) {
-  overlay.innerHTML = `<div class="dialog${wide ? ' wide' : ''}" role="dialog" aria-modal="true">${html}</div>`;
+let dialogSeq = 0;
+const focusables = (root) => $$('button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"]), a[href]', root)
+  .filter((el) => el.offsetParent !== null);
+function dialog(html, { wide = false, onDismiss = null } = {}) {
+  const before = document.activeElement;
+  const id = `dialog-title-${++dialogSeq}`;
+  overlay.innerHTML = `<div class="dialog${wide ? ' wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="${id}">${html}</div>`;
   overlay.hidden = false;
   const box = overlay.firstElementChild;
-  const close = () => { overlay.hidden = true; overlay.innerHTML = ''; };
-  overlay.onclick = (e) => { if (e.target === overlay) close(); };
-  box.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  $('h3', box)?.setAttribute('id', id);
+  let open = true;
+  const close = () => {
+    if (!open) return false;
+    open = false;
+    overlay.hidden = true;
+    overlay.innerHTML = '';
+    overlay.onclick = null;
+    if (before?.isConnected) before.focus?.();
+    return true;
+  };
+  const dismiss = () => { if (close()) onDismiss?.(); };
+  overlay.onclick = (e) => { if (e.target === overlay) dismiss(); };
+  box.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); dismiss(); return; }
+    if (e.key !== 'Tab') return;
+    const f = focusables(box);
+    if (!f.length) return;
+    const first = f[0];
+    const last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+  requestAnimationFrame(() => { if (open && !box.contains(document.activeElement)) focusables(box)[0]?.focus(); });
   return { box, close };
 }
 function ask(title, text, value = '') {
   return new Promise((resolve) => {
-    const d = dialog(`<h3>${esc(title)}</h3><p>${text}</p><input type="text" value="${esc(value)}" spellcheck="false"><div class="row"><button class="btn" data-a="cancel">Cancel</button><button class="btn primary" data-a="ok">OK</button></div>`);
+    const d = dialog(`<h3>${esc(title)}</h3><p>${text}</p><input type="text" value="${esc(value)}" spellcheck="false" aria-label="${esc(title)}"><div class="row"><button class="btn" data-a="cancel">Cancel</button><button class="btn primary" data-a="ok">OK</button></div>`,
+      { onDismiss: () => resolve(null) });
     const input = $('input', d.box);
     input.focus(); input.select();
     const done = (v) => { d.close(); resolve(v); };
     $('[data-a="ok"]', d.box).onclick = () => done(input.value.trim());
     $('[data-a="cancel"]', d.box).onclick = () => done(null);
-    input.onkeydown = (e) => { if (e.key === 'Enter') done(input.value.trim()); if (e.key === 'Escape') done(null); };
+    input.onkeydown = (e) => { if (e.key === 'Enter') done(input.value.trim()); };
   });
 }
 function confirmBox(title, text, ok = 'OK') {
   return new Promise((resolve) => {
-    const d = dialog(`<h3>${esc(title)}</h3><p>${text}</p><div class="row"><button class="btn" data-a="cancel">Cancel</button><button class="btn primary" data-a="ok">${esc(ok)}</button></div>`);
+    const d = dialog(`<h3>${esc(title)}</h3><p>${text}</p><div class="row"><button class="btn" data-a="cancel">Cancel</button><button class="btn primary" data-a="ok">${esc(ok)}</button></div>`,
+      { onDismiss: () => resolve(false) });
     $('[data-a="ok"]', d.box).focus();
     $('[data-a="ok"]', d.box).onclick = () => { d.close(); resolve(true); };
     $('[data-a="cancel"]', d.box).onclick = () => { d.close(); resolve(false); };
@@ -208,25 +274,76 @@ const db = await new Promise((resolve) => {
   req.onsuccess = () => resolve(req.result);
   req.onerror = () => resolve(null);
 });
+// Writes resolve when the browser has committed them and reject when it
+// could not (storage full, private mode, storage turned off).
 const idb = {
   tx(mode) { return db.transaction('files', mode).objectStore('files'); },
   all() { return db ? new Promise((r) => { const q = this.tx('readonly').getAll(); q.onsuccess = () => r(q.result); q.onerror = () => r([]); }) : Promise.resolve([]); },
-  put(rec) { if (db) this.tx('readwrite').put(rec); },
-  del(path) { if (db) this.tx('readwrite').delete(path); },
+  write(op) {
+    return new Promise((resolve, reject) => {
+      if (!db) { reject(new Error('this browser gives the page no storage')); return; }
+      try {
+        const t = db.transaction('files', 'readwrite');
+        op(t.objectStore('files'));
+        t.oncomplete = () => resolve();
+        t.onerror = () => reject(t.error || new Error('the write failed'));
+        t.onabort = () => reject(t.error || new Error('the write was aborted'));
+      } catch (e) { reject(e); }
+    });
+  },
+  put(rec) { return this.write((s) => s.put(rec)); },
+  del(path) { return this.write((s) => s.delete(path)); },
 };
+// Said once per session, in the console and the status bar.
+let storageWarned = false;
+function storageFailed(e) {
+  console.warn(e);
+  if (storageWarned) return;
+  storageWarned = true;
+  write(`This browser did not keep a copy of your open files (${e?.message ?? e}), so edits will not survive a reload. Download the files you need from the Files pane.\n`, 'err');
+  status.set('Files not kept by the browser', '');
+}
+async function vfsExists(path) {
+  if (!r.ready) return false;
+  try { await r.webR.FS.lookupPath(path); return true; } catch { return false; }
+}
 
 const docs = {
   list: [],          // { path, name, kind: 'r'|'text'|'data', view, saved, dirty }
   active: null,
   host: $('#editor-host'),
-  timers: new Map(),
-  // One pending write per file, so quick edits to two files both persist.
+  timers: new Map(),   // document -> pending write
+  inflight: new Set(), // writes handed to the browser and not yet committed
+  snapshots: [],       // scratch copies of unsaved documents, for Source
+  snapshotSeq: 0,
+  // One pending write per document, so quick edits to two files both persist.
   persist(d) {
-    clearTimeout(this.timers.get(d.path));
-    this.timers.set(d.path, setTimeout(() => {
-      this.timers.delete(d.path);
-      if (d.view) idb.put({ path: d.path, content: d.view.state.doc.toString(), saved: d.saved, updated: Date.now() });
-    }, 400));
+    clearTimeout(this.timers.get(d));
+    this.timers.set(d, setTimeout(() => this.flush(d), 400));
+  },
+  // Writes a document now. A closed document is never written back.
+  flush(d) {
+    clearTimeout(this.timers.get(d));
+    this.timers.delete(d);
+    if (!d.view || !this.list.includes(d)) return Promise.resolve();
+    return this.track(idb.put({ path: d.path, content: d.view.state.doc.toString(), saved: d.saved, updated: Date.now() }));
+  },
+  // Every storage write goes through here, so a reload can wait for the ones
+  // already on their way as well as the ones still waiting to start.
+  track(write) {
+    const p = write.catch(storageFailed).finally(() => this.inflight.delete(p));
+    this.inflight.add(p);
+    return p;
+  },
+  pending() { return this.timers.size + this.inflight.size; },
+  flushAll() { return Promise.all([...[...this.timers.keys()].map((d) => this.flush(d)), ...this.inflight]); },
+  // New text from outside the editor (an upload, a reset): shown, saved, kept.
+  replaceText(d, text) {
+    d.view.dispatch({ changes: { from: 0, to: d.view.state.doc.length, insert: text } });
+    d.saved = text;
+    d.dirty = false;
+    this.renderTabs();
+    return this.flush(d);
   },
   byPath(path) { return this.list.find((d) => d.path === path); },
   open(path, content, { saved = content, activate = true } = {}) {
@@ -293,26 +410,31 @@ const docs = {
   },
   renderTabs() {
     const strip = $('#doc-tabs');
-    strip.innerHTML = this.list.map((d, i) => `<button class="dtab${d === this.active ? ' active' : ''}${d.dirty ? ' dirty' : ''}" data-i="${i}" role="tab" title="${esc(d.path)}">
-      <span class="ftype">${d.kind === 'data' ? 'DF' : d.kind === 'r' ? 'R' : 'TXT'}</span><span class="dname">${esc(d.name)}</span><span class="x" data-close="${i}" title="Close">${icon('close')}</span></button>`).join('');
+    // Each tab is two buttons, the file and its close, so both are reachable
+    // from the keyboard.
+    strip.innerHTML = this.list.map((d, i) => `<div class="dtab${d === this.active ? ' active' : ''}${d.dirty ? ' dirty' : ''}" data-i="${i}" role="presentation">
+      <button class="dtab-open" role="tab" aria-selected="${d === this.active}" title="${esc(d.path)}"><span class="ftype">${d.kind === 'data' ? 'DF' : d.kind === 'r' ? 'R' : 'TXT'}</span><span class="dname">${esc(d.name)}</span></button><button class="x" data-close="${i}" title="Close" aria-label="Close ${esc(d.name)}">${icon('close')}</button></div>`).join('');
     for (const b of $$('.dtab', strip)) {
-      b.onclick = (e) => {
-        const c = e.target.closest('[data-close]');
-        if (c) { e.stopPropagation(); this.close(this.list[+c.dataset.close]); } else this.activate(this.list[+b.dataset.i]);
-      };
-      b.onauxclick = (e) => { if (e.button === 1) this.close(this.list[+b.dataset.i]); };
+      const d = this.list[+b.dataset.i];
+      $('.dtab-open', b).onclick = () => this.activate(d);
+      $('.x', b).onclick = (e) => { e.stopPropagation(); this.close(d); };
+      b.onauxclick = (e) => { if (e.button === 1) this.close(d); };
     }
   },
   async close(d) {
     if (d.dirty && !(await confirmBox('Close without saving?', `<b>${esc(d.name)}</b> has unsaved changes. They are kept in this browser until you close the tab.`, 'Close'))) return;
     const i = this.list.indexOf(d);
+    if (i < 0) return;
+    // A write still waiting would bring the closed file back after a reload.
+    clearTimeout(this.timers.get(d));
+    this.timers.delete(d);
     this.list.splice(i, 1);
     d.view?.destroy();
     d.wrap?.remove();
     d.el?.remove();
-    if (d.view) idb.del(d.path);
+    if (d.view) this.track(idb.del(d.path));
     if (this.active === d) this.activate(this.list[Math.min(i, this.list.length - 1)] || null);
-    else this.renderTabs();
+    else { this.rememberTabs(); this.renderTabs(); }
     if (!this.list.length) this.activate(null);
   },
   async save(d = this.active) {
@@ -322,10 +444,14 @@ const docs = {
       const name = await ask('Save file', 'File name, in your home folder (~):', d.name);
       if (!name) return;
       const path = `${HOME}/${name.replace(/^~\//, '').replace(/^\/+/, '')}`;
-      if (path !== d.path && this.byPath(path) && !(await confirmBox('Replace file?', `<code>${esc(name)}</code> is already open; saving replaces it.`, 'Replace'))) return;
+      // Open or not, a file of that name is replaced only when asked.
       const other = path !== d.path && this.byPath(path);
+      if (path !== d.path && (other || await vfsExists(path)) &&
+          !(await confirmBox('Replace file?', `<code>${esc(name)}</code> already exists${other ? ' and is open' : ''}; saving replaces it.`, 'Replace'))) return;
       if (other) { other.dirty = false; await this.close(other); }
-      idb.del(d.path);
+      clearTimeout(this.timers.get(d));
+      this.timers.delete(d);
+      this.track(idb.del(d.path));
       d.path = path;
       d.name = path.split('/').pop();
       d.kind = /\.r$/i.test(path) ? 'r' : 'text';
@@ -337,7 +463,10 @@ const docs = {
     if (r.ready) await r.webR.FS.writeFile(d.path, new TextEncoder().encode(text.endsWith('\n') ? text : `${text}\n`));
     d.saved = text;
     d.dirty = false;
-    idb.put({ path: d.path, content: text, saved: text, updated: Date.now() });
+    clearTimeout(this.timers.get(d));
+    this.timers.delete(d);
+    // Saved in the session either way; say so if the browser did not keep it.
+    this.track(idb.put({ path: d.path, content: text, saved: text, updated: Date.now() }));
     this.renderTabs();
     if ($('#source-on-save').checked && d.kind === 'r') this.source(d, true);
     files.refreshLater();
@@ -345,15 +474,25 @@ const docs = {
   async saveAll() { for (const d of this.list) if (d.dirty) await this.save(d); },
   // As RStudio: a saved file is sourced from its path; unsaved edits are
   // sourced from a scratch copy, so the file on disk keeps its saved text.
+  // Each Source of unsaved text gets its own copy, so a second Source queued
+  // behind the first cannot change what the first runs; the copies go once R
+  // is back at an empty prompt.
   async source(d = this.active, echo = true) {
     if (!d?.view) return;
     let path = d.path;
-    if (d.dirty || d.saved === null) {
-      path = `${HOME}/.active-document.R`;
-      await r.webR.FS.writeFile(path, new TextEncoder().encode(d.view.state.doc.toString()));
+    const text = d.view.state.doc.toString();
+    const snapshot = d.dirty || d.saved === null;
+    if (snapshot) {
+      path = `${HOME}/.active-document-${++this.snapshotSeq}.R`;
+      await writeVfs(path, text);
     }
-    await r.prepare(d.view.state.doc.toString());
-    r.run(`source("${path.replace(HOME, '~')}", echo = ${echo ? 'TRUE' : 'FALSE'}, max.deparse.length = Inf)`);
+    await r.prepare(text);
+    r.run(`source(${rStr(path.replace(HOME, '~'))}, echo = ${echo ? 'TRUE' : 'FALSE'}, max.deparse.length = Inf)`);
+    // Listed only once queued, so a drain before this point cannot remove it.
+    if (snapshot) this.snapshots.push(path);
+  },
+  async dropSnapshots() {
+    for (const p of this.snapshots.splice(0)) await r.webR.FS.unlink(p).catch(() => {});
   },
   async newFile() {
     let n = 1;
@@ -424,12 +563,7 @@ const examples = {
       const path = `${HOME}/${rel}`;
       const text = await this.text(rel);
       const d = docs.byPath(path);
-      if (d?.view) {
-        d.view.dispatch({ changes: { from: 0, to: d.view.state.doc.length, insert: text } });
-        d.saved = text;
-        d.dirty = false;
-        idb.put({ path, content: text, saved: text, updated: Date.now() });
-      }
+      if (d?.view) await docs.replaceText(d, text);
       if (r.ready) await writeVfs(path, text);
     }
     docs.renderTabs();
@@ -537,18 +671,22 @@ const r = {
   async readLoop() {
     for (;;) {
       const m = await this.webR.read();
-      switch (m.type) {
-        case 'stdout': write(`${m.data}\n`); break;
-        case 'stderr': write(`${m.data}\n`, /^(Error|Fehler)/.test(m.data) ? 'err' : 'msg'); break;
-        case 'prompt': this.onPrompt(m.data); break;
-        case 'canvas': plots.onCanvas(m.data); break;
-        case 'pager': help.pager(m.data); break;
-        case 'view': docs.openData(m.data.title || 'Data', fromWebRView(m.data.data)); break;
-        case 'browse': viewer.open(m.data.url); break;
-        case 'mlumr': onRMessage(m.data); break;
-        case 'closed': status.set('R stopped', ''); return;
-        default: break;
-      }
+      if (m.type === 'closed') { status.set('R stopped', ''); return; }
+      // One message the page cannot handle must not end the loop: it carries
+      // the console, the prompts and the Stan requests.
+      try {
+        switch (m.type) {
+          case 'stdout': write(`${m.data}\n`); break;
+          case 'stderr': write(`${m.data}\n`, /^(Error|Fehler)/.test(m.data) ? 'err' : 'msg'); break;
+          case 'prompt': this.onPrompt(m.data); break;
+          case 'canvas': plots.onCanvas(m.data); break;
+          case 'pager': help.pager(m.data).catch(report(m.type)); break;
+          case 'view': docs.openData(m.data.title || 'Data', fromWebRView(m.data.data)); break;
+          case 'browse': viewer.open(m.data.url).catch(report(m.type)); break;
+          case 'mlumr': onRMessage(m.data); break;
+          default: break;
+        }
+      } catch (e) { report(m.type)(e); }
     }
   },
   onPrompt(p) {
@@ -639,11 +777,8 @@ const r = {
   async num(code) { await this.whenIdle(); return this.webR.evalRNumber(code); },
   async void(code) { await this.whenIdle(); return this.webR.evalRVoid(code); },
 };
-function fromWebRView(data) {
-  const names = data.names || Object.keys(data);
-  const cols = (data.values || names.map((n) => data[n])).map((c) => (c.values || c).map((v) => (v === null ? 'NA' : String(v))));
-  return { names, classes: cols.map(() => ''), nrow: cols[0]?.length ?? 0, ncol: names.length, cols };
-}
+
+const report = (what) => (e) => { console.error(e); write(`The IDE could not show R's ${what} output: ${e?.message ?? e}\n`, 'err'); };
 
 // R's output width follows the console pane, as in RStudio.
 let rWidth = 0;
@@ -665,8 +800,11 @@ new ResizeObserver(debounce(() => { if (r.booted && r.idle) syncWidth(); }, 300)
 async function afterCommand() {
   if (!r.booted) return;
   try {
+    await docs.dropSnapshots();
     await syncWidth();
     await r.void('.ide$after_command()');
+    // The engine as R has it, whether set from the menu or the console.
+    updateEngine(await r.str('as.character(getOption("mlumr.stan_engine", "rstan"))'));
     await env.refresh();
     $('#mem-text').textContent = fmtMiB(await r.num('.ide$memory()'));
     if ($('.ptab[data-tab="files"]').classList.contains('active')) files.refresh();
@@ -870,14 +1008,36 @@ const files = {
       entries = listing.sort((a, b) => (b.dir - a.dir) || a.path.localeCompare(b.path));
     } catch { /* empty */ }
     const parts = this.dir.split('/').filter(Boolean);
-    $('#files-crumbs').innerHTML = parts.map((p, i) => `<button data-dir="/${parts.slice(0, i + 1).join('/')}">${esc(p)}</button>`).join('<span>/</span>');
-    for (const b of $$('#files-crumbs button')) b.onclick = () => { this.dir = b.dataset.dir; this.refresh(); };
+    // Built as elements, so a folder name is only ever text.
+    const crumbs = $('#files-crumbs');
+    crumbs.textContent = '';
+    parts.forEach((p, i) => {
+      if (i) { const s = document.createElement('span'); s.textContent = '/'; crumbs.append(s); }
+      const b = document.createElement('button');
+      b.textContent = p;
+      b.dataset.dir = `/${parts.slice(0, i + 1).join('/')}`;
+      b.onclick = () => { this.dir = b.dataset.dir; this.refresh(); };
+      crumbs.append(b);
+    });
     const body = $('#files-body');
-    body.innerHTML = (this.dir !== '/' ? `<div class="file-row" data-up="1"><span class="fi">${icon('folder')}</span><span class="fn">..</span><span></span></div>` : '') +
-      entries.map((x) => `<div class="file-row${x.path === this.sel ? ' sel' : ''}" data-path="${esc(x.path)}" data-dir="${x.dir ? 1 : 0}"><span class="fi">${icon(x.dir ? 'folder' : 'file')}</span><span class="fn">${esc(x.path.split('/').pop())}</span><span class="fs">${x.dir ? '' : fmtSize(x.size)}</span></div>`).join('');
+    // Rows take focus: Enter opens (a folder or a file), Space selects.
+    body.innerHTML = (this.dir !== '/' ? `<div class="file-row" data-up="1" tabindex="0" role="button" aria-label="Parent folder"><span class="fi">${icon('folder')}</span><span class="fn">..</span><span></span></div>` : '') +
+      entries.map((x) => `<div class="file-row${x.path === this.sel ? ' sel' : ''}" data-path="${esc(x.path)}" data-dir="${x.dir ? 1 : 0}" tabindex="0" role="button" aria-pressed="${x.path === this.sel}"><span class="fi">${icon(x.dir ? 'folder' : 'file')}</span><span class="fn">${esc(x.path.split('/').pop())}</span><span class="fs">${x.dir ? '' : fmtSize(x.size)}</span></div>`).join('');
+    const up = () => { this.dir = this.dir.replace(/\/[^/]+$/, '') || '/'; return this.refresh(); };
+    const open = (row) => (row.dataset.dir === '1' ? (this.dir = row.dataset.path, this.refresh()) : this.openFile(row.dataset.path));
+    const select = (row) => { this.sel = row.dataset.path; return this.refresh(); };
     for (const row of $$('.file-row', body)) {
-      row.onclick = () => { if (row.dataset.up) { this.dir = this.dir.replace(/\/[^/]+$/, '') || '/'; this.refresh(); return; } this.sel = row.dataset.path; this.refresh(); };
-      row.ondblclick = () => { if (row.dataset.dir === '1') { this.dir = row.dataset.path; this.refresh(); } else this.openFile(row.dataset.path); };
+      row.onclick = () => (row.dataset.up ? up() : select(row));
+      row.ondblclick = () => { if (!row.dataset.up) open(row); };
+      row.onkeydown = async (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        if (row.dataset.up) { await up(); $('.file-row', body)?.focus(); return; }
+        if (e.key === 'Enter') { await open(row); if (row.dataset.dir === '1') $('.file-row', body)?.focus(); return; }
+        const path = row.dataset.path;
+        await select(row);
+        $$('.file-row', body).find((x) => x.dataset.path === path)?.focus();
+      };
     }
   },
   refreshLater: debounce(() => { if ($('.ptab[data-tab="files"]').classList.contains('active')) files.refresh(); }, 300),
@@ -888,10 +1048,7 @@ const files = {
     docs.open(path, text);
   },
   async upload(list) {
-    for (const f of list) {
-      const path = `${this.dir}/${f.name}`;
-      await r.webR.FS.writeFile(path, new Uint8Array(await f.arrayBuffer()));
-    }
+    for (const f of list) await putUpload(`${this.dir}/${f.name}`, f);
     this.refresh();
   },
   async downloadSel() {
@@ -922,7 +1079,7 @@ const packages = {
     $('#pkg-body').innerHTML = `<table class="pkg-table"><thead><tr><th></th><th>Name</th><th>Description</th><th>Version</th></tr></thead><tbody>${rows.map((p) =>
       `<tr><td><input type="checkbox" data-pkg="${esc(p.name)}" ${p.attached ? 'checked' : ''} title="Attach or detach"></td><td class="pn">${esc(p.name)}</td><td class="pt" title="${esc(p.title)}">${esc(p.title)}</td><td class="pv">${esc(p.version)}</td></tr>`).join('')}</tbody></table>`;
     for (const c of $$('[data-pkg]')) {
-      c.onchange = () => r.run(c.checked ? `library(${c.dataset.pkg})` : `detach("package:${c.dataset.pkg}", unload = FALSE)`);
+      c.onchange = () => r.run(c.checked ? `library(${rName(c.dataset.pkg)})` : `detach(${rStr(`package:${c.dataset.pkg}`)}, unload = FALSE)`);
     }
   },
 };
@@ -937,7 +1094,17 @@ const help = {
     const html = await r.str(`.ide$help_html(${JSON.stringify(topic)}${pkg ? `, ${JSON.stringify(pkg)}` : ''})`);
     if (!html) { this.body.innerHTML = `<div class="help-doc"><p>No documentation for <code>${esc(topic)}</code>.</p></div>`; return; }
     const doc = new DOMParser().parseFromString(html, 'text/html');
-    doc.querySelectorAll('link, script, style').forEach((n) => n.remove());
+    // Help goes into the page itself, so it keeps only markup: no scripts,
+    // embedded documents, forms or event handlers, and no javascript: links.
+    // noscript goes too: DOMParser reads its content as elements, the page
+    // (with scripting on) reads it as text, so markup hidden in it would come
+    // back to life after this cleanup.
+    doc.querySelectorAll('link, script, noscript, noembed, noframes, style, iframe, frame, object, embed, form, base, meta, svg, math').forEach((n) => n.remove());
+    for (const el of doc.body.querySelectorAll('*')) {
+      for (const { name, value } of [...el.attributes]) {
+        if (/^on/i.test(name) || (/^(href|src|action|formaction|xlink:href|srcset)$/i.test(name) && /^\s*(javascript|data|vbscript):/i.test(value))) el.removeAttribute(name);
+      }
+    }
     const head = doc.querySelector('table'); // Rd2HTML's header table (topic, package)
     if (head && head.textContent.includes('R Documentation')) head.outerHTML = `<div class="help-head"><span>${esc(topic)}</span><span>${esc(pkg || '')} R Documentation</span></div>`;
     this.body.innerHTML = `<div class="help-doc">${doc.body.innerHTML}</div>`;
@@ -1006,10 +1173,50 @@ const viewer = {
         doc.body.appendChild(sc);
       }
     }
+    // Links and refreshes would navigate the frame itself, which no content
+    // policy blocks. No link keeps an href: a frame given srcdoc resolves even
+    // "#section" against this page's address (or a <base>), so a click would
+    // load a page into the frame. A link elsewhere keeps its text and shows
+    // its address on hover; a link to a place in the document scrolls there
+    // through the small script below.
+    doc.querySelectorAll('base').forEach((n) => n.remove());
+    doc.querySelectorAll('meta[http-equiv]').forEach((n) => { if (/^refresh$/i.test(n.getAttribute('http-equiv'))) n.remove(); });
+    for (const a of doc.querySelectorAll('a[href], area[href]')) {
+      const href = a.getAttribute('href');
+      a.removeAttribute('href');
+      if (href.startsWith('#')) {
+        let id = href.slice(1);
+        try { id = decodeURIComponent(id); } catch { /* keep it as written */ }
+        a.dataset.frag = id;
+        // A link without an href leaves the tab order; keep it in.
+        a.setAttribute('tabindex', '0');
+        a.setAttribute('role', 'link');
+      } else a.setAttribute('title', href);
+    }
+    const jump = doc.createElement('script');
+    jump.textContent = `const go = (e) => {
+  const a = e.target.closest('[data-frag]');
+  if (!a) return;
+  e.preventDefault();
+  const id = a.dataset.frag;
+  (id ? document.getElementById(id) || document.getElementsByName(id)[0] : document.body)?.scrollIntoView();
+};
+document.addEventListener('click', go);
+document.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(e); });`;
+    doc.body.appendChild(jump);
+    const pointer = doc.createElement('style');
+    pointer.textContent = '[data-frag] { cursor: pointer; }';
+    doc.head.appendChild(pointer);
+    // The frame may run the document's own scripts (htmlwidgets, KaTeX) but
+    // load nothing from the network: everything it shows is inline or data.
+    const csp = doc.createElement('meta');
+    csp.setAttribute('http-equiv', 'Content-Security-Policy');
+    csp.setAttribute('content', "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:");
+    doc.head.prepend(csp);
     html = `<!DOCTYPE html>${doc.documentElement.outerHTML}`;
     this.host.innerHTML = '';
     const f = document.createElement('iframe');
-    f.setAttribute('sandbox', 'allow-scripts allow-popups');
+    f.setAttribute('sandbox', 'allow-scripts');
     f.srcdoc = html;
     this.host.appendChild(f);
     $('#viewer-title').textContent = title || 'Viewer';
@@ -1052,7 +1259,8 @@ const bridge = createStanBridge({
     renderJobsLater();
   },
   onLog(m) { if (/error|exception|reject/i.test(m.message)) write(`Chain ${m.chain}: ${m.message}\n`, 'msg'); },
-  onEnd({ state, seconds }) {
+  onEnd({ state, error, seconds }) {
+    if (error) write(`${error}\n`, 'err');
     const job = jobs.current;
     if (job) { job.state = state === 1 ? 'done' : state === 2 ? 'failed' : 'stopped'; job.seconds = seconds; }
     clearInterval(jobs.tick);
@@ -1088,7 +1296,7 @@ const gotoBox = {
   items() {
     const q = this.input.value.trim().toLowerCase();
     const fileItems = docs.list.filter((d) => d.view).map((d) => ({ label: d.name, kind: 'file', act: () => docs.activate(d) }));
-    const fnItems = env.rows.filter((x) => x.group === 'Functions').map((x) => ({ label: x.name, kind: 'function', act: () => r.run(`View(${x.name})`) }));
+    const fnItems = env.rows.filter((x) => x.group === 'Functions').map((x) => ({ label: x.name, kind: 'function', act: () => r.run(`View(${rName(x.name)})`) }));
     const helpItems = (this.topics || []).map((t) => ({ label: t, kind: 'mlumr help', act: () => { showTab(paneOf('help'), 'help'); help.show(t, 'mlumr'); } }));
     return [...fileItems, ...fnItems, ...helpItems].filter((i) => !q || i.label.toLowerCase().includes(q)).slice(0, 30);
   },
@@ -1117,23 +1325,37 @@ gotoBox.input.addEventListener('keydown', (e) => {
 // ---------------------------------------------------------------- commands
 const fileInput = $('#file-input');
 let uploadTarget = 'files';
+// An uploaded file replaces one of the same name only when asked; if that
+// file is open, the editor shows the new text and it counts as saved.
+// Returns the text written, or null when the user kept the old file.
+async function putUpload(path, f) {
+  const bytes = new Uint8Array(await f.arrayBuffer());
+  const open = docs.byPath(path);
+  if ((open || await vfsExists(path)) && !(await confirmBox('Replace file?',
+    `<code>${esc(path.replace(HOME, '~'))}</code> already exists${open ? (open.dirty ? ', is open and has unsaved changes' : ' and is open') : ''}; the upload replaces it.`, 'Replace'))) return null;
+  await writeVfs(path, bytes);
+  const text = new TextDecoder().decode(bytes);
+  if (open?.view) await docs.replaceText(open, text);
+  return text;
+}
 fileInput.onchange = async () => {
   const list = [...fileInput.files];
   fileInput.value = '';
   if (uploadTarget === 'open') {
     for (const f of list) {
       const path = `${HOME}/${f.name}`;
-      const bytes = new Uint8Array(await f.arrayBuffer());
-      await r.webR.FS.writeFile(path, bytes);
-      docs.open(path, new TextDecoder().decode(bytes));
+      const text = await putUpload(path, f);
+      if (text === null) continue;
+      const d = docs.byPath(path);
+      if (d) docs.activate(d); else docs.open(path, text);
     }
+    files.refreshLater();
   } else if (uploadTarget === 'import') {
     const f = list[0];
     if (!f) return;
-    const path = `${HOME}/${f.name}`;
-    await r.webR.FS.writeFile(path, new Uint8Array(await f.arrayBuffer()));
+    if (await putUpload(`${HOME}/${f.name}`, f) === null) return;
     const name = await ask('Import dataset', `Name for the data frame read from <code>${esc(f.name)}</code>:`, f.name.replace(/\.[^.]+$/, '').replace(/[^\w.]/g, '_').replace(/^(\d)/, 'x$1'));
-    if (name) r.run(`${name} <- read.csv("~/${f.name}")`);
+    if (name) r.run(`${rName(name)} <- read.csv(${rStr(`~/${f.name}`)})`);
   } else await files.upload(list);
 };
 const pickFiles = (target, accept = '') => { uploadTarget = target; fileInput.accept = accept; fileInput.click(); };
@@ -1204,10 +1426,15 @@ const commands = {
   },
   restart: async () => {
     $('#project-menu').hidden = true;
-    if (await confirmBox('Restart R?', 'The page reloads and R starts again with an empty workspace. Open files and unsaved edits are kept.', 'Restart')) location.reload();
+    if (await confirmBox('Restart R?', 'The page reloads and R starts again with an empty workspace. Open files and unsaved edits are kept.', 'Restart')) {
+      // Edits still waiting to be written must be in the browser before the reload.
+      await docs.flushAll();
+      location.reload();
+    }
   },
-  'engine-tinystan': async () => { $('#project-menu').hidden = true; r.run('mlumr_engine("tinystan")'); updateEngine('tinystan'); },
-  'engine-rstan': async () => { $('#project-menu').hidden = true; r.run('mlumr_engine("rstan")'); updateEngine('rstan'); },
+  // The label follows R's own setting once the command has run (afterCommand).
+  'engine-tinystan': (b) => { if (b?.disabled) return; $('#project-menu').hidden = true; r.run('mlumr_engine("tinystan")'); },
+  'engine-rstan': () => { $('#project-menu').hidden = true; r.run('mlumr_engine("rstan")'); },
   shortcuts: () => {
     const rows = [['Ctrl/Cmd+Enter', 'Run the selection, or the whole statement at the cursor'], ['Ctrl/Cmd+Shift+Enter', 'Source the current file with echo'], ['Ctrl/Cmd+Shift+S', 'Source the current file'],
       ['Ctrl/Cmd+S', 'Save'], ['Ctrl/Cmd+F', 'Find and replace'], ['Ctrl/Cmd+Shift+C', 'Comment or uncomment lines'], ['Alt+-', 'Insert <-'], ['Ctrl/Cmd+Shift+M', 'Insert |>'],
@@ -1228,9 +1455,21 @@ document.addEventListener('keydown', (e) => {
   else if (mod && e.altKey && e.shiftKey && (e.key === 'N' || e.key === 'n')) { e.preventDefault(); docs.newFile(); }
   else if (mod && e.key === 's' && !e.shiftKey && document.activeElement === input) { e.preventDefault(); docs.save(); }
 });
-addEventListener('beforeunload', (e) => { if (bridge.busy()) e.preventDefault(); });
+// Leaving with edits still waiting to be written: write them now and ask the
+// browser to hold the page, which gives the writes time to finish.
+addEventListener('beforeunload', (e) => {
+  const pending = docs.pending() > 0;
+  if (pending) docs.flushAll();
+  if (bridge.busy() || pending) e.preventDefault();
+});
+addEventListener('pagehide', () => { docs.flushAll(); });
 
+let tinystanAvailable = false;
 function updateEngine(engine) {
+  for (const b of $$('[data-cmd="engine-tinystan"]')) {
+    b.disabled = !tinystanAvailable;
+    b.title = tinystanAvailable ? '' : 'Needs a cross-origin isolated page with a growable SharedArrayBuffer';
+  }
   $('#st-engine').innerHTML = engine === 'tinystan'
     ? `<span>Sampler: <b>TinyStan</b> workers, ${navigator.hardwareConcurrency || 4} cores</span>`
     : '<span>Sampler: <b>rstan</b> in the R worker</span>';
@@ -1266,6 +1505,8 @@ try {
   await r.init();
   r.ready = true;
   const crossOrigin = crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined';
+  // The Stan bridge also needs a SharedArrayBuffer that can grow to hold the draws.
+  const tinystanOk = crossOrigin && typeof SharedArrayBuffer.prototype.grow === 'function';
   // This site's repository first; packages it lacks come from webR's own
   // repository, whose builds match this webR release.
   const repos = [abs('./repo/'), 'https://repo.r-wasm.org'];
@@ -1289,9 +1530,13 @@ try {
   // A package a script loads, or reaches with pkg::, installs on first use
   // (from this site's repository first).
   await r.webR.evalRVoid('webr::global_prompt_install()', { withHandlers: false });
-  const manifest = await (await fetch('stan/manifest.json')).json();
+  const manifestText = await (await fetch('stan/manifest.json')).text();
+  const manifest = JSON.parse(manifestText);
+  // ide.R writes each fit's Stan data with the dimensions recorded here.
+  await r.webR.FS.writeFile('/tmp/.ide/manifest.json', new TextEncoder().encode(manifestText));
   let engine = 'rstan';
-  if (crossOrigin) { await r.webR.evalRVoid('.ide$enable_tinystan()'); engine = 'tinystan'; }
+  tinystanAvailable = tinystanOk;
+  if (tinystanOk) { await r.webR.evalRVoid('.ide$enable_tinystan()'); engine = 'tinystan'; }
   updateEngine(engine);
   // default.profraw: an empty profiling file one of the package binaries leaves behind.
   await r.webR.evalRVoid('webr::shim_install(); webr::viewer_install(); webr::pager_install(); options(help_type = "text", width = 90); unlink("~/default.profraw")');
@@ -1309,7 +1554,7 @@ try {
   for (const d of docs.list) if (d.view) await writeVfs(d.path, d.saved ?? d.view.state.doc.toString());
   write(`mlumr ${info.version} (GitHub main ${short}) is loaded. ${engine === 'tinystan'
     ? `Stan fits run as ${navigator.hardwareConcurrency || 4}-core parallel TinyStan workers; mlumr_engine("rstan") switches to rstan in the R worker.`
-    : 'This page is not cross-origin isolated, so Stan fits use rstan inside the R worker (serve with serve.py for parallel TinyStan workers).'}\n`, 'note');
+    : 'Stan fits use rstan inside the R worker: parallel TinyStan workers need a cross-origin isolated page with a growable SharedArrayBuffer (serve with serve.py).'}\n`, 'note');
   write(`Started in ${((performance.now() - t0) / 1000).toFixed(1)} s. The Examples menu has every vignette's code; press Source (Ctrl+Shift+Enter) or step through with Run (Ctrl+Enter).\n\n`, 'note');
   r.booted = true;
   boot.classList.add('gone');

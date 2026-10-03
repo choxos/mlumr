@@ -25,26 +25,37 @@
 # downloads webR, the WebAssembly R packages and the vignette sources, and
 # bundles the site. GitHub Pages cannot send the COOP/COEP headers the
 # Playground needs; coi-sw.js, a service worker in the site, adds them.
+#
+# A pull request into webapp runs the same build and checks (the Stan programs
+# against the mlumr being packaged, the statement and View tests, the models
+# against the native reference values) and deploys nothing.
 name: deploy-app.yaml
 
 on:
   push:
+    branches: [webapp]
+  pull_request:
     branches: [webapp]
   workflow_dispatch:
 
 permissions:
   contents: write   # push the built app to the gh-pages branch
 
-# Serialize writers to gh-pages to avoid non-fast-forward push failures.
+# Serialize writers to gh-pages to avoid non-fast-forward push failures; a
+# pull request's build only replaces its own earlier run.
 concurrency:
-  group: gh-pages-deploy
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('app-pr-{0}', github.event.number) || 'gh-pages-deploy' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   deploy-app:
     runs-on: ubuntu-latest
     steps:
+      # A pull request's build runs code from its branch; it gets no stored
+      # credential to push with.
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: ${{ github.event_name != 'pull_request' }}
 
       - uses: r-lib/actions/setup-r@v2
         with:
@@ -61,12 +72,17 @@ jobs:
       - name: Build the Playground
         run: bash build.sh
 
+      - name: Check the models against native CmdStan's values
+        run: node verify/check-models.mjs models verify/cases
+
       # Defense-in-depth: a root .nojekyll already exists (pkgdown re-emits it)
       # and covers /app, but carry one in the app build too.
       - name: Add .nojekyll to the build
+        if: github.event_name != 'pull_request'
         run: touch site/.nojekyll
 
       - name: Deploy to gh-pages/app
+        if: github.event_name != 'pull_request'
         uses: JamesIves/github-pages-deploy-action@d92aa235d04922e8f08b40ce78cc5442fcfbfa2f # v4.8.0
         with:
           branch: gh-pages

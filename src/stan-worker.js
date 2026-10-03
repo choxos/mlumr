@@ -16,16 +16,15 @@ self.onmessage = async ({ data: job }) => {
     const create = (await import(job.modelUrl)).default;
     const model = await StanModel.load(create, note, note);
     const r = model.sample({
+      ...job.sampler,
       data: job.data,
       num_chains: 1,
       id: job.chain,
       seed: job.seed,
       num_warmup: job.num_warmup,
       num_samples: job.num_samples,
-      delta: job.delta,
-      max_depth: job.max_depth,
-      init_radius: job.init_radius,
       refresh: job.refresh,
+      ...(job.init ? { inits: job.init } : {}),
     });
     const n = r.draws[0].length;
     const values = new Float64Array(r.paramNames.length * n);
