@@ -1171,15 +1171,34 @@ const viewer = {
       }
     }
     // Links and refreshes would navigate the frame itself, which no content
-    // policy blocks: a link keeps its text (and shows its address on hover)
-    // but goes nowhere, except to a place in the same document.
+    // policy blocks. No link keeps an href: a frame given srcdoc resolves even
+    // "#section" against this page's address (or a <base>), so a click would
+    // load a page into the frame. A link elsewhere keeps its text and shows
+    // its address on hover; a link to a place in the document scrolls there
+    // through the small script below.
+    doc.querySelectorAll('base').forEach((n) => n.remove());
     doc.querySelectorAll('meta[http-equiv]').forEach((n) => { if (/^refresh$/i.test(n.getAttribute('http-equiv'))) n.remove(); });
     for (const a of doc.querySelectorAll('a[href], area[href]')) {
       const href = a.getAttribute('href');
-      if (href.startsWith('#')) continue;
       a.removeAttribute('href');
-      a.setAttribute('title', href);
+      if (href.startsWith('#')) {
+        let id = href.slice(1);
+        try { id = decodeURIComponent(id); } catch { /* keep it as written */ }
+        a.dataset.frag = id;
+      } else a.setAttribute('title', href);
     }
+    const jump = doc.createElement('script');
+    jump.textContent = `document.addEventListener('click', (e) => {
+  const a = e.target.closest('[data-frag]');
+  if (!a) return;
+  e.preventDefault();
+  const id = a.dataset.frag;
+  (id ? document.getElementById(id) || document.getElementsByName(id)[0] : document.body)?.scrollIntoView();
+});`;
+    doc.body.appendChild(jump);
+    const pointer = doc.createElement('style');
+    pointer.textContent = '[data-frag] { cursor: pointer; }';
+    doc.head.appendChild(pointer);
     // The frame may run the document's own scripts (htmlwidgets, KaTeX) but
     // load nothing from the network: everything it shows is inline or data.
     const csp = doc.createElement('meta');
