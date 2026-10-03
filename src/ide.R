@@ -72,9 +72,12 @@ local({
     cols <- lapply(shown, function(col) {
       if (is.numeric(col)) as.character(signif(col, 6)) else as.character(col)
     })
-    jsonlite::toJSON(list(names = names(shown), classes = vapply(shown, function(c) class(c)[1], ""),
-                          nrow = nrow(df), ncol = ncol(df), cols = unname(cols)),
-                     auto_unbox = TRUE, digits = NA)
+    # Names, classes and every column stay arrays even for one column or one
+    # row (docs.openData() maps over them); only the counts are scalars.
+    jsonlite::toJSON(list(names = names(shown), classes = unname(vapply(shown, function(c) class(c)[1], "")),
+                          nrow = jsonlite::unbox(nrow(df)), ncol = jsonlite::unbox(ncol(df)),
+                          cols = unname(cols)),
+                     auto_unbox = FALSE, digits = NA)
   }
   # Packages a script names (library(), pkg::, package = "pkg") that are not
   # installed yet but are in this site's repository.
