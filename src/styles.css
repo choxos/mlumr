@@ -225,7 +225,7 @@ code { font-family: var(--font-mono); }
 .splitter.row { height: 6px; cursor: row-resize; }
 .splitter.col { width: 6px; cursor: col-resize; }
 .splitter::after { content: ""; position: absolute; inset: 0; border-radius: 3px; transition: background .12s; }
-.splitter:hover::after, .splitter.dragging::after { background: var(--ring); }
+.splitter:hover::after, .splitter.dragging::after, .splitter:focus-visible::after { background: var(--ring); }
 body.dragging-col, body.dragging-col * { cursor: col-resize !important; user-select: none; }
 body.dragging-row, body.dragging-row * { cursor: row-resize !important; user-select: none; }
 
@@ -248,6 +248,8 @@ body.dragging-row, body.dragging-row * { cursor: row-resize !important; user-sel
 .ptab.active, .dtab.active { color: var(--accent-strong); background: var(--surface); }
 .ptab.active::after, .dtab.active::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: var(--accent); }
 .dtab { padding: 0 6px 0 10px; font-weight: 500; }
+.dtab-open, .dtab .x { border: 0; background: none; color: inherit; font: inherit; padding: 0; }
+.dtab-open { display: inline-flex; align-items: center; gap: 6px; align-self: stretch; }
 .dtab .ftype { color: var(--accent); font: 600 10px var(--font-mono); border: 1px solid var(--tint-2); border-radius: 3px; padding: 0 3px; }
 .dtab.dirty .dname { color: var(--warn); }
 .dtab.dirty .dname::after { content: "*"; }

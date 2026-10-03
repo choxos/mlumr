@@ -72,7 +72,34 @@ const applyLayout = () => {
   colR.style.setProperty('--top', `${layout.top}%`);
 };
 applyLayout();
+// The splitters also move with the arrow keys (Shift for bigger steps).
 for (const sp of $$('.splitter')) {
+  const cols = sp.dataset.split === 'cols';
+  sp.tabIndex = 0;
+  sp.setAttribute('role', 'separator');
+  sp.setAttribute('aria-orientation', cols ? 'vertical' : 'horizontal');
+  sp.setAttribute('aria-label', cols ? 'Resize the left and right columns' : 'Resize the top and bottom panes');
+  sp.setAttribute('aria-valuemin', '0');
+  sp.setAttribute('aria-valuemax', '100');
+  const sync = () => sp.setAttribute('aria-valuenow', String(Math.round(cols ? layout.left : layout.top)));
+  sync();
+  sp.addEventListener('keydown', (e) => {
+    const keys = cols ? { ArrowLeft: -1, ArrowRight: 1 } : { ArrowUp: -1, ArrowDown: 1 };
+    if (!(e.key in keys)) return;
+    e.preventDefault();
+    const step = keys[e.key] * (e.shiftKey ? 10 : 2);
+    if (cols) layout.left = Math.min(85, Math.max(15, layout.left + step));
+    else {
+      layout.top = Math.min(92, Math.max(8, layout.top + step));
+      colL.classList.remove('max-top', 'max-bottom');
+      colR.classList.remove('max-top', 'max-bottom');
+    }
+    applyLayout();
+    for (const s of $$('.splitter')) s.setAttribute('aria-valuenow', String(Math.round(s.dataset.split === 'cols' ? layout.left : layout.top)));
+    store.set('layout', layout);
+    plots.fitLater();
+  });
+  sp.addEventListener('pointerup', sync);
   sp.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     const kind = sp.dataset.split;
@@ -150,31 +177,62 @@ function toggleMenu(menu, anchorBtn) {
 }
 $('#project-btn').onclick = (e) => toggleMenu($('#project-menu'), e.currentTarget);
 
-// Dialogs
+// Dialogs. Every way out (a button, Escape, a click on the backdrop) goes
+// through one close, which runs once and tells the caller it was dismissed,
+// so a question that is waved away never leaves its caller waiting. Tab stays
+// inside the dialog, and focus goes back where it was.
 const overlay = $('#overlay');
-function dialog(html, { wide = false } = {}) {
-  overlay.innerHTML = `<div class="dialog${wide ? ' wide' : ''}" role="dialog" aria-modal="true">${html}</div>`;
+let dialogSeq = 0;
+const focusables = (root) => $$('button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"]), a[href]', root)
+  .filter((el) => el.offsetParent !== null);
+function dialog(html, { wide = false, onDismiss = null } = {}) {
+  const before = document.activeElement;
+  const id = `dialog-title-${++dialogSeq}`;
+  overlay.innerHTML = `<div class="dialog${wide ? ' wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="${id}">${html}</div>`;
   overlay.hidden = false;
   const box = overlay.firstElementChild;
-  const close = () => { overlay.hidden = true; overlay.innerHTML = ''; };
-  overlay.onclick = (e) => { if (e.target === overlay) close(); };
-  box.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  $('h3', box)?.setAttribute('id', id);
+  let open = true;
+  const close = () => {
+    if (!open) return false;
+    open = false;
+    overlay.hidden = true;
+    overlay.innerHTML = '';
+    overlay.onclick = null;
+    if (before?.isConnected) before.focus?.();
+    return true;
+  };
+  const dismiss = () => { if (close()) onDismiss?.(); };
+  overlay.onclick = (e) => { if (e.target === overlay) dismiss(); };
+  box.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); dismiss(); return; }
+    if (e.key !== 'Tab') return;
+    const f = focusables(box);
+    if (!f.length) return;
+    const first = f[0];
+    const last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+  requestAnimationFrame(() => { if (open && !box.contains(document.activeElement)) focusables(box)[0]?.focus(); });
   return { box, close };
 }
 function ask(title, text, value = '') {
   return new Promise((resolve) => {
-    const d = dialog(`<h3>${esc(title)}</h3><p>${text}</p><input type="text" value="${esc(value)}" spellcheck="false"><div class="row"><button class="btn" data-a="cancel">Cancel</button><button class="btn primary" data-a="ok">OK</button></div>`);
+    const d = dialog(`<h3>${esc(title)}</h3><p>${text}</p><input type="text" value="${esc(value)}" spellcheck="false" aria-label="${esc(title)}"><div class="row"><button class="btn" data-a="cancel">Cancel</button><button class="btn primary" data-a="ok">OK</button></div>`,
+      { onDismiss: () => resolve(null) });
     const input = $('input', d.box);
     input.focus(); input.select();
     const done = (v) => { d.close(); resolve(v); };
     $('[data-a="ok"]', d.box).onclick = () => done(input.value.trim());
     $('[data-a="cancel"]', d.box).onclick = () => done(null);
-    input.onkeydown = (e) => { if (e.key === 'Enter') done(input.value.trim()); if (e.key === 'Escape') done(null); };
+    input.onkeydown = (e) => { if (e.key === 'Enter') done(input.value.trim()); };
   });
 }
 function confirmBox(title, text, ok = 'OK') {
   return new Promise((resolve) => {
-    const d = dialog(`<h3>${esc(title)}</h3><p>${text}</p><div class="row"><button class="btn" data-a="cancel">Cancel</button><button class="btn primary" data-a="ok">${esc(ok)}</button></div>`);
+    const d = dialog(`<h3>${esc(title)}</h3><p>${text}</p><div class="row"><button class="btn" data-a="cancel">Cancel</button><button class="btn primary" data-a="ok">${esc(ok)}</button></div>`,
+      { onDismiss: () => resolve(false) });
     $('[data-a="ok"]', d.box).focus();
     $('[data-a="ok"]', d.box).onclick = () => { d.close(); resolve(true); };
     $('[data-a="cancel"]', d.box).onclick = () => { d.close(); resolve(false); };
@@ -343,26 +401,31 @@ const docs = {
   },
   renderTabs() {
     const strip = $('#doc-tabs');
-    strip.innerHTML = this.list.map((d, i) => `<button class="dtab${d === this.active ? ' active' : ''}${d.dirty ? ' dirty' : ''}" data-i="${i}" role="tab" title="${esc(d.path)}">
-      <span class="ftype">${d.kind === 'data' ? 'DF' : d.kind === 'r' ? 'R' : 'TXT'}</span><span class="dname">${esc(d.name)}</span><span class="x" data-close="${i}" title="Close">${icon('close')}</span></button>`).join('');
+    // Each tab is two buttons, the file and its close, so both are reachable
+    // from the keyboard.
+    strip.innerHTML = this.list.map((d, i) => `<div class="dtab${d === this.active ? ' active' : ''}${d.dirty ? ' dirty' : ''}" data-i="${i}" role="presentation">
+      <button class="dtab-open" role="tab" aria-selected="${d === this.active}" title="${esc(d.path)}"><span class="ftype">${d.kind === 'data' ? 'DF' : d.kind === 'r' ? 'R' : 'TXT'}</span><span class="dname">${esc(d.name)}</span></button><button class="x" data-close="${i}" title="Close" aria-label="Close ${esc(d.name)}">${icon('close')}</button></div>`).join('');
     for (const b of $$('.dtab', strip)) {
-      b.onclick = (e) => {
-        const c = e.target.closest('[data-close]');
-        if (c) { e.stopPropagation(); this.close(this.list[+c.dataset.close]); } else this.activate(this.list[+b.dataset.i]);
-      };
-      b.onauxclick = (e) => { if (e.button === 1) this.close(this.list[+b.dataset.i]); };
+      const d = this.list[+b.dataset.i];
+      $('.dtab-open', b).onclick = () => this.activate(d);
+      $('.x', b).onclick = (e) => { e.stopPropagation(); this.close(d); };
+      b.onauxclick = (e) => { if (e.button === 1) this.close(d); };
     }
   },
   async close(d) {
     if (d.dirty && !(await confirmBox('Close without saving?', `<b>${esc(d.name)}</b> has unsaved changes. They are kept in this browser until you close the tab.`, 'Close'))) return;
     const i = this.list.indexOf(d);
+    if (i < 0) return;
+    // A write still waiting would bring the closed file back after a reload.
+    clearTimeout(this.timers.get(d));
+    this.timers.delete(d);
     this.list.splice(i, 1);
     d.view?.destroy();
     d.wrap?.remove();
     d.el?.remove();
-    if (d.view) idb.del(d.path);
+    if (d.view) idb.del(d.path).catch(storageFailed);
     if (this.active === d) this.activate(this.list[Math.min(i, this.list.length - 1)] || null);
-    else this.renderTabs();
+    else { this.rememberTabs(); this.renderTabs(); }
     if (!this.list.length) this.activate(null);
   },
   async save(d = this.active) {
@@ -936,14 +999,36 @@ const files = {
       entries = listing.sort((a, b) => (b.dir - a.dir) || a.path.localeCompare(b.path));
     } catch { /* empty */ }
     const parts = this.dir.split('/').filter(Boolean);
-    $('#files-crumbs').innerHTML = parts.map((p, i) => `<button data-dir="/${parts.slice(0, i + 1).join('/')}">${esc(p)}</button>`).join('<span>/</span>');
-    for (const b of $$('#files-crumbs button')) b.onclick = () => { this.dir = b.dataset.dir; this.refresh(); };
+    // Built as elements, so a folder name is only ever text.
+    const crumbs = $('#files-crumbs');
+    crumbs.textContent = '';
+    parts.forEach((p, i) => {
+      if (i) { const s = document.createElement('span'); s.textContent = '/'; crumbs.append(s); }
+      const b = document.createElement('button');
+      b.textContent = p;
+      b.dataset.dir = `/${parts.slice(0, i + 1).join('/')}`;
+      b.onclick = () => { this.dir = b.dataset.dir; this.refresh(); };
+      crumbs.append(b);
+    });
     const body = $('#files-body');
-    body.innerHTML = (this.dir !== '/' ? `<div class="file-row" data-up="1"><span class="fi">${icon('folder')}</span><span class="fn">..</span><span></span></div>` : '') +
-      entries.map((x) => `<div class="file-row${x.path === this.sel ? ' sel' : ''}" data-path="${esc(x.path)}" data-dir="${x.dir ? 1 : 0}"><span class="fi">${icon(x.dir ? 'folder' : 'file')}</span><span class="fn">${esc(x.path.split('/').pop())}</span><span class="fs">${x.dir ? '' : fmtSize(x.size)}</span></div>`).join('');
+    // Rows take focus: Enter opens (a folder or a file), Space selects.
+    body.innerHTML = (this.dir !== '/' ? `<div class="file-row" data-up="1" tabindex="0" role="button" aria-label="Parent folder"><span class="fi">${icon('folder')}</span><span class="fn">..</span><span></span></div>` : '') +
+      entries.map((x) => `<div class="file-row${x.path === this.sel ? ' sel' : ''}" data-path="${esc(x.path)}" data-dir="${x.dir ? 1 : 0}" tabindex="0" role="button" aria-pressed="${x.path === this.sel}"><span class="fi">${icon(x.dir ? 'folder' : 'file')}</span><span class="fn">${esc(x.path.split('/').pop())}</span><span class="fs">${x.dir ? '' : fmtSize(x.size)}</span></div>`).join('');
+    const up = () => { this.dir = this.dir.replace(/\/[^/]+$/, '') || '/'; return this.refresh(); };
+    const open = (row) => (row.dataset.dir === '1' ? (this.dir = row.dataset.path, this.refresh()) : this.openFile(row.dataset.path));
+    const select = (row) => { this.sel = row.dataset.path; return this.refresh(); };
     for (const row of $$('.file-row', body)) {
-      row.onclick = () => { if (row.dataset.up) { this.dir = this.dir.replace(/\/[^/]+$/, '') || '/'; this.refresh(); return; } this.sel = row.dataset.path; this.refresh(); };
-      row.ondblclick = () => { if (row.dataset.dir === '1') { this.dir = row.dataset.path; this.refresh(); } else this.openFile(row.dataset.path); };
+      row.onclick = () => (row.dataset.up ? up() : select(row));
+      row.ondblclick = () => { if (!row.dataset.up) open(row); };
+      row.onkeydown = async (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        if (row.dataset.up) { await up(); $('.file-row', body)?.focus(); return; }
+        if (e.key === 'Enter') { await open(row); if (row.dataset.dir === '1') $('.file-row', body)?.focus(); return; }
+        const path = row.dataset.path;
+        await select(row);
+        $$('.file-row', body).find((x) => x.dataset.path === path)?.focus();
+      };
     }
   },
   refreshLater: debounce(() => { if ($('.ptab[data-tab="files"]').classList.contains('active')) files.refresh(); }, 300),
