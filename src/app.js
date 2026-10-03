@@ -9,6 +9,13 @@ const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const abs = (p) => new URL(p, location.href).href;
+// R code from page values: a JSON string is a valid R string literal, and a
+// name that is not syntactic goes in backticks.
+const rStr = (s) => JSON.stringify(String(s));
+const R_RESERVED = new Set(['if', 'else', 'repeat', 'while', 'function', 'for', 'next', 'break', 'in', 'TRUE', 'FALSE',
+  'NULL', 'Inf', 'NaN', 'NA', 'NA_integer_', 'NA_real_', 'NA_character_', 'NA_complex_']);
+const rName = (s) => (/^((([A-Za-z]|[.][._A-Za-z])[._A-Za-z0-9]*)|[.])$/.test(s) && !R_RESERVED.has(s)
+  ? s : `\`${String(s).replace(/\\/g, '\\\\').replace(/`/g, '\\`')}\``);
 const HOME = '/home/web_user';
 const store = {
   get(k, d) { try { const v = localStorage.getItem('mlumr-playground.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
@@ -209,25 +216,67 @@ const db = await new Promise((resolve) => {
   req.onsuccess = () => resolve(req.result);
   req.onerror = () => resolve(null);
 });
+// Writes resolve when the browser has committed them and reject when it
+// could not (storage full, private mode, storage turned off).
 const idb = {
   tx(mode) { return db.transaction('files', mode).objectStore('files'); },
   all() { return db ? new Promise((r) => { const q = this.tx('readonly').getAll(); q.onsuccess = () => r(q.result); q.onerror = () => r([]); }) : Promise.resolve([]); },
-  put(rec) { if (db) this.tx('readwrite').put(rec); },
-  del(path) { if (db) this.tx('readwrite').delete(path); },
+  write(op) {
+    return new Promise((resolve, reject) => {
+      if (!db) { reject(new Error('this browser gives the page no storage')); return; }
+      try {
+        const t = db.transaction('files', 'readwrite');
+        op(t.objectStore('files'));
+        t.oncomplete = () => resolve();
+        t.onerror = () => reject(t.error || new Error('the write failed'));
+        t.onabort = () => reject(t.error || new Error('the write was aborted'));
+      } catch (e) { reject(e); }
+    });
+  },
+  put(rec) { return this.write((s) => s.put(rec)); },
+  del(path) { return this.write((s) => s.delete(path)); },
 };
+// Said once per session, in the console and the status bar.
+let storageWarned = false;
+function storageFailed(e) {
+  console.warn(e);
+  if (storageWarned) return;
+  storageWarned = true;
+  write(`This browser did not keep a copy of your open files (${e?.message ?? e}), so edits will not survive a reload. Download the files you need from the Files pane.\n`, 'err');
+  status.set('Files not kept by the browser', '');
+}
+async function vfsExists(path) {
+  if (!r.ready) return false;
+  try { await r.webR.FS.lookupPath(path); return true; } catch { return false; }
+}
 
 const docs = {
   list: [],          // { path, name, kind: 'r'|'text'|'data', view, saved, dirty }
   active: null,
   host: $('#editor-host'),
-  timers: new Map(),
-  // One pending write per file, so quick edits to two files both persist.
+  timers: new Map(),   // document -> pending write
+  snapshots: [],       // scratch copies of unsaved documents, for Source
+  snapshotSeq: 0,
+  // One pending write per document, so quick edits to two files both persist.
   persist(d) {
-    clearTimeout(this.timers.get(d.path));
-    this.timers.set(d.path, setTimeout(() => {
-      this.timers.delete(d.path);
-      if (d.view) idb.put({ path: d.path, content: d.view.state.doc.toString(), saved: d.saved, updated: Date.now() });
-    }, 400));
+    clearTimeout(this.timers.get(d));
+    this.timers.set(d, setTimeout(() => this.flush(d), 400));
+  },
+  // Writes a document now. A closed document is never written back.
+  flush(d) {
+    clearTimeout(this.timers.get(d));
+    this.timers.delete(d);
+    if (!d.view || !this.list.includes(d)) return Promise.resolve();
+    return idb.put({ path: d.path, content: d.view.state.doc.toString(), saved: d.saved, updated: Date.now() }).catch(storageFailed);
+  },
+  flushAll() { return Promise.all([...this.timers.keys()].map((d) => this.flush(d))); },
+  // New text from outside the editor (an upload, a reset): shown, saved, kept.
+  replaceText(d, text) {
+    d.view.dispatch({ changes: { from: 0, to: d.view.state.doc.length, insert: text } });
+    d.saved = text;
+    d.dirty = false;
+    this.renderTabs();
+    return this.flush(d);
   },
   byPath(path) { return this.list.find((d) => d.path === path); },
   open(path, content, { saved = content, activate = true } = {}) {
@@ -323,10 +372,14 @@ const docs = {
       const name = await ask('Save file', 'File name, in your home folder (~):', d.name);
       if (!name) return;
       const path = `${HOME}/${name.replace(/^~\//, '').replace(/^\/+/, '')}`;
-      if (path !== d.path && this.byPath(path) && !(await confirmBox('Replace file?', `<code>${esc(name)}</code> is already open; saving replaces it.`, 'Replace'))) return;
+      // Open or not, a file of that name is replaced only when asked.
       const other = path !== d.path && this.byPath(path);
+      if (path !== d.path && (other || await vfsExists(path)) &&
+          !(await confirmBox('Replace file?', `<code>${esc(name)}</code> already exists${other ? ' and is open' : ''}; saving replaces it.`, 'Replace'))) return;
       if (other) { other.dirty = false; await this.close(other); }
-      idb.del(d.path);
+      clearTimeout(this.timers.get(d));
+      this.timers.delete(d);
+      idb.del(d.path).catch(storageFailed);
       d.path = path;
       d.name = path.split('/').pop();
       d.kind = /\.r$/i.test(path) ? 'r' : 'text';
@@ -338,7 +391,10 @@ const docs = {
     if (r.ready) await r.webR.FS.writeFile(d.path, new TextEncoder().encode(text.endsWith('\n') ? text : `${text}\n`));
     d.saved = text;
     d.dirty = false;
-    idb.put({ path: d.path, content: text, saved: text, updated: Date.now() });
+    clearTimeout(this.timers.get(d));
+    this.timers.delete(d);
+    // Saved in the session either way; say so if the browser did not keep it.
+    idb.put({ path: d.path, content: text, saved: text, updated: Date.now() }).catch(storageFailed);
     this.renderTabs();
     if ($('#source-on-save').checked && d.kind === 'r') this.source(d, true);
     files.refreshLater();
@@ -346,15 +402,25 @@ const docs = {
   async saveAll() { for (const d of this.list) if (d.dirty) await this.save(d); },
   // As RStudio: a saved file is sourced from its path; unsaved edits are
   // sourced from a scratch copy, so the file on disk keeps its saved text.
+  // Each Source of unsaved text gets its own copy, so a second Source queued
+  // behind the first cannot change what the first runs; the copies go once R
+  // is back at an empty prompt.
   async source(d = this.active, echo = true) {
     if (!d?.view) return;
     let path = d.path;
-    if (d.dirty || d.saved === null) {
-      path = `${HOME}/.active-document.R`;
-      await r.webR.FS.writeFile(path, new TextEncoder().encode(d.view.state.doc.toString()));
+    const text = d.view.state.doc.toString();
+    const snapshot = d.dirty || d.saved === null;
+    if (snapshot) {
+      path = `${HOME}/.active-document-${++this.snapshotSeq}.R`;
+      await writeVfs(path, text);
     }
-    await r.prepare(d.view.state.doc.toString());
-    r.run(`source("${path.replace(HOME, '~')}", echo = ${echo ? 'TRUE' : 'FALSE'}, max.deparse.length = Inf)`);
+    await r.prepare(text);
+    r.run(`source(${rStr(path.replace(HOME, '~'))}, echo = ${echo ? 'TRUE' : 'FALSE'}, max.deparse.length = Inf)`);
+    // Listed only once queued, so a drain before this point cannot remove it.
+    if (snapshot) this.snapshots.push(path);
+  },
+  async dropSnapshots() {
+    for (const p of this.snapshots.splice(0)) await r.webR.FS.unlink(p).catch(() => {});
   },
   async newFile() {
     let n = 1;
@@ -425,12 +491,7 @@ const examples = {
       const path = `${HOME}/${rel}`;
       const text = await this.text(rel);
       const d = docs.byPath(path);
-      if (d?.view) {
-        d.view.dispatch({ changes: { from: 0, to: d.view.state.doc.length, insert: text } });
-        d.saved = text;
-        d.dirty = false;
-        idb.put({ path, content: text, saved: text, updated: Date.now() });
-      }
+      if (d?.view) await docs.replaceText(d, text);
       if (r.ready) await writeVfs(path, text);
     }
     docs.renderTabs();
@@ -667,8 +728,11 @@ new ResizeObserver(debounce(() => { if (r.booted && r.idle) syncWidth(); }, 300)
 async function afterCommand() {
   if (!r.booted) return;
   try {
+    await docs.dropSnapshots();
     await syncWidth();
     await r.void('.ide$after_command()');
+    // The engine as R has it, whether set from the menu or the console.
+    updateEngine(await r.str('as.character(getOption("mlumr.stan_engine", "rstan"))'));
     await env.refresh();
     $('#mem-text').textContent = fmtMiB(await r.num('.ide$memory()'));
     if ($('.ptab[data-tab="files"]').classList.contains('active')) files.refresh();
@@ -890,10 +954,7 @@ const files = {
     docs.open(path, text);
   },
   async upload(list) {
-    for (const f of list) {
-      const path = `${this.dir}/${f.name}`;
-      await r.webR.FS.writeFile(path, new Uint8Array(await f.arrayBuffer()));
-    }
+    for (const f of list) await putUpload(`${this.dir}/${f.name}`, f);
     this.refresh();
   },
   async downloadSel() {
@@ -924,7 +985,7 @@ const packages = {
     $('#pkg-body').innerHTML = `<table class="pkg-table"><thead><tr><th></th><th>Name</th><th>Description</th><th>Version</th></tr></thead><tbody>${rows.map((p) =>
       `<tr><td><input type="checkbox" data-pkg="${esc(p.name)}" ${p.attached ? 'checked' : ''} title="Attach or detach"></td><td class="pn">${esc(p.name)}</td><td class="pt" title="${esc(p.title)}">${esc(p.title)}</td><td class="pv">${esc(p.version)}</td></tr>`).join('')}</tbody></table>`;
     for (const c of $$('[data-pkg]')) {
-      c.onchange = () => r.run(c.checked ? `library(${c.dataset.pkg})` : `detach("package:${c.dataset.pkg}", unload = FALSE)`);
+      c.onchange = () => r.run(c.checked ? `library(${rName(c.dataset.pkg)})` : `detach(${rStr(`package:${c.dataset.pkg}`)}, unload = FALSE)`);
     }
   },
 };
@@ -1091,7 +1152,7 @@ const gotoBox = {
   items() {
     const q = this.input.value.trim().toLowerCase();
     const fileItems = docs.list.filter((d) => d.view).map((d) => ({ label: d.name, kind: 'file', act: () => docs.activate(d) }));
-    const fnItems = env.rows.filter((x) => x.group === 'Functions').map((x) => ({ label: x.name, kind: 'function', act: () => r.run(`View(${x.name})`) }));
+    const fnItems = env.rows.filter((x) => x.group === 'Functions').map((x) => ({ label: x.name, kind: 'function', act: () => r.run(`View(${rName(x.name)})`) }));
     const helpItems = (this.topics || []).map((t) => ({ label: t, kind: 'mlumr help', act: () => { showTab(paneOf('help'), 'help'); help.show(t, 'mlumr'); } }));
     return [...fileItems, ...fnItems, ...helpItems].filter((i) => !q || i.label.toLowerCase().includes(q)).slice(0, 30);
   },
@@ -1120,23 +1181,37 @@ gotoBox.input.addEventListener('keydown', (e) => {
 // ---------------------------------------------------------------- commands
 const fileInput = $('#file-input');
 let uploadTarget = 'files';
+// An uploaded file replaces one of the same name only when asked; if that
+// file is open, the editor shows the new text and it counts as saved.
+// Returns the text written, or null when the user kept the old file.
+async function putUpload(path, f) {
+  const bytes = new Uint8Array(await f.arrayBuffer());
+  const open = docs.byPath(path);
+  if ((open || await vfsExists(path)) && !(await confirmBox('Replace file?',
+    `<code>${esc(path.replace(HOME, '~'))}</code> already exists${open ? (open.dirty ? ', is open and has unsaved changes' : ' and is open') : ''}; the upload replaces it.`, 'Replace'))) return null;
+  await writeVfs(path, bytes);
+  const text = new TextDecoder().decode(bytes);
+  if (open?.view) await docs.replaceText(open, text);
+  return text;
+}
 fileInput.onchange = async () => {
   const list = [...fileInput.files];
   fileInput.value = '';
   if (uploadTarget === 'open') {
     for (const f of list) {
       const path = `${HOME}/${f.name}`;
-      const bytes = new Uint8Array(await f.arrayBuffer());
-      await r.webR.FS.writeFile(path, bytes);
-      docs.open(path, new TextDecoder().decode(bytes));
+      const text = await putUpload(path, f);
+      if (text === null) continue;
+      const d = docs.byPath(path);
+      if (d) docs.activate(d); else docs.open(path, text);
     }
+    files.refreshLater();
   } else if (uploadTarget === 'import') {
     const f = list[0];
     if (!f) return;
-    const path = `${HOME}/${f.name}`;
-    await r.webR.FS.writeFile(path, new Uint8Array(await f.arrayBuffer()));
+    if (await putUpload(`${HOME}/${f.name}`, f) === null) return;
     const name = await ask('Import dataset', `Name for the data frame read from <code>${esc(f.name)}</code>:`, f.name.replace(/\.[^.]+$/, '').replace(/[^\w.]/g, '_').replace(/^(\d)/, 'x$1'));
-    if (name) r.run(`${name} <- read.csv("~/${f.name}")`);
+    if (name) r.run(`${rName(name)} <- read.csv(${rStr(`~/${f.name}`)})`);
   } else await files.upload(list);
 };
 const pickFiles = (target, accept = '') => { uploadTarget = target; fileInput.accept = accept; fileInput.click(); };
@@ -1207,10 +1282,15 @@ const commands = {
   },
   restart: async () => {
     $('#project-menu').hidden = true;
-    if (await confirmBox('Restart R?', 'The page reloads and R starts again with an empty workspace. Open files and unsaved edits are kept.', 'Restart')) location.reload();
+    if (await confirmBox('Restart R?', 'The page reloads and R starts again with an empty workspace. Open files and unsaved edits are kept.', 'Restart')) {
+      // Edits still waiting to be written must be in the browser before the reload.
+      await docs.flushAll();
+      location.reload();
+    }
   },
-  'engine-tinystan': async () => { $('#project-menu').hidden = true; r.run('mlumr_engine("tinystan")'); updateEngine('tinystan'); },
-  'engine-rstan': async () => { $('#project-menu').hidden = true; r.run('mlumr_engine("rstan")'); updateEngine('rstan'); },
+  // The label follows R's own setting once the command has run (afterCommand).
+  'engine-tinystan': (b) => { if (b?.disabled) return; $('#project-menu').hidden = true; r.run('mlumr_engine("tinystan")'); },
+  'engine-rstan': () => { $('#project-menu').hidden = true; r.run('mlumr_engine("rstan")'); },
   shortcuts: () => {
     const rows = [['Ctrl/Cmd+Enter', 'Run the selection, or the whole statement at the cursor'], ['Ctrl/Cmd+Shift+Enter', 'Source the current file with echo'], ['Ctrl/Cmd+Shift+S', 'Source the current file'],
       ['Ctrl/Cmd+S', 'Save'], ['Ctrl/Cmd+F', 'Find and replace'], ['Ctrl/Cmd+Shift+C', 'Comment or uncomment lines'], ['Alt+-', 'Insert <-'], ['Ctrl/Cmd+Shift+M', 'Insert |>'],
@@ -1231,9 +1311,21 @@ document.addEventListener('keydown', (e) => {
   else if (mod && e.altKey && e.shiftKey && (e.key === 'N' || e.key === 'n')) { e.preventDefault(); docs.newFile(); }
   else if (mod && e.key === 's' && !e.shiftKey && document.activeElement === input) { e.preventDefault(); docs.save(); }
 });
-addEventListener('beforeunload', (e) => { if (bridge.busy()) e.preventDefault(); });
+// Leaving with edits still waiting to be written: write them now and ask the
+// browser to hold the page, which gives the writes time to finish.
+addEventListener('beforeunload', (e) => {
+  const pending = docs.timers.size > 0;
+  if (pending) docs.flushAll();
+  if (bridge.busy() || pending) e.preventDefault();
+});
+addEventListener('pagehide', () => { docs.flushAll(); });
 
+let tinystanAvailable = false;
 function updateEngine(engine) {
+  for (const b of $$('[data-cmd="engine-tinystan"]')) {
+    b.disabled = !tinystanAvailable;
+    b.title = tinystanAvailable ? '' : 'Needs a cross-origin isolated page with a growable SharedArrayBuffer';
+  }
   $('#st-engine').innerHTML = engine === 'tinystan'
     ? `<span>Sampler: <b>TinyStan</b> workers, ${navigator.hardwareConcurrency || 4} cores</span>`
     : '<span>Sampler: <b>rstan</b> in the R worker</span>';
@@ -1299,6 +1391,7 @@ try {
   // ide.R writes each fit's Stan data with the dimensions recorded here.
   await r.webR.FS.writeFile('/tmp/.ide/manifest.json', new TextEncoder().encode(manifestText));
   let engine = 'rstan';
+  tinystanAvailable = tinystanOk;
   if (tinystanOk) { await r.webR.evalRVoid('.ide$enable_tinystan()'); engine = 'tinystan'; }
   updateEngine(engine);
   // default.profraw: an empty profiling file one of the package binaries leaves behind.
