@@ -65,7 +65,8 @@ function scanLines(doc) {
       }
       if (ch === '#') break;
       if (ch === '"' || ch === "'" || ch === '`') { quote = ch; code += 'x'; continue; }
-      if ('([{'.includes(ch)) open.push(ch === '(' && /(?:\b(?:if|for|while|function)|\\)\s*$/.test(code) ? 'head' : ch);
+      // Not after a letter, digit, _ or . : is.function(x) is a call.
+      if ('([{'.includes(ch)) open.push(ch === '(' && /(?:(?<![\w.])(?:if|for|while|function)|\\)\s*$/.test(code) ? 'head' : ch);
       else if (')]}'.includes(ch) && open.pop() === 'head') headEnd = code.length + 1;
       code += ch;
     }
@@ -73,7 +74,7 @@ function scanLines(doc) {
     // A line ending in an operator or a comma continues on the next line, and
     // so does one whose control flow or function still needs its body.
     const cont = !quote && (/(\+|-|\*|\/|\^|,|\||&|=|<|>|~|\$|@|!|:|%[^%\s]*%|\|>)$/.test(tail) ||
-      headEnd === tail.length || /\b(?:else|repeat)$/.test(tail));
+      headEnd === tail.length || /(?<![\w.])(?:else|repeat)$/.test(tail));
     const depth = open.length;
     info.push({ startDepth, startQuote, endDepth: depth, endQuote: quote, cont, blank: !tail.trim(), text });
   }
