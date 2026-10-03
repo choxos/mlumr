@@ -44,6 +44,10 @@ check(r2$thin == 2 && identical(r2$req$sampler$init_radius, 0), "thin and init =
 r3 <- ide$tinystan_request("m", 2, 20, 10, 1, 0.8, 10, list(init = function(chain_id) list(mu = chain_id)))
 check(identical(r3$req$inits, c(list('{"mu":1}'), list('{"mu":2}'))) || identical(unlist(r3$req$inits), c('{"mu":1}', '{"mu":2}')),
       "an init function gives one JSON text per chain")
+r4 <- ide$tinystan_request("m", 1, 20, 10, 1, 0.8, 10, list(init = list(list(beta_tilde = 0, mu = 1))),
+                           param_dims = list(beta_tilde = 1, mu = 0))
+check(identical(unlist(r4$req$inits), '{"beta_tilde":[0],"mu":1}'),
+      "an initial value for a one-element vector stays an array; a scalar stays a scalar")
 check(grepl("does not support `pars`", err(ide$tinystan_request("m", 2, 20, 10, 1, 0.8, 10, list(pars = "mu")))),
       "an unsupported argument stops with its name")
 check(grepl("control setting `foo`", err(ide$tinystan_request("m", 2, 20, 10, 1, 0.8, 10, list(control = list(foo = 1))))),

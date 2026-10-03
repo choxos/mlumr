@@ -56,6 +56,11 @@
         "prior_aux2_scale": 0,
         "prior_aux2_dist": 0,
         "prior_aux2_df": 0
+      },
+      "params": {
+        "beta_tilde": 1,
+        "aux_raw": 2,
+        "aux2_raw": 2
       }
     },
     "mlumr_survival_relaxed": {
@@ -118,6 +123,11 @@
         "prior_aux2_scale": 0,
         "prior_aux2_dist": 0,
         "prior_aux2_df": 0
+      },
+      "params": {
+        "beta_tilde": 1,
+        "aux_raw": 2,
+        "aux2_raw": 2
       }
     },
     "mlumr_survival_mspline_spfa": {
@@ -182,6 +192,11 @@
         "prior_sigma_smooth_scale": 0,
         "prior_sigma_smooth_dist": 0,
         "prior_sigma_smooth_df": 0
+      },
+      "params": {
+        "beta_tilde": 1,
+        "u_lscoef": 2,
+        "sigma_smooth": 1
       }
     },
     "mlumr_survival_mspline_relaxed": {
@@ -250,6 +265,11 @@
         "prior_sigma_smooth_scale": 0,
         "prior_sigma_smooth_dist": 0,
         "prior_sigma_smooth_df": 0
+      },
+      "params": {
+        "beta_tilde": 1,
+        "u_lscoef": 2,
+        "sigma_smooth": 1
       }
     },
     "mlumr_binary_spfa": {
@@ -287,6 +307,9 @@
         "prior_beta_dist": 0,
         "prior_beta_df": 0,
         "link": 0
+      },
+      "params": {
+        "beta_tilde": 1
       }
     },
     "mlumr_binary_relaxed": {
@@ -328,6 +351,9 @@
         "prior_beta_comparator_dist": 0,
         "prior_beta_comparator_df": 0,
         "link": 0
+      },
+      "params": {
+        "beta_tilde": 1
       }
     },
     "mlumr_normal_spfa": {
@@ -370,6 +396,10 @@
         "prior_sigma_dist": 0,
         "prior_sigma_df": 0,
         "link": 0
+      },
+      "params": {
+        "beta_tilde": 1,
+        "sigma": 0
       }
     },
     "mlumr_normal_relaxed": {
@@ -416,6 +446,10 @@
         "prior_sigma_dist": 0,
         "prior_sigma_df": 0,
         "link": 0
+      },
+      "params": {
+        "beta_tilde": 1,
+        "sigma": 0
       }
     },
     "mlumr_poisson_spfa": {
@@ -454,6 +488,9 @@
         "prior_beta_dist": 0,
         "prior_beta_df": 0,
         "link": 0
+      },
+      "params": {
+        "beta_tilde": 1
       }
     },
     "mlumr_poisson_relaxed": {
@@ -496,10 +533,13 @@
         "prior_beta_comparator_dist": 0,
         "prior_beta_comparator_df": 0,
         "link": 0
+      },
+      "params": {
+        "beta_tilde": 1
       }
     }
   },
-  "about": "mlumr Stan programs compiled to WebAssembly with TinyStan. stan_sha256 hashes each program with its includes expanded (scripts/stan-hash.mjs); data gives the number of dimensions of each data variable, from stanc --info; mlumr_commit at the top is a commit at which every program is the one compiled.",
+  "about": "mlumr Stan programs compiled to WebAssembly with TinyStan. stan_sha256 hashes each program with its includes expanded (scripts/stan-hash.mjs); data and params give the number of dimensions of each data variable and parameter, from stanc --info; mlumr_commit at the top is a commit at which every program is the one compiled.",
   "mlumr_commit": "95c5bbd669481381e31da39e14d3983fe749b7ae",
   "toolchain": {
     "emscripten": "6.0.9",

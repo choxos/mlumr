@@ -5,7 +5,8 @@
 //   node scripts/stan-hash.mjs write <commit> <stan dir> <info dir> <model ...>
 //     (build-models.sh) records the models just compiled from <commit>: their
 //     source and binary hashes, the commit and toolchain per model, and the
-//     dimensions of every data variable (from stanc --info, in <info dir>).
+//     dimensions of every data variable and parameter (from stanc --info, in
+//     <info dir>).
 //     A model kept from an earlier build stays only if its Stan program is
 //     unchanged at <commit>; otherwise this stops and names it.
 //   node scripts/stan-hash.mjs kept <commit> <stan dir> <model ...>
@@ -56,7 +57,7 @@ function write(commit, stanDir, infoDir, models) {
     entry.mlumr_commit ??= manifest.mlumr_commit;
     entry.toolchain ??= manifest.toolchain;
   }
-  manifest.about = 'mlumr Stan programs compiled to WebAssembly with TinyStan. stan_sha256 hashes each program with its includes expanded (scripts/stan-hash.mjs); data gives the number of dimensions of each data variable, from stanc --info; mlumr_commit at the top is a commit at which every program is the one compiled.';
+  manifest.about = 'mlumr Stan programs compiled to WebAssembly with TinyStan. stan_sha256 hashes each program with its includes expanded (scripts/stan-hash.mjs); data and params give the number of dimensions of each data variable and parameter, from stanc --info; mlumr_commit at the top is a commit at which every program is the one compiled.';
   manifest.mlumr_commit = commit;
   manifest.toolchain = TOOLCHAIN;
   for (const m of models) {
@@ -68,6 +69,7 @@ function write(commit, stanDir, infoDir, models) {
       mlumr_commit: commit,
       toolchain: TOOLCHAIN,
       data: Object.fromEntries(Object.entries(info.inputs).map(([k, v]) => [k, v.dimensions])),
+      params: Object.fromEntries(Object.entries(info.parameters).map(([k, v]) => [k, v.dimensions])),
     };
   }
   writeFileSync(file, JSON.stringify(manifest, null, 2) + '\n');
@@ -88,7 +90,7 @@ function check(manifestFile, stanDir, modelsDir) {
     if (stanHash(stanDir, m) !== entry.stan_sha256) bad.push(`${m}: its Stan program differs from the one compiled`);
     const wasm = join(modelsDir, m, 'main.wasm');
     if (!existsSync(wasm) || sha(readFileSync(wasm)) !== entry.wasm_sha256) bad.push(`${m}: main.wasm is not the binary the manifest names`);
-    if (!entry.data) bad.push(`${m}: the manifest has no data dimensions`);
+    if (!entry.data || !entry.params) bad.push(`${m}: the manifest has no data or parameter dimensions`);
   }
   if (bad.length) {
     console.error(`The WebAssembly models do not match the mlumr being published (models from ${String(manifest.mlumr_commit).slice(0, 7)}):\n  ${bad.join('\n  ')}\nRun build-models.sh at that mlumr commit and commit models/.`);

@@ -221,7 +221,8 @@ local({
   # model declares (`dims`, from stanc --info, in stan/manifest.json), so a
   # vector of length one stays an array and only true scalars are unboxed.
   # Logicals and factors become integers, as in cmdstanr::write_stan_json().
-  ide$stan_data_json <- function(stan_data, dims = list()) {
+  # Initial values go through here too, with the parameters' dimensions.
+  ide$stan_data_json <- function(stan_data, dims = list(), what = "Stan data") {
     sd <- lapply(stats::setNames(nm = names(stan_data)), function(nm) {
       x <- stan_data[[nm]]
       if (is.factor(x)) x <- as.integer(x)
@@ -231,8 +232,8 @@ local({
         if (d == 1 || length(x) == 0) {
           x <- array(x, dim = c(length(x), rep(0L, d - 1)))
         } else {
-          stop(sprintf("Stan data `%s` must be an array with %d dimensions, but it is a vector of length %d.",
-                       nm, d, length(x)), call. = FALSE)
+          stop(sprintf("%s `%s` must be an array with %d dimensions, but it is a vector of length %d.",
+                       what, nm, d, length(x)), call. = FALSE)
         }
       }
       x
@@ -245,7 +246,7 @@ local({
   # as rstan reads them, `thin` applied to the draws afterwards (TinyStan has
   # none). Anything else stops with its name instead of being dropped.
   ide$tinystan_request <- function(model_name, chains, iter, warmup, seed, adapt_delta, max_treedepth,
-                                   dots = list()) {
+                                   dots = list(), param_dims = list()) {
     ns <- asNamespace("mlumr")
     merged <- if (exists(".merge_sampler_control", envir = ns, inherits = FALSE)) {
       get(".merge_sampler_control", envir = ns)(adapt_delta, max_treedepth, dots)
@@ -310,18 +311,20 @@ local({
     list(req = list(model = model_name, chains = as.integer(chains), num_warmup = as.integer(warmup),
                     num_samples = as.integer(iter - warmup), seed = as.numeric(seed), sampler = sampler,
                     inits = if (is.null(inits)) NULL else
-                      lapply(inits, function(x) as.character(jsonlite::toJSON(x, auto_unbox = TRUE, digits = NA)))),
+                      lapply(inits, function(x) as.character(ide$stan_data_json(x, param_dims, "Initial value")))),
          control = control, thin = thin, metric = metric)
   }
   fit_tinystan <- function(model_name, stan_data, chains, iter, warmup, seed,
                            adapt_delta, max_treedepth, refresh, verbose = TRUE, ...) {
-    run <- ide$tinystan_request(model_name, chains, iter, warmup, seed, adapt_delta, max_treedepth, list(...))
+    entry <- tryCatch(jsonlite::read_json("/tmp/.ide/manifest.json")$models[[model_name]], error = function(e) NULL)
+    if (is.null(entry$data) || is.null(entry$params)) {
+      stop("This site's stan/manifest.json gives no data or parameter dimensions for ", model_name, ".", call. = FALSE)
+    }
+    run <- ide$tinystan_request(model_name, chains, iter, warmup, seed, adapt_delta, max_treedepth, list(...),
+                                param_dims = entry$params)
     dir.create("/tmp/.mlumr-stan", showWarnings = FALSE)
     unlink(c("/tmp/.mlumr-stan/header.txt", "/tmp/.mlumr-stan/draws.bin"))
-    dims <- tryCatch(jsonlite::read_json("/tmp/.ide/manifest.json")$models[[model_name]]$data,
-                     error = function(e) NULL)
-    if (is.null(dims)) stop("This site's stan/manifest.json gives no data dimensions for ", model_name, ".", call. = FALSE)
-    writeLines(ide$stan_data_json(stan_data, dims), "/tmp/.mlumr-stan/data.json")
+    writeLines(ide$stan_data_json(stan_data, entry$data), "/tmp/.mlumr-stan/data.json")
     req <- run$req
     status <- webr::eval_js(sprintf(bridge_js, jsonlite::toJSON(req, auto_unbox = TRUE, null = "null", digits = NA)))
     header <- readLines("/tmp/.mlumr-stan/header.txt", warn = FALSE)
