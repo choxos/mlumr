@@ -7,7 +7,9 @@ mlumr's ten Stan models are compiled to WebAssembly and sample in one browser
 worker per chain. Nothing is installed, and all computation happens in the
 browser: no server runs your code or sees your data. The page does download
 webR, the R packages and the models, and R code you run can reach the network
-as it can on a desktop; the Viewer pane loads nothing from the network.
+as it can on a desktop. The Viewer pane loads nothing from the network and
+does not follow the links in what it shows; a document's own scripts still
+run there, with the same trust as the R code that produced it.
 
 This branch is app-only: the R package lives on `main`, and this branch deploys
 the Playground to `https://choxos.github.io/mlumr/app/`.

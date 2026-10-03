@@ -313,6 +313,7 @@ const docs = {
   active: null,
   host: $('#editor-host'),
   timers: new Map(),   // document -> pending write
+  inflight: new Set(), // writes handed to the browser and not yet committed
   snapshots: [],       // scratch copies of unsaved documents, for Source
   snapshotSeq: 0,
   // One pending write per document, so quick edits to two files both persist.
@@ -325,9 +326,17 @@ const docs = {
     clearTimeout(this.timers.get(d));
     this.timers.delete(d);
     if (!d.view || !this.list.includes(d)) return Promise.resolve();
-    return idb.put({ path: d.path, content: d.view.state.doc.toString(), saved: d.saved, updated: Date.now() }).catch(storageFailed);
+    return this.track(idb.put({ path: d.path, content: d.view.state.doc.toString(), saved: d.saved, updated: Date.now() }));
   },
-  flushAll() { return Promise.all([...this.timers.keys()].map((d) => this.flush(d))); },
+  // Every storage write goes through here, so a reload can wait for the ones
+  // already on their way as well as the ones still waiting to start.
+  track(write) {
+    const p = write.catch(storageFailed).finally(() => this.inflight.delete(p));
+    this.inflight.add(p);
+    return p;
+  },
+  pending() { return this.timers.size + this.inflight.size; },
+  flushAll() { return Promise.all([...[...this.timers.keys()].map((d) => this.flush(d)), ...this.inflight]); },
   // New text from outside the editor (an upload, a reset): shown, saved, kept.
   replaceText(d, text) {
     d.view.dispatch({ changes: { from: 0, to: d.view.state.doc.length, insert: text } });
@@ -423,7 +432,7 @@ const docs = {
     d.view?.destroy();
     d.wrap?.remove();
     d.el?.remove();
-    if (d.view) idb.del(d.path).catch(storageFailed);
+    if (d.view) this.track(idb.del(d.path));
     if (this.active === d) this.activate(this.list[Math.min(i, this.list.length - 1)] || null);
     else { this.rememberTabs(); this.renderTabs(); }
     if (!this.list.length) this.activate(null);
@@ -442,7 +451,7 @@ const docs = {
       if (other) { other.dirty = false; await this.close(other); }
       clearTimeout(this.timers.get(d));
       this.timers.delete(d);
-      idb.del(d.path).catch(storageFailed);
+      this.track(idb.del(d.path));
       d.path = path;
       d.name = path.split('/').pop();
       d.kind = /\.r$/i.test(path) ? 'r' : 'text';
@@ -457,7 +466,7 @@ const docs = {
     clearTimeout(this.timers.get(d));
     this.timers.delete(d);
     // Saved in the session either way; say so if the browser did not keep it.
-    idb.put({ path: d.path, content: text, saved: text, updated: Date.now() }).catch(storageFailed);
+    this.track(idb.put({ path: d.path, content: text, saved: text, updated: Date.now() }));
     this.renderTabs();
     if ($('#source-on-save').checked && d.kind === 'r') this.source(d, true);
     files.refreshLater();
@@ -1161,6 +1170,16 @@ const viewer = {
         doc.body.appendChild(sc);
       }
     }
+    // Links and refreshes would navigate the frame itself, which no content
+    // policy blocks: a link keeps its text (and shows its address on hover)
+    // but goes nowhere, except to a place in the same document.
+    doc.querySelectorAll('meta[http-equiv]').forEach((n) => { if (/^refresh$/i.test(n.getAttribute('http-equiv'))) n.remove(); });
+    for (const a of doc.querySelectorAll('a[href], area[href]')) {
+      const href = a.getAttribute('href');
+      if (href.startsWith('#')) continue;
+      a.removeAttribute('href');
+      a.setAttribute('title', href);
+    }
     // The frame may run the document's own scripts (htmlwidgets, KaTeX) but
     // load nothing from the network: everything it shows is inline or data.
     const csp = doc.createElement('meta');
@@ -1412,7 +1431,7 @@ document.addEventListener('keydown', (e) => {
 // Leaving with edits still waiting to be written: write them now and ask the
 // browser to hold the page, which gives the writes time to finish.
 addEventListener('beforeunload', (e) => {
-  const pending = docs.timers.size > 0;
+  const pending = docs.pending() > 0;
   if (pending) docs.flushAll();
   if (bridge.busy() || pending) e.preventDefault();
 });
