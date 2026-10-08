@@ -46,3 +46,4 @@
 ^vignettes/figure$
 ^vignettes/precompile\.R$
 ^.*Rplots\.pdf$
+^simulation$
