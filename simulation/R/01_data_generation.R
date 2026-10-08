@@ -14,7 +14,8 @@ get_beta_params <- function(em) {
 }
 
 #' P(X_j = 1) in each population: index 0.6 ("low", the paper's moderate
-#' imbalance) or 0.8 ("high"); comparator 0.4 or 0.2.
+#' imbalance) or 0.8 ("high"); comparator 0.4 or 0.2. These are the values the
+#' published results were computed with.
 get_imbalance_params <- function(level) {
   switch(level,
     low = list(prob_index = 0.6, prob_comparator = 0.4),

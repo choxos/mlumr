@@ -53,7 +53,7 @@ The per-replicate files (`results/*/reps/`) are not kept in the repository; `run
 
 ## Running
 
-R 4.0 or later, mlumr, cmdstanr with CmdStan, and randtoolbox, copula, sandwich, mvtnorm and ggplot2. From this
+R 4.1 or later, mlumr, cmdstanr with CmdStan, and randtoolbox, copula, sandwich, mvtnorm and ggplot2. From this
 folder:
 
 ```

@@ -171,7 +171,9 @@ stc_estimate <- function(ipd, integration_points, agd, covs = c("x1", "x2")) {
 
 #' Index population event probabilities for STC and MAIC: p_A by
 #' g-computation over the IPD with coefficients `b` (variance `V`), p_B from
-#' p_A and the transported log risk ratio.
+#' p_A and the transported log risk ratio. As in the published study, the
+#' variance of p_B adds the two contributions without their covariance (both
+#' come from the same IPD), so these results reproduce the published metrics.
 index_probabilities <- function(ipd, b, V, log_rr, var_log_rr, covs = c("x1", "x2")) {
   n <- nrow(ipd)
   D <- cbind(1, as.matrix(ipd[, covs]))

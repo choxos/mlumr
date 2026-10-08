@@ -43,8 +43,16 @@ for (s in scenario_ids) {
   f <- file.path(out_dir, "truth", sprintf("s%02d.rds", s))
   if (!file.exists(f)) {
     message(sprintf("Truth for scenario %d (%s)...", s, scenarios$scenario_name[s]))
-    saveRDS(list(simulated = compute_truth(scenarios[s, ], config)), f)
+    save_atomic(list(simulated = compute_truth(scenarios[s, ], config)), f)
   }
+}
+
+#' Write an RDS file atomically: to a temporary name unique to this process,
+#' then renamed, so an interrupted or concurrent run never leaves a partial file.
+save_atomic <- function(x, f) {
+  tmp <- sprintf("%s.%d.part", f, Sys.getpid())
+  saveRDS(x, tmp)
+  if (!file.rename(tmp, f)) stop("could not write ", f, call. = FALSE)
 }
 
 rep_file <- function(s, r, m) file.path(out_dir, "reps", sprintf("s%02d_r%04d_%s.rds", s, r, m))
@@ -66,9 +74,7 @@ run_task <- function(i) {
                         d$seed + 50000, config)
   )
   res$seconds <- proc.time()[["elapsed"]] - t0
-  f <- rep_file(t$scenario, t$rep, t$method)
-  saveRDS(res, paste0(f, ".part"))
-  file.rename(paste0(f, ".part"), f)
+  save_atomic(res, rep_file(t$scenario, t$rep, t$method))
   t$method
 }
 
@@ -82,7 +88,7 @@ if (workers > 1) {
     for (f in list.files(file.path(here, "R"), "[.]R$", full.names = TRUE)) source(f)
     NULL
   })
-  parallel::clusterExport(cl, c("config", "scenarios", "tasks", "out_dir", "rep_file", "run_task"))
+  parallel::clusterExport(cl, c("config", "scenarios", "tasks", "out_dir", "rep_file", "save_atomic", "run_task"))
   done <- parallel::parLapplyLB(cl, seq_len(nrow(tasks)), run_task)
 } else {
   done <- lapply(seq_len(nrow(tasks)), run_task)
