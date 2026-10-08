@@ -38,6 +38,14 @@ dir.create(file.path(out_dir, "reps"), recursive = TRUE, showWarnings = FALSE)
 scenarios <- scenario_grid(config)
 saveRDS(config, file.path(out_dir, "config.rds"))
 
+#' Write an RDS file atomically: to a temporary name unique to this process,
+#' then renamed, so an interrupted or concurrent run never leaves a partial file.
+save_atomic <- function(x, f) {
+  tmp <- sprintf("%s.%d.part", f, Sys.getpid())
+  saveRDS(x, tmp)
+  if (!file.rename(tmp, f)) stop("could not write ", f, call. = FALSE)
+}
+
 # True effects, computed once per scenario.
 for (s in scenario_ids) {
   f <- file.path(out_dir, "truth", sprintf("s%02d.rds", s))
@@ -45,14 +53,6 @@ for (s in scenario_ids) {
     message(sprintf("Truth for scenario %d (%s)...", s, scenarios$scenario_name[s]))
     save_atomic(list(simulated = compute_truth(scenarios[s, ], config)), f)
   }
-}
-
-#' Write an RDS file atomically: to a temporary name unique to this process,
-#' then renamed, so an interrupted or concurrent run never leaves a partial file.
-save_atomic <- function(x, f) {
-  tmp <- sprintf("%s.%d.part", f, Sys.getpid())
-  saveRDS(x, tmp)
-  if (!file.rename(tmp, f)) stop("could not write ", f, call. = FALSE)
 }
 
 rep_file <- function(s, r, m) file.path(out_dir, "reps", sprintf("s%02d_r%04d_%s.rds", s, r, m))
