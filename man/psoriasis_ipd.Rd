@@ -41,7 +41,6 @@ binary (PASI 75 response) ML-UMR worked example; pair with
 The two source trials are not genuinely disconnected: UNCOVER-2 and
 FIXTURE both include placebo and etanercept arms. Those arms are omitted
 here deliberately, so that this pair of datasets poses the unanchored
-problem ML-UMR exists for. \code{vignette("binary-outcomes")} puts them
-back at the end to check the unanchored estimate against the anchored one.
+problem ML-UMR exists for.
 }
 \keyword{datasets}

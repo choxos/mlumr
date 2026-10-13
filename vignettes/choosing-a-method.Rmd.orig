@@ -261,11 +261,7 @@ the comparator evidence and can be optimistic when the AgD is clustered.
    that nothing below replaces, so trials connected through a common arm should
    never be broken into single-arm evidence. Reserve ML-UMR, and every method in
    this vignette, for single-arm indirect comparisons of fully disconnected
-   evidence. `vignette("binary-outcomes")` and `vignette("survival-outcomes")`
-   each end by restoring the common arm their example discards and checking the
-   unanchored answer against two anchored ones, a Bucher indirect comparison and
-   an ML-NMR fitted with `multinma`, each in both a prognostic-only and a
-   treatment-interaction form.
+   evidence.
 2. **Are the two populations exchangeable on prognostic factors?** Similar
    reported marginal means are weak evidence for this: higher moments, the
    dependence between covariates, and unreported prognostic variables all

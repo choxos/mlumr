@@ -392,9 +392,7 @@ patients to <strong>placebo</strong>, and those arms are
 <strong>deliberately omitted</strong> here. Keeping them would connect
 the two trials through a common comparator and make an <em>anchored</em>
 comparison possible, which is not the problem this vignette is about.
-The unanchored framing is a construction for illustration; the section
-<em>Checking against the anchored comparison</em> below puts the omitted
-arms back to use.</p>
+The unanchored framing is a construction for illustration.</p>
 <p>The index arm is McCarthy2012 lenalidomide rather than the other
 candidate, Palumbo2014: its patients are closer to the Morgan2012
 population, which is what an unanchored comparison depends on.</p>
@@ -403,8 +401,7 @@ Morgan2012 are randomized trials. Dropping their common reference arm
 (placebo) turns them into hypothetical single-arm trials and leaves
 fully disconnected evidence; we do this only to illustrate ML-UMR. In
 practice, randomized trials should never be analyzed this way: ML-NMR
-(for example with <code>multinma</code>, as in the section <em>Checking
-against the anchored comparison</em>) or another appropriate method
+(for example with <code>multinma</code>) or another appropriate method
 should be used for them. ML-UMR should only be used for fully
 unanchored, single-arm comparisons.</p>
 </blockquote>
@@ -1543,261 +1540,66 @@ plot of chunk weibull-surv
 </p>
 </div>
 </div>
-<div id="checking-against-the-anchored-comparison" class="section level2">
-<h2>Checking against the anchored comparison</h2>
-<p>The unanchored framing of this vignette is a construction.
-McCarthy2012 and Morgan2012 both randomized patients to
-<strong>placebo</strong>, and the analysis above discards those arms.
-Because they are still present in the source data, we can do something a
-genuine unanchored analysis never can: check the answer against the
-anchored one. <code>multinma</code> is a <code>Suggests</code> here,
-used only to reach the arms mlumr does not bundle.</p>
-<div class="sourceCode" id="cb29"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;ndmm_ipd&quot;</span>, <span class="at">package =</span> <span class="st">&quot;multinma&quot;</span>)</span>
-<span id="cb29-2"><a href="#cb29-2" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;ndmm_agd&quot;</span>, <span class="at">package =</span> <span class="st">&quot;multinma&quot;</span>)</span>
-<span id="cb29-3"><a href="#cb29-3" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;ndmm_agd_covs&quot;</span>, <span class="at">package =</span> <span class="st">&quot;multinma&quot;</span>)</span>
-<span id="cb29-4"><a href="#cb29-4" tabindex="-1"></a></span>
-<span id="cb29-5"><a href="#cb29-5" tabindex="-1"></a>tau <span class="ot">&lt;-</span> res_stc<span class="sc">$</span>horizon   <span class="co"># the RMST horizon used above</span></span>
-<span id="cb29-6"><a href="#cb29-6" tabindex="-1"></a>mcc_pbo <span class="ot">&lt;-</span> ndmm_ipd[ndmm_ipd<span class="sc">$</span>studyf <span class="sc">==</span> <span class="st">&quot;McCarthy2012&quot;</span> <span class="sc">&amp;</span> ndmm_ipd<span class="sc">$</span>trtf <span class="sc">==</span> <span class="st">&quot;Pbo&quot;</span>, ]</span>
-<span id="cb29-7"><a href="#cb29-7" tabindex="-1"></a>mor_pbo <span class="ot">&lt;-</span> ndmm_agd[ndmm_agd<span class="sc">$</span>studyf <span class="sc">==</span> <span class="st">&quot;Morgan2012&quot;</span> <span class="sc">&amp;</span> ndmm_agd<span class="sc">$</span>trtf <span class="sc">==</span> <span class="st">&quot;Pbo&quot;</span>, ]</span>
-<span id="cb29-8"><a href="#cb29-8" tabindex="-1"></a>mor_cov <span class="ot">&lt;-</span> ndmm_agd_covs[ndmm_agd_covs<span class="sc">$</span>studyf <span class="sc">==</span> <span class="st">&quot;Morgan2012&quot;</span> <span class="sc">&amp;</span></span>
-<span id="cb29-9"><a href="#cb29-9" tabindex="-1"></a>                           ndmm_agd_covs<span class="sc">$</span>trtf <span class="sc">==</span> <span class="st">&quot;Pbo&quot;</span>, ]</span>
-<span id="cb29-10"><a href="#cb29-10" tabindex="-1"></a></span>
-<span id="cb29-11"><a href="#cb29-11" tabindex="-1"></a><span class="co"># Conditional constancy is the assumption ML-UMR cannot test from the unanchored</span></span>
-<span id="cb29-12"><a href="#cb29-12" tabindex="-1"></a><span class="co"># data alone. With the discarded arms it becomes testable: fit the survival model</span></span>
-<span id="cb29-13"><a href="#cb29-13" tabindex="-1"></a><span class="co"># in the arm both trials share, transport it to the other trial&#39;s population, and</span></span>
-<span id="cb29-14"><a href="#cb29-14" tabindex="-1"></a><span class="co"># compare against what that trial actually observed for the same arm.</span></span>
-<span id="cb29-15"><a href="#cb29-15" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2026</span>)</span>
-<span id="cb29-16"><a href="#cb29-16" tabindex="-1"></a>m_pbo <span class="ot">&lt;-</span> flexsurv<span class="sc">::</span><span class="fu">flexsurvreg</span>(</span>
-<span id="cb29-17"><a href="#cb29-17" tabindex="-1"></a>  survival<span class="sc">::</span><span class="fu">Surv</span>(eventtime, status) <span class="sc">~</span> age <span class="sc">+</span> iss_stage3 <span class="sc">+</span> response_cr_vgpr <span class="sc">+</span> male,</span>
-<span id="cb29-18"><a href="#cb29-18" tabindex="-1"></a>  <span class="at">data =</span> mcc_pbo, <span class="at">dist =</span> <span class="st">&quot;weibullPH&quot;</span>)</span>
-<span id="cb29-19"><a href="#cb29-19" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="fl">5e4</span></span>
-<span id="cb29-20"><a href="#cb29-20" tabindex="-1"></a>nd <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">age =</span> <span class="fu">rnorm</span>(n, mor_cov<span class="sc">$</span>age_mean, mor_cov<span class="sc">$</span>age_sd),</span>
-<span id="cb29-21"><a href="#cb29-21" tabindex="-1"></a>                 <span class="at">iss_stage3 =</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, mor_cov<span class="sc">$</span>iss_stage3),</span>
-<span id="cb29-22"><a href="#cb29-22" tabindex="-1"></a>                 <span class="at">response_cr_vgpr =</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, mor_cov<span class="sc">$</span>response_cr_vgpr),</span>
-<span id="cb29-23"><a href="#cb29-23" tabindex="-1"></a>                 <span class="at">male =</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, mor_cov<span class="sc">$</span>male))</span>
-<span id="cb29-24"><a href="#cb29-24" tabindex="-1"></a>km_rmst <span class="ot">&lt;-</span> <span class="cf">function</span>(d) <span class="fu">unname</span>(<span class="fu">summary</span>(</span>
-<span id="cb29-25"><a href="#cb29-25" tabindex="-1"></a>  survival<span class="sc">::</span><span class="fu">survfit</span>(survival<span class="sc">::</span><span class="fu">Surv</span>(eventtime, status) <span class="sc">~</span> <span class="dv">1</span>, <span class="at">data =</span> d),</span>
-<span id="cb29-26"><a href="#cb29-26" tabindex="-1"></a>  <span class="at">rmean =</span> tau)<span class="sc">$</span>table[<span class="st">&quot;rmean&quot;</span>])</span>
-<span id="cb29-27"><a href="#cb29-27" tabindex="-1"></a></span>
-<span id="cb29-28"><a href="#cb29-28" tabindex="-1"></a><span class="co"># Name these so the prose below cites the same numbers the table prints,</span></span>
-<span id="cb29-29"><a href="#cb29-29" tabindex="-1"></a><span class="co"># rather than literals that drift the next time the vignette is re-knitted.</span></span>
-<span id="cb29-30"><a href="#cb29-30" tabindex="-1"></a>rmst_own       <span class="ot">&lt;-</span> <span class="fu">km_rmst</span>(mcc_pbo)</span>
-<span id="cb29-31"><a href="#cb29-31" tabindex="-1"></a>rmst_transport <span class="ot">&lt;-</span> <span class="fu">mean</span>(<span class="fu">summary</span>(m_pbo, <span class="at">newdata =</span> nd, <span class="at">type =</span> <span class="st">&quot;rmst&quot;</span>,</span>
-<span id="cb29-32"><a href="#cb29-32" tabindex="-1"></a>                               <span class="at">t =</span> tau, <span class="at">ci =</span> <span class="cn">FALSE</span>, <span class="at">tidy =</span> <span class="cn">TRUE</span>)<span class="sc">$</span>est)</span>
-<span id="cb29-33"><a href="#cb29-33" tabindex="-1"></a>rmst_observed  <span class="ot">&lt;-</span> <span class="fu">km_rmst</span>(mor_pbo)</span>
-<span id="cb29-34"><a href="#cb29-34" tabindex="-1"></a>rmst_gap       <span class="ot">&lt;-</span> rmst_observed <span class="sc">-</span> rmst_transport</span>
-<span id="cb29-35"><a href="#cb29-35" tabindex="-1"></a></span>
-<span id="cb29-36"><a href="#cb29-36" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
-<span id="cb29-37"><a href="#cb29-37" tabindex="-1"></a>  <span class="at">Quantity =</span> <span class="fu">c</span>(<span class="st">&quot;McCarthy2012 placebo, observed in its own population&quot;</span>,</span>
-<span id="cb29-38"><a href="#cb29-38" tabindex="-1"></a>               <span class="st">&quot;McCarthy2012 placebo model, transported to Morgan2012&quot;</span>,</span>
-<span id="cb29-39"><a href="#cb29-39" tabindex="-1"></a>               <span class="st">&quot;Morgan2012 placebo, observed&quot;</span>),</span>
-<span id="cb29-40"><a href="#cb29-40" tabindex="-1"></a>  <span class="st">`</span><span class="at">RMST (months)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(rmst_own, rmst_transport, rmst_observed),</span>
-<span id="cb29-41"><a href="#cb29-41" tabindex="-1"></a>  <span class="at">check.names =</span> <span class="cn">FALSE</span>), <span class="at">digits =</span> <span class="dv">2</span>,</span>
-<span id="cb29-42"><a href="#cb29-42" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">&quot;Conditional-constancy check on the placebo arms this example discards&quot;</span>)</span></code></pre></div>
+<div id="log-hazard-ratios-against-the-naive-estimate" class="section level2">
+<h2>Log hazard ratios against the naive estimate</h2>
+<p>The naive Cox estimate under <em>Frequentist benchmarks</em> is a log
+hazard ratio, so it is set against ML-UMR on that scale here, with
+ML-UMR in both target populations.</p>
+<div class="sourceCode" id="cb29"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" tabindex="-1"></a><span class="co"># ML-UMR reports a log HR in each population; pull both from the fit summary.</span></span>
+<span id="cb29-2"><a href="#cb29-2" tabindex="-1"></a>lhr_row <span class="ot">&lt;-</span> <span class="cf">function</span>(fit, var) fit<span class="sc">$</span>summary[fit<span class="sc">$</span>summary<span class="sc">$</span>variable <span class="sc">==</span> var, ]</span>
+<span id="cb29-3"><a href="#cb29-3" tabindex="-1"></a></span>
+<span id="cb29-4"><a href="#cb29-4" tabindex="-1"></a><span class="co"># `fit$summary` stores coefficients under Stan&#39;s positional names, `beta[1]`</span></span>
+<span id="cb29-5"><a href="#cb29-5" tabindex="-1"></a><span class="co"># and so on; only `print()` relabels them as `beta[age]`. Look them up by</span></span>
+<span id="cb29-6"><a href="#cb29-6" tabindex="-1"></a><span class="co"># position so the prose below cannot silently cite an empty result.</span></span>
+<span id="cb29-7"><a href="#cb29-7" tabindex="-1"></a>beta_mean <span class="ot">&lt;-</span> <span class="cf">function</span>(fit, cov) {</span>
+<span id="cb29-8"><a href="#cb29-8" tabindex="-1"></a>  k <span class="ot">&lt;-</span> <span class="fu">match</span>(cov, fit<span class="sc">$</span>data<span class="sc">$</span>covariates)</span>
+<span id="cb29-9"><a href="#cb29-9" tabindex="-1"></a>  <span class="co"># Fail loudly. An unmatched name gives `beta[NA]`, which matches nothing and</span></span>
+<span id="cb29-10"><a href="#cb29-10" tabindex="-1"></a>  <span class="co"># renders as blank prose with no error, which is the failure this helper</span></span>
+<span id="cb29-11"><a href="#cb29-11" tabindex="-1"></a>  <span class="co"># exists to avoid. A relaxed fit stores `beta_index[k]` and</span></span>
+<span id="cb29-12"><a href="#cb29-12" tabindex="-1"></a>  <span class="co"># `beta_comparator[k]`, so `beta[k]` would be empty there too.</span></span>
+<span id="cb29-13"><a href="#cb29-13" tabindex="-1"></a>  <span class="fu">stopifnot</span>(<span class="fu">length</span>(k) <span class="sc">==</span> <span class="dv">1</span><span class="dt">L</span>, <span class="sc">!</span><span class="fu">is.na</span>(k), fit<span class="sc">$</span>model <span class="sc">==</span> <span class="st">&quot;spfa&quot;</span>)</span>
+<span id="cb29-14"><a href="#cb29-14" tabindex="-1"></a>  out <span class="ot">&lt;-</span> fit<span class="sc">$</span>summary<span class="sc">$</span>mean[fit<span class="sc">$</span>summary<span class="sc">$</span>variable <span class="sc">==</span> <span class="fu">sprintf</span>(<span class="st">&quot;beta[%d]&quot;</span>, k)]</span>
+<span id="cb29-15"><a href="#cb29-15" tabindex="-1"></a>  <span class="fu">stopifnot</span>(<span class="fu">length</span>(out) <span class="sc">==</span> <span class="dv">1</span><span class="dt">L</span>)</span>
+<span id="cb29-16"><a href="#cb29-16" tabindex="-1"></a>  out</span>
+<span id="cb29-17"><a href="#cb29-17" tabindex="-1"></a>}</span>
+<span id="cb29-18"><a href="#cb29-18" tabindex="-1"></a></span>
+<span id="cb29-19"><a href="#cb29-19" tabindex="-1"></a>lhr_i     <span class="ot">&lt;-</span> <span class="fu">lhr_row</span>(fit_mspline, <span class="st">&quot;delta_index&quot;</span>)</span>
+<span id="cb29-20"><a href="#cb29-20" tabindex="-1"></a>lhr_c     <span class="ot">&lt;-</span> <span class="fu">lhr_row</span>(fit_mspline, <span class="st">&quot;delta_comparator&quot;</span>)</span>
+<span id="cb29-21"><a href="#cb29-21" tabindex="-1"></a>lhr_rel_i <span class="ot">&lt;-</span> <span class="fu">lhr_row</span>(fit_mspline_relaxed, <span class="st">&quot;delta_index&quot;</span>)</span>
+<span id="cb29-22"><a href="#cb29-22" tabindex="-1"></a>lhr_rel_c <span class="ot">&lt;-</span> <span class="fu">lhr_row</span>(fit_mspline_relaxed, <span class="st">&quot;delta_comparator&quot;</span>)</span>
+<span id="cb29-23"><a href="#cb29-23" tabindex="-1"></a></span>
+<span id="cb29-24"><a href="#cb29-24" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
+<span id="cb29-25"><a href="#cb29-25" tabindex="-1"></a>  <span class="at">Method =</span> <span class="fu">c</span>(<span class="st">&quot;Naive Cox (unadjusted)&quot;</span>,</span>
+<span id="cb29-26"><a href="#cb29-26" tabindex="-1"></a>             <span class="st">&quot;ML-UMR M-spline (SPFA, prognostic only)&quot;</span>,</span>
+<span id="cb29-27"><a href="#cb29-27" tabindex="-1"></a>             <span class="st">&quot;ML-UMR M-spline (SPFA, prognostic only)&quot;</span>,</span>
+<span id="cb29-28"><a href="#cb29-28" tabindex="-1"></a>             <span class="st">&quot;ML-UMR M-spline (relaxed, effect modification)&quot;</span>,</span>
+<span id="cb29-29"><a href="#cb29-29" tabindex="-1"></a>             <span class="st">&quot;ML-UMR M-spline (relaxed, effect modification)&quot;</span>),</span>
+<span id="cb29-30"><a href="#cb29-30" tabindex="-1"></a>  <span class="co"># The naive Cox row is standardized to no population; it contrasts the two</span></span>
+<span id="cb29-31"><a href="#cb29-31" tabindex="-1"></a>  <span class="co"># crude arms. `vignette(&quot;choosing-a-method&quot;)` uses the same label.</span></span>
+<span id="cb29-32"><a href="#cb29-32" tabindex="-1"></a>  <span class="at">Population =</span> <span class="fu">c</span>(<span class="st">&quot;unstandardized&quot;</span>, <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>, <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>),</span>
+<span id="cb29-33"><a href="#cb29-33" tabindex="-1"></a>  <span class="st">`</span><span class="at">log HR</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>estimate,</span>
+<span id="cb29-34"><a href="#cb29-34" tabindex="-1"></a>               lhr_i<span class="sc">$</span>mean, lhr_c<span class="sc">$</span>mean, lhr_rel_i<span class="sc">$</span>mean, lhr_rel_c<span class="sc">$</span>mean),</span>
+<span id="cb29-35"><a href="#cb29-35" tabindex="-1"></a>  <span class="st">`</span><span class="at">2.5%</span><span class="st">`</span>   <span class="ot">=</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>ci_lower,</span>
+<span id="cb29-36"><a href="#cb29-36" tabindex="-1"></a>               lhr_i[[<span class="st">&quot;2.5%&quot;</span>]], lhr_c[[<span class="st">&quot;2.5%&quot;</span>]],</span>
+<span id="cb29-37"><a href="#cb29-37" tabindex="-1"></a>               lhr_rel_i[[<span class="st">&quot;2.5%&quot;</span>]], lhr_rel_c[[<span class="st">&quot;2.5%&quot;</span>]]),</span>
+<span id="cb29-38"><a href="#cb29-38" tabindex="-1"></a>  <span class="st">`</span><span class="at">97.5%</span><span class="st">`</span>  <span class="ot">=</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>ci_upper,</span>
+<span id="cb29-39"><a href="#cb29-39" tabindex="-1"></a>               lhr_i[[<span class="st">&quot;97.5%&quot;</span>]], lhr_c[[<span class="st">&quot;97.5%&quot;</span>]],</span>
+<span id="cb29-40"><a href="#cb29-40" tabindex="-1"></a>               lhr_rel_i[[<span class="st">&quot;97.5%&quot;</span>]], lhr_rel_c[[<span class="st">&quot;97.5%&quot;</span>]]),</span>
+<span id="cb29-41"><a href="#cb29-41" tabindex="-1"></a>  <span class="at">check.names =</span> <span class="cn">FALSE</span>), <span class="at">digits =</span> <span class="dv">3</span>,</span>
+<span id="cb29-42"><a href="#cb29-42" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">&quot;Naive and ML-UMR log hazard ratios, in both target populations (Len vs Thal)&quot;</span>)</span></code></pre></div>
 <table>
-<caption>Conditional-constancy check on the placebo arms this example
-discards</caption>
-<thead>
-<tr class="header">
-<th align="left">Quantity</th>
-<th align="right">RMST (months)</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td align="left">McCarthy2012 placebo, observed in its own
-population</td>
-<td align="right">37.63</td>
-</tr>
-<tr class="even">
-<td align="left">McCarthy2012 placebo model, transported to
-Morgan2012</td>
-<td align="right">29.34</td>
-</tr>
-<tr class="odd">
-<td align="left">Morgan2012 placebo, observed</td>
-<td align="right">30.86</td>
-</tr>
-</tbody>
-</table>
-<p>The transported placebo arm predicts about 29.3 months of restricted
-mean survival for Morgan2012’s placebo population, against the 30.9
-months Morgan2012 actually observed. That is close, and it is the
-reassurance an unanchored analysis normally cannot get: the transport
-machinery, run on an arm both trials share, roughly recovers what that
-arm did.</p>
-<p>It is not exact, and the residual gap is worth keeping in view. The
-covariate model is fitted in a population with mean age 57.9 years and
-27% ISS stage 3 and asked to reach one with mean age 65.6 years and 32%
-ISS stage 3. That is a real extrapolation, and the remaining 1.5-month
-shortfall is what is left of it after adjusting for the four measured
-covariates.</p>
-<p>Now the anchored answers. Both trials contain a placebo arm, so two
-anchored estimates are available. The first is a <strong>Bucher</strong>
-indirect comparison: take each trial’s own within-trial Cox log hazard
-ratio against placebo and subtract. For two studies and one common
-comparator that is what a fixed-effect NMA returns.</p>
-<div class="sourceCode" id="cb30"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" tabindex="-1"></a>cox_lhr <span class="ot">&lt;-</span> <span class="cf">function</span>(d, active) {</span>
-<span id="cb30-2"><a href="#cb30-2" tabindex="-1"></a>  d <span class="ot">&lt;-</span> d[d<span class="sc">$</span>trtf <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;Pbo&quot;</span>, active), ]</span>
-<span id="cb30-3"><a href="#cb30-3" tabindex="-1"></a>  d<span class="sc">$</span>trt <span class="ot">&lt;-</span> <span class="fu">factor</span>(<span class="fu">as.character</span>(d<span class="sc">$</span>trtf), <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">&quot;Pbo&quot;</span>, active))</span>
-<span id="cb30-4"><a href="#cb30-4" tabindex="-1"></a>  f <span class="ot">&lt;-</span> survival<span class="sc">::</span><span class="fu">coxph</span>(survival<span class="sc">::</span><span class="fu">Surv</span>(eventtime, status) <span class="sc">~</span> trt, <span class="at">data =</span> d)</span>
-<span id="cb30-5"><a href="#cb30-5" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">est =</span> <span class="fu">unname</span>(<span class="fu">coef</span>(f)), <span class="at">se =</span> <span class="fu">unname</span>(<span class="fu">sqrt</span>(<span class="fu">diag</span>(<span class="fu">vcov</span>(f)))))</span>
-<span id="cb30-6"><a href="#cb30-6" tabindex="-1"></a>}</span>
-<span id="cb30-7"><a href="#cb30-7" tabindex="-1"></a>lhr_mcc <span class="ot">&lt;-</span> <span class="fu">cox_lhr</span>(ndmm_ipd[ndmm_ipd<span class="sc">$</span>studyf <span class="sc">==</span> <span class="st">&quot;McCarthy2012&quot;</span>, ], <span class="st">&quot;Len&quot;</span>)</span>
-<span id="cb30-8"><a href="#cb30-8" tabindex="-1"></a>lhr_mor <span class="ot">&lt;-</span> <span class="fu">cox_lhr</span>(ndmm_agd[ndmm_agd<span class="sc">$</span>studyf <span class="sc">==</span> <span class="st">&quot;Morgan2012&quot;</span>, ], <span class="st">&quot;Thal&quot;</span>)</span>
-<span id="cb30-9"><a href="#cb30-9" tabindex="-1"></a>anchored <span class="ot">&lt;-</span> <span class="fu">unname</span>(<span class="fu">c</span>(lhr_mcc[<span class="st">&quot;est&quot;</span>] <span class="sc">-</span> lhr_mor[<span class="st">&quot;est&quot;</span>],</span>
-<span id="cb30-10"><a href="#cb30-10" tabindex="-1"></a>                     <span class="fu">sqrt</span>(lhr_mcc[<span class="st">&quot;se&quot;</span>]<span class="sc">^</span><span class="dv">2</span> <span class="sc">+</span> lhr_mor[<span class="st">&quot;se&quot;</span>]<span class="sc">^</span><span class="dv">2</span>)))</span>
-<span id="cb30-11"><a href="#cb30-11" tabindex="-1"></a>anchored_ci <span class="ot">&lt;-</span> anchored[<span class="dv">1</span>] <span class="sc">+</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">1.96</span>, <span class="fl">1.96</span>) <span class="sc">*</span> anchored[<span class="dv">2</span>]</span></code></pre></div>
-<p>The second is a population-adjusted <strong>ML-NMR</strong> fitted
-with <code>multinma</code> on the same two trials, the anchored method
-ML-UMR is adapted from, with the same cubic M-spline baseline and the
-same four covariates.</p>
-<p>multinma’s own NDMM example uses
-<code>regression = ~(age + iss_stage3 + response_cr_vgpr + male) * .trt</code>,
-i.e. every covariate is allowed to modify the treatment effect. That
-example has <strong>five</strong> studies to identify those
-interactions. Here there are two, and effect modification is not
-identifiable from two studies, so we fit the model both ways: prognostic
-factors only, and with the full <code>* .trt</code> interaction.
-Comparing them is the point, and the interval widths tell the story.
-Note also that once covariates interact with treatment the contrast
-becomes population-specific, so <code>multinma</code> returns one
-estimate per study; both are reported below, matching the
-index/comparator pair reported for ML-UMR.</p>
-<div class="sourceCode" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" tabindex="-1"></a><span class="co"># Reload explicitly so this chunk stands on its own: `ndmm_ipd` is bundled with</span></span>
-<span id="cb31-2"><a href="#cb31-2" tabindex="-1"></a><span class="co"># mlumr as a single arm, and the anchored check needs multinma&#39;s full network.</span></span>
-<span id="cb31-3"><a href="#cb31-3" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;ndmm_ipd&quot;</span>, <span class="at">package =</span> <span class="st">&quot;multinma&quot;</span>)</span>
-<span id="cb31-4"><a href="#cb31-4" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;ndmm_agd&quot;</span>, <span class="at">package =</span> <span class="st">&quot;multinma&quot;</span>)</span>
-<span id="cb31-5"><a href="#cb31-5" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;ndmm_agd_covs&quot;</span>, <span class="at">package =</span> <span class="st">&quot;multinma&quot;</span>)</span>
-<span id="cb31-6"><a href="#cb31-6" tabindex="-1"></a></span>
-<span id="cb31-7"><a href="#cb31-7" tabindex="-1"></a>mcc <span class="ot">&lt;-</span> <span class="fu">droplevels</span>(ndmm_ipd[ndmm_ipd<span class="sc">$</span>studyf <span class="sc">==</span> <span class="st">&quot;McCarthy2012&quot;</span>, ])</span>
-<span id="cb31-8"><a href="#cb31-8" tabindex="-1"></a>mor <span class="ot">&lt;-</span> <span class="fu">droplevels</span>(ndmm_agd[ndmm_agd<span class="sc">$</span>studyf <span class="sc">==</span> <span class="st">&quot;Morgan2012&quot;</span>, ])</span>
-<span id="cb31-9"><a href="#cb31-9" tabindex="-1"></a>mor_covs <span class="ot">&lt;-</span> <span class="fu">droplevels</span>(ndmm_agd_covs[ndmm_agd_covs<span class="sc">$</span>studyf <span class="sc">==</span> <span class="st">&quot;Morgan2012&quot;</span>, ])</span>
-<span id="cb31-10"><a href="#cb31-10" tabindex="-1"></a></span>
-<span id="cb31-11"><a href="#cb31-11" tabindex="-1"></a>net <span class="ot">&lt;-</span> multinma<span class="sc">::</span><span class="fu">combine_network</span>(</span>
-<span id="cb31-12"><a href="#cb31-12" tabindex="-1"></a>  multinma<span class="sc">::</span><span class="fu">set_ipd</span>(mcc, <span class="at">study =</span> studyf, <span class="at">trt =</span> trtf,</span>
-<span id="cb31-13"><a href="#cb31-13" tabindex="-1"></a>                    <span class="at">Surv =</span> survival<span class="sc">::</span><span class="fu">Surv</span>(eventtime, status)),</span>
-<span id="cb31-14"><a href="#cb31-14" tabindex="-1"></a>  multinma<span class="sc">::</span><span class="fu">set_agd_surv</span>(mor, <span class="at">study =</span> studyf, <span class="at">trt =</span> trtf,</span>
-<span id="cb31-15"><a href="#cb31-15" tabindex="-1"></a>                         <span class="at">Surv =</span> survival<span class="sc">::</span><span class="fu">Surv</span>(eventtime, status),</span>
-<span id="cb31-16"><a href="#cb31-16" tabindex="-1"></a>                         <span class="at">covariates =</span> mor_covs))</span>
-<span id="cb31-17"><a href="#cb31-17" tabindex="-1"></a>net <span class="ot">&lt;-</span> multinma<span class="sc">::</span><span class="fu">add_integration</span>(net,</span>
-<span id="cb31-18"><a href="#cb31-18" tabindex="-1"></a>  <span class="at">age              =</span> multinma<span class="sc">::</span><span class="fu">distr</span>(multinma<span class="sc">::</span>qgamma, <span class="at">mean =</span> age_mean, <span class="at">sd =</span> age_sd),</span>
-<span id="cb31-19"><a href="#cb31-19" tabindex="-1"></a>  <span class="at">iss_stage3       =</span> multinma<span class="sc">::</span><span class="fu">distr</span>(multinma<span class="sc">::</span>qbern, iss_stage3),</span>
-<span id="cb31-20"><a href="#cb31-20" tabindex="-1"></a>  <span class="at">response_cr_vgpr =</span> multinma<span class="sc">::</span><span class="fu">distr</span>(multinma<span class="sc">::</span>qbern, response_cr_vgpr),</span>
-<span id="cb31-21"><a href="#cb31-21" tabindex="-1"></a>  <span class="at">male             =</span> multinma<span class="sc">::</span><span class="fu">distr</span>(multinma<span class="sc">::</span>qbern, male),</span>
-<span id="cb31-22"><a href="#cb31-22" tabindex="-1"></a>  <span class="at">n_int =</span> <span class="dv">64</span>)</span>
-<span id="cb31-23"><a href="#cb31-23" tabindex="-1"></a></span>
-<span id="cb31-24"><a href="#cb31-24" tabindex="-1"></a>nmr_fit <span class="ot">&lt;-</span> <span class="cf">function</span>(form) {</span>
-<span id="cb31-25"><a href="#cb31-25" tabindex="-1"></a>  multinma<span class="sc">::</span><span class="fu">nma</span>(net, <span class="at">likelihood =</span> <span class="st">&quot;mspline&quot;</span>, <span class="at">n_knots =</span> <span class="dv">7</span>,</span>
-<span id="cb31-26"><a href="#cb31-26" tabindex="-1"></a>                <span class="at">trt_effects =</span> <span class="st">&quot;fixed&quot;</span>, <span class="at">regression =</span> form,</span>
-<span id="cb31-27"><a href="#cb31-27" tabindex="-1"></a>                <span class="at">prior_intercept =</span> multinma<span class="sc">::</span><span class="fu">normal</span>(<span class="dv">0</span>, <span class="dv">10</span>),</span>
-<span id="cb31-28"><a href="#cb31-28" tabindex="-1"></a>                <span class="at">prior_trt =</span> multinma<span class="sc">::</span><span class="fu">normal</span>(<span class="dv">0</span>, <span class="dv">10</span>),</span>
-<span id="cb31-29"><a href="#cb31-29" tabindex="-1"></a>                <span class="at">prior_reg =</span> multinma<span class="sc">::</span><span class="fu">normal</span>(<span class="dv">0</span>, <span class="fl">2.5</span>),</span>
-<span id="cb31-30"><a href="#cb31-30" tabindex="-1"></a>                <span class="at">prior_aux =</span> multinma<span class="sc">::</span><span class="fu">half_normal</span>(<span class="dv">1</span>),</span>
-<span id="cb31-31"><a href="#cb31-31" tabindex="-1"></a>                <span class="at">QR =</span> <span class="cn">TRUE</span>, <span class="at">adapt_delta =</span> <span class="fl">0.9</span>,</span>
-<span id="cb31-32"><a href="#cb31-32" tabindex="-1"></a>                <span class="at">chains =</span> <span class="dv">4</span>, <span class="at">iter =</span> <span class="dv">2000</span>, <span class="at">warmup =</span> <span class="dv">1000</span>,</span>
-<span id="cb31-33"><a href="#cb31-33" tabindex="-1"></a>                <span class="at">seed =</span> <span class="dv">2026</span>, <span class="at">refresh =</span> <span class="dv">0</span>)</span>
-<span id="cb31-34"><a href="#cb31-34" tabindex="-1"></a>}</span>
-<span id="cb31-35"><a href="#cb31-35" tabindex="-1"></a></span>
-<span id="cb31-36"><a href="#cb31-36" tabindex="-1"></a><span class="co"># Prognostic factors only: the anchored analogue of the SPFA model above.</span></span>
-<span id="cb31-37"><a href="#cb31-37" tabindex="-1"></a>fit_nmr <span class="ot">&lt;-</span> <span class="fu">nmr_fit</span>(<span class="sc">~</span> age <span class="sc">+</span> iss_stage3 <span class="sc">+</span> response_cr_vgpr <span class="sc">+</span> male)</span>
-<span id="cb31-38"><a href="#cb31-38" tabindex="-1"></a></span>
-<span id="cb31-39"><a href="#cb31-39" tabindex="-1"></a><span class="co"># Full interaction, exactly multinma&#39;s own NDMM specification: the anchored</span></span>
-<span id="cb31-40"><a href="#cb31-40" tabindex="-1"></a><span class="co"># analogue of the relaxed model.</span></span>
-<span id="cb31-41"><a href="#cb31-41" tabindex="-1"></a>fit_nmr_em <span class="ot">&lt;-</span> <span class="fu">nmr_fit</span>(<span class="sc">~</span> (age <span class="sc">+</span> iss_stage3 <span class="sc">+</span> response_cr_vgpr <span class="sc">+</span> male) <span class="sc">*</span> .trt)</span>
-<span id="cb31-42"><a href="#cb31-42" tabindex="-1"></a></span>
-<span id="cb31-43"><a href="#cb31-43" tabindex="-1"></a><span class="co"># This vignette suppresses warnings, so report the sampler diagnostics for the</span></span>
-<span id="cb31-44"><a href="#cb31-44" tabindex="-1"></a><span class="co"># anchored fit explicitly rather than letting them go unseen.</span></span>
-<span id="cb31-45"><a href="#cb31-45" tabindex="-1"></a><span class="cf">for</span> (nm <span class="cf">in</span> <span class="fu">c</span>(<span class="st">&quot;prognostic only&quot;</span>, <span class="st">&quot;with * .trt&quot;</span>)) {</span>
-<span id="cb31-46"><a href="#cb31-46" tabindex="-1"></a>  f <span class="ot">&lt;-</span> <span class="cf">if</span> (nm <span class="sc">==</span> <span class="st">&quot;prognostic only&quot;</span>) fit_nmr <span class="cf">else</span> fit_nmr_em</span>
-<span id="cb31-47"><a href="#cb31-47" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">&quot;ML-NMR (%s) divergent transitions: %d of %d draws</span><span class="sc">\n</span><span class="st">&quot;</span>, nm,</span>
-<span id="cb31-48"><a href="#cb31-48" tabindex="-1"></a>              rstan<span class="sc">::</span><span class="fu">get_num_divergent</span>(f<span class="sc">$</span>stanfit), <span class="fu">nrow</span>(<span class="fu">as.matrix</span>(f<span class="sc">$</span>stanfit))))</span>
-<span id="cb31-49"><a href="#cb31-49" tabindex="-1"></a>}</span>
-<span id="cb31-50"><a href="#cb31-50" tabindex="-1"></a><span class="co">#&gt; ML-NMR (prognostic only) divergent transitions: 0 of 4000 draws</span></span>
-<span id="cb31-51"><a href="#cb31-51" tabindex="-1"></a><span class="co">#&gt; ML-NMR (with * .trt) divergent transitions: 0 of 4000 draws</span></span>
-<span id="cb31-52"><a href="#cb31-52" tabindex="-1"></a></span>
-<span id="cb31-53"><a href="#cb31-53" tabindex="-1"></a><span class="co"># multinma reports Thal vs Len; flip to match this vignette&#39;s direction.</span></span>
-<span id="cb31-54"><a href="#cb31-54" tabindex="-1"></a>nmr_contrast <span class="ot">&lt;-</span> <span class="cf">function</span>(f, <span class="at">study =</span> <span class="cn">NULL</span>) {</span>
-<span id="cb31-55"><a href="#cb31-55" tabindex="-1"></a>  d <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(multinma<span class="sc">::</span><span class="fu">relative_effects</span>(f, <span class="at">all_contrasts =</span> <span class="cn">TRUE</span>)<span class="sc">$</span>summary)</span>
-<span id="cb31-56"><a href="#cb31-56" tabindex="-1"></a>  d <span class="ot">&lt;-</span> d[<span class="fu">grepl</span>(<span class="st">&quot;Thal&quot;</span>, d<span class="sc">$</span>parameter) <span class="sc">&amp;</span> <span class="fu">grepl</span>(<span class="st">&quot;Len&quot;</span>, d<span class="sc">$</span>parameter), ]</span>
-<span id="cb31-57"><a href="#cb31-57" tabindex="-1"></a>  <span class="co"># Once covariates interact with treatment the contrast is population-specific,</span></span>
-<span id="cb31-58"><a href="#cb31-58" tabindex="-1"></a>  <span class="co"># so multinma returns one row per study: McCarthy2012 is the index population</span></span>
-<span id="cb31-59"><a href="#cb31-59" tabindex="-1"></a>  <span class="co"># and Morgan2012 the comparator, the same pair ML-UMR reports.</span></span>
-<span id="cb31-60"><a href="#cb31-60" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">nrow</span>(d) <span class="sc">&gt;</span> <span class="dv">1</span> <span class="sc">&amp;&amp;</span> <span class="sc">!</span><span class="fu">is.null</span>(study)) d <span class="ot">&lt;-</span> d[<span class="fu">grepl</span>(study, d<span class="sc">$</span>parameter), ]</span>
-<span id="cb31-61"><a href="#cb31-61" tabindex="-1"></a>  d[<span class="dv">1</span>, ]</span>
-<span id="cb31-62"><a href="#cb31-62" tabindex="-1"></a>}</span>
-<span id="cb31-63"><a href="#cb31-63" tabindex="-1"></a>nmr      <span class="ot">&lt;-</span> <span class="fu">nmr_contrast</span>(fit_nmr)</span>
-<span id="cb31-64"><a href="#cb31-64" tabindex="-1"></a>nmr_em_i <span class="ot">&lt;-</span> <span class="fu">nmr_contrast</span>(fit_nmr_em, <span class="at">study =</span> <span class="st">&quot;McCarthy2012&quot;</span>)</span>
-<span id="cb31-65"><a href="#cb31-65" tabindex="-1"></a>nmr_em_c <span class="ot">&lt;-</span> <span class="fu">nmr_contrast</span>(fit_nmr_em, <span class="at">study =</span> <span class="st">&quot;Morgan2012&quot;</span>)</span>
-<span id="cb31-66"><a href="#cb31-66" tabindex="-1"></a></span>
-<span id="cb31-67"><a href="#cb31-67" tabindex="-1"></a><span class="co"># ML-UMR reports a log HR in each population; pull both from the fit summary.</span></span>
-<span id="cb31-68"><a href="#cb31-68" tabindex="-1"></a>lhr_row <span class="ot">&lt;-</span> <span class="cf">function</span>(fit, var) fit<span class="sc">$</span>summary[fit<span class="sc">$</span>summary<span class="sc">$</span>variable <span class="sc">==</span> var, ]</span>
-<span id="cb31-69"><a href="#cb31-69" tabindex="-1"></a></span>
-<span id="cb31-70"><a href="#cb31-70" tabindex="-1"></a><span class="co"># `fit$summary` stores coefficients under Stan&#39;s positional names, `beta[1]`</span></span>
-<span id="cb31-71"><a href="#cb31-71" tabindex="-1"></a><span class="co"># and so on; only `print()` relabels them as `beta[age]`. Look them up by</span></span>
-<span id="cb31-72"><a href="#cb31-72" tabindex="-1"></a><span class="co"># position so the prose below cannot silently cite an empty result.</span></span>
-<span id="cb31-73"><a href="#cb31-73" tabindex="-1"></a>beta_mean <span class="ot">&lt;-</span> <span class="cf">function</span>(fit, cov) {</span>
-<span id="cb31-74"><a href="#cb31-74" tabindex="-1"></a>  k <span class="ot">&lt;-</span> <span class="fu">match</span>(cov, fit<span class="sc">$</span>data<span class="sc">$</span>covariates)</span>
-<span id="cb31-75"><a href="#cb31-75" tabindex="-1"></a>  <span class="co"># Fail loudly. An unmatched name gives `beta[NA]`, which matches nothing and</span></span>
-<span id="cb31-76"><a href="#cb31-76" tabindex="-1"></a>  <span class="co"># renders as blank prose with no error, which is the failure this helper</span></span>
-<span id="cb31-77"><a href="#cb31-77" tabindex="-1"></a>  <span class="co"># exists to avoid. A relaxed fit stores `beta_index[k]` and</span></span>
-<span id="cb31-78"><a href="#cb31-78" tabindex="-1"></a>  <span class="co"># `beta_comparator[k]`, so `beta[k]` would be empty there too.</span></span>
-<span id="cb31-79"><a href="#cb31-79" tabindex="-1"></a>  <span class="fu">stopifnot</span>(<span class="fu">length</span>(k) <span class="sc">==</span> <span class="dv">1</span><span class="dt">L</span>, <span class="sc">!</span><span class="fu">is.na</span>(k), fit<span class="sc">$</span>model <span class="sc">==</span> <span class="st">&quot;spfa&quot;</span>)</span>
-<span id="cb31-80"><a href="#cb31-80" tabindex="-1"></a>  out <span class="ot">&lt;-</span> fit<span class="sc">$</span>summary<span class="sc">$</span>mean[fit<span class="sc">$</span>summary<span class="sc">$</span>variable <span class="sc">==</span> <span class="fu">sprintf</span>(<span class="st">&quot;beta[%d]&quot;</span>, k)]</span>
-<span id="cb31-81"><a href="#cb31-81" tabindex="-1"></a>  <span class="fu">stopifnot</span>(<span class="fu">length</span>(out) <span class="sc">==</span> <span class="dv">1</span><span class="dt">L</span>)</span>
-<span id="cb31-82"><a href="#cb31-82" tabindex="-1"></a>  out</span>
-<span id="cb31-83"><a href="#cb31-83" tabindex="-1"></a>}</span>
-<span id="cb31-84"><a href="#cb31-84" tabindex="-1"></a>lhr_i     <span class="ot">&lt;-</span> <span class="fu">lhr_row</span>(fit_mspline, <span class="st">&quot;delta_index&quot;</span>)</span>
-<span id="cb31-85"><a href="#cb31-85" tabindex="-1"></a>lhr_c     <span class="ot">&lt;-</span> <span class="fu">lhr_row</span>(fit_mspline, <span class="st">&quot;delta_comparator&quot;</span>)</span>
-<span id="cb31-86"><a href="#cb31-86" tabindex="-1"></a>lhr_rel_i <span class="ot">&lt;-</span> <span class="fu">lhr_row</span>(fit_mspline_relaxed, <span class="st">&quot;delta_index&quot;</span>)</span>
-<span id="cb31-87"><a href="#cb31-87" tabindex="-1"></a>lhr_rel_c <span class="ot">&lt;-</span> <span class="fu">lhr_row</span>(fit_mspline_relaxed, <span class="st">&quot;delta_comparator&quot;</span>)</span>
-<span id="cb31-88"><a href="#cb31-88" tabindex="-1"></a></span>
-<span id="cb31-89"><a href="#cb31-89" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">data.frame</span>(</span>
-<span id="cb31-90"><a href="#cb31-90" tabindex="-1"></a>  <span class="at">Method =</span> <span class="fu">c</span>(<span class="st">&quot;Naive Cox (unadjusted)&quot;</span>,</span>
-<span id="cb31-91"><a href="#cb31-91" tabindex="-1"></a>             <span class="st">&quot;ML-UMR M-spline (SPFA, prognostic only)&quot;</span>,</span>
-<span id="cb31-92"><a href="#cb31-92" tabindex="-1"></a>             <span class="st">&quot;ML-UMR M-spline (SPFA, prognostic only)&quot;</span>,</span>
-<span id="cb31-93"><a href="#cb31-93" tabindex="-1"></a>             <span class="st">&quot;ML-UMR M-spline (relaxed, effect modification)&quot;</span>,</span>
-<span id="cb31-94"><a href="#cb31-94" tabindex="-1"></a>             <span class="st">&quot;ML-UMR M-spline (relaxed, effect modification)&quot;</span>,</span>
-<span id="cb31-95"><a href="#cb31-95" tabindex="-1"></a>             <span class="st">&quot;Anchored: Bucher / fixed-effect NMA&quot;</span>,</span>
-<span id="cb31-96"><a href="#cb31-96" tabindex="-1"></a>             <span class="st">&quot;Anchored: ML-NMR, prognostic only&quot;</span>,</span>
-<span id="cb31-97"><a href="#cb31-97" tabindex="-1"></a>             <span class="st">&quot;Anchored: ML-NMR, with * .trt (multinma&#39;s own model)&quot;</span>,</span>
-<span id="cb31-98"><a href="#cb31-98" tabindex="-1"></a>             <span class="st">&quot;Anchored: ML-NMR, with * .trt (multinma&#39;s own model)&quot;</span>),</span>
-<span id="cb31-99"><a href="#cb31-99" tabindex="-1"></a>  <span class="at">Anchored =</span> <span class="fu">c</span>(<span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;yes&quot;</span>),</span>
-<span id="cb31-100"><a href="#cb31-100" tabindex="-1"></a>  <span class="co"># The naive Cox row is standardized to no population; it contrasts the two</span></span>
-<span id="cb31-101"><a href="#cb31-101" tabindex="-1"></a>  <span class="co"># crude arms. `vignette(&quot;choosing-a-method&quot;)` uses the same label.</span></span>
-<span id="cb31-102"><a href="#cb31-102" tabindex="-1"></a>  <span class="at">Population =</span> <span class="fu">c</span>(<span class="st">&quot;unstandardized&quot;</span>, <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>, <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>,</span>
-<span id="cb31-103"><a href="#cb31-103" tabindex="-1"></a>                 <span class="st">&quot;not population-specific&quot;</span>, <span class="st">&quot;not population-specific&quot;</span>,</span>
-<span id="cb31-104"><a href="#cb31-104" tabindex="-1"></a>                 <span class="st">&quot;index&quot;</span>, <span class="st">&quot;comparator&quot;</span>),</span>
-<span id="cb31-105"><a href="#cb31-105" tabindex="-1"></a>  <span class="st">`</span><span class="at">log HR</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>estimate,</span>
-<span id="cb31-106"><a href="#cb31-106" tabindex="-1"></a>               lhr_i<span class="sc">$</span>mean, lhr_c<span class="sc">$</span>mean, lhr_rel_i<span class="sc">$</span>mean, lhr_rel_c<span class="sc">$</span>mean,</span>
-<span id="cb31-107"><a href="#cb31-107" tabindex="-1"></a>               anchored[<span class="dv">1</span>], <span class="sc">-</span>nmr<span class="sc">$</span>mean, <span class="sc">-</span>nmr_em_i<span class="sc">$</span>mean, <span class="sc">-</span>nmr_em_c<span class="sc">$</span>mean),</span>
-<span id="cb31-108"><a href="#cb31-108" tabindex="-1"></a>  <span class="st">`</span><span class="at">2.5%</span><span class="st">`</span>   <span class="ot">=</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>ci_lower,</span>
-<span id="cb31-109"><a href="#cb31-109" tabindex="-1"></a>               lhr_i[[<span class="st">&quot;2.5%&quot;</span>]], lhr_c[[<span class="st">&quot;2.5%&quot;</span>]],</span>
-<span id="cb31-110"><a href="#cb31-110" tabindex="-1"></a>               lhr_rel_i[[<span class="st">&quot;2.5%&quot;</span>]], lhr_rel_c[[<span class="st">&quot;2.5%&quot;</span>]],</span>
-<span id="cb31-111"><a href="#cb31-111" tabindex="-1"></a>               anchored_ci[<span class="dv">1</span>], <span class="sc">-</span>nmr[[<span class="st">&quot;97.5%&quot;</span>]],</span>
-<span id="cb31-112"><a href="#cb31-112" tabindex="-1"></a>               <span class="sc">-</span>nmr_em_i[[<span class="st">&quot;97.5%&quot;</span>]], <span class="sc">-</span>nmr_em_c[[<span class="st">&quot;97.5%&quot;</span>]]),</span>
-<span id="cb31-113"><a href="#cb31-113" tabindex="-1"></a>  <span class="st">`</span><span class="at">97.5%</span><span class="st">`</span>  <span class="ot">=</span> <span class="fu">c</span>(res_naive<span class="sc">$</span>ci_upper,</span>
-<span id="cb31-114"><a href="#cb31-114" tabindex="-1"></a>               lhr_i[[<span class="st">&quot;97.5%&quot;</span>]], lhr_c[[<span class="st">&quot;97.5%&quot;</span>]],</span>
-<span id="cb31-115"><a href="#cb31-115" tabindex="-1"></a>               lhr_rel_i[[<span class="st">&quot;97.5%&quot;</span>]], lhr_rel_c[[<span class="st">&quot;97.5%&quot;</span>]],</span>
-<span id="cb31-116"><a href="#cb31-116" tabindex="-1"></a>               anchored_ci[<span class="dv">2</span>], <span class="sc">-</span>nmr[[<span class="st">&quot;2.5%&quot;</span>]],</span>
-<span id="cb31-117"><a href="#cb31-117" tabindex="-1"></a>               <span class="sc">-</span>nmr_em_i[[<span class="st">&quot;2.5%&quot;</span>]], <span class="sc">-</span>nmr_em_c[[<span class="st">&quot;2.5%&quot;</span>]]),</span>
-<span id="cb31-118"><a href="#cb31-118" tabindex="-1"></a>  <span class="at">check.names =</span> <span class="cn">FALSE</span>), <span class="at">digits =</span> <span class="dv">3</span>,</span>
-<span id="cb31-119"><a href="#cb31-119" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">&quot;Unanchored estimates against the anchored references, in both target populations (log hazard ratio, Len vs Thal)&quot;</span>)</span></code></pre></div>
-<table>
-<caption>Unanchored estimates against the anchored references, in both
-target populations (log hazard ratio, Len vs Thal)</caption>
+<caption>Naive and ML-UMR log hazard ratios, in both target populations
+(Len vs Thal)</caption>
 <colgroup>
-<col width="49%" />
+<col width="56%" />
+<col width="18%" />
 <col width="8%" />
-<col width="22%" />
-<col width="6%" />
-<col width="6%" />
-<col width="6%" />
+<col width="8%" />
+<col width="8%" />
 </colgroup>
 <thead>
 <tr class="header">
 <th align="left">Method</th>
-<th align="left">Anchored</th>
 <th align="left">Population</th>
 <th align="right">log HR</th>
 <th align="right">2.5%</th>
@@ -1807,7 +1609,6 @@ target populations (log hazard ratio, Len vs Thal)</caption>
 <tbody>
 <tr class="odd">
 <td align="left">Naive Cox (unadjusted)</td>
-<td align="left">no</td>
 <td align="left">unstandardized</td>
 <td align="right">-0.554</td>
 <td align="right">-0.767</td>
@@ -1815,7 +1616,6 @@ target populations (log hazard ratio, Len vs Thal)</caption>
 </tr>
 <tr class="even">
 <td align="left">ML-UMR M-spline (SPFA, prognostic only)</td>
-<td align="left">no</td>
 <td align="left">index</td>
 <td align="right">-0.508</td>
 <td align="right">-1.361</td>
@@ -1823,7 +1623,6 @@ target populations (log hazard ratio, Len vs Thal)</caption>
 </tr>
 <tr class="odd">
 <td align="left">ML-UMR M-spline (SPFA, prognostic only)</td>
-<td align="left">no</td>
 <td align="left">comparator</td>
 <td align="right">-0.505</td>
 <td align="right">-1.354</td>
@@ -1831,7 +1630,6 @@ target populations (log hazard ratio, Len vs Thal)</caption>
 </tr>
 <tr class="even">
 <td align="left">ML-UMR M-spline (relaxed, effect modification)</td>
-<td align="left">no</td>
 <td align="left">index</td>
 <td align="right">-1.060</td>
 <td align="right">-2.347</td>
@@ -1839,61 +1637,19 @@ target populations (log hazard ratio, Len vs Thal)</caption>
 </tr>
 <tr class="odd">
 <td align="left">ML-UMR M-spline (relaxed, effect modification)</td>
-<td align="left">no</td>
 <td align="left">comparator</td>
 <td align="right">-0.492</td>
 <td align="right">-1.351</td>
 <td align="right">0.255</td>
 </tr>
-<tr class="even">
-<td align="left">Anchored: Bucher / fixed-effect NMA</td>
-<td align="left">yes</td>
-<td align="left">not population-specific</td>
-<td align="right">-0.375</td>
-<td align="right">-0.677</td>
-<td align="right">-0.073</td>
-</tr>
-<tr class="odd">
-<td align="left">Anchored: ML-NMR, prognostic only</td>
-<td align="left">yes</td>
-<td align="left">not population-specific</td>
-<td align="right">-0.362</td>
-<td align="right">-0.698</td>
-<td align="right">-0.025</td>
-</tr>
-<tr class="even">
-<td align="left">Anchored: ML-NMR, with * .trt (multinma’s own
-model)</td>
-<td align="left">yes</td>
-<td align="left">index</td>
-<td align="right">-0.837</td>
-<td align="right">-1.838</td>
-<td align="right">0.077</td>
-</tr>
-<tr class="odd">
-<td align="left">Anchored: ML-NMR, with * .trt (multinma’s own
-model)</td>
-<td align="left">yes</td>
-<td align="left">comparator</td>
-<td align="right">-0.290</td>
-<td align="right">-0.741</td>
-<td align="right">0.206</td>
-</tr>
 </tbody>
 </table>
-<p>All three anchored estimates agree closely with one another, which is
-the first thing to check: the Bucher comparison, ML-NMR with prognostic
-factors, and ML-NMR with the full <code>* .trt</code> interaction all
-put lenalidomide ahead of thalidomide by a similar margin. The
-interaction model is estimable here, with no divergent transitions, and
-pays for the extra flexibility only in width.</p>
-<p>The unanchored fits separate in an informative way. In the
-<strong>comparator</strong> population SPFA and relaxed agree almost
-exactly (-0.505 and -0.492), and both point the same way as the anchored
-band while sitting a little further from the null with much wider
-intervals. In the <strong>index</strong> population SPFA is close to its
-own comparator value (-0.508), but the relaxed model moves to -1.060,
-roughly twice as far from the null, with an interval to match.</p>
+<p>The SPFA and relaxed fits separate in an informative way. In the
+<strong>comparator</strong> population they agree almost exactly (-0.505
+and -0.492). In the <strong>index</strong> population SPFA is close to
+its own comparator value (-0.508), but the relaxed model moves to
+-1.060, roughly twice as far from the null, with an interval to
+match.</p>
 <p>This divergence should not be read as evidence of effect
 modification; it is attributable to weak identification.
 <code>beta_comparator</code> is informed only by the single
@@ -1907,15 +1663,6 @@ this reason. That quantity is descriptive: a small or negative value can
 signal sensitivity worth investigating, but it is not a fraction of
 information learned from the data and does not establish the source of
 the index-population result.</p>
-<p>Two aspects should be distinguished. The <strong>direction and
-approximate magnitude</strong> are recovered: an unanchored comparison
-of two single-arm trials, adjusted for four prognostic factors, agrees
-with three anchored analyses that had a common comparator. The
-<strong>precision</strong> is not, and should not be expected to be: the
-unanchored intervals are roughly three times wider, because no part of
-this design is protected by randomization and the comparator’s baseline
-hazard and coefficients are identified from one reconstructed curve.
-That additional width reflects the design and should be reported.</p>
 <p>Note where SPFA and relaxed agree and where they do not. In the
 comparator population, freeing the comparator coefficients costs
 precision without moving the estimate, which says the shared-effect
@@ -1926,11 +1673,10 @@ treatments: the honest summary here is the comparator-population
 contrast and the collapsible RMST difference, with the index-population
 relaxed value reported alongside its width rather than in place of
 them.</p>
-<p>A note on estimands, since three log hazard ratios sit in one table.
-The naive figure is an unadjusted marginal Cox estimate;
-<code>multinma</code> reports a conditional contrast; and ML-UMR reports
-a population-standardized marginal effect. The two ML-UMR values above
-are close (<code>delta_index</code> -0.508,
+<p>A note on estimands, since two kinds of log hazard ratio sit in one
+table. The naive figure is an unadjusted marginal Cox estimate, and
+ML-UMR reports a population-standardized marginal effect. The two ML-UMR
+SPFA values above are close (<code>delta_index</code> -0.508,
 <code>delta_comparator</code> -0.505), which says the standardization
 population barely matters here, but they are not identical and neither
 is a conditional contrast. With a baseline hazard per study the marginal
@@ -1938,19 +1684,10 @@ hazard ratio also varies with time, so these scalars are its value at
 the first prediction time. Compare the methods on the collapsible RMST
 difference, or on the <code>predict(type = &quot;loghr&quot;)</code> curve, when
 the distinction matters.</p>
-<p>The prognostic coefficients above sit close to multinma’s network
-estimates: age 0.07 per year against multinma’s 0.08, ISS stage III 0.41
-against 0.35, and the response and sex coefficients near zero, where
-multinma also puts them. The constancy check misses by 1.5 months.</p>
-<p>The adjusted estimates recover the direction and approximate
-magnitude of the anchored answer, but not its precision. Two conclusions
-follow. First, where a common comparator exists it should be used;
-ML-UMR does not substitute for randomization. Second, where none exists,
-both the SPFA and relaxed fits should be reported so that the
-contribution of the modeling assumptions is visible. The psoriasis
-example in <code>vignette(&quot;binary-outcomes&quot;)</code> has populations that
-overlap far better, and its unanchored and anchored answers do agree
-closely.</p>
+<p>ML-UMR does not substitute for randomization: where a common
+comparator exists it should be used. Where none exists, both the SPFA
+and relaxed fits should be reported so that the contribution of the
+modeling assumptions is visible.</p>
 </div>
 <div id="interpretation" class="section level2">
 <h2>Interpretation</h2>
@@ -1958,23 +1695,22 @@ closely.</p>
 <li>The <strong>naive</strong> Cox log hazard ratio ignores a real
 prognostic-factor imbalance between McCarthy2012 (Len) and Morgan2012
 (Thal): mean age 57.9 against 65.6 years, and 27% against 32% ISS stage
-3. It is the most extreme estimate in the comparison table, and
-adjusting moves every other method away from it.</li>
+3. Adjusting for it moves the SPFA estimate toward the null, from -0.554
+to -0.508 in the index population.</li>
 <li>The prognostic coefficients are the part to check first, because
-they are what the adjustment is built from. Here they are close to what
-<code>multinma</code> estimates from the full five-study network (age
-0.07 per year against 0.08, ISS stage III 0.41 against 0.35, response
-and sex near zero in both).</li>
-<li><strong>ML-UMR</strong> adjusts for the imbalance and recovers the
-direction and rough magnitude of the anchored answer (SPFA -0.508 in the
-index population and -0.505 in the comparator, against -0.29 to -0.38
-anchored), at roughly three times the interval width. Read the SPFA and
-relaxed fits together: they agree in the comparator population (-0.492)
-but diverge in the index population (-1.060), which measures how much of
-the index-population answer rests on comparator coefficients the
-aggregate curve cannot identify. ML-UMR adds what the frequentist
-benchmarks cannot: full posterior uncertainty, and effects in
-<em>both</em> populations.</li>
+they are what the adjustment is built from. Here they have plausible
+signs and sizes: age 0.07 per year, ISS stage III 0.41, and the response
+and sex coefficients small, with intervals spanning zero.</li>
+<li><strong>ML-UMR</strong> adjusts for the imbalance (SPFA -0.508 in
+the index population and -0.505 in the comparator, against the naive
+-0.554). Its intervals are much wider than the naive one, which reflects
+sampling error alone and carries none of the uncertainty of adjusting.
+Read the SPFA and relaxed fits together: they agree in the comparator
+population (-0.492) but diverge in the index population (-1.060), which
+measures how much of the index-population answer rests on comparator
+coefficients the aggregate curve cannot identify. ML-UMR adds what the
+frequentist benchmarks cannot: full posterior uncertainty, and effects
+in <em>both</em> populations.</li>
 <li>Because the two studies have <strong>their own baseline
 hazards</strong> (<code>aux_by = &quot;.study&quot;</code>, the default) the
 marginal hazard ratio genuinely varies with time, and because the hazard

@@ -56,8 +56,7 @@ the unanchored analogue of that analysis [@ChandlerIshak2026]. See
 > arms are **deliberately omitted** here. Keeping them would connect the two
 > trials through a common comparator and make an *anchored* comparison
 > possible, which is not the problem this vignette is about. The unanchored
-> framing is a construction for illustration; the section *Checking against the
-> anchored comparison* below puts the omitted arms back to use.
+> framing is a construction for illustration.
 >
 > The index arm is McCarthy2012 lenalidomide rather than the other candidate,
 > Palumbo2014: its patients are closer to the Morgan2012 population, which is
@@ -67,10 +66,9 @@ the unanchored analogue of that analysis [@ChandlerIshak2026]. See
 > randomized trials. Dropping their common reference arm (placebo) turns them
 > into hypothetical single-arm trials and leaves fully disconnected evidence; we
 > do this only to illustrate ML-UMR. In practice, randomized trials should never
-> be analyzed this way: ML-NMR (for example with `multinma`, as in the section
-> *Checking against the anchored comparison*) or another appropriate method
-> should be used for them. ML-UMR should only be used for fully unanchored,
-> single-arm comparisons.
+> be analyzed this way: ML-NMR (for example with `multinma`) or another
+> appropriate method should be used for them. ML-UMR should only be used for
+> fully unanchored, single-arm comparisons.
 
 ## The unanchored survival problem
 
@@ -575,171 +573,13 @@ plot(predict(fit_weibull, type = "survival")) +
   scale_color_manual(values = surv_cols, aesthetics = c("colour", "fill"))
 ```
 
-## Checking against the anchored comparison
+## Log hazard ratios against the naive estimate
 
-The unanchored framing of this vignette is a construction. McCarthy2012 and
-Morgan2012 both randomized patients to **placebo**, and the analysis above
-discards those arms. Because they are still present in the source data, we can do
-something a genuine unanchored analysis never can: check the answer against the
-anchored one. `multinma` is a `Suggests` here, used only to reach the arms mlumr
-does not bundle.
+The naive Cox estimate under *Frequentist benchmarks* is a log hazard ratio, so
+it is set against ML-UMR on that scale here, with ML-UMR in both target
+populations.
 
-```{r anchor-constancy}
-data("ndmm_ipd", package = "multinma")
-data("ndmm_agd", package = "multinma")
-data("ndmm_agd_covs", package = "multinma")
-
-tau <- res_stc$horizon   # the RMST horizon used above
-mcc_pbo <- ndmm_ipd[ndmm_ipd$studyf == "McCarthy2012" & ndmm_ipd$trtf == "Pbo", ]
-mor_pbo <- ndmm_agd[ndmm_agd$studyf == "Morgan2012" & ndmm_agd$trtf == "Pbo", ]
-mor_cov <- ndmm_agd_covs[ndmm_agd_covs$studyf == "Morgan2012" &
-                           ndmm_agd_covs$trtf == "Pbo", ]
-
-# Conditional constancy is the assumption ML-UMR cannot test from the unanchored
-# data alone. With the discarded arms it becomes testable: fit the survival model
-# in the arm both trials share, transport it to the other trial's population, and
-# compare against what that trial actually observed for the same arm.
-set.seed(2026)
-m_pbo <- flexsurv::flexsurvreg(
-  survival::Surv(eventtime, status) ~ age + iss_stage3 + response_cr_vgpr + male,
-  data = mcc_pbo, dist = "weibullPH")
-n <- 5e4
-nd <- data.frame(age = rnorm(n, mor_cov$age_mean, mor_cov$age_sd),
-                 iss_stage3 = rbinom(n, 1, mor_cov$iss_stage3),
-                 response_cr_vgpr = rbinom(n, 1, mor_cov$response_cr_vgpr),
-                 male = rbinom(n, 1, mor_cov$male))
-km_rmst <- function(d) unname(summary(
-  survival::survfit(survival::Surv(eventtime, status) ~ 1, data = d),
-  rmean = tau)$table["rmean"])
-
-# Name these so the prose below cites the same numbers the table prints,
-# rather than literals that drift the next time the vignette is re-knitted.
-rmst_own       <- km_rmst(mcc_pbo)
-rmst_transport <- mean(summary(m_pbo, newdata = nd, type = "rmst",
-                               t = tau, ci = FALSE, tidy = TRUE)$est)
-rmst_observed  <- km_rmst(mor_pbo)
-rmst_gap       <- rmst_observed - rmst_transport
-
-knitr::kable(data.frame(
-  Quantity = c("McCarthy2012 placebo, observed in its own population",
-               "McCarthy2012 placebo model, transported to Morgan2012",
-               "Morgan2012 placebo, observed"),
-  `RMST (months)` = c(rmst_own, rmst_transport, rmst_observed),
-  check.names = FALSE), digits = 2,
-  caption = "Conditional-constancy check on the placebo arms this example discards")
-```
-
-The transported placebo arm predicts about `r sprintf('%.1f', rmst_transport)`
-months of restricted mean survival for Morgan2012's placebo population, against
-the `r sprintf('%.1f', rmst_observed)` months Morgan2012 actually observed. That is close, and it is the reassurance an unanchored
-analysis normally cannot get: the transport machinery, run on an arm both trials
-share, roughly recovers what that arm did.
-
-It is not exact, and the residual gap is worth keeping in view. The covariate
-model is fitted in a population with mean age 57.9 years and 27% ISS stage 3 and
-asked to reach one with mean age 65.6 years and 32% ISS stage 3. That is a real
-extrapolation, and the remaining `r sprintf('%.1f', rmst_gap)`-month shortfall
-is what is left of it after adjusting for the four measured covariates.
-
-Now the anchored answers. Both trials contain a placebo arm, so two anchored
-estimates are available. The first is a **Bucher** indirect comparison: take each
-trial's own within-trial Cox log hazard ratio against placebo and subtract. For
-two studies and one common comparator that is what a fixed-effect NMA returns.
-
-```{r anchor-bucher}
-cox_lhr <- function(d, active) {
-  d <- d[d$trtf %in% c("Pbo", active), ]
-  d$trt <- factor(as.character(d$trtf), levels = c("Pbo", active))
-  f <- survival::coxph(survival::Surv(eventtime, status) ~ trt, data = d)
-  c(est = unname(coef(f)), se = unname(sqrt(diag(vcov(f)))))
-}
-lhr_mcc <- cox_lhr(ndmm_ipd[ndmm_ipd$studyf == "McCarthy2012", ], "Len")
-lhr_mor <- cox_lhr(ndmm_agd[ndmm_agd$studyf == "Morgan2012", ], "Thal")
-anchored <- unname(c(lhr_mcc["est"] - lhr_mor["est"],
-                     sqrt(lhr_mcc["se"]^2 + lhr_mor["se"]^2)))
-anchored_ci <- anchored[1] + c(-1.96, 1.96) * anchored[2]
-```
-
-The second is a population-adjusted **ML-NMR** fitted with `multinma` on the same
-two trials, the anchored method ML-UMR is adapted from, with the same cubic
-M-spline baseline and the same four covariates.
-
-multinma's own NDMM example uses `regression = ~(age + iss_stage3 +
-response_cr_vgpr + male) * .trt`, i.e. every covariate is allowed to modify the
-treatment effect. That example has **five** studies to identify those
-interactions. Here there are two, and effect modification is not identifiable
-from two studies, so we fit the model both ways: prognostic factors only, and
-with the full `* .trt` interaction. Comparing them is the point, and the interval
-widths tell the story. Note also that once covariates interact with treatment the
-contrast becomes population-specific, so `multinma` returns one estimate per
-study; both are reported below, matching the index/comparator pair reported for
-ML-UMR.
-
-```{r anchor-mlnmr, message = FALSE}
-# Reload explicitly so this chunk stands on its own: `ndmm_ipd` is bundled with
-# mlumr as a single arm, and the anchored check needs multinma's full network.
-data("ndmm_ipd", package = "multinma")
-data("ndmm_agd", package = "multinma")
-data("ndmm_agd_covs", package = "multinma")
-
-mcc <- droplevels(ndmm_ipd[ndmm_ipd$studyf == "McCarthy2012", ])
-mor <- droplevels(ndmm_agd[ndmm_agd$studyf == "Morgan2012", ])
-mor_covs <- droplevels(ndmm_agd_covs[ndmm_agd_covs$studyf == "Morgan2012", ])
-
-net <- multinma::combine_network(
-  multinma::set_ipd(mcc, study = studyf, trt = trtf,
-                    Surv = survival::Surv(eventtime, status)),
-  multinma::set_agd_surv(mor, study = studyf, trt = trtf,
-                         Surv = survival::Surv(eventtime, status),
-                         covariates = mor_covs))
-net <- multinma::add_integration(net,
-  age              = multinma::distr(multinma::qgamma, mean = age_mean, sd = age_sd),
-  iss_stage3       = multinma::distr(multinma::qbern, iss_stage3),
-  response_cr_vgpr = multinma::distr(multinma::qbern, response_cr_vgpr),
-  male             = multinma::distr(multinma::qbern, male),
-  n_int = 64)
-
-nmr_fit <- function(form) {
-  multinma::nma(net, likelihood = "mspline", n_knots = 7,
-                trt_effects = "fixed", regression = form,
-                prior_intercept = multinma::normal(0, 10),
-                prior_trt = multinma::normal(0, 10),
-                prior_reg = multinma::normal(0, 2.5),
-                prior_aux = multinma::half_normal(1),
-                QR = TRUE, adapt_delta = 0.9,
-                chains = 4, iter = 2000, warmup = 1000,
-                seed = 2026, refresh = 0)
-}
-
-# Prognostic factors only: the anchored analogue of the SPFA model above.
-fit_nmr <- nmr_fit(~ age + iss_stage3 + response_cr_vgpr + male)
-
-# Full interaction, exactly multinma's own NDMM specification: the anchored
-# analogue of the relaxed model.
-fit_nmr_em <- nmr_fit(~ (age + iss_stage3 + response_cr_vgpr + male) * .trt)
-
-# This vignette suppresses warnings, so report the sampler diagnostics for the
-# anchored fit explicitly rather than letting them go unseen.
-for (nm in c("prognostic only", "with * .trt")) {
-  f <- if (nm == "prognostic only") fit_nmr else fit_nmr_em
-  cat(sprintf("ML-NMR (%s) divergent transitions: %d of %d draws\n", nm,
-              rstan::get_num_divergent(f$stanfit), nrow(as.matrix(f$stanfit))))
-}
-
-# multinma reports Thal vs Len; flip to match this vignette's direction.
-nmr_contrast <- function(f, study = NULL) {
-  d <- as.data.frame(multinma::relative_effects(f, all_contrasts = TRUE)$summary)
-  d <- d[grepl("Thal", d$parameter) & grepl("Len", d$parameter), ]
-  # Once covariates interact with treatment the contrast is population-specific,
-  # so multinma returns one row per study: McCarthy2012 is the index population
-  # and Morgan2012 the comparator, the same pair ML-UMR reports.
-  if (nrow(d) > 1 && !is.null(study)) d <- d[grepl(study, d$parameter), ]
-  d[1, ]
-}
-nmr      <- nmr_contrast(fit_nmr)
-nmr_em_i <- nmr_contrast(fit_nmr_em, study = "McCarthy2012")
-nmr_em_c <- nmr_contrast(fit_nmr_em, study = "Morgan2012")
-
+```{r lhr-table}
 # ML-UMR reports a log HR in each population; pull both from the fit summary.
 lhr_row <- function(fit, var) fit$summary[fit$summary$variable == var, ]
 
@@ -768,44 +608,25 @@ knitr::kable(data.frame(
              "ML-UMR M-spline (SPFA, prognostic only)",
              "ML-UMR M-spline (SPFA, prognostic only)",
              "ML-UMR M-spline (relaxed, effect modification)",
-             "ML-UMR M-spline (relaxed, effect modification)",
-             "Anchored: Bucher / fixed-effect NMA",
-             "Anchored: ML-NMR, prognostic only",
-             "Anchored: ML-NMR, with * .trt (multinma's own model)",
-             "Anchored: ML-NMR, with * .trt (multinma's own model)"),
-  Anchored = c("no", "no", "no", "no", "no", "yes", "yes", "yes", "yes"),
+             "ML-UMR M-spline (relaxed, effect modification)"),
   # The naive Cox row is standardized to no population; it contrasts the two
   # crude arms. `vignette("choosing-a-method")` uses the same label.
-  Population = c("unstandardized", "index", "comparator", "index", "comparator",
-                 "not population-specific", "not population-specific",
-                 "index", "comparator"),
+  Population = c("unstandardized", "index", "comparator", "index", "comparator"),
   `log HR` = c(res_naive$estimate,
-               lhr_i$mean, lhr_c$mean, lhr_rel_i$mean, lhr_rel_c$mean,
-               anchored[1], -nmr$mean, -nmr_em_i$mean, -nmr_em_c$mean),
+               lhr_i$mean, lhr_c$mean, lhr_rel_i$mean, lhr_rel_c$mean),
   `2.5%`   = c(res_naive$ci_lower,
                lhr_i[["2.5%"]], lhr_c[["2.5%"]],
-               lhr_rel_i[["2.5%"]], lhr_rel_c[["2.5%"]],
-               anchored_ci[1], -nmr[["97.5%"]],
-               -nmr_em_i[["97.5%"]], -nmr_em_c[["97.5%"]]),
+               lhr_rel_i[["2.5%"]], lhr_rel_c[["2.5%"]]),
   `97.5%`  = c(res_naive$ci_upper,
                lhr_i[["97.5%"]], lhr_c[["97.5%"]],
-               lhr_rel_i[["97.5%"]], lhr_rel_c[["97.5%"]],
-               anchored_ci[2], -nmr[["2.5%"]],
-               -nmr_em_i[["2.5%"]], -nmr_em_c[["2.5%"]]),
+               lhr_rel_i[["97.5%"]], lhr_rel_c[["97.5%"]]),
   check.names = FALSE), digits = 3,
-  caption = "Unanchored estimates against the anchored references, in both target populations (log hazard ratio, Len vs Thal)")
+  caption = "Naive and ML-UMR log hazard ratios, in both target populations (Len vs Thal)")
 ```
 
-All three anchored estimates agree closely with one another, which is the first
-thing to check: the Bucher comparison, ML-NMR with prognostic factors, and
-ML-NMR with the full `* .trt` interaction all put lenalidomide ahead of
-thalidomide by a similar margin. The interaction model is estimable here, with
-no divergent transitions, and pays for the extra flexibility only in width.
-
-The unanchored fits separate in an informative way. In the
-**comparator** population SPFA and relaxed agree almost exactly (`r sprintf('%.3f', lhr_c$mean)` and
-`r sprintf('%.3f', lhr_rel_c$mean)`), and both point the same way as the anchored band while sitting a
-little further from the null with much wider intervals. In the **index**
+The SPFA and relaxed fits separate in an informative way. In the
+**comparator** population they agree almost exactly (`r sprintf('%.3f', lhr_c$mean)` and
+`r sprintf('%.3f', lhr_rel_c$mean)`). In the **index**
 population SPFA is close to its own comparator value (`r sprintf('%.3f', lhr_i$mean)`), but the relaxed
 model moves to `r sprintf('%.3f', lhr_rel_i$mean)`, roughly twice as far from the null, with an interval to
 match.
@@ -821,15 +642,6 @@ this reason. That quantity is descriptive: a small or negative value can signal
 sensitivity worth investigating, but it is not a fraction of information learned
 from the data and does not establish the source of the index-population result.
 
-Two aspects should be distinguished. The **direction and approximate magnitude**
-are recovered: an unanchored comparison of two single-arm trials, adjusted for
-four prognostic factors, agrees with three anchored analyses that had a common
-comparator. The **precision** is not, and should not be expected to be: the
-unanchored intervals are roughly three times wider, because no part of this
-design is protected by randomization and the comparator's baseline hazard and
-coefficients are identified from one reconstructed curve. That additional width
-reflects the design and should be reported.
-
 Note where SPFA and relaxed agree and where they do not. In the comparator
 population, freeing the comparator coefficients costs precision without moving
 the estimate, which says the shared-effect assumption is not straining the data
@@ -840,10 +652,10 @@ comparator-population contrast and the collapsible RMST difference, with the
 index-population relaxed value reported alongside its width rather than in
 place of them.
 
-A note on estimands, since three log hazard ratios sit in one table. The naive
-figure is an unadjusted marginal Cox estimate; `multinma` reports a conditional
-contrast; and ML-UMR reports a population-standardized marginal effect. The two
-ML-UMR values above are close (`delta_index` `r sprintf('%.3f', lhr_i$mean)`, `delta_comparator` `r sprintf('%.3f', lhr_c$mean)`),
+A note on estimands, since two kinds of log hazard ratio sit in one table. The
+naive figure is an unadjusted marginal Cox estimate, and ML-UMR reports a
+population-standardized marginal effect. The two ML-UMR SPFA values above are
+close (`delta_index` `r sprintf('%.3f', lhr_i$mean)`, `delta_comparator` `r sprintf('%.3f', lhr_c$mean)`),
 which says the standardization population barely matters here, but they are not
 identical and neither is a conditional contrast. With a baseline hazard per study
 the marginal hazard ratio also varies with time, so these scalars are its value
@@ -851,37 +663,27 @@ at the first prediction time. Compare the methods on the collapsible RMST
 difference, or on the `predict(type = "loghr")` curve, when the distinction
 matters.
 
-The prognostic coefficients above sit close to multinma's network estimates:
-age `r sprintf('%.2f', beta_mean(fit_mspline, 'age'))` per year against
-multinma's 0.08, ISS stage III
-`r sprintf('%.2f', beta_mean(fit_mspline, 'iss_stage3'))` against 0.35,
-and the response and sex coefficients near zero, where multinma also puts them.
-The constancy check misses by `r sprintf('%.1f', rmst_gap)` months.
-
-The adjusted estimates recover the direction and approximate magnitude of the
-anchored answer, but not its precision. Two conclusions follow. First, where a common comparator exists it should be used; ML-UMR does
-not substitute for randomization. Second, where none exists, both the SPFA and
-relaxed fits should be reported so that the contribution of the modeling
-assumptions is visible. The
-psoriasis example in `vignette("binary-outcomes")` has populations that overlap
-far better, and its unanchored and anchored answers do agree closely.
+ML-UMR does not substitute for randomization: where a common comparator exists
+it should be used. Where none exists, both the SPFA and relaxed fits should be
+reported so that the contribution of the modeling assumptions is visible.
 
 ## Interpretation
 
 * The **naive** Cox log hazard ratio ignores a real prognostic-factor imbalance
   between McCarthy2012 (Len) and Morgan2012 (Thal): mean age 57.9 against 65.6
-  years, and 27% against 32% ISS stage 3. It is the most extreme estimate in
-  the comparison table, and adjusting moves every other method away from it.
+  years, and 27% against 32% ISS stage 3. Adjusting for it moves the SPFA
+  estimate toward the null, from `r sprintf('%.3f', res_naive$estimate)` to
+  `r sprintf('%.3f', lhr_i$mean)` in the index population.
 * The prognostic coefficients are the part to check first, because they are what
-  the adjustment is built from. Here they are close to what `multinma` estimates
-  from the full five-study network (age `r sprintf('%.2f', beta_mean(fit_mspline, 'age'))`
-  per year against 0.08, ISS stage III
-  `r sprintf('%.2f', beta_mean(fit_mspline, 'iss_stage3'))` against 0.35, response
-  and sex near zero in both).
-* **ML-UMR** adjusts for the imbalance and recovers the direction and rough
-  magnitude of the anchored answer (SPFA `r sprintf('%.3f', lhr_i$mean)` in the index population and
-  `r sprintf('%.3f', lhr_c$mean)` in the comparator, against -0.29 to -0.38 anchored), at roughly three
-  times the interval width. Read the SPFA and relaxed fits together: they agree
+  the adjustment is built from. Here they have plausible signs and sizes: age
+  `r sprintf('%.2f', beta_mean(fit_mspline, 'age'))` per year, ISS stage III
+  `r sprintf('%.2f', beta_mean(fit_mspline, 'iss_stage3'))`, and the response
+  and sex coefficients small, with intervals spanning zero.
+* **ML-UMR** adjusts for the imbalance (SPFA `r sprintf('%.3f', lhr_i$mean)` in the index population and
+  `r sprintf('%.3f', lhr_c$mean)` in the comparator, against the naive
+  `r sprintf('%.3f', res_naive$estimate)`). Its intervals are much wider than the
+  naive one, which reflects sampling error alone and carries none of the
+  uncertainty of adjusting. Read the SPFA and relaxed fits together: they agree
   in the comparator population (`r sprintf('%.3f', lhr_rel_c$mean)`) but diverge in the index population
   (`r sprintf('%.3f', lhr_rel_i$mean)`), which measures how much of the index-population answer rests on
   comparator coefficients the aggregate curve cannot identify. ML-UMR adds what

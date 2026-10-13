@@ -55,8 +55,7 @@ package [@multinma]). It is the unanchored, two-study analogue of multinma's
 > and those arms are **deliberately omitted** here. Keeping them would connect
 > the two trials through a common comparator and make an *anchored* comparison
 > possible, which is not the problem this vignette is about. The unanchored
-> framing is a construction for illustration; the section *Checking against the
-> anchored comparison* below puts the omitted arms back to use.
+> framing is a construction for illustration.
 >
 > **Hypothetical single-arm trials.** UNCOVER-2 and FIXTURE are randomized
 > trials. Dropping their common reference arms (placebo and etanercept) turns
@@ -425,235 +424,6 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "loo")
 compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "dic")
 ```
 
-## Checking against the anchored comparison
-
-The unanchored framing of this vignette is a construction. UNCOVER-2 and
-FIXTURE both randomized patients to **placebo** and to **etanercept**, and the
-analysis above discards those arms. Because they are still present in the source
-data, we can do something a genuine unanchored analysis never can: check the
-answer against the anchored one. `multinma` is a `Suggests` here, used only to
-reach the arms mlumr does not bundle.
-
-```{r anchor-constancy}
-data("plaque_psoriasis_ipd", package = "multinma")
-data("plaque_psoriasis_agd", package = "multinma")
-
-u2 <- plaque_psoriasis_ipd[plaque_psoriasis_ipd$studyc == "UNCOVER-2", ]
-u2$bsa <- u2$bsa / 100
-u2$weight <- u2$weight / 10
-u2$prevsys <- as.integer(u2$prevsys)
-fx <- plaque_psoriasis_agd[plaque_psoriasis_agd$studyc == "FIXTURE", ]
-fx$bsa_mean <- fx$bsa_mean / 100
-fx$bsa_sd <- fx$bsa_sd / 100
-fx$weight_mean <- fx$weight_mean / 10
-fx$weight_sd <- fx$weight_sd / 10
-fx$prevsys <- fx$prevsys / 100
-
-# Conditional constancy is the assumption ML-UMR cannot test from the unanchored
-# data alone. With the discarded arms it becomes testable: fit the outcome model
-# in an arm both trials share, transport it to the FIXTURE population, and
-# compare against what FIXTURE actually reported for that same arm.
-set.seed(2026)
-transport_check <- function(arm) {
-  ip <- u2[u2$trtc == arm, ]
-  ip <- ip[stats::complete.cases(ip[, c("pasi75", covs)]), ]
-  m <- glm(pasi75 ~ age + bsa + weight + prevsys, binomial, data = ip)
-  ag <- fx[fx$trtc == arm, ]
-  n <- 5e4
-  nd <- data.frame(age = rnorm(n, ag$age_mean, ag$age_sd),
-                   bsa = rnorm(n, ag$bsa_mean, ag$bsa_sd),
-                   weight = rnorm(n, ag$weight_mean, ag$weight_sd),
-                   prevsys = rbinom(n, 1, ag$prevsys))
-  data.frame(Arm = arm,
-             `UNCOVER-2 observed` = mean(ip$pasi75),
-             `Transported to FIXTURE` = mean(predict(m, nd, type = "response")),
-             `FIXTURE observed` = ag$pasi75_r / ag$pasi75_n,
-             check.names = FALSE)
-}
-knitr::kable(do.call(rbind, lapply(c("PBO", "ETN"), transport_check)), digits = 3,
-   caption = "Conditional-constancy check on the two arms this example discards")
-```
-
-The etanercept row carries the information: a model fitted in UNCOVER-2's
-etanercept arm predicts FIXTURE's etanercept response to within about three
-percentage points of what FIXTURE reported. Conditional constancy is not exactly
-true, but it is close enough here that the unanchored machinery has a chance.
-(Placebo response is near zero in both trials and discriminates little.)
-
-Now the anchored answers. Both trials contain etanercept, so two anchored
-estimates are available. The first is a **Bucher** indirect comparison: take each
-trial's own within-trial log odds ratio against etanercept and subtract. For two
-studies and one common comparator that is exactly what a fixed-effect NMA
-returns.
-
-```{r anchor-bucher}
-lor <- function(r1, n1, r0, n0)
-  c(est = log(r1 / (n1 - r1)) - log(r0 / (n0 - r0)),
-    se  = sqrt(1 / r1 + 1 / (n1 - r1) + 1 / r0 + 1 / (n0 - r0)))
-
-u2_tab <- table(u2$trtc[!is.na(u2$pasi75)], u2$pasi75[!is.na(u2$pasi75)])
-lor_u2 <- lor(u2_tab["IXE_Q4W", "1"], sum(u2_tab["IXE_Q4W", ]),
-              u2_tab["ETN", "1"],     sum(u2_tab["ETN", ]))
-lor_fx <- lor(fx$pasi75_r[fx$trtc == "SEC_300"], fx$pasi75_n[fx$trtc == "SEC_300"],
-              fx$pasi75_r[fx$trtc == "ETN"],     fx$pasi75_n[fx$trtc == "ETN"])
-anchored <- unname(c(lor_u2["est"] - lor_fx["est"],
-                     sqrt(lor_u2["se"]^2 + lor_fx["se"]^2)))
-anchored_ci <- anchored[1] + c(-1.96, 1.96) * anchored[2]
-```
-
-The second is a population-adjusted **ML-NMR** fitted with `multinma` on the same
-two trials, the anchored method ML-UMR is adapted from. We fit it twice: with the
-covariates as prognostic factors only, and with the full
-`~ (covariates) * .trt` interaction that multinma's own plaque-psoriasis example
-uses. That example fits it on four studies with treatment classes sharing their
-interactions; here SEC_300 is seen only in aggregate data and shares with
-nothing, so its interactions are not identified (the table's note below says
-why). Both are reported so the difference is visible rather than asserted. Note
-also that once covariates
-interact with treatment the contrast becomes population-specific, so `multinma`
-returns one estimate per study; both are reported below, matching the
-index/comparator pair reported for ML-UMR.
-
-```{r anchor-mlnmr, message = FALSE}
-keep_u2 <- u2[u2$trtc %in% c("ETN", "IXE_Q4W"), ]
-keep_u2 <- keep_u2[stats::complete.cases(keep_u2[, c("pasi75", covs)]), ]
-keep_u2$prevsys <- as.numeric(keep_u2$prevsys)
-keep_fx <- fx[fx$trtc %in% c("ETN", "SEC_300"), ]
-
-net <- multinma::combine_network(
-  multinma::set_ipd(keep_u2, study = studyc, trt = trtc, r = pasi75),
-  multinma::set_agd_arm(keep_fx, study = studyc, trt = trtc,
-                        r = pasi75_r, n = pasi75_n))
-net <- multinma::add_integration(net,
-  age     = multinma::distr(multinma::qgamma, mean = age_mean, sd = age_sd),
-  bsa     = multinma::distr(multinma::qlogitnorm, mean = bsa_mean, sd = bsa_sd),
-  weight  = multinma::distr(multinma::qgamma, mean = weight_mean, sd = weight_sd),
-  prevsys = multinma::distr(multinma::qbern, prob = prevsys),
-  n_int = 64)
-
-nmr_fit <- function(form) {
-  multinma::nma(net, trt_effects = "fixed", link = "logit", regression = form,
-                prior_intercept = multinma::normal(0, 10),
-                prior_trt = multinma::normal(0, 10),
-                prior_reg = multinma::normal(0, 2.5),
-                QR = TRUE, chains = 4, iter = 2000, warmup = 1000,
-                seed = 2026, refresh = 0)
-}
-
-# Prognostic factors only: the anchored analogue of the SPFA model above.
-fit_nmr <- nmr_fit(~ age + bsa + weight + prevsys)
-
-# Full interaction, the formula multinma's own plaque-psoriasis example uses:
-# the anchored analogue of the relaxed model. multinma fits it with treatment
-# classes sharing their interactions; this sub-network has no classes, and
-# SEC_300 appears only in the aggregate study.
-fit_nmr_em <- nmr_fit(~ (age + bsa + weight + prevsys) * .trt)
-
-# multinma reports SEC_300 vs IXE_Q4W; flip to match this vignette's direction.
-nmr_contrast <- function(f, study = NULL) {
-  d <- as.data.frame(multinma::relative_effects(f, all_contrasts = TRUE)$summary)
-  d <- d[grepl("SEC_300", d$parameter) & grepl("IXE_Q4W", d$parameter), ]
-  # Once covariates interact with treatment the contrast is population-specific,
-  # so multinma returns one row per study: UNCOVER-2 is the index population and
-  # FIXTURE the comparator, the same pair ML-UMR reports.
-  if (nrow(d) > 1 && !is.null(study)) d <- d[grepl(study, d$parameter), ]
-  d[1, ]
-}
-nmr      <- nmr_contrast(fit_nmr)
-nmr_em_i <- nmr_contrast(fit_nmr_em, study = "UNCOVER-2")
-nmr_em_c <- nmr_contrast(fit_nmr_em, study = "FIXTURE")
-
-# ML-UMR is reported in both target populations so the anchored rows, which
-# are comparator-population estimands, can be read against a like-for-like row.
-me_spfa_i <- pop(me_spfa_b, "Index")
-me_spfa_c <- pop(me_spfa_b, "Comparator")
-me_rel_i  <- pop(me_rel_b, "Index")
-me_rel_c  <- pop(me_rel_b, "Comparator")
-
-knitr::kable(data.frame(
-  Method = c("Naive (unadjusted)", "STC (G-computation)",
-             "ML-UMR SPFA (prognostic only)",
-             "ML-UMR SPFA (prognostic only)",
-             "ML-UMR relaxed (effect modification)",
-             "ML-UMR relaxed (effect modification)",
-             "Anchored: Bucher / fixed-effect NMA",
-             "Anchored: ML-NMR, prognostic only",
-             "Anchored: ML-NMR, with * .trt (multinma's own model)",
-             "Anchored: ML-NMR, with * .trt (multinma's own model)"),
-  Anchored = c("no", "no", "no", "no", "no", "no", "yes", "yes", "yes", "yes"),
-  # `naive()` contrasts the two crude outcomes; it is standardized to no
-  # population, which is the point of comparing it against the adjusted rows.
-  # `vignette("choosing-a-method")` uses the same label for the same reason.
-  Population = c("unstandardized", "comparator", "index", "comparator",
-                 "index", "comparator", "not population-specific",
-                 "not population-specific", "index", "comparator"),
-  LOR   = c(res_naive$link_effect, res_stc$link_effect,
-            me_spfa_i$mean, me_spfa_c$mean, me_rel_i$mean, me_rel_c$mean,
-            anchored[1], -nmr$mean, -nmr_em_i$mean, -nmr_em_c$mean),
-  `2.5%`  = c(res_naive$ci_lower, res_stc$ci_lower,
-              me_spfa_i$q2.5, me_spfa_c$q2.5, me_rel_i$q2.5, me_rel_c$q2.5,
-              anchored_ci[1], -nmr[["97.5%"]],
-              -nmr_em_i[["97.5%"]], -nmr_em_c[["97.5%"]]),
-  `97.5%` = c(res_naive$ci_upper, res_stc$ci_upper,
-              me_spfa_i$q97.5, me_spfa_c$q97.5, me_rel_i$q97.5, me_rel_c$q97.5,
-              anchored_ci[2], -nmr[["2.5%"]],
-              -nmr_em_i[["2.5%"]], -nmr_em_c[["2.5%"]]),
-  check.names = FALSE), digits = 3,
-  caption = "Unanchored estimates against the anchored references, in both target populations (log odds ratio, IXE_Q4W vs SEC_300)")
-```
-
-The last two rows should not be interpreted substantively. The `* .trt`
-formula is the one multinma's own plaque-psoriasis example uses, but that
-example fits it on four studies, three of them patient-level, with the
-treatments grouped into classes and `class_interactions = "common"`, so every
-treatment in a class shares one set of interactions and that set is informed by
-every study in which any member of the class appears. Here both studies keep
-their ETN arm, so treatment does vary within each of them; what fails is the
-SEC_300 side of the network. UNCOVER-2 is patient-level data, and the IXE_Q4W
-interactions are identified from it because the contrast against ETN is observed
-across individuals with different covariate values. SEC_300 appears only in
-FIXTURE, which is aggregate: its arm is a single proportion, and with no class
-to borrow from, the SEC_300 side of the model has five parameters of its own, a
-main effect and four interaction slopes. One number cannot pin five parameters,
-so the SEC_300 interactions come from the prior rather than the data, and the
-IXE_Q4W versus SEC_300 contrast inherits that in both populations, because how
-it moves between them is set by the difference between the two interaction
-vectors. It is the evidence structure, aggregate on one side with nothing to
-share, that fails to identify them, not the number of studies. The fits converge
-and return estimates, but the intervals are very wide, which is the expected
-signature of weak identification rather than a usable result. Reporting both
-populations makes this visible: the index and comparator values differ by more
-than two log odds ratios, and that difference is set by interaction slopes the
-data never informed, so it says nothing about how the contrast really varies
-between the populations. A large difference is not by itself a sign of weak
-identification, since strong, well-estimated effect modification would produce
-one too; the width of the intervals is, and here it is the width that rules
-these rows out. They are included so that both their width and their
-disagreement can be compared with the rows above.
-
-Setting those rows aside, the two identified anchored estimates agree with each
-other, and the SPFA model agrees with both of them in **both** populations.
-Everything that adjusts for the covariate imbalance lands in a narrow band of
-log odds ratios, while the naive comparison sits roughly 0.2 away from all of
-them. That is what population adjustment is supposed to buy, and it is only
-checkable because this example was built by cutting a connected network apart.
-
-The relaxed model is the instructive exception, and it is only visible because
-both populations are shown. Its comparator-population estimate sits in the same
-narrow band as everything else, but its index-population estimate collapses back
-toward the naive value with an interval spanning more than two log odds ratios.
-Nothing about the data changed between those two rows: a single aggregate row
-constrains the comparator coefficients only through one combination with the
-comparator intercept, and the index-population estimand extrapolates them
-across the IPD covariate distribution. A reader shown
-only the comparator row would conclude the relaxed model was fine here.
-
-One detail worth noticing: the unanchored interval is *narrower* than either
-anchored one. That is not extra information, it is the shared-prognostic-factor
-assumption doing work that randomization does in the anchored analyses. The
-interval is conditional on an assumption the anchored estimates do not need, so a
-tighter unanchored interval should never be read as a better answer.
-
 ## Interpretation
 
 * The **naive** log odds ratio mixes the treatment contrast with between-study
@@ -665,6 +435,12 @@ tighter unanchored interval should never be read as a better answer.
 * The **relaxed** model relaxes the shared-effect assumption but pays for it in
   precision here, because the comparator-specific coefficients lean on one
   aggregate row.
+  Its comparator-population estimate stays close to SPFA, but its
+  index-population estimate falls back to about the naive value, with an
+  interval more than two log odds ratios wide (see the both-populations table
+  above). The index-population estimand extrapolates comparator coefficients
+  that a single aggregate row cannot identify, so read that divergence as a
+  statement about identification, not about effect modification.
 
 > **Data provenance.** `psoriasis_ipd` / `psoriasis_agd` are bundled with mlumr,
 > copied verbatim from the GPL-3 `multinma` package [@multinma]

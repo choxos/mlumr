@@ -14,11 +14,11 @@
 # sources, the knitted *.Rmd intermediates, and figure/ are all
 # build-ignored (see .Rbuildignore); only *.html + *.html.asis ship to CRAN.
 #
-# Requires (Suggests): multinma (real data), ggplot2 (figures), knitr, rmarkdown.
+# Requires (Suggests): ggplot2 (figures), knitr, rmarkdown.
 
 # Every package the vignette chunks reach for. Checked up front so a missing
 # Suggests fails here rather than forty minutes into a Stan fit.
-for (pkg in c("knitr", "rmarkdown", "multinma", "ggplot2",
+for (pkg in c("knitr", "rmarkdown", "ggplot2",
               "ggsurvfit", "flexsurv", "survival", "bayesplot", "loo",
               # The engine is set to cmdstanr below, so a missing cmdstanr is
               # exactly the failure this loop exists to catch early.
