@@ -1,60 +1,54 @@
-## Status
+## Submission
 
-This file records the submission of version 0.1.0, which is on CRAN. The
-development version on `main` is not a submission candidate, and every
-measurement below was taken against the 0.1.0 tarball. Re-run the checks and
-re-measure the sizes against the tarball that is actually submitted before
-reusing this file.
+This is an update of mlumr from 0.1.0, which is on CRAN, to 0.2.0. `NEWS.md`
+lists the changes. The largest are time-to-event outcomes (parametric and
+M-spline baselines, fitted to reconstructed Kaplan-Meier data) and prediction
+of marginal effects in arbitrary target populations.
 
 ## R CMD check results
 
-Local `R CMD check --as-cran --no-manual mlumr_0.1.0.tar.gz` on macOS
-(aarch64-apple-darwin20, R 4.5) reports:
+Local `R CMD check --as-cran --no-manual mlumr_0.2.0.tar.gz` on macOS 27.0.1
+(aarch64-apple-darwin23), R 4.6.0:
 
 * 0 errors
-* 2 warnings (both environmental; see "Environmental notes" below)
-* 1 note (expected: new submission + cmdstanr declared via
-  `Additional_repositories`)
+* 1 warning, environmental: the `checkbashisms` script is not installed on
+  this machine, so the check reports that "a complete check needs the
+  'checkbashisms' script." CRAN's Linux servers have it.
+* 1 note, from the CRAN incoming feasibility check: `cmdstanr` is in
+  Suggests and is not in a mainstream repository. It is available from the
+  declared `Additional_repositories: https://mc-stan.org/r-packages`.
 
-No tests fail and no examples error.
+Tests under `--as-cran`: `[ FAIL 0 | WARN 32 | SKIP 93 | PASS 2853 ]`. The 93
+skips are the Stan-sampling tests, which are marked `skip_on_cran()` because
+each one compiles or samples a model. They run in a separate CI job with
+`NOT_CRAN=true` (below), where they pass.
 
 ## Test environments
 
-* local macOS (aarch64-apple-darwin20), R 4.5
-* planned before release: win-builder (devel and release), R-hub
-  (Fedora, Windows Server, Ubuntu Linux)
+* local macOS 27.0.1 (aarch64-apple-darwin23), R 4.6.0
+* GitHub Actions, `R CMD check --no-manual --as-cran`, R release: macOS,
+  Windows and Ubuntu. Status OK on all three.
+* GitHub Actions, Ubuntu, R release, full test suite with the Stan tests
+  enabled under CmdStan: 4705 passed, 0 failed, 0 skipped.
 
-## Environmental notes (macOS-only warnings)
+## Reverse dependencies
 
-Two warnings surface only on the submitter's macOS / Apple clang
-toolchain and are not expected to appear on CRAN's build servers:
-
-* **Stale Homebrew `ld` search path**:
-  `ld: warning: search path '/opt/homebrew/Cellar/r/4.5.1/lib/R/lib' not found`.
-  The submitter previously had a Homebrew-installed R; the path is now
-  stale. The build still completes successfully.
-* **`checkbashisms` script not installed locally**: the macOS toolchain
-  does not ship the Debian `checkbashisms` helper, so R CMD check
-  reports that "a complete check needs the 'checkbashisms' script."
-  CRAN's Linux servers run this check normally.
+None. No CRAN package depends on, imports, suggests or links to mlumr.
 
 ## Notes to CRAN reviewers
 
-* 0.1.0 was a new submission; a later version will not be.
-* The package embeds ten Stan models: binomial, normal and poisson, each
-  with SPFA and relaxed variants, plus parametric and M-spline survival in
-  both variants. They are compiled at install time via the standard
-  rstantools pipeline; expect several minutes of C++ compilation.
-* `cmdstanr` is listed in `Suggests` with `Additional_repositories:
-  https://stan-dev.r-universe.dev`. This follows the same approach
-  adopted by brms and other Stan-ecosystem packages: cmdstanr is an
-  optional backend, and rstan is the default, CRAN-available engine.
-  Examples, tests, and vignettes do not require cmdstanr; cmdstanr
+* The package embeds ten Stan models: binomial, normal and Poisson, each with
+  SPFA and relaxed variants, plus parametric and M-spline survival in both
+  variants. They are compiled at install time through the standard rstantools
+  pipeline, so installation takes several minutes of C++ compilation.
+* The installed size is 14.9 Mb: `libs` 10.2 Mb (the compiled Stan models),
+  `R` 2.1 Mb and `doc` 2.0 Mb. As with other Stan-backed packages such as
+  `rstanarm` and `brms`, the shared library dominates. The source tarball is
+  1.9 Mb.
+* `cmdstanr` is an optional backend. rstan is the default engine and is on
+  CRAN. Examples and tests do not require cmdstanr, and the cmdstanr
   comparison code is skipped unless cmdstanr and CmdStan are available.
-* Developer-only directories and build artifacts are excluded via
-  `.Rbuildignore`. The 0.1.0 tarball weighed about 380 KB and the installed
-  package about 6.9 MB, of which 5.4 MB was `libs/`. Four Stan models have
-  been added since, so both figures are now low; measure them again on the
-  submitted tarball rather than quoting these. The installed size is
-  dominated by the Stan-generated shared libraries, as it is for other
-  Stan-backed CRAN packages such as `rstanarm` and `brms`.
+* Seven of the nine vignettes fit Stan models, so they are pre-rendered and
+  shipped through the `R.rsp::asis` engine; re-building them runs no Stan. The
+  other two are knitr vignettes: `introduction` evaluates no code, and
+  `data-preparation` runs data-setup code only, with no model fitting.
