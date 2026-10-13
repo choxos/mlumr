@@ -263,9 +263,9 @@ check_integration(
   prevsys = distr(qbern,      prob = prevsys_mean)
 )
 #> Integration check: n_int = 64 vs 128
-#> Resolution heuristic, max relative difference: 0.0310
+#> Resolution heuristic, max relative difference: 0.0348
 #> Caution: 1-5% marginal relative difference. Consider increasing n_int.
-#> Declared-target fidelity, max relative difference: 0.0638
+#> Declared-target fidelity, max relative difference: 0.0712
 #> Warning: grid moments differ from declared AgD moments by >5%.
 #> Joint: max |cor(current) - cor(doubled)|: 0.1025
 #> Warning: pairwise correlations differ by > 0.05 between resolutions.
@@ -344,14 +344,14 @@ fit_spfa <- mlumr(dat, model = "spfa", link = "logit",
                   seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 1 finished in 0.8 seconds.
-#> Chain 2 finished in 0.8 seconds.
-#> Chain 3 finished in 0.8 seconds.
-#> Chain 4 finished in 0.8 seconds.
+#> Chain 3 finished in 3.0 seconds.
+#> Chain 1 finished in 3.2 seconds.
+#> Chain 2 finished in 3.3 seconds.
+#> Chain 4 finished in 3.2 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 0.8 seconds.
-#> Total execution time: 1.0 seconds.
+#> Mean chain execution time: 3.2 seconds.
+#> Total execution time: 3.6 seconds.
 
 fit_relaxed <- mlumr(dat, model = "relaxed", link = "logit",
                      prior_beta = prior_normal(0, 2.5, autoscale = TRUE),
@@ -359,14 +359,14 @@ fit_relaxed <- mlumr(dat, model = "relaxed", link = "logit",
                      seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 2 finished in 4.3 seconds.
-#> Chain 4 finished in 4.7 seconds.
-#> Chain 3 finished in 5.3 seconds.
-#> Chain 1 finished in 5.7 seconds.
+#> Chain 3 finished in 12.6 seconds.
+#> Chain 2 finished in 14.2 seconds.
+#> Chain 1 finished in 15.7 seconds.
+#> Chain 4 finished in 16.0 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 5.0 seconds.
-#> Total execution time: 5.8 seconds.
+#> Mean chain execution time: 14.6 seconds.
+#> Total execution time: 16.3 seconds.
 
 summary(fit_spfa)
 #> ML-UMR Model Summary
@@ -381,34 +381,34 @@ summary(fit_spfa)
 #> MCMC Diagnostics:
 #>   Divergent transitions: 0 
 #>   Max treedepth hits: 0 
-#>   Max Rhat: 1.003 
-#>   Min ESS: 1836 
+#>   Max Rhat: 1.004  
+#>   Min ESS: 1546  
 #> 
 #> Intercepts (logit scale):
 #>       variable     mean        sd      2.5%    97.5%     Rhat
-#>       mu_index 1.433550 0.1566491 1.1431922 1.745167 1.002008
-#>  mu_comparator 1.182341 0.1504401 0.8824316 1.474706 1.000581
+#>       mu_index 1.447602 0.1526277 1.1576075 1.742907 1.000540
+#>  mu_comparator 1.180924 0.1513114 0.8840591 1.473595 1.000812
 #> 
 #> Regression Coefficients:
-#>       variable        mean          sd        2.5%        97.5%     Rhat
-#>      beta[age] -0.04089938 0.011061348 -0.06207939 -0.018932920 1.000364
-#>      beta[bsa]  0.08158985 0.756802237 -1.35288580  1.631374443 1.000150
-#>   beta[weight] -0.01385874 0.006396755 -0.02678303 -0.001332561 1.000806
-#>  beta[prevsys]  0.09063289 0.296119495 -0.48294336  0.658655304 1.002473
+#>       variable        mean         sd        2.5%        97.5%     Rhat
+#>      beta[age] -0.04150236 0.01130282 -0.06426055 -0.019883407 1.001242
+#>      beta[bsa]  0.11811085 0.75278434 -1.33547013  1.634856495 1.001090
+#>   beta[weight] -0.01422774 0.00634066 -0.02624840 -0.001559571 1.003903
+#>  beta[prevsys]  0.09495758 0.30194582 -0.50583182  0.687454176 1.000363
 #> 
 #> Marginal Treatment Effects:
 #>   Log Odds Ratios:
 #>        variable      mean        sd       2.5%     97.5%
-#>       lor_index 0.2323910 0.2047769 -0.1695227 0.6270024
-#>  lor_comparator 0.2332364 0.2056267 -0.1698324 0.6304798
+#>       lor_index 0.2463067 0.2043813 -0.1612142 0.6518974
+#>  lor_comparator 0.2472410 0.2052714 -0.1614905 0.6557578
 #>   Risk Differences:
 #>       variable       mean         sd        2.5%     97.5%
-#>       rd_index 0.04364540 0.03862472 -0.03157762 0.1196621
-#>  rd_comparator 0.03821683 0.03369655 -0.02940678 0.1037666
+#>       rd_index 0.04626266 0.03863495 -0.02944331 0.1231594
+#>  rd_comparator 0.04043621 0.03363255 -0.02668746 0.1069070
 #>   Risk Ratios:
 #>       variable     mean         sd      2.5%    97.5%
-#>       rr_index 1.061858 0.05571767 0.9589326 1.177867
-#>  rr_comparator 1.050589 0.04504107 0.9631279 1.140555
+#>       rr_index 1.065625 0.05615489 0.9623604 1.181424
+#>  rr_comparator 1.053508 0.04515453 0.9667412 1.146098
 ```
 
 ### Priors
@@ -428,7 +428,7 @@ prior_summary(fit_spfa)
 #> 
 #> Intercepts (mu_index, mu_comparator):
 #>   normal(0, 10)
-#>   (package default, mlumr 0.1.0.9000)
+#>   (package default, mlumr 0.2.0)
 #> 
 #> Regression coefficients (beta):
 #>   Family: normal
@@ -490,7 +490,7 @@ data.frame(
   min_ESS      = round(min(fit_spfa$summary$n_eff, na.rm = TRUE))
 )
 #>   n_divergent max_treedepth max_Rhat min_ESS
-#> 1           0             0    1.003    1836
+#> 1           0             0    1.004    1546
 ```
 
 ## Treatment effects
@@ -512,12 +512,12 @@ Table: SPFA population-standardized effects (IXE_Q4W vs SEC_300)
 
 |variable       |effect |population |      mean|        sd|       q2.5|       q50|     q97.5|
 |:--------------|:------|:----------|---------:|---------:|----------:|---------:|---------:|
-|lor_index      |LOR    |Index      | 0.2323910| 0.2047769| -0.1695227| 0.2323505| 0.6270024|
-|lor_comparator |LOR    |Comparator | 0.2332364| 0.2056267| -0.1698324| 0.2326902| 0.6304798|
-|rd_index       |RD     |Index      | 0.0436454| 0.0386247| -0.0315776| 0.0429736| 0.1196621|
-|rd_comparator  |RD     |Comparator | 0.0382168| 0.0336965| -0.0294068| 0.0380543| 0.1037666|
-|rr_index       |RR     |Index      | 1.0618581| 0.0557177|  0.9589326| 1.0591640| 1.1778672|
-|rr_comparator  |RR     |Comparator | 1.0505893| 0.0450411|  0.9631279| 1.0494870| 1.1405554|
+|lor_index      |LOR    |Index      | 0.2463067| 0.2043813| -0.1612142| 0.2495905| 0.6518974|
+|lor_comparator |LOR    |Comparator | 0.2472410| 0.2052714| -0.1614905| 0.2503917| 0.6557578|
+|rd_index       |RD     |Index      | 0.0462627| 0.0386350| -0.0294433| 0.0465180| 0.1231594|
+|rd_comparator  |RD     |Comparator | 0.0404362| 0.0336325| -0.0266875| 0.0409191| 0.1069070|
+|rr_index       |RR     |Index      | 1.0656252| 0.0561549|  0.9623604| 1.0637364| 1.1814243|
+|rr_comparator  |RR     |Comparator | 1.0535080| 0.0451545|  0.9667412| 1.0530110| 1.1460981|
 
 
 
@@ -575,12 +575,12 @@ Table: Relaxed-model standardized effects, both populations
 
 |variable       |effect |population |      mean|        sd|       q2.5|       q50|     q97.5|
 |:--------------|:------|:----------|---------:|---------:|----------:|---------:|---------:|
-|lor_index      |LOR    |Index      | 0.0141719| 0.6172729| -1.1375790| 0.0264874| 1.1553849|
-|lor_comparator |LOR    |Comparator | 0.2536500| 0.2075576| -0.1664167| 0.2531127| 0.6573647|
-|rd_index       |RD     |Index      | 0.0179156| 0.1078882| -0.1488600| 0.0045542| 0.2521100|
-|rd_comparator  |RD     |Comparator | 0.0414963| 0.0339794| -0.0270876| 0.0415212| 0.1080257|
-|rr_index       |RR     |Index      | 1.0462395| 0.1675566|  0.8348833| 1.0061259| 1.4737397|
-|rr_comparator  |RR     |Comparator | 1.0549516| 0.0455742|  0.9666071| 1.0542417| 1.1477168|
+|lor_index      |LOR    |Index      | 0.0028398| 0.5849539| -1.1027831| 0.0207378| 1.0585269|
+|lor_comparator |LOR    |Comparator | 0.2444256| 0.1994718| -0.1371652| 0.2421185| 0.6322585|
+|rd_index       |RD     |Index      | 0.0144135| 0.1020933| -0.1437769| 0.0035884| 0.2314025|
+|rd_comparator  |RD     |Comparator | 0.0400623| 0.0326564| -0.0234464| 0.0398917| 0.1027967|
+|rr_index       |RR     |Index      | 1.0388531| 0.1558008|  0.8393618| 1.0046632| 1.4242271|
+|rr_comparator  |RR     |Comparator | 1.0529897| 0.0437571|  0.9703815| 1.0518831| 1.1403727|
 
 
 
@@ -616,10 +616,10 @@ Table: Standardized PASI 75 response probabilities
 
 |treatment |population |      mean|        sd|      q2.5|       q50|     q97.5|
 |:---------|:----------|---------:|---------:|---------:|---------:|---------:|
-|IXE_Q4W   |Index      | 0.7729681| 0.0219597| 0.7280789| 0.7736964| 0.8140666|
-|SEC_300   |Index      | 0.7293227| 0.0314229| 0.6649613| 0.7299364| 0.7871844|
-|IXE_Q4W   |Comparator | 0.8088424| 0.0239865| 0.7606818| 0.8100515| 0.8525781|
-|SEC_300   |Comparator | 0.7706255| 0.0236577| 0.7209321| 0.7708675| 0.8149083|
+|IXE_Q4W   |Index      | 0.7742054| 0.0215267| 0.7311367| 0.7744590| 0.8156391|
+|SEC_300   |Index      | 0.7279427| 0.0317215| 0.6626771| 0.7288011| 0.7869427|
+|IXE_Q4W   |Comparator | 0.8110121| 0.0230334| 0.7637451| 0.8119185| 0.8531067|
+|SEC_300   |Comparator | 0.7705759| 0.0235685| 0.7221162| 0.7712480| 0.8138316|
 
 
 
@@ -658,15 +658,15 @@ Table: Conditional log odds ratios at three covariate profiles
 
 | profile|effect      |      mean|        sd|       q2.5|       q50|     q97.5|
 |-------:|:-----------|---------:|---------:|----------:|---------:|---------:|
-|       1|LINK_EFFECT | 0.2512088| 0.2220838| -0.1788467| 0.2480997| 0.6897951|
-|       1|RD          | 0.0339087| 0.0307868| -0.0262549| 0.0332149| 0.0957605|
-|       1|RR          | 1.0427288| 0.0399764|  0.9673283| 1.0403847| 1.1271305|
-|       2|LINK_EFFECT | 0.2512088| 0.2220838| -0.1788467| 0.2480997| 0.6897951|
-|       2|RD          | 0.0514439| 0.0457618| -0.0357710| 0.0502035| 0.1429027|
-|       2|RR          | 1.0783357| 0.0717254|  0.9517072| 1.0722251| 1.2320427|
-|       3|LINK_EFFECT | 0.2512088| 0.2220838| -0.1788467| 0.2480997| 0.6897951|
-|       3|RD          | 0.0608825| 0.0537360| -0.0434875| 0.0601443| 0.1653002|
-|       3|RR          | 1.1429823| 0.1365554|  0.9216199| 1.1236565| 1.4613458|
+|       1|LINK_EFFECT | 0.2666779| 0.2222286| -0.1697892| 0.2697886| 0.7096585|
+|       1|RD          | 0.0360436| 0.0308723| -0.0236670| 0.0355675| 0.1003421|
+|       1|RR          | 1.0454193| 0.0401692|  0.9714840| 1.0431503| 1.1330295|
+|       2|LINK_EFFECT | 0.2666779| 0.2222286| -0.1697892| 0.2697886| 0.7096585|
+|       2|RD          | 0.0545626| 0.0458718| -0.0336336| 0.0541125| 0.1460648|
+|       2|RR          | 1.0831630| 0.0727151|  0.9548934| 1.0782510| 1.2388811|
+|       3|LINK_EFFECT | 0.2666779| 0.2222286| -0.1697892| 0.2697886| 0.7096585|
+|       3|RD          | 0.0646590| 0.0537742| -0.0413750| 0.0653554| 0.1729787|
+|       3|RR          | 1.1526318| 0.1400779|  0.9261354| 1.1364555| 1.4762950|
 
 
 
@@ -687,8 +687,7 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "loo")
 #> 
 #>    model elpd_diff se_diff p_worse       diag_diff      diag_elpd
 #>  Relaxed       0.0     0.0      NA                 1 k_psis > 0.7
-#>     SPFA      -0.3     0.3    0.81 |elpd_diff| < 4 1 k_psis > 0.7
-#> 
+#>     SPFA      -0.2     0.1    0.97 |elpd_diff| < 4 1 k_psis > 0.7
 #> 
 #> elpd_diff is the difference in expected log pointwise predictive
 #> density vs the best model, and se_diff is its standard error: the
@@ -704,8 +703,8 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "dic")
 #> ======================
 #> 
 #>    Model    DIC   pD Delta_DIC
-#>  Relaxed 368.56 6.19      0.00
-#>     SPFA 368.67 6.33      0.12
+#>  Relaxed 367.87 5.71      0.00
+#>     SPFA 368.60 6.22      0.73
 #> 
 #> Lower DIC = better fit. Delta_DIC > 5 is a rough heuristic for
 #> meaningful difference, not a formally calibrated threshold.

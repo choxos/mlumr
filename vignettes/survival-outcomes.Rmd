@@ -393,14 +393,14 @@ fit_mspline <- mlumr(dat, model = "spfa", distribution = "mspline", n_knots = 7,
                      chains = 4, iter = 2000, warmup = 1000, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 1 finished in 346.3 seconds.
-#> Chain 3 finished in 355.9 seconds.
-#> Chain 4 finished in 361.9 seconds.
-#> Chain 2 finished in 410.9 seconds.
+#> Chain 3 finished in 1026.5 seconds.
+#> Chain 4 finished in 1106.9 seconds.
+#> Chain 1 finished in 1214.1 seconds.
+#> Chain 2 finished in 1256.3 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 368.8 seconds.
-#> Total execution time: 411.0 seconds.
+#> Mean chain execution time: 1151.0 seconds.
+#> Total execution time: 1256.7 seconds.
 ```
 
 
@@ -416,14 +416,14 @@ fit_mspline_relaxed <- mlumr(dat, model = "relaxed", distribution = "mspline",
                              refresh = 0)
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 4 finished in 508.3 seconds.
-#> Chain 3 finished in 528.7 seconds.
-#> Chain 1 finished in 537.7 seconds.
-#> Chain 2 finished in 539.5 seconds.
+#> Chain 4 finished in 1472.6 seconds.
+#> Chain 3 finished in 1492.9 seconds.
+#> Chain 1 finished in 1525.4 seconds.
+#> Chain 2 finished in 1547.0 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 528.5 seconds.
-#> Total execution time: 539.7 seconds.
+#> Mean chain execution time: 1509.5 seconds.
+#> Total execution time: 1547.7 seconds.
 ```
 
 
@@ -434,14 +434,14 @@ fit_weibull <- mlumr(dat, model = "spfa", distribution = "weibull",
                      chains = 4, iter = 2000, warmup = 1000, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 2 finished in 380.7 seconds.
-#> Chain 3 finished in 390.1 seconds.
-#> Chain 1 finished in 402.2 seconds.
-#> Chain 4 finished in 424.2 seconds.
+#> Chain 2 finished in 1346.0 seconds.
+#> Chain 1 finished in 1411.4 seconds.
+#> Chain 3 finished in 1413.4 seconds.
+#> Chain 4 finished in 1478.4 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 399.3 seconds.
-#> Total execution time: 424.6 seconds.
+#> Mean chain execution time: 1412.3 seconds.
+#> Total execution time: 1479.3 seconds.
 ```
 
 
@@ -459,37 +459,37 @@ summary(fit_mspline)
 #> MCMC Diagnostics:
 #>   Divergent transitions: 0 
 #>   Max treedepth hits: 0 
-#>   Max Rhat: 1.004 
-#>   Min ESS: 1362 
+#>   Max Rhat: 1.003  
+#>   Min ESS: 1295  
 #> 
 #> Intercepts (log scale):
 #>       variable      mean         sd        2.5%     97.5%     Rhat
-#>       mu_index 0.3281011 0.11884905  0.09361807 0.5631807 1.002906
-#>  mu_comparator 0.1055319 0.08304143 -0.06503476 0.2714046 1.002169
+#>       mu_index 0.3278324 0.11767435  0.09338423 0.5571708 1.000259
+#>  mu_comparator 0.1072612 0.08812043 -0.07031650 0.2766931 1.001350
 #> 
 #> Regression Coefficients:
 #>                variable       mean         sd        2.5%     97.5%      Rhat
-#>               beta[age] 0.06957188 0.01623353  0.03879512 0.1016364 0.9997473
-#>        beta[iss_stage3] 0.40568588 0.18803654  0.03662400 0.7635252 1.0010477
-#>  beta[response_cr_vgpr] 0.05911517 0.18257397 -0.30641058 0.4168000 0.9997620
-#>              beta[male] 0.07474996 0.17650989 -0.28177263 0.4189003 1.0013708
+#>               beta[age] 0.06993144 0.01627319  0.03846601 0.1015201 1.0006454
+#>        beta[iss_stage3] 0.40244365 0.18953509  0.01672759 0.7567338 0.9998211
+#>  beta[response_cr_vgpr] 0.06266713 0.18381897 -0.30799778 0.4183324 1.0005757
+#>              beta[male] 0.07541778 0.18129370 -0.27756031 0.4240964 1.0024914
 #> 
 #> Baseline hazard: stratified by study (aux_by = ".study")
 #> 
 #> Shape / smoothing parameters:
-#>         variable     mean        sd      2.5%    97.5%     Rhat
-#>  sigma_smooth[1] 1.002922 0.4929140 0.2720435 2.157771 1.001996
-#>  sigma_smooth[2] 1.237045 0.4891222 0.4424602 2.320887 1.002684
+#>         variable      mean        sd      2.5%    97.5%     Rhat
+#>  sigma_smooth[1] 0.9861364 0.4947026 0.2604557 2.157619 1.000875
+#>  sigma_smooth[2] 1.2443250 0.4832417 0.4561599 2.348745 1.000971
 #> 
 #> Marginal Treatment Effects:
 #>   Log Hazard Ratios at t = 1.4:
 #>          variable       mean        sd      2.5%     97.5%
-#>       delta_index -0.5078045 0.4148139 -1.360514 0.2311852
-#>  delta_comparator -0.5047796 0.4122004 -1.354498 0.2275372
+#>       delta_index -0.4853513 0.4247787 -1.389658 0.2756818
+#>  delta_comparator -0.4825707 0.4218878 -1.383165 0.2693954
 #>   RMST Differences (to t = 64.8):
 #>              variable     mean       sd      2.5%    97.5%
-#>       rmst_diff_index 3.062956 2.468774 -1.696101 8.050058
-#>  rmst_diff_comparator 3.910061 2.668505 -1.280590 9.304018
+#>       rmst_diff_index 3.014535 2.433137 -1.665791 7.953528
+#>  rmst_diff_comparator 3.846938 2.635502 -1.282804 9.223502
 ```
 
 ### Priors
@@ -507,15 +507,15 @@ prior_summary(fit_mspline)
 #> 
 #> Intercepts (mu_index, mu_comparator):
 #>   normal(0, 10)
-#>   (package default, mlumr 0.1.0.9000)
+#>   (package default, mlumr 0.2.0)
 #> 
 #> Regression coefficients (beta):
 #>   normal(0, 2.5) applied to all 4 covariate(s)
-#>   (package default, mlumr 0.1.0.9000)
+#>   (package default, mlumr 0.2.0)
 #> 
-#> Survival baseline smoothing (random-walk SD, half-distribution via <lower=0>):
+#> Survival baseline smoothing (random-walk SD, half-normal via <lower=0>):
 #>   normal(0, 1)
-#>   (package default, mlumr 0.1.0.9000)
+#>   (package default, mlumr 0.2.0)
 ```
 
 The posterior intercepts (log-baseline scale) versus their $\mathrm{N}(0,10)$ prior:
@@ -544,7 +544,7 @@ data.frame(
   min_ESS      = round(min(fit_mspline$summary$n_eff, na.rm = TRUE))
 )
 #>   n_divergent max_treedepth max_Rhat min_ESS
-#> 1           0             0    1.004    1362
+#> 1           0             0    1.003    1295
 ```
 
 ## Treatment effects
@@ -572,12 +572,12 @@ Table: M-spline population-standardized effects (Len vs Thal)
 
 |variable              |effect |population | at_time| horizon|      mean|        sd|       q2.5|       q50|    q97.5|
 |:---------------------|:------|:----------|-------:|-------:|---------:|---------:|----------:|---------:|--------:|
-|hr_index              |HR     |Index      |     1.4|      NA| 0.6533356| 0.2650709|  0.2565289| 0.6161399| 1.260093|
-|hr_comparator         |HR     |Comparator |     1.4|      NA| 0.6545570| 0.2630883|  0.2580767| 0.6189325| 1.255504|
-|rmst_diff_index       |RMSTD  |Index      |      NA|    64.8| 3.0629559| 2.4687736| -1.6961006| 3.0117087| 8.050058|
-|rmst_diff_comparator  |RMSTD  |Comparator |      NA|    64.8| 3.9100607| 2.6685054| -1.2805901| 3.8911492| 9.304018|
-|rmst_ratio_index      |RMSTR  |Index      |      NA|    64.8| 1.0758567| 0.0629706|  0.9620424| 1.0719896| 1.212050|
-|rmst_ratio_comparator |RMSTR  |Comparator |      NA|    64.8| 1.1214761| 0.0842813|  0.9620353| 1.1199694| 1.296189|
+|hr_index              |HR     |Index      |     1.4|      NA| 0.6708256| 0.2788242|  0.2491605| 0.6285443| 1.317429|
+|hr_comparator         |HR     |Comparator |     1.4|      NA| 0.6718095| 0.2763222|  0.2507836| 0.6306832| 1.309173|
+|rmst_diff_index       |RMSTD  |Index      |      NA|    64.8| 3.0145350| 2.4331374| -1.6657910| 2.9702673| 7.953528|
+|rmst_diff_comparator  |RMSTD  |Comparator |      NA|    64.8| 3.8469382| 2.6355020| -1.2828038| 3.8425775| 9.223502|
+|rmst_ratio_index      |RMSTR  |Index      |      NA|    64.8| 1.0746161| 0.0620222|  0.9631554| 1.0706139| 1.208140|
+|rmst_ratio_comparator |RMSTR  |Comparator |      NA|    64.8| 1.1196631| 0.0832784|  0.9622755| 1.1179053| 1.292469|
 
 
 
@@ -670,10 +670,10 @@ Table: Restricted mean survival time
 
 |treatment |population | horizon|     mean|       sd|     q2.5|      q50|    q97.5|
 |:---------|:----------|-------:|--------:|--------:|--------:|--------:|--------:|
-|Len       |Index      |    64.8| 44.88622| 1.383714| 42.11401| 44.89616| 47.54856|
-|Thal      |Index      |    64.8| 41.82327| 2.054401| 37.67333| 41.89813| 45.53419|
-|Len       |Comparator |    64.8| 36.56521| 2.312381| 32.15020| 36.48156| 41.26836|
-|Thal      |Comparator |    64.8| 32.65515| 1.245479| 30.24919| 32.63099| 35.10517|
+|Len       |Index      |    64.8| 44.84589| 1.383062| 42.12305| 44.86584| 47.54623|
+|Thal      |Index      |    64.8| 41.83136| 2.045192| 37.75065| 41.90174| 45.71788|
+|Len       |Comparator |    64.8| 36.46918| 2.300503| 32.05032| 36.39400| 41.10889|
+|Thal      |Comparator |    64.8| 32.62224| 1.288960| 30.19791| 32.60844| 35.18367|
 
 
 
@@ -687,10 +687,10 @@ Table: Median survival
 
 |treatment |population |     mean|       sd|     q2.5|      q50|    q97.5| p_not_reached|
 |:---------|:----------|--------:|--------:|--------:|--------:|--------:|-------------:|
-|Len       |Index      | 53.23801| 3.871085| 46.06418| 53.19922| 61.09056|       0.00000|
-|Thal      |Index      | 50.52933| 8.211433| 35.74973| 50.09974| 66.96409|       0.05225|
-|Len       |Comparator | 34.93992| 4.290860| 27.05821| 34.68099| 43.90881|       0.00000|
-|Thal      |Comparator | 25.75542| 2.343685| 21.48948| 25.62412| 30.72446|       0.00000|
+|Len       |Index      | 53.20332| 3.905874| 45.89997| 53.11395| 61.06690|        0.0000|
+|Thal      |Index      | 50.32930| 8.043077| 35.77311| 49.91257| 66.81601|        0.0635|
+|Len       |Comparator | 34.77631| 4.280030| 26.94352| 34.59879| 43.56812|        0.0000|
+|Thal      |Comparator | 25.70925| 2.378158| 21.34971| 25.59981| 30.66992|        0.0000|
 
 
 
@@ -776,10 +776,10 @@ knitr::kable(marginal_effects(fit_mspline_relaxed, effect = "rmstd"),
 
 Table: Relaxed M-spline RMST difference (effect modification, collapsible summary)
 
-|variable             |effect |population | horizon|      mean|       sd|       q2.5|      q50|     q97.5|
-|:--------------------|:------|:----------|-------:|---------:|--------:|----------:|--------:|---------:|
-|rmst_diff_index      |RMSTD  |Index      |    64.8| 11.849886| 7.408610| -1.2576267| 11.44882| 26.327274|
-|rmst_diff_comparator |RMSTD  |Comparator |    64.8|  3.906751| 2.632891| -0.9399761|  3.87162|  9.068319|
+|variable             |effect |population | horizon|      mean|       sd|      q2.5|       q50|     q97.5|
+|:--------------------|:------|:----------|-------:|---------:|--------:|---------:|---------:|---------:|
+|rmst_diff_index      |RMSTD  |Index      |    64.8| 11.717789| 7.589651| -1.369836| 11.274465| 26.636968|
+|rmst_diff_comparator |RMSTD  |Comparator |    64.8|  3.929039| 2.641571| -1.238048|  3.916078|  9.217026|
 
 
 
@@ -816,8 +816,7 @@ compare_models(Weibull = fit_weibull, MSpline = fit_mspline, criterion = "loo")
 #> 
 #>    model elpd_diff se_diff p_worse diag_diff diag_elpd
 #>  MSpline       0.0     0.0      NA                    
-#>  Weibull      -5.4     3.9    0.92                    
-#> 
+#>  Weibull      -5.0     3.9    0.90                    
 #> 
 #> elpd_diff is the difference in expected log pointwise predictive
 #> density vs the best model, and se_diff is its standard error: the
@@ -844,12 +843,12 @@ Table: Weibull population-standardized effects (Len vs Thal), both populations
 
 |variable              |effect |population | at_time| horizon|      mean|        sd|       q2.5|       q50|     q97.5|
 |:---------------------|:------|:----------|-------:|-------:|---------:|---------:|----------:|---------:|---------:|
-|hr_index              |HR     |Index      |     1.4|      NA| 0.4321323| 0.1718592|  0.1863515| 0.4044666| 0.8495956|
-|hr_comparator         |HR     |Comparator |     1.4|      NA| 0.4385704| 0.1722747|  0.1898217| 0.4114319| 0.8565592|
-|rmst_diff_index       |RMSTD  |Index      |      NA|    64.8| 0.9728680| 2.0067392| -2.8338304| 0.9359614| 4.9852264|
-|rmst_diff_comparator  |RMSTD  |Comparator |      NA|    64.8| 1.7830618| 2.2265493| -2.4792818| 1.7635118| 6.1484112|
-|rmst_ratio_index      |RMSTR  |Index      |      NA|    64.8| 1.0232273| 0.0462188|  0.9386665| 1.0208617| 1.1197285|
-|rmst_ratio_comparator |RMSTR  |Comparator |      NA|    64.8| 1.0550456| 0.0682076|  0.9279087| 1.0532360| 1.1934411|
+|hr_index              |HR     |Index      |     1.4|      NA| 0.4313969| 0.1626796|  0.1931131| 0.4070606| 0.8220744|
+|hr_comparator         |HR     |Comparator |     1.4|      NA| 0.4378076| 0.1632146|  0.1964644| 0.4138155| 0.8285563|
+|rmst_diff_index       |RMSTD  |Index      |      NA|    64.8| 1.0088964| 2.0163785| -2.9183922| 0.9853879| 5.0880552|
+|rmst_diff_comparator  |RMSTD  |Comparator |      NA|    64.8| 1.8142917| 2.2254231| -2.5243762| 1.7763536| 6.3011651|
+|rmst_ratio_index      |RMSTR  |Index      |      NA|    64.8| 1.0241154| 0.0464969|  0.9377540| 1.0221220| 1.1228799|
+|rmst_ratio_comparator |RMSTR  |Comparator |      NA|    64.8| 1.0560436| 0.0683024|  0.9268143| 1.0536830| 1.1950134|
 
 
 
@@ -923,18 +922,18 @@ Table: Naive and ML-UMR log hazard ratios, in both target populations (Len vs Th
 |Method                                         |Population     | log HR|   2.5%|  97.5%|
 |:----------------------------------------------|:--------------|------:|------:|------:|
 |Naive Cox (unadjusted)                         |unstandardized | -0.554| -0.767| -0.341|
-|ML-UMR M-spline (SPFA, prognostic only)        |index          | -0.508| -1.361|  0.231|
-|ML-UMR M-spline (SPFA, prognostic only)        |comparator     | -0.505| -1.354|  0.228|
-|ML-UMR M-spline (relaxed, effect modification) |index          | -1.060| -2.347|  0.368|
-|ML-UMR M-spline (relaxed, effect modification) |comparator     | -0.492| -1.351|  0.255|
+|ML-UMR M-spline (SPFA, prognostic only)        |index          | -0.485| -1.390|  0.276|
+|ML-UMR M-spline (SPFA, prognostic only)        |comparator     | -0.483| -1.383|  0.269|
+|ML-UMR M-spline (relaxed, effect modification) |index          | -1.047| -2.326|  0.371|
+|ML-UMR M-spline (relaxed, effect modification) |comparator     | -0.490| -1.366|  0.276|
 
 
 
 The SPFA and relaxed fits separate in an informative way. In the
-**comparator** population they agree almost exactly (-0.505 and
--0.492). In the **index**
-population SPFA is close to its own comparator value (-0.508), but the relaxed
-model moves to -1.060, roughly twice as far from the null, with an interval to
+**comparator** population they agree almost exactly (-0.483 and
+-0.490). In the **index**
+population SPFA is close to its own comparator value (-0.485), but the relaxed
+model moves to -1.047, roughly twice as far from the null, with an interval to
 match.
 
 This divergence should not be read as evidence of effect modification; it is
@@ -961,7 +960,7 @@ place of them.
 A note on estimands, since two kinds of log hazard ratio sit in one table. The
 naive figure is an unadjusted marginal Cox estimate, and ML-UMR reports a
 population-standardized marginal effect. The two ML-UMR SPFA values above are
-close (`delta_index` -0.508, `delta_comparator` -0.505),
+close (`delta_index` -0.485, `delta_comparator` -0.483),
 which says the standardization population barely matters here, but they are not
 identical and neither is a conditional contrast. With a baseline hazard per study
 the marginal hazard ratio also varies with time, so these scalars are its value
@@ -979,19 +978,19 @@ reported so that the contribution of the modeling assumptions is visible.
   between McCarthy2012 (Len) and Morgan2012 (Thal): mean age 57.9 against 65.6
   years, and 27% against 32% ISS stage 3. Adjusting for it moves the SPFA
   estimate toward the null, from -0.554 to
-  -0.508 in the index population.
+  -0.485 in the index population.
 * The prognostic coefficients are the part to check first, because they are what
   the adjustment is built from. Here they have plausible signs and sizes: age
   0.07 per year, ISS stage III
-  0.41, and the response
+  0.40, and the response
   and sex coefficients small, with intervals spanning zero.
-* **ML-UMR** adjusts for the imbalance (SPFA -0.508 in the index population and
-  -0.505 in the comparator, against the naive
+* **ML-UMR** adjusts for the imbalance (SPFA -0.485 in the index population and
+  -0.483 in the comparator, against the naive
   -0.554). Its intervals are much wider than the
   naive one, which reflects sampling error alone and carries none of the
   uncertainty of adjusting. Read the SPFA and relaxed fits together: they agree
-  in the comparator population (-0.492) but diverge in the index population
-  (-1.060), which measures how much of the index-population answer rests on
+  in the comparator population (-0.490) but diverge in the index population
+  (-1.047), which measures how much of the index-population answer rests on
   comparator coefficients the aggregate curve cannot identify. ML-UMR adds what
   the frequentist benchmarks cannot: full posterior uncertainty, and effects in
   *both* populations.
