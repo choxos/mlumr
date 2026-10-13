@@ -10,7 +10,7 @@
 ## Citation
 
 Source:
-[`inst/CITATION`](https://github.com/choxos/mlumr/blob/main/inst/CITATION)
+[`inst/CITATION`](https://github.com/choxos/mlumr/blob/v0.2.0/inst/CITATION)
 
 Chandler C, Ishak J (2026). “Anchors Away: Navigating Unanchored
 Indirect Comparisons with Multilevel Unanchored Meta-Regression

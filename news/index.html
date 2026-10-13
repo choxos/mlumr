@@ -51,11 +51,11 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.svg" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/choxos/mlumr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/choxos/mlumr/blob/v0.2.0/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.2.0" id="mlumr-020">mlumr 0.2.0<a class="anchor" aria-label="anchor" href="#mlumr-020"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.2.0" id="mlumr-020">mlumr 0.2.0<a class="anchor" aria-label="anchor" href="#mlumr-020"></a></h2><p class="text-muted">CRAN release: 2026-10-13</p>
 <div class="section level3">
 <h3 id="time-to-event-outcomes-0-2-0">Time-to-event outcomes<a class="anchor" aria-label="anchor" href="#time-to-event-outcomes-0-2-0"></a></h3>
 <ul><li>Feature: New <code>"survival"</code> outcome family. <code><a href="../reference/set_ipd.html">set_ipd()</a></code> accepts time-to-event data with right, left, interval and delayed-entry censoring through a <code><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">survival::Surv()</a></code> object or <code>time</code>/<code>status</code>/<code>entry_time</code> columns, and <code><a href="../reference/set_agd_surv.html">set_agd_surv()</a></code> takes the comparator arm as reconstructed pseudo-IPD plus its covariate moments. <code>outcome</code> is not required for this family.</li>

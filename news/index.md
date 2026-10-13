@@ -2,6 +2,8 @@
 
 ## mlumr 0.2.0
 
+CRAN release: 2026-10-13
+
 ### Time-to-event outcomes
 
 - Feature: New `"survival"` outcome family.
