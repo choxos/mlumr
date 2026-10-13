@@ -34,8 +34,7 @@ survival (progression-free survival) ML-UMR worked example; pair with
 The two source trials are not genuinely disconnected: McCarthy 2012
 and Morgan 2012 both include a placebo arm. Those arms are omitted here
 deliberately, so that this pair of datasets poses the unanchored problem
-ML-UMR exists for. \code{vignette("survival-outcomes")} puts them back at
-the end to check the unanchored estimate against the anchored one.
+ML-UMR exists for.
 
 McCarthy 2012 is the index arm because population overlap, not sample size,
 governs how far an unanchored comparison has to extrapolate. Unanchored MAIC

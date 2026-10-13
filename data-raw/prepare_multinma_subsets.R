@@ -27,9 +27,7 @@
 # Fitting the vignette's model on that pair gives prognostic coefficients roughly
 # double multinma's five-study network estimates, with the CR/VGPR response
 # coefficient taking the wrong sign. McCarthy2012 keeps the same
-# active-vs-active Len-vs-Thal question with 12x the effective sample size, and
-# both studies retain a placebo arm so the anchored cross-check in the vignette
-# still works.
+# active-vs-active Len-vs-Thal question with 12x the effective sample size.
 
 suppressMessages(library(multinma))
 e <- new.env()
@@ -54,8 +52,7 @@ tidy <- function(df, study_col, trt_col, subject = FALSE) {
 }
 
 # ---- binary vignette: UNCOVER-2 ixekizumab Q4W vs FIXTURE secukinumab 300 mg --
-# Unanchored MAIC ESS 203.2 / 345 (58.9%); the two trials share an etanercept
-# arm, which the vignette restores at the end for the anchored cross-check.
+# Unanchored MAIC ESS 203.2 / 345 (58.9%).
 pi <- e$plaque_psoriasis_ipd
 psoriasis_ipd <- tidy(
   pi[pi$studyc == "UNCOVER-2" & pi$trtc == "IXE_Q4W",

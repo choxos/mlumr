@@ -30,8 +30,7 @@
 #' @details The two source trials are not genuinely disconnected: UNCOVER-2 and
 #'   FIXTURE both include placebo and etanercept arms. Those arms are omitted
 #'   here deliberately, so that this pair of datasets poses the unanchored
-#'   problem ML-UMR exists for. \code{vignette("binary-outcomes")} puts them
-#'   back at the end to check the unanchored estimate against the anchored one.
+#'   problem ML-UMR exists for.
 #'
 #' @source The UNCOVER-2 ixekizumab-Q4W arm of
 #'   \code{multinma::plaque_psoriasis_ipd} (GPL-3; Phillippo, \emph{multinma},
@@ -77,8 +76,7 @@
 #' @details The two source trials are not genuinely disconnected: McCarthy 2012
 #'   and Morgan 2012 both include a placebo arm. Those arms are omitted here
 #'   deliberately, so that this pair of datasets poses the unanchored problem
-#'   ML-UMR exists for. \code{vignette("survival-outcomes")} puts them back at
-#'   the end to check the unanchored estimate against the anchored one.
+#'   ML-UMR exists for.
 #'
 #'   McCarthy 2012 is the index arm because population overlap, not sample size,
 #'   governs how far an unanchored comparison has to extrapolate. Unanchored MAIC

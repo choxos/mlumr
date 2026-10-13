@@ -1,4 +1,4 @@
-# mlumr 0.1.0.9000 (development version)
+# mlumr 0.2.0
 
 ## Time-to-event outcomes
 
@@ -295,8 +295,7 @@
 
 * `splines2` and `survival` added to Imports; `ggplot2` moved from Suggests
   to Imports (`>= 3.4.0`).
-* `flexsurv`, `detectseparation`, `multinma`, `ggsurvfit` and `R.rsp` added
-  to Suggests.
+* `flexsurv`, `detectseparation`, `ggsurvfit` and `R.rsp` added to Suggests.
 * `copula` is no longer imported: the Gaussian-copula integration points are
   built from the Cholesky factor in base R.
 * `Additional_repositories` is pinned to `https://mc-stan.org/r-packages`
