@@ -1,0 +1,5 @@
+"workload","side","total_s","ess_bulk","ess_tail","ess_bulk_per_s"
+"mspline_spfa_n500_int64","baseline",436.04,931.83,976.51,2.43
+"weibull_spfa_n500_int64","baseline",164.62,947.1,724.2,5.27
+"mspline_spfa_n500_int64","candidate",542.72,1030.21,944.56,1.9
+"weibull_spfa_n500_int64","candidate",161.5,947.1,724.2,5.58

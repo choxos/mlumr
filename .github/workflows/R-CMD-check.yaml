@@ -216,6 +216,20 @@ jobs:
           }
         shell: Rscript {0}
 
+      # The four survival models against their frozen pre-reuse copies in
+      # tests/parity: log density, gradient, parameter mapping and every
+      # generated quantity, plus mutation controls. The fixtures are built in
+      # one process and compared in another that never loads mlumr, because
+      # cmdstanr's model methods cannot share a process with the package's TBB.
+      - name: Build the survival parity fixtures
+        run: Rscript tests/parity/build-armfast-cases.R "${{ runner.temp }}/parity/cases.rds"
+
+      - name: Survival parity gate against the frozen baseline
+        run: >-
+          Rscript tests/parity/armfast-parity-gate.R
+          "${{ runner.temp }}/parity/cases.rds" "${{ runner.temp }}/parity/out"
+          --mutations --exe-dir "${{ runner.temp }}/parity/exe"
+
       # Nothing else samples through rstan, so fit the models most likely to
       # break with it: parametric SPFA, flexible baseline and relaxed.
       - name: rstan survival sampling smoke test

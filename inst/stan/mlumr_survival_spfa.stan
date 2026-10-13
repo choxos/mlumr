@@ -133,17 +133,18 @@ model {
   // distribution: for pseudo-individual j in arm a,
   //   log( (1/n_int) * sum_m exp( ll(t_j | eta over X_int[a]) ) ).
   {
-    // eta over the integration grid is the (possibly QR-rotated) comparator
-    // design times beta_tilde, recomputed for every pseudo-individual.
+    // Recomputed at this parameter evaluation, once per comparator arm.
+    array[n_agd_rows] vector[n_int] eta_agd_arm;
     vector[n_agd] agd_ll;
+    for (a in 1:n_agd_rows)
+      eta_agd_arm[a] = Xq_int[a] * beta_tilde;
     for (j in 1:n_agd) {
       int a = agd_arm[j];
-      vector[n_int] eta = Xq_int[a] * beta_tilde;
       vector[n_int] ll;
       for (m in 1:n_int)
         ll[m] = surv_ll_status(dist, agd_time[j], agd_start_time[j],
                                agd_delay_time[j], agd_status[j],
-                               eta[m], aux_val_cmp, aux2_val_cmp);
+                               eta_agd_arm[a][m], aux_val_cmp, aux2_val_cmp);
       agd_ll[j] = log_sum_exp(ll) - log(n_int);
     }
     target += sum(agd_ll);
@@ -268,14 +269,16 @@ generated quantities {
                                       ipd_delay_time[i], ipd_status[i],
                                       eta_ipd[i], aux_val, aux2_val);
     {
+      array[n_agd_rows] vector[n_int] eta_agd_arm;
+      for (a in 1:n_agd_rows)
+        eta_agd_arm[a] = Xq_int[a] * beta_tilde;
       for (j in 1:n_agd) {
         int a = agd_arm[j];
-        vector[n_int] eta = Xq_int[a] * beta_tilde;
         vector[n_int] ll;
         for (m in 1:n_int)
           ll[m] = surv_ll_status(dist, agd_time[j], agd_start_time[j],
                                  agd_delay_time[j], agd_status[j],
-                                 eta[m], aux_val_cmp, aux2_val_cmp);
+                                 eta_agd_arm[a][m], aux_val_cmp, aux2_val_cmp);
         log_lik_agd[j] = log_sum_exp(ll) - log(n_int);
       }
     }

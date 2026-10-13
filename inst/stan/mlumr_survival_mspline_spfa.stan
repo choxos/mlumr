@@ -164,19 +164,21 @@ model {
 
   // Comparator pseudo-IPD likelihood, integrated over comparator covariates.
   {
-    // eta over the integration grid is the comparator design times beta_tilde,
-    // recomputed for every pseudo-individual.
+    // Recomputed at this parameter evaluation, once per comparator arm.
+    array[n_agd_rows] vector[n_int] eta_agd_arm;
     vector[n_agd] agd_ll;
+    for (a in 1:n_agd_rows)
+      eta_agd_arm[a] = Xq_int[a] * beta_tilde;
     for (j in 1:n_agd) {
       int a = agd_arm[j];
-      vector[n_int] eta = Xq_int[a] * beta_tilde;
       real dH_et = fmax(dot_product(ib_agd[j] - ib_agd_delay[j], scoef_cmp), 0);
       real dH_es = fmax(dot_product(ib_agd_start[j] - ib_agd_delay[j], scoef_cmp), 0);
       real dH_st = fmax(dot_product(ib_agd[j] - ib_agd_start[j], scoef_cmp), 0);
       real h0  = dot_product(b_agd[j], scoef_cmp);
       vector[n_int] ll;
       for (m in 1:n_int) {
-        ll[m] = mspline_ll_status(dH_et, dH_es, dH_st, h0, eta[m],
+        ll[m] = mspline_ll_status(dH_et, dH_es, dH_st, h0,
+                                  eta_agd_arm[a][m],
                                   agd_status[j]);
       }
       agd_ll[j] = log_sum_exp(ll) - log(n_int);
@@ -284,16 +286,19 @@ generated quantities {
 
     for (i in 1:n_ipd) log_lik_ipd[i] = log_L_ipd[i];
     {
+      array[n_agd_rows] vector[n_int] eta_agd_arm;
+      for (a in 1:n_agd_rows)
+        eta_agd_arm[a] = Xq_int[a] * beta_tilde;
       for (j in 1:n_agd) {
         int a = agd_arm[j];
-        vector[n_int] eta = Xq_int[a] * beta_tilde;
         real dH_et = fmax(dot_product(ib_agd[j] - ib_agd_delay[j], scoef_cmp), 0);
         real dH_es = fmax(dot_product(ib_agd_start[j] - ib_agd_delay[j], scoef_cmp), 0);
         real dH_st = fmax(dot_product(ib_agd[j] - ib_agd_start[j], scoef_cmp), 0);
         real h0  = dot_product(b_agd[j], scoef_cmp);
         vector[n_int] ll;
         for (m in 1:n_int) {
-          ll[m] = mspline_ll_status(dH_et, dH_es, dH_st, h0, eta[m],
+          ll[m] = mspline_ll_status(dH_et, dH_es, dH_st, h0,
+                                    eta_agd_arm[a][m],
                                     agd_status[j]);
         }
         log_lik_agd[j] = log_sum_exp(ll) - log(n_int);

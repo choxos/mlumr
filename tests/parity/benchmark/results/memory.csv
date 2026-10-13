@@ -1,0 +1,3 @@
+"workload","side","peak_rss_mb"
+"weibull_spfa_n500_int64","baseline",33.59375
+"weibull_spfa_n500_int64","candidate",30.34375

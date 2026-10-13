@@ -35,6 +35,7 @@
 ^\.positai$
 ^tools$
 ^tests/repo$
+^tests/parity$
 ^reporting$
 ^app$
 ^data-raw$

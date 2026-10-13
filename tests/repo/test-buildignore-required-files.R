@@ -65,9 +65,11 @@ test_that("the built source tarball contains what the package promises", {
 
   # The development-only trees. `reporting/` is proprietary and
   # `documentation/` and `inst/future/` are unreleased work; any of them
-  # reaching a tarball is a disclosure, not a size problem.
+  # reaching a tarball is a disclosure, not a size problem. `tests/parity/`
+  # holds the frozen survival baseline: four more Stan models that R CMD build
+  # must not see.
   must_not_ship <- c("^data-raw/", "^reporting/", "^documentation/",
-                     "^inst/future/", "^\\.github/")
+                     "^inst/future/", "^tests/parity/", "^\\.github/")
   for (pattern in must_not_ship) {
     hits <- grep(pattern, files, value = TRUE)
     expect_length(hits, 0L)
