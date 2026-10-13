@@ -32,7 +32,11 @@ jobs:
           use-public-rspm: true
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          packages: any::rstantools
+          # rstan_config() generates the C++ through rstan, which rstantools only
+          # suggests; a cold package cache otherwise leaves it uninstalled.
+          packages: |
+            any::rstantools
+            any::rstan
       - name: Regenerate Stan exports and diff against the tracked copies
         shell: bash
         run: |
