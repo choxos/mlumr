@@ -18,9 +18,8 @@ A data frame with 408 rows and 5 columns: `study`, `treatment`,
 
 ## Source
 
-The Morgan-2012 thalidomide arm of
-[`multinma::ndmm_agd`](https://dmphillippo.github.io/multinma/reference/ndmm.html)
-(GPL-3; Phillippo, *multinma*, 2024); event/censoring times
-reconstructed from published Kaplan-Meier curves. See
+The Morgan-2012 thalidomide arm of `multinma::ndmm_agd` (GPL-3;
+Phillippo, *multinma*, 2024); event/censoring times reconstructed from
+published Kaplan-Meier curves. See
 [`ndmm_ipd`](https://choxos.github.io/mlumr/reference/ndmm_ipd.md) for
 trial sources.

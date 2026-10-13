@@ -1,6 +1,6 @@
 # Changelog
 
-## mlumr 0.1.0.9000 (development version)
+## mlumr 0.2.0
 
 ### Time-to-event outcomes
 
@@ -24,9 +24,8 @@
   places spline knots; `knots` accepts a custom set.
 - Feature: The baseline hazard is estimated per study by default
   (`aux_by = ".study"`), each stratum with its own knots over its own
-  observed support, as
-  [`multinma::nma()`](https://dmphillippo.github.io/multinma/reference/nma.html)
-  does. `aux_by = "none"` shares one baseline across studies.
+  observed support, as `multinma::nma()` does. `aux_by = "none"` shares
+  one baseline across studies.
 - Feature: New priors `prior_aux`, `prior_aux2` (second
   generalized-gamma auxiliary) and `prior_smooth`, with
   [`default_prior_aux()`](https://choxos.github.io/mlumr/reference/default_priors.md)
@@ -425,8 +424,8 @@
 
 - `splines2` and `survival` added to Imports; `ggplot2` moved from
   Suggests to Imports (`>= 3.4.0`).
-- `flexsurv`, `detectseparation`, `multinma`, `ggsurvfit` and `R.rsp`
-  added to Suggests.
+- `flexsurv`, `detectseparation`, `ggsurvfit` and `R.rsp` added to
+  Suggests.
 - `copula` is no longer imported: the Gaussian-copula integration points
   are built from the Cholesky factor in base R.
 - `Additional_repositories` is pinned to

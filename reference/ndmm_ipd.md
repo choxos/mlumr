@@ -35,11 +35,10 @@ A data frame with 231 rows and 9 columns:
 
 ## Source
 
-The McCarthy-2012 lenalidomide arm of
-[`multinma::ndmm_ipd`](https://dmphillippo.github.io/multinma/reference/ndmm.html)
-(GPL-3; Phillippo, *multinma*, 2024), subset to the columns used in the
-survival vignette. multinma provides *simulated* IPD resembling
-published newly-diagnosed-multiple-myeloma trials; the vignette compares
+The McCarthy-2012 lenalidomide arm of `multinma::ndmm_ipd` (GPL-3;
+Phillippo, *multinma*, 2024), subset to the columns used in the survival
+vignette. multinma provides *simulated* IPD resembling published
+newly-diagnosed-multiple-myeloma trials; the vignette compares
 lenalidomide (McCarthy et al. 2012) with thalidomide (Morgan et al.
 2012). See `data-raw/prepare_multinma_subsets.R`.
 
@@ -49,9 +48,6 @@ The two source trials are not genuinely disconnected: McCarthy 2012 and
 Morgan 2012 both include a placebo arm. Those arms are omitted here
 deliberately, so that this pair of datasets poses the unanchored problem
 ML-UMR exists for.
-[`vignette("survival-outcomes")`](https://choxos.github.io/mlumr/articles/survival-outcomes.md)
-puts them back at the end to check the unanchored estimate against the
-anchored one.
 
 McCarthy 2012 is the index arm because population overlap, not sample
 size, governs how far an unanchored comparison has to extrapolate.

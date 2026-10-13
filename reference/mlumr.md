@@ -144,8 +144,7 @@ mlumr(
 - aux_by:
 
   For `family = "survival"`: how the baseline hazard is shared between
-  the two studies, the unanchored analogue of
-  [`multinma::nma()`](https://dmphillippo.github.io/multinma/reference/nma.html)'s
+  the two studies, the unanchored analogue of `multinma::nma()`'s
   `aux_by`. `".study"` (the default, and what `NULL` means) gives each
   study its own baseline shape, with its own knots over its own observed
   support for a flexible baseline. `"none"` gives both studies one

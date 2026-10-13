@@ -62,7 +62,7 @@ default_prior_intercept()
 #> [1] TRUE
 #> 
 #> $version
-#> [1] "0.1.0.9000"
+#> [1] "0.2.0"
 #> 
 default_prior_beta()
 #> $distribution
@@ -84,7 +84,7 @@ default_prior_beta()
 #> [1] TRUE
 #> 
 #> $version
-#> [1] "0.1.0.9000"
+#> [1] "0.2.0"
 #> 
 default_prior_sigma()
 #> $distribution
@@ -106,6 +106,6 @@ default_prior_sigma()
 #> [1] TRUE
 #> 
 #> $version
-#> [1] "0.1.0.9000"
+#> [1] "0.2.0"
 #> 
 ```

@@ -11,7 +11,7 @@ count, and time-to-event outcomes."><meta property="og:image" content="https://c
 
     <a class="navbar-brand me-2" href="../index.html">mlumr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -197,7 +197,7 @@ degree override (default derived from <code>distribution</code>: 3 for <code>"ms
 
 <dt id="arg-aux-by">aux_by<a class="anchor" aria-label="anchor" href="#arg-aux-by"></a></dt>
 <dd><p>For <code>family = "survival"</code>: how the baseline hazard is shared
-between the two studies, the unanchored analogue of <code><a href="https://dmphillippo.github.io/multinma/reference/nma.html" class="external-link">multinma::nma()</a></code>'s
+between the two studies, the unanchored analogue of <code>multinma::nma()</code>'s
 <code>aux_by</code>. <code>".study"</code> (the default, and what <code>NULL</code> means) gives each
 study its own baseline shape, with its own knots over its own observed
 support for a flexible baseline. <code>"none"</code> gives both studies one shared

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">mlumr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -55,12 +55,12 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.1.0.9000" id="mlumr-0109000-development-version">mlumr 0.1.0.9000 (development version)<a class="anchor" aria-label="anchor" href="#mlumr-0109000-development-version"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.2.0" id="mlumr-020">mlumr 0.2.0<a class="anchor" aria-label="anchor" href="#mlumr-020"></a></h2>
 <div class="section level3">
-<h3 id="time-to-event-outcomes-0-1-0-9000">Time-to-event outcomes<a class="anchor" aria-label="anchor" href="#time-to-event-outcomes-0-1-0-9000"></a></h3>
+<h3 id="time-to-event-outcomes-0-2-0">Time-to-event outcomes<a class="anchor" aria-label="anchor" href="#time-to-event-outcomes-0-2-0"></a></h3>
 <ul><li>Feature: New <code>"survival"</code> outcome family. <code><a href="../reference/set_ipd.html">set_ipd()</a></code> accepts time-to-event data with right, left, interval and delayed-entry censoring through a <code><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">survival::Surv()</a></code> object or <code>time</code>/<code>status</code>/<code>entry_time</code> columns, and <code><a href="../reference/set_agd_surv.html">set_agd_surv()</a></code> takes the comparator arm as reconstructed pseudo-IPD plus its covariate moments. <code>outcome</code> is not required for this family.</li>
 <li>Feature: Parametric and flexible baselines through the <code>distribution</code> argument of <code><a href="../reference/mlumr.html">mlumr()</a></code>: proportional hazards (<code>"exponential"</code>, <code>"weibull"</code>, <code>"gompertz"</code>), accelerated failure time (<code>"exponential-aft"</code>, <code>"weibull-aft"</code>, <code>"lognormal"</code>, <code>"loglogistic"</code>, <code>"gamma"</code>, <code>"gengamma"</code>) and flexible hazards (<code>"mspline"</code>, <code>"pexp"</code>) with a random-walk smoothing prior. <code><a href="../reference/make_knots.html">make_knots()</a></code> places spline knots; <code>knots</code> accepts a custom set.</li>
-<li>Feature: The baseline hazard is estimated per study by default (<code>aux_by = ".study"</code>), each stratum with its own knots over its own observed support, as <code><a href="https://dmphillippo.github.io/multinma/reference/nma.html" class="external-link">multinma::nma()</a></code> does. <code>aux_by = "none"</code> shares one baseline across studies.</li>
+<li>Feature: The baseline hazard is estimated per study by default (<code>aux_by = ".study"</code>), each stratum with its own knots over its own observed support, as <code>multinma::nma()</code> does. <code>aux_by = "none"</code> shares one baseline across studies.</li>
 <li>Feature: New priors <code>prior_aux</code>, <code>prior_aux2</code> (second generalized-gamma auxiliary) and <code>prior_smooth</code>, with <code><a href="../reference/default_priors.html">default_prior_aux()</a></code> and <code><a href="../reference/default_priors.html">default_prior_smooth()</a></code>.</li>
 <li>Feature: <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> on a survival fit returns <code>"survival"</code>, <code>"hazard"</code>, <code>"cumhaz"</code>, <code>"rmst"</code>, <code>"median"</code> and <code>"loghr"</code> curves. <code>times</code> picks evaluation times (snapped to the fitted grid, with a message when they move), <code>pred_times</code> sets the grid, <code>"median"</code> carries <code>p_not_reached</code>, and RMST rows carry their <code>horizon</code>. <code><a href="../reference/conditional_effects.html">conditional_effects()</a></code> and <code><a href="../reference/conditional_predict.html">conditional_predict()</a></code> give covariate-conditional versions.</li>
 <li>Feature: <code><a href="../reference/marginal_effects.html">marginal_effects()</a></code> reports survival effects on the natural scale: the hazard ratio (<code>HR</code>) for proportional-hazards fits, the time ratio (<code>TR</code>) for shared-shape AFT fits, the exponentiated contrast (<code>EXP_DELTA_ETA</code>) otherwise, plus the RMST difference (<code>RMSTD</code>) and ratio (<code>RMSTR</code>). Marginal hazard ratios carry an <code>at_time</code> column because they are time-varying and non-collapsible; <code>predict(type = "loghr")</code> gives the whole curve.</li>
@@ -74,12 +74,12 @@
 <li>Improvement: <code><a href="../reference/set_agd_surv.html">?set_agd_surv</a></code> states that reconstruction uncertainty is not propagated and which population the covariate moments must describe under delayed entry.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="transport-to-any-target-population-0-1-0-9000">Transport to any target population<a class="anchor" aria-label="anchor" href="#transport-to-any-target-population-0-1-0-9000"></a></h3>
+<h3 id="transport-to-any-target-population-0-2-0">Transport to any target population<a class="anchor" aria-label="anchor" href="#transport-to-any-target-population-0-2-0"></a></h3>
 <ul><li>Feature: A <code>newdata</code> argument on <code><a href="../reference/marginal_effects.html">marginal_effects()</a></code> and <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> standardizes effects and absolute predictions to an arbitrary target population by Bayesian g-computation, for every family. Standardizing to the index covariates reproduces <code>population = "index"</code> exactly. Survival RMST effects and absolute predictions transport; the marginal hazard ratio is reported for a target too, with its <code>at_time</code>.</li>
 <li>Improvement: <code><a href="../reference/marginal_effects.html">marginal_effects()</a></code> on a relaxed fit queried for the index population prints a one-line note with the marginal posterior variance change of <code>beta_comparator</code> per covariate, descriptive only. Silence it with <code>options(mlumr.quiet_relaxed_index = TRUE)</code>.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="plotting-0-1-0-9000">Plotting<a class="anchor" aria-label="anchor" href="#plotting-0-1-0-9000"></a></h3>
+<h3 id="plotting-0-2-0">Plotting<a class="anchor" aria-label="anchor" href="#plotting-0-2-0"></a></h3>
 <ul><li>Feature: <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> methods for <code><a href="../reference/marginal_effects.html">marginal_effects()</a></code> (forest), <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> (curves with credible bands, or point-intervals for scalar types) and <code><a href="../reference/conditional_effects.html">conditional_effects()</a></code> (effects by profile). Each forest draws the null its measure implies, uses a log axis for ratio measures, and reads its interval level from the result.</li>
 <li>Feature: <code><a href="../reference/geom_km.html">geom_km()</a></code> overlays the observed Kaplan-Meier curves on a model survival plot, colored by treatment, honoring delayed entry, one panel per population. It draws right-censored data only.</li>
 <li>Feature: <code><a href="../reference/plot_prior_posterior.html">plot_prior_posterior()</a></code> overlays each named parameter’s posterior on the prior the fit recorded for it.</li>
@@ -87,13 +87,13 @@
 <li>Improvement: <code><a href="../reference/marginal_effects.html">marginal_effects()</a></code>, <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> and <code><a href="../reference/conditional_effects.html">conditional_effects()</a></code> return lightweight <code>data.frame</code> subclasses so the methods dispatch; data frame behavior is unchanged.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="identification-of-the-relaxed-comparator-coefficients-0-1-0-9000">Identification of the relaxed comparator coefficients<a class="anchor" aria-label="anchor" href="#identification-of-the-relaxed-comparator-coefficients-0-1-0-9000"></a></h3>
+<h3 id="identification-of-the-relaxed-comparator-coefficients-0-2-0">Identification of the relaxed comparator coefficients<a class="anchor" aria-label="anchor" href="#identification-of-the-relaxed-comparator-coefficients-0-2-0"></a></h3>
 <ul><li>Feature: <code><a href="../reference/check_identification.html">check_identification()</a></code> reports, before fitting, whether the aggregate subgroup rows can identify <code>beta_comparator</code> in <code>model = "relaxed"</code>: the row count against <code>K + 1</code>, and the balance, effective dimension and spread of the centered subgroup-mean matrix, with a descriptive-only label for nonlinear links.</li>
 <li>Feature: <code>prior_beta_comparator</code> argument to <code><a href="../reference/mlumr.html">mlumr()</a></code> sets a separate prior on <code>beta_comparator</code>, including a different family. Defaults to <code>prior_beta</code>; ignored for <code>model = "spfa"</code>; reported by <code><a href="../reference/prior_summary.html">prior_summary()</a></code> and swept by <code><a href="../reference/prior_sensitivity.html">prior_sensitivity()</a></code>.</li>
 <li>Fix: The weak-identifiability warning no longer counts a duplicated <code><a href="../reference/set_agd.html">set_agd()</a></code> row as evidence; it triggers on the rank of the mean design under the identity link and on the number of distinct integration grids otherwise.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="data-preparation-and-integration-0-1-0-9000">Data preparation and integration<a class="anchor" aria-label="anchor" href="#data-preparation-and-integration-0-1-0-9000"></a></h3>
+<h3 id="data-preparation-and-integration-0-2-0">Data preparation and integration<a class="anchor" aria-label="anchor" href="#data-preparation-and-integration-0-2-0"></a></h3>
 <ul><li>Fix: <code><a href="../reference/distr.html">distr()</a></code> honors arguments passed by position. <code>distr(qnorm, 10, 2)</code> previously integrated a standard normal without any message. Positional and abbreviated arguments are now matched against the quantile function’s formals at construction, and an argument matching nothing is an error.</li>
 <li>Feature: Moment-parameterized <code><a href="../reference/GammaDist.html">qgamma()</a></code>/<code><a href="../reference/GammaDist.html">pgamma()</a></code>/<code><a href="../reference/GammaDist.html">dgamma()</a></code> and <code><a href="../reference/logitNormal.html">qlogitnorm()</a></code>/<code><a href="../reference/logitNormal.html">plogitnorm()</a></code>/<code><a href="../reference/logitNormal.html">dlogitnorm()</a></code> accept <code>mean</code> and <code>sd</code>, so <code>distr(qgamma, mean = age_mean, sd = age_sd)</code> works as printed in a baseline table. Without those arguments they forward to <code>stats</code>. See <code><a href="../reference/GammaDist.html">?GammaDist</a></code> and <code><a href="../reference/logitNormal.html">?logitNormal</a></code>.</li>
 <li>Fix: <code><a href="../reference/set_agd.html">set_agd()</a></code> no longer rejects a valid binary covariate SD. The bound was the population SD <code>sqrt(p (1 - p))</code>; it is now the finite-sample maximum with a rounding allowance. See <code><a href="../reference/set_agd.html">?set_agd</a></code>.</li>
@@ -103,7 +103,7 @@
 <li>Improvement: <code><a href="../reference/check_integration.html">check_integration()</a></code> compares realized and target correlations on the same method (Pearson or Spearman), reports fidelity of each grid margin to the declared mean and SD, lists which correlation pairs it could and could not measure (<code>correlation_pairs</code>, with <code>"partial"</code> and <code>"review"</code> verdicts), withholds the comparison under <code>cor_adjust = "none"</code>, and reports a comparison it could not make as <code>"unavailable"</code> instead of <code>"close"</code>.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="priors-and-sensitivity-0-1-0-9000">Priors and sensitivity<a class="anchor" aria-label="anchor" href="#priors-and-sensitivity-0-1-0-9000"></a></h3>
+<h3 id="priors-and-sensitivity-0-2-0">Priors and sensitivity<a class="anchor" aria-label="anchor" href="#priors-and-sensitivity-0-2-0"></a></h3>
 <ul><li>Breaking: for <code>family = "normal"</code> the default priors are on the outcome’s scale. Under the identity link the intercepts and coefficients are in the outcome’s units, and the residual SD is under either link, so the fixed <code>normal(0, 10)</code> intercept and half-normal(0, 2.5) residual-SD defaults were informative for an outcome such as a 0 to 100 score or a blood pressure in mmHg. They pulled each intercept toward zero, the comparator’s (resting on one aggregate mean) the most, which moved the mean difference, and they understated the residual SD, which narrowed the intervals. With <code>sd(y)</code> the IPD outcome SD, the defaults are now <code>normal(0, 10 * sd(y))</code> for the intercepts and <code>normal(0, 2.5 * sd(y))</code> for the coefficients (identity link), and a half-normal with scale <code>2.5 * sd(y)</code> for the residual SD (either link); <code>autoscale = TRUE</code> multiplies a coefficient’s scale by <code>sd(y)</code> as well as dividing it by <code>sd(x)</code> under the identity link. Priors written out in full are used as given. <code><a href="../reference/prior_summary.html">prior_summary()</a></code> prints the scales the model used, and <code><a href="../reference/prior_sensitivity.html">prior_sensitivity()</a></code> sweeps a default or autoscaled <code>prior_beta</code> in the same outcome-SD units. Refit normal-family analyses that relied on the defaults or on <code>autoscale</code>.</li>
 <li>Fix: <code>prior_normal(autoscale = TRUE)</code> rescales the prior location as well as the scale, so a nonzero prior mean is on the covariate’s own scale.</li>
 <li>Improvement: <code><a href="../reference/prior_sensitivity.html">prior_sensitivity()</a></code> varies the prior and nothing else: every model-defining setting is replayed from the fit and <code>...</code> may not override it. Relaxed fits sweep the comparator prior alongside the index one (<code>prior_beta_comparator_scales</code>, reported in <code>scale_comparator</code>), survival rows carry <code>effect</code> and <code>at_time</code>, and a refit that cannot replay a sampler argument the original fit used (such as <code>thin</code> or <code>init</code>) warns and names it.</li>
@@ -112,8 +112,8 @@
 <li>Fix: <code><a href="../reference/prior_summary.html">prior_summary()</a></code> names constrained priors correctly: a truncated normal or t with a nonzero location is not a half-normal or half-t, and an exponential is not truncated at all.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="benchmarks-naive-and-stc-0-1-0-9000">Benchmarks: <code>naive()</code> and <code>stc()</code>
-<a class="anchor" aria-label="anchor" href="#benchmarks-naive-and-stc-0-1-0-9000"></a></h3>
+<h3 id="benchmarks-naive-and-stc-0-2-0">Benchmarks: <code>naive()</code> and <code>stc()</code>
+<a class="anchor" aria-label="anchor" href="#benchmarks-naive-and-stc-0-2-0"></a></h3>
 <ul><li>Breaking: <code><a href="../reference/stc.html">stc()</a></code> no longer reports an index-population contrast. That estimate assumed a constant link-scale effect, which population adjustment exists to avoid. <code><a href="../reference/stc.html">stc()</a></code> returns the comparator-population estimand only; use <code><a href="../reference/mlumr.html">mlumr()</a></code> when the index population is the target.</li>
 <li>Breaking: A normal-family <code><a href="../reference/stc.html">stc()</a></code> under a log link reports the log mean ratio in <code>$estimate</code> and the mean difference in <code>$md</code>, <code>$md_se</code>, <code>$md_lower</code>, <code>$md_upper</code>. Under the identity link the two coincide.</li>
 <li>Fix: <code><a href="../reference/stc.html">stc()</a></code> refuses a binomial outcome model with complete separation and, when <code>detectseparation</code> is installed, tests exactly for quasi-complete separation; the result records a <code>separation</code> status. A Poisson model with no events is refused the same way. See <code><a href="../reference/stc.html">?stc</a></code>.</li>
@@ -122,7 +122,7 @@
 <li>Fix: <code><a href="../reference/naive.html">naive()</a></code> and <code><a href="../reference/stc.html">stc()</a></code> apply a continuity correction only to an observed proportion of 0 or 1 instead of clamping every proportion, which slightly changes the reported effect for arms with no events or no non-events.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="fitting-diagnostics-and-model-comparison-0-1-0-9000">Fitting, diagnostics and model comparison<a class="anchor" aria-label="anchor" href="#fitting-diagnostics-and-model-comparison-0-1-0-9000"></a></h3>
+<h3 id="fitting-diagnostics-and-model-comparison-0-2-0">Fitting, diagnostics and model comparison<a class="anchor" aria-label="anchor" href="#fitting-diagnostics-and-model-comparison-0-2-0"></a></h3>
 <ul><li>Breaking: <code><a href="../reference/mlumr.html">mlumr()</a></code> gains model-defining arguments ahead of <code>chains</code>, <code>iter</code> and the other sampler controls. Pass sampler settings by name.</li>
 <li>Improvement: <code><a href="../reference/mlumr.html">mlumr()</a></code> centers covariates by default (<code>center = TRUE</code>), which removes the intercept-versus-slope collinearity that pushed the sampler into deep trajectories on raw-scale covariates. Reported contrasts are unchanged; <code>prior_intercept</code> then applies at the pooled covariate mean. <code>qr = TRUE</code> offers a QR-rotated design instead.</li>
 <li>Improvement: The binary, continuous and count IPD likelihoods use Stan’s fused GLM densities on their canonical links; results agree with 0.1.0 to Monte Carlo error.</li>
@@ -143,7 +143,7 @@
 <li>Improvement: The <code><a href="../reference/compare_models.html">compare_models()</a></code> printout no longer presents <code>se_diff &gt; 2</code> as a decision rule.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="example-data-and-documentation-0-1-0-9000">Example data and documentation<a class="anchor" aria-label="anchor" href="#example-data-and-documentation-0-1-0-9000"></a></h3>
+<h3 id="example-data-and-documentation-0-2-0">Example data and documentation<a class="anchor" aria-label="anchor" href="#example-data-and-documentation-0-2-0"></a></h3>
 <ul><li>Feature: Bundled datasets derived from published trials replace the invented data of 0.1.0: <code>psoriasis_ipd</code>/<code>psoriasis_agd</code> (binary), <code>shoulder_ipd</code>/<code>shoulder_agd</code> (continuous), <code>caries_ipd</code>/<code>caries_agd</code> (count) and <code>ndmm_ipd</code>/<code>ndmm_agd</code>/<code>ndmm_agd_covs</code> (survival). Provenance and known quirks are on each help page; <code>data-raw/prepare_multinma_subsets.R</code> rebuilds them.</li>
 <li>Improvement: Nine outcome-focused vignettes (<code>introduction</code>, <code>data-preparation</code>, <code>binary-outcomes</code>, <code>continuous-outcomes</code>, <code>count-outcomes</code>, <code>survival-outcomes</code>, <code>subgroup-identification</code>, <code>fitting-and-diagnostics</code>, <code>choosing-a-method</code>), precompiled through <code>R.rsp</code> so no Stan model runs at check time.</li>
 <li>Improvement: <code><a href="../reference/set_agd.html">?set_agd</a></code> states what an aggregate Poisson row assumes about exposure, and the <code>shoulder</code> and <code>caries</code> help pages describe their reference comparison as an estimate rather than a known truth.</li>
@@ -151,11 +151,11 @@
 <li>Feature: New hex-sticker logo with a broken-anchor motif.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="dependencies-0-1-0-9000">Dependencies<a class="anchor" aria-label="anchor" href="#dependencies-0-1-0-9000"></a></h3>
+<h3 id="dependencies-0-2-0">Dependencies<a class="anchor" aria-label="anchor" href="#dependencies-0-2-0"></a></h3>
 <ul><li>
 <code>splines2</code> and <code>survival</code> added to Imports; <code>ggplot2</code> moved from Suggests to Imports (<code>&gt;= 3.4.0</code>).</li>
 <li>
-<code>flexsurv</code>, <code>detectseparation</code>, <code>multinma</code>, <code>ggsurvfit</code> and <code>R.rsp</code> added to Suggests.</li>
+<code>flexsurv</code>, <code>detectseparation</code>, <code>ggsurvfit</code> and <code>R.rsp</code> added to Suggests.</li>
 <li>
 <code>copula</code> is no longer imported: the Gaussian-copula integration points are built from the Cholesky factor in base R.</li>
 <li>

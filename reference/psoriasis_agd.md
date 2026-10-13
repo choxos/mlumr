@@ -20,8 +20,7 @@ counts `pasi75_r` / `pasi75_n`; and covariate summaries `age_mean` /
 
 ## Source
 
-The FIXTURE secukinumab-300 arm of
-[`multinma::plaque_psoriasis_agd`](https://dmphillippo.github.io/multinma/reference/plaque_psoriasis.html)
+The FIXTURE secukinumab-300 arm of `multinma::plaque_psoriasis_agd`
 (GPL-3; Phillippo, *multinma*, 2024), subset to the columns used in the
 binary vignette. See
 [`psoriasis_ipd`](https://choxos.github.io/mlumr/reference/psoriasis_ipd.md)

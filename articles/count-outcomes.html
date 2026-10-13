@@ -29,7 +29,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">mlumr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -389,9 +389,9 @@ covariates are correlated or <code>n_int</code> is small:</p>
 <span>  log_cfu <span class="op">=</span> <span class="fu"><a href="../reference/distr.html">distr</a></span><span class="op">(</span><span class="va">qnorm</span>, mean <span class="op">=</span> <span class="va">log_cfu_mean</span>, sd <span class="op">=</span> <span class="va">log_cfu_sd</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt; Integration check: n_int = 64 vs 128</span></span>
-<span><span class="co">#&gt; Resolution heuristic, max relative difference: 0.0122</span></span>
+<span><span class="co">#&gt; Resolution heuristic, max relative difference: 0.0161</span></span>
 <span><span class="co">#&gt; Caution: 1-5% marginal relative difference. Consider increasing n_int.</span></span>
-<span><span class="co">#&gt; Declared-target fidelity, max relative difference: 0.0373</span></span>
+<span><span class="co">#&gt; Declared-target fidelity, max relative difference: 0.0449</span></span>
 <span><span class="co">#&gt; Caution: grid moments differ from declared AgD moments by 1-5%.</span></span>
 <span><span class="co">#&gt; Joint: max |cor(current) - cor(doubled)|: 0.0347</span></span>
 <span><span class="co">#&gt; Joint resolution stable within the package's 0.05 heuristic.</span></span>
@@ -470,28 +470,28 @@ comparator-specific coefficients lean on one aggregate row.</p>
 <span>                  chains <span class="op">=</span> <span class="fl">4</span>, iter <span class="op">=</span> <span class="fl">2000</span>, warmup <span class="op">=</span> <span class="fl">1000</span>, seed <span class="op">=</span> <span class="fl">2026</span>, refresh <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Chain 1 finished in 0.2 seconds.</span></span>
-<span><span class="co">#&gt; Chain 2 finished in 0.2 seconds.</span></span>
-<span><span class="co">#&gt; Chain 3 finished in 0.2 seconds.</span></span>
-<span><span class="co">#&gt; Chain 4 finished in 0.1 seconds.</span></span>
+<span><span class="co">#&gt; Chain 1 finished in 0.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 2 finished in 0.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 3 finished in 0.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 4 finished in 0.4 seconds.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span><span class="co">#&gt; Mean chain execution time: 0.2 seconds.</span></span>
-<span><span class="co">#&gt; Total execution time: 0.5 seconds.</span></span>
+<span><span class="co">#&gt; Mean chain execution time: 0.4 seconds.</span></span>
+<span><span class="co">#&gt; Total execution time: 0.6 seconds.</span></span>
 <span><span class="va">fit_relaxed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mlumr.html">mlumr</a></span><span class="op">(</span><span class="va">dat</span>, model <span class="op">=</span> <span class="st">"relaxed"</span>, link <span class="op">=</span> <span class="st">"log"</span>,</span>
 <span>                     prior_beta <span class="op">=</span> <span class="fu"><a href="../reference/prior_normal.html">prior_normal</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0.5</span>, autoscale <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
 <span>                     chains <span class="op">=</span> <span class="fl">4</span>, iter <span class="op">=</span> <span class="fl">2000</span>, warmup <span class="op">=</span> <span class="fl">1000</span>,</span>
 <span>                     adapt_delta <span class="op">=</span> <span class="fl">0.95</span>, seed <span class="op">=</span> <span class="fl">2026</span>, refresh <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Chain 1 finished in 0.5 seconds.</span></span>
-<span><span class="co">#&gt; Chain 2 finished in 0.5 seconds.</span></span>
-<span><span class="co">#&gt; Chain 3 finished in 0.5 seconds.</span></span>
-<span><span class="co">#&gt; Chain 4 finished in 0.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 1 finished in 1.2 seconds.</span></span>
+<span><span class="co">#&gt; Chain 4 finished in 1.2 seconds.</span></span>
+<span><span class="co">#&gt; Chain 3 finished in 1.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 2 finished in 1.5 seconds.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span><span class="co">#&gt; Mean chain execution time: 0.5 seconds.</span></span>
-<span><span class="co">#&gt; Total execution time: 0.7 seconds.</span></span>
+<span><span class="co">#&gt; Mean chain execution time: 1.3 seconds.</span></span>
+<span><span class="co">#&gt; Total execution time: 1.7 seconds.</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_spfa</span><span class="op">)</span></span>
 <span><span class="co">#&gt; ML-UMR Model Summary</span></span>
 <span><span class="co">#&gt; ====================</span></span>
@@ -505,8 +505,8 @@ comparator-specific coefficients lean on one aggregate row.</p>
 <span><span class="co">#&gt; MCMC Diagnostics:</span></span>
 <span><span class="co">#&gt;   Divergent transitions: 0 </span></span>
 <span><span class="co">#&gt;   Max treedepth hits: 0 </span></span>
-<span><span class="co">#&gt;   Max Rhat: 1.003 </span></span>
-<span><span class="co">#&gt;   Min ESS: 1628 </span></span>
+<span><span class="co">#&gt;   Max Rhat: 1.003  </span></span>
+<span><span class="co">#&gt;   Min ESS: 1628  </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Intercepts (log scale):</span></span>
 <span><span class="co">#&gt;       variable     mean         sd     2.5%    97.5%     Rhat</span></span>
@@ -540,7 +540,7 @@ analyses determine whether the scales are suitable:</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Intercepts (mu_index, mu_comparator):</span></span>
 <span><span class="co">#&gt;   normal(0, 10)</span></span>
-<span><span class="co">#&gt;   (package default, mlumr 0.1.0.9000)</span></span>
+<span><span class="co">#&gt;   (package default, mlumr 0.2.0)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Regression coefficients (beta):</span></span>
 <span><span class="co">#&gt;   Family: normal</span></span>
@@ -796,22 +796,22 @@ populations</caption>
 <td align="left">delta_index</td>
 <td align="left">RR</td>
 <td align="left">Index</td>
-<td align="right">0.7045293</td>
-<td align="right">0.2060315</td>
-<td align="right">0.1850435</td>
-<td align="right">0.7620821</td>
-<td align="right">0.9688017</td>
+<td align="right">0.7041961</td>
+<td align="right">0.2106063</td>
+<td align="right">0.1679038</td>
+<td align="right">0.7611770</td>
+<td align="right">0.9789181</td>
 </tr>
 <tr class="even">
 <td align="left">Relaxed</td>
 <td align="left">delta_comparator</td>
 <td align="left">RR</td>
 <td align="left">Comparator</td>
-<td align="right">0.8130829</td>
-<td align="right">0.0412464</td>
-<td align="right">0.7341966</td>
-<td align="right">0.8116482</td>
-<td align="right">0.8945281</td>
+<td align="right">0.8127848</td>
+<td align="right">0.0435756</td>
+<td align="right">0.7306476</td>
+<td align="right">0.8116892</td>
+<td align="right">0.9015883</td>
 </tr>
 </tbody>
 </table>
@@ -983,9 +983,8 @@ and check <code><a href="../reference/prior_sensitivity.html">prior_sensitivity(
 <span><span class="co">#&gt; ======================</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;    model elpd_diff se_diff p_worse       diag_diff      diag_elpd</span></span>
-<span><span class="co">#&gt;  Relaxed       0.0     0.0      NA                 1 k_psis &gt; 0.7</span></span>
-<span><span class="co">#&gt;     SPFA      -0.3     0.2    0.95 |elpd_diff| &lt; 4 1 k_psis &gt; 0.7</span></span>
-<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;     SPFA       0.0     0.0      NA                 1 k_psis &gt; 0.7</span></span>
+<span><span class="co">#&gt;  Relaxed      -0.5     0.4    0.88 |elpd_diff| &lt; 4 1 k_psis &gt; 0.7</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; elpd_diff is the difference in expected log pointwise predictive</span></span>
 <span><span class="co">#&gt; density vs the best model, and se_diff is its standard error: the</span></span>
@@ -1001,8 +1000,8 @@ and check <code><a href="../reference/prior_sensitivity.html">prior_sensitivity(
 <span><span class="co">#&gt; ======================</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;    Model    DIC   pD Delta_DIC</span></span>
-<span><span class="co">#&gt;  Relaxed 518.62 4.07      0.00</span></span>
-<span><span class="co">#&gt;     SPFA 518.77 4.09      0.14</span></span>
+<span><span class="co">#&gt;     SPFA 518.77 4.09      0.00</span></span>
+<span><span class="co">#&gt;  Relaxed 519.22 4.44      0.46</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Lower DIC = better fit. Delta_DIC &gt; 5 is a rough heuristic for</span></span>
 <span><span class="co">#&gt; meaningful difference, not a formally calibrated threshold.</span></span>

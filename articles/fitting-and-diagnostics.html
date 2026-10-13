@@ -29,7 +29,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">mlumr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -160,14 +160,14 @@ for fully unanchored, single-arm comparisons.</p>
 <span>             chains <span class="op">=</span> <span class="fl">4</span>, iter <span class="op">=</span> <span class="fl">2000</span>, warmup <span class="op">=</span> <span class="fl">1000</span>, seed <span class="op">=</span> <span class="fl">2026</span>, refresh <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Chain 2 finished in 1.3 seconds.</span></span>
-<span><span class="co">#&gt; Chain 3 finished in 1.3 seconds.</span></span>
-<span><span class="co">#&gt; Chain 4 finished in 1.2 seconds.</span></span>
-<span><span class="co">#&gt; Chain 1 finished in 1.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 2 finished in 1.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 3 finished in 1.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 1 finished in 1.7 seconds.</span></span>
+<span><span class="co">#&gt; Chain 4 finished in 1.5 seconds.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span><span class="co">#&gt; Mean chain execution time: 1.3 seconds.</span></span>
-<span><span class="co">#&gt; Total execution time: 1.6 seconds.</span></span></code></pre></div>
+<span><span class="co">#&gt; Mean chain execution time: 1.5 seconds.</span></span>
+<span><span class="co">#&gt; Total execution time: 1.9 seconds.</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="controlling-the-sampler">Controlling the sampler<a class="anchor" aria-label="anchor" href="#controlling-the-sampler"></a>
@@ -222,7 +222,7 @@ the priors actually passed to Stan, including autoscaled scales, with
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Intercepts (mu_index, mu_comparator):</span></span>
 <span><span class="co">#&gt;   normal(0, 10)</span></span>
-<span><span class="co">#&gt;   (package default, mlumr 0.1.0.9000)</span></span>
+<span><span class="co">#&gt;   (package default, mlumr 0.2.0)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Regression coefficients (beta):</span></span>
 <span><span class="co">#&gt;   Family: normal</span></span>
@@ -274,12 +274,12 @@ diagnostics):</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Key Parameters:</span></span>
 <span><span class="co">#&gt;        variable       mean         sd        2.5%     97.5%      Rhat</span></span>
-<span><span class="co">#&gt;        mu_index 1.44618427 0.15636550  1.15196094 1.7651909 0.9995392</span></span>
-<span><span class="co">#&gt;   mu_comparator 1.17260184 0.15224510  0.88731421 1.4799876 1.0000963</span></span>
-<span><span class="co">#&gt;       lor_index 0.25377673 0.20530813 -0.15266887 0.6555978 1.0012879</span></span>
-<span><span class="co">#&gt;  lor_comparator 0.25466793 0.20617373 -0.15273282 0.6587242 1.0013579</span></span>
-<span><span class="co">#&gt;        rd_index 0.04763409 0.03873935 -0.02809253 0.1234016 1.0017769</span></span>
-<span><span class="co">#&gt;   rd_comparator 0.04156580 0.03362521 -0.02554187 0.1053535 1.0015519</span></span>
+<span><span class="co">#&gt;        mu_index 1.43837824 0.15481928  1.14502551 1.7400851 1.0006678</span></span>
+<span><span class="co">#&gt;   mu_comparator 1.17475314 0.14944520  0.89090936 1.4798617 1.0014834</span></span>
+<span><span class="co">#&gt;       lor_index 0.24434744 0.20173326 -0.15686507 0.6383660 0.9999245</span></span>
+<span><span class="co">#&gt;  lor_comparator 0.24519725 0.20256459 -0.15698170 0.6414068 0.9999288</span></span>
+<span><span class="co">#&gt;        rd_index 0.04595258 0.03803838 -0.02806199 0.1213993 0.9998960</span></span>
+<span><span class="co">#&gt;   rd_comparator 0.04007462 0.03306184 -0.02574983 0.1042112 1.0000155</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Use summary() for full results</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
@@ -295,33 +295,33 @@ diagnostics):</p>
 <span><span class="co">#&gt; MCMC Diagnostics:</span></span>
 <span><span class="co">#&gt;   Divergent transitions: 0 </span></span>
 <span><span class="co">#&gt;   Max treedepth hits: 0 </span></span>
-<span><span class="co">#&gt;   Max Rhat: 1.004 </span></span>
-<span><span class="co">#&gt;   Min ESS: 1890 </span></span>
+<span><span class="co">#&gt;   Max Rhat: 1.007  </span></span>
+<span><span class="co">#&gt;   Min ESS: 1833  </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Intercepts (logit scale):</span></span>
-<span><span class="co">#&gt;       variable     mean        sd      2.5%    97.5%      Rhat</span></span>
-<span><span class="co">#&gt;       mu_index 1.446184 0.1563655 1.1519609 1.765191 0.9995392</span></span>
-<span><span class="co">#&gt;  mu_comparator 1.172602 0.1522451 0.8873142 1.479988 1.0000963</span></span>
+<span><span class="co">#&gt;       variable     mean        sd      2.5%    97.5%     Rhat</span></span>
+<span><span class="co">#&gt;       mu_index 1.438378 0.1548193 1.1450255 1.740085 1.000668</span></span>
+<span><span class="co">#&gt;  mu_comparator 1.174753 0.1494452 0.8909094 1.479862 1.001483</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Regression Coefficients:</span></span>
-<span><span class="co">#&gt;      variable        mean          sd        2.5%        97.5%      Rhat</span></span>
-<span><span class="co">#&gt;     beta[age] -0.04072437 0.010852931 -0.06213992 -0.020515311 1.0013211</span></span>
-<span><span class="co">#&gt;     beta[bsa]  0.09474860 0.738994077 -1.31835682  1.580247738 1.0015116</span></span>
-<span><span class="co">#&gt;  beta[weight] -0.01462932 0.006335175 -0.02729679 -0.002487916 0.9998753</span></span>
+<span><span class="co">#&gt;      variable        mean          sd        2.5%        97.5%     Rhat</span></span>
+<span><span class="co">#&gt;     beta[age] -0.04065884 0.011134813 -0.06286905 -0.019349026 1.004234</span></span>
+<span><span class="co">#&gt;     beta[bsa]  0.11284271 0.744117466 -1.29112756  1.628902988 1.001230</span></span>
+<span><span class="co">#&gt;  beta[weight] -0.01435090 0.006465275 -0.02696024 -0.002018735 1.001522</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Marginal Treatment Effects:</span></span>
 <span><span class="co">#&gt;   Log Odds Ratios:</span></span>
 <span><span class="co">#&gt;        variable      mean        sd       2.5%     97.5%</span></span>
-<span><span class="co">#&gt;       lor_index 0.2537767 0.2053081 -0.1526689 0.6555978</span></span>
-<span><span class="co">#&gt;  lor_comparator 0.2546679 0.2061737 -0.1527328 0.6587242</span></span>
+<span><span class="co">#&gt;       lor_index 0.2443474 0.2017333 -0.1568651 0.6383660</span></span>
+<span><span class="co">#&gt;  lor_comparator 0.2451973 0.2025646 -0.1569817 0.6414068</span></span>
 <span><span class="co">#&gt;   Risk Differences:</span></span>
 <span><span class="co">#&gt;       variable       mean         sd        2.5%     97.5%</span></span>
-<span><span class="co">#&gt;       rd_index 0.04763409 0.03873935 -0.02809253 0.1234016</span></span>
-<span><span class="co">#&gt;  rd_comparator 0.04156580 0.03362521 -0.02554187 0.1053535</span></span>
+<span><span class="co">#&gt;       rd_index 0.04595258 0.03803838 -0.02806199 0.1213993</span></span>
+<span><span class="co">#&gt;  rd_comparator 0.04007462 0.03306184 -0.02574983 0.1042112</span></span>
 <span><span class="co">#&gt;   Risk Ratios:</span></span>
 <span><span class="co">#&gt;       variable     mean         sd      2.5%    97.5%</span></span>
-<span><span class="co">#&gt;       rr_index 1.067584 0.05630268 0.9641510 1.183359</span></span>
-<span><span class="co">#&gt;  rr_comparator 1.054985 0.04509862 0.9677899 1.144179</span></span></code></pre></div>
+<span><span class="co">#&gt;       rr_index 1.065151 0.05505573 0.9636241 1.181185</span></span>
+<span><span class="co">#&gt;  rr_comparator 1.052972 0.04420995 0.9677664 1.141703</span></span></code></pre></div>
 <p>Population-averaged effects, absolute predictions, and the raw
 posterior draws are available from <code><a href="../reference/marginal_effects.html">marginal_effects()</a></code> and
 <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict()</a></code> (the available measures and prediction types
@@ -355,21 +355,21 @@ depend on the family, see the per-outcome vignettes):</p>
 <td align="left">lor_index</td>
 <td align="left">LOR</td>
 <td align="left">Index</td>
-<td align="right">0.2537767</td>
-<td align="right">0.2053081</td>
-<td align="right">-0.1526689</td>
-<td align="right">0.2538476</td>
-<td align="right">0.6555978</td>
+<td align="right">0.2443474</td>
+<td align="right">0.2017333</td>
+<td align="right">-0.1568651</td>
+<td align="right">0.2450688</td>
+<td align="right">0.6383660</td>
 </tr>
 <tr class="even">
 <td align="left">lor_comparator</td>
 <td align="left">LOR</td>
 <td align="left">Comparator</td>
-<td align="right">0.2546679</td>
-<td align="right">0.2061737</td>
-<td align="right">-0.1527328</td>
-<td align="right">0.2545148</td>
-<td align="right">0.6587242</td>
+<td align="right">0.2451973</td>
+<td align="right">0.2025646</td>
+<td align="right">-0.1569817</td>
+<td align="right">0.2455176</td>
+<td align="right">0.6414068</td>
 </tr>
 </tbody>
 </table>
@@ -403,38 +403,38 @@ frequentist benchmarks:</p>
 <tr class="odd">
 <td align="left">IXE_Q4W</td>
 <td align="left">Index</td>
-<td align="right">0.7744589</td>
-<td align="right">0.0220586</td>
-<td align="right">0.7290820</td>
-<td align="right">0.7750439</td>
-<td align="right">0.8165154</td>
+<td align="right">0.7734502</td>
+<td align="right">0.0217468</td>
+<td align="right">0.7296282</td>
+<td align="right">0.7740340</td>
+<td align="right">0.8138921</td>
 </tr>
 <tr class="even">
 <td align="left">SEC_300</td>
 <td align="left">Index</td>
-<td align="right">0.7268248</td>
-<td align="right">0.0314643</td>
-<td align="right">0.6626042</td>
-<td align="right">0.7277590</td>
-<td align="right">0.7862674</td>
+<td align="right">0.7274976</td>
+<td align="right">0.0313809</td>
+<td align="right">0.6617943</td>
+<td align="right">0.7277764</td>
+<td align="right">0.7875637</td>
 </tr>
 <tr class="odd">
 <td align="left">IXE_Q4W</td>
 <td align="left">Comparator</td>
-<td align="right">0.8120690</td>
-<td align="right">0.0234368</td>
-<td align="right">0.7639743</td>
-<td align="right">0.8132213</td>
-<td align="right">0.8551468</td>
+<td align="right">0.8108492</td>
+<td align="right">0.0233590</td>
+<td align="right">0.7631389</td>
+<td align="right">0.8118225</td>
+<td align="right">0.8531969</td>
 </tr>
 <tr class="even">
 <td align="left">SEC_300</td>
 <td align="left">Comparator</td>
-<td align="right">0.7705032</td>
-<td align="right">0.0241048</td>
-<td align="right">0.7232535</td>
-<td align="right">0.7706705</td>
-<td align="right">0.8155886</td>
+<td align="right">0.7707746</td>
+<td align="right">0.0235213</td>
+<td align="right">0.7237811</td>
+<td align="right">0.7711268</td>
+<td align="right">0.8160376</td>
 </tr>
 </tbody>
 </table>
@@ -451,9 +451,9 @@ Inspect them directly:</p>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">diagnostics</span><span class="op">$</span><span class="va">n_max_treedepth</span></span>
 <span><span class="co">#&gt; [1] 0</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">summary</span><span class="op">$</span><span class="va">Rhat</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 1.003758</span></span>
+<span><span class="co">#&gt; [1] 1.007061</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">summary</span><span class="op">$</span><span class="va">n_eff</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 1890.414</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 1833.489</span></span></code></pre></div>
 <p>Posterior intervals for the key effects come straight from
 <code><a href="../reference/marginal_effects.html">marginal_effects()</a></code> and its <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> method:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
@@ -520,45 +520,45 @@ identified by the IPD and the sweep is expected to be flat:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/prior_sensitivity.html">prior_sensitivity</a></span><span class="op">(</span><span class="va">fit</span>, prior_beta_scales <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2.5</span>, <span class="fl">5</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
 <span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Chain 2 finished in 1.7 seconds.</span></span>
+<span><span class="co">#&gt; Chain 3 finished in 1.6 seconds.</span></span>
+<span><span class="co">#&gt; Chain 1 finished in 1.9 seconds.</span></span>
+<span><span class="co">#&gt; Chain 4 finished in 1.6 seconds.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; All 4 chains finished successfully.</span></span>
+<span><span class="co">#&gt; Mean chain execution time: 1.7 seconds.</span></span>
+<span><span class="co">#&gt; Total execution time: 2.0 seconds.</span></span>
+<span><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Chain 2 finished in 1.6 seconds.</span></span>
+<span><span class="co">#&gt; Chain 1 finished in 1.9 seconds.</span></span>
+<span><span class="co">#&gt; Chain 3 finished in 1.8 seconds.</span></span>
+<span><span class="co">#&gt; Chain 4 finished in 1.8 seconds.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; All 4 chains finished successfully.</span></span>
+<span><span class="co">#&gt; Mean chain execution time: 1.8 seconds.</span></span>
+<span><span class="co">#&gt; Total execution time: 2.1 seconds.</span></span>
+<span><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
+<span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Chain 1 finished in 1.4 seconds.</span></span>
-<span><span class="co">#&gt; Chain 2 finished in 1.3 seconds.</span></span>
-<span><span class="co">#&gt; Chain 3 finished in 1.2 seconds.</span></span>
-<span><span class="co">#&gt; Chain 4 finished in 1.3 seconds.</span></span>
+<span><span class="co">#&gt; Chain 2 finished in 1.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 3 finished in 1.3 seconds.</span></span>
+<span><span class="co">#&gt; Chain 4 finished in 1.1 seconds.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; All 4 chains finished successfully.</span></span>
 <span><span class="co">#&gt; Mean chain execution time: 1.3 seconds.</span></span>
-<span><span class="co">#&gt; Total execution time: 1.6 seconds.</span></span>
-<span><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Chain 1 finished in 1.6 seconds.</span></span>
-<span><span class="co">#&gt; Chain 2 finished in 1.4 seconds.</span></span>
-<span><span class="co">#&gt; Chain 3 finished in 1.4 seconds.</span></span>
-<span><span class="co">#&gt; Chain 4 finished in 1.4 seconds.</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span><span class="co">#&gt; Mean chain execution time: 1.5 seconds.</span></span>
-<span><span class="co">#&gt; Total execution time: 1.8 seconds.</span></span>
-<span><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Chain 1 finished in 1.1 seconds.</span></span>
-<span><span class="co">#&gt; Chain 4 finished in 1.0 seconds.</span></span>
-<span><span class="co">#&gt; Chain 2 finished in 1.1 seconds.</span></span>
-<span><span class="co">#&gt; Chain 3 finished in 1.1 seconds.</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span><span class="co">#&gt; Mean chain execution time: 1.1 seconds.</span></span>
-<span><span class="co">#&gt; Total execution time: 1.3 seconds.</span></span>
+<span><span class="co">#&gt; Total execution time: 1.5 seconds.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Prior sensitivity: posterior of marginal treatment effects</span></span>
 <span><span class="co">#&gt; =========================================================</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  scale      parameter effect      mean        sd       q2.5       q50     q97.5</span></span>
-<span><span class="co">#&gt;    1.0      lor_index    LOR 0.2450842 0.2042432 -0.1572848 0.2449714 0.6380143</span></span>
-<span><span class="co">#&gt;    1.0 lor_comparator    LOR 0.2459477 0.2050747 -0.1581046 0.2454590 0.6396459</span></span>
-<span><span class="co">#&gt;    2.5      lor_index    LOR 0.2537767 0.2053081 -0.1526689 0.2538476 0.6555978</span></span>
-<span><span class="co">#&gt;    2.5 lor_comparator    LOR 0.2546679 0.2061737 -0.1527328 0.2545148 0.6587242</span></span>
-<span><span class="co">#&gt;    5.0      lor_index    LOR 0.2481648 0.2012573 -0.1446230 0.2465931 0.6394745</span></span>
-<span><span class="co">#&gt;    5.0 lor_comparator    LOR 0.2490404 0.2020809 -0.1439587 0.2471842 0.6418033</span></span>
+<span><span class="co">#&gt;    1.0      lor_index    LOR 0.2495980 0.1984060 -0.1473980 0.2546824 0.6257489</span></span>
+<span><span class="co">#&gt;    1.0 lor_comparator    LOR 0.2504603 0.1992289 -0.1475431 0.2552387 0.6276360</span></span>
+<span><span class="co">#&gt;    2.5      lor_index    LOR 0.2443474 0.2017333 -0.1568651 0.2450689 0.6383660</span></span>
+<span><span class="co">#&gt;    2.5 lor_comparator    LOR 0.2451973 0.2025646 -0.1569817 0.2455177 0.6414068</span></span>
+<span><span class="co">#&gt;    5.0      lor_index    LOR 0.2461002 0.2041996 -0.1415294 0.2479227 0.6579873</span></span>
+<span><span class="co">#&gt;    5.0 lor_comparator    LOR 0.2470028 0.2051317 -0.1415307 0.2485980 0.6600727</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Interpretation: approximately constant summaries show the posterior</span></span>
 <span><span class="co">#&gt; is insensitive to the beta-prior SCALES tested here. That is not the</span></span>

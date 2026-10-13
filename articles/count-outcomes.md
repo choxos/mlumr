@@ -217,9 +217,9 @@ check_integration(
   log_cfu = distr(qnorm, mean = log_cfu_mean, sd = log_cfu_sd)
 )
 #> Integration check: n_int = 64 vs 128
-#> Resolution heuristic, max relative difference: 0.0122
+#> Resolution heuristic, max relative difference: 0.0161
 #> Caution: 1-5% marginal relative difference. Consider increasing n_int.
-#> Declared-target fidelity, max relative difference: 0.0373
+#> Declared-target fidelity, max relative difference: 0.0449
 #> Caution: grid moments differ from declared AgD moments by 1-5%.
 #> Joint: max |cor(current) - cor(doubled)|: 0.0347
 #> Joint resolution stable within the package's 0.05 heuristic.
@@ -301,28 +301,28 @@ fit_spfa <- mlumr(dat, model = "spfa", link = "log",
                   chains = 4, iter = 2000, warmup = 1000, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 1 finished in 0.2 seconds.
-#> Chain 2 finished in 0.2 seconds.
-#> Chain 3 finished in 0.2 seconds.
-#> Chain 4 finished in 0.1 seconds.
+#> Chain 1 finished in 0.4 seconds.
+#> Chain 2 finished in 0.4 seconds.
+#> Chain 3 finished in 0.4 seconds.
+#> Chain 4 finished in 0.4 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 0.2 seconds.
-#> Total execution time: 0.5 seconds.
+#> Mean chain execution time: 0.4 seconds.
+#> Total execution time: 0.6 seconds.
 fit_relaxed <- mlumr(dat, model = "relaxed", link = "log",
                      prior_beta = prior_normal(0, 0.5, autoscale = TRUE),
                      chains = 4, iter = 2000, warmup = 1000,
                      adapt_delta = 0.95, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
 #> 
-#> Chain 1 finished in 0.5 seconds.
-#> Chain 2 finished in 0.5 seconds.
-#> Chain 3 finished in 0.5 seconds.
-#> Chain 4 finished in 0.4 seconds.
+#> Chain 1 finished in 1.2 seconds.
+#> Chain 4 finished in 1.2 seconds.
+#> Chain 3 finished in 1.4 seconds.
+#> Chain 2 finished in 1.5 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 0.5 seconds.
-#> Total execution time: 0.7 seconds.
+#> Mean chain execution time: 1.3 seconds.
+#> Total execution time: 1.7 seconds.
 summary(fit_spfa)
 #> ML-UMR Model Summary
 #> ====================
@@ -336,8 +336,8 @@ summary(fit_spfa)
 #> MCMC Diagnostics:
 #>   Divergent transitions: 0 
 #>   Max treedepth hits: 0 
-#>   Max Rhat: 1.003 
-#>   Min ESS: 1628 
+#>   Max Rhat: 1.003  
+#>   Min ESS: 1628  
 #> 
 #> Intercepts (log scale):
 #>       variable     mean         sd     2.5%    97.5%     Rhat
@@ -375,7 +375,7 @@ prior_summary(fit_spfa)
 #> 
 #> Intercepts (mu_index, mu_comparator):
 #>   normal(0, 10)
-#>   (package default, mlumr 0.1.0.9000)
+#>   (package default, mlumr 0.2.0)
 #> 
 #> Regression coefficients (beta):
 #>   Family: normal
@@ -558,8 +558,8 @@ knitr::kable(rbind(cbind(Model = "SPFA", rr_spfa),
 |:---|:---|:---|:---|---:|---:|---:|---:|---:|
 | SPFA | delta_index | RR | Index | 0.8118294 | 0.0425393 | 0.7305854 | 0.8107814 | 0.8985652 |
 | SPFA | delta_comparator | RR | Comparator | 0.8118294 | 0.0425393 | 0.7305854 | 0.8107814 | 0.8985652 |
-| Relaxed | delta_index | RR | Index | 0.7045293 | 0.2060315 | 0.1850435 | 0.7620821 | 0.9688017 |
-| Relaxed | delta_comparator | RR | Comparator | 0.8130829 | 0.0412464 | 0.7341966 | 0.8116482 | 0.8945281 |
+| Relaxed | delta_index | RR | Index | 0.7041961 | 0.2106063 | 0.1679038 | 0.7611770 | 0.9789181 |
+| Relaxed | delta_comparator | RR | Comparator | 0.8127848 | 0.0435756 | 0.7306476 | 0.8116892 | 0.9015883 |
 
 Standardized rate ratio (SDF vs NSF), both models and both populations
 {.table}
@@ -651,9 +651,8 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "loo")
 #> ======================
 #> 
 #>    model elpd_diff se_diff p_worse       diag_diff      diag_elpd
-#>  Relaxed       0.0     0.0      NA                 1 k_psis > 0.7
-#>     SPFA      -0.3     0.2    0.95 |elpd_diff| < 4 1 k_psis > 0.7
-#> 
+#>     SPFA       0.0     0.0      NA                 1 k_psis > 0.7
+#>  Relaxed      -0.5     0.4    0.88 |elpd_diff| < 4 1 k_psis > 0.7
 #> 
 #> elpd_diff is the difference in expected log pointwise predictive
 #> density vs the best model, and se_diff is its standard error: the
@@ -669,8 +668,8 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "dic")
 #> ======================
 #> 
 #>    Model    DIC   pD Delta_DIC
-#>  Relaxed 518.62 4.07      0.00
-#>     SPFA 518.77 4.09      0.14
+#>     SPFA 518.77 4.09      0.00
+#>  Relaxed 519.22 4.44      0.46
 #> 
 #> Lower DIC = better fit. Delta_DIC > 5 is a rough heuristic for
 #> meaningful difference, not a formally calibrated threshold.

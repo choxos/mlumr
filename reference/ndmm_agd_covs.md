@@ -18,9 +18,8 @@ A data frame with 1 row and 7 columns: `study`, `treatment`, `age_mean`
 
 ## Source
 
-The Morgan-2012 thalidomide row of
-[`multinma::ndmm_agd_covs`](https://dmphillippo.github.io/multinma/reference/ndmm.html)
-(GPL-3; Phillippo, *multinma*, 2024), subset to the columns used in the
-survival vignette. See
+The Morgan-2012 thalidomide row of `multinma::ndmm_agd_covs` (GPL-3;
+Phillippo, *multinma*, 2024), subset to the columns used in the survival
+vignette. See
 [`ndmm_ipd`](https://choxos.github.io/mlumr/reference/ndmm_ipd.md) for
 trial sources.

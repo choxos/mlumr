@@ -30,15 +30,15 @@ Preprint, arXiv:2606.20341 \[stat.ME\],
 
 Sofi-Mahmudi A, Chandler C (2026). *mlumr: Multilevel Unanchored
 Meta-Regression for Indirect Treatment Comparisons*. R package version
-0.1.0.9000. An adaptation of the ML-NMR methodology to the unanchored
-case; built on conventions established by the 'multinma' package
-(Phillippo et al., GPL-3)., <https://github.com/choxos/mlumr>.
+0.2.0. An adaptation of the ML-NMR methodology to the unanchored case;
+built on conventions established by the 'multinma' package (Phillippo et
+al., GPL-3)., <https://github.com/choxos/mlumr>.
 
     @Manual{,
       title = {mlumr: Multilevel Unanchored Meta-Regression for Indirect Treatment Comparisons},
       author = {Ahmad Sofi-Mahmudi and Conor Chandler},
       year = {2026},
-      note = {R package version 0.1.0.9000. An adaptation of the ML-NMR methodology to the unanchored case; built on conventions established by the 'multinma' package (Phillippo et al., GPL-3).},
+      note = {R package version 0.2.0. An adaptation of the ML-NMR methodology to the unanchored case; built on conventions established by the 'multinma' package (Phillippo et al., GPL-3).},
       url = {https://github.com/choxos/mlumr},
     }
 

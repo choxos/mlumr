@@ -29,7 +29,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">mlumr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -124,9 +124,7 @@ patients to <strong>placebo</strong>, and those arms are
 <strong>deliberately omitted</strong> here. Keeping them would connect
 the two trials through a common comparator and make an <em>anchored</em>
 comparison possible, which is not the problem this vignette is about.
-The unanchored framing is a construction for illustration; the section
-<em>Checking against the anchored comparison</em> below puts the omitted
-arms back to use.</p>
+The unanchored framing is a construction for illustration.</p>
 <p>The index arm is McCarthy2012 lenalidomide rather than the other
 candidate, Palumbo2014: its patients are closer to the Morgan2012
 population, which is what an unanchored comparison depends on.</p>
@@ -135,8 +133,7 @@ Morgan2012 are randomized trials. Dropping their common reference arm
 (placebo) turns them into hypothetical single-arm trials and leaves
 fully disconnected evidence; we do this only to illustrate ML-UMR. In
 practice, randomized trials should never be analyzed this way: ML-NMR
-(for example with <code>multinma</code>, as in the section <em>Checking
-against the anchored comparison</em>) or another appropriate method
+(for example with <code>multinma</code>) or another appropriate method
 should be used for them. ML-UMR should only be used for fully
 unanchored, single-arm comparisons.</p>
 </blockquote>
@@ -551,14 +548,14 @@ that does not depend on when you look</strong>.</p>
 <span>                     chains <span class="op">=</span> <span class="fl">4</span>, iter <span class="op">=</span> <span class="fl">2000</span>, warmup <span class="op">=</span> <span class="fl">1000</span>, seed <span class="op">=</span> <span class="fl">2026</span>, refresh <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Chain 1 finished in 346.3 seconds.</span></span>
-<span><span class="co">#&gt; Chain 3 finished in 355.9 seconds.</span></span>
-<span><span class="co">#&gt; Chain 4 finished in 361.9 seconds.</span></span>
-<span><span class="co">#&gt; Chain 2 finished in 410.9 seconds.</span></span>
+<span><span class="co">#&gt; Chain 3 finished in 1026.5 seconds.</span></span>
+<span><span class="co">#&gt; Chain 4 finished in 1106.9 seconds.</span></span>
+<span><span class="co">#&gt; Chain 1 finished in 1214.1 seconds.</span></span>
+<span><span class="co">#&gt; Chain 2 finished in 1256.3 seconds.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span><span class="co">#&gt; Mean chain execution time: 368.8 seconds.</span></span>
-<span><span class="co">#&gt; Total execution time: 411.0 seconds.</span></span></code></pre></div>
+<span><span class="co">#&gt; Mean chain execution time: 1151.0 seconds.</span></span>
+<span><span class="co">#&gt; Total execution time: 1256.7 seconds.</span></span></code></pre></div>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Relaxed M-spline: treatment-specific prognostic effects (effect modification),</span></span>
 <span><span class="co"># the unanchored analogue of multinma's ~ (covariates) * .trt. beta_comparator is</span></span>
@@ -571,14 +568,14 @@ that does not depend on when you look</strong>.</p>
 <span>                             refresh <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Chain 4 finished in 508.3 seconds.</span></span>
-<span><span class="co">#&gt; Chain 3 finished in 528.7 seconds.</span></span>
-<span><span class="co">#&gt; Chain 1 finished in 537.7 seconds.</span></span>
-<span><span class="co">#&gt; Chain 2 finished in 539.5 seconds.</span></span>
+<span><span class="co">#&gt; Chain 4 finished in 1472.6 seconds.</span></span>
+<span><span class="co">#&gt; Chain 3 finished in 1492.9 seconds.</span></span>
+<span><span class="co">#&gt; Chain 1 finished in 1525.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 2 finished in 1547.0 seconds.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span><span class="co">#&gt; Mean chain execution time: 528.5 seconds.</span></span>
-<span><span class="co">#&gt; Total execution time: 539.7 seconds.</span></span></code></pre></div>
+<span><span class="co">#&gt; Mean chain execution time: 1509.5 seconds.</span></span>
+<span><span class="co">#&gt; Total execution time: 1547.7 seconds.</span></span></code></pre></div>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Parametric comparison: Weibull proportional hazards</span></span>
 <span><span class="va">fit_weibull</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mlumr.html">mlumr</a></span><span class="op">(</span><span class="va">dat</span>, model <span class="op">=</span> <span class="st">"spfa"</span>, distribution <span class="op">=</span> <span class="st">"weibull"</span>,</span>
@@ -586,14 +583,14 @@ that does not depend on when you look</strong>.</p>
 <span>                     chains <span class="op">=</span> <span class="fl">4</span>, iter <span class="op">=</span> <span class="fl">2000</span>, warmup <span class="op">=</span> <span class="fl">1000</span>, seed <span class="op">=</span> <span class="fl">2026</span>, refresh <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Running MCMC with 4 parallel chains...</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Chain 2 finished in 380.7 seconds.</span></span>
-<span><span class="co">#&gt; Chain 3 finished in 390.1 seconds.</span></span>
-<span><span class="co">#&gt; Chain 1 finished in 402.2 seconds.</span></span>
-<span><span class="co">#&gt; Chain 4 finished in 424.2 seconds.</span></span>
+<span><span class="co">#&gt; Chain 2 finished in 1346.0 seconds.</span></span>
+<span><span class="co">#&gt; Chain 1 finished in 1411.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 3 finished in 1413.4 seconds.</span></span>
+<span><span class="co">#&gt; Chain 4 finished in 1478.4 seconds.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; All 4 chains finished successfully.</span></span>
-<span><span class="co">#&gt; Mean chain execution time: 399.3 seconds.</span></span>
-<span><span class="co">#&gt; Total execution time: 424.6 seconds.</span></span></code></pre></div>
+<span><span class="co">#&gt; Mean chain execution time: 1412.3 seconds.</span></span>
+<span><span class="co">#&gt; Total execution time: 1479.3 seconds.</span></span></code></pre></div>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_mspline</span><span class="op">)</span></span>
 <span><span class="co">#&gt; ML-UMR Model Summary</span></span>
@@ -608,37 +605,37 @@ that does not depend on when you look</strong>.</p>
 <span><span class="co">#&gt; MCMC Diagnostics:</span></span>
 <span><span class="co">#&gt;   Divergent transitions: 0 </span></span>
 <span><span class="co">#&gt;   Max treedepth hits: 0 </span></span>
-<span><span class="co">#&gt;   Max Rhat: 1.004 </span></span>
-<span><span class="co">#&gt;   Min ESS: 1362 </span></span>
+<span><span class="co">#&gt;   Max Rhat: 1.003  </span></span>
+<span><span class="co">#&gt;   Min ESS: 1295  </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Intercepts (log scale):</span></span>
 <span><span class="co">#&gt;       variable      mean         sd        2.5%     97.5%     Rhat</span></span>
-<span><span class="co">#&gt;       mu_index 0.3281011 0.11884905  0.09361807 0.5631807 1.002906</span></span>
-<span><span class="co">#&gt;  mu_comparator 0.1055319 0.08304143 -0.06503476 0.2714046 1.002169</span></span>
+<span><span class="co">#&gt;       mu_index 0.3278324 0.11767435  0.09338423 0.5571708 1.000259</span></span>
+<span><span class="co">#&gt;  mu_comparator 0.1072612 0.08812043 -0.07031650 0.2766931 1.001350</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Regression Coefficients:</span></span>
 <span><span class="co">#&gt;                variable       mean         sd        2.5%     97.5%      Rhat</span></span>
-<span><span class="co">#&gt;               beta[age] 0.06957188 0.01623353  0.03879512 0.1016364 0.9997473</span></span>
-<span><span class="co">#&gt;        beta[iss_stage3] 0.40568588 0.18803654  0.03662400 0.7635252 1.0010477</span></span>
-<span><span class="co">#&gt;  beta[response_cr_vgpr] 0.05911517 0.18257397 -0.30641058 0.4168000 0.9997620</span></span>
-<span><span class="co">#&gt;              beta[male] 0.07474996 0.17650989 -0.28177263 0.4189003 1.0013708</span></span>
+<span><span class="co">#&gt;               beta[age] 0.06993144 0.01627319  0.03846601 0.1015201 1.0006454</span></span>
+<span><span class="co">#&gt;        beta[iss_stage3] 0.40244365 0.18953509  0.01672759 0.7567338 0.9998211</span></span>
+<span><span class="co">#&gt;  beta[response_cr_vgpr] 0.06266713 0.18381897 -0.30799778 0.4183324 1.0005757</span></span>
+<span><span class="co">#&gt;              beta[male] 0.07541778 0.18129370 -0.27756031 0.4240964 1.0024914</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Baseline hazard: stratified by study (aux_by = ".study")</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Shape / smoothing parameters:</span></span>
-<span><span class="co">#&gt;         variable     mean        sd      2.5%    97.5%     Rhat</span></span>
-<span><span class="co">#&gt;  sigma_smooth[1] 1.002922 0.4929140 0.2720435 2.157771 1.001996</span></span>
-<span><span class="co">#&gt;  sigma_smooth[2] 1.237045 0.4891222 0.4424602 2.320887 1.002684</span></span>
+<span><span class="co">#&gt;         variable      mean        sd      2.5%    97.5%     Rhat</span></span>
+<span><span class="co">#&gt;  sigma_smooth[1] 0.9861364 0.4947026 0.2604557 2.157619 1.000875</span></span>
+<span><span class="co">#&gt;  sigma_smooth[2] 1.2443250 0.4832417 0.4561599 2.348745 1.000971</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Marginal Treatment Effects:</span></span>
 <span><span class="co">#&gt;   Log Hazard Ratios at t = 1.4:</span></span>
 <span><span class="co">#&gt;          variable       mean        sd      2.5%     97.5%</span></span>
-<span><span class="co">#&gt;       delta_index -0.5078045 0.4148139 -1.360514 0.2311852</span></span>
-<span><span class="co">#&gt;  delta_comparator -0.5047796 0.4122004 -1.354498 0.2275372</span></span>
+<span><span class="co">#&gt;       delta_index -0.4853513 0.4247787 -1.389658 0.2756818</span></span>
+<span><span class="co">#&gt;  delta_comparator -0.4825707 0.4218878 -1.383165 0.2693954</span></span>
 <span><span class="co">#&gt;   RMST Differences (to t = 64.8):</span></span>
 <span><span class="co">#&gt;              variable     mean       sd      2.5%    97.5%</span></span>
-<span><span class="co">#&gt;       rmst_diff_index 3.062956 2.468774 -1.696101 8.050058</span></span>
-<span><span class="co">#&gt;  rmst_diff_comparator 3.910061 2.668505 -1.280590 9.304018</span></span></code></pre></div>
+<span><span class="co">#&gt;       rmst_diff_index 3.014535 2.433137 -1.665791 7.953528</span></span>
+<span><span class="co">#&gt;  rmst_diff_comparator 3.846938 2.635502 -1.282804 9.223502</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="priors">Priors<a class="anchor" aria-label="anchor" href="#priors"></a>
 </h3>
@@ -654,15 +651,15 @@ Stan:</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Intercepts (mu_index, mu_comparator):</span></span>
 <span><span class="co">#&gt;   normal(0, 10)</span></span>
-<span><span class="co">#&gt;   (package default, mlumr 0.1.0.9000)</span></span>
+<span><span class="co">#&gt;   (package default, mlumr 0.2.0)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Regression coefficients (beta):</span></span>
 <span><span class="co">#&gt;   normal(0, 2.5) applied to all 4 covariate(s)</span></span>
-<span><span class="co">#&gt;   (package default, mlumr 0.1.0.9000)</span></span>
+<span><span class="co">#&gt;   (package default, mlumr 0.2.0)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Survival baseline smoothing (random-walk SD, half-distribution via &lt;lower=0&gt;):</span></span>
+<span><span class="co">#&gt; Survival baseline smoothing (random-walk SD, half-normal via &lt;lower=0&gt;):</span></span>
 <span><span class="co">#&gt;   normal(0, 1)</span></span>
-<span><span class="co">#&gt;   (package default, mlumr 0.1.0.9000)</span></span></code></pre></div>
+<span><span class="co">#&gt;   (package default, mlumr 0.2.0)</span></span></code></pre></div>
 <p>The posterior intercepts (log-baseline scale) versus their <span class="math inline">\mathrm{N}(0,10)</span> prior:</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_prior_posterior.html">plot_prior_posterior</a></span><span class="op">(</span><span class="va">fit_mspline</span>, pars <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"mu_index"</span>, <span class="st">"mu_comparator"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
@@ -686,7 +683,7 @@ effective sample size. They are clean here:</p>
 <span>  min_ESS      <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">fit_mspline</span><span class="op">$</span><span class="va">summary</span><span class="op">$</span><span class="va">n_eff</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt;   n_divergent max_treedepth max_Rhat min_ESS</span></span>
-<span><span class="co">#&gt; 1           0             0    1.004    1362</span></span></code></pre></div>
+<span><span class="co">#&gt; 1           0             0    1.003    1295</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -741,11 +738,11 @@ Thal)</caption>
 <td align="left">Index</td>
 <td align="right">1.4</td>
 <td align="right">NA</td>
-<td align="right">0.6533356</td>
-<td align="right">0.2650709</td>
-<td align="right">0.2565289</td>
-<td align="right">0.6161399</td>
-<td align="right">1.260093</td>
+<td align="right">0.6708256</td>
+<td align="right">0.2788242</td>
+<td align="right">0.2491605</td>
+<td align="right">0.6285443</td>
+<td align="right">1.317429</td>
 </tr>
 <tr class="even">
 <td align="left">hr_comparator</td>
@@ -753,11 +750,11 @@ Thal)</caption>
 <td align="left">Comparator</td>
 <td align="right">1.4</td>
 <td align="right">NA</td>
-<td align="right">0.6545570</td>
-<td align="right">0.2630883</td>
-<td align="right">0.2580767</td>
-<td align="right">0.6189325</td>
-<td align="right">1.255504</td>
+<td align="right">0.6718095</td>
+<td align="right">0.2763222</td>
+<td align="right">0.2507836</td>
+<td align="right">0.6306832</td>
+<td align="right">1.309173</td>
 </tr>
 <tr class="odd">
 <td align="left">rmst_diff_index</td>
@@ -765,11 +762,11 @@ Thal)</caption>
 <td align="left">Index</td>
 <td align="right">NA</td>
 <td align="right">64.8</td>
-<td align="right">3.0629559</td>
-<td align="right">2.4687736</td>
-<td align="right">-1.6961006</td>
-<td align="right">3.0117087</td>
-<td align="right">8.050058</td>
+<td align="right">3.0145350</td>
+<td align="right">2.4331374</td>
+<td align="right">-1.6657910</td>
+<td align="right">2.9702673</td>
+<td align="right">7.953528</td>
 </tr>
 <tr class="even">
 <td align="left">rmst_diff_comparator</td>
@@ -777,11 +774,11 @@ Thal)</caption>
 <td align="left">Comparator</td>
 <td align="right">NA</td>
 <td align="right">64.8</td>
-<td align="right">3.9100607</td>
-<td align="right">2.6685054</td>
-<td align="right">-1.2805901</td>
-<td align="right">3.8911492</td>
-<td align="right">9.304018</td>
+<td align="right">3.8469382</td>
+<td align="right">2.6355020</td>
+<td align="right">-1.2828038</td>
+<td align="right">3.8425775</td>
+<td align="right">9.223502</td>
 </tr>
 <tr class="odd">
 <td align="left">rmst_ratio_index</td>
@@ -789,11 +786,11 @@ Thal)</caption>
 <td align="left">Index</td>
 <td align="right">NA</td>
 <td align="right">64.8</td>
-<td align="right">1.0758567</td>
-<td align="right">0.0629706</td>
-<td align="right">0.9620424</td>
-<td align="right">1.0719896</td>
-<td align="right">1.212050</td>
+<td align="right">1.0746161</td>
+<td align="right">0.0620222</td>
+<td align="right">0.9631554</td>
+<td align="right">1.0706139</td>
+<td align="right">1.208140</td>
 </tr>
 <tr class="even">
 <td align="left">rmst_ratio_comparator</td>
@@ -801,11 +798,11 @@ Thal)</caption>
 <td align="left">Comparator</td>
 <td align="right">NA</td>
 <td align="right">64.8</td>
-<td align="right">1.1214761</td>
-<td align="right">0.0842813</td>
-<td align="right">0.9620353</td>
-<td align="right">1.1199694</td>
-<td align="right">1.296189</td>
+<td align="right">1.1196631</td>
+<td align="right">0.0832784</td>
+<td align="right">0.9622755</td>
+<td align="right">1.1179053</td>
+<td align="right">1.292469</td>
 </tr>
 </tbody>
 </table>
@@ -913,41 +910,41 @@ resolution near zero when very early medians are expected.</p>
 <td align="left">Len</td>
 <td align="left">Index</td>
 <td align="right">64.8</td>
-<td align="right">44.88622</td>
-<td align="right">1.383714</td>
-<td align="right">42.11401</td>
-<td align="right">44.89616</td>
-<td align="right">47.54856</td>
+<td align="right">44.84589</td>
+<td align="right">1.383062</td>
+<td align="right">42.12305</td>
+<td align="right">44.86584</td>
+<td align="right">47.54623</td>
 </tr>
 <tr class="even">
 <td align="left">Thal</td>
 <td align="left">Index</td>
 <td align="right">64.8</td>
-<td align="right">41.82327</td>
-<td align="right">2.054401</td>
-<td align="right">37.67333</td>
-<td align="right">41.89813</td>
-<td align="right">45.53419</td>
+<td align="right">41.83136</td>
+<td align="right">2.045192</td>
+<td align="right">37.75065</td>
+<td align="right">41.90174</td>
+<td align="right">45.71788</td>
 </tr>
 <tr class="odd">
 <td align="left">Len</td>
 <td align="left">Comparator</td>
 <td align="right">64.8</td>
-<td align="right">36.56521</td>
-<td align="right">2.312381</td>
-<td align="right">32.15020</td>
-<td align="right">36.48156</td>
-<td align="right">41.26836</td>
+<td align="right">36.46918</td>
+<td align="right">2.300503</td>
+<td align="right">32.05032</td>
+<td align="right">36.39400</td>
+<td align="right">41.10889</td>
 </tr>
 <tr class="even">
 <td align="left">Thal</td>
 <td align="left">Comparator</td>
 <td align="right">64.8</td>
-<td align="right">32.65515</td>
-<td align="right">1.245479</td>
-<td align="right">30.24919</td>
-<td align="right">32.63099</td>
-<td align="right">35.10517</td>
+<td align="right">32.62224</td>
+<td align="right">1.288960</td>
+<td align="right">30.19791</td>
+<td align="right">32.60844</td>
+<td align="right">35.18367</td>
 </tr>
 </tbody>
 </table>
@@ -979,42 +976,42 @@ resolution near zero when very early medians are expected.</p>
 <tr class="odd">
 <td align="left">Len</td>
 <td align="left">Index</td>
-<td align="right">53.23801</td>
-<td align="right">3.871085</td>
-<td align="right">46.06418</td>
-<td align="right">53.19922</td>
-<td align="right">61.09056</td>
-<td align="right">0.00000</td>
+<td align="right">53.20332</td>
+<td align="right">3.905874</td>
+<td align="right">45.89997</td>
+<td align="right">53.11395</td>
+<td align="right">61.06690</td>
+<td align="right">0.0000</td>
 </tr>
 <tr class="even">
 <td align="left">Thal</td>
 <td align="left">Index</td>
-<td align="right">50.52933</td>
-<td align="right">8.211433</td>
-<td align="right">35.74973</td>
-<td align="right">50.09974</td>
-<td align="right">66.96409</td>
-<td align="right">0.05225</td>
+<td align="right">50.32930</td>
+<td align="right">8.043077</td>
+<td align="right">35.77311</td>
+<td align="right">49.91257</td>
+<td align="right">66.81601</td>
+<td align="right">0.0635</td>
 </tr>
 <tr class="odd">
 <td align="left">Len</td>
 <td align="left">Comparator</td>
-<td align="right">34.93992</td>
-<td align="right">4.290860</td>
-<td align="right">27.05821</td>
-<td align="right">34.68099</td>
-<td align="right">43.90881</td>
-<td align="right">0.00000</td>
+<td align="right">34.77631</td>
+<td align="right">4.280030</td>
+<td align="right">26.94352</td>
+<td align="right">34.59879</td>
+<td align="right">43.56812</td>
+<td align="right">0.0000</td>
 </tr>
 <tr class="even">
 <td align="left">Thal</td>
 <td align="left">Comparator</td>
-<td align="right">25.75542</td>
-<td align="right">2.343685</td>
-<td align="right">21.48948</td>
-<td align="right">25.62412</td>
-<td align="right">30.72446</td>
-<td align="right">0.00000</td>
+<td align="right">25.70925</td>
+<td align="right">2.378158</td>
+<td align="right">21.34971</td>
+<td align="right">25.59981</td>
+<td align="right">30.66992</td>
+<td align="right">0.0000</td>
 </tr>
 </tbody>
 </table>
@@ -1084,7 +1081,7 @@ prognostic coefficients:</p>
 <div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="fu"><a href="../reference/marginal_effects.html">marginal_effects</a></span><span class="op">(</span><span class="va">fit_mspline_relaxed</span>, effect <span class="op">=</span> <span class="st">"rmstd"</span><span class="op">)</span>,</span>
 <span>   caption <span class="op">=</span> <span class="st">"Relaxed M-spline RMST difference (effect modification, collapsible summary)"</span><span class="op">)</span></span></code></pre></div>
-<table class="table">
+<table style="width:100%;" class="table">
 <caption>Relaxed M-spline RMST difference (effect modification,
 collapsible summary)</caption>
 <colgroup>
@@ -1094,8 +1091,8 @@ collapsible summary)</caption>
 <col width="8%">
 <col width="10%">
 <col width="9%">
-<col width="11%">
-<col width="9%">
+<col width="10%">
+<col width="10%">
 <col width="10%">
 </colgroup>
 <thead><tr class="header">
@@ -1115,22 +1112,22 @@ collapsible summary)</caption>
 <td align="left">RMSTD</td>
 <td align="left">Index</td>
 <td align="right">64.8</td>
-<td align="right">11.849886</td>
-<td align="right">7.408610</td>
-<td align="right">-1.2576267</td>
-<td align="right">11.44882</td>
-<td align="right">26.327274</td>
+<td align="right">11.717789</td>
+<td align="right">7.589651</td>
+<td align="right">-1.369836</td>
+<td align="right">11.274465</td>
+<td align="right">26.636968</td>
 </tr>
 <tr class="even">
 <td align="left">rmst_diff_comparator</td>
 <td align="left">RMSTD</td>
 <td align="left">Comparator</td>
 <td align="right">64.8</td>
-<td align="right">3.906751</td>
-<td align="right">2.632891</td>
-<td align="right">-0.9399761</td>
-<td align="right">3.87162</td>
-<td align="right">9.068319</td>
+<td align="right">3.929039</td>
+<td align="right">2.641571</td>
+<td align="right">-1.238048</td>
+<td align="right">3.916078</td>
+<td align="right">9.217026</td>
 </tr>
 </tbody>
 </table>
@@ -1170,8 +1167,7 @@ form:</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;    model elpd_diff se_diff p_worse diag_diff diag_elpd</span></span>
 <span><span class="co">#&gt;  MSpline       0.0     0.0      NA                    </span></span>
-<span><span class="co">#&gt;  Weibull      -5.4     3.9    0.92                    </span></span>
-<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;  Weibull      -5.0     3.9    0.90                    </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; elpd_diff is the difference in expected log pointwise predictive</span></span>
 <span><span class="co">#&gt; density vs the best model, and se_diff is its standard error: the</span></span>
@@ -1221,11 +1217,11 @@ populations</caption>
 <td align="left">Index</td>
 <td align="right">1.4</td>
 <td align="right">NA</td>
-<td align="right">0.4321323</td>
-<td align="right">0.1718592</td>
-<td align="right">0.1863515</td>
-<td align="right">0.4044666</td>
-<td align="right">0.8495956</td>
+<td align="right">0.4313969</td>
+<td align="right">0.1626796</td>
+<td align="right">0.1931131</td>
+<td align="right">0.4070606</td>
+<td align="right">0.8220744</td>
 </tr>
 <tr class="even">
 <td align="left">hr_comparator</td>
@@ -1233,11 +1229,11 @@ populations</caption>
 <td align="left">Comparator</td>
 <td align="right">1.4</td>
 <td align="right">NA</td>
-<td align="right">0.4385704</td>
-<td align="right">0.1722747</td>
-<td align="right">0.1898217</td>
-<td align="right">0.4114319</td>
-<td align="right">0.8565592</td>
+<td align="right">0.4378076</td>
+<td align="right">0.1632146</td>
+<td align="right">0.1964644</td>
+<td align="right">0.4138155</td>
+<td align="right">0.8285563</td>
 </tr>
 <tr class="odd">
 <td align="left">rmst_diff_index</td>
@@ -1245,11 +1241,11 @@ populations</caption>
 <td align="left">Index</td>
 <td align="right">NA</td>
 <td align="right">64.8</td>
-<td align="right">0.9728680</td>
-<td align="right">2.0067392</td>
-<td align="right">-2.8338304</td>
-<td align="right">0.9359614</td>
-<td align="right">4.9852264</td>
+<td align="right">1.0088964</td>
+<td align="right">2.0163785</td>
+<td align="right">-2.9183922</td>
+<td align="right">0.9853879</td>
+<td align="right">5.0880552</td>
 </tr>
 <tr class="even">
 <td align="left">rmst_diff_comparator</td>
@@ -1257,11 +1253,11 @@ populations</caption>
 <td align="left">Comparator</td>
 <td align="right">NA</td>
 <td align="right">64.8</td>
-<td align="right">1.7830618</td>
-<td align="right">2.2265493</td>
-<td align="right">-2.4792818</td>
-<td align="right">1.7635118</td>
-<td align="right">6.1484112</td>
+<td align="right">1.8142917</td>
+<td align="right">2.2254231</td>
+<td align="right">-2.5243762</td>
+<td align="right">1.7763536</td>
+<td align="right">6.3011651</td>
 </tr>
 <tr class="odd">
 <td align="left">rmst_ratio_index</td>
@@ -1269,11 +1265,11 @@ populations</caption>
 <td align="left">Index</td>
 <td align="right">NA</td>
 <td align="right">64.8</td>
-<td align="right">1.0232273</td>
-<td align="right">0.0462188</td>
-<td align="right">0.9386665</td>
-<td align="right">1.0208617</td>
-<td align="right">1.1197285</td>
+<td align="right">1.0241154</td>
+<td align="right">0.0464969</td>
+<td align="right">0.9377540</td>
+<td align="right">1.0221220</td>
+<td align="right">1.1228799</td>
 </tr>
 <tr class="even">
 <td align="left">rmst_ratio_comparator</td>
@@ -1281,11 +1277,11 @@ populations</caption>
 <td align="left">Comparator</td>
 <td align="right">NA</td>
 <td align="right">64.8</td>
-<td align="right">1.0550456</td>
-<td align="right">0.0682076</td>
-<td align="right">0.9279087</td>
-<td align="right">1.0532360</td>
-<td align="right">1.1934411</td>
+<td align="right">1.0560436</td>
+<td align="right">0.0683024</td>
+<td align="right">0.9268143</td>
+<td align="right">1.0536830</td>
+<td align="right">1.1950134</td>
 </tr>
 </tbody>
 </table>
@@ -1299,195 +1295,13 @@ plot of chunk weibull-surv
 </div>
 </div>
 <div class="section level2">
-<h2 id="checking-against-the-anchored-comparison">Checking against the anchored comparison<a class="anchor" aria-label="anchor" href="#checking-against-the-anchored-comparison"></a>
+<h2 id="log-hazard-ratios-against-the-naive-estimate">Log hazard ratios against the naive estimate<a class="anchor" aria-label="anchor" href="#log-hazard-ratios-against-the-naive-estimate"></a>
 </h2>
-<p>The unanchored framing of this vignette is a construction.
-McCarthy2012 and Morgan2012 both randomized patients to
-<strong>placebo</strong>, and the analysis above discards those arms.
-Because they are still present in the source data, we can do something a
-genuine unanchored analysis never can: check the answer against the
-anchored one. <code>multinma</code> is a <code>Suggests</code> here,
-used only to reach the arms mlumr does not bundle.</p>
+<p>The naive Cox estimate under <em>Frequentist benchmarks</em> is a log
+hazard ratio, so it is set against ML-UMR on that scale here, with
+ML-UMR in both target populations.</p>
 <div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"ndmm_ipd"</span>, package <span class="op">=</span> <span class="st">"multinma"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"ndmm_agd"</span>, package <span class="op">=</span> <span class="st">"multinma"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"ndmm_agd_covs"</span>, package <span class="op">=</span> <span class="st">"multinma"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">tau</span> <span class="op">&lt;-</span> <span class="va">res_stc</span><span class="op">$</span><span class="va">horizon</span>   <span class="co"># the RMST horizon used above</span></span>
-<span><span class="va">mcc_pbo</span> <span class="op">&lt;-</span> <span class="va">ndmm_ipd</span><span class="op">[</span><span class="va">ndmm_ipd</span><span class="op">$</span><span class="va">studyf</span> <span class="op">==</span> <span class="st">"McCarthy2012"</span> <span class="op">&amp;</span> <span class="va">ndmm_ipd</span><span class="op">$</span><span class="va">trtf</span> <span class="op">==</span> <span class="st">"Pbo"</span>, <span class="op">]</span></span>
-<span><span class="va">mor_pbo</span> <span class="op">&lt;-</span> <span class="va">ndmm_agd</span><span class="op">[</span><span class="va">ndmm_agd</span><span class="op">$</span><span class="va">studyf</span> <span class="op">==</span> <span class="st">"Morgan2012"</span> <span class="op">&amp;</span> <span class="va">ndmm_agd</span><span class="op">$</span><span class="va">trtf</span> <span class="op">==</span> <span class="st">"Pbo"</span>, <span class="op">]</span></span>
-<span><span class="va">mor_cov</span> <span class="op">&lt;-</span> <span class="va">ndmm_agd_covs</span><span class="op">[</span><span class="va">ndmm_agd_covs</span><span class="op">$</span><span class="va">studyf</span> <span class="op">==</span> <span class="st">"Morgan2012"</span> <span class="op">&amp;</span></span>
-<span>                           <span class="va">ndmm_agd_covs</span><span class="op">$</span><span class="va">trtf</span> <span class="op">==</span> <span class="st">"Pbo"</span>, <span class="op">]</span></span>
-<span></span>
-<span><span class="co"># Conditional constancy is the assumption ML-UMR cannot test from the unanchored</span></span>
-<span><span class="co"># data alone. With the discarded arms it becomes testable: fit the survival model</span></span>
-<span><span class="co"># in the arm both trials share, transport it to the other trial's population, and</span></span>
-<span><span class="co"># compare against what that trial actually observed for the same arm.</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
-<span><span class="va">m_pbo</span> <span class="op">&lt;-</span> <span class="fu">flexsurv</span><span class="fu">::</span><span class="fu"><a href="http://chjackson.github.io/flexsurv-dev/reference/flexsurvreg.html" class="external-link">flexsurvreg</a></span><span class="op">(</span></span>
-<span>  <span class="fu">survival</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">eventtime</span>, <span class="va">status</span><span class="op">)</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">iss_stage3</span> <span class="op">+</span> <span class="va">response_cr_vgpr</span> <span class="op">+</span> <span class="va">male</span>,</span>
-<span>  data <span class="op">=</span> <span class="va">mcc_pbo</span>, dist <span class="op">=</span> <span class="st">"weibullPH"</span><span class="op">)</span></span>
-<span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">5e4</span></span>
-<span><span class="va">nd</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>age <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n</span>, <span class="va">mor_cov</span><span class="op">$</span><span class="va">age_mean</span>, <span class="va">mor_cov</span><span class="op">$</span><span class="va">age_sd</span><span class="op">)</span>,</span>
-<span>                 iss_stage3 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n</span>, <span class="fl">1</span>, <span class="va">mor_cov</span><span class="op">$</span><span class="va">iss_stage3</span><span class="op">)</span>,</span>
-<span>                 response_cr_vgpr <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n</span>, <span class="fl">1</span>, <span class="va">mor_cov</span><span class="op">$</span><span class="va">response_cr_vgpr</span><span class="op">)</span>,</span>
-<span>                 male <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n</span>, <span class="fl">1</span>, <span class="va">mor_cov</span><span class="op">$</span><span class="va">male</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">km_rmst</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">d</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span></span>
-<span>  <span class="fu">survival</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/survfit.html" class="external-link">survfit</a></span><span class="op">(</span><span class="fu">survival</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">eventtime</span>, <span class="va">status</span><span class="op">)</span> <span class="op">~</span> <span class="fl">1</span>, data <span class="op">=</span> <span class="va">d</span><span class="op">)</span>,</span>
-<span>  rmean <span class="op">=</span> <span class="va">tau</span><span class="op">)</span><span class="op">$</span><span class="va">table</span><span class="op">[</span><span class="st">"rmean"</span><span class="op">]</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Name these so the prose below cites the same numbers the table prints,</span></span>
-<span><span class="co"># rather than literals that drift the next time the vignette is re-knitted.</span></span>
-<span><span class="va">rmst_own</span>       <span class="op">&lt;-</span> <span class="fu">km_rmst</span><span class="op">(</span><span class="va">mcc_pbo</span><span class="op">)</span></span>
-<span><span class="va">rmst_transport</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">m_pbo</span>, newdata <span class="op">=</span> <span class="va">nd</span>, type <span class="op">=</span> <span class="st">"rmst"</span>,</span>
-<span>                               t <span class="op">=</span> <span class="va">tau</span>, ci <span class="op">=</span> <span class="cn">FALSE</span>, tidy <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">$</span><span class="va">est</span><span class="op">)</span></span>
-<span><span class="va">rmst_observed</span>  <span class="op">&lt;-</span> <span class="fu">km_rmst</span><span class="op">(</span><span class="va">mor_pbo</span><span class="op">)</span></span>
-<span><span class="va">rmst_gap</span>       <span class="op">&lt;-</span> <span class="va">rmst_observed</span> <span class="op">-</span> <span class="va">rmst_transport</span></span>
-<span></span>
-<span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
-<span>  Quantity <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"McCarthy2012 placebo, observed in its own population"</span>,</span>
-<span>               <span class="st">"McCarthy2012 placebo model, transported to Morgan2012"</span>,</span>
-<span>               <span class="st">"Morgan2012 placebo, observed"</span><span class="op">)</span>,</span>
-<span>  `RMST (months)` <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">rmst_own</span>, <span class="va">rmst_transport</span>, <span class="va">rmst_observed</span><span class="op">)</span>,</span>
-<span>  check.names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>, digits <span class="op">=</span> <span class="fl">2</span>,</span>
-<span>  caption <span class="op">=</span> <span class="st">"Conditional-constancy check on the placebo arms this example discards"</span><span class="op">)</span></span></code></pre></div>
-<table class="table">
-<caption>Conditional-constancy check on the placebo arms this example
-discards</caption>
-<thead><tr class="header">
-<th align="left">Quantity</th>
-<th align="right">RMST (months)</th>
-</tr></thead>
-<tbody>
-<tr class="odd">
-<td align="left">McCarthy2012 placebo, observed in its own
-population</td>
-<td align="right">37.63</td>
-</tr>
-<tr class="even">
-<td align="left">McCarthy2012 placebo model, transported to
-Morgan2012</td>
-<td align="right">29.34</td>
-</tr>
-<tr class="odd">
-<td align="left">Morgan2012 placebo, observed</td>
-<td align="right">30.86</td>
-</tr>
-</tbody>
-</table>
-<p>The transported placebo arm predicts about 29.3 months of restricted
-mean survival for Morgan2012’s placebo population, against the 30.9
-months Morgan2012 actually observed. That is close, and it is the
-reassurance an unanchored analysis normally cannot get: the transport
-machinery, run on an arm both trials share, roughly recovers what that
-arm did.</p>
-<p>It is not exact, and the residual gap is worth keeping in view. The
-covariate model is fitted in a population with mean age 57.9 years and
-27% ISS stage 3 and asked to reach one with mean age 65.6 years and 32%
-ISS stage 3. That is a real extrapolation, and the remaining 1.5-month
-shortfall is what is left of it after adjusting for the four measured
-covariates.</p>
-<p>Now the anchored answers. Both trials contain a placebo arm, so two
-anchored estimates are available. The first is a <strong>Bucher</strong>
-indirect comparison: take each trial’s own within-trial Cox log hazard
-ratio against placebo and subtract. For two studies and one common
-comparator that is what a fixed-effect NMA returns.</p>
-<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">cox_lhr</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">d</span>, <span class="va">active</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">d</span> <span class="op">&lt;-</span> <span class="va">d</span><span class="op">[</span><span class="va">d</span><span class="op">$</span><span class="va">trtf</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Pbo"</span>, <span class="va">active</span><span class="op">)</span>, <span class="op">]</span></span>
-<span>  <span class="va">d</span><span class="op">$</span><span class="va">trt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">trtf</span><span class="op">)</span>, levels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Pbo"</span>, <span class="va">active</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="va">f</span> <span class="op">&lt;-</span> <span class="fu">survival</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/coxph.html" class="external-link">coxph</a></span><span class="op">(</span><span class="fu">survival</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">eventtime</span>, <span class="va">status</span><span class="op">)</span> <span class="op">~</span> <span class="va">trt</span>, data <span class="op">=</span> <span class="va">d</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>est <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">f</span><span class="op">)</span><span class="op">)</span>, se <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov</a></span><span class="op">(</span><span class="va">f</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="op">}</span></span>
-<span><span class="va">lhr_mcc</span> <span class="op">&lt;-</span> <span class="fu">cox_lhr</span><span class="op">(</span><span class="va">ndmm_ipd</span><span class="op">[</span><span class="va">ndmm_ipd</span><span class="op">$</span><span class="va">studyf</span> <span class="op">==</span> <span class="st">"McCarthy2012"</span>, <span class="op">]</span>, <span class="st">"Len"</span><span class="op">)</span></span>
-<span><span class="va">lhr_mor</span> <span class="op">&lt;-</span> <span class="fu">cox_lhr</span><span class="op">(</span><span class="va">ndmm_agd</span><span class="op">[</span><span class="va">ndmm_agd</span><span class="op">$</span><span class="va">studyf</span> <span class="op">==</span> <span class="st">"Morgan2012"</span>, <span class="op">]</span>, <span class="st">"Thal"</span><span class="op">)</span></span>
-<span><span class="va">anchored</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">lhr_mcc</span><span class="op">[</span><span class="st">"est"</span><span class="op">]</span> <span class="op">-</span> <span class="va">lhr_mor</span><span class="op">[</span><span class="st">"est"</span><span class="op">]</span>,</span>
-<span>                     <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="va">lhr_mcc</span><span class="op">[</span><span class="st">"se"</span><span class="op">]</span><span class="op">^</span><span class="fl">2</span> <span class="op">+</span> <span class="va">lhr_mor</span><span class="op">[</span><span class="st">"se"</span><span class="op">]</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">anchored_ci</span> <span class="op">&lt;-</span> <span class="va">anchored</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">1.96</span>, <span class="fl">1.96</span><span class="op">)</span> <span class="op">*</span> <span class="va">anchored</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span></span></code></pre></div>
-<p>The second is a population-adjusted <strong>ML-NMR</strong> fitted
-with <code>multinma</code> on the same two trials, the anchored method
-ML-UMR is adapted from, with the same cubic M-spline baseline and the
-same four covariates.</p>
-<p>multinma’s own NDMM example uses
-<code>regression = ~(age + iss_stage3 + response_cr_vgpr + male) * .trt</code>,
-i.e. every covariate is allowed to modify the treatment effect. That
-example has <strong>five</strong> studies to identify those
-interactions. Here there are two, and effect modification is not
-identifiable from two studies, so we fit the model both ways: prognostic
-factors only, and with the full <code>* .trt</code> interaction.
-Comparing them is the point, and the interval widths tell the story.
-Note also that once covariates interact with treatment the contrast
-becomes population-specific, so <code>multinma</code> returns one
-estimate per study; both are reported below, matching the
-index/comparator pair reported for ML-UMR.</p>
-<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Reload explicitly so this chunk stands on its own: `ndmm_ipd` is bundled with</span></span>
-<span><span class="co"># mlumr as a single arm, and the anchored check needs multinma's full network.</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"ndmm_ipd"</span>, package <span class="op">=</span> <span class="st">"multinma"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"ndmm_agd"</span>, package <span class="op">=</span> <span class="st">"multinma"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"ndmm_agd_covs"</span>, package <span class="op">=</span> <span class="st">"multinma"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">mcc</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/droplevels.html" class="external-link">droplevels</a></span><span class="op">(</span><span class="va">ndmm_ipd</span><span class="op">[</span><span class="va">ndmm_ipd</span><span class="op">$</span><span class="va">studyf</span> <span class="op">==</span> <span class="st">"McCarthy2012"</span>, <span class="op">]</span><span class="op">)</span></span>
-<span><span class="va">mor</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/droplevels.html" class="external-link">droplevels</a></span><span class="op">(</span><span class="va">ndmm_agd</span><span class="op">[</span><span class="va">ndmm_agd</span><span class="op">$</span><span class="va">studyf</span> <span class="op">==</span> <span class="st">"Morgan2012"</span>, <span class="op">]</span><span class="op">)</span></span>
-<span><span class="va">mor_covs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/droplevels.html" class="external-link">droplevels</a></span><span class="op">(</span><span class="va">ndmm_agd_covs</span><span class="op">[</span><span class="va">ndmm_agd_covs</span><span class="op">$</span><span class="va">studyf</span> <span class="op">==</span> <span class="st">"Morgan2012"</span>, <span class="op">]</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">net</span> <span class="op">&lt;-</span> <span class="fu">multinma</span><span class="fu">::</span><span class="fu"><a href="https://dmphillippo.github.io/multinma/reference/combine_network.html" class="external-link">combine_network</a></span><span class="op">(</span></span>
-<span>  <span class="fu">multinma</span><span class="fu">::</span><span class="fu"><a href="https://dmphillippo.github.io/multinma/reference/set_ipd.html" class="external-link">set_ipd</a></span><span class="op">(</span><span class="va">mcc</span>, study <span class="op">=</span> <span class="va">studyf</span>, trt <span class="op">=</span> <span class="va">trtf</span>,</span>
-<span>                    Surv <span class="op">=</span> <span class="fu">survival</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">eventtime</span>, <span class="va">status</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  <span class="fu">multinma</span><span class="fu">::</span><span class="fu"><a href="https://dmphillippo.github.io/multinma/reference/set_agd_surv.html" class="external-link">set_agd_surv</a></span><span class="op">(</span><span class="va">mor</span>, study <span class="op">=</span> <span class="va">studyf</span>, trt <span class="op">=</span> <span class="va">trtf</span>,</span>
-<span>                         Surv <span class="op">=</span> <span class="fu">survival</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">eventtime</span>, <span class="va">status</span><span class="op">)</span>,</span>
-<span>                         covariates <span class="op">=</span> <span class="va">mor_covs</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">net</span> <span class="op">&lt;-</span> <span class="fu">multinma</span><span class="fu">::</span><span class="fu"><a href="https://dmphillippo.github.io/multinma/reference/add_integration.html" class="external-link">add_integration</a></span><span class="op">(</span><span class="va">net</span>,</span>
-<span>  age              <span class="op">=</span> <span class="fu">multinma</span><span class="fu">::</span><span class="fu"><a href="https://dmphillippo.github.io/multinma/reference/distr.html" class="external-link">distr</a></span><span class="op">(</span><span class="fu">multinma</span><span class="fu">::</span><span class="va"><a href="https://dmphillippo.github.io/multinma/reference/GammaDist.html" class="external-link">qgamma</a></span>, mean <span class="op">=</span> <span class="va">age_mean</span>, sd <span class="op">=</span> <span class="va">age_sd</span><span class="op">)</span>,</span>
-<span>  iss_stage3       <span class="op">=</span> <span class="fu">multinma</span><span class="fu">::</span><span class="fu"><a href="https://dmphillippo.github.io/multinma/reference/distr.html" class="external-link">distr</a></span><span class="op">(</span><span class="fu">multinma</span><span class="fu">::</span><span class="va"><a href="https://dmphillippo.github.io/multinma/reference/Bernoulli.html" class="external-link">qbern</a></span>, <span class="va">iss_stage3</span><span class="op">)</span>,</span>
-<span>  response_cr_vgpr <span class="op">=</span> <span class="fu">multinma</span><span class="fu">::</span><span class="fu"><a href="https://dmphillippo.github.io/multinma/reference/distr.html" class="external-link">distr</a></span><span class="op">(</span><span class="fu">multinma</span><span class="fu">::</span><span class="va"><a href="https://dmphillippo.github.io/multinma/reference/Bernoulli.html" class="external-link">qbern</a></span>, <span class="va">response_cr_vgpr</span><span class="op">)</span>,</span>
-<span>  male             <span class="op">=</span> <span class="fu">multinma</span><span class="fu">::</span><span class="fu"><a href="https://dmphillippo.github.io/multinma/reference/distr.html" class="external-link">distr</a></span><span class="op">(</span><span class="fu">multinma</span><span class="fu">::</span><span class="va"><a href="https://dmphillippo.github.io/multinma/reference/Bernoulli.html" class="external-link">qbern</a></span>, <span class="va">male</span><span class="op">)</span>,</span>
-<span>  n_int <span class="op">=</span> <span class="fl">64</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">nmr_fit</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">form</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu">multinma</span><span class="fu">::</span><span class="fu"><a href="https://dmphillippo.github.io/multinma/reference/nma.html" class="external-link">nma</a></span><span class="op">(</span><span class="va">net</span>, likelihood <span class="op">=</span> <span class="st">"mspline"</span>, n_knots <span class="op">=</span> <span class="fl">7</span>,</span>
-<span>                trt_effects <span class="op">=</span> <span class="st">"fixed"</span>, regression <span class="op">=</span> <span class="va">form</span>,</span>
-<span>                prior_intercept <span class="op">=</span> <span class="fu">multinma</span><span class="fu">::</span><span class="fu"><a href="https://dmphillippo.github.io/multinma/reference/priors.html" class="external-link">normal</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">10</span><span class="op">)</span>,</span>
-<span>                prior_trt <span class="op">=</span> <span class="fu">multinma</span><span class="fu">::</span><span class="fu"><a href="https://dmphillippo.github.io/multinma/reference/priors.html" class="external-link">normal</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">10</span><span class="op">)</span>,</span>
-<span>                prior_reg <span class="op">=</span> <span class="fu">multinma</span><span class="fu">::</span><span class="fu"><a href="https://dmphillippo.github.io/multinma/reference/priors.html" class="external-link">normal</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">2.5</span><span class="op">)</span>,</span>
-<span>                prior_aux <span class="op">=</span> <span class="fu">multinma</span><span class="fu">::</span><span class="fu"><a href="https://dmphillippo.github.io/multinma/reference/priors.html" class="external-link">half_normal</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span>,</span>
-<span>                QR <span class="op">=</span> <span class="cn">TRUE</span>, adapt_delta <span class="op">=</span> <span class="fl">0.9</span>,</span>
-<span>                chains <span class="op">=</span> <span class="fl">4</span>, iter <span class="op">=</span> <span class="fl">2000</span>, warmup <span class="op">=</span> <span class="fl">1000</span>,</span>
-<span>                seed <span class="op">=</span> <span class="fl">2026</span>, refresh <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
-<span><span class="op">}</span></span>
-<span></span>
-<span><span class="co"># Prognostic factors only: the anchored analogue of the SPFA model above.</span></span>
-<span><span class="va">fit_nmr</span> <span class="op">&lt;-</span> <span class="fu">nmr_fit</span><span class="op">(</span><span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">iss_stage3</span> <span class="op">+</span> <span class="va">response_cr_vgpr</span> <span class="op">+</span> <span class="va">male</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Full interaction, exactly multinma's own NDMM specification: the anchored</span></span>
-<span><span class="co"># analogue of the relaxed model.</span></span>
-<span><span class="va">fit_nmr_em</span> <span class="op">&lt;-</span> <span class="fu">nmr_fit</span><span class="op">(</span><span class="op">~</span> <span class="op">(</span><span class="va">age</span> <span class="op">+</span> <span class="va">iss_stage3</span> <span class="op">+</span> <span class="va">response_cr_vgpr</span> <span class="op">+</span> <span class="va">male</span><span class="op">)</span> <span class="op">*</span> <span class="va">.trt</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># This vignette suppresses warnings, so report the sampler diagnostics for the</span></span>
-<span><span class="co"># anchored fit explicitly rather than letting them go unseen.</span></span>
-<span><span class="kw">for</span> <span class="op">(</span><span class="va">nm</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"prognostic only"</span>, <span class="st">"with * .trt"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">f</span> <span class="op">&lt;-</span> <span class="kw">if</span> <span class="op">(</span><span class="va">nm</span> <span class="op">==</span> <span class="st">"prognostic only"</span><span class="op">)</span> <span class="va">fit_nmr</span> <span class="kw">else</span> <span class="va">fit_nmr_em</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"ML-NMR (%s) divergent transitions: %d of %d draws\n"</span>, <span class="va">nm</span>,</span>
-<span>              <span class="fu">rstan</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/rstan/reference/check_hmc_diagnostics.html" class="external-link">get_num_divergent</a></span><span class="op">(</span><span class="va">f</span><span class="op">$</span><span class="va">stanfit</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix</a></span><span class="op">(</span><span class="va">f</span><span class="op">$</span><span class="va">stanfit</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="op">}</span></span>
-<span><span class="co">#&gt; ML-NMR (prognostic only) divergent transitions: 0 of 4000 draws</span></span>
-<span><span class="co">#&gt; ML-NMR (with * .trt) divergent transitions: 0 of 4000 draws</span></span>
-<span></span>
-<span><span class="co"># multinma reports Thal vs Len; flip to match this vignette's direction.</span></span>
-<span><span class="va">nmr_contrast</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">f</span>, <span class="va">study</span> <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="fu">multinma</span><span class="fu">::</span><span class="fu"><a href="https://dmphillippo.github.io/multinma/reference/relative_effects.html" class="external-link">relative_effects</a></span><span class="op">(</span><span class="va">f</span>, all_contrasts <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">$</span><span class="va">summary</span><span class="op">)</span></span>
-<span>  <span class="va">d</span> <span class="op">&lt;-</span> <span class="va">d</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grepl</a></span><span class="op">(</span><span class="st">"Thal"</span>, <span class="va">d</span><span class="op">$</span><span class="va">parameter</span><span class="op">)</span> <span class="op">&amp;</span> <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grepl</a></span><span class="op">(</span><span class="st">"Len"</span>, <span class="va">d</span><span class="op">$</span><span class="va">parameter</span><span class="op">)</span>, <span class="op">]</span></span>
-<span>  <span class="co"># Once covariates interact with treatment the contrast is population-specific,</span></span>
-<span>  <span class="co"># so multinma returns one row per study: McCarthy2012 is the index population</span></span>
-<span>  <span class="co"># and Morgan2012 the comparator, the same pair ML-UMR reports.</span></span>
-<span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">1</span> <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">study</span><span class="op">)</span><span class="op">)</span> <span class="va">d</span> <span class="op">&lt;-</span> <span class="va">d</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grepl</a></span><span class="op">(</span><span class="va">study</span>, <span class="va">d</span><span class="op">$</span><span class="va">parameter</span><span class="op">)</span>, <span class="op">]</span></span>
-<span>  <span class="va">d</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span></span>
-<span><span class="op">}</span></span>
-<span><span class="va">nmr</span>      <span class="op">&lt;-</span> <span class="fu">nmr_contrast</span><span class="op">(</span><span class="va">fit_nmr</span><span class="op">)</span></span>
-<span><span class="va">nmr_em_i</span> <span class="op">&lt;-</span> <span class="fu">nmr_contrast</span><span class="op">(</span><span class="va">fit_nmr_em</span>, study <span class="op">=</span> <span class="st">"McCarthy2012"</span><span class="op">)</span></span>
-<span><span class="va">nmr_em_c</span> <span class="op">&lt;-</span> <span class="fu">nmr_contrast</span><span class="op">(</span><span class="va">fit_nmr_em</span>, study <span class="op">=</span> <span class="st">"Morgan2012"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># ML-UMR reports a log HR in each population; pull both from the fit summary.</span></span>
+<code class="sourceCode R"><span><span class="co"># ML-UMR reports a log HR in each population; pull both from the fit summary.</span></span>
 <span><span class="va">lhr_row</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">fit</span>, <span class="va">var</span><span class="op">)</span> <span class="va">fit</span><span class="op">$</span><span class="va">summary</span><span class="op">[</span><span class="va">fit</span><span class="op">$</span><span class="va">summary</span><span class="op">$</span><span class="va">variable</span> <span class="op">==</span> <span class="va">var</span>, <span class="op">]</span></span>
 <span></span>
 <span><span class="co"># `fit$summary` stores coefficients under Stan's positional names, `beta[1]`</span></span>
@@ -1504,6 +1318,7 @@ index/comparator pair reported for ML-UMR.</p>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">out</span><span class="op">)</span> <span class="op">==</span> <span class="fl">1L</span><span class="op">)</span></span>
 <span>  <span class="va">out</span></span>
 <span><span class="op">}</span></span>
+<span></span>
 <span><span class="va">lhr_i</span>     <span class="op">&lt;-</span> <span class="fu">lhr_row</span><span class="op">(</span><span class="va">fit_mspline</span>, <span class="st">"delta_index"</span><span class="op">)</span></span>
 <span><span class="va">lhr_c</span>     <span class="op">&lt;-</span> <span class="fu">lhr_row</span><span class="op">(</span><span class="va">fit_mspline</span>, <span class="st">"delta_comparator"</span><span class="op">)</span></span>
 <span><span class="va">lhr_rel_i</span> <span class="op">&lt;-</span> <span class="fu">lhr_row</span><span class="op">(</span><span class="va">fit_mspline_relaxed</span>, <span class="st">"delta_index"</span><span class="op">)</span></span>
@@ -1514,46 +1329,32 @@ index/comparator pair reported for ML-UMR.</p>
 <span>             <span class="st">"ML-UMR M-spline (SPFA, prognostic only)"</span>,</span>
 <span>             <span class="st">"ML-UMR M-spline (SPFA, prognostic only)"</span>,</span>
 <span>             <span class="st">"ML-UMR M-spline (relaxed, effect modification)"</span>,</span>
-<span>             <span class="st">"ML-UMR M-spline (relaxed, effect modification)"</span>,</span>
-<span>             <span class="st">"Anchored: Bucher / fixed-effect NMA"</span>,</span>
-<span>             <span class="st">"Anchored: ML-NMR, prognostic only"</span>,</span>
-<span>             <span class="st">"Anchored: ML-NMR, with * .trt (multinma's own model)"</span>,</span>
-<span>             <span class="st">"Anchored: ML-NMR, with * .trt (multinma's own model)"</span><span class="op">)</span>,</span>
-<span>  Anchored <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"no"</span>, <span class="st">"no"</span>, <span class="st">"no"</span>, <span class="st">"no"</span>, <span class="st">"no"</span>, <span class="st">"yes"</span>, <span class="st">"yes"</span>, <span class="st">"yes"</span>, <span class="st">"yes"</span><span class="op">)</span>,</span>
+<span>             <span class="st">"ML-UMR M-spline (relaxed, effect modification)"</span><span class="op">)</span>,</span>
 <span>  <span class="co"># The naive Cox row is standardized to no population; it contrasts the two</span></span>
 <span>  <span class="co"># crude arms. `vignette("choosing-a-method")` uses the same label.</span></span>
-<span>  Population <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"unstandardized"</span>, <span class="st">"index"</span>, <span class="st">"comparator"</span>, <span class="st">"index"</span>, <span class="st">"comparator"</span>,</span>
-<span>                 <span class="st">"not population-specific"</span>, <span class="st">"not population-specific"</span>,</span>
-<span>                 <span class="st">"index"</span>, <span class="st">"comparator"</span><span class="op">)</span>,</span>
+<span>  Population <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"unstandardized"</span>, <span class="st">"index"</span>, <span class="st">"comparator"</span>, <span class="st">"index"</span>, <span class="st">"comparator"</span><span class="op">)</span>,</span>
 <span>  `log HR` <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">res_naive</span><span class="op">$</span><span class="va">estimate</span>,</span>
-<span>               <span class="va">lhr_i</span><span class="op">$</span><span class="va">mean</span>, <span class="va">lhr_c</span><span class="op">$</span><span class="va">mean</span>, <span class="va">lhr_rel_i</span><span class="op">$</span><span class="va">mean</span>, <span class="va">lhr_rel_c</span><span class="op">$</span><span class="va">mean</span>,</span>
-<span>               <span class="va">anchored</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>, <span class="op">-</span><span class="va">nmr</span><span class="op">$</span><span class="va">mean</span>, <span class="op">-</span><span class="va">nmr_em_i</span><span class="op">$</span><span class="va">mean</span>, <span class="op">-</span><span class="va">nmr_em_c</span><span class="op">$</span><span class="va">mean</span><span class="op">)</span>,</span>
+<span>               <span class="va">lhr_i</span><span class="op">$</span><span class="va">mean</span>, <span class="va">lhr_c</span><span class="op">$</span><span class="va">mean</span>, <span class="va">lhr_rel_i</span><span class="op">$</span><span class="va">mean</span>, <span class="va">lhr_rel_c</span><span class="op">$</span><span class="va">mean</span><span class="op">)</span>,</span>
 <span>  `2.5%`   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">res_naive</span><span class="op">$</span><span class="va">ci_lower</span>,</span>
 <span>               <span class="va">lhr_i</span><span class="op">[[</span><span class="st">"2.5%"</span><span class="op">]</span><span class="op">]</span>, <span class="va">lhr_c</span><span class="op">[[</span><span class="st">"2.5%"</span><span class="op">]</span><span class="op">]</span>,</span>
-<span>               <span class="va">lhr_rel_i</span><span class="op">[[</span><span class="st">"2.5%"</span><span class="op">]</span><span class="op">]</span>, <span class="va">lhr_rel_c</span><span class="op">[[</span><span class="st">"2.5%"</span><span class="op">]</span><span class="op">]</span>,</span>
-<span>               <span class="va">anchored_ci</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>, <span class="op">-</span><span class="va">nmr</span><span class="op">[[</span><span class="st">"97.5%"</span><span class="op">]</span><span class="op">]</span>,</span>
-<span>               <span class="op">-</span><span class="va">nmr_em_i</span><span class="op">[[</span><span class="st">"97.5%"</span><span class="op">]</span><span class="op">]</span>, <span class="op">-</span><span class="va">nmr_em_c</span><span class="op">[[</span><span class="st">"97.5%"</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>               <span class="va">lhr_rel_i</span><span class="op">[[</span><span class="st">"2.5%"</span><span class="op">]</span><span class="op">]</span>, <span class="va">lhr_rel_c</span><span class="op">[[</span><span class="st">"2.5%"</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>,</span>
 <span>  `97.5%`  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">res_naive</span><span class="op">$</span><span class="va">ci_upper</span>,</span>
 <span>               <span class="va">lhr_i</span><span class="op">[[</span><span class="st">"97.5%"</span><span class="op">]</span><span class="op">]</span>, <span class="va">lhr_c</span><span class="op">[[</span><span class="st">"97.5%"</span><span class="op">]</span><span class="op">]</span>,</span>
-<span>               <span class="va">lhr_rel_i</span><span class="op">[[</span><span class="st">"97.5%"</span><span class="op">]</span><span class="op">]</span>, <span class="va">lhr_rel_c</span><span class="op">[[</span><span class="st">"97.5%"</span><span class="op">]</span><span class="op">]</span>,</span>
-<span>               <span class="va">anchored_ci</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span>, <span class="op">-</span><span class="va">nmr</span><span class="op">[[</span><span class="st">"2.5%"</span><span class="op">]</span><span class="op">]</span>,</span>
-<span>               <span class="op">-</span><span class="va">nmr_em_i</span><span class="op">[[</span><span class="st">"2.5%"</span><span class="op">]</span><span class="op">]</span>, <span class="op">-</span><span class="va">nmr_em_c</span><span class="op">[[</span><span class="st">"2.5%"</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>               <span class="va">lhr_rel_i</span><span class="op">[[</span><span class="st">"97.5%"</span><span class="op">]</span><span class="op">]</span>, <span class="va">lhr_rel_c</span><span class="op">[[</span><span class="st">"97.5%"</span><span class="op">]</span><span class="op">]</span><span class="op">)</span>,</span>
 <span>  check.names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>, digits <span class="op">=</span> <span class="fl">3</span>,</span>
-<span>  caption <span class="op">=</span> <span class="st">"Unanchored estimates against the anchored references, in both target populations (log hazard ratio, Len vs Thal)"</span><span class="op">)</span></span></code></pre></div>
+<span>  caption <span class="op">=</span> <span class="st">"Naive and ML-UMR log hazard ratios, in both target populations (Len vs Thal)"</span><span class="op">)</span></span></code></pre></div>
 <table class="table">
-<caption>Unanchored estimates against the anchored references, in both
-target populations (log hazard ratio, Len vs Thal)</caption>
+<caption>Naive and ML-UMR log hazard ratios, in both target populations
+(Len vs Thal)</caption>
 <colgroup>
-<col width="49%">
+<col width="56%">
+<col width="18%">
 <col width="8%">
-<col width="22%">
-<col width="6%">
-<col width="6%">
-<col width="6%">
+<col width="8%">
+<col width="8%">
 </colgroup>
 <thead><tr class="header">
 <th align="left">Method</th>
-<th align="left">Anchored</th>
 <th align="left">Population</th>
 <th align="right">log HR</th>
 <th align="right">2.5%</th>
@@ -1562,7 +1363,6 @@ target populations (log hazard ratio, Len vs Thal)</caption>
 <tbody>
 <tr class="odd">
 <td align="left">Naive Cox (unadjusted)</td>
-<td align="left">no</td>
 <td align="left">unstandardized</td>
 <td align="right">-0.554</td>
 <td align="right">-0.767</td>
@@ -1570,85 +1370,40 @@ target populations (log hazard ratio, Len vs Thal)</caption>
 </tr>
 <tr class="even">
 <td align="left">ML-UMR M-spline (SPFA, prognostic only)</td>
-<td align="left">no</td>
 <td align="left">index</td>
-<td align="right">-0.508</td>
-<td align="right">-1.361</td>
-<td align="right">0.231</td>
+<td align="right">-0.485</td>
+<td align="right">-1.390</td>
+<td align="right">0.276</td>
 </tr>
 <tr class="odd">
 <td align="left">ML-UMR M-spline (SPFA, prognostic only)</td>
-<td align="left">no</td>
 <td align="left">comparator</td>
-<td align="right">-0.505</td>
-<td align="right">-1.354</td>
-<td align="right">0.228</td>
+<td align="right">-0.483</td>
+<td align="right">-1.383</td>
+<td align="right">0.269</td>
 </tr>
 <tr class="even">
 <td align="left">ML-UMR M-spline (relaxed, effect modification)</td>
-<td align="left">no</td>
 <td align="left">index</td>
-<td align="right">-1.060</td>
-<td align="right">-2.347</td>
-<td align="right">0.368</td>
+<td align="right">-1.047</td>
+<td align="right">-2.326</td>
+<td align="right">0.371</td>
 </tr>
 <tr class="odd">
 <td align="left">ML-UMR M-spline (relaxed, effect modification)</td>
-<td align="left">no</td>
 <td align="left">comparator</td>
-<td align="right">-0.492</td>
-<td align="right">-1.351</td>
-<td align="right">0.255</td>
-</tr>
-<tr class="even">
-<td align="left">Anchored: Bucher / fixed-effect NMA</td>
-<td align="left">yes</td>
-<td align="left">not population-specific</td>
-<td align="right">-0.375</td>
-<td align="right">-0.677</td>
-<td align="right">-0.073</td>
-</tr>
-<tr class="odd">
-<td align="left">Anchored: ML-NMR, prognostic only</td>
-<td align="left">yes</td>
-<td align="left">not population-specific</td>
-<td align="right">-0.362</td>
-<td align="right">-0.698</td>
-<td align="right">-0.025</td>
-</tr>
-<tr class="even">
-<td align="left">Anchored: ML-NMR, with * .trt (multinma’s own
-model)</td>
-<td align="left">yes</td>
-<td align="left">index</td>
-<td align="right">-0.837</td>
-<td align="right">-1.838</td>
-<td align="right">0.077</td>
-</tr>
-<tr class="odd">
-<td align="left">Anchored: ML-NMR, with * .trt (multinma’s own
-model)</td>
-<td align="left">yes</td>
-<td align="left">comparator</td>
-<td align="right">-0.290</td>
-<td align="right">-0.741</td>
-<td align="right">0.206</td>
+<td align="right">-0.490</td>
+<td align="right">-1.366</td>
+<td align="right">0.276</td>
 </tr>
 </tbody>
 </table>
-<p>All three anchored estimates agree closely with one another, which is
-the first thing to check: the Bucher comparison, ML-NMR with prognostic
-factors, and ML-NMR with the full <code>* .trt</code> interaction all
-put lenalidomide ahead of thalidomide by a similar margin. The
-interaction model is estimable here, with no divergent transitions, and
-pays for the extra flexibility only in width.</p>
-<p>The unanchored fits separate in an informative way. In the
-<strong>comparator</strong> population SPFA and relaxed agree almost
-exactly (-0.505 and -0.492), and both point the same way as the anchored
-band while sitting a little further from the null with much wider
-intervals. In the <strong>index</strong> population SPFA is close to its
-own comparator value (-0.508), but the relaxed model moves to -1.060,
-roughly twice as far from the null, with an interval to match.</p>
+<p>The SPFA and relaxed fits separate in an informative way. In the
+<strong>comparator</strong> population they agree almost exactly (-0.483
+and -0.490). In the <strong>index</strong> population SPFA is close to
+its own comparator value (-0.485), but the relaxed model moves to
+-1.047, roughly twice as far from the null, with an interval to
+match.</p>
 <p>This divergence should not be read as evidence of effect
 modification; it is attributable to weak identification.
 <code>beta_comparator</code> is informed only by the single
@@ -1662,15 +1417,6 @@ this reason. That quantity is descriptive: a small or negative value can
 signal sensitivity worth investigating, but it is not a fraction of
 information learned from the data and does not establish the source of
 the index-population result.</p>
-<p>Two aspects should be distinguished. The <strong>direction and
-approximate magnitude</strong> are recovered: an unanchored comparison
-of two single-arm trials, adjusted for four prognostic factors, agrees
-with three anchored analyses that had a common comparator. The
-<strong>precision</strong> is not, and should not be expected to be: the
-unanchored intervals are roughly three times wider, because no part of
-this design is protected by randomization and the comparator’s baseline
-hazard and coefficients are identified from one reconstructed curve.
-That additional width reflects the design and should be reported.</p>
 <p>Note where SPFA and relaxed agree and where they do not. In the
 comparator population, freeing the comparator coefficients costs
 precision without moving the estimate, which says the shared-effect
@@ -1681,31 +1427,21 @@ treatments: the honest summary here is the comparator-population
 contrast and the collapsible RMST difference, with the index-population
 relaxed value reported alongside its width rather than in place of
 them.</p>
-<p>A note on estimands, since three log hazard ratios sit in one table.
-The naive figure is an unadjusted marginal Cox estimate;
-<code>multinma</code> reports a conditional contrast; and ML-UMR reports
-a population-standardized marginal effect. The two ML-UMR values above
-are close (<code>delta_index</code> -0.508,
-<code>delta_comparator</code> -0.505), which says the standardization
+<p>A note on estimands, since two kinds of log hazard ratio sit in one
+table. The naive figure is an unadjusted marginal Cox estimate, and
+ML-UMR reports a population-standardized marginal effect. The two ML-UMR
+SPFA values above are close (<code>delta_index</code> -0.485,
+<code>delta_comparator</code> -0.483), which says the standardization
 population barely matters here, but they are not identical and neither
 is a conditional contrast. With a baseline hazard per study the marginal
 hazard ratio also varies with time, so these scalars are its value at
 the first prediction time. Compare the methods on the collapsible RMST
 difference, or on the <code>predict(type = "loghr")</code> curve, when
 the distinction matters.</p>
-<p>The prognostic coefficients above sit close to multinma’s network
-estimates: age 0.07 per year against multinma’s 0.08, ISS stage III 0.41
-against 0.35, and the response and sex coefficients near zero, where
-multinma also puts them. The constancy check misses by 1.5 months.</p>
-<p>The adjusted estimates recover the direction and approximate
-magnitude of the anchored answer, but not its precision. Two conclusions
-follow. First, where a common comparator exists it should be used;
-ML-UMR does not substitute for randomization. Second, where none exists,
-both the SPFA and relaxed fits should be reported so that the
-contribution of the modeling assumptions is visible. The psoriasis
-example in <code><a href="../articles/binary-outcomes.html">vignette("binary-outcomes")</a></code> has populations that
-overlap far better, and its unanchored and anchored answers do agree
-closely.</p>
+<p>ML-UMR does not substitute for randomization: where a common
+comparator exists it should be used. Where none exists, both the SPFA
+and relaxed fits should be reported so that the contribution of the
+modeling assumptions is visible.</p>
 </div>
 <div class="section level2">
 <h2 id="interpretation">Interpretation<a class="anchor" aria-label="anchor" href="#interpretation"></a>
@@ -1714,24 +1450,23 @@ closely.</p>
 <li>The <strong>naive</strong> Cox log hazard ratio ignores a real
 prognostic-factor imbalance between McCarthy2012 (Len) and Morgan2012
 (Thal): mean age 57.9 against 65.6 years, and 27% against 32% ISS stage
-3. It is the most extreme estimate in the comparison table, and
-adjusting moves every other method away from it.</li>
+3. Adjusting for it moves the SPFA estimate toward the null, from -0.554
+to -0.485 in the index population.</li>
 <li>The prognostic coefficients are the part to check first, because
-they are what the adjustment is built from. Here they are close to what
-<code>multinma</code> estimates from the full five-study network (age
-0.07 per year against 0.08, ISS stage III 0.41 against 0.35, response
-and sex near zero in both).</li>
+they are what the adjustment is built from. Here they have plausible
+signs and sizes: age 0.07 per year, ISS stage III 0.40, and the response
+and sex coefficients small, with intervals spanning zero.</li>
 <li>
-<strong>ML-UMR</strong> adjusts for the imbalance and recovers the
-direction and rough magnitude of the anchored answer (SPFA -0.508 in the
-index population and -0.505 in the comparator, against -0.29 to -0.38
-anchored), at roughly three times the interval width. Read the SPFA and
-relaxed fits together: they agree in the comparator population (-0.492)
-but diverge in the index population (-1.060), which measures how much of
-the index-population answer rests on comparator coefficients the
-aggregate curve cannot identify. ML-UMR adds what the frequentist
-benchmarks cannot: full posterior uncertainty, and effects in
-<em>both</em> populations.</li>
+<strong>ML-UMR</strong> adjusts for the imbalance (SPFA -0.485 in
+the index population and -0.483 in the comparator, against the naive
+-0.554). Its intervals are much wider than the naive one, which reflects
+sampling error alone and carries none of the uncertainty of adjusting.
+Read the SPFA and relaxed fits together: they agree in the comparator
+population (-0.490) but diverge in the index population (-1.047), which
+measures how much of the index-population answer rests on comparator
+coefficients the aggregate curve cannot identify. ML-UMR adds what the
+frequentist benchmarks cannot: full posterior uncertainty, and effects
+in <em>both</em> populations.</li>
 <li>Because the two studies have <strong>their own baseline
 hazards</strong> (<code>aux_by = ".study"</code>, the default) the
 marginal hazard ratio genuinely varies with time, and because the hazard

@@ -11,7 +11,7 @@ ndmm_agd and ndmm_agd_covs."><meta property="og:image" content="https://choxos.g
 
     <a class="navbar-brand me-2" href="../index.html">mlumr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -89,7 +89,7 @@ indicator (1 = event, 0 = censored)</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="source">Source<a class="anchor" aria-label="anchor" href="#source"></a></h2>
-    <p>The McCarthy-2012 lenalidomide arm of <code><a href="https://dmphillippo.github.io/multinma/reference/ndmm.html" class="external-link">multinma::ndmm_ipd</a></code> (GPL-3;
+    <p>The McCarthy-2012 lenalidomide arm of <code>multinma::ndmm_ipd</code> (GPL-3;
 Phillippo, <em>multinma</em>, 2024), subset to the columns used in the survival
 vignette. multinma provides <em>simulated</em> IPD resembling published
 newly-diagnosed-multiple-myeloma trials; the vignette compares lenalidomide
@@ -101,8 +101,7 @@ newly-diagnosed-multiple-myeloma trials; the vignette compares lenalidomide
     <p>The two source trials are not genuinely disconnected: McCarthy 2012
 and Morgan 2012 both include a placebo arm. Those arms are omitted here
 deliberately, so that this pair of datasets poses the unanchored problem
-ML-UMR exists for. <code><a href="../articles/survival-outcomes.html">vignette("survival-outcomes")</a></code> puts them back at
-the end to check the unanchored estimate against the anchored one.</p>
+ML-UMR exists for.</p>
 <p>McCarthy 2012 is the index arm because population overlap, not sample size,
 governs how far an unanchored comparison has to extrapolate. Unanchored MAIC
 effective sample size against the Morgan 2012 thalidomide arm is 35.8 of 231

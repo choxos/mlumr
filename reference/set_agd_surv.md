@@ -107,9 +107,8 @@ beside the within-fit interval.
 ## See also
 
 [`set_agd()`](https://choxos.github.io/mlumr/reference/set_agd.md) for
-non-survival aggregate data;
-[`multinma::set_agd_surv()`](https://dmphillippo.github.io/multinma/reference/set_agd_surv.html)
-is the ML-NMR equivalent.
+non-survival aggregate data; `multinma::set_agd_surv()` is the ML-NMR
+equivalent.
 
 ## Examples
 

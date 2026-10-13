@@ -2,10 +2,9 @@
 
 Plots the posterior density of the named parameters with their prior
 density overlaid, reading the prior from the fit. The mlumr analogue of
-[`multinma::plot_prior_posterior()`](https://dmphillippo.github.io/multinma/reference/plot_prior_posterior.html).
-Intended for parameters with a known, un-autoscaled prior (the treatment
-intercepts `mu_index` / `mu_comparator` under the default
-`prior_intercept`).
+`multinma::plot_prior_posterior()`. Intended for parameters with a
+known, un-autoscaled prior (the treatment intercepts `mu_index` /
+`mu_comparator` under the default `prior_intercept`).
 
 ## Usage
 

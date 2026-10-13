@@ -631,7 +631,7 @@ Phillippo, D. M., A. E. Ades, S. Dias, S. Palmer, K. R. Abrams, and N.
 J. Welton. 2016. *NICE DSU Technical Support Document 18: Methods for
 Population-Adjusted Indirect Comparisons in Submissions to NICE*.
 National Institute for Health and Care Excellence Decision Support Unit.
-<https://www.sheffield.ac.uk/nice-dsu/tsds/population-adjusted>.
+<https://sheffield.ac.uk/nice-dsu/tsds/population-adjusted>.
 
 Phillippo, D. M., S. Dias, A. E. Ades, et al. 2020. “Multilevel Network
 Meta-Regression for Population-Adjusted Treatment Comparisons.” *Journal

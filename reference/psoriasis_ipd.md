@@ -38,8 +38,7 @@ drops incomplete rows with a warning, so a fit adjusting for weight uses
 
 ## Source
 
-The UNCOVER-2 ixekizumab-Q4W arm of
-[`multinma::plaque_psoriasis_ipd`](https://dmphillippo.github.io/multinma/reference/plaque_psoriasis.html)
+The UNCOVER-2 ixekizumab-Q4W arm of `multinma::plaque_psoriasis_ipd`
 (GPL-3; Phillippo, *multinma*, 2024,
 [doi:10.5281/zenodo.3904454](https://doi.org/10.5281/zenodo.3904454) ),
 subset to the columns used in the binary vignette. multinma provides
@@ -56,6 +55,3 @@ The two source trials are not genuinely disconnected: UNCOVER-2 and
 FIXTURE both include placebo and etanercept arms. Those arms are omitted
 here deliberately, so that this pair of datasets poses the unanchored
 problem ML-UMR exists for.
-[`vignette("binary-outcomes")`](https://choxos.github.io/mlumr/articles/binary-outcomes.md)
-puts them back at the end to check the unanchored estimate against the
-anchored one.

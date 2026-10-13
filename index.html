@@ -32,7 +32,7 @@
 
     <a class="navbar-brand me-2" href="index.html">mlumr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -467,8 +467,8 @@
 <span><span class="va">fit_umr</span> <span class="op">&lt;-</span> <span class="fu">mlumr</span><span class="fu">::</span><span class="fu"><a href="reference/mlumr.html">mlumr</a></span><span class="op">(</span><span class="va">dat</span>, model <span class="op">=</span> <span class="st">"spfa"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># multinma fits ML-NMR (connected network)</span></span>
-<span><span class="va">net_nmr</span> <span class="op">&lt;-</span> <span class="fu">multinma</span><span class="fu">::</span><span class="fu"><a href="https://dmphillippo.github.io/multinma/reference/set_ipd.html" class="external-link">set_ipd</a></span><span class="op">(</span><span class="va">pso_ipd</span>, study <span class="op">=</span> <span class="va">studyc</span>, trt <span class="op">=</span> <span class="va">trtc</span>, r <span class="op">=</span> <span class="va">pasi75</span><span class="op">)</span></span>
-<span><span class="va">fit_nmr</span> <span class="op">&lt;-</span> <span class="fu">multinma</span><span class="fu">::</span><span class="fu"><a href="https://dmphillippo.github.io/multinma/reference/nma.html" class="external-link">nma</a></span><span class="op">(</span><span class="va">net_nmr</span>, regression <span class="op">=</span> <span class="op">~</span> <span class="va">age</span><span class="op">:</span><span class="va">.trt</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">net_nmr</span> <span class="op">&lt;-</span> <span class="fu">multinma</span><span class="fu">::</span><span class="fu">set_ipd</span><span class="op">(</span><span class="va">pso_ipd</span>, study <span class="op">=</span> <span class="va">studyc</span>, trt <span class="op">=</span> <span class="va">trtc</span>, r <span class="op">=</span> <span class="va">pasi75</span><span class="op">)</span></span>
+<span><span class="va">fit_nmr</span> <span class="op">&lt;-</span> <span class="fu">multinma</span><span class="fu">::</span><span class="fu">nma</span><span class="op">(</span><span class="va">net_nmr</span>, regression <span class="op">=</span> <span class="op">~</span> <span class="va">age</span><span class="op">:</span><span class="va">.trt</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="vignettes">Vignettes<a class="anchor" aria-label="anchor" href="#vignettes"></a>

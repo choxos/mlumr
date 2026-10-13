@@ -323,27 +323,27 @@ fit_spfa <- mlumr(dat, model = "spfa", link = "identity",
                   prior_beta = prior_normal(0, 1, autoscale = TRUE),
                   chains = 4, iter = 2000, warmup = 1000, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
-#> Chain 1 finished in 0.7 seconds.
-#> Chain 3 finished in 0.6 seconds.
-#> Chain 2 finished in 0.8 seconds.
-#> Chain 4 finished in 0.6 seconds.
+#> Chain 1 finished in 0.5 seconds.
+#> Chain 3 finished in 0.5 seconds.
+#> Chain 2 finished in 0.5 seconds.
+#> Chain 4 finished in 0.5 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 0.7 seconds.
-#> Total execution time: 1.1 seconds.
+#> Mean chain execution time: 0.5 seconds.
+#> Total execution time: 0.7 seconds.
 fit_relaxed <- mlumr(dat, model = "relaxed", link = "identity",
                      prior_beta = prior_normal(0, 0.75, autoscale = TRUE),
                      chains = 4, iter = 2000, warmup = 1000,
                      adapt_delta = 0.95, seed = 2026, refresh = 0)
 #> Running MCMC with 4 parallel chains...
-#> Chain 3 finished in 1.2 seconds.
-#> Chain 1 finished in 1.4 seconds.
-#> Chain 2 finished in 1.3 seconds.
-#> Chain 4 finished in 1.3 seconds.
+#> Chain 1 finished in 0.4 seconds.
+#> Chain 2 finished in 0.4 seconds.
+#> Chain 3 finished in 0.4 seconds.
+#> Chain 4 finished in 0.5 seconds.
 #> 
 #> All 4 chains finished successfully.
-#> Mean chain execution time: 1.3 seconds.
-#> Total execution time: 1.7 seconds.
+#> Mean chain execution time: 0.4 seconds.
+#> Total execution time: 0.6 seconds.
 summary(fit_spfa)
 #> ML-UMR Model Summary
 #> ====================
@@ -389,12 +389,10 @@ IPD outcome SD s_y: these fits use \mu_k\sim\mathrm{N}(0,(10\\s_y)^2)
 for the intercepts, the autoscaled
 \beta_j\sim\mathrm{N}(0,(s_y/s\_{x_j})^2) for the coefficients, and a
 half-normal prior with scale 2.5\\s_y on the residual standard deviation
-\sigma (a
-[`normal()`](https://dmphillippo.github.io/multinma/reference/priors.html)
-prior truncated at zero by the `<lower=0>` constraint). A fixed
-\mathrm{N}(0,10^2) on an intercept near 25 VAS points would pull it
-toward zero, and the comparator intercept, which rests on one aggregate
-mean, the most.
+\sigma (a `normal()` prior truncated at zero by the `<lower=0>`
+constraint). A fixed \mathrm{N}(0,10^2) on an intercept near 25 VAS
+points would pull it toward zero, and the comparator intercept, which
+rests on one aggregate mean, the most.
 [`prior_summary()`](https://choxos.github.io/mlumr/reference/prior_summary.md)
 shows exactly what was passed to Stan, including the autoscaled
 coefficient scales:
@@ -407,7 +405,7 @@ prior_summary(fit_spfa)
 #> 
 #> Intercepts (mu_index, mu_comparator):
 #>   normal(0, 10)
-#>   (package default, mlumr 0.1.0.9000)
+#>   (package default, mlumr 0.2.0)
 #>   used as normal(0, 230), the default times the IPD outcome SD (23)
 #> 
 #> Regression coefficients (beta):
@@ -421,7 +419,7 @@ prior_summary(fit_spfa)
 #> 
 #> Residual SD (sigma, half-normal via <lower=0>):
 #>   normal(0, 2.5)
-#>   (package default, mlumr 0.1.0.9000)
+#>   (package default, mlumr 0.2.0)
 #>   used as normal(0, 57.4), the default times the IPD outcome SD (23)
 ```
 
@@ -560,8 +558,8 @@ knitr::kable(rbind(cbind(Model = "SPFA", md_spfa),
 |:---|:---|:---|:---|---:|---:|---:|---:|---:|
 | SPFA | delta_index | MD | Index | -7.666666 | 3.086996 | -13.82362 | -7.684885 | -1.513449 |
 | SPFA | delta_comparator | MD | Comparator | -7.666666 | 3.086996 | -13.82362 | -7.684885 | -1.513449 |
-| Relaxed | delta_index | MD | Index | -8.630222 | 5.967409 | -20.22569 | -8.543969 | 2.941152 |
-| Relaxed | delta_comparator | MD | Comparator | -7.757583 | 3.181784 | -13.90544 | -7.767480 | -1.480989 |
+| Relaxed | delta_index | MD | Index | -8.666723 | 5.849970 | -20.01410 | -8.652271 | 2.884435 |
+| Relaxed | delta_comparator | MD | Comparator | -7.746124 | 3.129975 | -13.85970 | -7.763115 | -1.581838 |
 
 Standardized mean difference (ASD vs ET), both models and both
 populations {.table}
@@ -653,7 +651,7 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "loo")
 #> 
 #>    model elpd_diff se_diff p_worse       diag_diff      diag_elpd
 #>  Relaxed       0.0     0.0      NA                 1 k_psis > 0.7
-#>     SPFA       0.0     0.2    0.57 |elpd_diff| < 4 1 k_psis > 0.7
+#>     SPFA       0.0     0.2    0.51 |elpd_diff| < 4 1 k_psis > 0.7
 #> 
 #> elpd_diff is the difference in expected log pointwise predictive
 #> density vs the best model, and se_diff is its standard error: the
@@ -669,8 +667,8 @@ compare_models(SPFA = fit_spfa, Relaxed = fit_relaxed, criterion = "dic")
 #> ======================
 #> 
 #>    Model     DIC   pD Delta_DIC
-#>  Relaxed 1346.50 5.13      0.00
-#>     SPFA 1346.77 5.20      0.27
+#>  Relaxed 1346.49 5.13      0.00
+#>     SPFA 1346.77 5.20      0.28
 #> 
 #> Lower DIC = better fit. Delta_DIC > 5 is a rough heuristic for
 #> meaningful difference, not a formally calibrated threshold.
