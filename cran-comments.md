@@ -14,9 +14,10 @@ Local `R CMD check --as-cran --no-manual mlumr_0.2.0.tar.gz` on macOS 27.0.1
 * 1 warning, environmental: the `checkbashisms` script is not installed on
   this machine, so the check reports that "a complete check needs the
   'checkbashisms' script." CRAN's Linux servers have it.
-* 1 note, from the CRAN incoming feasibility check: `cmdstanr` is in
-  Suggests and is not in a mainstream repository. It is available from the
-  declared `Additional_repositories: https://mc-stan.org/r-packages`.
+* 0 notes. The CRAN incoming feasibility check reports, as information, that
+  `cmdstanr` is in Suggests and is not in a mainstream repository. It is
+  available from the declared
+  `Additional_repositories: https://mc-stan.org/r-packages`.
 
 Tests under `--as-cran`: `[ FAIL 0 | WARN 32 | SKIP 93 | PASS 2853 ]`. The 93
 skips are the Stan-sampling tests, which are marked `skip_on_cran()` because
