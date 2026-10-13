@@ -51,9 +51,9 @@ the Playground to `https://choxos.github.io/mlumr/app/`.
 ## How mlumr and Stan run
 
 * Packages come from this site's own repository (`site/repo/`, built by
-  `build.sh`): mlumr and multinma from r-universe (which builds mlumr from
-  GitHub main) with the rstan, StanHeaders, RcppParallel and Rcpp builds they
-  were compiled against, and every other package from repo.r-wasm.org, whose
+  `build.sh`): mlumr from r-universe (which builds it from GitHub main) with
+  the rstan, StanHeaders, RcppParallel and Rcpp builds it was compiled
+  against, and every other package from repo.r-wasm.org, whose
   builds match this webR release, except deSolve and muhaz, which only
   r-universe has. Those two need `shim/fortran-commons.so` (see DESIGN.md);
   with it, flexsurv, and so mlumr's survival STC, works. A script's packages,
@@ -117,23 +117,15 @@ of 100 to 420 (other jobs were running), so a normal laptop is faster.
 | `subgroup-identification` | 21 s |
 | `choosing-a-method` | 2 minutes |
 | `fitting-and-diagnostics` | 3 minutes |
-| `binary-outcomes`, ML-UMR part | 2.5 minutes |
-| `binary-outcomes`, anchored check (two multinma fits) | first fit under 25 minutes; both about an hour (estimate) |
+| `binary-outcomes` | 2.5 minutes |
 | `survival-outcomes`, data, plots and benchmarks up to the first fit | 52 s |
 | `survival-outcomes`, each ML-UMR fit (4 chains of 2000 iterations) | hours at this load |
 
 The scripts keep the vignettes' settings. Every script was run here: six of
 them to the end exactly as shipped, and `binary-outcomes` and
-`survival-outcomes` with their slowest fits shortened for the test. Two parts
-are slow in a browser:
+`survival-outcomes` with their slowest fits shortened for the test. The
+survival fits are the slow part in a browser:
 
-* The anchored checks call multinma, which samples with rstan inside the R
-  worker, one chain after another. In `binary-outcomes` the first fit ran to
-  the end in under 25 minutes and its estimate matched the vignette's (log
-  odds ratio 0.153 against 0.157); the two M-spline fits in `survival-outcomes` did not finish a 2-chain,
-  100-iteration test in an hour, so at the vignette's 4 chains of 2000
-  iterations they are not practical. The code after them was checked with
-  shortened fits.
 * The survival fits integrate the hazard over 64 points for 639 patients.
   With 4 chains of 200 iterations each ML-UMR fit took 12 to 14 minutes here
   (one Weibull chain, with a short warmup, took much longer), and the results
@@ -145,10 +137,9 @@ are slow in a browser:
 
 * Tested in Chromium. The Stan bridge needs a growable `SharedArrayBuffer` and
   module workers.
-* Survival fits at the vignette's settings are slow (see Timings). Code that
-  calls multinma (the anchored checks in the binary and survival vignettes)
-  runs rstan inside the R worker, chains one after another, which is much
-  slower still.
+* Survival fits at the vignette's settings are slow (see Timings).
+  `mlumr_engine("rstan")` samples inside the R worker, chains one after
+  another, which is much slower still.
 * The R worker can use at most 2 GB of memory (webR's limit).
 * `engine = "cmdstanr"` cannot work in a browser.
 * Files written by R live in the session's memory; files open in the editor

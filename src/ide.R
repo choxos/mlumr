@@ -411,7 +411,7 @@ local({
 
   # webR runs R in one thread and parallel::detectCores() returns NA there.
   # The vignettes set options(mc.cores = parallel::detectCores()), and rstan
-  # (which multinma uses) cannot compare NA with 1, so report the one core.
+  # (mlumr_engine("rstan")) cannot compare NA with 1, so report the one core.
   local({
     ns <- asNamespace("parallel")
     unlockBinding("detectCores", ns)

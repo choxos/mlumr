@@ -68,8 +68,8 @@ fit's overall progress, and how long the current or last command took.
   repository under `site/repo/`), the Stan models, KaTeX, the fonts and the
   bundled JavaScript. Once built, the site needs no network.
 * **Packages from two sources.** repo.r-wasm.org is built for this webR
-  release, so it supplies what it has. mlumr, multinma and the Stan stack they
-  link against come from r-universe. Two r-universe Fortran builds, deSolve and
+  release, so it supplies what it has. mlumr and the Stan stack it links
+  against come from r-universe. Two r-universe Fortran builds, deSolve and
   muhaz (both needed by flexsurv, which mlumr's survival STC uses), import
   their COMMON blocks instead of defining them, which webR 0.6.0's loader
   cannot resolve; `shim/fortran-commons.so`, a 327-byte side module loaded at

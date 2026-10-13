@@ -79,9 +79,9 @@ cp -R models site/stan
 
 # 5. R package repository for webR. repo.r-wasm.org is built for this webR
 #    release, so it supplies every package it has. The Stan stack comes from
-#    r-universe: mlumr and multinma exist only there, and their compiled models
-#    must load against the rstan, StanHeaders, RcppParallel and Rcpp they were
-#    built with. (Some r-universe builds of Fortran packages, mvtnorm for one,
+#    r-universe: mlumr exists only there, and its compiled models must load
+#    against the rstan, StanHeaders, RcppParallel and Rcpp they were built
+#    with. (Some r-universe builds of Fortran packages, mvtnorm for one,
 #    do not load in webR 0.6.0, which is why the rest come from repo.r-wasm.org.)
 #    Every version requirement in Depends and Imports must hold for the
 #    versions picked, every archive must match the checksum its repository
@@ -97,12 +97,12 @@ universe <- available.packages(contriburl = contrib(c("https://choxos.r-universe
                                fields = sums, filters = "duplicates")
 webr <- available.packages(contriburl = contrib("https://repo.r-wasm.org"), fields = sums,
                            filters = "duplicates")
-stan_stack <- c("mlumr", "multinma", "rstan", "StanHeaders", "RcppParallel", "Rcpp",
+stan_stack <- c("mlumr", "rstan", "StanHeaders", "RcppParallel", "Rcpp",
                 "RcppEigen", "BH", "rstantools")
 pick <- function(p) if (p %in% stan_stack || !p %in% rownames(webr)) universe[p, ] else webr[p, ]
 # The Playground's core set, then what the vignettes' code reaches for.
 wanted <- c("mlumr", "posterior", "jsonlite", "codetools", "detectseparation",
-            "knitr", "ggsurvfit", "flexsurv", "bayesplot", "loo", "multinma")
+            "knitr", "ggsurvfit", "flexsurv", "bayesplot", "loo")
 base <- rownames(installed.packages(priority = "base"))
 pkgs <- character()
 needs <- list()
