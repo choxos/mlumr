@@ -8,8 +8,7 @@
 [![pkgdown](https://github.com/choxos/mlumr/actions/workflows/pkgdown.yaml/badge.svg)](https://choxos.github.io/mlumr/)
 [![Lifecycle: maturing](https://img.shields.io/badge/lifecycle-maturing-blue.svg)](https://lifecycle.r-lib.org/articles/stages.html#maturing)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-<!-- DOI badge: Zenodo mints a concept DOI on the first GitHub release; replace XXXXXXXX and uncomment. -->
-<!-- [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXXX) -->
+[![DOI](https://zenodo.org/badge/1177379123.svg)](https://doi.org/10.5281/zenodo.23341927)
 [![Archived on Software Heritage](https://archive.softwareheritage.org/badge/origin/https://github.com/choxos/mlumr/)](https://archive.softwareheritage.org/browse/origin/?origin_url=https://github.com/choxos/mlumr)
 <!-- badges: end -->
 
