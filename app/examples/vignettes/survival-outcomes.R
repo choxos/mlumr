@@ -1,5 +1,5 @@
 # Code from vignette("survival-outcomes"): Survival (time-to-event) outcomes
-# mlumr GitHub main at 95c5bbd, extracted with knitr::purl(). Tables print as
+# mlumr GitHub main at 6a366a0, extracted with knitr::purl(). Tables print as
 # plain R output and the vignette's knitr setup chunk is left out; otherwise
 # the code is the vignette's, unchanged. Chunks the vignette shows but does
 # not run are commented out.
@@ -252,129 +252,7 @@ plot(predict(fit_weibull, type = "survival")) +
   scale_color_manual(values = surv_cols, aesthetics = c("colour", "fill"))
 
 
-## ----anchor-constancy---------------------------------------------------------
-data("ndmm_ipd", package = "multinma")
-data("ndmm_agd", package = "multinma")
-data("ndmm_agd_covs", package = "multinma")
-
-tau <- res_stc$horizon   # the RMST horizon used above
-mcc_pbo <- ndmm_ipd[ndmm_ipd$studyf == "McCarthy2012" & ndmm_ipd$trtf == "Pbo", ]
-mor_pbo <- ndmm_agd[ndmm_agd$studyf == "Morgan2012" & ndmm_agd$trtf == "Pbo", ]
-mor_cov <- ndmm_agd_covs[ndmm_agd_covs$studyf == "Morgan2012" &
-                           ndmm_agd_covs$trtf == "Pbo", ]
-
-# Conditional constancy is the assumption ML-UMR cannot test from the unanchored
-# data alone. With the discarded arms it becomes testable: fit the survival model
-# in the arm both trials share, transport it to the other trial's population, and
-# compare against what that trial actually observed for the same arm.
-set.seed(2026)
-m_pbo <- flexsurv::flexsurvreg(
-  survival::Surv(eventtime, status) ~ age + iss_stage3 + response_cr_vgpr + male,
-  data = mcc_pbo, dist = "weibullPH")
-n <- 5e4
-nd <- data.frame(age = rnorm(n, mor_cov$age_mean, mor_cov$age_sd),
-                 iss_stage3 = rbinom(n, 1, mor_cov$iss_stage3),
-                 response_cr_vgpr = rbinom(n, 1, mor_cov$response_cr_vgpr),
-                 male = rbinom(n, 1, mor_cov$male))
-km_rmst <- function(d) unname(summary(
-  survival::survfit(survival::Surv(eventtime, status) ~ 1, data = d),
-  rmean = tau)$table["rmean"])
-
-# Name these so the prose below cites the same numbers the table prints,
-# rather than literals that drift the next time the vignette is re-knitted.
-rmst_own       <- km_rmst(mcc_pbo)
-rmst_transport <- mean(summary(m_pbo, newdata = nd, type = "rmst",
-                               t = tau, ci = FALSE, tidy = TRUE)$est)
-rmst_observed  <- km_rmst(mor_pbo)
-rmst_gap       <- rmst_observed - rmst_transport
-
-data.frame(
-  Quantity = c("McCarthy2012 placebo, observed in its own population",
-               "McCarthy2012 placebo model, transported to Morgan2012",
-               "Morgan2012 placebo, observed"),
-  `RMST (months)` = c(rmst_own, rmst_transport, rmst_observed),
-  check.names = FALSE)
-
-
-## ----anchor-bucher------------------------------------------------------------
-cox_lhr <- function(d, active) {
-  d <- d[d$trtf %in% c("Pbo", active), ]
-  d$trt <- factor(as.character(d$trtf), levels = c("Pbo", active))
-  f <- survival::coxph(survival::Surv(eventtime, status) ~ trt, data = d)
-  c(est = unname(coef(f)), se = unname(sqrt(diag(vcov(f)))))
-}
-lhr_mcc <- cox_lhr(ndmm_ipd[ndmm_ipd$studyf == "McCarthy2012", ], "Len")
-lhr_mor <- cox_lhr(ndmm_agd[ndmm_agd$studyf == "Morgan2012", ], "Thal")
-anchored <- unname(c(lhr_mcc["est"] - lhr_mor["est"],
-                     sqrt(lhr_mcc["se"]^2 + lhr_mor["se"]^2)))
-anchored_ci <- anchored[1] + c(-1.96, 1.96) * anchored[2]
-
-
-## ----anchor-mlnmr, message = FALSE--------------------------------------------
-# Reload explicitly so this chunk stands on its own: `ndmm_ipd` is bundled with
-# mlumr as a single arm, and the anchored check needs multinma's full network.
-data("ndmm_ipd", package = "multinma")
-data("ndmm_agd", package = "multinma")
-data("ndmm_agd_covs", package = "multinma")
-
-mcc <- droplevels(ndmm_ipd[ndmm_ipd$studyf == "McCarthy2012", ])
-mor <- droplevels(ndmm_agd[ndmm_agd$studyf == "Morgan2012", ])
-mor_covs <- droplevels(ndmm_agd_covs[ndmm_agd_covs$studyf == "Morgan2012", ])
-
-net <- multinma::combine_network(
-  multinma::set_ipd(mcc, study = studyf, trt = trtf,
-                    Surv = survival::Surv(eventtime, status)),
-  multinma::set_agd_surv(mor, study = studyf, trt = trtf,
-                         Surv = survival::Surv(eventtime, status),
-                         covariates = mor_covs))
-net <- multinma::add_integration(net,
-  age              = multinma::distr(multinma::qgamma, mean = age_mean, sd = age_sd),
-  iss_stage3       = multinma::distr(multinma::qbern, iss_stage3),
-  response_cr_vgpr = multinma::distr(multinma::qbern, response_cr_vgpr),
-  male             = multinma::distr(multinma::qbern, male),
-  n_int = 64)
-
-nmr_fit <- function(form) {
-  multinma::nma(net, likelihood = "mspline", n_knots = 7,
-                trt_effects = "fixed", regression = form,
-                prior_intercept = multinma::normal(0, 10),
-                prior_trt = multinma::normal(0, 10),
-                prior_reg = multinma::normal(0, 2.5),
-                prior_aux = multinma::half_normal(1),
-                QR = TRUE, adapt_delta = 0.9,
-                chains = 4, iter = 2000, warmup = 1000,
-                seed = 2026, refresh = 0)
-}
-
-# Prognostic factors only: the anchored analogue of the SPFA model above.
-fit_nmr <- nmr_fit(~ age + iss_stage3 + response_cr_vgpr + male)
-
-# Full interaction, exactly multinma's own NDMM specification: the anchored
-# analogue of the relaxed model.
-fit_nmr_em <- nmr_fit(~ (age + iss_stage3 + response_cr_vgpr + male) * .trt)
-
-# This vignette suppresses warnings, so report the sampler diagnostics for the
-# anchored fit explicitly rather than letting them go unseen.
-for (nm in c("prognostic only", "with * .trt")) {
-  f <- if (nm == "prognostic only") fit_nmr else fit_nmr_em
-  cat(sprintf("ML-NMR (%s) divergent transitions: %d of %d draws\n", nm,
-              rstan::get_num_divergent(f$stanfit), nrow(as.matrix(f$stanfit))))
-}
-
-# multinma reports Thal vs Len; flip to match this vignette's direction.
-nmr_contrast <- function(f, study = NULL) {
-  d <- as.data.frame(multinma::relative_effects(f, all_contrasts = TRUE)$summary)
-  d <- d[grepl("Thal", d$parameter) & grepl("Len", d$parameter), ]
-  # Once covariates interact with treatment the contrast is population-specific,
-  # so multinma returns one row per study: McCarthy2012 is the index population
-  # and Morgan2012 the comparator, the same pair ML-UMR reports.
-  if (nrow(d) > 1 && !is.null(study)) d <- d[grepl(study, d$parameter), ]
-  d[1, ]
-}
-nmr      <- nmr_contrast(fit_nmr)
-nmr_em_i <- nmr_contrast(fit_nmr_em, study = "McCarthy2012")
-nmr_em_c <- nmr_contrast(fit_nmr_em, study = "Morgan2012")
-
+## ----lhr-table----------------------------------------------------------------
 # ML-UMR reports a log HR in each population; pull both from the fit summary.
 lhr_row <- function(fit, var) fit$summary[fit$summary$variable == var, ]
 
@@ -403,29 +281,17 @@ data.frame(
              "ML-UMR M-spline (SPFA, prognostic only)",
              "ML-UMR M-spline (SPFA, prognostic only)",
              "ML-UMR M-spline (relaxed, effect modification)",
-             "ML-UMR M-spline (relaxed, effect modification)",
-             "Anchored: Bucher / fixed-effect NMA",
-             "Anchored: ML-NMR, prognostic only",
-             "Anchored: ML-NMR, with * .trt (multinma's own model)",
-             "Anchored: ML-NMR, with * .trt (multinma's own model)"),
-  Anchored = c("no", "no", "no", "no", "no", "yes", "yes", "yes", "yes"),
+             "ML-UMR M-spline (relaxed, effect modification)"),
   # The naive Cox row is standardized to no population; it contrasts the two
   # crude arms. `vignette("choosing-a-method")` uses the same label.
-  Population = c("unstandardized", "index", "comparator", "index", "comparator",
-                 "not population-specific", "not population-specific",
-                 "index", "comparator"),
+  Population = c("unstandardized", "index", "comparator", "index", "comparator"),
   `log HR` = c(res_naive$estimate,
-               lhr_i$mean, lhr_c$mean, lhr_rel_i$mean, lhr_rel_c$mean,
-               anchored[1], -nmr$mean, -nmr_em_i$mean, -nmr_em_c$mean),
+               lhr_i$mean, lhr_c$mean, lhr_rel_i$mean, lhr_rel_c$mean),
   `2.5%`   = c(res_naive$ci_lower,
                lhr_i[["2.5%"]], lhr_c[["2.5%"]],
-               lhr_rel_i[["2.5%"]], lhr_rel_c[["2.5%"]],
-               anchored_ci[1], -nmr[["97.5%"]],
-               -nmr_em_i[["97.5%"]], -nmr_em_c[["97.5%"]]),
+               lhr_rel_i[["2.5%"]], lhr_rel_c[["2.5%"]]),
   `97.5%`  = c(res_naive$ci_upper,
                lhr_i[["97.5%"]], lhr_c[["97.5%"]],
-               lhr_rel_i[["97.5%"]], lhr_rel_c[["97.5%"]],
-               anchored_ci[2], -nmr[["2.5%"]],
-               -nmr_em_i[["2.5%"]], -nmr_em_c[["2.5%"]]),
+               lhr_rel_i[["97.5%"]], lhr_rel_c[["97.5%"]]),
   check.names = FALSE)
 

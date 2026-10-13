@@ -1,5 +1,5 @@
 # Code from vignette("fitting-and-diagnostics"): Fitting, priors, and diagnostics
-# mlumr GitHub main at 95c5bbd, extracted with knitr::purl(). Tables print as
+# mlumr GitHub main at 6a366a0, extracted with knitr::purl(). Tables print as
 # plain R output and the vignette's knitr setup chunk is left out; otherwise
 # the code is the vignette's, unchanged. Chunks the vignette shows but does
 # not run are commented out.
