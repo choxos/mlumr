@@ -1,5 +1,12 @@
 # mlumr (development version)
 
+* Improvement: The four survival models compute each comparator arm's linear
+  predictor once per parameter evaluation instead of once per pseudo-individual.
+  The statistical model and every pointwise log-likelihood are unchanged. On
+  the benchmark workloads a log-density or gradient evaluation takes about 5 to
+  21% less time; full fits showed no measurable change in run time or in
+  effective samples per second.
+
 # mlumr 0.2.0
 
 ## Time-to-event outcomes
