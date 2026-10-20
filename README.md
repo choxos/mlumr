@@ -369,9 +369,10 @@ studies:
 citation("mlumr")
 ```
 
-Each release is archived on [Zenodo](https://zenodo.org/) with a citable DOI
-(the DOI badge above appears after the first release). The repository ships
-machine-readable citation and software metadata for FAIR harvesters:
+Each release is archived on [Zenodo](https://zenodo.org/); the concept DOI
+[10.5281/zenodo.23341927](https://doi.org/10.5281/zenodo.23341927) resolves to
+the latest release. The repository ships machine-readable citation and
+software metadata for FAIR harvesters:
 
 - [`CITATION.cff`](CITATION.cff): Citation File Format (GitHub "Cite this
   repository", Zenodo).

@@ -1,54 +1,43 @@
-# Version is taken from the installed DESCRIPTION so the citation never goes stale.
+# Version and year are taken from the installed DESCRIPTION so the citation
+# never goes stale; a build that was never published falls back to 2026.
 ver <- meta$Version
 if (is.null(ver) || !nzchar(ver)) ver <- "0.2.0.9000"
+year <- sub("-.*", "", meta$`Date/Publication`)
+if (!length(year) || !grepl("^[0-9]{4}$", year)) year <- "2026"
 
-# Main reference: the ML-UMR methodology paper (Chandler & Ishak).
 bibentry(
   bibtype  = "Misc",
-  title    = "Anchors Away: Navigating Unanchored Indirect Comparisons with Multilevel Unanchored Meta-Regression (ML-UMR)",
+  title    = "Anchors Away: Navigating Unanchored Indirect Comparisons with Multilevel Unanchored Meta-Regression ({ML-UMR})",
   author   = c(
     person("Conor", "Chandler"),
     person("Jack", "Ishak")
   ),
   year     = "2026",
+  note     = "arXiv preprint arXiv:2606.20341 [stat.ME]",
   doi      = "10.48550/arXiv.2606.20341",
   url      = "https://arxiv.org/abs/2606.20341",
-  note     = "Preprint, arXiv:2606.20341 [stat.ME]",
-  header   = "To cite the ML-UMR methodology (the method this package implements), please use:"
+  header   = "To cite the ML-UMR methodology, please use:"
 )
 
 bibentry(
   bibtype  = "Manual",
-  title    = "mlumr: Multilevel Unanchored Meta-Regression for Indirect Treatment Comparisons",
+  title    = "{mlumr}: Multilevel Unanchored Meta-Regression for Indirect Treatment Comparisons",
   author   = c(
     person("Ahmad", "Sofi-Mahmudi",
            comment = c(ORCID = "0000-0001-6829-0823")),
     person("Conor", "Chandler",
            comment = c(ORCID = "0000-0002-1365-9002"))
   ),
-  year     = "2026",
-  header   = "To cite the mlumr software, please use:",
-  note     = paste0("R package version ", ver,
-                    ". An adaptation of the ML-NMR methodology to the unanchored case; ",
-                    "built on conventions established by the 'multinma' package ",
-                    "(Phillippo et al., GPL-3)."),
-  url      = "https://github.com/choxos/mlumr"
-)
-
-bibentry(
-  bibtype  = "Manual",
-  title    = "multinma: Bayesian Network Meta-Analysis of Individual and Aggregate Data",
-  author   = person("David M.", "Phillippo",
-                    comment = c(ORCID = "0000-0003-2672-7841")),
-  year     = "2020",
-  note     = "R package, GPL-3. The ML-NMR reference implementation that mlumr adapts to the unanchored case.",
-  url      = "https://dmphillippo.github.io/multinma/",
-  doi      = "10.5281/zenodo.3904454"
+  year     = year,
+  note     = paste("R package version", ver),
+  doi      = "10.5281/zenodo.23341927",
+  url      = "https://CRAN.R-project.org/package=mlumr",
+  header   = "To cite the mlumr software, please use:"
 )
 
 bibentry(
   bibtype  = "Article",
-  title    = "Anchors Away: Navigating Unanchored Indirect Comparisons With Multilevel Unanchored Meta-Regression (ML-UMR)",
+  title    = "Anchors Away: Navigating Unanchored Indirect Comparisons With Multilevel Unanchored Meta-Regression ({ML-UMR})",
   author   = c(
     person("Conor", "Chandler"),
     person("Jack", "Ishak")
@@ -57,13 +46,14 @@ bibentry(
   year     = "2025",
   volume   = "28",
   pages    = "S498",
-  note     = "ISPOR Europe 2025 poster, MSR28",
-  url      = "https://www.valueinhealthjournal.com/article/S1098-3015(25)05944-3/abstract"
+  note     = "Conference abstract MSR28, ISPOR Europe 2025",
+  url      = "https://www.valueinhealthjournal.com/article/S1098-3015(25)05944-3/abstract",
+  header   = "Conference abstracts on ML-UMR:"
 )
 
 bibentry(
   bibtype  = "Article",
-  title    = "Surviving Unanchored Indirect Comparisons: An Extension of Multilevel Unanchored Meta-Regression (ML-UMR) for Survival Analyses",
+  title    = "Surviving Unanchored Indirect Comparisons: An Extension of Multilevel Unanchored Meta-Regression ({ML-UMR}) for Survival Analyses",
   author   = c(
     person("Conor", "Chandler"),
     person("Jack", "Ishak")
@@ -72,13 +62,13 @@ bibentry(
   year     = "2026",
   volume   = "29",
   number   = "S6",
-  note     = "ISPOR 2026 poster, MSR131",
+  note     = "Conference abstract MSR131, ISPOR 2026",
   url      = "https://www.ispor.org/heor-resources/presentations-database/presentation-cti/ispor-2026/poster-session-3-3/surviving-unanchored-indirect-comparisons-an-extension-of-multilevel-unanchored-meta-regression-ml-umr-for-survival-analyses"
 )
 
 bibentry(
   bibtype  = "Article",
-  title    = "Multilevel Network Meta-Regression for population-adjusted treatment comparisons",
+  title    = "Multilevel Network Meta-Regression for Population-Adjusted Treatment Comparisons",
   author   = c(
     person("David M.", "Phillippo"),
     person("Sofia", "Dias"),
@@ -90,10 +80,22 @@ bibentry(
     person("Zbigniew", "Kadziola"),
     person("Nicky J.", "Welton")
   ),
-  journal  = "Journal of the Royal Statistical Society: Series A",
+  journal  = "Journal of the Royal Statistical Society: Series A (Statistics in Society)",
   year     = "2020",
   volume   = "183",
   number   = "3",
   pages    = "1189--1210",
-  doi      = "10.1111/rssa.12579"
+  doi      = "10.1111/rssa.12579",
+  header   = "Multilevel network meta-regression, on which ML-UMR builds:"
+)
+
+bibentry(
+  bibtype  = "Manual",
+  title    = "{multinma}: Bayesian Network Meta-Analysis of Individual and Aggregate Data",
+  author   = person("David M.", "Phillippo",
+                    comment = c(ORCID = "0000-0003-2672-7841")),
+  year     = "2020",
+  note     = "R package",
+  doi      = "10.5281/zenodo.3904454",
+  url      = "https://CRAN.R-project.org/package=multinma"
 )

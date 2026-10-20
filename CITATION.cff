@@ -10,6 +10,7 @@ type: software
 license: GPL-3.0-only
 title: 'mlumr: Multilevel Unanchored Meta-Regression for Indirect Treatment Comparisons'
 version: 0.2.0.9000
+doi: 10.5281/zenodo.23341927
 abstract: >-
   Bayesian multilevel unanchored meta-regression (ML-UMR) for indirect treatment
   comparisons using individual patient data (IPD) and aggregate data (AgD).
