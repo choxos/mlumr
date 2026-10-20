@@ -2,10 +2,13 @@
 
 * Improvement: The four survival models compute each comparator arm's linear
   predictor once per parameter evaluation instead of once per pseudo-individual.
-  The statistical model and every pointwise log-likelihood are unchanged. On
-  the benchmark workloads a log-density or gradient evaluation takes about 5 to
-  21% less time; full fits showed no measurable change in run time or in
-  effective samples per second. Suggested by Tim Disher (@timdisher).
+  The statistical model and every pointwise log-likelihood are unchanged.
+  Suggested by Tim Disher (@timdisher).
+* Feature: New `mlumr()` argument `optimization` (default `TRUE`). `FALSE`
+  switches the shortcut above off and repeats the computation of earlier
+  releases, for benchmarking and for reproducing earlier fits. The new article
+  "Computation time of survival fits" reports a simulation study of the time
+  the shortcut saves.
 * Documentation: `citation("mlumr")` gives standard references for the ML-UMR
   methodology, the software with its Zenodo DOI, and the two conference
   abstracts, each with a BibTeX key for use in manuscripts.

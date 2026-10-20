@@ -1,7 +1,10 @@
 #!/usr/bin/env Rscript
 # Native parity gate for the four survival models: the production models in
-# inst/stan, which compute the comparator linear predictor once per arm, against
-# the frozen pre-reuse models in survival-baseline-6a366a0/.
+# inst/stan, which compute the comparator linear predictor once per arm unless
+# the data flag `reuse_arm_eta` is 0, against the frozen pre-reuse models in
+# survival-baseline-6a366a0/. Every case runs twice, with the flag set to 1
+# (tagged `:reuse`) and to 0 (tagged `:no_reuse`), so both settings of
+# mlumr(optimization =) are held to the frozen models.
 #
 # Usage:
 #   Rscript tests/parity/armfast-parity-gate.R CASES.rds OUTPUT_DIR
@@ -29,7 +32,7 @@
 # to its baseline, a parameter-count or output-schema change, a nonfinite
 # value, a mismatch.
 #
-# --mutations additionally compiles three deliberately wrong candidates and
+# --mutations additionally compiles four deliberately wrong candidates and
 # checks that the gate rejects each for the right reason, and exercises the
 # missing-file, identical-pair, and nonfinite rules directly.
 #
@@ -206,9 +209,18 @@ parameter_names <- function(stem) {
 
 # ---- one case ----------------------------------------------------------------
 
-run_case <- function(pair, case, tag = case$id) {
+flag_name <- function(flag) if (identical(flag, 1L)) "reuse" else "no_reuse"
+
+run_case <- function(pair, case, flag, tag = paste0(case$id, ":", flag_name(flag))) {
   sd <- case$data
   if (!is.list(sd)) stop("Case has no Stan data list: ", tag)
+  # Cases built before the flag existed would fail at the first skeleton with a
+  # missing-variable error from CmdStan; say why instead.
+  if (!identical(sd$reuse_arm_eta, 1L)) {
+    stop("Case ", case$id, " was not built with reuse_arm_eta = 1; rebuild the ",
+         "cases with build-armfast-cases.R from this tree.")
+  }
+  sd$reuse_arm_eta <- flag
   old <- skeleton(pair$old, sd)
   new <- skeleton(pair$new, sd)
 
@@ -322,13 +334,16 @@ for (s in used_stems) {
 }
 
 for (case in cases) {
-  t0 <- Sys.time()
-  run_case(compiled[[case$stem]], case)
-  write_records()
-  cat(sprintf("%-46s %s (%.0f s)\n", case$id,
-              if (all(vapply(records, function(r) r$case != case$id || r$pass,
-                             logical(1)))) "pass" else "FAIL",
-              as.numeric(difftime(Sys.time(), t0, units = "secs"))))
+  for (flag in c(1L, 0L)) {
+    t0 <- Sys.time()
+    tag <- paste0(case$id, ":", flag_name(flag))
+    run_case(compiled[[case$stem]], case, flag)
+    write_records()
+    cat(sprintf("%-55s %s (%.0f s)\n", tag,
+                if (all(vapply(records, function(r) r$case != tag || r$pass,
+                               logical(1)))) "pass" else "FAIL",
+                as.numeric(difftime(Sys.time(), t0, units = "secs"))))
+  }
 }
 write_records()
 parity <- do.call(rbind, records)
@@ -357,6 +372,12 @@ if (do_mutations) {
     } else if (kind == "M3_gq_reversed_rows") {
       x[tail_idx] <- gsub("log_lik_agd[j] =", "log_lik_agd[n_agd + 1 - j] =",
                           x[tail_idx], fixed = TRUE)
+    } else if (kind == "M8_no_reuse_skips_predictor") {
+      # The off path forgets to compute the predictor, so it reads a cache
+      # nothing filled. Only reuse_arm_eta = 0 can see this.
+      hit <- grep("if (!reuse_arm_eta)", x, fixed = TRUE)
+      if (length(hit) != 2L) stop("Cannot locate the per-row predictor.")
+      x <- x[-c(hit, hit + 1L)]
     } else {
       stop("Unknown mutation ", kind)
     }
@@ -381,8 +402,14 @@ if (do_mutations) {
                    warn = FALSE)
   base_mod <- compiled[[stem]]$old
 
+  # A mutant may also throw rather than return a wrong value; that is a failure
+  # of the case, not of the gate.
+  run_mutant <- function(pair, case, flag, tag) {
+    tryCatch(run_case(pair, case, flag, tag = tag),
+             error = function(e) fail(tag, "log_prob", conditionMessage(e)))
+  }
   for (kind in c("M1_arm_one_everywhere", "M2_gq_wrong_grid_point",
-                 "M3_gq_reversed_rows")) {
+                 "M3_gq_reversed_rows", "M8_no_reuse_skips_predictor")) {
     mdir <- file.path(exe_dir, "mutants", kind)
     dir.create(mdir, recursive = TRUE, showWarnings = FALSE)
     mfile <- file.path(mdir, candidate_file(stem))
@@ -390,17 +417,26 @@ if (do_mutations) {
     mutant <- compile_model(mfile, production_dir, mdir)
     pair <- list(old = base_mod, new = mutant)
     if (kind == "M1_arm_one_everywhere") {
-      run_case(pair, single, tag = paste0(kind, ":single_arm"))
+      run_mutant(pair, single, 1L, tag = paste0(kind, ":single_arm"))
       o <- outcome(paste0(kind, ":single_arm"))
       note_mutation(kind, single$id, "passes on one arm (the lookup is then correct)",
                     paste(names(o)[!o], collapse = ","), all(o))
-      run_case(pair, multi, tag = paste0(kind, ":multi_arm"))
+      run_mutant(pair, multi, 1L, tag = paste0(kind, ":multi_arm"))
       o <- outcome(paste0(kind, ":multi_arm"))
       note_mutation(kind, multi$id, "fails log_prob and gradient on three arms",
                     paste(names(o)[!o], collapse = ","),
                     !o[["log_prob"]] && !o[["gradient"]])
+    } else if (kind == "M8_no_reuse_skips_predictor") {
+      run_mutant(pair, single, 1L, tag = paste0(kind, ":reuse"))
+      o <- outcome(paste0(kind, ":reuse"))
+      note_mutation(kind, single$id, "passes with reuse_arm_eta = 1",
+                    paste(names(o)[!o], collapse = ","), all(o))
+      run_mutant(pair, single, 0L, tag = paste0(kind, ":no_reuse"))
+      o <- outcome(paste0(kind, ":no_reuse"))
+      note_mutation(kind, single$id, "fails log_prob with reuse_arm_eta = 0",
+                    paste(names(o)[!o], collapse = ","), !o[["log_prob"]])
     } else {
-      run_case(pair, single, tag = kind)
+      run_mutant(pair, single, 1L, tag = kind)
       o <- outcome(kind)
       note_mutation(kind, single$id,
                     "log_prob, gradient, and parameters pass; generated quantities and pointwise fail",
@@ -439,6 +475,14 @@ cat(sprintf("\n%d cases, %d comparisons, %d failed; max abs error %.3g, max scal
             length(cases), nrow(real), sum(!real$pass),
             max(real$max_abs_err, na.rm = TRUE),
             max(real$max_scaled_err, na.rm = TRUE)))
+# Per setting, because the two answer different questions: with the reuse the
+# summation order differs from the frozen model, without it nothing should.
+by_flag <- vapply(c("reuse", "no_reuse"), function(f) {
+  r <- real[endsWith(real$case, paste0(":", f)), ]
+  max(r$max_abs_err, na.rm = TRUE)
+}, numeric(1))
+cat(sprintf("Max abs error with reuse %.3g, without reuse %.3g\n",
+            by_flag[["reuse"]], by_flag[["no_reuse"]]))
 mutations_failed <- length(mutations) && !all(vapply(mutations, `[[`, logical(1), "pass"))
 if (parity_failed || mutations_failed) {
   stop("Parity gate failed; see ", file.path(out, "parity.csv"))
@@ -454,6 +498,8 @@ writeLines(c(
         "constrained parameters exact"),
   sprintf("Max absolute error %.3g, max scaled error %.3g",
           max(real$max_abs_err, na.rm = TRUE), max(real$max_scaled_err, na.rm = TRUE)),
+  sprintf("Max absolute error with reuse_arm_eta = 1: %.3g; with 0: %.3g",
+          by_flag[["reuse"]], by_flag[["no_reuse"]]),
   if (length(mutations)) sprintf("Mutation controls: %d of %d behaved as expected",
                                  sum(vapply(mutations, `[[`, logical(1), "pass")),
                                  length(mutations)),

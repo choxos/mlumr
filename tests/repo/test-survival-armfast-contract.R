@@ -2,10 +2,13 @@
 # inst/stan is the frozen pre-reuse model in
 # tests/parity/survival-baseline-6a366a0/ with one change, the comparator linear
 # predictor computed once per arm before the pseudo-individual loop and reused
-# inside it, in the likelihood and in the generated quantities. Undoing that
-# change on the production text must give back the frozen text, token for
-# token, ignoring comments and whitespace. Pure R, no Stan compilation; the
-# numerical parity gate is tests/parity/armfast-parity-gate.R.
+# inside it, in the likelihood and in the generated quantities. Since the data
+# flag `reuse_arm_eta` (mlumr(optimization =)) selects between the two, the
+# contract is checked for each setting: resolving the flag to 0 on the
+# production text must give back the frozen text, and resolving it to 1 must
+# give the frozen text plus the reuse, token for token, ignoring comments and
+# whitespace. Pure R, no Stan compilation; the numerical parity gate is
+# tests/parity/armfast-parity-gate.R.
 #
 # Missing inputs fail rather than skip: a skipped contract would let CI pass
 # with no contract checked.
@@ -28,11 +31,40 @@
   trimws(x)
 }
 
-# Reverse the predictor reuse: drop the per-arm cache, restore the per-row
-# predictor after the arm lookup, and read from it again.
+# Replace every occurrence of `from` by `to`, failing unless there were exactly
+# `n`: a pattern that stops matching would otherwise make the contract vacuous.
+.swap <- function(text, from, to, n, info) {
+  hits <- lengths(regmatches(text, gregexpr(from, text, fixed = TRUE)))
+  expect_identical(hits, as.integer(n), info = paste(info, from))
+  gsub(from, to, text, fixed = TRUE)
+}
+
+.flag_data <- "int<lower=0,upper=1>reuse_arm_eta;"
+.fill <- "for(a in 1:n_agd_rows)eta_agd_arm[a]=Xq_int[a]*beta_tilde;"
+.per_row <- "if(!reuse_arm_eta)eta_agd_arm[a]=Xq_int[a]*beta_tilde;"
+
+# The text the model executes with reuse_arm_eta = 1.
+.resolve_on <- function(text, info) {
+  text <- .swap(text, .flag_data, "", 1, info)
+  text <- .swap(text, paste0("if(reuse_arm_eta)", .fill), .fill, 2, info)
+  .swap(text, .per_row, "", 2, info)
+}
+
+# The text the model executes with reuse_arm_eta = 0: no cache, and the
+# per-row predictor read under its old name.
+.resolve_off <- function(text, info) {
+  text <- .swap(text, .flag_data, "", 1, info)
+  text <- .swap(text, paste0("if(reuse_arm_eta)", .fill), "", 2, info)
+  text <- .swap(text, "array[n_agd_rows]vector[n_int]eta_agd_arm;", "", 2, info)
+  text <- .swap(text, .per_row, "vector[n_int]eta=Xq_int[a]*beta_tilde;", 2,
+                info)
+  .swap(text, "eta_agd_arm[a][m]", "eta[m]", 2, info)
+}
+
+# Reverse the predictor reuse in the reuse-only text: drop the per-arm cache,
+# restore the per-row predictor after the arm lookup, and read from it again.
 .undo_reuse <- function(text) {
-  cut <- c("array[n_agd_rows]vector[n_int]eta_agd_arm;",
-           "for(a in 1:n_agd_rows)eta_agd_arm[a]=Xq_int[a]*beta_tilde;")
+  cut <- c("array[n_agd_rows]vector[n_int]eta_agd_arm;", .fill)
   for (s in cut) text <- gsub(s, "", text, fixed = TRUE)
   text <- gsub("eta_agd_arm[a][m]", "eta[m]", text, fixed = TRUE)
   gsub("int a=agd_arm[j];", "int a=agd_arm[j];vector[n_int]eta=Xq_int[a]*beta_tilde;",
@@ -57,22 +89,30 @@ test_that("the frozen baseline matches its manifest", {
   }
 })
 
-test_that("each production model is the frozen baseline plus the predictor reuse", {
+test_that("with the flag off each production model is the frozen baseline", {
   for (s in .stems) {
     base <- file.path(.baseline_dir, paste0(s, ".stan"))
     cand <- file.path(.production_dir, paste0(s, ".stan"))
     expect_true(file.exists(base), info = s)
     expect_true(file.exists(cand), info = s)
-    reverted <- .undo_reuse(.executable_text(cand))
-    expect_identical(reverted, .executable_text(base), info = s)
+    expect_identical(.resolve_off(.executable_text(cand), s),
+                     .executable_text(base), info = s)
+  }
+})
+
+test_that("with the flag on each production model is the baseline plus the reuse", {
+  for (s in .stems) {
+    base <- file.path(.baseline_dir, paste0(s, ".stan"))
+    cand <- file.path(.production_dir, paste0(s, ".stan"))
+    on <- .resolve_on(.executable_text(cand), s)
+    expect_identical(.undo_reuse(on), .executable_text(base), info = s)
     # The reuse is present in both places it belongs: the model block and the
     # generated quantities. Nothing else is cached.
-    text <- .executable_text(cand)
     expect_identical(lengths(regmatches(
-      text, gregexpr("array[n_agd_rows]vector[n_int]eta_agd_arm;", text,
-                     fixed = TRUE))), 2L, info = s)
-    expect_false(grepl("exp(eta_agd_arm", text, fixed = TRUE), info = s)
-    expect_false(grepl("surv_ll_status_pre", text, fixed = TRUE), info = s)
+      on, gregexpr("array[n_agd_rows]vector[n_int]eta_agd_arm;", on,
+                   fixed = TRUE))), 2L, info = s)
+    expect_false(grepl("exp(eta_agd_arm", on, fixed = TRUE), info = s)
+    expect_false(grepl("surv_ll_status_pre", on, fixed = TRUE), info = s)
   }
 })
 

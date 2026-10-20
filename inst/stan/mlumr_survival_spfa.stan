@@ -39,6 +39,11 @@ data {
   vector<lower=0>[n_agd] agd_delay_time;
   array[n_agd] int<lower=0,upper=3> agd_status;
   array[n_agd] int<lower=1,upper=n_agd_rows> agd_arm;
+  // 1 = compute each comparator arm's linear predictor once per parameter
+  // evaluation and reuse it across the arm's pseudo-individuals
+  // (mlumr(optimization = TRUE)); 0 = recompute it for every
+  // pseudo-individual, as releases before 0.2.1 did.
+  int<lower=0,upper=1> reuse_arm_eta;
 
   // Integration points (comparator covariate distribution, per arm)
   int<lower=1> n_int;
@@ -133,13 +138,18 @@ model {
   // distribution: for pseudo-individual j in arm a,
   //   log( (1/n_int) * sum_m exp( ll(t_j | eta over X_int[a]) ) ).
   {
-    // Recomputed at this parameter evaluation, once per comparator arm.
+    // With reuse_arm_eta = 1 each comparator arm's linear predictor is computed
+    // once at this parameter evaluation and shared by the arm's
+    // pseudo-individuals; with 0 it is recomputed for every pseudo-individual.
     array[n_agd_rows] vector[n_int] eta_agd_arm;
     vector[n_agd] agd_ll;
-    for (a in 1:n_agd_rows)
-      eta_agd_arm[a] = Xq_int[a] * beta_tilde;
+    if (reuse_arm_eta)
+      for (a in 1:n_agd_rows)
+        eta_agd_arm[a] = Xq_int[a] * beta_tilde;
     for (j in 1:n_agd) {
       int a = agd_arm[j];
+      if (!reuse_arm_eta)
+        eta_agd_arm[a] = Xq_int[a] * beta_tilde;
       vector[n_int] ll;
       for (m in 1:n_int)
         ll[m] = surv_ll_status(dist, agd_time[j], agd_start_time[j],
@@ -270,10 +280,13 @@ generated quantities {
                                       eta_ipd[i], aux_val, aux2_val);
     {
       array[n_agd_rows] vector[n_int] eta_agd_arm;
-      for (a in 1:n_agd_rows)
-        eta_agd_arm[a] = Xq_int[a] * beta_tilde;
+      if (reuse_arm_eta)
+        for (a in 1:n_agd_rows)
+          eta_agd_arm[a] = Xq_int[a] * beta_tilde;
       for (j in 1:n_agd) {
         int a = agd_arm[j];
+        if (!reuse_arm_eta)
+          eta_agd_arm[a] = Xq_int[a] * beta_tilde;
         vector[n_int] ll;
         for (m in 1:n_int)
           ll[m] = surv_ll_status(dist, agd_time[j], agd_start_time[j],

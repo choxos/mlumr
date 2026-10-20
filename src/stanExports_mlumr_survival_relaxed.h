@@ -13,139 +13,145 @@ namespace model_mlumr_survival_relaxed_namespace {
 using stan::model::model_base_crtp;
 using namespace stan::math;
 stan::math::profile_map profiles__;
-static constexpr std::array<const char*, 821> locations_array__ =
+static constexpr std::array<const char*, 828> locations_array__ =
   {" (found before start of program)",
-  " (in 'mlumr_survival_relaxed', line 1144, column 2 to column 24)",
-  " (in 'mlumr_survival_relaxed', line 1145, column 2 to column 44)",
-  " (in 'mlumr_survival_relaxed', line 1146, column 2 to column 50)",
-  " (in 'mlumr_survival_relaxed', line 1150, column 2 to column 60)",
-  " (in 'mlumr_survival_relaxed', line 1151, column 2 to column 29)",
-  " (in 'mlumr_survival_relaxed', line 1152, column 2 to column 34)",
-  " (in 'mlumr_survival_relaxed', line 1153, column 2 to column 56)",
-  " (in 'mlumr_survival_relaxed', line 1154, column 2 to column 69)",
-  " (in 'mlumr_survival_relaxed', line 1155, column 2 to column 46)",
-  " (in 'mlumr_survival_relaxed', line 1159, column 2 to column 51)",
-  " (in 'mlumr_survival_relaxed', line 1160, column 2 to column 58)",
-  " (in 'mlumr_survival_relaxed', line 1161, column 2 to column 57)",
-  " (in 'mlumr_survival_relaxed', line 1162, column 2 to column 64)",
-  " (in 'mlumr_survival_relaxed', line 1208, column 2 to column 52)",
-  " (in 'mlumr_survival_relaxed', line 1209, column 2 to column 19)",
-  " (in 'mlumr_survival_relaxed', line 1210, column 2 to column 24)",
-  " (in 'mlumr_survival_relaxed', line 1212, column 2 to column 58)",
-  " (in 'mlumr_survival_relaxed', line 1213, column 2 to column 44)",
-  " (in 'mlumr_survival_relaxed', line 1214, column 2 to column 49)",
-  " (in 'mlumr_survival_relaxed', line 1215, column 2 to column 49)",
-  " (in 'mlumr_survival_relaxed', line 1216, column 2 to column 54)",
-  " (in 'mlumr_survival_relaxed', line 1217, column 2 to column 43)",
-  " (in 'mlumr_survival_relaxed', line 1218, column 2 to column 48)",
-  " (in 'mlumr_survival_relaxed', line 1219, column 2 to column 48)",
-  " (in 'mlumr_survival_relaxed', line 1220, column 2 to column 53)",
-  " (in 'mlumr_survival_relaxed', line 1221, column 2 to column 46)",
-  " (in 'mlumr_survival_relaxed', line 1222, column 2 to column 51)",
-  " (in 'mlumr_survival_relaxed', line 1223, column 2 to column 51)",
-  " (in 'mlumr_survival_relaxed', line 1224, column 2 to column 56)",
-  " (in 'mlumr_survival_relaxed', line 1228, column 2 to column 39)",
-  " (in 'mlumr_survival_relaxed', line 1229, column 2 to column 44)",
-  " (in 'mlumr_survival_relaxed', line 1230, column 2 to column 24)",
-  " (in 'mlumr_survival_relaxed', line 1231, column 2 to column 29)",
-  " (in 'mlumr_survival_relaxed', line 1232, column 2 to column 29)",
-  " (in 'mlumr_survival_relaxed', line 1233, column 2 to column 34)",
-  " (in 'mlumr_survival_relaxed', line 1234, column 2 to column 23)",
-  " (in 'mlumr_survival_relaxed', line 1235, column 2 to column 28)",
-  " (in 'mlumr_survival_relaxed', line 1236, column 2 to column 28)",
-  " (in 'mlumr_survival_relaxed', line 1237, column 2 to column 28)",
-  " (in 'mlumr_survival_relaxed', line 1239, column 11 to column 16)",
-  " (in 'mlumr_survival_relaxed', line 1239, column 4 to column 61)",
-  " (in 'mlumr_survival_relaxed', line 1240, column 11 to column 16)",
-  " (in 'mlumr_survival_relaxed', line 1240, column 4 to column 71)",
-  " (in 'mlumr_survival_relaxed', line 1241, column 11 to column 20)",
-  " (in 'mlumr_survival_relaxed', line 1241, column 4 to column 69)",
-  " (in 'mlumr_survival_relaxed', line 1242, column 11 to column 20)",
-  " (in 'mlumr_survival_relaxed', line 1242, column 4 to column 79)",
-  " (in 'mlumr_survival_relaxed', line 1250, column 6 to column 56)",
-  " (in 'mlumr_survival_relaxed', line 1251, column 6 to column 61)",
-  " (in 'mlumr_survival_relaxed', line 1246, column 11 to line 1252, column 5)",
-  " (in 'mlumr_survival_relaxed', line 1244, column 6 to column 70)",
-  " (in 'mlumr_survival_relaxed', line 1245, column 6 to column 75)",
-  " (in 'mlumr_survival_relaxed', line 1243, column 19 to line 1246, column 5)",
-  " (in 'mlumr_survival_relaxed', line 1243, column 4 to line 1252, column 5)",
-  " (in 'mlumr_survival_relaxed', line 1254, column 6 to column 29)",
-  " (in 'mlumr_survival_relaxed', line 1255, column 6 to column 88)",
-  " (in 'mlumr_survival_relaxed', line 1256, column 6 to column 96)",
-  " (in 'mlumr_survival_relaxed', line 1257, column 6 to column 88)",
-  " (in 'mlumr_survival_relaxed', line 1258, column 6 to column 96)",
-  " (in 'mlumr_survival_relaxed', line 1259, column 6 to column 73)",
-  " (in 'mlumr_survival_relaxed', line 1260, column 6 to column 81)",
-  " (in 'mlumr_survival_relaxed', line 1261, column 6 to column 73)",
-  " (in 'mlumr_survival_relaxed', line 1262, column 6 to column 81)",
-  " (in 'mlumr_survival_relaxed', line 1263, column 6 to column 50)",
-  " (in 'mlumr_survival_relaxed', line 1264, column 6 to column 50)",
-  " (in 'mlumr_survival_relaxed', line 1265, column 6 to column 50)",
-  " (in 'mlumr_survival_relaxed', line 1266, column 6 to column 50)",
-  " (in 'mlumr_survival_relaxed', line 1267, column 6 to column 54)",
-  " (in 'mlumr_survival_relaxed', line 1268, column 6 to column 54)",
-  " (in 'mlumr_survival_relaxed', line 1269, column 6 to column 96)",
-  " (in 'mlumr_survival_relaxed', line 1270, column 6 to column 104)",
-  " (in 'mlumr_survival_relaxed', line 1271, column 6 to column 96)",
-  " (in 'mlumr_survival_relaxed', line 1272, column 6 to column 104)",
-  " (in 'mlumr_survival_relaxed', line 1253, column 30 to line 1273, column 5)",
-  " (in 'mlumr_survival_relaxed', line 1253, column 4 to line 1273, column 5)",
-  " (in 'mlumr_survival_relaxed', line 1294, column 6 to column 40)",
-  " (in 'mlumr_survival_relaxed', line 1295, column 6 to column 45)",
-  " (in 'mlumr_survival_relaxed', line 1293, column 45 to line 1296, column 5)",
-  " (in 'mlumr_survival_relaxed', line 1293, column 4 to line 1296, column 5)",
-  " (in 'mlumr_survival_relaxed', line 1297, column 4 to column 98)",
-  " (in 'mlumr_survival_relaxed', line 1298, column 4 to column 106)",
-  " (in 'mlumr_survival_relaxed', line 1299, column 4 to column 98)",
-  " (in 'mlumr_survival_relaxed', line 1300, column 4 to column 106)",
-  " (in 'mlumr_survival_relaxed', line 1301, column 4 to column 68)",
-  " (in 'mlumr_survival_relaxed', line 1302, column 4 to column 78)",
-  " (in 'mlumr_survival_relaxed', line 1304, column 6 to line 1306, column 69)",
-  " (in 'mlumr_survival_relaxed', line 1303, column 4 to line 1306, column 69)",
-  " (in 'mlumr_survival_relaxed', line 1308, column 12 to column 22)",
-  " (in 'mlumr_survival_relaxed', line 1308, column 31 to column 36)",
-  " (in 'mlumr_survival_relaxed', line 1308, column 6 to column 50)",
-  " (in 'mlumr_survival_relaxed', line 1310, column 8 to column 48)",
-  " (in 'mlumr_survival_relaxed', line 1309, column 6 to line 1310, column 48)",
-  " (in 'mlumr_survival_relaxed', line 1312, column 8 to column 27)",
-  " (in 'mlumr_survival_relaxed', line 1313, column 15 to column 20)",
-  " (in 'mlumr_survival_relaxed', line 1313, column 8 to column 25)",
-  " (in 'mlumr_survival_relaxed', line 1315, column 10 to line 1317, column 79)",
-  " (in 'mlumr_survival_relaxed', line 1314, column 8 to line 1317, column 79)",
-  " (in 'mlumr_survival_relaxed', line 1318, column 8 to column 54)",
-  " (in 'mlumr_survival_relaxed', line 1311, column 25 to line 1319, column 7)",
-  " (in 'mlumr_survival_relaxed', line 1311, column 6 to line 1319, column 7)",
-  " (in 'mlumr_survival_relaxed', line 1307, column 4 to line 1320, column 5)",
-  " (in 'mlumr_survival_relaxed', line 1238, column 2 to line 1321, column 3)",
-  " (in 'mlumr_survival_relaxed', line 1166, column 2 to line 1167, column 71)",
-  " (in 'mlumr_survival_relaxed', line 1168, column 2 to line 1169, column 71)",
-  " (in 'mlumr_survival_relaxed', line 1170, column 2 to line 1171, column 61)",
-  " (in 'mlumr_survival_relaxed', line 1172, column 2 to line 1174, column 55)",
-  " (in 'mlumr_survival_relaxed', line 1177, column 6 to line 1178, column 62)",
-  " (in 'mlumr_survival_relaxed', line 1176, column 4 to line 1178, column 62)",
-  " (in 'mlumr_survival_relaxed', line 1180, column 6 to line 1181, column 64)",
-  " (in 'mlumr_survival_relaxed', line 1179, column 4 to line 1181, column 64)",
-  " (in 'mlumr_survival_relaxed', line 1175, column 24 to line 1182, column 3)",
-  " (in 'mlumr_survival_relaxed', line 1175, column 2 to line 1182, column 3)",
-  " (in 'mlumr_survival_relaxed', line 1185, column 4 to line 1187, column 60)",
-  " (in 'mlumr_survival_relaxed', line 1184, column 2 to line 1187, column 60)",
-  " (in 'mlumr_survival_relaxed', line 1191, column 10 to column 20)",
-  " (in 'mlumr_survival_relaxed', line 1191, column 29 to column 34)",
-  " (in 'mlumr_survival_relaxed', line 1191, column 4 to column 48)",
-  " (in 'mlumr_survival_relaxed', line 1192, column 11 to column 16)",
-  " (in 'mlumr_survival_relaxed', line 1192, column 4 to column 25)",
-  " (in 'mlumr_survival_relaxed', line 1194, column 6 to column 46)",
-  " (in 'mlumr_survival_relaxed', line 1193, column 4 to line 1194, column 46)",
-  " (in 'mlumr_survival_relaxed', line 1196, column 6 to column 25)",
-  " (in 'mlumr_survival_relaxed', line 1197, column 13 to column 18)",
-  " (in 'mlumr_survival_relaxed', line 1197, column 6 to column 23)",
-  " (in 'mlumr_survival_relaxed', line 1199, column 8 to line 1201, column 77)",
-  " (in 'mlumr_survival_relaxed', line 1198, column 6 to line 1201, column 77)",
-  " (in 'mlumr_survival_relaxed', line 1202, column 6 to column 47)",
-  " (in 'mlumr_survival_relaxed', line 1195, column 23 to line 1203, column 5)",
-  " (in 'mlumr_survival_relaxed', line 1195, column 4 to line 1203, column 5)",
-  " (in 'mlumr_survival_relaxed', line 1204, column 4 to column 26)",
-  " (in 'mlumr_survival_relaxed', line 1189, column 2 to line 1205, column 3)",
+  " (in 'mlumr_survival_relaxed', line 1149, column 2 to column 24)",
+  " (in 'mlumr_survival_relaxed', line 1150, column 2 to column 44)",
+  " (in 'mlumr_survival_relaxed', line 1151, column 2 to column 50)",
+  " (in 'mlumr_survival_relaxed', line 1155, column 2 to column 60)",
+  " (in 'mlumr_survival_relaxed', line 1156, column 2 to column 29)",
+  " (in 'mlumr_survival_relaxed', line 1157, column 2 to column 34)",
+  " (in 'mlumr_survival_relaxed', line 1158, column 2 to column 56)",
+  " (in 'mlumr_survival_relaxed', line 1159, column 2 to column 69)",
+  " (in 'mlumr_survival_relaxed', line 1160, column 2 to column 46)",
+  " (in 'mlumr_survival_relaxed', line 1164, column 2 to column 51)",
+  " (in 'mlumr_survival_relaxed', line 1165, column 2 to column 58)",
+  " (in 'mlumr_survival_relaxed', line 1166, column 2 to column 57)",
+  " (in 'mlumr_survival_relaxed', line 1167, column 2 to column 64)",
+  " (in 'mlumr_survival_relaxed', line 1218, column 2 to column 52)",
+  " (in 'mlumr_survival_relaxed', line 1219, column 2 to column 19)",
+  " (in 'mlumr_survival_relaxed', line 1220, column 2 to column 24)",
+  " (in 'mlumr_survival_relaxed', line 1222, column 2 to column 58)",
+  " (in 'mlumr_survival_relaxed', line 1223, column 2 to column 44)",
+  " (in 'mlumr_survival_relaxed', line 1224, column 2 to column 49)",
+  " (in 'mlumr_survival_relaxed', line 1225, column 2 to column 49)",
+  " (in 'mlumr_survival_relaxed', line 1226, column 2 to column 54)",
+  " (in 'mlumr_survival_relaxed', line 1227, column 2 to column 43)",
+  " (in 'mlumr_survival_relaxed', line 1228, column 2 to column 48)",
+  " (in 'mlumr_survival_relaxed', line 1229, column 2 to column 48)",
+  " (in 'mlumr_survival_relaxed', line 1230, column 2 to column 53)",
+  " (in 'mlumr_survival_relaxed', line 1231, column 2 to column 46)",
+  " (in 'mlumr_survival_relaxed', line 1232, column 2 to column 51)",
+  " (in 'mlumr_survival_relaxed', line 1233, column 2 to column 51)",
+  " (in 'mlumr_survival_relaxed', line 1234, column 2 to column 56)",
+  " (in 'mlumr_survival_relaxed', line 1238, column 2 to column 39)",
+  " (in 'mlumr_survival_relaxed', line 1239, column 2 to column 44)",
+  " (in 'mlumr_survival_relaxed', line 1240, column 2 to column 24)",
+  " (in 'mlumr_survival_relaxed', line 1241, column 2 to column 29)",
+  " (in 'mlumr_survival_relaxed', line 1242, column 2 to column 29)",
+  " (in 'mlumr_survival_relaxed', line 1243, column 2 to column 34)",
+  " (in 'mlumr_survival_relaxed', line 1244, column 2 to column 23)",
+  " (in 'mlumr_survival_relaxed', line 1245, column 2 to column 28)",
+  " (in 'mlumr_survival_relaxed', line 1246, column 2 to column 28)",
+  " (in 'mlumr_survival_relaxed', line 1247, column 2 to column 28)",
+  " (in 'mlumr_survival_relaxed', line 1249, column 11 to column 16)",
+  " (in 'mlumr_survival_relaxed', line 1249, column 4 to column 61)",
+  " (in 'mlumr_survival_relaxed', line 1250, column 11 to column 16)",
+  " (in 'mlumr_survival_relaxed', line 1250, column 4 to column 71)",
+  " (in 'mlumr_survival_relaxed', line 1251, column 11 to column 20)",
+  " (in 'mlumr_survival_relaxed', line 1251, column 4 to column 69)",
+  " (in 'mlumr_survival_relaxed', line 1252, column 11 to column 20)",
+  " (in 'mlumr_survival_relaxed', line 1252, column 4 to column 79)",
+  " (in 'mlumr_survival_relaxed', line 1260, column 6 to column 56)",
+  " (in 'mlumr_survival_relaxed', line 1261, column 6 to column 61)",
+  " (in 'mlumr_survival_relaxed', line 1256, column 11 to line 1262, column 5)",
+  " (in 'mlumr_survival_relaxed', line 1254, column 6 to column 70)",
+  " (in 'mlumr_survival_relaxed', line 1255, column 6 to column 75)",
+  " (in 'mlumr_survival_relaxed', line 1253, column 19 to line 1256, column 5)",
+  " (in 'mlumr_survival_relaxed', line 1253, column 4 to line 1262, column 5)",
+  " (in 'mlumr_survival_relaxed', line 1264, column 6 to column 29)",
+  " (in 'mlumr_survival_relaxed', line 1265, column 6 to column 88)",
+  " (in 'mlumr_survival_relaxed', line 1266, column 6 to column 96)",
+  " (in 'mlumr_survival_relaxed', line 1267, column 6 to column 88)",
+  " (in 'mlumr_survival_relaxed', line 1268, column 6 to column 96)",
+  " (in 'mlumr_survival_relaxed', line 1269, column 6 to column 73)",
+  " (in 'mlumr_survival_relaxed', line 1270, column 6 to column 81)",
+  " (in 'mlumr_survival_relaxed', line 1271, column 6 to column 73)",
+  " (in 'mlumr_survival_relaxed', line 1272, column 6 to column 81)",
+  " (in 'mlumr_survival_relaxed', line 1273, column 6 to column 50)",
+  " (in 'mlumr_survival_relaxed', line 1274, column 6 to column 50)",
+  " (in 'mlumr_survival_relaxed', line 1275, column 6 to column 50)",
+  " (in 'mlumr_survival_relaxed', line 1276, column 6 to column 50)",
+  " (in 'mlumr_survival_relaxed', line 1277, column 6 to column 54)",
+  " (in 'mlumr_survival_relaxed', line 1278, column 6 to column 54)",
+  " (in 'mlumr_survival_relaxed', line 1279, column 6 to column 96)",
+  " (in 'mlumr_survival_relaxed', line 1280, column 6 to column 104)",
+  " (in 'mlumr_survival_relaxed', line 1281, column 6 to column 96)",
+  " (in 'mlumr_survival_relaxed', line 1282, column 6 to column 104)",
+  " (in 'mlumr_survival_relaxed', line 1263, column 30 to line 1283, column 5)",
+  " (in 'mlumr_survival_relaxed', line 1263, column 4 to line 1283, column 5)",
+  " (in 'mlumr_survival_relaxed', line 1304, column 6 to column 40)",
+  " (in 'mlumr_survival_relaxed', line 1305, column 6 to column 45)",
+  " (in 'mlumr_survival_relaxed', line 1303, column 45 to line 1306, column 5)",
+  " (in 'mlumr_survival_relaxed', line 1303, column 4 to line 1306, column 5)",
+  " (in 'mlumr_survival_relaxed', line 1307, column 4 to column 98)",
+  " (in 'mlumr_survival_relaxed', line 1308, column 4 to column 106)",
+  " (in 'mlumr_survival_relaxed', line 1309, column 4 to column 98)",
+  " (in 'mlumr_survival_relaxed', line 1310, column 4 to column 106)",
+  " (in 'mlumr_survival_relaxed', line 1311, column 4 to column 68)",
+  " (in 'mlumr_survival_relaxed', line 1312, column 4 to column 78)",
+  " (in 'mlumr_survival_relaxed', line 1314, column 6 to line 1316, column 69)",
+  " (in 'mlumr_survival_relaxed', line 1313, column 4 to line 1316, column 69)",
+  " (in 'mlumr_survival_relaxed', line 1318, column 12 to column 22)",
+  " (in 'mlumr_survival_relaxed', line 1318, column 31 to column 36)",
+  " (in 'mlumr_survival_relaxed', line 1318, column 6 to column 50)",
+  " (in 'mlumr_survival_relaxed', line 1321, column 10 to column 50)",
+  " (in 'mlumr_survival_relaxed', line 1320, column 8 to line 1321, column 50)",
+  " (in 'mlumr_survival_relaxed', line 1319, column 6 to line 1321, column 50)",
+  " (in 'mlumr_survival_relaxed', line 1323, column 8 to column 27)",
+  " (in 'mlumr_survival_relaxed', line 1325, column 10 to column 50)",
+  " (in 'mlumr_survival_relaxed', line 1324, column 8 to line 1325, column 50)",
+  " (in 'mlumr_survival_relaxed', line 1326, column 15 to column 20)",
+  " (in 'mlumr_survival_relaxed', line 1326, column 8 to column 25)",
+  " (in 'mlumr_survival_relaxed', line 1328, column 10 to line 1330, column 79)",
+  " (in 'mlumr_survival_relaxed', line 1327, column 8 to line 1330, column 79)",
+  " (in 'mlumr_survival_relaxed', line 1331, column 8 to column 54)",
+  " (in 'mlumr_survival_relaxed', line 1322, column 25 to line 1332, column 7)",
+  " (in 'mlumr_survival_relaxed', line 1322, column 6 to line 1332, column 7)",
+  " (in 'mlumr_survival_relaxed', line 1317, column 4 to line 1333, column 5)",
+  " (in 'mlumr_survival_relaxed', line 1248, column 2 to line 1334, column 3)",
+  " (in 'mlumr_survival_relaxed', line 1171, column 2 to line 1172, column 71)",
+  " (in 'mlumr_survival_relaxed', line 1173, column 2 to line 1174, column 71)",
+  " (in 'mlumr_survival_relaxed', line 1175, column 2 to line 1176, column 61)",
+  " (in 'mlumr_survival_relaxed', line 1177, column 2 to line 1179, column 55)",
+  " (in 'mlumr_survival_relaxed', line 1182, column 6 to line 1183, column 62)",
+  " (in 'mlumr_survival_relaxed', line 1181, column 4 to line 1183, column 62)",
+  " (in 'mlumr_survival_relaxed', line 1185, column 6 to line 1186, column 64)",
+  " (in 'mlumr_survival_relaxed', line 1184, column 4 to line 1186, column 64)",
+  " (in 'mlumr_survival_relaxed', line 1180, column 24 to line 1187, column 3)",
+  " (in 'mlumr_survival_relaxed', line 1180, column 2 to line 1187, column 3)",
+  " (in 'mlumr_survival_relaxed', line 1190, column 4 to line 1192, column 60)",
+  " (in 'mlumr_survival_relaxed', line 1189, column 2 to line 1192, column 60)",
+  " (in 'mlumr_survival_relaxed', line 1198, column 10 to column 20)",
+  " (in 'mlumr_survival_relaxed', line 1198, column 29 to column 34)",
+  " (in 'mlumr_survival_relaxed', line 1198, column 4 to column 48)",
+  " (in 'mlumr_survival_relaxed', line 1199, column 11 to column 16)",
+  " (in 'mlumr_survival_relaxed', line 1199, column 4 to column 25)",
+  " (in 'mlumr_survival_relaxed', line 1202, column 8 to column 48)",
+  " (in 'mlumr_survival_relaxed', line 1201, column 6 to line 1202, column 48)",
+  " (in 'mlumr_survival_relaxed', line 1200, column 4 to line 1202, column 48)",
+  " (in 'mlumr_survival_relaxed', line 1204, column 6 to column 25)",
+  " (in 'mlumr_survival_relaxed', line 1206, column 8 to column 48)",
+  " (in 'mlumr_survival_relaxed', line 1205, column 6 to line 1206, column 48)",
+  " (in 'mlumr_survival_relaxed', line 1207, column 13 to column 18)",
+  " (in 'mlumr_survival_relaxed', line 1207, column 6 to column 23)",
+  " (in 'mlumr_survival_relaxed', line 1209, column 8 to line 1211, column 77)",
+  " (in 'mlumr_survival_relaxed', line 1208, column 6 to line 1211, column 77)",
+  " (in 'mlumr_survival_relaxed', line 1212, column 6 to column 47)",
+  " (in 'mlumr_survival_relaxed', line 1203, column 23 to line 1213, column 5)",
+  " (in 'mlumr_survival_relaxed', line 1203, column 4 to line 1213, column 5)",
+  " (in 'mlumr_survival_relaxed', line 1214, column 4 to column 26)",
+  " (in 'mlumr_survival_relaxed', line 1194, column 2 to line 1215, column 3)",
   " (in 'mlumr_survival_relaxed', line 1037, column 2 to column 21)",
   " (in 'mlumr_survival_relaxed', line 1038, column 2 to column 21)",
   " (in 'mlumr_survival_relaxed', line 1039, column 9 to column 14)",
@@ -171,90 +177,91 @@ static constexpr std::array<const char*, 821> locations_array__ =
   " (in 'mlumr_survival_relaxed', line 1050, column 2 to column 47)",
   " (in 'mlumr_survival_relaxed', line 1051, column 8 to column 13)",
   " (in 'mlumr_survival_relaxed', line 1051, column 2 to column 53)",
-  " (in 'mlumr_survival_relaxed', line 1053, column 2 to column 21)",
-  " (in 'mlumr_survival_relaxed', line 1054, column 8 to column 18)",
-  " (in 'mlumr_survival_relaxed', line 1054, column 27 to column 32)",
-  " (in 'mlumr_survival_relaxed', line 1054, column 34 to column 39)",
-  " (in 'mlumr_survival_relaxed', line 1054, column 2 to column 47)",
-  " (in 'mlumr_survival_relaxed', line 1056, column 2 to column 26)",
-  " (in 'mlumr_survival_relaxed', line 1057, column 2 to column 18)",
-  " (in 'mlumr_survival_relaxed', line 1058, column 9 to column 14)",
-  " (in 'mlumr_survival_relaxed', line 1058, column 16 to column 18)",
-  " (in 'mlumr_survival_relaxed', line 1058, column 2 to column 27)",
+  " (in 'mlumr_survival_relaxed', line 1056, column 2 to column 37)",
+  " (in 'mlumr_survival_relaxed', line 1058, column 2 to column 21)",
   " (in 'mlumr_survival_relaxed', line 1059, column 8 to column 18)",
   " (in 'mlumr_survival_relaxed', line 1059, column 27 to column 32)",
-  " (in 'mlumr_survival_relaxed', line 1059, column 34 to column 36)",
-  " (in 'mlumr_survival_relaxed', line 1059, column 2 to column 45)",
-  " (in 'mlumr_survival_relaxed', line 1060, column 9 to column 11)",
-  " (in 'mlumr_survival_relaxed', line 1060, column 13 to column 15)",
-  " (in 'mlumr_survival_relaxed', line 1060, column 2 to column 23)",
-  " (in 'mlumr_survival_relaxed', line 1062, column 2 to column 28)",
-  " (in 'mlumr_survival_relaxed', line 1063, column 2 to column 28)",
-  " (in 'mlumr_survival_relaxed', line 1070, column 2 to column 32)",
-  " (in 'mlumr_survival_relaxed', line 1072, column 2 to column 28)",
-  " (in 'mlumr_survival_relaxed', line 1073, column 18 to column 30)",
-  " (in 'mlumr_survival_relaxed', line 1073, column 2 to column 43)",
-  " (in 'mlumr_survival_relaxed', line 1074, column 2 to column 27)",
-  " (in 'mlumr_survival_relaxed', line 1075, column 18 to column 29)",
-  " (in 'mlumr_survival_relaxed', line 1075, column 2 to column 47)",
-  " (in 'mlumr_survival_relaxed', line 1092, column 0 to column 26)",
-  " (in 'mlumr_survival_relaxed', line 1093, column 0 to column 33)",
-  " (in 'mlumr_survival_relaxed', line 1094, column 0 to column 42)",
-  " (in 'mlumr_survival_relaxed', line 1095, column 0 to column 33)",
-  " (in 'mlumr_survival_relaxed', line 1097, column 7 to column 12)",
-  " (in 'mlumr_survival_relaxed', line 1097, column 0 to column 30)",
-  " (in 'mlumr_survival_relaxed', line 1098, column 16 to column 21)",
-  " (in 'mlumr_survival_relaxed', line 1098, column 0 to column 37)",
-  " (in 'mlumr_survival_relaxed', line 1099, column 0 to column 37)",
-  " (in 'mlumr_survival_relaxed', line 1100, column 0 to column 28)",
-  " (in 'mlumr_survival_relaxed', line 1105, column 9 to column 14)",
-  " (in 'mlumr_survival_relaxed', line 1105, column 2 to column 43)",
-  " (in 'mlumr_survival_relaxed', line 1106, column 18 to column 23)",
-  " (in 'mlumr_survival_relaxed', line 1106, column 2 to column 50)",
-  " (in 'mlumr_survival_relaxed', line 1107, column 2 to column 50)",
-  " (in 'mlumr_survival_relaxed', line 1108, column 2 to column 41)",
-  " (in 'mlumr_survival_relaxed', line 1123, column 0 to column 24)",
-  " (in 'mlumr_survival_relaxed', line 1124, column 0 to column 30)",
-  " (in 'mlumr_survival_relaxed', line 1125, column 0 to column 36)",
-  " (in 'mlumr_survival_relaxed', line 1126, column 0 to column 27)",
-  " (in 'mlumr_survival_relaxed', line 1128, column 0 to column 25)",
-  " (in 'mlumr_survival_relaxed', line 1129, column 0 to column 31)",
-  " (in 'mlumr_survival_relaxed', line 1130, column 0 to column 37)",
-  " (in 'mlumr_survival_relaxed', line 1131, column 0 to column 28)",
-  " (in 'mlumr_survival_relaxed', line 1134, column 2 to column 48)",
-  " (in 'mlumr_survival_relaxed', line 1135, column 2 to column 40)",
-  " (in 'mlumr_survival_relaxed', line 1136, column 2 to column 37)",
-  " (in 'mlumr_survival_relaxed', line 1137, column 9 to column 18)",
-  " (in 'mlumr_survival_relaxed', line 1137, column 20 to column 25)",
-  " (in 'mlumr_survival_relaxed', line 1137, column 2 to column 37)",
-  " (in 'mlumr_survival_relaxed', line 1139, column 4 to column 60)",
-  " (in 'mlumr_survival_relaxed', line 1138, column 2 to line 1139, column 60)",
-  " (in 'mlumr_survival_relaxed', line 1144, column 9 to column 11)",
-  " (in 'mlumr_survival_relaxed', line 1145, column 18 to column 24)",
-  " (in 'mlumr_survival_relaxed', line 1145, column 26 to column 34)",
-  " (in 'mlumr_survival_relaxed', line 1146, column 18 to column 29)",
-  " (in 'mlumr_survival_relaxed', line 1146, column 31 to column 39)",
-  " (in 'mlumr_survival_relaxed', line 1150, column 9 to column 11)",
-  " (in 'mlumr_survival_relaxed', line 1153, column 9 to column 14)",
-  " (in 'mlumr_survival_relaxed', line 1154, column 9 to column 14)",
-  " (in 'mlumr_survival_relaxed', line 1155, column 9 to column 14)",
-  " (in 'mlumr_survival_relaxed', line 1212, column 9 to column 14)",
-  " (in 'mlumr_survival_relaxed', line 1213, column 8 to column 20)",
-  " (in 'mlumr_survival_relaxed', line 1214, column 8 to column 20)",
-  " (in 'mlumr_survival_relaxed', line 1215, column 8 to column 20)",
-  " (in 'mlumr_survival_relaxed', line 1216, column 8 to column 20)",
-  " (in 'mlumr_survival_relaxed', line 1217, column 8 to column 20)",
-  " (in 'mlumr_survival_relaxed', line 1218, column 8 to column 20)",
-  " (in 'mlumr_survival_relaxed', line 1219, column 8 to column 20)",
-  " (in 'mlumr_survival_relaxed', line 1220, column 8 to column 20)",
-  " (in 'mlumr_survival_relaxed', line 1221, column 8 to column 20)",
-  " (in 'mlumr_survival_relaxed', line 1222, column 8 to column 20)",
+  " (in 'mlumr_survival_relaxed', line 1059, column 34 to column 39)",
+  " (in 'mlumr_survival_relaxed', line 1059, column 2 to column 47)",
+  " (in 'mlumr_survival_relaxed', line 1061, column 2 to column 26)",
+  " (in 'mlumr_survival_relaxed', line 1062, column 2 to column 18)",
+  " (in 'mlumr_survival_relaxed', line 1063, column 9 to column 14)",
+  " (in 'mlumr_survival_relaxed', line 1063, column 16 to column 18)",
+  " (in 'mlumr_survival_relaxed', line 1063, column 2 to column 27)",
+  " (in 'mlumr_survival_relaxed', line 1064, column 8 to column 18)",
+  " (in 'mlumr_survival_relaxed', line 1064, column 27 to column 32)",
+  " (in 'mlumr_survival_relaxed', line 1064, column 34 to column 36)",
+  " (in 'mlumr_survival_relaxed', line 1064, column 2 to column 45)",
+  " (in 'mlumr_survival_relaxed', line 1065, column 9 to column 11)",
+  " (in 'mlumr_survival_relaxed', line 1065, column 13 to column 15)",
+  " (in 'mlumr_survival_relaxed', line 1065, column 2 to column 23)",
+  " (in 'mlumr_survival_relaxed', line 1067, column 2 to column 28)",
+  " (in 'mlumr_survival_relaxed', line 1068, column 2 to column 28)",
+  " (in 'mlumr_survival_relaxed', line 1075, column 2 to column 32)",
+  " (in 'mlumr_survival_relaxed', line 1077, column 2 to column 28)",
+  " (in 'mlumr_survival_relaxed', line 1078, column 18 to column 30)",
+  " (in 'mlumr_survival_relaxed', line 1078, column 2 to column 43)",
+  " (in 'mlumr_survival_relaxed', line 1079, column 2 to column 27)",
+  " (in 'mlumr_survival_relaxed', line 1080, column 18 to column 29)",
+  " (in 'mlumr_survival_relaxed', line 1080, column 2 to column 47)",
+  " (in 'mlumr_survival_relaxed', line 1097, column 0 to column 26)",
+  " (in 'mlumr_survival_relaxed', line 1098, column 0 to column 33)",
+  " (in 'mlumr_survival_relaxed', line 1099, column 0 to column 42)",
+  " (in 'mlumr_survival_relaxed', line 1100, column 0 to column 33)",
+  " (in 'mlumr_survival_relaxed', line 1102, column 7 to column 12)",
+  " (in 'mlumr_survival_relaxed', line 1102, column 0 to column 30)",
+  " (in 'mlumr_survival_relaxed', line 1103, column 16 to column 21)",
+  " (in 'mlumr_survival_relaxed', line 1103, column 0 to column 37)",
+  " (in 'mlumr_survival_relaxed', line 1104, column 0 to column 37)",
+  " (in 'mlumr_survival_relaxed', line 1105, column 0 to column 28)",
+  " (in 'mlumr_survival_relaxed', line 1110, column 9 to column 14)",
+  " (in 'mlumr_survival_relaxed', line 1110, column 2 to column 43)",
+  " (in 'mlumr_survival_relaxed', line 1111, column 18 to column 23)",
+  " (in 'mlumr_survival_relaxed', line 1111, column 2 to column 50)",
+  " (in 'mlumr_survival_relaxed', line 1112, column 2 to column 50)",
+  " (in 'mlumr_survival_relaxed', line 1113, column 2 to column 41)",
+  " (in 'mlumr_survival_relaxed', line 1128, column 0 to column 24)",
+  " (in 'mlumr_survival_relaxed', line 1129, column 0 to column 30)",
+  " (in 'mlumr_survival_relaxed', line 1130, column 0 to column 36)",
+  " (in 'mlumr_survival_relaxed', line 1131, column 0 to column 27)",
+  " (in 'mlumr_survival_relaxed', line 1133, column 0 to column 25)",
+  " (in 'mlumr_survival_relaxed', line 1134, column 0 to column 31)",
+  " (in 'mlumr_survival_relaxed', line 1135, column 0 to column 37)",
+  " (in 'mlumr_survival_relaxed', line 1136, column 0 to column 28)",
+  " (in 'mlumr_survival_relaxed', line 1139, column 2 to column 48)",
+  " (in 'mlumr_survival_relaxed', line 1140, column 2 to column 40)",
+  " (in 'mlumr_survival_relaxed', line 1141, column 2 to column 37)",
+  " (in 'mlumr_survival_relaxed', line 1142, column 9 to column 18)",
+  " (in 'mlumr_survival_relaxed', line 1142, column 20 to column 25)",
+  " (in 'mlumr_survival_relaxed', line 1142, column 2 to column 37)",
+  " (in 'mlumr_survival_relaxed', line 1144, column 4 to column 60)",
+  " (in 'mlumr_survival_relaxed', line 1143, column 2 to line 1144, column 60)",
+  " (in 'mlumr_survival_relaxed', line 1149, column 9 to column 11)",
+  " (in 'mlumr_survival_relaxed', line 1150, column 18 to column 24)",
+  " (in 'mlumr_survival_relaxed', line 1150, column 26 to column 34)",
+  " (in 'mlumr_survival_relaxed', line 1151, column 18 to column 29)",
+  " (in 'mlumr_survival_relaxed', line 1151, column 31 to column 39)",
+  " (in 'mlumr_survival_relaxed', line 1155, column 9 to column 11)",
+  " (in 'mlumr_survival_relaxed', line 1158, column 9 to column 14)",
+  " (in 'mlumr_survival_relaxed', line 1159, column 9 to column 14)",
+  " (in 'mlumr_survival_relaxed', line 1160, column 9 to column 14)",
+  " (in 'mlumr_survival_relaxed', line 1222, column 9 to column 14)",
   " (in 'mlumr_survival_relaxed', line 1223, column 8 to column 20)",
   " (in 'mlumr_survival_relaxed', line 1224, column 8 to column 20)",
+  " (in 'mlumr_survival_relaxed', line 1225, column 8 to column 20)",
+  " (in 'mlumr_survival_relaxed', line 1226, column 8 to column 20)",
+  " (in 'mlumr_survival_relaxed', line 1227, column 8 to column 20)",
   " (in 'mlumr_survival_relaxed', line 1228, column 8 to column 20)",
   " (in 'mlumr_survival_relaxed', line 1229, column 8 to column 20)",
-  " (in 'mlumr_survival_relaxed', line 1236, column 9 to column 14)",
-  " (in 'mlumr_survival_relaxed', line 1237, column 9 to column 14)",
+  " (in 'mlumr_survival_relaxed', line 1230, column 8 to column 20)",
+  " (in 'mlumr_survival_relaxed', line 1231, column 8 to column 20)",
+  " (in 'mlumr_survival_relaxed', line 1232, column 8 to column 20)",
+  " (in 'mlumr_survival_relaxed', line 1233, column 8 to column 20)",
+  " (in 'mlumr_survival_relaxed', line 1234, column 8 to column 20)",
+  " (in 'mlumr_survival_relaxed', line 1238, column 8 to column 20)",
+  " (in 'mlumr_survival_relaxed', line 1239, column 8 to column 20)",
+  " (in 'mlumr_survival_relaxed', line 1246, column 9 to column 14)",
+  " (in 'mlumr_survival_relaxed', line 1247, column 9 to column 14)",
   " (in 'mlumr_survival_relaxed', line 34, column 7 to column 54)",
   " (in 'mlumr_survival_relaxed', line 33, column 17 to column 57)",
   " (in 'mlumr_survival_relaxed', line 33, column 2 to line 34, column 54)",
@@ -1327,12 +1334,12 @@ log_prior_scalar(const T0__& x, const T1__& location, const T2__& scale,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 243;
+    current_statement__ = 250;
     if (stan::math::logical_eq(dist, 0)) {
-      current_statement__ = 242;
+      current_statement__ = 249;
       return stan::math::normal_lpdf<false>(x, location, scale);
     } else {
-      current_statement__ = 241;
+      current_statement__ = 248;
       return stan::math::student_t_lpdf<false>(x, df, location, scale);
     }
   } catch (const std::exception& e) {
@@ -1372,12 +1379,12 @@ log_prior_vector(const T0__& x_arg__, const T1__& location_arg__, const T2__&
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 247;
+    current_statement__ = 254;
     if (stan::math::logical_eq(dist, 0)) {
-      current_statement__ = 246;
+      current_statement__ = 253;
       return stan::math::normal_lpdf<false>(x, location, scale);
     } else {
-      current_statement__ = 245;
+      current_statement__ = 252;
       return stan::math::student_t_lpdf<false>(x, df, location, scale);
     }
   } catch (const std::exception& e) {
@@ -1410,17 +1417,17 @@ log_prior_sigma(const T0__& sigma, const T1__& location, const T2__& scale,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 253;
+    current_statement__ = 260;
     if (stan::math::logical_eq(dist, 0)) {
-      current_statement__ = 252;
+      current_statement__ = 259;
       return stan::math::normal_lpdf<false>(sigma, location, scale);
     } else {
-      current_statement__ = 251;
+      current_statement__ = 258;
       if (stan::math::logical_eq(dist, 1)) {
-        current_statement__ = 250;
+        current_statement__ = 257;
         return stan::math::student_t_lpdf<false>(sigma, df, location, scale);
       } else {
-        current_statement__ = 249;
+        current_statement__ = 256;
         return stan::math::exponential_lpdf<false>(sigma,
                  stan::math::inv(scale));
       }
@@ -1451,12 +1458,12 @@ log_prior_std_vector(const T0__& z_arg__, const T1__& dist, const T2__& df,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 257;
+    current_statement__ = 264;
     if (stan::math::logical_eq(dist, 0)) {
-      current_statement__ = 256;
+      current_statement__ = 263;
       return stan::math::std_normal_lpdf<false>(z);
     } else {
-      current_statement__ = 255;
+      current_statement__ = 262;
       return stan::math::student_t_lpdf<false>(z, df, static_cast<double>(0),
                static_cast<double>(1));
     }
@@ -1477,7 +1484,7 @@ double log_double_max(std::ostream* pstream__) {
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 259;
+    current_statement__ = 266;
     return stan::math::promote_scalar<local_scalar_t__>(709.782712893384);
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -1503,54 +1510,54 @@ log_gamma_q_cf_factor(const T0__& k, const T1__& x, std::ostream* pstream__) {
   (void) DUMMY_VAR__;
   try {
     local_scalar_t__ tiny = DUMMY_VAR__;
-    current_statement__ = 261;
+    current_statement__ = 268;
     tiny = 1e-300;
     local_scalar_t__ b = DUMMY_VAR__;
-    current_statement__ = 262;
+    current_statement__ = 269;
     b = ((x + 1) - k);
     local_scalar_t__ c = DUMMY_VAR__;
-    current_statement__ = 263;
+    current_statement__ = 270;
     c = stan::math::inv(tiny);
     local_scalar_t__ d = DUMMY_VAR__;
-    current_statement__ = 264;
+    current_statement__ = 271;
     d = stan::math::inv(b);
     local_scalar_t__ h = DUMMY_VAR__;
-    current_statement__ = 265;
+    current_statement__ = 272;
     h = d;
-    current_statement__ = 284;
+    current_statement__ = 291;
     for (int i = 1; i <= 300; ++i) {
       local_scalar_t__ an = DUMMY_VAR__;
-      current_statement__ = 266;
+      current_statement__ = 273;
       an = (-(i) * (i - k));
       local_scalar_t__ del = DUMMY_VAR__;
-      current_statement__ = 268;
+      current_statement__ = 275;
       b = (b + 2);
-      current_statement__ = 269;
+      current_statement__ = 276;
       d = ((an * d) + b);
-      current_statement__ = 272;
+      current_statement__ = 279;
       if (stan::math::logical_lt(stan::math::abs(d), tiny)) {
-        current_statement__ = 270;
+        current_statement__ = 277;
         d = tiny;
       }
-      current_statement__ = 273;
+      current_statement__ = 280;
       c = (b + (an / c));
-      current_statement__ = 276;
+      current_statement__ = 283;
       if (stan::math::logical_lt(stan::math::abs(c), tiny)) {
-        current_statement__ = 274;
+        current_statement__ = 281;
         c = tiny;
       }
-      current_statement__ = 277;
+      current_statement__ = 284;
       d = stan::math::inv(d);
-      current_statement__ = 278;
+      current_statement__ = 285;
       del = (d * c);
-      current_statement__ = 279;
+      current_statement__ = 286;
       h = (h * del);
-      current_statement__ = 282;
+      current_statement__ = 289;
       if (stan::math::logical_lt(stan::math::abs((del - 1)), 1e-14)) {
         break;
       }
     }
-    current_statement__ = 285;
+    current_statement__ = 292;
     return stan::math::log(h);
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -1575,7 +1582,7 @@ log_gamma_q_cf(const T0__& k, const T1__& x, std::ostream* pstream__) {
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 287;
+    current_statement__ = 294;
     return (((-(x) + (k * stan::math::log(x))) - stan::math::lgamma(k)) +
            log_gamma_q_cf_factor(k, x, pstream__));
   } catch (const std::exception& e) {
@@ -1602,24 +1609,24 @@ log_gamma_p_series(const T0__& k, const T1__& log_x, std::ostream* pstream__) {
   (void) DUMMY_VAR__;
   try {
     local_scalar_t__ log_term = DUMMY_VAR__;
-    current_statement__ = 289;
+    current_statement__ = 296;
     log_term = stan::math::promote_scalar<local_scalar_t__>(0);
     local_scalar_t__ log_total = DUMMY_VAR__;
-    current_statement__ = 290;
-    log_total = stan::math::promote_scalar<local_scalar_t__>(0);
     current_statement__ = 297;
+    log_total = stan::math::promote_scalar<local_scalar_t__>(0);
+    current_statement__ = 304;
     for (int i = 1; i <= 300; ++i) {
-      current_statement__ = 291;
+      current_statement__ = 298;
       log_term = (log_term + (log_x - stan::math::log((k + i))));
-      current_statement__ = 292;
+      current_statement__ = 299;
       log_total = stan::math::log_sum_exp(log_total, log_term);
-      current_statement__ = 295;
+      current_statement__ = 302;
       if (stan::math::logical_lt(stan::math::exp((log_term - log_total)),
             1e-14)) {
         break;
       }
     }
-    current_statement__ = 298;
+    current_statement__ = 305;
     return (((-(stan::math::exp(log_x)) + (k * log_x)) -
            stan::math::lgamma((k + 1))) + log_total);
   } catch (const std::exception& e) {
@@ -1649,15 +1656,15 @@ gengamma_lpdf(const T0__& y, const T1__& mu, const T2__& sigma, const T3__&
   (void) DUMMY_VAR__;
   try {
     local_scalar_t__ Q = DUMMY_VAR__;
-    current_statement__ = 300;
+    current_statement__ = 307;
     Q = stan::math::pow(k, -(0.5));
     local_scalar_t__ z = DUMMY_VAR__;
-    current_statement__ = 301;
+    current_statement__ = 308;
     z = ((Q * (stan::math::log(y) - mu)) / sigma);
     local_scalar_t__ log_w = DUMMY_VAR__;
-    current_statement__ = 302;
+    current_statement__ = 309;
     log_w = (stan::math::log(k) + z);
-    current_statement__ = 303;
+    current_statement__ = 310;
     return (((((-(stan::math::log(sigma)) - stan::math::log(y)) - ((0.5 *
            stan::math::log(k)) * (1 - (2 * k)))) + (k * z)) -
            stan::math::exp(log_w)) - stan::math::lgamma(k));
@@ -1682,7 +1689,7 @@ log_std_normal_surv(const T0__& z, std::ostream* pstream__) {
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 305;
+    current_statement__ = 312;
     return stan::math::std_normal_lcdf(-(z));
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -1705,24 +1712,24 @@ log_std_normal_hazard(const T0__& z, std::ostream* pstream__) {
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 308;
+    current_statement__ = 315;
     if ((stan::math::primitive_value(stan::math::is_inf(z)) &&
         stan::math::primitive_value(stan::math::logical_gt(z, 0)))) {
-      current_statement__ = 307;
+      current_statement__ = 314;
       return stan::math::promote_scalar<local_scalar_t__>(
                stan::math::positive_infinity());
     }
-    current_statement__ = 312;
+    current_statement__ = 319;
     if (stan::math::logical_gt(z, 20)) {
       local_scalar_t__ iz2 = DUMMY_VAR__;
-      current_statement__ = 309;
+      current_statement__ = 316;
       iz2 = (1 / stan::math::square(z));
-      current_statement__ = 310;
+      current_statement__ = 317;
       return (stan::math::log(z) +
              stan::math::log1p((iz2 * (1 + (iz2 * (-(2) + (iz2 * (10 - (74 *
                iz2)))))))));
     }
-    current_statement__ = 313;
+    current_statement__ = 320;
     return (stan::math::std_normal_lpdf<false>(z) -
            log_std_normal_surv(z, pstream__));
   } catch (const std::exception& e) {
@@ -1749,29 +1756,29 @@ log_gamma_cdf_from_log_x(const T0__& k, const T1__& log_x, std::ostream*
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 316;
+    current_statement__ = 323;
     if (stan::math::logical_gt(log_x, log_double_max(pstream__))) {
-      current_statement__ = 315;
+      current_statement__ = 322;
       return stan::math::promote_scalar<local_scalar_t__>(0);
     }
     local_scalar_t__ x = DUMMY_VAR__;
-    current_statement__ = 317;
+    current_statement__ = 324;
     x = stan::math::exp(log_x);
-    current_statement__ = 323;
+    current_statement__ = 330;
     if (stan::math::logical_lte(x, (k +
           stan::math::fmax(1, stan::math::sqrt(k))))) {
       local_scalar_t__ p = DUMMY_VAR__;
-      current_statement__ = 318;
+      current_statement__ = 325;
       p = stan::math::gamma_p(k, x);
-      current_statement__ = 320;
+      current_statement__ = 327;
       if (stan::math::logical_gt(p, 0)) {
-        current_statement__ = 319;
+        current_statement__ = 326;
         return stan::math::log(p);
       }
-      current_statement__ = 321;
+      current_statement__ = 328;
       return log_gamma_p_series(k, log_x, pstream__);
     }
-    current_statement__ = 324;
+    current_statement__ = 331;
     return stan::math::log1m_exp(log_gamma_q_cf(k, x, pstream__));
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -1797,38 +1804,38 @@ log_gamma_surv_from_log_x(const T0__& k, const T1__& log_x, std::ostream*
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 327;
+    current_statement__ = 334;
     if (stan::math::logical_gt(log_x, log_double_max(pstream__))) {
-      current_statement__ = 326;
+      current_statement__ = 333;
       return stan::math::promote_scalar<local_scalar_t__>(
                stan::math::negative_infinity());
     }
     local_scalar_t__ x = DUMMY_VAR__;
-    current_statement__ = 328;
+    current_statement__ = 335;
     x = stan::math::exp(log_x);
-    current_statement__ = 334;
+    current_statement__ = 341;
     if ((stan::math::primitive_value(stan::math::logical_eq(x, 0)) &&
         stan::math::primitive_value(
           stan::math::logical_negation(stan::math::is_inf(log_x))))) {
       local_scalar_t__ log_p = DUMMY_VAR__;
-      current_statement__ = 329;
+      current_statement__ = 336;
       log_p = log_gamma_p_series(k, log_x, pstream__);
-      current_statement__ = 331;
+      current_statement__ = 338;
       if (stan::math::logical_gte(log_p, 0)) {
-        current_statement__ = 330;
+        current_statement__ = 337;
         return stan::math::promote_scalar<local_scalar_t__>(
                  stan::math::negative_infinity());
       }
-      current_statement__ = 332;
+      current_statement__ = 339;
       return stan::math::log1m_exp(log_p);
     }
-    current_statement__ = 336;
+    current_statement__ = 343;
     if (stan::math::logical_gt(x, (k +
           stan::math::fmax(1, stan::math::sqrt(k))))) {
-      current_statement__ = 335;
+      current_statement__ = 342;
       return log_gamma_q_cf(k, x, pstream__);
     }
-    current_statement__ = 337;
+    current_statement__ = 344;
     return stan::math::log(stan::math::gamma_q(k, x));
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -1860,58 +1867,58 @@ log_surv_scalar(const T0__& dist, const T1__& t, const T2__& eta, const T3__&
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 358;
+    current_statement__ = 365;
     if (stan::math::logical_eq(dist, 1)) {
-      current_statement__ = 357;
+      current_statement__ = 364;
       return -(stan::math::exp((stan::math::log(t) + eta)));
     } else {
-      current_statement__ = 356;
+      current_statement__ = 363;
       if (stan::math::logical_eq(dist, 2)) {
-        current_statement__ = 355;
+        current_statement__ = 362;
         return -(stan::math::exp(((aux * stan::math::log(t)) + eta)));
       } else {
-        current_statement__ = 354;
+        current_statement__ = 361;
         if (stan::math::logical_eq(dist, 3)) {
-          current_statement__ = 353;
+          current_statement__ = 360;
           return -(stan::math::exp((((eta - stan::math::log(aux)) + (aux *
                      t)) + stan::math::log1m_exp((-(aux) * t)))));
         } else {
-          current_statement__ = 352;
+          current_statement__ = 359;
           if (stan::math::logical_eq(dist, 4)) {
-            current_statement__ = 351;
+            current_statement__ = 358;
             return -(stan::math::exp((stan::math::log(t) - eta)));
           } else {
-            current_statement__ = 350;
+            current_statement__ = 357;
             if (stan::math::logical_eq(dist, 5)) {
-              current_statement__ = 349;
+              current_statement__ = 356;
               return -(stan::math::exp((aux * (stan::math::log(t) - eta))));
             } else {
-              current_statement__ = 348;
+              current_statement__ = 355;
               if (stan::math::logical_eq(dist, 6)) {
-                current_statement__ = 347;
+                current_statement__ = 354;
                 return log_std_normal_surv(((stan::math::log(t) - eta) /
                          aux), pstream__);
               } else {
-                current_statement__ = 346;
+                current_statement__ = 353;
                 if (stan::math::logical_eq(dist, 7)) {
-                  current_statement__ = 345;
+                  current_statement__ = 352;
                   return -(stan::math::log1p_exp((aux * (stan::math::log(t) -
                              eta))));
                 } else {
-                  current_statement__ = 344;
+                  current_statement__ = 351;
                   if (stan::math::logical_eq(dist, 8)) {
-                    current_statement__ = 343;
+                    current_statement__ = 350;
                     return log_gamma_surv_from_log_x(aux, (stan::math::log(t)
                              - eta), pstream__);
                   } else {
                     local_scalar_t__ Q = DUMMY_VAR__;
-                    current_statement__ = 339;
+                    current_statement__ = 346;
                     Q = stan::math::inv(stan::math::sqrt(aux2));
                     local_scalar_t__ log_w = DUMMY_VAR__;
-                    current_statement__ = 340;
+                    current_statement__ = 347;
                     log_w = (((Q * (stan::math::log(t) - eta)) / aux) +
                       stan::math::log(aux2));
-                    current_statement__ = 341;
+                    current_statement__ = 348;
                     return log_gamma_surv_from_log_x(aux2, log_w, pstream__);
                   }
                 }
@@ -1951,41 +1958,41 @@ log_haz_scalar(const T0__& dist, const T1__& t, const T2__& eta, const T3__&
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 372;
+    current_statement__ = 379;
     if (stan::math::logical_eq(dist, 1)) {
-      current_statement__ = 371;
+      current_statement__ = 378;
       return eta;
     } else {
-      current_statement__ = 370;
+      current_statement__ = 377;
       if (stan::math::logical_eq(dist, 2)) {
-        current_statement__ = 369;
+        current_statement__ = 376;
         return ((stan::math::log(aux) + ((aux * stan::math::log(t)) + eta)) -
                stan::math::log(t));
       } else {
-        current_statement__ = 368;
+        current_statement__ = 375;
         if (stan::math::logical_eq(dist, 3)) {
-          current_statement__ = 367;
+          current_statement__ = 374;
           return (eta + (aux * t));
         } else {
-          current_statement__ = 366;
+          current_statement__ = 373;
           if (stan::math::logical_eq(dist, 4)) {
-            current_statement__ = 365;
+            current_statement__ = 372;
             return -(eta);
           } else {
-            current_statement__ = 364;
+            current_statement__ = 371;
             if (stan::math::logical_eq(dist, 5)) {
-              current_statement__ = 363;
+              current_statement__ = 370;
               return ((stan::math::log(aux) + (aux * (stan::math::log(t) -
                      eta))) - stan::math::log(t));
             } else {
-              current_statement__ = 362;
+              current_statement__ = 369;
               if (stan::math::logical_eq(dist, 7)) {
-                current_statement__ = 361;
+                current_statement__ = 368;
                 return ((stan::math::log(aux) - stan::math::log(t)) -
                        stan::math::log1p_exp((-(aux) * (stan::math::log(t) -
                          eta))));
               } else {
-                current_statement__ = 360;
+                current_statement__ = 367;
                 return stan::math::promote_scalar<local_scalar_t__>(0);
               }
             }
@@ -2023,70 +2030,70 @@ log_haz_full(const T0__& dist, const T1__& t, const T2__& eta, const T3__&
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 397;
+    current_statement__ = 404;
     if (stan::math::logical_eq(dist, 6)) {
       local_scalar_t__ z = DUMMY_VAR__;
-      current_statement__ = 394;
+      current_statement__ = 401;
       z = ((stan::math::log(t) - eta) / aux);
-      current_statement__ = 395;
+      current_statement__ = 402;
       return ((log_std_normal_hazard(z, pstream__) - stan::math::log(aux)) -
              stan::math::log(t));
     } else {
-      current_statement__ = 393;
+      current_statement__ = 400;
       if (stan::math::logical_eq(dist, 8)) {
         local_scalar_t__ log_z = DUMMY_VAR__;
-        current_statement__ = 385;
+        current_statement__ = 392;
         log_z = (stan::math::log(t) - eta);
-        current_statement__ = 387;
+        current_statement__ = 394;
         if (stan::math::logical_gt(log_z, log_double_max(pstream__))) {
-          current_statement__ = 386;
+          current_statement__ = 393;
           return -(eta);
         }
         local_scalar_t__ z = DUMMY_VAR__;
-        current_statement__ = 388;
+        current_statement__ = 395;
         z = stan::math::exp(log_z);
-        current_statement__ = 390;
+        current_statement__ = 397;
         if (stan::math::logical_gt(z, (aux +
               stan::math::fmax(1, stan::math::sqrt(aux))))) {
-          current_statement__ = 389;
+          current_statement__ = 396;
           return (-(stan::math::log(t)) -
                  log_gamma_q_cf_factor(aux, z, pstream__));
         }
-        current_statement__ = 391;
+        current_statement__ = 398;
         return ((((((aux - 1) * log_z) - eta) - z) - stan::math::lgamma(aux))
                - log_gamma_surv_from_log_x(aux, log_z, pstream__));
       } else {
-        current_statement__ = 384;
+        current_statement__ = 391;
         if (stan::math::logical_eq(dist, 9)) {
           local_scalar_t__ z = DUMMY_VAR__;
-          current_statement__ = 375;
+          current_statement__ = 382;
           z = ((stan::math::inv(stan::math::sqrt(aux2)) * (stan::math::log(t)
             - eta)) / aux);
           local_scalar_t__ log_w = DUMMY_VAR__;
-          current_statement__ = 376;
+          current_statement__ = 383;
           log_w = (stan::math::log(aux2) + z);
-          current_statement__ = 378;
+          current_statement__ = 385;
           if (stan::math::logical_gt(log_w, log_double_max(pstream__))) {
-            current_statement__ = 377;
+            current_statement__ = 384;
             return (((-(stan::math::log(aux)) - stan::math::log(t)) + (0.5 *
                    stan::math::log(aux2))) + z);
           }
           local_scalar_t__ w = DUMMY_VAR__;
-          current_statement__ = 379;
+          current_statement__ = 386;
           w = stan::math::exp(log_w);
-          current_statement__ = 381;
+          current_statement__ = 388;
           if (stan::math::logical_gt(w, (aux2 +
                 stan::math::fmax(1, stan::math::sqrt(aux2))))) {
-            current_statement__ = 380;
+            current_statement__ = 387;
             return (((-(stan::math::log(aux)) - stan::math::log(t)) - (0.5 *
                    stan::math::log(aux2))) -
                    log_gamma_q_cf_factor(aux2, w, pstream__));
           }
-          current_statement__ = 382;
+          current_statement__ = 389;
           return (gengamma_lpdf<false>(t, eta, aux, aux2, pstream__) -
                  log_gamma_surv_from_log_x(aux2, log_w, pstream__));
         } else {
-          current_statement__ = 374;
+          current_statement__ = 381;
           return log_haz_scalar(dist, t, eta, aux, aux2, pstream__);
         }
       }
@@ -2125,109 +2132,109 @@ log_density_offset(const T0__& dist, const T1__& log_t_base, const T2__&
   (void) DUMMY_VAR__;
   try {
     local_scalar_t__ log_t = DUMMY_VAR__;
-    current_statement__ = 399;
+    current_statement__ = 406;
     log_t = (log_t_base + shift);
     local_scalar_t__ centered = DUMMY_VAR__;
-    current_statement__ = 400;
+    current_statement__ = 407;
     centered = ((log_t_base - eta) + shift);
-    current_statement__ = 439;
+    current_statement__ = 446;
     if (stan::math::logical_lte(dist, 5)) {
       local_scalar_t__ t = DUMMY_VAR__;
-      current_statement__ = 424;
+      current_statement__ = 431;
       t = stan::math::exp(log_t);
       local_scalar_t__ log_ch = DUMMY_VAR__;
-      current_statement__ = 434;
+      current_statement__ = 441;
       if (stan::math::logical_eq(dist, 1)) {
-        current_statement__ = 433;
+        current_statement__ = 440;
         log_ch = (log_t + eta);
       } else {
-        current_statement__ = 432;
+        current_statement__ = 439;
         if (stan::math::logical_eq(dist, 2)) {
-          current_statement__ = 431;
+          current_statement__ = 438;
           log_ch = ((aux * log_t) + eta);
         } else {
-          current_statement__ = 430;
+          current_statement__ = 437;
           if (stan::math::logical_eq(dist, 3)) {
-            current_statement__ = 429;
+            current_statement__ = 436;
             log_ch = (((eta - stan::math::log(aux)) + (aux * t)) +
               stan::math::log1m_exp((-(aux) * t)));
           } else {
-            current_statement__ = 428;
+            current_statement__ = 435;
             if (stan::math::logical_eq(dist, 4)) {
-              current_statement__ = 427;
+              current_statement__ = 434;
               log_ch = centered;
             } else {
-              current_statement__ = 426;
+              current_statement__ = 433;
               log_ch = (aux * centered);
             }
           }
         }
       }
-      current_statement__ = 436;
+      current_statement__ = 443;
       if (stan::math::logical_gt(log_ch, 700)) {
-        current_statement__ = 435;
+        current_statement__ = 442;
         return stan::math::promote_scalar<local_scalar_t__>(
                  stan::math::negative_infinity());
       }
-      current_statement__ = 437;
+      current_statement__ = 444;
       return (log_haz_scalar(dist, t, eta, aux, aux2, pstream__) -
              stan::math::exp(log_ch));
     } else {
-      current_statement__ = 423;
+      current_statement__ = 430;
       if (stan::math::logical_eq(dist, 6)) {
         local_scalar_t__ z = DUMMY_VAR__;
-        current_statement__ = 420;
+        current_statement__ = 427;
         z = (centered / aux);
-        current_statement__ = 421;
+        current_statement__ = 428;
         return ((((-(0.5) * stan::math::square(z)) - stan::math::log(aux)) -
                log_t) - (0.5 * stan::math::log((2 * stan::math::pi()))));
       } else {
-        current_statement__ = 419;
+        current_statement__ = 426;
         if (stan::math::logical_eq(dist, 7)) {
           local_scalar_t__ z = DUMMY_VAR__;
-          current_statement__ = 414;
+          current_statement__ = 421;
           z = (aux * centered);
-          current_statement__ = 416;
+          current_statement__ = 423;
           if (stan::math::logical_gte(z, 0)) {
-            current_statement__ = 415;
+            current_statement__ = 422;
             return (((stan::math::log(aux) - log_t) - z) - (2 *
                    stan::math::log1p_exp(-(z))));
           }
-          current_statement__ = 417;
+          current_statement__ = 424;
           return (((stan::math::log(aux) - log_t) + z) - (2 *
                  stan::math::log1p_exp(z)));
         } else {
-          current_statement__ = 413;
+          current_statement__ = 420;
           if (stan::math::logical_eq(dist, 8)) {
             local_scalar_t__ log_z = DUMMY_VAR__;
-            current_statement__ = 408;
+            current_statement__ = 415;
             log_z = centered;
-            current_statement__ = 410;
+            current_statement__ = 417;
             if (stan::math::logical_gt(log_z, 700)) {
-              current_statement__ = 409;
+              current_statement__ = 416;
               return stan::math::promote_scalar<local_scalar_t__>(
                        stan::math::negative_infinity());
             }
-            current_statement__ = 411;
+            current_statement__ = 418;
             return (((((aux - 1) * log_z) - eta) - stan::math::exp(log_z)) -
                    stan::math::lgamma(aux));
           } else {
             local_scalar_t__ Q = DUMMY_VAR__;
-            current_statement__ = 401;
+            current_statement__ = 408;
             Q = stan::math::inv(stan::math::sqrt(aux2));
             local_scalar_t__ z = DUMMY_VAR__;
-            current_statement__ = 402;
+            current_statement__ = 409;
             z = ((Q * centered) / aux);
             local_scalar_t__ log_w = DUMMY_VAR__;
-            current_statement__ = 403;
+            current_statement__ = 410;
             log_w = (stan::math::log(aux2) + z);
-            current_statement__ = 405;
+            current_statement__ = 412;
             if (stan::math::logical_gt(log_w, 700)) {
-              current_statement__ = 404;
+              current_statement__ = 411;
               return stan::math::promote_scalar<local_scalar_t__>(
                        stan::math::negative_infinity());
             }
-            current_statement__ = 406;
+            current_statement__ = 413;
             return (((((-(stan::math::log(aux)) - log_t) - ((0.5 *
                    stan::math::log(aux2)) * (1 - (2 * aux2)))) + (aux2 * z))
                    - stan::math::exp(log_w)) - stan::math::lgamma(aux2));
@@ -2265,7 +2272,7 @@ log_density_scalar(const T0__& dist, const T1__& t, const T2__& eta,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 441;
+    current_statement__ = 448;
     return log_density_offset(dist, stan::math::log(t),
              static_cast<double>(0), eta, aux, aux2, pstream__);
   } catch (const std::exception& e) {
@@ -2289,21 +2296,21 @@ log1m_exp_neg_exp(const T0__& log_h, std::ostream* pstream__) {
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 446;
+    current_statement__ = 453;
     if (stan::math::logical_lt(log_h, -(20))) {
       local_scalar_t__ h = DUMMY_VAR__;
-      current_statement__ = 443;
+      current_statement__ = 450;
       h = stan::math::exp(log_h);
-      current_statement__ = 444;
+      current_statement__ = 451;
       return (log_h +
              stan::math::log1p(((-(0.5) * h) + (stan::math::square(h) / 6))));
     }
-    current_statement__ = 448;
+    current_statement__ = 455;
     if (stan::math::logical_gt(log_h, 700)) {
-      current_statement__ = 447;
+      current_statement__ = 454;
       return stan::math::promote_scalar<local_scalar_t__>(0);
     }
-    current_statement__ = 449;
+    current_statement__ = 456;
     return stan::math::log1m_exp(-(stan::math::exp(log_h)));
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -2335,71 +2342,71 @@ log_cdf_scalar(const T0__& dist, const T1__& t, const T2__& eta, const T3__&
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 482;
+    current_statement__ = 489;
     if (stan::math::logical_eq(dist, 1)) {
       local_scalar_t__ log_h = DUMMY_VAR__;
-      current_statement__ = 479;
+      current_statement__ = 486;
       log_h = (stan::math::log(t) + eta);
-      current_statement__ = 480;
+      current_statement__ = 487;
       return log1m_exp_neg_exp(log_h, pstream__);
     } else {
-      current_statement__ = 478;
+      current_statement__ = 485;
       if (stan::math::logical_eq(dist, 2)) {
         local_scalar_t__ log_h = DUMMY_VAR__;
-        current_statement__ = 475;
+        current_statement__ = 482;
         log_h = ((aux * stan::math::log(t)) + eta);
-        current_statement__ = 476;
+        current_statement__ = 483;
         return log1m_exp_neg_exp(log_h, pstream__);
       } else {
-        current_statement__ = 474;
+        current_statement__ = 481;
         if (stan::math::logical_eq(dist, 3)) {
           local_scalar_t__ log_h = DUMMY_VAR__;
-          current_statement__ = 471;
+          current_statement__ = 478;
           log_h = (((eta - stan::math::log(aux)) + (aux * t)) +
             stan::math::log1m_exp((-(aux) * t)));
-          current_statement__ = 472;
+          current_statement__ = 479;
           return log1m_exp_neg_exp(log_h, pstream__);
         } else {
-          current_statement__ = 470;
+          current_statement__ = 477;
           if (stan::math::logical_eq(dist, 4)) {
             local_scalar_t__ log_h = DUMMY_VAR__;
-            current_statement__ = 467;
+            current_statement__ = 474;
             log_h = (stan::math::log(t) - eta);
-            current_statement__ = 468;
+            current_statement__ = 475;
             return log1m_exp_neg_exp(log_h, pstream__);
           } else {
-            current_statement__ = 466;
+            current_statement__ = 473;
             if (stan::math::logical_eq(dist, 5)) {
               local_scalar_t__ log_h = DUMMY_VAR__;
-              current_statement__ = 463;
+              current_statement__ = 470;
               log_h = (aux * (stan::math::log(t) - eta));
-              current_statement__ = 464;
+              current_statement__ = 471;
               return log1m_exp_neg_exp(log_h, pstream__);
             } else {
-              current_statement__ = 462;
+              current_statement__ = 469;
               if (stan::math::logical_eq(dist, 6)) {
-                current_statement__ = 460;
+                current_statement__ = 467;
                 return stan::math::std_normal_lcdf(((stan::math::log(t) -
                          eta) / aux));
               } else {
-                current_statement__ = 459;
+                current_statement__ = 466;
                 if (stan::math::logical_eq(dist, 7)) {
-                  current_statement__ = 457;
+                  current_statement__ = 464;
                   return -(stan::math::log1p_exp((-(aux) *
                              (stan::math::log(t) - eta))));
                 } else {
-                  current_statement__ = 456;
+                  current_statement__ = 463;
                   if (stan::math::logical_eq(dist, 8)) {
-                    current_statement__ = 454;
+                    current_statement__ = 461;
                     return log_gamma_cdf_from_log_x(aux, (stan::math::log(t)
                              - eta), pstream__);
                   } else {
                     local_scalar_t__ log_w = DUMMY_VAR__;
-                    current_statement__ = 451;
+                    current_statement__ = 458;
                     log_w = (stan::math::log(aux2) +
                       ((stan::math::inv(stan::math::sqrt(aux2)) *
                       (stan::math::log(t) - eta)) / aux));
-                    current_statement__ = 452;
+                    current_statement__ = 459;
                     return log_gamma_cdf_from_log_x(aux2, log_w, pstream__);
                   }
                 }
@@ -2436,33 +2443,33 @@ log_cumhaz_scalar(const T0__& dist, const T1__& t, const T2__& eta,
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 485;
+    current_statement__ = 492;
     if (stan::math::logical_eq(dist, 1)) {
-      current_statement__ = 484;
+      current_statement__ = 491;
       return (stan::math::log(t) + eta);
     }
-    current_statement__ = 487;
+    current_statement__ = 494;
     if (stan::math::logical_eq(dist, 2)) {
-      current_statement__ = 486;
+      current_statement__ = 493;
       return ((aux * stan::math::log(t)) + eta);
     }
-    current_statement__ = 489;
+    current_statement__ = 496;
     if (stan::math::logical_eq(dist, 3)) {
-      current_statement__ = 488;
+      current_statement__ = 495;
       return (((eta - stan::math::log(aux)) + (aux * t)) +
              stan::math::log1m_exp((-(aux) * t)));
     }
-    current_statement__ = 491;
+    current_statement__ = 498;
     if (stan::math::logical_eq(dist, 4)) {
-      current_statement__ = 490;
+      current_statement__ = 497;
       return (stan::math::log(t) - eta);
     }
-    current_statement__ = 493;
+    current_statement__ = 500;
     if (stan::math::logical_eq(dist, 5)) {
-      current_statement__ = 492;
+      current_statement__ = 499;
       return (aux * (stan::math::log(t) - eta));
     }
-    current_statement__ = 494;
+    current_statement__ = 501;
     {
       std::stringstream errmsg_stream__;
       stan::math::stan_print(&errmsg_stream__,
@@ -2470,7 +2477,7 @@ log_cumhaz_scalar(const T0__& dist, const T1__& t, const T2__& eta,
       stan::math::stan_print(&errmsg_stream__, dist);
       throw std::domain_error(errmsg_stream__.str());
     }
-    current_statement__ = 495;
+    current_statement__ = 502;
     return stan::math::promote_scalar<local_scalar_t__>(
              stan::math::not_a_number());
   } catch (const std::exception& e) {
@@ -2494,21 +2501,21 @@ log_expm1_from_log_x(const T0__& log_x, std::ostream* pstream__) {
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 500;
+    current_statement__ = 507;
     if (stan::math::logical_lt(log_x, -(10))) {
       local_scalar_t__ x = DUMMY_VAR__;
-      current_statement__ = 497;
+      current_statement__ = 504;
       x = stan::math::exp(log_x);
-      current_statement__ = 498;
+      current_statement__ = 505;
       return (log_x +
              stan::math::log1p(((0.5 * x) + (stan::math::square(x) / 6))));
     }
-    current_statement__ = 502;
+    current_statement__ = 509;
     if (stan::math::logical_gt(log_x, stan::math::log(700))) {
-      current_statement__ = 501;
+      current_statement__ = 508;
       return stan::math::exp(log_x);
     }
-    current_statement__ = 503;
+    current_statement__ = 510;
     return stan::math::log(stan::math::expm1(stan::math::exp(log_x)));
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -2534,12 +2541,12 @@ log_time_ratio(const T0__& t_upper, const T1__& t_lower, std::ostream*
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 506;
+    current_statement__ = 513;
     if (stan::math::logical_lt(t_lower, (t_upper * 1e-8))) {
-      current_statement__ = 505;
+      current_statement__ = 512;
       return (stan::math::log(t_upper) - stan::math::log(t_lower));
     }
-    current_statement__ = 507;
+    current_statement__ = 514;
     return stan::math::log1p(((t_upper - t_lower) / t_lower));
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -2565,14 +2572,14 @@ log1m_exp_neg_prod(const T0__& a, const T1__& b, std::ostream* pstream__) {
   (void) DUMMY_VAR__;
   try {
     local_scalar_t__ ab = DUMMY_VAR__;
-    current_statement__ = 509;
+    current_statement__ = 516;
     ab = (a * b);
-    current_statement__ = 511;
+    current_statement__ = 518;
     if (stan::math::logical_eq(ab, 0)) {
-      current_statement__ = 510;
+      current_statement__ = 517;
       return (stan::math::log(a) + stan::math::log(b));
     }
-    current_statement__ = 512;
+    current_statement__ = 519;
     return stan::math::log1m_exp(-(ab));
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -2605,46 +2612,46 @@ log_cumhaz_diff(const T0__& dist, const T1__& t_upper, const T2__& t_lower,
   (void) DUMMY_VAR__;
   try {
     local_scalar_t__ dt = DUMMY_VAR__;
-    current_statement__ = 514;
+    current_statement__ = 521;
     dt = (t_upper - t_lower);
-    current_statement__ = 516;
+    current_statement__ = 523;
     if (stan::math::logical_eq(dt, 0)) {
-      current_statement__ = 515;
+      current_statement__ = 522;
       return stan::math::promote_scalar<local_scalar_t__>(
                stan::math::negative_infinity());
     }
-    current_statement__ = 518;
+    current_statement__ = 525;
     if (stan::math::logical_eq(dist, 1)) {
-      current_statement__ = 517;
+      current_statement__ = 524;
       return (eta + stan::math::log(dt));
     }
-    current_statement__ = 520;
+    current_statement__ = 527;
     if (stan::math::logical_eq(dist, 4)) {
-      current_statement__ = 519;
+      current_statement__ = 526;
       return (-(eta) + stan::math::log(dt));
     }
-    current_statement__ = 522;
+    current_statement__ = 529;
     if (stan::math::logical_eq(dist, 3)) {
-      current_statement__ = 521;
+      current_statement__ = 528;
       return (((eta - stan::math::log(aux)) + (aux * t_upper)) +
              log1m_exp_neg_prod(aux, dt, pstream__));
     }
-    current_statement__ = 524;
+    current_statement__ = 531;
     if (stan::math::logical_eq(t_lower, 0)) {
-      current_statement__ = 523;
+      current_statement__ = 530;
       return log_cumhaz_scalar(dist, t_upper, eta, aux, pstream__);
     }
     {
       local_scalar_t__ log_tail = DUMMY_VAR__;
-      current_statement__ = 525;
+      current_statement__ = 532;
       log_tail = log1m_exp_neg_prod(aux,
                    log_time_ratio(t_upper, t_lower, pstream__), pstream__);
-      current_statement__ = 527;
+      current_statement__ = 534;
       if (stan::math::logical_eq(dist, 2)) {
-        current_statement__ = 526;
+        current_statement__ = 533;
         return ((eta + (aux * stan::math::log(t_upper))) + log_tail);
       }
-      current_statement__ = 528;
+      current_statement__ = 535;
       return ((aux * (stan::math::log(t_upper) - eta)) + log_tail);
     }
   } catch (const std::exception& e) {
@@ -2680,112 +2687,112 @@ log_surv_increment(const T0__& dist, const T1__& t_upper, const T2__&
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 532;
+    current_statement__ = 539;
     if (stan::math::logical_lte(dist, 5)) {
-      current_statement__ = 531;
+      current_statement__ = 538;
       return -(stan::math::exp(
                  log_cumhaz_diff(dist, t_upper, t_lower, eta, aux, pstream__)));
     }
-    current_statement__ = 534;
+    current_statement__ = 541;
     if (stan::math::logical_eq(t_lower, 0)) {
-      current_statement__ = 533;
+      current_statement__ = 540;
       return log_surv_scalar(dist, t_upper, eta, aux, aux2, pstream__);
     }
     {
       local_scalar_t__ log_ratio = DUMMY_VAR__;
-      current_statement__ = 535;
+      current_statement__ = 542;
       log_ratio = log_time_ratio(t_upper, t_lower, pstream__);
-      current_statement__ = 576;
+      current_statement__ = 583;
       if (stan::math::logical_eq(dist, 6)) {
         local_scalar_t__ z_lower = DUMMY_VAR__;
-        current_statement__ = 569;
+        current_statement__ = 576;
         z_lower = ((stan::math::log(t_lower) - eta) / aux);
         local_scalar_t__ dz = DUMMY_VAR__;
-        current_statement__ = 570;
+        current_statement__ = 577;
         dz = (log_ratio / aux);
         local_scalar_t__ z_upper = DUMMY_VAR__;
-        current_statement__ = 571;
+        current_statement__ = 578;
         z_upper = (z_lower + dz);
-        current_statement__ = 574;
+        current_statement__ = 581;
         if (stan::math::logical_gt(z_lower, 5)) {
-          current_statement__ = 572;
+          current_statement__ = 579;
           return (((-(0.5) * dz) * (z_upper + z_lower)) -
                  (log_std_normal_hazard(z_upper, pstream__) -
                  log_std_normal_hazard(z_lower, pstream__)));
         }
       } else {
-        current_statement__ = 568;
+        current_statement__ = 575;
         if (stan::math::logical_eq(dist, 7)) {
           local_scalar_t__ z_lower = DUMMY_VAR__;
-          current_statement__ = 561;
+          current_statement__ = 568;
           z_lower = (aux * (stan::math::log(t_lower) - eta));
-          current_statement__ = 566;
+          current_statement__ = 573;
           if (stan::math::logical_gt(z_lower, 0)) {
             local_scalar_t__ dz = DUMMY_VAR__;
-            current_statement__ = 562;
+            current_statement__ = 569;
             dz = (aux * log_ratio);
             local_scalar_t__ z_upper = DUMMY_VAR__;
-            current_statement__ = 563;
+            current_statement__ = 570;
             z_upper = (z_lower + dz);
-            current_statement__ = 564;
+            current_statement__ = 571;
             return (-(dz) - (stan::math::log1p_exp(-(z_upper)) -
                    stan::math::log1p_exp(-(z_lower))));
           }
         } else {
           local_scalar_t__ shape = DUMMY_VAR__;
-          current_statement__ = 536;
+          current_statement__ = 543;
           shape = (stan::math::logical_eq(dist, 8) ? aux : aux2);
           local_scalar_t__ log_x_lower = DUMMY_VAR__;
           local_scalar_t__ dlog_x = DUMMY_VAR__;
-          current_statement__ = 546;
+          current_statement__ = 553;
           if (stan::math::logical_eq(dist, 8)) {
-            current_statement__ = 543;
+            current_statement__ = 550;
             log_x_lower = (stan::math::log(t_lower) - eta);
-            current_statement__ = 544;
+            current_statement__ = 551;
             dlog_x = log_ratio;
           } else {
             local_scalar_t__ Q = DUMMY_VAR__;
-            current_statement__ = 539;
+            current_statement__ = 546;
             Q = stan::math::inv(stan::math::sqrt(aux2));
-            current_statement__ = 540;
+            current_statement__ = 547;
             log_x_lower = (stan::math::log(aux2) + ((Q *
               (stan::math::log(t_lower) - eta)) / aux));
-            current_statement__ = 541;
+            current_statement__ = 548;
             dlog_x = ((Q * log_ratio) / aux);
           }
-          current_statement__ = 559;
+          current_statement__ = 566;
           if (stan::math::logical_gt(log_x_lower,
                 stan::math::log((shape +
                   stan::math::fmax(1, stan::math::sqrt(shape)))))) {
             local_scalar_t__ log_dx = DUMMY_VAR__;
-            current_statement__ = 547;
+            current_statement__ = 554;
             log_dx = (log_x_lower +
               log_expm1_from_log_x(stan::math::log(dlog_x), pstream__));
-            current_statement__ = 549;
+            current_statement__ = 556;
             if (stan::math::logical_gt(log_dx, log_double_max(pstream__))) {
-              current_statement__ = 548;
+              current_statement__ = 555;
               return stan::math::promote_scalar<local_scalar_t__>(
                        stan::math::negative_infinity());
             }
             local_scalar_t__ dx = DUMMY_VAR__;
-            current_statement__ = 550;
+            current_statement__ = 557;
             dx = stan::math::exp(log_dx);
             local_scalar_t__ log_x_upper = DUMMY_VAR__;
-            current_statement__ = 551;
+            current_statement__ = 558;
             log_x_upper = (log_x_lower + dlog_x);
-            current_statement__ = 553;
+            current_statement__ = 560;
             if (stan::math::logical_gt(log_x_upper, log_double_max(pstream__))) {
-              current_statement__ = 552;
+              current_statement__ = 559;
               return (-(dx) + ((shape - 1) * dlog_x));
             }
             {
               local_scalar_t__ x_lower = DUMMY_VAR__;
-              current_statement__ = 554;
+              current_statement__ = 561;
               x_lower = stan::math::exp(log_x_lower);
               local_scalar_t__ x_upper = DUMMY_VAR__;
-              current_statement__ = 555;
+              current_statement__ = 562;
               x_upper = stan::math::exp(log_x_upper);
-              current_statement__ = 556;
+              current_statement__ = 563;
               return (((-(dx) + (shape * dlog_x)) +
                      log_gamma_q_cf_factor(shape, x_upper, pstream__)) -
                      log_gamma_q_cf_factor(shape, x_lower, pstream__));
@@ -2794,7 +2801,7 @@ log_surv_increment(const T0__& dist, const T1__& t_upper, const T2__&
         }
       }
     }
-    current_statement__ = 578;
+    current_statement__ = 585;
     return (log_surv_scalar(dist, t_upper, eta, aux, aux2, pstream__) -
            log_surv_scalar(dist, t_lower, eta, aux, aux2, pstream__));
   } catch (const std::exception& e) {
@@ -2828,40 +2835,40 @@ surv_increment_is_analytic(const T0__& dist, const T1__& t_lower, const T2__&
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 581;
+    current_statement__ = 588;
     if (stan::math::logical_lte(dist, 5)) {
-      current_statement__ = 580;
+      current_statement__ = 587;
       return 1;
     }
-    current_statement__ = 583;
+    current_statement__ = 590;
     if (stan::math::logical_eq(t_lower, 0)) {
-      current_statement__ = 582;
+      current_statement__ = 589;
       return 1;
     }
-    current_statement__ = 585;
+    current_statement__ = 592;
     if (stan::math::logical_eq(dist, 6)) {
-      current_statement__ = 584;
+      current_statement__ = 591;
       return stan::math::logical_gt(((stan::math::log(t_lower) - eta) / aux),
                5);
     }
-    current_statement__ = 587;
+    current_statement__ = 594;
     if (stan::math::logical_eq(dist, 7)) {
-      current_statement__ = 586;
+      current_statement__ = 593;
       return stan::math::logical_gt((aux * (stan::math::log(t_lower) - eta)),
                0);
     }
     {
       local_scalar_t__ shape = DUMMY_VAR__;
-      current_statement__ = 588;
+      current_statement__ = 595;
       shape = (stan::math::logical_eq(dist, 8) ? aux : aux2);
       local_scalar_t__ log_x_lower = DUMMY_VAR__;
-      current_statement__ = 589;
+      current_statement__ = 596;
       log_x_lower = (stan::math::logical_eq(dist, 8) ? (stan::math::log(
                                                           t_lower)
         - eta) : (stan::math::log(aux2) +
         ((stan::math::inv(stan::math::sqrt(aux2)) * (stan::math::log(t_lower)
         - eta)) / aux)));
-      current_statement__ = 590;
+      current_statement__ = 597;
       return stan::math::logical_gt(log_x_lower,
                stan::math::log((shape +
                  stan::math::fmax(1, stan::math::sqrt(shape)))));
@@ -2903,80 +2910,80 @@ log_simpson_offsets(const T0__& dist, const T1__& s_l, const T2__& a,
   (void) DUMMY_VAR__;
   try {
     local_scalar_t__ width = DUMMY_VAR__;
-    current_statement__ = 593;
+    current_statement__ = 600;
     width = (b - a);
     local_scalar_t__ f_a = DUMMY_VAR__;
-    current_statement__ = 594;
+    current_statement__ = 601;
     f_a = ((log_density_offset(dist, s_l, a, eta, aux, aux2, pstream__) +
       s_l) + a);
     local_scalar_t__ f_b = DUMMY_VAR__;
-    current_statement__ = 595;
+    current_statement__ = 602;
     f_b = ((log_density_offset(dist, s_l, b, eta, aux, aux2, pstream__) +
       s_l) + b);
     int n = std::numeric_limits<int>::min();
-    current_statement__ = 596;
+    current_statement__ = 603;
     n = 8;
     local_scalar_t__ prev = DUMMY_VAR__;
-    current_statement__ = 597;
+    current_statement__ = 604;
     prev = stan::math::not_a_number();
     local_scalar_t__ cur = DUMMY_VAR__;
-    current_statement__ = 598;
+    current_statement__ = 605;
     cur = stan::math::negative_infinity();
-    current_statement__ = 600;
+    current_statement__ = 607;
     if (stan::math::logical_lte(width, 0)) {
-      current_statement__ = 599;
+      current_statement__ = 606;
       return stan::math::promote_scalar<local_scalar_t__>(
                stan::math::negative_infinity());
     }
-    current_statement__ = 617;
+    current_statement__ = 624;
     for (int level = 1; level <= 11; ++level) {
       local_scalar_t__ h = DUMMY_VAR__;
-      current_statement__ = 601;
+      current_statement__ = 608;
       h = (width / n);
-      current_statement__ = 602;
+      current_statement__ = 609;
       stan::math::validate_non_negative_index("terms", "n + 1", (n + 1));
       Eigen::Matrix<local_scalar_t__,-1,1> terms =
         Eigen::Matrix<local_scalar_t__,-1,1>::Constant((n + 1), DUMMY_VAR__);
-      current_statement__ = 604;
+      current_statement__ = 611;
       stan::model::assign(terms, f_a, "assigning variable terms",
         stan::model::index_uni(1));
-      current_statement__ = 605;
+      current_statement__ = 612;
       stan::model::assign(terms, f_b, "assigning variable terms",
         stan::model::index_uni((n + 1)));
-      current_statement__ = 610;
+      current_statement__ = 617;
       for (int i = 1; i <= (n - 1); ++i) {
         local_scalar_t__ shift = DUMMY_VAR__;
-        current_statement__ = 606;
+        current_statement__ = 613;
         shift = (a + (i * h));
         local_scalar_t__ w = DUMMY_VAR__;
-        current_statement__ = 607;
+        current_statement__ = 614;
         w = (stan::math::logical_eq(stan::math::modulus(i, 2), 1) ? stan::math::log(
                                                                     4.0) : 
           stan::math::log(2.0));
-        current_statement__ = 608;
+        current_statement__ = 615;
         stan::model::assign(terms,
           (((log_density_offset(dist, s_l, shift, eta, aux, aux2, pstream__)
           + s_l) + shift) + w), "assigning variable terms",
           stan::model::index_uni((i + 1)));
       }
-      current_statement__ = 611;
+      current_statement__ = 618;
       cur = ((stan::math::log_sum_exp(terms) + stan::math::log(h)) -
         stan::math::log(3.0));
-      current_statement__ = 613;
+      current_statement__ = 620;
       if ((stan::math::primitive_value(
              stan::math::logical_negation(stan::math::is_nan(prev)))
           &&
           stan::math::primitive_value(
             stan::math::logical_lt(stan::math::abs((cur - prev)), 1e-9)))) {
-        current_statement__ = 612;
+        current_statement__ = 619;
         return cur;
       }
-      current_statement__ = 614;
+      current_statement__ = 621;
       prev = cur;
-      current_statement__ = 615;
+      current_statement__ = 622;
       n = (2 * n);
     }
-    current_statement__ = 618;
+    current_statement__ = 625;
     return stan::math::promote_scalar<local_scalar_t__>(
              stan::math::not_a_number());
   } catch (const std::exception& e) {
@@ -3013,96 +3020,96 @@ log_interval_prob_quad(const T0__& dist, const T1__& t_upper, const T2__&
   (void) DUMMY_VAR__;
   try {
     local_scalar_t__ s_l = DUMMY_VAR__;
-    current_statement__ = 620;
+    current_statement__ = 627;
     s_l = stan::math::log(t_lower);
     local_scalar_t__ width = DUMMY_VAR__;
-    current_statement__ = 621;
+    current_statement__ = 628;
     width = log_time_ratio(t_upper, t_lower, pstream__);
     local_scalar_t__ whole = DUMMY_VAR__;
     local_scalar_t__ f_l = DUMMY_VAR__;
     local_scalar_t__ f_u = DUMMY_VAR__;
     local_scalar_t__ total = DUMMY_VAR__;
-    current_statement__ = 625;
+    current_statement__ = 632;
     total = stan::math::negative_infinity();
     int from_upper = std::numeric_limits<int>::min();
-    current_statement__ = 628;
+    current_statement__ = 635;
     if (stan::math::logical_lte(t_upper, t_lower)) {
-      current_statement__ = 627;
+      current_statement__ = 634;
       return stan::math::promote_scalar<local_scalar_t__>(
                stan::math::negative_infinity());
     }
-    current_statement__ = 629;
+    current_statement__ = 636;
     whole = log_simpson_offsets(dist, s_l, static_cast<double>(0), width,
               eta, aux, aux2, pstream__);
-    current_statement__ = 631;
+    current_statement__ = 638;
     if (stan::math::logical_negation(stan::math::is_nan(whole))) {
-      current_statement__ = 630;
+      current_statement__ = 637;
       return whole;
     }
-    current_statement__ = 632;
+    current_statement__ = 639;
     f_l = (log_density_offset(dist, s_l, static_cast<double>(0), eta, aux,
              aux2, pstream__)
       + s_l);
-    current_statement__ = 633;
+    current_statement__ = 640;
     f_u = ((log_density_offset(dist, s_l, width, eta, aux, aux2, pstream__) +
       s_l) + width);
-    current_statement__ = 634;
+    current_statement__ = 641;
     from_upper = stan::math::logical_gt(f_u, f_l);
     {
       local_scalar_t__ sliver = DUMMY_VAR__;
-      current_statement__ = 635;
+      current_statement__ = 642;
       sliver = (width / stan::math::pow(2, 60));
       local_scalar_t__ edge = DUMMY_VAR__;
-      current_statement__ = 636;
+      current_statement__ = 643;
       edge = (from_upper ? (width -
         sliver) : stan::math::promote_scalar<local_scalar_t__>(0));
-      current_statement__ = 637;
+      current_statement__ = 644;
       total = (((log_density_offset(dist, s_l, edge, eta, aux, aux2,
                    pstream__)
         + s_l) + edge) + stan::math::log(sliver));
     }
-    current_statement__ = 653;
+    current_statement__ = 660;
     for (int k = 0; k <= 59; ++k) {
       int j = std::numeric_limits<int>::min();
-      current_statement__ = 639;
+      current_statement__ = 646;
       j = (59 - k);
       local_scalar_t__ far = DUMMY_VAR__;
-      current_statement__ = 640;
+      current_statement__ = 647;
       far = (width / stan::math::pow(2, j));
       local_scalar_t__ near = DUMMY_VAR__;
-      current_statement__ = 641;
+      current_statement__ = 648;
       near = (far / 2);
       local_scalar_t__ a = DUMMY_VAR__;
-      current_statement__ = 642;
+      current_statement__ = 649;
       a = (from_upper ? (width - far) : near);
       local_scalar_t__ b = DUMMY_VAR__;
-      current_statement__ = 643;
+      current_statement__ = 650;
       b = (from_upper ? (width - near) : far);
       local_scalar_t__ piece = DUMMY_VAR__;
-      current_statement__ = 644;
+      current_statement__ = 651;
       piece = log_simpson_offsets(dist, s_l, a, b, eta, aux, aux2, pstream__);
-      current_statement__ = 650;
+      current_statement__ = 657;
       if (stan::math::is_nan(piece)) {
         local_scalar_t__ bound = DUMMY_VAR__;
-        current_statement__ = 645;
+        current_statement__ = 652;
         bound = (stan::math::fmax(
                    ((log_density_offset(dist, s_l, a, eta, aux, aux2,
                        pstream__) + s_l) + a),
                    ((log_density_offset(dist, s_l, b, eta, aux, aux2,
                        pstream__) + s_l) + b))
           + stan::math::log((b - a)));
-        current_statement__ = 647;
+        current_statement__ = 654;
         if (stan::math::logical_lt(bound, (total - 25))) {
           continue;
         }
-        current_statement__ = 648;
+        current_statement__ = 655;
         return stan::math::promote_scalar<local_scalar_t__>(
                  stan::math::not_a_number());
       }
-      current_statement__ = 651;
+      current_statement__ = 658;
       total = stan::math::log_sum_exp(total, piece);
     }
-    current_statement__ = 654;
+    current_statement__ = 661;
     return total;
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -3137,32 +3144,32 @@ log_loglogistic_interval(const T0__& t_upper, const T1__& t_lower,
   (void) DUMMY_VAR__;
   try {
     local_scalar_t__ centered_e = DUMMY_VAR__;
-    current_statement__ = 656;
+    current_statement__ = 663;
     centered_e = (stan::math::logical_gt(t_entry, 0) ? (stan::math::log(
                                                           t_entry)
       -
       eta) : stan::math::promote_scalar<local_scalar_t__>(
                stan::math::negative_infinity()));
     local_scalar_t__ centered_l = DUMMY_VAR__;
-    current_statement__ = 657;
+    current_statement__ = 664;
     centered_l = (stan::math::log(t_lower) - eta);
     int lower_from_entry = std::numeric_limits<int>::min();
-    current_statement__ = 658;
+    current_statement__ = 665;
     lower_from_entry = 0;
     local_scalar_t__ lower_ratio = DUMMY_VAR__;
-    current_statement__ = 659;
+    current_statement__ = 666;
     lower_ratio = stan::math::promote_scalar<local_scalar_t__>(0);
     local_scalar_t__ log_ratio = DUMMY_VAR__;
-    current_statement__ = 660;
+    current_statement__ = 667;
     log_ratio = log_time_ratio(t_upper, t_lower, pstream__);
     local_scalar_t__ centered_direct = DUMMY_VAR__;
-    current_statement__ = 661;
+    current_statement__ = 668;
     centered_direct = (stan::math::log(t_upper) - eta);
     local_scalar_t__ centered_u = DUMMY_VAR__;
     local_scalar_t__ z_l = DUMMY_VAR__;
     local_scalar_t__ z_u = DUMMY_VAR__;
     local_scalar_t__ lp = DUMMY_VAR__;
-    current_statement__ = 674;
+    current_statement__ = 681;
     if ((stan::math::primitive_value(
            (stan::math::primitive_value(
               (stan::math::primitive_value(stan::math::logical_gt(t_entry, 0))
@@ -3176,22 +3183,22 @@ log_loglogistic_interval(const T0__& t_upper, const T1__& t_lower,
           stan::math::logical_negation(
             stan::math::logical_lt(stan::math::abs(centered_l),
               stan::math::abs(centered_e)))))) {
-      current_statement__ = 670;
+      current_statement__ = 677;
       lower_ratio = log_time_ratio(t_lower, t_entry, pstream__);
-      current_statement__ = 671;
+      current_statement__ = 678;
       centered_l = (centered_e + lower_ratio);
-      current_statement__ = 672;
+      current_statement__ = 679;
       lower_from_entry = 1;
     } else {
-      current_statement__ = 669;
+      current_statement__ = 676;
       if (stan::math::logical_eq(t_entry, t_lower)) {
-        current_statement__ = 666;
+        current_statement__ = 673;
         centered_l = centered_e;
-        current_statement__ = 667;
+        current_statement__ = 674;
         lower_from_entry = 1;
       }
     }
-    current_statement__ = 675;
+    current_statement__ = 682;
     centered_u = ((stan::math::primitive_value(
                      stan::math::logical_lt((centered_direct * centered_l), 0))
       ||
@@ -3199,39 +3206,39 @@ log_loglogistic_interval(const T0__& t_upper, const T1__& t_lower,
         stan::math::logical_lt(stan::math::abs(centered_direct),
           stan::math::abs(centered_l)))) ? centered_direct : (centered_l
       + log_ratio));
-    current_statement__ = 676;
+    current_statement__ = 683;
     z_l = (aux * centered_l);
-    current_statement__ = 677;
+    current_statement__ = 684;
     z_u = (aux * centered_u);
-    current_statement__ = 678;
+    current_statement__ = 685;
     lp = (log1m_exp_neg_prod(aux, log_ratio, pstream__) -
       stan::math::log1p_exp(-(z_u)));
-    current_statement__ = 688;
+    current_statement__ = 695;
     if (stan::math::logical_gt(t_entry, 0)) {
       local_scalar_t__ z_e = DUMMY_VAR__;
-      current_statement__ = 679;
+      current_statement__ = 686;
       z_e = (aux * centered_e);
-      current_statement__ = 683;
+      current_statement__ = 690;
       if (stan::math::logical_gte(z_e, 0)) {
         local_scalar_t__ drop = DUMMY_VAR__;
-        current_statement__ = 680;
+        current_statement__ = 687;
         drop = (lower_from_entry ? (-(aux) * lower_ratio) : (aux *
           (centered_e - centered_l)));
-        current_statement__ = 681;
+        current_statement__ = 688;
         return (((lp + drop) + stan::math::log1p(stan::math::exp(-(z_e)))) -
                stan::math::log1p(stan::math::exp(-(z_l))));
       }
-      current_statement__ = 685;
+      current_statement__ = 692;
       if (stan::math::logical_gte(z_l, 0)) {
-        current_statement__ = 684;
+        current_statement__ = 691;
         return (((lp + stan::math::log1p(stan::math::exp(z_e))) - z_l) -
                stan::math::log1p(stan::math::exp(-(z_l))));
       }
-      current_statement__ = 686;
+      current_statement__ = 693;
       return ((lp + stan::math::log1p(stan::math::exp(z_e))) -
              stan::math::log1p(stan::math::exp(z_l)));
     }
-    current_statement__ = 689;
+    current_statement__ = 696;
     return (lp - stan::math::log1p_exp(z_l));
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -3258,14 +3265,14 @@ cdf_diff_resolves(const T0__& log_cdf_upper, const T1__& log_cdf_lower,
   (void) DUMMY_VAR__;
   try {
     local_scalar_t__ mass = DUMMY_VAR__;
-    current_statement__ = 693;
+    current_statement__ = 700;
     if (stan::math::logical_lte(log_cdf_upper, log_cdf_lower)) {
-      current_statement__ = 692;
+      current_statement__ = 699;
       return 0;
     }
-    current_statement__ = 694;
+    current_statement__ = 701;
     mass = -(stan::math::expm1((log_cdf_lower - log_cdf_upper)));
-    current_statement__ = 695;
+    current_statement__ = 702;
     return (stan::math::primitive_value(stan::math::logical_gte(mass, 0.5))
            ||
            stan::math::primitive_value(
@@ -3297,21 +3304,21 @@ surv_increment_resolves(const T0__& increment, const T1__& log_surv_lower,
   (void) DUMMY_VAR__;
   try {
     local_scalar_t__ mass = DUMMY_VAR__;
-    current_statement__ = 699;
+    current_statement__ = 706;
     if ((stan::math::primitive_value(stan::math::is_nan(increment)) ||
         stan::math::primitive_value(stan::math::logical_gte(increment, 0)))) {
-      current_statement__ = 698;
+      current_statement__ = 705;
       return 0;
     }
-    current_statement__ = 701;
+    current_statement__ = 708;
     if ((stan::math::primitive_value(analytic) ||
         stan::math::primitive_value(stan::math::is_inf(increment)))) {
-      current_statement__ = 700;
+      current_statement__ = 707;
       return 1;
     }
-    current_statement__ = 702;
+    current_statement__ = 709;
     mass = -(stan::math::expm1(increment));
-    current_statement__ = 703;
+    current_statement__ = 710;
     return (stan::math::primitive_value(stan::math::logical_gte(mass, 0.5))
            ||
            stan::math::primitive_value(
@@ -3350,65 +3357,65 @@ log_interval_prob_scalar(const T0__& dist, const T1__& t_upper, const T2__&
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 706;
+    current_statement__ = 713;
     if (stan::math::logical_lte(t_upper, t_lower)) {
-      current_statement__ = 705;
+      current_statement__ = 712;
       return stan::math::promote_scalar<local_scalar_t__>(
                stan::math::negative_infinity());
     }
-    current_statement__ = 708;
+    current_statement__ = 715;
     if (stan::math::logical_eq(t_lower, 0)) {
-      current_statement__ = 707;
+      current_statement__ = 714;
       return log_cdf_scalar(dist, t_upper, eta, aux, aux2, pstream__);
     }
-    current_statement__ = 710;
+    current_statement__ = 717;
     if (stan::math::logical_lte(dist, 5)) {
-      current_statement__ = 709;
+      current_statement__ = 716;
       return (log_surv_scalar(dist, t_lower, eta, aux, aux2, pstream__) +
              log1m_exp_neg_exp(
                log_cumhaz_diff(dist, t_upper, t_lower, eta, aux, pstream__),
                pstream__));
     }
-    current_statement__ = 712;
+    current_statement__ = 719;
     if (stan::math::logical_eq(dist, 7)) {
-      current_statement__ = 711;
+      current_statement__ = 718;
       return log_loglogistic_interval(t_upper, t_lower,
                static_cast<double>(0), eta, aux, pstream__);
     }
     {
       local_scalar_t__ log_cdf_upper = DUMMY_VAR__;
-      current_statement__ = 713;
+      current_statement__ = 720;
       log_cdf_upper = log_cdf_scalar(dist, t_upper, eta, aux, aux2, pstream__);
-      current_statement__ = 723;
+      current_statement__ = 730;
       if (stan::math::logical_lt(log_cdf_upper, -(0.6931471805599453))) {
         local_scalar_t__ log_cdf_lower = DUMMY_VAR__;
-        current_statement__ = 719;
+        current_statement__ = 726;
         log_cdf_lower = log_cdf_scalar(dist, t_lower, eta, aux, aux2,
                           pstream__);
-        current_statement__ = 721;
+        current_statement__ = 728;
         if (cdf_diff_resolves(log_cdf_upper, log_cdf_lower, pstream__)) {
-          current_statement__ = 720;
+          current_statement__ = 727;
           return stan::math::log_diff_exp(log_cdf_upper, log_cdf_lower);
         }
       } else {
         local_scalar_t__ log_surv_lower = DUMMY_VAR__;
-        current_statement__ = 714;
+        current_statement__ = 721;
         log_surv_lower = log_surv_scalar(dist, t_lower, eta, aux, aux2,
                            pstream__);
         local_scalar_t__ inc = DUMMY_VAR__;
-        current_statement__ = 715;
+        current_statement__ = 722;
         inc = log_surv_increment(dist, t_upper, t_lower, eta, aux, aux2,
                 pstream__);
-        current_statement__ = 717;
+        current_statement__ = 724;
         if (surv_increment_resolves(inc, log_surv_lower,
               surv_increment_is_analytic(dist, t_lower, eta, aux, aux2,
                 pstream__), pstream__)) {
-          current_statement__ = 716;
+          current_statement__ = 723;
           return (log_surv_lower + stan::math::log1m_exp(inc));
         }
       }
     }
-    current_statement__ = 725;
+    current_statement__ = 732;
     return log_interval_prob_quad(dist, t_upper, t_lower, eta, aux, aux2,
              pstream__);
   } catch (const std::exception& e) {
@@ -3448,63 +3455,63 @@ log_cond_interval_prob(const T0__& dist, const T1__& t_upper, const T2__&
   // suppress unused var warning
   (void) DUMMY_VAR__;
   try {
-    current_statement__ = 728;
+    current_statement__ = 735;
     if (stan::math::logical_lte(t_upper, t_lower)) {
-      current_statement__ = 727;
+      current_statement__ = 734;
       return stan::math::promote_scalar<local_scalar_t__>(
                stan::math::negative_infinity());
     }
-    current_statement__ = 732;
+    current_statement__ = 739;
     if (stan::math::logical_lte(dist, 5)) {
       local_scalar_t__ log_reach = DUMMY_VAR__;
-      current_statement__ = 729;
+      current_statement__ = 736;
       log_reach = (stan::math::logical_eq(t_lower, t_entry) ? stan::math::promote_scalar<
                                                                 local_scalar_t__>(
                                                                 0) : -(
         stan::math::exp(
           log_cumhaz_diff(dist, t_lower, t_entry, eta, aux, pstream__))));
-      current_statement__ = 730;
+      current_statement__ = 737;
       return (log_reach +
              log1m_exp_neg_exp(
                log_cumhaz_diff(dist, t_upper, t_lower, eta, aux, pstream__),
                pstream__));
     }
-    current_statement__ = 734;
+    current_statement__ = 741;
     if (stan::math::logical_eq(dist, 7)) {
-      current_statement__ = 733;
+      current_statement__ = 740;
       return log_loglogistic_interval(t_upper, t_lower, t_entry, eta, aux,
                pstream__);
     }
     {
       local_scalar_t__ log_cdf_upper = DUMMY_VAR__;
-      current_statement__ = 735;
+      current_statement__ = 742;
       log_cdf_upper = log_cdf_scalar(dist, t_upper, eta, aux, aux2, pstream__);
-      current_statement__ = 745;
+      current_statement__ = 752;
       if (stan::math::logical_lt(log_cdf_upper, -(0.6931471805599453))) {
         local_scalar_t__ log_cdf_lower = DUMMY_VAR__;
-        current_statement__ = 741;
+        current_statement__ = 748;
         log_cdf_lower = log_cdf_scalar(dist, t_lower, eta, aux, aux2,
                           pstream__);
-        current_statement__ = 743;
+        current_statement__ = 750;
         if (cdf_diff_resolves(log_cdf_upper, log_cdf_lower, pstream__)) {
-          current_statement__ = 742;
+          current_statement__ = 749;
           return (stan::math::log_diff_exp(log_cdf_upper, log_cdf_lower) -
                  log_surv_scalar(dist, t_entry, eta, aux, aux2, pstream__));
         }
       } else {
         local_scalar_t__ log_surv_lower = DUMMY_VAR__;
-        current_statement__ = 736;
+        current_statement__ = 743;
         log_surv_lower = log_surv_scalar(dist, t_lower, eta, aux, aux2,
                            pstream__);
         local_scalar_t__ inc = DUMMY_VAR__;
-        current_statement__ = 737;
+        current_statement__ = 744;
         inc = log_surv_increment(dist, t_upper, t_lower, eta, aux, aux2,
                 pstream__);
-        current_statement__ = 739;
+        current_statement__ = 746;
         if (surv_increment_resolves(inc, log_surv_lower,
               surv_increment_is_analytic(dist, t_lower, eta, aux, aux2,
                 pstream__), pstream__)) {
-          current_statement__ = 738;
+          current_statement__ = 745;
           return ((stan::math::logical_eq(t_lower, t_entry) ? stan::math::promote_scalar<
                                                                 local_scalar_t__>(
                                                                 0) : 
@@ -3514,7 +3521,7 @@ log_cond_interval_prob(const T0__& dist, const T1__& t_upper, const T2__&
         }
       }
     }
-    current_statement__ = 747;
+    current_statement__ = 754;
     return (log_interval_prob_quad(dist, t_upper, t_lower, eta, aux, aux2,
               pstream__)
            - log_surv_scalar(dist, t_entry, eta, aux, aux2, pstream__));
@@ -3556,57 +3563,57 @@ surv_ll_status(const T0__& dist, const T1__& time, const T2__& start_time,
   (void) DUMMY_VAR__;
   try {
     local_scalar_t__ l = DUMMY_VAR__;
-    current_statement__ = 768;
+    current_statement__ = 775;
     if (stan::math::logical_eq(status, 0)) {
-      current_statement__ = 766;
+      current_statement__ = 773;
       if (stan::math::logical_gt(delay_time, 0)) {
-        current_statement__ = 765;
+        current_statement__ = 772;
         l = log_surv_increment(dist, time, delay_time, eta, aux, aux2,
               pstream__);
       } else {
-        current_statement__ = 764;
+        current_statement__ = 771;
         l = log_surv_scalar(dist, time, eta, aux, aux2, pstream__);
       }
     } else {
-      current_statement__ = 763;
+      current_statement__ = 770;
       if (stan::math::logical_eq(status, 1)) {
-        current_statement__ = 761;
+        current_statement__ = 768;
         if (stan::math::logical_gt(delay_time, 0)) {
-          current_statement__ = 760;
+          current_statement__ = 767;
           l = (log_haz_full(dist, time, eta, aux, aux2, pstream__) +
             log_surv_increment(dist, time, delay_time, eta, aux, aux2,
               pstream__));
         } else {
-          current_statement__ = 759;
+          current_statement__ = 766;
           l = log_density_scalar(dist, time, eta, aux, aux2, pstream__);
         }
       } else {
-        current_statement__ = 758;
+        current_statement__ = 765;
         if (stan::math::logical_eq(status, 2)) {
-          current_statement__ = 756;
+          current_statement__ = 763;
           if (stan::math::logical_gt(delay_time, 0)) {
-            current_statement__ = 755;
+            current_statement__ = 762;
             l = log_cond_interval_prob(dist, time, delay_time, delay_time,
                   eta, aux, aux2, pstream__);
           } else {
-            current_statement__ = 754;
+            current_statement__ = 761;
             l = log_cdf_scalar(dist, time, eta, aux, aux2, pstream__);
           }
         } else {
-          current_statement__ = 752;
+          current_statement__ = 759;
           if (stan::math::logical_gt(delay_time, 0)) {
-            current_statement__ = 751;
+            current_statement__ = 758;
             l = log_cond_interval_prob(dist, time, start_time, delay_time,
                   eta, aux, aux2, pstream__);
           } else {
-            current_statement__ = 750;
+            current_statement__ = 757;
             l = log_interval_prob_scalar(dist, time, start_time, eta, aux,
                   aux2, pstream__);
           }
         }
       }
     }
-    current_statement__ = 769;
+    current_statement__ = 776;
     return l;
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -3641,15 +3648,15 @@ mean_surv(const T0__& dist, const T1__& t, const T2__& eta_arg__, const T3__&
   (void) DUMMY_VAR__;
   try {
     int n = std::numeric_limits<int>::min();
-    current_statement__ = 771;
+    current_statement__ = 778;
     n = stan::math::num_elements(eta);
-    current_statement__ = 772;
+    current_statement__ = 779;
     stan::math::validate_non_negative_index("s", "n", n);
     Eigen::Matrix<local_scalar_t__,-1,1> s =
       Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n, DUMMY_VAR__);
-    current_statement__ = 775;
+    current_statement__ = 782;
     for (int i = 1; i <= n; ++i) {
-      current_statement__ = 774;
+      current_statement__ = 781;
       stan::model::assign(s,
         stan::math::exp(
           log_surv_scalar(dist, t,
@@ -3657,7 +3664,7 @@ mean_surv(const T0__& dist, const T1__& t, const T2__& eta_arg__, const T3__&
             aux2, pstream__)), "assigning variable s",
         stan::model::index_uni(i));
     }
-    current_statement__ = 776;
+    current_statement__ = 783;
     return stan::math::mean(s);
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -3692,22 +3699,22 @@ log_mean_surv(const T0__& dist, const T1__& t, const T2__& eta_arg__,
   (void) DUMMY_VAR__;
   try {
     int n = std::numeric_limits<int>::min();
-    current_statement__ = 778;
+    current_statement__ = 785;
     n = stan::math::num_elements(eta);
-    current_statement__ = 779;
+    current_statement__ = 786;
     stan::math::validate_non_negative_index("log_s", "n", n);
     Eigen::Matrix<local_scalar_t__,-1,1> log_s =
       Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n, DUMMY_VAR__);
-    current_statement__ = 782;
+    current_statement__ = 789;
     for (int i = 1; i <= n; ++i) {
-      current_statement__ = 781;
+      current_statement__ = 788;
       stan::model::assign(log_s,
         log_surv_scalar(dist, t,
           stan::model::rvalue(eta, "eta", stan::model::index_uni(i)), aux,
           aux2, pstream__), "assigning variable log_s",
         stan::model::index_uni(i));
     }
-    current_statement__ = 783;
+    current_statement__ = 790;
     return (stan::math::log_sum_exp(log_s) - stan::math::log(n));
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -3742,36 +3749,36 @@ log_mean_haz(const T0__& dist, const T1__& t, const T2__& eta_arg__,
   (void) DUMMY_VAR__;
   try {
     int n = std::numeric_limits<int>::min();
-    current_statement__ = 785;
+    current_statement__ = 792;
     n = stan::math::num_elements(eta);
-    current_statement__ = 786;
+    current_statement__ = 793;
     stan::math::validate_non_negative_index("log_s", "n", n);
     Eigen::Matrix<local_scalar_t__,-1,1> log_s =
       Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n, DUMMY_VAR__);
-    current_statement__ = 788;
+    current_statement__ = 795;
     stan::math::validate_non_negative_index("log_num", "n", n);
     Eigen::Matrix<local_scalar_t__,-1,1> log_num =
       Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n, DUMMY_VAR__);
     local_scalar_t__ max_log_s = DUMMY_VAR__;
-    current_statement__ = 793;
+    current_statement__ = 800;
     for (int i = 1; i <= n; ++i) {
-      current_statement__ = 791;
+      current_statement__ = 798;
       stan::model::assign(log_s,
         log_surv_scalar(dist, t,
           stan::model::rvalue(eta, "eta", stan::model::index_uni(i)), aux,
           aux2, pstream__), "assigning variable log_s",
         stan::model::index_uni(i));
     }
-    current_statement__ = 794;
+    current_statement__ = 801;
     max_log_s = stan::math::max(log_s);
-    current_statement__ = 802;
+    current_statement__ = 809;
     if (stan::math::is_inf(max_log_s)) {
       int best = std::numeric_limits<int>::min();
-      current_statement__ = 795;
+      current_statement__ = 802;
       best = 1;
-      current_statement__ = 799;
+      current_statement__ = 806;
       for (int i = 2; i <= n; ++i) {
-        current_statement__ = 797;
+        current_statement__ = 804;
         if ((stan::math::primitive_value(
                (stan::math::primitive_value(stan::math::logical_lte(dist, 3))
                &&
@@ -3789,32 +3796,32 @@ log_mean_haz(const T0__& dist, const T1__& t, const T2__& eta_arg__,
                   stan::model::rvalue(eta, "eta", stan::model::index_uni(i)),
                   stan::model::rvalue(eta, "eta",
                     stan::model::index_uni(best)))))))) {
-          current_statement__ = 796;
+          current_statement__ = 803;
           best = i;
         }
       }
-      current_statement__ = 800;
+      current_statement__ = 807;
       return log_haz_full(dist, t,
                stan::model::rvalue(eta, "eta", stan::model::index_uni(best)),
                aux, aux2, pstream__);
     }
-    current_statement__ = 808;
+    current_statement__ = 815;
     for (int i = 1; i <= n; ++i) {
-      current_statement__ = 803;
+      current_statement__ = 810;
       stan::model::assign(log_s,
         (stan::model::rvalue(log_s, "log_s", stan::model::index_uni(i)) -
         max_log_s), "assigning variable log_s", stan::model::index_uni(i));
-      current_statement__ = 804;
+      current_statement__ = 811;
       stan::model::assign(log_num,
         (log_haz_full(dist, t,
            stan::model::rvalue(eta, "eta", stan::model::index_uni(i)), aux,
            aux2, pstream__) +
         stan::model::rvalue(log_s, "log_s", stan::model::index_uni(i))),
         "assigning variable log_num", stan::model::index_uni(i));
-      current_statement__ = 806;
+      current_statement__ = 813;
       if (stan::math::is_nan(
             stan::model::rvalue(log_num, "log_num", stan::model::index_uni(i)))) {
-        current_statement__ = 805;
+        current_statement__ = 812;
         stan::model::assign(log_num,
           (log_density_scalar(dist, t,
              stan::model::rvalue(eta, "eta", stan::model::index_uni(i)), aux,
@@ -3822,7 +3829,7 @@ log_mean_haz(const T0__& dist, const T1__& t, const T2__& eta_arg__,
           stan::model::index_uni(i));
       }
     }
-    current_statement__ = 809;
+    current_statement__ = 816;
     return (stan::math::log_sum_exp(log_num) -
            stan::math::log_sum_exp(log_s));
   } catch (const std::exception& e) {
@@ -3860,34 +3867,34 @@ rmst_param(const T0__& dist, const T1__& grid_arg__, const T2__& eta_arg__,
   (void) DUMMY_VAR__;
   try {
     int g = std::numeric_limits<int>::min();
-    current_statement__ = 811;
+    current_statement__ = 818;
     g = stan::math::num_elements(grid);
-    current_statement__ = 812;
+    current_statement__ = 819;
     stan::math::validate_non_negative_index("sbar", "g", g);
     Eigen::Matrix<local_scalar_t__,-1,1> sbar =
       Eigen::Matrix<local_scalar_t__,-1,1>::Constant(g, DUMMY_VAR__);
     local_scalar_t__ area = DUMMY_VAR__;
-    current_statement__ = 814;
+    current_statement__ = 821;
     area = stan::math::promote_scalar<local_scalar_t__>(0);
-    current_statement__ = 816;
+    current_statement__ = 823;
     for (int p = 1; p <= g; ++p) {
-      current_statement__ = 815;
+      current_statement__ = 822;
       stan::model::assign(sbar,
         mean_surv(dist,
           stan::model::rvalue(grid, "grid", stan::model::index_uni(p)), eta,
           aux, aux2, pstream__), "assigning variable sbar",
         stan::model::index_uni(p));
     }
-    current_statement__ = 818;
+    current_statement__ = 825;
     for (int p = 2; p <= g; ++p) {
-      current_statement__ = 817;
+      current_statement__ = 824;
       area = (area + ((0.5 *
         (stan::model::rvalue(grid, "grid", stan::model::index_uni(p)) -
         stan::model::rvalue(grid, "grid", stan::model::index_uni((p - 1)))))
         * (stan::model::rvalue(sbar, "sbar", stan::model::index_uni(p)) +
         stan::model::rvalue(sbar, "sbar", stan::model::index_uni((p - 1))))));
     }
-    current_statement__ = 819;
+    current_statement__ = 826;
     return area;
   } catch (const std::exception& e) {
     stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -3910,6 +3917,7 @@ private:
   Eigen::Matrix<double,-1,1> agd_delay_time_data__;
   std::vector<int> agd_status;
   std::vector<int> agd_arm;
+  int reuse_arm_eta;
   int n_int;
   std::vector<Eigen::Matrix<double,-1,-1>> X_int;
   int qr;
@@ -3987,27 +3995,27 @@ public:
     try {
       int pos__ = std::numeric_limits<int>::min();
       pos__ = 1;
-      current_statement__ = 132;
+      current_statement__ = 138;
       context__.validate_dims("data initialization", "n_ipd", "int",
         std::vector<size_t>{});
       n_ipd = std::numeric_limits<int>::min();
-      current_statement__ = 132;
+      current_statement__ = 138;
       n_ipd = context__.vals_i("n_ipd")[(1 - 1)];
-      current_statement__ = 132;
+      current_statement__ = 138;
       stan::math::check_greater_or_equal(function__, "n_ipd", n_ipd, 1);
-      current_statement__ = 133;
+      current_statement__ = 139;
       context__.validate_dims("data initialization", "n_cov", "int",
         std::vector<size_t>{});
       n_cov = std::numeric_limits<int>::min();
-      current_statement__ = 133;
+      current_statement__ = 139;
       n_cov = context__.vals_i("n_cov")[(1 - 1)];
-      current_statement__ = 133;
+      current_statement__ = 139;
       stan::math::check_greater_or_equal(function__, "n_cov", n_cov, 1);
-      current_statement__ = 134;
+      current_statement__ = 140;
       stan::math::validate_non_negative_index("X_ipd", "n_ipd", n_ipd);
-      current_statement__ = 135;
+      current_statement__ = 141;
       stan::math::validate_non_negative_index("X_ipd", "n_cov", n_cov);
-      current_statement__ = 136;
+      current_statement__ = 142;
       context__.validate_dims("data initialization", "X_ipd", "double",
         std::vector<size_t>{static_cast<size_t>(n_ipd),
           static_cast<size_t>(n_cov)});
@@ -4018,7 +4026,7 @@ public:
         n_cov);
       {
         std::vector<local_scalar_t__> X_ipd_flat__;
-        current_statement__ = 136;
+        current_statement__ = 142;
         X_ipd_flat__ = context__.vals_r("X_ipd");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
@@ -4030,9 +4038,9 @@ public:
           }
         }
       }
-      current_statement__ = 137;
+      current_statement__ = 143;
       stan::math::validate_non_negative_index("ipd_time", "n_ipd", n_ipd);
-      current_statement__ = 138;
+      current_statement__ = 144;
       context__.validate_dims("data initialization", "ipd_time", "double",
         std::vector<size_t>{static_cast<size_t>(n_ipd)});
       ipd_time_data__ = Eigen::Matrix<double,-1,1>::Constant(n_ipd,
@@ -4041,7 +4049,7 @@ public:
         Eigen::Map<Eigen::Matrix<double,-1,1>>(ipd_time_data__.data(), n_ipd);
       {
         std::vector<local_scalar_t__> ipd_time_flat__;
-        current_statement__ = 138;
+        current_statement__ = 144;
         ipd_time_flat__ = context__.vals_r("ipd_time");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= n_ipd; ++sym1__) {
@@ -4050,12 +4058,12 @@ public:
           pos__ = (pos__ + 1);
         }
       }
-      current_statement__ = 138;
+      current_statement__ = 144;
       stan::math::check_greater_or_equal(function__, "ipd_time", ipd_time, 0);
-      current_statement__ = 139;
+      current_statement__ = 145;
       stan::math::validate_non_negative_index("ipd_start_time", "n_ipd",
         n_ipd);
-      current_statement__ = 140;
+      current_statement__ = 146;
       context__.validate_dims("data initialization", "ipd_start_time",
         "double", std::vector<size_t>{static_cast<size_t>(n_ipd)});
       ipd_start_time_data__ = Eigen::Matrix<double,-1,1>::Constant(n_ipd,
@@ -4065,7 +4073,7 @@ public:
         n_ipd);
       {
         std::vector<local_scalar_t__> ipd_start_time_flat__;
-        current_statement__ = 140;
+        current_statement__ = 146;
         ipd_start_time_flat__ = context__.vals_r("ipd_start_time");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= n_ipd; ++sym1__) {
@@ -4075,13 +4083,13 @@ public:
           pos__ = (pos__ + 1);
         }
       }
-      current_statement__ = 140;
+      current_statement__ = 146;
       stan::math::check_greater_or_equal(function__, "ipd_start_time",
         ipd_start_time, 0);
-      current_statement__ = 141;
+      current_statement__ = 147;
       stan::math::validate_non_negative_index("ipd_delay_time", "n_ipd",
         n_ipd);
-      current_statement__ = 142;
+      current_statement__ = 148;
       context__.validate_dims("data initialization", "ipd_delay_time",
         "double", std::vector<size_t>{static_cast<size_t>(n_ipd)});
       ipd_delay_time_data__ = Eigen::Matrix<double,-1,1>::Constant(n_ipd,
@@ -4091,7 +4099,7 @@ public:
         n_ipd);
       {
         std::vector<local_scalar_t__> ipd_delay_time_flat__;
-        current_statement__ = 142;
+        current_statement__ = 148;
         ipd_delay_time_flat__ = context__.vals_r("ipd_delay_time");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= n_ipd; ++sym1__) {
@@ -4101,42 +4109,42 @@ public:
           pos__ = (pos__ + 1);
         }
       }
-      current_statement__ = 142;
+      current_statement__ = 148;
       stan::math::check_greater_or_equal(function__, "ipd_delay_time",
         ipd_delay_time, 0);
-      current_statement__ = 143;
+      current_statement__ = 149;
       stan::math::validate_non_negative_index("ipd_status", "n_ipd", n_ipd);
-      current_statement__ = 144;
+      current_statement__ = 150;
       context__.validate_dims("data initialization", "ipd_status", "int",
         std::vector<size_t>{static_cast<size_t>(n_ipd)});
       ipd_status = std::vector<int>(n_ipd, std::numeric_limits<int>::min());
-      current_statement__ = 144;
+      current_statement__ = 150;
       ipd_status = context__.vals_i("ipd_status");
-      current_statement__ = 144;
+      current_statement__ = 150;
       stan::math::check_greater_or_equal(function__, "ipd_status",
         ipd_status, 0);
-      current_statement__ = 144;
+      current_statement__ = 150;
       stan::math::check_less_or_equal(function__, "ipd_status", ipd_status, 3);
-      current_statement__ = 145;
+      current_statement__ = 151;
       context__.validate_dims("data initialization", "n_agd", "int",
         std::vector<size_t>{});
       n_agd = std::numeric_limits<int>::min();
-      current_statement__ = 145;
+      current_statement__ = 151;
       n_agd = context__.vals_i("n_agd")[(1 - 1)];
-      current_statement__ = 145;
+      current_statement__ = 151;
       stan::math::check_greater_or_equal(function__, "n_agd", n_agd, 1);
-      current_statement__ = 146;
+      current_statement__ = 152;
       context__.validate_dims("data initialization", "n_agd_rows", "int",
         std::vector<size_t>{});
       n_agd_rows = std::numeric_limits<int>::min();
-      current_statement__ = 146;
+      current_statement__ = 152;
       n_agd_rows = context__.vals_i("n_agd_rows")[(1 - 1)];
-      current_statement__ = 146;
+      current_statement__ = 152;
       stan::math::check_greater_or_equal(function__, "n_agd_rows",
         n_agd_rows, 1);
-      current_statement__ = 147;
+      current_statement__ = 153;
       stan::math::validate_non_negative_index("agd_time", "n_agd", n_agd);
-      current_statement__ = 148;
+      current_statement__ = 154;
       context__.validate_dims("data initialization", "agd_time", "double",
         std::vector<size_t>{static_cast<size_t>(n_agd)});
       agd_time_data__ = Eigen::Matrix<double,-1,1>::Constant(n_agd,
@@ -4145,7 +4153,7 @@ public:
         Eigen::Map<Eigen::Matrix<double,-1,1>>(agd_time_data__.data(), n_agd);
       {
         std::vector<local_scalar_t__> agd_time_flat__;
-        current_statement__ = 148;
+        current_statement__ = 154;
         agd_time_flat__ = context__.vals_r("agd_time");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= n_agd; ++sym1__) {
@@ -4154,12 +4162,12 @@ public:
           pos__ = (pos__ + 1);
         }
       }
-      current_statement__ = 148;
+      current_statement__ = 154;
       stan::math::check_greater_or_equal(function__, "agd_time", agd_time, 0);
-      current_statement__ = 149;
+      current_statement__ = 155;
       stan::math::validate_non_negative_index("agd_start_time", "n_agd",
         n_agd);
-      current_statement__ = 150;
+      current_statement__ = 156;
       context__.validate_dims("data initialization", "agd_start_time",
         "double", std::vector<size_t>{static_cast<size_t>(n_agd)});
       agd_start_time_data__ = Eigen::Matrix<double,-1,1>::Constant(n_agd,
@@ -4169,7 +4177,7 @@ public:
         n_agd);
       {
         std::vector<local_scalar_t__> agd_start_time_flat__;
-        current_statement__ = 150;
+        current_statement__ = 156;
         agd_start_time_flat__ = context__.vals_r("agd_start_time");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= n_agd; ++sym1__) {
@@ -4179,13 +4187,13 @@ public:
           pos__ = (pos__ + 1);
         }
       }
-      current_statement__ = 150;
+      current_statement__ = 156;
       stan::math::check_greater_or_equal(function__, "agd_start_time",
         agd_start_time, 0);
-      current_statement__ = 151;
+      current_statement__ = 157;
       stan::math::validate_non_negative_index("agd_delay_time", "n_agd",
         n_agd);
-      current_statement__ = 152;
+      current_statement__ = 158;
       context__.validate_dims("data initialization", "agd_delay_time",
         "double", std::vector<size_t>{static_cast<size_t>(n_agd)});
       agd_delay_time_data__ = Eigen::Matrix<double,-1,1>::Constant(n_agd,
@@ -4195,7 +4203,7 @@ public:
         n_agd);
       {
         std::vector<local_scalar_t__> agd_delay_time_flat__;
-        current_statement__ = 152;
+        current_statement__ = 158;
         agd_delay_time_flat__ = context__.vals_r("agd_delay_time");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= n_agd; ++sym1__) {
@@ -4205,51 +4213,63 @@ public:
           pos__ = (pos__ + 1);
         }
       }
-      current_statement__ = 152;
+      current_statement__ = 158;
       stan::math::check_greater_or_equal(function__, "agd_delay_time",
         agd_delay_time, 0);
-      current_statement__ = 153;
+      current_statement__ = 159;
       stan::math::validate_non_negative_index("agd_status", "n_agd", n_agd);
-      current_statement__ = 154;
+      current_statement__ = 160;
       context__.validate_dims("data initialization", "agd_status", "int",
         std::vector<size_t>{static_cast<size_t>(n_agd)});
       agd_status = std::vector<int>(n_agd, std::numeric_limits<int>::min());
-      current_statement__ = 154;
+      current_statement__ = 160;
       agd_status = context__.vals_i("agd_status");
-      current_statement__ = 154;
+      current_statement__ = 160;
       stan::math::check_greater_or_equal(function__, "agd_status",
         agd_status, 0);
-      current_statement__ = 154;
+      current_statement__ = 160;
       stan::math::check_less_or_equal(function__, "agd_status", agd_status, 3);
-      current_statement__ = 155;
+      current_statement__ = 161;
       stan::math::validate_non_negative_index("agd_arm", "n_agd", n_agd);
-      current_statement__ = 156;
+      current_statement__ = 162;
       context__.validate_dims("data initialization", "agd_arm", "int",
         std::vector<size_t>{static_cast<size_t>(n_agd)});
       agd_arm = std::vector<int>(n_agd, std::numeric_limits<int>::min());
-      current_statement__ = 156;
+      current_statement__ = 162;
       agd_arm = context__.vals_i("agd_arm");
-      current_statement__ = 156;
+      current_statement__ = 162;
       stan::math::check_greater_or_equal(function__, "agd_arm", agd_arm, 1);
-      current_statement__ = 156;
+      current_statement__ = 162;
       stan::math::check_less_or_equal(function__, "agd_arm", agd_arm,
         n_agd_rows);
-      current_statement__ = 157;
+      current_statement__ = 163;
+      context__.validate_dims("data initialization", "reuse_arm_eta", "int",
+        std::vector<size_t>{});
+      reuse_arm_eta = std::numeric_limits<int>::min();
+      current_statement__ = 163;
+      reuse_arm_eta = context__.vals_i("reuse_arm_eta")[(1 - 1)];
+      current_statement__ = 163;
+      stan::math::check_greater_or_equal(function__, "reuse_arm_eta",
+        reuse_arm_eta, 0);
+      current_statement__ = 163;
+      stan::math::check_less_or_equal(function__, "reuse_arm_eta",
+        reuse_arm_eta, 1);
+      current_statement__ = 164;
       context__.validate_dims("data initialization", "n_int", "int",
         std::vector<size_t>{});
       n_int = std::numeric_limits<int>::min();
-      current_statement__ = 157;
+      current_statement__ = 164;
       n_int = context__.vals_i("n_int")[(1 - 1)];
-      current_statement__ = 157;
+      current_statement__ = 164;
       stan::math::check_greater_or_equal(function__, "n_int", n_int, 1);
-      current_statement__ = 158;
+      current_statement__ = 165;
       stan::math::validate_non_negative_index("X_int", "n_agd_rows",
         n_agd_rows);
-      current_statement__ = 159;
+      current_statement__ = 166;
       stan::math::validate_non_negative_index("X_int", "n_int", n_int);
-      current_statement__ = 160;
+      current_statement__ = 167;
       stan::math::validate_non_negative_index("X_int", "n_cov", n_cov);
-      current_statement__ = 161;
+      current_statement__ = 168;
       context__.validate_dims("data initialization", "X_int", "double",
         std::vector<size_t>{static_cast<size_t>(n_agd_rows),
           static_cast<size_t>(n_int), static_cast<size_t>(n_cov)});
@@ -4258,7 +4278,7 @@ public:
                   std::numeric_limits<double>::quiet_NaN()));
       {
         std::vector<local_scalar_t__> X_int_flat__;
-        current_statement__ = 161;
+        current_statement__ = 168;
         X_int_flat__ = context__.vals_r("X_int");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
@@ -4273,29 +4293,29 @@ public:
           }
         }
       }
-      current_statement__ = 162;
+      current_statement__ = 169;
       context__.validate_dims("data initialization", "qr", "int",
         std::vector<size_t>{});
       qr = std::numeric_limits<int>::min();
-      current_statement__ = 162;
+      current_statement__ = 169;
       qr = context__.vals_i("qr")[(1 - 1)];
-      current_statement__ = 162;
+      current_statement__ = 169;
       stan::math::check_greater_or_equal(function__, "qr", qr, 0);
-      current_statement__ = 162;
+      current_statement__ = 169;
       stan::math::check_less_or_equal(function__, "qr", qr, 1);
-      current_statement__ = 163;
+      current_statement__ = 170;
       context__.validate_dims("data initialization", "nB", "int",
         std::vector<size_t>{});
       nB = std::numeric_limits<int>::min();
-      current_statement__ = 163;
+      current_statement__ = 170;
       nB = context__.vals_i("nB")[(1 - 1)];
-      current_statement__ = 163;
+      current_statement__ = 170;
       stan::math::check_greater_or_equal(function__, "nB", nB, 1);
-      current_statement__ = 164;
+      current_statement__ = 171;
       stan::math::validate_non_negative_index("Xq_ipd", "n_ipd", n_ipd);
-      current_statement__ = 165;
+      current_statement__ = 172;
       stan::math::validate_non_negative_index("Xq_ipd", "nB", nB);
-      current_statement__ = 166;
+      current_statement__ = 173;
       context__.validate_dims("data initialization", "Xq_ipd", "double",
         std::vector<size_t>{static_cast<size_t>(n_ipd),
           static_cast<size_t>(nB)});
@@ -4306,7 +4326,7 @@ public:
         nB);
       {
         std::vector<local_scalar_t__> Xq_ipd_flat__;
-        current_statement__ = 166;
+        current_statement__ = 173;
         Xq_ipd_flat__ = context__.vals_r("Xq_ipd");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= nB; ++sym1__) {
@@ -4318,14 +4338,14 @@ public:
           }
         }
       }
-      current_statement__ = 167;
+      current_statement__ = 174;
       stan::math::validate_non_negative_index("Xq_int", "n_agd_rows",
         n_agd_rows);
-      current_statement__ = 168;
+      current_statement__ = 175;
       stan::math::validate_non_negative_index("Xq_int", "n_int", n_int);
-      current_statement__ = 169;
+      current_statement__ = 176;
       stan::math::validate_non_negative_index("Xq_int", "nB", nB);
-      current_statement__ = 170;
+      current_statement__ = 177;
       context__.validate_dims("data initialization", "Xq_int", "double",
         std::vector<size_t>{static_cast<size_t>(n_agd_rows),
           static_cast<size_t>(n_int), static_cast<size_t>(nB)});
@@ -4334,7 +4354,7 @@ public:
                    std::numeric_limits<double>::quiet_NaN()));
       {
         std::vector<local_scalar_t__> Xq_int_flat__;
-        current_statement__ = 170;
+        current_statement__ = 177;
         Xq_int_flat__ = context__.vals_r("Xq_int");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= nB; ++sym1__) {
@@ -4349,11 +4369,11 @@ public:
           }
         }
       }
-      current_statement__ = 171;
+      current_statement__ = 178;
       stan::math::validate_non_negative_index("R_inv", "nB", nB);
-      current_statement__ = 172;
+      current_statement__ = 179;
       stan::math::validate_non_negative_index("R_inv", "nB", nB);
-      current_statement__ = 173;
+      current_statement__ = 180;
       context__.validate_dims("data initialization", "R_inv", "double",
         std::vector<size_t>{static_cast<size_t>(nB), static_cast<size_t>(nB)});
       R_inv_data__ = Eigen::Matrix<double,-1,-1>::Constant(nB, nB,
@@ -4362,7 +4382,7 @@ public:
         Eigen::Map<Eigen::Matrix<double,-1,-1>>(R_inv_data__.data(), nB, nB);
       {
         std::vector<local_scalar_t__> R_inv_flat__;
-        current_statement__ = 173;
+        current_statement__ = 180;
         R_inv_flat__ = context__.vals_r("R_inv");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= nB; ++sym1__) {
@@ -4374,49 +4394,49 @@ public:
           }
         }
       }
-      current_statement__ = 174;
+      current_statement__ = 181;
       context__.validate_dims("data initialization", "dist", "int",
         std::vector<size_t>{});
       dist = std::numeric_limits<int>::min();
-      current_statement__ = 174;
+      current_statement__ = 181;
       dist = context__.vals_i("dist")[(1 - 1)];
-      current_statement__ = 174;
+      current_statement__ = 181;
       stan::math::check_greater_or_equal(function__, "dist", dist, 1);
-      current_statement__ = 174;
+      current_statement__ = 181;
       stan::math::check_less_or_equal(function__, "dist", dist, 9);
-      current_statement__ = 175;
+      current_statement__ = 182;
       context__.validate_dims("data initialization", "link", "int",
         std::vector<size_t>{});
       link = std::numeric_limits<int>::min();
-      current_statement__ = 175;
+      current_statement__ = 182;
       link = context__.vals_i("link")[(1 - 1)];
-      current_statement__ = 175;
+      current_statement__ = 182;
       stan::math::check_greater_or_equal(function__, "link", link, 1);
-      current_statement__ = 175;
+      current_statement__ = 182;
       stan::math::check_less_or_equal(function__, "link", link, 1);
-      current_statement__ = 176;
+      current_statement__ = 183;
       context__.validate_dims("data initialization", "n_strata", "int",
         std::vector<size_t>{});
       n_strata = std::numeric_limits<int>::min();
-      current_statement__ = 176;
+      current_statement__ = 183;
       n_strata = context__.vals_i("n_strata")[(1 - 1)];
-      current_statement__ = 176;
+      current_statement__ = 183;
       stan::math::check_greater_or_equal(function__, "n_strata", n_strata, 1);
-      current_statement__ = 176;
+      current_statement__ = 183;
       stan::math::check_less_or_equal(function__, "n_strata", n_strata, 2);
-      current_statement__ = 177;
+      current_statement__ = 184;
       context__.validate_dims("data initialization", "n_pred_times", "int",
         std::vector<size_t>{});
       n_pred_times = std::numeric_limits<int>::min();
-      current_statement__ = 177;
+      current_statement__ = 184;
       n_pred_times = context__.vals_i("n_pred_times")[(1 - 1)];
-      current_statement__ = 177;
+      current_statement__ = 184;
       stan::math::check_greater_or_equal(function__, "n_pred_times",
         n_pred_times, 1);
-      current_statement__ = 178;
+      current_statement__ = 185;
       stan::math::validate_non_negative_index("pred_times", "n_pred_times",
         n_pred_times);
-      current_statement__ = 179;
+      current_statement__ = 186;
       context__.validate_dims("data initialization", "pred_times", "double",
         std::vector<size_t>{static_cast<size_t>(n_pred_times)});
       pred_times_data__ = Eigen::Matrix<double,-1,1>::Constant(n_pred_times,
@@ -4426,7 +4446,7 @@ public:
         n_pred_times);
       {
         std::vector<local_scalar_t__> pred_times_flat__;
-        current_statement__ = 179;
+        current_statement__ = 186;
         pred_times_flat__ = context__.vals_r("pred_times");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= n_pred_times; ++sym1__) {
@@ -4435,22 +4455,22 @@ public:
           pos__ = (pos__ + 1);
         }
       }
-      current_statement__ = 179;
+      current_statement__ = 186;
       stan::math::check_greater_or_equal(function__, "pred_times",
         pred_times, 0);
-      current_statement__ = 180;
+      current_statement__ = 187;
       context__.validate_dims("data initialization", "n_rmst_grid", "int",
         std::vector<size_t>{});
       n_rmst_grid = std::numeric_limits<int>::min();
-      current_statement__ = 180;
+      current_statement__ = 187;
       n_rmst_grid = context__.vals_i("n_rmst_grid")[(1 - 1)];
-      current_statement__ = 180;
+      current_statement__ = 187;
       stan::math::check_greater_or_equal(function__, "n_rmst_grid",
         n_rmst_grid, 2);
-      current_statement__ = 181;
+      current_statement__ = 188;
       stan::math::validate_non_negative_index("rmst_grid_times",
         "n_rmst_grid", n_rmst_grid);
-      current_statement__ = 182;
+      current_statement__ = 189;
       context__.validate_dims("data initialization", "rmst_grid_times",
         "double", std::vector<size_t>{static_cast<size_t>(n_rmst_grid)});
       rmst_grid_times_data__ = Eigen::Matrix<double,-1,1>::Constant(n_rmst_grid,
@@ -4460,7 +4480,7 @@ public:
         n_rmst_grid);
       {
         std::vector<local_scalar_t__> rmst_grid_times_flat__;
-        current_statement__ = 182;
+        current_statement__ = 189;
         rmst_grid_times_flat__ = context__.vals_r("rmst_grid_times");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= n_rmst_grid; ++sym1__) {
@@ -4470,51 +4490,51 @@ public:
           pos__ = (pos__ + 1);
         }
       }
-      current_statement__ = 182;
+      current_statement__ = 189;
       stan::math::check_greater_or_equal(function__, "rmst_grid_times",
         rmst_grid_times, 0);
-      current_statement__ = 183;
+      current_statement__ = 190;
       context__.validate_dims("data initialization", "prior_intercept_mean",
         "double", std::vector<size_t>{});
       prior_intercept_mean = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 183;
+      current_statement__ = 190;
       prior_intercept_mean = context__.vals_r("prior_intercept_mean")[(1 -
         1)];
-      current_statement__ = 184;
+      current_statement__ = 191;
       context__.validate_dims("data initialization", "prior_intercept_sd",
         "double", std::vector<size_t>{});
       prior_intercept_sd = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 184;
+      current_statement__ = 191;
       prior_intercept_sd = context__.vals_r("prior_intercept_sd")[(1 - 1)];
-      current_statement__ = 184;
+      current_statement__ = 191;
       stan::math::check_greater_or_equal(function__, "prior_intercept_sd",
         prior_intercept_sd, 0);
-      current_statement__ = 185;
+      current_statement__ = 192;
       context__.validate_dims("data initialization", "prior_intercept_dist",
         "int", std::vector<size_t>{});
       prior_intercept_dist = std::numeric_limits<int>::min();
-      current_statement__ = 185;
+      current_statement__ = 192;
       prior_intercept_dist = context__.vals_i("prior_intercept_dist")[(1 -
         1)];
-      current_statement__ = 185;
+      current_statement__ = 192;
       stan::math::check_greater_or_equal(function__, "prior_intercept_dist",
         prior_intercept_dist, 0);
-      current_statement__ = 185;
+      current_statement__ = 192;
       stan::math::check_less_or_equal(function__, "prior_intercept_dist",
         prior_intercept_dist, 1);
-      current_statement__ = 186;
+      current_statement__ = 193;
       context__.validate_dims("data initialization", "prior_intercept_df",
         "double", std::vector<size_t>{});
       prior_intercept_df = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 186;
+      current_statement__ = 193;
       prior_intercept_df = context__.vals_r("prior_intercept_df")[(1 - 1)];
-      current_statement__ = 186;
+      current_statement__ = 193;
       stan::math::check_greater_or_equal(function__, "prior_intercept_df",
         prior_intercept_df, 0);
-      current_statement__ = 187;
+      current_statement__ = 194;
       stan::math::validate_non_negative_index("prior_beta_mean", "n_cov",
         n_cov);
-      current_statement__ = 188;
+      current_statement__ = 195;
       context__.validate_dims("data initialization", "prior_beta_mean",
         "double", std::vector<size_t>{static_cast<size_t>(n_cov)});
       prior_beta_mean_data__ = Eigen::Matrix<double,-1,1>::Constant(n_cov,
@@ -4524,7 +4544,7 @@ public:
         n_cov);
       {
         std::vector<local_scalar_t__> prior_beta_mean_flat__;
-        current_statement__ = 188;
+        current_statement__ = 195;
         prior_beta_mean_flat__ = context__.vals_r("prior_beta_mean");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
@@ -4534,9 +4554,9 @@ public:
           pos__ = (pos__ + 1);
         }
       }
-      current_statement__ = 189;
+      current_statement__ = 196;
       stan::math::validate_non_negative_index("prior_beta_sd", "n_cov", n_cov);
-      current_statement__ = 190;
+      current_statement__ = 197;
       context__.validate_dims("data initialization", "prior_beta_sd",
         "double", std::vector<size_t>{static_cast<size_t>(n_cov)});
       prior_beta_sd_data__ = Eigen::Matrix<double,-1,1>::Constant(n_cov,
@@ -4546,7 +4566,7 @@ public:
         n_cov);
       {
         std::vector<local_scalar_t__> prior_beta_sd_flat__;
-        current_statement__ = 190;
+        current_statement__ = 197;
         prior_beta_sd_flat__ = context__.vals_r("prior_beta_sd");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
@@ -4556,34 +4576,34 @@ public:
           pos__ = (pos__ + 1);
         }
       }
-      current_statement__ = 190;
+      current_statement__ = 197;
       stan::math::check_greater_or_equal(function__, "prior_beta_sd",
         prior_beta_sd, 0);
-      current_statement__ = 191;
+      current_statement__ = 198;
       context__.validate_dims("data initialization", "prior_beta_dist",
         "int", std::vector<size_t>{});
       prior_beta_dist = std::numeric_limits<int>::min();
-      current_statement__ = 191;
+      current_statement__ = 198;
       prior_beta_dist = context__.vals_i("prior_beta_dist")[(1 - 1)];
-      current_statement__ = 191;
+      current_statement__ = 198;
       stan::math::check_greater_or_equal(function__, "prior_beta_dist",
         prior_beta_dist, 0);
-      current_statement__ = 191;
+      current_statement__ = 198;
       stan::math::check_less_or_equal(function__, "prior_beta_dist",
         prior_beta_dist, 1);
-      current_statement__ = 192;
+      current_statement__ = 199;
       context__.validate_dims("data initialization", "prior_beta_df",
         "double", std::vector<size_t>{});
       prior_beta_df = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 192;
+      current_statement__ = 199;
       prior_beta_df = context__.vals_r("prior_beta_df")[(1 - 1)];
-      current_statement__ = 192;
+      current_statement__ = 199;
       stan::math::check_greater_or_equal(function__, "prior_beta_df",
         prior_beta_df, 0);
-      current_statement__ = 193;
+      current_statement__ = 200;
       stan::math::validate_non_negative_index("prior_beta_comparator_mean",
         "n_cov", n_cov);
-      current_statement__ = 194;
+      current_statement__ = 201;
       context__.validate_dims("data initialization",
         "prior_beta_comparator_mean", "double",
         std::vector<size_t>{static_cast<size_t>(n_cov)});
@@ -4595,7 +4615,7 @@ public:
         n_cov);
       {
         std::vector<local_scalar_t__> prior_beta_comparator_mean_flat__;
-        current_statement__ = 194;
+        current_statement__ = 201;
         prior_beta_comparator_mean_flat__ = context__.vals_r("prior_beta_comparator_mean");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
@@ -4606,10 +4626,10 @@ public:
           pos__ = (pos__ + 1);
         }
       }
-      current_statement__ = 195;
+      current_statement__ = 202;
       stan::math::validate_non_negative_index("prior_beta_comparator_sd",
         "n_cov", n_cov);
-      current_statement__ = 196;
+      current_statement__ = 203;
       context__.validate_dims("data initialization",
         "prior_beta_comparator_sd", "double",
         std::vector<size_t>{static_cast<size_t>(n_cov)});
@@ -4621,7 +4641,7 @@ public:
         n_cov);
       {
         std::vector<local_scalar_t__> prior_beta_comparator_sd_flat__;
-        current_statement__ = 196;
+        current_statement__ = 203;
         prior_beta_comparator_sd_flat__ = context__.vals_r("prior_beta_comparator_sd");
         pos__ = 1;
         for (int sym1__ = 1; sym1__ <= n_cov; ++sym1__) {
@@ -4632,205 +4652,205 @@ public:
           pos__ = (pos__ + 1);
         }
       }
-      current_statement__ = 196;
+      current_statement__ = 203;
       stan::math::check_greater_or_equal(function__,
         "prior_beta_comparator_sd", prior_beta_comparator_sd, 0);
-      current_statement__ = 197;
+      current_statement__ = 204;
       context__.validate_dims("data initialization",
         "prior_beta_comparator_dist", "int", std::vector<size_t>{});
       prior_beta_comparator_dist = std::numeric_limits<int>::min();
-      current_statement__ = 197;
+      current_statement__ = 204;
       prior_beta_comparator_dist = context__.vals_i("prior_beta_comparator_dist")[(1
         - 1)];
-      current_statement__ = 197;
+      current_statement__ = 204;
       stan::math::check_greater_or_equal(function__,
         "prior_beta_comparator_dist", prior_beta_comparator_dist, 0);
-      current_statement__ = 197;
+      current_statement__ = 204;
       stan::math::check_less_or_equal(function__,
         "prior_beta_comparator_dist", prior_beta_comparator_dist, 1);
-      current_statement__ = 198;
+      current_statement__ = 205;
       context__.validate_dims("data initialization",
         "prior_beta_comparator_df", "double", std::vector<size_t>{});
       prior_beta_comparator_df = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 198;
+      current_statement__ = 205;
       prior_beta_comparator_df = context__.vals_r("prior_beta_comparator_df")[(1
         - 1)];
-      current_statement__ = 198;
+      current_statement__ = 205;
       stan::math::check_greater_or_equal(function__,
         "prior_beta_comparator_df", prior_beta_comparator_df, 0);
-      current_statement__ = 199;
+      current_statement__ = 206;
       context__.validate_dims("data initialization", "prior_aux_location",
         "double", std::vector<size_t>{});
       prior_aux_location = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 199;
+      current_statement__ = 206;
       prior_aux_location = context__.vals_r("prior_aux_location")[(1 - 1)];
-      current_statement__ = 200;
+      current_statement__ = 207;
       context__.validate_dims("data initialization", "prior_aux_scale",
         "double", std::vector<size_t>{});
       prior_aux_scale = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 200;
+      current_statement__ = 207;
       prior_aux_scale = context__.vals_r("prior_aux_scale")[(1 - 1)];
-      current_statement__ = 200;
+      current_statement__ = 207;
       stan::math::check_greater_or_equal(function__, "prior_aux_scale",
         prior_aux_scale, 0);
-      current_statement__ = 201;
+      current_statement__ = 208;
       context__.validate_dims("data initialization", "prior_aux_dist", "int",
         std::vector<size_t>{});
       prior_aux_dist = std::numeric_limits<int>::min();
-      current_statement__ = 201;
+      current_statement__ = 208;
       prior_aux_dist = context__.vals_i("prior_aux_dist")[(1 - 1)];
-      current_statement__ = 201;
+      current_statement__ = 208;
       stan::math::check_greater_or_equal(function__, "prior_aux_dist",
         prior_aux_dist, 0);
-      current_statement__ = 201;
+      current_statement__ = 208;
       stan::math::check_less_or_equal(function__, "prior_aux_dist",
         prior_aux_dist, 2);
-      current_statement__ = 202;
+      current_statement__ = 209;
       context__.validate_dims("data initialization", "prior_aux_df",
         "double", std::vector<size_t>{});
       prior_aux_df = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 202;
+      current_statement__ = 209;
       prior_aux_df = context__.vals_r("prior_aux_df")[(1 - 1)];
-      current_statement__ = 202;
+      current_statement__ = 209;
       stan::math::check_greater_or_equal(function__, "prior_aux_df",
         prior_aux_df, 0);
-      current_statement__ = 203;
+      current_statement__ = 210;
       context__.validate_dims("data initialization", "prior_aux2_location",
         "double", std::vector<size_t>{});
       prior_aux2_location = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 203;
+      current_statement__ = 210;
       prior_aux2_location = context__.vals_r("prior_aux2_location")[(1 - 1)];
-      current_statement__ = 204;
+      current_statement__ = 211;
       context__.validate_dims("data initialization", "prior_aux2_scale",
         "double", std::vector<size_t>{});
       prior_aux2_scale = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 204;
+      current_statement__ = 211;
       prior_aux2_scale = context__.vals_r("prior_aux2_scale")[(1 - 1)];
-      current_statement__ = 204;
+      current_statement__ = 211;
       stan::math::check_greater_or_equal(function__, "prior_aux2_scale",
         prior_aux2_scale, 0);
-      current_statement__ = 205;
+      current_statement__ = 212;
       context__.validate_dims("data initialization", "prior_aux2_dist",
         "int", std::vector<size_t>{});
       prior_aux2_dist = std::numeric_limits<int>::min();
-      current_statement__ = 205;
+      current_statement__ = 212;
       prior_aux2_dist = context__.vals_i("prior_aux2_dist")[(1 - 1)];
-      current_statement__ = 205;
+      current_statement__ = 212;
       stan::math::check_greater_or_equal(function__, "prior_aux2_dist",
         prior_aux2_dist, 0);
-      current_statement__ = 205;
+      current_statement__ = 212;
       stan::math::check_less_or_equal(function__, "prior_aux2_dist",
         prior_aux2_dist, 2);
-      current_statement__ = 206;
+      current_statement__ = 213;
       context__.validate_dims("data initialization", "prior_aux2_df",
         "double", std::vector<size_t>{});
       prior_aux2_df = std::numeric_limits<double>::quiet_NaN();
-      current_statement__ = 206;
+      current_statement__ = 213;
       prior_aux2_df = context__.vals_r("prior_aux2_df")[(1 - 1)];
-      current_statement__ = 206;
+      current_statement__ = 213;
       stan::math::check_greater_or_equal(function__, "prior_aux2_df",
         prior_aux2_df, 0);
-      current_statement__ = 207;
+      current_statement__ = 214;
       nonexp = std::numeric_limits<int>::min();
-      current_statement__ = 207;
+      current_statement__ = 214;
       nonexp = ((stan::math::primitive_value(stan::math::logical_neq(dist, 1))
         &&
         stan::math::primitive_value(stan::math::logical_neq(dist, 4))) ? 1 : 0);
-      current_statement__ = 208;
+      current_statement__ = 215;
       is_gengamma = std::numeric_limits<int>::min();
-      current_statement__ = 208;
+      current_statement__ = 215;
       is_gengamma = (stan::math::logical_eq(dist, 9) ? 1 : 0);
-      current_statement__ = 209;
+      current_statement__ = 216;
       n_int_all = std::numeric_limits<int>::min();
-      current_statement__ = 209;
+      current_statement__ = 216;
       n_int_all = (n_agd_rows * n_int);
-      current_statement__ = 210;
+      current_statement__ = 217;
       stan::math::validate_non_negative_index("X_int_all", "n_int_all",
         n_int_all);
-      current_statement__ = 211;
+      current_statement__ = 218;
       stan::math::validate_non_negative_index("X_int_all", "n_cov", n_cov);
-      current_statement__ = 212;
+      current_statement__ = 219;
       X_int_all_data__ = Eigen::Matrix<double,-1,-1>::Constant(n_int_all,
                            n_cov, std::numeric_limits<double>::quiet_NaN());
       new (&X_int_all)
         Eigen::Map<Eigen::Matrix<double,-1,-1>>(X_int_all_data__.data(),
         n_int_all, n_cov);
-      current_statement__ = 214;
+      current_statement__ = 221;
       for (int a = 1; a <= n_agd_rows; ++a) {
-        current_statement__ = 213;
+        current_statement__ = 220;
         stan::model::assign(X_int_all,
           stan::model::rvalue(X_int, "X_int", stan::model::index_uni(a)),
           "assigning variable X_int_all",
           stan::model::index_min_max((((a - 1) * n_int) + 1), (a * n_int)));
       }
-      current_statement__ = 215;
+      current_statement__ = 222;
       stan::math::validate_non_negative_index("beta_tilde", "nB", nB);
-      current_statement__ = 216;
+      current_statement__ = 223;
       stan::math::validate_non_negative_index("aux_raw", "nonexp", nonexp);
-      current_statement__ = 217;
+      current_statement__ = 224;
       stan::math::validate_non_negative_index("aux_raw", "n_strata", n_strata);
-      current_statement__ = 218;
+      current_statement__ = 225;
       stan::math::validate_non_negative_index("aux2_raw", "is_gengamma",
         is_gengamma);
-      current_statement__ = 219;
+      current_statement__ = 226;
       stan::math::validate_non_negative_index("aux2_raw", "n_strata",
         n_strata);
-      current_statement__ = 220;
+      current_statement__ = 227;
       stan::math::validate_non_negative_index("allbeta", "nB", nB);
-      current_statement__ = 221;
+      current_statement__ = 228;
       stan::math::validate_non_negative_index("beta_index", "n_cov", n_cov);
-      current_statement__ = 222;
+      current_statement__ = 229;
       stan::math::validate_non_negative_index("beta_comparator", "n_cov",
         n_cov);
-      current_statement__ = 223;
+      current_statement__ = 230;
       stan::math::validate_non_negative_index("eta_ipd", "n_ipd", n_ipd);
-      current_statement__ = 224;
+      current_statement__ = 231;
       stan::math::validate_non_negative_index("delta_beta", "n_cov", n_cov);
-      current_statement__ = 225;
+      current_statement__ = 232;
       stan::math::validate_non_negative_index("surv_index_index",
         "n_pred_times", n_pred_times);
-      current_statement__ = 226;
+      current_statement__ = 233;
       stan::math::validate_non_negative_index("surv_comparator_index",
         "n_pred_times", n_pred_times);
-      current_statement__ = 227;
+      current_statement__ = 234;
       stan::math::validate_non_negative_index("surv_index_comparator",
         "n_pred_times", n_pred_times);
-      current_statement__ = 228;
+      current_statement__ = 235;
       stan::math::validate_non_negative_index("surv_comparator_comparator",
         "n_pred_times", n_pred_times);
-      current_statement__ = 229;
+      current_statement__ = 236;
       stan::math::validate_non_negative_index("haz_index_index",
         "n_pred_times", n_pred_times);
-      current_statement__ = 230;
+      current_statement__ = 237;
       stan::math::validate_non_negative_index("haz_comparator_index",
         "n_pred_times", n_pred_times);
-      current_statement__ = 231;
+      current_statement__ = 238;
       stan::math::validate_non_negative_index("haz_index_comparator",
         "n_pred_times", n_pred_times);
-      current_statement__ = 232;
+      current_statement__ = 239;
       stan::math::validate_non_negative_index("haz_comparator_comparator",
         "n_pred_times", n_pred_times);
-      current_statement__ = 233;
+      current_statement__ = 240;
       stan::math::validate_non_negative_index("cumhaz_index_index",
         "n_pred_times", n_pred_times);
-      current_statement__ = 234;
+      current_statement__ = 241;
       stan::math::validate_non_negative_index("cumhaz_comparator_index",
         "n_pred_times", n_pred_times);
-      current_statement__ = 235;
+      current_statement__ = 242;
       stan::math::validate_non_negative_index("cumhaz_index_comparator",
         "n_pred_times", n_pred_times);
-      current_statement__ = 236;
+      current_statement__ = 243;
       stan::math::validate_non_negative_index("cumhaz_comparator_comparator",
         "n_pred_times", n_pred_times);
-      current_statement__ = 237;
+      current_statement__ = 244;
       stan::math::validate_non_negative_index("loghr_index", "n_pred_times",
         n_pred_times);
-      current_statement__ = 238;
+      current_statement__ = 245;
       stan::math::validate_non_negative_index("loghr_comparator",
         "n_pred_times", n_pred_times);
-      current_statement__ = 239;
+      current_statement__ = 246;
       stan::math::validate_non_negative_index("log_lik_ipd", "n_ipd", n_ipd);
-      current_statement__ = 240;
+      current_statement__ = 247;
       stan::math::validate_non_negative_index("log_lik_agd", "n_agd", n_agd);
     } catch (const std::exception& e) {
       stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -4939,29 +4959,29 @@ public:
                                       stan::model::index_uni(n_strata)) : 
         stan::math::promote_scalar<local_scalar_t__>(1.0));
       {
-        current_statement__ = 103;
+        current_statement__ = 106;
         lp_accum__.add(log_prior_scalar(mu_index, prior_intercept_mean,
                          prior_intercept_sd, prior_intercept_dist,
                          prior_intercept_df, pstream__));
-        current_statement__ = 104;
+        current_statement__ = 107;
         lp_accum__.add(log_prior_scalar(mu_comparator, prior_intercept_mean,
                          prior_intercept_sd, prior_intercept_dist,
                          prior_intercept_df, pstream__));
-        current_statement__ = 105;
+        current_statement__ = 108;
         lp_accum__.add(log_prior_vector(beta_index, prior_beta_mean,
                          prior_beta_sd, prior_beta_dist, prior_beta_df,
                          pstream__));
-        current_statement__ = 106;
+        current_statement__ = 109;
         lp_accum__.add(log_prior_vector(beta_comparator,
                          prior_beta_comparator_mean,
                          prior_beta_comparator_sd,
                          prior_beta_comparator_dist,
                          prior_beta_comparator_df, pstream__));
-        current_statement__ = 112;
+        current_statement__ = 115;
         for (int s = 1; s <= n_strata; ++s) {
-          current_statement__ = 108;
+          current_statement__ = 111;
           if (nonexp) {
-            current_statement__ = 107;
+            current_statement__ = 110;
             lp_accum__.add(log_prior_sigma(
                              stan::model::rvalue(aux_raw, "aux_raw",
                                stan::model::index_uni(1),
@@ -4969,9 +4989,9 @@ public:
                              prior_aux_location, prior_aux_scale,
                              prior_aux_dist, prior_aux_df, pstream__));
           }
-          current_statement__ = 110;
+          current_statement__ = 113;
           if (is_gengamma) {
-            current_statement__ = 109;
+            current_statement__ = 112;
             lp_accum__.add(log_prior_sigma(
                              stan::model::rvalue(aux2_raw, "aux2_raw",
                                stan::model::index_uni(1),
@@ -4980,9 +5000,9 @@ public:
                              prior_aux2_dist, prior_aux2_df, pstream__));
           }
         }
-        current_statement__ = 114;
+        current_statement__ = 117;
         for (int i = 1; i <= n_ipd; ++i) {
-          current_statement__ = 113;
+          current_statement__ = 116;
           lp_accum__.add(surv_ll_status(dist,
                            stan::model::rvalue(ipd_time, "ipd_time",
                              stan::model::index_uni(i)),
@@ -4997,44 +5017,56 @@ public:
                            pstream__));
         }
         {
-          current_statement__ = 115;
+          current_statement__ = 118;
           stan::math::validate_non_negative_index("eta_agd_arm",
             "n_agd_rows", n_agd_rows);
-          current_statement__ = 116;
+          current_statement__ = 119;
           stan::math::validate_non_negative_index("eta_agd_arm", "n_int",
             n_int);
           std::vector<Eigen::Matrix<local_scalar_t__,-1,1>> eta_agd_arm =
             std::vector<Eigen::Matrix<local_scalar_t__,-1,1>>(n_agd_rows,
               Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n_int,
                 DUMMY_VAR__));
-          current_statement__ = 118;
+          current_statement__ = 121;
           stan::math::validate_non_negative_index("agd_ll", "n_agd", n_agd);
           Eigen::Matrix<local_scalar_t__,-1,1> agd_ll =
             Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n_agd,
               DUMMY_VAR__);
-          current_statement__ = 121;
-          for (int a = 1; a <= n_agd_rows; ++a) {
-            current_statement__ = 120;
-            stan::model::assign(eta_agd_arm,
-              stan::math::multiply(
-                stan::model::rvalue(Xq_int, "Xq_int",
-                  stan::model::index_uni(a)), beta_tilde),
-              "assigning variable eta_agd_arm", stan::model::index_uni(a));
+          current_statement__ = 125;
+          if (reuse_arm_eta) {
+            current_statement__ = 124;
+            for (int a = 1; a <= n_agd_rows; ++a) {
+              current_statement__ = 123;
+              stan::model::assign(eta_agd_arm,
+                stan::math::multiply(
+                  stan::model::rvalue(Xq_int, "Xq_int",
+                    stan::model::index_uni(a)), beta_tilde),
+                "assigning variable eta_agd_arm", stan::model::index_uni(a));
+            }
           }
-          current_statement__ = 129;
+          current_statement__ = 135;
           for (int j = 1; j <= n_agd; ++j) {
             int a = std::numeric_limits<int>::min();
-            current_statement__ = 122;
+            current_statement__ = 126;
             a = stan::model::rvalue(agd_arm, "agd_arm",
                   stan::model::index_uni(j));
-            current_statement__ = 123;
+            current_statement__ = 128;
+            if (stan::math::logical_negation(reuse_arm_eta)) {
+              current_statement__ = 127;
+              stan::model::assign(eta_agd_arm,
+                stan::math::multiply(
+                  stan::model::rvalue(Xq_int, "Xq_int",
+                    stan::model::index_uni(a)), beta_tilde),
+                "assigning variable eta_agd_arm", stan::model::index_uni(a));
+            }
+            current_statement__ = 129;
             stan::math::validate_non_negative_index("ll", "n_int", n_int);
             Eigen::Matrix<local_scalar_t__,-1,1> ll =
               Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n_int,
                 DUMMY_VAR__);
-            current_statement__ = 126;
+            current_statement__ = 132;
             for (int m = 1; m <= n_int; ++m) {
-              current_statement__ = 125;
+              current_statement__ = 131;
               stan::model::assign(ll,
                 surv_ll_status(dist,
                   stan::model::rvalue(agd_time, "agd_time",
@@ -5052,12 +5084,12 @@ public:
                   pstream__), "assigning variable ll",
                 stan::model::index_uni(m));
             }
-            current_statement__ = 127;
+            current_statement__ = 133;
             stan::model::assign(agd_ll, (stan::math::log_sum_exp(ll) -
               stan::math::log(n_int)), "assigning variable agd_ll",
               stan::model::index_uni(j));
           }
-          current_statement__ = 130;
+          current_statement__ = 136;
           lp_accum__.add(stan::math::sum(agd_ll));
         }
       }
@@ -5162,29 +5194,29 @@ public:
                                       stan::model::index_uni(n_strata)) : 
         stan::math::promote_scalar<local_scalar_t__>(1.0));
       {
-        current_statement__ = 103;
+        current_statement__ = 106;
         lp_accum__.add(log_prior_scalar(mu_index, prior_intercept_mean,
                          prior_intercept_sd, prior_intercept_dist,
                          prior_intercept_df, pstream__));
-        current_statement__ = 104;
+        current_statement__ = 107;
         lp_accum__.add(log_prior_scalar(mu_comparator, prior_intercept_mean,
                          prior_intercept_sd, prior_intercept_dist,
                          prior_intercept_df, pstream__));
-        current_statement__ = 105;
+        current_statement__ = 108;
         lp_accum__.add(log_prior_vector(beta_index, prior_beta_mean,
                          prior_beta_sd, prior_beta_dist, prior_beta_df,
                          pstream__));
-        current_statement__ = 106;
+        current_statement__ = 109;
         lp_accum__.add(log_prior_vector(beta_comparator,
                          prior_beta_comparator_mean,
                          prior_beta_comparator_sd,
                          prior_beta_comparator_dist,
                          prior_beta_comparator_df, pstream__));
-        current_statement__ = 112;
+        current_statement__ = 115;
         for (int s = 1; s <= n_strata; ++s) {
-          current_statement__ = 108;
+          current_statement__ = 111;
           if (nonexp) {
-            current_statement__ = 107;
+            current_statement__ = 110;
             lp_accum__.add(log_prior_sigma(
                              stan::model::rvalue(aux_raw, "aux_raw",
                                stan::model::index_uni(1),
@@ -5192,9 +5224,9 @@ public:
                              prior_aux_location, prior_aux_scale,
                              prior_aux_dist, prior_aux_df, pstream__));
           }
-          current_statement__ = 110;
+          current_statement__ = 113;
           if (is_gengamma) {
-            current_statement__ = 109;
+            current_statement__ = 112;
             lp_accum__.add(log_prior_sigma(
                              stan::model::rvalue(aux2_raw, "aux2_raw",
                                stan::model::index_uni(1),
@@ -5203,9 +5235,9 @@ public:
                              prior_aux2_dist, prior_aux2_df, pstream__));
           }
         }
-        current_statement__ = 114;
+        current_statement__ = 117;
         for (int i = 1; i <= n_ipd; ++i) {
-          current_statement__ = 113;
+          current_statement__ = 116;
           lp_accum__.add(surv_ll_status(dist,
                            stan::model::rvalue(ipd_time, "ipd_time",
                              stan::model::index_uni(i)),
@@ -5220,44 +5252,56 @@ public:
                            pstream__));
         }
         {
-          current_statement__ = 115;
+          current_statement__ = 118;
           stan::math::validate_non_negative_index("eta_agd_arm",
             "n_agd_rows", n_agd_rows);
-          current_statement__ = 116;
+          current_statement__ = 119;
           stan::math::validate_non_negative_index("eta_agd_arm", "n_int",
             n_int);
           std::vector<Eigen::Matrix<local_scalar_t__,-1,1>> eta_agd_arm =
             std::vector<Eigen::Matrix<local_scalar_t__,-1,1>>(n_agd_rows,
               Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n_int,
                 DUMMY_VAR__));
-          current_statement__ = 118;
+          current_statement__ = 121;
           stan::math::validate_non_negative_index("agd_ll", "n_agd", n_agd);
           Eigen::Matrix<local_scalar_t__,-1,1> agd_ll =
             Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n_agd,
               DUMMY_VAR__);
-          current_statement__ = 121;
-          for (int a = 1; a <= n_agd_rows; ++a) {
-            current_statement__ = 120;
-            stan::model::assign(eta_agd_arm,
-              stan::math::multiply(
-                stan::model::rvalue(Xq_int, "Xq_int",
-                  stan::model::index_uni(a)), beta_tilde),
-              "assigning variable eta_agd_arm", stan::model::index_uni(a));
+          current_statement__ = 125;
+          if (reuse_arm_eta) {
+            current_statement__ = 124;
+            for (int a = 1; a <= n_agd_rows; ++a) {
+              current_statement__ = 123;
+              stan::model::assign(eta_agd_arm,
+                stan::math::multiply(
+                  stan::model::rvalue(Xq_int, "Xq_int",
+                    stan::model::index_uni(a)), beta_tilde),
+                "assigning variable eta_agd_arm", stan::model::index_uni(a));
+            }
           }
-          current_statement__ = 129;
+          current_statement__ = 135;
           for (int j = 1; j <= n_agd; ++j) {
             int a = std::numeric_limits<int>::min();
-            current_statement__ = 122;
+            current_statement__ = 126;
             a = stan::model::rvalue(agd_arm, "agd_arm",
                   stan::model::index_uni(j));
-            current_statement__ = 123;
+            current_statement__ = 128;
+            if (stan::math::logical_negation(reuse_arm_eta)) {
+              current_statement__ = 127;
+              stan::model::assign(eta_agd_arm,
+                stan::math::multiply(
+                  stan::model::rvalue(Xq_int, "Xq_int",
+                    stan::model::index_uni(a)), beta_tilde),
+                "assigning variable eta_agd_arm", stan::model::index_uni(a));
+            }
+            current_statement__ = 129;
             stan::math::validate_non_negative_index("ll", "n_int", n_int);
             Eigen::Matrix<local_scalar_t__,-1,1> ll =
               Eigen::Matrix<local_scalar_t__,-1,1>::Constant(n_int,
                 DUMMY_VAR__);
-            current_statement__ = 126;
+            current_statement__ = 132;
             for (int m = 1; m <= n_int; ++m) {
-              current_statement__ = 125;
+              current_statement__ = 131;
               stan::model::assign(ll,
                 surv_ll_status(dist,
                   stan::model::rvalue(agd_time, "agd_time",
@@ -5275,12 +5319,12 @@ public:
                   pstream__), "assigning variable ll",
                 stan::model::index_uni(m));
             }
-            current_statement__ = 127;
+            current_statement__ = 133;
             stan::model::assign(agd_ll, (stan::math::log_sum_exp(ll) -
               stan::math::log(n_int)), "assigning variable agd_ll",
               stan::model::index_uni(j));
           }
-          current_statement__ = 130;
+          current_statement__ = 136;
           lp_accum__.add(stan::math::sum(agd_ll));
         }
       }
@@ -5691,29 +5735,41 @@ public:
             std::vector<Eigen::Matrix<double,-1,1>>(n_agd_rows,
               Eigen::Matrix<double,-1,1>::Constant(n_int,
                 std::numeric_limits<double>::quiet_NaN()));
-          current_statement__ = 92;
-          for (int a = 1; a <= n_agd_rows; ++a) {
-            current_statement__ = 91;
-            stan::model::assign(eta_agd_arm,
-              stan::math::multiply(
-                stan::model::rvalue(Xq_int, "Xq_int",
-                  stan::model::index_uni(a)), beta_tilde),
-              "assigning variable eta_agd_arm", stan::model::index_uni(a));
+          current_statement__ = 93;
+          if (reuse_arm_eta) {
+            current_statement__ = 92;
+            for (int a = 1; a <= n_agd_rows; ++a) {
+              current_statement__ = 91;
+              stan::model::assign(eta_agd_arm,
+                stan::math::multiply(
+                  stan::model::rvalue(Xq_int, "Xq_int",
+                    stan::model::index_uni(a)), beta_tilde),
+                "assigning variable eta_agd_arm", stan::model::index_uni(a));
+            }
           }
-          current_statement__ = 100;
+          current_statement__ = 103;
           for (int j = 1; j <= n_agd; ++j) {
             int a = std::numeric_limits<int>::min();
-            current_statement__ = 93;
+            current_statement__ = 94;
             a = stan::model::rvalue(agd_arm, "agd_arm",
                   stan::model::index_uni(j));
-            current_statement__ = 94;
+            current_statement__ = 96;
+            if (stan::math::logical_negation(reuse_arm_eta)) {
+              current_statement__ = 95;
+              stan::model::assign(eta_agd_arm,
+                stan::math::multiply(
+                  stan::model::rvalue(Xq_int, "Xq_int",
+                    stan::model::index_uni(a)), beta_tilde),
+                "assigning variable eta_agd_arm", stan::model::index_uni(a));
+            }
+            current_statement__ = 97;
             stan::math::validate_non_negative_index("ll", "n_int", n_int);
             Eigen::Matrix<double,-1,1> ll =
               Eigen::Matrix<double,-1,1>::Constant(n_int,
                 std::numeric_limits<double>::quiet_NaN());
-            current_statement__ = 97;
+            current_statement__ = 100;
             for (int m = 1; m <= n_int; ++m) {
-              current_statement__ = 96;
+              current_statement__ = 99;
               stan::model::assign(ll,
                 surv_ll_status(dist,
                   stan::model::rvalue(agd_time, "agd_time",
@@ -5731,7 +5787,7 @@ public:
                   pstream__), "assigning variable ll",
                 stan::model::index_uni(m));
             }
-            current_statement__ = 98;
+            current_statement__ = 101;
             stan::model::assign(log_lik_agd, (stan::math::log_sum_exp(ll) -
               stan::math::log(n_int)), "assigning variable log_lik_agd",
               stan::model::index_uni(j));
