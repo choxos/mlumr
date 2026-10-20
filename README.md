@@ -397,6 +397,10 @@ mlumr is an adaptation of the GPL-3 licensed
 Sobol quasi-Monte Carlo and Gaussian-copula integration machinery and adding
 Stan likelihoods for the unanchored two-treatment problem.
 
+The survival models' reuse of each comparator arm's linear predictor across
+its pseudo-individuals was suggested by
+[Tim Disher](https://github.com/timdisher) (Sandpiper Analytics).
+
 Portions of the package code, documentation, and Stan models were drafted and
 reviewed with the assistance of large language models: Anthropic's Claude Opus
 4.6, 4.7, and 5 (via [Claude Code](https://www.anthropic.com/claude-code)) and

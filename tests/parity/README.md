@@ -2,9 +2,10 @@
 
 The four survival models in `inst/stan` compute each comparator arm's linear
 predictor once per parameter evaluation and reuse it across the arm's
-pseudo-individuals. This directory holds the evidence that the reuse changes
-nothing the models compute, and the gate that keeps it that way. It is excluded
-from the package build (`.Rbuildignore`).
+pseudo-individuals, a change suggested by Tim Disher (@timdisher). This
+directory holds the evidence that the reuse changes nothing the models
+compute, and the gate that keeps it that way. It is excluded from the package
+build (`.Rbuildignore`).
 
 * `survival-baseline-6a366a0/`: the four survival models and their eight
   includes as they were at commit `6a366a0`, before the reuse, with
