@@ -1,12 +1,17 @@
-# Version and year are taken from the installed DESCRIPTION so the citation
-# never goes stale; a build that was never published falls back to 2026.
+# The version and year come from the installed DESCRIPTION: the publication
+# date for a CRAN release, else the build date, else the current year.
 ver <- meta$Version
 if (is.null(ver) || !nzchar(ver)) ver <- "0.2.0.9000"
-year <- sub("-.*", "", meta$`Date/Publication`)
-if (!length(year) || !grepl("^[0-9]{4}$", year)) year <- "2026"
+year_in <- function(x) {
+  if (!length(x) || is.na(x)) return(character(0))
+  regmatches(x, regexpr("[0-9]{4}(?=-[0-9]{2}-[0-9]{2})", x, perl = TRUE))
+}
+year <- c(year_in(meta$`Date/Publication`), year_in(meta$Packaged),
+          year_in(meta$Built), format(Sys.Date(), "%Y"))[1]
 
 bibentry(
   bibtype  = "Misc",
+  key      = "chandler2026mlumr",
   title    = "Anchors Away: Navigating Unanchored Indirect Comparisons with Multilevel Unanchored Meta-Regression ({ML-UMR})",
   author   = c(
     person("Conor", "Chandler"),
@@ -15,12 +20,12 @@ bibentry(
   year     = "2026",
   note     = "arXiv preprint arXiv:2606.20341 [stat.ME]",
   doi      = "10.48550/arXiv.2606.20341",
-  url      = "https://arxiv.org/abs/2606.20341",
   header   = "To cite the ML-UMR methodology, please use:"
 )
 
 bibentry(
   bibtype  = "Manual",
+  key      = "sofimahmudi2026mlumr",
   title    = "{mlumr}: Multilevel Unanchored Meta-Regression for Indirect Treatment Comparisons",
   author   = c(
     person("Ahmad", "Sofi-Mahmudi",
@@ -37,6 +42,7 @@ bibentry(
 
 bibentry(
   bibtype  = "Article",
+  key      = "chandler2025msr28",
   title    = "Anchors Away: Navigating Unanchored Indirect Comparisons With Multilevel Unanchored Meta-Regression ({ML-UMR})",
   author   = c(
     person("Conor", "Chandler"),
@@ -45,14 +51,16 @@ bibentry(
   journal  = "Value in Health",
   year     = "2025",
   volume   = "28",
+  number   = "12",
   pages    = "S498",
+  doi      = "10.1016/j.jval.2025.09.3319",
   note     = "Conference abstract MSR28, ISPOR Europe 2025",
-  url      = "https://www.valueinhealthjournal.com/article/S1098-3015(25)05944-3/abstract",
   header   = "Conference abstracts on ML-UMR:"
 )
 
 bibentry(
   bibtype  = "Article",
+  key      = "chandler2026msr131",
   title    = "Surviving Unanchored Indirect Comparisons: An Extension of Multilevel Unanchored Meta-Regression ({ML-UMR}) for Survival Analyses",
   author   = c(
     person("Conor", "Chandler"),
@@ -61,24 +69,26 @@ bibentry(
   journal  = "Value in Health",
   year     = "2026",
   volume   = "29",
-  number   = "S6",
-  note     = "Conference abstract MSR131, ISPOR 2026",
-  url      = "https://www.ispor.org/heor-resources/presentations-database/presentation-cti/ispor-2026/poster-session-3-3/surviving-unanchored-indirect-comparisons-an-extension-of-multilevel-unanchored-meta-regression-ml-umr-for-survival-analyses"
+  number   = "6",
+  pages    = "S324",
+  doi      = "10.1016/j.jval.2026.03.1630",
+  note     = "Conference abstract MSR131, ISPOR 2026"
 )
 
 bibentry(
   bibtype  = "Article",
+  key      = "phillippo2020mlnmr",
   title    = "Multilevel Network Meta-Regression for Population-Adjusted Treatment Comparisons",
   author   = c(
-    person("David M.", "Phillippo"),
+    person(c("David", "M."), "Phillippo"),
     person("Sofia", "Dias"),
-    person("A. E.", "Ades"),
+    person(c("A.", "E."), "Ades"),
     person("Mark", "Belger"),
     person("Alan", "Brnabic"),
     person("Alexander", "Schacht"),
     person("Daniel", "Saure"),
     person("Zbigniew", "Kadziola"),
-    person("Nicky J.", "Welton")
+    person(c("Nicky", "J."), "Welton")
   ),
   journal  = "Journal of the Royal Statistical Society: Series A (Statistics in Society)",
   year     = "2020",
@@ -91,8 +101,9 @@ bibentry(
 
 bibentry(
   bibtype  = "Manual",
+  key      = "phillippo2020multinma",
   title    = "{multinma}: Bayesian Network Meta-Analysis of Individual and Aggregate Data",
-  author   = person("David M.", "Phillippo",
+  author   = person(c("David", "M."), "Phillippo",
                     comment = c(ORCID = "0000-0003-2672-7841")),
   year     = "2020",
   note     = "R package",
