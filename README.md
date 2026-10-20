@@ -338,19 +338,20 @@ mlumr implements multilevel unanchored meta-regression (ML-UMR):
 
 > Chandler, C. & Ishak, J. (2026). "Anchors Away: Navigating Unanchored
 > Indirect Comparisons with Multilevel Unanchored Meta-Regression (ML-UMR)."
-> Preprint, arXiv:2606.20341 [stat.ME].
+> arXiv preprint arXiv:2606.20341 [stat.ME].
 > [doi:10.48550/arXiv.2606.20341](https://doi.org/10.48550/arXiv.2606.20341)
 
 > Chandler, C. & Ishak, J. (2025). "Anchors Away: Navigating Unanchored
 > Indirect Comparisons With Multilevel Unanchored Meta-Regression
-> (ML-UMR)." ISPOR Europe 2025, MSR28. *Value in Health*, 28, S498.
-> <https://www.valueinhealthjournal.com/article/S1098-3015(25)05944-3/abstract>
+> (ML-UMR)." *Value in Health*, 28(12), S498. Conference abstract MSR28,
+> ISPOR Europe 2025.
+> [doi:10.1016/j.jval.2025.09.3319](https://doi.org/10.1016/j.jval.2025.09.3319)
 
 > Chandler, C. & Ishak, J. (2026). "Surviving Unanchored Indirect
 > Comparisons: An Extension of Multilevel Unanchored Meta-Regression
-> (ML-UMR) for Survival Analyses." ISPOR 2026, MSR131. *Value in
-> Health*, 29(S6).
-> <https://www.ispor.org/heor-resources/presentations-database/presentation-cti/ispor-2026/poster-session-3-3/surviving-unanchored-indirect-comparisons-an-extension-of-multilevel-unanchored-meta-regression-ml-umr-for-survival-analyses>
+> (ML-UMR) for Survival Analyses." *Value in Health*, 29(6), S324.
+> Conference abstract MSR131, ISPOR 2026.
+> [doi:10.1016/j.jval.2026.03.1630](https://doi.org/10.1016/j.jval.2026.03.1630)
 
 ML-UMR is an adaptation of multilevel network meta-regression (ML-NMR) to the
 single-arm, fully unanchored case, where no common comparator arm links the two
