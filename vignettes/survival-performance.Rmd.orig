@@ -330,9 +330,15 @@ knitr::kable(data.frame(Item = fields, Value = unname(manifest[fields])),
              row.names = FALSE)
 ```
 
-All computations ran on one machine with no other workload. Level A ran one
-CmdStan process at a time; Level B ran the four chains of a fit on four
-cores.
+All computations ran on this one machine. Level A ran one CmdStan process at
+a time; Level B ran the four chains of a fit on four cores. A unit of either
+level started only when the one-minute load average was below
+`r manifest[["Load-max"]]`. At the start of the timed runs the load average
+had median `r sprintf("%.1f", stats::median(fixed$load1))` (range
+`r sprintf("%.1f", min(fixed$load1))` to `r sprintf("%.1f", max(fixed$load1))`)
+in Level A and median `r sprintf("%.1f", stats::median(fits$load1))` (range
+`r sprintf("%.1f", min(fits$load1))` to `r sprintf("%.1f", max(fits$load1))`)
+in Level B.
 
 ## Results
 

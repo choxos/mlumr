@@ -366,8 +366,11 @@ machine_state <- function() {
 
 # A unit starts only when the one-minute load average is below LOAD_MAX, so the
 # study measures this code rather than whatever else the machine is doing. The
-# load is also recorded with every timed run.
-LOAD_MAX <- 4
+# load is also recorded with every timed run. The average still carries the
+# previous unit's own process for a minute after it ends (four chains after a
+# fit pair), so the threshold sits above that residual plus routine operating
+# system activity while still refusing any competing heavy workload.
+LOAD_MAX <- 6
 wait_for_idle <- function() {
   waited <- FALSE
   repeat {
@@ -840,6 +843,7 @@ if (stage == "assemble") {
     sprintf("Scenarios: %s", paste(SCENARIOS$scenario, collapse = ", ")),
     sprintf("Chains: %d", CHAINS), sprintf("Iter: %d", ITER),
     sprintf("Warmup: %d", WARMUP), sprintf("Parallel-chains: %d", PARALLEL_CHAINS),
+    sprintf("Load-max: %g", LOAD_MAX),
     sprintf("mlumr: %s", sw$mlumr),
     sprintf("mlumr-code-MD5: %s", sw$mlumr_code),
     sprintf("Stan-sources: %s", paste(names(CONFIG$stan), CONFIG$stan,
