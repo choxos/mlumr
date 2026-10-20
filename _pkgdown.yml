@@ -56,6 +56,8 @@ navbar:
         href: articles/choosing-a-method.html
       - text: Aggregate subgroup information for the relaxed model
         href: articles/subgroup-identification.html
+      - text: Computation time of survival fits
+        href: articles/survival-performance.html
 
 articles:
 - title: Getting started
@@ -76,6 +78,7 @@ articles:
   - "fitting-and-diagnostics"
   - "choosing-a-method"
   - "subgroup-identification"
+  - "survival-performance"
 
 reference:
 - title: Data setup

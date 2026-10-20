@@ -1,0 +1,451 @@
+---
+title: "Computation time of survival fits"
+output: rmarkdown::html_vignette
+bibliography: ../inst/REFERENCES.bib
+link-citations: yes
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  error = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 7,
+  fig.height = 4.5,
+  fig.align = "center",
+  dpi = 110
+)
+options(width = 100, rmarkdown.html_vignette.check_title = FALSE)
+library(ggplot2)
+```
+
+```{r sim-load, include = FALSE}
+fixed_csv <- "../data-raw/survival_performance_fixed.csv"
+fits_csv <- "../data-raw/survival_performance_fits.csv"
+manifest <- read.dcf("../data-raw/survival_performance_manifest.dcf")[1, ]
+fixed <- read.csv(fixed_csv, stringsAsFactors = FALSE)
+fits <- read.csv(fits_csv, stringsAsFactors = FALSE)
+# The digests of the results files this article was built from. They are
+# printed below and checked by a test against the files on disk.
+fixed_md5 <- unname(tools::md5sum(fixed_csv))
+fits_md5 <- unname(tools::md5sum(fits_csv))
+
+pct <- function(log_ratio) 100 * (1 - exp(-log_ratio))
+fmt_pct <- function(x, digits = 0) formatC(x, format = "f", digits = digits)
+t_interval <- function(x) {
+  n <- length(x)
+  half <- if (n > 1) stats::qt(0.975, n - 1) * stats::sd(x) / sqrt(n) else NA_real_
+  c(est = mean(x), lo = mean(x) - half, hi = mean(x) + half, n = n)
+}
+
+# ---- Level A: one row per block and arm. Paired log ratios per block. -------
+fixed$workload <- sub("_d[0-9]+$", "", fixed$key)
+wide <- reshape(fixed[, c("key", "workload", "block", "arm", "ms_per_eval_cpu")],
+                idvar = c("key", "workload", "block"), timevar = "arm",
+                direction = "wide")
+names(wide) <- sub("ms_per_eval_cpu.", "", names(wide), fixed = TRUE)
+n_nonpositive <- sum(wide[, c("reuse", "no_reuse", "v0.2.0")] <= 0)
+wide <- wide[wide$reuse > 0 & wide$no_reuse > 0 & wide$`v0.2.0` > 0, ]
+wide$lr_off <- log(wide$no_reuse / wide$reuse)
+wide$lr_old <- log(wide$`v0.2.0` / wide$reuse)
+wide$lr_old_off <- log(wide$`v0.2.0` / wide$no_reuse)
+
+factors <- unique(fixed[, c("workload", "distribution", "model", "n_agd",
+                            "n_int", "n_cov")])
+per_workload <- do.call(rbind, lapply(split(wide, wide$workload), function(w) {
+  off <- t_interval(w$lr_off)
+  old <- t_interval(w$lr_old)
+  oo <- t_interval(w$lr_old_off)
+  data.frame(workload = w$workload[1], blocks = nrow(w),
+             ms_reuse = stats::median(w$reuse),
+             ms_no_reuse = stats::median(w$no_reuse),
+             ms_v020 = stats::median(w$`v0.2.0`),
+             lr_off = off[["est"]], lr_off_lo = off[["lo"]], lr_off_hi = off[["hi"]],
+             lr_old = old[["est"]], lr_old_lo = old[["lo"]], lr_old_hi = old[["hi"]],
+             lr_old_off = oo[["est"]])
+}))
+per_workload <- merge(factors, per_workload, by = "workload")
+per_workload$saved_off <- pct(per_workload$lr_off)
+per_workload$saved_old <- pct(per_workload$lr_old)
+
+dist_label <- c(weibull = "Weibull", lognormal = "log-normal",
+                gengamma = "generalized gamma", mspline = "M-spline")
+per_workload$Distribution <- factor(dist_label[per_workload$distribution],
+                                    levels = dist_label)
+per_workload$Model <- factor(per_workload$model, levels = c("spfa", "relaxed"),
+                             labels = c("SPFA", "relaxed"))
+
+n_workloads <- nrow(per_workload)
+n_units <- length(unique(fixed$key))
+n_blocks_total <- nrow(wide)
+range_off <- range(per_workload$saved_off)
+range_old <- range(per_workload$saved_old)
+max_diff_off <- max(fixed$max_abs_diff_no_reuse)
+max_diff_old <- max(fixed$max_abs_diff_v020)
+n_points_fallback <- length(unique(fixed$key[fixed$points != "laplace"]))
+
+# ---- Level B: one row per chain and setting. --------------------------------
+fits$step_ms <- 1000 * fits$sampling_s / fits$leapfrog_sampling
+fit_pairs <- do.call(rbind, lapply(split(fits, fits$key), function(d) {
+  on <- d[d$arm == "reuse", ]
+  off <- d[d$arm == "no_reuse", ]
+  on <- on[order(on$chain), ]
+  off <- off[order(off$chain), ]
+  data.frame(
+    key = d$key[1], scenario = d$scenario[1],
+    lr_step = mean(log(off$step_ms / on$step_ms)),
+    lr_wall = log(off$wall_s[1] / on$wall_s[1]),
+    lr_ess_s = log((on$ess_bulk[1] / on$wall_s[1]) /
+                     (off$ess_bulk[1] / off$wall_s[1])),
+    wall_on = on$wall_s[1], wall_off = off$wall_s[1],
+    step_on = mean(on$step_ms), step_off = mean(off$step_ms),
+    chains_identical = sum(is.na(on$first_diverging_iteration)),
+    chains = nrow(on),
+    first_div = suppressWarnings(min(on$first_diverging_iteration, na.rm = TRUE)),
+    mean_gap_sd = abs(on$post_mean[1] - off$post_mean[1]) / on$post_sd[1],
+    divergent = sum(on$divergent) + sum(off$divergent),
+    treedepth = sum(on$max_treedepth_hits) + sum(off$max_treedepth_hits),
+    rhat = max(on$rhat_max[1], off$rhat_max[1]))
+}))
+per_scenario <- do.call(rbind, lapply(split(fit_pairs, fit_pairs$scenario), function(p) {
+  st <- t_interval(p$lr_step)
+  wl <- t_interval(p$lr_wall)
+  es <- t_interval(p$lr_ess_s)
+  data.frame(scenario = p$scenario[1], datasets = nrow(p),
+             wall_on = stats::median(p$wall_on), wall_off = stats::median(p$wall_off),
+             step_on = stats::median(p$step_on), step_off = stats::median(p$step_off),
+             step = st[["est"]], step_lo = st[["lo"]], step_hi = st[["hi"]],
+             wall = wl[["est"]], wall_lo = wl[["lo"]], wall_hi = wl[["hi"]],
+             ess = es[["est"]], ess_lo = es[["lo"]], ess_hi = es[["hi"]],
+             identical = sum(p$chains_identical), chains = sum(p$chains),
+             max_gap_sd = max(p$mean_gap_sd), divergent = sum(p$divergent),
+             treedepth = sum(p$treedepth), rhat = max(p$rhat))
+}))
+```
+
+`mlumr()` has an argument, `optimization`, that switches on computational
+shortcuts. A shortcut changes how the model is evaluated, not what it
+estimates. This article describes the shortcut that exists so far, for the
+survival models, and reports a simulation study of the time it saves. Further
+shortcuts will be described and measured here in the same way.
+
+## Using the argument
+
+`optimization = TRUE` is the default, so a fit uses the shortcut unless it is
+switched off:
+
+```{r usage, eval = FALSE}
+fit <- mlumr(dat, distribution = "weibull")                          # shortcut on
+fit_ref <- mlumr(dat, distribution = "weibull", optimization = FALSE) # as before 0.2.1
+```
+
+The setting is stored with the fit, in `fit$model_controls$optimization`, and
+`prior_sensitivity()` refits with the same setting. It affects the survival
+family only and is ignored for binary, continuous and count outcomes. It is
+unrelated to Stan's optimizer: the model is always sampled.
+
+`optimization = FALSE` exists for two purposes: measuring what the shortcut
+saves, as below, and repeating, computation for computation, a fit made with
+an earlier release.
+
+## What the shortcut changes
+
+In a survival fit the comparator evidence is a reconstructed pseudo-individual
+data set, and its likelihood is integrated over the comparator population's
+covariate distribution. With integration points $x_{a1}, \dots, x_{aM}$ for
+comparator arm $a$, the likelihood contribution of pseudo-individual $j$, with
+time $t_j$ and status $d_j$, is
+
+$$
+L_j = \frac{1}{M} \sum_{m=1}^{M} f\!\left(t_j, d_j \mid \eta_{am}\right),
+\qquad
+\eta_{am} = \mu_{C} + x_{am}^{\top} \beta,
+$$
+
+where $f$ is the density or survival term of the chosen distribution and
+$\beta$ the comparator's covariate coefficients. The linear predictors
+$\eta_{a1}, \dots, \eta_{aM}$ depend on the arm and on the parameters, not on
+$j$. Releases before 0.2.1 recomputed them for every pseudo-individual: one
+matrix-vector product of the $M \times n_B$ design with the coefficient vector
+per pseudo-individual and per evaluation of the log density, where $n_B$ is
+the number of design columns. With the shortcut they are computed once per arm
+and evaluation, and shared.
+
+Stan evaluates the gradient of the log density by reverse-mode automatic
+differentiation [@Carpenter2017], and the sampler, the No-U-Turn sampler
+[@Hoffman2014], evaluates that gradient at every leapfrog step. Each
+matrix-vector product adds $M$ nodes to the expression graph and, in the
+reverse pass, sends $M$ adjoints back into $n_B$ coefficients. The shortcut
+removes all but one product per arm. It leaves in place the $n_{\text{agd}}
+\times M$ likelihood terms $f$, the index study's likelihood, and the priors.
+The time saved per evaluation is therefore the share of the products in the
+total. It should be larger when the design is wider (more covariates, or the
+relaxed model with its separate comparator coefficients) and the likelihood
+terms are cheap, and smaller when the likelihood terms or the index study
+dominate.
+
+The two computations evaluate the same function. The products give the same
+values either way, but the reverse pass sums the contributions to each
+coefficient's gradient in a different order, once per arm after summing over
+pseudo-individuals instead of once per pseudo-individual. Floating-point
+addition is not associative, so the two gradients can differ in their last
+digits. The posterior is the same; under one seed the draws agree until such
+differences accumulate along the sampler's path, and agree in distribution
+throughout. The package's parity gate (`tests/parity/` in the source
+repository) compares, for each of 52 workloads and both settings, the log
+density, its gradient, the parameter transforms and every generated quantity
+against the 0.2.0 models.
+
+## The simulation study
+
+The design follows the ADEMP structure of @Morris2019: aims, data-generating
+mechanism, estimands, methods and performance measures. The estimands here are
+computational rather than statistical: the study measures time, and checks
+agreement, rather than bias or coverage.
+
+The script that produced the results is a development file, kept in the
+package repository rather than installed with the package:
+[`data-raw/simulate_survival_performance.R`](https://github.com/choxos/mlumr/blob/main/data-raw/simulate_survival_performance.R).
+It writes a manifest beside its results recording the software and machine
+that produced them. The numbers below were read from results files with MD5
+`r fixed_md5` (per-evaluation timings) and `r fits_md5` (complete fits); a test
+compares these against the files in the repository.
+
+### Aims
+
+1. **A1.** Estimate the time the shortcut saves per evaluation of the log
+   density and its gradient, the unit of work the sampler repeats, and how
+   that depends on the fitted distribution, the model, the number of comparator
+   pseudo-individuals $n_{\text{agd}}$, the number of integration points $M$ and
+   the number of covariates.
+2. **A2.** Estimate how much of that saving reaches a complete `mlumr()` fit.
+3. **A3.** Record that the two settings, and the 0.2.0 models, computed the
+   same values in every run of the study.
+
+### Data-generating mechanism
+
+One mechanism, held fixed, because the time depends on the code path of the
+fitted model and on the data only through the mix of event and censoring
+statuses:
+
+* An index study of 200 individuals and a comparator cohort of
+  $n_{\text{agd}}$ individuals, generated the same way.
+* $K$ covariates, alternating continuous (normal, SD 1) and binary.
+  The comparator population is shifted by 0.2 on the continuous covariates and
+  has prevalence 0.45 against 0.5 on the binary ones.
+* Event times from a Weibull proportional-hazards model with shape 1.2,
+  coefficients 0.3, -0.2, 0.15, -0.1, 0.25 and -0.15 (the first $K$), a
+  baseline median of about five months, and a conditional log hazard ratio of
+  -0.4 for the index treatment.
+* Independent exponential censoring at rate 0.02 per month and administrative
+  censoring at 24 months: right censoring only, no delayed entry.
+* The comparator cohort's times and statuses are given to `set_agd_surv()` as
+  its pseudo-individual data, with its realized covariate means, SDs and
+  proportions. For the computation this is the same as a digitized
+  Kaplan-Meier curve.
+* Integration points from `add_integration()` with its default Gaussian
+  copula; restricted mean survival time to 18 months and predictions at 6, 12
+  and 18 months.
+
+Each data set is shared by every fitted distribution and model of its size, so
+those comparisons are made on the same individuals.
+
+### Methods compared
+
+* **Shortcut** (`optimization = TRUE`): the 0.2.1 models with the per-arm
+  linear predictor.
+* **No shortcut** (`optimization = FALSE`): the same compiled models, with the
+  predictor recomputed for every pseudo-individual.
+* **0.2.0**: the survival models as released in mlumr 0.2.0, kept frozen in
+  the repository for the parity gate. They answer a different question from
+  the switch: whether 0.2.1 is faster than the release users ran before, and
+  whether the switch itself costs anything when it is off.
+
+### Level A: time per evaluation
+
+**Workloads.** Every combination of fitted distribution (Weibull, log-normal,
+generalized gamma, and the M-spline flexible baseline), model (SPFA and
+relaxed), $n_{\text{agd}}$ (100, 500, 2000), $M$ (16, 64, 256) and $K$ (1, 3,
+6): `r n_workloads` workloads, each with two data sets. The piecewise
+exponential baseline runs the same likelihood code as the M-spline baseline
+and was not measured separately.
+
+**Measurement.** The time is measured inside the CmdStan executable that
+`mlumr(engine = "cmdstanr")` samples with, through CmdStan's `log_prob`
+method, which evaluates the log density and its gradient at every row of a
+file of parameter values. A run over $N$ rows minus a run over 5 rows,
+divided by $N - 5$, is the cost of one evaluation with process start, data
+input and model construction removed. $N$ is chosen per data set so that a
+run takes about half a second, and is the same for all three methods. The
+time is the CPU time of the CmdStan process, which competing work on the
+machine slows less than it slows elapsed time.
+
+**Points.** Five draws from CmdStan's Laplace approximation at the posterior
+mode of each data set, so that the timing is taken where the sampler spends
+its time. `r if (n_points_fallback) paste0("For ", n_points_fallback, " data sets the mode could not be found and the points were the origin and four small perturbations of it.") else "The mode was found for every data set."`
+
+**Pairing.** Each data set is timed in eight blocks. A block runs all three
+methods once, in an order drawn so that each method comes first, second and
+third equally often across blocks. The data sets are visited in a random
+order, so slow drift on the machine is spread across the factors.
+
+**Estimand and its uncertainty.** For each block the log ratio of the time per
+evaluation without the shortcut to the time with it, and likewise for the
+0.2.0 models. A workload's estimate is the mean of its 16 block log ratios
+(two data sets of eight blocks); its 95% interval is a $t$ interval over
+them. The results are reported as the percentage of time the shortcut saves,
+$100\,(1 - 1/\text{ratio})$.
+
+### Level B: complete fits
+
+**Scenarios.** Two SPFA scenarios with three covariates and 64 integration
+points: a Weibull baseline with 500 comparator pseudo-individuals (ten data
+sets) and an M-spline baseline with 300 (five data sets, fixed before any fit
+because an M-spline fit takes much longer).
+
+**Fits.** Each data set is fitted with `optimization = TRUE` and `FALSE`
+through `mlumr(engine = "cmdstanr")` with the default sampler settings (four
+chains of 2000 iterations, 1000 of them warmup, `adapt_delta = 0.95`,
+`max_treedepth = 15`), the four chains in parallel, and the same seed, so the
+same initial values. Which setting runs first alternates between data sets.
+Draws are written with 18 significant digits so that identical trajectories
+can be recognized.
+
+**Estimands.** The primary one is the sampling time per leapfrog step, paired
+by data set and chain: it measures the cost of a step inside the real
+sampler and does not depend on how many steps each fit happened to take.
+Secondary are the elapsed time of the `mlumr()` call and the bulk effective
+sample size of the comparator-population RMST difference per second of it.
+Each is a mean of log ratios over data sets with a $t$ interval; with five
+or ten data sets these intervals are rough.
+
+### Machine and software
+
+```{r machine, echo = FALSE}
+fields <- c("CPU", "Cores", "Memory-GB", "Platform", "R", "CmdStan", "cmdstanr",
+            "Compiler", "mlumr", "Commit")
+knitr::kable(data.frame(Item = fields, Value = unname(manifest[fields])),
+             row.names = FALSE)
+```
+
+The machine is a laptop that was not reserved for the study; CPU time,
+pairing within blocks and randomized order are the protections against other
+work on it.
+
+## Results
+
+### Agreement
+
+Across the `r n_units` data sets of Level A, the largest absolute difference
+between the shortcut and no shortcut in the log density or any gradient
+coordinate, over all points timed, was
+`r formatC(max_diff_off, format = "g", digits = 2)`; between the shortcut and the
+0.2.0 models it was `r formatC(max_diff_old, format = "g", digits = 2)`.
+
+```{r fit-agreement, echo = FALSE}
+agree <- per_scenario[, c("scenario", "datasets", "identical", "chains",
+                          "max_gap_sd", "divergent", "treedepth", "rhat")]
+agree$max_gap_sd <- formatC(agree$max_gap_sd, format = "g", digits = 2)
+agree$rhat <- formatC(agree$rhat, format = "f", digits = 3)
+names(agree) <- c("Scenario", "Data sets", "Chains identical throughout",
+                  "Chains", "Largest gap in posterior mean (posterior SDs)",
+                  "Divergences", "Saturated trees", "Largest R-hat")
+knitr::kable(agree, row.names = FALSE)
+```
+
+### Time per evaluation
+
+```{r center-table, echo = FALSE}
+center <- per_workload[per_workload$n_agd == 500 & per_workload$n_int == 64 &
+                         per_workload$n_cov == 3, ]
+center <- center[order(center$Distribution, center$Model), ]
+ci <- function(est, lo, hi) {
+  sprintf("%s (%s to %s)", fmt_pct(pct(est)), fmt_pct(pct(lo)), fmt_pct(pct(hi)))
+}
+knitr::kable(data.frame(
+  Distribution = center$Distribution, Model = center$Model,
+  `ms with shortcut` = formatC(center$ms_reuse, format = "f", digits = 2),
+  `% saved vs no shortcut` = ci(center$lr_off, center$lr_off_lo, center$lr_off_hi),
+  `% saved vs 0.2.0` = ci(center$lr_old, center$lr_old_lo, center$lr_old_hi),
+  check.names = FALSE), row.names = FALSE,
+  caption = paste("Time per evaluation of the log density and gradient at",
+                  "500 pseudo-individuals, 64 integration points and three",
+                  "covariates, with 95% intervals."))
+```
+
+Over all `r n_workloads` workloads the shortcut saved between
+`r fmt_pct(range_off[1])`% and `r fmt_pct(range_off[2])`% of the time per
+evaluation relative to no shortcut, and between `r fmt_pct(range_old[1])`% and
+`r fmt_pct(range_old[2])`% relative to the 0.2.0 models.
+
+```{r fixed-figure, echo = FALSE, fig.height = 6.5}
+ggplot(per_workload, aes(x = n_int, y = saved_off, colour = factor(n_agd),
+                         linetype = Model)) +
+  geom_hline(yintercept = 0, colour = "grey60") +
+  geom_line() +
+  geom_point(size = 1.2) +
+  facet_grid(paste(n_cov, "covariates") ~ Distribution) +
+  scale_x_log10(breaks = c(16, 64, 256)) +
+  labs(x = "Integration points (log scale)",
+       y = "% less time per evaluation with the shortcut",
+       colour = "Pseudo-individuals", linetype = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+```{r main-effects, echo = FALSE}
+main <- function(var, label) {
+  agg <- stats::aggregate(per_workload$lr_off, list(level = per_workload[[var]]),
+                          mean)
+  data.frame(Factor = label, Level = as.character(agg$level),
+             `% saved vs no shortcut` = fmt_pct(pct(agg$x)), check.names = FALSE)
+}
+knitr::kable(rbind(main("Distribution", "Distribution"), main("Model", "Model"),
+                   main("n_agd", "Pseudo-individuals"),
+                   main("n_int", "Integration points"),
+                   main("n_cov", "Covariates")),
+             row.names = FALSE,
+             caption = paste("Average over the other factors (geometric mean",
+                             "of the time ratios), shortcut against no",
+                             "shortcut."))
+```
+
+### Complete fits
+
+```{r fits-table, echo = FALSE}
+knitr::kable(data.frame(
+  Scenario = per_scenario$scenario,
+  `Data sets` = per_scenario$datasets,
+  `Elapsed s, shortcut` = round(per_scenario$wall_on),
+  `Elapsed s, no shortcut` = round(per_scenario$wall_off),
+  `% saved per leapfrog step` = ci(per_scenario$step, per_scenario$step_lo,
+                                   per_scenario$step_hi),
+  `% saved elapsed` = ci(per_scenario$wall, per_scenario$wall_lo,
+                         per_scenario$wall_hi),
+  `ESS per second, ratio` = sprintf("%.2f (%.2f to %.2f)", exp(per_scenario$ess),
+                                    exp(per_scenario$ess_lo),
+                                    exp(per_scenario$ess_hi)),
+  check.names = FALSE), row.names = FALSE,
+  caption = paste("Elapsed times are medians over data sets. The savings are",
+                  "mean log ratios over data sets expressed as % saved, and",
+                  "the ESS ratio is the bulk ESS per second of the RMST",
+                  "difference with the shortcut over that without it; all",
+                  "with 95% t intervals."))
+```
+
+## What can be said
+
+This section is written from the results above once the study has run.
+
+## Reproducing the study
+
+From the root of the package source, with the source installed:
+
+```{r reproduce, eval = FALSE}
+# Each stage checkpoints every unit and resumes where it stopped.
+system("Rscript data-raw/simulate_survival_performance.R fixed")
+system("Rscript data-raw/simulate_survival_performance.R fits")
+system("Rscript data-raw/simulate_survival_performance.R assemble")
+```
