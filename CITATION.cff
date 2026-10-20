@@ -10,6 +10,7 @@ type: software
 license: GPL-3.0-only
 title: 'mlumr: Multilevel Unanchored Meta-Regression for Indirect Treatment Comparisons'
 version: 0.2.0.9000
+doi: 10.5281/zenodo.23341927
 abstract: >-
   Bayesian multilevel unanchored meta-regression (ML-UMR) for indirect treatment
   comparisons using individual patient data (IPD) and aggregate data (AgD).
@@ -45,7 +46,7 @@ keywords:
   - multilevel-network-meta-regression
   - r
 preferred-citation:
-  type: article
+  type: generic
   title: >-
     Anchors Away: Navigating Unanchored Indirect Comparisons with Multilevel
     Unanchored Meta-Regression (ML-UMR)
@@ -57,7 +58,7 @@ preferred-citation:
   year: '2026'
   doi: 10.48550/arXiv.2606.20341
   url: https://arxiv.org/abs/2606.20341
-  notes: Preprint, arXiv:2606.20341 [stat.ME]
+  notes: arXiv preprint arXiv:2606.20341 [stat.ME]
 references:
   - type: software
     title: 'mlumr: Multilevel Unanchored Meta-Regression for Indirect Treatment Comparisons'
@@ -69,8 +70,9 @@ references:
         given-names: Conor
         orcid: https://orcid.org/0000-0002-1365-9002
     year: '2026'
-    notes: R package version 0.2.0.9000
-    url: https://github.com/choxos/mlumr
+    doi: 10.5281/zenodo.23341927
+    url: https://CRAN.R-project.org/package=mlumr
+    notes: R package
   - type: article
     title: >-
       Anchors Away: Navigating Unanchored Indirect Comparisons With Multilevel
@@ -83,7 +85,10 @@ references:
     journal: Value in Health
     year: '2025'
     volume: '28'
-    notes: ISPOR Europe 2025 poster MSR28 (conference version of the preprint above)
+    issue: '12'
+    start: S498
+    doi: 10.1016/j.jval.2025.09.3319
+    notes: Conference abstract MSR28, ISPOR Europe 2025
   - type: article
     title: >-
       Surviving Unanchored Indirect Comparisons: An Extension of Multilevel
@@ -96,8 +101,10 @@ references:
     journal: Value in Health
     year: '2026'
     volume: '29'
-    issue: S6
-    notes: ISPOR 2026 poster MSR131
+    issue: '6'
+    start: S324
+    doi: 10.1016/j.jval.2026.03.1630
+    notes: Conference abstract MSR131, ISPOR 2026
   - type: article
     title: >-
       Multilevel network meta-regression for population-adjusted treatment
@@ -109,9 +116,19 @@ references:
         given-names: Sofia
       - family-names: Ades
         given-names: A. E.
+      - family-names: Belger
+        given-names: Mark
+      - family-names: Brnabic
+        given-names: Alan
+      - family-names: Schacht
+        given-names: Alexander
+      - family-names: Saure
+        given-names: Daniel
+      - family-names: Kadziola
+        given-names: Zbigniew
       - family-names: Welton
         given-names: Nicky J.
-    journal: 'Journal of the Royal Statistical Society: Series A'
+    journal: 'Journal of the Royal Statistical Society: Series A (Statistics in Society)'
     year: '2020'
     volume: '183'
     issue: '3'
