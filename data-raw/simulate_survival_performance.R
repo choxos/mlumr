@@ -322,7 +322,8 @@ make_points <- function(mod, data_file, stem, n_par, seed, tmp) {
   draws <- posterior::as_draws_matrix(lap$draws())
   u <- unconstrain(draws, stem)
   if (ncol(u) != n_par || any(!is.finite(u))) return(fallback("bad draws"))
-  list(u = u, source = "laplace", log_p = as.numeric(draws[, "log_p__"]))
+  # cmdstanr renames CmdStan's log_p__ to lp__ in Laplace draws.
+  list(u = u, source = "laplace", log_p = as.numeric(draws[, "lp__"]))
 }
 
 # Length of the unconstrained parameter vector: the coefficients, then one
@@ -361,6 +362,29 @@ machine_state <- function() {
   load <- suppressWarnings(as.numeric(strsplit(gsub("[{}]", "", load), " +")[[1]]))
   load <- load[is.finite(load)]
   c(load1 = if (length(load)) load[[1]] else NA_real_)
+}
+
+# A unit starts only when the one-minute load average is below LOAD_MAX, so the
+# study measures this code rather than whatever else the machine is doing. The
+# load is also recorded with every timed run.
+LOAD_MAX <- 4
+wait_for_idle <- function() {
+  waited <- FALSE
+  repeat {
+    load <- machine_state()[["load1"]]
+    if (!is.finite(load) || load < LOAD_MAX) {
+      if (waited) cat(sprintf("[%s] load %.1f, resuming\n",
+                              format(Sys.time(), "%H:%M:%S"), load))
+      return(invisible(load))
+    }
+    if (!waited) {
+      cat(sprintf("[%s] load %.1f, waiting for it to fall below %g\n",
+                  format(Sys.time(), "%H:%M:%S"), load, LOAD_MAX))
+      utils::flush.console()
+      waited <- TRUE
+    }
+    Sys.sleep(60)
+  }
 }
 
 ARMS <- c("reuse", "no_reuse", "v0.2.0")
@@ -449,18 +473,27 @@ time_workload <- function(w, models, tmp) {
                 c(3, 2, 1))
     sample(c(all, all)[seq_len(N_BLOCKS)])
   })
+  # The fixed cost of a run (start, data input, model construction, output)
+  # does not depend on the number of rows; each arm's is the median of three
+  # runs over the base points, and is subtracted from every timed run of that
+  # arm.
+  fixed_cost <- lapply(setNames(ARMS, ARMS), function(a) {
+    r <- vapply(1:3, function(i) run_log_prob(exes[[a]], data_files[[a]], base_file,
+                                              file.path(tmp, "small.csv")),
+                numeric(2))
+    apply(r, 1, stats::median)
+  })
   timings <- list()
   for (b in seq_len(N_BLOCKS)) {
     for (pos in seq_along(ARMS)) {
       a <- ARMS[perms[[b]][pos]]
       big <- run_log_prob(exes[[a]], data_files[[a]], rows_file,
                           file.path(tmp, "big.csv"))
-      small <- run_log_prob(exes[[a]], data_files[[a]], base_file,
-                            file.path(tmp, "small.csv"))
       timings[[length(timings) + 1L]] <- data.frame(
         block = b, position = pos, arm = a, n_rows = n_rows,
-        cpu_rows = big[["cpu"]], cpu_base = small[["cpu"]],
-        elapsed_rows = big[["elapsed"]], elapsed_base = small[["elapsed"]],
+        cpu_rows = big[["cpu"]], cpu_base = fixed_cost[[a]][["cpu"]],
+        elapsed_rows = big[["elapsed"]],
+        elapsed_base = fixed_cost[[a]][["elapsed"]],
         load1 = machine_state()[["load1"]],
         time = format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
         stringsAsFactors = FALSE)
@@ -548,16 +581,23 @@ fit_once <- function(dat, f, optimization, iter, warmup) {
     draws = draws)
 }
 
-# The first sampling iteration at which two fits' parameter draws differ in a
-# chain; NA when they never do.
+# The first sampling iteration at which two fits' parameter draws differ by
+# more than rounding in a chain (relative 1e-6), NA when they never do, and the
+# largest difference in the chain. The two settings' gradients differ in their
+# last digits, so draws that follow one path still differ there, by up to about
+# 1e-7 after a few hundred iterations; paths that have separated differ by the
+# order of a posterior standard deviation.
+DIVERGENCE_TOL <- 1e-6
 first_divergence <- function(a, b) {
   cols <- param_columns(names(a))
-  vapply(sort(unique(a$.chain)), function(ch) {
+  do.call(rbind, lapply(sort(unique(a$.chain)), function(ch) {
     x <- as.matrix(a[a$.chain == ch, cols])
     y <- as.matrix(b[b$.chain == ch, cols])
-    hit <- which(rowSums(x != y) > 0)
-    if (length(hit)) hit[[1]] else NA_integer_
-  }, integer(1))
+    gap <- abs(x - y)
+    hit <- which(rowSums(gap > DIVERGENCE_TOL * pmax(1, abs(x))) > 0)
+    data.frame(first_diverging_iteration = if (length(hit)) hit[[1]] else NA_integer_,
+               max_abs_param_diff = max(gap))
+  }))
 }
 
 run_fit_pair <- function(f, pilot = FALSE) {
@@ -584,8 +624,7 @@ run_fit_pair <- function(f, pilot = FALSE) {
                n_ipd = N_IPD, dataset = f$dataset, seed = f$seed, arm = arm,
                order = r$order, started = r$started, load1 = r$load1,
                iter = iter, warmup = warmup, wall_s = r$wall,
-               r$chains, first_diverging_iteration = diverged,
-               max_abs_lp_diff = lp_gap,
+               r$chains, diverged, max_abs_lp_diff = lp_gap,
                ess_bulk = r$ess_bulk, ess_tail = r$ess_tail,
                rhat_max = r$rhat_max, post_mean = r$mean, post_sd = r$sd,
                post_mcse = r$mcse, chains_returned = r$chains_returned,
@@ -623,6 +662,7 @@ CONFIG <- list(
                      unconstrain, make_points, run_log_prob, time_workload,
                      fit_once, first_divergence, run_fit_pair, fixed_grid,
                      fits_grid, n_unconstrained), function(f) deparse(body(f))),
+  divergence_tol = DIVERGENCE_TOL, load_max = LOAD_MAX,
   stan = NULL, baseline = NULL, software = NULL)
 
 guard_cells <- function(dir) {
@@ -662,6 +702,7 @@ run_units <- function(grid, dir, fun, label) {
   todo <- todo[withr::with_seed(ROOT_SEED + 3L, sample(nrow(todo))), ]
   cat(sprintf("%s: %d of %d units to run\n", label, nrow(todo), nrow(grid)))
   for (i in seq_len(nrow(todo))) {
+    wait_for_idle()
     t0 <- Sys.time()
     value <- tryCatch(fun(todo[i, ]), error = function(e) e)
     if (inherits(value, "error")) {
@@ -766,7 +807,8 @@ if (stage == "pilot") {
   fits <- do.call(rbind, lapply(list.files(CELLS_FITS, "^[^_].*[.]rds$",
                                            full.names = TRUE), readRDS))
   print(fits[, c("key", "arm", "chain", "wall_s", "warmup_s", "sampling_s",
-                 "leapfrog_sampling", "first_diverging_iteration")])
+                 "leapfrog_sampling", "first_diverging_iteration",
+                 "max_abs_param_diff")])
   cat("Pilot output is in", PILOT_DIR, "and is not part of the results.\n")
 }
 

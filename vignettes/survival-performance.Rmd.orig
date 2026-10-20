@@ -279,8 +279,7 @@ file of parameter values. A run over $N$ rows minus a run over 5 rows,
 divided by $N - 5$, is the cost of one evaluation with process start, data
 input and model construction removed. $N$ is chosen per data set so that a
 run takes about half a second, and is the same for all three methods. The
-time is the CPU time of the CmdStan process, which competing work on the
-machine slows less than it slows elapsed time.
+time is the CPU time of the CmdStan process.
 
 **Points.** Five draws from CmdStan's Laplace approximation at the posterior
 mode of each data set, so that the timing is taken where the sampler spends
@@ -289,7 +288,8 @@ its time. `r if (n_points_fallback) paste0("For ", n_points_fallback, " data set
 **Pairing.** Each data set is timed in eight blocks. A block runs all three
 methods once, in an order drawn so that each method comes first, second and
 third equally often across blocks. The data sets are visited in a random
-order, so slow drift on the machine is spread across the factors.
+order, so that any drift in timing over the run is spread across the
+factors.
 
 **Estimand and its uncertainty.** For each block the log ratio of the time per
 evaluation without the shortcut to the time with it, and likewise for the
@@ -318,10 +318,10 @@ by data set and chain: it measures the cost of a step inside the real
 sampler and does not depend on how many steps each fit happened to take.
 Secondary are the elapsed time of the `mlumr()` call and the bulk effective
 sample size of the comparator-population RMST difference per second of it.
-Each is a mean of log ratios over data sets with a $t$ interval; with five
-or ten data sets these intervals are rough.
+Each is a mean of log ratios over data sets with a $t$ interval, which is
+wide with five or ten data sets.
 
-### Machine and software
+### Computing environment
 
 ```{r machine, echo = FALSE}
 fields <- c("CPU", "Cores", "Memory-GB", "Platform", "R", "CmdStan", "cmdstanr",
@@ -330,9 +330,9 @@ knitr::kable(data.frame(Item = fields, Value = unname(manifest[fields])),
              row.names = FALSE)
 ```
 
-The machine is a laptop that was not reserved for the study; CPU time,
-pairing within blocks and randomized order are the protections against other
-work on it.
+All computations ran on one machine with no other workload. Level A ran one
+CmdStan process at a time; Level B ran the four chains of a fit on four
+cores.
 
 ## Results
 
