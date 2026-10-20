@@ -6,6 +6,9 @@
   the benchmark workloads a log-density or gradient evaluation takes about 5 to
   21% less time; full fits showed no measurable change in run time or in
   effective samples per second. Suggested by Tim Disher (@timdisher).
+* Documentation: `citation("mlumr")` gives standard references for the ML-UMR
+  methodology, the software with its Zenodo DOI, and the two conference
+  abstracts, each with a BibTeX key for use in manuscripts.
 
 # mlumr 0.2.0
 
