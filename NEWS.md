@@ -6,7 +6,9 @@
   Suggested by Tim Disher (@timdisher).
 * Feature: New `mlumr()` argument `optimization` (default `TRUE`). `FALSE`
   disables the optimization above and repeats the computation of earlier
-  releases, for benchmarking and for reproducing earlier fits. The new article
+  releases, for benchmarking and for reproducing earlier fits.
+  `prior_sensitivity()` refits with the setting of the fit, and with `FALSE`
+  for a fit made with an earlier release. The new article
   "Computation time of survival fits" reports a simulation study of the
   reduction in computation time.
 * Documentation: `citation("mlumr")` gives standard references for the ML-UMR

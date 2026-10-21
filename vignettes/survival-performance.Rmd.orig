@@ -317,7 +317,9 @@ fit_ref <- mlumr(dat, distribution = "weibull", optimization = FALSE)
 ```
 
 The setting is stored in the fitted object as `fit$model_controls$optimization`,
-and `prior_sensitivity()` refits the model with the same setting. In the
+and `prior_sensitivity()` refits the model with the same setting; a fit made
+with a release before 0.2.1, which records no setting, is refitted with
+`optimization = FALSE`, the computation it used. In the
 present release the argument affects the survival family only; it has no
 effect for binary, continuous, or count outcomes. It is unrelated to Stan's
 optimization algorithms: the posterior distribution is always explored by
@@ -767,7 +769,7 @@ estimates were larger, a reduction of
 at 500 pseudo-individuals. With five data sets these intervals include no
 change, and the M-spline estimates are not conclusive. The M-spline estimate
 for elapsed time exceeds that per leapfrog step because the fits without
-predictor reuse happened to take more leapfrog steps in sampling
+predictor reuse took, by chance, more leapfrog steps in sampling
 (`r fmt_pct(more_work("mspline_n300", "leapfrog_sampling"))`% more in total)
 and a longer warmup (`r fmt_pct(more_work("mspline_n300", "warmup_s"))`%
 longer in total). Because the chains of the two settings followed different

@@ -392,11 +392,13 @@ its effect on computation time.</p>
 <span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>fit_ref <span class="ot">&lt;-</span> <span class="fu">mlumr</span>(dat, <span class="at">distribution =</span> <span class="st">&quot;weibull&quot;</span>, <span class="at">optimization =</span> <span class="cn">FALSE</span>)</span></code></pre></div>
 <p>The setting is stored in the fitted object as
 <code>fit$model_controls$optimization</code>, and
-<code>prior_sensitivity()</code> refits the model with the same setting.
-In the present release the argument affects the survival family only; it
-has no effect for binary, continuous, or count outcomes. It is unrelated
-to Stan’s optimization algorithms: the posterior distribution is always
-explored by Markov chain Monte Carlo sampling.</p>
+<code>prior_sensitivity()</code> refits the model with the same setting;
+a fit made with a release before 0.2.1, which records no setting, is
+refitted with <code>optimization = FALSE</code>, the computation it
+used. In the present release the argument affects the survival family
+only; it has no effect for binary, continuous, or count outcomes. It is
+unrelated to Stan’s optimization algorithms: the posterior distribution
+is always explored by Markov chain Monte Carlo sampling.</p>
 <p>Disabling optimizations serves two purposes: benchmarking, as in the
 study reported below, and repeating the arithmetic of releases before
 0.2.1, so that a fit obtained with such a release can be reproduced
@@ -1077,8 +1079,8 @@ M-spline scenario the point estimates were larger, a reduction of 17.2%
 to 18.4%) per evaluation in Level A at 500 pseudo-individuals. With five
 data sets these intervals include no change, and the M-spline estimates
 are not conclusive. The M-spline estimate for elapsed time exceeds that
-per leapfrog step because the fits without predictor reuse happened to
-take more leapfrog steps in sampling (11% more in total) and a longer
+per leapfrog step because the fits without predictor reuse took, by
+chance, more leapfrog steps in sampling (11% more in total) and a longer
 warmup (39% longer in total). Because the chains of the two settings
 followed different trajectories, these differences reflect the paths
 taken by the sampler rather than an effect of predictor reuse, which is

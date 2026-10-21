@@ -58,7 +58,7 @@ test_that("optimization must be one logical value", {
   }
 })
 
-test_that("prior_sensitivity() replays the setting, and older fits the default", {
+test_that("prior_sensitivity() replays the setting, and older fits the old computation", {
   mk <- function(controls) {
     structure(
       list(family = "survival", model = "spfa", link = "log",
@@ -79,8 +79,8 @@ test_that("prior_sensitivity() replays the setting, and older fits the default",
   }
   expect_false(replay(list(center = TRUE, qr = FALSE, optimization = FALSE)))
   expect_true(replay(list(center = TRUE, qr = FALSE, optimization = TRUE)))
-  # A fit made before the argument existed.
-  expect_true(replay(list(center = TRUE, qr = FALSE)))
+  # A fit made before the argument existed used the computation without reuse.
+  expect_false(replay(list(center = TRUE, qr = FALSE)))
 })
 
 # The package's own compiled models (the rstan path every CRAN user takes): one

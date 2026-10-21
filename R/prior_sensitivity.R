@@ -295,9 +295,10 @@ prior_sensitivity <- function(fit,
     prior_sigma = fit$priors$sigma %||% default_prior_sigma(),
     center       = mc$center       %||% FALSE,
     qr           = mc$qr           %||% FALSE,
-    # Fits from before 0.2.1 record no setting; it changes no result, so they
-    # take the default.
-    optimization = mc$optimization %||% TRUE,
+    # Fits from before 0.2.1 record no setting and were computed without
+    # predictor reuse. The two computations can give different draws under one
+    # seed, so the replay repeats the old one.
+    optimization = mc$optimization %||% FALSE,
     chains       = sa$chains       %||% 4,
     iter         = sa$iter         %||% 2000,
     warmup       = sa$warmup       %||% 1000,
