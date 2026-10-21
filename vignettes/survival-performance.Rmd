@@ -232,8 +232,10 @@ two data-set means, each the mean of eight block log ratios. With two
 data sets per workload, the variance between data-set means cannot be
 estimated reliably for each workload separately. It was therefore pooled over
 the 18 workloads that share the distribution and the number
-of integration points, and the 95% interval for a workload used the $t$
-distribution with 18 degrees of freedom. In a sensitivity
+of integration points. Because the two models of a given size were fitted to
+the same data sets, these workloads comprise 9 independent
+pairs of data sets, and the 95% interval for a workload used the $t$
+distribution with 9 degrees of freedom. In a sensitivity
 analysis, a linear model for the log time with effects of block, method, and
 position within the block was fitted to each workload, giving estimates
 adjusted for position. Results are reported as the percentage reduction in
@@ -337,14 +339,14 @@ Table: Time per evaluation of the log density and its gradient with 500 pseudo-i
 
 |Distribution      |Model   |ms per evaluation, reuse |Reduction vs no reuse, % |Reduction vs 0.2.0, % |
 |:-----------------|:-------|:------------------------|:------------------------|:---------------------|
-|Weibull           |SPFA    |3.77                     |10 (6 to 14)             |10 (7 to 14)          |
-|Weibull           |relaxed |4.06                     |11 (7 to 14)             |12 (8 to 16)          |
-|log-normal        |SPFA    |3.31                     |12 (8 to 16)             |13 (9 to 17)          |
+|Weibull           |SPFA    |3.77                     |10 (6 to 14)             |10 (6 to 14)          |
+|Weibull           |relaxed |4.06                     |11 (6 to 15)             |12 (8 to 16)          |
+|log-normal        |SPFA    |3.31                     |12 (8 to 17)             |13 (8 to 17)          |
 |log-normal        |relaxed |3.56                     |16 (11 to 20)            |16 (12 to 20)         |
-|generalized gamma |SPFA    |11.42                    |3 (-2 to 9)              |4 (-3 to 10)          |
+|generalized gamma |SPFA    |11.42                    |3 (-3 to 9)              |4 (-4 to 11)          |
 |generalized gamma |relaxed |13.79                    |5 (-1 to 10)             |3 (-4 to 10)          |
-|M-spline          |SPFA    |1.79                     |15 (12 to 18)            |14 (10 to 17)         |
-|M-spline          |relaxed |2.24                     |19 (16 to 22)            |19 (16 to 22)         |
+|M-spline          |SPFA    |1.79                     |15 (11 to 18)            |14 (10 to 17)         |
+|M-spline          |relaxed |2.24                     |19 (15 to 22)            |19 (16 to 22)         |
 
 
 
@@ -368,13 +370,14 @@ mean reduction over all workloads from 12.8% to
 
 In the 39 workloads in which one data set was evaluated at the
 fallback parameter values and the other at Laplace draws, the log time ratio
-at the fallback values minus that at the Laplace draws had mean
-0.001 (95% interval
--0.012 to
-0.014) and standard deviation
-0.040. For comparison, the difference between
-the two data sets of the workloads in which both used Laplace draws had
-standard deviation 0.040.
+at the fallback values minus that at the Laplace draws, averaged within each
+of the 23 data-set sizes involved and then over sizes, was
+0.000 (95% interval
+-0.014 to
+0.014), and its standard deviation
+across workloads was 0.040. For comparison, the
+difference between the two data sets of the workloads in which both used
+Laplace draws had standard deviation 0.040.
 
 <div class="figure" style="text-align: center">
 <img src="figure/survival-performance/fixed-figure-1.png" alt="Reduction in time per evaluation with predictor reuse, relative to the computation without it, by distribution (columns), number of covariates (rows), number of integration points (horizontal axis), number of pseudo-individuals (color), and model (line type). Each point is a workload estimate, expressed as a percentage."  />
@@ -425,7 +428,7 @@ Table: Elapsed times are medians over data sets. Reductions are means of the log
 **Time per evaluation (A1).** Averaged over the other factors, predictor reuse
 reduced the time per evaluation of the log density and its gradient for every
 distribution and for both models. The 95% interval excluded no change in
-183 of the 216 workloads, and in
+182 of the 216 workloads, and in
 none did it indicate an increase.
 The reduction was largest for the M-spline baseline
 (19.4% on average over the other factors) and smallest for
@@ -454,14 +457,15 @@ the computation without predictor reuse, because the two took nearly the same
 time: averaged over workloads, the 0.2.0 models took
 0.5% longer than the computation without
 predictor reuse (95% interval 0.1% to
-0.8%). The data flag that selects between
+0.8%, computed over the 27
+data-set sizes). The data flag that selects between
 the two computations therefore did not slow the computation without predictor
 reuse.
 
 **Complete fits (A2).** In the Weibull scenario predictor reuse reduced the
 sampling time per leapfrog step by 8.6% (95% interval 2.2% to 14.7%), in
 agreement with the Level A estimate of
-10.1% (95% interval 6.2% to 13.8%) for the same distribution,
+10.1% (95% interval 5.9% to 14.1%) for the same distribution,
 model, sample size, number of integration points, and number of covariates.
 The elapsed time of the `mlumr()` call was reduced by
 7.6% (95% interval 0.5% to 14.1%), and the bulk ESS of the RMST
@@ -471,7 +475,7 @@ In the M-spline scenario the point
 estimates were larger, a reduction of
 17.2% (95% interval -11.0% to 38.3%) per leapfrog step and
 27.0% (95% interval -2.9% to 48.2%) in elapsed time, compared with
-14.9% (95% interval 11.6% to 18.1%) per evaluation in Level A
+14.9% (95% interval 11.3% to 18.4%) per evaluation in Level A
 at 500 pseudo-individuals. With five data sets these intervals include no
 change, and the M-spline estimates are not conclusive. The M-spline estimate
 for elapsed time exceeds that per leapfrog step because the fits without
@@ -526,7 +530,8 @@ smaller than the reduction per evaluation, as in the M-spline scenario.
 The Level A intervals assume that the variance between the data-set means of a
 workload is the same for all workloads with the same distribution and number
 of integration points. With two data sets per workload this assumption cannot
-be checked for each workload. The pooled variance includes both the variation
+be checked for each workload, and the pooled estimates for workloads that share
+data sets are correlated. The pooled variance includes both the variation
 between data sets and the error of the short runs subtracted from all blocks
 of a data set. The allocation of orders to blocks was unbalanced, although the
 position-adjusted estimates differed little from the primary estimates.

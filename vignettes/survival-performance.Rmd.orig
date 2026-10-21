@@ -58,7 +58,10 @@ wide$lr_old_off <- log(wide$`v0.2.0` / wide$no_reuse)
 # run, so the data set, not the block, is the independent unit. A workload's
 # estimate is the mean of its data-set means. Its interval uses the variance
 # between data-set means, pooled over the workloads that share the
-# distribution and the number of integration points.
+# distribution and the number of integration points. A data set belongs to a
+# size (pseudo-individuals, integration points, covariates) and is shared by
+# every distribution and model of that size, so the two models in a pool share
+# their data sets and the degrees of freedom count distinct sizes.
 factors <- unique(fixed[, c("workload", "distribution", "model", "n_agd",
                             "n_int", "n_cov")])
 by_dataset <- stats::aggregate(cbind(lr_off, lr_old, lr_old_off) ~ key + workload,
@@ -78,11 +81,17 @@ per_workload <- merge(merge(factors, per_workload, by = "workload"), medians,
                       by = "workload")
 per_workload$group <- interaction(per_workload$distribution, per_workload$n_int,
                                   drop = TRUE)
-pooled_df <- tapply(per_workload$datasets - 1, per_workload$group, sum)
-stopifnot(length(unique(pooled_df)) == 1)
+per_workload$size <- paste(per_workload$n_agd, per_workload$n_int,
+                           per_workload$n_cov)
+n_sizes <- length(unique(per_workload$size))
+pooled_n <- tapply(per_workload$datasets - 1, per_workload$group, sum)
+pooled_df <- tapply(seq_len(nrow(per_workload)), per_workload$group, function(i) {
+  sum(tapply(per_workload$datasets[i] - 1, per_workload$size[i], max))
+})
+stopifnot(length(unique(pooled_df)) == 1, length(unique(pooled_n)) == 1)
 pool_ci <- function(est, v) {
   g <- as.character(per_workload$group)
-  s2 <- tapply(v * (per_workload$datasets - 1), per_workload$group, sum) / pooled_df
+  s2 <- tapply(v * (per_workload$datasets - 1), per_workload$group, sum) / pooled_n
   half <- stats::qt(0.975, pooled_df[g]) * sqrt(s2[g] / per_workload$datasets)
   list(lo = unname(est - half), hi = unname(est + half))
 }
@@ -236,9 +245,10 @@ n_reduced <- sum(per_workload$lr_off_lo > 0)
 n_increased <- sum(per_workload$lr_off_hi < 0)
 median_off <- stats::median(per_workload$saved_off)
 range_ms <- range(per_workload$ms_reuse)
-# The 0.2.0 models against the computation without predictor reuse: a t
-# interval over the workload estimates, which come from separate data sets.
-old_off <- t_interval(per_workload$lr_old_off)
+# The 0.2.0 models against the computation without predictor reuse: the
+# workload estimates are averaged within each size, whose data sets are
+# separate, and a t interval is taken over the sizes.
+old_off <- t_interval(tapply(per_workload$lr_old_off, per_workload$size, mean))
 longer <- function(log_ratio) 100 * (exp(log_ratio) - 1)
 # Counts below eleven are written as words in the text.
 as_words <- function(n) {
@@ -259,12 +269,14 @@ by_dataset$laplace <- points_by_key$points[match(by_dataset$key, points_by_key$k
 dataset_pairs <- split(by_dataset, by_dataset$workload)
 mixed <- Filter(function(d) length(unique(d$laplace)) == 2, dataset_pairs)
 both_laplace <- Filter(function(d) all(d$laplace), dataset_pairs)
-fallback_diff <- t_interval(vapply(mixed, function(d) {
+mixed_diff <- vapply(mixed, function(d) {
   d$lr_off[!d$laplace] - d$lr_off[d$laplace]
-}, numeric(1)))
-sd_fallback_diff <- stats::sd(vapply(mixed, function(d) {
-  d$lr_off[!d$laplace] - d$lr_off[d$laplace]
-}, numeric(1)))
+}, numeric(1))
+# Workloads of one size share data sets, so the interval is taken over sizes.
+mixed_size <- per_workload$size[match(names(mixed), per_workload$workload)]
+fallback_diff <- t_interval(tapply(mixed_diff, mixed_size, mean))
+n_mixed_sizes <- length(unique(mixed_size))
+sd_fallback_diff <- stats::sd(mixed_diff)
 sd_laplace_diff <- stats::sd(vapply(both_laplace, function(d) diff(d$lr_off),
                                     numeric(1)))
 
@@ -494,8 +506,10 @@ taken as the independent unit. The estimate for a workload was the mean of its
 two data-set means, each the mean of `r as_words(n_blocks)` block log ratios. With two
 data sets per workload, the variance between data-set means cannot be
 estimated reliably for each workload separately. It was therefore pooled over
-the `r unique(pooled_df)` workloads that share the distribution and the number
-of integration points, and the 95% interval for a workload used the $t$
+the `r unique(pooled_n)` workloads that share the distribution and the number
+of integration points. Because the two models of a given size were fitted to
+the same data sets, these workloads comprise `r unique(pooled_df)` independent
+pairs of data sets, and the 95% interval for a workload used the $t$
 distribution with `r unique(pooled_df)` degrees of freedom. In a sensitivity
 analysis, a linear model for the log time with effects of block, method, and
 position within the block was fitted to each workload, giving estimates
@@ -630,13 +644,14 @@ mean reduction over all workloads from `r fmt_pct(mean_off, 1)`% to
 
 In the `r length(mixed)` workloads in which one data set was evaluated at the
 fallback parameter values and the other at Laplace draws, the log time ratio
-at the fallback values minus that at the Laplace draws had mean
+at the fallback values minus that at the Laplace draws, averaged within each
+of the `r n_mixed_sizes` data-set sizes involved and then over sizes, was
 `r sprintf("%.3f", fallback_diff[["est"]])` (95% interval
 `r sprintf("%.3f", fallback_diff[["lo"]])` to
-`r sprintf("%.3f", fallback_diff[["hi"]])`) and standard deviation
-`r sprintf("%.3f", sd_fallback_diff)`. For comparison, the difference between
-the two data sets of the workloads in which both used Laplace draws had
-standard deviation `r sprintf("%.3f", sd_laplace_diff)`.
+`r sprintf("%.3f", fallback_diff[["hi"]])`), and its standard deviation
+across workloads was `r sprintf("%.3f", sd_fallback_diff)`. For comparison, the
+difference between the two data sets of the workloads in which both used
+Laplace draws had standard deviation `r sprintf("%.3f", sd_laplace_diff)`.
 
 ```{r fixed-figure, echo = FALSE, fig.height = 6.5, fig.cap = fixed_caption, fig.alt = fixed_caption}
 ggplot(per_workload, aes(x = n_int, y = saved_off, color = factor(n_agd),
@@ -730,7 +745,8 @@ the computation without predictor reuse, because the two took nearly the same
 time: averaged over workloads, the 0.2.0 models took
 `r fmt_pct(longer(old_off[["est"]]), 1)`% longer than the computation without
 predictor reuse (95% interval `r fmt_pct(longer(old_off[["lo"]]), 1)`% to
-`r fmt_pct(longer(old_off[["hi"]]), 1)`%). The data flag that selects between
+`r fmt_pct(longer(old_off[["hi"]]), 1)`%, computed over the `r n_sizes`
+data-set sizes). The data flag that selects between
 the two computations therefore did not slow the computation without predictor
 reuse.
 
@@ -802,7 +818,8 @@ smaller than the reduction per evaluation, as in the M-spline scenario.
 The Level A intervals assume that the variance between the data-set means of a
 workload is the same for all workloads with the same distribution and number
 of integration points. With two data sets per workload this assumption cannot
-be checked for each workload. The pooled variance includes both the variation
+be checked for each workload, and the pooled estimates for workloads that share
+data sets are correlated. The pooled variance includes both the variation
 between data sets and the error of the short runs subtracted from all blocks
 of a data set. The allocation of orders to blocks was unbalanced, although the
 position-adjusted estimates differed little from the primary estimates.
