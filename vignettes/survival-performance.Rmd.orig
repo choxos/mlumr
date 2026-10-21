@@ -602,7 +602,21 @@ stopifnot(
   # The Weibull saving in elapsed time excludes zero; the M-spline one does not.
   per_scenario["weibull_n500", "wall_lo"] > 0,
   per_scenario["mspline_n300", "step_lo"] < 0,
-  per_scenario["mspline_n300", "wall_lo"] < 0
+  per_scenario["mspline_n300", "wall_lo"] < 0,
+  # The Weibull saving per leapfrog step excludes zero.
+  per_scenario["weibull_n500", "step_lo"] > 0,
+  # The M-spline point estimates exceed the Weibull ones, and its saving in
+  # elapsed time exceeds its saving per step because the fits without reuse
+  # took more leapfrog steps and a longer warmup.
+  per_scenario["mspline_n300", "step"] > per_scenario["weibull_n500", "step"],
+  per_scenario["mspline_n300", "wall"] > per_scenario["weibull_n500", "wall"],
+  per_scenario["mspline_n300", "wall"] > per_scenario["mspline_n300", "step"],
+  more_work("mspline_n300", "leapfrog_sampling") > 0,
+  more_work("mspline_n300", "warmup_s") > 0,
+  # Later positions in a block are slower than the first.
+  all(position_effect > 0),
+  # Savings at fallback and Laplace points do not differ systematically.
+  fallback_diff[["lo"]] < 0, fallback_diff[["hi"]] > 0
 )
 ```
 
