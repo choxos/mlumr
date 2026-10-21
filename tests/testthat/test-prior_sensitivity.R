@@ -154,13 +154,13 @@ test_that("prior_sensitivity() refuses to vary anything but the prior", {
   fit <- structure(list(model = "relaxed",
                         priors = list(beta = prior_normal(0, 2.5))),
                    class = "mlumr_fit")
-  scenario <- c("center", "qr", "n_knots", "mspline_degree", "pred_times",
-                "rmst_horizon", "n_rmst_grid", "aux_by", "data", "model",
-                "link", "distribution", "prior_intercept", "prior_sigma",
-                "prior_aux", "prior_aux2", "prior_smooth")
+  scenario <- c("center", "qr", "optimization", "n_knots", "mspline_degree",
+                "pred_times", "rmst_horizon", "n_rmst_grid", "aux_by", "data",
+                "model", "link", "distribution", "prior_intercept",
+                "prior_sigma", "prior_aux", "prior_aux2", "prior_smooth")
   for (nm in scenario) {
     args <- list(fit, prior_beta_scales = c(1, 2.5))
-    args[[nm]] <- if (nm %in% c("center", "qr")) FALSE else 1
+    args[[nm]] <- if (nm %in% c("center", "qr", "optimization")) FALSE else 1
     expect_error(do.call(prior_sensitivity, args),
                  "scenario-defining", info = nm)
   }

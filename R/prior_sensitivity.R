@@ -122,7 +122,7 @@ prior_sensitivity <- function(fit,
     protected <- c("data", "model", "link", "distribution", "prior_beta",
                    "prior_beta_comparator", "prior_intercept", "prior_sigma",
                    "prior_aux", "prior_aux2", "prior_smooth", "center", "qr",
-                   "n_knots", "knots", "mspline_degree", "pred_times",
+                   "optimization", "n_knots", "knots", "mspline_degree", "pred_times",
                    "rmst_horizon", "n_rmst_grid", "aux_by")
     clash <- intersect(names(dots), protected)
     if (length(clash)) {
