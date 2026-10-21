@@ -33,7 +33,10 @@ fixed_md5 <- unname(tools::md5sum(fixed_csv))
 fits_md5 <- unname(tools::md5sum(fits_csv))
 
 pct <- function(log_ratio) 100 * (1 - exp(-log_ratio))
-fmt_pct <- function(x, digits = 0) formatC(x, format = "f", digits = digits)
+# Adding zero turns a rounded negative zero into zero, so no "-0" is printed.
+fmt_pct <- function(x, digits = 0) {
+  formatC(round(x, digits) + 0, format = "f", digits = digits)
+}
 t_interval <- function(x) {
   n <- length(x)
   half <- if (n > 1) stats::qt(0.975, n - 1) * stats::sd(x) / sqrt(n) else NA_real_
@@ -123,6 +126,84 @@ per_scenario <- do.call(rbind, lapply(split(fit_pairs, fit_pairs$scenario), func
              max_gap_sd = max(p$mean_gap_sd), divergent = sum(p$divergent),
              treedepth = sum(p$treedepth), rhat = max(p$rhat))
 }))
+per_scenario <- per_scenario[order(match(per_scenario$scenario,
+                                         c("weibull_n500", "mspline_n300"))), ]
+scenario_label <- c(weibull_n500 = "Weibull, 500 pseudo-individuals",
+                    mspline_n300 = "M-spline, 300 pseudo-individuals")
+
+# ---- Quantities quoted in the text. -----------------------------------------
+fixed_caption <- paste(
+  "Reduction in time per evaluation with predictor reuse, relative to the",
+  "computation without it, by distribution (columns), number of covariates",
+  "(rows), number of integration points (horizontal axis), number of",
+  "pseudo-individuals (color), and model (line type). Points are workload",
+  "means of 16 block log ratios, expressed as percentages.")
+fmt_ci <- function(est, lo, hi, digits = 1) {
+  sprintf("%s%% (95%% interval %s%% to %s%%)", fmt_pct(pct(est), digits),
+          fmt_pct(pct(lo), digits), fmt_pct(pct(hi), digits))
+}
+workload_ci <- function(workload) {
+  w <- per_workload[per_workload$workload == workload, ]
+  fmt_ci(w$lr_off, w$lr_off_lo, w$lr_off_hi)
+}
+scenario_ci <- function(scenario, what) {
+  s <- per_scenario[per_scenario$scenario == scenario, ]
+  fmt_ci(s[[what]], s[[paste0(what, "_lo")]], s[[paste0(what, "_hi")]])
+}
+scenario_ratio <- function(scenario, what) {
+  s <- per_scenario[per_scenario$scenario == scenario, ]
+  sprintf("%.2f (95%% interval %.2f to %.2f)", exp(s[[what]]),
+          exp(s[[paste0(what, "_lo")]]), exp(s[[paste0(what, "_hi")]]))
+}
+factor_pct <- function(var) {
+  agg <- stats::aggregate(per_workload$lr_off, list(level = per_workload[[var]]),
+                          mean)
+  stats::setNames(fmt_pct(pct(agg$x), 1), as.character(agg$level))
+}
+by_dist <- factor_pct("Distribution")
+by_model <- factor_pct("Model")
+by_agd <- factor_pct("n_agd")
+by_int <- factor_pct("n_int")
+by_cov <- factor_pct("n_cov")
+n_reduced <- sum(per_workload$lr_off_lo > 0)
+n_increased <- sum(per_workload$lr_off_hi < 0)
+median_off <- stats::median(per_workload$saved_off)
+ratio_old_off <- exp(mean(per_workload$lr_old_off))
+range_ms <- range(per_workload$ms_reuse)
+
+# Data sets whose parameter values fell back to the origin, and the mean
+# reduction at each kind of point within the distributions affected.
+points_by_key <- unique(fixed[, c("key", "distribution", "points")])
+fallback_by_dist <- table(points_by_key$distribution[points_by_key$points != "laplace"])
+fallback_text <- knitr::combine_words(
+  sprintf("%d %s", as.integer(fallback_by_dist), dist_label[names(fallback_by_dist)]))
+wide_points <- merge(wide, points_by_key, by = "key")
+wide_points <- wide_points[wide_points$distribution %in% names(fallback_by_dist), ]
+by_points <- stats::aggregate(lr_off ~ distribution + I(points == "laplace"),
+                              data = wide_points, mean)
+names(by_points) <- c("distribution", "laplace", "lr_off")
+max_points_gap <- max(abs(tapply(pct(by_points$lr_off), by_points$distribution,
+                                 function(x) diff(range(x)))))
+
+# Level B: the second fit of each pair starts under the residual load of the
+# first, so the order of the settings is recorded. Weighting the two orders
+# equally removes the imbalance when a scenario has an odd number of data sets.
+fit_pairs$reuse_first <- vapply(split(fits, fits$key), function(d) {
+  d$order[d$arm == "reuse"][1] == 1
+}, logical(1))[fit_pairs$key]
+fit_pairs$gap_mcse <- vapply(split(fits, fits$key), function(d) {
+  on <- d[d$arm == "reuse", ][1, ]
+  off <- d[d$arm == "no_reuse", ][1, ]
+  abs(on$post_mean - off$post_mean) / sqrt(on$post_mcse^2 + off$post_mcse^2)
+}, numeric(1))[fit_pairs$key]
+order_balanced <- vapply(split(fit_pairs, fit_pairs$scenario), function(p) {
+  mean(tapply(p$lr_step, p$reuse_first, mean))
+}, numeric(1))
+reuse_first_n <- tapply(fit_pairs$reuse_first, fit_pairs$scenario, sum)
+max_gap_mcse <- max(fit_pairs$gap_mcse)
+n_chains_identical <- stats::setNames(per_scenario$identical, per_scenario$scenario)
+n_chains <- stats::setNames(per_scenario$chains, per_scenario$scenario)
+n_datasets <- stats::setNames(per_scenario$datasets, per_scenario$scenario)
 ```
 
 Multilevel unanchored meta-regression (ML-UMR) compares a treatment for which
@@ -310,7 +391,7 @@ was the same for all three methods.
 **Parameter values.** The parameter values were five draws from CmdStan's
 Laplace approximation at the posterior mode of each data set, so that timings
 were taken in the region of the parameter space explored by the sampler.
-`r if (n_points_fallback) paste0("For ", n_points_fallback, " data sets the posterior mode could not be located, and the origin together with four small perturbations of it was used instead.") else "The posterior mode was located for every data set."`
+`r if (n_points_fallback) paste0("For ", n_points_fallback, " of the ", n_units, " data sets (", fallback_text, ") the posterior mode could not be located, and the origin together with four small perturbations of it was used instead.") else "The posterior mode was located for every data set."`
 
 **Pairing.** Each data set was timed in eight blocks. Within a block, each of
 the three methods was run once, in an order balanced so that each method
@@ -339,7 +420,10 @@ sampler settings (four chains of 2000 iterations, of which 1000 were warmup,
 `adapt_delta = 0.95`, `max_treedepth = 15`). The four chains ran in parallel,
 and both fits used the same seed and hence the same initial values. The order
 of the two settings alternated between data sets. Draws were written with 18
-significant digits so that identical trajectories could be recognized.
+significant digits, so that a chain could be recognized as following a common
+trajectory under both settings: its draws agreed to a relative tolerance of
+$10^{-6}$ at every sampling iteration, a tolerance that admits the rounding
+differences described above but not a separation of trajectories.
 
 **Estimands.** The primary estimand was the sampling time per leapfrog step,
 paired by data set and chain. It measures the cost of a step within the actual
@@ -355,8 +439,10 @@ these intervals are necessarily wide.
 ```{r machine, echo = FALSE}
 fields <- c("CPU", "Cores", "Memory-GB", "Platform", "R", "CmdStan", "cmdstanr",
             "Compiler", "mlumr", "Commit")
-knitr::kable(data.frame(Item = fields, Value = unname(manifest[fields])),
-             row.names = FALSE)
+labels <- c("Processor", "Cores", "Memory (GB)", "Platform", "R", "CmdStan",
+            "cmdstanr", "Compiler", "mlumr", "Commit")
+knitr::kable(data.frame(Item = labels, Value = unname(manifest[fields])),
+             row.names = FALSE, caption = "Hardware and software used.")
 ```
 
 All computations were performed on the single machine described above. Level
@@ -368,7 +454,10 @@ the load average had a median of
 `r sprintf("%.1f", min(fixed$load1))` to `r sprintf("%.1f", max(fixed$load1))`)
 in Level A and a median of `r sprintf("%.1f", stats::median(fits$load1))`
 (range `r sprintf("%.1f", min(fits$load1))` to
-`r sprintf("%.1f", max(fits$load1))`) in Level B.
+`r sprintf("%.1f", max(fits$load1))`) in Level B. The threshold applied to the
+start of a unit; the load averages recorded at later runs within a unit include
+the unit's own earlier runs (in Level B, the four chains of the first fit of
+the pair), which accounts for the values above the threshold.
 
 ## Results
 
@@ -383,17 +472,19 @@ and the 0.2.0 models it was `r formatC(max_diff_old, format = "g", digits = 2)`.
 ```{r fit-agreement, echo = FALSE}
 agree <- per_scenario[, c("scenario", "datasets", "identical", "chains",
                           "max_gap_sd", "divergent", "treedepth", "rhat")]
+agree$scenario <- scenario_label[agree$scenario]
 agree$max_gap_sd <- formatC(agree$max_gap_sd, format = "g", digits = 2)
 agree$rhat <- formatC(agree$rhat, format = "f", digits = 3)
-names(agree) <- c("Scenario", "Data sets", "Chains with identical draws",
+names(agree) <- c("Scenario", "Data sets", "Chains on a common trajectory",
                   "Chains", "Largest difference in posterior mean (posterior SDs)",
                   "Divergent transitions", "Transitions at maximum tree depth",
                   "Largest R-hat")
 knitr::kable(agree, row.names = FALSE,
              caption = paste("Agreement between the complete fits with and",
-                             "without predictor reuse. Chains with identical",
-                             "draws are those whose draws agreed to 18",
-                             "significant digits at every iteration."))
+                             "without predictor reuse. A chain followed a",
+                             "common trajectory when its draws under the two",
+                             "settings agreed to a relative tolerance of",
+                             "1e-6 at every sampling iteration."))
 ```
 
 ### Time per evaluation
@@ -421,9 +512,15 @@ Across all `r n_workloads` workloads, the estimated reduction in time per
 evaluation ranged from `r fmt_pct(range_off[1])`% to
 `r fmt_pct(range_off[2])`% relative to the computation without predictor
 reuse, and from `r fmt_pct(range_old[1])`% to `r fmt_pct(range_old[2])`%
-relative to the 0.2.0 models.
+relative to the 0.2.0 models; a negative value denotes an increase. The time
+per evaluation with predictor reuse
+ranged from `r formatC(range_ms[1], format = "f", digits = 2)` ms to
+`r formatC(range_ms[2], format = "f", digits = 0)` ms. Within the
+distributions for which some data sets were evaluated at the fallback
+parameter values, the mean reduction at those values differed from that at the
+Laplace draws by at most `r fmt_pct(max_points_gap, 1)` percentage points.
 
-```{r fixed-figure, echo = FALSE, fig.height = 6.5}
+```{r fixed-figure, echo = FALSE, fig.height = 6.5, fig.cap = fixed_caption, fig.alt = fixed_caption}
 ggplot(per_workload, aes(x = n_int, y = saved_off, color = factor(n_agd),
                          linetype = Model)) +
   geom_hline(yintercept = 0, color = "grey60") +
@@ -460,10 +557,10 @@ knitr::kable(rbind(main("Distribution", "Distribution"), main("Model", "Model"),
 
 ```{r fits-table, echo = FALSE}
 knitr::kable(data.frame(
-  Scenario = per_scenario$scenario,
+  Scenario = scenario_label[per_scenario$scenario],
   `Data sets` = per_scenario$datasets,
-  `Elapsed s, reuse` = round(per_scenario$wall_on),
-  `Elapsed s, no reuse` = round(per_scenario$wall_off),
+  `Elapsed time (s), reuse` = round(per_scenario$wall_on),
+  `Elapsed time (s), no reuse` = round(per_scenario$wall_off),
   `Reduction per leapfrog step, %` = ci(per_scenario$step, per_scenario$step_lo,
                                         per_scenario$step_hi),
   `Reduction in elapsed time, %` = ci(per_scenario$wall, per_scenario$wall_lo,
@@ -483,7 +580,72 @@ knitr::kable(data.frame(
 
 ### Principal findings
 
-<!-- Written from the assembled results. -->
+**Time per evaluation (A1).** Averaged over the other factors, predictor reuse
+reduced the time per evaluation of the log density and its gradient for every
+distribution and for both models. The 95% interval excluded no change in
+`r n_reduced` of the `r n_workloads` workloads, and in
+`r if (n_increased == 0) "none" else n_increased` did it indicate an increase.
+The reduction was largest for the M-spline baseline
+(`r by_dist[["M-spline"]]`% on average over the other factors) and smallest for
+the generalized gamma distribution (`r by_dist[["generalized gamma"]]`%), whose
+likelihood terms evaluate incomplete gamma functions and therefore leave the
+removed products a smaller share of the total cost.
+
+The dependence on the other factors agreed with the structure of the
+computation. The reduction increased with the number of covariates, from
+`r by_cov[["1"]]`% with one covariate to `r by_cov[["6"]]`% with six, and was
+larger for the relaxed model than for the SPFA model (`r by_model[["relaxed"]]`%
+against `r by_model[["SPFA"]]`%), since both widen the design. It increased
+slightly with the number of pseudo-individuals, from `r by_agd[["100"]]`% at
+100 to `r by_agd[["2000"]]`% at 2000, as the fixed cost of the index study's
+likelihood became a smaller share of the total. It decreased with the number
+of integration points, from `r by_int[["16"]]`% at 16 to `r by_int[["256"]]`%
+at 256. The operation count does not predict this dependence, because both the
+removed products and the likelihood terms grow linearly with $M$; it is
+consistent with a cost per product that does not grow with $M$, such as the
+creation and traversal of the product's node in the expression graph.
+
+The reductions relative to the 0.2.0 models were close to those relative to
+the computation without predictor reuse, because the latter took essentially
+the same time as the 0.2.0 models: over all workloads, the geometric mean
+ratio of the time of the 0.2.0 models to that without predictor reuse was
+`r sprintf("%.3f", ratio_old_off)`. The data flag that selects between the two
+computations therefore adds no measurable cost.
+
+**Complete fits (A2).** In the Weibull scenario predictor reuse reduced the
+sampling time per leapfrog step by `r scenario_ci("weibull_n500", "step")`, in
+agreement with the Level A estimate of
+`r workload_ci("weibull_spfa_agd0500_int064_cov3")` for the same distribution,
+model, sample size, number of integration points, and number of covariates.
+The elapsed time of the `mlumr()` call was reduced by
+`r scenario_ci("weibull_n500", "wall")`, and the bulk ESS of the RMST
+difference per second increased by a factor of
+`r scenario_ratio("weibull_n500", "ess")`.
+In the M-spline scenario the point
+estimates were larger, a reduction of
+`r scenario_ci("mspline_n300", "step")` per leapfrog step and
+`r scenario_ci("mspline_n300", "wall")` in elapsed time, compared with
+`r workload_ci("mspline_spfa_agd0500_int064_cov3")` per evaluation in Level A
+at 500 pseudo-individuals. With five data sets these intervals include no
+change, and the M-spline estimates are not conclusive.
+
+**Agreement (A3).** At every parameter value timed, the log density and its
+gradient computed with and without predictor reuse, and by the 0.2.0 models,
+agreed to within `r formatC(max(max_diff_off, max_diff_old), format = "g", digits = 2)`
+in absolute value. In the complete fits,
+`r n_chains_identical[["weibull_n500"]]` of the
+`r n_chains[["weibull_n500"]]` Weibull chains and
+`r n_chains_identical[["mspline_n300"]]` of the
+`r n_chains[["mspline_n300"]]` M-spline chains followed a common trajectory
+under both settings throughout sampling. The other chains separated, as
+expected once differences in the final digits of the gradient accumulate along
+a trajectory.
+In every pair of fits the posterior means of the RMST difference differed by at
+most `r formatC(max(per_scenario$max_gap_sd), format = "f", digits = 3)`
+posterior standard deviations, or
+`r formatC(max_gap_mcse, format = "f", digits = 1)` times the Monte Carlo
+standard error of their difference, which is consistent with Monte Carlo
+variation alone.
 
 ### Limitations
 
@@ -518,18 +680,51 @@ corresponding Level A workloads.
 A single data-generating mechanism was used, with right censoring only.
 Delayed entry and left or interval censoring add terms to each likelihood
 evaluation and would be expected to reduce the share of the total cost that
-predictor reuse removes.
+predictor reuse removes. For
+`r n_points_fallback` data sets the timings were taken at fallback parameter
+values rather than at draws near the posterior mode. The cost of the
+incomplete gamma functions in the generalized gamma likelihood depends on the
+parameter values, but the reductions at the two kinds of points were nearly
+identical (see Results).
 
-Finally, although each unit started only when the load average was below the
-stated threshold, the machine was not otherwise idle; the recorded load
-averages are reported above. Background activity adds variability to
-individual timings, while the randomized order of data sets and the balanced
-order of methods within blocks prevent it from favoring either method
-systematically.
+Although each unit started only when the load average was below the stated
+threshold, the machine was not otherwise idle; the recorded load averages are
+reported above. Background activity adds variability to individual timings,
+while the randomized order of data sets and the balanced order of methods
+within blocks prevent it from favoring either method systematically. In
+Level B, the second fit of each pair started under the residual load of the
+first. The alternation of the two settings balanced this exactly for the
+Weibull scenario (`r reuse_first_n[["weibull_n500"]]` of
+`r n_datasets[["weibull_n500"]]` data sets with predictor reuse first) and
+approximately for the M-spline scenario (`r reuse_first_n[["mspline_n300"]]`
+of `r n_datasets[["mspline_n300"]]`). Weighting the two orders equally gives
+reductions per leapfrog step of
+`r fmt_pct(pct(order_balanced[["weibull_n500"]]), 1)`% for the Weibull
+scenario and `r fmt_pct(pct(order_balanced[["mspline_n300"]]), 1)`% for the
+M-spline scenario.
+
+Finally, the processor has four performance cores and four efficiency cores,
+and the assignment of processes to core types was left to the operating
+system. A chain scheduled on an efficiency core runs more slowly, which is a
+plausible source of the variability between data sets in Level B, where four
+chains ran concurrently.
 
 ### Conclusion
 
-<!-- Written from the assembled results. -->
+Predictor reuse removes redundant computation from the survival models without
+changing the model, the posterior distribution, or the computed values beyond
+the final digits of floating-point sums. In this study it reduced the time per
+evaluation of the log density and its gradient by
+`r fmt_pct(median_off, 1)`% in the median workload and by up to
+`r fmt_pct(range_off[2])`%, with the largest reductions for the M-spline baseline, wide designs, and few integration points,
+and the smallest for the generalized gamma distribution. In complete Weibull
+fits the reduction in elapsed time was of the order of
+`r fmt_pct(pct(per_scenario$wall[per_scenario$scenario == "weibull_n500"]))`%,
+smaller than the reduction per evaluation, as expected from the parts of a fit
+that predictor reuse does not affect. Because the optimization is enabled by
+default, these reductions apply to survival fits without any change to user
+code; `optimization = FALSE` remains available for benchmarking and for
+reproducing fits made with earlier releases.
 
 ## Reproducibility
 
