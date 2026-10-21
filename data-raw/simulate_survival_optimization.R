@@ -57,8 +57,10 @@
 # N_POINTS draws from CmdStan's Laplace approximation at the posterior mode of
 # the data set, so they lie where the sampler spends its time; when the mode
 # cannot be found the points are the origin and small perturbations of it,
-# and the row says so. Every block times every arm once, in a random order;
-# the arms of one block are a paired comparison.
+# and the row says so. Every block times every arm once; the arms of one
+# block are a paired comparison. The N_BLOCKS blocks use each of the six
+# orders of the three arms N_BLOCKS / 6 times, in a random sequence, so every
+# arm occupies every position equally often.
 #
 # LEVEL B, complete fits. A few scenarios, each fitted with optimization TRUE
 # and FALSE on the same data and the same seed (so the same initial values),
@@ -393,7 +395,8 @@ wait_for_idle <- function() {
 ARMS <- c("reuse", "no_reuse", "v0.2.0")
 N_POINTS <- 5L
 TARGET_SECONDS <- 0.5
-N_BLOCKS <- 8L
+N_BLOCKS <- 12L
+stopifnot(N_BLOCKS %% 6L == 0L)
 N_DATASETS <- 2L
 DISTRIBUTIONS <- c("weibull", "lognormal", "gengamma", "mspline")
 MODELS <- c("spfa", "relaxed")
@@ -474,7 +477,7 @@ time_workload <- function(w, models, tmp) {
   perms <- withr::with_seed(w$seed + 2L, {
     all <- list(c(1, 2, 3), c(1, 3, 2), c(2, 1, 3), c(2, 3, 1), c(3, 1, 2),
                 c(3, 2, 1))
-    sample(c(all, all)[seq_len(N_BLOCKS)])
+    sample(rep(all, N_BLOCKS / 6L))
   })
   # The fixed cost of a run (start, data input, model construction, output)
   # does not depend on the number of rows; each arm's is the median of three
@@ -523,9 +526,9 @@ SCENARIOS <- data.frame(
   scenario = c("weibull_n500", "mspline_n300"),
   distribution = c("weibull", "mspline"),
   model = "spfa", n_agd = c(500L, 300L), n_int = 64L, n_cov = 3L,
-  # Fixed before any fit was run: an M-spline fit at these settings takes
-  # tens of minutes, so it gets half the data sets.
-  n_datasets = c(10L, 5L),
+  # Fixed before any fit was run. An even number of data sets lets the order
+  # of the two settings, which alternates between data sets, balance exactly.
+  n_datasets = c(10L, 10L),
   stringsAsFactors = FALSE)
 CHAINS <- 4L
 ITER <- 2000L

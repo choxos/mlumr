@@ -112,12 +112,13 @@ per_workload$Model <- factor(per_workload$model, levels = c("spfa", "relaxed"),
                              labels = c("SPFA", "relaxed"))
 
 # The blocks of a data set used each of the six orders of the three methods
-# once and two further orders that both began with predictor reuse. A
-# regression per workload with block, method, and position effects gives the
-# estimate adjusted for position.
+# equally often, so every method ran in every position equally often. A
+# regression per workload with block, method, and position effects checks the
+# position effect and gives the estimate adjusted for it.
 n_blocks <- max(fixed$block)
 reuse_first_blocks <- sum(fixed$arm == "reuse" & fixed$position == 1) /
   length(unique(fixed$key))
+stopifnot(n_blocks %% 6 == 0, reuse_first_blocks == n_blocks / 3)
 position_fit <- do.call(rbind, lapply(split(fixed, fixed$workload), function(d) {
   d$block_id <- interaction(d$key, d$block, drop = TRUE)
   d$method <- factor(d$arm, levels = c("reuse", "no_reuse", "v0.2.0"))
@@ -182,10 +183,11 @@ per_scenario <- do.call(rbind, lapply(split(fit_pairs, fit_pairs$scenario), func
              identical = sum(p$chains_identical), chains = sum(p$chains),
              max_gap_sd = max(p$mean_gap_sd), divergent = sum(p$divergent),
              treedepth = sum(p$treedepth), rhat = max(p$rhat),
-             reuse_first = sum(p$reuse_first),
-             step_balanced = mean(tapply(p$lr_step, p$reuse_first, mean)),
-             wall_balanced = mean(tapply(p$lr_wall, p$reuse_first, mean)))
+             reuse_first = sum(p$reuse_first))
 }))
+# The order of the two fits alternates between data sets, and each scenario has
+# an even number of them, so each order ran equally often.
+stopifnot(all(2 * per_scenario$reuse_first == per_scenario$datasets))
 per_scenario <- per_scenario[order(match(per_scenario$scenario,
                                          c("weibull_n500", "mspline_n300"))), ]
 rownames(per_scenario) <- per_scenario$scenario
@@ -250,11 +252,11 @@ range_ms <- range(per_workload$ms_reuse)
 # separate, and a t interval is taken over the sizes.
 old_off <- t_interval(tapply(per_workload$lr_old_off, per_workload$size, mean))
 longer <- function(log_ratio) 100 * (exp(log_ratio) - 1)
-# Counts below eleven are written as words in the text.
+# Counts up to twelve are written as words in the text.
 as_words <- function(n) {
   words <- c("one", "two", "three", "four", "five", "six", "seven", "eight",
-             "nine", "ten")
-  if (n >= 1 && n <= 10 && n == round(n)) words[n] else format(n)
+             "nine", "ten", "eleven", "twelve")
+  if (n >= 1 && n <= 12 && n == round(n)) words[n] else format(n)
 }
 
 # Data sets whose parameter values fell back to the origin. Within the
@@ -491,15 +493,12 @@ where the sampler spends its time.
 `r if (n_points_fallback) paste0("For ", n_points_fallback, " of the ", n_units, " data sets (", fallback_text, ") the posterior mode could not be located, and the origin together with four small perturbations of it was used instead.") else "The posterior mode was located for every data set."`
 
 **Pairing.** Each data set is timed in `r as_words(n_blocks)` blocks, and each
-block runs each of the three computations once. The `r as_words(n_blocks)`
-blocks use the six possible orders once each, plus two further orders that both
-begin with predictor reuse, assigned to blocks at random. Predictor reuse
-therefore runs first in `r as_words(reuse_first_blocks)` of the
-`r as_words(n_blocks)` blocks of every data set, and each of the other
-computations in `r as_words((n_blocks - reuse_first_blocks) / 2)`; every
-computation occupies every position. A sensitivity analysis below estimates the
-effect of this imbalance. Data sets are processed in random order, so that any
-drift in timing over the run is spread across the experimental factors.
+block runs each of the three computations once. The blocks use each of the six
+possible orders of the three computations `r as_words(n_blocks / 6)` times, in
+random sequence, so every computation runs in every position in
+`r as_words(n_blocks / 3)` of the `r as_words(n_blocks)` blocks of every data
+set. Data sets are processed in random order, so that any drift in timing over
+the run is spread across the experimental factors.
 
 **Estimate and interval.** For each block the quantity of interest is the log
 ratio of the time per evaluation without predictor reuse to the time with it,
@@ -520,18 +519,16 @@ percentage saving in time per evaluation, $100\,(1 - 1/\text{ratio})$.
 ### Level B: complete fits
 
 **Scenarios.** Two SPFA scenarios with three covariates and 64 integration
-points: a Weibull baseline with 500 comparator pseudo-individuals (ten data
-sets) and an M-spline baseline with 300 (five data sets). The smaller number of
-M-spline data sets reflects the longer run time of these fits and was fixed
-before any fit was run.
+points: a Weibull baseline with 500 comparator pseudo-individuals and an
+M-spline baseline with 300, each with ten data sets.
 
 **Fits.** Each data set is fitted with `optimization = TRUE` and with
 `optimization = FALSE` through `mlumr(engine = "cmdstanr")` with the default
 sampler settings (four chains of 2000 iterations, 1000 of them warmup,
 `adapt_delta = 0.95`, `max_treedepth = 15`). The four chains run in parallel,
 and both fits use the same seed and hence the same initial values. The order of
-the two settings alternates between data sets. Draws are written with 18
-significant digits.
+the two settings alternates between data sets, so each order is used for half
+of the data sets. Draws are written with 18 significant digits.
 
 A chain *follows a common trajectory* under both settings when, at every
 sampling iteration, each sampled parameter (the regression coefficients and the
@@ -549,7 +546,7 @@ sensitive to that number than the elapsed time is. The elapsed time of the
 `mlumr()` call and the bulk effective sample size (ESS) of the
 comparator-population RMST difference per second of elapsed time are also
 reported. Each is summarized as the mean of the log ratios over data sets, with
-a $t$ interval; with five or ten data sets these intervals are wide.
+a $t$ interval; with ten data sets these intervals are wide.
 
 ### The machine
 
@@ -843,21 +840,6 @@ interval `r sprintf("%.3f", fallback_diff[["lo"]])` to
 difference between the two data sets of the workloads in which both used
 Laplace draws had standard deviation `r sprintf("%.3f", sd_laplace_diff)`.
 
-**Order of the two fits.** In Level B the alternation of the two settings
-balanced the order exactly in the Weibull scenario
-(`r per_scenario["weibull_n500", "reuse_first"]` of
-`r n_datasets[["weibull_n500"]]` data sets with predictor reuse first) and
-approximately in the M-spline scenario
-(`r per_scenario["mspline_n300", "reuse_first"]` of
-`r n_datasets[["mspline_n300"]]`). Weighting the two orders equally gives
-savings per leapfrog step of
-`r fmt_pct(pct(per_scenario["weibull_n500", "step_balanced"]), 1)`% for the
-Weibull scenario and
-`r fmt_pct(pct(per_scenario["mspline_n300", "step_balanced"]), 1)`% for the
-M-spline scenario, and savings in elapsed time of
-`r fmt_pct(pct(per_scenario["weibull_n500", "wall_balanced"]), 1)`% and
-`r fmt_pct(pct(per_scenario["mspline_n300", "wall_balanced"]), 1)`%.
-
 ## What this vignette does not claim
 
 The timings come from one machine and one compiler, through CmdStan
@@ -884,10 +866,8 @@ of integration points. With two data sets per workload this cannot be checked
 for each workload, and the pooled estimates for workloads that share data sets
 are correlated. The pooled variance includes both the variation between data
 sets and the error of the short runs subtracted from all blocks of a data set.
-The allocation of orders to blocks was unbalanced, although the
-position-adjusted estimates differ little from the main ones.
 
-Level B has two scenarios with ten and five data sets, and its intervals are
+Level B has two scenarios with ten data sets each, and its intervals are
 wide. The saving in elapsed time for other distributions, sample sizes, numbers
 of integration points, or for the relaxed model was not measured directly; it
 can be inferred only from the corresponding Level A workloads.
@@ -907,8 +887,8 @@ but the machine was not otherwise idle; the recorded load averages are reported
 above. Background activity adds variability to single timings. In Level A, the
 random order of data sets and the placement of every computation in every
 position within blocks limit its effect on the comparison. In Level B, the
-order of the two fits of a pair may also affect timing; the cause was not
-determined, and the order-balanced estimates are given in the checks above.
+order of the two fits of a pair may also affect timing; each order was used for
+half of the data sets of each scenario.
 
 The processor has four performance cores and four efficiency cores, and the
 operating system decided which processes ran on which. A chain scheduled on an
