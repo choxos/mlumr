@@ -12,7 +12,7 @@
 
 
 
-<title>Computation time of survival fits</title>
+<title>Survival fits with and without optimization</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -359,7 +359,8 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 
 
-<h1 class="title toc-ignore">Computation time of survival fits</h1>
+<h1 class="title toc-ignore">Survival fits with and without
+optimization</h1>
 
 
 
@@ -379,8 +380,9 @@ distribution.</p>
 <li>how to turn the optimization off, and when that is useful;</li>
 <li>what predictor reuse changes in the computation, and why draws can
 still differ in their final digits;</li>
-<li>a simulation study that measures the time it saves, both per
-evaluation of the log density and in complete fits.</li>
+<li>a simulation study that compares survival fits with and without the
+optimization, both per evaluation of the log density and in complete
+fits.</li>
 </ol>
 <div id="the-optimization-argument" class="section level2">
 <h2>The <code>optimization</code> argument</h2>

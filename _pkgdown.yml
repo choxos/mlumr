@@ -56,7 +56,7 @@ navbar:
         href: articles/choosing-a-method.html
       - text: Aggregate subgroup information for the relaxed model
         href: articles/subgroup-identification.html
-      - text: Computation time of survival fits
+      - text: Survival fits with and without optimization
         href: articles/survival-performance.html
 
 articles:

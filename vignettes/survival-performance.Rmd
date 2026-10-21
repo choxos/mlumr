@@ -1,5 +1,5 @@
 ---
-title: "Computation time of survival fits"
+title: "Survival fits with and without optimization"
 output: rmarkdown::html_vignette
 bibliography: ../inst/REFERENCES.bib
 link-citations: yes
@@ -26,8 +26,8 @@ This vignette covers three things:
 1. how to turn the optimization off, and when that is useful;
 2. what predictor reuse changes in the computation, and why draws can still
    differ in their final digits;
-3. a simulation study that measures the time it saves, both per evaluation of
-   the log density and in complete fits.
+3. a simulation study that compares survival fits with and without the
+   optimization, both per evaluation of the log density and in complete fits.
 
 ## The `optimization` argument
 

@@ -9,8 +9,8 @@
   releases, for benchmarking and for reproducing earlier fits.
   `prior_sensitivity()` refits with the setting of the fit, and with `FALSE`
   for a fit made with an earlier release. The new article
-  "Computation time of survival fits" reports a simulation study of the
-  reduction in computation time.
+  "Survival fits with and without optimization" reports a simulation study
+  comparing the computation time of the two.
 * Documentation: `citation("mlumr")` gives standard references for the ML-UMR
   methodology, the software with its Zenodo DOI, and the two conference
   abstracts, each with a BibTeX key for use in manuscripts.
