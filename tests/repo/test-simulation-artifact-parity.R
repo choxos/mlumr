@@ -40,7 +40,7 @@ for (study in .studies) {
     # `data-raw` is build-ignored, so an installed package has neither the
     # results nor the article source; there is nothing to compare there. The
     # results files are what say which of the two this is. Once they exist, a
-    # MISSING article is the failure this test is for, not a reason to skip: a
+    # missing article is the failure this test is for, not a reason to skip: a
     # skip here is exactly how the check disappears while the build stays
     # green.
     skip_if_not(all(file.exists(csvs)),
@@ -95,7 +95,7 @@ for (study in .studies) {
       expect_identical(unname(fields[1, paste0(field, "-MD5")]),
                        unname(tools::md5sum(csvs[[field]])), info = field)
       # The row count is the cheap structural check the digest cannot give: a
-      # truncated file has a different digest but nothing says WHAT changed.
+      # truncated file has a different digest but nothing says what changed.
       expect_identical(as.integer(fields[1, study$rows[[field]]]),
                        nrow(utils::read.csv(csvs[[field]])), info = field)
     }

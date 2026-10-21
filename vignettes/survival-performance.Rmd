@@ -26,8 +26,7 @@ evaluated that leave the statistical model, and therefore the posterior
 distribution, unchanged. This article documents the optimization introduced in
 version 0.2.1, the per-arm reuse of the comparator linear predictor in the
 survival models (hereafter *predictor reuse*), and reports a simulation study
-of its effect on computation time. Optimizations introduced in later releases
-will be documented and evaluated in this article in the same manner.
+of its effect on computation time.
 
 ## The `optimization` argument
 
@@ -36,8 +35,10 @@ Optimizations are enabled by default and are disabled with
 
 
 ``` r
-fit <- mlumr(dat, distribution = "weibull")                          # predictor reuse (default)
-fit_ref <- mlumr(dat, distribution = "weibull", optimization = FALSE) # as in releases before 0.2.1
+# Predictor reuse (the default).
+fit <- mlumr(dat, distribution = "weibull")
+# The arithmetic of releases before 0.2.1.
+fit_ref <- mlumr(dat, distribution = "weibull", optimization = FALSE)
 ```
 
 The setting is stored in the fitted object as `fit$model_controls$optimization`,
@@ -48,8 +49,9 @@ optimization algorithms: the posterior distribution is always explored by
 Markov chain Monte Carlo sampling.
 
 Disabling optimizations serves two purposes: benchmarking, as in the study
-reported below, and reproducing, operation by operation, a fit obtained with an
-earlier release.
+reported below, and repeating the arithmetic of releases before 0.2.1, so that
+a fit obtained with such a release can be reproduced exactly when the Stan
+version, the compiler, and the seed are also the same.
 
 ## The modified computation
 
@@ -79,9 +81,10 @@ shared by all pseudo-individuals in the arm.
 
 Stan evaluates the gradient of the log density by reverse-mode automatic
 differentiation [@Carpenter2017], and the No-U-Turn sampler [@Hoffman2014]
-evaluates this gradient at every leapfrog step. Each matrix-vector product adds
-$M$ nodes to the expression graph and, in the reverse pass, propagates $M$
-adjoints into $n_B$ coefficients. Predictor reuse removes all but one product
+evaluates this gradient at every leapfrog step. Each matrix-vector product
+creates $M$ new values in the expression graph, together with the bookkeeping
+needed to differentiate them, and in the reverse pass propagates $M$ adjoints
+into $n_B$ coefficients. Predictor reuse removes all but one product
 per arm. It leaves unchanged the $n_{\text{agd}} \times M$ likelihood terms
 $f$, the likelihood of the index study, and the priors. The relative reduction
 per evaluation therefore equals the share of the total cost that is
@@ -97,9 +100,9 @@ pseudo-individuals, rather than once per pseudo-individual. Because
 floating-point addition is not associative, the two gradients may differ in
 their final digits. The posterior distribution is identical; under a common
 seed the draws coincide until such differences accumulate along the sampler's
-trajectory, and they agree in distribution throughout. The package's parity
-tests (`tests/parity/` in the source repository) compare, for each of 52
-workloads and both settings, the log density, its gradient, the parameter
+trajectory, which can happen as early as warmup, and they agree in
+distribution throughout. The package's parity tests (`tests/parity/` in the
+source repository) compare, for each of 52 test cases and both settings, the log density, its gradient, the parameter
 transforms, and every generated quantity against the 0.2.0 models.
 
 ## Simulation study design
@@ -133,10 +136,13 @@ the files in the repository.
 
 ### Data-generating mechanism
 
-A single data-generating mechanism was used throughout, because the
-computation time depends on the code path of the fitted model and, for given
-sample sizes, depends on the data only through the mix of event and censoring
-indicators.
+A single data-generating mechanism was used throughout, as a benchmark
+design. Computation time depends mainly on the code path of the fitted model
+and on the sample sizes. It also depends on the data values: through the mix
+of event and censoring indicators, through branches of the generalized gamma
+likelihood that are selected by the values of time and of the parameters, and,
+in complete fits, through the trajectories of the sampler. The study does not
+vary these sources systematically.
 
 * An index study of 200 individuals and a comparator cohort of
   $n_{\text{agd}}$ individuals were generated in the same way.
@@ -184,30 +190,53 @@ data sets. The piecewise exponential baseline shares the likelihood code of
 the M-spline baseline and was not measured separately.
 
 **Measurement.** Time was measured inside the CmdStan executable used by
-`mlumr(engine = "cmdstanr")`, through CmdStan's `log_prob` method, which
-evaluates the log density and its gradient at every row of a file of parameter
-values. The difference between the CPU time of a run over $N$ rows and that of
-a run over five rows, divided by $N - 5$, estimates the cost of a single
-evaluation with process start-up, data input, and model construction removed.
-$N$ was chosen for each data set so that a run lasted approximately 0.5 s, and
-was the same for all three methods.
+`mlumr(engine = "cmdstanr")`, through CmdStan's `log_prob` method, which reads
+a file of parameter values and, for each row, evaluates the log density and
+its gradient and writes the result. The CPU time of a run over $N$ rows minus
+the median CPU time of three runs over five rows, divided by $N - 5$,
+estimates the cost per row with process start-up, data input, and model
+construction removed. The three short runs were made once for each data set
+and method, so all blocks of a data set share this subtraction. The cost per
+row comprises one evaluation of the log density and its gradient together
+with reading one row of parameter values and writing one row of results. The
+reading and writing are the same for the three methods; they dilute the
+relative reductions slightly for the least expensive workloads without
+favoring any method. $N$ was chosen for each data set so that a run lasted
+approximately 0.5 s, subject to a minimum of 20 rows, and was the
+same for all three methods. The minimum applied to
+17% of runs, and the longest run took
+6.1 s of CPU time.
 
 **Parameter values.** The parameter values were five draws from CmdStan's
 Laplace approximation at the posterior mode of each data set, so that timings
 were taken in the region of the parameter space explored by the sampler.
 For 67 of the 432 data sets (57 generalized gamma and 10 Weibull) the posterior mode could not be located, and the origin together with four small perturbations of it was used instead.
 
-**Pairing.** Each data set was timed in eight blocks. Within a block, each of
-the three methods was run once, in an order balanced so that each method
-occupied the first, second, and third position equally often across blocks.
-Data sets were processed in random order, so that any temporal drift in timing
-was distributed across the experimental factors.
+**Pairing.** Each data set was timed in eight blocks, and within a
+block each of the three methods was run once. The orders of the methods in the
+eight blocks were the six possible orders, each used once, and two
+further orders that both began with predictor reuse, assigned to blocks at
+random. Predictor reuse therefore ran first in four of the
+eight blocks of every data set, and each of the other methods in
+two; every method occupied every
+position. The effect of this imbalance was estimated in a sensitivity
+analysis. Data sets were processed in random order, so that any temporal drift
+in timing was distributed across the experimental factors.
 
 **Estimand and uncertainty.** For each block, the estimand was the log ratio
 of the time per evaluation without predictor reuse to the time with it, and
-likewise for the 0.2.0 models. The estimate for a workload was the mean of its
-16 block log ratios (two data sets of eight blocks each), with a 95% interval
-from the $t$ distribution. Results are reported as the percentage reduction in
+likewise for the 0.2.0 models. Because the blocks of a data set share the
+subtracted cost of the short runs, the data set rather than the block was
+taken as the independent unit. The estimate for a workload was the mean of its
+two data-set means, each the mean of eight block log ratios. With two
+data sets per workload, the variance between data-set means cannot be
+estimated reliably for each workload separately. It was therefore pooled over
+the 18 workloads that share the distribution and the number
+of integration points, and the 95% interval for a workload used the $t$
+distribution with 18 degrees of freedom. In a sensitivity
+analysis, a linear model for the log time with effects of block, method, and
+position within the block was fitted to each workload, giving estimates
+adjusted for position. Results are reported as the percentage reduction in
 time per evaluation, $100\,(1 - 1/\text{ratio})$.
 
 ### Level B: complete fits
@@ -224,15 +253,19 @@ sampler settings (four chains of 2000 iterations, of which 1000 were warmup,
 `adapt_delta = 0.95`, `max_treedepth = 15`). The four chains ran in parallel,
 and both fits used the same seed and hence the same initial values. The order
 of the two settings alternated between data sets. Draws were written with 18
-significant digits, so that a chain could be recognized as following a common
-trajectory under both settings: its draws agreed to a relative tolerance of
-$10^{-6}$ at every sampling iteration, a tolerance that admits the rounding
-differences described above but not a separation of trajectories.
+significant digits. A chain was regarded as following a common trajectory
+under both settings when, at every sampling iteration, each sampled parameter
+(the regression coefficients and the auxiliary and spline parameters) differed
+between the settings by at most $10^{-6} \max(1, |x|)$, where $x$ is its
+value with predictor reuse. This tolerance admits the rounding differences
+described above but not a separation of trajectories.
 
 **Estimands.** The primary estimand was the sampling time per leapfrog step,
-paired by data set and chain. It measures the cost of a step within the actual
-sampler and does not depend on the number of steps that a fit happened to
-take. The secondary estimands were the elapsed time of the `mlumr()` call and
+paired by data set and chain. It is dominated by the cost of a step within the
+actual sampler. Because the sampling time also includes work done once per
+iteration (the generated quantities and the writing of draws), it is not
+entirely independent of the number of steps per iteration, but it is much less
+sensitive to that number than the elapsed time is. The secondary estimands were the elapsed time of the `mlumr()` call and
 the bulk effective sample size (ESS) of the comparator-population RMST
 difference per second of elapsed time. Each was summarized as the mean of the
 log ratios over data sets, with a $t$ interval; with five or ten data sets
@@ -259,19 +292,20 @@ Table: Hardware and software used.
 
 
 
-All computations were performed on the single machine described above. Level
-A ran one CmdStan process at a time; Level B ran the four chains of each fit on
-four cores. A unit of either level was started only when the one-minute load
-average was below 6. At the start of the timed runs
-the load average had a median of
+All computations were performed on the single machine described above; mlumr
+0.2.0.9000 is the development version of 0.2.1. Level A ran one
+CmdStan process at a time; Level B ran the four chains of each fit in
+parallel. A unit of either level was started only when the one-minute load
+average was below 6. The load average was recorded
+immediately after each timed run in Level A, with median
 4.7 (range
-3.3 to 9.5)
-in Level A and a median of 5.7
-(range 3.4 to
-10.6) in Level B. The threshold applied to the
-start of a unit; the load averages recorded at later runs within a unit include
-the unit's own earlier runs (in Level B, the four chains of the first fit of
-the pair), which accounts for the values above the threshold.
+3.3 to 9.5),
+and at the start of each fit in Level B, with median
+5.7 (range
+3.4 to 10.6).
+Because the one-minute load average decays over about a minute, the recorded
+values include the unit's own preceding runs as well as other activity on the
+machine, and the two contributions cannot be separated.
 
 ## Results
 
@@ -282,10 +316,11 @@ the log density or in any component of its gradient between the computations
 with and without predictor reuse, over all parameter values timed, was
 1.6e-10; between predictor reuse
 and the 0.2.0 models it was 1.6e-10.
+In every data set the two differences were identical, which is consistent with the computation without predictor reuse and the 0.2.0 models producing identical output.
 
 
 
-Table: Agreement between the complete fits with and without predictor reuse. A chain followed a common trajectory when its draws under the two settings agreed to a relative tolerance of 1e-6 at every sampling iteration.
+Table: Agreement between the complete fits with and without predictor reuse. A chain followed a common trajectory when every sampled parameter agreed between the two settings to within 1e-6 max(1, |x|) at every sampling iteration.
 
 |Scenario                         | Data sets| Chains on a common trajectory| Chains|Largest difference in posterior mean (posterior SDs) | Divergent transitions| Transitions at maximum tree depth|Largest R-hat |
 |:--------------------------------|---------:|-----------------------------:|------:|:----------------------------------------------------|---------------------:|---------------------------------:|:-------------|
@@ -302,14 +337,14 @@ Table: Time per evaluation of the log density and its gradient with 500 pseudo-i
 
 |Distribution      |Model   |ms per evaluation, reuse |Reduction vs no reuse, % |Reduction vs 0.2.0, % |
 |:-----------------|:-------|:------------------------|:------------------------|:---------------------|
-|Weibull           |SPFA    |3.77                     |10 (7 to 13)             |10 (8 to 13)          |
-|Weibull           |relaxed |4.06                     |11 (9 to 12)             |12 (10 to 14)         |
-|log-normal        |SPFA    |3.31                     |12 (9 to 15)             |13 (10 to 16)         |
-|log-normal        |relaxed |3.56                     |16 (10 to 20)            |16 (12 to 20)         |
-|generalized gamma |SPFA    |11.42                    |3 (0 to 6)               |4 (0 to 7)            |
-|generalized gamma |relaxed |13.79                    |5 (0 to 9)               |3 (-1 to 7)           |
-|M-spline          |SPFA    |1.79                     |15 (10 to 20)            |14 (10 to 18)         |
-|M-spline          |relaxed |2.24                     |19 (16 to 22)            |19 (16 to 21)         |
+|Weibull           |SPFA    |3.77                     |10 (6 to 14)             |10 (7 to 14)          |
+|Weibull           |relaxed |4.06                     |11 (7 to 14)             |12 (8 to 16)          |
+|log-normal        |SPFA    |3.31                     |12 (8 to 16)             |13 (9 to 17)          |
+|log-normal        |relaxed |3.56                     |16 (11 to 20)            |16 (12 to 20)         |
+|generalized gamma |SPFA    |11.42                    |3 (-2 to 9)              |4 (-3 to 10)          |
+|generalized gamma |relaxed |13.79                    |5 (-1 to 10)             |3 (-4 to 10)          |
+|M-spline          |SPFA    |1.79                     |15 (12 to 18)            |14 (10 to 17)         |
+|M-spline          |relaxed |2.24                     |19 (16 to 22)            |19 (16 to 22)         |
 
 
 
@@ -317,17 +352,33 @@ Across all 216 workloads, the estimated reduction in time per
 evaluation ranged from -4% to
 30% relative to the computation without predictor
 reuse, and from -1% to 30%
-relative to the 0.2.0 models; a negative value denotes an increase. The time
-per evaluation with predictor reuse
-ranged from 0.16 ms to
-217 ms. Within the
-distributions for which some data sets were evaluated at the fallback
-parameter values, the mean reduction at those values differed from that at the
-Laplace draws by at most 0.1 percentage points.
+relative to the 0.2.0 models; a negative value denotes an increase. The
+median time per evaluation with predictor reuse, by workload, ranged from
+0.16 ms to
+217 ms.
+
+Times were slightly shorter in the first position of a block: relative to it,
+times were on average 0.3% longer
+in the second position and 0.4%
+longer in the third. Adjusting for position changed the workload estimates of
+the reduction by a median of 0.2 and
+at most 1.4 percentage points, and changed the
+mean reduction over all workloads from 12.8% to
+12.7%.
+
+In the 39 workloads in which one data set was evaluated at the
+fallback parameter values and the other at Laplace draws, the log time ratio
+at the fallback values minus that at the Laplace draws had mean
+0.001 (95% interval
+-0.012 to
+0.014) and standard deviation
+0.040. For comparison, the difference between
+the two data sets of the workloads in which both used Laplace draws had
+standard deviation 0.040.
 
 <div class="figure" style="text-align: center">
-<img src="figure/survival-performance/fixed-figure-1.png" alt="Reduction in time per evaluation with predictor reuse, relative to the computation without it, by distribution (columns), number of covariates (rows), number of integration points (horizontal axis), number of pseudo-individuals (color), and model (line type). Points are workload means of 16 block log ratios, expressed as percentages."  />
-<p class="caption">Reduction in time per evaluation with predictor reuse, relative to the computation without it, by distribution (columns), number of covariates (rows), number of integration points (horizontal axis), number of pseudo-individuals (color), and model (line type). Points are workload means of 16 block log ratios, expressed as percentages.</p>
+<img src="figure/survival-performance/fixed-figure-1.png" alt="Reduction in time per evaluation with predictor reuse, relative to the computation without it, by distribution (columns), number of covariates (rows), number of integration points (horizontal axis), number of pseudo-individuals (color), and model (line type). Each point is a workload estimate, expressed as a percentage."  />
+<p class="caption">Reduction in time per evaluation with predictor reuse, relative to the computation without it, by distribution (columns), number of covariates (rows), number of integration points (horizontal axis), number of pseudo-individuals (color), and model (line type). Each point is a workload estimate, expressed as a percentage.</p>
 </div>
 
 
@@ -374,7 +425,7 @@ Table: Elapsed times are medians over data sets. Reductions are means of the log
 **Time per evaluation (A1).** Averaged over the other factors, predictor reuse
 reduced the time per evaluation of the log density and its gradient for every
 distribution and for both models. The 95% interval excluded no change in
-196 of the 216 workloads, and in
+183 of the 216 workloads, and in
 none did it indicate an increase.
 The reduction was largest for the M-spline baseline
 (19.4% on average over the other factors) and smallest for
@@ -390,23 +441,27 @@ against 12.2%), since both widen the design. It increased
 slightly with the number of pseudo-individuals, from 11.4% at
 100 to 13.6% at 2000, as the fixed cost of the index study's
 likelihood became a smaller share of the total. It decreased with the number
-of integration points, from 16.2% at 16 to 10.8%
-at 256. The operation count does not predict this dependence, because both the
-removed products and the likelihood terms grow linearly with $M$; it is
-consistent with a cost per product that does not grow with $M$, such as the
-creation and traversal of the product's node in the expression graph.
+of integration points, from 16.2% at 16 to 11.2%
+at 64 and 10.8% at 256. The operation count does not predict
+this dependence, because both the removed products and the likelihood terms
+grow linearly with $M$. A decrease followed by a plateau is consistent with a
+cost per product that does not grow with $M$, such as the bookkeeping needed
+to differentiate each product, which is a larger share of the total when $M$
+is small.
 
 The reductions relative to the 0.2.0 models were close to those relative to
-the computation without predictor reuse, because the latter took essentially
-the same time as the 0.2.0 models: over all workloads, the geometric mean
-ratio of the time of the 0.2.0 models to that without predictor reuse was
-1.005. The data flag that selects between the two
-computations therefore adds no measurable cost.
+the computation without predictor reuse, because the two took nearly the same
+time: averaged over workloads, the 0.2.0 models took
+0.5% longer than the computation without
+predictor reuse (95% interval 0.1% to
+0.8%). The data flag that selects between
+the two computations therefore did not slow the computation without predictor
+reuse.
 
 **Complete fits (A2).** In the Weibull scenario predictor reuse reduced the
 sampling time per leapfrog step by 8.6% (95% interval 2.2% to 14.7%), in
 agreement with the Level A estimate of
-10.1% (95% interval 7.2% to 12.9%) for the same distribution,
+10.1% (95% interval 6.2% to 13.8%) for the same distribution,
 model, sample size, number of integration points, and number of covariates.
 The elapsed time of the `mlumr()` call was reduced by
 7.6% (95% interval 0.5% to 14.1%), and the bulk ESS of the RMST
@@ -416,27 +471,36 @@ In the M-spline scenario the point
 estimates were larger, a reduction of
 17.2% (95% interval -11.0% to 38.3%) per leapfrog step and
 27.0% (95% interval -2.9% to 48.2%) in elapsed time, compared with
-14.9% (95% interval 9.8% to 19.7%) per evaluation in Level A
+14.9% (95% interval 11.6% to 18.1%) per evaluation in Level A
 at 500 pseudo-individuals. With five data sets these intervals include no
-change, and the M-spline estimates are not conclusive.
+change, and the M-spline estimates are not conclusive. The M-spline estimate
+for elapsed time exceeds that per leapfrog step because the fits without
+predictor reuse happened to take more leapfrog steps in sampling
+(11% more in total)
+and a longer warmup (39%
+longer in total). Because the chains of the two settings followed different
+trajectories, these differences reflect the paths taken by the sampler rather
+than an effect of predictor reuse, which is why the time per leapfrog step is
+the primary estimand.
 
 **Agreement (A3).** At every parameter value timed, the log density and its
-gradient computed with and without predictor reuse, and by the 0.2.0 models,
-agreed to within 1.6e-10
-in absolute value. In the complete fits,
+gradient with predictor reuse agreed with those without it, and with those of
+the 0.2.0 models, to within
+1.6e-10 in
+absolute value. In the complete fits,
 31 of the
 40 Weibull chains and
 0 of the
 20 M-spline chains followed a common trajectory
-under both settings throughout sampling. The other chains separated, as
-expected once differences in the final digits of the gradient accumulate along
-a trajectory.
-In every pair of fits the posterior means of the RMST difference differed by at
-most 0.027
-posterior standard deviations, or
-1.4 times the Monte Carlo
-standard error of their difference, which is consistent with Monte Carlo
-variation alone.
+under both settings throughout sampling. Of the 29 chains that
+separated, 26 had done so by the first sampling iteration,
+that is, during warmup. In every pair of fits the posterior means of the RMST
+difference differed by at most
+0.027 posterior
+standard deviations, which is comparable with the Monte Carlo standard error
+of a single fit's posterior mean (at most
+0.017 posterior standard
+deviations).
 
 ### Limitations
 
@@ -449,18 +513,23 @@ for the rstan engine.
 The two levels measure different quantities. Level A reports the CPU time of a
 single process that evaluates the log density and its gradient at fixed
 parameter values. Level B reports the elapsed time of complete `mlumr()` calls
-whose four chains ran in parallel. Besides the gradient evaluations of warmup
-and sampling, this time includes data preparation, the generated quantities
-(computed once per draw and without automatic differentiation), reading the
-sampler output, and post-processing. Predictor reuse affects these components
-little or not at all, so the Level A reductions are an approximate upper limit
-for the reduction in elapsed time.
+whose four chains ran in parallel. This time also includes data preparation,
+the generated quantities, reading the sampler output, and post-processing, and
+it depends on the number of leapfrog steps that the sampler takes. When the
+two settings take the same number of steps, the work that predictor reuse does
+not affect dilutes the reduction, and the reduction in elapsed time is
+expected to be smaller than the reduction per evaluation. Once trajectories
+separate, however, the number of steps differs between the settings by chance,
+and the reduction in elapsed time of an individual fit can be larger or
+smaller than the reduction per evaluation, as in the M-spline scenario.
 
-The interval for each Level A workload pools 16 block log ratios from two data
-sets as if they were exchangeable. The time ratio is expected to vary little
-between data sets of the same size, because it is determined by the code path
-rather than by the data values, but the interval does not separate variation
-between data sets from variation within them.
+The Level A intervals assume that the variance between the data-set means of a
+workload is the same for all workloads with the same distribution and number
+of integration points. With two data sets per workload this assumption cannot
+be checked for each workload. The pooled variance includes both the variation
+between data sets and the error of the short runs subtracted from all blocks
+of a data set. The allocation of orders to blocks was unbalanced, although the
+position-adjusted estimates differed little from the primary estimates.
 
 Level B comprised two scenarios with ten and five data sets, and its intervals
 are correspondingly wide. The reduction in elapsed time for other
@@ -475,24 +544,29 @@ predictor reuse removes. For
 67 data sets the timings were taken at fallback parameter
 values rather than at draws near the posterior mode. The cost of the
 incomplete gamma functions in the generalized gamma likelihood depends on the
-parameter values, but the reductions at the two kinds of points were nearly
-identical (see Results).
+parameter values, but within workloads the reductions at the two kinds of
+points did not differ systematically (see Results). That comparison is between
+different data sets; no data set was evaluated at both kinds of points.
 
 Although each unit started only when the load average was below the stated
 threshold, the machine was not otherwise idle; the recorded load averages are
-reported above. Background activity adds variability to individual timings,
-while the randomized order of data sets and the balanced order of methods
-within blocks prevent it from favoring either method systematically. In
-Level B, the second fit of each pair started under the residual load of the
-first. The alternation of the two settings balanced this exactly for the
-Weibull scenario (5 of
+reported above. Background activity adds variability to individual timings.
+In Level A, the random order of data sets and the allocation of every method
+to every position within blocks limit its effect on the comparison. In Level
+B, the order of the two fits of a pair may also affect timing; its cause was
+not determined. The alternation of the two settings balanced the order exactly
+for the Weibull scenario (5 of
 10 data sets with predictor reuse first) and
-approximately for the M-spline scenario (3
-of 5). Weighting the two orders equally gives
+approximately for the M-spline scenario
+(3 of
+5). Weighting the two orders equally gives
 reductions per leapfrog step of
-8.6% for the Weibull
-scenario and 18.5% for the
-M-spline scenario.
+8.6% for the
+Weibull scenario and
+18.5% for the
+M-spline scenario, and reductions in elapsed time of
+7.6% and
+25.5%.
 
 Finally, the processor has four performance cores and four efficiency cores,
 and the assignment of processes to core types was left to the operating
@@ -509,10 +583,9 @@ evaluation of the log density and its gradient by
 12.4% in the median workload and by up to
 30%, with the largest reductions for the M-spline baseline, wide designs, and few integration points,
 and the smallest for the generalized gamma distribution. In complete Weibull
-fits the reduction in elapsed time was of the order of
-8%,
-smaller than the reduction per evaluation, as expected from the parts of a fit
-that predictor reuse does not affect. Because the optimization is enabled by
+fits, most of whose chains followed a common trajectory under both settings,
+the elapsed time was reduced by about
+8%. Because the optimization is enabled by
 default, these reductions apply to survival fits without any change to user
 code; `optimization = FALSE` remains available for benchmarking and for
 reproducing fits made with earlier releases.

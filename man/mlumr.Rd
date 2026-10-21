@@ -190,10 +190,11 @@ evaluation of the log density and reused for every pseudo-individual in
 the arm, instead of being recomputed for each of them. The two settings
 build different automatic-differentiation graphs, so floating-point sums
 are accumulated in a different order and the gradient can differ in its
-last digits; under one seed the draws can therefore drift apart along a
-long run, while agreeing in distribution. \code{FALSE} repeats the computation
-of releases before 0.2.1, for benchmarking and for reproducing earlier
-fits. Ignored for the other families. See
+last digits; under one seed the draws can therefore separate, often
+already during warmup, while agreeing in distribution. \code{FALSE} repeats the
+arithmetic of releases before 0.2.1, for benchmarking and for reproducing
+earlier fits (which also requires the same Stan version, compiler, and
+seed). Ignored for the other families. See
 \code{vignette("survival-performance", package = "mlumr")} for a simulation
 study of the computation time saved.}
 
