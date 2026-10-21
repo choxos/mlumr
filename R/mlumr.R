@@ -165,20 +165,22 @@
 #'   the combined design matrix, which decorrelates its columns for HMC. The
 #'   priors still apply to the original coefficients. Useful with many
 #'   correlated or ill-scaled covariates.
-#' @param optimization Logical (default `TRUE`). Use mlumr's computational
-#'   shortcuts when evaluating the model. This is unrelated to Stan's optimizer
-#'   ([rstan::optimizing()]); the model is always sampled. It currently
-#'   affects `family = "survival"` only: with `TRUE`, each comparator arm's
-#'   linear predictor at the integration points is computed once per
+#' @param optimization Logical (default `TRUE`). Whether to apply mlumr's
+#'   computational optimizations, which change how the log density is
+#'   evaluated but not the model or its posterior. This is unrelated to Stan's
+#'   optimizer ([rstan::optimizing()]); the model is always sampled. It
+#'   currently affects `family = "survival"` only: with `TRUE`, each comparator
+#'   arm's linear predictor at the integration points is computed once per
 #'   evaluation of the log density and reused for every pseudo-individual in
-#'   the arm, instead of being recomputed for each of them. Both settings
-#'   define the same model and the same posterior. They build different
-#'   automatic-differentiation graphs, so floating-point sums are accumulated
-#'   in a different order and the gradient can differ in its last digits;
-#'   under one seed the draws can therefore drift apart along a long run,
-#'   while agreeing in distribution. `FALSE` repeats the computation of
-#'   releases before 0.2.1 and is there for benchmarking and for reproducing
-#'   earlier fits. Ignored for the other families.
+#'   the arm, instead of being recomputed for each of them. The two settings
+#'   build different automatic-differentiation graphs, so floating-point sums
+#'   are accumulated in a different order and the gradient can differ in its
+#'   last digits; under one seed the draws can therefore drift apart along a
+#'   long run, while agreeing in distribution. `FALSE` repeats the computation
+#'   of releases before 0.2.1, for benchmarking and for reproducing earlier
+#'   fits. Ignored for the other families. See
+#'   `vignette("survival-performance", package = "mlumr")` for a simulation
+#'   study of the computation time saved.
 #' @param chains Number of MCMC chains (default 4)
 #' @param iter Total iterations per chain (default 2000)
 #' @param warmup Number of warmup iterations (default 1000)

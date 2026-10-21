@@ -5,10 +5,10 @@
   The statistical model and every pointwise log-likelihood are unchanged.
   Suggested by Tim Disher (@timdisher).
 * Feature: New `mlumr()` argument `optimization` (default `TRUE`). `FALSE`
-  switches the shortcut above off and repeats the computation of earlier
+  disables the optimization above and repeats the computation of earlier
   releases, for benchmarking and for reproducing earlier fits. The new article
-  "Computation time of survival fits" reports a simulation study of the time
-  the shortcut saves.
+  "Computation time of survival fits" reports a simulation study of the
+  reduction in computation time.
 * Documentation: `citation("mlumr")` gives standard references for the ML-UMR
   methodology, the software with its Zenodo DOI, and the two conference
   abstracts, each with a BibTeX key for use in manuscripts.
