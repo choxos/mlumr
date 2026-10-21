@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
-# Simulation study behind the article "Computation time of survival fits"
-# (vignettes/survival-performance).
+# Simulation study behind the article "Survival fits with and without optimization"
+# (vignettes/survival-optimization).
 #
 # It measures what `mlumr(optimization = TRUE)` saves. In the four survival
 # models the comparator likelihood of pseudo-individual j in arm a integrates
@@ -73,10 +73,10 @@
 # Run from the package root with the branch's mlumr INSTALLED, the machine
 # plugged in and otherwise idle:
 #
-#   Rscript data-raw/simulate_survival_performance.R pilot     # not results
-#   Rscript data-raw/simulate_survival_performance.R fixed
-#   Rscript data-raw/simulate_survival_performance.R fits
-#   Rscript data-raw/simulate_survival_performance.R assemble
+#   Rscript data-raw/simulate_survival_optimization.R pilot     # not results
+#   Rscript data-raw/simulate_survival_optimization.R fixed
+#   Rscript data-raw/simulate_survival_optimization.R fits
+#   Rscript data-raw/simulate_survival_optimization.R assemble
 #
 # Every unit writes its own checkpoint, so an interrupted stage resumes where
 # it stopped. `assemble` refuses to publish unless every unit is present, then
@@ -85,7 +85,7 @@
 stage <- commandArgs(trailingOnly = TRUE)
 if (length(stage) != 1L ||
       !stage %in% c("pilot", "fixed", "fits", "assemble")) {
-  stop("Usage: Rscript data-raw/simulate_survival_performance.R ",
+  stop("Usage: Rscript data-raw/simulate_survival_optimization.R ",
        "pilot|fixed|fits|assemble", call. = FALSE)
 }
 
@@ -99,18 +99,18 @@ for (pkg in c("cmdstanr", "posterior", "jsonlite", "withr")) {
   }
 }
 
-SCRIPT_PATH <- file.path("data-raw", "simulate_survival_performance.R")
+SCRIPT_PATH <- file.path("data-raw", "simulate_survival_optimization.R")
 if (!file.exists(SCRIPT_PATH)) stop("Run from the package root.", call. = FALSE)
 BASELINE_DIR <- file.path("tests", "parity", "survival-baseline-6a366a0")
-FIXED_CSV <- file.path("data-raw", "survival_performance_fixed.csv")
-FITS_CSV <- file.path("data-raw", "survival_performance_fits.csv")
-MANIFEST <- file.path("data-raw", "survival_performance_manifest.dcf")
-PILOT_DIR <- file.path(tempdir(), "survival-performance-pilot")
+FIXED_CSV <- file.path("data-raw", "survival_optimization_fixed.csv")
+FITS_CSV <- file.path("data-raw", "survival_optimization_fits.csv")
+MANIFEST <- file.path("data-raw", "survival_optimization_manifest.dcf")
+PILOT_DIR <- file.path(tempdir(), "survival-optimization-pilot")
 CELLS_FIXED <- if (stage == "pilot") file.path(PILOT_DIR, "fixed") else
   paste0(FIXED_CSV, ".cells")
 CELLS_FITS <- if (stage == "pilot") file.path(PILOT_DIR, "fits") else
   paste0(FITS_CSV, ".cells")
-EXE_DIR <- file.path(tools::R_user_dir("mlumr", "cache"), "survival-performance",
+EXE_DIR <- file.path(tools::R_user_dir("mlumr", "cache"), "survival-optimization",
                      paste0("cmdstan-", cmdstanr::cmdstan_version()))
 
 ROOT_SEED <- 2026L
@@ -787,7 +787,7 @@ if (stage %in% c("pilot", "fixed")) {
   models <- list(
     candidate = lapply(setNames(STEMS, STEMS), candidate_model),
     baseline = lapply(setNames(STEMS, STEMS), baseline_model))
-  tmp <- tempfile("survival-performance-")
+  tmp <- tempfile("survival-optimization-")
   dir.create(tmp)
   run_units(grid, CELLS_FIXED, function(w) time_workload(w, models, tmp),
             "Level A")

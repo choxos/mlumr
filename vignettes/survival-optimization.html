@@ -490,7 +490,7 @@ models, give the same values in every run?</li>
 </ol>
 <p>The questions concern computation time and numerical agreement, not
 bias or coverage. The script that ran the study is a development file,
-kept in the package repository and not installed with the package: <a href="https://github.com/choxos/mlumr/blob/main/data-raw/simulate_survival_performance.R"><code>data-raw/simulate_survival_performance.R</code></a>.
+kept in the package repository and not installed with the package: <a href="https://github.com/choxos/mlumr/blob/main/data-raw/simulate_survival_optimization.R"><code>data-raw/simulate_survival_optimization.R</code></a>.
 It writes a manifest beside its results recording the software and
 hardware used. The numbers below were read from results files with MD5
 digests cdf8546e6f7a093f725259a8dac61d22 (per-evaluation timings) and
@@ -1164,9 +1164,9 @@ chains ran at once.</p>
 <h2>Reproducing the study</h2>
 <p>From the root of the package source, with that source installed:</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># Each stage records every completed unit and resumes from there if interrupted.</span></span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">system</span>(<span class="st">&quot;Rscript data-raw/simulate_survival_performance.R fixed&quot;</span>)</span>
-<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="fu">system</span>(<span class="st">&quot;Rscript data-raw/simulate_survival_performance.R fits&quot;</span>)</span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="fu">system</span>(<span class="st">&quot;Rscript data-raw/simulate_survival_performance.R assemble&quot;</span>)</span></code></pre></div>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">system</span>(<span class="st">&quot;Rscript data-raw/simulate_survival_optimization.R fixed&quot;</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="fu">system</span>(<span class="st">&quot;Rscript data-raw/simulate_survival_optimization.R fits&quot;</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="fu">system</span>(<span class="st">&quot;Rscript data-raw/simulate_survival_optimization.R assemble&quot;</span>)</span></code></pre></div>
 <p>The final stage writes the results files and the manifest, which
 records the commit of the package source, the software versions, and the
 machine.</p>

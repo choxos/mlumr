@@ -22,9 +22,9 @@ library(ggplot2)
 ```
 
 ```{r sim-load, include = FALSE}
-fixed_csv <- "../data-raw/survival_performance_fixed.csv"
-fits_csv <- "../data-raw/survival_performance_fits.csv"
-manifest <- read.dcf("../data-raw/survival_performance_manifest.dcf")[1, ]
+fixed_csv <- "../data-raw/survival_optimization_fixed.csv"
+fits_csv <- "../data-raw/survival_optimization_fits.csv"
+manifest <- read.dcf("../data-raw/survival_optimization_manifest.dcf")[1, ]
 fixed <- read.csv(fixed_csv, stringsAsFactors = FALSE)
 fits <- read.csv(fits_csv, stringsAsFactors = FALSE)
 # The digests of the results files this article was built from. They are
@@ -407,7 +407,7 @@ The study answers three questions:
 The questions concern computation time and numerical agreement, not bias or
 coverage. The script that ran the study is a development file, kept in the
 package repository and not installed with the package:
-[`data-raw/simulate_survival_performance.R`](https://github.com/choxos/mlumr/blob/main/data-raw/simulate_survival_performance.R).
+[`data-raw/simulate_survival_optimization.R`](https://github.com/choxos/mlumr/blob/main/data-raw/simulate_survival_optimization.R).
 It writes a manifest beside its results recording the software and hardware
 used. The numbers below were read from results files with MD5 digests
 `r fixed_md5` (per-evaluation timings) and `r fits_md5` (complete fits); a
@@ -921,9 +921,9 @@ From the root of the package source, with that source installed:
 
 ```{r reproduce, eval = FALSE}
 # Each stage records every completed unit and resumes from there if interrupted.
-system("Rscript data-raw/simulate_survival_performance.R fixed")
-system("Rscript data-raw/simulate_survival_performance.R fits")
-system("Rscript data-raw/simulate_survival_performance.R assemble")
+system("Rscript data-raw/simulate_survival_optimization.R fixed")
+system("Rscript data-raw/simulate_survival_optimization.R fits")
+system("Rscript data-raw/simulate_survival_optimization.R assemble")
 ```
 
 The final stage writes the results files and the manifest, which records the

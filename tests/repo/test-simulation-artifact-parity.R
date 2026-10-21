@@ -22,10 +22,10 @@
        results = c(Results = "subgroup_identification_results.csv"),
        rows = c(Results = "Rows")),
   list(article = "survival-optimization",
-       script = "simulate_survival_performance.R",
-       manifest = "survival_performance_manifest.dcf",
-       results = c(`Results-Fixed` = "survival_performance_fixed.csv",
-                   `Results-Fits` = "survival_performance_fits.csv"),
+       script = "simulate_survival_optimization.R",
+       manifest = "survival_optimization_manifest.dcf",
+       results = c(`Results-Fixed` = "survival_optimization_fixed.csv",
+                   `Results-Fits` = "survival_optimization_fits.csv"),
        rows = c(`Results-Fixed` = "Results-Fixed-Rows",
                 `Results-Fits` = "Results-Fits-Rows"))
 )
