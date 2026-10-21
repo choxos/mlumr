@@ -36,7 +36,7 @@ stems <- c(
   "fitting-and-diagnostics",
   "choosing-a-method",
   "subgroup-identification",
-  "survival-performance"
+  "survival-optimization"
 )
 
 # Operate inside vignettes/ so figure paths and the ../inst/REFERENCES.bib

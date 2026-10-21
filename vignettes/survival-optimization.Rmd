@@ -389,8 +389,8 @@ The median time per evaluation with predictor reuse, by workload, ranged from
 217 ms.
 
 <div class="figure" style="text-align: center">
-<img src="figure/survival-performance/fixed-figure-1.png" alt="Reduction in time per evaluation with predictor reuse, relative to the computation without it, by distribution (columns), number of covariates (rows), number of integration points (horizontal axis), number of pseudo-individuals (color), and model (line type). Each point is a workload estimate, expressed as a percentage."  />
-<p class="caption">Reduction in time per evaluation with predictor reuse, relative to the computation without it, by distribution (columns), number of covariates (rows), number of integration points (horizontal axis), number of pseudo-individuals (color), and model (line type). Each point is a workload estimate, expressed as a percentage.</p>
+<img src="figure/survival-optimization/fixed-figure-1.png" alt="Saving in time per evaluation from predictor reuse, relative to the computation without it, by distribution (columns), number of covariates (rows), number of integration points (horizontal axis), number of pseudo-individuals (color), and model (line type). Each point is a workload estimate, expressed as a percentage."  />
+<p class="caption">Saving in time per evaluation from predictor reuse, relative to the computation without it, by distribution (columns), number of covariates (rows), number of integration points (horizontal axis), number of pseudo-individuals (color), and model (line type). Each point is a workload estimate, expressed as a percentage.</p>
 </div>
 
 ### The saving follows the share of the cost that reuse removes

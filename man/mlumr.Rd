@@ -195,7 +195,7 @@ already during warmup, while agreeing in distribution. \code{FALSE} repeats the
 arithmetic of releases before 0.2.1, for benchmarking and for reproducing
 earlier fits (which also requires the same Stan version, compiler, and
 seed). Ignored for the other families. See
-\code{vignette("survival-performance", package = "mlumr")} for a simulation
+\code{vignette("survival-optimization", package = "mlumr")} for a simulation
 study of the computation time saved.}
 
 \item{...}{Additional arguments passed to the Stan sampling function

@@ -1,5 +1,5 @@
 # Two articles report numbers from committed results files: the
-# subgroup-identification article and the survival-performance article. Nothing
+# subgroup-identification article and the survival-optimization article. Nothing
 # tied an article to its results: regenerating the results and forgetting to
 # re-knit shipped an article whose numbers no longer came from any file in the
 # repository, and a green build said nothing about it because knitting is not
@@ -21,7 +21,7 @@
        manifest = "subgroup_identification_manifest.dcf",
        results = c(Results = "subgroup_identification_results.csv"),
        rows = c(Results = "Rows")),
-  list(article = "survival-performance",
+  list(article = "survival-optimization",
        script = "simulate_survival_performance.R",
        manifest = "survival_performance_manifest.dcf",
        results = c(`Results-Fixed` = "survival_performance_fixed.csv",

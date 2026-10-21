@@ -180,7 +180,7 @@
 #'   arithmetic of releases before 0.2.1, for benchmarking and for reproducing
 #'   earlier fits (which also requires the same Stan version, compiler, and
 #'   seed). Ignored for the other families. See
-#'   `vignette("survival-performance", package = "mlumr")` for a simulation
+#'   `vignette("survival-optimization", package = "mlumr")` for a simulation
 #'   study of the computation time saved.
 #' @param chains Number of MCMC chains (default 4)
 #' @param iter Total iterations per chain (default 2000)

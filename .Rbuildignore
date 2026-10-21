@@ -40,7 +40,7 @@
 ^app$
 ^data-raw$
 ^\.vscode$
-^vignettes/(binary-outcomes|choosing-a-method|continuous-outcomes|count-outcomes|fitting-and-diagnostics|subgroup-identification|survival-outcomes|survival-performance)\.Rmd$
+^vignettes/(binary-outcomes|choosing-a-method|continuous-outcomes|count-outcomes|fitting-and-diagnostics|subgroup-identification|survival-outcomes|survival-optimization)\.Rmd$
 ^vignettes/introduction\.html$
 ^vignettes/data-preparation\.html$
 ^vignettes/.*\.Rmd\.orig$

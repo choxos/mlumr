@@ -209,7 +209,7 @@ max_mcse_sd <- max(fits$post_mcse / fits$post_sd)
 
 # ---- Quantities quoted in the text. -----------------------------------------
 fixed_caption <- paste(
-  "Reduction in time per evaluation with predictor reuse, relative to the",
+  "Saving in time per evaluation from predictor reuse, relative to the",
   "computation without it, by distribution (columns), number of covariates",
   "(rows), number of integration points (horizontal axis), number of",
   "pseudo-individuals (color), and model (line type). Each point is a",
