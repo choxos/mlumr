@@ -39,12 +39,17 @@ for (study in .studies) {
     html <- .artifact_path("vignettes", paste0(study$article, ".html"))
     # `data-raw` is build-ignored, so an installed package has neither the
     # results nor the article source; there is nothing to compare there. The
-    # results files are what say which of the two this is. Once they exist, a
-    # missing article is the failure this test is for, not a reason to skip: a
-    # skip here is exactly how the check disappears while the build stays
-    # green.
-    skip_if_not(all(file.exists(csvs)),
+    # results files are what say which of the two this is. Once any of them
+    # exists, a missing results file or article is the failure this test is
+    # for, not a reason to skip: a skip here is exactly how the check
+    # disappears while the build stays green.
+    skip_if_not(any(file.exists(csvs)),
                 "run from a source checkout, not an installed package")
+    expect_true(all(file.exists(csvs)),
+                info = paste("results files missing:",
+                             paste(basename(csvs[!file.exists(csvs)]),
+                                   collapse = ", ")))
+    if (!all(file.exists(csvs))) return(invisible(NULL))
     expect_true(file.exists(rmd),
                 info = "the knitted article is missing beside its results")
     expect_true(file.exists(html),
@@ -76,8 +81,13 @@ for (study in .studies) {
     csvs <- vapply(study$results, function(f) .artifact_path("data-raw", f),
                    character(1))
     manifest <- .artifact_path("data-raw", study$manifest)
-    skip_if_not(all(file.exists(csvs)),
+    skip_if_not(any(file.exists(csvs)),
                 "run from a source checkout, not an installed package")
+    expect_true(all(file.exists(csvs)),
+                info = paste("results files missing:",
+                             paste(basename(csvs[!file.exists(csvs)]),
+                                   collapse = ", ")))
+    if (!all(file.exists(csvs))) return(invisible(NULL))
     # The manifest is written by the same script, in the same step, as the
     # results it describes. Results present with no manifest means that step
     # did not finish, which is a broken artifact set rather than an absent one.
