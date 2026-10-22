@@ -1,15 +1,15 @@
-Generated: 2026-10-21 01:00:20 EDT
-Script: simulate_survival_performance.R
-Script-MD5: d91bf181a98ee00799de4a4efaa5840c
-Results-Fixed: survival_performance_fixed.csv
-Results-Fixed-MD5: cdf8546e6f7a093f725259a8dac61d22
-Results-Fixed-Rows: 10368
-Results-Fits: survival_performance_fits.csv
-Results-Fits-MD5: 654dc369f68c9d2007a96f62d21dfa81
-Results-Fits-Rows: 120
+Generated: 2026-10-22 11:54:13 EDT
+Script: simulate_survival_optimization.R
+Script-MD5: b168acdd5a30da670de302b495ae5b62
+Results-Fixed: survival_optimization_fixed.csv
+Results-Fixed-MD5: 4dfebf427fcd54c36ecf9239b7db15d9
+Results-Fixed-Rows: 15552
+Results-Fits: survival_optimization_fits.csv
+Results-Fits-MD5: b61eca06deeeb989d24083986760313e
+Results-Fits-Rows: 160
 Workloads: 216
 Datasets-Per-Workload: 2
-Blocks: 8
+Blocks: 12
 Arms: reuse, no_reuse, v0.2.0
 Scenarios: weibull_n500, mspline_n300
 Chains: 4
@@ -18,11 +18,11 @@ Warmup: 1000
 Parallel-chains: 4
 Load-max: 6
 mlumr: 0.2.0.9000
-mlumr-code-MD5: dc10014ed46ab0e3535b030becee88ed
+mlumr-code-MD5: afddd5c355286b8b702367ba39c9d511
 Stan-sources: mlumr_survival_spfa.stan de808040cba26ab52a5f500922fe8343; mlumr_survival_relaxed.stan ab8af48ad058edffbca3535743c89b07; mlumr_survival_mspline_spfa.stan 40c46a355a88357260518584c257b243; mlumr_survival_mspline_relaxed.stan 99315a07466f4abb9e2f8dda76bae225; include/binary_functions.stan 0a99f21ea3b67f16f8f9c6124e8cd7f9; include/numerical_functions.stan d548b50dfece2927b9aad1c89ee0d44e; include/priors_functions.stan 7147e20474a04112d83676f8228f96dc; include/priors_hyperparameters.stan 00d3d41ede42c126fedec72bcadbba84; include/priors_sigma_hyperparameters.stan a7b14c3f682b327183c317476c4b50d8; include/survival_aux_hyperparameters.stan 3fb9458f227c20b9f2f2f0bd70a8164d; include/survival_functions.stan cf80e6ff6f95aaeeed02c22af89a3cf3; include/survival_mspline_functions.stan 628caefd9b0dee524abb797662cb36fc
 Baseline: tests/parity/survival-baseline-6a366a0
-Commit: 9b8154cb62da5b69fc388baced2deb0cdf9562d3
-Tree: fe132b802cf7a0eb11c405e02d4c817042bb7679
+Commit: 4c34a4d0b3360dc12aebe70d4d26c7b02680f543
+Tree: 08a3b9a1ed7ff355afcbe8df571720483f8d9113
 Working-tree-dirty: false
 R: 4.6.0
 cmdstanr: 0.9.0.9002

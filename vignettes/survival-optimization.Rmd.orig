@@ -557,6 +557,9 @@ labels <- c("Processor", "Cores", "Memory (GB)", "Platform", "R", "CmdStan",
             "cmdstanr", "Compiler", "mlumr", "Commit")
 knitr::kable(data.frame(Item = labels, Value = unname(manifest[fields])),
              row.names = FALSE, caption = "Hardware and software used.")
+load_max <- as.numeric(manifest[["Load-max"]])
+# One load per fit: every chain row of a fit records the same value.
+fit_load <- fits$load1[!duplicated(fits[, c("key", "arm")])]
 ```
 
 Everything ran on the single machine above; mlumr `r manifest[["mlumr"]]` is
@@ -571,7 +574,10 @@ B, with median `r sprintf("%.1f", stats::median(fits$load1))` (range
 `r sprintf("%.1f", min(fits$load1))` to `r sprintf("%.1f", max(fits$load1))`).
 The one-minute load average decays over about a minute, so these values include
 the unit's own preceding runs as well as other activity on the machine, and
-the two cannot be separated.
+the two cannot be separated. In Level B a unit is a pair of fits, so the
+threshold was checked before the first fit of each pair only;
+`r sum(fit_load > load_max)` of the `r length(fit_load)` fits started above
+it.`r if (max(fit_load) > 2 * load_max) sprintf(" Load averages above %d, up to %.1f, are too high to come from the study's own four chains and reflect other work on the machine during part of Level B.", 2 * load_max, max(fit_load)) else ""`
 
 ## What the study found
 
@@ -596,20 +602,23 @@ stopifnot(
   as.numeric(by_int[["16"]]) > as.numeric(by_int[["256"]]),
   # The 0.2.0 models and the computation without reuse differ by under 1%.
   abs(longer(old_off[["lo"]])) < 1, abs(longer(old_off[["hi"]])) < 1,
-  # The Weibull saving in elapsed time excludes zero; the M-spline one does not.
-  per_scenario["weibull_n500", "wall_lo"] > 0,
-  per_scenario["mspline_n300", "step_lo"] < 0,
-  per_scenario["mspline_n300", "wall_lo"] < 0,
-  # The Weibull saving per leapfrog step excludes zero.
+  # In both scenarios the savings per leapfrog step and in elapsed time
+  # exclude zero.
   per_scenario["weibull_n500", "step_lo"] > 0,
+  per_scenario["weibull_n500", "wall_lo"] > 0,
+  per_scenario["mspline_n300", "step_lo"] > 0,
+  per_scenario["mspline_n300", "wall_lo"] > 0,
+  # The Weibull saving in elapsed time is smaller than its saving per step.
+  per_scenario["weibull_n500", "wall"] < per_scenario["weibull_n500", "step"],
   # The M-spline point estimates exceed the Weibull ones, and its saving in
-  # elapsed time exceeds its saving per step because the fits without reuse
-  # took more leapfrog steps and a longer warmup.
+  # elapsed time exceeds its saving per step, with the fits without reuse
+  # taking more leapfrog steps in sampling.
   per_scenario["mspline_n300", "step"] > per_scenario["weibull_n500", "step"],
   per_scenario["mspline_n300", "wall"] > per_scenario["weibull_n500", "wall"],
   per_scenario["mspline_n300", "wall"] > per_scenario["mspline_n300", "step"],
   more_work("mspline_n300", "leapfrog_sampling") > 0,
-  more_work("mspline_n300", "warmup_s") > 0,
+  # No M-spline chain followed a common trajectory.
+  n_chains_identical[["mspline_n300"]] == 0,
   # Later positions in a block are slower than the first.
   all(position_effect > 0),
   # Savings at fallback and Laplace points do not differ systematically.
@@ -621,8 +630,10 @@ In short: predictor reuse cut the time per evaluation of the log density and
 its gradient by `r fmt_pct(median_off, 1)`% in the median workload and by up to
 `r fmt_pct(range_off[2])`%. The largest savings came with the M-spline
 baseline, wide designs, and few integration points, and the smallest with the
-generalized gamma distribution. In complete Weibull fits the elapsed time fell
-by about `r fmt_pct(pct(per_scenario["weibull_n500", "wall"]))`%. Because the
+generalized gamma distribution. In complete fits the elapsed time fell by about
+`r fmt_pct(pct(per_scenario["weibull_n500", "wall"]))`% with the Weibull
+baseline and `r fmt_pct(pct(per_scenario["mspline_n300", "wall"]))`% with the
+M-spline baseline. Because the
 optimization is on by default, survival fits get this saving without any change
 to user code.
 
@@ -768,7 +779,7 @@ predictor reuse (95% interval `r fmt_pct(longer(old_off[["lo"]]), 1)`% to
 data-set sizes). The data flag that selects between the two computations does
 not slow down `optimization = FALSE`.
 
-### Most of the saving reaches a complete Weibull fit
+### The saving reaches complete fits
 
 ```{r fits-table, echo = FALSE}
 knitr::kable(data.frame(
@@ -804,16 +815,16 @@ In the M-spline scenario the point estimates were larger: a saving of
 `r scenario_ci("mspline_n300", "step")` per leapfrog step and
 `r scenario_ci("mspline_n300", "wall")` in elapsed time, against
 `r workload_ci("mspline_spfa_agd0500_int064_cov3")` per evaluation in Level A
-at 500 pseudo-individuals. With five data sets these intervals include no
-change, so the M-spline estimates are not conclusive. The M-spline saving in
-elapsed time exceeds that per leapfrog step because the fits without predictor
-reuse took, by chance, more leapfrog steps in sampling
-(`r fmt_pct(more_work("mspline_n300", "leapfrog_sampling"))`% more in total)
-and a longer warmup (`r fmt_pct(more_work("mspline_n300", "warmup_s"))`%
-longer in total). The chains of the two settings followed different
-trajectories, so these differences reflect the sampler's paths rather than an
-effect of predictor reuse. That is why the time per leapfrog step is the main
-quantity compared.
+at 500 pseudo-individuals. Both intervals exclude no change. In the Weibull
+scenario the saving in elapsed time is smaller than the saving per leapfrog
+step, as expected when work that predictor reuse does not touch dilutes it. In
+the M-spline scenario it is larger. No M-spline chain followed a common
+trajectory under the two settings, so the number of leapfrog steps differed
+between them by chance; the fits without predictor reuse took
+`r fmt_pct(more_work("mspline_n300", "leapfrog_sampling"), 1)`% more leapfrog
+steps in sampling in total. These differences reflect the sampler's paths
+rather than an effect of predictor reuse. That is why the time per leapfrog
+step is the main quantity compared.
 
 ### Checks on the timing design
 

@@ -135,7 +135,7 @@ package repository and not installed with the package:
 [`data-raw/simulate_survival_optimization.R`](https://github.com/choxos/mlumr/blob/main/data-raw/simulate_survival_optimization.R).
 It writes a manifest beside its results recording the software and hardware
 used. The numbers below were read from results files with MD5 digests
-cdf8546e6f7a093f725259a8dac61d22 (per-evaluation timings) and 654dc369f68c9d2007a96f62d21dfa81 (complete fits); a
+4dfebf427fcd54c36ecf9239b7db15d9 (per-evaluation timings) and b61eca06deeeb989d24083986760313e (complete fits); a
 package test compares these digests against the files in the repository.
 
 ### The data
@@ -208,30 +208,27 @@ savings slightly for the least expensive workloads without favoring any of
 them. $N$ is chosen per data set so that a run lasts about 0.5 s, with a
 minimum of 20 rows, and is the same for all three computations. The
 minimum applied to 17% of runs, and the longest
-run took 6.1 s of CPU time.
+run took 5.2 s of CPU time.
 
 **Parameter values.** The timings use five draws from CmdStan's Laplace
 approximation at the posterior mode of each data set, so that they are taken
 where the sampler spends its time.
 For 67 of the 432 data sets (57 generalized gamma and 10 Weibull) the posterior mode could not be located, and the origin together with four small perturbations of it was used instead.
 
-**Pairing.** Each data set is timed in eight blocks, and each
-block runs each of the three computations once. The eight
-blocks use the six possible orders once each, plus two further orders that both
-begin with predictor reuse, assigned to blocks at random. Predictor reuse
-therefore runs first in four of the
-eight blocks of every data set, and each of the other
-computations in two; every
-computation occupies every position. A sensitivity analysis below estimates the
-effect of this imbalance. Data sets are processed in random order, so that any
-drift in timing over the run is spread across the experimental factors.
+**Pairing.** Each data set is timed in twelve blocks, and each
+block runs each of the three computations once. The blocks use each of the six
+possible orders of the three computations two times, in
+random sequence, so every computation runs in every position in
+four of the twelve blocks of every data
+set. Data sets are processed in random order, so that any drift in timing over
+the run is spread across the experimental factors.
 
 **Estimate and interval.** For each block the quantity of interest is the log
 ratio of the time per evaluation without predictor reuse to the time with it,
 and likewise for the 0.2.0 models. The blocks of a data set share the
 subtracted cost of the short runs, so the data set, not the block, is the
 independent unit. The estimate for a workload is the mean of its two data-set
-means, each the mean of eight block log ratios.
+means, each the mean of twelve block log ratios.
 
 With two data sets per workload, the variance between data-set means cannot be
 estimated reliably for each workload on its own. It is pooled over the
@@ -245,18 +242,16 @@ percentage saving in time per evaluation, $100\,(1 - 1/\text{ratio})$.
 ### Level B: complete fits
 
 **Scenarios.** Two SPFA scenarios with three covariates and 64 integration
-points: a Weibull baseline with 500 comparator pseudo-individuals (ten data
-sets) and an M-spline baseline with 300 (five data sets). The smaller number of
-M-spline data sets reflects the longer run time of these fits and was fixed
-before any fit was run.
+points: a Weibull baseline with 500 comparator pseudo-individuals and an
+M-spline baseline with 300, each with ten data sets.
 
 **Fits.** Each data set is fitted with `optimization = TRUE` and with
 `optimization = FALSE` through `mlumr(engine = "cmdstanr")` with the default
 sampler settings (four chains of 2000 iterations, 1000 of them warmup,
 `adapt_delta = 0.95`, `max_treedepth = 15`). The four chains run in parallel,
 and both fits use the same seed and hence the same initial values. The order of
-the two settings alternates between data sets. Draws are written with 18
-significant digits.
+the two settings alternates between data sets, so each order is used for half
+of the data sets. Draws are written with 18 significant digits.
 
 A chain *follows a common trajectory* under both settings when, at every
 sampling iteration, each sampled parameter (the regression coefficients and the
@@ -274,7 +269,7 @@ sensitive to that number than the elapsed time is. The elapsed time of the
 `mlumr()` call and the bulk effective sample size (ESS) of the
 comparator-population RMST difference per second of elapsed time are also
 reported. Each is summarized as the mean of the log ratios over data sets, with
-a $t$ interval; with five or ten data sets these intervals are wide.
+a $t$ interval; with ten data sets these intervals are wide.
 
 ### The machine
 
@@ -293,7 +288,7 @@ Table: Hardware and software used.
 |cmdstanr    |0.9.0.9002                                     |
 |Compiler    |Apple clang version 21.0.0 (clang-2100.3.34.2) |
 |mlumr       |0.2.0.9000                                     |
-|Commit      |9b8154cb62da5b69fc388baced2deb0cdf9562d3       |
+|Commit      |4c34a4d0b3360dc12aebe70d4d26c7b02680f543       |
 
 
 
@@ -302,25 +297,30 @@ the development version of 0.2.1. Level A ran one CmdStan process at a time;
 Level B ran the four chains of each fit in parallel. A unit of either level
 started only when the one-minute load average was below
 6. The load average was recorded right after each
-timed run in Level A, with median 4.7
-(range 3.3 to
-9.5), and at the start of each fit in Level
-B, with median 5.7 (range
-3.4 to 10.6).
+timed run in Level A, with median 4.6
+(range 3.4 to
+11.0), and at the start of each fit in Level
+B, with median 5.8 (range
+4.1 to 54.1).
 The one-minute load average decays over about a minute, so these values include
 the unit's own preceding runs as well as other activity on the machine, and
-the two cannot be separated.
+the two cannot be separated. In Level B a unit is a pair of fits, so the
+threshold was checked before the first fit of each pair only;
+16 of the 40 fits started above
+it. Load averages above 12, up to 54.1, are too high to come from the study's own four chains and reflect other work on the machine during part of Level B.
 
 ## What the study found
 
 
 
 In short: predictor reuse cut the time per evaluation of the log density and
-its gradient by 12.4% in the median workload and by up to
-30%. The largest savings came with the M-spline
+its gradient by 12.6% in the median workload and by up to
+28%. The largest savings came with the M-spline
 baseline, wide designs, and few integration points, and the smallest with the
-generalized gamma distribution. In complete Weibull fits the elapsed time fell
-by about 8%. Because the
+generalized gamma distribution. In complete fits the elapsed time fell by about
+10% with the Weibull
+baseline and 23% with the
+M-spline baseline. Because the
 optimization is on by default, survival fits get this saving without any change
 to user code.
 
@@ -340,16 +340,16 @@ Table: Agreement between the complete fits with and without predictor reuse. A c
 |Scenario                         | Data sets| Chains on a common trajectory| Chains|Largest difference in posterior mean (posterior SDs) | Divergent transitions| Transitions at maximum tree depth|Largest R-hat |
 |:--------------------------------|---------:|-----------------------------:|------:|:----------------------------------------------------|---------------------:|---------------------------------:|:-------------|
 |Weibull, 500 pseudo-individuals  |        10|                            31|     40|0.0052                                               |                     0|                                 0|1.007         |
-|M-spline, 300 pseudo-individuals |         5|                             0|     20|0.027                                                |                     1|                                 0|1.007         |
+|M-spline, 300 pseudo-individuals |        10|                             0|     40|0.027                                                |                     1|                                 0|1.007         |
 
 
 
 In the complete fits, 31 of the
 40 Weibull chains and
 0 of the
-20 M-spline chains followed a common trajectory
-under both settings throughout sampling. Of the 29 chains that
-separated, 26 had done so by the first sampling iteration,
+40 M-spline chains followed a common trajectory
+under both settings throughout sampling. Of the 49 chains that
+separated, 46 had done so by the first sampling iteration,
 that is, during warmup. Separated chains are still sampling the same posterior:
 in every pair of fits the posterior means of the RMST difference differed by at
 most 0.027
@@ -366,27 +366,27 @@ Table: Time per evaluation of the log density and its gradient with 500 pseudo-i
 
 |Distribution      |Model   |ms per evaluation, reuse |Saving vs no reuse, % |Saving vs 0.2.0, % |
 |:-----------------|:-------|:------------------------|:---------------------|:------------------|
-|Weibull           |SPFA    |3.77                     |10 (6 to 14)          |10 (6 to 14)       |
-|Weibull           |relaxed |4.06                     |11 (6 to 15)          |12 (8 to 16)       |
-|log-normal        |SPFA    |3.31                     |12 (8 to 17)          |13 (8 to 17)       |
-|log-normal        |relaxed |3.56                     |16 (11 to 20)         |16 (12 to 20)      |
-|generalized gamma |SPFA    |11.42                    |3 (-3 to 9)           |4 (-4 to 11)       |
-|generalized gamma |relaxed |13.79                    |5 (-1 to 10)          |3 (-4 to 10)       |
-|M-spline          |SPFA    |1.79                     |15 (11 to 18)         |14 (10 to 17)      |
-|M-spline          |relaxed |2.24                     |19 (15 to 22)         |19 (16 to 22)      |
+|Weibull           |SPFA    |4.28                     |8 (5 to 11)           |9 (6 to 12)        |
+|Weibull           |relaxed |4.24                     |11 (7 to 14)          |11 (8 to 14)       |
+|log-normal        |SPFA    |3.05                     |13 (11 to 15)         |13 (11 to 16)      |
+|log-normal        |relaxed |3.14                     |13 (11 to 15)         |14 (12 to 16)      |
+|generalized gamma |SPFA    |11.76                    |1 (-3 to 5)           |3 (-1 to 6)        |
+|generalized gamma |relaxed |11.40                    |6 (2 to 9)            |4 (0 to 7)         |
+|M-spline          |SPFA    |2.05                     |15 (13 to 17)         |16 (13 to 19)      |
+|M-spline          |relaxed |2.10                     |18 (16 to 20)         |18 (15 to 21)      |
 
 
 
 Across all 216 workloads, the estimated saving in time per
-evaluation ranged from -4% to 30%
+evaluation ranged from 1% to 28%
 relative to the computation without predictor reuse, and from
--1% to 30% relative to the 0.2.0
+1% to 29% relative to the 0.2.0
 models; a negative value is an increase. The 95% interval excluded no change in
-182 of the 216 workloads, and in
+194 of the 216 workloads, and in
 none did it indicate an increase.
 The median time per evaluation with predictor reuse, by workload, ranged from
-0.16 ms to
-217 ms.
+0.18 ms to
+193 ms.
 
 <div class="figure" style="text-align: center">
 <img src="figure/survival-optimization/fixed-figure-1.png" alt="Saving in time per evaluation from predictor reuse, relative to the computation without it, by distribution (columns), number of covariates (rows), number of integration points (horizontal axis), number of pseudo-individuals (color), and model (line type). Each point is a workload estimate, expressed as a percentage."  />
@@ -409,33 +409,33 @@ Table: Saving in time per evaluation from predictor reuse by level of each facto
 |Model              |relaxed           |13                    |
 |Pseudo-individuals |100               |11                    |
 |Pseudo-individuals |500               |13                    |
-|Pseudo-individuals |2000              |14                    |
+|Pseudo-individuals |2000              |13                    |
 |Integration points |16                |16                    |
 |Integration points |64                |11                    |
-|Integration points |256               |11                    |
+|Integration points |256               |10                    |
 |Covariates         |1                 |11                    |
-|Covariates         |3                 |13                    |
+|Covariates         |3                 |12                    |
 |Covariates         |6                 |14                    |
 
 
 
-The saving was largest for the M-spline baseline (19.4%
+The saving was largest for the M-spline baseline (18.9%
 on average over the other factors) and smallest for the generalized gamma
-distribution (5.2%), whose likelihood terms
+distribution (5.1%), whose likelihood terms
 evaluate incomplete gamma functions and so leave the removed products a smaller
 share of the total cost.
 
 The other factors behave as the structure of the computation predicts. The
-saving grew with the number of covariates, from 11.3% with one
-covariate to 14.3% with six, and was larger for the relaxed model
+saving grew with the number of covariates, from 11.2% with one
+covariate to 14.4% with six, and was larger for the relaxed model
 than for the SPFA model (13.4% against
-12.2%), since both widen the design. It grew slightly with
-the number of pseudo-individuals, from 11.4% at 100 to
-13.6% at 2000, as the fixed cost of the index study's
+12.0%), since both widen the design. It grew slightly with
+the number of pseudo-individuals, from 11.3% at 100 to
+13.5% at 2000, as the fixed cost of the index study's
 likelihood became a smaller share of the total.
 
 It fell with the number of integration points, from 16.2% at 16
-to 11.2% at 64 and 10.8% at 256. The operation
+to 11.2% at 64 and 10.4% at 256. The operation
 count alone does not predict this, because both the removed products and the
 likelihood terms grow linearly with $M$. A fall followed by a plateau is
 consistent with a cost per product that does not grow with $M$, such as the
@@ -448,12 +448,12 @@ The savings relative to the 0.2.0 models are close to those relative to the
 computation without predictor reuse, because the two take nearly the same
 time. Averaged over workloads, the 0.2.0 models took
 0.5% longer than the computation without
-predictor reuse (95% interval 0.1% to
+predictor reuse (95% interval 0.2% to
 0.8%, computed over the 27
 data-set sizes). The data flag that selects between the two computations does
 not slow down `optimization = FALSE`.
 
-### Most of the saving reaches a complete Weibull fit
+### The saving reaches complete fits
 
 
 
@@ -461,74 +461,59 @@ Table: Elapsed times are medians over data sets. Savings are means of the log ra
 
 |Scenario                         | Data sets| Elapsed time (s), reuse| Elapsed time (s), no reuse|Saving per leapfrog step, % |Saving in elapsed time, % |ESS per second, ratio |
 |:--------------------------------|---------:|-----------------------:|--------------------------:|:---------------------------|:-------------------------|:---------------------|
-|Weibull, 500 pseudo-individuals  |        10|                     424|                        464|9 (2 to 15)                 |8 (1 to 14)               |1.08 (1.00 to 1.17)   |
-|M-spline, 300 pseudo-individuals |         5|                     254|                        328|17 (-11 to 38)              |27 (-3 to 48)             |1.34 (0.92 to 1.95)   |
+|Weibull, 500 pseudo-individuals  |        10|                     484|                        535|12 (9 to 14)                |10 (8 to 11)              |1.11 (1.08 to 1.14)   |
+|M-spline, 300 pseudo-individuals |        10|                     252|                        336|21 (15 to 26)               |23 (14 to 32)             |1.26 (1.09 to 1.47)   |
 
 
 
 In the Weibull scenario predictor reuse cut the sampling time per leapfrog
-step by 8.6% (95% interval 2.2% to 14.7%), in line with the Level A
-estimate of 10.1% (95% interval 5.9% to 14.1%) for the same
+step by 11.8% (95% interval 9.1% to 14.5%), in line with the Level A
+estimate of 8.4% (95% interval 5.1% to 11.5%) for the same
 distribution, model, sample size, number of integration points, and number of
 covariates. The elapsed time of the `mlumr()` call fell by
-7.6% (95% interval 0.5% to 14.1%), and the bulk ESS of the RMST
+9.6% (95% interval 8.0% to 11.3%), and the bulk ESS of the RMST
 difference per second rose by a factor of
-1.08 (95% interval 1.00 to 1.17).
+1.11 (95% interval 1.08 to 1.14).
 
 In the M-spline scenario the point estimates were larger: a saving of
-17.2% (95% interval -11.0% to 38.3%) per leapfrog step and
-27.0% (95% interval -2.9% to 48.2%) in elapsed time, against
-14.9% (95% interval 11.3% to 18.4%) per evaluation in Level A
-at 500 pseudo-individuals. With five data sets these intervals include no
-change, so the M-spline estimates are not conclusive. The M-spline saving in
-elapsed time exceeds that per leapfrog step because the fits without predictor
-reuse took, by chance, more leapfrog steps in sampling
-(11% more in total)
-and a longer warmup (39%
-longer in total). The chains of the two settings followed different
-trajectories, so these differences reflect the sampler's paths rather than an
-effect of predictor reuse. That is why the time per leapfrog step is the main
-quantity compared.
+20.7% (95% interval 15.3% to 25.8%) per leapfrog step and
+23.3% (95% interval 14.0% to 31.7%) in elapsed time, against
+15.3% (95% interval 13.2% to 17.3%) per evaluation in Level A
+at 500 pseudo-individuals. Both intervals exclude no change. In the Weibull
+scenario the saving in elapsed time is smaller than the saving per leapfrog
+step, as expected when work that predictor reuse does not touch dilutes it. In
+the M-spline scenario it is larger. No M-spline chain followed a common
+trajectory under the two settings, so the number of leapfrog steps differed
+between them by chance; the fits without predictor reuse took
+2.2% more leapfrog
+steps in sampling in total. These differences reflect the sampler's paths
+rather than an effect of predictor reuse. That is why the time per leapfrog
+step is the main quantity compared.
 
 ### Checks on the timing design
 
 **Position within a block.** Times were slightly shorter in the first position
 of a block: relative to it, times were on average
-0.3% longer in the second position
-and 0.4% longer in the third. A
+0.0% longer in the second position
+and 0.1% longer in the third. A
 linear model for the log time per workload, with effects of block, computation,
 and position, gives estimates adjusted for position. The adjustment changed the
 workload estimates of the saving by a median of
-0.2 and at most
-1.4 percentage points, and changed the mean
-saving over all workloads from 12.8% to
+0.0 and at most
+0.0 percentage points, and changed the mean
+saving over all workloads from 12.7% to
 12.7%.
 
 **Fallback parameter values.** In the 39 workloads in which one
 data set was timed at the fallback parameter values and the other at Laplace
 draws, the log time ratio at the fallback values minus that at the Laplace
 draws, averaged within each of the 23 data-set sizes involved
-and then over sizes, was 0.000 (95%
-interval -0.014 to
-0.014), with standard deviation
-0.040 across workloads. For comparison, the
+and then over sizes, was 0.004 (95%
+interval -0.008 to
+0.015), with standard deviation
+0.032 across workloads. For comparison, the
 difference between the two data sets of the workloads in which both used
-Laplace draws had standard deviation 0.040.
-
-**Order of the two fits.** In Level B the alternation of the two settings
-balanced the order exactly in the Weibull scenario
-(5 of
-10 data sets with predictor reuse first) and
-approximately in the M-spline scenario
-(3 of
-5). Weighting the two orders equally gives
-savings per leapfrog step of
-8.6% for the
-Weibull scenario and
-18.5% for the
-M-spline scenario, and savings in elapsed time of
-7.6% and
-25.5%.
+Laplace draws had standard deviation 0.023.
 
 ## What this vignette does not claim
 
@@ -556,10 +541,8 @@ of integration points. With two data sets per workload this cannot be checked
 for each workload, and the pooled estimates for workloads that share data sets
 are correlated. The pooled variance includes both the variation between data
 sets and the error of the short runs subtracted from all blocks of a data set.
-The allocation of orders to blocks was unbalanced, although the
-position-adjusted estimates differ little from the main ones.
 
-Level B has two scenarios with ten and five data sets, and its intervals are
+Level B has two scenarios with ten data sets each, and its intervals are
 wide. The saving in elapsed time for other distributions, sample sizes, numbers
 of integration points, or for the relaxed model was not measured directly; it
 can be inferred only from the corresponding Level A workloads.
@@ -579,8 +562,8 @@ but the machine was not otherwise idle; the recorded load averages are reported
 above. Background activity adds variability to single timings. In Level A, the
 random order of data sets and the placement of every computation in every
 position within blocks limit its effect on the comparison. In Level B, the
-order of the two fits of a pair may also affect timing; the cause was not
-determined, and the order-balanced estimates are given in the checks above.
+order of the two fits of a pair may also affect timing; each order was used for
+half of the data sets of each scenario.
 
 The processor has four performance cores and four efficiency cores, and the
 operating system decided which processes ran on which. A chain scheduled on an
