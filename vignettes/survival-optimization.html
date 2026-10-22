@@ -366,7 +366,8 @@ optimization</h1>
 
 <p>Survival fits spend most of their time on the comparator likelihood.
 Each reconstructed comparator pseudo-individual is integrated over the
-covariate distribution of the comparator population <span class="citation">(<a href="#ref-ChandlerIshak2026">Chandler and Ishak
+covariate distribution of the comparator population <span class="citation">(<a href="#ref-Phillippo2025surv">Phillippo et al.
+2026</a>; <a href="#ref-ChandlerIshakMLUMR">Chandler and Ishak
 2026</a>)</span>, so the comparator contributes one likelihood term per
 pseudo-individual and integration point, and the sampler evaluates all
 of them, with their gradient, at every leapfrog step.</p>
@@ -415,10 +416,11 @@ the same Stan version, compiler, and seed.</li>
 <p>The comparator evidence in a survival fit is reconstructed
 pseudo-individual data. The likelihood of each pseudo-individual is
 integrated over the covariate distribution of the comparator population,
-as in the population adjustment of multilevel network meta-regression
-<span class="citation">(<a href="#ref-Phillippo2020">Phillippo et al.
-2020</a>)</span>. With integration points <span class="math inline">\(x_{a1}, \dots, x_{aM}\)</span> for comparator arm
-<span class="math inline">\(a\)</span>, the likelihood contribution of
+as in multilevel network meta-regression for general likelihoods <span class="citation">(<a href="#ref-Phillippo2025surv">Phillippo et al.
+2026</a>)</span> and its unanchored form, multilevel unanchored
+meta-regression <span class="citation">(<a href="#ref-ChandlerIshakMLUMR">Chandler and Ishak 2026</a>)</span>. With
+integration points <span class="math inline">\(x_{a1}, \dots,
+x_{aM}\)</span> for comparator arm <span class="math inline">\(a\)</span>, the likelihood contribution of
 pseudo-individual <span class="math inline">\(j\)</span>, with observed
 time <span class="math inline">\(t_j\)</span> and event indicator <span class="math inline">\(d_j\)</span>, is</p>
 <p><span class="math display">\[
@@ -1173,11 +1175,10 @@ Carpenter, Bob, Andrew Gelman, Matthew D. Hoffman, et al. 2017.
 <span>“<span>Stan</span>: A Probabilistic Programming Language.”</span>
 <em>Journal of Statistical Software</em> 76 (1): 1–32. <a href="https://doi.org/10.18637/jss.v076.i01">https://doi.org/10.18637/jss.v076.i01</a>.
 </div>
-<div id="ref-ChandlerIshak2026" class="csl-entry">
-Chandler, C., and K. J. Ishak. 2026. <em>Surviving Unanchored Indirect
-Comparisons: An Extension of Multilevel Unanchored Meta-Regression
-(<span>ML-UMR</span>) for Survival Analyses</em>. ISPOR, Philadelphia,
-PA, USA; abstract MSR131; Value in Health. <a href="https://www.ispor.org/heor-resources/presentations-database/presentation-cti/ispor-2026/poster-session-3-3/surviving-unanchored-indirect-comparisons-an-extension-of-multilevel-unanchored-meta-regression-ml-umr-for-survival-analyses">https://www.ispor.org/heor-resources/presentations-database/presentation-cti/ispor-2026/poster-session-3-3/surviving-unanchored-indirect-comparisons-an-extension-of-multilevel-unanchored-meta-regression-ml-umr-for-survival-analyses</a>.
+<div id="ref-ChandlerIshakMLUMR" class="csl-entry">
+Chandler, C., and K. J. Ishak. 2026. <em>Anchors Away: Navigating
+Unanchored Indirect Comparisons with Multilevel Unanchored
+Meta-Regression (<span>ML-UMR</span>)</em>. Preprint. <a href="https://doi.org/10.48550/arXiv.2606.20341">https://doi.org/10.48550/arXiv.2606.20341</a>.
 </div>
 <div id="ref-Hoffman2014" class="csl-entry">
 Hoffman, Matthew D., and Andrew Gelman. 2014. <span>“The
@@ -1185,11 +1186,12 @@ Hoffman, Matthew D., and Andrew Gelman. 2014. <span>“The
 <span>Hamiltonian</span> <span>Monte</span> <span>Carlo</span>.”</span>
 <em>Journal of Machine Learning Research</em> 15 (47): 1593–623.
 </div>
-<div id="ref-Phillippo2020" class="csl-entry">
-Phillippo, D. M., S. Dias, A. E. Ades, et al. 2020. <span>“Multilevel
-Network Meta-Regression for Population-Adjusted Treatment
-Comparisons.”</span> <em>Journal of the Royal Statistical Society:
-Series A (Statistics in Society)</em> 183 (3): 1189–210. <a href="https://doi.org/10.1111/rssa.12579">https://doi.org/10.1111/rssa.12579</a>.
+<div id="ref-Phillippo2025surv" class="csl-entry">
+Phillippo, D. M., S. Dias, A. E. Ades, and N. J. Welton. 2026.
+<span>“Multilevel Network Meta-Regression for General Likelihoods:
+Synthesis of Individual and Aggregate Data with Applications to Survival
+Analysis.”</span> <em>Journal of the Royal Statistical Society Series A:
+Statistics in Society</em> 189 (3): 1856–75. <a href="https://doi.org/10.1093/jrsssa/qnaf169">https://doi.org/10.1093/jrsssa/qnaf169</a>.
 </div>
 </div>
 </div>

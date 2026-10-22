@@ -289,7 +289,7 @@ n_datasets <- stats::setNames(per_scenario$datasets, per_scenario$scenario)
 
 Survival fits spend most of their time on the comparator likelihood. Each
 reconstructed comparator pseudo-individual is integrated over the covariate
-distribution of the comparator population [@ChandlerIshak2026], so the
+distribution of the comparator population [@Phillippo2025surv; @ChandlerIshakMLUMR], so the
 comparator contributes one likelihood term per pseudo-individual and
 integration point, and the sampler evaluates all of them, with their gradient,
 at every leapfrog step.
@@ -339,8 +339,10 @@ There are two reasons to turn the optimization off:
 
 The comparator evidence in a survival fit is reconstructed pseudo-individual
 data. The likelihood of each pseudo-individual is integrated over the covariate
-distribution of the comparator population, as in the population adjustment of
-multilevel network meta-regression [@Phillippo2020]. With integration points
+distribution of the comparator population, as in multilevel network
+meta-regression for general likelihoods [@Phillippo2025surv] and its unanchored
+form, multilevel unanchored meta-regression [@ChandlerIshakMLUMR]. With
+integration points
 $x_{a1}, \dots, x_{aM}$ for comparator arm $a$, the likelihood contribution of
 pseudo-individual $j$, with observed time $t_j$ and event indicator $d_j$, is
 
