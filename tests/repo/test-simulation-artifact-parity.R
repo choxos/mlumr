@@ -39,11 +39,12 @@ for (study in .studies) {
     html <- .artifact_path("vignettes", paste0(study$article, ".html"))
     # `data-raw` is build-ignored, so an installed package has neither the
     # results nor the article source; there is nothing to compare there. The
-    # results files are what say which of the two this is. Once any of them
-    # exists, a missing results file or article is the failure this test is
-    # for, not a reason to skip: a skip here is exactly how the check
-    # disappears while the build stays green.
-    skip_if_not(any(file.exists(csvs)),
+    # study script and its results files are what say which of the two this
+    # is. Once any of them exists, a missing results file or article is the
+    # failure this test is for, not a reason to skip: a skip here is exactly
+    # how the check disappears while the build stays green.
+    script <- .artifact_path("data-raw", study$script)
+    skip_if_not(file.exists(script) || any(file.exists(csvs)),
                 "run from a source checkout, not an installed package")
     expect_true(all(file.exists(csvs)),
                 info = paste("results files missing:",
@@ -81,7 +82,8 @@ for (study in .studies) {
     csvs <- vapply(study$results, function(f) .artifact_path("data-raw", f),
                    character(1))
     manifest <- .artifact_path("data-raw", study$manifest)
-    skip_if_not(any(file.exists(csvs)),
+    script <- .artifact_path("data-raw", study$script)
+    skip_if_not(file.exists(script) || any(file.exists(csvs)),
                 "run from a source checkout, not an installed package")
     expect_true(all(file.exists(csvs)),
                 info = paste("results files missing:",
@@ -118,7 +120,6 @@ for (study in .studies) {
     # comment or a different data-generating process. This is what makes
     # "these results came from this script" a statement about the files in
     # front of you.
-    script <- .artifact_path("data-raw", study$script)
     expect_true(file.exists(script),
                 info = "the manifest describes a study script that is not here")
     if (file.exists(script)) {
