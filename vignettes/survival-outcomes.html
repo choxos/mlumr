@@ -372,12 +372,14 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 myeloma (NDMM) data bundled with mlumr (<code>ndmm_ipd</code> /
 <code>ndmm_agd</code> / <code>ndmm_agd_covs</code>, copied from the
 GPL-3 <code>multinma</code> package <span class="citation">(<a href="#ref-multinma">Phillippo 2024</a>)</span>); these are the same
-datasets used in multinma’s survival ML-NMR example <span class="citation">(<a href="#ref-Phillippo2025surv">Phillippo et al.
-2025</a>)</span>. It is the unanchored analogue of that analysis <span class="citation">(<a href="#ref-ChandlerIshak2026">C. Chandler and Ishak
-2026</a>)</span>. See <code>vignette(&quot;data-preparation&quot;)</code> for the
-integration machinery, <code>vignette(&quot;fitting-and-diagnostics&quot;)</code>
-for sampler/prior detail, and <code>vignette(&quot;choosing-a-method&quot;)</code>
-to choose between methods.</p>
+datasets used in multinma’s survival ML-NMR example <span class="citation">(<a href="#ref-Phillippo2025surv">Phillippo, Dias, et
+al. 2026</a>)</span>. It is the unanchored analogue of that analysis
+<span class="citation">(<a href="#ref-ChandlerIshak2026">C. Chandler and
+Ishak 2026</a>)</span>. See <code>vignette(&quot;data-preparation&quot;)</code>
+for the integration machinery,
+<code>vignette(&quot;fitting-and-diagnostics&quot;)</code> for sampler/prior
+detail, and <code>vignette(&quot;choosing-a-method&quot;)</code> to choose between
+methods.</p>
 <blockquote>
 <p><strong>About these data.</strong> <code>ndmm_ipd</code> /
 <code>ndmm_agd</code> / <code>ndmm_agd_covs</code> are copied
@@ -506,9 +508,9 @@ shapes (use an <code>&quot;mspline&quot;</code> baseline for a hazard shape
 outside that family).</p>
 <p>The flexible baselines estimate the baseline-hazard shape from the
 data using a normalized M-spline (the piecewise exponential is the
-degree-0 case) with a random-walk smoothing prior <span class="citation">(<a href="#ref-Phillippo2026mspline">Phillippo et al.
-2026</a>)</span>. Knots are placed by <code>make_knots()</code> (control
-with <code>n_knots</code>).</p>
+degree-0 case) with a random-walk smoothing prior <span class="citation">(<a href="#ref-Phillippo2026mspline">Phillippo, Sadek,
+et al. 2026</a>)</span>. Knots are placed by <code>make_knots()</code>
+(control with <code>n_knots</code>).</p>
 </div>
 <div id="censoring" class="section level2">
 <h2>Censoring</h2>
@@ -1756,11 +1758,11 @@ Meta-Analysis.”</span> <em>Research Synthesis Methods</em> 10 (4):
 546–68. <a href="https://doi.org/10.1002/jrsm.1372">https://doi.org/10.1002/jrsm.1372</a>.
 </div>
 <div id="ref-Phillippo2025surv" class="csl-entry">
-Phillippo, D. M., S. Dias, A. E. Ades, and N. J. Welton. 2025.
+Phillippo, D. M., S. Dias, A. E. Ades, and N. J. Welton. 2026.
 <span>“Multilevel Network Meta-Regression for General Likelihoods:
 Synthesis of Individual and Aggregate Data with Applications to Survival
 Analysis.”</span> <em>Journal of the Royal Statistical Society Series A:
-Statistics in Society</em>, ahead of print. <a href="https://doi.org/10.1093/jrsssa/qnaf169">https://doi.org/10.1093/jrsssa/qnaf169</a>.
+Statistics in Society</em> 189 (3): 1856–75. <a href="https://doi.org/10.1093/jrsssa/qnaf169">https://doi.org/10.1093/jrsssa/qnaf169</a>.
 </div>
 <div id="ref-Phillippo2026mspline" class="csl-entry">
 Phillippo, D. M., A. Sadek, H. Pedder, and N. J. Welton. 2026.

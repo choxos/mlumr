@@ -122,7 +122,7 @@ prior_sensitivity <- function(fit,
     protected <- c("data", "model", "link", "distribution", "prior_beta",
                    "prior_beta_comparator", "prior_intercept", "prior_sigma",
                    "prior_aux", "prior_aux2", "prior_smooth", "center", "qr",
-                   "n_knots", "knots", "mspline_degree", "pred_times",
+                   "optimization", "n_knots", "knots", "mspline_degree", "pred_times",
                    "rmst_horizon", "n_rmst_grid", "aux_by")
     clash <- intersect(names(dots), protected)
     if (length(clash)) {
@@ -295,6 +295,10 @@ prior_sensitivity <- function(fit,
     prior_sigma = fit$priors$sigma %||% default_prior_sigma(),
     center       = mc$center       %||% FALSE,
     qr           = mc$qr           %||% FALSE,
+    # Fits from before 0.2.1 record no setting and were computed without
+    # predictor reuse. The two computations can give different draws under one
+    # seed, so the replay repeats the old one.
+    optimization = mc$optimization %||% FALSE,
     chains       = sa$chains       %||% 4,
     iter         = sa$iter         %||% 2000,
     warmup       = sa$warmup       %||% 1000,

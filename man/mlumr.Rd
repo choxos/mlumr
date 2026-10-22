@@ -34,6 +34,7 @@ mlumr(
   verbose = TRUE,
   prior_beta_comparator = NULL,
   prior_aux2 = NULL,
+  optimization = TRUE,
   ...
 )
 }
@@ -178,6 +179,24 @@ index-population estimand; see \code{\link[=check_identification]{check_identifi
 \item{prior_aux2}{For \code{distribution = "gengamma"} only: prior for the
 second auxiliary parameter. \code{NULL} (the default) reuses \code{prior_aux}.
 Supplying it for any other distribution warns and has no effect.}
+
+\item{optimization}{Logical (default \code{TRUE}). Whether to apply mlumr's
+computational optimizations, which change how the log density is
+evaluated but not the model or its posterior. This is unrelated to Stan's
+optimizer (\code{\link[rstan:optimizing]{rstan::optimizing()}}); the model is always sampled. It
+currently affects \code{family = "survival"} only: with \code{TRUE}, each comparator
+arm's linear predictor at the integration points is computed once per
+evaluation of the log density and reused for every pseudo-individual in
+the arm, instead of being recomputed for each of them. The two settings
+build different automatic-differentiation graphs, so floating-point sums
+are accumulated in a different order and the gradient can differ in its
+last digits; under one seed the draws can therefore separate, often
+already during warmup, while agreeing in distribution. \code{FALSE} repeats the
+arithmetic of releases before 0.2.1, for benchmarking and for reproducing
+earlier fits (which also requires the same Stan version, compiler, and
+seed). Ignored for the other families. See
+\code{vignette("survival-optimization", package = "mlumr")} for a simulation
+study of the computation time saved.}
 
 \item{...}{Additional arguments passed to the Stan sampling function
 (\code{\link[rstan:sampling]{rstan::sampling()}} or cmdstanr's \verb{$sample()} method)}

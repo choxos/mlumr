@@ -36,6 +36,11 @@ data {
   matrix[n_agd, n_scoef] ib_agd_delay;
   array[n_agd] int<lower=0,upper=3> agd_status;
   array[n_agd] int<lower=1,upper=n_agd_rows> agd_arm;
+  // 1 = compute each comparator arm's linear predictor once per parameter
+  // evaluation and reuse it across the arm's pseudo-individuals
+  // (mlumr(optimization = TRUE)); 0 = recompute it for every
+  // pseudo-individual, as releases before 0.2.1 did.
+  int<lower=0,upper=1> reuse_arm_eta;
 
   // Integration points (comparator covariate distribution, per arm)
   int<lower=1> n_int;
@@ -165,13 +170,18 @@ model {
   target += sum(log_L_ipd);
 
   {
-    // Recomputed at this parameter evaluation, once per comparator arm.
+    // With reuse_arm_eta = 1 each comparator arm's linear predictor is computed
+    // once at this parameter evaluation and shared by the arm's
+    // pseudo-individuals; with 0 it is recomputed for every pseudo-individual.
     array[n_agd_rows] vector[n_int] eta_agd_arm;
     vector[n_agd] agd_ll;
-    for (a in 1:n_agd_rows)
-      eta_agd_arm[a] = Xq_int[a] * beta_tilde;
+    if (reuse_arm_eta)
+      for (a in 1:n_agd_rows)
+        eta_agd_arm[a] = Xq_int[a] * beta_tilde;
     for (j in 1:n_agd) {
       int a = agd_arm[j];
+      if (!reuse_arm_eta)
+        eta_agd_arm[a] = Xq_int[a] * beta_tilde;
       real dH_et = fmax(dot_product(ib_agd[j] - ib_agd_delay[j], scoef_cmp), 0);
       real dH_es = fmax(dot_product(ib_agd_start[j] - ib_agd_delay[j], scoef_cmp), 0);
       real dH_st = fmax(dot_product(ib_agd[j] - ib_agd_start[j], scoef_cmp), 0);
@@ -288,10 +298,13 @@ generated quantities {
     for (i in 1:n_ipd) log_lik_ipd[i] = log_L_ipd[i];
     {
       array[n_agd_rows] vector[n_int] eta_agd_arm;
-      for (a in 1:n_agd_rows)
-        eta_agd_arm[a] = Xq_int[a] * beta_tilde;
+      if (reuse_arm_eta)
+        for (a in 1:n_agd_rows)
+          eta_agd_arm[a] = Xq_int[a] * beta_tilde;
       for (j in 1:n_agd) {
         int a = agd_arm[j];
+        if (!reuse_arm_eta)
+          eta_agd_arm[a] = Xq_int[a] * beta_tilde;
         real dH_et = fmax(dot_product(ib_agd[j] - ib_agd_delay[j], scoef_cmp), 0);
         real dH_es = fmax(dot_product(ib_agd_start[j] - ib_agd_delay[j], scoef_cmp), 0);
         real dH_st = fmax(dot_product(ib_agd[j] - ib_agd_start[j], scoef_cmp), 0);

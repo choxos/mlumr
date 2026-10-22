@@ -167,7 +167,8 @@ test_that("new formals are appended, so positional calls keep their meaning", {
   released_prefix <- strsplit(released, " ")[[1]]
   expect_identical(f[seq_along(released_prefix)], released_prefix)
   # Arguments added after 0.1.0 live at the end, ahead of `...` only.
-  expect_identical(tail(f, 3), c("prior_beta_comparator", "prior_aux2", "..."))
+  expect_identical(tail(f, 4), c("prior_beta_comparator", "prior_aux2",
+                                 "optimization", "..."))
 })
 
 # ---- prior_sensitivity() quantile column names ------------------------------

@@ -165,6 +165,23 @@
 #'   the combined design matrix, which decorrelates its columns for HMC. The
 #'   priors still apply to the original coefficients. Useful with many
 #'   correlated or ill-scaled covariates.
+#' @param optimization Logical (default `TRUE`). Whether to apply mlumr's
+#'   computational optimizations, which change how the log density is
+#'   evaluated but not the model or its posterior. This is unrelated to Stan's
+#'   optimizer ([rstan::optimizing()]); the model is always sampled. It
+#'   currently affects `family = "survival"` only: with `TRUE`, each comparator
+#'   arm's linear predictor at the integration points is computed once per
+#'   evaluation of the log density and reused for every pseudo-individual in
+#'   the arm, instead of being recomputed for each of them. The two settings
+#'   build different automatic-differentiation graphs, so floating-point sums
+#'   are accumulated in a different order and the gradient can differ in its
+#'   last digits; under one seed the draws can therefore separate, often
+#'   already during warmup, while agreeing in distribution. `FALSE` repeats the
+#'   arithmetic of releases before 0.2.1, for benchmarking and for reproducing
+#'   earlier fits (which also requires the same Stan version, compiler, and
+#'   seed). Ignored for the other families. See
+#'   `vignette("survival-optimization", package = "mlumr")` for a simulation
+#'   study of the computation time saved.
 #' @param chains Number of MCMC chains (default 4)
 #' @param iter Total iterations per chain (default 2000)
 #' @param warmup Number of warmup iterations (default 1000)
@@ -258,6 +275,7 @@ mlumr <- function(data,
                   verbose = TRUE,
                   prior_beta_comparator = NULL,
                   prior_aux2 = NULL,
+                  optimization = TRUE,
                   ...) {
 
   model <- match.arg(model)
@@ -265,6 +283,7 @@ mlumr <- function(data,
   .validate_flag(verbose, "verbose")
   .validate_flag(center, "center")
   .validate_flag(qr, "qr")
+  .validate_flag(optimization, "optimization")
   .validate_mlumr_sampling_args(
     chains = chains,
     iter = iter,
@@ -532,7 +551,8 @@ mlumr <- function(data,
     aux_by = aux_by,
     model = model,
     center = center,
-    qr = qr
+    qr = qr,
+    optimization = optimization
   )
   stan_data <- prepared$stan_data
   # Judged on the design the model fits, before any backend is chosen.
@@ -643,7 +663,8 @@ mlumr <- function(data,
     # parameterization.
     model_controls = list(
       center = center,
-      qr = qr
+      qr = qr,
+      optimization = optimization
     ),
     engine = engine,
     priors = priors,
@@ -687,7 +708,8 @@ mlumr <- function(data,
                                    knots = NULL,
                                    pred_times = NULL, rmst_horizon = NULL,
                                    n_rmst_grid = 100L, aux_by = NULL,
-                                   model = "spfa", center = TRUE, qr = FALSE) {
+                                   model = "spfa", center = TRUE, qr = FALSE,
+                                   optimization = TRUE) {
   ipd_data <- data$ipd$data
   agd_data <- data$agd$data
   X_ipd <- as.matrix(ipd_data[, data$covariates])
@@ -794,6 +816,8 @@ mlumr <- function(data,
       prior_smooth = prior_smooth,
       n_strata = .resolve_aux_strata(aux_by)
     )
+    # Read by the four survival models only; see `optimization` in ?mlumr.
+    stan_data$reuse_arm_eta <- as.integer(optimization)
   }
 
   # Centering leaves the likelihood unchanged but not the intercept prior;

@@ -92,7 +92,8 @@ for (i in seq_along(specs)) {
   cond <- do.call(capture_stan_data, c(
     list(dat = dat, model = s$model, distribution = s$distribution), s$fit))
   sd <- cond$stan_data
-  stopifnot(sd$n_agd_rows == 1L)
+  # mlumr()'s default; the gate runs each case under both settings.
+  stopifnot(sd$n_agd_rows == 1L, identical(sd$reuse_arm_eta, 1L))
   if (identical(s$fixture$censoring, "mixed")) {
     stopifnot(all(0:3 %in% sd$ipd_status), all(0:3 %in% sd$agd_status))
   }
