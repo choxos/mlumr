@@ -780,13 +780,14 @@ SDs)</th>
 </table>
 <p>In the complete fits, 31 of the 40 Weibull chains and 0 of the 40
 M-spline chains followed a common trajectory under both settings
-throughout sampling. Of the 49 chains that separated, 46 had done so by
-the first sampling iteration, that is, during warmup. Separated chains
-are still sampling the same posterior: in every pair of fits the
-posterior means of the RMST difference differed by at most 0.027
-posterior standard deviations, comparable with the Monte Carlo standard
-error of a single fit’s posterior mean (at most 0.017 posterior standard
-deviations).</p>
+throughout sampling. Of the 49 chains that separated, 46 already
+differed at the first sampling iteration. The study saves no warmup
+draws, so it cannot tell whether those chains separated during warmup or
+in the first sampling transition. Separated chains are still sampling
+the same posterior: in every pair of fits the posterior means of the
+RMST difference differed by at most 0.027 posterior standard deviations,
+comparable with the Monte Carlo standard error of a single fit’s
+posterior mean (at most 0.017 posterior standard deviations).</p>
 </div>
 <div id="every-distribution-and-both-models-run-faster" class="section level3">
 <h3>Every distribution and both models run faster</h3>
@@ -1006,9 +1007,11 @@ to differentiate each product, which is a larger share of the total when
 to the computation without predictor reuse, because the two take nearly
 the same time. Averaged over workloads, the 0.2.0 models took 0.5%
 longer than the computation without predictor reuse (95% interval 0.2%
-to 0.8%, computed over the 27 data-set sizes). The data flag that
-selects between the two computations does not slow down
-<code>optimization = FALSE</code>.</p>
+to 0.8%, computed over the 27 data-set sizes). On average, then, the
+data flag that selects between the two computations does not slow down
+<code>optimization = FALSE</code>; the study does not estimate that cost
+for each workload separately, and single workloads vary in both
+directions.</p>
 </div>
 <div id="the-saving-reaches-complete-fits" class="section level3">
 <h3>The saving reaches complete fits</h3>

@@ -351,8 +351,10 @@ In the complete fits, 31 of the
 0 of the
 40 M-spline chains followed a common trajectory
 under both settings throughout sampling. Of the 49 chains that
-separated, 46 had done so by the first sampling iteration,
-that is, during warmup. Separated chains are still sampling the same posterior:
+separated, 46 already differed at the first sampling
+iteration. The study saves no warmup draws, so it cannot tell whether those
+chains separated during warmup or in the first sampling transition. Separated
+chains are still sampling the same posterior:
 in every pair of fits the posterior means of the RMST difference differed by at
 most 0.027
 posterior standard deviations, comparable with the Monte Carlo standard error
@@ -452,8 +454,10 @@ time. Averaged over workloads, the 0.2.0 models took
 0.5% longer than the computation without
 predictor reuse (95% interval 0.2% to
 0.8%, computed over the 27
-data-set sizes). The data flag that selects between the two computations does
-not slow down `optimization = FALSE`.
+data-set sizes). On average, then, the data flag that selects between the two
+computations does not slow down `optimization = FALSE`; the study does not
+estimate that cost for each workload separately, and single workloads vary in
+both directions.
 
 ### The saving reaches complete fits
 
