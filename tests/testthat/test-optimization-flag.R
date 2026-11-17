@@ -2,6 +2,10 @@
 # travels with the fit, and is replayed by prior_sensitivity(). The numerical
 # equivalence of the two settings is tested natively by
 # tests/parity/armfast-parity-gate.R, which runs every case under both.
+# Because the settings are equivalent by design, no test of values here can
+# show that a program reads the flag; tests/repo/test-survival-armfast-contract.R
+# does, by resolving each program's flag branches and comparing the result with
+# the frozen baseline and with the baseline plus the reuse.
 
 .captured_stan_data <- function(dat, ...) {
   local_mocked_bindings(

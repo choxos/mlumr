@@ -48,13 +48,13 @@ keywords:
 preferred-citation:
   type: generic
   title: >-
-    Anchors Away: Navigating Unanchored Indirect Comparisons with Multilevel
-    Unanchored Meta-Regression (ML-UMR)
+    Anchors Away: Navigating Single-Arm Indirect Comparisons with Multilevel
+    Unanchored Meta-Regression (ML-UMR-SA)
   authors:
     - family-names: Chandler
       given-names: Conor
     - family-names: Ishak
-      given-names: Jack
+      given-names: K. Jack
   year: '2026'
   doi: 10.48550/arXiv.2606.20341
   url: https://arxiv.org/abs/2606.20341

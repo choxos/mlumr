@@ -1,8 +1,10 @@
 # Benchmark results: v0.2.1 armfast against the frozen baseline
 
 These measurements were taken before promotion, with the prototype's benchmark
-scripts, which are not part of this tree. The candidate models benchmarked are
-byte-identical to the survival models now in `inst/stan`. The baseline was
+scripts, which are not part of this tree. The candidate models benchmarked
+always reused the predictor; the survival models now in `inst/stan` add the
+`reuse_arm_eta` data flag that `mlumr(optimization = )` sets, and with the flag
+on they compute what the candidate computed. The baseline was
 pinned at `4e650fd`; it differs from `survival-baseline-6a366a0/` only by two
 include helpers that no model calls. Ratios below are baseline time over
 candidate time, so a ratio of 1.27 means the candidate takes 21 percent less
@@ -116,7 +118,10 @@ The predictor reuse makes each log-density and gradient evaluation take about
 by `n_int` relative to `n_agd` as the mechanism predicts. That is the whole
 measured effect. It does not show up as a wall-time or ESS-per-second
 difference in six full fits per workload on this machine, where run-to-run
-and seed-to-seed variation are larger than the per-evaluation saving. Any
-statement outside this file should say "about 5 to 21 percent less time per
-evaluation on the benchmark workloads" and should not name a fit-level
-speedup.
+and seed-to-seed variation are larger than the per-evaluation saving.
+
+This file is the record of that prototype measurement and is not updated. The
+later, larger study in `data-raw/simulate_survival_optimization.R`, reported in
+the article "Survival fits with and without optimization", times complete fits
+with paired data sets and does measure a saving in elapsed time; statements
+about whole fits should cite that article, not this file.

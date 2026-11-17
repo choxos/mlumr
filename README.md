@@ -336,8 +336,8 @@ Detailed tutorials are available as package vignettes, in reading order:
 
 mlumr implements multilevel unanchored meta-regression (ML-UMR):
 
-> Chandler, C. & Ishak, J. (2026). "Anchors Away: Navigating Unanchored
-> Indirect Comparisons with Multilevel Unanchored Meta-Regression (ML-UMR)."
+> Chandler, C. & Ishak, K. J. (2026). "Anchors Away: Navigating Single-Arm
+> Indirect Comparisons with Multilevel Unanchored Meta-Regression (ML-UMR-SA)."
 > arXiv preprint arXiv:2606.20341 [stat.ME].
 > [doi:10.48550/arXiv.2606.20341](https://doi.org/10.48550/arXiv.2606.20341)
 
