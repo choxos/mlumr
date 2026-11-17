@@ -12,6 +12,11 @@
 #' a different parameterization, and replaying the defaults would vary the model
 #' as well as the prior.
 #'
+#' For a survival fit the `optimization` setting is replayed in the same way and
+#' cannot be overridden through `...`. A fit made before mlumr 0.2.1 records no
+#' setting; it was computed without predictor reuse, so its refits use
+#' `optimization = FALSE`, which repeats that computation and is slower.
+#'
 #' @param fit A fitted `mlumr_fit` object to re-fit under alternative priors.
 #' @param prior_beta_scales Numeric vector of scales for `prior_beta`.
 #'   Default `c(0.5, 1, 2.5, 5, 10)`. For a normal identity-link fit whose
@@ -388,8 +393,18 @@ prior_sensitivity <- function(fit,
     survival = c("delta_index", "delta_comparator")
   )
 
-  effect_names <- intersect(effect_cols, colnames(draws))
-  if (length(effect_names) == 0L) return(NULL)
+  # Both effects are part of the result. A refit whose draws lack one (for
+  # example after `pars` and `include = FALSE` reached the backend) would
+  # otherwise return a table that silently omits that population.
+  missing_cols <- setdiff(effect_cols, colnames(draws))
+  if (length(missing_cols)) {
+    stop(sprintf(paste0("The refit at scale %g has no draws for %s, so its ",
+                        "sensitivity summary would be incomplete. Do not ",
+                        "exclude these quantities through `...`."),
+                 scale, paste0("`", missing_cols, "`", collapse = " and ")),
+         call. = FALSE)
+  }
+  effect_names <- effect_cols
 
   # The label comes from the helper marginal_effects() uses.
   if (identical(family, "survival")) {

@@ -66,6 +66,11 @@ reverting to the defaults. A fit made with \code{center = FALSE} or \code{qr = T
 a different parameterization, and replaying the defaults would vary the model
 as well as the prior.
 
+For a survival fit the \code{optimization} setting is replayed in the same way and
+cannot be overridden through \code{...}. A fit made before mlumr 0.2.1 records no
+setting; it was computed without predictor reuse, so its refits use
+\code{optimization = FALSE}, which repeats that computation and is slower.
+
 Only the scale of \code{prior_beta} is varied; its family and mean, and every
 other prior and setting, come from the original fit. Each scale is applied
 to every coefficient, so the sweep reflects one level of prior

@@ -11,6 +11,10 @@
   for a fit made with an earlier release. The new article
   "Survival fits with and without optimization" reports a simulation study
   comparing the computation time of the two.
+* Fix: `prior_sensitivity()` stops with an error when a refit has no draws for
+  one of the two marginal effects, for example after `pars` and
+  `include = FALSE` reached an rstan refit through `...`. It used to return a
+  table that silently omitted that population.
 * Documentation: `citation("mlumr")` gives standard references for the ML-UMR
   methodology, the software with its Zenodo DOI, and the two conference
   abstracts, each with a BibTeX key for use in manuscripts.

@@ -209,6 +209,22 @@ test_that(".summarize_sensitivity records the comparator prior scale it was fitt
   expect_true(all(is.na(spfa$scale_comparator)))
 })
 
+test_that(".summarize_sensitivity rejects a refit missing one population's effect", {
+  # `pars` and `include = FALSE` reach an rstan refit through `...`. Dropping
+  # `delta_comparator` used to return a valid-looking table with only the index
+  # rows.
+  fake_fit <- structure(
+    list(family = "survival", model = "spfa",
+         draws = data.frame(delta_index = rnorm(200, -0.5, 0.2))),
+    class = c("mlumr_fit", "list")
+  )
+  expect_error(
+    mlumr:::.summarize_sensitivity(fake_fit, scale = 2.5,
+                                   probs = c(0.025, 0.5, 0.975)),
+    "no draws for `delta_comparator`", fixed = TRUE
+  )
+})
+
 
 test_that("prior_sensitivity replays a parametric survival baseline", {
   skip_on_cran()
