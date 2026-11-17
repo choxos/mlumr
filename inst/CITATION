@@ -12,10 +12,10 @@ year <- c(year_in(meta$`Date/Publication`), year_in(meta$Packaged),
 bibentry(
   bibtype  = "Misc",
   key      = "chandler2026mlumr",
-  title    = "Anchors Away: Navigating Unanchored Indirect Comparisons with Multilevel Unanchored Meta-Regression ({ML-UMR})",
+  title    = "Anchors Away: Navigating Single-Arm Indirect Comparisons with Multilevel Unanchored Meta-Regression ({ML-UMR-SA})",
   author   = c(
     person("Conor", "Chandler"),
-    person("Jack", "Ishak")
+    person(c("K.", "Jack"), "Ishak")
   ),
   year     = "2026",
   note     = "arXiv preprint arXiv:2606.20341 [stat.ME]",
