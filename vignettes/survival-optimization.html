@@ -1155,6 +1155,18 @@ and the operating system decided which processes ran on which. A chain
 scheduled on an efficiency core runs more slowly, which is a plausible
 source of the variability between data sets in Level B, where four
 chains ran at once.</p>
+<p>The study ran on the source recorded in the manifest, before two
+later fixes to the survival helpers that both computations share. One
+returns the log survival as <code>-Inf</code> without forming an
+overflowing cumulative hazard and changes no finite value. The other
+computes the gamma and generalized gamma incomplete gamma functions so
+that their shape gradients are exact; it can change the cost of a
+generalized gamma evaluation, so the generalized gamma timings describe
+the earlier helper. Because the fixes apply to both computations alike,
+the comparison of predictor reuse with its absence does not depend on
+them, but <code>optimization = FALSE</code> no longer repeats the 0.2.0
+computation for the generalized gamma, and the frozen 0.2.0 models used
+here as the third computation now compile against the fixed helpers.</p>
 </div>
 <div id="reproducing-the-study" class="section level2">
 <h2>Reproducing the study</h2>

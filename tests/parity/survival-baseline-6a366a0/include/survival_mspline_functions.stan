@@ -24,9 +24,9 @@ real mspline_ll_status(real dH_entry_time, real dH_entry_start,
   real log_ch_entry_time = dH_entry_time == 0
                            ? negative_infinity()
                            : log(dH_entry_time) + eta;
-  if (status == 0) return -exp(log_ch_entry_time);
+  if (status == 0) return neg_exp_cumhaz(log_ch_entry_time);
   if (status == 1)
-    return log(h0haz) + eta - exp(log_ch_entry_time);
+    return log(h0haz) + eta + neg_exp_cumhaz(log_ch_entry_time);
   if (status == 2) return log1m_exp_neg_exp(log_ch_entry_time);
   {
     real log_ch_entry_start = dH_entry_start == 0
@@ -35,7 +35,8 @@ real mspline_ll_status(real dH_entry_time, real dH_entry_start,
     real log_ch_start_time = dH_start_time == 0
                              ? negative_infinity()
                              : log(dH_start_time) + eta;
-    return -exp(log_ch_entry_start) + log1m_exp_neg_exp(log_ch_start_time);
+    return neg_exp_cumhaz(log_ch_entry_start)
+           + log1m_exp_neg_exp(log_ch_start_time);
   }
 }
 

@@ -999,3 +999,118 @@ test_that("an overflowing survival increment has a finite gradient too", {
   # on a NaN.
   expect_equal(grad, 1 - 0.0009^2, tolerance = 1e-6)
 })
+
+# Runs CmdStan's `diagnose test=gradient` on a one-parameter probe and returns
+# the model gradient, or fails the test with CmdStan's output. A non-finite
+# gradient makes the run exit non-zero whatever `error` is.
+.diagnose_gradient <- function(code, name, init) {
+  file <- file.path(tempdir(), paste0(name, ".stan"))
+  writeLines(code, file)
+  mod <- tryCatch(
+    cmdstanr::cmdstan_model(file, include_paths = stan_source_path(),
+                            quiet = TRUE),
+    error = function(e) e
+  )
+  if (inherits(mod, "error")) {
+    skip(paste("CmdStan could not build the probe:", conditionMessage(mod)))
+  }
+  out <- utils::capture.output(
+    diag_run <- tryCatch(
+      suppressWarnings(mod$diagnose(init = list(init), seed = 2026,
+                                    error = 1e-2)),
+      error = function(e) e
+    )
+  )
+  if (inherits(diag_run, "error")) {
+    fail(paste0("diagnose failed for ", name, ": ",
+                conditionMessage(diag_run), "\n",
+                paste(utils::tail(out, 8L), collapse = "\n")))
+    return(NA_real_)
+  }
+  diag_run$gradients()$model[1L]
+}
+
+test_that("an integration point whose cumulative hazard overflows leaves the gradient finite", {
+  skip_on_cran()
+  skip_if(!cmdstan_is_usable(), "CmdStan is not usable here")
+  # Two equally weighted integration points with linear predictors b and
+  # b + 712. At the second, the exponential's cumulative hazard is exp(712),
+  # beyond the double range: its log survival is -Inf and it carries zero
+  # weight in log_sum_exp, so the log likelihood is finite. Forming exp(712)
+  # anyway left an infinite node on the tape, and the reverse sweep multiplied
+  # its zero weight by infinity: the gradient was NaN. At b = 0 the log
+  # likelihood is log(exp(-1) / 2), whose derivative in b is -exp(b) = -1,
+  # and the standard normal prior adds -b = 0.
+  for (form in c("parametric", "mspline")) {
+    ll <- if (form == "parametric") {
+      "surv_ll_status(1, 1, 0, 0, 0, b + gap[m], 1, 1)"
+    } else {
+      "mspline_ll_status(1, 0, 0, 1, b + gap[m], 0)"
+    }
+    code <- paste(
+      "functions {",
+      "#include include/priors_functions.stan",
+      "#include include/survival_functions.stan",
+      "#include include/survival_mspline_functions.stan",
+      "}",
+      "parameters { real b; }",
+      "model {",
+      "  vector[2] gap = [0, 712]';",
+      "  vector[2] ll;",
+      paste0("  for (m in 1:2) ll[m] = ", ll, ";"),
+      "  b ~ normal(0, 1);",
+      "  target += log_sum_exp(ll) - log(2);",
+      "}",
+      sep = "\n"
+    )
+    grad <- .diagnose_gradient(code, paste0("mlumr-overflow-point-", form),
+                               list(b = 0))
+    expect_equal(grad, -1, tolerance = 1e-6, label = form)
+  }
+})
+
+test_that("gamma and generalized gamma shape gradients agree with the log survival", {
+  skip_on_cran()
+  skip_if(!cmdstan_is_usable(), "CmdStan is not usable here")
+  # Right-censored observations, eta = 0, differentiated in the log shape.
+  # Shape 1 at t = 3 is in the continued fraction's tail branch, where a
+  # whole-number shape ended the loop one term after the value terminated and
+  # the derivative came out 1.9425 instead of 1.9379. The generalized gamma
+  # at shape 20 and t = 1 is below the tail, where Stan's own derivative of
+  # gamma_q() was wrong by a factor of about 6. The reference is a central
+  # difference of the package's R log survival, which agrees with pgamma().
+  cases <- list(
+    list(dist = 8L, t = 3, aux = 1, log_k = 0),
+    list(dist = 9L, t = 1, aux = 0.8, log_k = log(20))
+  )
+  for (cs in cases) {
+    r_surv <- function(log_k) {
+      if (cs$dist == 8L) {
+        mlumr:::.r_log_surv(8L, cs$t, 0, exp(log_k), 1)
+      } else {
+        mlumr:::.r_log_surv(9L, cs$t, 0, cs$aux, exp(log_k))
+      }
+    }
+    h <- 1e-5
+    reference <- (r_surv(cs$log_k + h) - r_surv(cs$log_k - h)) / (2 * h)
+    args <- if (cs$dist == 8L) "exp(log_k), 1" else
+      sprintf("%.17g, exp(log_k)", cs$aux)
+    code <- paste(
+      "functions {",
+      "#include include/priors_functions.stan",
+      "#include include/survival_functions.stan",
+      "}",
+      "parameters { real log_k; }",
+      "model {",
+      sprintf("  target += surv_ll_status(%d, %.17g, 0, 0, 0, 0, %s);",
+              cs$dist, cs$t, args),
+      "}",
+      sep = "\n"
+    )
+    grad <- .diagnose_gradient(code, paste0("mlumr-shape-gradient-", cs$dist),
+                               list(log_k = cs$log_k))
+    expect_true(is.finite(reference))
+    expect_equal(grad, reference, tolerance = 1e-6,
+                 label = paste("distribution", cs$dist))
+  }
+})

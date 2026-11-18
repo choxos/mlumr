@@ -7,10 +7,17 @@ directory holds the evidence that the reuse changes nothing the models
 compute, and the gate that keeps it that way. It is excluded from the package
 build (`.Rbuildignore`).
 
-* `survival-baseline-6a366a0/`: the four survival models and their eight
-  includes as they were at commit `6a366a0`, before the reuse, with
-  `MANIFEST.txt` listing their git blob hashes. These are frozen: the gate
-  stops if one changes. They live outside `inst/stan` so that `rstantools`
+* `survival-baseline-6a366a0/`: the four survival models as they were at
+  commit `6a366a0`, before the reuse, and their eight includes, with
+  `MANIFEST.txt` listing their git blob hashes. Six includes are as they were
+  at `6a366a0`. `survival_functions.stan` and
+  `survival_mspline_functions.stan` were refreshed to the production copies
+  when 0.2.1 fixed two gradient defects in them (an overflowing cumulative
+  hazard and the gamma shape derivatives), so that the gate keeps comparing
+  the reuse alone. The models are therefore 0.2.0's models with 0.2.1's
+  survival helpers. These are frozen: the gate stops if one changes, and an
+  include may only be refreshed deliberately, with its hash, in the same
+  change as the production include. They live outside `inst/stan` so that `rstantools`
   does not register them as package models.
 * `build-armfast-cases.R` and `armfast-fixtures.R`: build 52 Stan data
   fixtures through the public route (`set_ipd()`, `set_agd_surv()`,
