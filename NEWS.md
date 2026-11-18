@@ -5,12 +5,28 @@
   The statistical model and every pointwise log-likelihood are unchanged.
   Suggested by Tim Disher (@timdisher).
 * Feature: New `mlumr()` argument `optimization` (default `TRUE`). `FALSE`
-  disables the optimization above and repeats the computation of earlier
-  releases, for benchmarking and for reproducing earlier fits.
+  disables the optimization above and repeats the order of computation of
+  earlier releases, for benchmarking. It reproduces an earlier fit exactly
+  only for distributions the two fixes below leave unchanged.
   `prior_sensitivity()` refits with the setting of the fit, and with `FALSE`
   for a fit made with an earlier release. The new article
   "Survival fits with and without optimization" reports a simulation study
   comparing the computation time of the two.
+* Fix: A survival likelihood with a finite value could have a non-finite
+  gradient. When one integration point's cumulative hazard exceeded the
+  double range (a linear predictor above about 710 for the exponential,
+  Weibull, Gompertz and M-spline baselines), its zero-weight term still
+  produced `NaN` in the gradient, and the sampler treated the step as
+  divergent. The log survival is now `-Inf` there without forming the
+  overflowing exponential.
+* Fix: Gradients of the gamma and generalized gamma likelihoods with respect
+  to the shape were inexact. The continued fraction for the upper tail
+  stopped one term after its value terminated at a whole-number shape, and
+  below the tail the derivatives of Stan's `gamma_p()` and `gamma_q()` were
+  off by up to 1 percent for the gamma and by far more for the generalized
+  gamma at large shapes, where they could also be `NaN`. Both now agree with
+  finite differences. Log likelihood values change only in their last
+  digits; NUTS was already sampling the correct posterior, less efficiently.
 * Documentation: `citation("mlumr")` gives standard references for the ML-UMR
   methodology, the software with its Zenodo DOI, and the two conference
   abstracts, each with a BibTeX key for use in manuscripts.

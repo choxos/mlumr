@@ -29,6 +29,19 @@ real log_double_max() {
   return 709.782712893384;
 }
 
+// Minus a cumulative hazard given its logarithm: the log survival of the
+// closed-form families. Above log_double_max() the cumulative hazard is
+// infinite and the answer is -inf, returned as a constant. Forming exp() there
+// would put an infinite node on the autodiff tape, and when that -inf is one
+// term of a log_sum_exp over integration points, the term carries zero weight
+// and the reverse sweep multiplies that zero by infinity: a censored
+// comparator observation with integration points at eta = 0 and eta = 712 had
+// a finite log likelihood and a NaN gradient.
+real neg_exp_cumhaz(real log_ch) {
+  if (log_ch > log_double_max()) return negative_infinity();
+  return -exp(log_ch);
+}
+
 // log of the regularized upper incomplete gamma Q(k, x), evaluated entirely on
 // the log scale by Legendre's continued fraction:
 //
@@ -42,16 +55,34 @@ real log_double_max() {
 // Used only beyond k + max(1, sqrt(k)), where the fraction is safely in its
 // tail regime. Closer to a large k, the native incomplete-gamma function is
 // more reliable.
+//
+// The loop must not stop on the value alone. At a whole-number shape k the
+// partial numerator a_k = -k (k - k) is exactly zero, so the fraction's value
+// terminates there and every later step multiplies h by exactly 1, but the
+// derivative in k does not terminate: d a_i / dk = i is not zero. Stopping at
+// that step dropped the rest of the derivative, and a right-censored Gamma at
+// t = 3, eta = 0 and shape 1 (the shape a zero initialization gives) had a
+// shape gradient of 1.9425 where quadrature gives 1.9379. The loop therefore
+// also runs the same recurrence at k + 0.5, which is never a whole number when
+// k is, and stops only when both have converged. When k + 0.5 is the whole
+// number, k is not, and its own test is the informative one.
 real log_gamma_q_cf_factor(real k, real x) {
   real tiny = 1e-300;
+  real k_s = k + 0.5;
   real b = x + 1 - k;
+  real b_s = x + 1 - k_s;
   real c = inv(tiny);
+  real c_s = c;
   real d = inv(b);
+  real d_s = inv(b_s);
   real h = d;
   for (i in 1 : 300) {
     real an = -i * (i - k);
+    real an_s = -i * (i - k_s);
     real del;
+    real del_s;
     b += 2;
+    b_s += 2;
     d = an * d + b;
     if (abs(d) < tiny) {
       d = tiny;
@@ -63,7 +94,17 @@ real log_gamma_q_cf_factor(real k, real x) {
     d = inv(d);
     del = d * c;
     h *= del;
-    if (abs(del - 1) < 1e-14) {
+    d_s = an_s * d_s + b_s;
+    if (abs(d_s) < tiny) {
+      d_s = tiny;
+    }
+    c_s = b_s + an_s / c_s;
+    if (abs(c_s) < tiny) {
+      c_s = tiny;
+    }
+    d_s = inv(d_s);
+    del_s = d_s * c_s;
+    if (abs(del - 1) < 1e-14 && abs(del_s - 1) < 1e-14) {
       break;
     }
   }
@@ -150,10 +191,24 @@ real log_std_normal_hazard(real z) {
   return std_normal_lpdf(z) - log_std_normal_surv(z);
 }
 
+// Below x = k + max(1, sqrt(k)) the lower incomplete gamma comes from the
+// package's own series rather than from Stan's gamma_p() and gamma_q(). The
+// values agree, but the shape derivatives Stan supplies for those two
+// functions do not: for a right-censored Gamma of shape 7 at t = 8 and eta = 0
+// the gradient was 1.2 percent away from a central difference, and of shape
+// 20 at t = 3 by 0.4 percent, while the series differentiates term by term
+// and agrees to 1e-9. Its terms are x / (k + i) times the one before, so it
+// converges in this region; the 300 terms it allows suffice up to a shape of
+// about 500, and above that the native functions are kept.
+int gamma_series_shape_ok(real k) {
+  return k <= 500;
+}
+
 real log_gamma_cdf_from_log_x(real k, real log_x) {
   if (log_x > log_double_max()) return 0;
   real x = exp(log_x);
   if (x <= k + fmax(1, sqrt(k))) {
+    if (gamma_series_shape_ok(k)) return log_gamma_p_series(k, log_x);
     real p = gamma_p(k, x);
     if (p > 0) return log(p);
     return log_gamma_p_series(k, log_x);
@@ -178,16 +233,26 @@ real log_gamma_surv_from_log_x(real k, real log_x) {
     return log1m_exp(log_p);
   }
   if (x > k + fmax(1, sqrt(k))) return log_gamma_q_cf(k, x);
+  // The survival is 1 - P, which cancels when P is near 1: at shape 1e-12
+  // and x = 1, P is 1 - 2.2e-13 and the difference kept two digits. Stan's
+  // gamma_q() forms the small survival directly, and the region where P
+  // exceeds 0.999 below the tail threshold is that of shapes under about 0.01,
+  // where its shape derivative agreed with a central difference to 1e-9.
+  if (gamma_series_shape_ok(k)) {
+    real log_p = log_gamma_p_series(k, log_x);
+    if (log_p < -1e-3) return log1m_exp(log_p);
+  }
   return log(gamma_q(k, x));
 }
 
 // Log survival function log S(t | eta) for a single observation.
 real log_surv_scalar(int dist, real t, real eta, real aux, real aux2) {
-  if (dist == 1) return -exp(log(t) + eta);                         // Exp PH
-  else if (dist == 2) return -exp(aux * log(t) + eta);             // Weibull PH
-  else if (dist == 3) return -exp(eta - log(aux) + aux * t + log1m_exp(-aux * t)); // Gompertz PH
-  else if (dist == 4) return -exp(log(t) - eta);                    // Exp AFT
-  else if (dist == 5) return -exp(aux * (log(t) - eta));           // Weibull AFT
+  if (dist == 1) return neg_exp_cumhaz(log(t) + eta);              // Exp PH
+  else if (dist == 2) return neg_exp_cumhaz(aux * log(t) + eta);  // Weibull PH
+  else if (dist == 3)                                               // Gompertz PH
+    return neg_exp_cumhaz(eta - log(aux) + aux * t + log1m_exp(-aux * t));
+  else if (dist == 4) return neg_exp_cumhaz(log(t) - eta);         // Exp AFT
+  else if (dist == 5) return neg_exp_cumhaz(aux * (log(t) - eta)); // Weibull AFT
   else if (dist == 6) return log_std_normal_surv((log(t) - eta) / aux); // Log-normal
   else if (dist == 7) return -log1p_exp(aux * (log(t) - eta));     // Log-logistic
   else if (dist == 8) return log_gamma_surv_from_log_x(aux, log(t) - eta); // Gamma
@@ -435,7 +500,7 @@ real log_cumhaz_diff(int dist, real t_upper, real t_lower, real eta,
 real log_surv_increment(int dist, real t_upper, real t_lower, real eta,
                         real aux, real aux2) {
   if (dist <= 5)
-    return -exp(log_cumhaz_diff(dist, t_upper, t_lower, eta, aux));
+    return neg_exp_cumhaz(log_cumhaz_diff(dist, t_upper, t_lower, eta, aux));
   if (t_lower == 0)
     return log_surv_scalar(dist, t_upper, eta, aux, aux2);
   {

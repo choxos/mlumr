@@ -192,9 +192,12 @@ build different automatic-differentiation graphs, so floating-point sums
 are accumulated in a different order and the gradient can differ in its
 last digits; under one seed the draws can therefore separate, often
 already during warmup, while agreeing in distribution. \code{FALSE} repeats the
-arithmetic of releases before 0.2.1, for benchmarking and for reproducing
-earlier fits (which also requires the same Stan version, compiler, and
-seed). Ignored for the other families. See
+order of computation of releases before 0.2.1, for benchmarking. It
+reproduces an earlier fit (which also requires the same Stan version,
+compiler, and seed) for the Weibull, exponential, Gompertz, log-normal,
+log-logistic and M-spline baselines away from overflowing cumulative
+hazards; 0.2.1 changed the gamma and generalized gamma computations to
+correct their gradients. Ignored for the other families. See
 \code{vignette("survival-optimization", package = "mlumr")} for a simulation
 study of the computation time saved.}
 
